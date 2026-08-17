@@ -70,8 +70,18 @@ namespace AbilityKit.Demo.Shooter.View
     {
         public static ShooterGatewaySnapshot ToGatewaySnapshot(in WireStateSyncSnapshotPush push)
         {
+            return ToGatewaySnapshot(in push, new ShooterPureStateSyncDecodeBuffer());
+        }
+
+        internal static ShooterGatewaySnapshot ToGatewaySnapshot(
+            in WireStateSyncSnapshotPush push,
+            ShooterPureStateSyncDecodeBuffer pureStateDecodeBuffer)
+        {
             var packedSnapshot = TryDecodePackedSnapshot(push.PayloadOpCode, push.Payload);
-            var pureStateSnapshot = TryDecodePureStateSnapshot(push.PayloadOpCode, push.Payload);
+            var pureStateSnapshot = TryDecodePureStateSnapshot(
+                push.PayloadOpCode,
+                push.Payload,
+                pureStateDecodeBuffer);
             var source = push.Actors;
             if (source == null || source.Count == 0)
             {
@@ -132,7 +142,10 @@ namespace AbilityKit.Demo.Shooter.View
             return ShooterPackedSnapshotCodec.Deserialize(payload);
         }
 
-        private static ShooterPureStateSnapshotPayload? TryDecodePureStateSnapshot(int payloadOpCode, byte[]? payload)
+        private static ShooterPureStateSnapshotPayload? TryDecodePureStateSnapshot(
+            int payloadOpCode,
+            byte[]? payload,
+            ShooterPureStateSyncDecodeBuffer decodeBuffer)
         {
             if (payload == null || payload.Length == 0)
             {
@@ -144,7 +157,7 @@ namespace AbilityKit.Demo.Shooter.View
                 return null;
             }
 
-            return ShooterPureStateSyncCodec.Deserialize(payload);
+            return decodeBuffer.Decode(payload.AsSpan());
         }
     }
 }

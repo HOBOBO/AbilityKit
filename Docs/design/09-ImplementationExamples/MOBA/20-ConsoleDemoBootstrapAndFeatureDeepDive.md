@@ -1,5 +1,8 @@
 # Console Demo 源码级装配链路：Bootstrapper、FeatureHost、SyncAdapter 与自动测试
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文在 [01-ConsoleDemoAnalysis.md](../01-ConsoleDemoAnalysis.md) 的基础上，说明 Console Demo 当前的组合根、阶段内 Feature 生命周期、同步适配器、自动测试输入和录制回放入口。文中的“存在”只表示源码入口已闭合；联机、预测校正和回放能力是否可用，按各节列出的验证证据和未完成项判断。
 
 ---
@@ -14,6 +17,8 @@
 | 阶段流 | `Battle/Flow/BattleFlow.cs` | 阶段注册、切换、FeatureHost 生命周期 |
 | 特征组件 | `Battle/Flow/FeatureHost.cs` | 拓扑排序 attach/tick/detach |
 | 同步适配器工厂 | `Battle/Sync/SyncAdapterFactory.cs` | 按 SyncMode 创建三种适配器 |
+| 网络权威适配器 | `Battle/Sync/StateSyncAdapter.cs` | 复用双连接宿主，编排英雄选择、加载和 snapshot apply |
+| 共享双连接宿主 | `Unity/Packages/com.abilitykit.network.client/Runtime/GatewayBattleClientHost.cs` | Room 控制连接与独立 battle data plane |
 | 输入特征 | `Battle/Input/ConsoleInputFeature.cs` | HUD → PlayerInputCommand → IWorldInputSink |
 | 自动测试 | `AutoTest/AutoTestRunner.cs`、`AutoTest/ConsoleBattleTestScriptDriver.cs` | 共享脚本调度、Console 输入映射和基础验收 |
 | CLI 录制/回放 | `Replay/ConsoleRecordWriter.cs`、`Replay/ConsoleReplayDriver.cs`、`Replay/RecordTypes.cs` | `.akrec` 输入记录格式与按帧索引 |
@@ -197,37 +202,32 @@ public void Tick(float deltaTime)
 
 ### 4.3 StateSyncAdapter（网络权威模式）
 
-**职责：** TCP 连接服务端，接收服务端推送的 snapshot。
+**职责：** 使用共享 `GatewayBattleClientHost` 建立 Room 控制连接与独立 battle data-plane 连接，执行正式 staged loading，并消费状态同步 snapshot。
 
 ```csharp
-// 登录流程
 Connect(host, port, roomId, playerId)
- ├─ TcpClient.Connect(host, port)
- ├─ GuestLogin(playerId) → 获取 PlayerId token
- ├─ CreateOrJoinRoom(roomId) → 获取 numericRoomId
- └─ _connected = true
+ └─ EnterHostAsync()
+     ├─ GatewayBattleClientHost.EnterAsync()
+     ├─ room login + join-or-create
+     ├─ PickHeroForLocalPlayerAsync()
+     ├─ ready + BeginLoading/ReportAssetsLoaded
+     ├─ wait battle identity
+     └─ attach independent battle transport
 
-// 本地 Tick 只推进逻辑时间
-Tick(deltaTime)
- └─ _logicTimeSeconds += deltaTime
+ConfigureBattle()
+ ├─ UseRoomGatewayStateSyncInput(battleId, identity mapping)
+ └─ WithSnapshotDeserializer(WireStateSyncSnapshotPush)
 
-// 网络事件由 TcpNetworkClient 推送处理触发
-OnServerPush(opCode, payload)
- ├─ FramePushed → HandleFramePushed() → 更新帧与逻辑时间 → OnFrameSync
- └─ SnapshotPushed → HandleSnapshotPushed() → 更新帧与逻辑时间 → OnFrameSync
+SubmitInput(input)
+ └─ host.Battle.SendInput(SubmitInputRequest)
 
-// 输入提交
-SubmitInput(PlayerInput input)
- ├─ PlayerInputCommand[] commands = Encode(input)
- ├─ NetworkPackage pkg = EncodePackage(OpCodes.SubmitFrameInput, roomId, commands)
- └─ _client.Send(pkg)
-
-// SnapshotPushed 还会解析角色状态
-HandleSnapshotPushed(payload)
- └─ DecodeActors() → OnActorStateSnapshot?.Invoke(actorStates)
+OnBattleSnapshotPushed(snapshot)
+ └─ cache ActorStateSnapshot[] + OnActorStateSnapshot + OnFrameSync
 ```
 
-`OnFrameSync` 不是本地 `Tick()` 事件。帧推送和快照推送处理函数在接受服务端时间后触发它；其中快照推送还会触发角色状态事件。若没有网络推送，`Tick()` 只会增加本地 `_logicTimeSeconds`。
+Console battle loop 可以快于墙钟，因此 `StateSyncAdapter.Tick()` 用 `Stopwatch` 的真实 elapsed 驱动共享网络 host 的 heartbeat/reconnect，而用传入的 `deltaTime` 推进本地展示逻辑时间。把游戏加速 delta 交给网络心跳会在极短墙钟时间内误触发超时。
+
+Room control push 与 battle snapshot push 分属两条连接：`OnServerPush` 只观察控制面；状态快照从 `host.Battle.StateSyncSnapshotPushed` 进入。断线后当前 host 按 one-shot 语义释放，并在后续 Tick 重建完整登录/房间/battle attach 流程。该适配器已经不是早期手写 `TcpClient` 包解析器，但仍只是 Console 项目对共享网络宿主的接入层。
 
 ### 4.4 HybridSyncAdapter（本地预测实验适配器）
 
@@ -486,11 +486,12 @@ while (running) {
 
 ## 9. 当前验证证据
 
-| 验证入口 | 2026-08-02 结果 | 能证明什么 | 不能证明什么 |
+| 验证入口 | 2026-08-16 结果 | 能证明什么 | 不能证明什么 |
 |---|---|---|---|
-| `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj -c Release` | 232/232 通过，但有依赖漏洞、Entitas 兼容性、可空性和 xUnit Analyzer 警告 | MOBA .NET 测试程序集中的 Console Smoke、共享脚本和战斗逻辑测试通过 | Unity Test Runner、Orleans TCP Smoke、真实 Hybrid 联机和 CLI 交互式录制回放未在本轮执行 |
-| `ConsoleMobaSmokeFlowTests` | 包含在上述 232 项中 | 正式 Bootstrapper 可创建 World，自动输入能经过运行时端口，技能和 Effect Trace 可观察 | 不等于键盘线程、远程 Gateway 或 `.akrec` 文件往返已验证 |
-| `BattleTestScriptRunnerTests` | 包含在上述 232 项中 | 共享步骤的 duration tick 和 driver 生命周期闭合 | 不负责判断具体战斗业务结果 |
+| `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj -c Release` | 279/305；26 项被同一个 SpawnArea 严格配置错误阻断，并伴随既有依赖/兼容性/可空性警告 | BootstrapStrict 确实拒绝无效项目配置 | 不能证明 Console 完整 World 当前可启动，也不是零警告 |
+| `AbilityKit.Demo.Moba.View.Runtime.Tests` | 147/147 | Room、Flow、Session、transport、输入与表现适配的独立契约 | 不创建同一完整 runtime World，不覆盖 Console bootstrap 配置失败 |
+| `AbilityKit.Demo.Moba.Host.Tests` / `Acceptance.Tests` | 6/6、8/8 | Host 与独立 acceptance 契约 | 不等于 Gateway/Orleans 多进程或 CLI 录制回放 |
+| `ConsoleMobaSmokeFlowTests` / `BattleTestScriptRunnerTests` | 测试入口仍存在，但主工程当次运行受启动配置阻断 | 前者设计为正式 bootstrapper smoke，后者验证共享 driver 协议 | 类存在或历史通过不等于本轮场景已执行到断言阶段 |
 
 ## 10. 设计意图与约束
 
@@ -503,7 +504,7 @@ while (running) {
 | 模式 | 当前实现 | Console Demo 用途与边界 |
 |---|---|---|
 | `FrameSyncAdapter` | 本地镜像 Context 帧号和逻辑时间 | 默认本地测试入口；不支持远程 Lockstep，角色状态查询仍为空 |
-| `StateSyncAdapter` | TCP 登录、建房/加房、提交输入、消费帧和状态推送 | Gateway 状态同步联调入口；生产拓扑和异常恢复需由独立 Smoke 证明 |
+| `StateSyncAdapter` | 复用 `GatewayBattleClientHost` 双连接宿主，执行 staged room flow、正式 input request 与 snapshot push 消费 | Gateway 状态同步联调入口；真实进程故障、重连收敛和服务部署仍需独立 Smoke 证明 |
 | `HybridSyncAdapter` | 本地 PredictionCoordinator、三类 Handler、手动快照注入 | 预测组件装配实验；网络 Connect 未实现，不能视为联机回滚闭环 |
 
 ### 10.3 为什么 AutoTestInputFeature 不直接提交
@@ -523,4 +524,20 @@ AutoTestInputFeature 只写入 `ctx.HudMoveDx/HudSkillClickSlot`，不直接调�
 
 ---
 
-*文档版本：v1.1 | 状态：canonical | 最后更新：2026-08-02 | 验证基线：MOBA .NET tests 232/232（有警告）*
+## 12. 组合根边界与已知债务
+
+Console Demo 的价值在于展示一个非 Unity 宿主如何组合 World、Feature、输入、同步和表现原语；它不是框架必须复制的应用层。`ConsoleBattleBootstrapper`、阶段名、Feature 依赖、三种 adapter、ASCII view、自动测试替换和两套 replay 都是项目选择。
+
+当前仍需保留的实现债务：
+
+| 债务 | 影响 |
+|------|------|
+| `FrameSyncAdapter.GetAllActorStates()` 仍返回空数组 | 本地 lockstep adapter 不能通过该查询驱动插值角色列表 |
+| `ConsoleViewFeature.Tick()` 与 bootstrapper 直接 `_battleView.Tick()` 重复 | 一次 game tick 可能两次推进 view，需要收敛唯一所有者 |
+| Hybrid `Connect()` 未实现 | 只有本地 PredictionCoordinator 与手工 snapshot 注入，不是联机 Hybrid 闭环 |
+| Share replay snapshot 仍是占位 actor 数组 | 不能恢复完整 World；`.akrec` 与 Share replay 也不是同一协议 |
+| `FeatureHost.Attach` 单个 Feature 失败后继续并最终标 attached | 缺少 attach transaction/rollback，不能作为生产模块宿主的默认失败语义 |
+
+框架可复用的是 Host、Room/battle 双连接、Feature/phase、Snapshot、Replay 与输入契约；Console 的组合顺序和降级策略应继续留在示例层，用正式文档展示取舍而不是下沉为统一套件。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

@@ -16,6 +16,7 @@ namespace AbilityKit.Game.Flow
         private readonly BattleReplaySessionOwner _sessionOwner;
         private IFrameRecordWriter _recordWriter;
         private BattleContext _recordContext;
+        private long _recordContextBindingGeneration;
 
         internal BattleReplayRuntime(IBattleLogicSessionRegistry registry = null)
             : this(new BattleReplaySessionOwner(registry))
@@ -57,9 +58,14 @@ namespace AbilityKit.Game.Flow
                 if (ReferenceEquals(_recordContext, context)) return;
 
                 var previousContext = _recordContext;
+                var previousGeneration = _recordContextBindingGeneration;
                 _recordContext = context;
-                previousContext?.ClearInputRecordWriter(writer);
-                context?.BindInputRecordWriter(writer);
+                _recordContextBindingGeneration = 0;
+                previousContext?.ClearInputRecordWriter(previousGeneration, writer);
+                if (context != null)
+                {
+                    _recordContextBindingGeneration = context.BindInputRecordWriter(writer);
+                }
                 return;
             }
 
@@ -86,23 +92,29 @@ namespace AbilityKit.Game.Flow
 
             _recordWriter = writer;
             _recordContext = context;
-            context?.BindInputRecordWriter(writer);
+            _recordContextBindingGeneration = context?.BindInputRecordWriter(writer) ?? 0;
         }
 
         internal void DisposeRecordWriter()
         {
             var writer = _recordWriter;
             var context = _recordContext;
+            var bindingGeneration = _recordContextBindingGeneration;
             if (writer == null)
             {
                 _recordContext = null;
+                _recordContextBindingGeneration = 0;
                 return;
             }
 
             writer.Dispose();
             if (ReferenceEquals(_recordWriter, writer)) _recordWriter = null;
-            if (ReferenceEquals(_recordContext, context)) _recordContext = null;
-            context?.ClearInputRecordWriter(writer);
+            if (ReferenceEquals(_recordContext, context))
+            {
+                _recordContext = null;
+                _recordContextBindingGeneration = 0;
+            }
+            context?.ClearInputRecordWriter(bindingGeneration, writer);
         }
 
         public void Dispose()

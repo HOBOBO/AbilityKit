@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     /// <summary>
     /// Shooter 无头双实例多人验证的 MonoBehaviour 入口。
-    /// 挂在 ShooterMultiplayerScene 的任意 GameObject 上。
+    /// 挂在 Shooter 多人玩法 Root Prefab 的任意 GameObject 上。
     ///
     /// Owner: 创建房间 → 写 roomId → 等待 battle → 记录 stateHash
     /// Member: 等 roomId → 加入房间 → 等待 battle → 记录 stateHash
@@ -205,7 +205,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var profile = ScriptableObject.CreateInstance<ShooterMultiplayerProfileSO>();
             var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
             typeof(ShooterMultiplayerProfileSO).GetField("syncTemplateId", flags)!
-                .SetValue(profile, ShooterSyncTemplateIds.PredictRollbackAuthority);
+                .SetValue(profile, ShooterSyncTemplateIds.StateSyncAuthority);
             typeof(ShooterMultiplayerProfileSO).GetField("controlledPlayerId", flags)!
                 .SetValue(profile, playerId);
             typeof(ShooterMultiplayerProfileSO).GetField("playerCount", flags)!

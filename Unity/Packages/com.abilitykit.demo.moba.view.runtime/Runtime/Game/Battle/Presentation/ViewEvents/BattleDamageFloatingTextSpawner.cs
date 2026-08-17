@@ -5,7 +5,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class BattleDamageFloatingTextSpawner
     {
-        private readonly BattleContext _ctx;
+        private readonly EC.IECWorld _world;
         private readonly EC.IEntity _vfxNode;
         private readonly BattleFloatingTextSystem _floatingTexts;
         private readonly BattleDamageFloatingTextPositionResolver _positions;
@@ -13,14 +13,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleDamageFloatingTextSpawnGate _spawnGate;
 
         public BattleDamageFloatingTextSpawner(
-            BattleContext ctx,
+            EC.IECWorld world,
             in EC.IEntity vfxNode,
             BattleFloatingTextSystem floatingTexts,
             BattleDamageFloatingTextPositionResolver positions,
             BattleDamageFloatingTextFormatter formatter = null,
             BattleDamageFloatingTextSpawnGate spawnGate = null)
         {
-            _ctx = ctx;
+            _world = world;
             _vfxNode = vfxNode;
             _floatingTexts = floatingTexts;
             _positions = positions;
@@ -28,7 +28,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _spawnGate = spawnGate ?? new BattleDamageFloatingTextSpawnGate();
         }
 
-        public bool CanSpawn => _spawnGate.CanSpawn(_ctx, in _vfxNode, _positions);
+        public bool CanSpawn => _spawnGate.CanSpawn(_world, in _vfxNode, _positions);
 
         public void Spawn(int targetActorId, float value, bool isHeal)
         {
@@ -44,11 +44,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     internal sealed class BattleDamageFloatingTextSpawnGate
     {
         public bool CanSpawn(
-            BattleContext ctx,
+            EC.IECWorld world,
             in EC.IEntity vfxNode,
             BattleDamageFloatingTextPositionResolver positions)
         {
-            if (ctx?.EntityWorld == null) return false;
+            if (world == null) return false;
             if (!vfxNode.IsValid) return false;
             if (positions == null) return false;
             return true;

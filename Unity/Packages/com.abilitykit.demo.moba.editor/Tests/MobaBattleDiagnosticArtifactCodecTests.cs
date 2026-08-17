@@ -116,6 +116,21 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void ImportSnapshot_UnknownFieldsAtRootSectionAndTrack_AreIgnored()
+        {
+            var json = MobaBattleDiagnosticArtifactCodec.ExportSnapshotToString(CreateSnapshot());
+            json = InsertObjectProperty(json, null, "\"futureRoot\":true");
+            json = InsertObjectProperty(json, "battleDiagnostics", "\"futureSection\":\"value\"");
+            json = InsertObjectProperty(json, "state", "\"futureStateTrack\":42");
+
+            var restored = MobaBattleDiagnosticArtifactCodec.ImportSnapshot(json);
+
+            Assert.That(restored.SessionInfo.Scope, Is.EqualTo(_scope));
+            Assert.That(restored.State.Frame, Is.EqualTo(Frame));
+            Assert.That(restored.State.Actors.Count, Is.EqualTo(2));
+        }
+
+        [Test]
         public void ImportArtifact_LegacyArtifactWithoutBattleSection_RemainsValid()
         {
             const string json = "{\"schemaVersion\":\"abilitykit-analysis.v1\",\"futureRoot\":true}";
@@ -291,6 +306,27 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.That(partial.Status.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Truncated));
                 Assert.That(empty.Status.Phase, Is.EqualTo(BattleDiagnosticQueryPhase.Empty));
             }
+        }
+
+        private static string InsertObjectProperty(
+            string json,
+            string objectPropertyName,
+            string serializedProperty)
+        {
+            var searchStart = 0;
+            if (!string.IsNullOrEmpty(objectPropertyName))
+            {
+                var propertyToken = "\"" + objectPropertyName + "\"";
+                var propertyIndex = json.IndexOf(propertyToken, StringComparison.Ordinal);
+                Assert.That(propertyIndex, Is.GreaterThanOrEqualTo(0),
+                    "Expected JSON object property was not found: " + objectPropertyName);
+                searchStart = propertyIndex + propertyToken.Length;
+            }
+
+            var objectStart = json.IndexOf('{', searchStart);
+            Assert.That(objectStart, Is.GreaterThanOrEqualTo(0),
+                "Expected JSON object opening brace was not found.");
+            return json.Insert(objectStart + 1, serializedProperty + ",");
         }
 
         private AbilityKitAnalysisArtifact CreateArtifact(BattleDiagnosticSessionSnapshot snapshot)

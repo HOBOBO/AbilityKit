@@ -25,7 +25,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterEnemyWaveCombatModule _combat;
         private readonly ShooterEnemyWavePhase _phase;
         private readonly ShooterArenaGameplayOptions _arenaOptions;
-        private int _lastSynchronizedFrame = -1;
+        private long _lastSynchronizedImportRevision = -1;
 
         public ShooterEnemyWaveBattleSystem(IShooterBattleServiceResolver services)
             : this(services, ShooterEnemyWavePhase.Spawn)
@@ -112,12 +112,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _spawnDirector.Reset();
-            _lastSynchronizedFrame = _state.CurrentFrame;
+            _lastSynchronizedImportRevision = _state.SnapshotImportRevision;
         }
 
         private void SynchronizeImportedWaveState()
         {
-            if (_lastSynchronizedFrame == _state.CurrentFrame)
+            var importRevision = _state.SnapshotImportRevision;
+            if (_lastSynchronizedImportRevision == importRevision)
             {
                 return;
             }
@@ -130,7 +131,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _spawnDirector.SynchronizeFromImportedTargets(resolvedSpawnCount);
-            _lastSynchronizedFrame = _state.CurrentFrame;
+            _lastSynchronizedImportRevision = importRevision;
         }
 
         private int SynchronizeNextEnemyIdFromExistingTargets()

@@ -17,7 +17,7 @@ namespace AbilityKit.Game.Flow
             BattleHudConfig cfg,
             RectTransform root,
             Camera camera,
-            BattleContext ctx,
+            IBattleEntityContext ctx,
             BattleHudBinderControllerFactory controllers = null)
         {
             controllers ??= new BattleHudBinderControllerFactory();
@@ -74,7 +74,7 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleHudBinderControllerFactory
     {
-        public BattleHudActorResolver CreateActors(BattleContext ctx)
+        public BattleHudActorResolver CreateActors(IBattleEntityContext ctx)
         {
             return new BattleHudActorResolver(ctx);
         }

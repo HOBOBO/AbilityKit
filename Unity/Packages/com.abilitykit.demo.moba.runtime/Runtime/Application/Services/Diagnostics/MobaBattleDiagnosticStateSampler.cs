@@ -184,35 +184,35 @@ namespace AbilityKit.Demo.Moba.Services
 
                 if (!_stateStore.TryReplaceSnapshot(world, actors))
                 {
-                    return false;
+                    return RecordSampleFailure("State store rejected the snapshot.");
                 }
 
                 if (_attributeStore != null &&
                     !_attributeStore.IsFrozen &&
                     !_attributeStore.TryReplaceSnapshot(frame, actorIds, attributes, modifiers))
                 {
-                    return false;
+                    return RecordSampleFailure("Attribute store rejected the snapshot.");
                 }
 
                 if (_buffStore != null &&
                     !_buffStore.IsFrozen &&
                     !_buffStore.TryReplaceSnapshot(frame, actorIds, buffs))
                 {
-                    return false;
+                    return RecordSampleFailure("Buff store rejected the snapshot.");
                 }
 
                 if (_tagStore != null &&
                     !_tagStore.IsFrozen &&
                     !_tagStore.TryReplaceSnapshot(frame, actorIds, tags))
                 {
-                    return false;
+                    return RecordSampleFailure("Tag store rejected the snapshot.");
                 }
 
                 if (_effectStore != null &&
                     !_effectStore.IsFrozen &&
                     !_effectStore.TryReplaceSnapshot(frame, actorIds, effects))
                 {
-                    return false;
+                    return RecordSampleFailure("Effect store rejected the snapshot.");
                 }
 
                 _lastSuccessfulSampleFrame = frame;
@@ -221,10 +221,15 @@ namespace AbilityKit.Demo.Moba.Services
             }
             catch (Exception ex)
             {
-                _sampleFailureCount++;
-                _lastSampleError = ex.GetType().Name + ": " + ex.Message;
-                return false;
+                return RecordSampleFailure(ex.GetType().Name + ": " + ex.Message);
             }
+        }
+
+        private bool RecordSampleFailure(string error)
+        {
+            _sampleFailureCount++;
+            _lastSampleError = error ?? string.Empty;
+            return false;
         }
 
         public void Dispose()

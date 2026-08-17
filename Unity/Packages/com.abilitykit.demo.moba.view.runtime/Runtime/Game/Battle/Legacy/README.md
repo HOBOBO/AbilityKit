@@ -1,4 +1,4 @@
-# Legacy Battle API Boundary
+# 旧版战斗 API 边界
 
 [`Legacy`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Legacy) 目录仅保留旧版战斗请求与传输接口的兼容定义。
 

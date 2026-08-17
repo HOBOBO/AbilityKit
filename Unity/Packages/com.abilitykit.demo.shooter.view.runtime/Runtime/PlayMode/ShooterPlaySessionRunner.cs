@@ -2,9 +2,12 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.StateSync.Aoi;
+using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.Network;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Shooter;
@@ -33,6 +36,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private int _presentationSnapshotIntervalTicks = 1;
         private bool _usePureStatePresentationSnapshots;
         private ShooterPureStateSyncSettings _presentationPureStateSettings = ShooterPureStateSyncSettings.Default;
+        private ShooterSyncTemplateSendPolicy _presentationSendPolicy = ShooterSyncTemplateSendPolicy.Realtime;
+        private AoiInterestSet? _presentationAoiInterestSet;
         private bool _hasPresentationPureStateBaseline;
         private int _presentationPureStateBaselineFrame;
         private uint _presentationPureStateBaselineHash;
@@ -73,15 +78,26 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 players.Add(new ShooterStartPlayer(i + 1, $"P{i + 1}", i * 4f, 0f));
             }
 
-            _session = ShooterAcceptanceLab.Create(
-                _options.SyncModel,
-                profile,
-                networkName: _options.NetworkName,
-                tickRate: _options.TickRate,
-                players: players,
-                randomSeed: _options.RandomSeed,
-                enableAuthoritativeWorld: _options.EnableAuthoritativeWorld,
-                gameplayScenario: _options.GameplayScenario);
+            _session = !string.IsNullOrWhiteSpace(_options.SyncTemplateId)
+                ? ShooterAcceptanceLab.CreateForTemplate(
+                    _options.SyncTemplateId,
+                    _options.SyncModel,
+                    profile,
+                    _options.NetworkName,
+                    _options.TickRate,
+                    players,
+                    _options.RandomSeed,
+                    _options.EnableAuthoritativeWorld,
+                    _options.GameplayScenario)
+                : ShooterAcceptanceLab.Create(
+                    _options.SyncModel,
+                    profile,
+                    networkName: _options.NetworkName,
+                    tickRate: _options.TickRate,
+                    players: players,
+                    randomSeed: _options.RandomSeed,
+                    enableAuthoritativeWorld: _options.EnableAuthoritativeWorld,
+                    gameplayScenario: _options.GameplayScenario);
 
             _session.Presentation.ControlledPlayerId = _options.ControlledPlayerId;
             if (_session.AuthoritativePresentation != null)
@@ -100,9 +116,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _presentationPublishCount = 0;
             _timeAnchors = ShooterTimeAnchorCoordinator.CreateLocal(_options.TickRate);
             _droppedCatchUpTicks = 0;
-            _presentationSnapshotIntervalTicks = DeterminePresentationSnapshotIntervalTicks(_options);
-            _usePureStatePresentationSnapshots = ShouldUsePureStatePresentationSnapshots(_options);
-            _presentationPureStateSettings = CreatePresentationPureStateSettings(_options);
+            _presentationSendPolicy = ResolvePresentationSendPolicy(_options);
+            _presentationSnapshotIntervalTicks = DeterminePresentationSnapshotIntervalTicks(_options, _presentationSendPolicy);
+            _usePureStatePresentationSnapshots = ShouldUsePureStatePresentationSnapshots(_options, _presentationSendPolicy);
+            _presentationPureStateSettings = CreatePresentationPureStateSettings(_options, _presentationSendPolicy);
+            _presentationAoiInterestSet = _presentationSendPolicy.AoiRadius > 0f ? new AoiInterestSet() : null;
             _hasPresentationPureStateBaseline = false;
             _presentationPureStateBaselineFrame = 0;
             _presentationPureStateBaselineHash = 0u;
@@ -133,6 +151,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _presentationSnapshotIntervalTicks = 1;
             _usePureStatePresentationSnapshots = false;
             _presentationPureStateSettings = ShooterPureStateSyncSettings.Default;
+            _presentationSendPolicy = ShooterSyncTemplateSendPolicy.Realtime;
+            _presentationAoiInterestSet = null;
             _hasPresentationPureStateBaseline = false;
             _presentationPureStateBaselineFrame = 0;
             _presentationPureStateBaselineHash = 0u;
@@ -233,12 +253,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (_usePureStatePresentationSnapshots)
             {
                 var isFullBaseline = ShouldPublishPresentationPureStateBaseline();
+                var interestScope = CreatePresentationInterestScope();
                 var snapshot = _session.Runtime.ExportPureStateSnapshotTransient(
                     worldId: 0,
                     isFullBaseline: isFullBaseline,
                     settings: _presentationPureStateSettings,
                     baselineFrame: _presentationPureStateBaselineFrame,
                     baselineHash: _presentationPureStateBaselineHash,
+                    interestScope: interestScope,
+                    aoiInterestSet: _presentationAoiInterestSet,
                     computeStateHash: false);
                 if (isFullBaseline)
                 {
@@ -310,8 +333,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _session.Runtime.CurrentFrame - _presentationPureStateBaselineFrame >= baselineInterval;
         }
 
-        private static int DeterminePresentationSnapshotIntervalTicks(ShooterPlayModeSessionOptions options)
+        private static int DeterminePresentationSnapshotIntervalTicks(
+            ShooterPlayModeSessionOptions options,
+            ShooterSyncTemplateSendPolicy sendPolicy)
         {
+            if (sendPolicy.AoiRadius > 0f)
+            {
+                return sendPolicy.SnapshotIntervalFrames;
+            }
+
             var activeEnemies = options.GameplayScenario.BattleFlow.MaxActiveEnemies;
             if (activeEnemies >= ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget)
             {
@@ -326,13 +356,23 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             return 1;
         }
 
-        private static bool ShouldUsePureStatePresentationSnapshots(ShooterPlayModeSessionOptions options)
+        private static bool ShouldUsePureStatePresentationSnapshots(
+            ShooterPlayModeSessionOptions options,
+            ShooterSyncTemplateSendPolicy sendPolicy)
         {
-            return options.GameplayScenario.BattleFlow.MaxActiveEnemies >= ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget;
+            return sendPolicy.AoiRadius > 0f ||
+                options.GameplayScenario.BattleFlow.MaxActiveEnemies >= ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget;
         }
 
-        private static ShooterPureStateSyncSettings CreatePresentationPureStateSettings(ShooterPlayModeSessionOptions options)
+        private static ShooterPureStateSyncSettings CreatePresentationPureStateSettings(
+            ShooterPlayModeSessionOptions options,
+            ShooterSyncTemplateSendPolicy sendPolicy)
         {
+            if (sendPolicy.AoiRadius > 0f)
+            {
+                return sendPolicy.ToPureStateSettings();
+            }
+
             var defaults = ShooterPureStateSyncSettings.Default;
             var maxEntities = Math.Max(defaults.MaxEntityCount, options.GameplayScenario.BattleFlow.MaxActiveEnemies + options.PlayerCount + 1024);
             return new ShooterPureStateSyncSettings(
@@ -342,6 +382,45 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 1,
                 Math.Max(1, options.TickRate / 2),
                 1);
+        }
+
+        private ShooterPureStateInterestScope? CreatePresentationInterestScope()
+        {
+            if (_session == null || _presentationAoiInterestSet == null)
+            {
+                return null;
+            }
+
+            var centerX = 0f;
+            var centerY = 0f;
+            if (_session.Runtime.TryGetPlayer(_options.ControlledPlayerId, out var observer))
+            {
+                centerX = observer.X;
+                centerY = observer.Y;
+            }
+
+            return new ShooterPureStateInterestScope(
+                _options.ControlledPlayerId,
+                centerX,
+                centerY,
+                _presentationSendPolicy.AoiRadius,
+                _presentationSendPolicy.AoiBoundaryRadius,
+                _presentationSendPolicy.ActiveEntityBudget);
+        }
+
+        private static ShooterSyncTemplateSendPolicy ResolvePresentationSendPolicy(ShooterPlayModeSessionOptions options)
+        {
+            if (!string.IsNullOrWhiteSpace(options.SyncTemplateId))
+            {
+                return ShooterAcceptanceCatalog.GetSyncTemplate(options.SyncTemplateId).SendPolicy;
+            }
+
+            return options.SyncModel switch
+            {
+                NetworkSyncModel.MassBattleLodSync => ShooterSyncTemplateSendPolicy.MassBattleLod,
+                NetworkSyncModel.BatchStateSync => ShooterSyncTemplateSendPolicy.LowFrequencyBatch,
+                _ => ShooterSyncTemplateSendPolicy.Realtime
+            };
         }
 
         private static ShooterPlayModeSessionOptions AlignWithGameplayScenario(ShooterPlayModeSessionOptions options)

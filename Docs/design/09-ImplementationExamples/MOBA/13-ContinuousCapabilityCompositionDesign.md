@@ -1,5 +1,8 @@
 # MOBA 持续行为能力组合设计
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文说明 MOBA 示例为什么把 stack、periodic、cue、tag、modifier、trigger 等能力拆成可组合能力，而不是照搬 GAS 把它们强制收进一个单体 GameplayEffect 资产。它补充持续行为在强定制项目中的配置边界、生命周期治理、领域行为接入和长期演进规则。
 
 ## 1. 能力定位
@@ -350,4 +353,18 @@ stateDiagram-v2
 
 最终目标不是把 AbilityKit 变成 GAS 的形状，而是保留 AbilityKit 的组合式能力边界：框架提供统一生命周期和通用玩法能力，MOBA 项目按自己的战斗模型决定如何组合。
 
-*文档版本：v1.2 | 状态：持续能力实现与恢复边界 | 最后更新：2026-08-11 | 验证基线：已核对 Continuous、Buff stacking、Cue、Passive 测试入口；`MobaRollbackProviderTests` 5/5 通过；未重新运行 MOBA 全量测试*
+## 15. 恢复、所有权与证据边界
+
+持续运行时的“可组合”不能弱化跨帧所有权。当前工作区补强了三条闭环：
+
+| 运行时 | 当前所有权要求 | 失败或清理语义 |
+|--------|----------------|----------------|
+| Buff | 恢复时重新取得 parent skill-runtime child retain | parent runtime 无效时整条恢复项回滚，不留下 Buff、context 或 retain |
+| Projectile/launcher | link service 显式持有 projectile/launcher retain | `Unlink`、`Clear`、`Dispose` 都承担兜底释放责任 |
+| Summon | spawn 后记录 owner/source/trace，并按需 retain parent runtime | retain 或后置初始化失败时补偿 actor、trace、owner/source tracking 和 retain；`Clear` 释放剩余所有权 |
+
+这些规则属于 MOBA 对通用 `IContinuous` 生命周期的应用编排。公共 Continuous 包可以规定注册、激活、暂停、结束和 manager 索引，但不能推断某个游戏的 Buff 恢复策略、Projectile link 身份或 Summon 事务边界。
+
+2026-08-16 本地 Unity ownership artifact 中相关 fixture 为 9/9；它覆盖 Buff、Projectile、Summon 与 Skill runtime 清理，不等于 stack、periodic、cue、tag、modifier 的完整端到端组合验收。主 MOBA .NET 工程仍因独立的 SpawnArea 严格配置错误得到 279/305，不能写成整体通过。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

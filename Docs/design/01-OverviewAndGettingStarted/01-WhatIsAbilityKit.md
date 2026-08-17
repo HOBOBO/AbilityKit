@@ -1,5 +1,9 @@
 # 1.1 AbilityKit 是什么
 
+> 文档类型：框架定位 Canonical
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > AbilityKit 是一个面向中大型战斗项目的通用游戏战斗工具集合。它不是单一技能类库，也不是必须全量引入的 MOBA 框架，而是一组可以按项目需求组合的 Unity UPM 包、纯 C# 运行时、同步能力、玩法表达模块、示例工程和服务端验证代码。
 
 ---
@@ -10,6 +14,7 @@
   - [目录](#目录)
   - [1. 一句话定位](#1-一句话定位)
   - [2. 边界判断](#2-边界判断)
+    - [2.1 为什么战斗工具集不提供统一应用层](#21-为什么战斗工具集不提供统一应用层)
   - [3. 它解决的核心问题](#3-它解决的核心问题)
   - [4. 能力分层](#4-能力分层)
   - [5. 源码工程如何组织](#5-源码工程如何组织)
@@ -81,6 +86,41 @@ flowchart LR
     AK --> Right1[按需组合的战斗能力包]
     AK --> Right2[纯 C# 逻辑 + Unity/Server/Console 外壳]
     AK --> Right3[示例驱动的最佳实践源码仓库]
+```
+
+---
+
+### 2.1 为什么战斗工具集不提供统一应用层
+
+AbilityKit 刻意把“稳定机制”和“项目战斗应用”分开。框架提供可组合的执行原语、生命周期契约、同步基础设施和诊断能力；项目决定一次技能怎样准备和提交、资源如何消耗、死亡如何结算、临时实体怎样归属，以及失败是否允许降级。
+
+网络模块和战斗模块在这里采用不同的抽象深度：
+
+| 维度 | 网络与协议能力 | 战斗与玩法能力 |
+|------|----------------|----------------|
+| 稳定对象 | Connection、Request、Response、Packet、Room、Snapshot | Skill、Buff、Projectile、Summon、Actor、Rule |
+| 主要变化 | Transport、协议字段、部署拓扑、同步策略 | 施法语义、结算顺序、状态关系、生命周期、玩法组合 |
+| 默认实现价值 | 较高，协议一致性和资源所有权通常可以复用 | 有限，默认控制流很容易携带某类游戏的隐含规则 |
+| 框架交付方式 | 可以提供完整 Client、Host、Codec 和生命周期 | 优先提供原语、端口、测试能力和参考组合 |
+| 项目责任 | 选择 Transport、协议和部署策略 | 建立自己的战斗应用层并拥有最终规则 |
+
+这意味着 `SkillCastCoordinator`、`MobaBuffService`、死亡复活、英雄技能槽、资源扣除和 MOBA Snapshot 编排即使在示例中结构完整，也不会自动成为所有项目都应依赖的框架应用层。它们首先是项目策略的参考实现。只有某项能力同时满足以下条件，才考虑下沉为正式框架包：
+
+1. 去掉 MOBA/Shooter 等业务命名后，行为语义仍然完整。
+2. 扩展点能够通过明确端口注入，而不是依赖大量模式开关。
+3. 生命周期、失败和所有权可以形成跨项目稳定契约。
+4. 已由至少第二类非同构玩法验证，而不只是同一 Demo 内复用。
+
+因此，“开箱即用”在战斗侧主要由可运行示例、配置样本、Recipe、测试套件和清晰的源码入口提供，不等价于框架必须交付一个统一 Battle Application Runtime。把只具有相似代码形状的项目编排强行包化，会把业务差异转移成回调、开关和例外分支，最终增加而不是降低长期成本。
+
+```mermaid
+flowchart LR
+    Stable[稳定行为语义] --> Package[Framework Package]
+    Shape[相似结构 可修改策略] --> Sample[Starter Recipe Demo]
+    Policy[项目玩法规则] --> Project[Project Application]
+
+    Sample -.验证通用性.-> Stable
+    Project -.出现跨项目稳定语义.-> Shape
 ```
 
 ---
@@ -157,7 +197,7 @@ Unity / Console / Server / Tests]
 
 ## 5. 源码工程如何组织
 
-阅读 AbilityKit 要先记住一个工程约束：主要源码在 `Unity/Packages`，`src` 是 .NET SDK 构建和样例工程，`Server/Orleans` 是服务端承载和联机验证工程。
+阅读 AbilityKit 要先记住一个工程约束：被 Unity 与 `.NET` 镜像共同消费的 framework/package runtime 以 `Unity/Packages` 为权威源码；`src` 还包含测试、Console 和工具的自有应用源码，`Server/Orleans` 则包含服务端应用源码与联机验证入口。
 
 ```mermaid
 flowchart LR
@@ -175,9 +215,9 @@ UPM 包源码] --> Unity[Unity Editor/Player]
 
 | 目录 | 定位 | 阅读建议 |
 |------|------|----------|
-| `Unity/Packages` | UPM 包源码和包级文档 | 核心模块边界以这里为准 |
-| `src` | .NET 解决方案、Console Demo、测试工程 | 用来验证纯 C# 构建和示例运行 |
-| `Server/Orleans` | 房间、网关、战斗宿主等服务端实验 | 关注联机、权威服和 Smoke 验证 |
+| `Unity/Packages` | 共享 package runtime 与包级文档 | framework 包边界以这里为准 |
+| `src` | .NET 镜像、Console/Demo 自有源码、工具和测试工程 | 区分链接 package 源码与项目本地源码 |
+| `Server/Orleans` | 房间、网关、战斗宿主等服务端应用源码 | 关注联机、权威服和 Smoke 验证 |
 | `Docs/design` | 跨模块设计文档 | 用来建立地图，再回到源码核对 |
 | `LubanConfig` | 配置表和生成素材 | 阅读配置驱动链路时再进入 |
 | `tools` | 本地验证、导出、smoke 辅助 | 跑检查和演示时使用 |
@@ -188,7 +228,7 @@ UPM 包源码] --> Unity[Unity Editor/Player]
 
 ## 6. 能力组合
 
-官方包级索引已经给出了按复杂度推广的组合方式。下表用于说明各组合的引入边界，避免从完整 Demo 反推所有项目都需要的架构。
+下表使用按复杂度递增的能力组合名称帮助选型。它们是文档中的能力集合，不是仓库承诺发布的五个统一应用套件，也不要求项目按层级完整继承。
 
 | 组合 | 包含模块 | 适用场景 | 验收标准 |
 |------|----------|----------|----------|
@@ -297,7 +337,7 @@ flowchart TD
 1. `Docs/design/01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md`：先看能力边界。
 2. `Docs/design/01-OverviewAndGettingStarted/02-CoreConcepts.md`：理解术语和源码边界。
 3. `Docs/design/01-OverviewAndGettingStarted/03-QuickStart.md`：跑构建、Console Demo 和测试入口。
-4. `Docs/design/09-ImplementationExamples/01-ConsoleDemoAnalysis.md`：看一场可运行战斗如何装配。
+4. `Docs/design/09-ImplementationExamples/01-ConsoleDemoAnalysis.md`：看 Console 应用如何装配，并结合 QuickStart 核对当前严格配置门禁。
 5. `Docs/design/02-LogicalWorldDesign/01-WorldOverview.md`：理解 World、服务容器和生命周期。
 6. `Docs/design/08-GameplayModules/01-SkillSystemArchitecture.md`：进入技能、触发、效果链路。
 7. `Docs/design/07-NetworkSynchronization/01-FrameSync.md`：再进入同步和回放能力。
@@ -324,8 +364,8 @@ flowchart TD
 - [能力地图](./00-AbilityKitCapabilityMap.md) - 从源码包和能力域看整体结构。
 - [核心概念](./02-CoreConcepts.md) - 理解 World、Entity、Frame、Skill、Trigger、Context、Adapter 等术语。
 - [快速开始](./03-QuickStart.md) - 从构建、Demo 和测试入口理解运行闭环。
-- [Console Demo 解析](../09-ImplementationExamples/01-ConsoleDemoAnalysis.md) - 从一个完整可运行外壳理解装配链路。
+- [Console Demo 解析](../09-ImplementationExamples/01-ConsoleDemoAnalysis.md) - 从综合应用外壳理解装配链路与失败门禁。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+*文档版本：v3.0 | 文档类型：框架定位 Canonical | 最后更新：2026-08-16 | 当前 MOBA 主工程：279/305，不作为持续开箱通过承诺*

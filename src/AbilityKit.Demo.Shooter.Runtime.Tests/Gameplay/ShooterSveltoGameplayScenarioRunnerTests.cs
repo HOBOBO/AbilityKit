@@ -21,7 +21,7 @@ public sealed class ShooterSveltoGameplayScenarioRunnerTests
         Assert.Equal(96, scenario.TargetCount);
         Assert.Equal(180, scenario.TickCount);
         Assert.Equal(1f / 30f, scenario.TickDeltaTime, 6);
-        Assert.Equal(18f, scenario.ArenaRadius);
+        Assert.Equal(36f, scenario.ArenaRadius);
         Assert.Equal("burst-rifle", scenario.Loadout.Name);
         Assert.Equal(3, scenario.Loadout.ProjectilesPerShot);
         Assert.Equal(180, scenario.BattleFlow.DurationFrames);
@@ -31,6 +31,7 @@ public sealed class ShooterSveltoGameplayScenarioRunnerTests
         Assert.Equal(30, scenario.BattleFlow.Waves[1].StartFrame);
         Assert.Equal(32, scenario.BattleFlow.Waves[2].EnemyCount);
         Assert.Equal(2, scenario.BattleFlow.Waves[0].EnemyHp);
+        Assert.Equal(new[] { 18f, 22f, 26f }, Array.ConvertAll(scenario.BattleFlow.Waves, wave => wave.SpawnRadius));
     }
 
     [Fact]

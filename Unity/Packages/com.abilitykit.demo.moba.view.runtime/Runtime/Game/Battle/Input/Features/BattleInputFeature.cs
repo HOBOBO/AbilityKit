@@ -45,7 +45,8 @@ namespace AbilityKit.Game.Flow
             if (!_ctx.CanSubmitGameplayInput) return;
 
             var plan = _ctx.Plan;
-            var playerId = BattleInputSessionIdentity.ResolvePlayerId(_ctx);
+            var identity = (IBattleInputSessionIdentityPort)_ctx;
+            var playerId = BattleInputSessionIdentity.ResolvePlayerId(identity);
             var worldId = BattleInputSessionIdentity.ResolveWorldId(in plan);
             var inputObservedFrame = _ctx.LastFrame;
             var prediction = _ctx.PredictionStats;
@@ -122,7 +123,7 @@ namespace AbilityKit.Game.Flow
         private void SubmitLocalTrainingOpponentMove(int nextFrame, PlayerId primaryPlayerId, WorldId worldId)
         {
             if (!BattleInputSessionIdentity.TryResolveLocalTrainingOpponent(
-                    _ctx,
+                    (IBattleInputSessionIdentityPort)_ctx,
                     primaryPlayerId,
                     out var opponentPlayerId))
             {

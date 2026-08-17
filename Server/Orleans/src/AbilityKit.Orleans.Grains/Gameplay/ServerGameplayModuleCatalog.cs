@@ -71,8 +71,7 @@ internal sealed class ServerBattleSyncTemplate
     public int FullSnapshotIntervalFrames { get; }
 
     public bool SupportsStateSyncPush =>
-        Mode == ServerBattleSyncMode.StateSync ||
-        RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync;
+        Mode == ServerBattleSyncMode.StateSync;
 
     public bool SupportsFrameSync => Mode == ServerBattleSyncMode.FrameSync;
 
@@ -316,7 +315,7 @@ internal sealed class ServerGameplayModuleCatalog
     {
         new ServerGameplayModule(
             ServerGameplayDescriptors.Moba,
-            ServerBattleSyncProfile.FrameSync("frame-sync-authority", ["state-sync-authority"], ServerBattleRuntimeMode.BattleWorldWithFrameSync),
+            ServerBattleSyncProfile.FrameSync("frame-sync-authority", [], ServerBattleRuntimeMode.BattleWorldWithFrameSync),
             static () => new MobaRoomGameplayAdapter(),
             static worldManager => new MobaBattleRuntimeAdapter(worldManager, DefaultOrleansBattleProtocolMapper.Instance),
             new Func<IWorldBlueprint>[]

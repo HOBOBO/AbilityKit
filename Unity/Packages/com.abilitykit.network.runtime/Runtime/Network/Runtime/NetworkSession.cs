@@ -121,7 +121,10 @@ namespace AbilityKit.Network.Runtime
                 return;
             }
 
-            _ioDispatcher.Post(() => HandleBytesReceived(bytes));
+            // ITransport only guarantees receive bytes for the duration of this callback.
+            // Own the chunk before crossing the asynchronous dispatcher boundary.
+            var copy = Copy(bytes);
+            _ioDispatcher.Post(() => HandleBytesReceived(copy));
         }
 
         private void HandleBytesReceived(ArraySegment<byte> bytes)
@@ -174,6 +177,18 @@ namespace AbilityKit.Network.Runtime
         {
             var frame = _frameCodec.Encode(header, payload);
             _transport.Send(frame);
+        }
+
+        private static ArraySegment<byte> Copy(ArraySegment<byte> bytes)
+        {
+            if (bytes.Array == null || bytes.Count == 0)
+            {
+                return default;
+            }
+
+            var copy = new byte[bytes.Count];
+            Buffer.BlockCopy(bytes.Array, bytes.Offset, copy, 0, bytes.Count);
+            return new ArraySegment<byte>(copy);
         }
 
         private sealed class SessionContext : AbilityKit.Network.Abstractions.ISessionContext

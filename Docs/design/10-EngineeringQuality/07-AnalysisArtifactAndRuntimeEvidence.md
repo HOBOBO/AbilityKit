@@ -1,5 +1,11 @@
 # Analysis Artifact 与运行时证据
 
+> 文档类型：Canonical 运行证据契约
+>
+> 事实基线：2026-08-16
+>
+> 当前证据：根 DTO、Exporter、MOBA Builder 与 BattleDiagnostics codec 已实现；尚无统一根 validator 或 Analysis 专项 E5 gate
+
 ## 一、文档定位
 
 Analysis Artifact 是 AbilityKit 诊断数据的版本化聚合容器。它把一次运行中的 Profiler 指标、Trace 因果链、警告与异常、运行时对象状态、派生结论、阈值评估和基线比较组织到同一份离线产物中，供编辑器、Web 分析页、回归脚本或人工排障使用。
@@ -210,7 +216,9 @@ Trace profile 中声明的规则值是 `8`，实际评估会根据节点总量�
 
 因此“成功写出 JSON”只证明序列化完成，不等于产物可作为 CI 门禁证据。
 
-MOBA/Shooter smoke 的 artifact 要求也遵循同一原则。`tools/test-gates.json` 中 `artifactRequired: true` 表示该 gate 必须保留可追溯输出，不表示任意 JSON、Replay 或日志文件存在即可通过。E4 需要场景断言、领域回读和产物一致性；E5 还需要 CI 触发策略、失败阻断、预算或发布责任。当前 `moba-smoke` 是 PR/push/schedule 的 P1 gate，`moba-multiprocess` 是 schedule-only 的 P2 gate；Shooter 另有 multiprocess、compatibility、soak、ownership cleanup 与 performance 分层，不能用单次 smoke artifact 代替这些策略。
+MOBA/Shooter smoke 的 artifact 要求也遵循同一原则。`tools/test-gates.json` 中 `artifactRequired: true` 表示该 gate 必须保留可追溯输出，不表示任意 JSON、Replay 或日志文件存在即可通过。E4 需要场景断言、领域回读和产物一致性；E5 还需要 CI 触发策略、失败阻断、预算或发布责任。当前 `moba-smoke` 有 PR/push/schedule 的 P1 workflow job；`moba-multiprocess` 只在 gate 配置中声明 schedule-only，workflow 未发现对应 job。Shooter 另有 multiprocess、compatibility、soak、ownership cleanup 与 performance 分层，不能用单次 smoke artifact 代替这些策略。
+
+Orleans Gateway 的 `GatewaySkillAnalysisArtifacts` 是展示型消费者：它接受 camelCase/PascalCase 根字段，提取 session、time 和 trace 摘要；遇到非 `abilitykit-analysis.v1` 只追加 warning，仍可返回列表项。Admin Console 的详情 DTO 也保留为 `Record<string, unknown>`。这条链路适合浏览和诊断，不是严格导入器；成功出现在后台列表中不能证明根 Schema、必需 section 或领域一致性有效。
 
 ### 7.2 建议的门禁顺序
 
@@ -260,6 +268,8 @@ flowchart TD
 | CI 门禁评估器 | 未发现统一实现 | 需要消费方定义失败策略和退出码 |
 | Web 样例兼容 | 存在格式漂移 | 需要迁移或独立版本 |
 
+2026-08-16 本地 `AbilityKit.Diagnostics.Tests` 为 `3/3` 通过，只覆盖通用 Diagnostics 包现有局部契约。本轮未运行 Unity `MobaBattleDiagnosticArtifactCodecTests`，因此 BattleDiagnostics 往返证据继续引用既有测试资产与历史运行记录，不把 .NET Diagnostics 测试外推为 MOBA section 已重跑。
+
 建议补测顺序：
 
 | 优先级 | 测试或治理项 |
@@ -288,8 +298,26 @@ flowchart TD
 | Gate 与 artifact policy | `tools/test-gates.json`、`.github/workflows/abilitykit-test-gates.yml` |
 | 历史/Web 展示样例 | `sample-web-output-analysis/moba-complete-flow.analysis.json` |
 
-## 十一、结论
+## 十一、证据等级与已知限制
+
+| 能力 | 当前事实 | 证据等级上限 |
+|---|---|---|
+| 根容器与 `abilitykit-analysis.v1` 常量 | DTO 和通用 JSON Exporter 已实现 | E2/E3：可序列化及局部契约，不等于语义有效 |
+| MOBA Diagnostics/Runtime/Insights 投影 | Builder 和 Demo 策略已实现 | E3：项目投影；阈值与 baseline 不是框架通用预算 |
+| BattleDiagnostics section | 有专用 codec 与往返 NUnit | E3：该 section 的离线往返 |
+| Smoke artifact retention | 多个 MOBA/Shooter job 保留产物 | E4/E5 取决于具体场景断言和 workflow，不由 Analysis 文件存在自动获得 |
+| 根级验证与迁移 | 未发现统一 validator、正式 JSON Schema、迁移器或专项 gate | E0/E1：仍是治理目标 |
+
+仓库的 Web 展示样例与当前 C# 根 DTO 至少有一份结构不一致，却复用了 `abilitykit-analysis.v1`。在迁移样例、拆分 Web view schema 或明确 legacy 标记之前，消费端不能只检查版本字符串。任何自动门禁都应进一步验证必需 section、字段语义、时间轴/Trace 一致性、完整性标记、阈值来源和 baseline 身份。
+
+当前 `tools/test-gates.json` 与 workflow 没有 Analysis Artifact 专项 gate。因此本文定义的推荐消费顺序是规范目标，不是已接线发布链。项目可以基于现有 DTO 建立自己的 E4 场景证据，但若要形成 E5，必须增加独立 validator、canonical fixture、稳定退出码、实际 workflow job 和失败责任。
+
+## 十二、结论
 
 Analysis Artifact 已具备版本化根容器、通用 Profiler 投影、MOBA 运行时证据组装和 BattleDiagnostics 离线往返能力。当前可以把它用于诊断留档、离线查询和项目侧门禁输入，但不能把 JSON 导出成功等同于证据有效，也不能把 MOBA Demo 阈值和嵌入 baseline 当作通用生产标准。
 
 FrameRecord、Smoke 输出和 CI artifact retention 提供相邻但不同的证据层。正式门禁还需要补齐根级 validator、canonical fixture、派生规则测试、项目历史 baseline 和确定的退出码策略，并由 gate 固定场景断言、触发策略与失败责任。展示样例与当前 DTO 的格式漂移也应在继续扩展消费端前处理，否则相同版本字符串会掩盖实际协议差异。
+
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16*

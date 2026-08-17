@@ -576,7 +576,8 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            var playerId = BattleInputSessionIdentity.ResolvePlayerId(ctx);
+            var playerId = BattleInputSessionIdentity.ResolvePlayerId(
+                (IBattleInputSessionIdentityPort)ctx);
             if (string.IsNullOrEmpty(playerId.Value))
             {
                 message = "当前控制玩家 ID 为空";

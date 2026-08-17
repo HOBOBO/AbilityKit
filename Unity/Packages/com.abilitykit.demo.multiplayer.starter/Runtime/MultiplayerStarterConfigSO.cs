@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using AbilityKit.Demo.Common.Gameplay;
 using UnityEngine;
 
 namespace AbilityKit.Starter
@@ -22,8 +23,11 @@ namespace AbilityKit.Starter
         [SerializeField] private string defaultGuestPrefix = "unity-guest";
 
         [Header("Scenes")]
-        [SerializeField] private string mobaSceneName = "MobaMultiplayerScene";
-        [SerializeField] private string shooterSceneName = "ShooterMultiplayerScene";
+        [SerializeField] private string gameplaySceneName = DemoSceneRoutes.Gameplay;
+
+        [Header("Gameplay Profiles")]
+        [SerializeField] private string mobaProfileId = string.Empty;
+        [SerializeField] private string shooterProfileId = string.Empty;
 
         public string Host => string.IsNullOrWhiteSpace(host) ? "127.0.0.1" : host.Trim();
         public int Port => Math.Max(1, port);
@@ -32,7 +36,10 @@ namespace AbilityKit.Starter
         public TimeSpan RequestTimeout => TimeSpan.FromSeconds(Math.Max(1f, requestTimeoutSeconds));
         public string DefaultAccountPrefix => string.IsNullOrWhiteSpace(defaultAccountPrefix) ? "unity-account" : defaultAccountPrefix.Trim();
         public string DefaultGuestPrefix => string.IsNullOrWhiteSpace(defaultGuestPrefix) ? "unity-guest" : defaultGuestPrefix.Trim();
-        public string MobaSceneName => string.IsNullOrWhiteSpace(mobaSceneName) ? "MobaMultiplayerScene" : mobaSceneName.Trim();
-        public string ShooterSceneName => string.IsNullOrWhiteSpace(shooterSceneName) ? "ShooterMultiplayerScene" : shooterSceneName.Trim();
+        public string GameplaySceneName => string.IsNullOrWhiteSpace(gameplaySceneName)
+            ? DemoSceneRoutes.Gameplay
+            : gameplaySceneName.Trim();
+        public string MobaProfileId => mobaProfileId?.Trim() ?? string.Empty;
+        public string ShooterProfileId => shooterProfileId?.Trim() ?? string.Empty;
     }
 }

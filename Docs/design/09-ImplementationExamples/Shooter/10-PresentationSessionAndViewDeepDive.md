@@ -1,5 +1,8 @@
 # Shooter Presentation Session 与 View Pipeline 深潜
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文补充 Shooter 示例中尚未单独展开的表现会话、快照流、投影、绑定器、插值播放与权威对比诊断。它解释服务端或本地模拟产出的 snapshot 如何变成表现层可消费的 ViewModel，以及 reconnect、lag compensation、网络模拟等诊断如何进入验收链路。
 
 ## 1. 设计目标
@@ -159,8 +162,9 @@ flowchart TD
 1. 如果 batch 要求 full replace，则删除 full snapshot 中缺失的实体；
 2. 应用显式 removed entities；
 3. 应用 entity changes，区分新增、更新、死亡移除；
-4. 应用 transform、health、score、projectile lifetime 组件变化；
-5. 生成 `ShooterViewProjectionApplyResult`，记录 frame、sequence、source、实体数和组件更新数。
+4. 非 replace 批次从 transform/health/score 恢复缺失的 Player entity；
+5. 应用 transform、health、score、projectile lifetime 组件变化；
+6. 生成 `ShooterViewProjectionApplyResult`，记录 frame、sequence、source、实体数和组件更新数。
 
 ```mermaid
 flowchart TD
@@ -169,11 +173,12 @@ flowchart TD
     B -->|no| D["Apply removed entities"]
     C --> D
     D --> E["Apply entity changes"]
-    E --> F["Apply transform changes"]
-    F --> G["Apply health changes"]
-    G --> H["Apply score changes"]
-    H --> I["Apply projectile lifetime changes"]
-    I --> J["Build ProjectionApplyResult"]
+    E --> F["Recover missing player from components"]
+    F --> G["Apply transform changes"]
+    G --> H["Apply health changes"]
+    H --> I["Apply score changes"]
+    I --> J["Apply projectile lifetime changes"]
+    J --> K["Build ProjectionApplyResult"]
 ```
 
 这种投影模式让表现层可以独立维护自己的 entity store，不需要持有 runtime ECS/Svelto entity，也避免渲染对象直接依赖服务端权威结构。
@@ -194,7 +199,7 @@ flowchart TD
 
 - GameObject 后端：常规 `ShooterSnapshotViewBinder`；
 - DOTS 后端：`ShooterDotsSnapshotViewBinder`；
-- 自定义后端：通过 `IShooterSnapshotViewSink` 注入。
+- `IShooterSnapshotViewSink` 可替换 GameObject binder 的具体 sink，但不会新增第三种 `ViewRenderBackend` 枚举。
 
 这使同一套 network/sync/presentation facade 可以服务不同渲染实现。
 
@@ -227,7 +232,7 @@ sequenceDiagram
     Session->>Context: DisposeBinder()
 ```
 
-`ShooterPresentationSessionContext` 还提供 retain/release 语义，便于 session host 或 resolver 共享同一个 presentation context，只有引用计数归零时才释放 binder。
+`ShooterPresentationSessionContext` 还暴露内部 retain/release 语义，但当前只有 `ShooterPresentationSessionResolver` 调用它，生产链未发现 resolver 消费者。它不能被直接解释成已闭环的共享所有权方案：引用数为 0 后再次 `Release` 仍会再次清理 binder，归零后也允许再次 `Retain` 已释放的 binder，当前没有 underflow 或 disposed-state 防护。
 
 ## 8. Fast Reconnect 驱动
 
@@ -327,3 +332,25 @@ sequenceDiagram
 | view binder | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/ShooterSnapshotViewBinder.cs` |
 | fast reconnect driver | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFastReconnectDriver.cs` |
 | authoritative comparison | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterAuthoritativeComparisonDriver.cs` |
+
+## 13. 缓冲所有权、静态宿主与证据边界
+
+`ShooterSnapshotStream` 是固定容量环形缓冲，默认容量 64、采样率 30 FPS、插值延迟 2 帧。覆盖旧 batch 时必须释放其 pooled resources；`Reset` 会释放全部批次并清空 transform tracks 与 transient sampling buffer。普通采样返回独立结果，transient 采样以低分配为目标但结果只在下一次相关采样/重置前有效，调用方不得长期持有其内部缓冲。
+
+`ShooterPresentationSession` 拥有 client 事件订阅、client 和 binder：Dispose 解除订阅并依次释放这些资源。`ShooterPresentationSessionHost` 则是进程内静态单例 owner，`Start` 会先 `Stop` 旧会话，`Stop` 在 `finally` 中清除 current 并发布状态事件；该类没有线程安全保证，创建、Tick、切换和销毁应由同一宿主线程串行调用。
+
+表现时间线仍使用 `float` playback frame 和 delta。池化、环形缓冲与 transient API 只降低分配，不等于零分配或跨平台逐位一致。GameObject/DOTS binder、Shooter facade 与静态 SessionHost 都是项目表现策略；公共框架应保留 snapshot routing、生命周期和 adapter 契约，而不是固化 Shooter 的 ViewModel 与应用会话。
+
+### 13.1 当前存在三条不同质量的宿主路线
+
+| 路线 | 已有清理 | 当前缺口 |
+|------|----------|----------|
+| `ShooterPresentationSessionHost` -> `ShooterPresentationSession` | Start 先 Stop；Session Dispose 解绑并释放 client、binder | 静态宿主无锁；新构造失败不会恢复旧 session |
+| `ShooterPlayModeSessionHost` -> `ShooterPlaySessionRunner` | subsystem reset/uninstall 拆 runner、PlayerLoop、network hook、registry；runner Stop Dispose acceptance session 并 Clear view | 真实 Unity reload/长时间运行仍需 E4 验证 |
+| `ShooterRemoteStateSyncPlayModeHost` -> `ShooterClientNetworkLauncher` | runtime state Dispose launcher 与 runtime world；launcher 释放 checkpoint binding、data plane、transport、connection | `ShooterClientSession` 不实现 `IDisposable`，presentation context、sync controller、reliable consumer/recovery coordinator 未由这条 teardown 显式释放 |
+
+GameObject/DOTS binder 的 Dispose 都会解绑 `SnapshotApplied` 并 Clear；但多个 binder 若共享同一 facade，任一 binder 的 Clear 都会 reset 共享 `Snapshots`，所以“共享 facade、多 binder 独立销毁”不是当前保证。Binder Dispose 本身幂等，但 Dispose 后手工调用 Sync/Tick/RebindAll 也没有统一抛 `ObjectDisposedException`，宿主必须停止后续调用。
+
+Batch N 的 `489/489` 是 2026-08-16 的历史 Shooter Runtime E3。Batch W 后续全量为 `481/490`，9 项属于默认模型、acceptance 数量和 snapshot/session 旧预期漂移；相关聚焦 battle handle/controller factory `22/22` 通过。Batch X 的 projection/PlaySessionRunner 聚焦测试 `66/66` 通过，但不直接覆盖静态 PresentationSessionHost、remote teardown 或 Unity binder 渲染。没有运行 Unity PlayMode、截图/渲染验收或长时间插值压力测试，不能据此新增 E4/E5 表现成熟度结论。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

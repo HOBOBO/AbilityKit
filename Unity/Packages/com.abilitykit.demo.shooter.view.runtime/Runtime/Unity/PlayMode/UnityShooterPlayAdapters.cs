@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.View.Hosting;
+using Unity.Profiling;
 using UnityEngine;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
@@ -29,6 +30,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
     internal sealed class UnityShooterGameObjectViewSink : IUnityShooterViewSink
     {
+        private static readonly ProfilerMarker RenderStoreMarker = new ProfilerMarker("AbilityKit.Shooter.View.GameObject.RenderStore");
+
         private const string PlayerViewPrefabName = "ShooterPlayerViewPrefab";
         private const string BulletViewPrefabName = "ShooterBulletViewPrefab";
         private const string EnemyViewPrefabName = "ShooterEnemyViewPrefab";
@@ -343,14 +346,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             Transform? parent,
             bool isAuthority)
         {
+            using var renderStoreSample = RenderStoreMarker.Auto();
             _seenPlayers.Clear();
             _seenBullets.Clear();
             _seenEnemies.Clear();
 
-            foreach (var kvp in store.Entities)
+            for (var i = 0; i < store.DenseCount; i++)
             {
-                var entity = kvp.Value;
-                if (!entity.Alive || !store.TryGetTransform(entity.Key, out var transform))
+                if (!store.TryGetDenseEntityAndTransform(i, out var entity, out var transform) || !entity.Alive)
                 {
                     continue;
                 }

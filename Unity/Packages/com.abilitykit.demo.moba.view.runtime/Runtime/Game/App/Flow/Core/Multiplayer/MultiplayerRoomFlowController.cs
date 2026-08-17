@@ -12,7 +12,7 @@ namespace AbilityKit.Game.Flow
     /// 抽象与外部（RoomGatewaySessionFlow / ClientRoomStore）交互，使其可在无 Unity/host.extension 的测试项目中测试。
     /// </para>
     /// </summary>
-    internal sealed class MultiplayerRoomFlowController : IDisposable
+    internal sealed class MultiplayerRoomFlowController : ILobbyRoomCommandPort, IDisposable
     {
         private readonly IMultiplayerRoomSession _session;
         private readonly IRoomSnapshotProvider _snapshotProvider;

@@ -1,5 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using AbilityKit.Demo.Common.Composition;
+using AbilityKit.Demo.Common.Gameplay;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
@@ -9,11 +12,9 @@ namespace AbilityKit.Game.Editor
 {
     public static class MobaDemoBuild
     {
-        private const string MobaScenePath = "Assets/Scenes/MobaDemoScene.unity";
-        private const string ShooterScenePath = "Assets/Scenes/ShooterDemoScene.unity";
-        private const string MultiplayerStarterScenePath = "Assets/Scenes/MultiplayerStarterScene.unity";
-        private const string MobaMultiplayerScenePath = "Assets/Scenes/MobaMultiplayerScene.unity";
-        private const string ShooterMultiplayerScenePath = "Assets/Scenes/ShooterMultiplayerScene.unity";
+        private const string MultiplayerStarterScenePath = "Assets/Scenes/" + DemoSceneRoutes.Starter + ".unity";
+        private const string GameplayBootstrapScenePath = "Assets/Scenes/" + DemoSceneRoutes.Gameplay + ".unity";
+        private const string GameplayCatalogPath = "Assets/DemoComposition/Profiles/DemoGameplayCatalog.asset";
         private const string MobaMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build MOBA Windows IL2CPP";
         private const string ShooterMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build Shooter Windows IL2CPP";
         private const string MultiplayerMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build Multiplayer Starter Windows IL2CPP";
@@ -21,19 +22,31 @@ namespace AbilityKit.Game.Editor
         private const string MobaExecutableName = "AbilityKitMobaDemo.exe";
         private const string ShooterExecutableName = "AbilityKitShooterDemo.exe";
         private const string MultiplayerExecutableName = "AbilityKitMultiplayerDemo.exe";
+        private const string MobaLocalBuildDefine = "ABILITYKIT_DEMO_MOBA_LOCAL";
+        private const string ShooterLocalBuildDefine = "ABILITYKIT_DEMO_SHOOTER_LOCAL";
 
         [MenuItem(MobaMenuPath, priority = 30)]
         public static void BuildWindowsIl2Cpp()
         {
             ConfigurePlayerSettings();
-            BuildDemo(new[] { MobaScenePath }, "Moba", MobaExecutableName, "MOBA Local");
+            BuildDemo(
+                new[] { GameplayBootstrapScenePath },
+                "Moba",
+                MobaExecutableName,
+                "MOBA Local",
+                new[] { MobaLocalBuildDefine });
         }
 
         [MenuItem(ShooterMenuPath, priority = 31)]
         public static void BuildShooterWindowsIl2Cpp()
         {
             ConfigurePlayerSettings();
-            BuildDemo(new[] { ShooterScenePath }, "Shooter", ShooterExecutableName, "Shooter Local");
+            BuildDemo(
+                new[] { GameplayBootstrapScenePath },
+                "Shooter",
+                ShooterExecutableName,
+                "Shooter Local",
+                new[] { ShooterLocalBuildDefine });
         }
 
         [MenuItem(MultiplayerMenuPath, priority = 32)]
@@ -41,23 +54,35 @@ namespace AbilityKit.Game.Editor
         {
             ConfigurePlayerSettings();
             BuildDemo(
-                new[] { MultiplayerStarterScenePath, MobaMultiplayerScenePath, ShooterMultiplayerScenePath },
+                new[] { MultiplayerStarterScenePath, GameplayBootstrapScenePath },
                 "Multiplayer",
                 MultiplayerExecutableName,
-                "Multiplayer Starter");
+                "Multiplayer Starter",
+                Array.Empty<string>());
         }
 
         [MenuItem(AllMenuPath, priority = 33)]
         public static void BuildAllWindowsIl2Cpp()
         {
             ConfigurePlayerSettings();
-            BuildDemo(new[] { MobaScenePath }, "Moba", MobaExecutableName, "MOBA Local");
-            BuildDemo(new[] { ShooterScenePath }, "Shooter", ShooterExecutableName, "Shooter Local");
             BuildDemo(
-                new[] { MultiplayerStarterScenePath, MobaMultiplayerScenePath, ShooterMultiplayerScenePath },
+                new[] { GameplayBootstrapScenePath },
+                "Moba",
+                MobaExecutableName,
+                "MOBA Local",
+                new[] { MobaLocalBuildDefine });
+            BuildDemo(
+                new[] { GameplayBootstrapScenePath },
+                "Shooter",
+                ShooterExecutableName,
+                "Shooter Local",
+                new[] { ShooterLocalBuildDefine });
+            BuildDemo(
+                new[] { MultiplayerStarterScenePath, GameplayBootstrapScenePath },
                 "Multiplayer",
                 MultiplayerExecutableName,
-                "Multiplayer Starter");
+                "Multiplayer Starter",
+                Array.Empty<string>());
         }
 
         public static void ValidateMultiplayerSceneTopology()
@@ -65,30 +90,45 @@ namespace AbilityKit.Game.Editor
             var expectedScenes = new[]
             {
                 MultiplayerStarterScenePath,
-                MobaMultiplayerScenePath,
-                ShooterMultiplayerScenePath,
-                MobaScenePath,
-                ShooterScenePath
+                GameplayBootstrapScenePath
             };
             ValidateBuildInput(expectedScenes, "Multiplayer Starter");
 
             var buildScenes = EditorBuildSettings.scenes;
-            if (buildScenes.Length < expectedScenes.Length)
+            var enabledScenePaths = new List<string>(buildScenes.Length);
+            for (var i = 0; i < buildScenes.Length; i++)
             {
-                throw new InvalidOperationException("Multiplayer build settings must contain Starter, MOBA, and Shooter scenes.");
-            }
-
-            for (var i = 0; i < expectedScenes.Length; i++)
-            {
-                if (!buildScenes[i].enabled || !string.Equals(buildScenes[i].path, expectedScenes[i], StringComparison.Ordinal))
+                if (buildScenes[i].enabled)
                 {
-                    throw new InvalidOperationException(
-                        $"Multiplayer build scene {i} must be enabled and equal to '{expectedScenes[i]}'.");
+                    enabledScenePaths.Add(buildScenes[i].path);
                 }
             }
 
-            var starterScene = EditorSceneManager.OpenScene(MultiplayerStarterScenePath, OpenSceneMode.Single);
-            var roots = starterScene.GetRootGameObjects();
+            if (enabledScenePaths.Count != expectedScenes.Length)
+            {
+                throw new InvalidOperationException(
+                    $"Build Settings must contain exactly {expectedScenes.Length} enabled demo scenes: " +
+                    $"'{MultiplayerStarterScenePath}' and '{GameplayBootstrapScenePath}'.");
+            }
+            for (var i = 0; i < expectedScenes.Length; i++)
+            {
+                if (!string.Equals(enabledScenePaths[i], expectedScenes[i], StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Enabled demo build scene {i} must equal '{expectedScenes[i]}'.");
+                }
+            }
+
+            ValidateStarterScene();
+            ValidateGameplayComposition();
+
+            Debug.Log("[MobaDemoBuild] Unified demo gameplay topology validation passed.");
+        }
+
+        private static void ValidateStarterScene()
+        {
+            var scene = EditorSceneManager.OpenScene(MultiplayerStarterScenePath, OpenSceneMode.Single);
+            var roots = scene.GetRootGameObjects();
             GameObject starterRoot = null;
             for (var i = 0; i < roots.Length; i++)
             {
@@ -111,121 +151,165 @@ namespace AbilityKit.Game.Editor
                 throw new InvalidOperationException(
                     "MultiplayerStarter root must contain exactly one MultiplayerStarterController.");
             }
-
-            ValidateMultiplayerEntryMarker(MobaMultiplayerScenePath, expectedGameplay: 0);
-            ValidateMultiplayerEntryMarker(ShooterMultiplayerScenePath, expectedGameplay: 1);
-            ValidateLocalSceneHasNoMultiplayerEntryMarker(MobaScenePath);
-            ValidateLocalSceneHasNoMultiplayerEntryMarker(ShooterScenePath);
-
-            Debug.Log("[MobaDemoBuild] Multiplayer scene topology validation passed.");
         }
 
-        public static void CreateMultiplayerClientScenes()
+        private static void ValidateGameplayComposition()
         {
-            CopySceneIfMissing(MobaScenePath, MobaMultiplayerScenePath);
-            CopySceneIfMissing(ShooterScenePath, ShooterMultiplayerScenePath);
-            EnsureMultiplayerEntryMarker(MobaMultiplayerScenePath, gameplay: 0);
-            EnsureMultiplayerEntryMarker(ShooterMultiplayerScenePath, gameplay: 1);
-            AssetDatabase.SaveAssets();
-            AssetDatabase.Refresh();
-        }
-
-        private static void CopySceneIfMissing(string sourcePath, string destinationPath)
-        {
-            if (AssetDatabase.LoadAssetAtPath<SceneAsset>(destinationPath) != null)
-            {
-                return;
-            }
-
-            if (!AssetDatabase.CopyAsset(sourcePath, destinationPath))
+            var scene = EditorSceneManager.OpenScene(GameplayBootstrapScenePath, OpenSceneMode.Single);
+            var roots = scene.GetRootGameObjects();
+            if (roots.Length != 1)
             {
                 throw new InvalidOperationException(
-                    $"Failed to create multiplayer scene '{destinationPath}' from '{sourcePath}'.");
+                    $"{DemoSceneRoutes.Gameplay} must contain exactly one root object, but found {roots.Length}.");
+            }
+
+            var bootstraps = roots[0].GetComponentsInChildren<DemoGameplayBootstrap>(includeInactive: true);
+            if (bootstraps.Length != 1)
+            {
+                throw new InvalidOperationException(
+                    $"{DemoSceneRoutes.Gameplay} must contain exactly one {nameof(DemoGameplayBootstrap)}.");
+            }
+
+            var serializedBootstrap = new SerializedObject(bootstraps[0]);
+            var catalogProperty = serializedBootstrap.FindProperty("catalog");
+            var catalog = catalogProperty?.objectReferenceValue as DemoGameplayCatalogSO;
+            if (catalog == null)
+            {
+                throw new InvalidOperationException(
+                    $"{nameof(DemoGameplayBootstrap)} must reference a {nameof(DemoGameplayCatalogSO)}.");
+            }
+
+            var catalogPath = AssetDatabase.GetAssetPath(catalog);
+            if (!string.Equals(catalogPath, GameplayCatalogPath, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay bootstrap catalog must be '{GameplayCatalogPath}', but was '{catalogPath}'.");
+            }
+
+            ValidateGameplayCatalog(catalog);
+        }
+
+        private static void ValidateGameplayCatalog(DemoGameplayCatalogSO catalog)
+        {
+            var profiles = catalog.Profiles;
+            if (profiles.Count != 4)
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay catalog must contain exactly four launch profiles, but found {profiles.Count}.");
+            }
+
+            var profileIds = new HashSet<string>(StringComparer.Ordinal);
+            var launchKeys = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < profiles.Count; i++)
+            {
+                var profile = profiles[i];
+                if (profile == null)
+                {
+                    throw new InvalidOperationException($"Gameplay catalog profile {i} is null.");
+                }
+                if (!profile.TryValidate(out var error))
+                {
+                    throw new InvalidOperationException(error);
+                }
+                if (!profileIds.Add(profile.ProfileId))
+                {
+                    throw new InvalidOperationException($"Duplicate gameplay profile id '{profile.ProfileId}'.");
+                }
+
+                var launchKey = profile.Gameplay + "/" + profile.Mode;
+                if (!launchKeys.Add(launchKey))
+                {
+                    throw new InvalidOperationException($"Duplicate gameplay launch profile '{launchKey}'.");
+                }
+
+                ValidateGameplayRoot(profile);
+            }
+
+            foreach (DemoGameplayId gameplay in Enum.GetValues(typeof(DemoGameplayId)))
+            {
+                foreach (DemoLaunchMode mode in Enum.GetValues(typeof(DemoLaunchMode)))
+                {
+                    var launchKey = gameplay + "/" + mode;
+                    if (!launchKeys.Contains(launchKey))
+                    {
+                        throw new InvalidOperationException($"Gameplay catalog is missing launch profile '{launchKey}'.");
+                    }
+                }
             }
         }
 
-        private static void EnsureMultiplayerEntryMarker(string scenePath, int gameplay)
+        private static void ValidateGameplayRoot(DemoGameplayProfileSO profile)
         {
-            var markerType = Type.GetType(
-                "AbilityKit.Starter.MultiplayerSceneEntryMarker, AbilityKit.Demo.Multiplayer.Starter");
-            if (markerType == null)
+            var rootPrefab = profile.RootPrefab;
+            var prefabPath = AssetDatabase.GetAssetPath(rootPrefab);
+            if (rootPrefab == null || string.IsNullOrWhiteSpace(prefabPath) ||
+                PrefabUtility.GetPrefabAssetType(rootPrefab) == PrefabAssetType.NotAPrefab)
             {
-                throw new InvalidOperationException("MultiplayerSceneEntryMarker type is unavailable.");
+                throw new InvalidOperationException(
+                    $"Gameplay profile '{profile.ProfileId}' root must reference a prefab asset.");
             }
 
-            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
-            var roots = scene.GetRootGameObjects();
-            GameObject markerRoot = null;
-            for (var i = 0; i < roots.Length; i++)
+            var cameras = rootPrefab.GetComponentsInChildren<Camera>(includeInactive: true);
+            if (cameras.Length != 1)
             {
-                if (string.Equals(roots[i].name, "MultiplayerSceneEntry", StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"Gameplay profile '{profile.ProfileId}' root must contain exactly one Camera, but found {cameras.Length}.");
+            }
+
+            var listeners = rootPrefab.GetComponentsInChildren<AudioListener>(includeInactive: true);
+            if (listeners.Length > 1)
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay profile '{profile.ProfileId}' root contains {listeners.Length} AudioListeners.");
+            }
+
+            var expectedEntryType = GetExpectedEntryType(profile.Gameplay, profile.Mode);
+            var entryCount = 0;
+            var behaviours = rootPrefab.GetComponentsInChildren<MonoBehaviour>(includeInactive: true);
+            for (var i = 0; i < behaviours.Length; i++)
+            {
+                if (behaviours[i] != null && behaviours[i].GetType() == expectedEntryType)
                 {
-                    markerRoot = roots[i];
+                    entryCount++;
+                }
+            }
+            if (entryCount != 1)
+            {
+                throw new InvalidOperationException(
+                    $"Gameplay profile '{profile.ProfileId}' root must contain exactly one " +
+                    $"'{expectedEntryType.FullName}', but found {entryCount}.");
+            }
+        }
+
+        private static Type GetExpectedEntryType(DemoGameplayId gameplay, DemoLaunchMode mode)
+        {
+            var assemblyQualifiedName = gameplay == DemoGameplayId.Moba
+                ? "AbilityKit.Game.GameEntry, AbilityKit.Demo.Moba.View.Runtime"
+                : mode == DemoLaunchMode.Local
+                    ? "AbilityKit.Demo.Shooter.View.PlayMode.ShooterPlayModeMenu, AbilityKit.Demo.Shooter.View.Runtime"
+                    : "AbilityKit.Demo.Shooter.View.PlayMode.ShooterFormalMultiplayerController, AbilityKit.Demo.Shooter.View.Runtime";
+            return Type.GetType(assemblyQualifiedName) ?? throw new InvalidOperationException(
+                $"Gameplay entry type '{assemblyQualifiedName}' is unavailable.");
+        }
+
+        private static void BuildDemo(
+            string[] scenePaths,
+            string outputDirectoryName,
+            string executableName,
+            string demoName,
+            string[] extraScriptingDefines)
+        {
+            ValidateBuildInput(scenePaths, demoName);
+            ValidateGameplayComposition();
+            for (var i = 0; i < scenePaths.Length; i++)
+            {
+                if (string.Equals(scenePaths[i], MultiplayerStarterScenePath, StringComparison.Ordinal))
+                {
+                    ValidateStarterScene();
                     break;
                 }
             }
 
-            if (markerRoot == null)
-            {
-                markerRoot = new GameObject("MultiplayerSceneEntry");
-            }
-
-            var marker = markerRoot.GetComponent(markerType) ?? markerRoot.AddComponent(markerType);
-            var serializedMarker = new SerializedObject(marker);
-            serializedMarker.FindProperty("gameplay").enumValueIndex = gameplay;
-            serializedMarker.ApplyModifiedPropertiesWithoutUndo();
-            EditorSceneManager.SaveScene(scene);
-        }
-
-        private static void ValidateMultiplayerEntryMarker(string scenePath, int expectedGameplay)
-        {
-            var marker = FindMultiplayerEntryMarker(scenePath);
-            if (marker == null)
-            {
-                throw new InvalidOperationException($"Multiplayer scene '{scenePath}' is missing its entry marker.");
-            }
-
-            var serializedMarker = new SerializedObject(marker);
-            if (serializedMarker.FindProperty("gameplay").enumValueIndex != expectedGameplay)
-            {
-                throw new InvalidOperationException($"Multiplayer scene '{scenePath}' has the wrong gameplay marker.");
-            }
-        }
-
-        private static void ValidateLocalSceneHasNoMultiplayerEntryMarker(string scenePath)
-        {
-            if (FindMultiplayerEntryMarker(scenePath) != null)
-            {
-                throw new InvalidOperationException($"Local demo scene '{scenePath}' must not contain a multiplayer entry marker.");
-            }
-        }
-
-        private static Component FindMultiplayerEntryMarker(string scenePath)
-        {
-            var markerType = Type.GetType(
-                "AbilityKit.Starter.MultiplayerSceneEntryMarker, AbilityKit.Demo.Multiplayer.Starter");
-            if (markerType == null)
-            {
-                throw new InvalidOperationException("MultiplayerSceneEntryMarker type is unavailable.");
-            }
-
-            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
-            var roots = scene.GetRootGameObjects();
-            for (var i = 0; i < roots.Length; i++)
-            {
-                var marker = roots[i].GetComponent(markerType);
-                if (marker != null)
-                {
-                    return marker;
-                }
-            }
-
-            return null;
-        }
-
-        private static void BuildDemo(string[] scenePaths, string outputDirectoryName, string executableName, string demoName)
-        {
-            ValidateBuildInput(scenePaths, demoName);
             var outputPath = GetOutputPath(outputDirectoryName, executableName);
             var outputDirectory = Path.GetDirectoryName(outputPath);
             if (string.IsNullOrEmpty(outputDirectory))
@@ -242,7 +326,8 @@ namespace AbilityKit.Game.Editor
                 locationPathName = outputPath,
                 target = BuildTarget.StandaloneWindows64,
                 targetGroup = BuildTargetGroup.Standalone,
-                options = BuildOptions.StrictMode
+                options = BuildOptions.StrictMode,
+                extraScriptingDefines = extraScriptingDefines
             });
 
             var summary = report.summary;

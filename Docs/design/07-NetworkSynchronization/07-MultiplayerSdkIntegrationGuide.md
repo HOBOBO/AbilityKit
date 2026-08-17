@@ -1,6 +1,12 @@
 # 07 · 多人联网 SDK 新示例接入指南
 
-> 权威清单：一个**新玩法示例**要接入 AbilityKit 多人联网，"白拿什么 / 必须自己写什么 / 按什么顺序接入"。基于 shooter 与 moba 两个已落地示例的源码核校（2026-08-09）。
+> **文档类型：接入指南**
+>
+> **事实基线：2026-08-16**
+>
+> **目标读者：** 需要为新玩法选择同步 Profile、接入 Room/Battle 和定义项目同步策略的开发者。
+
+> 权威清单：一个**新玩法示例**要接入 AbilityKit 多人联网，"白拿什么 / 必须自己写什么 / 按什么顺序接入"。基于 shooter、moba 与 Console 当前消费者核校（2026-08-16）。
 >
 > 相关：SDK 装配、所有权、线程和 transport 证据以 `com.abilitykit.network.sdk` README 为 package canonical；房间能力见 `com.abilitykit.network.room` README。
 
@@ -16,11 +22,11 @@ AbilityKit 的多人联网底层已经是一套玩法无关的 SDK（`network.sd
 | L1 连接 | `network.runtime`（`IConnection`→`ConnectionManager`） | — | ✅ 通用 |
 | L2 组装根 | `network.sdk`（`NetworkSdkBuilder`/`NetworkSdkClient`） | — | ✅ 通用 |
 | L3 房间会话 | `network.room`（`RoomGatewaySessionFlow` 8 阶段） | 实现可选能力接口 | ✅ 通用 |
-| L4 战斗数据面 | （不在 SDK） | **自己写** | ⬜ 示例自写 |
+| L4 战斗数据面 | `network.battle` 通用引擎与 `network.battle.config` 预设 | 注册项目 controller、codec 与 handler | 通用生命周期已提供，算法项目自有 |
 | 服务端网关 | `AbilityKit.Orleans.Gateway.*` | 注册 op-code handler | ✅ 骨架通用，handler 分游戏 |
 | 登录 | `com.abilitykit.demo.common`（`DemoRoomGatewayAccountClient`） | — | ✅ 通用 |
 
-> ⚠️ 历史文档曾称"经 coordinator（`SessionCoordinator`/`ISyncAdapter`）接入多人"。**源码中两个示例的多人路径都不经 coordinator**，coordinator 仅在本地/harness 场景有价值。详见 `05-SessionCoordination.md` 与 coordinator skill 的修正说明。
+> ⚠️ 历史文档曾称“经 coordinator（`SessionCoordinator`/`ISyncAdapter`）接入多人”。**源码中两个示例的多人路径都不经 coordinator**；当前 coordinator package 只保留配置、host/policy 契约、DTO 与 codec，不能作为现成 session engine。详见 `05-SessionCoordination.md`。
 
 ## 2. 白拿（SDK 免费给，新示例零成本继承）
 
@@ -31,6 +37,8 @@ AbilityKit 的多人联网底层已经是一套玩法无关的 SDK（`network.sd
 - **房间状态推送**（`IRoomGatewaySnapshotFeed`）
 - **服务端网关骨架**：`TcpTransportServer` + `GatewayRequestRouter` + `GatewayHandlerRegistry` + `GatewaySessionRegistry/Binder` + Orleans grains（`RoomGrain` / `BattleLogicHostGrain` / `StateSyncObserverGrain`）
 - **登录**：`DemoRoomGatewayAccountClient.LoginTcpAsync`（返回 `SessionToken`，后续每个 room/battle RPC 携带）
+- **同步会话装配**：`NetworkSyncSessionBuilder` 解析 Profile、冻结配置、校验本地能力并按策略绑定 Room 远端声明
+- **可靠事件骨架**：`ReliableEventSessionBuilder` 提供 cursor、checkpoint、权威 baseline 与 flush/retry/circuit 生命周期
 
 ## 🆕 最快接入路径：GatewayMultiplayerSession
 
@@ -101,6 +109,21 @@ session.Dispose();
 
 连接/房间默认值（host/port/region/serverId/roomType/worldType），各示例写在 ScriptableObject 或静态常量里（如 shooter 的 `ShooterGameplay` / `ShooterRemoteStateSyncDefaults`，moba 的 `BattleGatewayConfigSO`）。
 
+### 3.5 同步 Profile 与可靠事件所有权
+
+新玩法必须注册自己的同步 controller，但不应自己重复实现 Profile 解析和能力协商。推荐在拿到 Room snapshot 后，通过 `RoomGatewayNetworkSyncSessionBinding` 把远端声明交给 `NetworkSyncSessionBuilder`：开发兼容旧服可用 `NegotiateWhenAvailable`，严格环境用 `Require`，只有明确不参与协商的离线/兼容路径才用 `Ignore`。未知 metadata version、未知策略位或 Profile 不匹配应阻止入场。
+
+需要可靠事件时，再用协商后的 descriptor 构造 `ReliableEventSessionBuilder`。项目必须明确：checkpoint store 放在哪里、何时 flush、断线后由谁请求 authoritative baseline、baseline 成功前是否允许投递事件，以及哪一条连接拥有 push 订阅。两连接模式只允许 battle 数据面订阅；Room 控制连接重复订阅会覆盖同一 observerKey 的推送绑定。
+
+服务端最终声明必须作为接入事实源，而不是让客户端从模板字符串猜算法：
+
+| 服务端项目默认 | 服务端 template/runtime | Room 声明 | 客户端正确动作 |
+|----------------|------------------------|-----------|----------------|
+| MOBA | 仅 `frame-sync-authority` + `BattleWorldWithFrameSync` | `Lockstep`，schema `0..1` | 绑定 Lockstep controller；不能回退到不存在的 MOBA StateSync 模板 |
+| Shooter | `state-sync-authority` + `BattleWorld` | `AuthoritativeInterpolation` | 默认绑定权威插值；需要 PredictRollback 时显式选择 `predict-rollback-authority` 并重新协商 |
+
+Shooter 默认模板的 packed push 是每帧一次、每 30 帧 full；`predict-rollback-authority` 才是每帧 full。大规模 `mass-battle-lod-aoi` 使用 PureState、90 帧发送、450 帧 full baseline 和 `24/30` AOI。上述值是 Shooter 项目 policy，不是 SDK 默认参数；新玩法应注册自己的服务端目录与预算，而不是复制数值。
+
 ## 4. 两种已验证参考实现对照
 
 | 维度 | Shooter（StateSync） | MOBA（FrameSync） |
@@ -112,6 +135,8 @@ session.Dispose();
 | 同步策略 | 自写 3 套 SyncController + `ShooterClientPredictionRuntimeAdapter` | `FrameSyncDriverModule` + `ClientPredictionDriverModule` |
 | 协议 | `protocol.shooter`（9 opcodes） | `protocol.moba` |
 | 经 coordinator？ | **否**（契约测试守护） | **否**（战斗走 host.extension framesync） |
+| 服务端默认 | `state-sync-authority` → `AuthoritativeInterpolation`；packed 1/30 | 仅 `frame-sync-authority` → `Lockstep` |
+| 房间启动约束 | 默认 2 名成员且全部 ready | 人数、loadout 与 ready 由 MOBA adapter 决定 |
 
 ## 5. 服务端侧（Orleans）
 
@@ -209,14 +234,16 @@ coordinator 当初的设想是"逻辑层不关心帧同步/状态同步，宿主
 - **P2.1（已完成）**：把通用引擎（`NetworkTransport`/`NetworkTransportOptions`/`Projection`）从 `game.battle.transport.runtime` 搬到中立包 `com.abilitykit.network.battle`，命名空间改为 `AbilityKit.Network.Battle`。
 - **P2.1b（已完成）**：Console demo 迁移到统一 SDK（`NetworkSdkClient` + `WireRoomGatewayBinary` + `RoomGatewayOpCodes`），`game.battle.transport.runtime` 包**整体删除**。
 - **P2.2（已完成 2026-08-09）**：shooter 客户端数据面迁移到统一引擎 —— 两连接拓扑（房间控制面 + 独立 battle NetworkTransport 连接）；`ShooterBattleTransportGatewayClient` 适配 `NetworkTransport.SendInputAsync`（per-submit 结果），`ShooterBattleDataPlane` 经 `RawServerPushReceived` 喂既有 `ApplyGatewayPush`（push 在主线程 drain，不与 `session.Tick` 竞争）；`ShooterRoomGatewayConnection` 收缩为房间控制面 + battle-state facade（`NotifyBattlePushDispatched`）。退役了 `ShooterRoomGatewayClient`/`ShooterRoomGatewayConnection` 的手写战斗胶水。multiprocess smoke（含 recoverable-retry 3 次注入故障 + 重连）全绿、`diffStatus=Identical`。
-### 进行中（WIP，未提交；2026-08-09 记录）
+### 当前收敛结论
 
-- **Room-flow staged-restore 重构（用户进行中）**：`network.room/Runtime/RoomGatewaySessionFlow.cs`（工作树 `M`）正从单步 `CreateRoomAsync`/`RestoreRoomAsync` 高层接口重构为分阶段 restore（`RoomGatewayStagedRestoreResult` / `NextStep` / `RestoreStatus` 等）。重构**尚未完成**：已知粗糙点 —— create 路径 `EntryKind` 因 server `JoinRoom` 的 alreadyMember 副产物被标成 `Reconnect`（shooter flow 已在 `ShooterRoomGatewayFlow.JoinAndLaunchAsync` 用 `createdRoomOwner ? TeamLobby : join.JoinKind` 修复；SDK flow 同类问题待随重构收尾确认）。
-- **`GatewayMultiplayerSession`（高层 ~10 行门面，`network.room/Runtime/GatewayMultiplayerSession.cs`）**：封装 connect → GuestLogin → create/join → ready → 可选 `WaitForBattleStart` → SubscribeStateSync；已有首个真实消费者（Console demo，见下）。
-- **GatewayMultiplayerSession 接入（高层门面 dogfood）—— ✅ Console 已接入（2026-08-10）**：① Console demo `StateSyncAdapter` 的房间组装已切到门面编排 seam `RunRoomFlowAsync`（`waitForBattleStart: false` 适配单 client SnapshotAuthority 无 formal battle start），保留自有连接/重连外壳与 join→create 回退；对本地 Orleans 网关端到端验证通过（login → join 409 回退 create → ready → subscribe），`moba-console-smoke` 门禁 4/4。② MOBA **评估后决定不接入门面**：其房间栈（`GatewayMultiplayerRoomSession`+`MultiplayerRoomFlowController`）已全面跑在 SDK `RoomGatewaySessionFlow` 分阶段 API 上，状态机承载 hero-pick 交互/loading 进度/断线恢复，线性门面表达不了事件驱动阶段，强切是降级 —— MOBA 的统一性证据记在 `RoomGatewaySessionFlow` 层。门面定位：线性/最小流程的快速入口（Console 背书）。
+- `GatewayMultiplayerSession` 已有 Host/Console 消费者，适合作为线性/最小流程入口；MOBA 的 hero-pick/loading/restore 保持阶段化 Flow，不以迁入 facade 作为统一性指标。
+- `GatewayMultiplayerSession` 是一次性 host；`Dispose` 不主动 LeaveRoom，重连应新建或使用 staged restore；`Tick` 必须传真实墙钟 delta。
+- `NetworkSyncSessionBuilder` 和 Room 远端能力声明负责稳定装配协议，预测、插值、回滚和表现对账算法继续由项目注册。
+- 三套预测实现只在稳定接口、指标和失败语义上收敛，不强制合并成单一算法。
+- WebSocket 服务端已有默认关闭的注册路径，仍需真实部署 E2E；LiteNet/UDP server listener 仍未闭环。
 
-- **P3（后续）**：提供参考同步实现（如 shooter 的 `AuthoritativeInterpolation`）作为开箱默认。`GatewayMultiplayerSession` 已接入 Console 示例（见上）；剩余硬化项是 in-process gateway fixture 的完整 happy-path 测试；详见 `08-NetworkOptimizationPlan.md` P-A。
-- **P4（后续）**：决策 coordinator 去留（收缩为本地/harness 专用，删远端死 adapter）。
-- **P5（可选）**：收敛预测算法（帧同步 vs 状态同步机制不同，不强行统一；可能永远不做）。
+本轮聚焦验证：Network SDK 96/96、Network Room 36/36。它们属于 E3，不替代 Gateway E2E、断线 Smoke 或发布门禁。
 
-预测/回滚算法本身保持示例自有。
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16 | 文档类型：接入指南*

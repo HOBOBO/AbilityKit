@@ -873,8 +873,8 @@ internal static class MobaSmokeConstants
     public const string Region = "local";
     public const string ServerId = "moba-smoke";
 
-    /// <summary>默认同步模板 —— <c>"state-sync-authority"</c>，向后兼容旧脚本。</summary>
-    public const string DefaultSyncTemplateId = "state-sync-authority";
+    /// <summary>MOBA 示例固定使用帧同步模板。</summary>
+    public const string DefaultSyncTemplateId = "frame-sync-authority";
 }
 
 internal readonly record struct MobaSmokeHeroLoadout(

@@ -13,42 +13,32 @@ namespace AbilityKit.Game.Battle.Agent
             long roomRevision,
             RoomGatewaySnapshot snapshot)
         {
-            return new GatewayRoomOperationResult(
+            return GatewayRoomResponseMapper.ToOperationResult(
                 success,
                 applied,
                 errorCode,
                 message,
                 roomRevision,
-                ToClientSnapshot(snapshot));
+                snapshot);
         }
 
-        private static ClientRoomSnapshot ToClientSnapshot(RoomGatewaySnapshot snapshot)
+        private static ClientRoomSnapshot ToClientSnapshot(
+            RoomGatewaySnapshot snapshot)
         {
-            return snapshot == null
-                ? new ClientRoomSnapshot()
-                : ClientRoomSnapshotMapper.ToClientSnapshot(snapshot);
+            return GatewayRoomResponseMapper.ToClientSnapshot(snapshot);
         }
 
-        private static RoomGatewayJoinKind ToJoinKind(RoomGatewaySessionEntryKind kind)
+        private static RoomGatewayJoinKind ToJoinKind(
+            RoomGatewaySessionEntryKind kind)
         {
-            switch (kind)
-            {
-                case RoomGatewaySessionEntryKind.Reconnect:
-                    return RoomGatewayJoinKind.Reconnect;
-                case RoomGatewaySessionEntryKind.LateJoin:
-                    return RoomGatewayJoinKind.LateJoin;
-                default:
-                    return RoomGatewayJoinKind.TeamLobby;
-            }
+            return GatewayRoomResponseMapper.ToJoinKind(kind);
         }
 
-        private static GatewayWorldStartAnchor ToGatewayAnchor(in RoomGatewayWorldStartAnchor anchor)
+        private static GatewayWorldStartAnchor ToGatewayAnchor(
+            in RoomGatewayWorldStartAnchor anchor)
         {
-            return new GatewayWorldStartAnchor(
-                anchor.StartServerTicks,
-                anchor.ServerTickFrequency,
-                anchor.StartFrame,
-                anchor.FixedDeltaSeconds);
+            return GatewayRoomResponseMapper.ToGatewayAnchor(in anchor);
         }
     }
+
 }

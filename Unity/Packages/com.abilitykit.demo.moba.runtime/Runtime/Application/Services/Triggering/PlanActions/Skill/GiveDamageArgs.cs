@@ -3,6 +3,12 @@ using AbilityKit.Demo.Moba;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
+    public enum DamageAttributeSourceKind
+    {
+        AttributionActor = 0,
+        SkillCaster = 1,
+    }
+
     /// <summary>
     /// give_damage Action 的强类型参数。
     /// </summary>
@@ -28,6 +34,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         /// </summary>
         public readonly float SourceAttackRatio;
 
+        /// <summary>
+        /// 伤害公式读取攻击属性的角色来源，不改变伤害归因角色。
+        /// </summary>
+        public readonly DamageAttributeSourceKind AttributeSource;
+
         public readonly MobaActionTargetRequest TargetRequest;
 
         /// <summary>
@@ -41,12 +52,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             DamageType damageType = DamageType.Physical,
             MobaActionTargetRequest targetRequest = default,
             float sourceAttackRatio = 0f,
-            DamageReasonKind reasonKind = DamageReasonKind.Skill)
+            DamageReasonKind reasonKind = DamageReasonKind.Skill,
+            DamageAttributeSourceKind attributeSource = DamageAttributeSourceKind.AttributionActor)
         {
             DamageValue = damageValue;
             ReasonParam = reasonParam;
             DamageType = damageType;
             SourceAttackRatio = sourceAttackRatio;
+            AttributeSource = attributeSource;
             TargetRequest = targetRequest;
             ReasonKind = reasonKind;
         }

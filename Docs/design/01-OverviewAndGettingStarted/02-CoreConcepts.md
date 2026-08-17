@@ -1,5 +1,9 @@
 # 1.2 核心概念：从术语到源码边界
 
+> 文档类型：核心术语 Canonical
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > 本文是 AbilityKit 的术语入口。它不按“名词解释”孤立罗列概念，而是把 World、Entity、Frame、Input、Skill、Trigger、Context、Session、Adapter 等词放回真实源码链路中，建立术语、源码入口和专题文档之间的对应关系。
 
 ---
@@ -235,7 +239,18 @@ sequenceDiagram
 
 ## 6. Skill、Pipeline、Runtime：一次施法如何被跟踪
 
-技能不是简单的 `Cast()` 方法。MOBA Demo 里一次施法会被包装成 `SkillCastRequest`，进入 `SkillPipelineContext`，同时由 `MobaSkillCastRuntimeService` 创建和维护运行时对象，用来跟踪阶段、输入更新、子运行时、黑板、诊断和结束条件。
+框架层不规定所有游戏必须采用同一个 `Cast()` 或统一技能应用对象。稳定概念是 Pipeline 的阶段生命周期、运行实例隔离、暂停/中断/终态，以及 Trigger/Effect 执行需要的上下文；一次施法如何准备、提交和绑定项目状态，属于应用层。
+
+MOBA Demo 选择把一次施法包装成 `SkillCastRequest`，送入 `SkillPipelineContext`，并由 `MobaSkillCastRuntimeService` 创建和维护运行时对象，用来跟踪阶段、输入更新、子运行时、黑板、诊断和结束条件。下列类型用于解释一套经过完整接入的项目模型，不是框架要求其他项目实现的公共 DTO：
+
+| 概念层次 | 稳定含义 | MOBA 示例类型 |
+|----------|----------|---------------|
+| 施法请求 | 某次技能意图所需的输入事实 | `SkillCastRequest` |
+| Pipeline 上下文 | 当前运行实例、阶段数据和执行依赖 | `SkillPipelineContext` |
+| 运行实例 | 长生命周期施法的身份、子对象和终态 | `MobaSkillCastRuntime` |
+| 来源传播 | 技能、触发、效果之间的 root/parent/owner 关系 | `MobaCombatContextSource`、lineage context |
+
+其他项目可以采用完全不同的请求模型、技能槽和资源事务，只要遵守所选 framework package 的生命周期、确定性和所有权契约。
 
 ```mermaid
 flowchart LR
@@ -298,7 +313,9 @@ flowchart TB
 
 ## 8. Session、Flow、Phase：一场战斗怎么启动
 
-Console Demo 是理解 AbilityKit 的好入口，因为它把一场战斗从配置到运行的链路暴露得比较完整。
+Session、Flow、Phase 是组织战斗应用生命周期的概念，不是 AbilityKit 强制提供的一套统一战斗状态机。不同项目可能使用 HFSM、异步任务、服务器 Actor 生命周期或自有流程系统；框架关心的是 World/Host 何时创建、Tick 和销毁，以及输入、同步和表现端口何时具备可用条件。
+
+Console Demo 是理解一种完整应用层选择的好入口，因为它把一场战斗从配置到运行的链路暴露得比较完整。
 
 ```mermaid
 sequenceDiagram
@@ -389,7 +406,7 @@ flowchart TB
 | Input | 可同步的玩家操作 | `PlayerInputCommand`、`PlayerInput`、OpCode/Payload |
 | Snapshot | 某帧或某刻状态 | `FrameSnapshot`、`ActorStateSnapshot`、表现事件数据 |
 | Skill | 技能配置和一次释放行为 | `SkillCastRequest`、pipeline、runtime service |
-| Pipeline | 技能执行过程 | `SkillPipelineContext` 管理阶段、时间、输入、上下文 |
+| Pipeline | 通用阶段推进、暂停/中断和终态契约 | `AbilityPipeline<TCtx>` 管理阶段；`SkillPipelineContext` 是 MOBA 项目上下文 |
 | Runtime | 长生命周期运行态 | `MobaSkillCastRuntime`、runtime handle、blackboard、children |
 | Trigger | 条件满足后执行动作 | Triggering runtime、Ability trigger context、event bus |
 | Effect | 对战斗状态产生影响的动作 | 伤害、Buff、投射物、表现 cue 等下游执行 |
@@ -408,9 +425,9 @@ flowchart TD
     B --> C["03-快速开始"]
     C --> D["02-LogicalWorldDesign"]
     D --> E["06-ECSArchitecture"]
-    E --> F["03-SkillSystemDesign"]
-    F --> G["04-TriggerAndEffect"]
-    G --> H["05-NetworkSync"]
+    E --> F["08-GameplayModules"]
+    F --> G["Triggering / Ability / Combat"]
+    G --> H["07-NetworkSynchronization"]
     H --> I["09-ImplementationExamples"]
 ```
 
@@ -437,6 +454,8 @@ flowchart TD
 | 把 TriggerContext 当一个类型 | 源码中至少有 Runtime TriggerContext 和 Ability TriggerContext 两类用途 |
 | 认为 System 只有一种接口 | 轻量 ECS、Entitas、Feature、Phase 各有不同执行边界 |
 | 忽略 Context/Lineage | 没有上下文传播，伤害、Buff、投射物、回放、诊断都很难追踪来源 |
+| 把 MOBA SkillCast 类型当成框架公共 DTO | 这些类型是示例应用层模型；框架稳定部分是 Pipeline、Trigger、Effect、Context 等能力契约 |
+| 把 Console Flow/Phase 当成统一战斗流程 | 它是可运行参考；项目可以使用不同流程，只需维护 World/Host 和端口生命周期 |
 
 ---
 
@@ -445,8 +464,8 @@ flowchart TD
 - [快速开始](./03-QuickStart.md) - 从构建、Demo、测试入口开始跑起来。
 - [逻辑世界概述](../02-LogicalWorldDesign/01-WorldOverview.md) - 深入理解 World、服务、模块和系统装配。
 - [ECS 核心概念](../06-ECSArchitecture/01-ECSCoreConcepts.md) - 深入理解 `EntityWorld`、`IEntity`、`IEntityId` 和查询模型。
-- [Console Demo 解析](../09-ImplementationExamples/01-ConsoleDemoAnalysis.md) - 从可运行 Demo 反向理解完整链路。
+- [Console Demo 解析](../09-ImplementationExamples/01-ConsoleDemoAnalysis.md) - 从综合 Demo 反向理解装配链路和严格启动门禁。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+*文档版本：v3.0 | 文档类型：核心术语 Canonical | 最后更新：2026-08-16 | MOBA 类型均按项目应用层示例解释*

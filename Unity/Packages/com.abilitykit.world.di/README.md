@@ -2,7 +2,7 @@
 
 此包提供一个小型、仅运行时（runtime-only）的依赖注入容器，用于 AbilityKit 的 World 体系。
 
-## Concepts
+## 概念
 
 ## 概念
 
@@ -179,7 +179,7 @@ flowchart TD
 
 常用/基础用法示例见：`Examples/`。
 
-## Troubleshooting
+## 故障排查
 
 ## 排查
 
@@ -190,7 +190,7 @@ flowchart TD
 - **模块依赖存在循环**
   - 如果模块依赖图存在环，compose 会失败，并且异常信息会包含 cycle path。
 
-## Debug / Diagnostics
+## 调试与诊断
 
 ## 调试 / 诊断
 

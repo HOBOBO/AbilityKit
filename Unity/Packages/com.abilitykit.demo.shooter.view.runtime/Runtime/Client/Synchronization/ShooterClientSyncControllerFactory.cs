@@ -16,7 +16,7 @@ namespace AbilityKit.Demo.Shooter.View
     /// </summary>
     public static class ShooterClientSyncControllerFactory
     {
-        public const NetworkSyncModel DefaultSyncModel = NetworkSyncModel.PredictRollback;
+        public const NetworkSyncModel DefaultSyncModel = NetworkSyncModel.AuthoritativeInterpolation;
 
         private static readonly NetworkSyncProfileControllerRegistry<IShooterClientSyncController, ShooterClientSyncControllerFactoryContext> Registry =
             new NetworkSyncProfileControllerRegistry<IShooterClientSyncController, ShooterClientSyncControllerFactoryContext>(CreateDefaultBuilders());

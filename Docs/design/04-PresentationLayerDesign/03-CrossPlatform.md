@@ -51,6 +51,17 @@ flowchart TB
 
 Unity/MOBA View Runtime 代表当前更完整的表现层架构；ET 示例保留了不同形态的接口和数据结构，适合作为“外部框架如何适配 AbilityKit 数据”的参考，而不是当前 Unity 接口的一比一复制。
 
+跨平台复用的正式边界如下：
+
+| 归属 | 稳定内容 | 项目/平台自有内容 |
+|------|----------|-------------------|
+| 框架 | World/Host、事件与快照路由、输入/同步协议的公共契约 | 不提供统一渲染对象模型或万能 `IView` |
+| 客户端应用 | 顶层阶段、Feature 生命周期、线程切换、资源和错误恢复 | 每个项目自行选择 MVC/MVVM/ECS/MonoBehaviour |
+| 平台适配 | Sink、缓存、实体映射、插值、VFX/UI/日志 | Unity、Console、ET 不要求具体 API 同构 |
+| Server/Headless | 权威推进、广播、录制、统计和验证 | 通常不创建任何表现对象 |
+
+“跨平台”在这里表示同一逻辑数据语义可被不同宿主消费，而不是把示例应用层抽象成框架强制套件。平台代码形状不同是允许的，只要输入、所有权和副作用方向清晰。
+
 ---
 
 ## 4.3.3 Unity：以 View Feature 组织完整表现运行时
@@ -494,3 +505,34 @@ flowchart LR
 ```
 
 跨平台表现层的核心约束是不要把 Unity 的 `GameObject`、Console 的文本显示、ET 的 `EventSystem` 和服务端快照广播混在同一层。它们都是“表现边界之后”的平台实现，前面的逻辑数据和路由语义才是跨平台复用的核心。
+
+---
+
+## 4.3.14 验证证据与采用边界
+
+| 运行面 | 当前证据 | 成熟度判断 |
+|--------|----------|------------|
+| Unity/MOBA | View Runtime、session lifecycle、来源策略和表现消费测试 | E2 真实应用链 + 局部 E3，能力最完整但仍是项目实现 |
+| Console | 可执行 Demo 与多个 `ConsoleBattleBootstrapper` smoke 消费者 | E2/E3 逻辑验收价值较高，不代表真实图形客户端 |
+| ET | Scene/Component/System、输入转换和快照 Sink 源码 | E1–E2 接入样例；未发现独立 ET 自动测试工程或最新运行 artifact |
+| Shooter | 独立 View Runtime、同步控制器、框架 SnapshotPipeline 和多进程 smoke | E2/E3，部分场景有日期化 E4 artifact；不应外推到 MOBA/ET |
+| Server/Headless | Orleans Host、广播、record/smoke 工具 | 证明无表现运行可观测，不构成客户端视觉验收 |
+
+新增平台前应分别验证：线程/主循环归属、订阅释放、实体身份、资源失败、快照乱序/重连、表现重建和无渲染运行。某个平台通过不自动提升其他平台成熟度；跨平台 E5 需要明确的目标矩阵和触发策略。
+
+## 4.3.13 Shooter 双后端能证明什么
+
+Shooter 的 `ShooterViewRenderBackendFactory` 当前只接受 `GameObject` 与 `Dots`，未知枚举会抛异常；仓库没有由该工厂创建的通用 Headless backend。GameObject/DOTS binder 都订阅同一个 `ShooterPresentationFacade.Snapshots.SnapshotApplied`，Dispose 时解绑并执行 `Clear`。这证明同一项目数据流可以切换两种 Unity 渲染后端，但不能外推为完整跨平台验证。
+
+| 已证明 | 尚未证明 |
+|--------|----------|
+| facade、stream 与 projection 不直接依赖具体 GameObject sink | Console、ET、Headless 可直接复用 Shooter binder |
+| GameObject/DOTS 可消费同一 Shooter view batch | 两种后端视觉一致、性能预算一致或跨平台逐位一致 |
+| binder Dispose 能解绑 SnapshotApplied 并清空视图 | 多 binder 共享 facade 时可独立清理；当前 `Clear` 会 reset 共享 stream |
+| DOTS 路线管理自己的后端资源 | 所有 Native 容器、Job 依赖和 Unity 主线程边界已由通用框架接管 |
+
+此外，Shooter 插值与 MOBA 主要玩法仍包含 `float`，DOTS/Native 资源还有显式生命周期要求。“跨平台”在本文只承诺逻辑数据和边界可适配，不承诺相同渲染对象模型、逐位结果或无平台资源治理。Headless 场景可以完全不创建 binder，或由项目提供 observer/null sink；当前不应虚构一个不存在的框架默认 backend。
+
+文档类型：Canonical 设计与平台接入边界 | 事实基线：2026-08-16 | 证据等级：E0 公共契约、E2 多平台实现、分散 E3/E4；无统一跨平台 E5
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

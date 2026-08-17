@@ -1,6 +1,12 @@
 # Motion Pipeline 与约束求解
 
-> 本文描述 `com.abilitykit.combat.motion` 的公共运行时契约。专题聚焦移动意图合成、分组抑制、碰撞与 leash 求解、source 生命周期、快照范围和对象池所有权；MOBA 如何把 Motion 接入 PlanAction、Trigger 和临时实体生命周期，见示例专题。
+> **文档类型**：Canonical 设计（Motion 组合与约束求解内核）
+> **事实基线**：2026-08-16
+> **文档版本**：v3.2
+> **证据范围**：Runtime 源码、MOBA 消费者、Unity 测试源码与当次 .NET `8/8`
+> **不覆盖**：完整角色控制器、物理世界、网络权威、完整回滚与项目资源生命周期
+
+本文描述 `com.abilitykit.combat.motion` 的公共运行时契约。专题聚焦移动意图合成、分组抑制、碰撞与 leash 求解、source 生命周期、快照范围和对象池所有权；MOBA 如何把 Motion 接入 PlanAction、Trigger 和临时实体生命周期，见示例专题。
 
 ## 1. 能力定位
 
@@ -22,6 +28,14 @@ Motion 包把“谁想移动”与“最终允许移动多少”拆成两个阶�
 
 因此 Motion 是纯 C# 的移动组合内核，领域层仍需负责 source 创建、tick 调度、状态同步、事件转译和资源释放。
 
+| 层级 | 职责 |
+|------|------|
+| Motion 框架 | Source 组合、组内竞争与 suppression、Solver 协议、事件、固定步长辅助和局部快照 |
+| 项目应用层 | 角色控制器、碰撞世界、技能/Buff 到 Source 的映射、状态同步、完整回滚、归因和资源生命周期 |
+| MOBA 示例 | Dash/Jump/Pull PlanAction、MotionComponent、Continuous 绑定和临时实体接线 |
+
+框架输出的是可应用位移和求解结果，不拥有 Transform、ECS 实体或网络权威。项目可以整体替换控制器和碰撞后端，而不改变公共 Source/Solver 契约。
+
 ## 2. 源码与验证入口
 
 | 内容 | 路径 |
@@ -29,6 +43,7 @@ Motion 包把“谁想移动”与“最终允许移动多少”拆成两个阶�
 | Unity Runtime | `Unity/Packages/com.abilitykit.combat.motion/Runtime/MotionSystem` |
 | .NET 镜像工程 | `src/AbilityKit.Combat.Motion/AbilityKit.Combat.Motion.csproj` |
 | Unity Editor 测试 | `Unity/Packages/com.abilitykit.combat.motion/Tests/Editor/MotionSystemTests.cs` |
+| .NET 契约测试 | `src/AbilityKit.Combat.Motion.Tests` |
 | Package Samples | `Unity/Packages/com.abilitykit.combat.motion/Samples~/MotionExamples` |
 | MOBA 初始化 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Motion/MobaMotionInitSystem.cs` |
 | MOBA 领域集成 | `../09-ImplementationExamples/MOBA/16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md` |
@@ -139,6 +154,8 @@ Policy 不是 pipeline 构造时自动安装的默认值。`Policy == null` 表�
 
 suppression 按 group 生效，不比较 suppressor 与被压制 source 的优先级。一个低数值优先级但赢得本组的 override source，仍可压制 policy 指定的其他组。
 
+碰撞策略的“主导 source”选择不复用任意自定义 group 顺序，而是硬编码按 `Control`、`Ability`、`Path`、`Locomotion`、`PassiveDisplacement` 依次查找。自定义 group 即使实现 `IMotionCollisionPolicySource` 并参与位移合成，也不会成为 `DominantCollisionPolicy` 的来源。项目若引入新 group，必须接受这一边界，或先扩展公共优先级协议并补顺序测试。
+
 ### 4.4 Source 合成
 
 Pipeline 倒序遍历排序后的 source：
@@ -214,6 +231,18 @@ ConstraintsProvider 是当前唯一有明确异常隔离的扩展点：
 
 这些扩展点异常会向 pipeline 调用者传播，并可能发生在部分 source 已推进内部时间、但 MotionState 尚未提交或已提交之后。生产接入应保证扩展点不抛异常，或在领域边界提供故障隔离和状态恢复。
 
+失败点对应的提交位置并不相同：
+
+| 失败点 | 已可能提交 | 尚未提交或不再执行 |
+|--------|------------|--------------------|
+| 某个 `source.Tick` | 更早 source 的内部时间与其对 `MotionState` 的直接修改；当前 source 也可能部分修改 | Solver、位置/速度提交、命中事件 |
+| 完成事件 | 完成 source 已变 inactive，desired delta 已累积 | Solver 与本 tick 位移提交；下帧 inactive source 会被静默移除，不重发完成事件 |
+| Collision world / Solver | 所有已执行 source 的进度和 source 对 state 的直接修改 | AppliedDelta、Position、Velocity、state.Time |
+| Hit 事件 | Output、Position、Velocity、state.Time 已提交 | 仅调用方后续逻辑；Pipeline 不回滚 |
+| Diagnostics | 取决于诊断触发位置；可能已完成碰撞查询或重叠决策 | 后续求解或返回，且原始故障可能被诊断异常覆盖 |
+
+因此 Pipeline Tick 不是原子状态转换。若战斗要求异常后重试或回滚，宿主必须在 Tick 前保存 `MotionState` 和每个权威 source 的进度，并把碰撞命中、完成事件和领域触发设计成可去重的延迟提交；只恢复 `MotionState` 仍不足以撤销 source 时间、命中伤害或事件副作用。
+
 ## 6. 完成与命中事件
 
 `IMotionEventSink` 的当前签名只携带 mover ID 和 MotionState；完成事件不携带 source 实例：
@@ -250,6 +279,7 @@ void OnExpired(int id, in MotionState state);
 - Trajectory snapshot 不保存 `ITrajectory3D`。
 - PathFollower snapshot 不保存路点数组。
 - ScaledMotionSource snapshot 不保存或恢复 inner source 状态。
+- FixedDeltaMotionSource snapshot 不保存常态与完成时的 collision policy；导入只恢复组、优先级、stacking、active、剩余时间和每秒位移。
 - Pipeline 没有导出 source 列表、排序、solver、policy 或 events 的快照 API。
 - MotionState 也不由 source snapshot 保存。
 - ImportSnapshot 基本不校验 GroupId、Stacking、枚举值或配置身份。
@@ -309,11 +339,12 @@ finally
 
 - 构造时非正 step 回退为 0.02 秒。
 - `Accumulate(dt)` 对非正 dt 返回 0。
-- 返回值受 `MaxStepsPerTick` 限制。
-- `ConsumeOneStep()` 每次扣除一个固定 step。
-- 超出本次上限的累计时间保留到后续调用，不会自动丢弃。
+- 正 dt 先转换为 Q32.32 raw 并累加，再以整数除法一次计算全部可执行 step 数。
+- `Accumulate(dt)` 在返回前已经从 accumulator 扣除 `count * step`，只保留不足一个 step 的余量。
+- 当前类型没有 `MaxStepsPerTick`，不会限制单次返回的步数，也不会替项目执行丢帧或追帧策略。
+- `ConsumeOneStep()` 只返回固定 step 的 float 表示，不再修改 accumulator。
 
-上层应按 `Accumulate` 的返回次数循环 Tick，并在每次执行后调用 `ConsumeOneStep`。还需自行定义输入采样、事件批次和过载时的追帧策略。
+上层应保存 `var count = runner.Accumulate(dt)`，循环 `count` 次，并把 `runner.ConsumeOneStep()` 作为每次 Tick 的步长。不能再额外把 `ConsumeOneStep` 理解为扣减动作。若需要单帧最大追步数、丢弃累计时间或降级保护，必须由宿主在调用前后显式实现；当前 helper 会把本次可执行步数全部交给调用方。
 
 ## 10. 生产接入建议
 
@@ -336,13 +367,14 @@ finally
 
 ## 11. 测试现状与缺口
 
-截至 2026-07-15：
+截至 2026-08-16：
 
 - `AbilityKit.Combat.Motion.csproj` Release 构建成功，0 error。
 - 构建仍有仓库既有 nullable 和 XML 注释警告。
 - Editor NUnit 程序集包含 8 个测试，覆盖 additive 合成、默认 Ability/Control suppression、PassiveDisplacement、trajectory snapshot、路径与 waypoint 防御性复制、ProjectToNearestFree。
+- 当次执行 `src/AbilityKit.Combat.Motion.Tests` 为 `8/8`：6 项确定性测试和 2 项公共 smoke；它们是局部 E3，不覆盖外部 collision world、完整角色控制器或回滚恢复。
 - MOBA 已在实体 MotionComponent、初始化系统和 Dash/Jump/Pull PlanAction 中真实接入公共 pipeline 与 source。
-- 当前批次未启动 Unity Editor Test Runner，因此没有生成新的 NUnit 执行结果；文档覆盖判断来自测试源码审计。
+- 当前批次未启动 Unity Editor Test Runner，因此 8 个 Editor 测试只作为源码资产范围，不写成当次通过结果。
 
 优先补充的测试：
 
@@ -354,7 +386,15 @@ finally
 6. source、world、solver 和 event sink 抛异常时的状态边界。
 7. direct-owned Dispose、pooled Release、double release 和 source 归还顺序。
 8. source 快照与 MotionState、pipeline 配置组合后的 replay/hash 验证。
+9. 完成事件失败后 source 下帧静默清理、位移未提交的恢复行为。
+10. 快照恢复后 collision policy、路径/轨迹配置和领域 runtime token 的一致性。
 
 ## 12. 采用结论
 
 公共 Motion 已具备可复用的 source 合成、组策略、约束求解、池化和部分 source 快照能力，也有基础单测与 MOBA 实际接入。生产采用仍需由项目补齐确定性 collision world、完整回滚状态、事件归因、异常策略和生命周期验收。能力声明应限定为“移动组合与求解内核”，不能直接等同于完整角色控制器、物理系统或回滚移动方案。
+
+证据分层为 E0 公共实现、E1 包内示例、E2 MOBA 实际消费者、E3 Unity/.NET 局部契约测试；当前没有完整控制器、外部碰撞世界、回滚恢复和长局性能的统一 E4/E5 证据。
+
+---
+
+*文档类型：Canonical 设计（Motion 组合与求解内核） | 事实基线：2026-08-16 | 证据等级：E0-E3 | 文档版本：v3.2*

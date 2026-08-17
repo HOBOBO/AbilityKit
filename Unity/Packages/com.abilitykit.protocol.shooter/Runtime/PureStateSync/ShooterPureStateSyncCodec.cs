@@ -256,6 +256,72 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
     }
 
+    [MemoryPackable]
+    internal partial class ShooterReusablePureStateSnapshotPayload
+    {
+        [MemoryPackOrder(0)] public int Version;
+        [MemoryPackOrder(1)] public ulong WorldId;
+        [MemoryPackOrder(2)] public int Frame;
+        [MemoryPackOrder(3)] public long ServerTick;
+        [MemoryPackOrder(4)] public int SnapshotKind;
+        [MemoryPackOrder(5)] public int BaselineFrame;
+        [MemoryPackOrder(6)] public uint BaselineHash;
+        [MemoryPackOrder(7)] public uint StateHash;
+        [MemoryPackOrder(8)] public ShooterPureStateSyncSettings Settings;
+        [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities = Array.Empty<ShooterPureStateEntityDelta>();
+        [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints = Array.Empty<ShooterPureStateVisibilityHint>();
+        [MemoryPackOrder(11)] public ShooterCommandAcknowledgement[] AcknowledgedCommands = Array.Empty<ShooterCommandAcknowledgement>();
+    }
+
+    public sealed class ShooterPureStateSyncDecodeBuffer
+    {
+        private ShooterReusablePureStateSnapshotPayload? _buffer = new ShooterReusablePureStateSnapshotPayload();
+
+        public ShooterPureStateSnapshotPayload Decode(ReadOnlySpan<byte> payload)
+        {
+            if (payload.Length == 0)
+            {
+                return ShooterPureStateSnapshotPayload.Empty();
+            }
+
+            try
+            {
+                MemoryPackSerializer.Deserialize(payload, ref _buffer);
+                var value = _buffer ?? new ShooterReusablePureStateSnapshotPayload();
+                _buffer = value;
+                return new ShooterPureStateSnapshotPayload(
+                    value.Version,
+                    value.WorldId,
+                    value.Frame,
+                    value.ServerTick,
+                    value.SnapshotKind <= 0 ? ShooterPureStateSnapshotKinds.FullBaseline : value.SnapshotKind,
+                    value.BaselineFrame,
+                    value.BaselineHash,
+                    value.StateHash,
+                    value.Settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : value.Settings,
+                    value.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
+                    value.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>(),
+                    value.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
+            }
+            catch (EndOfStreamException)
+            {
+                var legacy = MemoryPackSerializer.Deserialize<ShooterLegacyPureStateSnapshotPayload>(payload);
+                return new ShooterPureStateSnapshotPayload(
+                    legacy.Version,
+                    legacy.WorldId,
+                    legacy.Frame,
+                    legacy.ServerTick,
+                    legacy.SnapshotKind <= 0 ? ShooterPureStateSnapshotKinds.FullBaseline : legacy.SnapshotKind,
+                    legacy.BaselineFrame,
+                    legacy.BaselineHash,
+                    legacy.StateHash,
+                    legacy.Settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : legacy.Settings,
+                    legacy.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
+                    legacy.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>());
+            }
+        }
+    }
+
     public static class ShooterPureStateSyncCodec
     {
         public const int CurrentVersion = 1;
@@ -352,19 +418,8 @@ namespace AbilityKit.Protocol.Shooter
             try
             {
                 var value = MemoryPackSerializer.Deserialize<ShooterPureStateSnapshotPayload>(payload);
-                return new ShooterPureStateSnapshotPayload(
-                    value.Version,
-                    value.WorldId,
-                    value.Frame,
-                    value.ServerTick,
-                    value.SnapshotKind <= 0 ? ShooterPureStateSnapshotKinds.FullBaseline : value.SnapshotKind,
-                    value.BaselineFrame,
-                    value.BaselineHash,
-                    value.StateHash,
-                    value.Settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : value.Settings,
-                    value.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
-                    value.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>(),
-                    value.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
+                NormalizeDeserializedPayload(ref value);
+                return value;
             }
             catch (EndOfStreamException)
             {
@@ -382,6 +437,27 @@ namespace AbilityKit.Protocol.Shooter
                     legacy.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
                     legacy.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>());
             }
+        }
+
+        private static void NormalizeDeserializedPayload(ref ShooterPureStateSnapshotPayload value)
+        {
+            if (value.SnapshotKind <= 0)
+            {
+                value.SnapshotKind = ShooterPureStateSnapshotKinds.FullBaseline;
+            }
+
+            if (value.Settings.MaxEntityCount <= 0)
+            {
+                value.Settings = ShooterPureStateSyncSettings.Default;
+            }
+
+            value.Entities ??= Array.Empty<ShooterPureStateEntityDelta>();
+            value.VisibilityHints ??= Array.Empty<ShooterPureStateVisibilityHint>();
+            value.AcknowledgedCommands ??= Array.Empty<ShooterCommandAcknowledgement>();
+            value.SetTransientCounts(
+                value.Entities.Length,
+                value.VisibilityHints.Length,
+                value.AcknowledgedCommands.Length);
         }
     }
 

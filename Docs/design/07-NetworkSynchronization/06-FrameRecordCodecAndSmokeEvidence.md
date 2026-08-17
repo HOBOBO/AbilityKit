@@ -1,12 +1,18 @@
 # FrameRecord 编码与 Smoke 证据链
 
+> **文档类型：Canonical 设计**
+>
+> **事实基线：2026-08-16**
+>
+> **规范范围：** FrameRecord 内存模型、codec 兼容、diff 与 Smoke 证据分层；不把某次 artifact 当作长期协议认证。
+
 ## 一、文档定位
 
 FrameRecord 用统一内存模型保存按帧输入、状态哈希和快照。它既可以作为回放输入，也可以在同步故障后提供首个分歧帧及其上下文。Shooter Smoke 已把记录生成、最小化、回读验证、状态哈希比较和诊断产物引用串成一条实际证据链。
 
 本文聚焦 FrameRecord 的数据契约、编码实现和 Shooter Smoke 接入。回放系统的整体职责见 `07-NetworkSynchronization/04-ReplaySystem.md`；测试门禁和 Smoke 分层见 `10-EngineeringQuality/01-TestingWorkflow.md`。
 
-当前实现可以支持工程诊断。Optimized Binary v4 已保留 state-hash version，并对旧 v3 提供兼容读取，同时拒绝未来版本和多类损坏输入；但多个二进制格式仍缺少统一 codec 标识与全字段兼容矩阵。因此不能仅凭 `.bin` 扩展名或 `AKFR` magic 把文件视为同一种稳定格式。
+当前实现可以支持工程诊断。Optimized Binary v4 已保留 state-hash version；reader 源码接受 v1-v4，现有 E3 fixture 则只锁定 v3 legacy 与 v4 round-trip，并拒绝未来版本和多类损坏输入。多个二进制格式仍缺少统一 codec 标识与全字段兼容矩阵，因此不能仅凭 `.bin` 扩展名或 `AKFR` magic 把文件视为同一种稳定格式。
 
 ## 二、统一内存模型
 
@@ -66,7 +72,7 @@ flowchart TB
 |---|---|---:|---|---|
 | JSON | 文件扩展名非 `.bin` | DTO 形态，无独立根版本 | 可读、便于样例与排障，payload 使用 Base64 | 是 |
 | 基础 Binary | magic `AKFR` | 1 | 逐字段写入，保留 StateHash Version | 否，需显式实例化 |
-| Optimized Binary | magic `AKFR` | writer 当前为 4，reader 兼容 3 | Deflate、帧/OpCode/Hash/Version delta、VarInt、PlayerId 表 | `.bin` 默认 |
+| Optimized Binary | magic `AKFR` | writer 当前为 4；reader 实现接受 1-4，E3 仅锁定 3/4 | Deflate、帧/OpCode/Hash/Version delta、VarInt、PlayerId 表 | `.bin` 默认 |
 | MemoryPack | magic `PMLR` | 1 | 整个 `FrameRecordFile` 交给 MemoryPack 序列化 | 否，需安装可选 package |
 
 基础 Binary 与 Optimized Binary 共用 `AKFR` magic，但头部布局不同：基础格式在版本后直接写 Meta，optimized 格式在版本后先写 compression bool、Meta 和帧区间。magic 本身不足以选择 reader。
@@ -103,9 +109,9 @@ Writer 不排序轨道。若调用方乱序 Append，负 frame delta 仍能编�
 
 ### 4.2 版本兼容与拒绝边界
 
-Optimized reader 接受当前 v4，并兼容读取未显式保存 StateHash Version 的旧 v3；读取 v3 时只能按旧协议重建版本值，不能恢复当时未写入文件的信息。reader 会拒绝未来 v5、非法版本、负 track count、越界 PlayerId index、截断 payload 和异常长度，避免在错误布局上继续解释数据。
+Optimized reader 的源码版本分支接受 v1-v4；当前 writer 只写 v4。读取 v3 时无法从旧布局恢复当时未显式保存的 StateHash Version。v1/v2 虽位于接受范围内，但仓库没有对应 legacy fixture，因此只能声明为实现范围，不能声明为已验证兼容。reader 会拒绝未来 v5、非法版本、负 track count、越界 PlayerId index、截断 payload 和异常长度，避免在错误布局上继续解释数据。
 
-这些防护已有 `FrameRecordOptimizedBinaryCodecTests` 覆盖，包括 v4 Version 往返、v3 兼容、未来版本、负 count、越界索引和截断输入。它们证明 optimized reader 的已知格式边界，不等同于 JSON、基础 Binary、Optimized Binary、MemoryPack 四种 codec 的全字段参数化兼容矩阵。
+这些防护已有 `FrameRecordOptimizedBinaryCodecTests` 覆盖，包括 v4 Version 往返、v3 兼容、未来版本、负 count、越界索引和截断输入。它们证明 v3/v4 与拒绝路径的已知格式边界，不证明 v1/v2，也不等同于 JSON、基础 Binary、Optimized Binary、MemoryPack 四种 codec 的全字段参数化兼容矩阵。
 
 此外，基础 Binary v1 和 optimized v3/v4 共享 magic 与版本空间，却不是同一头部协议。版本号必须结合具体 codec 才有意义。
 
@@ -292,4 +298,10 @@ Shooter Smoke 当前形成四层证据：
 
 FrameRecord 已提供统一轨道模型、多个 codec、状态哈希 diff 工具和 Shooter Smoke 的实际回放证据链。Shooter 的 InputState 与 InputLogic 最小记录分别服务状态消费和逻辑重放，诊断产物再用同帧 authoritative/client hash 生成可追溯 diff。
 
-Optimized Binary v4 已修复 StateHash Version 往返，并建立 v3 兼容及未来版本、负 count、越界索引、截断数据的拒绝测试。当前主要协议风险转为格式身份、跨 codec 全字段矩阵和写入原子性：两个 `AKFR` 布局仍并存，默认分派仍依赖扩展名，writer 仍在 Dispose 时一次性提交。完成这些 P0/P1 项后，才能把 `.bin` FrameRecord 提升为稳定的长期回归协议。
+Optimized Binary v4 已修复 StateHash Version 往返，并建立 v3 兼容及未来版本、负 count、越界索引、截断数据的拒绝测试；v1/v2 仍只有 reader 实现分支，没有 legacy fixture。当前主要协议风险转为格式身份、跨 codec 全字段矩阵和写入原子性：两个 `AKFR` 布局仍并存，默认分派仍依赖扩展名，writer 仍在 Dispose 时一次性提交。完成这些 P0/P1 项后，才能把 `.bin` FrameRecord 提升为稳定的长期回归协议。
+
+本轮 `AbilityKit.Record.Tests` 23/23 通过，覆盖当前 codec/diff/标识等 E3 契约；其中 `RecordIdHash` 有专项测试。该结果没有执行 Shooter Smoke，也不提升 artifact 到 E4 或 workflow 到 E5。writer 当前写 v4、reader 支持 v1-v4，兼容声明必须同时写明容器版本、state hash schema version 和领域 payload codec。
+
+---
+
+*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*

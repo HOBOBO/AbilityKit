@@ -1,4 +1,4 @@
-# Boot Debug/UI Boundary
+# 启动调试/UI 边界
 
 [`Boot`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Flow/Boot) 目录当前包含启动菜单与根调试 OnGUI Feature。
 

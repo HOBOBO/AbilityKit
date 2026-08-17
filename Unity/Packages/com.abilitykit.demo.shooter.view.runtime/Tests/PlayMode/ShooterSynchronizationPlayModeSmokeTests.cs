@@ -1,4 +1,5 @@
 using System.Collections;
+using AbilityKit.Demo.Common.Gameplay;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
 using NUnit.Framework;
@@ -9,16 +10,30 @@ namespace AbilityKit.Demo.Shooter.PlayMode.Tests
 {
     public sealed class ShooterSynchronizationPlayModeSmokeTests
     {
+        [TearDown]
+        public void TearDown()
+        {
+            DemoLaunchIntent.Clear();
+        }
+
         [UnityTest]
-        public IEnumerator DefaultLaunchSpecUsesSharedSynchronizationContractInPlayMode()
+        public IEnumerator DefaultLaunchSpecAndUnifiedRequestUseStateSyncInPlayMode()
         {
             yield return null;
 
             Assert.IsTrue(Application.isPlaying);
 
+            var launchRequest = new DemoLaunchRequest(
+                DemoGameplayId.Shooter,
+                DemoLaunchMode.Multiplayer);
+            DemoLaunchIntent.Request(in launchRequest);
+            Assert.IsTrue(DemoLaunchIntent.TryConsume(out var consumedRequest));
+            Assert.AreEqual(DemoGameplayId.Shooter, consumedRequest.Gameplay);
+            Assert.AreEqual(DemoLaunchMode.Multiplayer, consumedRequest.Mode);
+
             ShooterRoomLaunchSpec spec = ShooterRoomLaunchSpec.CreateDefault("unity-playmode-smoke");
-            Assert.AreEqual(ShooterSyncTemplateIds.PredictRollbackAuthority, spec.SyncTemplateId);
-            Assert.AreEqual((int)NetworkSyncModel.PredictRollback, spec.SyncModel);
+            Assert.AreEqual(ShooterSyncTemplateIds.StateSyncAuthority, spec.SyncTemplateId);
+            Assert.AreEqual((int)NetworkSyncModel.AuthoritativeInterpolation, spec.SyncModel);
         }
     }
 }

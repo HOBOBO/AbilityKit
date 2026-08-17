@@ -1,5 +1,9 @@
 # 8.3 Buff 系统
 
+> 文档类型：示例分析（MOBA Buff 应用层）
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > 本文从源码出发说明 AbilityKit MOBA 示例中的 Buff 设计：Buff 不是一个直接改属性的临时对象，而是由配置模型、命令队列、生命周期编排、持续行为、标签门禁、阶段 Trigger、表现 Cue、技能运行时绑定与持续触发计划共同组成的玩法状态系统。
 
 ---
@@ -9,6 +13,7 @@
 - [8.3 Buff 系统](#83-buff-系统)
   - [目录](#目录)
   - [1. 能力定位](#1-能力定位)
+    - [1.1 能力所有权](#11-能力所有权)
   - [2. 源码入口](#2-源码入口)
   - [3. 设计总览](#3-设计总览)
   - [4. 配置与运行时模型](#4-配置与运行时模型)
@@ -25,7 +30,8 @@
   - [12. 扩展点与约束](#12-扩展点与约束)
     - [12.1 扩展点](#121-扩展点)
     - [12.2 关键约束](#122-关键约束)
-  - [13. 关联文档](#13-关联文档)
+  - [13. 证据与关联文档](#13-证据与关联文档)
+    - [13.1 证据状态与采用边界](#131-证据状态与采用边界)
 
 ---
 
@@ -41,6 +47,16 @@ Buff 系统承担的是“持续玩法状态”的统一承载能力。它覆盖
 - 通过 `MobaContinuousOwnerBoundTriggerLifecycleBinder` 将 Buff 的持续 TriggerPlan 绑定到 Continuous 生命周期，统一建立和解除 owner-bound 订阅。
 
 从设计上看，Buff 系统更像“持续上下文容器 + 生命周期编排器”，而不是属性系统或 Triggering 系统的替代品。
+
+### 1.1 能力所有权
+
+| 层级 | 可复用能力 | 必须由项目决定的策略 |
+|------|------------|----------------------|
+| 框架包 | Effect 生命周期、Continuous 管理、Trigger 计划、属性 Modifier、标签查询与来源计数 | 不定义“同名 Buff”含义，也不规定叠层、刷新、死亡清理和阶段事件顺序 |
+| 项目应用层 | Buff 身份、命令入口、叠层/刷新、来源归因、到期/驱散/死亡策略、属性和触发投影、失败补偿 | 对这些规则及其存档、同步和兼容性承担最终所有权 |
+| MOBA 示例 | `BuffMO`、`BuffRuntime`、命令队列、Continuous 绑定、系统顺序和表现 Cue | 是完整参考实现，不是框架层可直接承诺的通用 Buff 协议 |
+
+Buff 在不同游戏中的共同点主要是代码形状，而非完整语义。将 MOBA 的应用服务下沉会把叠层、资源、角色死亡和配置协议固化为错误默认；更合理的复用方式是组合公共原语，并把本文作为应用层实现参考。
 
 ---
 
@@ -445,14 +461,27 @@ flowchart LR
 - Continuous 激活失败时必须取消上下文、释放技能 retain、通知 lifecycle failed 并回收 runtime。
 - 标签门禁在 Apply 前判断，标签移除在 Reconcile 阶段判断。
 - 系统顺序必须保持 `BuffCommandsDrain < ContinuousTick < BuffLifecycleReconcile < OngoingTriggerPlansReconcile`。
+- 新建和 Replace 路径在候选 runtime 提交前失败时，会用补偿步骤清理 Context、Continuous、技能 retain、运行时绑定和对象池实例；这只是提交前的局部事务。`list.Add` 或 `ReplaceAt` 成功后的 lifecycle/notifier 异常不会回滚已提交列表状态。`BuffEndFlow` 会继续尝试所有结束清理步骤并在最后重新抛出首个异常。
+- 更新已有 Buff 的路径仍不是完整事务：技能 runtime 绑定、叠层/时长修改先发生，后续 Continuous 激活失败时当前只返回 reject，没有自动恢复旧叠层、旧时长和新 retain。项目不能把所有 Apply 分支统称为原子提交。
+- `MobaBuffStateRecoveryProvider` 恢复带技能父运行时的 Buff 时会重新取得 retain；恢复失败会释放已经取得的 retain 和 runtime，但整个多 Buff payload 仍是逐项恢复，不是跨所有 Actor 的单一事务。
 
 ---
 
-## 13. 关联文档
+## 13. 证据与关联文档
+
+### 13.1 证据状态与采用边界
+
+- **E0 实现**：Ability、Continuous、Triggering、Attributes、GameplayTags 的公共原语与 MOBA Buff runtime 均有源码入口。
+- **E1 示例**：MOBA Buff 配置、阶段触发、Modifier 和 Cue 展示了完整组合方式。
+- **E2 集成**：MOBA 的技能、被动、属性、触发和生命周期系统真实消费该应用层。
+- **E3 契约**：不存在一个可代表“通用 Buff 系统”的独立测试工程。2026-08-15 Unity ownership fixture `9/9` 覆盖 Buff/Projectile/Summon/Skill 的部分 retain、强制清理与回滚路径；它是 MOBA 寄宿式历史 artifact，不等于叠层、更新已有 Buff 和恢复事务的完整矩阵。
+- **E4/E5**：不声明跨游戏 Buff 应用层的场景基线或发布门禁。具体项目应按自己的叠层矩阵、清理原因、同步恢复和配置迁移建立验收。
+
+已知风险集中在已有实例更新的非事务失败、命令队列与系统顺序、项目配置热更，以及跨帧恢复时 Buff/Continuous/Trigger/Modifier 状态的一致性。当前 MOBA 主工程 `279/305` 被启动配置统一阻断，不能用其未进入 World 的失败或历史示例结果外推 Buff 当前完整 E3。
 
 - [投射物系统](04-ProjectileSystem.md) - 投射物实现。
 - [属性系统](05-AttributeSystem.md) - Attributes 与 Modifiers。
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-06-23*
+*文档类型：示例分析（MOBA Buff 应用层） | 事实基线：2026-08-16 | 证据等级：E0-E2 + MOBA 寄宿式历史 E3 | 文档版本：v3.0*

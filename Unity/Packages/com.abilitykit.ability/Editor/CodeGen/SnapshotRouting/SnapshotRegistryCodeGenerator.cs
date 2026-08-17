@@ -180,7 +180,7 @@ namespace AbilityKit.Ability.Editor.CodeGen.SnapshotRouting
 
             sb.AppendLine();
 
-            // cmd handlers
+            // 命令处理器
             for (int i = 0; i < decls.CmdHandlers.Count; i++)
             {
                 var h = decls.CmdHandlers[i];
@@ -192,7 +192,7 @@ namespace AbilityKit.Ability.Editor.CodeGen.SnapshotRouting
 
             sb.AppendLine();
 
-            // pipeline stages
+            // 管线阶段
             var stages = decls.PipelineStages.OrderBy(x => x.OpCode).ThenBy(x => x.Order).ToArray();
             for (int i = 0; i < stages.Length; i++)
             {
@@ -211,13 +211,13 @@ namespace AbilityKit.Ability.Editor.CodeGen.SnapshotRouting
 
         private static string GetGeneratedOutputPath(Type targetType)
         {
-            // Convention:
-            // - Generated file sits alongside target registry type under ./Generated
-            // - Name: <RegistryClassName>.Generated.cs
+            // 约定：
+            // - 生成文件位于目标注册表类型旁的 ./Generated 目录下
+            // - 名称：<RegistryClassName>.Generated.cs
             var scriptPath = FindScriptAssetPathByTypeName(targetType.Name);
             if (string.IsNullOrEmpty(scriptPath))
             {
-                // fallback: Assets/Scripts/Generated
+                // 回退路径：Assets/Scripts/Generated
                 return "Assets/Scripts/Generated/" + targetType.Name + ".Generated.cs";
             }
 

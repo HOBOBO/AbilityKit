@@ -34,12 +34,16 @@ namespace AbilityKit.Game.Flow
         private static readonly NetworkSyncProfileControllerRegistry<MobaClientAuthoritativeInterpolationSyncController, MobaSyncControllerContext>
             SyncControllerRegistry = CreateSyncControllerRegistry();
 
+        private readonly object _inputSubmissionStatsGate = new object();
         private int _generation;
         private Action<object> _snapshotPushed;
         private Action<object> _reliableEventsPushed;
         private Action _connectionClosed;
         private Action _connectionEstablished;
         private Action<Exception> _authenticationFailed;
+        private Action<NetworkSubmitInputResponse> _submitInputCompleted;
+        private Action<Exception> _submitInputFailed;
+        private InputSubmissionStatsSnapshot _inputSubmissionStats;
         private Func<string> _getReliableEventEpoch;
         private Func<long> _getReliableEventLastAcknowledgedSequence;
         private Action<int> _submitInputAck;
@@ -145,6 +149,56 @@ namespace AbilityKit.Game.Flow
                 {
                     if (IsCurrent(generation, transport)) onAuthenticationFailed?.Invoke(ex);
                 };
+                _inputSubmissionStats = new InputSubmissionStatsSnapshot();
+                InputSubmissionStatsProvider.Current = _inputSubmissionStats;
+                _submitInputCompleted = response =>
+                {
+                    if (!IsCurrent(generation, transport)) return;
+                    lock (_inputSubmissionStatsGate)
+                    {
+                        var previous = _inputSubmissionStats;
+                        var snapshot = new InputSubmissionStatsSnapshot
+                        {
+                            CompletedCount = previous.CompletedCount + 1,
+                            AcceptedCount = previous.AcceptedCount + (response.Accepted ? 1 : 0),
+                            RejectedCount = previous.RejectedCount + (response.Accepted ? 0 : 1),
+                            FailedCount = previous.FailedCount,
+                            LastServerFrame = response.ServerFrame,
+                            LastAcceptedFrame = response.AcceptedFrame,
+                            LastReasonCode = response.ReasonCode,
+                            LastShouldResync = response.ShouldResync,
+                            LastStatus = response.Status,
+                            LastMessage = response.Message,
+                            LastFailure = previous.LastFailure
+                        };
+                        _inputSubmissionStats = snapshot;
+                        InputSubmissionStatsProvider.Current = snapshot;
+                    }
+                };
+                _submitInputFailed = ex =>
+                {
+                    if (!IsCurrent(generation, transport)) return;
+                    lock (_inputSubmissionStatsGate)
+                    {
+                        var previous = _inputSubmissionStats;
+                        var snapshot = new InputSubmissionStatsSnapshot
+                        {
+                            CompletedCount = previous.CompletedCount,
+                            AcceptedCount = previous.AcceptedCount,
+                            RejectedCount = previous.RejectedCount,
+                            FailedCount = previous.FailedCount + 1,
+                            LastServerFrame = previous.LastServerFrame,
+                            LastAcceptedFrame = previous.LastAcceptedFrame,
+                            LastReasonCode = previous.LastReasonCode,
+                            LastShouldResync = previous.LastShouldResync,
+                            LastStatus = previous.LastStatus,
+                            LastMessage = previous.LastMessage,
+                            LastFailure = ex?.ToString() ?? string.Empty
+                        };
+                        _inputSubmissionStats = snapshot;
+                        InputSubmissionStatsProvider.Current = snapshot;
+                    }
+                };
                 _getReliableEventEpoch = () =>
                     IsCurrent(generation, transport)
                         ? ReliableEventCursor?.Epoch ?? string.Empty
@@ -175,6 +229,8 @@ namespace AbilityKit.Game.Flow
                 transport.ConnectionClosed += _connectionClosed;
                 transport.ConnectionEstablished += _connectionEstablished;
                 transport.AuthenticationFailed += _authenticationFailed;
+                transport.SubmitInputCompleted += _submitInputCompleted;
+                transport.SubmitInputFailed += _submitInputFailed;
                 return checkpointAccepted;
             }
             catch
@@ -187,7 +243,7 @@ namespace AbilityKit.Game.Flow
 #if UNITY_5_3_OR_NEWER
         internal void TickPresentation(
             BattleContext context,
-            BattleSessionHandles handles,
+            bool enableClientPrediction,
             float deltaTime)
         {
             if (InterpolationController == null || ReplicationPipeline == null || context == null)
@@ -200,9 +256,9 @@ namespace AbilityKit.Game.Flow
 
             if (!InterpolationController.TryProjectRemoteFrame(out var projected)) return;
 
-            var localActorId = handles?.RemoteDriven.World != null
-                ? context.LocalActorId
-                : 0;
+            var localActorId = BattleRemoteInterpolationApplier.ResolveExcludedLocalActorId(
+                enableClientPrediction,
+                context.LocalActorId);
             BattleRemoteInterpolationApplier.Apply(context, in projected, localActorId);
         }
 #endif
@@ -224,6 +280,10 @@ namespace AbilityKit.Game.Flow
                     transport.ConnectionEstablished -= _connectionEstablished;
                 if (_authenticationFailed != null)
                     transport.AuthenticationFailed -= _authenticationFailed;
+                if (_submitInputCompleted != null)
+                    transport.SubmitInputCompleted -= _submitInputCompleted;
+                if (_submitInputFailed != null)
+                    transport.SubmitInputFailed -= _submitInputFailed;
 
                 var options = transport.Options;
                 if (ReferenceEquals(options.GetReliableEventEpoch, _getReliableEventEpoch))
@@ -259,11 +319,16 @@ namespace AbilityKit.Game.Flow
             ReliableEventCursor = null;
             LastServerAckFrame = 0;
             PendingStateImport = false;
+            if (ReferenceEquals(InputSubmissionStatsProvider.Current, _inputSubmissionStats))
+                InputSubmissionStatsProvider.Current = null;
             _snapshotPushed = null;
             _reliableEventsPushed = null;
             _connectionClosed = null;
             _connectionEstablished = null;
             _authenticationFailed = null;
+            _submitInputCompleted = null;
+            _submitInputFailed = null;
+            _inputSubmissionStats = null;
             _getReliableEventEpoch = null;
             _getReliableEventLastAcknowledgedSequence = null;
             _submitInputAck = null;

@@ -1,4 +1,4 @@
-# Triggering Formal Boundary Policy
+# Triggering 正式边界策略
 
 `Triggering` 的正式主线只保留 `TriggerRunner<TCtx>`、`TriggerPlan<TArgs>`、`PlannedTrigger<TArgs, TCtx>`、`ExecCtx<TCtx>`、`ActionRegistry`、`FunctionRegistry`、`ActionScheduler`、`RuleScheduler` 与 `Runtime/Validation`。
 

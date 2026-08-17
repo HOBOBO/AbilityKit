@@ -9,7 +9,8 @@ namespace AbilityKit.Game.Battle
 {
     public sealed class DefaultBattleDebugFacade : IBattleDebugFacade
     {
-        private readonly List<EcsEntityId> _entityIdCache = new List<EcsEntityId>(256);
+        private readonly List<BattleDebugEntityId> _entityIdCache =
+            new List<BattleDebugEntityId>(256);
         private readonly Func<BattleLogicSession> _sessionProvider;
  
         public DefaultBattleDebugFacade(Func<BattleLogicSession> sessionProvider = null)
@@ -23,7 +24,8 @@ namespace AbilityKit.Game.Battle
             return session != null;
         }
 
-        public bool TryListEntities(out IReadOnlyList<EcsEntityId> ids)
+        public bool TryListEntities(
+            out IReadOnlyList<BattleDebugEntityId> ids)
         {
             ids = null;
 
@@ -38,14 +40,17 @@ namespace AbilityKit.Game.Battle
             _entityIdCache.Clear();
             foreach (var actorId in lookup.ActorIds)
             {
-                _entityIdCache.Add(new EcsEntityId(actorId));
+                _entityIdCache.Add(
+                    new BattleDebugEntityId(actorId));
             }
 
             ids = _entityIdCache;
             return true;
         }
 
-        public bool TryResolveUnit(EcsEntityId id, out IUnitFacade unit)
+        public bool TryResolveUnit(
+            BattleDebugEntityId id,
+            out IUnitFacade unit)
         {
             unit = null;
 
@@ -55,9 +60,18 @@ namespace AbilityKit.Game.Battle
             var services = world.Services;
             if (services == null) return false;
 
-            if (!services.TryResolve<IUnitResolver>(out var resolver) || resolver == null) return false;
+            if (!services.TryResolve<IUnitResolver>(out var resolver) ||
+                resolver == null)
+            {
+                return false;
+            }
 
-            return resolver.TryResolve(id, out unit);
+#pragma warning disable CS0618
+            return resolver.TryResolve(
+                new AbilityKit.Ability.Share.ECS.EcsEntityId(
+                    id.ActorId),
+                out unit);
+#pragma warning restore CS0618
         }
     }
 }

@@ -1,0 +1,24 @@
+{
+  "name": "AbilityKit.Demo.Common.Unity.Tests",
+  "rootNamespace": "AbilityKit.Demo.Common.Tests",
+  "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Common.Unity"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

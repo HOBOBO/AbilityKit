@@ -20,6 +20,14 @@ namespace AbilityKit.Game.Flow
             };
         }
 
+        /// <summary>世界资源就绪：仅在 CreateOrJoinWorld 推进为 JoinedWorld。</summary>
+        public MobaBattleEvent? OnWorldReady(MobaBattleState current)
+        {
+            return current == MobaBattleState.CreateOrJoinWorld
+                ? MobaBattleEvent.JoinedWorld
+                : (MobaBattleEvent?)null;
+        }
+
         /// <summary>
         /// 收到 FirstFrameReceived 信号：Prepare→PrepareDone；Connect→Connected；
         /// CreateOrJoinWorld→JoinedWorld；其余不推进。
@@ -57,7 +65,7 @@ namespace AbilityKit.Game.Flow
         /// 进入某状态时按 runtime 标志补判（覆盖原 TryAdvanceOnConnectEnter /
         /// TryAdvanceOnCreateOrJoinWorldEnter / TryAdvanceOnLoadAssetsEnter）：
         /// Connect 看 SessionStarted‖FirstFrameReceived→Connected；
-        /// CreateOrJoinWorld 看 FirstFrameReceived→JoinedWorld；
+        /// CreateOrJoinWorld 看 WorldReady→JoinedWorld；
         /// 其余状态不补判。
         /// 阶段 7a：LoadAssets 不再因 firstFrameReceived 自动推进——资源加载完成由
         /// <see cref="OnAssetsLoadCompleted"/> 驱动（真实 manifest barrier）。
@@ -65,13 +73,14 @@ namespace AbilityKit.Game.Flow
         public MobaBattleEvent? OnStateEntered(
             MobaBattleState current,
             bool sessionStarted,
+            bool worldReady,
             bool firstFrameReceived,
             bool assetsLoadCompleted = false)
         {
             return current switch
             {
                 MobaBattleState.Connect when sessionStarted || firstFrameReceived => MobaBattleEvent.Connected,
-                MobaBattleState.CreateOrJoinWorld when firstFrameReceived => MobaBattleEvent.JoinedWorld,
+                MobaBattleState.CreateOrJoinWorld when worldReady => MobaBattleEvent.JoinedWorld,
                 MobaBattleState.LoadAssets when assetsLoadCompleted => MobaBattleEvent.AssetsLoadCompleted,
                 _ => null
             };

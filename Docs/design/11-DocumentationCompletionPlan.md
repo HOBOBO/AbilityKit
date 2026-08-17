@@ -35,6 +35,70 @@
 | 索引接入 | 更新 `00-index.md` 的文档定位、说明和版本记录 |
 | 讲解接入 | 能从 `00-PresentationAndFeishuNavigation.md` 路由到高频主题；PPT 只引用飞书页面 URL，不依赖本地路径 |
 
+### 2.1 文档类型与权威边界
+
+正式化不等于把所有材料改写成同一种文章。`Docs/design` 中的文档必须先声明或能够明确判断自己的类型，不同类型承担不同责任：
+
+| 类型 | 主要责任 | 可以包含 | 不应承担 |
+|------|----------|----------|----------|
+| 能力地图 | 建立跨包能力、依赖方向和选型入口 | 分层、组合关系、源码地图、成熟度摘要 | 展开单个实现类的全部细节 |
+| Canonical 设计 | 作为某个稳定能力或跨模块契约的权威说明 | 设计动机、对象职责、生命周期、失败语义、扩展点、证据 | 记录每日开发过程或未确认猜测 |
+| 接入指南 | 给出完成一个明确接入目标的操作路径 | 前置条件、装配步骤、最小代码、验证命令、故障定位 | 替代设计文档解释全部内部原理 |
+| 示例分析 | 解释某个 Demo 如何选择并组合框架能力 | 项目策略、应用层编排、取舍、可复制模式、示例证据 | 把示例策略声明为框架默认契约 |
+| 历史审计 | 保留某一日期的事实快照、问题和决策依据 | 日期、源码基线、当时结论、后续处置 | 作为当前 API 和成熟度的唯一依据 |
+| 演进计划 | 描述尚未完成的目标、依赖和验收条件 | 目标设计、里程碑、风险、退出条件 | 使用现在时把计划描述成已实现能力 |
+
+同一主题只能有一个稳定 canonical。接入指南和示例分析应链接到 canonical；历史审计和演进计划必须标明日期或状态，并在开头指向当前 canonical。若 package 内已经有更贴近源码所有权的权威设计，`Docs/design` 只建立跨模块导航和能力摘要，不复制出第二份容易漂移的正文。
+
+### 2.2 设计陈述的状态语言
+
+设计文档必须区分“应该如此”“当前如此”和“未来希望如此”。下列状态可以作为小节标题、表格列或段落前缀使用：
+
+| 状态 | 含义 | 推荐表达 |
+|------|------|----------|
+| 规范约束 | 已决定并要求调用方遵守的契约 | “必须”“不得”“由……拥有” |
+| 当前实现 | 已由当前源码直接证明的行为 | “当前实现为”“源码中由……完成” |
+| 示例策略 | 某个 Demo 或项目为了自身需求做出的选择 | “MOBA 示例选择”“Shooter 当前采用” |
+| 目标设计 | 尚未完全实现、等待验证或计划迁移的方向 | “目标是”“计划引入”“尚未闭环” |
+| 已知限制 | 已确认存在的缺口、风险或非事务行为 | “当前不保证”“失败后可能”“尚无证据” |
+| 历史结论 | 只对指定日期或版本有效的审计结果 | “截至 YYYY-MM-DD”“当时基线为” |
+
+禁止只使用“支持”“完成”“可用”“生产级”等没有范围的词。此类结论至少要同时写清对象、运行环境和证据，例如“Shooter TCP 主链已有 E2 调用和 E4 Smoke”，而不是“网络模块已生产可用”。
+
+### 2.3 单篇文档的最小结构
+
+复杂专题不要求机械套用固定标题，但正文必须能回答以下结构问题：
+
+1. **定位**：能力解决什么问题，谁是调用方。
+2. **边界**：负责什么、不负责什么，依赖方向和所有权在哪里。
+3. **模型**：关键对象、状态和数据契约是什么。
+4. **流程**：创建、运行、失败、取消、恢复和销毁如何发生。
+5. **扩展**：项目应实现哪些端口，哪些行为不得绕过。
+6. **证据**：源码入口、消费者、测试、Smoke、artifact 和门禁分别达到什么层级。
+7. **限制**：当前缺口、性能条件、线程/确定性约束和未来演进是什么。
+
+建议在文档开头或结尾保留下面的元信息。无法确认的字段应省略，不得编造 owner、版本或成熟度：
+
+```text
+文档类型：Canonical 设计 / 接入指南 / 示例分析 / 历史审计 / 演进计划
+事实基线：YYYY-MM-DD 或具体 tag/commit
+主要源码：Unity/Packages/...；src/...；Server/...
+证据等级：E0-E5，并注明适用范围
+当前限制：链接到本文限制章节或外部治理项
+```
+
+### 2.4 战斗工具集文档的特殊边界
+
+战斗领域的价值来自多变性，文档不能因为多个示例具有相似代码形状，就默认存在一个应被抽取的通用应用层。正式设计应把内容分为三类：
+
+| 复用性质 | 推荐归属 | 文档应说明的内容 |
+|----------|----------|------------------|
+| 行为语义稳定，可被不同玩法共同遵守 | Framework package | 稳定契约、生命周期、扩展点和失败语义 |
+| 结构相似，但控制流和策略必然由项目修改 | Starter、Recipe 或示例源码 | 可复制的组织方式、替换点、项目接管后的所有权 |
+| 依赖英雄、阵营、资源、结算、配置或表现规则 | 项目应用层 | 示例为何这样选择，以及其他项目不应照搬的部分 |
+
+网络传输、序列化、连接和请求生命周期通常具有较强的协议稳定性，可以提供较完整的默认运行时；技能提交、Buff 调和、死亡复活、资源消耗、临时实体和战斗结算则经常是项目策略。后者只有在语义稳定、依赖可反转，并至少被第二类非同构玩法验证后，才适合晋升为框架能力。文档不得把“缺少统一 MOBA 应用层包”记录为天然缺口，也不得以减少接入代码为理由制造无法裁剪的公共编排器。
+
 ---
 
 ## 3. 总体治理顺序与覆盖矩阵
@@ -62,7 +126,7 @@ flowchart TD
 
 ### 3.1 当前审计口径
 
-本轮对 `Docs/design` 的 117 篇 Markdown 做结构盘点，并反向核对 `Unity/Packages`、`src`、`Server/Orleans`、测试工程和实际调用。篇幅、标题数量和 Mermaid 数量只用于发现候选，不直接决定文档质量；最终结论以源码契约、生产采用、生命周期、失败路径和验证证据为准。
+本轮对 `Docs/design` 的 118 篇 Markdown 做结构盘点，并反向核对 `Unity/Packages`、`src`、`Server/Orleans`、测试工程和实际调用。篇幅、标题数量和 Mermaid 数量只用于发现候选，不直接决定文档质量；最终结论以源码契约、生产采用、生命周期、失败路径和验证证据为准。
 
 缺口统一分为六类，避免把“未出现 package 名称”误判为“没有设计”：
 
@@ -93,7 +157,7 @@ flowchart TD
 | 覆盖域 | 代表文档 | 源码验证重点 |
 |------|------------|--------------|
 | 入门与结构 | `01-OverviewAndGettingStarted/00-AbilityKitCapabilityMap.md`、`03-QuickStart.md`、`04-ProjectStructure.md` | Unity package、`src` 工程、Server/Orleans、Console Demo、构建与测试入口 |
-| 网络同步 | `07-NetworkSynchronization/00-SynchronizationCapabilityMap.md`、`02-StateSync.md`、`03-RollbackPrediction.md`、`03.1-PredictionReconciliationDesign.md`、`04-ReplaySystem.md`、`05-SessionCoordination.md`、`07-MultiplayerSdkIntegrationGuide.md` | `FramePacket`、元信息/实体状态双轨、通用 hash/diff 与预测骨架、业务回滚采用、FrameRecord/Smoke/CI 证据、会话所有权、Local/Remote/Hybrid 成熟度、TCP 与扩展 transport 的实现/采用边界 |
+| 网络同步 | `07-NetworkSynchronization` 全部 10 篇 | 同步 Profile 与远端能力、帧/状态同步、Q32.32 FrameTime、预测/回滚/表现重整、FrameRecord/Smoke/CI、线性 facade 与阶段化 Flow、可靠事件 checkpoint/baseline、双连接所有权和 transport 边界 |
 | 玩法运行时 | `08-GameplayModules/06-DamageCalculation.md`、`07-TargetingSystem.md`、`08-PipelineAndAbilityRuntime.md` | Dataflow 与 Damage 的异形输入输出、Targeting 稳定排序、Pipeline run 隔离、Ability/MOBA 特化边界 |
 | 独立基础设施 | package 内 Dataflow、HotReload、Network SDK、Threading 设计文档；前三者已作为包内 canonical 接入总索引 | package 文档与源码一致性、外部消费者、世界状态所有权、并发/确定性、测试成熟度 |
 | Editor 可解释化与质量工具 | package 内 Ability Explain、Ability TestKit、Analyzer、BaseEditor、ActionEditorImpl canonical 与 Ability Explain Mock Sample | 静态注册和窗口生命周期、测试 Harness 所有权、Unity/Roslyn 诊断分工、Builder/legacy 边界、authoring-to-runtime 支持矩阵与 E0-E5 证据 |
@@ -221,7 +285,7 @@ flowchart LR
 | 目标 | 覆盖目标搜索、投射物、伤害、实体索引、技能库、移动等战斗领域模块 |
 | 源码目录 | `com.abilitykit.combat.*` |
 | 目标文档 | `08-GameplayModules/04-ProjectileSystem.md` 到 `10-MotionPipeline.md` |
-| 当前状态 | canonical Targeting、Projectile、Attribute、Damage、EntityManager/SkillLibrary 和 Motion 文档已建立；后续随领域接入、测试和确定性证据持续校验 |
+| 当前状态 | 12 篇玩法专题已正式化；Batch S 再复核 Targeting、Pipeline/Ability、Entity/Skill 索引、Motion 与 GameplayTags，校正融合路径、事件/清理、非事务索引、固定步长和目录协议边界；6 个聚焦工程当次共 `87/87`，Unity Editor 未重跑 |
 | 必画图 | Targeting 管线图、Projectile 命中图、Damage Pipeline 图、实体索引更新图、移动来源合成图 |
 | 设计意图 | 为什么把领域能力拆小包，如何组合成 MOBA/Shooter 不同战斗模型 |
 | 验收方式 | 能通过文档追踪一次命中：搜索目标、生成投射物、命中判定、伤害结算、快照输出 |
@@ -231,9 +295,9 @@ flowchart LR
 | 项目 | 内容 |
 |------|------|
 | 目标 | 区分运行时配置、CodeGen/Luban 生产链、ActionTimeline 协议与 Excel-ScriptableObject 编辑器同步 |
-| 源码目录 | `Unity/Packages/com.abilitykit.codegen`、`com.abilitykit.actionschema`、`com.abilitykit.excel-sync`、`LubanConfig`、Demo Configs |
+| 源码目录 | `Unity/Packages/com.abilitykit.ability`、`com.abilitykit.demo.moba.codegen`、`com.abilitykit.actionschema`、`com.abilitykit.excel-sync`、`LubanConfig`、Demo Configs |
 | 目标文档 | `05-CommonModules/04-ConfigurationSystem.md`、`07-CodeGenAndLubanProductionPipeline.md`、`08-ActionTimelineDataAndPlayback.md`、`09-ExcelScriptableObjectSync.md` |
-| 当前状态 | 四条 canonical 责任线已建立；ActionTimeline 和 Excel Sync 均缺 package 自动测试，Excel Sync 仍需唯一主键、baseline 更新与编译阶段门禁 |
+| 当前状态 | 四条 canonical 已于 2026-08-15 正式化：ConfigDatabase 明确 factory-first/反射 fallback 和批次提交；MOBA CodeGen 被定性为项目应用层资产并记录 gate 失效引用；ActionTimeline 与 Excel Sync 均保留无专项自动测试的成熟度边界 |
 | 必画图 | 配置生成/加载图、时间线导出播放图、Excel 导入和三方冲突图 |
 | 设计意图 | 避免把同名 Schema 或 Editor 工具误认为运行时配置能力，明确各数据资产的权威源、提交边界和失败传播 |
 | 验收方式 | 能分别追踪运行时配置发布、logic JSON 导出播放和 Excel 双向同步，并定位每条链的测试与成熟度缺口 |
@@ -245,6 +309,7 @@ flowchart LR
 | 目标 | 解释逻辑表现分离、ViewEvent、Snapshot Dispatch、Console/MOBA/Shooter/ET Demo |
 | 源码目录 | `com.abilitykit.demo.*`、`src/AbilityKit.Demo.*`、`Docs/design/09-ImplementationExamples` |
 | 目标文档 | `04-PresentationLayerDesign`、`09-ImplementationExamples` |
+| 当前状态 | 表现层 4 篇与顶层示例 4 篇已于 2026-08-15 正式化：公共路由、客户端宿主、项目表现/同步策略和示例验收分层；Console、ET、MOBA、Shooter 的现行源码入口与 E0-E5 证据边界已校正 |
 | 必画图 | ViewEvent 转译图、Snapshot 分发图、Demo 启动图、跨平台适配图 |
 | 设计意图 | 为什么表现层只消费事件和快照，如何支持 Unity、Console、ET、Server smoke 共用逻辑 |
 | 验收方式 | 文档能解释同一个逻辑结果如何在不同端表现，并指出各端适配代码入口 |
@@ -256,6 +321,7 @@ flowchart LR
 | 目标 | 解释 Gateway、RoomGrain、BattleHost、FrameSyncGrain、Shooter Smoke 验收 |
 | 源码目录 | `Server/Orleans/src`、`Server/Orleans/tools` |
 | 目标文档 | Shooter/Orleans 示例文档、`12-ServerArchitecture` 服务端架构专题 |
+| 当前状态 | 2026-08-15 已正式化 8 篇主体：修正 staged loading 最后上报即时 commit 与 Tick 补偿、MOBA 默认双运行路线、Room 持久化幂等/回滚、Shooter 严格输入与 payload 模板优先级；补齐 WebSocket、storage fallback、placement、Admin 安全/运维和 E0-E5 证据边界 |
 | 必画图 | 网关请求图、房间生命周期图、战斗宿主推进图、Smoke 验收图 |
 | 设计意图 | 为什么服务端只通过协议和 Host 组合接入，如何保证可测和可恢复 |
 | 验收方式 | 能根据文档跑 smoke 或理解 smoke 输出中的帧、hash、reconnect、late join 结果 |
@@ -267,7 +333,7 @@ flowchart LR
 | 目标 | 统一测试、采用治理、性能证据、DemoHarness、Unity 自动化、Smoke 和文档检查 |
 | 源码目录 | `src/*Tests`、`Server/Orleans/src/*Tests`、`tools`、`.github` |
 | 目标文档 | `10-EngineeringQuality/01-TestingWorkflow.md`、`04-CompanyAdoptionAndModuleGovernance.md`、`05-CrossModulePerformanceAndHotPathGovernance.md`，文档检查和发布验收专题 |
-| 当前状态 | 测试、公司采用和性能治理 canonical 基线已建立；通用性能阻断 gate 尚未落地 |
+| 当前状态 | 2026-08-15 已正式化 `10-EngineeringQuality` 全部 9 篇：统一 E0-E5、配置/runner/workflow 三层 gate 口径，校正 AI/Analysis、性能、Beta 发布和历史审计边界；通用性能预算、AI/Analysis 和 package 发布 E5 仍未落地 |
 | 必画图 | 测试金字塔图、CI 验收图、成熟度状态图、性能门禁晋升图、文档检查图 |
 | 设计意图 | 为什么把纯逻辑测试、场景证据、成熟度、预算和发布阻断分层，如何降低回归与采用风险 |
 | 验收方式 | 文档列出每类变更应运行的门禁、采用证据和性能声明边界 |
@@ -279,8 +345,8 @@ flowchart LR
 | 目标 | 周期性选择 1 到 2 篇既有 canonical，按最新源码、生产调用和测试证据修正契约漂移，而不是只做措辞润色 |
 | 本轮源码目录 | `com.abilitykit.core/Runtime/Event`、`Runtime/Generic/StableStringIdRegistry.cs`、`Runtime/Pooling`、Ability Triggering 生产适配与 Foundation 样例 |
 | 本轮目标文档 | `05-CommonModules/01-EventSystem.md`、`05-CommonModules/02-ObjectPool.md` |
-| 当前状态 | 已纠正事件退订与 Global facade API，补齐优先级/snapshot/once 重入、异常吞掉、字符串双重释放和 null 所有权；已补对象池锁内回调、异常非事务、manager 线程边界、旧 release handle、PooledObject 重复归还、首次配置固化和生产证据 |
-| 剩余缺口 | Core Event/ObjectPool 均缺独立契约测试；字符串 Publish 双重释放和 null 不释放需修复，对象池需覆盖回调异常、Player 重复归还、manager 并发、scope 旧租约和 provider 锁内执行 |
+| 当前状态 | 2026-08-15 已再次对齐源码：字符串 Publish 只释放一次；Event 有优先级/once/异常/释放 E3；ObjectPool 的 collection check 在所有构建生效，并有生命周期、引用身份、重复归还和 overflow E3 |
+| 剩余缺口 | Event 仍缺 once 递归、snapshot 内退订、null 字符串所有权与线程边界；ObjectPool 仍缺回调异常、manager/scope/config、旧 release handle、PooledObject 副本与并发专项测试 |
 | 验收方式 | Core 与引用样例工程构建、可用测试入口、Markdown/Mermaid/链接/fence 检查与限定路径 diff 审阅 |
 
 持续复核不覆盖原有专题批次的历史状态。候选优先级由源码变更频率、生产调用深度、文档最后更新时间和独立测试缺口共同决定；发现状态传播、所有权、确定性或失败边界漂移时，应优先更新现有 canonical，不重复创建同主题文档。
@@ -300,16 +366,23 @@ Batch 12 的工程质量文档应覆盖测试流程与发布验收。可拆分�
 
 | 优先级 | 能力或文档 | 当前证据与发现 | 处置 | 单篇验收重点 |
 |--------|------------|----------------|------|--------------|
+| P1 | 战斗工具集定位与应用层边界 | Batch F/Q/R/S/Z 已覆盖顶层定位、能力地图、MOBA 导航和 12 篇玩法专题；Batch Z 进一步按源码闭合 Targeting Builder 租约、Pipeline 失败清理、索引部分提交、Motion 外部副作用、Continuous Clear、GameplayTags 目录代际与 Behavior 重入边界，统一 Battle Application 仍不作为默认目标 | 文档正式化基线已完成；下一步把已记录的失败矩阵转成契约测试，并补 GameplayTags 原子目录、Motion 外部碰撞/回滚与跨原语关闭协议的集成验证 | 不把示例类型写成框架公共 DTO，不因代码形状相似而假设通用应用层；能力下沉必须说明语义、依赖、所有权和第二类非同构玩法验证 |
+| P1 | CommonModules 与配置生产链 | 9 篇 canonical 已正式化：Event/ObjectPool/Flow 旧测试事实已纠正，Timer/HFSM 明确宿主与项目责任，ConfigDatabase 修正为 factory-first，CodeGen 按现存 MOBA 专用包重写，ActionTimeline/Excel Sync 保留 Editor/最小协议边界 | 文档基线已完成；下一步修复 `moba-codegen` 的缺失目标与 Luban 退出码/staging，按风险补 Core/Flow/Config/Timeline/Excel 契约测试 | 不把 MOBA manifest、Luban 表目录或 handler/phase 下沉为框架默认；实现、消费者、契约测试、运行验收和持续门禁分级声明 |
+| P1 | 表现层与顶层示例 | Batch H/X 已复核表现 canonical 与项目深潜：通用 Snapshot routing 的空 Dispose、回调重入、非事务 Build，MOBA adapter/Binder ownership 与 emitter 门禁，Shooter full/delta 投影和静态/PlayMode/remote 宿主差异已按源码记录 | 优先补 dispatcher decoder/异常/同 order/回调退订/部分构建测试、MOBA Router manifest/空构建/buffer drain 测试，并闭环 Shooter remote client session/presentation teardown；ET 独立 E3 与新 Unity artifact 另行推进 | 不把 MOBA/Shooter 策略外推为框架应用套件，不把 GameObject/DOTS 切换写成跨平台完成，不把 `IDisposable` 类型存在写成整图自动回收；E0-E5 按对象和宿主声明 |
+| P1 | Orleans 服务端与 Shooter Smoke | Batch U/V 已复核服务端、Session、MOBA 联机及 Shooter 服务端/Smoke：规范身份为 `battle`、MOBA 唯一 FrameSync，Shooter 默认 StateSync/2 人/30 帧 full；默认单进程 runner 仅登录一个账号，双本地模拟玩家不能替代第二名 Room 成员 | 下一步实现外部 store 与 placement、Admin 鉴权和真实运维执行器；为跨 Grain/store 遗弃清理补 attempt/死信/人工补偿；修复或显式配置 Shooter 单进程 Smoke 的两人开战前置，并以新 artifact 更新 E4 | 不把路径/catalog 身份当持久化身份，不把 timer 重试写成事务，不把断线写成 Leave，不把模板/Profile/controller 合并，不把 E3 harness 或本地 payload 写成 E4/E5 |
 | P0 | Network SDK 与 transport | package canonical 与接入指南已修正并进入总索引；SDK 有 E2 消费者和 E3 契约测试，TCP 是 E2/E4 主链，InMemory/LiteNet/WebSocket 仅有 E0 实现与 E3 局部回环 | 文档基线已完成；下一步补 WebSocket Gateway 启动注册、LiteNet 服务端、transport 专项矩阵、真实弱网/跨平台与 E5 门禁 | Builder/Client 所有权、延迟 transport、Tick/Dispose、dispatcher/payload、TCP 默认、扩展 transport 的服务端与采用边界 |
 | P0 | HotReload | 包内 canonical 已重写并接入总索引；确认 MOBA Editor/HotUpdate DLL 为 E1，静态 world 状态无显式清理，卸载/交换异常被吞掉，安装失败缺事务回滚，未发现专项测试 | 文档基线已完成；下一步修复 world 清理、分阶段结果、回滚/安全点与测试缺口后再晋级 | DLL/Entry 发现、Apply/Uninstall/Swap 时序、overlay 所有权、重复 Apply、world 销毁、回滚、并发和测试缺口 |
 | P1 | Dataflow | 包内 canonical 已重写并接入总索引；确认兼容类型才回灌，Damage 通过派生 Context 累积结果，Samples 为 E1；Dataflow 无专项测试，Damage 测试不覆盖 Pipeline | 文档基线已完成；下一步补 Execute/Context/Clone/Composite/Damage 契约测试并治理并发与结果语义 | 异形输入输出、context slot、abort/failure、Damage context 传递、processor/Clone 所有权和确定性 |
-| P1 | Behavior 与 GameplayTags | 包内设计、快速接入与跨模块 canonical 已建立双向导航；Behavior 有 Samples/BTCore/MOBA E1-E2 调用，GameplayTags 有 Ability/MOBA E1-E2 消费和 E3 局部测试 | 文档基线已完成；下一步修复 Behavior Manager Tick 清理与关闭契约，补 GameplayTags Query/Requirements、引用计数、目录和序列化专项测试，再建立性能与 E5 门禁 | 包、.NET 镜像、Demo/生产调用、生命周期/所有权、契约测试和成熟度声明一致 |
-| P1 | StateSync、Prediction、Replay 与 Shooter 客户端同步 | Batch E3 已修订 6 篇主体 canonical，确认元信息/实体 rollback bytes 双轨、SnapshotBuffer clone/锁语义、通用 hash/diff 字段边界、三层预测实现、FrameRecord v4 writer/v1-v4 reader、Shooter 本地有限校正、Hybrid packed 双路和 full snapshot/reliable event 恢复；专项测试、Smoke/artifact 与 CI gate 已按 E3/E4/E5 分层 | 文档基线已完成；下一步修复 `PredictionCoordinator` 清空输入后 replay 和 `Reset` 快照残留，评审 hash 的 Timestamp/字段协议与 diff frame 元数据，补齐或移除 LZ4/Zstd、KeyFrameStrategy 占位，并为 full snapshot/reconnect/reliable event 扩充失败测试和发布预算 | 不把类型存在或局部测试外推为生产成熟；通用骨架、Host/Shooter 业务采用、Smoke artifact 和不同触发条件的 CI gate 必须分别声明 |
-| P1 | 会话协调、Room Gateway Flow 与 Shooter 双连接 | Batch E4 已修订 5 篇主体 canonical，确认 coordinator Package 当前仅保留配置、契约、DTO 与 codec，旧 SessionCoordinator、ExistingWorld host、Local/Remote/Hybrid adapter 和 remote transport 实现已不存在；`RoomGatewaySessionFlow` 是阶段化控制面，`GatewayMultiplayerSession` 仅 E0 且未发现真实消费者；Shooter 以 Room 控制连接和独立 battle transport 形成 E2 业务链，输入 response inline matching，push 经 receive-thread enqueue 后由主线程 Drain | 文档基线已完成；下一步决定 `GatewayMultiplayerSession` 的接入或删除，补双连接身份绑定、连接恢复、输入队列 Reset/Dispose、ack/baseline 超时与 ownership cleanup 的专项失败测试，并将真实多进程 artifact 按预算晋升到所需 E5 gate | 不把已删除实现、Console Demo 自有 adapter、类型或 Factory 分支写成 Package 通用能力；E3 源码契约、E4 真实运行 artifact 和 E5 触发/阻断策略必须分别声明 |
-| P1 | 工程质量目录治理 | 原有两个 `07-*` 已完成分离：Analysis Artifact 保留稳定 `07`，阶段材料已改名为带日期的 `09-FrameSyncStateSyncAuditRecord-20260803.md` 并纳入历史索引；当前审计矩阵同时记录 CatchUp、MOBA FrameSync 模板和 Smoke gate 的未闭环边界 | Batch E2 已完成；后续只维护历史审计与稳定 canonical 的交叉引用，不把历史“已完成”外推为当前发布状态 | 无断链、无重复编号、历史状态和当前契约明确分离 |
+| P1 | Behavior 与 GameplayTags | Batch Z 已复核 Manager 反向 live-list 重入、创建/释放回调异常、Paused 批量关闭和直接 Pipeline Phase 所有权；GameplayTags 的越界正 Id、Reset 静默别名、JSON parent 字段不对称、byte 计数尾数据及四类反序列化部分提交已按源码记录；BTCore `3/3`、Behavior lifecycle `2/2`、GameplayTags `2/2` 均只覆盖局部契约 | 固化 Behavior 重入与 Shutdown；优先修复 GameplayTags JSON 往返和网络容量格式，补 Query/Requirements、引用计数、目录 merge/replace、事件与序列化专项测试，再建立性能和 E5 门禁 | 包、.NET 镜像、Demo/生产调用、生命周期/所有权、契约测试和成熟度声明一致 |
+| P1 | 同步 Profile、能力协商、可靠事件与会话恢复 | Batch M/V/W 已正式化并复核同步专题：`NetworkSyncSessionBuilder`、Room metadata/binding、可靠事件、线性 facade/阶段化 Flow、Q32.32 FrameTime 及 recovery coordinator/router/runtime 已按源码校正；服务端 template、Room Profile、客户端 controller 与项目恢复 handler 明确分层 | 优先修复 `PredictionCoordinator` 同帧多命令重演并公开 store/深复制契约；补服务端声明到客户端 controller 的版本兼容 E2E；闭环 checkpoint store/flush/circuit/baseline/reconnect 所有权，建立完整战斗确定性矩阵与非 TCP E2E | 不把能力协商或恢复 runtime 写成统一业务算法，不从模板名猜客户端算法，不把 facade 强推给复杂房间状态机，不把帧时钟定点化外推为全战斗逐位确定，不把 E3 当 E4/E5 |
+| P1 | Shooter 项目级战斗应用组合 | Batch N/V/W 已正式化并复核 Shooter：runtime、快照、同步、双连接、表现、玩法和多进程证据已闭环；产品默认 AuthoritativeInterpolation 与 registry `Unspecified` 兼容分支已分离，默认要求两名 Room 成员全员 ready | 补 battle handle recovery runtime 的显式 teardown/reset、容量静默截断诊断、observer state 主动逐出、表现/SessionHost 生命周期与跨平台确定性矩阵；先关闭默认单进程 Smoke 一账号与两人 Room 前置不一致，再以新 artifact 更新 E4 | 不把 Shooter facade/controller/Room flow/full-state handler/玩法 step order 下沉为框架统一应用层，不把本地模拟玩家写成 Room 成员，不把 workflow 入口写成当次 E4，不把局部 E3 写成多进程 E4 |
+| P1 | MOBA 项目应用组合与运行时所有权 | Batch O/P 已正式化 19 篇深潜：World/Input/Skill/Config/Entity/Buff/Projectile/Damage/Snapshot/Trigger/Continuous、DI、六英雄、Room/Session、Motion/Summon、SkillFlow、Runtime 和 Console 的项目边界、retain/transaction/teardown 与 Strict validation 已按当前工作区校正 | 修复 trigger `10060201` 的 SpawnArea duration/delay 配置阻断；补 Buff 行为绑定恢复、Actor 外部副作用事务、Projectile 端到端退出、Feature attach transaction、Console 唯一 view tick、PlanAction/Phase 全矩阵与真实 World/Unity/Smoke 回归 | 不把 MOBA Blueprint/facade/DSL/system order/英雄 schema 当框架默认，不恢复 Assets/package 双资源根，不把 ownership fixture 当完整玩法 E3，不把独立工程通过合并成主 World 通过，不绕过 BootstrapStrict 配置错误 |
+| P1 | 工程质量目录治理 | Batch T/V 已复核工程质量与示例工业化；MOBA Program 和脚本默认均为 `frame-sync-authority`，`moba-smoke` 有真实 workflow job，`moba-multiprocess` 只有 gate catalog 声明；Shooter Smoke 继续按 runner、artifact 与 job 分层 | 修复 CodeGen 两个失效路径与 gate 描述；决定 multiprocess 的 E5 预算并补 workflow；关闭 Shooter 单进程默认开战前置；补 AI canonical fixture、Analysis validator、通用性能 budget 和 package 发布/撤回 workflow | 不把 `ciPolicy`、默认参数、宽松展示消费、measurement、candidate dry-run 或局部 E3 外推为 E5；不把 host/client 进程隔离写成双客户端进程 |
+| P1 | 逻辑世界、基础 ECS、World DI 与 Host 生命周期 | 8 篇 canonical 已按 2026-08-16 源码正式化：最小 IWorld、多 ECS 适配、容器、Host/Module 所有权和 WorldManager 失败矩阵已分层；ECS/Entitas 仅 E2，World DI 31 项局部 E3 未接 E5，Host 8 项由 core-stability 编排 | Batch K 文档基线已完成；下一步修复 Invalid/Has/容量/child id 一致性，补 WorldManager 与 Host 生命周期矩阵、模块安装事务和统一关闭所有权测试 | 不把可选 Entitas、MOBA order 或 Shooter 模块组合写成框架统一应用层；不把构建、相邻集成测试或局部 workflow 外推为全部生命周期契约 |
+| P1 | ECS 适配、查询与空间模拟基础设施 | Batch L 已正式化 8 篇 canonical：基础 ECS/Entitas/Svelto 与查询分工、Collision/Grid Navigation/Shooter RVO 的实现、消费者和证据边界已闭环；Collision 13/13 具 core-stability 接线，Navigation 5/5 为局部 E3，Runtime RVO 12/12 由 shooter-fast/regression 编排，Jobs Editor 测试未运行且未接 gate | 修复 ECS Invalid/Has/容量/层级一致性、Entitas/Svelto 失败释放；优先关闭 Grid 静默漏检/负坐标 key/层掩码冲突，再补导航半径与失败协议、Jobs 释放/诊断和真实性能预算 | 不把三种 ECS 写成透明后端，不把池化/Native/Strict float 写成零分配或跨平台逐位确定，不把项目消费者、未运行测试资产或局部 E5 外推为公共能力成熟度 |
 | P2 | Threading | 包内 canonical 已增量补齐并纳入总索引；确认 `ThreadWorker` 空闲轮询、shutdown 可能遗留 pending task、优先级同毫秒不保证 FIFO，Fiber 的完成与等待语义存在实现风险；当前为 E0 独立/实验性基础设施 | 文档基线已完成；生产采用前修复唤醒、缩容、shutdown 与 Fiber 契约，补稳定消费者、并发/压力测试、性能预算和发布门禁 | 线程所有权、唤醒模型、队列语义、任务丢弃、Fiber 定义、Unity 主线程边界 |
 | P2 | 包内设计与 canonical 关系 | Dataflow、HotReload、Network SDK、Threading、Behavior、GameplayTags、Ability Explain、Ability TestKit、Analyzer、BaseEditor 与 ActionEditorImpl 已建立 package canonical 或快速入口导航，并与跨模块专题分工 | Batch E1 导航基线已完成；后续按源码变化修正既有 canonical，只有跨域决策稳定后才新建专题 | 单一权威源、相对链接、更新责任、消费者证据和版本策略 |
-| P2 | 其余 117 篇周期复核 | 词法扫描会误判简称、表格、CLI 和 schema 丰富文档 | 按源码变更、调用深度和证据缺口轮换复核，不按行数批量扩写 | 每轮 1-2 个能力域，限定 diff，保留审计记录 |
+| P2 | 其余 118 篇周期复核 | 词法扫描会误判简称、表格、CLI 和 schema 丰富文档 | 按源码变更、调用深度和证据缺口轮换复核，不按行数批量扩写 | 每轮 1-2 个能力域，限定 diff，保留审计记录 |
 
 ```mermaid
 flowchart LR
@@ -332,6 +405,27 @@ flowchart LR
 | E2 | 工程质量、同步证据与历史材料 | 已完成 8 篇主体 Markdown 加总索引和路线图的事实复核：FrameSync Host/Relay 与 CatchUp 接线、Session 原子阶段、FrameRecord v4、MOBA/Shooter Smoke 拓扑与 CI policy、StateSyncPush 归属、Beta 当前风险、Analysis Artifact/FrameRecord/Smoke/CI 证据分层；阶段计划已改名为日期化历史审计并纳入索引 | Batch E2 已完成；Markdown-only 限定 diff、历史材料与稳定契约分离，最终执行链接、fence、Mermaid、源码入口、旧引用和 Git 格式校验 |
 | E3 | StateSync、预测回滚、Replay 与 Shooter 客户端同步 | 已完成 6 篇主体 canonical 加总索引和路线图共 8 篇 Markdown 的源码、消费者、测试、Smoke/artifact 与 CI gate 复核；补齐双轨状态、hash/diff/压缩边界、三层预测、FrameRecord 版本兼容、本地校正、Hybrid 路由、full snapshot/reconnect/reliable event 与 E0-E5 证据 | Batch E3 文档修订完成；仅修改 Markdown，不恢复 `StateSlots.ComputeHash()`，不改源码、测试、脚本、CI 或 artifact；通用 replay/Reset、hash/diff 协议和占位压缩策略仍作为实现治理缺口保留 |
 | E4 | 会话协调、同步 Adapter 边界与 Shooter 双连接网络链 | 已完成网络同步能力地图、会话协调、Shooter 网络模块、单机/多人逻辑流程、多进程故障矩阵 5 篇主体 canonical，加总索引和路线图共 7 篇 Markdown；修正 coordinator 实现面删除、Console Demo 自有 adapter、阶段化 Room flow、Room 控制连接与独立 battle transport、输入队列和 push 主线程应用，并分离 E3/E4/E5 证据 | Batch E4 文档修订完成；仅修改 Markdown，不触碰受保护的多人 SDK 指南，不改源码、测试、脚本、CI、日志、artifact 或二进制；旧实现路径和聚合 Room API 已清理，双连接身份/线程/所有权与真实 Smoke 日期边界明确 |
+| F | 玩法模块与应用层边界 | 已完成 `08-GameplayModules` 的 12 篇主体专题，加总索引和路线图共 14 篇 Markdown；补齐公共契约/项目策略/MOBA 参考三层归属、E0-E5 证据和已知限制，修正 Continuous 包归属与三类测试事实 | Batch F 文档修订完成；Buff/技能应用层未被误提为框架默认，Continuous 默认管理器职责与 MOBA runtime 分层，E4/E5 未覆盖范围保留 |
+| G | CommonModules 与配置生产链 | 已完成 `05-CommonModules` 全部 9 篇主体，加总索引和路线图共 11 篇 Markdown；统一机制/宿主/项目/示例分层，纠正 Event/ObjectPool/Flow/Config 事实，并重写 MOBA CodeGen/Luban 供应链 | Batch G 文档修订完成；不存在的通用 CodeGen 路径不再被写成能力，生成清单和应用行为保持项目所有，E0-E5 与未覆盖范围可追溯 |
+| H | 表现层与顶层示例 | 已完成 `04-PresentationLayerDesign` 4 篇与 Console/ET/MOBA/Shooter 顶层 4 篇，加总索引和路线图共 10 篇 Markdown；补齐框架/宿主/项目/示例责任、生命周期、源码入口、E0-E5 和已知限制 | Batch H 文档修订完成；Console 输入走正式 Host request/response，MOBA 使用通用 SnapshotPipeline 加项目 registry，Shooter runner 能力与 E4 artifact/E5 gate 分离，ET 未被误写为具备独立 E3-E5 |
+| I | Orleans 服务端与 Shooter Smoke | 已完成 `12-ServerArchitecture` 4 篇与 Shooter Overview/Gateway/Server/Smoke 4 篇，加总索引和路线图共 10 篇 Markdown；复核 Host/Gateway/Room/Battle/Adapter/Admin/Smoke 源码并修正关键事实漂移 | Batch I 文档修订完成；正式 TCP 与兼容直启分离，正常 commit 与 Tick 补偿分离，MOBA 双运行路线、Room commit、严格输入、模板 payload、world 清理、storage/placement/Admin/E0-E5 边界可追溯 |
+| J | 工程质量、AI/Analysis 证据与发布治理 | 已完成 `10-EngineeringQuality` 全部 9 篇，加总索引和路线图共 11 篇 Markdown；复核 28 项 gate 配置、workflow 手写 job、Smoke 模板、性能 runner、AI 工具链、Analysis DTO/样例和 package 脚本 | Batch J 文档修订完成；配置意图、实际执行和最近运行证据分离，Runtime informational 与 Shooter 阈值阻断分离，AI/Analysis 最高局部 E3、Beta 无统一 E5、历史审计不替代 canonical |
+| K | 逻辑世界、基础 ECS、World DI 与 Host 生命周期 | 已完成 `02-LogicalWorldDesign` 5 篇与 `03-LogicalWorldHostDesign` 3 篇，加总索引和路线图共 10 篇 Markdown；复核 World/ECS/Entitas/DI/Host 源码、消费者、测试工程与 gate 接线 | Batch K 文档修订完成；当前实现、规范目标和示例策略分离，生命周期/所有权/失败矩阵与 E0-E5 边界可追溯，未修改源码、测试、workflow 或 artifact |
+| L | ECS 适配、查询与空间模拟基础设施 | 已完成 `06-ECSArchitecture` 5 篇与 FrameworkCore 的 Collision/Grid Navigation/Shooter RVO 3 篇，加总索引和路线图共 10 篇 Markdown；复核 ECS/Entitas/Svelto、查询、碰撞、寻路、RVO/Jobs 源码、消费者、测试和 workflow 接线 | Batch L 文档修订完成；当前实现/规范目标/示例策略与 E0-E5 分层可追溯，6.3 实现深潜和 6.5 选型总览职责分离，未修改源码、测试、workflow 或 artifact |
+| M | 同步 Profile、能力协商、可靠事件与会话恢复 | 已完成 `07-NetworkSynchronization` 全部 10 篇，加总索引和路线图共 12 篇 Markdown；复核同步/快照/回滚/记录、Network SDK/Room、Room 服务端声明、Shooter/MOBA/Console 消费者和 workflow 接线 | Batch M 文档修订完成；当前实现/规范目标/项目策略、E0-E5、facade/Flow、checkpoint/baseline 与确定性范围可追溯；本轮 192 项聚焦 E3 通过，未修改源码、测试、workflow 或 artifact |
+| N | Shooter runtime、同步、表现、玩法与多进程证据闭环 | 已完成 Shooter 剩余 11 篇深潜，加总索引和路线图共 13 篇 Markdown；复核 runtime/view/protocol/Orleans Smoke、测试工程和 workflow，统一项目示例定位、事实基线与 v3.0 | Batch N 文档修订完成；AOI 当前轮转、session descriptor、reliable checkpoint、双连接/pooled ownership、float/分配与 E3-E5 边界可追溯；本轮 515 项聚焦 E3 通过，未运行 multiprocess 或 Unity PlayMode，未修改源码、测试、workflow 或 artifact |
+| O | MOBA 应用组合前半闭环与所有权 | 已完成 MOBA `01-08`、`10-11` 共 10 篇深潜，加总索引和路线图共 12 篇 Markdown；复核当前 dirty runtime/view 源码、四个 .NET 工程、Unity ownership artifact 与 gate 接线 | Batch O 文档修订完成；Buff/Projectile/Summon/Skill runtime ownership、Strict validation、GiveDamage/SpawnArea DSL 和框架/项目边界可追溯；主工程 279/305 并明确记录 26 项同源配置阻断，独立 .NET 161/161、ownership artifact 9/9，未修改源码/配置/测试/workflow |
+| P | MOBA 应用组合后半闭环 | 已完成 MOBA `12-20` 共 9 篇深潜，加总索引和路线图共 11 篇 Markdown；复核 DI/Continuous、六英雄资源、Room/Session、Motion/Summon、触发链、SkillFlow、Runtime 与 Console 当前源码 | Batch P 文档修订完成；package 权威资源、墨子强化近战、完整 Room push/即时 commit、transport/teardown generation、Summon post-spawn transaction、共享双连接 StateSync 与应用层边界可追溯；保持主工程 279/305、独立 .NET 161/161 和 Unity ownership 9/9 分层，不修改源码/配置/测试/workflow |
+| Q | 跨域导航、Continuous 与 FrameworkCore 旧基线复核 | 已完成能力地图、QuickStart、项目结构、玩法地图、Continuous、MOBA 总览/Trace、Behavior/Trace/Context 共 10 篇正文，加总索引和路线图共 12 篇 Markdown；复核公共包、MOBA 应用组合、Console 配置、独立测试工程和 Unity 历史 artifact | Batch Q 文档修订完成；六英雄、Console 279/305 与 Strict 配置阻断、Behavior 反向注册序/Q32.32/重入缺口、Continuous 注册补偿、Context 5/5 及 Trace/Unity 历史证据边界可追溯；本轮 Continuous 2/2、Context 5/5、BTCore 3/3、Behavior lifecycle 2/2，未重跑 Unity，不修改源码/配置/测试/workflow/artifact |
+| R | 顶层定位与核心玩法旧基线复核 | 已完成序章、演示导航、框架定位、核心概念及 Skill/Triggering/Buff/Projectile/Attribute/Damage 共 10 篇正文，加总索引和路线图共 12 篇 Markdown；复核 Pipeline、Ability、Triggering、Attributes、Modifiers、Projectile、Damage 与 MOBA 应用源码 | Batch R 文档修订完成；阶段复用和 Shutdown、Observer 异常、Buff 提交后不回滚、Projectile 局部 rollback、AttributeId 注册表范围、通用 float 与 MOBA Fixed64 双伤害链均可追溯；本轮 7 个工程共 37/37，MOBA 主工程保持 279/305，Unity 9/9 仅引用 2026-08-15 artifact，未重跑 Unity，不修改源码/配置/测试/workflow/artifact |
+| S | 玩法基础设施、同步历史与飞书发布复核 | 已完成 Targeting、Pipeline/Ability、Entity/Skill 索引、Motion、GameplayTags、同步历史审计和飞书指南 7 篇正文，加总索引与路线图共 9 篇 Markdown；逐项复核 Runtime、MOBA 消费者、测试、runner/gate/workflow 与发布脚本 | Batch S 文档修订完成；6 个 .NET 工程共 `87/87`，保留 warning；Unity 未重跑，MOBA 主工程保持 `279/305` 分层；Mermaid 和 Board 均 `630/630`，未修改源码、配置、测试或 workflow，飞书远端能力不外推为 E5 |
+| T | 工程质量、AI/Analysis、性能与 package 发布复核 | 已完成 `10-EngineeringQuality/01-08` 共 8 篇 canonical，加总索引与路线图共 10 篇 Markdown；复核 gate runner/workflow、MOBA multiprocess、AI JSONL/模型执行、Benchmark、Analysis DTO/消费者和 `tools/publish` | Batch T 文档修订完成；Python `6/6`、AI C# `7/7`、Diagnostics `3/3`、Benchmark `24/24`；package JSON/cohort audit/8 包 candidate dry-run 通过；gate validator `166/168`，失败仅为两个 CodeGen 缺失路径；Unity、MOBA Smoke 与真实 benchmark 未重跑，不修改源码、配置、测试或 workflow |
+| U | 服务端 Room 生命周期、同步默认与控制面复核 | 已完成 `12-ServerArchitecture/00-03`、Session、MOBA 联机、Shooter 服务端/多进程共 8 篇正文，加总索引与路线图共 10 篇 Markdown；复核 Room/Gateway/Battle/FrameSync、玩法 catalog、Smoke 脚本、Admin store 和新增契约测试 | Batch U 文档修订完成；`battle`/`moba` 身份、MOBA 唯一 FrameSync、Shooter 默认 StateSync/2 人/30 帧 full、断线非 Leave、owner 转移和 1 分钟遗弃清理可追溯；Gateway `162/162`、Grains `232/232`、Shooter Harness `33/33`、`vue-tsc --noEmit` 通过，Mermaid/Board `631/631`、链接/围栏 0；真实 Smoke、浏览器、Unity 未运行，不修改源码、配置、测试、workflow 或 artifact |
+| V | 同步能力、MOBA/Shooter 默认路线与 Smoke 证据复核 | 已完成同步地图、FrameSync、多人 SDK 指南、测试流程、Shooter 顶层/总览/Gateway/Smoke 与示例工业化共 9 篇正文，加总索引与路线图共 11 篇 Markdown；复核 template catalog、Room capability resolver、客户端 controller、Room flow、Smoke runner/脚本、gate catalog 与 workflow | Batch V 文档修订完成；template/Profile/controller 三层、MOBA 默认 FrameSync 与 `moba-smoke` workflow、Shooter 默认 StateSync/2 人/30 帧 full 可追溯；记录默认单进程一账号无法由双本地玩家证明两名 Room 成员的 E4 风险；Network SDK `96/96`、Network Room `36/36` 与 Markdown 验收通过，真实 MOBA/Shooter Smoke、浏览器、Unity 未运行，不修改源码、配置、测试、workflow 或 artifact |
+| W | 客户端同步、恢复 runtime 与记录证据闭环 | 已完成 StateSync、Rollback/Reconciliation、Replay/FrameRecord、Session 与 Shooter client/network/interpolation/multiprocess 共 10 篇正文，加总索引和路线图共 12 篇 Markdown；复核通用预测/状态槽位/快照消息、recovery coordinator/router/runtime、Shooter/MOBA 消费者、FrameRecord codec/tests/writer 与 workflow/artifact | Batch W 文档修订完成；同帧多命令 P0、浅复制、压缩标志断层、v1-v4 实现/v3-v4 E3、Manual/Automatic 采用矩阵、Shooter 默认/Unspecified、handle teardown 和 E4/E5 分层可追溯；StateSync `12/12`、FrameSync `18/18`、Network SDK `96/96`、Record `23/23`、Shooter 聚焦 `22/22` 通过，Shooter 全量 `481/490` 保留 9 项旧预期漂移；仅修改 Markdown，真实 Smoke、浏览器和 Unity 未运行，不新增 E4 |
+| X | 表现投影与客户端宿主生命周期 | 已完成 `04-PresentationLayerDesign` 4 篇、Shooter runtime/snapshot/presentation/flow 4 篇与 MOBA Snapshot 共 9 篇正文，加总索引和路线图共 11 篇 Markdown；复核通用 routing、MOBA emitter/adapter、Shooter projection/binder/context/session/static host/remote launcher 当前源码 | Batch X 文档修订完成；dispatcher/pipeline 空或局部 Dispose、回调重入、Builder 部分装配、adapter/Binder owner、Shooter full/delta/Player 恢复、三条宿主 teardown 和 MOBA 成功后门禁/buffer drain 可追溯；Snapshot `7/7`、Shooter projection/runner `66/66`，历史 `489/489` 与 Batch W `481/490` 分层，真实 Smoke、浏览器和 Unity 未运行，不新增 E4 |
+| Y | 通用运行时生命周期与重入边界 | 已完成 Common Event/ObjectPool/Timer/Flow/HFSM 5 篇与 HostRuntime/HostModules/WorldManager/ServiceContainer 4 篇正文，加总索引和路线图共 11 篇 Markdown；复核单池/调度/流程/状态机/Host/DI 的状态写入点、回调重入和异常后所有权 | Batch Y 文档修订完成；确认 null 事件 ID 不接管载荷并纠正 World 返回 ID 入表事实，补 once 单监听者重入、池与 DI 半完成对象、Timer 取消引用、Flow/HFSM 退出恢复、Hook live-list、模块装配/卸载失败域；Core `79/79`、Flow `2/2`、Host `8/8`、World DI `31/31`，HFSM Core 0 警告、Timer 0 错误/52 个既有警告；Unity 未运行，不修改源码、测试、配置、workflow 或 artifact，不新增 E4 |
+| Z | 可组合战斗执行基础设施的生命周期与确定性 | 已完成玩法能力地图及 Targeting、Pipeline/Ability、Entity/Skill 索引、Motion、Continuous、GameplayTags、Behavior Tree 共 8 篇正文，加总索引和路线图共 10 篇 Markdown；复核池化 Builder、阶段列表、注册表、索引 bucket、运动 source、continuous runtime、标签句柄与行为 runtime 的提交点、所有权、live view、回调重入和清理责任 | Batch Z 文档修订完成；补 Targeting 值复制失权、Pipeline 清理泄漏窗口、索引部分回填与 stale bucket、Motion 回调失败、Continuous Clear 不终止、GameplayTags 代际别名和 Behavior 反向遍历重入/直接 Phase 清理边界；9 组聚焦测试共 `94/94`，SkillLibrary 构建 0 错误；Unity、浏览器和真实 Smoke 未运行，仅修改 Markdown，不修改源码、测试、配置、workflow 或 artifact，不新增 E4 |
 
 历史 P4-P9 候选已并入上述持续复核机制：Core、Pipeline/Ability、配置工具链、Orleans 和发布治理均保留 canonical，后续按源码变化和证据缺口进入 P1 或 P2，不再使用只反映旧批次顺序的固定优先级。
 

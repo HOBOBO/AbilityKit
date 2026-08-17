@@ -1,14 +1,14 @@
-# MOBA Runtime Config
+# MOBA 运行时配置
 
-This directory contains the runtime-side configuration layer for the MOBA sample logic world.
+本目录包含 MOBA 示例逻辑世界的运行时配置层。
 
-## Ownership
+## 所有权
 
-- `com.abilitykit.demo.moba.share` owns shared DTO definitions under `Runtime/Game/Config/Dto`.
-- `com.abilitykit.demo.moba.runtime` owns runtime MO models, table registration, loading profiles, and logic-world access APIs.
-- Platform or host packages own the actual asset source, such as Unity Resources, ET file system paths, or an external service.
+- `com.abilitykit.demo.moba.share` 负责 `Runtime/Game/Config/Dto` 下的共享 DTO 定义。
+- `com.abilitykit.demo.moba.runtime` 负责运行时 MO 模型、配置表注册、加载配置和逻辑世界访问 API。
+- 平台或宿主包负责实际资产来源，例如 Unity Resources、ET 文件系统路径或外部服务。
 
-## Directory Layout
+## 目录结构
 
 ```text
 Config/
@@ -41,66 +41,66 @@ Config/
 `-- README.md
 ```
 
-## Main Extension Points
+## 主要扩展点
 
-Use one of these integration paths for a new host or project.
+新宿主或项目应选择以下一种集成路径。
 
-### Default Resources Profile
+### 默认 Resources 配置
 
-Use this when the host can provide `ITextAssetLoader` and the exported JSON files are available under the default Resources directory.
+当宿主可以提供 `ITextAssetLoader`，且导出的 JSON 文件位于默认 Resources 目录下时使用此方式。
 
 ```csharp
 var database = new MobaConfigDatabase(textAssetLoader: textAssetLoader);
 database.LoadFromResources(MobaConfigPaths.DefaultResourcesDir);
 ```
 
-### Source-Based Loading
+### 基于来源加载
 
-Use this when the host can expose config files through the generic Ability config source abstraction.
+当宿主可以通过通用 Ability 配置来源抽象公开配置文件时使用此方式。
 
 ```csharp
 var database = new MobaConfigDatabase();
 database.LoadFromSource(configSource, basePath: "moba");
 ```
 
-### DTO Provider Loading
+### DTO 提供者加载
 
-Use this when the host already owns deserialization and only wants to provide DTO arrays to the logic layer.
+当宿主已负责反序列化，只需向逻辑层提供 DTO 数组时使用此方式。
 
 ```csharp
 var database = new MobaConfigDatabase();
 database.LoadFromDtoProvider(dtoProvider);
 ```
 
-The provider only needs to implement `IMobaConfigDtoProvider`. The runtime registry decides which DTO arrays are required for the current project.
+提供者只需实现 `IMobaConfigDtoProvider`。运行时注册表会决定当前项目需要哪些 DTO 数组。
 
-## Runtime Access
+## 运行时访问
 
-Game logic should read config through `MobaConfigDatabase` or injected services that depend on it.
+游戏逻辑应通过 `MobaConfigDatabase` 或依赖它的注入服务读取配置。
 
 ```csharp
 var skill = database.GetSkill(skillId);
 if (database.TryGetCharacter(characterId, out var character))
 {
-    // Use runtime MO data.
+    // 使用运行时 MO 数据。
 }
 ```
 
-Generic table access is also available when feature code should not depend on MOBA-specific convenience methods.
+功能代码不应依赖 MOBA 专用便捷方法时，也可以使用通用配置表访问方式。
 
 ```csharp
 var table = database.GetTable<SkillMO>();
 var skill = table.Get(skillId);
 ```
 
-## Design Rules
+## 设计规则
 
-- Keep DTOs in the share package so editor, view, server, ET, and runtime code can reuse the same contracts.
-- Keep runtime MO types in this package because they model logic-world behavior and convenience access.
-- Prefer `IMobaConfigLoadProfile` or `IMobaConfigLoadPipeline` for host integration instead of calling many database loading methods directly.
-- Prefer `IConfigSource` for external storage systems and `IMobaConfigDtoProvider` for hosts that already deserialize config.
-- Add new tables through `MobaConfigRegistry` and the share DTO folder first, then add MO conversion only when runtime logic needs richer access.
+- DTO 应留在 share 包中，使编辑器、视图、服务端、ET 和运行时代码复用同一套契约。
+- 运行时 MO 类型应留在本包中，因为它们描述逻辑世界行为和便捷访问方式。
+- 宿主集成应优先使用 `IMobaConfigLoadProfile` 或 `IMobaConfigLoadPipeline`，不要直接调用大量数据库加载方法。
+- 外部存储系统优先使用 `IConfigSource`；已完成配置反序列化的宿主优先使用 `IMobaConfigDtoProvider`。
+- 添加新表时，先更新 `MobaConfigRegistry` 和 share 包的 DTO 目录；仅当运行时逻辑需要更丰富的访问方式时再添加 MO 转换。
 
-## Current Cleanup Direction
+## 当前整理方向
 
-`MobaConfigDatabase` is kept backward compatible for existing callers, but new integration should treat it as a runtime facade rather than a source-specific loader. Loading policy belongs in profiles or pipelines; table access belongs in the database facade.
+`MobaConfigDatabase` 为现有调用方保持向后兼容，但新集成应把它视为运行时门面，而不是绑定特定来源的加载器。加载策略归配置或管线负责，配置表访问归数据库门面负责。

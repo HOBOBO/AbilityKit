@@ -5,13 +5,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class BattleProjectileVfxSpawner
     {
-        private readonly BattleContext _ctx;
+        private readonly EC.IECWorld _world;
         private readonly BattleVfxManager _vfx;
         private readonly EC.IEntity _vfxNode;
 
-        public BattleProjectileVfxSpawner(BattleContext ctx, BattleVfxManager vfx, in EC.IEntity vfxNode)
+        public BattleProjectileVfxSpawner(EC.IECWorld world, BattleVfxManager vfx, in EC.IEntity vfxNode)
         {
-            _ctx = ctx;
+            _world = world;
             _vfx = vfx;
             _vfxNode = vfxNode;
         }
@@ -20,7 +20,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             get
             {
-                if (_ctx?.EntityWorld == null) return false;
+                if (_world == null) return false;
                 if (_vfx == null) return false;
                 if (!_vfxNode.IsValid) return false;
                 return true;
@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             var position = spec.Position;
             var rotation = spec.Rotation;
             return _vfx.TryCreateVfxEntity(
-                _ctx.EntityWorld,
+                _world,
                 _vfxNode,
                 spec.VfxId,
                 spec.FollowTarget,

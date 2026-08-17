@@ -1,4 +1,4 @@
-# Triggering Formal API Boundary
+# Triggering 正式 API 边界
 
 `Triggering` 的正式 API 只围绕以下主线组织：
 

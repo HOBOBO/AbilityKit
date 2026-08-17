@@ -19,6 +19,7 @@
   - [9. 核心执行、初始化与失败边界](#9-核心执行初始化与失败边界)
     - [9.1 初始化与状态切换](#91-初始化与状态切换)
     - [9.2 回调与检查接口](#92-回调与检查接口)
+    - [9.3 结构恢复不是生命周期回放](#93-结构恢复不是生命周期回放)
   - [10. 生产接入与成熟度证据](#10-生产接入与成熟度证据)
   - [11. 和 Flow、Pipeline、Service 状态的边界](#11-和-flowpipelineservice-状态的边界)
   - [12. 扩展边界](#12-扩展边界)
@@ -41,6 +42,15 @@ HFSM 解决的是“对象或系统在有限状态之间切换，且状态可能
 | 需要工具可视化 | `HfsmGraphAsset`、editor window、runtime monitor、exporter |
 
 HFSM 的设计重点是“状态归属清晰、转移可解释、退出时间可控”。如果只是顺序执行几个步骤，Flow 更轻；如果是技能阶段和上下文推进，Pipeline 更贴近业务；如果是对象行为模式切换、AI 状态、表现状态或房间阶段，HFSM 更直接。
+
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| HFSM 包 | 状态/转移生命周期、分层、退出时间、检查接口和 Graph 工具基础 | 某款游戏的角色状态全集、动画参数和 AI 决策策略 |
+| Host / World 接入 | 创建、Init/Logic/Dispose 时机、时间源和诊断采集 | 默认替业务处理回调异常或配置修复 |
+| 项目应用层 | 状态图、transition 条件、优先级、业务副作用和失败策略 | 把一次性顺序流程强行建模为全局状态机 |
+| MOBA / Shooter 示例 | 证明 Core 可用于 View Flow 与 Bot AI，并展示 profile 组装 | 代表通用 Graph-to-runtime 闭环已经成熟 |
+
+框架提供稳定状态机语义，项目保留状态目录和行为编排所有权。这正是战斗工具集比固定应用层更合适的抽象粒度。
 
 ---
 
@@ -289,23 +299,34 @@ root 状态机必须显式调用 `Init()`，它会选择 start state 并调用�
 
 状态 enter/logic/exit、转移 condition、before/after 和 listener 异常均不隔离，会穿透 `Init()`、`OnLogic()` 或 `Trigger()`。核心适合由受控业务代码驱动；插件回调需要在边界自行包装诊断和失败策略。
 
+根状态机 `OnExit()` 会先保存 remember-last-state、清除 pending transition，再调用 active state 的 `OnExit()`，最后才把 `activeState` 设为 null。若 active state 退出抛错，pending 已清除但 activeState 仍保留；随后再次退出可能重复调用同一状态的副作用。这不是完整退出状态，宿主必须隔离异常并让状态退出逻辑可重复。
+
+### 9.3 结构恢复不是生命周期回放
+
+`RestoreRuntimeState(hasActiveState, activeStateName, rememberedStartStateName)` 面向确定性回滚，直接恢复 remembered start、active state 以及对应的普通/trigger transition 表，并清除 pending transition。它不会调用旧状态 `OnExit()`、恢复状态 `OnEnter()`、transition listener，也不会恢复状态对象内部字段。
+
+恢复顺序也有局部提交：方法先校验 remembered start，随后立即写 `startState` 并清 pending；如果之后 active state 名称无效，方法抛错时前两项已经改变。因此回滚系统应在调用前验证两个状态 ID，并为每个子状态单独恢复数据。该 API 只负责状态机结构指针，不能单独构成完整 snapshot/rollback 协议。
+
 `GetAllStateNames()`、`GetAllStates()`、`GetAllTransitions()` 等 inspection API 使用 LINQ `ToArray()` 生成快照，源码也标记为昂贵操作。它们适合编辑器、监控和低频诊断，不应每 Tick 调用。
 
 ---
 
 ## 10. 生产接入与成熟度证据
 
+证据按 E0 源码、E1 构建、E2 真实消费者、E3 自动契约、E4 运行验收、E5 持续门禁分层；一个层面的证据不能替另一个层面背书。
+
 | 运行面 | 仓库证据 | 成熟度判断 |
 |--------|----------|------------|
+| Core `.NET` 构建 | 2026-08-16 执行 `dotnet build src/AbilityKit.HFSM.Core/AbilityKit.HFSM.Core.csproj -c Release --no-restore` 为 0 警告、0 错误 | 证明 Core 在 `net10.0` 编译闭合，不证明 Unity Graph 或转移/恢复行为 |
 | Core HFSM | Shooter Bot AI 使用 `HfsmHierarchicalRuntimeProfileBuilder`、递归行为树和自定义逻辑时间源；MOBA View Flow 使用双层状态机和 trigger transition | 有真实生产接入 |
 | Runtime profile builder | Shooter profile 构建后立即 `Init()`；无效 transition 会被跳过，start state 无效时回退首个有效 state | 可用但需上层配置验证和诊断 |
 | Unity Action/Graph | 包内有 Action、Graph 和 Behavior 基础测试 | 有工具基础，运行图转移尚未闭环 |
 | Editor/exporter | 有窗口、monitor、descriptor 和 JSON exporter | 可用于 authoring/观察，未证明 runtime round-trip |
-| Core 契约测试 | 当前测试工程只编译 `ActionStateMachineTests.cs` | 全局优先级、pending 覆盖、exit-time、强制转移和初始化失败缺独立回归 |
+| Core 契约测试 | package Unity 测试主要覆盖 Action/Graph/Behavior，未发现 Core transition、pending 与 `RestoreRuntimeState` 的直接契约测试 | 全局优先级、pending 覆盖、exit-time、强制转移、恢复和初始化失败缺独立回归 |
 
 Shooter 与 MOBA 的生产证据都直接构建 Core HFSM，不依赖 `ActionStateMachine.InitializeFromGraph()`。文档和采用评审应分别声明“Core 已生产使用”与“Graph 工具链待补强”，不能用前者替后者背书。
 
-优先补充核心转移顺序、同 Tick 新状态 logic、trigger 下传、pending 覆盖、`StateCanExit()` 时点、`forceInstantly`、remember-last-state、目标缺失副作用，以及 Graph edges 到 runtime 和导出 round-trip 测试。
+优先补充核心转移顺序、同 Tick 新状态 logic、trigger 下传、pending 覆盖、`StateCanExit()` 时点、`forceInstantly`、remember-last-state、目标缺失副作用、退出异常重试、结构恢复及子状态协同恢复，以及 Graph edges 到 runtime 和导出 round-trip 测试。本轮不运行 Unity，测试资产范围只作为源码审计结论，不能写成新鲜运行证据。
 
 ---
 
@@ -352,4 +373,6 @@ Shooter 与 MOBA 的生产证据都直接构建 Core HFSM，不依赖 `ActionSta
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-07-15*
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 源码、E2 Shooter/MOBA 消费者、历史 E3 Action/Graph/Behavior 基础测试；Core 转移/恢复全契约与 E4/E5 未完成
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

@@ -1,5 +1,8 @@
 # Shooter 多进程故障矩阵与收敛证据设计
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 状态：已落地并完成真实进程验证
 >
 > 最近验证日期：2026-07-19
@@ -50,6 +53,8 @@ flowchart LR
 Orchestrator 持有场景计划、端口、进程、超时、fault command、assertion 和 manifest。客户端只负责执行正式 create/join/input/reconnect 路径并输出结构化结果，不自行宣布整个矩阵通过。最终判定由 orchestrator 聚合完成。
 
 Smoke runner 的客户端路径应与正式 Shooter 组合保持一致：Room 控制面完成登录、入场、订阅和恢复；独立 battle 数据面处理输入请求与 push；客户端 session/data plane 的源码契约由 `ShooterSmokeClientProcessRunnerContractTests` 锁定。该测试证明 runner 仍引用正式入口和收敛字段，但不产生 E4 运行证据。
+
+Create 与 Join 是两个独立账号和两个真实 Room 成员，二者都走 join/ready/loading/start，因此这条多进程拓扑能够满足 Shooter 默认 `MinPlayers=2` 与全员 ready 的开战前置。默认单进程 runner 只有一个登录账号；它在本地 runtime 创建两个模拟玩家并不能替代第二名 Room 成员，也不能单独证明默认 Room 能开战。两类 runner 的人数证据不能互换。
 
 每个场景使用独立的 TCP Gateway、Silo 和 Orleans Gateway 端口。`full` 与 `compatibility` profile 中相邻 case 的三个端口均按固定偏移隔离，避免前一场景残留污染后一场景。
 
@@ -122,6 +127,14 @@ join 客户端每轮执行以下顺序：
 5. 等待一个新的可应用 push，并要求 push count 严格前进。
 
 三轮检查逐轮执行，不能只比较第一轮前和最后一轮后的总 push 数。这样可以阻止“第一轮恢复成功、后两轮没有真正恢复”被聚合结果掩盖。
+
+### 4.3 Room 离线宽限是故障场景的前置契约
+
+当前 Gateway 在真实 connection close 后不会执行 Leave，而是解除旧连接 push、异步校验 rebound/mapping，再调用 `MarkOfflineWithResultAsync()`。成员和 account-room mapping 会保留；owner 有在线 peer 时只转移 owner。runner 因此必须用 `Reconnect` 证明恢复到原 Room，不能用“重新创建一个同配置房间”冒充重连成功。
+
+`AbandonedRoomCleanupPolicy` 从最后一名非 Bot 客户端离线起计时 1 分钟。所有真实客户端持续离线到期后，Room 会依次销毁 Battle、可能存在的 FrameSync、mapping、directory 和 room state，并进入 `Expired/AllClientsDisconnectedTimeout`。当前 scenario timeout 默认 45 秒，周期断线设计上应在该宽限内完成；如果未来扩大故障窗口超过 1 分钟，测试预期必须改为“旧 Room 被回收后重新入场”，不能仍要求原 battleId 恢复。
+
+清理 timer 失败后至少 30 秒重试，但跨 Grain/store 非事务。故障矩阵若专门验证长期离线，应同时收集 Battle Destroy、Room directory 消失、mapping 清空和端口/进程清理证据，单一 `RoomExpired` 响应不足以证明所有运行资源已经收敛。
 
 ## 5. 分层超时
 
@@ -304,12 +317,11 @@ CI 按运行成本和证据强度分层。源码契约测试、PR 快速测试�
 | 层级 | 入口 | 触发条件 | 证明范围 |
 |------|------|----------|----------|
 | E3 | `AbilityKit.Orleans.ShooterSmoke.Tests`、`shooter-fast`/`shooter-integration` | PR 与 main 的快速 workflow | 契约、集成与有限业务路径；不证明完整多进程故障收敛 |
-| E4 | `shooter-multiprocess`、`run_shooter_multiprocess_smoke.ps1` | main push、schedule、manual；不由 PR 自动触发 | 真实 server/client 进程、故障注入、artifact、diff 和 bounded convergence |
-| E4 扩展 | `shooter-multiprocess-compatibility` | schedule、manual | Packed/PureState、扇出、弱网和正交故障组合 |
-| E4 长稳 | `shooter-multiprocess-soak` | schedule、manual | 长时间运行、重复恢复与资源/收敛趋势 |
-| E5 清理 | `shooter-multiprocess-ownership-cleanup` | schedule、manual | 动态超时后的 PID 身份、端口释放、manifest 收口和保护进程安全 |
+| E5 编排入口 | workflow 中的 `shooter-multiprocess` 及 compatibility/soak/ownership-cleanup jobs | main push、schedule、manual 分层 | 证明 job、触发、failure policy 与 artifact upload 已接线；不证明某次场景实际通过 |
+| E4 运行结果 | `run_shooter_multiprocess_smoke.ps1` 生成的版本化 manifest、diagnostic、replay/diff 和 cleanup evidence | 仅在对应 job/本地命令真实执行后产生 | 证明该次配置下的真实进程、故障注入和 bounded convergence |
+| E4 扩展结果 | compatibility、soak 或 ownership cleanup 的当次 artifact | 对应 schedule/manual 执行 | 只覆盖该次 Packed/PureState、扇出、长稳或清理配置，不由 job 名自动获得 |
 
-`tools/test-gates.json` 是 gate owner、scope、failure policy 与脚本入口的配置事实源；`.github/workflows/abilitykit-test-gates.yml` 是触发条件和 job 分层事实源。多进程 job 使用 `windows-latest` 和 non-cancelling concurrency group，并要求 always-upload artifact。main 上运行不等于 PR gate，schedule/manual 运行也不应写成每次提交都会执行。
+`tools/test-gates.json` 是 gate owner、scope、failure policy 与脚本入口的配置事实源；`.github/workflows/abilitykit-test-gates.yml` 是触发条件和 job 分层事实源。多进程 job 使用 `windows-latest` 和 non-cancelling concurrency group，并要求 always-upload artifact。它们构成 E5 编排证据；只有某次执行留下可回读的 manifest/replay/diff 才构成 E4 场景证据。main 上运行不等于 PR gate，schedule/manual 运行也不应写成每次提交都会执行。
 
 ```powershell
 # 查看 compatibility 正交计划，不启动进程
@@ -336,9 +348,29 @@ CI 按运行成本和证据强度分层。源码契约测试、PR 快速测试�
 1. [x] 实现 TEST-01C 进程身份 helper、running manifest 字段和 cleanup evidence，不改变正常通过场景的业务断言。
 2. [x] 接入父级 matrix timeout 的 manifest 驱动清理，并补充契约测试和保护进程测试。
 3. [x] 运行 Windows 动态强杀探针，确认所有权清理真实生效，并接入 scheduled/manual 门禁。
-4. 下一批推进多 observer 长稳、容量矩阵、长时间网络 profile 动态切换和恢复时延分布。
+4. 下一批推进多 observer 长稳、容量矩阵、长时间网络 profile 动态切换、恢复时延分布，以及超过 Room 1 分钟宽限后的整房间回收场景。
 5. 非 Windows runner 和 Unity Editor 双记录时间线继续作为独立工作包，不与强杀清理混合验收。
 
 TEST-01C 不修改单场景 manifest schema 2 的既有字段语义；新增身份和 cleanup evidence 应保持向后兼容，matrix timeout 仍使用 schema 3。所有工作复用当前 artifact、timeout、replay、diff 和 convergence 契约，不新建平行 runner。
 
 这些工作应复用当前 manifest、artifact、timeout 和 convergence 契约，不新建平行 runner 或以更多同步模式枚举表达故障组合。当前文档不因本轮源码审计更新最近验证日期；新增日期必须来自新的真实 Smoke artifact。
+
+## 15. 当前 gate 矩阵与本批证据声明
+
+| Gate / Job | 当前触发 | 证据定位 |
+|------------|----------|----------|
+| `shooter-fast` | Pull Request、main Push | Runtime、Network Runtime、Demo Common、Record、AOI 等快速 E3/E5 编排 |
+| `shooter-integration` | Pull Request、main Push | Gateway、Grains 与 Shooter Smoke 契约测试 |
+| `shooter-multiprocess` | main Push、Schedule、Manual | TEST-01B minimal 真实多进程 |
+| compatibility / soak / ownership cleanup | Schedule、Manual | 高成本矩阵、长稳和进程清理 |
+| `shooter-performance` smoke | Pull Request、main Push | 低成本阈值回归 |
+| `shooter-performance` full | Schedule、Manual | 完整性能 profile |
+| regression | Schedule | 更宽回归集合 |
+
+2026-08-16 的 Batch N 曾运行五个聚焦工程共 515 项通过，Batch U 又执行 Gateway `162/162`、Grains `232/232`、Shooter Smoke Harness `33/33`。Batch W 当前重跑 Shooter Runtime 为 `481/490`，并以 battle handle/controller factory 聚焦 `22/22` 确认本页引用的恢复与工厂局部契约；9 项失败是默认 template/profile、矩阵数量、snapshot apply 类型与 session 旧预期漂移。以上都仍是 E3 源码契约与局部行为证据，不是本篇多进程矩阵的一次新运行。Batch W 未执行 multiprocess、compatibility、soak、ownership cleanup 或 Unity PlayMode；因此“最近真实验证快照”仍严格保留 2026-07-19，不把测试日期改写为 E4 artifact 日期。
+
+上表记录的是 workflow/gate 的 E5 编排入口，不表示 2026-08-16 已产生对应 E4。本文第 12 节保留的 2026-07-19 manifest/replay/diff 才是最近一次真实 E4；后续更新必须同时给出 run id、配置和可回读 artifact。
+
+Shooter 的 runner、故障计划、收敛字段和双连接组合属于项目级验收套件。框架可复用的是 transport、同步/恢复原语和证据分层方法，不应把 Shooter 场景矩阵当作所有战斗项目的开箱即用应用层。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

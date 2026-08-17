@@ -577,7 +577,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         private StateSyncPush CreatePureStateSyncPush(ulong worldId, int fallbackFrame, bool isFullSnapshot)
         {
             var settings = _stateSyncPushOptions.ResolvePureStateSettings();
-            var pureState = _runtime?.ExportPureStateSnapshot(
+            var pureState = _runtime?.ExportPureStateSnapshotTransient(
                 worldId,
                 isFullBaseline: isFullSnapshot,
                 settings,
@@ -601,7 +601,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             ShooterObserverPureStateSyncState syncState)
         {
             var settings = _stateSyncPushOptions.ResolvePureStateSettings();
-            var pureState = _runtime?.ExportPureStateSnapshot(
+            var pureState = _runtime?.ExportPureStateSnapshotTransient(
                 worldId,
                 isFullBaseline: isFullSnapshot,
                 settings,

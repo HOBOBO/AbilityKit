@@ -2,6 +2,10 @@
 
 > 本文档解释 AbilityKit 轻量 ECS 的核心模型：以 `EntityWorld` 为存储中心、`IEntity` 为值类型句柄、`IEntityId` 为版本化 ID、`EntityQuery` 为类型安全查询入口的轻量实体组件世界。
 
+> **文档类型：Canonical 设计**
+> **事实基线：2026-08-16**
+> **适用范围：`com.abilitykit.world.ecs` 与对应 .NET 镜像；不把 Entitas、Svelto 或 MOBA 的应用编排视为本包默认能力。**
+
 ---
 
 ## 1. 能力定位
@@ -13,7 +17,7 @@ AbilityKit 同时存在几类 ECS/世界相关能力：
 | 轻量 ECS | `Unity/Packages/com.abilitykit.world.ecs/Runtime/AbilityKit.World.ECS`、`src/AbilityKit.World.ECS` | 提供不依赖 Unity/Entitas/Svelto 的实体、组件、查询、层级和事件能力 |
 | Entitas 适配 | `Unity/Packages/com.abilitykit.world.entitas/Runtime`、`src/AbilityKit.World.Entitas` | 接入 Entitas contexts、systems、composer 和 World DI |
 | Svelto 适配 | `Unity/Packages/com.abilitykit.world.svelto/Runtime`、`src/AbilityKit.World.Svelto` | 接入 Svelto `EnginesRoot`、`EntitiesDB` 和性能模式 |
-| 逻辑世界 | `Unity/Packages/com.abilitykit.world/Runtime`、`src/AbilityKit.World` | 管理世界生命周期、模块、系统、服务容器和 Tick |
+| 逻辑世界与 DI | `Unity/Packages/com.abilitykit.world.di/Runtime`、`src/AbilityKit.World.DI` | 管理世界生命周期、模块、系统、服务容器和 Tick |
 
 本篇聚焦“ECS 核心概念”本身，也就是轻量 ECS 如何表达实体和组件。Entitas 与 Svelto 的差异见后续专题。
 
@@ -476,4 +480,40 @@ actor.Destroy();
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+## 18. 当前实现、规范目标与证据边界
+
+### 18.1 三层结论
+
+| 层次 | 本文结论 |
+|------|----------|
+| 当前实现 | 轻量 ECS 已提供实体槽位、组件存储、索引查询、父子关系、逻辑 child id、事件和元数据；运行模型按单线程 world 使用 |
+| 规范目标 | 修正句柄有效性、实体级 `Has<T>()`、初始容量复用和父子关系一致性，并为 Unity/.NET 镜像增加自动差异校验 |
+| 示例策略 | 项目可以用逻辑世界系统、Entitas 或 Svelto 驱动玩法；MOBA/Shooter 的系统分期、索引和运行时所有权不下沉为轻量 ECS 默认应用层 |
+
+### 18.2 源码审计发现的限制
+
+| 限制 | 当前事实与影响 |
+|------|----------------|
+| Invalid 表示冲突 | `IEntityId.Invalid` 是 `default (0, 0)`，但 `IEntityId.IsValid` 只判断 `Index >= 0`，因此 Invalid 自身会报告有效；实际句柄应以 `world.IsAlive(id)` 为准 |
+| `Has<T>()` 粒度错误 | `IEntity.Has<T>()` 转发到世界级 `HasComponent<T>()`，不能证明当前实体拥有组件；实体级判断应暂用 `TryGet<T>()` |
+| 初始容量未进入空闲栈 | 构造函数分配了初始槽位，但没有把这些 index 放入 `_freeIndices`；首次 `Create()` 会从数组末端继续扩容，`initialCapacity` 不能按有效预分配宣传 |
+| 父子一致性有限 | `SetParent` 防止直接自指，但不遍历祖先检测环；逻辑 child id 在重挂和销毁链上的一致性仍需专项失败测试 |
+| 类型 ID 非协议 | `ComponentRegistry` 按进程内首次访问顺序分配 ID，不能持久化、写入网络协议或用作跨运行稳定 hash |
+| 存储并非无装箱 | struct 组件进入 `object[]` 会装箱；该实现追求轻量和可读性，不是极致数据布局 |
+| 并发能力有限 | 空闲栈和局部对象带并发容器不代表整个 `EntityWorld` 线程安全；组件数组、索引和层级应由同一 world 执行线程访问 |
+| 双份源码同步 | Unity package 与 `src/AbilityKit.World.ECS` 当前是两份实现镜像，未发现自动内容差异门禁，修改时必须同时复核 |
+
+### 18.3 E0-E5 证据
+
+| 等级 | 当前证据 | 能得出的结论 |
+|------|----------|----------------|
+| E0 | package 与 .NET 镜像源码 | 可确认 API、存储结构和上述限制 |
+| E1 | 逻辑世界、MOBA 等消费者 | 证明轻量实体接口存在实际接入，不证明全部边界契约 |
+| E2 | `AbilityKit.World.ECS` Release 构建通过，0 警告、0 错误 | 证明当前镜像可编译 |
+| E3 | 未发现基础 ECS 的独立专项契约测试集 | 不能宣称 Invalid、容量、层级和查询修改边界已被自动保护 |
+| E4 | 无本模块独立运行 artifact | 不作生产规模与长时间运行外推 |
+| E5 | 无基础 ECS 专项持续门禁 | 构建成功不等于发布阻断级契约保证 |
+
+---
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

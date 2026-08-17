@@ -2,6 +2,8 @@
 
 > 本文基于 `Unity/Packages/com.abilitykit.host` 与 `Unity/Packages/com.abilitykit.host.extension` 的真实源码，解释 HostRuntime 如何把世界管理、生命周期 Hook、连接管理、消息广播和扩展模块组织成一个可组合的运行时入口。
 
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 适用范围：HostRuntime 协调层、Builder 装配、Hook、Feature 与连接抽象
+
 ---
 
 ## 目录
@@ -221,6 +223,8 @@ sequenceDiagram
 | `WorldCreated` | 模块建立世界会话，例如 `FrameSyncDriverModule` 为世界创建输入缓冲 |
 | `WorldCreatedMessage` | 通知连接方世界已经创建 |
 
+创建前的 `BeforeCreateWorld` Hook 位于管理器调用之前，异常会直接传播并阻止创建。世界成功初始化后，Created Hook 和旧式 delegate 分别包裹并记录异常，单个通知失败不会撤销已经创建的世界；广播失败则按连接隔离。当前语义不是创建事务，调用方不能假设 Created 通知全部成功才算创建完成。
+
 ### 6.2 DestroyWorld
 
 ```mermaid
@@ -277,6 +281,8 @@ flowchart LR
 | HostRuntime.Tick | 捕获整个 Tick 外层异常 |
 | WorldManager.Tick | 捕获单个世界 Tick 异常并继续遍历 |
 
+整个 Host Tick 只有一个外层 `try/catch`，不是每阶段独立 finally。Pre Hook 或旧式 Pre delegate 抛错时，本帧 WorldManager 和 Post 阶段都会被跳过；WorldManager 返回后 Post Hook 抛错也会跳过旧式 Post delegate。外层只记录错误，不会自动重试该帧。
+
 ---
 
 ## 8. 连接、发送与广播
@@ -285,7 +291,7 @@ flowchart LR
 
 | API | 行为 |
 |-----|------|
-| `Connect(connection)` | 以 `connection.ClientId` 作为 key 注册或覆盖连接 |
+| `Connect(connection)` | 以 `connection.ClientId` 作为 key 注册或覆盖连接；不释放被覆盖的旧连接 |
 | `Disconnect(clientId)` | 从连接表移除连接 |
 | `Broadcast(message)` | 遍历当前连接并调用 `SendTo` |
 | `SendTo(connection, message)` | 触发发送前后 Hook，再调用 `connection.Send(message)` |
@@ -308,6 +314,8 @@ sequenceDiagram
 ```
 
 广播中的单个连接发送失败会记录日志并继续发给其他连接。
+
+广播会先复制稳定的连接 snapshot，因此发送回调中断开连接不会破坏本轮枚举。直接 `SendTo` 中 transport 抛错也会被记录并吞掉，方法提前返回且不会触发 `AfterSendMessage`；发送前后的 Hook 异常才可能向调用方传播。连接表只管理可达性，不声明连接资源所有权；重复 ClientId、Disconnect 和 Host 结束后的连接释放都由外层宿主管理。
 
 ---
 
@@ -335,6 +343,8 @@ flowchart LR
 
 这套设计避免模块之间互相持有具体类型，依赖接口即可协作。
 
+同一 Feature 类型再次注册会覆盖旧值，`HostRuntimeFeatures` 不会初始化或释放新旧对象。`HostRuntime` 自身也没有实现 `IDisposable`；因此 Features、连接、驱动和模块卸载必须由实际进程宿主建立显式关闭路径。
+
 ---
 
 ## 10. 设计意图与解决的问题
@@ -359,6 +369,14 @@ flowchart LR
 | `HostRuntimeOptions.OnPostTick` 和 `PostTick` 是二选一 | 源码同时支持 Hook 对象和旧式 delegate，Host Tick 会都调用 |
 | `Features` 是 DI 容器 | Features 只是 Host 级能力注册表，不管理生命周期，也不做构造注入 |
 | `Broadcast` 等于网络协议 | Broadcast 只是遍历 `IServerConnection.Send`，可靠性和编码在连接实现之外 |
+| HostRuntime 是完整进程宿主 | 它是轻量协调器，没有统一 Dispose、连接释放、Feature 生命周期和模块卸载闭环 |
+| Tick 的 Post 阶段一定执行 | 外层是单个 try/catch，Pre 或 WorldManager 外层失败会跳过后续阶段 |
+| 重复 ClientId 会关闭旧连接 | 当前只覆盖字典值，不调用旧连接的 Dispose/Close |
+| TickGate 关闭世界 Tick 时 PostTick 仍会执行 | PreTick 总会先执行；gate 为 false 时世界 Tick 与 PostTick 都跳过，适合“暂停世界推进”，不等于仍运行完整 Host 帧尾 |
+| Hook 排序稳定就意味着派发可重入 | Hook 直接遍历 live `StablePriorityList`，无 snapshot 和逐 handler 隔离；回调内增删可能改变本轮索引，任一异常会中断剩余 handler |
+| Before/After Hook 与生命周期通知异常语义一致 | BeforeCreate、Pre/PostTick、Before/AfterSend 直接传播到各自外层；WorldCreated/Destroyed 通知才逐个包装并记录后继续 |
+
+Host 的失败域由调用位置决定：`BeforeCreateWorld` 抛错时不会创建世界；创建成功后的 WorldCreated 通知失败被吞掉，仍继续广播。发送前 Hook 抛错时不会调用 transport，transport `Send` 抛错会被记录并跳过 AfterSend；AfterSend 抛错则继续向调用方传播，在 Broadcast 中再由单连接外层捕获。文档和模块不能把所有 Hook 都概括成“异常隔离”。
 
 ---
 
@@ -372,16 +390,15 @@ Host 测试工程可通过以下命令运行：
 dotnet test src/AbilityKit.Host.Tests/AbilityKit.Host.Tests.csproj
 ```
 
-当前 `WorldHostBuilderTests.cs` 只有四个测试，验证范围是：
+2026-08-16 实际执行 `AbilityKit.Host.Tests` 为 8/8 通过。它们由三组测试组成：
 
-| 测试契约 | 当前结论 |
-|----------|----------|
-| `WorldHostBuilder.Create()` | 返回非空 Builder |
-| `SetWorldFactory(null)` | 抛出参数异常 |
-| `AddModule(null)` | 容忍空值并返回原 Builder |
-| `AddModules(null)` | 容忍空集合并返回原 Builder |
+| 测试资产 | 数量 | 当前直接证据 |
+|----------|------|--------------|
+| `WorldHostBuilderTests` | 4 | Create、空 factory 拒绝、空 module/集合容忍 |
+| `HostRuntimeContractTests` | 3 | Broadcast 使用稳定连接 snapshot；transport 失败不发布 AfterSend；FixedStepDriver 不重叠 Tick |
+| `HookTests` | 1 | order 稳定且 Remove 只移除目标 registration |
 
-这些测试刻意不创建真实 `IWorldFactory` 和运行时依赖，因此不能证明 `BuildWithOptions` 的完整装配顺序，也不能证明 `HostRuntime` 的世界生命周期、Tick、连接广播或模块卸载行为。
+这 8 项提供局部 E3，但仍不能证明 `BuildWithOptions` 的完整装配顺序、Create/Destroy/Tick Hook 异常矩阵、模块卸载或统一资源释放。
 
 ### 12.2 示例集成证据
 
@@ -407,11 +424,12 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 
 1. `CreateWorld` 的 Before/Created Hook、旧式 delegate、`WorldManager.Create` 和广播之间的精确顺序。
 2. `DestroyWorld` 成功与失败时是否触发 Hook 和广播，以及世界 `Dispose` 只执行一次的约束。
-3. `Tick` 中 PreTick、世界 Tick、PostTick 的顺序，以及异常发生后哪些后续阶段仍会执行。
-4. 单个世界 Tick 失败不阻断其他世界，单个连接发送失败不阻断广播给其他连接。
+3. `Tick` 中 PreTick、TickGate、世界 Tick、PostTick 的顺序，以及异常发生后哪些后续阶段仍会执行。
+4. 单个世界 Tick 失败不阻断其他世界当前主要由 WorldManager 源码支持；广播 snapshot 和单连接发送失败已有局部 Host 契约测试。
 5. 重复 ClientId 的连接覆盖、断连后不再接收消息，以及发送前后 Hook 的异常语义。
-6. `BuildWithOptions` 中工厂包装、驱动 Attach、快照 Feature 注册和模块安装的完整顺序。
-7. HostRuntime 与模块宿主的释放入口及重复释放行为。
+6. Hook 回调期间增删 handler、单 handler 失败及 live-list 索引变化。
+7. `BuildWithOptions` 中工厂包装、驱动 Attach、快照 Feature 注册和模块安装的完整顺序。
+8. HostRuntime 与模块宿主的释放入口及重复释放行为。
 
 补测时应分别使用最小 fake world、fake connection 和记录顺序的 Hook handler，避免依赖 Shooter 玩法对象；这样才能把 Host 自身契约与示例装配问题分开定位。
 
@@ -431,4 +449,6 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-08-02*
+Host 测试项目已被 `core-stability` workflow 的实际 job 调用，因此上述 8 项拥有 CI 编排证据 E5；E5 只外推到这些已断言契约，不能外推成 Host 生命周期已经完整封闭。当前实现是一套可组合协调器，规范目标应补充明确的宿主关闭/所有权协议；Shooter 和 MOBA 的装配继续作为应用策略与跨包示例，不提升为 Host 的统一应用层。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

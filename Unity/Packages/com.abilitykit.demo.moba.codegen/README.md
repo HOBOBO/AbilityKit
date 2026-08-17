@@ -1,33 +1,33 @@
 # AbilityKit Demo MOBA CodeGen
 
-This package owns compile-time behavior that is specific to the MOBA demo runtime:
+本包负责 MOBA 示例运行时专用的编译期行为：
 
-- Static manifests for config tables, plan actions, payload fields, events, target queries, projectiles, bootstrap stages, behavior-tree nodes, snapshots, battle routes, and input handlers.
-- Config-table manifests include strongly typed DTO-table and runtime-entry-table factories plus changed-ID collectors. Runtime entries are still created through each existing `MO(DTO)` constructor, so custom field conversions remain owned by the MO implementation instead of being inferred by the generator.
-- Config-table diagnostics (`AKSG1001` and `AKSG1002`) enforce non-empty paths/groups, concrete DTO/MO types, public integer DTO keys, public DTO-to-MO constructors, and unique paths/DTO/MO registrations.
-- MOBA plan-action contract diagnostics (`AK2001` through `AK2006`).
-- Payload-field diagnostics (`AKSG2001`) enforce supported partial accessor shapes, valid field catalogs and resolver signatures, accessible constant fields, and collision-free generated methods/ID members.
-- Battle route and input-handler diagnostics (`AKSG9001` through `AKSG9005`). Invalid shapes, duplicate route identities, unsupported derived route attributes, and zero/unknown route identities are errors. A missing public parameterless input-handler constructor is a warning because DI construction remains supported while the `Activator` fallback is unavailable.
-- Bootstrap-stage diagnostics (`AKSG6001` and `AKSG6002`) enforce generated-code accessibility, concrete non-generic stage shape, an accessible parameterless constructor, and unique statically resolvable stage names.
-- Behavior-tree node diagnostics (`AKSG7001` and `AKSG7002`) enforce generated-manifest accessibility, non-generic node types, and unique short names within the MOBA behavior-tree namespace.
-- Event-mapping diagnostics (`AKSG3001` and `AKSG3002`) enforce compile-time event mapping arguments and unique IDs within the exact or prefix mapping kind.
-- Target-query factory diagnostics (`AKSG4001` and `AKSG4002`) enforce the factory interface, generated-code accessibility, concrete non-generic shape, an accessible parameterless constructor, and unique codes within each factory kind.
-- Projectile-emitter diagnostics (`AKSG5001` and `AKSG5002`) enforce the launch-sequence interface, generated-code accessibility, concrete non-generic shape, an accessible parameterless constructor, and unambiguous emitter-type/priority pairs.
-- Snapshot-emitter diagnostics (`AKSG8001`) enforce concrete, non-generic, generated-code-accessible runtime emitters that implement the snapshot interface and use a constant integer priority. External assemblies without the runtime manifest remain on the reflection/DI extension path.
+- 为配置表、计划动作、载荷字段、事件、目标查询、投射物、引导阶段、行为树节点、快照、战斗路由和输入处理器生成静态清单。
+- 配置表清单包含强类型 DTO 表和运行时条目表工厂，以及变更 ID 收集器。运行时条目仍通过现有的 `MO(DTO)` 构造函数创建，因此自定义字段转换归 MO 实现负责，不由生成器推断。
+- 配置表诊断（`AKSG1001` 和 `AKSG1002`）要求路径/组非空、DTO/MO 类型具体、DTO 整数键公开、DTO 到 MO 构造函数公开，并保证路径/DTO/MO 注册唯一。
+- MOBA 计划动作契约诊断（`AK2001` 至 `AK2006`）。
+- 载荷字段诊断（`AKSG2001`）要求受支持的分部访问器形态、有效的字段目录和解析器签名、可访问的常量字段，以及生成方法/ID 成员无冲突。
+- 战斗路由和输入处理器诊断（`AKSG9001` 至 `AKSG9005`）。无效形态、重复路由标识、不支持的派生路由特性及零值/未知路由标识均为错误。缺少公开无参输入处理器构造函数属于警告，因为仍支持 DI 构造，但 `Activator` 回退不可用。
+- 引导阶段诊断（`AKSG6001` 和 `AKSG6002`）要求生成代码可访问、阶段为具体非泛型类型、具有可访问的无参构造函数，且可静态解析的阶段名称唯一。
+- 行为树节点诊断（`AKSG7001` 和 `AKSG7002`）要求生成清单可访问、节点为非泛型类型，且短名称在 MOBA 行为树命名空间内唯一。
+- 事件映射诊断（`AKSG3001` 和 `AKSG3002`）要求编译期事件映射参数，并保证精确或前缀映射类型内部 ID 唯一。
+- 目标查询工厂诊断（`AKSG4001` 和 `AKSG4002`）要求实现工厂接口、生成代码可访问、类型具体且非泛型、具有可访问的无参构造函数，并保证各工厂类型内编码唯一。
+- 投射物发射器诊断（`AKSG5001` 和 `AKSG5002`）要求实现发射序列接口、生成代码可访问、类型具体且非泛型、具有可访问的无参构造函数，并保证发射器类型/优先级组合无歧义。
+- 快照发射器诊断（`AKSG8001`）要求运行时发射器具体、非泛型、可由生成代码访问、实现快照接口，并使用常量整数优先级。没有运行时清单的外部程序集继续使用反射/DI 扩展路径。
 
-Framework-wide generators remain in `com.abilitykit.codegen`. Framework-wide analyzers remain in `com.abilitykit.analyzer`.
+框架级生成器仍位于 `com.abilitykit.codegen`，框架级分析器仍位于 `com.abilitykit.analyzer`。
 
-Each MOBA generator/analyzer pair consumes a shared contract from `Contracts/`. Generators filter invalid declarations and produce deterministic source; analyzers exclusively own diagnostics. Ownership tests prevent diagnostics from moving back into generator implementations or pair-specific validation from bypassing the shared contract.
+每组 MOBA 生成器/分析器从 `Contracts/` 使用共享契约。生成器过滤无效声明并生成确定性源码；诊断只归分析器负责。所有权测试会阻止诊断回流到生成器实现，也会阻止成对组件的专用验证绕过共享契约。
 
-Build the Roslyn component with:
+使用以下命令构建 Roslyn 组件：
 
 ```powershell
 dotnet build DotNet~/AbilityKit.Demo.Moba.CodeGen/AbilityKit.Demo.Moba.CodeGen.csproj
 ```
 
-The build copies `AbilityKit.Demo.Moba.CodeGen.dll` to the package root. Unity imports that DLL through the `RoslynAnalyzer` label. Generated manifests and their strongly typed config factories are the default MOBA runtime path. An incremental reload builds and validates candidate DTO and MO tables for the entire change batch before replacing any existing table contents, so conversion or validation failures leave the current database state unchanged. Registries and config definitions without generated factories retain the existing reflection fallback for compatibility with external or legacy registrations.
+构建会把 `AbilityKit.Demo.Moba.CodeGen.dll` 复制到包根目录。Unity 通过 `RoslynAnalyzer` 标签导入该 DLL。生成清单及其强类型配置工厂是默认的 MOBA 运行时路径。增量重载会先构建并验证整个变更批次的候选 DTO 和 MO 表，再替换现有表内容，因此转换或验证失败不会改变当前数据库状态。没有生成工厂的注册表和配置定义继续保留现有反射回退，以兼容外部或旧注册项。
 
-Run the repository contract gate before merging compile-time changes:
+合并编译期修改前运行仓库契约门禁：
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File tools\run_test_gate.ps1 -Gate moba-codegen

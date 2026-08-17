@@ -8,6 +8,7 @@ namespace AbilityKit.Game.Flow
     internal sealed class ConfirmedViewSnapshotRuntime : IDisposable
     {
         private readonly BattleContext _ctx;
+        private readonly long _contextBindingGeneration;
 
         private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(3);
 
@@ -17,11 +18,13 @@ namespace AbilityKit.Game.Flow
 
         private ConfirmedViewSnapshotRuntime(
             BattleContext ctx,
+            long contextBindingGeneration,
             FrameSnapshotDispatcher snapshots,
             SnapshotPipeline pipeline,
             SnapshotCmdHandler cmdHandler)
         {
             _ctx = ctx;
+            _contextBindingGeneration = contextBindingGeneration;
             Snapshots = snapshots;
             Pipeline = pipeline;
             CmdHandler = cmdHandler;
@@ -47,19 +50,24 @@ namespace AbilityKit.Game.Flow
                 pipeline,
                 cmdHandler);
 
-            ctx.BindSnapshotRouting(snapshots, pipeline, cmdHandler);
+            var contextBindingGeneration =
+                ctx.BindSnapshotRouting(snapshots, pipeline, cmdHandler);
 
-            var runtime = new ConfirmedViewSnapshotRuntime(ctx, snapshots, pipeline, cmdHandler);
+            var runtime = new ConfirmedViewSnapshotRuntime(
+                ctx,
+                contextBindingGeneration,
+                snapshots,
+                pipeline,
+                cmdHandler);
             runtime.Subscribe(ctx);
             return runtime;
         }
 
         public void Dispose()
         {
-            if (_ctx != null && _ctx.IsSnapshotRoutingBoundTo(Snapshots, Pipeline, CmdHandler))
-            {
-                _ctx.ClearSnapshotRouting();
-            }
+            _ctx?.ClearSnapshotRouting(
+                _contextBindingGeneration,
+                Snapshots);
 
             _subscriptions.Clear();
 

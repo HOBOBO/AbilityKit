@@ -321,9 +321,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
   ""enemyProjectilesPerShot"": 1,
   ""enemySpreadDegrees"": 0.0,
   ""waves"": [
-    { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 9.0 },
-    { ""waveId"": 2, ""startFrame"": 20, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 11.0 },
-    { ""waveId"": 3, ""startFrame"": 40, ""spawnFrameInterval"": 2, ""enemyCount"": 36, ""enemyHp"": 3, ""spawnRadius"": 13.0 }
+    { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 18.0 },
+    { ""waveId"": 2, ""startFrame"": 20, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 22.0 },
+    { ""waveId"": 3, ""startFrame"": 40, ""spawnFrameInterval"": 2, ""enemyCount"": 36, ""enemyHp"": 3, ""spawnRadius"": 26.0 }
   ]
 }";
 
@@ -336,7 +336,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
   ""targetCount"": 96,
   ""tickCount"": 120,
   ""tickDeltaTime"": 0.033333334,
-  ""arenaRadius"": 16.0,
+  ""arenaRadius"": 32.0,
   ""loadout"": {
     ""loadoutId"": 1,
     ""name"": ""burst-rifle"",
@@ -358,9 +358,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
     ""enemyProjectilesPerShot"": 1,
     ""enemySpreadDegrees"": 0.0,
     ""waves"": [
-      { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 9.0 },
-      { ""waveId"": 2, ""startFrame"": 20, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 11.0 },
-      { ""waveId"": 3, ""startFrame"": 40, ""spawnFrameInterval"": 2, ""enemyCount"": 36, ""enemyHp"": 3, ""spawnRadius"": 13.0 }
+      { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 18.0 },
+      { ""waveId"": 2, ""startFrame"": 20, ""spawnFrameInterval"": 1, ""enemyCount"": 36, ""enemyHp"": 2, ""spawnRadius"": 22.0 },
+      { ""waveId"": 3, ""startFrame"": 40, ""spawnFrameInterval"": 2, ""enemyCount"": 36, ""enemyHp"": 3, ""spawnRadius"": 26.0 }
     ]
   }
 }";
@@ -374,7 +374,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
   ""targetCount"": 96,
   ""tickCount"": 180,
   ""tickDeltaTime"": 0.033333334,
-  ""arenaRadius"": 18.0,
+  ""arenaRadius"": 36.0,
   ""loadout"": {
     ""loadoutId"": 1,
     ""name"": ""burst-rifle"",
@@ -396,9 +396,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
     ""enemyProjectilesPerShot"": 1,
     ""enemySpreadDegrees"": 0.0,
     ""waves"": [
-      { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 32, ""enemyHp"": 2, ""spawnRadius"": 9.0 },
-      { ""waveId"": 2, ""startFrame"": 30, ""spawnFrameInterval"": 1, ""enemyCount"": 32, ""enemyHp"": 2, ""spawnRadius"": 11.0 },
-      { ""waveId"": 3, ""startFrame"": 60, ""spawnFrameInterval"": 2, ""enemyCount"": 32, ""enemyHp"": 3, ""spawnRadius"": 13.0 }
+      { ""waveId"": 1, ""startFrame"": 0, ""spawnFrameInterval"": 1, ""enemyCount"": 32, ""enemyHp"": 2, ""spawnRadius"": 18.0 },
+      { ""waveId"": 2, ""startFrame"": 30, ""spawnFrameInterval"": 1, ""enemyCount"": 32, ""enemyHp"": 2, ""spawnRadius"": 22.0 },
+      { ""waveId"": 3, ""startFrame"": 60, ""spawnFrameInterval"": 2, ""enemyCount"": 32, ""enemyHp"": 3, ""spawnRadius"": 26.0 }
     ]
   }
 }";

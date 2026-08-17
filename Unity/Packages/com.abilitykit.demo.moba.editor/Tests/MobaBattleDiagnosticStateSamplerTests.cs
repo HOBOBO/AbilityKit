@@ -82,6 +82,58 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void Sample_StateStoreRejection_RecordsFailureEvidence()
+        {
+            var store = new ControllableStateStore(_scope) { AcceptWrites = false };
+            var sampler = new MobaBattleDiagnosticStateSampler(
+                new MobaActorRegistry(),
+                store,
+                () => 27,
+                () => 100L);
+
+            Assert.That(sampler.Sample(), Is.False);
+            Assert.That(sampler.LastSuccessfulSampleFrame,
+                Is.EqualTo(BattleDiagnosticFrames.Invalid));
+            Assert.That(sampler.SampleFailureCount, Is.EqualTo(1));
+            Assert.That(sampler.LastSampleError,
+                Is.EqualTo("State store rejected the snapshot."));
+        }
+
+        [Test]
+        public void Sample_FrozenStateStore_DoesNotRecordFailure()
+        {
+            var store = new ControllableStateStore(_scope) { IsFrozen = true };
+            var sampler = new MobaBattleDiagnosticStateSampler(
+                new MobaActorRegistry(),
+                store,
+                () => 27,
+                () => 100L);
+
+            Assert.That(sampler.Sample(), Is.False);
+            Assert.That(sampler.SampleFailureCount, Is.Zero);
+            Assert.That(sampler.LastSampleError, Is.Empty);
+        }
+
+        [Test]
+        public void Sample_SuccessAfterRejection_ClearsLastErrorAndPreservesFailureCount()
+        {
+            var store = new ControllableStateStore(_scope) { AcceptWrites = false };
+            var sampler = new MobaBattleDiagnosticStateSampler(
+                new MobaActorRegistry(),
+                store,
+                () => 27,
+                () => 100L);
+
+            Assert.That(sampler.Sample(), Is.False);
+            store.AcceptWrites = true;
+
+            Assert.That(sampler.Sample(), Is.True);
+            Assert.That(sampler.LastSuccessfulSampleFrame, Is.EqualTo(27));
+            Assert.That(sampler.SampleFailureCount, Is.EqualTo(1));
+            Assert.That(sampler.LastSampleError, Is.Empty);
+        }
+
+        [Test]
         public void TrySampleActor_NullEntity_ReturnsFalse()
         {
             var ok = MobaBattleDiagnosticStateSampler.TrySampleActor(
@@ -406,6 +458,71 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Is.EqualTo(BattleDiagnosticFrames.Invalid));
             Assert.That(effectReadStore.SnapshotFrame,
                 Is.EqualTo(BattleDiagnosticFrames.Invalid));
+        }
+
+        private sealed class ControllableStateStore : IBattleDiagnosticStateStore
+        {
+            public ControllableStateStore(BattleDiagnosticSessionScope scope)
+            {
+                Scope = scope;
+            }
+
+            public BattleDiagnosticSessionScope Scope { get; }
+            public long Revision { get; private set; }
+            public int ActorCount { get; private set; }
+            public int SnapshotFrame { get; private set; } = BattleDiagnosticFrames.Invalid;
+            public bool IsFrozen { get; set; }
+            public bool AcceptWrites { get; set; } = true;
+
+            public bool TryReplaceSnapshot(
+                BattleDiagnosticWorldSummary world,
+                IReadOnlyList<BattleDiagnosticActorSummary> actors)
+            {
+                if (IsFrozen || !AcceptWrites) return false;
+                Revision++;
+                ActorCount = actors?.Count ?? 0;
+                SnapshotFrame = world.Frame;
+                return true;
+            }
+
+            public bool TryReplaceWorld(BattleDiagnosticWorldSummary world)
+            {
+                if (IsFrozen || !AcceptWrites) return false;
+                Revision++;
+                SnapshotFrame = world.Frame;
+                return true;
+            }
+
+            public bool TryReplaceActors(IReadOnlyList<BattleDiagnosticActorSummary> actors)
+            {
+                if (IsFrozen || !AcceptWrites) return false;
+                Revision++;
+                ActorCount = actors?.Count ?? 0;
+                return true;
+            }
+
+            public void SetFrozen(bool frozen)
+            {
+                IsFrozen = frozen;
+            }
+
+            public void Clear()
+            {
+                ActorCount = 0;
+                SnapshotFrame = BattleDiagnosticFrames.Invalid;
+            }
+
+            public BattleDiagnosticWorldSummary? QueryWorld(int frame)
+            {
+                return null;
+            }
+
+            public BattleDiagnosticQueryResult<BattleDiagnosticActorSummary> QueryActors(
+                long requestId,
+                int frame)
+            {
+                return default;
+            }
         }
 
         private sealed class TestUnitFacade : IUnitFacade

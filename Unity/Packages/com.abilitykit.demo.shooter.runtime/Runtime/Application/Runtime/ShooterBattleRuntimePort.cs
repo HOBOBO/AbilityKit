@@ -9,6 +9,25 @@ using AbilityKit.World.Svelto;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
+    public readonly struct ShooterStateHashCacheDiagnostics
+    {
+        public ShooterStateHashCacheDiagnostics(long computationCount, long cacheHitCount, int cachedFrame, bool hasCachedValue)
+        {
+            ComputationCount = computationCount;
+            CacheHitCount = cacheHitCount;
+            CachedFrame = cachedFrame;
+            HasCachedValue = hasCachedValue;
+        }
+
+        public long ComputationCount { get; }
+
+        public long CacheHitCount { get; }
+
+        public int CachedFrame { get; }
+
+        public bool HasCachedValue { get; }
+    }
+
     [WorldService(typeof(ShooterBattleRuntimePort), WorldLifetime.Singleton)]
     [WorldService(typeof(IShooterBattleRuntimePort), WorldLifetime.Singleton)]
     [WorldService(typeof(IShooterGameStartPort), WorldLifetime.Singleton)]
@@ -39,6 +58,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly ShooterBotAiService _botAiService;
         private readonly ShooterBattleServiceContext _services;
         private readonly ShooterBattleSveltoStepEngine _battleStepEngine;
+        private uint _cachedStateHash;
+        private int _cachedStateHashFrame = -1;
+        private long _cachedEntityMutationRevision = -1;
+        private long _stateHashComputationCount;
+        private long _stateHashCacheHitCount;
+        private bool _hasCachedStateHash;
 
         public ShooterBattleRuntimePort()
             : this(ShooterEntityLimitOptions.Default)
@@ -205,8 +230,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public ShooterStartGamePayload StartSpec => _state.StartSpec;
 
+        public ShooterStateHashCacheDiagnostics StateHashCacheDiagnostics => new ShooterStateHashCacheDiagnostics(
+            _stateHashComputationCount,
+            _stateHashCacheHitCount,
+            _cachedStateHashFrame,
+            _hasCachedStateHash);
+
+        public ShooterPureStateWorldCacheDiagnostics PureStateWorldCacheDiagnostics =>
+            _pureStateSnapshotExporter.WorldCacheDiagnostics;
+
         public bool StartGame(in ShooterStartGamePayload spec)
         {
+            InvalidateStateHash();
             _state.Reset(in spec);
             _state.VictoryTargetDefeats = _enemyWaveOptions.VictoryTargetDefeats;
             _state.SetTimeLimitFrames(_enemyWaveOptions.DurationFrames);
@@ -284,6 +319,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return false;
             }
 
+            InvalidateStateHash();
             _battleStepEngine.Step(in deltaTime);
             _state.InputBuffer.TrimToWindow(_state.CurrentFrame);
             return _state.IsStarted;
@@ -306,7 +342,20 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public uint ComputeStateHash()
         {
-            return _stateHasher.Compute();
+            if (_hasCachedStateHash &&
+                _cachedStateHashFrame == _state.CurrentFrame &&
+                _cachedEntityMutationRevision == _entities.MutationRevision)
+            {
+                _stateHashCacheHitCount++;
+                return _cachedStateHash;
+            }
+
+            _cachedStateHash = _stateHasher.Compute();
+            _cachedStateHashFrame = _state.CurrentFrame;
+            _cachedEntityMutationRevision = _entities.MutationRevision;
+            _hasCachedStateHash = true;
+            _stateHashComputationCount++;
+            return _cachedStateHash;
         }
 
         public ShooterPackedSnapshotPayload ExportPackedSnapshot(ulong worldId, bool isFullSnapshot = true, bool authorityOverride = false)
@@ -321,6 +370,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public bool ImportPackedSnapshot(in ShooterPackedSnapshotPayload snapshot)
         {
+            InvalidateStateHash();
             return _packedSnapshotImporter.Import(in snapshot);
         }
 
@@ -362,6 +412,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public void SetPlayer(in ShooterSveltoPlayerComponent player)
         {
+            InvalidateStateHash();
             _entities.SetPlayer(in player);
         }
 
@@ -380,6 +431,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public void ClearBotAi()
         {
             _botAiService.ClearBotAi();
+        }
+
+        private void InvalidateStateHash()
+        {
+            _hasCachedStateHash = false;
+            _cachedStateHashFrame = -1;
+            _cachedEntityMutationRevision = -1;
         }
 
         private static BattleRuntimeState MapRuntimeState(ShooterBattleMatchState state)

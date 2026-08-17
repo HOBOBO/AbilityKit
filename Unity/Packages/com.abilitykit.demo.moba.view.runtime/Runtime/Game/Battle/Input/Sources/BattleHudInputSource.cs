@@ -31,46 +31,35 @@ namespace AbilityKit.Game.Flow
 
     internal static class BattleHudInputSource
     {
-        public static bool TryReadMove(BattleContext ctx, out float dx, out float dz)
+        public static bool TryReadMove(
+            IBattleHudInputReadPort input,
+            out float dx,
+            out float dz)
         {
-            if (ctx != null) return ctx.TryReadHudMove(out dx, out dz);
+            if (input != null) return input.TryReadMove(out dx, out dz);
 
             dx = 0f;
             dz = 0f;
             return false;
         }
 
-        public static bool TryConsumeSkillClick(BattleContext ctx, out int slot)
+        public static bool TryConsumeSkillClick(
+            IBattleHudInputReadPort input,
+            out int slot)
         {
-            if (ctx != null) return ctx.TryConsumeHudSkillClick(out slot);
+            if (input != null) return input.TryConsumeSkillClick(out slot);
 
             slot = 0;
             return false;
         }
 
-        public static bool TryConsumeSkillAimSubmit(BattleContext ctx, out BattleSkillAimSubmitInput input)
+        public static bool TryConsumeSkillAimSubmit(
+            IBattleHudInputReadPort input,
+            out BattleSkillAimSubmitInput submitted)
         {
-            if (ctx != null && ctx.TryConsumeHudSkillAimSubmit(
-                out var slot,
-                out var aimPosX,
-                out var aimPosY,
-                out var aimPosZ,
-                out var aimDirX,
-                out var aimDirY,
-                out var aimDirZ))
-            {
-                input = new BattleSkillAimSubmitInput(
-                    slot,
-                    aimPosX,
-                    aimPosY,
-                    aimPosZ,
-                    aimDirX,
-                    aimDirY,
-                    aimDirZ);
-                return true;
-            }
+            if (input != null) return input.TryConsumeSkillAimSubmit(out submitted);
 
-            input = default;
+            submitted = default;
             return false;
         }
     }

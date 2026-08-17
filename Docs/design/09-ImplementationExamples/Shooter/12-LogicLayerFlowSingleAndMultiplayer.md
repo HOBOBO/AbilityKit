@@ -1,5 +1,8 @@
 # Shooter 逻辑层流程：输入、处理、输出与单机/多人模式
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文从逻辑层视角拆解 Shooter 示例当前实现，重点回答三件事：输入如何进入逻辑世界，逻辑世界如何处理输入并推进帧，结果如何输出到表现层或网络层。文档同时覆盖单机 PlayMode 和多人远程 PlayMode，便于对照 AbilityKit 框架的 Session / Host / Runtime 分层设计。
 
 ## 1. 结论概览
@@ -191,7 +194,7 @@ sequenceDiagram
     Host->>View: Render presentation frame
 ```
 
-这里有两个容易误判的点。第一，客户端先 `SubmitLocalInput` 到本地 runtime 是预测和立即反馈需要的本地路径，不代表绕过服务器权威；真正发往服务端的路径是 `RemoteClientInputSubmitQueue` -> `ShooterClientBattleHandle` -> 独立 battle transport。第二，battle push 不是在 receive thread 直接调用 session，而是入队后由主线程 `Drain`；这样既避免网络线程与本地 Tick 竞争，也不让 awaited 输入 response 依赖主线程 pump。Shooter 的 world、Room 控制面、battle 数据面、订阅和预测生命周期已由业务 host、session 与 launcher 唯一持有，不能再叠加当前源码中并不存在的 `SessionCoordinator` 实现链。
+这里有两个容易误判的点。第一，客户端先 `SubmitLocalInput` 到本地 runtime 是预测和立即反馈需要的本地路径，不代表绕过服务器权威；真正发往服务端的路径是 `RemoteClientInputSubmitQueue` -> `ShooterClientBattleHandle` -> 独立 battle transport。第二，battle push 不是在 receive thread 直接调用 session，而是入队后由主线程 `Drain`；这样既避免网络线程与本地 Tick 竞争，也不让 awaited 输入 response 依赖主线程 pump。Shooter 的目标所有权图由业务 host、session 与 launcher 分工，不能再叠加当前源码中并不存在的 `SessionCoordinator` 实现链；但当前 remote teardown 还没有显式释放 `ShooterClientSession` 所引用的 presentation context、sync controller、reliable consumer 与 recovery coordinator，不能把“目标唯一 owner”写成已完全闭环。
 
 ## 6. 多人服务端权威流程
 
@@ -339,3 +342,25 @@ flowchart TD
 | 框架远端输入队列 | [RemoteClientInputSubmitQueue.cs](../../../../Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs) |
 | 服务端 battle host grain | [BattleLogicHostGrain.cs](../../../../Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs) |
 | 服务端 Shooter runtime adapter | [ShooterBattleRuntimeAdapter.cs](../../../../Server/Orleans/src/AbilityKit.Orleans.Grains/Gameplays/Shooter/Battle/ShooterBattleRuntimeAdapter.cs) |
+
+## 11. 复用结论、项目边界与证据
+
+单机、客户端预测和服务端权威共享同一个 `ShooterBattleRuntimePort`，证明 runtime 领域核心可以与宿主解耦；三种模式的 Session、输入源、网络连接、同步控制器、表现投影和恢复策略并不相同。共享 runtime 不能反推存在一套适合所有游戏的统一 Battle Application 层。
+
+| 适合框架稳定化 | 应由项目保留 |
+|----------------|--------------|
+| World/Host 生命周期、输入队列、snapshot/rollback 原语、transport、同步协商与恢复契约 | 模式选择、Room 入场、双连接身份、Shooter 命令、controller/facade、表现和玩法阶段编排 |
+
+客户端远程链必须保持 Room 控制面和独立 battle 数据面的所有权分离，并在主线程应用 push；服务端 adapter 只把协议和 Host 对接到 Shooter runtime，不把 Orleans 生命周期带入领域核心。应用层组合可作为高接入度参考，但框架层只有在语义、所有权和多个项目消费者都稳定后才适合下沉。
+
+### 11.1 三种模式的停止责任
+
+| 模式 | 停止 owner | 当前边界 |
+|------|------------|----------|
+| 单机 PlayMode | `ShooterPlaySessionRunner.Stop/Dispose` | Dispose acceptance session、清 view sink、重置计数与采样状态；静态 Host Uninstall 另行拆 PlayerLoop 与网络 hook |
+| 多人远程客户端 | `ShooterRemoteStateSyncPlayModeHost` runtime state + launcher | transport/data plane/control connection 有清理；client session/presentation 依赖图仍有显式 teardown 缺口 |
+| Orleans 权威服务端 | Battle/Room grain 与 runtime adapter | 生命周期由服务端 activation/timer/room 规则拥有，不能由客户端 session 推导 |
+
+Batch N 曾记录 Shooter Runtime `489/489`、Host `3/3`、Network Client `3/3`、Network Battle `12/12`，是当时的 E3 历史基线。Batch W 后续 Shooter 全量为 `481/490`，9 项属于默认模型、acceptance 数量和 snapshot/session 旧预期漂移；聚焦 battle handle/controller factory `22/22` 通过。Batch X 的 projection/PlaySessionRunner 聚焦测试 `66/66` 通过，只直接覆盖本地 runner 与投影契约。没有运行单机/远程 Unity PlayMode 或真实 Orleans 多进程链。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

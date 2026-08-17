@@ -21,9 +21,9 @@ namespace AbilityKit.Game.Flow
             _entities.ForEach(world, entity => _sync.Sync(entity));
         }
 
-        public void RebindAll(EC.IECWorld world, BattleContext ctx)
+        public void RebindAll(EC.IECWorld world, IBattleRuntimeContext runtimeContext)
         {
-            _entities.ForEach(world, entity => _sync.Sync(entity, ctx));
+            _entities.ForEach(world, entity => _sync.Sync(entity, runtimeContext));
         }
     }
 

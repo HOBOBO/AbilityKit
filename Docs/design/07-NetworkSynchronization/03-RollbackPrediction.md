@@ -1,5 +1,11 @@
 # 7.3 回滚预测
 
+> **文档类型：Canonical 设计**
+>
+> **事实基线：2026-08-16**
+>
+> **规范范围：** Provider 注册、快照捕获/恢复、输入历史、预测重演与 Host 接入；表现重整由项目层负责。
+
 > 基于真实源码说明 AbilityKit 的回滚预测能力：`IRollbackStateProvider` 多 Provider 快照、`RollbackCoordinator` 捕获/恢复、环形历史缓存、输入历史、状态哈希冲突检测、客户端预测重演、服务端回滚重演，以及 MOBA/Shooter Demo 的接入方式。
 
 ---
@@ -51,7 +57,7 @@ AbilityKit 的回滚预测不是单一算法，而是一组围绕“保存过去
 | [RollbackRegistry.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackRegistry.cs) | Provider 注册表，按 `Key` 排序并在 Coordinator 构造时封存 |
 | [WorldRollbackSnapshot.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/WorldRollbackSnapshot.cs) | 回滚快照与条目结构，使用 `BinaryObjectCodec` 编解码 |
 | [RollbackSnapshotRingBuffer.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackSnapshotRingBuffer.cs) | 固定容量回滚快照环形缓存 |
-| [RollbackEntriesArrayPool.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackEntriesArrayPool.cs) | 快照条目数组池，降低捕获时分配 |
+| [RollbackCoordinator.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackCoordinator.cs) | 协调器直接使用 `ArrayPool<WorldRollbackSnapshotEntry>` 和 `ArrayPool<IRollbackStateProvider>`，降低捕获与恢复临时数组分配 |
 | [RollbackCoordinator.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackCoordinator.cs) | 回滚核心协调器，负责捕获、存储、恢复、清理 |
 | [RollbackOperationResult.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackOperationResult.cs) | 回滚操作状态、错误类型和统计信息 |
 | [InputHistoryRingBuffer.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/InputHistoryRingBuffer.cs) | 按帧保存输入数组的环形缓存 |
@@ -144,7 +150,7 @@ public readonly struct WorldRollbackSnapshot
 
 - `Version` 当前由 `WorldRollbackSnapshotCodec.CurrentVersion` 固定为 `1`。
 - `Frame` 是快照对应的模拟帧。
-- `Entries` 使用数组承载，捕获时通过 `RollbackEntriesArrayPool` 复用。
+- `Entries` 使用数组承载，捕获时通过共享 `ArrayPool<WorldRollbackSnapshotEntry>` 租用临时数组，并在存储完成后清理归还。
 - `WorldRollbackSnapshotCodec` 用 `BinaryObjectCodec.Encode/Decode` 做二进制编解码，可用于跨模块传输或持久化。
 
 ---
@@ -183,7 +189,7 @@ flowchart LR
 1. 从 `RollbackRegistry.Providers` 取出按 Key 排序的 Provider。
 2. 对每个 Provider 调用 `Export(frame)`。
 3. 将返回 payload 包装成 `WorldRollbackSnapshotEntry`。
-4. 通过 `RollbackEntriesArrayPool.Rent(count)` 租用条目数组。
+4. 通过 `ArrayPool<WorldRollbackSnapshotEntry>.Shared.Rent(count)` 租用条目数组。
 5. 构造 `WorldRollbackSnapshot(CurrentVersion, frame, entries)`。
 6. `CaptureAndStore(frame)` 再把快照写入 `RollbackSnapshotRingBuffer`。
 
@@ -260,11 +266,13 @@ flowchart TB
 
 AbilityKit 中存在三层不同职责的客户端预测实现，不能仅因都包含“prediction”或“rollback”命名就视为同一套完整能力：
 
-1. `PredictionCoordinator`：StateSync 包内的通用流程骨架，管理 `StateSlots`、输入历史和字典快照，但冲突分支会先清空输入历史再调用 replay。
+1. `PredictionCoordinator`：StateSync 包内的通用流程骨架，管理 `StateSlots`、输入历史和字典快照；冲突分支会先提取待重演输入，再清空旧历史并执行 replay。
 2. `ClientPredictionRunner`：轻量封装，适合测试或简单客户端；其恢复入口直接尝试恢复分歧帧，不能替代 Host 的完整对账模块。
 3. `ClientPredictionDriverModule`：Host Extension 的正式运行时模块，包含远端输入源、本地输入源、预测窗口、权威输入对账、哈希对账和 replay 超时保护。
 
 正式业务接入应优先选择第 3 层或业务专用控制器，并单独核验输入保留、状态导入、回滚帧选择、重演终点和表现层刷新，而不能把通用 Coordinator 的 API 存在误写成完整 reconciliation。
+
+通用 `PredictionCoordinator` 还有一个不能忽略的输入粒度约束：其 `InputHistory.GetInputs` 返回拍平后的命令序列，`ReplayInputs` 对每条命令递增一次帧号。同一帧若经 `RecordInput` 保存多条命令，重演就会多推进帧。现有测试只证明每帧一条命令可重演；需要同帧批量输入的项目应使用按帧保存输入数组的 `InputHistoryRingBuffer`/Host 驱动，或先修复通用 Coordinator 的分组契约。
 
 ### 7.1 轻量 Runner
 
@@ -318,6 +326,12 @@ sequenceDiagram
 需要注意两个源码事实：轻量 `ClientPredictionRunner.HandleRollbackRequested` 当前直接 `TryRestore(rollbackFrame)`，其中 `rollbackFrame` 是 `ClientPredictionReconciler` 触发的哈希不一致帧；Host Extension 的完整模块则会回滚到 `mismatchFrame - 1`，再从分歧帧开始重演。正式游戏接入更应该参考 `ClientPredictionDriverModule` 的逻辑。
 
 此外，StateSync 通用 `PredictionCoordinator.Reset()` 的实现是将当前帧设为 0、确认帧设为 `Frame.Invalid`、清空输入历史，并调用 `_snapshotStore.PruneBefore(Frame.Invalid)`。由于 `Frame.Invalid.Value == -1`，该裁剪只删除小于 -1 的帧，通常不会清理从 0 开始的已有预测快照。文档、测试和业务调用方应把它视为“重置游标与输入”，而不是“完整清空预测历史”。
+
+`RollbackCoordinator` 的恢复路径会先解析全部 Provider，再开始 Import，并通过 `ArrayPool` 租用临时 Provider 数组；这避免“解析到一半才发现 Key 缺失”，但 Import 本身不是事务。若后续 Provider 导入失败，前面的 Provider 可能已经恢复，调用方必须把失败视为可能存在部分恢复，并进入全量基线或重建路径。`OperationCompleted` 观察者异常会被记录和隔离，不会改写回滚操作结果。
+
+逻辑回滚失败后的“请求什么”与“如何执行”也应分层：`NetworkSessionRecoveryCoordinator` 聚合信号并给出决策，`NetworkSessionRecoveryActionRouter<TResult>` 把动作映射到项目 handler，`NetworkSessionRecoveryRuntime<TResult>` 再提供 Automatic/Manual 执行、generation、取消和陈旧完成抑制。框架不会替项目定义 full-state RPC、Room restore 或表现重建；这些 handler 必须由会话 owner 注册，并在切换 world/session 时显式 reset/dispose。
+
+帧时钟也通过 `FrameTimeRollbackStateProvider` 进入 Provider 集合。其 payload v2 保存 Q32.32 raw `long`，用于恢复准确的累计帧时间；这不替代其它业务 Provider，也不证明所有业务计算均已定点化。
 
 ### 7.2 哈希对账
 
@@ -505,13 +519,14 @@ flowchart LR
 | `ClientPredictionDriverModule` | E0 实现、MOBA 运行时工厂调用、Host 生命周期接线 | 已有 E2 采用；仍需按具体玩法验证 Provider 完整性和预算 |
 | Shooter packed rollback/reconciliation | E2 Shooter 客户端运行链、状态 hash 与 rollback provider | 具备专用 recovery 逻辑；不能外推为通用 Coordinator 已完成 |
 | Smoke、回放与 CI 发布门禁 | 由 Shooter smoke artifact、FrameRecord 测试和 `tools/test-gates.json` 分层提供 | E3/E4/E5 必须分开记录，局部测试不等于每次 PR 都执行的 gate |
+| 本轮聚焦验证 | FrameSync 18/18、StateSync 12/12 | 捕获/恢复、帧时钟与预测局部契约通过；未运行真实网络故障 Smoke |
 
 ### 10.2 已落地设计
 
 - `IRollbackStateProvider` 让框架与业务状态结构解耦。
 - `RollbackRegistry` 通过 Key 排序和 Seal 保证 Provider 集合稳定。
 - `RollbackSnapshotRingBuffer` 用固定容量控制内存上限。
-- `RollbackEntriesArrayPool` 降低每帧捕获数组分配。
+- `RollbackCoordinator` 直接使用共享 `ArrayPool` 降低捕获和恢复阶段的临时数组分配。
 - `RollbackOperationResult` 暴露捕获/恢复失败原因，便于日志和测试。
 - `ClientPredictionDriverModule` 已包含输入不一致回滚、哈希不一致回滚、预测窗口、replay 等待超时和自动禁用 reconcile 的保护。
 - `ServerRollbackModule` 提供服务端按历史输入重演的基础能力。
@@ -522,6 +537,7 @@ flowchart LR
 | 约束 | 原因 | 建议 |
 |------|------|------|
 | Provider 必须覆盖影响未来模拟的全部状态 | 恢复不完整会导致重演仍然分歧 | 不只保存位置/血量，也要保存随机数、冷却、事件日志、命令日志等 |
+| 通用 Coordinator 只按每条输入推进一帧 | 同帧多命令会在 replay 中被展开成多帧 | 当前限制为每帧一条命令，或采用按帧输入数组的 Host 驱动；补分组重演专项测试后再放宽 |
 | `rollbackHistoryFrames` 必须大于最大网络抖动/预测窗口 | 旧帧被覆盖后无法恢复 | 结合 tick rate、RTT、重连窗口配置容量 |
 | Key 必须稳定且不冲突 | 快照恢复依赖 Key 查找 Provider | 为每个模块分配固定 Key 段 |
 | 捕获频率影响精度与性能 | 每帧捕获最准确但成本最高 | 客户端预测通常每帧捕获；服务端可按功能调整 `captureEveryNFrames` |
@@ -540,4 +556,4 @@ flowchart LR
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-08-09*
+*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*

@@ -144,7 +144,9 @@ namespace AbilityKit.Game.Flow
                 ConfigVersion = ConfigVersion,
                 ProtocolVersion = ProtocolVersion,
                 WorldType = WorldType.Trim(),
-                ClientId = ClientId?.Trim() ?? string.Empty
+                ClientId = ClientId?.Trim() ?? string.Empty,
+                SyncTemplateId = "frame-sync-authority",
+                SyncModel = 1
             };
         }
 

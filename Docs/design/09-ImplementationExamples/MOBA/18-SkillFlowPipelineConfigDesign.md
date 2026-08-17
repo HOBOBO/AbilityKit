@@ -1,5 +1,8 @@
-# 18. MOBA 技能 Flow 与 Pipeline 配置设计
+# MOBA 技能 Flow 与 Pipeline 配置设计
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 现有 MOBA 文档已经说明技能输入、技能释放和 TriggerPlan 执行，但还缺少一篇专门解释 `skills.json`、`skill_flows.json` 如何被表驱动 Pipeline 消费的文档。本文按源码补齐配置字段、Phase 类型、运行时构建、校验规则和当前配置治理点。
 
 ## 1. 能力定位
@@ -13,7 +16,7 @@ MOBA 技能释放不是在代码里为每个英雄手写 Pipeline，而是由技
 | `trigger_plans.json` | TriggerPlan actions / conditions | RulePlan phase 和 Timeline effect 最终执行的计划 | `MobaTriggerPlanExecutor`、`MobaEffectExecutionService` |
 | `continuous_tag_templates.json` | tag requirements | Pipeline 运行期间持续占用/打断/门禁标签 | `MobaSkillPipelineConfig`、`SkillPipelineRunner` |
 
-截至 2026-08-02，`skills.json` 有 26 个技能条目，全部配置了可解析的 `CastFlowId`，且当前值与 skillId 相同；26 个 `PreCastFlowId` 均为 0。这个配置快照说明示例正在使用 cast pipeline，而 precast pipeline 目前只有 DTO、构建分支和引用校验，不能视为已有配置场景验证。
+截至 2026-08-16，package 权威源中的 `skills.json` 有 26 个技能条目，全部配置了可解析的 `CastFlowId`，且当前值与 skillId 相同；26 个 `PreCastFlowId` 均为 0。这个配置快照说明示例正在使用 cast pipeline，而 precast pipeline 目前只有 DTO、构建分支和引用校验，不能视为已有配置场景验证。
 
 ## 2. 从技能表到 Pipeline
 
@@ -64,7 +67,7 @@ flowchart TB
 | 13 | Delay | `Delay` | `AbilityDelayPhase` | 等待固定毫秒数 |
 | 14 | WaitUntil | `WaitUntil` | `AbilityWaitUntilPhase` | 等待运行时条件成立或超时 |
 
-截至 2026-08-02，递归统计 `skill_flows.json` 的阶段树，实际配置为 Timeline 28 个、RulePlan 36 个、Sequence 1 个、WaitUntil 2 个；没有 Checks、Handlers、Parallel、Repeat 或 Delay 节点。配置治理上要注意：
+截至 2026-08-16，递归统计 `skill_flows.json` 的 26 个 Flow，实际配置为 Timeline 28 个、RulePlan 36 个、Sequence 1 个、WaitUntil 2 个；没有 Checks、Handlers、Parallel、Repeat 或 Delay 节点。配置治理上要注意：
 
 - `Checks` 和 `Handlers` 仍保留在 DTO 中，只用于识别旧结构；`TableDrivenMobaSkillPipelineLibrary` 遇到它们会抛异常，`MobaBattleConfigReferenceValidator` 也会报错。
 - Parallel、Repeat 和 Delay 已有构建与校验分支，但当前权威 JSON 没有对应样例，类型存在不能替代配置加载和运行时验收。
@@ -224,7 +227,7 @@ sequenceDiagram
 | `MobaSkillPipelinePrewarmTests` | 已加载技能的 Pipeline 预热、缺失技能诊断、缓存读取 | PreCast 以及 Parallel、Repeat、Delay 的运行语义 |
 | `SkillCommitAtomicityTests` | commit 失败时资源、冷却回滚 | 任意 TriggerPlan action 的通用事务回滚 |
 
-这些测试类存在于 .NET 测试工程中。本次文档治理只核对了源码、JSON 结构和已有测试入口，没有重新运行完整 MOBA 测试集。
+这些测试类存在于 .NET 测试工程中。2026-08-16 的实际主工程结果为 279/305：26 项并非 Pipeline phase 构建错误，而是 trigger `10060201 / action[2]` 的 SpawnArea `duration_ms=300 < delay_ms=400` 被 BootstrapStrict 拒绝。该事实同时说明“26 个 Skill/Flow 都可解析”和“完整 World 可启动”是两个不同证据层级。
 
 ## 9. 与其他文档的关系
 
@@ -233,7 +236,7 @@ sequenceDiagram
 | `05-SkillExecutionDeepDive.md` | 说明输入、技能槽、释放策略和 runner 生命周期；本文补充配置如何变成 phase |
 | `10-TriggerValidationPresentationDeepDive.md` | 说明 TriggerGateway、Validation 和 Presentation Cue；本文聚焦 Pipeline 内 RulePlan phase |
 | `11-PlanActionsAndContinuousRuntimeDeepDive.md` | 说明 PlanAction DSL 和 Continuous runtime；本文说明 Timeline/RulePlan 如何进入这些能力 |
-| `14-HeroSkillFormalDesign.md` | 说明四英雄技能需求映射；本文解释这些技能配置的 Flow 编排结构 |
+| `14-HeroSkillFormalDesign.md` | 说明六英雄技能需求映射；本文解释这些技能配置的 Flow 编排结构 |
 | `17-ActivePassiveBuffProjectileAoeTriggerEffects.md` | 说明主动/被动/Buff/Projectile/AOE 触发效果链路；本文补足主动技能触发前的 Flow 配置层 |
 
 ## 10. 源码阅读路径
@@ -248,4 +251,12 @@ sequenceDiagram
 8. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaBattleConfigReferenceValidator.cs`：配置引用与废弃 phase 校验。
 9. `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/BattleDebug/Configuration/BattleDebugConfigSourceIndex.cs`：运行时配置引用到权威 JSON 条目与行号的编辑器索引。
 
-*文档版本：v1.1 | 状态：配置与运行时实现映射 | 最后更新：2026-08-02 | 验证基线：结构化核对 26 个 Skill/Flow；未重新运行 MOBA 全量测试*
+## 11. 应用层边界
+
+通用 Pipeline 包负责 run、phase、sequence/parallel/repeat/delay/wait-until 等执行原语；`TableDrivenMobaSkillPipelineLibrary`、`SkillFlowDTO/MO` 字段、Timeline effect 解释、RulePlan 失败策略、continuous tag template 和废弃 phase 迁移规则都属于 MOBA 项目应用层。别的游戏可以采用动画图、行为树、脚本字节码或服务器生成计划，框架不能把这份 SkillFlow schema 设为唯一开箱格式。
+
+权威配置源位于 `com.abilitykit.demo.moba.view.runtime/Resources`，Console 配置是宿主副本。文档、Editor 索引、导出工具和测试必须共同维护“一个权威源、多消费者”，不能恢复 Unity Assets/package 双根，也不能把 `bin` 输出当成源文件。
+
+View Runtime 147/147、Host 6/6、Acceptance 8/8 是独立工程证据；本地 Unity ownership 9/9 不覆盖 Phase 类型矩阵。Parallel、Repeat、Delay 和 PreCast 仍只有实现/校验分支，没有当前权威 JSON 场景与端到端验收。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

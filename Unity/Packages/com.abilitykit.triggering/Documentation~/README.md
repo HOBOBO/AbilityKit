@@ -7,7 +7,7 @@
 - [`Document/Triggering-Commercial-Remediation-Checklist.md`](../Document/Triggering-Commercial-Remediation-Checklist.md)：商业化整改清单。
 - [`Samples/FormalTriggeringMainlineExample.cs`](../Samples/FormalTriggeringMainlineExample.cs)：正式接入样板。
 
-## Editor diagnostics
+## 编辑器诊断
 
 - `AbilityKit/Triggering/Diagnostics/Write Runtime Report` writes the current runtime diagnostics report.
 - `AbilityKit/Triggering/Diagnostics/Write Product Acceptance Report` writes the commercial product acceptance summary.

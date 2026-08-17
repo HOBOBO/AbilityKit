@@ -618,9 +618,9 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillRuntimeChildRef Child { get; }
         public bool IsValid => RetainId != 0L && Runtime.IsValid && Child.IsValid;
 
-        public bool Equals(MobaSkillRuntimeRetainHandle other) => RetainId == other.RetainId && Runtime.Equals(other.Runtime);
+        public bool Equals(MobaSkillRuntimeRetainHandle other) => RetainId == other.RetainId && Runtime.Equals(other.Runtime) && Child.Equals(other.Child);
         public override bool Equals(object obj) => obj is MobaSkillRuntimeRetainHandle other && Equals(other);
-        public override int GetHashCode() => (RetainId.GetHashCode() * 397) ^ Runtime.GetHashCode();
+        public override int GetHashCode() => (((RetainId.GetHashCode() * 397) ^ Runtime.GetHashCode()) * 397) ^ Child.GetHashCode();
         public override string ToString() => IsValid ? RetainId + "->" + Runtime + "/" + Child : "Invalid";
     }
 

@@ -730,10 +730,26 @@ namespace AbilityKit.Network.Room
                 }
 
                 if (_current != null &&
-                    string.Equals(_current.RoomId, snapshot.RoomId, StringComparison.Ordinal) &&
-                    snapshot.RoomRevision <= _current.RoomRevision)
+                    string.Equals(_current.RoomId, snapshot.RoomId, StringComparison.Ordinal))
                 {
-                    return;
+                    if (snapshot.RoomRevision < _current.RoomRevision)
+                    {
+                        return;
+                    }
+
+                    var completesSyncCapabilities =
+                        snapshot.RoomRevision == _current.RoomRevision &&
+                        _current.SyncCapabilities == null &&
+                        snapshot.SyncCapabilities != null;
+                    if (snapshot.SyncCapabilities == null)
+                    {
+                        snapshot.SyncCapabilities = _current.SyncCapabilities;
+                    }
+                    if (snapshot.RoomRevision == _current.RoomRevision &&
+                        !completesSyncCapabilities)
+                    {
+                        return;
+                    }
                 }
 
                 _current = snapshot;

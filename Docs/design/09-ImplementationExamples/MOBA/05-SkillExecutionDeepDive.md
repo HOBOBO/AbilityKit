@@ -1,5 +1,8 @@
 # MOBA 技能执行深潜
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文从权威输入开始，说明技能命令如何经过输入门禁、阶段分派、释放准备、策略解析和 Pipeline runner，最终形成可追踪、可推进、可取消的技能运行时。
 
 ## 1. 范围与责任
@@ -253,3 +256,15 @@ UI 的按下状态、预览目标和本地动画不能成为权威释放条件�
 | Pipeline runner | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs` |
 | Runtime 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Runtime/MobaSkillCastRuntimeService.cs` |
 | 每帧推进系统 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/Skill/MobaSkillPipelineStepSystem.cs` |
+
+## 14. Exactly-once 结束、能力句柄与证据边界
+
+当前 `MobaSkillCastRuntimeService` 把结束统一为两条路径：正常 `EndPipeline` 只通知一次并在没有 pending child 时 finalize；`ForceTerminate`/`Clear` 撤销所有 child capability，强制 finalize 并结束 root trace。retain handle 的相等性同时校验 retain ID、runtime handle 和 child identity，旧或错配 child 的 release 会被拒绝。
+
+`SkillPipelineRunner` 负责 phase trace、cleanup 与 ended snapshot，但不再在取消分支重复结束 root trace；root trace 的最终所有权归 runtime service。准备或 runner 启动失败时，`SkillCastPreparationService` 使用 `RollbackCleanup` 强制终止，避免“已创建 runtime、Pipeline 未启动”的悬挂状态。
+
+本地 Unity `MobaRuntimeOwnershipLifecycleTests` 9/9 artifact 直接覆盖正常 release exactly-once、ForceTerminate、Clear、capability 身份及 Pipeline 结束通知。2026-08-16 主 MOBA .NET 工程 279/305，26 项由启动配置校验统一阻断，因此不能把技能 Smoke 记为本轮通过；View Runtime 147/147、Host 6/6、Acceptance 8/8 独立通过。
+
+框架 Pipeline/Ability/Continuous 提供执行原语；slot/phase、MOBA cast policy、runner registry、trace/runtime 组合与 cooldown 写入属于项目应用层。只有跨项目语义和所有权稳定后，才适合抽取更窄的公共契约。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

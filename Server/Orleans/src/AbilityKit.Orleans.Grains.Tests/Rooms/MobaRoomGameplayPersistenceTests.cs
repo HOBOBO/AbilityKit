@@ -52,12 +52,14 @@ public sealed class MobaRoomGameplayPersistenceTests
         Assert.Throws<System.InvalidOperationException>(() => adapter.RestorePersistentState(summary, invalid));
     }
 
-    [Fact]
-    public void RegistryResolve_WhenRoomTypeIsMoba_ReturnsMobaAdapter()
+    [Theory]
+    [InlineData(GameplayRoomTypes.Moba)]
+    [InlineData(GameplayRoomTypes.LegacyMoba)]
+    public void RegistryResolve_WhenRoomTypeIsMoba_ReturnsMobaAdapter(string roomType)
     {
         var registry = new RoomGameplayRegistry();
 
-        var adapter = registry.Resolve(GameplayRoomTypes.Moba);
+        var adapter = registry.Resolve(roomType);
 
         Assert.IsType<MobaRoomGameplayAdapter>(adapter);
     }

@@ -15,7 +15,7 @@ namespace AbilityKit.Game.Flow
             _handles = handles;
         }
 
-        public void SampleEntity(in EC.IEntity entity, in Vector3 pos, BattleContext ctx)
+        public void SampleEntity(in EC.IEntity entity, in Vector3 pos, IBattleRuntimeContext ctx)
         {
             var sampleTime = ResolveSampleTime(ctx);
             SampleEntity(entity, in pos, sampleTime);

@@ -1,5 +1,8 @@
 # Shooter 战斗玩法内核深潜：一帧管线、敌人波次、空间索引与 Bot AI
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文补齐 Shooter 示例中网络、快照和表现层文档之外的玩法内核视角，聚焦 fixed tick 内部的玩法状态变化。World、RuntimePort、Svelto 结构提交、容量和 snapshot 导入见 [Shooter Runtime、Svelto 装配与恢复边界](01-RuntimeSveltoSimulation.md)。
 
 ## 1. 能力定位
@@ -198,3 +201,15 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 17. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Application/Runtime/ShooterBotAiRuntimeSmokeTests.cs`
 18. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Application/Runtime/ShooterDeterministicReplayTests.cs`
 19. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Application/Runtime/ShooterPackedSnapshotRuntimeTests.cs`
+
+## 14. 数值、分配、可复用性与证据边界
+
+战斗 step order 由 Shooter pipeline 显式固定，但移动、projectile、距离和时间等主体计算仍使用 `float`。空间索引通过 Dictionary、List 与候选缓冲减少全量比较，小规模时还会回退 full scan；这些结构是复杂度优化，不是零分配或固定上界证明。
+
+Bot AI 只生成 `ShooterPlayerCommand` 并进入与玩家相同的输入缓冲，这是值得框架项目参考的输入统一原则；HFSM 状态、瞄准、开火、波次和胜负规则仍是 Shooter 应用策略。公共框架不应固化其 step order、entity schema 或玩法常量。
+
+`ShooterDeterministicReplayTests` 和 packed checkpoint 续跑证明当前构建、输入序列及覆盖状态下可以重放到相同 hash。它们没有覆盖不同平台/运行时、浮点模式、全部异常路径或真实网络调度，所以不构成跨平台逐位确定性承诺。
+
+2026-08-16 `AbilityKit.Demo.Shooter.Runtime.Tests` 489/489 通过，属于 E3，构建保留既有依赖警告。本批没有新增 E4 Smoke、Unity PlayMode 或 E5 gate 运行证据。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

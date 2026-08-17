@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.World.ECS;
 using UnityEngine;
 
@@ -14,39 +16,72 @@ namespace AbilityKit.Game.Flow
     /// - 本类处理 GatewayStateSyncActorSnapshot（插值后的 state-sync push）。
     /// - 两者共用同一个 view EntityWorld 和 BattleEntityLookup。
     ///
-    /// 本地玩家的 transform 不由此类覆盖——预测通道由 PredictionViewBridge 负责。
+    /// 启用客户端预测时，本地玩家的 transform 由 PredictionViewBridge 负责；
+    /// 纯权威快照模式下，本地玩家与远端玩家一样应用插值结果。
     /// </summary>
     internal static class BattleRemoteInterpolationApplier
     {
+        internal static int ResolveExcludedLocalActorId(
+            bool enableClientPrediction,
+            int localActorId)
+        {
+            return enableClientPrediction ? localActorId : 0;
+        }
+
         /// <summary>
         /// 将插值后的 snapshot 应用到 view EntityWorld 中的远端实体。
+        /// State-sync 快照是完整的 actor 表现来源，不依赖旧 codec 的 spawn 快照先到达。
         /// </summary>
-        /// <param name="ctx">BattleContext（提供 view EntityWorld + EntityLookup）</param>
+        /// <param name="entityContext">View entity capabilities used to resolve or create actors.</param>
         /// <param name="snapshot">插值后的 actor 列表</param>
         /// <param name="localActorId">本地玩家 actorId（跳过，由 PredictionViewBridge 负责）</param>
-        public static void Apply(BattleContext ctx, in GatewayStateSyncSnapshot snapshot, int localActorId)
+        public static void Apply(
+            IBattleEntityContext entityContext,
+            in GatewayStateSyncSnapshot snapshot,
+            int localActorId)
         {
-            if (ctx == null) return;
+            if (entityContext == null) return;
 
-            var world = ctx.EntityWorld;
-            var lookup = ctx.EntityLookup;
-            if (world == null || lookup == null) return;
+            var world = entityContext.EntityWorld;
+            var lookup = entityContext.EntityLookup;
+            var factory = entityContext.EntityFactory;
+            if (world == null || lookup == null || factory == null) return;
 
             var actors = snapshot.Actors;
             if (actors == null || actors.Length == 0) return;
+
+            var dirty = entityContext.DirtyEntities;
+            if (dirty == null)
+            {
+                dirty = new List<IEntityId>(actors.Length);
+                entityContext.DirtyEntities = dirty;
+            }
 
             for (int i = 0; i < actors.Length; i++)
             {
                 var actor = actors[i];
                 if (actor.ActorId <= 0 || actor.ActorId == localActorId) continue;
 
-                if (!lookup.TryResolve(world, new BattleNetId(actor.ActorId), out var entity)) continue;
-
-                if (entity.TryGetRef(out BattleTransformComponent transform) && transform != null)
+                var netId = new BattleNetId(actor.ActorId);
+                if (!lookup.TryResolve(world, netId, out var entity))
                 {
-                    transform.Position = new Vector3(actor.X, actor.Y, actor.Z);
-                    transform.Forward = RotationToForward(actor.Rotation);
+                    entity = actor.Kind == (int)SpawnEntityKind.Projectile
+                        ? factory.CreateProjectile(
+                            netId,
+                            new BattleNetId(actor.OwnerNetId),
+                            actor.Code)
+                        : factory.CreateCharacter(netId, actor.Code);
                 }
+
+                if (!entity.TryGetRef(out BattleTransformComponent transform) || transform == null)
+                {
+                    transform = new BattleTransformComponent();
+                    entity.WithRef(transform);
+                }
+
+                transform.Position = new Vector3(actor.X, actor.Y, actor.Z);
+                transform.Forward = RotationToForward(actor.Rotation);
+                dirty.Add(entity.Id);
             }
         }
 

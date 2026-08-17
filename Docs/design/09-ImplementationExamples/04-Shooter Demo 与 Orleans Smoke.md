@@ -1,4 +1,8 @@
-# Shooter Demo 与 Orleans Smoke
+# 9.4 Shooter Demo 与 Orleans Smoke：网络闭环与分层证据
+
+> 文档类型：示例架构与验收分析
+> 事实基线：2026-08-16
+> 最近保留的多进程 E4 记录：2026-07-19；本批未重新运行真实 Smoke
 
 > 本文从源码出发说明 Shooter 示例如何把 `Svelto` 战斗模拟、权威快照、纯状态同步、客户端同步控制器、Gateway 房间流程、Orleans 房间/战斗 Grain，以及烟测校验串成一个完整闭环。
 
@@ -17,13 +21,40 @@ Shooter 示例与 MOBA 示例的关注点不同：
 4. 服务端持续产出 packed snapshot / pure-state snapshot。
 5. 客户端按同步模型选择预测回滚、权威插值或混合方案。
 6. Unity PlayMode 通过 `ShooterRemoteStateSyncPlayModeHost` 复用同一套 Gateway/Session/SyncController。
-7. `ShooterSmokeRunner` 做端到端烟测，验证推送、输入、过期帧保护、回放、重连、晚加入和完整玩法循环。
+7. `ShooterSmokeRunner` 提供端到端烟测入口，其源码包含推送、输入、过期帧保护、回放、重连、晚加入和完整玩法循环断言。
+
+### 1.1 责任边界与可复用性
+
+Shooter 是项目级组合参考，不是框架提供的统一 Battle Application Runtime。它同时使用稳定框架机制、Shooter 自有同步策略和 Orleans 服务端编排，因此阅读时必须按所有权拆分：
+
+| 所有者 | 当前拥有 | 不应由该层默认拥有 |
+|--------|----------|--------------------|
+| AbilityKit 框架包 | World/Host 生命周期、快照路由、状态同步与回滚原语、协议和网络基础设施 | Shooter 实体目录、玩法规则、同步模式选择、房间产品流程 |
+| Shooter 项目运行时与 View | Svelto 实体布局、战斗模拟、packed/pure-state 编码、客户端控制器、表现投影和恢复策略 | 跨项目统一的英雄、子弹、AOI、插值或重连政策 |
+| Orleans 服务端 | Grain 生命周期、Gateway 路由、房间与战斗宿主、帧推进和状态推送 | 客户端表现状态，以及无需服务端语义即可稳定复用的战斗原语 |
+| Smoke 与测试工程 | 契约断言、进程拓扑、故障注入、artifact 和 gate 入口 | 业务运行时本身，也不能用 runner 代码存在替代一次真实运行结果 |
+
+可复制的是分层方式、端口形状和验证方法；具体实体 schema、同步预算、恢复阈值与房间流程仍由采用项目重新决策。只有语义稳定、依赖可反转并被非同构项目验证的部分，才适合继续下沉到框架包。
+
+### 1.2 当前服务端默认值与客户端能力必须分层阅读
+
+Shooter 项目包含多套客户端同步控制器，但当前服务端默认路线只有一个明确起点：
+
+| 维度 | 当前源码事实 | 设计含义 |
+|------|--------------|----------|
+| 默认服务端模板 | `state-sync-authority` | 不能因存在预测控制器就写成默认 PredictRollback |
+| Room 能力声明 | `AuthoritativeInterpolation` | 客户端按远端声明绑定默认 controller，而不是按模板字符串猜测 |
+| packed 节奏 | 每帧推送、每 30 帧 full | full 标志不是每帧出现；`predict-rollback-authority` 才是 1/1 |
+| 房间人数 | `DefaultMinPlayers = 2`、`DefaultMaxPlayers = 2`，且全部成员 ready | Room 成员规则与本地 `StartGamePayload` 中的模拟玩家数组是两套身份 |
+| Mass Battle AOI | visible/boundary 为 `24/30` | 这是 Shooter policy，不是通用 StateSync 默认 |
+
+`ShooterServerSyncTemplateCatalog` 负责服务端发送策略，`RoomNetworkSyncCapabilityResolver` 负责对外能力声明，`ShooterClientSyncControllerFactory` 负责客户端算法实例。三者通过模板/Profile 契约连接，但不应合并成“模板名等于算法实现”的单层描述。
 
 ---
 
 ## 2. 总体架构
 
-Shooter 示例可以拆成四层：
+Shooter 示例可以按六类职责理解：
 
 | 层级 | 主要职责 | 关键文件 |
 |------|----------|----------|
@@ -149,6 +180,8 @@ sequenceDiagram
 ## 6. 快照系统：packed snapshot 与 pure-state snapshot
 
 Shooter 示例最值得关注的是**两套同步表达**。
+
+服务端目录还为每个模板定义 snapshot interval 与 full snapshot interval。默认 `state-sync-authority` 是 packed `1/30`；`authoritative-interpolation-presentation` 和 `runtime-snapshot-interpolation` 是 `1/60`；`hybrid-hero-prediction` 是 `1/30`；PureState 的 batch/mass 模板分别是 `60/300` 和 `90/450`。这些是“服务端多久生成哪类发送”的策略，不等同于客户端插值延迟或预测回滚窗口。
 
 ### 6.1 packed snapshot
 
@@ -343,10 +376,11 @@ sequenceDiagram
 1. 创建房间；
 2. 加入房间；
 3. 设置 ready；
-4. 启动战斗；
-5. 订阅状态同步；
-6. 确定世界启动锚点；
-7. 返回可驱动客户端会话的上下文。
+4. 等待至少两名成员都 ready；
+5. owner 发起 `BeginLoading`，各成员执行加载管线并上报 `ReportAssetsLoaded`；
+6. 最后一名成员上报后触发幂等 commit，客户端等待 Room 进入 `InBattle`；
+7. 订阅状态同步并确定世界启动锚点；
+8. 返回可驱动客户端会话的上下文。
 
 这个流程与普通“进房即开局”的 demo 不同，它显式分离了 lobby 和 battle。
 
@@ -426,7 +460,7 @@ Shooter 的 room flow 正是通过这一层完成创建、加入、ready、开�
 
 ## 10. 烟测流程：ShooterSmokeRunner
 
-[`ShooterSmokeRunner`](../../../Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs) 是 Shooter 示例最终的验收入口。
+[`ShooterSmokeRunner`](../../../Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs) 是 Shooter 示例具备验收能力的可执行入口。下面列出的是 runner 当前源码会执行的断言范围，不表示本次文档修订重新运行并通过了这些场景。
 
 它的验证项非常完整：
 
@@ -469,7 +503,7 @@ sequenceDiagram
     Smoke->>G: 提交输入 / 触发后续快照
 ```
 
-烟测的意义不是“跑通一次”，而是**证明战斗逻辑、网络同步、推送恢复、重连、晚加入、服务端玩法循环和 replay 记录是同一套协议下可互相验证的**。
+烟测的目标不是只确认进程启动，而是让战斗逻辑、网络同步、推送恢复、重连、晚加入、服务端玩法循环和 replay 记录在同一套协议下可交叉验证。只有带运行身份、结果和 artifact 的真实执行才能证明某一次场景通过；runner 类型、断言源码或契约测试只证明验收能力仍存在。
 
 ```mermaid
 flowchart TB
@@ -508,7 +542,40 @@ flowchart TB
 
 ---
 
-## 12. 源码索引
+## 12. 验证入口、证据等级与已知限制
+
+### 12.1 E0-E5 证据
+
+| 等级 | 当前证据 | 能证明什么 | 不能外推什么 |
+|------|----------|------------|----------------|
+| E0 | `com.abilitykit.demo.shooter.runtime`、`com.abilitykit.demo.shooter.view.runtime` 与 Orleans Shooter/Gateway/Grain 源码 | 类型、接口、路由和断言能力存在 | 可构建、已被真实宿主采用或运行通过 |
+| E1 | .NET/Unity 工程、测试工程和 runner 脚本入口 | 存在可构建、可执行或可装配的工程面 | 一次跨进程网络运行已成功 |
+| E2 | Shooter Runtime、View、Unity PlayMode Host 与 Orleans adapter 的真实组合 | 项目确实沿这些端口消费框架能力 | 该项目策略应成为框架默认应用层 |
+| E3 | `AbilityKit.Demo.Shooter.Runtime.Tests`、Shooter View tests、Orleans Grains tests 与 `AbilityKit.Orleans.ShooterSmoke.Tests` | runtime、同步控制器、房间/战斗适配和 smoke runner 契约受到自动测试约束 | 真实 server/client 进程、故障恢复与长稳已经通过 |
+| E4 | [多进程故障矩阵与收敛证据](Shooter/14-MultiprocessFaultMatrixAndConvergenceEvidence.md) 记录的版本化 manifest、diagnostic、replay/diff 与清理结果；最近文档化验证日期为 2026-07-19 | 指定 run、场景和环境下的真实运行结果 | 当前提交重新通过，或所有同步模式、故障组合和持续时长均已覆盖 |
+| E5 | `abilitykit-test-gates.yml` 与 `tools/test-gates.json` 中的 fast、integration、多进程、兼容矩阵、soak 和 ownership-cleanup 分层 | 哪些事件会触发哪些 gate，以及结果如何进入持续门禁 | schedule/manual gate 会在每个 PR 上执行，或配置存在就代表最近运行成功 |
+
+### 12.2 不同验收面的语义
+
+| 验收面 | 进程与场景 | 主要用途 |
+|--------|------------|----------|
+| 同进程测试或 smoke | 测试进程内组合 runtime、client、adapter 或 in-memory 依赖 | 快速锁定 API、状态迁移和断言契约 |
+| 真实多进程 smoke | 独立 server/client 进程、真实端口和运行目录 | 验证进程边界、连接、恢复、清理和结构化 artifact |
+| 兼容矩阵 | 多同步模式、扇出、弱网与正交故障组合 | 发现单一 happy path 无法覆盖的协议兼容问题 |
+| soak | 更长时长、重复断线恢复和更高观察者规模 | 观察资源、吞吐、队列和收敛趋势，不替代功能断言 |
+
+CI 触发也必须分层陈述：`shooter-fast`、`shooter-integration` 等快速 job 覆盖 PR/main；`shooter-multiprocess` 覆盖 main push、schedule 和 manual；兼容矩阵、soak 与 ownership cleanup 只在 schedule/manual 运行。本文没有生成新的 E4 artifact，也不更新 2026-07-19 的最近验证日期。
+
+### 12.3 当前限制
+
+- Shooter 的同步控制器、实体布局、AOI/LOD、房间流程和恢复阈值都是项目策略，不是框架默认值。
+- E3 契约测试可以防止 runner 与正式入口漂移，但不能替代真实网络、进程退出和端口回收证据。
+- 最近 E4 记录只对其 run identity、场景参数和环境成立；源码或 gate 变化后必须用新 artifact 重新确认。
+- 真实多进程、兼容矩阵和 soak 的成本不同，发布声明必须列出实际运行的 gate，不得统一写成“Shooter Smoke 已通过”。
+
+---
+
+## 13. 源码索引
 
 | 模块 | 源码 |
 |------|------|
@@ -532,3 +599,13 @@ flowchart TB
 | 帧同步 Grain | [`BattleFrameSyncGrain`](../../../Server/Orleans/src/AbilityKit.Orleans.Grains/FrameSync/BattleFrameSyncGrain.cs) |
 | 网关路由 | [`GatewayRequestRouter`](../../../Server/Orleans/src/AbilityKit.Orleans.Gateway/Gateway/Core/GatewayRequestRouter.cs) |
 | 烟测入口 | [`ShooterSmokeRunner`](../../../Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs) |
+
+---
+
+文档类型：示例架构与验收分析 | 事实基线：2026-08-16 | 证据等级：E0 完整源码面、E2 Shooter/Orleans 组合、广泛 E3；最近文档化 E4 为 2026-07-19，E5 按触发条件分层
+
+主要源码：`Unity/Packages/com.abilitykit.demo.shooter.runtime`；`Unity/Packages/com.abilitykit.demo.shooter.view.runtime`；`Server/Orleans/src`
+
+当前限制：Shooter 策略不等于框架默认应用层；本批未重新运行多进程 smoke 或生成新 artifact
+
+文档版本：v3.1 | 更新日期：2026-08-16

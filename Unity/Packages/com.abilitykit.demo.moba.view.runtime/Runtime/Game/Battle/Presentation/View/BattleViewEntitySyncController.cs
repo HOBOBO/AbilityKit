@@ -26,13 +26,13 @@ namespace AbilityKit.Game.Flow
 
         public void Sync(EC.IEntity entity)
         {
-            Sync(entity, ctx: null);
+            Sync(entity, runtimeContext: null);
         }
 
-        public void Sync(EC.IEntity entity, BattleContext ctx)
+        public void Sync(EC.IEntity entity, IBattleRuntimeContext runtimeContext)
         {
             if (!_inputs.TryCreate(entity, out var input)) return;
-            if (!_models.Sync(in input, ctx, out var handle)) return;
+            if (!_models.Sync(in input, runtimeContext, out var handle)) return;
 
             _attachedVfx.SyncProjectileVfx(entity, handle, input.Meta);
         }

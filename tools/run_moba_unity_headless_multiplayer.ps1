@@ -7,6 +7,8 @@ param(
     [int]$GatewayPort = 4000,
     [string]$GatewayRegion = 'dev',
     [string]$GatewayServerId = 'local',
+    [string]$SyncTemplateId = 'frame-sync-authority',
+    [int]$SyncModel = 1,
     [int]$TimeoutSeconds = 240,
     [ValidateRange(1, 5)]
     [int]$CompileWarmupAttempts = 3,
@@ -94,6 +96,8 @@ function New-ClientArguments {
         '-mobaHeadlessEvents', $EventsPath,
         '-mobaHeadlessResult', $ResultPath,
         '-mobaHeadlessTimeoutSeconds', $TimeoutSeconds,
+        '-mobaHeadlessSyncTemplate', $SyncTemplateId,
+        '-mobaHeadlessSyncModel', $SyncModel,
         '-gatewayHost', $GatewayHost,
         '-gatewayPort', $GatewayPort,
         '-gatewayRegion', $GatewayRegion,
@@ -357,8 +361,27 @@ try {
     if (-not [bool]$ownerState.soloLobbyVerified) {
         throw 'Owner did not verify that the room stayed in Lobby before the second client joined.'
     }
+    if ($ownerState.syncMode -ne 'Lockstep' -or $memberState.syncMode -ne 'Lockstep') {
+        throw "FrameSync probe ran with an unexpected mode. owner=$($ownerState.syncMode), member=$($memberState.syncMode)"
+    }
     if (-not [bool]$ownerState.skillValidated -or -not [bool]$memberState.skillValidated) {
         throw 'Both clients must observe the owner skill synchronization probe.'
+    }
+    foreach ($observedState in @($ownerState, $memberState)) {
+        if ([double]$observedState.skillTargetDamage -lt 0.01) {
+            throw "Skill target damage was not observed by $($observedState.role). damage=$($observedState.skillTargetDamage)"
+        }
+        if (-not [bool]$observedState.skillTargetRuntimeKnockupObserved -or
+            [double]$observedState.skillTargetRuntimeRise -lt 0.20) {
+            throw "Authoritative target knockup was not observed by $($observedState.role). rise=$($observedState.skillTargetRuntimeRise)"
+        }
+        if (-not [bool]$observedState.skillTargetPresentedKnockupObserved -or
+            [double]$observedState.skillTargetPresentedRise -lt 0.20) {
+            throw "Presented target knockup was not observed by $($observedState.role). rise=$($observedState.skillTargetPresentedRise)"
+        }
+        if (-not [bool]$observedState.skillTargetLanded) {
+            throw "Skill target did not settle after knockup for $($observedState.role)."
+        }
     }
     if ([long]$ownerState.roomPushCount -lt 1 -or [long]$memberState.roomPushCount -lt 1) {
         throw "Both clients must receive authoritative room pushes. owner=$($ownerState.roomPushCount), member=$($memberState.roomPushCount)"
@@ -418,9 +441,10 @@ try {
     Write-Host "RoomId=$($ownerState.roomId) BattleId=$($ownerState.battleId) WorldId=$($ownerState.worldId)"
     Write-Host "Lobby gate: soloLobbyVerified=$($ownerState.soloLobbyVerified), finalPlayers=$($ownerState.playerCount)"
     Write-Host "Room push: owner=$($ownerState.roomPushAppliedCount)/$($ownerState.roomPushCount), member=$($memberState.roomPushAppliedCount)/$($memberState.roomPushCount), fallback=0"
-    Write-Host "Frames: owner=$($ownerState.frame), member=$($memberState.frame), positionDelta=$($positionDelta.ToString('F3')), runtimeDelta=$($runtimePositionDelta.ToString('F3'))"
+    Write-Host "Frames: mode=$($ownerState.syncMode), owner=$($ownerState.frame), member=$($memberState.frame), positionDelta=$($positionDelta.ToString('F3')), runtimeDelta=$($runtimePositionDelta.ToString('F3'))"
     Write-Host "Trajectory: ownerSamples=$($ownerState.movementSampleCount), ownerMaxBackward=$([double]$ownerState.maxBackwardMovement), memberSamples=$($memberState.movementSampleCount), memberMaxBackward=$([double]$memberState.maxBackwardMovement)"
     Write-Host "Skill: ownerDisplacement=$([double]$ownerState.maxSkillDisplacement), memberDisplacement=$([double]$memberState.maxSkillDisplacement), submits=$($ownerState.skillSubmitSuccessCount)/$($ownerState.skillSubmitAttemptCount)"
+    Write-Host "Hit effects: ownerDamage=$([double]$ownerState.skillTargetDamage), memberDamage=$([double]$memberState.skillTargetDamage), ownerRuntimeRise=$([double]$ownerState.skillTargetRuntimeRise), memberRuntimeRise=$([double]$memberState.skillTargetRuntimeRise), ownerPresentedRise=$([double]$ownerState.skillTargetPresentedRise), memberPresentedRise=$([double]$memberState.skillTargetPresentedRise), landed=$($ownerState.skillTargetLanded)/$($memberState.skillTargetLanded)"
     Write-Host "Prediction: ownerRollbacks=$($ownerState.predictionRollbackCount), memberRollbacks=$($memberState.predictionRollbackCount), ownerMismatches=$($ownerState.predictionMismatchCount), memberMismatches=$($memberState.predictionMismatchCount), ownerDroppedLocal=$($ownerState.predictionDroppedLocalInputBatches), memberDroppedLocal=$($memberState.predictionDroppedLocalInputBatches), settled=$(-not $ownerState.predictionReplaying -and -not $memberState.predictionReplaying)"
     Write-Host "Artifacts: $runDirectory"
 }

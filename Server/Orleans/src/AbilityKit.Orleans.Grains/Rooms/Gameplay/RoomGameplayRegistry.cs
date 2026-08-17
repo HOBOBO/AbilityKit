@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Gameplay;
 
 namespace AbilityKit.Orleans.Grains.Rooms.Gameplay;
@@ -42,7 +43,8 @@ internal sealed class RoomGameplayRegistry
 
     public IRoomGameplayAdapter Resolve(string? roomType)
     {
-        if (!string.IsNullOrWhiteSpace(roomType) && _adapters.TryGetValue(roomType, out var adapter))
+        if (!string.IsNullOrWhiteSpace(roomType) &&
+            _adapters.TryGetValue(GameplayRoomTypes.Normalize(roomType), out var adapter))
         {
             return adapter;
         }

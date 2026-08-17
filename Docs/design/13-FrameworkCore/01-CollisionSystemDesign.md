@@ -2,7 +2,17 @@
 
 本文说明 AbilityKit 当前碰撞包的代码结构、设计目的和使用边界。文中的“当前实现”以仓库中的接口、实现和测试为准；尚未接入运行时的能力单独列在演进章节，不作为现有契约。
 
+> **文档类型：Canonical 设计**
+> **事实基线：2026-08-16**
+> **适用范围：`com.abilitykit.combat.collision.abstractions` 公共查询原语；MOBA Actor 同步、Motion、Projectile、Area 与 Navigation 适配属于消费者策略。**
+
 ## 一、系统定位
+
+| 层次 | 本文结论 |
+|------|----------|
+| 当前实现 | 公共包提供 Collider 生命周期、几何窄相、Naive/Grid 世界和层过滤；Dynamic Tree 尚未成为可选世界后端 |
+| 规范目标 | 所有广相必须候选完整、容量可诊断、层协议一致，并由同一契约测试矩阵约束 |
+| 示例策略 | MOBA 负责把 Actor/Projectile/Area/Navigation/Motion 语义映射为 ColliderId 与查询参数，不反向进入公共碰撞实体模型 |
 
 `com.abilitykit.combat.collision.abstractions` 提供一套与 Unity Physics 解耦的几何查询能力。它管理碰撞体的几何状态，执行射线、重叠和扫掠查询，但不拥有 Actor、移动规则、技能目标选择或表现对象。
 
@@ -240,7 +250,7 @@ Grid 后端使用 `GridBroadphase` 将世界 AABB 登记到覆盖的所有 Cell�
 - 候选数超过缓冲区时，`IBroadphase.Query` 只返回前 `maxResults` 个，世界查询没有溢出标志，因此可能静默漏检。
 - Grid 去重使用 `List<int>.Contains`，候选较多时去重成本会接近平方级。
 - 构造参数 `cellSize` 没有显式校验。零或负值不属于有效配置，调用方当前必须自行保证大于零。
-- Cell Key 通过三段位移拼接坐标，没有显式范围校验；超出可表示区间的坐标可能发生键冲突。
+- Cell Key 使用 `((long)cx << 42) | ((long)cy << 21) | (long)cz`，没有掩码或范围校验。负 `cz` 会先符号扩展为高位全 1，再覆盖 `cx/cy` 位段，因此普通负 Z 坐标就可能产生大量键冲突；这不只是极端坐标溢出风险。
 
 在这些问题修复前，`initialCapacity` 不只是预分配提示，也决定单次查询候选上限。生产配置必须按最坏局部密度留出余量，并用压力测试验证没有候选截断。
 
@@ -324,6 +334,17 @@ ProjectileWorld 与 AreaWorld 直接依赖 `ICollisionWorld` 执行命中和范�
 | Grid 更新 | 多 Cell 对象移动与移除后无旧 ID 残留 |
 | 业务适配 | MOBA Motion Adapter 的扫掠与忽略逻辑 |
 
+本次验证中，公共碰撞测试工程 `AbilityKit.Combat.Collision.Abstractions.Tests` 为 13/13 通过；`core-stability` workflow 的实际 gate 配置包含该工程，因此这 13 项同时具备局部 E3 和对应 E5 编排证据。MOBA 过滤运行中的 16 项碰撞消费者测试也通过，但它们证明的是业务适配，不覆盖底层所有容量、坐标和 Dynamic Tree 契约，且未发现同等专项 gate 接线。
+
+| 等级 | 当前证据 | 可得结论 |
+|------|----------|----------|
+| E0 | 公共契约、Naive/Grid/Tree 和工厂源码 | 可确认后端选择、层协议和静默截断风险 |
+| E1 | MOBA Collision/Motion/Projectile/Area/Navigation 消费 | 证明多种战斗工具复用公共查询原语 |
+| E2 | 测试工程构建并执行成功 | 当前公共包与测试可编译 |
+| E3 | 公共包直属测试 13/13；MOBA 碰撞消费者 16 项通过 | 仅覆盖已有 fixture，不含高密度、负坐标键和动态树完整矩阵 |
+| E4 | 无正式碰撞性能 artifact | 不承诺固定规模耗时、GC 或 Grid 收益 |
+| E5 | `core-stability` 实际编排公共包 13 项测试 | E5 只覆盖该工程当前测试面，不代表缺失契约已被保护 |
+
 仍缺少的关键门禁：
 
 1. Grid 候选数超过 Initial Capacity 时必须报告或扩容，不能静默漏检。
@@ -379,3 +400,7 @@ ProjectileWorld 与 AreaWorld 直接依赖 `ICollisionWorld` 执行命中和范�
 - MOBA 运动适配：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Motion/MobaMotionHitTriggerRuntime.cs`
 - Grid 正确性测试：`src/AbilityKit.Demo.Moba.Tests/Collision/GridCollisionWorldTests.cs`
 - 碰撞修复回归：`src/AbilityKit.Demo.Moba.Tests/Collision/CollisionCorrectnessFixTests.cs`
+
+---
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

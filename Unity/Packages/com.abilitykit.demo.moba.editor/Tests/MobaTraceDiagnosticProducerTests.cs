@@ -269,6 +269,47 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void ValidateChainDetailed_ValidTree_ReturnsValid()
+        {
+            var registry = new MobaTraceRegistry();
+            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
+            var childId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
+            registry.CreateChildContext(childId, MobaTraceKind.EffectExecution, 503, 7, 21);
+
+            var result = registry.ValidateChainDetailed(rootId);
+
+            Assert.That(result.IsValid, Is.True);
+            Assert.That(result.Error, Is.EqualTo(MobaTraceValidationError.None));
+            Assert.That(registry.ValidateChain(rootId), Is.True);
+        }
+
+        [Test]
+        public void ValidateChainDetailed_MissingRoot_ReturnsStableError()
+        {
+            var registry = new MobaTraceRegistry();
+
+            var result = registry.ValidateChainDetailed(999L);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Error, Is.EqualTo(MobaTraceValidationError.RootNotFound));
+            Assert.That(result.ContextId, Is.EqualTo(999L));
+        }
+
+        [Test]
+        public void ValidateChainDetailed_ChildUsedAsRoot_ReturnsInvalidRoot()
+        {
+            var registry = new MobaTraceRegistry();
+            var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
+            var childId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
+
+            var result = registry.ValidateChainDetailed(childId);
+
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.Error, Is.EqualTo(MobaTraceValidationError.InvalidRoot));
+            Assert.That(result.ContextId, Is.EqualTo(childId));
+        }
+
+        [Test]
         public void RegistryEvent_NodeEnded_CollectsTraceNodeEnded()
         {
             var registry = new MobaTraceRegistry();

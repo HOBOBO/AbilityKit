@@ -1,5 +1,7 @@
 # Shooter 服务端适配与 Smoke 证据深潜
 
+> 文档类型：Shooter 服务端应用适配与验收证据深潜
+> 事实基线：2026-08-16
 > 本文聚焦 Shooter 在 Orleans 服务端中的玩法特化边界：Room 如何生成稳定的战斗身份，Battle runtime adapter 如何托管权威世界与同步 payload，以及 Smoke 如何把协议、恢复、投影、玩法终局和 replay 变成可检查证据。通用 Gateway/Room/Battle 主链路见 [Gateway、Room 与 Battle 服务端链路](../../12-ServerArchitecture/02-GatewayRoomBattleFlow.md)，端到端接入概览见 [Shooter Gateway、Orleans 与 Smoke](03-GatewayOrleansSmoke.md)。
 
 ## 1. 边界与结论
@@ -16,9 +18,9 @@ Shooter 服务端不是一条由 `GatewayRequestRouter -> RoomGrain -> BattleFra
 
 核心结论：
 
-1. Shooter 默认权威同步要求 Battle runtime，但不代表必然同时创建 `BattleFrameSyncGrain`。
-2. Room 在启动前生成稳定 worldId 和稳定玩家槽位；默认 random seed 仍来自进程时间，不具备同等级确定性。
-3. `StartBattleAsync()` 存在部分提交窗口，late join 则实现了明确的 Room 侧补偿。
+1. Shooter 默认模板是 `state-sync-authority`：要求 Battle runtime、不创建 `BattleFrameSyncGrain`，每帧发送 packed push、每 30 帧产生 full snapshot。
+2. Room 默认至少需要 2 名 ready 玩家；启动前生成稳定 worldId 和稳定玩家槽位，默认 random seed 仍来自进程时间，不具备同等级确定性。
+3. 正式启动使用持久化 `BattleCommit`、稳定 CommitId/InitSpecHash、幂等初始化、有限重试和回滚；兼容 `StartBattleAsync()` 也委托该 commit，但会绕过加载屏障。
 4. packed 与 pure-state 是两套 payload 契约；pure-state 还区分全局 baseline 与 observer baseline。
 5. Smoke 的通过条件不是“收到一帧”，而是协议、输入、恢复、投影、玩法终局、replay 和清理共同成立。
 
@@ -51,6 +53,8 @@ Shooter 服务端不是一条由 `GatewayRequestRouter -> RoomGrain -> BattleFra
 
 默认玩家参数仍是示例策略：`ActorId`、`HeroId`、`SpawnPointId` 与 playerId 对齐，所有玩家 `TeamId = 1`，出生 X 坐标为 `(playerId - 1) * 2f`。这些值适合 Smoke，不应直接当作正式匹配和队伍分配规则。
 
+`ShooterGameplay.DefaultMinPlayers` 与共享玩法侧 `DefaultMaxPlayers` 当前均为 2。`ShooterRoomGameplayAdapter` 允许 room tag 覆盖 minPlayers，但没有显式 tag 时，一名 ready 玩家不能开战；这条默认值同时由 adapter tests 固定。HTTP `GatewayGameplayCatalog` 与 Admin Console 为演示仍给出 maxPlayers=4，Room summary 有显式容量时 adapter 会采用该值，因此“默认最大 2”和“后台默认表单 4”属于不同装配层，不能互相覆盖。Sandbox 或后台若加入 Bot 凑齐人数，证明的是项目验收组合，不代表生产匹配规则允许单人直启。
+
 ### 3.2 worldId 稳定，默认 seed 不稳定
 
 `BuildBattleInitParams()` 从 Room tags 读取 tick rate、map、seed 和 duration。worldId 由 roomId 经过 FNV-1a 风格的 64 位哈希生成，并把零值修正为 1；同一 roomId 可跨调用得到同一 worldId。
@@ -66,7 +70,7 @@ Shooter 服务端不是一条由 `GatewayRequestRouter -> RoomGrain -> BattleFra
 
 ```mermaid
 flowchart TD
-    A[RoomGrain.StartBattleAsync] --> B[ShooterRoomGameplayAdapter.BuildBattleInitParams]
+    A[Last ReportAssetsLoaded or compatibility StartBattle] --> B[ShooterRoomGameplayAdapter.BuildBattleInitParams]
     B --> C[RoomFrameSyncRoute.ResolveStartRoute]
     C --> D{模板支持独立 FrameSync?}
     D -- 是 --> E[Initialize BattleFrameSyncGrain]
@@ -80,38 +84,53 @@ flowchart TD
     G -- 否 --> M[仅使用模板要求的同步路线]
 ```
 
-模板无法解析时，route 会标记 `IsUnsupportedTemplate = true`，并回退为要求 Battle runtime、没有独立 frame-sync 的路线。当前 `RoomGrain` 不读取该标记做显式拒绝，因此它更接近兼容性回退信号，而不是启动失败信号。
+模板无法解析时，Room route 会标记 `IsUnsupportedTemplate = true`，并给出“要求 Battle runtime、没有独立 frame-sync”的兜底路线；`RoomGrain` 本身不提前读取该标记。但 `BattleLogicHostGrain.InitializeBattleCore` 会再次通过 profile 解析模板，失败时返回 `UnsupportedSyncTemplate` 并清理 runtime。最终结果仍是启动被拒绝，Room 按普通 commit 失败累计 attempt，超过阈值后回 Loading，而不是用默认模板静默启动。
+
+当前 catalog 的默认与高成本策略必须按源码值理解：
+
+| 模板 | payload / cadence | 设计含义 |
+|------|-------------------|----------|
+| `state-sync-authority` | packed；每帧 push、每 30 帧 full | Shooter 默认，不再默认 predict rollback，也不是每帧 full |
+| `predict-rollback-authority` | packed；每帧 full | 预测客户端需要可直接导入的权威基线，仍是显式可选模板 |
+| `batch-state-low-frequency` | pure-state；60/300 帧 | 10k entity、active budget 1024 |
+| `mass-battle-lod-aoi` | pure-state；90/450 帧 | 20k entity、active budget 2048、observer AOI 24/30 |
+
+`RoomNetworkSyncCapabilityResolver` 把默认 state sync、authoritative interpolation、runtime interpolation 和 pure-state authority 都声明为 AuthoritativeInterpolation profile；batch、mass battle、hybrid 和 predict rollback 分别映射到独立 profile。模板控制服务端 payload/cadence，capability metadata 控制客户端兼容协商，两者不能只比较字符串。
 
 ## 4. Room 生命周期与事务边界
 
-### 4.1 启动顺序存在部分提交窗口
+### 4.1 持久化幂等 commit 与有限回滚
 
-`RoomGrain.StartBattleAsync()` 在等待任何远端初始化前，先写入 `_battleId` 和 `_worldId`，之后才按 route 初始化 frame-sync 和 Battle runtime，最后写 world start anchor 并设置 `_closed = true`。
+当前正式流程不会在远端初始化前直接把 `_battleId/_worldId` 当成已提交事实。`RoomStateMachine.PrepareCommit` 先建立 `RoomBattleCommitPersistentState`，再由 Room 调用 Battle 初始化，成功后执行 `CommitBattleStarted`：
 
 ```mermaid
 sequenceDiagram
-    participant Caller
+    participant Client
     participant Room as RoomGrain
+    participant State as RoomStateMachine
     participant Route as RoomFrameSyncRoute
-    participant Frame as BattleFrameSyncGrain
-    participant Battle as BattleLogicHostGrain
+    participant Battle as Battle grains
 
-    Caller->>Room: StartBattleAsync
-    Room->>Room: validate owner / ready
-    Room->>Room: set battleId and worldId
+    Client->>Room: last ReportAssetsLoaded
+    Room->>State: PrepareCommit
+    State-->>Room: Pending CommitId and InitSpecHash
     Room->>Route: ResolveStartRoute
-    opt FrameSyncOptions != null
-        Room->>Frame: InitializeAsync
+    Room->>Battle: Initialize with CommitId and InitSpecHash
+    alt same commit already initialized
+        Battle-->>Room: AlreadyInitialized success
+        Room->>State: CommitBattleStarted
+    else transient failure and attempts below 3
+        Room->>State: RollbackBattleCommit for retry
+    else max attempts reached
+        Room->>State: return to Loading
+    else InitSpecHash mismatch
+        Room->>State: force rollback and increment Generation
     end
-    opt RequiresBattleRuntime
-        Room->>Battle: InitializeBattleAsync
-        Room->>Battle: GetWorldStartAnchorAsync
-    end
-    Room->>Room: closed = true
-    Room-->>Caller: StartRoomBattleResponse
 ```
 
-当前方法没有围绕异步启动的 `try/catch`、状态快照或显式回滚。若 frame-sync 或 Battle 初始化中途失败，Room 可能保留 `_battleId`/`_worldId`，而 `_closed` 仍为 false；后续再次 Start 因 `_battleId` 已存在会直接返回已有战斗响应。这是现有实现的非事务边界，运维与测试应把“Room 已记录 battleId”与“Battle world 已健康启动”分开判断。
+`CommitId` 固定为 `roomId:generation`，`InitSpecHash` 由初始化参数稳定计算；相同二元组可幂等返回，冲突或 hash mismatch 不允许覆盖已有 world。普通失败最多重试 3 次，超过后回到 Loading；hash mismatch 使用强制回滚并隔离到新 generation。兼容的 `StartBattleAsync()` 会写入 `PhaseReason="LegacyStartBattle"` 后委托同一 commit，所以它不再具有旧版“先写 battleId 再裸调远端”的部分提交实现，但仍绕过正式 staged loading。
+
+正常流程由最后一次 `ReportAssetsLoadedWithResultAsync` 立即调用 `CommitBattleAsync`；`TickAsync` 只承担 Loading 超时、离线清理和 Grain 恢复后 `Starting/Pending` 的补偿推进。
 
 ### 4.2 late join 有局部补偿
 
@@ -124,6 +143,12 @@ sequenceDiagram
 这保证 Room 的成员与 gameplay state 不会因为 Battle 拒绝而永久残留。补偿只覆盖 Room 内写入；若 Battle adapter 在返回拒绝前产生外部副作用，仍需由 Battle 边界自行处理。
 
 已有成员在运行中重入返回 `Reconnect`。`RestoreAsync()` 只恢复已知 member 的在线状态，并依据 `_battleId` 选择 TeamLobby 或 Reconnect，不会把未知账户隐式加入房间。
+
+### 4.3 断线宽限与整房间回收
+
+Gateway 连接关闭后只把成员标为离线，不立即 Leave 或删除 Room。账号已 rebound 到新连接、或 mapping 已指向其他 room 时，旧连接清理直接跳过；否则成员/mapping 保留，允许在 1 分钟内通过正式 Restore/Reconnect 恢复。owner 离线而 peer 在线时只转移 owner，离线成员本身仍保留。
+
+所有非 Bot 客户端持续离线满 1 分钟后，Room 才进入遗弃清理：先销毁 `BattleLogicHostGrain`，再销毁可能存在的 `BattleFrameSyncGrain`，然后清 mapping、directory 和持久化 state。Shooter 默认没有独立 FrameSync Grain，但清理代码按通用 Room contract 检查 worldId。该过程失败后 30 秒重试且非事务；Smoke 的 reconnect 场景必须在宽限内恢复，长期断线场景则应明确断言 RoomExpired 和资源回收，而不是无限等待旧 battle。
 
 ## 5. Shooter Battle runtime session
 
@@ -140,17 +165,21 @@ sequenceDiagram
 
 `Tick()` 调用 runtime 的 `AdvanceFrame(deltaTime)`，并以 `CurrentFrame >= frame` 判断是否追上 Battle host 要求的帧。`Dispose()` 停止 driver、销毁 battle world，并清空 runtime、observer baseline 与账户索引。
 
-启动失败还有一处资源边界：world 创建后，如果 runtime port 缺失或 `StartGame()` 拒绝，`Start()` 直接返回失败，方法本身没有立即销毁已创建 world。正常 session Dispose 可最终清理，但启动调用方必须确保失败 session 进入销毁路径。
+启动失败由 `BattleLogicHostGrain` 统一进入 `StopBattleRuntime()`，它会释放 timer、dispose runtime session；Shooter session 的 `Dispose()` 再调用 `DestroyBattleWorld`。因此 runtime port 缺失或 `StartGame()` 拒绝时，当前主链路会立即清理已创建 world。仍需关注的是异常清理本身失败、跨 Grain 重试和 Smoke 中途失败后的业务补偿，而不是沿用旧版 world 泄漏结论。
 
-### 5.2 输入不是只接受 Shooter opcode
+### 5.2 输入采用严格白名单与身份校验
 
-`SubmitInputs()` 对 `ShooterOpCodes.Input.PlayerCommand` 使用 `ShooterInputCodec` 解码，可从一个 Battle input 展开多个命令。其他 opcode 不会直接拒绝，而会通过 `CreateFallbackCommand()` 转成 Shooter command。
+`ValidateInput()` 只接受 `ShooterOpCodes.Input.PlayerCommand`。payload 必须能被 `ShooterInputCodec` 解码为恰好一个 command，command.playerId 必须与 Battle input 的 playerId 一致，移动、瞄准等浮点字段必须全部为有限值。
 
-这让通用 Battle host 输入仍能进入示例 runtime，但也意味着“未知 opcode 已被服务端拒绝”不是当前契约。正式协议若要求严格白名单，应在 Gateway handler 或 adapter 中增加显式拒绝与指标。
+未知 opcode、畸形 payload、零个或多个 command、身份不匹配以及 NaN/Infinity 都会被拒绝。对应断言位于 `ShooterBattleRuntimeAdapterTests`；Gateway/Battle host 不应再为未知输入构造 fallback command。
 
 ## 6. packed 与 pure-state 推送
 
-默认 adapter 从 `ABILITYKIT_SHOOTER_STATE_SYNC_PAYLOAD_MODE` 读取模式。空值、`packed` 或未知环境值最终使用 packed；`pure-state`、`purestate`、`pure_state` 使用 pure-state。Smoke 命令行只接受规范化后的 packed/pure-state，并在非 client 模式启动前设置环境变量。
+payload mode 的解析优先级是：构造器/测试显式 override，其次是兼容环境变量 `ABILITYKIT_SHOOTER_STATE_SYNC_PAYLOAD_MODE`，最后由 `ShooterServerSyncTemplateCatalog` 根据房间 sync template 与 network environment 决定。环境变量是显式覆盖入口，不是唯一默认权威来源。Smoke 命令行接受规范化后的 packed/pure-state，并在非 client 模式启动前设置兼容环境变量。
+
+当前 catalog 提供 predict rollback、authoritative interpolation、batch low frequency、mass battle LOD/AOI、hybrid、runtime snapshot interpolation、state sync authority、pure state authority 八类 Shooter 模板。模板负责表达项目同步策略；框架只提供解析和运行机制，不保证这些模板适合其他游戏。
+
+默认模板是 `state-sync-authority`，对应 packed payload、`SnapshotIntervalFrames=1`、`FullSnapshotIntervalFrames=30`。因此“默认每帧推送”只表示每帧有权威 push，不表示每帧都是 full；客户端 baseline/recovery 和带宽估算必须使用 30 帧 full 周期。
 
 | 维度 | packed | pure-state |
 |------|--------|------------|
@@ -171,7 +200,7 @@ pure-state 的非 observer push 使用 session 级 `_lastPureStateBaselineFrame/
 当前实现的运维边界包括：
 
 - observer 回调没有逐个 await 或异常隔离；
-- deactivate 清理 timer 和 input buffer，但源码中没有清空 observer set；
+- 普通 deactivate 清理 timer、输入、历史和录制缓存；显式 `DestroyAsync()` 还清空 observer、身份与计数并请求 deactivate；
 - 它是否存在由同步模板决定，不能以它的 frame 作为所有 Shooter 战斗的唯一健康指标。
 
 因此排障时应先查看 `RoomBattleStartRoute`，再决定检查 `BattleFrameSyncGrain` 还是 `BattleLogicHostGrain` 的运行状态。
@@ -208,7 +237,7 @@ pure-state 的非 observer push 使用 session 级 `_lastPureStateBaselineFrame/
 
 ## 9. 多进程 Smoke：故障矩阵与收敛证据
 
-`ShooterSmokeClientProcessRunner` 支持 create/join 两种独立客户端进程，PowerShell orchestrator 在其上组织 `recoverable-retry`、`gateway-offline`、`slow-consumer` 和 `reconnect-cycles` 四类真实故障场景。完整的时序、manifest 和组合门禁见 [14-多进程故障矩阵与收敛证据](14-MultiprocessFaultMatrixAndConvergenceEvidence.md)。
+`ShooterSmokeClientProcessRunner` 支持 create/join 两种独立客户端进程，PowerShell orchestrator 在其上组织 `recoverable-retry`、`gateway-offline`、`slow-consumer`、`reconnect-cycles` 和 `observer-reactivation` 五类真实故障场景。完整的时序、manifest 和组合门禁见 [14-多进程故障矩阵与收敛证据](14-MultiprocessFaultMatrixAndConvergenceEvidence.md)。
 
 客户端不仅输出 pass/fail，还输出可供脚本解析的结构化字段：
 
@@ -235,11 +264,11 @@ PureState 的合法推进可以是后续 delta、baseline resync 或重复 full 
 |--------|----------|----------|----------|
 | Gateway 未注册 opcode | 返回 `UnhandledOpCode` | Gateway response | registry 覆盖测试 |
 | Gateway 内部超时 | 返回 `Timeout` | status code | 区分 handler 阶段指标 |
-| Room 启动中途失败 | battleId/worldId 可能已写入 | Room runtime state、Battle 查询 | 引入启动状态与补偿/幂等恢复 |
-| unsupported sync template | 回退 Battle runtime 路线 | `IsUnsupportedTemplate` 仅在 route 中 | 决定拒绝还是显式告警 |
+| Room commit 暂时失败 | 持久化 attempt 并有限重试，超过阈值回 Loading | BattleCommit status、attempt、last error | 增加跨进程故障与激活恢复 E4 场景 |
+| unsupported sync template | Room 路由到 Battle runtime，Battle 返回 `UnsupportedSyncTemplate`，commit 最终回 Loading | route flag、Battle error、attempt/last error | 在 Room 层提前拒绝以减少无效远端重试，并增加告警 |
 | late join 被 Battle 拒绝 | 回滚 Room member 和 player slot | join 失败、Room snapshot | 验证 Battle 外部副作用 |
-| Shooter Start 在 world 创建后失败 | session 返回失败，world 未立即销毁 | world manager/session 日志 | 失败路径立即 destroy |
-| 未知 Battle input opcode | 转 fallback command | accepted/input 状态 | 正式环境增加协议白名单 |
+| Shooter Start 在 world 创建后失败 | `StopBattleRuntime` dispose session 并销毁 world | world manager/session 日志与 adapter tests | 覆盖清理异常与重复销毁 |
+| 未知或畸形 Battle input | adapter 严格拒绝 | validation result 与 adapter tests | 增加协议拒绝指标和滥用限流 |
 | pure-state baseline 丢失 | 客户端请求 full baseline/resync | resync count、baseline 字段、pending 状态 | 告警阈值与速率限制 |
 | slow consumer | queue drop/coalesce 并使 baseline 失效 | observer metrics、full baseline 恢复、diff | 多 observer 容量与公平性 |
 | Gateway offline | transport 停止并清理 live delivery | fault ack、端口探测、reconnect push | 长时间离线与动态 profile |
@@ -247,9 +276,22 @@ PureState 的合法推进可以是后续 delta、baseline resync 或重复 full 
 | observer push 异常 | frame-sync 无逐 observer 隔离 | 推送缺失/异常日志 | 隔离失败 observer |
 | Smoke cleanup 中断 | 后续 destroy 可能未执行 | process timeline、端口与遗留 battleId/world | `finally` + 聚合异常/补偿任务 |
 
-优先级最高的工程补强是 Room 启动事务、Battle Start 失败资源释放和 Smoke cleanup 的 `finally` 化。这三项直接影响重复启动、残留 world 和测试环境污染，比继续扩展 Smoke 输出字段更重要。
+当前 Room commit 与 Battle Start 资源释放已具备主链路实现。下一步优先级应放在：把 staged loading/commit 恢复纳入真实多进程故障场景、为协议拒绝和回滚建立指标，以及把 Smoke 业务 cleanup `finally` 化；这些问题直接影响可观测恢复与共享环境污染。
 
-## 11. 验证入口
+## 11. 证据等级
+
+| 等级 | 本文对应证据 | 不能外推 |
+|------|--------------|----------|
+| E0-E2 | adapter、catalog、Room/Battle 实现与调用链 | 所有失败路径正确或生产可用 |
+| E3 | RoomBattleCommitTests、RoomStateMachineTests、RoomFaultMatrixTests、ShooterBattleRuntimeAdapterTests、Smoke Harness tests | 真实进程故障或网络条件已发生 |
+| E4 | 单/多进程脚本当次生成的日志、Replay、manifest、diagnostic/diff | 未执行 profile、跨机器和生产容量 |
+| E5 | CI 明确启用并阻断的命令与 artifact policy | runner 或脚本存在即自动形成发布门禁 |
+
+本批未重新运行 Smoke，不更新既有 E4 日期；源码契约修正只提升文档准确性，不产生新的运行证据。
+
+本批 Release E3 重新执行 Gateway `162/162`、Grains `232/232`、Shooter Smoke Harness `33/33`，覆盖默认 `state-sync-authority`、30 帧 full 周期、2 人开战、AOI 24/30、Room 断线保留与遗弃策略，以及 runner/script 契约。这里的 Harness 通过仍不是一次真实 TCP 或多进程故障运行。
+
+## 12. 验证入口
 
 | 验证目标 | 入口 |
 |----------|------|
@@ -266,7 +308,7 @@ PureState 的合法推进可以是后续 delta、baseline resync 或重复 full 
 | 聚焦周期断线 | `run_shooter_multiprocess_smoke.ps1 -Profile custom -Scenario reconnect-cycles -PayloadMode pure-state` |
 | replay | `--client-state-replay-output`、`--server-frame-replay-output` |
 
-## 12. 源码索引
+## 13. 源码索引
 
 | 模块 | 源码 |
 |------|------|
@@ -285,3 +327,9 @@ PureState 的合法推进可以是后续 delta、baseline resync 或重复 full 
 | 命令行入口 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Program.cs` |
 | Room adapter 测试 | `Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/Rooms/ShooterRoomGameplayAdapterTests.cs` |
 | Battle adapter 测试 | `Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/Battle/ShooterBattleRuntimeAdapterTests.cs` |
+
+---
+
+> 文档版本：v3.1
+> 更新日期：2026-08-16
+> 更新责任：Room commit、Shooter adapter、sync template、Smoke 断言与 artifact gate 变化时同步复核。

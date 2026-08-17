@@ -5,13 +5,14 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleContext
     {
-        private FrameSnapshotDispatcher _frameSnapshots;
+        private readonly ReferenceBindingOwner<FrameSnapshotDispatcher> _snapshotRoutingBinding =
+            new ReferenceBindingOwner<FrameSnapshotDispatcher>();
         private SnapshotPipeline _snapshotPipeline;
         private SnapshotCmdHandler _cmdHandler;
 
         public FrameSnapshotDispatcher FrameSnapshots
         {
-            get => _frameSnapshots;
+            get => _snapshotRoutingBinding.Value;
         }
 
         public SnapshotPipeline SnapshotPipeline
@@ -24,26 +25,45 @@ namespace AbilityKit.Game.Flow
             get => _cmdHandler;
         }
 
-        internal void BindSnapshotRouting(
+        internal long BindSnapshotRouting(
             FrameSnapshotDispatcher snapshots,
             SnapshotPipeline pipeline,
             SnapshotCmdHandler cmdHandler)
         {
-            _frameSnapshots = snapshots;
+            var generation = _snapshotRoutingBinding.Bind(snapshots);
             _snapshotPipeline = pipeline;
             _cmdHandler = cmdHandler;
+            return generation;
+        }
+
+        internal bool ClearSnapshotRouting(
+            long bindingGeneration,
+            FrameSnapshotDispatcher snapshots)
+        {
+            if (!_snapshotRoutingBinding.TryClear(
+                    bindingGeneration,
+                    snapshots,
+                    out _,
+                    out _))
+            {
+                return false;
+            }
+
+            _snapshotPipeline = null;
+            _cmdHandler = null;
+            return true;
         }
 
         internal void ClearSnapshotRouting()
         {
-            _frameSnapshots = null;
+            _snapshotRoutingBinding.Reset(out _, out _);
             _snapshotPipeline = null;
             _cmdHandler = null;
         }
 
         internal bool TryGetFrameSnapshots(out FrameSnapshotDispatcher snapshots)
         {
-            snapshots = _frameSnapshots;
+            snapshots = _snapshotRoutingBinding.Value;
             return snapshots != null;
         }
 
@@ -64,7 +84,7 @@ namespace AbilityKit.Game.Flow
             SnapshotPipeline pipeline,
             SnapshotCmdHandler cmdHandler)
         {
-            return ReferenceEquals(_frameSnapshots, snapshots)
+            return ReferenceEquals(_snapshotRoutingBinding.Value, snapshots)
                 && ReferenceEquals(_snapshotPipeline, pipeline)
                 && ReferenceEquals(_cmdHandler, cmdHandler);
         }

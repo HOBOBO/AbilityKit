@@ -82,7 +82,7 @@ namespace AbilityKit.Game.Flow
         }
     }
 
-    internal sealed class BattleInputRuntime : IDisposable
+    internal sealed class BattleInputRuntime : IDisposable, IBattleInputSubmissionPort
     {
         private readonly BattleHudInputState _hudInput = new BattleHudInputState();
         private BattleContext _context;
@@ -182,6 +182,12 @@ namespace AbilityKit.Game.Flow
             position = default;
             return _actorResolver != null && _actorResolver.TryResolveWorldPosition(out position);
         }
+
+        bool IBattleInputSubmissionPort.Submit(
+            in PlayerInputCommand command,
+            PlayerId playerId,
+            WorldId worldId) =>
+            Submit(in command, playerId, worldId);
 
         internal bool Submit(in PlayerInputCommand command, PlayerId playerId, WorldId worldId)
         {

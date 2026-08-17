@@ -1,7 +1,6 @@
 using System;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.FrameSync;
-using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Network.Battle;
@@ -35,54 +34,18 @@ namespace AbilityKit.Game.Flow
                     throw new InvalidOperationException($"GatewayRemote requires numeric WorldId(roomId). worldId='{world.WorldId}'");
                 }
 
+                if (_plan.Sync.SyncMode != BattleSyncMode.Lockstep)
+                {
+                    throw new InvalidOperationException(
+                        $"MOBA GatewayRemote only supports Lockstep frame sync. SyncMode={_plan.Sync.SyncMode}");
+                }
+
                 var transport = _transportFactory.CreateGatewayRemoteTransport(
                     _plan,
                     localPlayerId,
                     roomId,
                     _unityDispatcher,
                     _networkIoDispatcher);
-
-                // 远端实体插值播放：Gateway 推送 SnapshotPushed → 统一复制管线 → 每帧投影。
-                if (transport is NetworkTransport networkTransport)
-                {
-                    var reliableEventCheckpoint = _plan.ReliableEventCheckpoint;
-                    var checkpointAccepted = _runtime.Replication.Build(
-                        networkTransport,
-                        _plan.World.TickRate,
-                        roomId,
-                        gateway.BattleId ?? string.Empty,
-                        in reliableEventCheckpoint,
-                        _runtime.Recovery.HandleSnapshot,
-                        _runtime.Recovery.HandleReliableEvents,
-                        _runtime.Recovery.HandleConnectionClosed,
-                        _runtime.Recovery.HandleConnectionEstablished,
-                        _runtime.Recovery.HandleAuthenticationFailed,
-                        _plan.RemoteSyncCapabilities);
-                    if (!checkpointAccepted)
-                    {
-                        Log.Warning(
-                            "[BattleSessionFeature] Reliable event checkpoint rejected " +
-                            "because it does not match the active battle.");
-                    }
-
-                    var recoveryPlan = _plan;
-
-                    _runtime.Recovery.BeginGeneration(
-                        new NetworkBattleRecoveryTransportOperations(networkTransport),
-                        _bootstrapper as IMobaReliableBattleEventCheckpointStore,
-                        _ctx,
-                        in recoveryPlan,
-                        GetFixedDeltaSeconds(),
-                        ResolveIdealFrameLimit,
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-                        () => _runtime.Diagnostics.ShouldForceClientHashMismatch,
-#else
-                        () => false,
-#endif
-                        value => ReliableBattleEventReceived?.Invoke(value),
-                        NotifyFirstFrameReceivedOnce);
-                }
-
                 return _sessionRegistry.Start(opts, remoteTransport: transport);
             }
 
@@ -97,7 +60,10 @@ namespace AbilityKit.Game.Flow
 
         private void TickRemoteInterpolation(float deltaTime)
         {
-            _runtime.Replication.TickPresentation(_ctx, _handles, deltaTime);
+            _runtime.Replication.TickPresentation(
+                _ctx,
+                _plan.Authority.EnableClientPrediction,
+                deltaTime);
         }
 
         private void DisposeRemoteInterpolation()

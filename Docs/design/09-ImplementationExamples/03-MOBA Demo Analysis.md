@@ -1,4 +1,4 @@
-# MOBA Demo 解析
+# 9.3 MOBA Demo 解析：战斗工具集的项目级组合参考
 
 > 本文从源码出发说明 MOBA 示例如何把 AbilityKit 的逻辑世界、Entitas、配置、技能、Triggering、Buff、Projectile、快照、客户端预测和表现层会话串成一个可运行的战斗样例。
 
@@ -22,7 +22,7 @@ MOBA Demo 不是单一技能演示，而是一个“完整战斗域集成样例�
 | 状态快照 | `MobaActorTransformSnapshotService` | 从 ActorRegistry 采样位置并编码为 WorldStateSnapshot |
 | View 远程驱动 | `RemoteDrivenWorldRuntimeFactory` | 在客户端创建 HostRuntime、本地世界和权威帧来源 |
 | 预测/回滚 | `RemoteDrivenRuntimeModuleFactory` | 安装 ClientPredictionDriverModule、ServerFrameTimeModule、WorldAutoStartModule |
-| 快照路由 | `FrameSnapshotDispatcher` / `BattleSnapshotPipeline` | 从帧包提取快照，按 OpCode 解码并分发给表现阶段 |
+| 快照路由 | session-bound `FrameSnapshotDispatcher` / 通用 `SnapshotPipeline` / 项目 registry | 从帧包提取快照，按 OpCode 解码并分发给表现阶段 |
 
 源码入口：
 
@@ -31,7 +31,18 @@ MOBA Demo 不是单一技能演示，而是一个“完整战斗域集成样例�
 - Battle Blueprint：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Worlds/Blueprints/MobaBattleWorldBlueprint.cs`
 - Bootstrap Module：`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Systems/MobaWorldBootstrapModule.cs`
 - 远程驱动工厂：`Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs`
-- 测试入口：`src/AbilityKit.Demo.Moba.Tests`
+- 测试入口：`src/AbilityKit.Demo.Moba.Tests`、`src/AbilityKit.Demo.Moba.View.Runtime.Tests` 与 Unity package tests
+
+MOBA 示例的责任边界是：
+
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| AbilityKit 公共包 | World/Host、DI、Pipeline、Triggering、Combat 原语、快照路由等稳定机制 | 英雄目录、技能编排、MOBA 配置表和客户端房间流程 |
+| MOBA Runtime | 项目领域服务、表目录、PlanAction、实体构造、快照 emitter 和 runtime port | 被提升成所有战斗项目的默认应用层 |
+| MOBA View Runtime | 客户端 session、预测/回滚选择、快照/Trigger 表现适配、资源和流程 | 反向拥有逻辑权威或成为通用 View API |
+| Console/ET/Orleans | 从不同宿主复用 MOBA runtime 契约并提供验收路径 | 证明 MOBA 组合适用于所有游戏类型 |
+
+这是一套高接入程度的项目参考：读者可以看到复杂战斗如何组合，但新游戏应复用公共机制、参考装配方式，并自行拥有应用编排。只有跨多个项目后语义仍稳定的部分才适合继续下沉。
 
 ---
 
@@ -64,7 +75,7 @@ flowchart TB
         RemoteFactory["RemoteDrivenWorldRuntimeFactory"]
         Prediction["ClientPredictionDriverModule"]
         Dispatcher["FrameSnapshotDispatcher"]
-        Pipeline["BattleSnapshotPipeline"]
+        Pipeline["SnapshotPipeline + project registries"]
         Presentation["表现层 Feature/Presenter"]
     end
 
@@ -534,7 +545,7 @@ flowchart TB
 4. 用注册的 Decoder 解码 payload。
 5. 调用订阅者 handler。
 
-`BattleSnapshotPipeline` 在 `FrameSnapshotDispatcher` 之上再加一层“有序 Stage”：
+通用 `AbilityKit.Core.Snapshots.Routing.SnapshotPipeline` 在 dispatcher 的 `SnapshotReceived` 之上提供“有序 Stage”。MOBA 通过 `BattleSnapshotRegistry`、`SharedSnapshotRegistry` 和 session routing controller 注册自己的 decoder/stage，而不是继续维护独立的 `BattleSnapshotPipeline` 类型：
 
 - `Register<T>(opCode, decoder)` 注册 OpCode 到强类型 payload 的解码器。
 - `AddStage<T>(opCode, order, handler)` 注册按 order 排序的处理阶段。
@@ -544,7 +555,7 @@ flowchart TB
 sequenceDiagram
     participant Session as BattleLogicSession
     participant Dispatcher as FrameSnapshotDispatcher
-    participant Pipeline as BattleSnapshotPipeline
+    participant Pipeline as SnapshotPipeline
     participant Decoder as Snapshot Decoder
     participant Stage as Ordered Pipeline Stages
     participant View as Presentation
@@ -602,7 +613,7 @@ return new HostRuntimeModuleHost()
 | `minPredictionWindow` | 1 | 最小预测窗口 |
 | `backlogEwmaAlpha` | 0.20 | 积压平滑系数 |
 | `enableRollback` | true | 启用回滚 |
-| `rollbackHistoryFrames` | 240 | 回滚历史帧数 |
+| `rollbackHistoryFrames` | 600 | `PredictionRollbackHistoryFrames` 当前常量，并有对应优化测试锁定 |
 | `rollbackCaptureEveryNFrames` | 1 | 每帧捕获回滚状态 |
 
 关闭预测时，模块进入 remote-only 模式：
@@ -637,7 +648,7 @@ MOBA 示例因此覆盖了两种客户端运行模式：
 
 ### 10.1 与 ET 接入的关系
 
-ET Demo 没有复制一套 MOBA 逻辑，而是从 `ETBattleEnterGameSpecBuilder` 把 ET 房间玩家转换成 `MobaBattleLaunchSpec` / `MobaGameStartSpec`，再通过 `MobaSessionCoordinatorHost` 创建相同的 battle world。因此 MOBA Demo 里的输入、技能、Buff、Projectile、Damage、Snapshot 设计同样适用于 ET 宿主，只是表现层由 View Runtime 的 `BattleSnapshotPipeline` 换成了 ET 的 `ETBattleViewEventSink`、`ETUnitComponent` 和 `ETBattleEntityCacheComponent`。
+ET Demo 没有复制一套 MOBA 逻辑，而是从 `ETBattleEnterGameSpecBuilder` 把 ET 房间玩家转换成 `MobaBattleLaunchSpec` / `MobaGameStartSpec`，再通过 `MobaSessionCoordinatorHost` 创建相同的 battle world。因此 MOBA Demo 里的输入、技能、Buff、Projectile、Damage、Snapshot 设计同样适用于 ET 宿主；ET 侧使用 `ETBattleViewEventSink`、`ETUnitComponent` 和 `ETBattleEntityCacheComponent` 消费自己的 `FrameSnapshotData` 适配形态，不复用 Unity View Runtime 的具体 session pipeline。
 
 ```mermaid
 flowchart LR
@@ -668,7 +679,7 @@ sequenceDiagram
     participant Snapshot as Snapshot Emitters
     participant Packet as FramePacket
     participant Dispatch as FrameSnapshotDispatcher
-    participant View as BattleSnapshotPipeline/Presentation
+    participant View as SnapshotPipeline/Presentation
 
     Net->>Driver: 权威帧输入/快照
     Driver->>Input: 提交远端输入 + 本地预测输入
@@ -709,7 +720,7 @@ sequenceDiagram
 1. 在逻辑层定义 entry 与 codec。
 2. 继承 `LogicWorldSnapshotBufferEmitterBase` 创建 emitter。
 3. 使用稳定 OpCode 创建 `WorldStateSnapshot`。
-4. 在 `FrameSnapshotDispatcher` 或 `BattleSnapshotPipeline` 注册 decoder。
+4. 在项目 snapshot registry 注册 decoder/stage，由 `FrameSnapshotDispatcher` 与通用 `SnapshotPipeline` 消费。
 5. 在 pipeline stage 中更新表现对象。
 
 ---
@@ -746,5 +757,24 @@ sequenceDiagram
 | Transform 快照 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Actor/MobaActorTransformSnapshotService.cs` |
 | 远程驱动世界 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
 | 远程驱动模块 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenRuntimeModuleFactory.cs` |
-| 快照 Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/FrameSnapshotDispatcher.cs` |
-| 快照 Pipeline | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/BattleSnapshotPipeline.cs` |
+| session-bound 快照 Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Snapshot/FrameSnapshotDispatcher.cs` |
+| 通用快照 Pipeline | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/SnapshotPipeline.cs` |
+| MOBA 快照 registry | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Snapshot/BattleSnapshotRegistry.cs` |
+
+---
+
+## 15. 验证证据与已知限制
+
+| 证据 | 等级与结论 |
+|------|------------|
+| MOBA Runtime/View/Share 源码 | E0：覆盖配置、世界、玩法服务、runtime port、session、预测和表现组合 |
+| Console、ET、Unity View 与 Orleans 消费 | E2：证明同一 MOBA 领域能力可进入多宿主；这些适配仍归各项目所有 |
+| `AbilityKit.Demo.Moba.Tests` | E3：覆盖配置、技能、Buff、Projectile、连续行为、rollback、完整战斗生命周期等大量逻辑契约 |
+| `AbilityKit.Demo.Moba.View.Runtime.Tests` 与 Unity package tests | E3：覆盖同步策略、reconnect、replication、fault matrix、session lifecycle、表现消费和配置策略 |
+| 多人/Unity/Console smoke artifact 与 gates | 分散 E4/E5：只对具体命令、日期、平台和触发策略有效，不能概括为“MOBA Demo 全面生产就绪” |
+
+当前仍需按真实项目要求治理：应用层类型数量与依赖方向、配置/生成 gate、客户端资源与 scope 故障闭环、预测/回滚预算、双连接恢复、长期内存/分配，以及跨平台 artifact。MOBA 示例证明复杂组合可行，但它的英雄、表、PlanAction、session 和表现目录不构成公共框架兼容承诺。
+
+文档类型：示例架构分析 | 事实基线：2026-08-15 | 证据等级：E0 完整项目实现、E2 多宿主消费、广泛 E3、分散 E4/E5
+
+*文档版本：v3.0 | 最后更新：2026-08-15*

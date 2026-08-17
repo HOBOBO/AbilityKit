@@ -80,7 +80,7 @@
 | 命令 | 重载 Hotfix | `Tools/AbilityKit/Hot Reload/Reload Hotfix` | 先完成 Hotfix 编译 |
 | 窗口 | 创建英雄 | `AbilityKit/Moba/Hero/Create New Hero…` | 按向导填写英雄资源信息 |
 
-### Scene Gizmo
+### 场景辅助图形
 
 进入 Play Mode 并启动战斗会话后，在 Unity 顶部 `Moba/Gizmos` 菜单勾选需要的叠加层，然后查看 Scene View。它们读取逻辑战斗 World，表示判定位置和范围；表现模型启用插值时，移动中的模型可能与逻辑位置存在短暂视觉差异。
 

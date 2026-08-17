@@ -1,5 +1,8 @@
 # MOBA 依赖注入与 System/Service 协作深潜
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文说明 MOBA 示例为什么把主要业务逻辑放在 Service 层，把 System 层收敛成调度、遍历、ECS 写回和异常边界，并通过世界级依赖注入把配置、诊断、时间、事件、实体索引和能力执行解耦出来。结论是：当前 DI 模块和 Entitas System 适配层已经明确支持“Service + ECS System”的组合开发模式，MOBA 示例也大量采用了这条路径。
 
 ---
@@ -356,7 +359,21 @@ MOBA 战斗逻辑没有全部堆进 System，而是集中在可组合的服务�
 
 ---
 
-## 10. 关联文档
+## 10. 当前边界与证据
+
+这套协作方式应区分三类所有权：
+
+| 层级 | 可复用内容 | 不应外推的内容 |
+|------|------------|----------------|
+| World DI | `WorldService`、`WorldInject`、生命周期、模块和解析器契约 | MOBA 的命名空间扫描清单、服务全集与默认实现 |
+| ECS/System | phase/order、自动安装和执行容器 | `MobaSystemOrder` 的具体编号、actor group 与每帧编排 |
+| 项目 Service | 可测试的业务对象与窄接口 | 技能提交、Buff 命令、玩法阶段、临时实体和异常降级策略 |
+
+`MobaServicesAutoModule`、`MobaWorldBootstrapModule` 和 `MobaSystemOrder` 是 MOBA 组合根的一部分。它们证明框架原语可以支撑复杂项目装配，但不构成框架默认战斗应用层；其他游戏应复用 DI/System 机制并重建自己的服务图和执行顺序。
+
+2026-08-16 的证据边界是：View Runtime、Host 与 Acceptance 三个独立 .NET 工程分别为 147/147、6/6、8/8；主 MOBA 工程为 279/305，26 项均被同一个 SpawnArea 严格配置错误阻断。该结果能证明 DI、会话与局部运行时契约拥有独立测试入口，不能证明当前完整 World 基线通过，也不能把 MOBA 的服务集合提升为框架标准答案。
+
+## 11. 关联文档
 
 - [MOBA Demo 专题总览](./00-Overview.md)
 - [世界启动与运行时装配](./01-WorldAndBootstrap.md)
@@ -364,4 +381,4 @@ MOBA 战斗逻辑没有全部堆进 System，而是集中在可组合的服务�
 
 ---
 
-*文档版本：v1.1 | 最后更新：2026-07-04*
+*文档版本：v3.0 | 最后更新：2026-08-16*

@@ -25,8 +25,8 @@ namespace AbilityKit.Demo.Shooter.View
     public readonly struct ShooterRoomLaunchSpec
     {
         public const int DefaultOfflineTimeoutSeconds = 30 * 60;
-        public const string DefaultSyncTemplateId = ShooterSyncTemplateIds.PredictRollbackAuthority;
-        public const int DefaultSyncModel = (int)NetworkSyncModel.PredictRollback;
+        public const string DefaultSyncTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
+        public const int DefaultSyncModel = (int)NetworkSyncModel.AuthoritativeInterpolation;
         public const string DefaultNetworkEnvironmentId = "ideal";
         public const string DefaultCarrierName = "server";
 
@@ -107,8 +107,8 @@ namespace AbilityKit.Demo.Shooter.View
                 syncModel: DefaultSyncModel,
                 networkEnvironmentId: DefaultNetworkEnvironmentId,
                 carrierName: DefaultCarrierName,
-                enableAuthoritativeWorld: true,
-                interpolationEnabled: false,
+                enableAuthoritativeWorld: false,
+                interpolationEnabled: true,
                 inputDelayFrames: 0);
         }
 
@@ -118,7 +118,7 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 [RoomTagKeys.Gameplay] = ShooterGameplay.RoomType,
                 [RoomTagKeys.WorldType] = ShooterGameplay.WorldType,
-                [ShooterRoomLaunchTagKeys.MinPlayers] = "1",
+                [ShooterRoomLaunchTagKeys.MinPlayers] = ShooterGameplay.DefaultMinPlayers.ToString(),
                 [RoomTagKeys.TickRate] = ShooterGameplay.DefaultTickRate.ToString(),
                 [RoomTagKeys.OfflineTimeoutSeconds] = DefaultOfflineTimeoutSeconds.ToString()
             };

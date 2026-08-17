@@ -1,5 +1,8 @@
 # Shooter Authoritative Interpolation、Hybrid Prediction 与 Diagnostics 深潜
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文补充 Shooter 示例中还未单独展开的同步控制器细节：Authoritative Interpolation、Hybrid Hero Prediction、插值诊断、DOTS View Binder 与时间锚点协同。它解释不同 `NetworkSyncModel` 如何复用同一套 runtime / presentation / gateway 链路，同时在本地预测、远端插值与诊断输出之间保持清晰分工。
 
 ## 1. 设计目标
@@ -20,6 +23,8 @@ Shooter 的同步控制器并不是只有“预测回滚”一种实现，而是
 - `AuthoritativeInterpolation`：本地主控做局部 pose 预测/校正和有限 pending input 重演，远端对象延迟插值；
 - `HybridHeroPrediction`：本地英雄预测回滚，packed 快照同时供远端对象延迟插值；
 - 其他 profile 可能复用以上控制器策略，但复用控制器不表示端到端 profile 语义等价。
+
+Shooter 当前产品默认由 Room/Profile 声明为 `AuthoritativeInterpolation`。`NetworkSyncProfileRegistry` 对兼容枚举 `Unspecified` 回退到 `PredictRollback`，只是未显式选择时的 registry 兼容行为，不能写成 Shooter 默认使用预测回滚。文档和测试应分别验证“产品协商默认”与“registry Unspecified 分支”。
 
 ```mermaid
 flowchart TB
@@ -243,4 +248,14 @@ Shooter 的同步和验收依赖统一的时间锚点语义：
 | Full state 请求与恢复 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientBattleHandle.cs` |
 | Push/reconnect 触发 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs` |
 
-*文档版本：v1.1 | 最后更新：2026-08-09*
+## 11. Profile 映射、时间精度与证据边界
+
+正式会话先通过 `NetworkSyncSessionBuilder` 协商 descriptor，再按 profile 创建顶层控制器。当前 `BatchStateSync` 和 `MassBattleLodSync` 复用 authoritative interpolation controller，这只是实现复用，不表示二者与 `AuthoritativeInterpolation` 具有相同的服务端采样、预算、AOI 或可靠性语义。
+
+Authoritative Interpolation 对本地主控执行 pose 校正和有限 pending input 重演，对远端实体维护延迟时间线；Hybrid 则让本地英雄进入预测/回滚链，并把 packed 权威样本同时投影到远端插值。pure-state 不会被 Hybrid 当作 packed 样本塞入同一远端 buffer。控制器选择、payload route 和表现投影是三个不同决策点。
+
+当本地校正无法继续时，session 的 `NetworkSessionRecoveryCoordinator` 只生成恢复决策；`ShooterClientBattleHandle` 通过 Manual recovery runtime 执行，并把 full snapshot 与 reliable baseline 动作映射到项目 full-state RPC。控制器不应自行复制这套请求状态机，框架 runtime 也不解释 Shooter payload。handle teardown 当前仍缺显式 runtime reset/dispose，需把在途恢复取消和 generation 收口作为生命周期验收项。
+
+playback frame、delta、位置与速度仍主要使用 `float`。时间锚点和 stale ignore 维持单会话顺序与平滑性，但不证明不同 CPU/平台逐位一致。Batch N 的 Shooter Runtime `489/489` 与 Network Client `3/3` 是历史 E3；Batch W 当前全量 Shooter Runtime 为 `481/490`，9 项旧预期失败中包括仍断言 PredictRollback 默认的测试，controller factory/battle handle 聚焦 `22/22` 通过。Unity PlayMode、网络弱网 artifact 与跨平台对照未运行。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

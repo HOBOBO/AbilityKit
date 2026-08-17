@@ -114,7 +114,7 @@ host.CreateWorld(new WorldCreateOptions(new WorldId("room_1"), "battle"));
 Host modules 应保持通用性，不能依赖 gameplay。
 它们应该安装在 host options 上，而不是放进 gameplay world modules 里。
 
-Example:
+示例：
 - `ServerFrameTimeModule`
 - `ServerRollbackModule`
 
@@ -128,7 +128,7 @@ Example:
 普通项目可以使用 `TcpHostNetwork` 快速装配；需要 WebSocket、KCP、平台 Relay 等传输时，
 替换 `IChannelListener` 即可，Host 和业务协议无需修改。
 
-### Host module vs World module
+### Host 模块与 World 模块的区别
 
 - Host module：横切型运行时能力，应与玩法无关。
 - World module：玩法 world 的组装，应由应用包持有。
@@ -180,7 +180,7 @@ namespace YourGame
 }
 ```
 
-### Composition root wiring
+### 组合根接线
 
 ```csharp
 var typeRegistry = new WorldTypeRegistry()

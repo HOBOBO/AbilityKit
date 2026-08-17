@@ -10,6 +10,14 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleContext
     {
+        BattleHostMode IBattleInputSessionIdentityPort.HostMode => Plan.HostMode;
+
+        string IBattleInputSessionIdentityPort.ResolveLocalControlPlayerId() =>
+            ResolveLocalControlPlayerId();
+
+        MobaPlayerLoadout[] IBattleInputSessionIdentityPort.BuildEffectivePlayerLoadouts() =>
+            BuildEffectivePlayerLoadouts();
+
         private readonly BattlePlayerLoadoutStore _playerLoadouts =
             new BattlePlayerLoadoutStore();
 

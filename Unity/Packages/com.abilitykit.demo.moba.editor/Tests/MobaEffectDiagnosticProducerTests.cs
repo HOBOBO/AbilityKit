@@ -1,4 +1,8 @@
+using System;
+using System.Reflection;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Diagnostics;
+using AbilityKit.Trace;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -9,11 +13,22 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
     public sealed class MobaEffectDiagnosticProducerTests
     {
         private BattleDiagnosticSessionScope _scope;
+        private EditorProfiler _profiler;
 
         [SetUp]
         public void SetUp()
         {
             _scope = new BattleDiagnosticSessionScope("session", "world", 1);
+            _profiler = new EditorProfiler();
+            _profiler.Start();
+            ProfilerHub.SetProfiler(_profiler);
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            ProfilerHub.SetProfiler(null);
+            _profiler?.Stop();
         }
 
         // ===== EffectStarted 草稿映射 =====
@@ -243,6 +258,146 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(collector.LastSequence, Is.EqualTo(2));
             Assert.That(collector.Store.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void ActionExecution_Success_RecordsLifecycleAndSampledMetrics()
+        {
+            var service = CreateEffectService(out var trace, out var diagnostics);
+            diagnostics.SetSampleInterval(MobaBattleDiagnosticChannel.TriggerHook, 1);
+            BeginEffectScope(service);
+
+            service.EnterActionExecution(0, 901L);
+            var actionContextId = service.CurrentActionChain[0];
+            service.ExitActionExecution(0, 901L, true);
+
+            Assert.That(trace.TryGetNodeSnapshot(actionContextId, out var action), Is.True);
+            Assert.That(action.EndReason, Is.EqualTo((int)TraceLifecycleReason.Completed));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionSucceeded), Is.EqualTo(1L));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.Zero);
+            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionDuration + ".ms"), Is.True);
+            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionAllocatedBytes), Is.True);
+        }
+
+        [Test]
+        public void ActionExecution_FailureWithoutSampling_StillRecordsCounters()
+        {
+            var service = CreateEffectService(out var trace, out var diagnostics);
+            diagnostics.SetChannelEnabled(MobaBattleDiagnosticChannel.TriggerHook, false);
+            BeginEffectScope(service);
+
+            service.EnterActionExecution(0, 902L);
+            var actionContextId = service.CurrentActionChain[0];
+            service.ExitActionExecution(0, 902L, false);
+
+            Assert.That(trace.TryGetNodeSnapshot(actionContextId, out var action), Is.True);
+            Assert.That(action.EndReason, Is.EqualTo((int)TraceLifecycleReason.Failed));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.EqualTo(1L));
+            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionDuration + ".ms"), Is.False);
+            Assert.That(HasSamples(MobaBattleDiagnosticMetric.EffectActionAllocatedBytes), Is.False);
+        }
+
+        [Test]
+        public void ActionExecution_DuplicateExit_DoesNotDoubleCountResult()
+        {
+            var service = CreateEffectService(out _, out _);
+            BeginEffectScope(service);
+
+            service.EnterActionExecution(0, 903L);
+            service.ExitActionExecution(0, 903L, true);
+            service.ExitActionExecution(0, 903L, true);
+
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionSucceeded), Is.EqualTo(1L));
+        }
+
+        [Test]
+        public void ActionExecution_TraceCleanup_RecordsSingleFailure()
+        {
+            var service = CreateEffectService(out var trace, out _);
+            BeginEffectScope(service);
+            service.EnterActionExecution(0, 904L);
+            var actionContextId = service.CurrentActionChain[0];
+
+            InvokePrivate(service, "EndCurrentTrace", (int)TraceLifecycleReason.Failed);
+            service.ExitActionExecution(0, 904L, false);
+
+            Assert.That(trace.TryGetNodeSnapshot(actionContextId, out var action), Is.True);
+            Assert.That(action.EndReason, Is.EqualTo((int)TraceLifecycleReason.Failed));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
+            Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.EqualTo(1L));
+            Assert.That(service.CurrentActionChain, Is.Empty);
+        }
+
+        private static MobaEffectExecutionService CreateEffectService(
+            out MobaTraceRegistry trace,
+            out MobaBattleDiagnosticsService diagnostics)
+        {
+            trace = new MobaTraceRegistry();
+            diagnostics = new MobaBattleDiagnosticsService();
+            var service = new MobaEffectExecutionService();
+            SetMember(service, "Trace", trace);
+            SetMember(service, "_diagnostics", diagnostics);
+            return service;
+        }
+
+        private static void BeginEffectScope(MobaEffectExecutionService service)
+        {
+            var lineage = new MobaEffectLineageInput(
+                EffectContextKind.Skill,
+                MobaTraceKind.SkillEffect,
+                7,
+                9,
+                0L,
+                0L,
+                0L,
+                801);
+            InvokePrivate(service, "BeginEffectTraceScope", 801, 802, lineage);
+        }
+
+        private long GetCounter(string name)
+        {
+            var snapshot = _profiler.GetSnapshot();
+            return snapshot.Counters != null && snapshot.Counters.TryGetValue(name, out var counter)
+                ? counter.Value
+                : 0L;
+        }
+
+        private bool HasSamples(string name)
+        {
+            var snapshot = _profiler.GetSnapshot();
+            return snapshot.Samples != null &&
+                   snapshot.Samples.TryGetValue(name, out var samples) &&
+                   samples.Count > 0;
+        }
+
+        private static object InvokePrivate(object target, string methodName, params object[] args)
+        {
+            var method = target.GetType().GetMethod(
+                methodName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, methodName);
+            return method.Invoke(target, args);
+        }
+
+        private static void SetMember(object target, string memberName, object value)
+        {
+            var property = target.GetType().GetProperty(
+                memberName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            if (property != null)
+            {
+                property.SetValue(target, value);
+                return;
+            }
+
+            var field = target.GetType().GetField(
+                memberName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, memberName);
+            field.SetValue(target, value);
         }
     }
 }

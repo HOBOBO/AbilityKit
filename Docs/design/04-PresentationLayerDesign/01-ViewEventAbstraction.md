@@ -16,6 +16,17 @@
 | 表现对象需要与 ECS 实体重新绑定 | BattleViewBinder 负责实体到 MonoViewHandle 的绑定和重建 |
 | 表现副作用不能污染确定性模拟 | Sink 只处理 VFX、浮字、区域、Dirty Sync、平台事件发布 |
 
+责任边界如下：
+
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| 通用逻辑/同步包 | 输出稳定事件、快照 envelope、OpCode 与载荷契约 | 引用 Unity 对象或规定具体视觉效果 |
+| 项目 View Runtime | 定义项目 Sink、来源策略、Adapter、Handler 与对象绑定 | 被提升为所有游戏必须实现的框架接口 |
+| 客户端宿主 | 在正确阶段 Attach/Detach，管理订阅、线程和资源生命周期 | 让 Sink 反向修改权威逻辑状态 |
+| Console / ET 示例 | 展示同一逻辑输出如何适配不同平台 | 证明所有平台应共享同一个具体 Sink 类型 |
+
+`IBattleViewEventSink` 是 MOBA 项目边界，不是 AbilityKit 框架统一 View API。可下沉的是“逻辑输出与表现副作用隔离”的原则，以及通用快照路由契约；具体事件目录、handler 和视觉语义继续由项目拥有。
+
 ---
 
 ## 2. 源码入口
@@ -334,3 +345,33 @@ flowchart TB
 
 - [快照分发](./02-SnapshotDispatch.md) - FrameSnapshotDispatcher 与 SnapshotPipeline
 - [跨平台实现](./03-CrossPlatform.md) - Unity、Console、ET、Server 表现边界
+
+---
+
+## 15. 验证证据与已知限制
+
+| 证据 | 等级与结论 |
+|------|------------|
+| MOBA View Runtime 源码 | E0：可审计 Snapshot/Trigger Adapter、Sink、Handler、Binder 和来源策略 |
+| `ViewEventSourceModePolicyTests` | E3：覆盖 SnapshotOnly/TriggerOnly/Hybrid 选择及 Hybrid 伤害去重策略 |
+| Session lifecycle tests | E3：覆盖部分 adapter/pipeline 随 session 创建、复用与清理的路径，不等于每个 Sink handler 都有直接契约测试 |
+| Console 与 ET 消费者 | E2：证明共享意图可跨宿主适配；ET 使用不同代际数据形态，不是统一 API 证明 |
+
+仍需重点覆盖 Snapshot/Trigger 同事件去重、handler 异常策略、Binder 重绑/销毁、订阅清理失败、资源迟到完成和回放/重连后的表现重建。表现层测试不能替代逻辑确定性测试，视觉正确性也不能只靠 payload 被调用来证明。
+
+## 15. Adapter、Binder 与宿主所有权的真实边界
+
+`ViewEventAdapterLifecycle.Attach` 会先执行 `Detach`，再按 `ViewEventSourceMode` 创建 Snapshot/Trigger adapter。这使“重新挂接”不会主动保留上一组 adapter，但它不是跨线程热切换协议：Attach、Feed、Tick 与 Detach 仍应由同一个客户端宿主串行编排。
+
+| 对象 | 当前清理行为 | 必须由谁持有 |
+|------|--------------|--------------|
+| `BattleSnapshotViewAdapter` | 保存每个 typed route 的 subscription；Dispose 逐项释放并清空列表 | 创建它的 View Feature / Session |
+| `BattleTriggerEventViewAdapter` | Dispose 内部 event bridge | 创建它的 View Feature / Session |
+| `ViewEventAdapterLifecycle` | Attach 前 Detach；Detach 释放两类 adapter 并置空引用 | 项目级表现 Feature |
+| `BattleViewBinder` | 提供 `Clear`、`RebindAll` 和销毁处理，但自身不实现 `IDisposable` | 拥有资源、对象池与 adapter 的上层 Feature |
+
+因此，`IDisposable subscription` 是路由层交给应用层的所有权令牌，不表示 dispatcher、world 或 binder 会替调用方完成整条表现链清理。Hybrid 也只表示同时启用两种来源；同一业务副作用的去重键、确认策略和回滚调和仍是项目契约。把这些策略做成统一框架 Sink 会把玩法事件目录、视觉语义和会话时序错误地固化到公共层。
+
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 MOBA 实现、E2 跨平台消费者、局部 E3 策略/生命周期测试；未达到统一 E4/E5
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

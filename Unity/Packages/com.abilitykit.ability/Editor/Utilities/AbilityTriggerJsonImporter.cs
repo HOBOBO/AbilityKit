@@ -148,7 +148,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (dto == null || string.IsNullOrEmpty(dto.Type)) return null;
 
-            // Prefer strong editor configs so parameters become real fields (not just Json Args).
+            // 优先使用强类型编辑器配置，使参数成为真正的字段（而不只是 JSON 参数）。
             if (string.Equals(dto.Type, TriggerActionTypes.Seq, StringComparison.Ordinal))
             {
                 var seq = new SequenceActionEditorConfig();

@@ -22,6 +22,17 @@
 - 复杂技能生命周期编排。技能、Buff、持续行为应由 Triggering/Ability/Gameplay 模块表达。
 - 多线程调度。`DefaultScheduler.Tick(deltaTime)` 是同步遍历任务列表。
 
+责任边界如下：
+
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| Timer 包 | 计时、任务状态和同步 Tick 调度的最小机制 | 世界自动安装、技能语义、网络权威时间和业务失败补偿 |
+| Host / World 接入 | scheduler 所有权、Tick 来源、暂停/销毁顺序和逻辑时间选择 | 默认把真实时间注入确定性战斗 |
+| 项目应用层 | period/duration 校验、回调异常策略、任务句柄管理和业务终止协议 | 假设任务有稳定执行顺序或自动随世界运行 |
+| 示例 | 说明 API 形态和典型回调 | 作为已验证的生产调度方案 |
+
+因此 Timer 是可直接组装的底层时间工具，而不是开包即自动运行的应用套件。游戏可按自身确定性、暂停和生命周期要求接入，无需让框架固定战斗时间模型。
+
 源码入口：
 
 | 源码 | 作用 |
@@ -430,13 +441,19 @@ sequenceDiagram
 任务回调、持续回调和完成回调都没有异常隔离，异常会直接穿透 `DefaultScheduler.Tick()`：
 
 1. 当前 Tick 立即中断，尚未遍历到的低索引任务不会更新。
-2. `DelayTask` 在 callback 返回后才写完成标记；callback 抛异常时，任务保持未完成，后续 Tick 会再次调用。
-3. `PeriodicTask` 在 callback 返回后才增加执行次数；异常时当前周期既未计数，任务也未完成。
-4. `ContinuousTask` 的 `onTick` 或 `onComplete` 抛异常时，完成标记同样可能尚未写入。
+2. `DelayTask` 在 callback 前已把 elapsed 推到 delay；即使 `_completed` 尚未写入，`IsCompleted` 仍由 elapsed 判定为 true。下一 Tick 会直接移除，不会重试 callback。
+3. `PeriodicTask` 在 callback 前先扣除一个 period、返回后才增加执行次数；异常时 elapsed 已消费但次数少记，后续是否再次调用取决于剩余 elapsed 与新 delta。
+4. `ContinuousTask.onTick` 抛错时 elapsed 已推进；若已经达到 duration，下一 Tick 会直接移除且不会执行 `onComplete`。`onComplete` 自身抛错时也不会重试，因为 elapsed 已满足完成条件。
 
 若回调来自不可信插件或业务模块，调用方应在回调边界自行捕获、记录并决定取消；当前 scheduler 不提供“单任务失败不影响其他任务”的保证。
 
-### 13.3 分配模型
+三种任务都可能在回调返回后才写一部分显式状态，但 `State/IsCompleted` 还会读取 elapsed、duration 和 executionCount，不能只观察 `_completed` 推断重试。业务回调若不是幂等操作，应在回调内部建立提交门禁；上层捕获异常后可明确 `RequestCancel()`，不能依赖 scheduler 自动把异常任务置为 Failed，也不能假设完成通知一定补发。
+
+### 13.3 取消与调度器所有权
+
+`RequestCancel()` 和 `CancelAll()` 只把任务状态标为 Canceled；任务对象要到下一次 `Tick()` 扫描时才从 `TaskList` 移除。`DefaultScheduler` 没有 `Dispose`、`Clear` 或立即压缩入口，宿主停止 Tick 后调用 `CancelAll()`，内部列表仍会保留这些任务及其回调引用。世界/场景关闭时应先取消，再至少推进一次受控清理 Tick，或者直接释放整个 scheduler 引用；若闭包捕获大对象，不能把“已取消”误认为引用已释放。
+
+### 13.4 分配模型
 
 scheduler 初始化时创建容量 16 的数组。Schedule 创建新的 class 任务；容量满时 `TaskList` 创建两倍容量数组并复制。Tick 的正常遍历和尾部覆盖删除不主动创建集合，但委托闭包、任务创建、扩容及业务回调仍可能产生 GC。高频玩法热路径应先做 profile，再决定复用回调、预留更大容量或引入池化，而不是依据接口注释声明零 GC。
 
@@ -444,16 +461,18 @@ scheduler 初始化时创建容量 16 的数组。Schedule 创建新的 class �
 
 ## 14. 接入与成熟度证据
 
+证据等级采用 E0–E5：E0 为源码可读，E1 为构建/静态检查，E2 为真实消费者，E3 为自动契约测试，E4 为真实运行验收，E5 为持续阻断门禁。下表只声明当前实际具备的等级。
+
 | 证据面 | 当前事实 | 结论 |
 |--------|----------|------|
 | 包源码 | 有完整的 timer、scheduler 和三种任务实现 | 可作为基础工具审阅和接入 |
-| `.NET` 编译 | `dotnet build src/AbilityKit.Timer/AbilityKit.Timer.csproj -c Release` 直接编译 package Runtime 源码 | 证明 `net10.0` 编译闭合，不证明任务时序和失败语义正确 |
+| `.NET` 编译 | 2026-08-16 执行 `dotnet build src/AbilityKit.Timer/AbilityKit.Timer.csproj -c Release --no-restore` 为 0 错误、52 个既有可空性/XML 注释警告 | 证明 `net10.0` 编译闭合，不证明任务时序和失败语义正确 |
 | 自动 Host/World 接入 | 未发现默认模块自动 Tick scheduler | 所有权和 Tick 时机由接入方负责 |
 | 生产调用 | 当前仓库搜索未发现 `DefaultScheduler` 的生产运行时调用 | 尚不能声明为生产验证能力 |
 | 自动测试 | package 中没有 Tests 目录，仓库也没有引用 `AbilityKit.Timer` 的测试工程 | 参数、补执行、异常和终态缺少回归保护 |
 | 示例 | package 注释和 Samples 中有示例字符串 | 只说明预期用法，不等于可执行验收 |
 
-优先补充 `PeriodicTask` 非正 period、duration 截止、回调异常重试、外部 Complete/onComplete、取消移除时机、尾部覆盖顺序和扩容分配测试。周期 duration 缺陷修复前，不应把该参数用于关键玩法终止保证。
+优先补充 `PeriodicTask` 非正 period、duration 截止、三类回调异常后的 elapsed/count/完成通知、外部 Complete/onComplete、取消移除时机、尾部覆盖顺序和扩容分配测试。周期 duration 缺陷修复前，不应把该参数用于关键玩法终止保证。
 
 ---
 
@@ -506,4 +525,6 @@ scheduler 初始化时创建容量 16 的数组。Schedule 创建新的 class �
 
 ---
 
-*文档版本：v2.2 | 最后更新：2026-08-02*
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 实现、E1 .NET 构建；未发现 E2 生产消费者或 E3–E5 证据
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

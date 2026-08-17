@@ -28,7 +28,7 @@ namespace AbilityKit.Game.Flow
             var binder = f?.Binder;
             if (binder == null) return;
 
-            binder.TickInterpolation(f.Context, deltaTime);
+            binder.TickInterpolation(f.RuntimeContext, f.EntityContext, deltaTime);
         }
 
         public void RebindAll(in FeatureModuleContext<TFeature> ctx) { }

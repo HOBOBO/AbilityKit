@@ -15,7 +15,6 @@ using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Abstractions;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -24,7 +23,6 @@ namespace AbilityKit.Game.Test.UnitTest
     [InitializeOnLoad]
     public static class MultiplayerHeadlessHeroReplacementCommand
     {
-        private const string DemoScenePath = "Assets/Scenes/MobaDemoScene.unity";
         private const string StartConfigPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleStartConfig.asset";
         private const string RemotePresetPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleStartPreset_远程.asset";
         private const string GatewayConfigPath = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/BattleStart/BattleGatewayConfig.asset";
@@ -82,11 +80,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 SessionState.SetBool(RunningKey, true);
                 SessionState.SetString(ResultPathKey, resultPath);
 
-                var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-                if (!scene.IsValid())
-                {
-                    throw new InvalidOperationException("MOBA demo scene could not be opened.");
-                }
+                DemoGameplayTestLauncher.OpenMobaLocalForPlay();
 
                 var gateway = LoadAsset<BattleGatewayConfigSO>(GatewayConfigPath);
                 EditorApplication.EnterPlaymode();

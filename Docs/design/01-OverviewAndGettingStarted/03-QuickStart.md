@@ -1,5 +1,9 @@
 # 1.3 快速开始：从源码到第一个可运行闭环
 
+> 文档类型：源码接入与验证指南
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > 本文用于建立 AbilityKit 从源码位置、构建入口、Console Demo、测试项目到第一个功能改动的最短运行闭环。本文结论来自 `README.md`、`Unity/Packages/README.md`、`.cursor/rules/src-unity-packages-relation.mdc`、`src/AbilityKit.sln`、Console Demo 启动链路和 P0 相关测试工程。
 
 ---
@@ -10,7 +14,7 @@ AbilityKit 不是单个 Unity 插件，而是一组可以在 Unity、纯 .NET、
 
 | 入口 | 作用 | 使用边界 |
 |------|------|----------|
-| `Unity/Packages` | 唯一源码位置，也是 Unity Package 入口 | 阅读和修改框架源码从这里开始 |
+| `Unity/Packages` | framework/package runtime 的权威源码，也是 Unity Package 入口 | 阅读和修改共享框架源码从这里开始 |
 | `src` | .NET SDK 工程，用于构建、测试、Console Demo | 先用它跑通最小闭环 |
 | `Server/Orleans` | Orleans 网关、房间、战斗宿主和 Smoke 验证 | 理解多人服务端链路时再进入 |
 
@@ -27,7 +31,7 @@ AbilityKit 不是单个 Unity 插件，而是一组可以在 Unity、纯 .NET、
 
 ```mermaid
 flowchart TD
-    A["克隆仓库并打开根目录"] --> B["确认 Unity/Packages 是唯一源码位置"]
+    A["克隆仓库并打开根目录"] --> B["确认共享 package runtime 以 Unity/Packages 为权威源"]
     B --> C["阅读能力地图和项目结构"]
     C --> D["运行 dotnet build 或 Console Demo"]
     D --> E["观察配置、世界、阶段、自动测试日志"]
@@ -51,7 +55,7 @@ flowchart TD
 |-----------|------|
 | `README.md` | 仓库级定位、端到端能力管线、文档阅读路径 |
 | `Unity/Packages/README.md` | Package 分级、能力组合、模块文档索引 |
-| `.cursor/rules/src-unity-packages-relation.mdc` | 明确 `Unity/Packages` 是唯一源码位置，`src` 通过项目文件引用源码 |
+| `.cursor/rules/src-unity-packages-relation.mdc` | 明确共享 package runtime 以 `Unity/Packages` 为权威源，镜像工程通过项目文件引用源码 |
 | `.cursor/rules/ability-package-structure.mdc` | Runtime、Editor、Samples、package 命名和包结构约束 |
 | `src/AbilityKit.sln` | .NET 解决方案入口，包含框架、Demo、测试项目 |
 | `Docs/design/00-index.md` | 当前设计文档总索引和源码入口索引 |
@@ -62,7 +66,7 @@ Unity Editor 启动慢，且很多逻辑模块不依赖 Unity 场景。AbilityKi
 
 ```mermaid
 flowchart LR
-    P["Unity/Packages<br/>唯一源码位置"] --> U["Unity Editor/Player"]
+    P["Unity/Packages<br/>共享 package 权威源码"] --> U["Unity Editor/Player"]
     P --> S["src/*.csproj<br/>Compile Include"]
     S --> T["dotnet build/test"]
     S --> C["Console Demo"]
@@ -96,7 +100,9 @@ dotnet build src/AbilityKit.sln
 dotnet run --project src/AbilityKit.Demo.Moba.Console/AbilityKit.Demo.Moba.Console.csproj
 ```
 
-该 Demo 的入口是 `src/AbilityKit.Demo.Moba.Console/Program.cs`。默认模式会创建 `ConsoleBattleBootstrapper`，初始化配置和运行时世界，进入战斗阶段，然后由 `AutoTestRunner` 驱动一段完整战斗脚本。
+该 Demo 的入口是 `src/AbilityKit.Demo.Moba.Console/Program.cs`。默认模式设计为创建 `ConsoleBattleBootstrapper`，初始化配置和运行时世界，进入战斗阶段，再由 `AutoTestRunner` 驱动一段完整战斗脚本。它使用 `BootstrapStrict`，所以配置错误会在 World 创建阶段直接终止，不会为了展示流程而降级跳过。
+
+2026-08-16 当前工作区中，默认命令会被 `trigger 10060201 / action[2]` 的 SpawnArea 严格校验阻断：action 覆盖 `duration_ms=300`，Console 配置中的 Area `40060201` 仍有 `delay_ms=400`。因此下面的模式表描述 CLI 入口和设计用途，不表示每种模式当前都能越过启动门禁。
 
 Console Demo 支持几类 CLI 模式：
 
@@ -194,6 +200,18 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 ```
 
 测试项目适合用来学习模块边界，因为它们通常比 Demo 更小，失败信息也更直接。
+
+### 4.5 当前可执行证据
+
+| 入口 | 2026-08-16 当次结果 | 结论边界 |
+|------|---------------------|----------|
+| `AbilityKit.Continuous.Tests` | `2/2` | 默认 Manager 的 owner 索引与基本生命周期；不代表 MOBA 五类 runtime 完整闭环 |
+| `AbilityKit.Context.Tests` | `5/5` | Registry 事件异常隔离、Clear/Destroy 与 enum 默认值；尚未覆盖 Snapshot/Resolver |
+| `AbilityKit.BTCore.Tests` | `3/3` | Rebuild 与重复 Enable 生命周期；不证明随机节点确定性 |
+| `BehaviorManagerLifecycleTests` | `2/2` | 外部完成/中断后的 Decision 单次释放；构建仍有既有依赖和可空性警告 |
+| `AbilityKit.Demo.Moba.Tests` | `279/305` | 279 项通过；26 项共同被同一个严格配置错误阻断，不能写成 Console 完整 World 当前可运行 |
+
+快速开始应以“最小聚焦测试通过”为第一闭环，再把 Console 作为项目配置、应用装配与失败门禁的综合入口。只有主 MOBA 配置恢复有效并重新执行成功后，才能把默认 Console 路径写成已跑通证据。
 
 ---
 
@@ -385,3 +403,7 @@ flowchart LR
 ```
 
 理解 `Unity/Packages`、`src`、`World`、`DI`、`Host`、`Snapshot`、`Demo` 这七个入口后，再阅读 Triggering、Ability、Combat、Network 会更容易对齐源码边界。
+
+---
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

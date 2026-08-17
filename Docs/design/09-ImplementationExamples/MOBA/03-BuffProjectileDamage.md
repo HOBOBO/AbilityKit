@@ -1,5 +1,8 @@
 # MOBA Buff、Projectile 与 Damage 管线
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文给出 MOBA 战斗效果主链路的源码级总览，说明技能 Pipeline 如何通过 Buff、Projectile、Trigger/Effect 与 Damage 服务改变权威状态。Buff 命令执行与 Projectile 生命周期的实现细节分别见 [07-Buff 命令执行与生命周期收敛深潜](07-BuffLifecycleDeepDive.md) 和 [08-Projectile 与 Damage 深潜](08-ProjectileDamageDeepDive.md)。
 
 ## 1. 边界与结论
@@ -238,6 +241,21 @@ actual = oldHp - newHp
 | HP 落地与 Heal | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaDamageService.cs` |
 | Damage/Heal 快照 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaDamageEventSnapshotService.cs` |
 
+## 11. 当前所有权修正与应用层边界
+
+2026-08-16 工作区源码把跨技能主流程存活的子对象所有权进一步收口：
+
+| 对象 | 当前结束/恢复责任 |
+|------|-------------------|
+| Buff recovery | 先释放旧 Buff 的 skill retain；逐条导入时验证 parent runtime，并事务性重新 `RetainChild`，失败条目撤销列表/context/retain 后回池 |
+| Projectile / launcher link | 正常 cleanup 可先消费 retain；`Unlink*` 与 `Clear` 仍承担兜底消费和 `ReleaseChild`，避免字典清空直接遗失 capability |
+| Summon | spawn retain 失败会补偿 Actor、trace、owner/source tracking 与 retain；despawn/Clear/Dispose 释放 retain 并结束 spawn trace |
+| Skill runtime | Pipeline 结束后等待子 retain 归零；ForceTerminate/Clear 会撤销 child capability 并强制 finalize |
+
+这些行为由本地 Unity `MobaRuntimeOwnershipLifecycleTests` 9/9 artifact 直接覆盖，但该 artifact 只证明所有权 fixture，不证明 Buff、Projectile 和 Damage 的全部业务组合。2026-08-16 主 MOBA .NET 工程为 279/305，26 项因 SpawnArea 配置的启动严格校验失败；View Runtime 147/147、Host 6/6、Acceptance 8/8 独立通过。
+
+Buff/Projectile/Damage 的公共包只提供生命周期、投射物、Pipeline、属性等原语；本节的 actor schema、TriggerPlan、source/retain 编排和 HP/快照策略是 MOBA 项目应用层。该组合可直接参考，但不应作为所有战斗项目统一的开箱即用效果套件下沉。
+
 ---
 
-*文档版本：v1.1 | 状态：Buff、Projectile 与 Damage 组合总览及证据边界 | 最后更新：2026-08-02 | 验证基线：沿用 2026-08-02 MOBA .NET Release tests 232/232（有警告）；本轮仅核对测试入口，未重新执行测试*
+*文档版本：v3.0 | 最后更新：2026-08-16*

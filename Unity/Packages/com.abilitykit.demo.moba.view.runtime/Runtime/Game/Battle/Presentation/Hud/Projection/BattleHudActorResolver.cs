@@ -7,9 +7,9 @@ namespace AbilityKit.Game.Flow
 {
     internal sealed class BattleHudActorResolver : IBattleHudActorPositionResolver
     {
-        private readonly BattleContext _ctx;
+        private readonly IBattleEntityContext _ctx;
 
-        public BattleHudActorResolver(BattleContext ctx)
+        public BattleHudActorResolver(IBattleEntityContext ctx)
         {
             _ctx = ctx;
         }

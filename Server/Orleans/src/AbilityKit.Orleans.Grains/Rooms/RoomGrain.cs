@@ -18,6 +18,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
     private const long DefaultLoadingTimeoutMs = 120_000L; // 2 鍒嗛挓
     private const long DefaultOfflineGraceMs = 60_000L; // 1 鍒嗛挓
     private const int DefaultBattleCommitMaxAttempts = 3;
+    private static readonly TimeSpan AbandonedRoomCleanupRetryDelay = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan AbandonedRoomCleanupKeepAliveBuffer = TimeSpan.FromMinutes(1);
 
     private static readonly RoomGameplayRegistry GameplayRegistry = new();
 
@@ -34,6 +36,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
     private string? _battleId;
     private ulong _worldId;
     private WorldStartAnchor? _worldStartAnchor;
+    private IDisposable? _abandonedRoomCleanupTimer;
+    private bool _timersEnabled;
 
     public RoomGrain(IRoomStateStore roomStateStore)
     {
@@ -49,6 +53,17 @@ public sealed class RoomGrain : Grain, IRoomGrain
         }
 
         await base.OnActivateAsync(cancellationToken);
+        _timersEnabled = true;
+        RefreshAbandonedRoomCleanupTimer();
+    }
+
+    public override Task OnDeactivateAsync(
+        DeactivationReason reason,
+        CancellationToken cancellationToken)
+    {
+        _timersEnabled = false;
+        CancelAbandonedRoomCleanupTimer();
+        return base.OnDeactivateAsync(reason, cancellationToken);
     }
 
     public async Task InitializeAsync(RoomSummary summary, string directoryKey)
@@ -680,6 +695,13 @@ public sealed class RoomGrain : Grain, IRoomGrain
         if (request is null) throw new ArgumentNullException(nameof(request));
 
         var state = RequirePersistentState();
+        if (AbandonedRoomCleanupPolicy.ShouldCleanup(state, request.NowTicks))
+        {
+            var cleanupRevision = state.Revision + 1;
+            await CleanupAbandonedRoomAsync(request.NowTicks);
+            return RoomOperationResult.AppliedAt(cleanupRevision);
+        }
+
         var loadingTimeoutMs = request.LoadingTimeoutMs > 0 ? request.LoadingTimeoutMs : DefaultLoadingTimeoutMs;
         var offlineGraceMs = request.OfflineGraceMs >= 0 ? request.OfflineGraceMs : DefaultOfflineGraceMs;
 
@@ -1238,6 +1260,107 @@ public sealed class RoomGrain : Grain, IRoomGrain
     {
         await _roomStateStore.WriteRuntimeStateAsync(state.Summary.RoomId, state);
         RestoreActivation(state);
+        RefreshAbandonedRoomCleanupTimer();
+    }
+
+    private void RefreshAbandonedRoomCleanupTimer(TimeSpan? minimumDelay = null)
+    {
+        CancelAbandonedRoomCleanupTimer();
+        if (!_timersEnabled || _persistentState is null ||
+            !AbandonedRoomCleanupPolicy.TryGetCleanupDeadlineTicks(
+                _persistentState,
+                out var cleanupDeadlineTicks))
+        {
+            return;
+        }
+
+        var remainingTicks = Math.Max(0L, cleanupDeadlineTicks - DateTime.UtcNow.Ticks);
+        var dueTime = TimeSpan.FromTicks(remainingTicks);
+        if (minimumDelay.HasValue && dueTime < minimumDelay.Value)
+        {
+            dueTime = minimumDelay.Value;
+        }
+
+        var keepAliveDuration = dueTime > TimeSpan.MaxValue - AbandonedRoomCleanupKeepAliveBuffer
+            ? TimeSpan.MaxValue
+            : dueTime + AbandonedRoomCleanupKeepAliveBuffer;
+        DelayDeactivation(keepAliveDuration);
+        _abandonedRoomCleanupTimer = RegisterTimer(
+            _ => OnAbandonedRoomCleanupTimerAsync(),
+            state: null,
+            dueTime,
+            Timeout.InfiniteTimeSpan);
+    }
+
+    private void CancelAbandonedRoomCleanupTimer()
+    {
+        _abandonedRoomCleanupTimer?.Dispose();
+        _abandonedRoomCleanupTimer = null;
+        if (_timersEnabled)
+        {
+            DelayDeactivation(TimeSpan.FromMilliseconds(-1));
+        }
+    }
+
+    private async Task OnAbandonedRoomCleanupTimerAsync()
+    {
+        CancelAbandonedRoomCleanupTimer();
+        try
+        {
+            await CleanupAbandonedRoomAsync(DateTime.UtcNow.Ticks);
+        }
+        catch
+        {
+            RefreshAbandonedRoomCleanupTimer(AbandonedRoomCleanupRetryDelay);
+            throw;
+        }
+    }
+
+    private async Task CleanupAbandonedRoomAsync(long nowTicks)
+    {
+        var state = RequirePersistentState();
+        if (!AbandonedRoomCleanupPolicy.ShouldCleanup(state, nowTicks))
+        {
+            RefreshAbandonedRoomCleanupTimer();
+            return;
+        }
+
+        var roomId = state.Summary.RoomId;
+        var removedMembers = state.Members.Select(member => member.AccountId).ToList();
+
+        if (!string.IsNullOrWhiteSpace(state.BattleCommit.BattleId))
+        {
+            var battle = GrainFactory.GetGrain<IBattleLogicHostGrain>(state.BattleCommit.BattleId);
+            await battle.DestroyAsync();
+        }
+
+        if (state.BattleCommit.WorldId != 0UL)
+        {
+            var frameSync = GrainFactory.GetGrain<IBattleFrameSyncGrain>(
+                state.BattleCommit.WorldId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            await frameSync.DestroyAsync();
+        }
+
+        await ClearAccountRoomMappingsAsync(removedMembers, roomId);
+        await RemoveFromDirectoryAsync();
+        await _roomStateStore.RemoveRuntimeStateAsync(roomId);
+
+        var gameplay = RequireGameplay();
+        var expired = state with
+        {
+            Phase = RoomPhase.Expired,
+            PhaseReason = "AllClientsDisconnectedTimeout",
+            Members = new List<RoomPersistentMember>(),
+            Summary = state.Summary with { PlayerCount = 0 },
+            GameplayState = gameplay.ExportPersistentState(gameplay.CreateState(state.Summary)),
+            TerminalReason = "AllClientsDisconnectedTimeout",
+            Revision = state.Revision + 1,
+            EventSequence = state.EventSequence + 1,
+            UpdatedAtUnixMs = NowUnixMs()
+        };
+        RestoreActivation(expired);
+        _statePushBindings.Clear();
+        DeactivateOnIdle();
     }
 
     private static long NowUnixMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();

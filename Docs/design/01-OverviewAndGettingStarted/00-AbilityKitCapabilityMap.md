@@ -1,6 +1,10 @@
 # AbilityKit 能力地图
 
-本文从源码出发说明 AbilityKit 实际提供的能力边界。阅读源码时需要牢记一条工程约束：`Unity/Packages` 是唯一源码位置，`src` 是 .NET SDK 构建和测试工程，`Server/Orleans` 是服务端承载与联机验证工程。
+> 文档类型：跨域能力导航
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
+本文从源码出发说明 AbilityKit 实际提供的能力边界。阅读源码时需要牢记一条工程约束：被 Unity 与 `.NET` 镜像共同消费的 framework/package runtime 以 `Unity/Packages` 为权威源码；`src` 还包含测试、Console 和其他工具的自有应用源码，`Server/Orleans` 则包含服务端应用源码与联机验证入口。
 
 ---
 
@@ -104,9 +108,11 @@ mindmap
         Motion
         EntityManager
       Config/CodeGen
-        ActionSchema
-        Luban
-        AutoPlanActionGenerator
+        ConfigDatabase
+        Triggering ActionSchema
+        ActionTimeline DTO
+        MOBA Manifest Generators
+        Luban Candidate/Publish
     Examples/Server
       MOBA
         Runtime
@@ -154,6 +160,19 @@ flowchart LR
     SY -. 同步验证 .-> NT["Network/Shooter Tests"]
     SR -. 远程闭环 .-> OT["Orleans Shooter Smoke"]
 ```
+
+### 3.1 组合名称不是预制应用层
+
+`SkillCore`、`BattleRuntime`、`SyncRuntime` 和 `ServerRuntime` 是能力选型名称，用来说明一组包能够共同解决哪类问题；它们不代表仓库提供了一个所有游戏都应采用的标准战斗应用层。
+
+| 层次 | 框架稳定提供 | 项目仍需决定 |
+|------|--------------|--------------|
+| SkillCore | 触发顺序、Pipeline 生命周期、属性与修饰器原语 | 技能槽、施法事务、资源和冷却策略、失败处理 |
+| BattleRuntime | 目标查询、投射物、伤害、运动等领域能力 | 命中规则、结算阶段、Actor 组织、临时实体归属 |
+| SyncRuntime | 输入帧、快照、状态恢复、回放协议与协调能力 | 权威边界、同步字段、预测对象、恢复体验和预算 |
+| ServerRuntime | Host、协议、连接与服务端承载基础设施 | 房间规则、战斗分配、匹配、结算和运营策略 |
+
+这种边界是刻意设计的：网络与承载层可以围绕稳定协议提供较完整的默认实现；战斗应用层承载项目差异，不以“少写装配代码”为目标继续上移。MOBA 和 Shooter 的价值是证明同一组底层能力可以支持不同组织方式，并给出高接入程度的参考，而不是定义唯一的 Battle Application。
 
 ---
 
@@ -536,6 +555,8 @@ sequenceDiagram
 | 学会 Shooter 大规模同步 | `demo.shooter.runtime`、`world.svelto` | `dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj` |
 | 学会服务端房间/网关/Smoke | `protocol.*`、`host.extension`、`Server/Orleans` | `Server/Orleans/src/*Tests` 和 Shooter Smoke |
 
+这里的“先跑哪个验证”是入口建议，不是通过状态声明。2026-08-16 当次主 MOBA 测试为 `279/305`：26 项共同在 World 启动前被 `trigger 10060201 / action[2]` 的 SpawnArea `duration_ms=300 < delay_ms=400` 严格校验阻断。因此 Console 命令当前用于复现启动门禁，不能作为“开箱即通过”的承诺；独立能力应优先运行对应聚焦测试工程。
+
 ---
 
 ## 11. 关联专题
@@ -552,3 +573,5 @@ flowchart LR
     P1 --> P2["示例闭环专题"]
     P2 --> P3["工程质量与文档治理"]
 ```
+
+*文档版本：v3.0 | 最后更新：2026-08-16 | 证据说明：各能力成熟度以对应专题的 E0-E5 声明为准*

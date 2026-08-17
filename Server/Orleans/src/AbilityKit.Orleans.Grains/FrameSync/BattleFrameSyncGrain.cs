@@ -315,6 +315,23 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         return Task.FromResult(metrics);
     }
 
+    public Task DestroyAsync()
+    {
+        _timer?.Dispose();
+        _timer = null;
+        _observers.Clear();
+        _inputsByFrame.Clear();
+        _inputHistory.Clear();
+        _fullRecording.Clear();
+        _worldId = 0UL;
+        _battleId = null;
+        _syncTemplateId = null;
+        _frame = 0;
+        _totalInputCount = 0;
+        DeactivateOnIdle();
+        return Task.CompletedTask;
+    }
+
     private void StoreInputHistory(int frame, List<FrameInputItem> inputs)
     {
         _inputHistory[frame] = new List<FrameInputItem>(inputs);

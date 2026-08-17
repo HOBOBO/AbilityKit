@@ -342,7 +342,7 @@ public static class ShooterAoiLodBenchmarkRunner
         private readonly BenchmarkOptions _options;
         private readonly MutableSnapshotPort _snapshotPort;
         private readonly ShooterBattleState _state;
-        private readonly ShooterPureStateSnapshotExporter[] _exporters;
+        private readonly ShooterPureStateSnapshotExporter _exporter;
         private readonly AoiInterestSet[] _interestSets;
         private readonly ObserverState[] _observers;
         private readonly HashSet<AoiEntityKey>[] _geometricVisible;
@@ -358,7 +358,7 @@ public static class ShooterAoiLodBenchmarkRunner
             _options = options;
             _snapshotPort = new MutableSnapshotPort(CreateSnapshot(benchmarkCase.Entities, options.Seed));
             _state = new ShooterBattleState(new UnusedEntityManager());
-            _exporters = new ShooterPureStateSnapshotExporter[benchmarkCase.Observers];
+            _exporter = new ShooterPureStateSnapshotExporter(_state, _snapshotPort, ZeroHashProvider.Instance);
             _interestSets = new AoiInterestSet[benchmarkCase.Observers];
             _observers = CreateObservers(benchmarkCase.Observers, options.Seed);
             _geometricVisible = new HashSet<AoiEntityKey>[benchmarkCase.Observers];
@@ -366,7 +366,6 @@ public static class ShooterAoiLodBenchmarkRunner
             _lastSentTick = new Dictionary<AoiEntityKey, int>[benchmarkCase.Observers];
             for (var i = 0; i < benchmarkCase.Observers; i++)
             {
-                _exporters[i] = new ShooterPureStateSnapshotExporter(_state, _snapshotPort, ZeroHashProvider.Instance);
                 _interestSets[i] = new AoiInterestSet();
                 _geometricVisible[i] = new HashSet<AoiEntityKey>();
                 _geometricScratch[i] = new HashSet<AoiEntityKey>();
@@ -429,7 +428,7 @@ public static class ShooterAoiLodBenchmarkRunner
                 {
                     var allocationStart = GC.GetAllocatedBytesForCurrentThread();
                     var timestamp = Stopwatch.GetTimestamp();
-                    payload = _exporters[observerIndex].ExportTransient(
+                    payload = _exporter.ExportTransient(
                         1,
                         isFullBaseline: false,
                         settings: CreateSettings(),
@@ -454,7 +453,7 @@ public static class ShooterAoiLodBenchmarkRunner
                 }
                 else
                 {
-                    payload = _exporters[observerIndex].ExportTransient(
+                    payload = _exporter.ExportTransient(
                         1,
                         isFullBaseline: false,
                         settings: CreateSettings(),
@@ -636,6 +635,7 @@ public static class ShooterAoiLodBenchmarkRunner
         public int PlayerCount => 0;
         public int ProjectileCount => 0;
         public int EnemyCount => 0;
+        public long MutationRevision => 0;
         public IReadOnlyCollection<int> PlayerIds => Array.Empty<int>();
         public IReadOnlyCollection<int> ProjectileIds => Array.Empty<int>();
         public IReadOnlyCollection<int> EnemyIds => Array.Empty<int>();
@@ -656,6 +656,7 @@ public static class ShooterAoiLodBenchmarkRunner
         public bool HasEnemy(int enemyId) => false;
         public bool TryGetEnemy(int enemyId, out ShooterSveltoTransformComponent transform, out ShooterSveltoHealthComponent health) { transform = default; health = default; return false; }
         public void AddEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health) { }
+        public void AddEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health, in ShooterSveltoNavigationComponent navigation) { }
         public void SetEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health) { }
         public void RemoveEnemy(int enemyId) { }
     }

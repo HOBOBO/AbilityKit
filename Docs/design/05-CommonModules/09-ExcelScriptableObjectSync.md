@@ -8,6 +8,15 @@ Excel Sync 面向“策划维护 Excel、Unity 编辑器维护 ScriptableObject�
 
 它不负责运行时加载、热重载、Luban schema 与发布、跨文件事务或业务引用校验。核心 asmdef 仅包含 Editor 平台，并依赖 UnityEditor、Odin、Newtonsoft.Json 和包内 EPPlus DLL；Runtime asmdef 当前为空壳，不能把该包声明为 Player、Server 或纯 `.NET` 配置能力。
 
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| Excel Sync 包 | Editor 模板、反射映射、codec、baseline 与三方合并机制 | 运行时数据库、线上发布、业务外键和项目表目录 |
+| Unity Editor 接入 | 编译等待、资产创建/绑定、批处理入口和人工冲突处理 | 假设一次批处理跨文件事务成功 |
+| 项目应用层 | schema、主键规则、文件锁、业务校验、权威源与下游转换 | 把 Table Asset 自动视为线上配置 |
+| Luban / ConfigDatabase | 独立的导表发布与运行时加载阶段 | 反向承担 Excel 双向 authoring 语义 |
+
+这类工具的复用点是同步与冲突机制，项目专用部分是表结构、codec、业务校验和发布链。将后者保留在项目层，能避免 Editor 工具被误用为统一战斗配置应用层。
+
 ## 2. 源码入口
 
 | 内容 | 路径 |
@@ -128,7 +137,7 @@ EPPlus reader 在 sheet 名为空时选择首个 sheet，指定 sheet 不存在�
 
 ## 9. 测试与验证
 
-截至 2026-07-15：
+截至 2026-08-15：
 
 - package 内没有 NUnit `[Test]` 或 `[UnityTest]`。
 - 没有独立 `.NET` 镜像工程，核心依赖 UnityEditor、Odin 和 EPPlus。
@@ -164,3 +173,9 @@ Excel Sync 已具备模板、反射映射、codec、baseline 和三方冲突检�
 - [CodeGen 与 Luban 生产链路](07-CodeGenAndLubanProductionPipeline.md)：生成资产权威源、候选晋升和发布门禁。
 - [ActionTimeline 数据协议与播放边界](08-ActionTimelineDataAndPlayback.md)：另一条独立的编辑器导出与运行时消费协议。
 - [公司级采用与模块治理规范](../10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md)：成熟度、owner、回滚和准入证据。
+
+---
+
+文档类型：Canonical 设计与 Editor 工作流 | 事实基线：2026-08-15 | 证据等级：E0 Editor 实现、E1 静态可审计、E2 authoring 接入；无独立 E3、E4 或自动 E5
+
+*文档版本：v3.0 | 最后更新：2026-08-15*

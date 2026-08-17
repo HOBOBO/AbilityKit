@@ -1,47 +1,47 @@
-# AbilityKit Deterministic
+# AbilityKit 确定性数值
 
-`com.abilitykit.deterministic` provides a deterministic numeric facade for frame-sync simulation code.
+`com.abilitykit.deterministic` 为帧同步模拟代码提供确定性数值门面。
 
-This package intentionally stays independent from `core`, `pipeline`, `triggering`, `modifiers`, and the demo packages. Existing float-based packages remain valid for presentation, tooling, configuration, and non-frame-sync runtime paths.
+本包有意保持独立，不依赖 `core`、`pipeline`、`triggering`、`modifiers` 或示例包。现有浮点数包仍可用于表现层、工具、配置和非帧同步运行时路径。
 
-## Current Scope
+## 当前范围
 
-- `Fixed64`: signed Q32.32 fixed-point scalar with raw `long` storage (checked arithmetic; `Int128` multiply/divide on .NET 7+, exact `decimal` fallback elsewhere, including Unity's compiler).
-- `FixedVec2` and `FixedVec3`: deterministic vectors with `Magnitude` / `Normalized` / `Distance` / `Dot` / `Cross` / `Angle` / `Lerp`.
-- `DeterministicMath`: `Abs` / `Min` / `Max` / `Clamp` / `Lerp` plus `Floor` / `Ceiling` / `Round` (half up), `Sqrt`, and full trigonometry — `Sin` / `Cos` / `Tan` / `Asin` / `Acos` / `Atan` / `Atan2` — with `Pi` / `TwoPi` / `HalfPi` / `E` constants.
-- `DeterministicRandom`: integer-backed repeatable random stream (xoroshiro128+ seeded via SplitMix64) with fixed-point output.
-- `DeterministicHash`: stable 64-bit FNV-1a hashing over `Fixed64` / `FixedVec2` / `FixedVec3` for simulation state hashing (rollback reconcile, replay verification). Unlike `object.GetHashCode`, values are identical across processes and platforms by construction.
+- `Fixed64`：带符号 Q32.32 定点标量，原始存储类型为 `long`（使用受检算术；.NET 7+ 使用 `Int128` 乘除法，其他环境使用精确的 `decimal` 回退，包括 Unity 编译器）。
+- `FixedVec2` 和 `FixedVec3`：确定性向量，提供 `Magnitude` / `Normalized` / `Distance` / `Dot` / `Cross` / `Angle` / `Lerp`。
+- `DeterministicMath`：提供 `Abs` / `Min` / `Max` / `Clamp` / `Lerp`、`Floor` / `Ceiling` / `Round`（五舍六入）、`Sqrt` 及完整三角函数 `Sin` / `Cos` / `Tan` / `Asin` / `Acos` / `Atan` / `Atan2`，并提供 `Pi` / `TwoPi` / `HalfPi` / `E` 常量。
+- `DeterministicRandom`：基于整数的可复现随机流（xoroshiro128+，通过 SplitMix64 设种），输出定点数。
+- `DeterministicHash`：对 `Fixed64` / `FixedVec2` / `FixedVec3` 执行稳定的 64 位 FNV-1a 哈希，用于模拟状态哈希（回滚校正、回放验证）。与 `object.GetHashCode` 不同，其值按设计在进程和平台之间保持一致。
 
-Floating-point conversions are boundary APIs only. Simulation logic should exchange raw fixed-point values, ratios, integers, or deterministic vectors.
+浮点转换只能用于边界 API。模拟逻辑应交换原始定点值、比例、整数或确定性向量。
 
-## Determinism Guarantees
+## 确定性保证
 
-Every algorithm in this package is implemented with plain 64-bit integer operations — add / subtract / shift / compare — plus `Fixed64` arithmetic. No `double` or `float` is involved in any computation path, so results are bit-identical across .NET, Mono, and IL2CPP:
+本包所有算法均使用普通 64 位整数操作（加、减、移位、比较）和 `Fixed64` 算术实现。任何计算路径都不涉及 `double` 或 `float`，因此结果在 .NET、Mono 和 IL2CPP 间逐位一致：
 
-- Trigonometry uses CORDIC (rotation mode for sin/cos, vectoring mode for atan2) with a 32-entry `atan(2^-i)` table and gain pre-compensation.
-- `Sqrt` uses a digit-by-digit restoring integer square root over the 96-bit operand `raw << 32`, rounded to nearest.
-- `src/AbilityKit.Deterministic.Tests/DeterministicGoldenTests.cs` locks bit-exact raw outputs for sampled inputs; any change that shifts a single bit fails the gate (`core-stability` in `tools/test-gates.json`).
+- 三角函数使用 CORDIC（正弦/余弦采用旋转模式，atan2 采用向量模式），包含 32 项 `atan(2^-i)` 表和增益预补偿。
+- `Sqrt` 对 96 位操作数 `raw << 32` 使用逐位恢复整数平方根，并舍入到最近值。
+- `src/AbilityKit.Deterministic.Tests/DeterministicGoldenTests.cs` 固定采样输入的精确原始输出；任何导致单个位变化的修改都会使门禁失败（`tools/test-gates.json` 中的 `core-stability`）。
 
-Accuracy is a handful of Q32.32 ulps (~1e-8) relative to `System.Math`, verified by tolerance tests against `System.Math` across periods and quadrants.
+相对 `System.Math` 的精度为数个 Q32.32 末位单位（约 1e-8），并已通过跨周期、象限的 `System.Math` 容差测试验证。
 
-## Conventions
+## 约定
 
-- Sources compile under Unity 2022.3 (C# 9): block namespaces, no C# 10+ syntax, no runtime feature dependencies.
-- Public surface follows the repo idiom of static properties (`Fixed64.Zero`, `Vec3`-style) rather than public fields or constants, and is tracked by the PublicAPI analyzer (`PublicAPI.Unshipped.txt`).
+- 源码可在 Unity 2022.3（C# 9）下编译：使用块级命名空间，不使用 C# 10+ 语法，也不依赖运行时新特性。
+- 公共接口面遵循仓库的静态属性惯例（如 `Fixed64.Zero`、`Vec3` 风格），不使用公共字段或常量，并由 PublicAPI 分析器（`PublicAPI.Unshipped.txt`）跟踪。
 
-## Backend Policy
+## 后端策略
 
-The public AbilityKit types are deliberately narrow so the internal backend could later be replaced or bridged to a third-party fixed-point implementation. The current decision (2026-08) is to keep the self-contained implementation above: Q32.32 with `Int128` fast paths already covers the need, the missing math has been filled in with integer-only algorithms, and there is no external dependency to vet for licensing or determinism. ET's `cn.etetet.truesync` (`Fix64` / `TSMath` / `TSVector`) remains a known fallback if requirements change, but nothing depends on it.
+AbilityKit 公共类型有意保持窄职责，使内部后端未来可以替换为第三方定点实现或与其桥接。当前决策（2026-08）是保留上述自包含实现：带 `Int128` 快速路径的 Q32.32 已满足需求，缺失数学函数已用纯整数算法补齐，也无需审查外部依赖的许可或确定性。若需求变化，ET 的 `cn.etetet.truesync`（`Fix64` / `TSMath` / `TSVector`）仍是已知回退方案，但当前没有任何代码依赖它。
 
-## Consumers
+## 使用方
 
-Wired into the Unity package graph as the deterministic numeric core of the frame-sync stack (2026-08, roadmap P0→P3 complete):
+本包已作为帧同步栈的确定性数值核心接入 Unity 包图（2026-08，路线图 P0 到 P3 已完成）：
 
-- `com.abilitykit.core` — `MathUtil.Sqrt` routes through this package, so every `Vec2/Vec3.Magnitude` / `.Normalized` / `.Distance` and `Quat.LookRotation` in the repo is deterministic; `DeterministicMathBridge` (float-boundary facade: Normalize / Magnitude / Sqrt / ToFixed / ToVec3 / Quat.Normalize) lives in `core` as the single shared implementation.
-- `com.abilitykit.combat.collision.abstractions` — sqrt/normalization points in raycast / sweep queries.
-- `com.abilitykit.combat.motion` — trajectory lengths, locomotion normalization, wall-slide/leash solvers.
-- `com.abilitykit.combat.projectile` — projectile kinematics (position / speed / distance budget in Q32.32; rollback snapshot v7 stores raw longs).
-- `com.abilitykit.world.framesync` — `FrameTime` accumulates time in Q32.32 (rollback payload v2 stores raw longs).
-- `com.abilitykit.demo.moba.runtime` — damage/heal/shield/resource pipeline in Q32.32 with single-conversion float boundaries (`MobaResourceFixedConvert`).
+- `com.abilitykit.core`：`MathUtil.Sqrt` 经由本包实现，因此仓库内所有 `Vec2/Vec3.Magnitude` / `.Normalized` / `.Distance` 和 `Quat.LookRotation` 都具有确定性；`DeterministicMathBridge`（浮点边界门面：Normalize / Magnitude / Sqrt / ToFixed / ToVec3 / Quat.Normalize）位于 `core`，作为唯一共享实现。
+- `com.abilitykit.combat.collision.abstractions`：射线检测/扫掠查询中的平方根和归一化点。
+- `com.abilitykit.combat.motion`：轨迹长度、移动归一化、贴墙滑动和牵引范围求解器。
+- `com.abilitykit.combat.projectile`：投射物运动学（位置/速度/距离预算采用 Q32.32；回滚快照 v7 存储原始 long 值）。
+- `com.abilitykit.world.framesync`：`FrameTime` 以 Q32.32 累加时间（回滚载荷 v2 存储原始 long 值）。
+- `com.abilitykit.demo.moba.runtime`：伤害/治疗/护盾/资源管线采用 Q32.32，并使用单次转换浮点边界（`MobaResourceFixedConvert`）。
 
-See the framesync package's 《定点帧同步接入指南》 (`com.abilitykit.world.framesync/Document/定点帧同步接入指南.md`) for the boundary rules and rollback conventions when adding new numeric fields.
+添加新数值字段时的边界规则和回滚约定见帧同步包的《定点帧同步接入指南》（`com.abilitykit.world.framesync/Document/定点帧同步接入指南.md`）。

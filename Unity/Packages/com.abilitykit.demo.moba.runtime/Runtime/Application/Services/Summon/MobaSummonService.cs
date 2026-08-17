@@ -160,7 +160,10 @@ namespace AbilityKit.Demo.Moba.Services
 
                 TrackSummon(rootOwner, actorId);
                 TrackSourceContext(actorId, in spawnSourceContext);
-                RetainSkillRuntime(actorId, summonId, in spawnSourceContext);
+                if (spawnSourceContext.SkillRuntimeHandle.IsValid && !RetainSkillRuntime(actorId, summonId, in spawnSourceContext))
+                {
+                    throw new InvalidOperationException($"Summon failed to retain parent skill runtime. summonId={summonId} actorId={actorId} runtime={spawnSourceContext.SkillRuntimeHandle}");
+                }
                 _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
                 CollectSummonSpawned(actorId, summonId, in spawnSourceContext);
 
@@ -885,12 +888,32 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        public void Dispose()
+        public void Clear()
         {
+            _queryBuffer.Clear();
+            foreach (var pair in _sourceBySummonActorId)
+            {
+                _queryBuffer.Add(pair.Key);
+            }
+
+            for (var i = 0; i < _queryBuffer.Count; i++)
+            {
+                var summonActorId = _queryBuffer[i];
+                var sourceContext = ConsumeSourceContext(summonActorId);
+                ReleaseSkillRuntime(summonActorId, sourceContext.SummonConfigId);
+                EndSpawnTrace(in sourceContext, SummonDespawnReason.SceneCleanup);
+            }
+
+            _queryBuffer.Clear();
             _summonsByRootOwner.Clear();
             _sourceBySummonActorId.Clear();
             ReleaseAllSkillRuntimes();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Summon, 0, CurrentFrame);
+        }
+
+        public void Dispose()
+        {
+            Clear();
         }
     }
 }

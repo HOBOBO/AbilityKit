@@ -64,12 +64,14 @@ namespace AbilityKit.Game.Flow
         {
             public int LastFrame;
             public float TickAcc;
+            public bool WorldReady;
             public bool FirstFrameReceived;
 
             public void Reset()
             {
                 LastFrame = 0;
                 TickAcc = 0f;
+                WorldReady = false;
                 FirstFrameReceived = false;
             }
         }

@@ -1,5 +1,8 @@
 # MOBA 世界启动与运行时装配
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文以当前 MOBA runtime 与 view runtime 源码为准，说明 battle world 如何完成类型注册、Blueprint 配置、服务容器构建、Entitas 系统安装、远程帧驱动和会话释放。本文只描述已有实现，不把可替换能力当作已实现能力。
 
 ## 1. 责任边界
@@ -309,8 +312,10 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 
 ## 13. 版本与验证基线
 
-- 文档核对日期：2026-08-02。
-- 当前事实基线：battle Blueprint 同时安装服务扫描与 Bootstrap 两个 Module；MOBA prediction rollback history 为 600。本文不再沿用单 Module 和 240 帧的旧描述。
-- 历史执行记录：2026-08-02 的 MOBA .NET Release 测试记录为 232/232 通过，执行过程存在警告。该记录不代表本文引用的 Unity 测试已在本轮执行。
-- 本轮验证范围：重新核对生产源码、Unity 测试入口与具体断言，未重新运行 .NET 或 Unity 测试。因此表中的“直接证明”表示仓库已有对应自动测试，不表示本轮产生新的通过结果。
-- 证据使用原则：测试 Harness 能启动 world、类型可以解析、编译成功或单个 Smoke 均不推导为 Blueprint、服务容器、预测与 teardown 的完整生产验收。
+- 当前事实仍是 battle Blueprint 同时安装服务扫描与 Bootstrap 两个 Module，prediction rollback history 为 600；框架 World/Host 提供装配机制，具体 Blueprint、Bootstrap Stage、Entitas system order 和 Session disposer 均由 MOBA 项目拥有。
+- `PlanTriggeringStage` 在 World 创建期执行严格 runtime validation。2026-08-16 `AbilityKit.Demo.Moba.Tests` 共 305 项，279 通过、26 失败；共同阻断是 trigger `10060201` 的 SpawnArea 有效持续时间 300ms 小于延迟 400ms。失败说明启动门禁生效，不应通过跳过校验把配置错误伪装成 World 可用。
+- 同日独立通过：MOBA View Runtime 147/147、Host 6/6、Acceptance 8/8。它们分别证明 view/session、host adapter 和离线 acceptance 契约，不替代正式 World 启动成功。
+- 本地 Unity ownership artifact 记录 9/9 通过，覆盖 Buff/Projectile/Summon/Skill runtime 所有权；它不是本轮重新执行的完整 Unity EditMode/PlayMode，也不是发布 gate 运行记录。
+- 构建与测试仍有依赖漏洞、Entitas/DesperateDevs 兼容性、nullable 等既有警告，不能记为零警告基线。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

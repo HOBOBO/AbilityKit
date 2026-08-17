@@ -35,6 +35,7 @@ namespace AbilityKit.Demo.Shooter.View
  
         public ShooterViewProjectionApplyResult Apply(in ShooterSnapshotViewBatch batch)
         {
+            _store.EnsureCapacity(checked(_store.EntityCount + batch.EntityChangeCount));
             var missingEntityRemovals = 0;
             if (ShouldReplaceMissingEntities(in batch))
             {

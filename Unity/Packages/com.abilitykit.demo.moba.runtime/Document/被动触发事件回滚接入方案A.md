@@ -163,7 +163,7 @@
 
 ## 7. Mermaid 流程图
 
-### 7.1 Publish & Record
+### 7.1 发布与记录
 
 ```mermaid
 graph TD
@@ -174,7 +174,7 @@ graph TD
     E --> F["Execute TriggerPlan Actions"]
 ```
 
-### 7.2 Rollback & Replay
+### 7.2 回滚与重放
 
 ```mermaid
 graph TD

@@ -15,8 +15,8 @@ internal static class GatewayGameplayCatalog
             "moba",
             30,
             "frame-sync-authority",
-            new[] { "frame-sync-authority", "state-sync-authority" },
-            SupportsStateSyncPush: true,
+            new[] { "frame-sync-authority" },
+            SupportsStateSyncPush: false,
             SupportsFrameSync: true),
         new(
             ShooterServerProtocol.RoomType,
@@ -26,7 +26,7 @@ internal static class GatewayGameplayCatalog
             false,
             "shooter_battle",
             30,
-            ShooterServerProtocol.PredictRollbackAuthorityTemplate,
+            ShooterServerProtocol.StateSyncAuthorityTemplate,
             ShooterServerProtocol.CreateStateSyncTemplateIds(),
             SupportsStateSyncPush: true,
             SupportsFrameSync: false)

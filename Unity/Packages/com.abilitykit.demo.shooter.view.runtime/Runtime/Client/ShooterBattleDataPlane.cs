@@ -1,11 +1,73 @@
 #nullable enable
 
 using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Battle;
 
 namespace AbilityKit.Demo.Shooter.View
 {
+    public sealed class ShooterBattleDataPlaneOptions
+    {
+        public static ShooterBattleDataPlaneOptions Default { get; } = new ShooterBattleDataPlaneOptions(
+            maxPushesPerDrain: 8,
+            maxDrainDuration: TimeSpan.FromMilliseconds(2));
+
+        public ShooterBattleDataPlaneOptions(int maxPushesPerDrain, TimeSpan maxDrainDuration)
+        {
+            if (maxPushesPerDrain <= 0) throw new ArgumentOutOfRangeException(nameof(maxPushesPerDrain));
+            if (maxDrainDuration <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(maxDrainDuration));
+
+            MaxPushesPerDrain = maxPushesPerDrain;
+            MaxDrainDuration = maxDrainDuration;
+        }
+
+        public int MaxPushesPerDrain { get; }
+
+        public TimeSpan MaxDrainDuration { get; }
+    }
+
+    public readonly struct ShooterBattleDataPlaneDiagnostics
+    {
+        public ShooterBattleDataPlaneDiagnostics(
+            int queueDepth,
+            int peakQueueDepth,
+            long enqueuedPushCount,
+            long processedPushCount,
+            long drainCount,
+            long budgetLimitedDrainCount,
+            int lastDrainProcessedCount,
+            double lastDrainMilliseconds)
+        {
+            QueueDepth = queueDepth;
+            PeakQueueDepth = peakQueueDepth;
+            EnqueuedPushCount = enqueuedPushCount;
+            ProcessedPushCount = processedPushCount;
+            DrainCount = drainCount;
+            BudgetLimitedDrainCount = budgetLimitedDrainCount;
+            LastDrainProcessedCount = lastDrainProcessedCount;
+            LastDrainMilliseconds = lastDrainMilliseconds;
+        }
+
+        public int QueueDepth { get; }
+
+        public int PeakQueueDepth { get; }
+
+        public long EnqueuedPushCount { get; }
+
+        public long ProcessedPushCount { get; }
+
+        public long DrainCount { get; }
+
+        public long BudgetLimitedDrainCount { get; }
+
+        public int LastDrainProcessedCount { get; }
+
+        public double LastDrainMilliseconds { get; }
+    }
+
     /// <summary>
     /// Shooter's battle data-plane push/reconnect/ack dispatcher, driven by the battle
     /// <see cref="NetworkTransport"/>. Subscribes <see cref="NetworkTransport.RawServerPushReceived"/>
@@ -25,10 +87,19 @@ namespace AbilityKit.Demo.Shooter.View
         private static readonly TimeSpan AutomaticFullStateSyncTimeout = TimeSpan.FromSeconds(10);
 
         private readonly NetworkTransport _transport;
-        private readonly System.Collections.Concurrent.ConcurrentQueue<(uint OpCode, ArraySegment<byte> Payload)> _pushQueue = new();
+        private readonly ShooterBattleDataPlaneOptions _options;
+        private readonly ConcurrentQueue<(uint OpCode, ArraySegment<byte> Payload)> _pushQueue = new();
         private ShooterClientSession? _session;
         private ShooterClientBattleHandle? _battle;
         private long _lastReliableEventAckRequested;
+        private int _queueDepth;
+        private int _peakQueueDepth;
+        private long _enqueuedPushCount;
+        private long _processedPushCount;
+        private long _drainCount;
+        private long _budgetLimitedDrainCount;
+        private int _lastDrainProcessedCount;
+        private long _lastDrainElapsedTimestampTicks;
         private bool _disposed;
 
         public event Action<uint, ArraySegment<byte>, ShooterSnapshotApplyResult>? SnapshotPushDispatched;
@@ -37,9 +108,25 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterSnapshotApplyResult LastPushResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
 
+        public ShooterBattleDataPlaneDiagnostics Diagnostics => new ShooterBattleDataPlaneDiagnostics(
+            Volatile.Read(ref _queueDepth),
+            Volatile.Read(ref _peakQueueDepth),
+            Interlocked.Read(ref _enqueuedPushCount),
+            Interlocked.Read(ref _processedPushCount),
+            Interlocked.Read(ref _drainCount),
+            Interlocked.Read(ref _budgetLimitedDrainCount),
+            Volatile.Read(ref _lastDrainProcessedCount),
+            Volatile.Read(ref _lastDrainElapsedTimestampTicks) * 1000d / Stopwatch.Frequency);
+
         public ShooterBattleDataPlane(NetworkTransport transport)
+            : this(transport, ShooterBattleDataPlaneOptions.Default)
+        {
+        }
+
+        public ShooterBattleDataPlane(NetworkTransport transport, ShooterBattleDataPlaneOptions options)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
+            _options = options ?? throw new ArgumentNullException(nameof(options));
             _transport.RawServerPushReceived += OnServerPushReceived;
             _transport.ConnectionEstablished += OnConnectionEstablished;
         }
@@ -65,14 +152,51 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             _pushQueue.Enqueue((opCode, payload));
+            Interlocked.Increment(ref _enqueuedPushCount);
+            UpdatePeakQueueDepth(Interlocked.Increment(ref _queueDepth));
         }
 
         /// <summary>Drains queued battle pushes on the caller's (main) thread. Call from the host tick loop.</summary>
-        public void Drain()
+        public int Drain()
         {
-            while (_pushQueue.TryDequeue(out var item))
+            var startedAt = Stopwatch.GetTimestamp();
+            var maxElapsedTicks = Math.Max(1L, (long)(_options.MaxDrainDuration.TotalSeconds * Stopwatch.Frequency));
+            var processed = 0;
+            while (processed < _options.MaxPushesPerDrain &&
+                   (processed == 0 || Stopwatch.GetTimestamp() - startedAt < maxElapsedTicks) &&
+                   _pushQueue.TryDequeue(out var item))
             {
+                Interlocked.Decrement(ref _queueDepth);
                 ProcessPush(item.OpCode, item.Payload);
+                processed++;
+            }
+
+            var elapsedTicks = Stopwatch.GetTimestamp() - startedAt;
+            Volatile.Write(ref _lastDrainProcessedCount, processed);
+            Volatile.Write(ref _lastDrainElapsedTimestampTicks, elapsedTicks);
+            Interlocked.Add(ref _processedPushCount, processed);
+            Interlocked.Increment(ref _drainCount);
+            if (Volatile.Read(ref _queueDepth) > 0 &&
+                (processed >= _options.MaxPushesPerDrain || elapsedTicks >= maxElapsedTicks))
+            {
+                Interlocked.Increment(ref _budgetLimitedDrainCount);
+            }
+
+            return processed;
+        }
+
+        private void UpdatePeakQueueDepth(int depth)
+        {
+            var observed = Volatile.Read(ref _peakQueueDepth);
+            while (depth > observed)
+            {
+                var previous = Interlocked.CompareExchange(ref _peakQueueDepth, depth, observed);
+                if (previous == observed)
+                {
+                    return;
+                }
+
+                observed = previous;
             }
         }
 
@@ -181,6 +305,10 @@ namespace AbilityKit.Demo.Shooter.View
             _disposed = true;
             _transport.RawServerPushReceived -= OnServerPushReceived;
             _transport.ConnectionEstablished -= OnConnectionEstablished;
+            while (_pushQueue.TryDequeue(out _))
+            {
+                Interlocked.Decrement(ref _queueDepth);
+            }
         }
     }
 }

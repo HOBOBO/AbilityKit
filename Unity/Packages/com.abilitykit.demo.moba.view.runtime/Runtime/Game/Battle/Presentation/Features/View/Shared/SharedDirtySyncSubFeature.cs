@@ -11,7 +11,7 @@ namespace AbilityKit.Game.Flow
         public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime)
         {
             var f = ctx.Feature;
-            var dirty = f?.Context?.DirtyEntities;
+            var dirty = f?.EntityContext?.DirtyEntities;
             if (dirty == null) return;
 
             // Clear at the start of the frame so multiple producers (Spawn + Transform)
@@ -25,7 +25,7 @@ namespace AbilityKit.Game.Flow
         public void RebindAll(in FeatureModuleContext<TFeature> ctx)
         {
             var f = ctx.Feature;
-            if (f?.Context?.EntityWorld == null) return;
+            if (f?.EntityContext?.EntityWorld == null) return;
 
             f.RebindAllViews();
         }

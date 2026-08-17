@@ -3,8 +3,10 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
+using AbilityKit.Demo.Moba.Services.Buffs.Lifecycle;
 using AbilityKit.Demo.Moba.Services.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs
@@ -16,11 +18,18 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
 
         private readonly MobaActorRegistry _actors;
         private readonly MobaRuntimeContextService _runtimeContexts;
+        private readonly MobaSkillCastRuntimeService _skillRuntimes;
+        private readonly BuffRuntimeBindingCoordinator _runtimeBindings;
 
-        public MobaBuffStateRecoveryProvider(MobaActorRegistry actors, MobaRuntimeContextService runtimeContexts)
+        public MobaBuffStateRecoveryProvider(
+            MobaActorRegistry actors,
+            MobaRuntimeContextService runtimeContexts,
+            MobaSkillCastRuntimeService skillRuntimes)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _runtimeContexts = runtimeContexts ?? throw new ArgumentNullException(nameof(runtimeContexts));
+            _skillRuntimes = skillRuntimes ?? throw new ArgumentNullException(nameof(skillRuntimes));
+            _runtimeBindings = new BuffRuntimeBindingCoordinator(null, null, _skillRuntimes);
         }
 
         public int Key => DefaultKey;
@@ -64,18 +73,14 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 var entry = p.Entries[i];
                 if (!_actors.TryGet(entry.TargetActorId, out var actor) || actor == null) continue;
 
-                var list = actor.hasBuffs && actor.buffs.Active != null
-                    ? actor.buffs.Active
-                    : new BuffRepository().GetOrCreateList(actor);
+                var hadRuntimeList = actor.hasBuffs && actor.buffs.Active != null;
+                var list = hadRuntimeList ? actor.buffs.Active : new BuffRepository().GetOrCreateList(actor);
+                if (TryRestoreEntry(frame, in entry, list)) continue;
 
-                var runtime = BuffRepository.RentRuntime();
-                entry.ApplyTo(runtime);
-                list.Add(runtime);
-                BuffRepository.RegisterRuntime(list, runtime);
-
-                _runtimeContexts.EnsureBuffContext(
-                    runtime,
-                    MobaBuffRuntimeContextData.FromRuntime(runtime, entry.TargetActorId, frame.Value, MobaRuntimeContextLifecycleState.Active));
+                if (!hadRuntimeList && list.Count == 0)
+                {
+                    BuffRepository.ReleaseList(actor);
+                }
             }
         }
 
@@ -105,11 +110,73 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                     var runtime = active[i];
                     if (runtime == null) continue;
                     _runtimeContexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Destroyed, frame.Value);
+                    _runtimeBindings.ReleaseSkillRuntime(runtime);
                     BuffRepository.ReleaseRuntime(runtime);
                 }
 
                 BuffRepository.ReleaseList(actor);
             }
+        }
+
+        private bool TryRestoreEntry(FrameIndex frame, in MobaBuffStateRecoveryEntry entry, List<BuffRuntime> list)
+        {
+            var runtime = BuffRepository.RentRuntime();
+            var added = false;
+            try
+            {
+                entry.ApplyTo(runtime);
+                if (!TryReacquireSkillRuntime(runtime))
+                {
+                    Log.Warning($"[MobaBuffStateRecoveryProvider] Reject restored buff with invalid parent runtime. target={entry.TargetActorId} buffId={entry.BuffId} sourceContextId={entry.SourceContextId} runtime={runtime.SkillRuntimeHandle}");
+                    return false;
+                }
+
+                list.Add(runtime);
+                added = true;
+                BuffRepository.RegisterRuntime(list, runtime);
+                _runtimeContexts.EnsureBuffContext(
+                    runtime,
+                    MobaBuffRuntimeContextData.FromRuntime(runtime, entry.TargetActorId, frame.Value, MobaRuntimeContextLifecycleState.Active));
+                runtime = null;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[MobaBuffStateRecoveryProvider] Restore buff failed. target={entry.TargetActorId} buffId={entry.BuffId} sourceContextId={entry.SourceContextId}");
+                return false;
+            }
+            finally
+            {
+                if (runtime != null)
+                {
+                    if (added && list.Remove(runtime))
+                    {
+                        BuffRepository.MarkDirty(list);
+                    }
+
+                    _runtimeContexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Destroyed, frame.Value);
+                    _runtimeBindings.ReleaseSkillRuntime(runtime);
+                    BuffRepository.ReleaseRuntime(runtime);
+                }
+            }
+        }
+
+        private bool TryReacquireSkillRuntime(BuffRuntime runtime)
+        {
+            if (runtime == null) return false;
+            var runtimeHandle = runtime.SkillRuntimeHandle;
+            if (!runtimeHandle.IsValid) return true;
+            if (runtime.SourceContextId == 0L) return false;
+
+            var child = new MobaSkillRuntimeChildRef(
+                MobaSkillRuntimeChildKind.Buff,
+                runtime.SourceContextId,
+                runtime.SourceContextId,
+                runtime.BuffId);
+            if (!_skillRuntimes.RetainChild(in runtimeHandle, in child, out var retainHandle)) return false;
+
+            new BuffRuntimeView(runtime).BindSkillRuntime(in runtimeHandle, in retainHandle);
+            return true;
         }
 
         private static int CompareEntries(MobaBuffStateRecoveryEntry a, MobaBuffStateRecoveryEntry b)

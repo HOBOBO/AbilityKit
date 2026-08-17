@@ -489,8 +489,11 @@ public sealed class ShooterPackedSnapshotRuntimeTests
             .Build();
         var target = targetContainer.Resolve<IShooterBattleRuntimePort>();
         var targetEntities = targetContainer.Resolve<IShooterEntityManager>();
+        var concreteTargetEntities = Assert.IsType<ShooterEntityManager>(targetEntities);
+        var submissionsBeforeImport = concreteTargetEntities.StructuralChangeSubmissionCount;
 
         Assert.True(target.ImportPackedSnapshot(in snapshot));
+        Assert.Equal(1, concreteTargetEntities.StructuralChangeSubmissionCount - submissionsBeforeImport);
         AssertEnemyComponentCounts(targetEntities, 2);
         Assert.Equal(source.ComputeStateHash(), target.ComputeStateHash());
 

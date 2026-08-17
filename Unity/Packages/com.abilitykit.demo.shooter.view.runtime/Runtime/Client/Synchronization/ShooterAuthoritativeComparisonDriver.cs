@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.Sync;
@@ -24,6 +25,7 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly Queue<PendingAuthoritativeInput> _pendingInputs = new Queue<PendingAuthoritativeInput>();
         private readonly Random _inputRandom;
         private readonly ShooterAuthoritySnapshotPublishOptions _publishOptions;
+        private readonly AoiInterestSet? _aoiInterestSet;
         private ShooterCarrierNetworkLink _carrierNetworkLink;
         private NetworkConditionProfile _networkProfile;
         private SyncTimeAnchor _lastCarrierTimeAnchor;
@@ -47,6 +49,7 @@ namespace AbilityKit.Demo.Shooter.View
             _authoritativePresentation = authoritativePresentation;
             _networkProfile = networkProfile;
             _publishOptions = publishOptions;
+            _aoiInterestSet = publishOptions.UsesAoiScope ? new AoiInterestSet() : null;
             _inputRandom = new Random(networkSeed);
             _carrierNetworkLink = new ShooterCarrierNetworkLink(_controller, networkProfile, networkSeed);
         }
@@ -84,6 +87,7 @@ namespace AbilityKit.Demo.Shooter.View
             _lastDeliveredInputCount = 0;
             _lastPureStateBaselineFrame = 0;
             _lastPureStateBaselineHash = 0u;
+            _aoiInterestSet?.Clear();
             _carrierNetworkLink = new ShooterCarrierNetworkLink(_controller, profile);
             _lagCompensation.Clear();
             _lastCarrierTimeAnchor = default;
@@ -183,7 +187,8 @@ namespace AbilityKit.Demo.Shooter.View
                 settings: settings,
                 baselineFrame: _lastPureStateBaselineFrame,
                 baselineHash: _lastPureStateBaselineHash,
-                interestScope: interestScope);
+                interestScope: interestScope,
+                aoiInterestSet: _aoiInterestSet);
 
             if (isFullBaseline)
             {
@@ -220,6 +225,7 @@ namespace AbilityKit.Demo.Shooter.View
                     observer.X,
                     observer.Y,
                     sendPolicy.AoiRadius,
+                    sendPolicy.AoiBoundaryRadius,
                     sendPolicy.ActiveEntityBudget);
             }
 
@@ -227,7 +233,8 @@ namespace AbilityKit.Demo.Shooter.View
                 observerPlayerId: 0,
                 centerX: 0f,
                 centerY: 0f,
-                radius: sendPolicy.AoiRadius,
+                visibleRadius: sendPolicy.AoiRadius,
+                boundaryRadius: sendPolicy.AoiBoundaryRadius,
                 maxEntities: sendPolicy.ActiveEntityBudget);
         }
 

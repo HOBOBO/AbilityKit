@@ -3,7 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Room;
-using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game.Battle.Agent
@@ -32,15 +31,7 @@ namespace AbilityKit.Game.Battle.Agent
 
         public GatewayStateSyncSnapshot DeserializeStateSyncSnapshotPush(ArraySegment<byte> payload)
         {
-            // FIXED (2026-07-20): Use WireRoomGatewayBinary + WireStateSyncSnapshotPush (MemoryPack)
-            // instead of MobaWorldSnapshotCodec (BinaryObjectCodec). The server encodes via
-            // WireRoomGatewayBinary.Serialize(WireStateSyncSnapshotPush) in StateSyncObserverGrain,
-            // so the matching deserializer is WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>.
-            // The old MobaWorldSnapshotCodec path used an incompatible BinaryObjectCodec and a
-            // different struct shape (5 fields, long Timestamp) — it would silently produce
-            // default/empty snapshots instead of throwing, masking the real data.
-            var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
-            return ToGatewaySnapshot(in wire);
+            return _wireClient.DeserializeStateSyncSnapshotPush(payload);
         }
 
         public bool IsStateSyncSnapshotPush(uint opCode)
@@ -65,73 +56,21 @@ namespace AbilityKit.Game.Battle.Agent
             if (frame < 0) throw new ArgumentOutOfRangeException(nameof(frame));
             if (playerId == 0) throw new ArgumentOutOfRangeException(nameof(playerId));
 
-            var commandSequence = unchecked((ulong)Interlocked.Increment(ref _nextBattleInputCommandSequence));
-            var req = new WireSubmitBattleInputReq
-            {
-                SessionToken = sessionToken,
-                BattleId = battleId,
-                WorldId = worldId,
-                Frame = frame,
-                PlayerId = playerId,
-                InputOpCode = inputOpCode,
-                Payload = inputPayload ?? Array.Empty<byte>(),
-                CommandSequence = commandSequence
-            };
-            var payload = WireRoomGatewayBinary.Serialize(in req);
-            var respPayload = await _sendRequestAsync(_opCodes.SubmitBattleInput, payload, timeout, cancellationToken);
-            var wire = WireRoomGatewayBinary.Deserialize<WireSubmitBattleInputRes>(respPayload);
-            return new GatewayBattleInputResult(
-                wire.AcceptedFrame,
-                wire.Success,
-                wire.CurrentFrame,
-                wire.Status,
-                wire.Message,
-                wire.ShouldResync,
-                wire.ServerTicks,
-                commandSequence);
+            return await _wireClient.SubmitBattleInputAsync(
+                sessionToken,
+                battleId,
+                worldId,
+                frame,
+                playerId,
+                inputOpCode,
+                inputPayload,
+                timeout,
+                cancellationToken).ConfigureAwait(false);
         }
 
         public static GatewayStateSyncSnapshot ToGatewaySnapshot(in WireStateSyncSnapshotPush push)
         {
-            var source = push.Actors;
-            var actors = source == null || source.Count == 0
-                ? Array.Empty<GatewayStateSyncActorSnapshot>()
-                : new GatewayStateSyncActorSnapshot[source.Count];
-
-            for (int i = 0; i < actors.Length; i++)
-            {
-                var actor = source[i];
-                actors[i] = new GatewayStateSyncActorSnapshot(
-                    actor.ActorId,
-                    actor.X,
-                    actor.Y,
-                    actor.Z,
-                    actor.Rotation,
-                    actor.VelocityX,
-                    actor.VelocityZ,
-                    actor.Hp,
-                    actor.HpMax,
-                    actor.TeamId,
-                    actor.Kind,
-                    actor.Code,
-                    actor.OwnerNetId);
-            }
-
-            var removedSource = push.RemovedActorIds;
-            var removedActorIds = removedSource == null || removedSource.Count == 0
-                ? Array.Empty<int>()
-                : removedSource.ToArray();
-
-            return new GatewayStateSyncSnapshot(
-                push.WorldId,
-                push.Frame,
-                push.Timestamp,
-                push.IsFullSnapshot,
-                actors,
-                push.SchemaVersion,
-                removedActorIds,
-                push.EventWatermark,
-                push.EventEpoch);
+            return GatewayRoomResponseMapper.ToGatewaySnapshot(in push);
         }
     }
 }

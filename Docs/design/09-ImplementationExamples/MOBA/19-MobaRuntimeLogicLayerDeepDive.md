@@ -1,5 +1,8 @@
 # MOBA Runtime 战斗逻辑层设计：职责边界、输入输出、System/Service 拆分与单元测试
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文以 moba.runtime 源码为准，系统性解释逻辑世界的内部结构：职责边界、输入流入 ECS Component 的路径、快照流出到表现层的方式、System 与 Service 的分工规则、世界级 DI 的注册体系，以及用轻量测试环境做单元测试的方法。阅读本文的前提是已理解 ECS 基本概念（Entity、Component、System）和 World 是什么。如果只关心"怎么用"，可以直接跳到第五节和第六节。
 >
 > 关联文档：本文与 [12-DI 与 System/Service 协作深潜](./12-DIAndSystemServiceCollaborationDeepDive.md) 是互补关系——后者侧重 DI 机制和协作模式，本文侧重逻辑层的职责边界、输入输出链路和测试策略。
@@ -88,8 +91,8 @@ flowchart TB
 | 快照路由 | `Application/Services/Snapshot/MobaSnapshotRouter.cs` | 聚合所有快照发射器，实现 `IWorldStateSnapshotProvider` |
 | 输入协调 | `Application/Services/Input/MobaInputCoordinator.cs` | 实现 `IWorldInputSink`，OpCode → Handler 路由 |
 | 伤害管线 | `Application/Services/Combat/Damage/DamagePipelineService.cs` | 4 阶段伤害计算 |
-| 测试环境 | `Runtime/Testing/MobaRuntimeTestEnvironment.cs` | 聚合测试所需组件 |
-| 测试脚本运行器 | `Runtime/Testing/BattleTestScriptRunner.cs` | 脚本化多帧测试 |
+| 测试环境 | `Testing/MobaRuntimeTestEnvironment.cs` | 聚合测试所需组件 |
+| 测试脚本运行器 | `Testing/BattleTestScriptRunner.cs` | 脚本化多帧测试 |
 
 ---
 
@@ -664,7 +667,7 @@ public sealed class MobaBuffService : ..., IWorldService { ... }
 public sealed class MobaBattleIOPort : ..., IWorldService { ... }
 
 // [WorldService(..., Singleton|Scoped)] 指定生命周期
-[WorldService(typeof(IMobaGameplayService), Lifetime.Scoped)]
+[WorldService(typeof(MobaGameplayService), WorldLifetime.Scoped)]
 public sealed class MobaGameplayService : ..., IWorldService { ... }
 ```
 
@@ -690,8 +693,8 @@ options.ServiceBuilder.Register<ICollisionService>(
 
 | 生命周期 | 含义 | 典型使用 |
 |---|---|---|
-| `Singleton` | 每个 World 一个实例，全生命周期共享 | `MobaConfigDatabase`、`MobaSnapshotRouter` |
-| `Scoped` | 每个 World 一个实例，World 销毁时释放 | `MobaGameplayService`、`MobaBuffService` |
+| `Singleton` | 在当前 World 容器中缓存一个实例，全生命周期共享 | `MobaConfigDatabase`（由 `ConfigStage` 显式注册） |
+| `Scoped` | 每个 World scope 一个实例，World 销毁时释放；`WorldService` 默认即为 Scoped | `MobaGameplayService`、`MobaBuffService`、`MobaSnapshotRouter` |
 | `Transient` | 每次解析创建新实例 | 极少使用 |
 
 ### 8.4 扫描命名空间
@@ -939,16 +942,29 @@ flowchart LR
 
 | 证据类型 | 可执行入口 | 当前覆盖 | 边界 |
 |---|---|---|---|
-| MOBA .NET tests | `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj -c Release` | 2026-08-02 在 Windows 11、.NET 10 Release 下通过 232/232；覆盖 Console bootstrap、共享脚本、输入、技能 trace、战斗生命周期及其他 MOBA 测试 | 不包含 Unity Test Runner；构建仍有依赖漏洞、Entitas 兼容性、可空性与 xUnit Analyzer 警告 |
+| MOBA .NET tests | `dotnet test src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj -c Release` | 2026-08-16 为 279/305；26 项共同在 World 启动前被 trigger `10060201 / action[2]` 的 SpawnArea duration/delay 严格校验阻断 | 不能写成 Runtime 整体通过；不包含 Unity Test Runner，构建仍有依赖漏洞、Entitas 兼容性、可空性等既有警告 |
+| View Runtime .NET tests | `dotnet test src/AbilityKit.Demo.Moba.View.Runtime.Tests/AbilityKit.Demo.Moba.View.Runtime.Tests.csproj -c Release` | 147/147；覆盖 Room、Session、Flow、transport、输入和表现边界 | 不创建同一个完整 MOBA World，不能覆盖上述配置阻断 |
+| Host / Acceptance .NET tests | `AbilityKit.Demo.Moba.Host.Tests`、`AbilityKit.Demo.Moba.Acceptance.Tests` | 6/6 与 8/8 | 独立宿主/验收契约，不等于完整 Unity 或多人 Smoke |
 | Console Smoke 筛选 | 同一工程使用 `--filter FullyQualifiedName~ConsoleMobaSmokeFlowTests` 或 `FullyQualifiedName~MobaCompleteBattleLifecycleSmokeTests` | 聚焦 Console 正式 World 主链路 | 不是 Gateway、多进程或 Unity 表现验收 |
 | Unity Acceptance | Unity Test Runner 中执行 `MobaCompleteBattleJourneyAcceptanceTests` | Unity 宿主中的单局 journey acceptance | 需要独立保存 Unity 测试报告；类存在不等于本轮已运行，也不能证明多人网络或正式表现闭环 |
 | 测试辅助骨架 | `MobaRuntimeTestEnvironment<TCtx>`、`BattleTestScriptRunnerTests` | 配置、Trigger 和脚本 driver 契约 | 辅助类型存在不代表伤害、Buff、移动等业务场景已全部覆盖 |
 
-文档中的类名和调用链仍应在每次源码演进后复核，不能以一次审计永久标记为“全部已验证”。Console Smoke 已提供输入、技能、Effect trace、World 生命周期等自动断言；它能证明这些测试路径存在，实际通过状态应以对应命令的当次报告为准。
+文档中的类名和调用链仍应在每次源码演进后复核，不能以一次审计永久标记为“全部已验证”。Console Smoke 已提供输入、技能、Effect trace、World 生命周期等自动断言；但当前严格启动错误发生在这些场景创建 World 之前，测试数量增加也不能抵消失败基线。
+
+## 12. 逻辑层作为项目应用组合
+
+`moba.runtime` 是当前 MOBA 规则执行层，不是 AbilityKit 框架必须内置的统一 Battle Application。边界可按下表判断：
+
+| 可下沉原语 | 保留在 MOBA 项目层 |
+|------------|------------------|
+| World/DI、ECS adapter、Pipeline、Triggering、Continuous、Trace、Snapshot、Host port | Blueprint/Bootstrap stage、`MobaSystemOrder`、输入命令目录、技能提交策略、Buff/Summon/Area 事务、玩法阶段和快照 schema |
+| 通用生命周期接口和失败结果 | actor group、配置表、事件名、PlanAction DSL、diagnostics catalog 和 strict validation 规则 |
+
+System/Service 拆分带来的低接入成本来自“稳定机制可复用、项目编排可替换”，而不是把几十个 MOBA Service 再包装成框架默认套件。只有语义跨项目稳定、依赖可反转、所有权可独立解释并被非同构玩法验证的能力，才应考虑继续下沉。
 
 ---
 
-## 12. 关联文档
+## 13. 关联文档
 
 | 文档 | 关系 |
 |---|---|
@@ -963,4 +979,4 @@ flowchart LR
 
 ---
 
-*文档版本：v1.1 | 状态：Runtime 逻辑层实现与验收边界 | 最后更新：2026-08-02 | 验证基线：MOBA .NET tests 232/232 已通过；Unity acceptance 本轮仅核对测试入口，未重新执行*
+*文档版本：v3.0 | 最后更新：2026-08-16*

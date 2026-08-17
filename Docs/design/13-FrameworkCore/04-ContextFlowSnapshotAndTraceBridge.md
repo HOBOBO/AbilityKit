@@ -1,10 +1,16 @@
 # Context Flow、Snapshot 与 Trace 桥接
 
+> 文档类型：FrameworkCore canonical
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 ## 一、文档定位
 
 `com.abilitykit.context` 提供一组轻量运行时关联工具：用实体 ID 关联属性，用 Flow 记录一批实体所属的执行阶段，用 Snapshot 保留每个实体的最新状态，再通过统一读取器在实时数据和快照之间选择来源。
 
 该包采用 ECS 风格的实体、属性和查询接口，但它不是完整 ECS World：没有 System 调度、结构变更队列、Chunk 存储、帧历史或自动资源回收。它更适合承载 Buff、技能阶段、触发输入和诊断上下文等跨模块关联数据。
+
+本文中的通用 Context 包与 MOBA 的 `MobaCombatExecutionContext` 是不同层次。前者管理轻量实体、Flow、Snapshot 和值解析；后者是项目应用层的战斗执行读模型，负责 source/target/root/parent/owner、skill runtime handle、frame 等 provenance 的确定性传播。MOBA canonical provenance 的字段合并和冲突策略不属于 `com.abilitykit.context` 的公共契约。
 
 Trace 桥接只把 Trace 标识附着到 Context 实体上。Trace 树的创建、结束、引用计数和清理仍由 `com.abilitykit.trace` 负责，详见 `03-TraceLifecycleAndExportProtocol.md`。
 
@@ -215,6 +221,8 @@ Trace 节点何时结束、根何时 release、Context 实体何时销毁以及�
 
 ## 八、MOBA 的领域接入
 
+### 8.1 通用 Context 包的组合使用
+
 `MobaRuntimeContextService` 是当前较完整的组合示例。它为 Buff 维护一个实时 provider，并在终止路径显式执行：
 
 1. 从实时 Buff 创建最终 `MobaBuffContextSnapshot`；
@@ -227,6 +235,24 @@ Trace 节点何时结束、根何时 release、Context 实体何时销毁以及�
 这套顺序保证终止后实时读取失败，而快照仍可作为后备。它是 MOBA 领域服务的编排，不是 `com.abilitykit.context` 自动提供的生命周期。
 
 MOBA 快照同时实现 `IContextValueProvider` 和 `ISnapshotAccessor`。Resolver 会优先使用前者，因此其未知 key 能正确返回 missing，不会触发 accessor 的无条件命中问题。其他只实现 `ISnapshotAccessor` 的业务快照仍受该风险影响。
+
+### 8.2 战斗执行 Context 与 canonical provenance
+
+MOBA Trigger/Effect 链没有直接复用 `ContextRegistry` 实体作为执行参数，而是使用不可变投影：
+
+| 投影 | 职责 |
+|---|---|
+| `MobaCombatContextSource` | 表达一次执行来源，不携带领域服务所有权 |
+| `MobaTriggerExecutionSnapshot` | 固化触发瞬间的来源、目标、Trace 与帧 |
+| `MobaPersistentContextSourceSnapshot` | 跨帧 runtime 可持久保留的来源投影 |
+| `MobaCombatExecutionContext` | Effect/Action 运行时统一只读上下文 |
+| `MobaCanonicalProvenance` | 多种 provider 之间逐字段归一化 identity，并记录字段来源状态 |
+
+canonical 字段包含 source/target actor、source/parent/root/owner context 和 skill runtime handle。每个字段记录 `Missing`、`Synthesized`、`Inherited` 或 `Explicit` 状态：缺失字段允许由后续正式来源补齐；双方非缺失且值不同则 fail-fast。Context kind、trigger、frame 等执行 metadata 也使用确定性合并并拒绝冲突，配置来源 ID 与当前执行配置 ID 因语义不同，不合并为同一 canonical 字段。
+
+Effect 创建或挂接正式 `EffectExecution` 节点后，`MobaCombatExecutionContext.WithEffectExecutionNode()` 会把 `SourceContextId`、`ParentContextId` 和 root identity 推进到真实执行节点。后续 Action、Damage、Buff、Projectile 和 Summon 继承该投影，不再把 actor ID 伪装成 Trace ID，也不从 `OwnerContextId` 推导生命周期权限。
+
+完整字段矩阵、冲突规则和 Action lifecycle 见 [MOBA Trace、Context 与 Effect 执行深潜](../09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md)。
 
 ## 九、线程与一致性
 
@@ -243,7 +269,9 @@ MOBA 快照同时实现 `IContextValueProvider` 和 `ISnapshotAccessor`。Resolv
 
 ## 十、验证现状
 
-`com.abilitykit.context` 包目录当前没有独立测试程序集。`src/AbilityKit.Demo.Moba.Tests/Context/MobaContextBridgeTests.cs` 提供了以下间接证据：
+`src/AbilityKit.Context.Tests` 已是独立 `.NET` 测试工程。2026-08-16 当次结果为 `5/5`：其中 3 项覆盖 Registry 观察者异常隔离、Clear 和 Destroy，2 项固定枚举默认值。该工程证明事件异常不会改变已提交的 create/destroy/clear 结果，但尚未形成 Snapshot/Resolver/Flow 的完整包级矩阵。
+
+`src/AbilityKit.Demo.Moba.Tests/Context/MobaContextBridgeTests.cs` 另提供以下寄宿式证据：
 
 - Flow 内创建实体并记录归属；
 - `TraceContextProperty` 的附着和三种反向查询；
@@ -251,14 +279,14 @@ MOBA 快照同时实现 `IContextValueProvider` 和 `ISnapshotAccessor`。Resolv
 - Flow 创建和实体创建事件可被观察；
 - 显式 `Execute(registry)` 使用执行时传入的注册表。
 
-这些测试没有覆盖 Snapshot、Resolver、Flow 终态、销毁事件异常或 MOBA 终止编排。
+独立工程已经覆盖销毁事件异常，但仍没有覆盖 Snapshot、Resolver 和 Flow 终态，所以下述测试缺口仍成立。MOBA 项目层另有 `MobaCanonicalProvenanceTests` 14/14 和 ownership fixture 9/9 的 2026-08-15 聚焦结果，覆盖多来源 enrichment、identity/metadata 冲突、Effect execution node 推进以及 Buff/Projectile/Summon/Skill runtime 清理；这些是战斗执行 Context 的寄宿式 E3，不应表述为通用 Context 包专项覆盖。
 
 ### 10.1 P0 测试
 
 | 测试 | 目标 |
 |---|---|
 | Flow 终态与实体存续 | 固化“只改阶段、不级联销毁”的当前契约 |
-| Destroying/Destroyed handler 异常 | 验证异常前后的实体实际状态和事件顺序 |
+| Flow 终态事件与异常 | 明确阶段迁移观察者失败后的 Flow 实际状态和事件顺序 |
 | 四种 `ContextValueReadMode` | 覆盖 provider、registry 属性、snapshot 和 default 来源 |
 | accessor 未知 key | 暴露并修复 `SnapshotThenRealtime` 被默认值截断的问题 |
 | 显式版本回退 | 明确选择允许覆盖还是拒绝旧版本 |
@@ -278,11 +306,13 @@ MOBA 快照同时实现 `IContextValueProvider` 和 `ISnapshotAccessor`。Resolv
 1. 为 Context ID 绑定 session 或 world 边界，不把实例内 ID 当作全局永久标识。
 2. 不序列化运行时 `PropertyTypeId`；协议层使用稳定业务 ID。
 3. 由领域服务显式编排 snapshot、provider、registry 和 Trace 生命周期。
-4. 明确 Flow 终态后实体及子 Flow 的清理策略，并监控长期增长。
-5. 对显式 Snapshot 版本执行单调性检查，决定重复版本是否允许覆盖。
-6. 新快照优先实现 `IContextValueProvider`，调用 `GetValue()` 时检查 `Source`。
-7. 事件订阅者保持短小、幂等；异常后依据 registry 实际状态恢复。
-8. 把多组件生命周期操作放在同一逻辑线程，避免把独立锁误认为事务保证。
+4. 区分路由 identity 与 lifecycle ownership；owner/source/root ID 本身不代表持有或释放权限。
+5. 跨 provider 传播正式 identity 时使用字段级状态和显式冲突策略，不依赖隐式优先级覆盖非零值。
+6. 明确 Flow 终态后实体及子 Flow 的清理策略，并监控长期增长。
+7. 对显式 Snapshot 版本执行单调性检查，决定重复版本是否允许覆盖。
+8. 新快照优先实现 `IContextValueProvider`，调用 `GetValue()` 时检查 `Source`。
+9. 事件订阅者保持短小、幂等；异常后依据 registry 实际状态恢复。
+10. 把多组件生命周期操作放在同一逻辑线程，避免把独立锁误认为事务保证。
 
 ## 十二、当前边界
 
@@ -292,6 +322,11 @@ MOBA 快照同时实现 `IContextValueProvider` 和 `ISnapshotAccessor`。Resolv
 - 显式版本和帧由 storage 信任，当前没有冲突或回退门禁。
 - Registry 销毁与 Snapshot、provider、Trace 没有自动联动。
 - Trace bridge 只保存 ID，不验证 Trace 节点，也不管理其生命周期。
+- MOBA combat execution context 与 canonical provenance 属于项目应用层，不是通用 Context 包内置能力。
 - Resolver 的默认结果与 missing 结果不同；只看 `Found` 可能误判来源。
 - 仅实现 `ISnapshotAccessor` 的快照无法可靠表达 key 缺失。
-- 包级专项测试不足，现有证据主要来自 MOBA 查询桥接测试。
+- 通用包已有最小 `5/5`，但 Snapshot、Resolver、Flow 和跨组件事务专项覆盖仍不足；MOBA 查询桥接、canonical provenance 和 ownership 测试只提供寄宿式证据。
+
+---
+
+*文档版本：v3.0 | 最后更新：2026-08-16 | 验证基线：Context 5/5；MOBA canonical provenance 14/14、ownership 9/9（后两者为 2026-08-15 artifact）*

@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Flow
 {
     internal interface IViewFeatureRuntime : IViewSharedSubFeatureHost
     {
+        BattleContext Context { get; }
         IBattleEntityQuery Query { get; set; }
         new BattleViewBinder Binder { get; set; }
         BattleViewResourceProvider Resources { get; }

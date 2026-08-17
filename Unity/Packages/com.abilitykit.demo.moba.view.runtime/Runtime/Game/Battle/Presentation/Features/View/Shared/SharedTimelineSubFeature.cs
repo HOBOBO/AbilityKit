@@ -16,7 +16,7 @@ namespace AbilityKit.Game.Flow
         public void OnAttach(in FeatureModuleContext<TFeature> ctx)
         {
             var f = ctx.Feature;
-            var hooks = f?.Context?.Hooks;
+            var hooks = f?.RuntimeContext?.Hooks;
 
             _lastSeenFrame = int.MinValue;
 
@@ -40,7 +40,7 @@ namespace AbilityKit.Game.Flow
 
         public void OnDetach(in FeatureModuleContext<TFeature> ctx)
         {
-            var hooks = ctx.Feature?.Context?.Hooks;
+            var hooks = ctx.Feature?.RuntimeContext?.Hooks;
             if (_onReadyHandler != null && hooks != null)
             {
                 hooks.ViewBinderReady.Remove(_onReadyHandler);
@@ -58,10 +58,10 @@ namespace AbilityKit.Game.Flow
         public void Tick(in FeatureModuleContext<TFeature> ctx, float deltaTime)
         {
             var f = ctx.Feature;
-            var battleCtx = f?.Context;
-            if (battleCtx?.EntityWorld == null) return;
+            var runtimeContext = f?.RuntimeContext;
+            if (runtimeContext == null || f.EntityContext?.EntityWorld == null) return;
 
-            var frame = battleCtx.LastFrame;
+            var frame = runtimeContext.LastFrame;
             if (frame == _lastSeenFrame) return;
             _lastSeenFrame = frame;
 

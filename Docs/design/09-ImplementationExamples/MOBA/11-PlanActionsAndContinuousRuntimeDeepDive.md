@@ -1,5 +1,8 @@
 # MOBA PlanActions DSL 与 Continuous Runtime 深潜
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文补充 MOBA 示例中还未单独展开的两条关键设计线：一条是 Trigger Plan Action 的 DSL/Schema/Module 体系，另一条是 Buff/Projectile/Passive 等 continuous runtime 的生命周期、视图化查询与上下文边界。它们共同决定了“配置动作如何被解析成强类型执行单元”，以及“持续行为如何在运行时被观测、诊断和复用”。
 
 ## 1. 设计目标
@@ -322,3 +325,18 @@ MOBA 的 continuous runtime 与 context 设计很强调边界来源：
 | Projectile continuous runtime | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Projectile/Launch/MobaProjectileLaunchContinuous.cs` |
 | Context source 视图 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextProviders.cs` |
 | Context integrity validator | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Validation/MobaContextIntegrityRuntimeValidator.cs` |
+
+## 14. 当前 DSL 收紧、失败事务与应用层边界
+
+当前工作区的两个 PlanAction 变化体现了 DSL 应承担的真实责任：
+
+| Action | 新增/收紧语义 | 失败行为 |
+|--------|---------------|----------|
+| `GiveDamage` | `attribute_source` 明确区分 AttributionActor 与 SkillCaster；攻击属性来源不改变 damage attribution actor | ratio 非零时无法解析 runtime/caster/attribute group 会显式 rejected，不再静默退化为纯基础伤害 |
+| `SpawnArea` | `MobaAreaRuntimeService` 与 `MobaTraceRegistry` 变为必需依赖，source context 必须可建立 | 注册失败会 rollback area runtime、despawn area 并以 Failed 结束 trace |
+
+配置完整性还必须早于运行时事务。2026-08-16 主 MOBA .NET 工程 279/305，26 项共同被 SpawnArea `duration 300ms < delay 400ms` 的 BootstrapStrict 校验阻断。View Runtime 147/147、Host 6/6、Acceptance 8/8 独立通过；本地 Unity ownership 9/9 证明 Buff/Projectile/Summon/Skill capability 清理，不覆盖 PlanAction 全 DSL。
+
+ActionSchema、Continuous manager 和 Pipeline-backed continuous 是可复用机制；动作名字、参数兼容别名、属性来源策略、区域注册、MOBA runtime view 与 context lineage 都是项目应用层。不同游戏几乎必然拥有不同 DSL 和 continuous 组合，因此这里应保持高接入度参考，而不是框架默认动作全集。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

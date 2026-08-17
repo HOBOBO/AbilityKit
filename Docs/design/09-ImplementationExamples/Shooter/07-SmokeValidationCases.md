@@ -1,6 +1,9 @@
 # Shooter Smoke 验证用例深潜
 
-> 本文以当前实现为准，说明 Shooter smoke 覆盖的系统边界、执行阶段、硬断言、诊断方法与尚未覆盖的风险。它不是单纯的端口探活，而是一条贯穿 Orleans、TCP Gateway、房间流程、战斗运行时、状态同步、表现投影、恢复流程与回放产物的进程内验收链路。
+> 文档类型：Shooter Smoke 场景契约、硬断言与证据边界
+> 事实基线：2026-08-16
+> 最近保留的多进程 E4 记录：2026-07-19；本批未重新运行
+> 本文以当前实现为准，说明 Shooter smoke 覆盖的系统边界、执行阶段、硬断言、诊断方法与尚未覆盖的风险。它不是单纯的端口探活，而是一条贯穿 Orleans、TCP Gateway、房间流程、战斗运行时、状态同步、表现投影、恢复流程与回放产物的验收链路。
 
 ## 1. 验证范围与非目标
 
@@ -94,9 +97,13 @@ sequenceDiagram
     participant P as Presentation
 
     R->>C: Open connection and account login
-    R->>C: CreateReadyStartAndSubscribe
-    C->>G: Create room, ready, start, subscribe
-    G->>B: Create and start battle
+    R->>C: CreateReadyStartAndSubscribe helper
+    C->>G: Create room and ready
+    C->>G: BeginLoading
+    C->>C: Run ClientLoadingPipeline and upload progress
+    C->>G: ReportAssetsLoaded
+    G->>B: Last report commits battle idempotently
+    C->>G: Wait InBattle and subscribe
     B-->>G: Packed snapshot
     G-->>C: SnapshotPushed
     C->>P: Apply runtime and projected view
@@ -117,19 +124,23 @@ sequenceDiagram
     R->>B: Cleanup battle
 ```
 
-默认开局数据是固定种子 `20260610`、默认 tick rate 和两个玩家。固定种子降低了验收波动，但同时意味着该场景不是随机地图或多种配置的覆盖测试。
+默认开局数据是固定种子 `20260610`、默认 tick rate 和两个**本地模拟玩家**。固定种子降低了验收波动，但同时意味着该场景不是随机地图或多种配置的覆盖测试。
+
+这里存在一个必须显式跟踪的当前验收风险：`ShooterRoomLaunchSpec.CreateDefault` 写入 `minPlayers=2`，`ShooterRoomGameplayAdapter.CanStart` 要求至少两名 Room 玩家且全部 ready；但默认单进程 `ShooterSmokeRunner` 只登录一个网络账号。`ShooterStartGamePayload` 中的 P1/P2 只初始化客户端本地 runtime，不会创建第二个 Room 成员。静态源码因此不能证明该默认 helper 在当前 Room 契约下仍能越过 Lobby；需要真实运行 `run_shooter_smoke.ps1`，或由 runner 显式加入第二名 ready 客户端/覆盖并记录 `minPlayers`，才能形成新的 E4 结论。多进程 create/join 场景有两条客户端进程链，但也必须以当次 artifact 为准。
 
 ## 5. 分阶段硬断言
 
 ### 5.1 登录与房间启动
 
-主客户端使用带随机后缀的 account ID 登录，并启用 `kickExisting`。`CreateReadyStartAndSubscribeAsync` 负责串联建房、准备、开局和订阅；启动结果必须满足 launcher 自身校验，最终结果还要求：
+主客户端使用带随机后缀的 account ID 登录，并启用 `kickExisting`。虽然 helper 仍名为 `CreateReadyStartAndSubscribeAsync`，其内部 `ShooterRoomGatewayFlow` 已执行 Create、Ready、BeginLoading、`ClientLoadingPipeline`、progress 上传、ReportAssetsLoaded、等待 InBattle 和 Subscribe，不再发送已废弃的 TCP StartBattle opCode。启动结果必须满足 launcher 自身校验，最终结果还要求：
 
 - `RoomId`、`BattleId` 非空；
 - `WorldId` 非零；
 - 客户端目标帧与后续输入响应可用。
 
 这些断言能定位“连接成功但房间/战斗未建立”的半成功状态。
+
+该场景会覆盖正常加载完成后的即时 commit，但目前结果模型没有把每个 loading progress、LaunchGeneration 和 commit attempt 全部提升为独立硬断言。HTTP/Admin/Sandbox 的兼容直启也不属于本场景，因此 Smoke 通过不能替代针对 loading timeout、cancel、generation mismatch 与 commit recovery 的专项 E3/E4 验证。
 
 ### 5.2 Packed snapshot 协议
 
@@ -304,9 +315,22 @@ PASS 输出由 `ShooterSmokeResultFormatter` 汇总标识、输入帧、hash、s
 - 网络劣化、pure-state 和多客户端矩阵优先复用 client-process runner，避免在默认 smoke 中堆叠不稳定时序。
 - 端到端场景负责跨层契约，源码契约/summary 单元测试负责计划与纯数据统计，两者不能相互替代。
 
-## 12. 验收检查表
+## 12. E0-E5 证据分层
+
+| 等级 | Shooter Smoke 对应物 | 可证明 | 不可证明 |
+|------|----------------------|--------|----------|
+| E0 | runner、结果模型、命令行与脚本源码 | 验收能力被实现 | 场景执行过 |
+| E1/E2 | 默认场景组合、真实客户端 launcher 和 TCP 消费链 | 运行器使用正式接入路径 | 所有 profile 正确 |
+| E3 | `AbilityKit.Orleans.ShooterSmoke.Tests`、Gateway/Grain tests | retry、summary、脚本、manifest、Room/adapter 契约 | 真实故障、端口和 artifact 已产生 |
+| E4 | 当次日志、原始/最小化 replay、manifest、diagnostic 与 diff | 指定日期、profile、拓扑的真实运行结果 | 其他日期、跨机器或生产容量 |
+| E5 | CI 对指定 profile 的实际触发、预算、artifact 校验与阻断 | 被配置场景持续守护发布 | 仅有脚本或 runner 即自动受保护 |
+
+`run_shooter_smoke.ps1` 只硬检查 replay 文件存在且非空；运行器虽记录 replay validation summary，当前总结果并未把 summary 成功设为硬条件。发布报告应分别列出 runner result、脚本 artifact gate 和 CI trigger，不能合并成一句“Replay 已验证”。
+
+## 13. 验收检查表
 
 - [ ] 默认脚本完成构建并以退出码 0 结束。
+- [ ] Room snapshot 明确显示至少两名成员都 ready，或 artifact 明确记录场景对 `minPlayers` 的非默认覆盖；本地双玩家 payload 不作为替代证据。
 - [ ] PASS 输出包含非空 room/battle ID 和非零 world ID。
 - [ ] packed snapshot 的 wire/packed frame 一致，server ticks、hash 和 entity count 有效。
 - [ ] runtime 与 presentation frame 不落后于 snapshot frame。
@@ -324,7 +348,7 @@ PASS 输出由 `ShooterSmokeResultFormatter` 汇总标识、输入帧、hash、s
 - [ ] server/create/join 正常退出，三个专用端口释放。
 - [ ] 失败场景检查业务清理残留，尤其是共享服务模式。
 
-## 13. 源码索引
+## 14. 源码索引
 
 | 模块 | 源码 |
 |---|---|
@@ -338,3 +362,9 @@ PASS 输出由 `ShooterSmokeResultFormatter` 汇总标识、输入帧、hash、s
 | PASS 输出格式 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Models/ShooterSmokeResultFormatter.cs` |
 | Replay summary 单元测试 | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/ShooterSmokeReplaySummaryTests.cs` |
 | 推荐运行脚本 | `Server/Orleans/tools/run_shooter_smoke.ps1` |
+
+---
+
+> 文档版本：v3.1
+> 更新日期：2026-08-16
+> 更新责任：Smoke helper、硬断言、Replay、故障矩阵、artifact 或 CI trigger 变化时同步复核。

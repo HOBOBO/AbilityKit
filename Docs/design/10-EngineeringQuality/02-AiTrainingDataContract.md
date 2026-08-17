@@ -2,6 +2,12 @@
 
 > 本文定义 AbilityKit AI 训练链路的 JSON Lines 数据契约：训练 runner 如何输出 run / episode / step 行，消费端如何按 schemaVersion 做兼容校验，以及 Shooter、Moba 与后续 Python 训练器、离线数据构建器、运行时推理验证之间如何保持稳定边界。目标不是把每个环境的观测语义都写进公共格式，而是先固定跨环境可共享、可校验、可演进的数据外壳。
 
+> 文档类型：Canonical 数据契约设计
+>
+> 事实基线：2026-08-16
+>
+> 当前证据：JSONL、Python 训练工具和 C# 加载器具备局部 E3 测试；尚无 AI 专项 E5 CI gate
+
 ---
 
 ## 1. 能力定位
@@ -125,9 +131,11 @@ dotnet run --project src/AbilityKit.AI.Training.Runner -- --validate artifacts/s
 valid=true totalRecords=3 runRecords=0 episodeRecords=0 stepRecords=3
 ```
 
-校验失败时，runner 将契约错误写入 stderr，并返回退出码 `3`。CI、训练器 bootstrap 脚本或数据集导入工具可以据此在消费前拒绝不兼容数据。
+校验失败时，runner 将契约或文件错误写入 stderr，并返回退出码 `3`；参数解析或用法错误返回 `2`。CI、训练器 bootstrap 脚本或数据集导入工具应区分“调用方式错误”和“输入数据无效”，不能只把所有非零退出码合并成同一种数据问题。
 
 Reader 不校验环境私有语义，例如 observation 长度、action 维度、reward 合法范围或实体槽位含义。这些规则属于具体环境的 observation/action spec，不属于公共 JSONL 行契约。
+
+Reader 当前也没有建立文件级关系约束。它不验证 run/episode/step 的顺序、单文件是否只包含一个 run、episode 与 step 的关联是否一致，也不拒绝未知字段；三个向量只检查“是数组”，不逐项确认元素类型、有限数值或跨行维度一致。Python `build-dataset` 会在后续阶段补一部分维度和数值读取约束，但不能把后置训练工具校验写成公共 C# JSONL validator 已覆盖。若数据将进入共享制品库，应在项目导入层补齐文件级身份、顺序、有限值和环境 spec 校验。
 
 ---
 
@@ -170,7 +178,7 @@ py -3 -m tools.ai_training.cli validate-metadata --metadata artifacts/shooter-bc
 py -3 -m tools.ai_training.cli validate-metadata --metadata artifacts/shooter-bc-model.metadata.json --dataset artifacts/shooter-dataset.json --model artifacts/shooter-bc-model.json
 ```
 
-完整产物校验是训练产物进入 C# 运行时前的推荐质量门。它必须拒绝以下不一致情况：
+完整产物校验是训练产物进入 C# 运行时前的推荐局部质量门。它必须拒绝以下不一致情况：
 
 | 校验项 | 要求 |
 | --- | --- |
@@ -182,7 +190,7 @@ py -3 -m tools.ai_training.cli validate-metadata --metadata artifacts/shooter-bc
 | 样本数 | metadata、dataset、model 的样本数必须一致。 |
 | 文件完整性 | metadata 的 `modelSha256` 必须等于 model 文件当前内容的 SHA-256。 |
 
-当前 baseline 模型是训练链路的质量门禁，也是第一版可执行运行时模型格式，不是最终算法边界。后续引入神经网络、ONNX 导出或服务器侧真实模型执行器时，必须继续沿用 metadata 清单中的环境、数据契约版本、observation/action 维度和模型 hash 校验，不能绕过产物契约直接加载文件。
+当前 baseline 模型是训练链路的局部完整性校验入口，也是第一版可执行运行时模型格式，不是最终算法边界。后续引入神经网络、ONNX 导出或服务器侧真实模型执行器时，必须继续沿用 metadata 清单中的环境、数据契约版本、observation/action 维度和模型 hash 校验，不能绕过产物契约直接加载文件。
 
 ---
 
@@ -212,3 +220,32 @@ var output = policy.Run(new AiModelInput(executor.Spec, observation));
 | 权重形状 | `continuousWeights`、`continuousBias`、`discreteDefaults` 必须与动作维度匹配。 |
 
 运行时执行逻辑保持确定性：连续动作由线性权重和 bias 计算，离散动作使用训练阶段统计出的默认值。该实现用于打通“rollout -> dataset -> model -> metadata -> C# policy”的端到端闭环。后续如果新增 ONNX 或其他模型格式，应新增独立 `modelType` 和执行器实现，但仍复用 metadata 作为所有运行时加载路径的公共入口。
+
+---
+
+## 9. 当前证据、限制与晋升条件
+
+| 能力 | 源码事实 | 证据等级上限 |
+|---|---|---|
+| JSONL schema 1 | run、episode、step writer/reader/validator 与 runner `--validate` 已实现 | E3：公共外壳和错误路径可由专项测试验证 |
+| Dataset 构建 | Python CLI 提供 `build-dataset` | E3：局部工具契约，不等于训练平台 |
+| 行为克隆训练 | Python CLI 提供 `train-bc`，输出线性模型和 metadata | E3：baseline 算法闭环，不代表模型质量满足项目目标 |
+| Metadata 校验 | CLI 提供 `validate-metadata`，可联动 dataset/model/hash | E3：产物一致性，不证明场景效果 |
+| C# 推理加载 | `BehaviorCloningModelExecutor` 校验环境、schema、hash 和维度 | E3：加载与确定性执行边界 |
+
+2026-08-16 本地复核中，Python 离线训练测试 `6/6`、C# 推理测试 `7/7` 通过。两组结果仍是各自进程内的局部 E3：仓库没有提交双方共同消费的 canonical fixture，也没有自动串联完整的 C# rollout、Python 训练和 C# 加载。
+
+`tools/test-gates.json` 与 `.github/workflows/abilitykit-test-gates.yml` 当前均没有 AI Training 或 AI Inference 专项 gate。因此不能把局部 Python/C# 测试写成 PR、nightly 或发布链已接线，也不能把“可训练、可加载”写成“模型效果达标”。环境私有 observation/action 语义、数据来源治理、训练可复现性、模型质量阈值、目标硬件性能、灰度和回滚仍由采用项目补齐。
+
+要晋升到 E4，需要固定环境、数据集身份、随机种子、训练参数和场景指标，并证明生成产物在 C# runtime 中完成真实行为验收。要晋升到 E5，还需要把数据校验、训练或受控产物复用、运行时验收、artifact 保留和失败责任接入实际 workflow。
+
+变更必须遵循以下规则：
+
+1. 公共行字段发生不兼容变化时提升 `schemaVersion`，同时更新 writer、reader、validator、Python parser 和兼容测试。
+2. 环境私有向量语义使用独立 spec/version，不向 schema 1 的通用数组偷偷加入隐式槽位变化。
+3. 新模型格式使用新的 `modelType` 和执行器；metadata 的环境、维度、数据版本和 hash 校验不得绕过。
+4. 文档中的“门禁”必须注明是本地校验、场景验收还是已接线 CI gate。
+
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16*

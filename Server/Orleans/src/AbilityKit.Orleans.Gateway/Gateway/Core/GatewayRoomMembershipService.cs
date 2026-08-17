@@ -69,37 +69,41 @@ public sealed class GatewayRoomMembershipService
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        var leave = await LeaveMappedRoomAsync(accountId, roomId);
-        if (leave.Operation.Success)
-        {
-            _logger.LogInformation(
-                "Disconnected room member removed. AccountId={AccountId} RoomId={RoomId} Applied={Applied}",
-                accountId,
-                roomId,
-                leave.Operation.Applied);
-            return;
-        }
-
-        if (leave.Operation.ErrorCode != RoomOperationErrorCode.InvalidPhase ||
-            !string.Equals(leave.ActiveRoomId, roomId, StringComparison.Ordinal))
+        var mapping = _clusterClient.GetGrain<IRoomIdMappingGrain>(GatewayGrainKeys.Global);
+        var activeRoomId = await mapping.TryGetAccountRoomAsync(accountId);
+        if (!string.Equals(activeRoomId, roomId, StringComparison.Ordinal))
         {
             _logger.LogWarning(
-                "Disconnected room cleanup skipped. AccountId={AccountId} RequestedRoomId={RequestedRoomId} ActiveRoomId={ActiveRoomId} ErrorCode={ErrorCode}",
+                "Disconnected room cleanup skipped because membership changed. AccountId={AccountId} RequestedRoomId={RequestedRoomId} ActiveRoomId={ActiveRoomId}",
                 accountId,
                 roomId,
-                leave.ActiveRoomId,
-                leave.Operation.ErrorCode);
+                activeRoomId);
             return;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
         var room = _clusterClient.GetGrain<IRoomGrain>(roomId);
         var offline = await room.MarkOfflineWithResultAsync(accountId);
-        if (!offline.Success && offline.ErrorCode != RoomOperationErrorCode.NotMember)
+        if (offline.Success)
+        {
+            _logger.LogInformation(
+                "Disconnected room member marked offline. AccountId={AccountId} RoomId={RoomId} Applied={Applied}",
+                accountId,
+                roomId,
+                offline.Applied);
+            return;
+        }
+
+        if (offline.ErrorCode == RoomOperationErrorCode.NotMember)
+        {
+            await mapping.ClearAccountRoomAsync(accountId, roomId);
+            return;
+        }
+
+        if (!offline.Success)
         {
             _logger.LogWarning(
-                "Failed to mark disconnected battle member offline. AccountId={AccountId} RoomId={RoomId} ErrorCode={ErrorCode}",
+                "Failed to mark disconnected room member offline. AccountId={AccountId} RoomId={RoomId} ErrorCode={ErrorCode}",
                 accountId,
                 roomId,
                 offline.ErrorCode);

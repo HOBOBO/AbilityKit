@@ -1,8 +1,11 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
+using AbilityKit.Demo.Moba.Services.Buffs.Core;
+using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -147,15 +150,238 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(skillRuntimes.CountPendingChildren(in handle, MobaSkillRuntimeChildKind.Area), Is.Zero);
         }
 
+        [Test]
+        public void DamageAttributeSource_AttributionActor_PreservesCompatibilityDefault()
+        {
+            var resolved = GiveDamagePlanActionModule.TryResolveAttributeSourceActorId(
+                DamageAttributeSourceKind.AttributionActor,
+                default,
+                null,
+                77,
+                out var actorId,
+                out var failure);
+
+            Assert.That(resolved, Is.True);
+            Assert.That(actorId, Is.EqualTo(77));
+            Assert.That(failure, Is.Null);
+            Assert.That(GiveDamageArgs.Default.AttributeSource, Is.EqualTo(DamageAttributeSourceKind.AttributionActor));
+        }
+
+        [Test]
+        public void DamageAttributeSource_SkillCaster_SeparatesFormulaSourceFromAttributionActor()
+        {
+            var skillRuntimes = new MobaSkillCastRuntimeService();
+            var runtime = CreateRuntime(skillRuntimes, 408, 4005L, casterActorId: 91);
+            var handle = runtime.Handle;
+
+            var resolved = GiveDamagePlanActionModule.TryResolveAttributeSourceActorId(
+                DamageAttributeSourceKind.SkillCaster,
+                in handle,
+                skillRuntimes,
+                attackerActorId: 77,
+                out var actorId,
+                out var failure);
+
+            Assert.That(resolved, Is.True);
+            Assert.That(actorId, Is.EqualTo(91));
+            Assert.That(failure, Is.Null);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void DamageAttributeSource_SkillCaster_RejectsMissingRuntimeDependency(bool provideHandle)
+        {
+            var handle = provideHandle
+                ? CreateRuntime(new MobaSkillCastRuntimeService(), 409, 4006L).Handle
+                : default;
+
+            var resolved = GiveDamagePlanActionModule.TryResolveAttributeSourceActorId(
+                DamageAttributeSourceKind.SkillCaster,
+                in handle,
+                null,
+                attackerActorId: 77,
+                out var actorId,
+                out var failure);
+
+            Assert.That(resolved, Is.False);
+            Assert.That(actorId, Is.Zero);
+            Assert.That(failure, Is.Not.Null.And.Not.Empty);
+        }
+
+        [Test]
+        public void BuffRuntimeKey_NormalApply_DoesNotMatchDifferentSourceActor()
+        {
+            var request = new BuffApplyRequest
+            {
+                BuffId = 701,
+                SourceActorId = 11,
+            };
+            var sameSource = new AbilityKit.Demo.Moba.Components.BuffRuntime
+            {
+                BuffId = 701,
+                SourceId = 11,
+            };
+            var differentSource = new AbilityKit.Demo.Moba.Components.BuffRuntime
+            {
+                BuffId = 701,
+                SourceId = 12,
+            };
+
+            var key = BuffRuntimeKey.MatchApplyRequest(in request);
+
+            Assert.That(key.Matches(sameSource), Is.True);
+            Assert.That(key.Matches(differentSource), Is.False);
+        }
+
+        [Test]
+        public void BuffRuntimeKey_InstanceApply_PreservesSourceContextIdentity()
+        {
+            var request = new BuffApplyRequest
+            {
+                BuffId = 702,
+                SourceActorId = 11,
+                SourceContextId = 9001L,
+            };
+            var sameInstance = new AbilityKit.Demo.Moba.Components.BuffRuntime
+            {
+                BuffId = 702,
+                SourceId = 11,
+                SourceContextId = 9001L,
+            };
+            var differentInstance = new AbilityKit.Demo.Moba.Components.BuffRuntime
+            {
+                BuffId = 702,
+                SourceId = 11,
+                SourceContextId = 9002L,
+            };
+
+            var key = BuffRuntimeKey.MatchApplyRequest(in request);
+
+            Assert.That(key.Matches(sameInstance), Is.True);
+            Assert.That(key.Matches(differentInstance), Is.False);
+        }
+
+        [Test]
+        public void ExecutionSnapshotBuilder_EnrichesMissingProvenance()
+        {
+            var first = CreateSnapshot(sourceActorId: 11, sourceContextId: 1001L);
+            var second = CreateSnapshot(
+                sourceActorId: 11,
+                sourceContextId: 1001L,
+                rootContextId: 1002L,
+                ownerContextId: 1003L,
+                skillRuntimeHandle: new MobaSkillCastRuntimeHandle(21L, 1, 1002L));
+
+            var merged = MobaTriggerExecutionSnapshotBuilder.Create()
+                .FromSnapshot(in first)
+                .FromSnapshot(in second)
+                .Build();
+
+            Assert.That(merged.SourceActorId, Is.EqualTo(11));
+            Assert.That(merged.SourceContextId, Is.EqualTo(1001L));
+            Assert.That(merged.RootContextId, Is.EqualTo(1002L));
+            Assert.That(merged.OwnerContextId, Is.EqualTo(1003L));
+            Assert.That(merged.SkillRuntimeHandle, Is.EqualTo(second.SkillRuntimeHandle));
+        }
+
+        [TestCase("sourceActorId")]
+        [TestCase("sourceContextId")]
+        [TestCase("rootContextId")]
+        [TestCase("ownerContextId")]
+        [TestCase("skillRuntimeHandle")]
+        public void ExecutionSnapshotBuilder_RejectsConflictingProvenance(string fieldName)
+        {
+            var first = CreateSnapshot(
+                sourceActorId: 11,
+                sourceContextId: 1001L,
+                rootContextId: 1002L,
+                ownerContextId: 1003L,
+                skillRuntimeHandle: new MobaSkillCastRuntimeHandle(21L, 1, 1002L));
+            var second = CreateSnapshot(
+                sourceActorId: fieldName == "sourceActorId" ? 12 : 11,
+                sourceContextId: fieldName == "sourceContextId" ? 2001L : 1001L,
+                rootContextId: fieldName == "rootContextId" ? 2002L : 1002L,
+                ownerContextId: fieldName == "ownerContextId" ? 2003L : 1003L,
+                skillRuntimeHandle: fieldName == "skillRuntimeHandle"
+                    ? new MobaSkillCastRuntimeHandle(22L, 1, 1002L)
+                    : new MobaSkillCastRuntimeHandle(21L, 1, 1002L));
+
+            var error = Assert.Throws<InvalidOperationException>(() =>
+                MobaTriggerExecutionSnapshotBuilder.Create()
+                    .FromSnapshot(in first)
+                    .FromSnapshot(in second));
+
+            Assert.That(error.Message, Does.Contain(fieldName));
+        }
+
+        [Test]
+        public void CombatExecutionContextFactory_RejectsConflictingStandaloneSkillRuntime()
+        {
+            var currentSnapshot = CreateSnapshot(sourceActorId: 11, sourceContextId: 1001L);
+            var currentHandle = new MobaSkillCastRuntimeHandle(21L, 1, 1001L);
+            var incomingSnapshot = CreateSnapshot(
+                sourceActorId: 11,
+                sourceContextId: 1001L,
+                skillRuntimeHandle: new MobaSkillCastRuntimeHandle(22L, 1, 1001L));
+            var executionContext = new MobaCombatExecutionContext(
+                null,
+                default,
+                default,
+                currentSnapshot,
+                currentHandle,
+                0);
+
+            var error = Assert.Throws<InvalidOperationException>(() =>
+                executionContext.WithSnapshot(incomingSnapshot, 0));
+
+            Assert.That(error.Message, Does.Contain("skillRuntimeHandle"));
+        }
+
+        [Test]
+        public void SpawnAreaRuntimeDependencies_RejectMissingWorldServices()
+        {
+            var resolved = SpawnAreaPlanActionModule.TryResolveRuntimeDependencies(
+                null,
+                out var areaRuntime,
+                out var trace,
+                out var failure);
+
+            Assert.That(resolved, Is.False);
+            Assert.That(areaRuntime, Is.Null);
+            Assert.That(trace, Is.Null);
+            Assert.That(failure, Is.Not.Null.And.Not.Empty);
+        }
+
+        private static MobaTriggerExecutionSnapshot CreateSnapshot(
+            int sourceActorId,
+            long sourceContextId,
+            long rootContextId = 0L,
+            long ownerContextId = 0L,
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
+        {
+            return new MobaTriggerExecutionSnapshot(
+                EffectContextKind.Skill,
+                sourceActorId,
+                targetActorId: 20,
+                sourceContextId,
+                rootContextId,
+                ownerContextId,
+                triggerId: 0,
+                configId: 0,
+                frame: 0,
+                skillRuntimeHandle);
+        }
+
         private static MobaSkillCastRuntime CreateRuntime(
             MobaSkillCastRuntimeService skillRuntimes,
             int skillId,
-            long rootContextId)
+            long rootContextId,
+            int casterActorId = 10)
         {
             var aimPosition = Vec3.Zero;
             var aimDirection = Vec3.Forward;
             var request = new MobaSkillCastRuntimeCreateRequest(
-                skillId, 1, 1, 1, 10, 20, in aimPosition, in aimDirection, rootContextId);
+                skillId, 1, 1, 1, casterActorId, 20, in aimPosition, in aimDirection, rootContextId);
             return skillRuntimes.Create(in request);
         }
 

@@ -46,11 +46,9 @@ internal static class RoomNetworkSyncCapabilityResolver
         BattleSyncStartOptions? syncOptions,
         string templateId)
     {
-        if (string.Equals(roomType, GameplayRoomTypes.Moba, StringComparison.OrdinalIgnoreCase))
+        if (GameplayRoomTypes.IsMoba(roomType))
         {
-            return string.Equals(templateId, ShooterServerProtocol.StateSyncAuthorityTemplate, StringComparison.OrdinalIgnoreCase)
-                ? "Moba.AuthoritativeRemoteInterpolation"
-                : nameof(NetworkSyncModel.Lockstep);
+            return nameof(NetworkSyncModel.Lockstep);
         }
 
         var model = ResolveShooterModel(syncOptions, templateId);
@@ -62,26 +60,9 @@ internal static class RoomNetworkSyncCapabilityResolver
         BattleSyncStartOptions? syncOptions,
         string templateId)
     {
-        if (string.Equals(roomType, GameplayRoomTypes.Moba, StringComparison.OrdinalIgnoreCase))
+        if (GameplayRoomTypes.IsMoba(roomType))
         {
-            if (!string.Equals(templateId, ShooterServerProtocol.StateSyncAuthorityTemplate, StringComparison.OrdinalIgnoreCase))
-            {
-                return NetworkSyncProfiles.Lockstep;
-            }
-
-            // MOBA 客户端当前同时提交输入并消费全量或增量权威状态流。
-            return new NetworkSyncProfile(
-                NetworkSyncModel.AuthoritativeInterpolation,
-                ClientPlaybackPolicy.AuthoritativeInterpolation,
-                InputPolicy.ImmediateSubmit,
-                SnapshotPolicy.FullSnapshot | SnapshotPolicy.DeltaSnapshot |
-                SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.EventStream,
-                InterestPolicy.AllEntities,
-                RecoveryPolicy.RequestFullSnapshot,
-                ServerValidationPolicy.AuthoritativeOnly | ServerValidationPolicy.InputValidation,
-                ReliableEventPolicy.OrderedDelivery | ReliableEventPolicy.AutomaticAcknowledgement |
-                ReliableEventPolicy.PersistentCheckpoint |
-                ReliableEventPolicy.AuthoritativeBaselineRecovery);
+            return NetworkSyncProfiles.Lockstep;
         }
 
         return NetworkSyncProfileRegistry.Resolve(ResolveShooterModel(syncOptions, templateId));

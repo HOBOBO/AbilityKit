@@ -22,6 +22,7 @@ namespace AbilityKit.Game.Flow
         private IBattleSessionNetAdapterContext _netContext;
         private BattleSessionNetAdapter _netAdapter;
         private bool _frameReceivedSubscribed;
+        private long _contextBindingGeneration;
 
         internal BattleSnapshotRoutingRuntime(
             BattleSessionHandles handles,
@@ -65,7 +66,11 @@ namespace AbilityKit.Game.Flow
                 }
 
                 PublishHandles();
-                BindContext(ctx, _snapshots, _pipeline, _cmdHandler);
+                _contextBindingGeneration = BindContext(
+                    ctx,
+                    _snapshots,
+                    _pipeline,
+                    _cmdHandler);
 
                 if (session != null && frameReceivedHandler != null)
                 {
@@ -97,15 +102,15 @@ namespace AbilityKit.Game.Flow
                     $"[BattleSnapshotRoutingRuntime] Disposing. dispatcher={(_snapshots == null ? "null" : RuntimeHelpers.GetHashCode(_snapshots).ToString())}, routing={(_routing == null ? "null" : RuntimeHelpers.GetHashCode(_routing).ToString())}");
             }
 
-            if (_context != null && _context.IsSnapshotRoutingBoundTo(_snapshots, _pipeline, _cmdHandler))
-            {
-                _context.ClearSnapshotRouting();
-            }
+            _context?.ClearSnapshotRouting(
+                _contextBindingGeneration,
+                _snapshots);
 
             _routing?.Dispose();
             ClearPublishedHandles();
 
             _context = null;
+            _contextBindingGeneration = 0;
             _session = null;
             _frameReceivedHandler = null;
             _snapshots = null;
@@ -157,14 +162,13 @@ namespace AbilityKit.Game.Flow
             if (ReferenceEquals(_handles.Net.Ctx, _netContext)) _handles.Net.Ctx = null;
         }
 
-        private static void BindContext(
+        private static long BindContext(
             BattleContext ctx,
             FrameSnapshotDispatcher snapshots,
             SnapshotPipeline pipeline,
             SnapshotCmdHandler cmdHandler)
         {
-            if (ctx == null) return;
-            ctx.BindSnapshotRouting(snapshots, pipeline, cmdHandler);
+            return ctx?.BindSnapshotRouting(snapshots, pipeline, cmdHandler) ?? 0;
         }
     }
 }

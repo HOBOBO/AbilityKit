@@ -1,5 +1,11 @@
 # 7.2 状态同步
 
+> **文档类型：Canonical 设计**
+>
+> **事实基线：2026-08-16**
+>
+> **规范范围：** 快照模型、缓存、路由、差分、预测校正与业务状态同步接入；不把示例专用状态模型提升为框架协议。
+
 > 基于真实源码说明 AbilityKit 的状态同步能力：通用 `WorldStateSnapshot`、快照缓存、网络快照消息、MemoryPack 打包、客户端预测协调，以及 Demo Shooter 中权威快照与预测重演的落地路径。
 
 ---
@@ -176,6 +182,8 @@ clone 隔离了缓存所有权，但 `WorldStateSnapshot.Clone()` 经过序列�
 
 当前 `StateSlots` 不提供状态哈希 API。需要确定性对账时，应由业务实现稳定字段顺序和序列化规则，不应假定槽位字典可以直接作为跨端哈希协议。
 
+`Clone()` 与 `OverwriteFrom()` 复制的是字典和 `SlotValue`，不是槽位值引用对象的深拷贝。值类型和不可变对象可以按值使用；若槽位中保存集合、业务状态对象等可变引用，原槽位与 clone 仍会共享该对象。预测状态应优先使用值类型/不可变快照，或由业务在写入前完成深复制，不能把 `Clone()` 当作通用隔离边界。
+
 `IPredictionHandler` 负责把输入作用到槽位：
 
 | 方法 | 作用 |
@@ -229,8 +237,10 @@ flowchart TB
 
 需要注意两个源码事实：
 
-1. 当前通用 `PredictionCoordinator` 在冲突分支中会执行 `_inputHistory.Clear()`，随后调用 `ReplayInputs(serverFrameObj)`。此时通常已没有待重演输入，因此通用层更接近“接口与流程骨架”，不能描述为完整的未确认输入重演器。
-2. `Reset()` 将帧重置后调用 `_snapshotStore.PruneBefore(Frame.Invalid)`；`Frame.Invalid` 的值为 `-1`，而 `PruneBefore` 只删除更早帧，所以通常从 0 开始的已有快照不会被清空。当前重置语义会清输入历史，但不保证清空预测快照存储。
+1. 当前通用 `PredictionCoordinator` 在冲突分支中先提取服务器确认帧之后的待重演输入，再清空输入历史，最后调用 `ReplayInputs`。旧版“清空后无法重演”的结论已不成立；但它仍是通用流程骨架，业务必须确保状态导入、输入身份、历史容量和重演副作用符合自己的模型。
+2. `Reset()` 将帧重置后调用 `_snapshotStore.PruneBefore(Frame.Invalid)`；`Frame.Invalid` 的值为 `-1`，而 `PruneBefore` 只删除更早帧，所以通常从 0 开始的已有快照不会被清空。`Dispose()` 也只清监听器和 handler，不清 store。当前重置/释放语义不保证清空预测快照存储。
+
+还存在一个 P0 输入契约限制：`InputHistory.GetInputs` 会把帧区间内的输入拍平成命令列表，`ReplayInputs` 随后按每条命令推进一帧。因此，通过 `IPredictionCoordinator.RecordInput(frame, input)` 在同一帧记录多条命令时，重演会把这些命令解释为多个连续帧，最终帧号和模拟次数都会漂移。现有专项测试只锁定“每帧一条命令”；在修复为按帧分组重演或公开单命令约束前，调用方不得用该通用 Coordinator 表达同帧多命令。
 
 具体业务若需要完整 reconciliation，应使用或扩展 Host Extension 里的 `ClientPredictionReconciliationCoordinator<TInput>`，或使用具备明确历史裁剪、恢复与重演约束的正式预测驱动。
 
@@ -287,6 +297,8 @@ sequenceDiagram
 - `Create<T>`：用 MemoryPack 序列化任意快照对象。
 - `ParseSnapshot<T>`：解析 `SnapshotData`。
 - `Pack` / `Unpack`：把整个 `SnapshotMessage` 打成网络字节或从字节恢复。
+
+`IsCompressed` 当前只是随消息序列化的协议字段，`ParseSnapshot<T>` 不会依据该字段自动解压 `SnapshotData`。`MemoryPackSnapshotPacker` 是另一条独立的 GZip 打包路径，也不会自动设置或消费 `SnapshotMessage.IsCompressed`。项目若把两者组合成网络协议，必须由同一 codec/route 同时负责标志、压缩和解压，并用压缩/未压缩往返测试锁定；仅设置标志不会让 payload 可解析。
 
 ### 7.2 请求和哈希消息
 
@@ -398,10 +410,14 @@ flowchart TD
 - 通用 `WorldStateSnapshot` 只保存框架级元信息；`StateManager` 的实体回滚字节是另一条状态轨道，业务也可采用专用快照。
 - `SnapshotBuffer` 返回 clone，降低外部误修改缓存的风险，但也带来序列化复制成本。
 - `StateSlots` 当前没有通用哈希 API；Shooter 使用专用 `ShooterStateHasher` 对业务实体按稳定顺序计算。
-- 通用 `PredictionCoordinator` 具备预测、校验和回滚事件骨架，但冲突时先清空输入，且 `Reset()` 不清理通常的非负帧快照；复杂业务应接入正式输入历史和快照导入器。
+- `StateSlots.Clone/OverwriteFrom` 只复制槽位容器和 `SlotValue`；可变引用值仍共享，不能作为深快照。
+- 通用 `PredictionCoordinator` 会先提取待重演输入再清历史，具备预测、校验和重演骨架；但同帧多输入会在拍平后被逐命令推进为多帧，且 `Reset()` 与 `Dispose()` 不清理通常的非负帧快照。复杂业务仍应明确单帧输入模型、store 生命周期和快照导入器。
 - 通用状态哈希只覆盖部分元信息并包含时间戳；空快照验证返回 Valid，调用方必须区分“一致”和“没有比较证据”。
 - 当前状态差分缺少有效帧元数据，LZ4/Zstd 和关键帧策略没有运行主链采用证据。
 - MemoryPack 打包器只处理通用快照对象；跨语言或 Web 端需要额外协议映射。
+- `SnapshotMessage.IsCompressed` 与 `MemoryPackSnapshotPacker` 没有自动协议联动；压缩标志和 payload codec 必须由项目 route 成对维护。
+
+快照路由还存在独立的生命周期约束：`FrameSnapshotDispatcher.Dispose()` 当前不清 route/handler，`SnapshotPipeline.Dispose()` 只解除 dispatcher 事件绑定；同 order stage 保持插入顺序。handler 异常会记录后继续，但遍历时不会先复制 handler 列表，因此回调中退订或修改同一路由可能改变本次迭代。项目应在 owner 停止分发后统一解绑，不能依赖 `Dispose()` 自动清空所有路由。
 
 ### 9.2 证据成熟度
 
@@ -411,6 +427,7 @@ flowchart TD
 | Host reconciliation | E0 实现，存在业务运行时接入 | 采用深度应按具体 Host/Demo 入口单独核验 |
 | Shooter packed/pure-state、稳定哈希与回滚 Provider | E2 业务运行链，另有专项测试与 Smoke/CI 分层 | Shooter 证据不自动提升通用 `PredictionCoordinator` 或 `KeyFrameStrategy` 的成熟度 |
 | 通用 LZ4/Zstd、关键帧网络协议 | 仅 E0 占位或策略类型 | 未建立 E2 消费、E3 专项契约、E4 artifact 或 E5 发布门禁 |
+| 聚焦验证 | Batch W StateSync 12/12；Batch M 历史 Snapshot 7/7 | E3 局部契约通过；不等于真实 Gateway Smoke 或发布 gate 已执行 |
 
 ### 9.3 关联专题边界
 
@@ -428,4 +445,4 @@ flowchart TD
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-08-09*
+*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*

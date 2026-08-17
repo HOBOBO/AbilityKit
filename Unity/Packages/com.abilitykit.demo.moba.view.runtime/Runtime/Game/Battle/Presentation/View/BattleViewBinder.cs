@@ -98,14 +98,17 @@ namespace AbilityKit.Game.Flow
             _sync.Sync(entity);
         }
 
-        public void Sync(EC.IEntity entity, BattleContext ctx)
+        public void Sync(EC.IEntity entity, IBattleRuntimeContext runtimeContext)
         {
-            _sync.Sync(entity, ctx);
+            _sync.Sync(entity, runtimeContext);
         }
 
-        public void TickInterpolation(BattleContext ctx, float deltaTime)
+        public void TickInterpolation(
+            IBattleRuntimeContext runtimeContext,
+            IBattleEntityContext entityContext,
+            float deltaTime)
         {
-            _transforms.Tick(ctx, deltaTime);
+            _transforms.Tick(runtimeContext, entityContext, deltaTime);
         }
 
         public void OnDestroyed(EC.IEntityId id)
@@ -123,9 +126,9 @@ namespace AbilityKit.Game.Flow
             _rebinder.RebindAll(world);
         }
 
-        public void RebindAll(EC.IECWorld world, BattleContext ctx)
+        public void RebindAll(EC.IECWorld world, IBattleRuntimeContext runtimeContext)
         {
-            _rebinder.RebindAll(world, ctx);
+            _rebinder.RebindAll(world, runtimeContext);
         }
 
         void IMonoViewHandleRegistry.OnMonoViewHandleDestroyed(MonoViewHandle handle)

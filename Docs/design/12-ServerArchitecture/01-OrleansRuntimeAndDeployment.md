@@ -1,5 +1,9 @@
 # 12.1 Orleans 运行时与部署设计
 
+> 文档类型：运行时装配、部署配置与生产边界设计
+> 事实基线：2026-08-16
+> 结论口径：当前配置模型可用于本地与验收拓扑，不代表角色 placement 或外部存储已经闭环
+
 ## 1. 能力定位
 
 Orleans 服务端的运行时设计目标是：用同一套工程支撑本地演示、自动化 Smoke、后台调试和未来多进程部署。当前源码没有把部署能力做成完整生产平台，但已经建立了可扩展的边界：
@@ -7,8 +11,8 @@ Orleans 服务端的运行时设计目标是：用同一套工程支撑本地演
 1. Host 进程负责启动 Orleans Silo 和 Grain 运行时。
 2. Gateway 进程负责 HTTP/TCP 接入，并作为 Orleans Client 调用 Grain。
 3. Hosting 工程沉淀配置、日志、部署角色、运行 profile 和本地 Orleans 装配。
-4. Storage 配置支持 Grain 状态 provider 的统一注册，允许本地内存 fallback。
-5. Deployment profile 描述 Session、Room、Battle 等 Grain 的目标角色和容量约束。
+4. Storage provider plan 能识别目标 provider 名称；当前仓库实际注册的是 Session/Room 自定义内存 store，允许不支持 provider 回退到内存。
+5. Deployment profile 描述 Session、Room、Battle 等 Grain 的目标角色和容量提示，但尚未驱动 Orleans placement。
 
 ## 2. 源码入口
 
@@ -22,6 +26,8 @@ Orleans 服务端的运行时设计目标是：用同一套工程支撑本地演
 | 运行 Profile | `Server/Orleans/src/AbilityKit.Orleans.Hosting/AbilityKitSiloRuntimeProfileOptions.cs` | 运行角色与 max room/battle/session |
 | Grain 路由 | `Server/Orleans/src/AbilityKit.Orleans.Hosting/AbilityKitGrainRouteRegistry.cs` | Session/Room/Battle 逻辑分组 |
 | 状态存储 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Persistence` | Grain state provider 统一注册 |
+| 房间遗弃清理 | `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`、`AbandonedRoomCleanupPolicy.cs` | activation 恢复、一次性 timer、跨资源清理与重试 |
+| FrameSync 销毁 | `Server/Orleans/src/AbilityKit.Orleans.Grains/FrameSync/BattleFrameSyncGrain.cs` | 显式停止 timer、清 observer/input/history 并请求 deactivate |
 
 ## 3. 进程拓扑
 
@@ -38,6 +44,7 @@ flowchart LR
         GatewayProgram[Program]
         Http[HTTP API]
         Tcp[TCP Gateway]
+        WebSocket[WebSocket Gateway]
         Client[Local Orleans Client]
     end
 
@@ -67,6 +74,7 @@ flowchart LR
     GatewayProgram --> Logging
     GatewayProgram --> Http
     GatewayProgram --> Tcp
+    GatewayProgram --> WebSocket
     GatewayProgram --> Client --> Silo
 
     SmokeRunner --> SmokeGateway
@@ -101,7 +109,7 @@ Gateway 入口同样很薄，核心是把 HTTP/TCP 接入与 Orleans Client 连�
 
 | 步骤 | 职责 |
 |------|------|
-| AddAbilityKitGatewayModule | 注册 Gateway pipeline、handlers、transport、HTTP endpoints |
+| AddAbilityKitGatewayModule | 注册 Gateway pipeline、handlers、HTTP/TCP/WebSocket transport 与 endpoints；TCP 默认启用，WebSocket 默认关闭 |
 | UseAbilityKitLocalOrleansClient | 建立到 Orleans Silo 的 client 连接 |
 | MapAbilityKitGatewayPipeline | 映射 HTTP API、健康检查、后台接口和 TCP Gateway 管线 |
 | app.Run(Http.Url) | 用配置中的 URL 启动 WebApplication |
@@ -110,7 +118,7 @@ Gateway 不应持有房间/战斗状态。它可以做协议解析、会话上�
 
 ## 6. 部署角色与运行 profile
 
-当前源码已经为多角色部署留出模型：
+当前源码已经为多角色部署留出模型。下表描述的是逻辑意图，不是 Orleans 运行时已经执行的放置规则：
 
 | 角色 | RouteGroup | 典型 Grain | PreferredSiloRoles | 说明 |
 |------|------------|------------|--------------------|------|
@@ -129,6 +137,8 @@ Gateway 不应持有房间/战斗状态。它可以做协议解析、会话上�
 
 这些配置的价值是把后续生产部署要表达的概念提前固化：即使本地只跑一个 Silo，代码和文档仍按 session/room/battle 的逻辑分组理解。
 
+`PreferredSiloRoles`、RouteGroup、容量字段和 launch profile 当前用于配置绑定、诊断、脚本参数与逻辑分组；源码尚未把它们接到 Orleans placement director/strategy。`dev-scaled` 能启动多个 Silo，只能证明多进程启动参数存在，不能证明 Room 或 Battle activation 按角色落位。
+
 ## 7. 存储策略
 
 服务端状态当前分为两类：
@@ -141,6 +151,12 @@ Gateway 不应持有房间/战斗状态。它可以做协议解析、会话上�
 | Smoke/Replay Artifact | Smoke runner 输出目录 | 验收证据，不是在线服务状态 |
 
 Battle 状态不应默认持久化为普通 Grain state。原因是战斗 Tick 高频、快照体积可变、恢复语义复杂。更合理的方向是通过 Record/Replay 或专门的战斗检查点机制做验收与恢复设计。
+
+`AbilityKitStateStorageProviderPlan` 对 Redis、PostgreSQL、SQL Server 等名称的识别只表达扩展计划。仓库内没有这些数据库 provider 的实现；当 `AllowInMemoryFallbackForUnsupportedProviders=true` 时，即便配置了外部 provider 名称，运行时仍会注册 `InMemorySessionStateStore` 与 `InMemoryRoomStateStore`。生产接入必须提供真实实现、迁移、并发、故障恢复和数据保留验证，不能仅凭配置名称判定已使用外部存储。
+
+Room activation 的恢复还有一条独立生命周期：`OnActivateAsync` 从 room store 恢复状态后重新计算遗弃清理截止时间，并注册一次性 Orleans timer；每次持久化和恢复也会刷新 timer。存在清理截止时间时，Grain 用 `DelayDeactivation(due + 1 minute)` 保持 activation 足够久，正常重连或状态变化则取消并重算。`TickAsync` 同步检查相同策略，因此显式房间时钟和后台 timer 是同一规则的两个触发入口，不是两套清理语义。
+
+遗弃清理是有序补偿流程，不是事务：先调用 `IBattleLogicHostGrain.DestroyAsync()`，再调用 `IBattleFrameSyncGrain.DestroyAsync()`，随后清 account-room mapping、目录和 room store，最后把 activation 内状态标为 `Expired` 并 `DeactivateOnIdle()`。任一步骤抛出时 timer 会在至少 30 秒后重试，但已经完成的远端副作用不会回滚。外部 store/集群部署必须让各步骤保持幂等，并为部分完成、重复 Destroy 和长期重试建立指标与人工补偿入口。
 
 ## 8. 运行模式
 
@@ -175,16 +191,17 @@ flowchart TB
 3. Gateway 水平扩展和会话粘性策略。
 4. Room/Battle placement policy 及跨角色故障转移。
 5. 指标、追踪、告警和压测门禁。
+6. 遗弃房间跨 Grain/store 清理的幂等性、部分失败诊断和积压监控。
 
 ## 9. 可执行验证与证据边界
 
-| 验证目标 | 入口 | 当前覆盖 | 证据边界 |
+| 证据等级 | 入口 | 当前覆盖 | 证据边界 |
 |----------|------|----------|----------|
-| Hosting 配置契约 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release` | `AbilityKitDeploymentOptionsTests`、`AbilityKitGrainRouteRegistryTests`、Gateway health report 等 | 验证默认值、逻辑分组和报告模型，不启动真实多角色集群 |
-| Grain 存储计划 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj -c Release` | provider plan、Session/Room 内存存储和生命周期相关契约 | 内存 fallback 不是外部数据库、迁移或高可用验证 |
-| 单进程自托管 | `powershell -File Server/Orleans/tools/run_moba_smoke.ps1 -Configuration Release`、`run_shooter_smoke.ps1` | Smoke 进程内装配本地 Silo 与 Gateway，经过 TCP 主链路 | 不覆盖独立 Host/Gateway 进程退出、跨节点网络或 placement |
-| Host/场景进程隔离 | `powershell -File Server/Orleans/tools/run_moba_multiprocess_smoke.ps1`、`run_shooter_multiprocess_smoke.ps1` | 独立 Silo 与场景进程、端口和启动时序；Shooter 还提供故障矩阵 profile | 仍是 localhost 验收，不包含外部 membership/storage 或跨机器认证 |
-| 部署脚本静态契约 | `GatewayAdminConsoleTests` 对 `start_abilitykit.ps1`、`start_orleans_silo.ps1`、launch profile 做源码断言 | 保护脚本参数和角色名称不被无意移除 | 静态文本断言不证明脚本已在目标生产环境成功部署 |
+| E0/E1：模型与示例 | Hosting 配置、route registry、launch profiles | 配置字段、默认值与本地组合存在 | placement、容量控制和生产实现存在 |
+| E3：配置契约 | Gateway tests 中的 deployment/route/health tests | 默认值、逻辑分组和报告模型 | 真实多角色集群已启动 |
+| E3：存储契约 | Grains tests 中的 provider plan 与内存 store tests | provider 选择、fallback 与生命周期 | 外部数据库、迁移或高可用 |
+| E4：本地运行 | 单进程/多进程 MOBA、Shooter Smoke artifact | 当次 localhost 拓扑、TCP 链路与场景行为 | 跨机器、外部 membership/storage 或 placement |
+| E5：发布门禁 | CI 对上述命令和 artifact 的明确触发/阻断规则 | 被配置的 profile 持续受保护 | 仅存在脚本或静态契约就自动形成 gate |
 
 仓库当前没有一条命令能够证明 Split 多角色生产拓扑已经闭合。发布说明应写明实际执行的 profile、进程拓扑和 artifact 路径，不能只记录“Orleans Smoke 通过”。
 
@@ -205,3 +222,10 @@ flowchart TB
 3. 把 Gateway endpoint manifest 暴露给 AdminConsole，减少前后端接口漂移。
 4. 将 Smoke 结果与工程质量文档中的测试门禁统一成可机器读取的报告。
 5. 为 Battle Runtime 增加检查点、回放对账和状态 hash 诊断的统一接口。
+6. 为遗弃房间清理增加结构化 attempt/result、死信或人工补偿能力，避免仅依赖 timer 异常日志判断跨资源收敛。
+
+---
+
+> 文档版本：v3.1
+> 更新日期：2026-08-16
+> 更新责任：Hosting、storage provider、placement 或 launch profile 变化时同步复核。

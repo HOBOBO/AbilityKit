@@ -62,16 +62,18 @@ namespace AbilityKit.Game.Flow
             return false;
         }
 
-        public void SampleEntity(in EC.IEntity entity, in Vector3 pos, BattleContext ctx)
+        public void SampleEntity(in EC.IEntity entity, in Vector3 pos, IBattleRuntimeContext ctx)
         {
             _sampler.SampleEntity(entity, in pos, ctx);
         }
 
-        public void Tick(BattleContext ctx, float deltaTime)
+        public void Tick(
+            IBattleRuntimeContext runtimeContext,
+            IBattleEntityContext entityContext,
+            float deltaTime)
         {
-            if (ctx == null) return;
+            if (runtimeContext == null || entityContext?.EntityWorld == null) return;
             if (deltaTime <= 0f) return;
-            if (ctx.EntityWorld == null) return;
 
             if (!InterpolationEnabled)
             {
@@ -79,10 +81,15 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            var frameAdvanced = _clock.Advance(ctx, deltaTime, BackTimeTicks, MaxLagTicks, out var sampleTime);
+            var frameAdvanced = _clock.Advance(
+                runtimeContext,
+                deltaTime,
+                BackTimeTicks,
+                MaxLagTicks,
+                out var sampleTime);
             if (frameAdvanced)
             {
-                _sampler.SampleAliveEntityPositions(ctx, sampleTime);
+                _sampler.SampleAliveEntityPositions(entityContext, sampleTime);
             }
 
             _applier.ApplyInterpolatedPositions(_clock.RenderTime, deltaTime);

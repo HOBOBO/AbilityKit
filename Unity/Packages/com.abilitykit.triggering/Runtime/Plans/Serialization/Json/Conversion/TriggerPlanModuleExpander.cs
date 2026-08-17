@@ -18,7 +18,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
     using TriggerTemplateBindingDto = TriggerPlanJsonDatabase.TriggerTemplateBindingDto;
 
     /// <summary>
-    /// 璐熻矗灞曞紑瑙﹀彂鍣ㄨ鍒掓ā鍧?妯℃澘瀹炰緥锛岄伩鍏?TriggerPlanJsonDatabase 鍚屾椂鎵挎媴 DTO 缁勮鍜屾ā鍧楀疄渚嬪寲閫昏緫銆?
+    /// 负责展开触发器计划模块/模板实例，避免 TriggerPlanJsonDatabase 同时承担 DTO 组装和模块实例化逻辑。
     /// </summary>
     internal static class TriggerPlanModuleExpander
     {

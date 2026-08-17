@@ -16,6 +16,13 @@ Console Demo 主要解决三个问题：
 
 它不负责替代真实客户端，也不直接承担 Orleans 房间协调。它更像一个“源码可读的战斗集成壳”，用于把 AbilityKit 的跨端边界跑通。
 
+| 归属 | Console Demo 中的职责 | 采用边界 |
+|------|----------------------|----------|
+| 框架包 | World/Host、输入命令、同步、配置、事件与快照等稳定机制 | 不拥有 Console 阶段、HUD、键盘线程和演示实体 |
+| Console 项目 | 组合根、BattleFlow、Feature、in-process Host 网络、文本表现和 CLI | 是参考实现与验收载体，不是公共 Battle Application Runtime |
+| MOBA 项目层 | 英雄/技能/配置/OpCode、runtime port 与业务校验 | 其他游戏应替换而不是继承其业务目录 |
+| 自动化层 | 复用正式 bootstrapper、固定输入和快照/回放断言 | 局部 smoke 通过不能替代 Unity/Orleans/多人验收 |
+
 ---
 
 ## 2. 源码入口
@@ -30,7 +37,7 @@ Console Demo 主要解决三个问题：
 | `src/AbilityKit.Demo.Moba.Console/Battle/Features/Context/BattleEntityFeature.cs` | 创建本地 ECS 世界，注入 `BattleEntityFactory`、`BattleEntityQuery`、`BattleEntityLookup` |
 | `src/AbilityKit.Demo.Moba.Console/Battle/Input/ConsoleInputHandler.cs` | 独立键盘线程，把按键翻译成 HUD 输入状态 |
 | `src/AbilityKit.Demo.Moba.Console/Battle/Input/ConsoleInputFeature.cs` | 每帧读取 HUD 状态，编码成 `PlayerInputCommand` 并提交给 `IWorldInputSink` |
-| `src/AbilityKit.Demo.Moba.Console/Bootstrap/DirectCallInputSink.cs` | 本地输入 sink；有 runtime input port 时走 `RuntimePortInputSink`，否则仅记录本地命令 |
+| `src/AbilityKit.Demo.Moba.Console/Bootstrap/HostNetworkInputSink.cs` | 通过正式 Host request/response 通道提交输入并记录诊断；连接可由 in-process 或其他 transport 提供 |
 | `src/AbilityKit.Demo.Moba.Console/Battle/Sync/IBattleSyncAdapter.cs` | Console 同步适配抽象，屏蔽 Lockstep、SnapshotAuthority、Hybrid 差异 |
 | `src/AbilityKit.Demo.Moba.Console/Battle/Sync/FrameSyncAdapter.cs` | Lockstep 模式的本地帧同步适配器，镜像 `ConsoleBattleContext` 的帧和逻辑时间 |
 | `src/AbilityKit.Demo.Moba.Console/View/ConsoleBattleView.cs` | Console 表现面，渲染实体、血条、投射物、区域和浮字 |
@@ -167,7 +174,8 @@ flowchart LR
 4. 用 `WorldServiceContainerFactory.CreateWithAttributes()` 扫描 AbilityKit 相关程序集。
 5. 注册 Console 配置模块、MOBA 配置库、`IFrameTime`、`ICollisionService`。
 6. 添加 `MobaWorldBootstrapModule`，并设置 `MobaEntitasContextsFactory`。
-7. 调用 `WorldManager.Create(options)` 创建 runtime world。
+7. 创建 `InProcessHostNetwork`，把连接管理器挂到 `HostRuntime`，再由 `HostRuntime.CreateWorld(options)` 创建 runtime world。
+8. 创建本地 client connection，并用 `HostNetworkInputSink` 通过正式 `SubmitFrameInput` request/response 路径提交输入。
 
 这说明 Console Demo 并不是绕开框架，而是在无 Unity 环境中复用正式世界创建管线。
 
@@ -261,18 +269,20 @@ sequenceDiagram
     participant InputFeature as ConsoleInputFeature
     participant Context as ConsoleBattleContext
     participant Sink as IWorldInputSink
-    participant Runtime as IMobaBattleInputPort
+    participant Client as HostNetworkInputSink
+    participant Host as InProcessHostNetwork
+    participant Runtime as HostRuntime / MOBA input handler
 
     Keyboard->>InputFeature: SetMoveInput / ClickSkill / StartSkillAim
     InputFeature->>Context: write HudMoveDx, HudMoveDz, HudSkillClickSlot
     InputFeature->>InputFeature: Tick(ctx, deltaTime)
     InputFeature->>InputFeature: MobaMoveCodec / ConsoleSkillInputCodec
     InputFeature->>Sink: Submit(FrameIndex, PlayerInputCommand[])
-    alt Runtime input port exists
-        Sink->>Runtime: Submit(frame, inputs)
-    else No runtime input port
-        Sink->>Sink: log local commands only
-    end
+    Sink->>Client: encode WireSubmitFrameInputReq
+    Client->>Host: Send request with sequence
+    Host->>Runtime: route to formal input handler
+    Runtime-->>Client: WireSubmitFrameInputRes
+    Client->>Client: update RuntimeInputDiagnostics
 ```
 
 移动输入使用 JSON 文本 payload：
@@ -472,7 +482,7 @@ flowchart LR
 3. `BattleStartConfig.BuildPlan()` 与 `BuildLaunchSpec()`：配置如何进入 runtime。
 4. `BattleFlow` 与 `InMatchPhase`：阶段流和四步初始化。
 5. `BattleEntityFeature` 与 `BattleEntityFactory`：Console 本地 ECS 如何产生角色实体。
-6. `ConsoleInputHandler`、`ConsoleInputFeature`、`DirectCallInputSink`：输入从按键到 `PlayerInputCommand` 的路径。
+6. `ConsoleInputHandler`、`ConsoleInputFeature`、`HostNetworkInputSink`：输入从按键、`PlayerInputCommand` 到正式 Host request/response 的路径。
 7. `SyncAdapterFactory` 与 `FrameSyncAdapter`：同步适配器在 Console 中的职责边界。
 8. `ConsoleBattleViewEventSink` 与 `ConsoleBattleView`：共享事件如何驱动 Console 表现。
 9. `AutoTestRunner`：Demo 如何成为自动化验收入口。
@@ -487,7 +497,7 @@ flowchart LR
 | `ConsoleBattleBootstrapper.Run()` 是启动入口 | 当前源码没有这个方法，启动由 `Program.Main` 调用 `Initialize()`、`Start()`、`SetupBattle()` 完成 |
 | 帧循环由同步适配器推进 | 当前帧号和逻辑时间在 `ConsoleBattleBootstrapper.Tick()` 中推进，`FrameSyncAdapter` 主要镜像和广播同步状态 |
 | 输入线程直接提交命令到世界 | 键盘线程只写 HUD 状态，提交发生在 `ConsoleInputFeature.Tick()` |
-| `DirectCallInputSink` 等于正式输入端口 | 它是 runtime input port 不存在时的本地 fallback；有 `IMobaBattleInputPort` 时会使用 `RuntimePortInputSink` |
+| Console 输入可以在无连接时退化为本地记录 | 当前 `CreateBattleSession()` 要求 Host client 已连接，否则抛异常；输入统一走 `HostNetworkInputSink`，不存在旧 DirectCall fallback |
 | Console 本地 ECS 和 MOBA runtime world 是同一个对象 | 它们是两条路径：前者服务 Console 演示实体，后者服务共享 MOBA runtime |
 | View 事件只能在 Unity 表现 | `ConsoleBattleViewEventSink` 证明 Share 层事件可以适配到 Console 表现面 |
 
@@ -506,4 +516,17 @@ flowchart LR
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-07-03*
+## 19. 验证证据与已知限制
+
+| 证据 | 等级与结论 |
+|------|------------|
+| Console 工程与可执行 CLI | E1–E2：纯 .NET 组合根、阶段、Host 网络、输入、表现、record/replay 路径可构建和运行 |
+| `MobaCompleteBattleLifecycleSmokeTests`、技能/召唤/AI/回滚等 tests | E3：多组测试直接创建 `ConsoleBattleBootstrapper`，证明它是正式测试载体而非只读示例 |
+| `AutoTestRunner` | E2 工具入口：提供脚本化 tick 和基础状态断言；源码存在不代表本次修订执行过完整 CLI 验收 |
+| Unity/Orleans 对照 | 独立证据面：Console 通过不能证明资源、GameObject、真实 TCP、多进程或弱网行为 |
+
+当前同步适配器仍主要承担 Demo 诊断和模型切换，权威输入已统一走 in-process Host 网络。生产采用应复用 Host/World/协议机制，并重新实现项目流程、表现和部署拓扑；不要把 Console 自有 ECS、HUD 或 `BattleFlow` 下沉为框架默认。
+
+文档类型：示例分析与纯 .NET 验收指南 | 事实基线：2026-08-15 | 证据等级：E0/E1 源码构建面、E2 可执行入口、较多 E3 bootstrapper 消费；未在本批生成 E4/E5 artifact
+
+*文档版本：v3.0 | 最后更新：2026-08-15*

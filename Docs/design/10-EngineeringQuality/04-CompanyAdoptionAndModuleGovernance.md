@@ -2,6 +2,12 @@
 
 > 本文定义 AbilityKit 从仓库能力、示例能力演进为公司级共享资产时的准入、试点、发布、升级、回滚、弃用和退出规则。它不把“代码存在”“Demo 可运行”或“接口已定义”等同于生产成熟度，而要求能力声明始终可追溯到源码、测试、场景和责任人。
 
+> 文档类型：Canonical 组织治理规范
+>
+> 事实基线：2026-08-16
+>
+> 规范状态：本文定义目标治理规则；仓库当前是否满足这些规则必须逐模块引用事实证据，不由本文自动授予
+
 ---
 
 ## 1. 治理目标
@@ -14,6 +20,19 @@
 4. 如何把项目反馈沉淀为公共能力，而不是形成私有分叉。
 
 治理对象包括 Unity package、纯 .NET project、Server/Orleans 组件、配置协议、生成器、测试夹具、Demo 和文档。不同对象可以有不同成熟度；不能用一个整体版本号掩盖单个模块的未完成边界。
+
+### 1.1 治理状态与工程证据分离
+
+成熟度是组织决策，E0-E5 是工程证据，两者相互约束但不能互换：
+
+| 维度 | 回答的问题 | 示例 |
+|---|---|---|
+| 资产类型 | 这个东西被设计成什么 | Foundation、Adapter、Reference、Validation |
+| 成熟度 | 组织允许谁在什么范围采用 | Experimental、Pilot、Supported、Recommended |
+| 工程证据 | 哪种行为在什么环境被证明 | E3 契约、E4 场景、E5 自动门禁 |
+| 发布状态 | 哪个制品和版本可获取、可回退 | package 版本、commit、artifact、rollback version |
+
+Supported 至少需要覆盖承诺边界的 E3/E4 证据、可核对 owner、版本策略和回滚方式；Recommended 还需要多项目或等价多场景运行记录。某个 workflow job 存在不自动授予成熟度，某个模块达到 Supported 也不表示每项能力都达到 E5。
 
 ---
 
@@ -267,6 +286,12 @@ flowchart TD
 
 门禁通过只证明其覆盖范围，不代表未执行场景也通过。发布记录应保存 gate 名称、源码版本、环境、结果、artifact 地址和已知未覆盖项。
 
+2026-08-16 的仓库复核还要求区分“gate 配置”和“workflow 接线”。`tools/test-gates.json` 中的 `ciPolicy` 是治理意图，`.github/workflows/abilitykit-test-gates.yml` 的手写 job 才是当前自动执行事实。`moba-network-options`、`network-sdk`、多个 MOBA hero Unity gate、`moba-complete-battle-journey` 和 `moba-multiprocess` 当前未发现对应 job；`moba-codegen` 虽有 job，但配置中存在失效项目路径。这些能力可以保留 Pilot 或局部证据，不能以配置声明晋升为 E5。
+
+公司采用记录必须保存“实际执行命令或 job + commit + 结果 + artifact”，而不是只填写 gate 名称。没有对应 job 时，可以由受控手工运行形成 E3/E4 证据，但需要明确运行者、环境和未自动化风险。
+
+package 发布也采用相同原则。仓库现有 `tools/publish` 已能对 framework cohort 做版本对齐预览/应用、版本与 BOM 审计、release batch 依赖闭包检查和本地 tag 规划；当前 manifest 的 `batch-1-leaves` 仍是 `candidate`，包含 8 个 `0.1.0` package。它没有完成 CI 候选重建、CHANGELOG/签核阻断、tag push、OpenUPM 结果确认和撤回编排，因此“dry-run 可生成计划”只能记为候选治理能力，不能计为 package 发布 E5。
+
 ---
 
 ## 12. 当前能力声明规则
@@ -329,3 +354,9 @@ flowchart TD
 ## 15. 治理结论
 
 AbilityKit 的公司级价值不由模块数量决定，而由边界、证据、所有权和可逆性决定。公共资产必须能说明当前成熟度、谁维护、如何验证、怎样升级和如何退出。Demo、接口和 PPT 负责建立理解，只有源码契约、场景证据、性能基线、版本纪律和反馈闭环共同成立，模块才有资格从 Pilot 晋升 Supported 或 Recommended。
+
+对于战斗工具集，参考应用层的合理定位是“降低首次接入成本并展示组合方式”，而不是承诺不同游戏共享同一套业务编排。只有多个项目出现稳定同构、能够去除英雄/房间/产品策略假设、并拥有独立 owner 与验证矩阵时，才考虑将共性上移为可选应用 package；否则保留在项目或 Demo 中更符合战斗领域的多变性。
+
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16*

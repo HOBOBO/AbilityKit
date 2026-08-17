@@ -112,6 +112,30 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ContextPoolRelease_UnbindsAndClearsSessionPredictionOwner()
+        {
+            var context = BattleContext.Rent();
+            var runtime = new BattlePredictionRuntime();
+            var target = new FakeReconcileTarget();
+            context.BindPredictionRuntime(runtime);
+            runtime.Bind(null, target, null, null);
+
+            BattleContext.Return(context);
+            var reusedContext = BattleContext.Rent();
+
+            try
+            {
+                Assert.That(runtime.Context, Is.Null);
+                Assert.That(runtime.ReconcileTarget, Is.Null);
+                Assert.That(reusedContext.PredictionReconcileTarget, Is.Null);
+            }
+            finally
+            {
+                BattleContext.Return(reusedContext);
+            }
+        }
+
+        [Test]
         public void PredictionRuntime_RebindClearsPortsAndIgnoresStaleUnbind()
         {
             var first = BattleContext.Rent();

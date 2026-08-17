@@ -1,21 +1,25 @@
 # 1.4 项目结构：Unity Package、.NET 工程、Server 与 Demo 的关系
 
+> 文档类型：工程结构 Canonical
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > 本文解释 AbilityKit 仓库为什么这样组织，以及如何从目录结构判断源码位置、构建入口、示例入口和服务端接入边界。本文依据 `README.md`、`Unity/Packages/README.md`、`.cursor/rules/src-unity-packages-relation.mdc`、`.cursor/rules/ability-package-structure.mdc`、`src/AbilityKit.sln`、`src/*.csproj` 和 `Server/Orleans/src` 当前目录核对。
 
 ---
 
 ## 1. 结构设计的核心原则
 
-AbilityKit 当前最重要的工程约束是：`Unity/Packages` 是唯一源码位置，`src` 是 .NET SDK 构建与测试入口，`Server/Orleans` 是服务端验证入口。
+AbilityKit 当前最重要的工程约束是：被 Unity 与 `.NET` 镜像工程共同消费的 framework/package runtime 以 `Unity/Packages` 为唯一源码位置；`src` 同时包含这些源码的 SDK 构建入口、测试以及 Console/Demo 自有源码；`Server/Orleans` 则拥有服务端应用源码和远程验证入口。“唯一源码”约束不能外推成 `src` 与 `Server` 只有工程文件、没有自己的应用代码。
 
 ```mermaid
 flowchart TB
     Root[AbilityKit 仓库]
-    Root --> Packages[Unity/Packages<br/>唯一源码位置]
-    Root --> Src[src<br/>.NET 构建/测试/Console Demo]
+    Root --> Packages[Unity/Packages<br/>framework/package runtime 权威源码]
+    Root --> Src[src<br/>.NET 镜像/测试/Console 自有源码]
     Root --> Server[Server/Orleans<br/>Gateway/Grain/Smoke]
     Root --> Docs[Docs/design<br/>能力中心设计文档]
-    Root --> Config[LubanConfig / Unity Assets Resources<br/>配置与生成输入]
+    Root --> Config[LubanConfig / Package Resources<br/>配置与生成输入]
     Root --> Rules[.cursor/rules<br/>工程约束]
 
     Packages --> Unity[Unity Editor/Player<br/>asmdef/package.json]
@@ -39,11 +43,11 @@ flowchart TB
 | `src` | `.NET` 解决方案、测试工程、Console Demo、服务端可复用工程 | 构建、测试、纯 C# Demo 调试时 |
 | `Server/Orleans` | Gateway、RoomGrain、BattleHost、Shooter Smoke | 研究多人服务端和远程闭环时 |
 | `Docs/design` | 按能力域组织的设计文档 | 理解设计意图、流程图、源码入口时 |
-| `Unity/Assets` | Unity 项目资源、Demo 资源、Resources 配置 | 在 Unity Editor 中运行 Demo 或查看资源时 |
+| `Unity/Assets` | Unity 宿主工程与场景级资源；不是 MOBA/Shooter canonical 配置的第二份根目录 | 在 Unity Editor 中查看宿主工程资产时 |
 | `LubanConfig` | 配置生成相关输入 | 研究配置生成和表结构时 |
 | `.cursor/rules` | 工程约束和开发规则 | 不确定源码位置、包结构、源码同步关系时 |
 
-不要把 `src` 当成第二份源码根目录。多数 `src/*.csproj` 通过 `<Compile Include="../../Unity/Packages/...">` 直接引用 package 源码，当前核对到数十个工程采用这种模式。
+不要在 `src` 复制 framework/package runtime。多数 `src/AbilityKit.*.csproj` 通过 `<Compile Include="../../Unity/Packages/...">` 直接引用 package 源码；Console、测试、训练工具等工程仍可以在自己的项目目录拥有应用代码。
 
 ```mermaid
 flowchart LR
@@ -58,7 +62,7 @@ flowchart LR
 
 ---
 
-## 3. `Unity/Packages`：按能力拆分的唯一源码层
+## 3. `Unity/Packages`：按能力拆分的共享 package 权威源码层
 
 AbilityKit 的包按能力逐层组合，不要求业务项目一次性全量接入。`Unity/Packages/README.md` 当前定义的组合是：
 
@@ -89,7 +93,7 @@ flowchart TD
 | 同步与记录 | `world.framesync`、`world.networkfragments`、`world.snapshot`、`world.statesync`、`record` | `FramePacket.cs`、`RemoteFrameAggregator.cs`、`FrameSnapshotDispatcher.cs` |
 | 玩法表达 | `triggering`、`pipeline`、`attributes`、`ability`、`modifiers`、`context` | `TriggerRunner.cs`、`EffectContainer.cs`、属性/修饰器运行时 |
 | 战斗原语 | `combat.targeting`、`combat.projectile`、`combat.damage`、`combat.motion`、`combat.entitymanager` | `SearchTarget`、`Projectile`、`Damage` 相关目录 |
-| 工具与生成 | `actionschema`、`codegen`、`analyzer`、`excel-sync`、`thirdparty.luban.runtime` | SourceGenerator、ActionSchema、Luban runtime |
+| 工具与生成 | `actionschema`、`demo.moba.codegen`、`analyzer`、`excel-sync`、`thirdparty.luban.runtime` | ActionTimeline DTO、MOBA manifest generator、Luban runtime |
 | 示例与表现 | `demo.moba.*`、`demo.shooter.*`、`game.view.runtime`、`game.battle.*` | Runtime/View/Share 分层源码 |
 | AI 与扩展 | `ai.abstractions`、`ai.mlagents.bridge`、`coordinator`、`behavior`、`hfsm` | AI 抽象、协调器、行为/状态机能力 |
 
@@ -200,6 +204,18 @@ Demo 不是业务项目必须复制的模板，而是框架能力的落地样板
 | ET Demo | AbilityKit 接入 ET 热更新层和 ViewEventSink | `Docs/design/09-ImplementationExamples/02-ET%20Demo%20Analysis.md` |
 | Orleans Smoke | Gateway、RoomGrain、BattleHost、FrameSyncGrain 的远程验收 | `Docs/design/09-ImplementationExamples/Shooter/03-GatewayOrleansSmoke.md` |
 
+### 6.1 Demo 代码的三种使用方式
+
+从 Demo 复用能力时，必须先明确源码和升级所有权。三种方式不能混用：
+
+| 使用方式 | 适用对象 | 所有权与升级规则 |
+|----------|----------|------------------|
+| Package 依赖 | `com.abilitykit.*` 中语义稳定的 framework package | 框架维护 API 和版本；项目通过公开契约扩展，不复制内部源码 |
+| 参考实现 | `demo.moba.*`、`demo.shooter.*` 中的应用层编排和业务策略 | 项目阅读后自行实现；示例更新不承诺自动迁移到项目 |
+| 有意复制 | 少量 Starter、配置样本或项目决定接管的适配代码 | 复制后归项目所有，必须记录来源版本，不再把它视为框架受支持 API |
+
+高接入程度示例的价值是展示模块如何组成真实闭环，而不是提供一个隐式的公共应用包。若项目发现自己需要长期跟随某段 Demo 源码更新，应先判断它是否属于稳定框架契约；如果不是，就应显式接管，而不是保持对 `demo.*` 的运行时依赖。
+
 ```mermaid
 flowchart LR
     A[专题总览] --> B[源码入口]
@@ -213,16 +229,19 @@ flowchart LR
 
 ## 7. 配置与生成目录
 
-AbilityKit 同时支持手写配置、JSON 计划、Luban 表和 SourceGenerator。
+AbilityKit 的通用运行时支持配置数据库与 TriggerPlan/Action Schema；MOBA 示例另有项目专用 Source Generator 和 Luban 生产链。ActionTimeline DTO 是独立协议，不能与 Triggering Action Schema 混为一谈。
 
 ```mermaid
 flowchart TB
     Json[JSON 配置/TriggerPlan] --> ConfigDB[ConfigDatabase / MobaConfigDatabase]
     Luban[LubanConfig] --> Generated[生成 DTO / 表访问]
-    Schema[ActionSchema] --> Generator[AutoPlanActionGenerator]
-    Generator --> PlanActions[PlanAction 模块]
+    Schema[Triggering ActionSchema] --> PlanActions[PlanAction 模块]
+    Declarations[MOBA 项目声明] --> Generator[MOBA Manifest Generators]
+    Generator --> Manifests[项目运行时 manifests]
+    Timeline[ActionTimeline DTO] --> TimelineConsumers[项目 timeline handlers]
 
     ConfigDB --> Runtime[Runtime Services]
+    Manifests --> Runtime
     PlanActions --> Triggering[TriggerRunner]
     Runtime --> Combat[Skill/Buff/Projectile/Damage]
 ```
@@ -231,8 +250,9 @@ flowchart TB
 |------|------|
 | MOBA 配置门面 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime`、`src/AbilityKit.Demo.Moba.Console/Bootstrap` |
 | TriggerPlan JSON | `Unity/Packages/com.abilitykit.triggering/Runtime/Triggering/Runtime/Plan/Json` |
-| ActionSchema | `Unity/Packages/com.abilitykit.actionschema` |
-| SourceGenerator | `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator` |
+| Triggering Action Schema | `Unity/Packages/com.abilitykit.triggering/Runtime/Plans` |
+| ActionTimeline DTO/最小播放器 | `Unity/Packages/com.abilitykit.actionschema/Runtime` |
+| MOBA Source Generator | `Unity/Packages/com.abilitykit.demo.moba.codegen/DotNet~/AbilityKit.Demo.Moba.CodeGen` |
 | Luban 配置输入 | `LubanConfig` |
 
 ---
@@ -265,7 +285,7 @@ sequenceDiagram
     participant Demo as Demo/Smoke
 
     Dev->>Docs: 找能力域和源码入口
-    Dev->>Pkg: 修改唯一源码位置
+    Dev->>Pkg: 修改共享 package 权威源码
     Dev->>Src: dotnet build/test
     alt 影响 Demo 行为
         Dev->>Demo: 跑 Console Demo 或 Smoke
@@ -283,6 +303,7 @@ sequenceDiagram
 |----------------|----------|
 | 在 `src` 里新增框架源码 | 应在 `Unity/Packages/com.abilitykit.*` 新增，再让 `.csproj` 引用 |
 | 把 Demo 包当成业务项目必须依赖 | Demo 是参考实现，业务可按 Foundation/SkillCore/BattleRuntime/SyncRuntime 分级接入 |
+| 为了复用应用层而长期依赖 `demo.*` | 先区分 Package 依赖、参考实现和有意复制；项目策略应由项目显式接管 |
 | 只看 Unity 目录，不跑 `.NET` 测试 | 核心逻辑应优先用 `dotnet test` 快速验证 |
 | 只看文档，不看源码入口 | 设计文档应和真实源码互相校验 |
 | 从 Orleans 开始学习 | 先理解 Host、FrameSync、Snapshot，再看 Orleans 编排 |
@@ -307,3 +328,5 @@ flowchart LR
 ```
 
 这条主线用于把几十个 package、多个 Demo、测试工程和服务端目录统一到同一套源码组织关系中。
+
+*文档版本：v3.0 | 最后更新：2026-08-16 | 主要源码：`Unity/Packages`、`src`、`Server/Orleans`*

@@ -1,4 +1,5 @@
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Modules;
 
@@ -6,7 +7,8 @@ namespace AbilityKit.Game.Flow
 {
     internal interface IViewSharedSubFeatureHost
     {
-        BattleContext Context { get; }
+        IBattleRuntimeContext RuntimeContext { get; }
+        IBattleEntityContext EntityContext { get; }
         BattleViewBinder Binder { get; }
 
         bool IsConfirmed { get; }

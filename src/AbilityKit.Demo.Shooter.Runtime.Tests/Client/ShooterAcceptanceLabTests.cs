@@ -167,7 +167,8 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(450, mass.SendPolicy.KeyFrameIntervalFrames);
         Assert.Equal(20000, mass.SendPolicy.MaxEntityCount);
         Assert.Equal(2048, mass.SendPolicy.ActiveEntityBudget);
-        Assert.Equal(48f, mass.SendPolicy.AoiRadius);
+        Assert.Equal(24f, mass.SendPolicy.AoiRadius);
+        Assert.Equal(30f, mass.SendPolicy.AoiBoundaryRadius);
         Assert.Equal(10, mass.SendPolicy.NearLodIntervalFrames);
         Assert.Equal(30, mass.SendPolicy.MidLodIntervalFrames);
         Assert.Equal(90, mass.SendPolicy.FarLodIntervalFrames);

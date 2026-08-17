@@ -19,5 +19,6 @@ MonoBehaviour:
   requestTimeoutSeconds: 10
   defaultAccountPrefix: unity-account
   defaultGuestPrefix: unity-guest
-  mobaSceneName: MobaMultiplayerScene
-  shooterSceneName: ShooterMultiplayerScene
+  gameplaySceneName: DemoGameplayBootstrapScene
+  mobaProfileId: moba-multiplayer
+  shooterProfileId: shooter-multiplayer

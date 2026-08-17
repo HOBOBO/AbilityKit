@@ -2,6 +2,12 @@
 
 > 本文整理 AbilityKit 当前已经实现的离线训练产物链路，说明 rollout、dataset、model、metadata、模型执行器和运行时策略之间的职责。本文描述的是第一版线性行为克隆 JSON 模型，不把 ONNX、神经网络推理、模型热更新或在线训练视为现有能力。
 
+> 文档类型：Canonical AI 产物与运行时策略契约
+>
+> 事实基线：2026-08-16
+>
+> 当前证据：Python 与 C# 各自具备局部 E3；尚无跨进程 canonical fixture、真实场景 E4 或 AI 专项 E5 gate
+
 ---
 
 ## 1. 文档定位
@@ -203,6 +209,8 @@ C# 与 Python 的主要差异如下：
 
 这两级门禁承担不同职责。Python 完整校验面向训练制品形成，C# 加载器面向部署后最低限度的执行安全。不能用 C# 成功加载反推 dataset、样本数或训练指标真实可信。
 
+C# 加载器也不核对 metadata 中的 `sourceDatasetPath`、`modelPath` 或 dataset hash；当前 metadata 本身没有 dataset hash 字段。它只对调用方传入的 model 文件计算 SHA-256，并与 metadata 声明比较。因此 metadata/model 自洽不等于训练数据来源可追溯，dataset 身份应由外层发布清单固定。
+
 ### 4.1 完整性边界
 
 `modelSha256` 可以检测 model 文件被修改，但 metadata 自身没有签名或独立哈希。攻击者或错误发布流程若同时替换 model 与 metadata，加载器无法识别来源变化。
@@ -259,6 +267,8 @@ sequenceDiagram
 ```
 
 策略只负责适配和复制，不解释动作语义。连续值裁剪、离散动作合法范围、动作 mask 和玩法约束仍由环境或 action mapper 负责。例如 MOBA 的 action mapper 会裁剪移动输入和技能槽位，但这不是 `AiModelPolicy` 的通用行为。
+
+当前线性 executor 每次 `Run()` 都新建 continuous 与 discrete 输出数组，随后 `AiModelPolicy` 再把它们复制到调用方动作缓冲。该路径尚未提供调用方缓冲写入或池化协议，不能声明稳态零分配；进入每帧或多 Agent 热路径前，需要建立目标硬件上的分配与推理耗时预算。
 
 ### 5.3 当前匹配规则
 
@@ -328,6 +338,8 @@ C# rollout -> Python dataset/model/metadata -> C# LoadArtifact -> environment ep
 
 因此当前证据可以证明格式字段兼容，尚不能证明跨进程完整流水线在每次变更后自动回归。
 
+2026-08-16 本地复核中，Python 离线训练测试 `6/6`、C# 推理测试 `7/7` 通过。它们没有改变上述边界：两侧仍各自构造测试数据，本轮没有生成并提交 canonical fixture，也没有执行跨进程完整训练后加载的 CI 链。
+
 ---
 
 ## 7. 当前风险与建议门禁
@@ -341,6 +353,7 @@ C# rollout -> Python dataset/model/metadata -> C# LoadArtifact -> environment ep
 | 模型路径一致性 | Python 结构校验与 hash 可能读取不同模型路径。 | 完整校验显式对命令行 `--model` 计算 hash，并核对 metadata 路径。 |
 | 环境门禁 | C# 的 expected environment 可省略。 | 生产 bootstrap 强制提供环境名，并与实际 environment spec 比较。 |
 | 动作安全 | 只检查输出长度。 | 增加有限值、范围、离散分支和 mask 校验层。 |
+| 推理热路径分配 | 线性 executor 每次创建两组输出数组，policy 再复制一次。 | 增加写入调用方缓冲的执行协议，并建立分配/耗时 benchmark。 |
 
 ### 7.2 P1：模型类型扩展前应确定
 
@@ -396,8 +409,23 @@ flowchart TD
 
 ---
 
-## 10. 结论
+## 10. 当前证据结论
+
+| 证据项 | 当前状态 | 可以声明 | 不能声明 |
+|---|---|---|---|
+| Python CLI 与测试 | `build-dataset`、`train-bc`、`validate-metadata` 有专项测试 | schema、维度、hash 与 baseline 训练局部契约达到 E3 | 训练质量、生产数据治理或发布链完成 |
+| C# Executor/Policy 与测试 | `BehaviorCloningModelExecutor`、`AiModelPolicySpec` 和策略测试存在 | 模型加载、规格匹配和确定性线性执行达到 E3 | 任意模型后端、热更新、动作安全或目标硬件预算 |
+| 跨语言闭环 | 两侧格式可由手工 JSON 对齐 | 具备闭环设计基础 | 每次变更自动执行 C# -> Python -> C# |
+| CI gate | gate 配置和 workflow 均无 AI 专项入口 | 无 | PR、nightly 或发布 E5 覆盖 |
+
+要形成 E4，需要提交或可重复生成 canonical artifact fixture，固定训练输入、环境 spec、种子和探针输出，并让真实 Shooter/MOBA 环境执行验收。要形成 E5，需要把完整性校验、跨进程探针、动作安全、artifact retention 和失败策略接入实际 workflow；仅增加 `ciPolicy` 条目仍不够。
+
+## 11. 结论
 
 AbilityKit 已有一条可以执行的最小训练产物闭环：训练轨迹进入 Python dataset，线性行为克隆导出 model 与 metadata，C# 校验类型、版本、环境、hash 和维度后执行模型，再通过 `AiModelPolicy` 写入统一动作缓冲。
 
 这条闭环当前解决的是格式互通和运行时接入，不是模型平台。线性模型只学习连续动作，离散动作仍是静态默认值；运行时只按长度保护缓冲，不负责动作合法性、模型来源、资源热切换或推理质量。后续扩展应保留 metadata 门禁与 policy/executor 分层，同时先补齐 canonical fixture、跨进程测试、路径一致性和动作安全检查。
+
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16*

@@ -7,6 +7,28 @@ namespace AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests;
 public sealed class BenchmarkRunnerTests
 {
     [Fact]
+    public void SyncPipelineReportCapturesAllHeadlessStages()
+    {
+        var report = ShooterSyncPipelineBenchmarkRunner.Run(new SyncPipelineBenchmarkOptions
+        {
+            Entities = 32,
+            WarmupIterations = 2,
+            MeasurementIterations = 4,
+            FullBaseline = false,
+            MaxP99Milliseconds = 10_000,
+            MaxAllocatedBytesPerIteration = 10_000_000
+        });
+
+        Assert.True(report.Passed);
+        Assert.Equal(32, report.ProjectedEntities);
+        Assert.True(report.PayloadBytes > 0);
+        Assert.Equal(
+            new[] { "decode", "encode", "export", "map", "projection", "release" },
+            report.Phases.Keys.OrderBy(name => name));
+        Assert.True(report.Total.MeanMilliseconds >= 0);
+    }
+
+    [Fact]
     public void FullMatrix_ExpandsAllEntityObserverScenarioCombinations()
     {
         var cases = BenchmarkOptions.ExpandFullMatrix();

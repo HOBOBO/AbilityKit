@@ -218,14 +218,25 @@ namespace AbilityKit.Demo.Moba.Services
             long rootContextId,
             int effectConfigId)
         {
-            if (rootContextId == 0L)
+            return WithEffectExecutionNode(rootContextId, effectConfigId, true);
+        }
+
+        public MobaCombatExecutionContext WithEffectExecutionNode(
+            long effectContextId,
+            int effectConfigId,
+            bool isRoot)
+        {
+            if (effectContextId == 0L)
             {
                 throw new System.ArgumentOutOfRangeException(
-                    nameof(rootContextId),
-                    rootContextId,
-                    "Execution root context id must be non-zero.");
+                    nameof(effectContextId),
+                    effectContextId,
+                    "Effect execution context id must be non-zero.");
             }
 
+            var rootContextId = isRoot || RootContextId == 0L
+                ? effectContextId
+                : RootContextId;
             var ownerContextId = OwnerContextId != 0L
                 ? OwnerContextId
                 : rootContextId;
@@ -237,7 +248,7 @@ namespace AbilityKit.Demo.Moba.Services
                 MobaTraceKind.EffectExecution,
                 SourceActorId,
                 TargetActorId,
-                rootContextId,
+                effectContextId,
                 rootContextId,
                 ownerContextId,
                 configId);
@@ -246,8 +257,8 @@ namespace AbilityKit.Demo.Moba.Services
                 TargetActorId,
                 MobaTraceKind.EffectExecution,
                 configId,
-                rootContextId,
-                rootContextId,
+                effectContextId,
+                effectContextId,
                 rootContextId,
                 ownerContextId,
                 SkillRuntimeHandle);
@@ -255,7 +266,7 @@ namespace AbilityKit.Demo.Moba.Services
                 ContextKind,
                 SourceActorId,
                 TargetActorId,
-                rootContextId,
+                effectContextId,
                 rootContextId,
                 ownerContextId,
                 TriggerId,

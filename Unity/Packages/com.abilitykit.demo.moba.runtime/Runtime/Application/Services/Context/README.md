@@ -1,73 +1,72 @@
-# MOBA Context Module Guidelines
+# MOBA 上下文模块指南
 
-## Design guide
+## 设计指南
 
-For the current end-to-end combat context design, lifecycle rules, runtime context diagnostics, and extension checklist, see `Runtime/Docs/MobaCombatContextDesignGuide.md`.
+当前端到端战斗上下文设计、生命周期规则、运行时上下文诊断和扩展检查清单见 `Runtime/Docs/MobaCombatContextDesignGuide.md`。
 
-## Purpose
+## 用途
 
-The `Context` module is the shared runtime context infrastructure for MOBA gameplay execution. It connects strongly typed trigger payloads, execution-time context aggregation, source snapshots, origin propagation, lineage construction, and trace integration.
+`Context` 模块是 MOBA 玩法执行共享的运行时上下文基础设施。它连接强类型触发载荷、执行期上下文聚合、来源快照、起源传播、谱系构建和溯源集成。
 
-This module must not become a generic business data bag. New gameplay logic should prefer strongly typed payloads and only use key/value pipeline context as an integration fallback.
+该模块不得变成通用业务数据袋。新玩法逻辑应优先采用强类型载荷，仅在集成回退场景下使用键值管线上下文。
 
-## Primary model priority
+## 主要模型优先级
 
-Use these models in the following order:
+按以下顺序使用模型：
 
 1. `MobaTriggerInvocationContextBase`
-   - Recommended base for new trigger payloads.
-   - A payload should expose origin, lineage, and trace through the unified `IMobaTriggerExecutionPayload` contract.
+   - 推荐作为新触发载荷的基类。
+   - 载荷应通过统一的 `IMobaTriggerExecutionPayload` 契约公开起源、谱系和溯源信息。
 
 2. `MobaCombatExecutionContext`
-   - Canonical execution-time model inside effect/action/condition execution.
-   - Execution services should normalize payloads into this model before running action logic.
+   - 效果、动作和条件执行期间的规范执行期模型。
+   - 执行服务应先把载荷规范化为此模型，再运行动作逻辑。
 
 3. `MobaPersistentContextSourceSnapshot`
-   - Canonical cross-frame and async-lifecycle source snapshot.
-   - Buff, projectile, summon, continuous, and delayed execution flows should retain this snapshot instead of retaining live runtime objects.
+   - 跨帧及异步生命周期的规范来源快照。
+   - Buff、投射物、召唤物、持续行为和延迟执行流程应保留此快照，而不是保留活动运行时对象。
 
 4. `MobaContextSourceView`
-   - Query, debug, retention, and transport view.
-   - It is intentionally broad, but it should not replace `MobaCombatExecutionContext` as the main execution model.
+   - 用于查询、调试、保留和传输的视图。
+   - 它有意覆盖较广，但不应取代 `MobaCombatExecutionContext` 成为主要执行模型。
 
 5. `AbilityContextKeys` / `AbilityContextExtensions`
-   - Pipeline data-bag compatibility layer.
-   - These keys are not a replacement for strongly typed payloads.
+   - 管线数据袋兼容层。
+   - 这些键不能替代强类型载荷。
 
-## Origin, lineage, trace, and source semantics
+## 起源、谱系、溯源和来源语义
 
-- `MobaGameplayOrigin` answers where this gameplay operation comes from.
-- `MobaTriggerLineageContext` answers how this operation joins the trace lineage chain.
-- `MobaTriggerTraceContext` is the compact trigger trace representation.
-- `MobaContextSourceView` is a resolved source view for queries, snapshots, retention, debug panels, and diagnostics.
-- `MobaCombatExecutionContext` aggregates the current executable payload, lineage input, origin, execution snapshot, skill runtime handle, and frame.
+- `MobaGameplayOrigin` 回答该玩法操作来自何处。
+- `MobaTriggerLineageContext` 回答该操作如何接入溯源谱系链。
+- `MobaTriggerTraceContext` 是紧凑的触发器溯源表示。
+- `MobaContextSourceView` 是面向查询、快照、保留、调试面板和诊断的已解析来源视图。
+- `MobaCombatExecutionContext` 聚合当前可执行载荷、谱系输入、起源、执行快照、技能运行时句柄和帧。
 
-## New payload rules
+## 新载荷规则
 
-New trigger payloads should:
+新触发载荷应：
 
-1. Inherit `MobaTriggerInvocationContextBase` when they are formal trigger execution payloads.
-2. Implement `TryGetOrigin`, `TryGetLineageContext`, and `TryGetTraceContext` using existing origin or lineage data.
-3. Implement `IMobaContextSourceProvider` when they can expose query/retention source information.
-4. Implement `IMobaPersistentContextSourceProvider` when their source must survive async or cross-frame execution.
-5. Avoid adding only primitive fields such as actor/config/context IDs without also exposing a formal origin or lineage provider.
+1. 正式触发执行载荷应继承 `MobaTriggerInvocationContextBase`。
+2. 使用已有起源或谱系数据实现 `TryGetOrigin`、`TryGetLineageContext` 和 `TryGetTraceContext`。
+3. 能公开查询/保留来源信息时实现 `IMobaContextSourceProvider`。
+4. 来源需要跨异步或跨帧执行存活时实现 `IMobaPersistentContextSourceProvider`。
+5. 不要只添加角色、配置或上下文 ID 等基础字段，而不同时公开正式的起源或谱系提供者。
 
-## Legacy primitive compatibility
+## 旧基础字段兼容
 
-`MobaGameplayOrigin.FromLegacy` and builder legacy primitive APIs are compatibility bridges for old payloads that still carry only actor/config/context primitives.
+`MobaGameplayOrigin.FromLegacy` 和构建器中的旧基础字段 API，是为仍只携带角色/配置/上下文基础字段的旧载荷提供的兼容桥。
 
-New code should prefer:
+新代码应优先：
 
-- Propagating an existing `MobaGameplayOrigin`.
-- Building from `MobaTriggerLineageContext`.
-- Capturing `MobaPersistentContextSourceSnapshot` for async lifetimes.
-- Normalizing into `MobaCombatExecutionContext` inside execution services.
+- 传播已有的 `MobaGameplayOrigin`。
+- 从 `MobaTriggerLineageContext` 构建。
+- 为异步生命周期捕获 `MobaPersistentContextSourceSnapshot`。
+- 在执行服务中规范化为 `MobaCombatExecutionContext`。
 
-## Naming conventions
+## 命名约定
 
-Use `OwnerContextId` as the preferred name for ownership context identity.
-`OwnerKey` remains as a compatibility alias on lineage-oriented structures.
+所有权上下文标识应优先命名为 `OwnerContextId`。`OwnerKey` 仅作为面向谱系结构的兼容别名保留。
 
-Use `SourceContextId` for the direct source execution context.
-Use `ParentContextId` for the immediate parent in a propagated origin chain.
-Use `RootContextId` for the stable root of the causal chain.
+直接来源执行上下文使用 `SourceContextId`。
+传播起源链中的直接父级使用 `ParentContextId`。
+因果链的稳定根使用 `RootContextId`。

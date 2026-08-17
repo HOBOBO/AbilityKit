@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
-using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.ECS;
@@ -30,8 +29,10 @@ namespace AbilityKit.Game.Editor
         private Vector2 _entityScroll;
         private Vector2 _detailScroll;
 
-        private readonly List<EcsEntityId> _visibleEntities = new List<EcsEntityId>(256);
-        private readonly List<EcsEntityId> _entityRefreshBuffer = new List<EcsEntityId>(256);
+        private readonly List<BattleDebugEntityId> _visibleEntities =
+            new List<BattleDebugEntityId>(256);
+        private readonly List<BattleDebugEntityId> _entityRefreshBuffer =
+            new List<BattleDebugEntityId>(256);
         private readonly List<IBattleDebugPanel> _visiblePanels = new List<IBattleDebugPanel>(16);
         private int _selectedActorId;
         private int _totalEntityCount;
@@ -126,7 +127,7 @@ namespace AbilityKit.Game.Editor
                                  diagnosticResolution.Phase != BattleDebugDiagnosticSessionResolutionPhase.LogicSessionUnavailable;
 
             var selectedId = _selectedActorId != 0
-                ? new EcsEntityId(_selectedActorId)
+                ? new BattleDebugEntityId(_selectedActorId)
                 : default;
             IUnitFacade selectedUnit = null;
             if (hasLiveSession && selectedId.IsValid)
@@ -970,7 +971,8 @@ namespace AbilityKit.Game.Editor
                     if (actor.ActorId == _selectedActorId) selectedExists = true;
                     if (actor.ActorId <= 0 || actor.ActorId > int.MaxValue) continue;
                     if (!MatchesOfflineActor(in actor, filter)) continue;
-                    _entityRefreshBuffer.Add(new EcsEntityId((int)actor.ActorId));
+                    _entityRefreshBuffer.Add(
+                        new BattleDebugEntityId((int)actor.ActorId));
                 }
             }
             else
@@ -1038,8 +1040,8 @@ namespace AbilityKit.Game.Editor
         }
 
         private static bool HasSameEntitySequence(
-            IReadOnlyList<EcsEntityId> current,
-            IReadOnlyList<EcsEntityId> next)
+            IReadOnlyList<BattleDebugEntityId> current,
+            IReadOnlyList<BattleDebugEntityId> next)
         {
             if (current.Count != next.Count) return false;
             for (var i = 0; i < current.Count; i++)
@@ -1391,7 +1393,7 @@ namespace AbilityKit.Game.Editor
             if (panels == null) return;
 
             var selectedId = _selectedActorId != 0
-                ? new EcsEntityId(_selectedActorId)
+                ? new BattleDebugEntityId(_selectedActorId)
                 : default;
             IUnitFacade selectedUnit = null;
             var facade = _diagnosticSource.IsOffline ? null : BattleDebugFacadeProvider.Current;

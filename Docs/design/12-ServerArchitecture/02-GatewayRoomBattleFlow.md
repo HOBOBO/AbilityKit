@@ -1,5 +1,9 @@
 # 12.2 Gateway、Room 与 Battle 主链路设计
 
+> 文档类型：服务端请求编排、房间状态机与战斗提交设计
+> 事实基线：2026-08-16
+> 协议口径：正式 TCP 客户端走 staged loading；HTTP/Admin/Sandbox 直启属于兼容或受控入口
+
 ## 1. 能力定位
 
 本篇解释一次服务器玩法流程如何从 Gateway 进入 Orleans，再落到 RoomGrain 和 BattleLogicHostGrain。重点不是协议字段罗列，而是状态归属和职责分界：
@@ -35,7 +39,7 @@
 
 ## 3. 请求主链路
 
-正式多人模式启动流程采用分阶段协议，取代旧的直接 `StartBattle`。主链路覆盖 Lobby 准备、加载屏障、自动 commit 与状态推送：
+正式多人模式启动流程采用分阶段协议，取代旧的直接 `StartBattle`。主链路覆盖 Lobby 准备、加载屏障、最后上报即时 commit 与状态推送：
 
 ```mermaid
 sequenceDiagram
@@ -59,7 +63,7 @@ sequenceDiagram
     Room-->>Client: RoomStateChanged push (phase=Loading, revision)
     Handler->>Room: ReportAssetsLoaded (per member)
     Note over Room: 标记成员 AssetsLoaded, 幂等
-    Room->>Room: Tick (auto-commit when all loaded)
+    Room->>Room: 最后一名成员上报后立即 CommitBattleAsync
     Note over Room: phase=Starting, BattleCommit=Pending
     Room->>Room: PrepareCommit (CommitId + InitSpecHash)
     Room->>Battle: InitializeBattleAsync (idempotent via CommitId + InitSpecHash)
@@ -77,7 +81,7 @@ sequenceDiagram
     Gateway-->>Client: response packet or HTTP response
 ```
 
-> 旧的 `StartBattle`（opCode 106）入口已废弃，`StartRoomBattleHandler` 固定返回 `Conflict`，提示客户端改用 `BeginLoading` + `ReportAssetsLoaded` 流程。详见 [5.1 加载屏障与自动开战](#51-加载屏障与自动开战) 与 [5.2 幂等 Battle commit](#52-幂等-battle-commit)。
+> TCP `StartBattle`（opCode 106）入口已废弃，`StartRoomBattleHandler` 固定返回 `Conflict`，提示客户端改用 `BeginLoading` + `ReportAssetsLoaded`。HTTP room API、Admin Console 和 `ShooterSandboxGrain` 仍可调用兼容的 `RoomGrain.StartBattleAsync`，它们不是正式多人加载协议的证明。详见 [5.1 加载屏障与即时提交](#51-加载屏障与即时提交) 与 [5.2 幂等 Battle commit](#52-幂等-battle-commit)。
 
 ## 4. Gateway 路由设计
 
@@ -112,6 +116,7 @@ RoomGrain 内部状态由几个关键字段构成：
 | `BattleCommit` (`RoomBattleCommitPersistentState`) | 战斗提交状态：`CommitId`、`InitSpecHash`、`Status`、`BattleId`、`WorldId`、`WorldStartAnchor`、`AttemptCount`、`LastError`、`Generation` |
 | `Revision` | 房间状态单调递增版本号，每次状态变更 +1，用于乐观并发与 push 排序 |
 | `LastEventSequence` | 事件序列号，用于客户端检测 push 缺口（gap） |
+| `_abandonedRoomCleanupTimer` | 全部真实客户端离线后的单次宽限 timer；状态持久化/恢复后重算 |
 
 生命周期由 RoomLifecyclePolicy 计算，而不是散落在各个方法中。正式多人模式状态机包含六个阶段：
 
@@ -119,7 +124,7 @@ RoomGrain 内部状态由几个关键字段构成：
 stateDiagram-v2
     [*] --> Lobby
     Lobby --> Loading: BeginLoading (owner, roster frozen, Generation++)
-    Loading --> Starting: all members ReportAssetsLoaded (Tick auto-commit)
+    Loading --> Starting: last member ReportAssetsLoaded (immediate commit)
     Starting --> InBattle: CommitBattleStarted (idempotent Battle init)
     InBattle --> Closing: Close or cleanup
     Closing --> Closed: Members cleared
@@ -128,7 +133,12 @@ stateDiagram-v2
     Starting --> Lobby: RollbackBattleCommit forceMax (InitSpecHash mismatch)
     Lobby --> Closed: Owner closes empty room
     InBattle --> InBattle: Reconnect or LateJoin
+    Lobby --> Expired: all clients offline grace elapsed
+    Loading --> Expired: all clients offline grace elapsed
+    Starting --> Expired: all clients offline grace elapsed
+    InBattle --> Expired: all clients offline grace elapsed
     Closed --> [*]
+    Expired --> [*]
 ```
 
 各阶段语义：
@@ -137,12 +147,13 @@ stateDiagram-v2
 |------|-----------|--------|
 | Lobby | Join、SetLobbyReady、PickHero、BeginLoading（owner） | roster 可变；`IsOpenForLobbyActions=true` |
 | Loading | ReportAssetsLoaded、CancelLoading（owner） | roster 冻结；`LaunchGeneration` 已递增；`LoadingDeadlineUnixMs` 已设置 |
-| Starting | Tick 内部 commit；CancelLoading 不允许 | `BattleCommit.Status=Pending`；CommitId/InitSpecHash 首次写入后不可变 |
+| Starting | `ReportAssetsLoadedWithResultAsync` 直接提交，或 Tick 在恢复后补偿提交；CancelLoading 不允许 | `BattleCommit.Status=Pending`；CommitId/InitSpecHash 首次写入后不可变 |
 | InBattle | SubmitBattleInput、LateJoin、Reconnect | `BattleCommit.Status=Committed`；battleId/worldId 已确定 |
 | Closing | 等待成员清理 | 不再接受新成员 |
 | Closed | 无 | `ShouldRemoveFromDirectory=true` |
+| Expired | 无 | `AllClientsDisconnectedTimeout`；Battle/FrameSync、mapping、directory 和 store 已按顺序清理 |
 
-### 5.1 加载屏障与自动开战
+### 5.1 加载屏障与即时提交
 
 正式流程用加载屏障取代直接 `StartBattle`，确保所有成员在进入战斗前完成资源加载：
 
@@ -156,6 +167,7 @@ flowchart TB
     CheckAll -->|否| Wait[等待或 Tick 检查超时]
     Wait --> Report
     CheckAll -->|是| Starting[Starting phase, BattleCommit=Pending]
+    Starting --> Commit[当前上报调用内立即 CommitBattleAsync]
     Wait -->|超时| Timeout[LoadingDeadline 到期]
     Timeout --> BackLobby[回 Lobby, Generation++]
     Loading --> Cancel[owner: CancelLoading]
@@ -169,8 +181,10 @@ flowchart TB
 | LaunchGeneration 隔离 | 每次 BeginLoading/CancelLoading/超时回滚都递增 `Generation`，且只增不减。客户端 `ReportAssetsLoaded` 必须携带匹配的 `LaunchGeneration`，过期 report 被幂等忽略（`LaunchGenerationMismatch`） |
 | roster 冻结 | 进入 Loading 后成员集合冻结，不允许 Join/Leave 改变参战名单，保证"所有成员 loaded"判定稳定 |
 | 超时回 Lobby | `LoadingDeadlineUnixMs` 到期后 Tick 将房间回退到 Lobby 并递增 `Generation`，避免永久卡在 Loading |
-| owner 迁移 | owner 离线或离开时，按 `JoinOrdinal` 稳定排序选择最小 JoinOrdinal 的在线成员作为新 owner，保证 BeginLoading/CancelLoading 始终有合法发起者 |
+| owner 迁移 | owner 离线且仍有在线成员时，按 `JoinOrdinal` 选择最早在线成员；若所有成员都离线则保留原 owner，等待其重连或遗弃清理。显式 Leave 则从剩余在线成员中选择 owner |
 | RoomStateChanged push | 每次 phase 变更后向所有在线成员推送 `RoomStateChanged`（opCode 9004），携带 phase、revision、LaunchGeneration、battle identity |
+
+这里必须区分正常推进与补偿推进：最后一个成员的 `ReportAssetsLoadedWithResultAsync` 完成状态转换后会在同一次调用中直接执行 `CommitBattleAsync(next)`。`TickAsync` 的主要职责是遗弃房间清理、Loading 超时、仍有在线成员时的过期离线成员清理，以及 Grain 恢复后发现 `Starting/Pending` 时补偿未完成的 commit；它不是正常开战必须等待的调度器。
 
 ### 5.2 幂等 Battle commit
 
@@ -193,13 +207,14 @@ commit 流程源码入口：`RoomGrain.PrepareCommitAsync` / `RoomGrain.CommitBa
 
 | 路线 | 条件 | 启动对象 | 说明 |
 |------|------|----------|------|
-| Frame relay | sync template supports frame sync and runtime mode is FrameRelayOnly | BattleFrameSyncGrain | 服务端负责帧时钟和帧包 relay，不创建完整权威 BattleWorld |
-| State sync runtime | sync template requires BattleWorld | BattleLogicHostGrain | 服务端创建权威世界，接收输入，Tick 后推送状态 |
-| Unsupported template | sync template 不在 profile 中 | 不启动 | 返回/记录不支持的模板，避免隐式 fallback 到错误同步模型 |
+| Frame relay only | runtime mode 是 `FrameRelayOnly` | BattleFrameSyncGrain | 只负责帧时钟与帧包 relay，不创建权威 BattleWorld |
+| Battle world | profile 要求 Battle runtime | BattleLogicHostGrain | 创建权威世界，接收输入，Tick 后推送状态 |
+| Battle world + frame sync | runtime mode 是 `BattleWorldWithFrameSync` | BattleFrameSyncGrain + BattleLogicHostGrain | FrameSync Grain 通过 `TickFrameAsync` 驱动 runtime；MOBA 默认模板属于该路线 |
+| Unsupported template | 模板不在 profile 中 | Room 先路由到 Battle runtime，Battle 初始化明确拒绝 | route 标记 `IsUnsupportedTemplate`，Room 未提前消费该标记；`BattleLogicHostGrain` 返回 `UnsupportedSyncTemplate`，Room 按普通 commit 失败重试并最终回 Loading |
 
 路线由 RoomFrameSyncRoute 计算，输入来自 ServerGameplayModuleCatalog 的 sync profile。
 
-> **已废弃入口**：旧的 `StartBattle`（opCode 106）已不再驱动战斗启动。`StartRoomBattleHandler` 固定返回 `Conflict`，客户端必须改用 `BeginLoading` → `ReportAssetsLoaded` → 自动 commit 流程。保留 handler 注册仅为让旧客户端收到明确错误而非 `UnhandledOpCode`。
+> **双轨边界**：TCP opCode 106 已不再驱动战斗启动，保留 handler 只为让旧客户端收到明确 `Conflict`。`RoomGrain.StartBattleAsync` 本身仍被 HTTP、Admin 与 Sandbox 使用，并写入 `PhaseReason="LegacyStartBattle"` 后进入当前幂等 commit。该受控兼容路径绕过 roster loading barrier，不能作为正式客户端协议继续扩散。
 
 ## 7. BattleLogicHostGrain 运行流程
 
@@ -218,6 +233,7 @@ flowchart TB
     Resolve[Resolve ServerGameplayModule and SyncTemplate]
     Adapter[Create IBattleRuntimeSession]
     Start[RuntimeSession.Start]
+    Cleanup[StopBattleRuntime and DestroyBattleWorld]
     Timer[Register Orleans Timer]
     Input[SubmitInputAsync]
     Schedule[BattleInputFrameScheduler]
@@ -230,6 +246,7 @@ flowchart TB
     Destroy[DestroyAsync]
 
     Init --> Resolve --> Adapter --> Start --> Timer
+    Start -->|failed| Cleanup
     Input --> Schedule --> Buffer
     Timer --> Tick
     Tick --> RuntimeInput
@@ -251,6 +268,45 @@ RoomGrain 对进行中战斗的 Join 做了专门处理：
 
 这个设计避免了 Room 与 Battle 状态单边成功导致的幽灵成员。
 
+### 8.1 连接关闭、离线宽限与遗弃清理
+
+连接关闭不等价于业务 Leave。`GatewayTransportHandler.OnClosed()` 先取消该连接的串行请求队列并移除 FrameSync、StateSync、Room push binding，再把房间清理投递到 `GatewayBackgroundTaskQueue`。异步任务执行前后都会检查账号是否已经 rebound 到另一 connection；`GatewayRoomMembershipService` 还会比较 account 当前 mapping 与旧连接记录的 roomId。任一身份已经变化都会跳过旧连接清理。
+
+身份仍匹配时，Gateway 只调用 `MarkOfflineWithResultAsync()`：
+
+1. 成员和 account-room mapping 在宽限期内保留，允许 `RestoreAsync`/Join 以 `Reconnect` 恢复。
+2. 离线 owner 若还有在线 peer，owner 立即转移给最早加入的在线成员，但原 owner 仍是离线成员。
+3. `NotMember` 表示 mapping 已陈旧，Gateway 才清除这条 mapping。
+4. 显式 Leave 仍走独立命令，立即改变成员关系，不能用断线处理替代。
+
+`AbandonedRoomCleanupPolicy` 只在房间非 Closing/Closed/Expired、至少存在一个非 Bot 客户端、且所有非 Bot 客户端都有离线时间时生效。截止时间是最后一名真实客户端离线时间加 1 分钟；在线 Bot 不会阻止清理。任一客户端重连会清除其 `OfflineSinceTicks`，timer 随持久化状态刷新而取消或重算。
+
+```mermaid
+sequenceDiagram
+    participant Transport as GatewayTransportHandler
+    participant Membership as GatewayRoomMembershipService
+    participant Room as RoomGrain
+    participant Battle as BattleLogicHostGrain
+    participant Frame as BattleFrameSyncGrain
+    participant Stores as Mapping Directory RoomStore
+
+    Transport->>Transport: cancel queue and unbind pushes
+    Transport->>Membership: queued cleanup if account not rebound
+    Membership->>Membership: verify current room mapping
+    Membership->>Room: MarkOfflineWithResultAsync
+    Room->>Room: persist offline state and schedule grace timer
+    alt client reconnects before deadline
+        Room->>Room: Reconnect and cancel cleanup condition
+    else all real clients remain offline for one minute
+        Room->>Battle: DestroyAsync if battle exists
+        Room->>Frame: DestroyAsync if world exists
+        Room->>Stores: clear mappings, directory and runtime state
+        Room->>Room: Expired and DeactivateOnIdle
+    end
+```
+
+清理顺序跨越多个 Grain 与 store，不具备原子提交。timer 失败后至少 30 秒再重试，`TickAsync` 也会检查同一条件；这提供幂等重试机会，但不能保证观察者不会看到部分资源已经销毁、部分索引尚未清除的中间状态。
+
 ## 9. StateSync Observer
 
 StateSync 的订阅目标是 IStateSyncObserverGrain。BattleLogicHostGrain 订阅 observer 后会：
@@ -271,12 +327,14 @@ ServerGameplayModuleCatalog 让 MOBA 和 Shooter 共享服务器主链路，但�
 
 | 模块字段 | MOBA | Shooter |
 |----------|------|---------|
-| RoomType | `moba` | `shooter` |
+| Grain 规范 RoomType | `battle` | `shooter` |
+| 兼容/HTTP 展示 RoomType | `moba`，进入 directory/registry 前正规化为 `battle` | `shooter` |
 | RoomAdapter | MobaRoomGameplayAdapter | ShooterRoomGameplayAdapter |
 | BattleRuntimeAdapter | MobaBattleRuntimeAdapter | ShooterBattleRuntimeAdapter |
 | WorldBlueprint | MobaLobbyWorldBlueprint、MobaBattleWorldBlueprint | ShooterBattleWorldBlueprint |
-| 默认同步 | FrameSync relay | StateSync authoritative runtime |
-| 可选同步 | state-sync-authority | runtime-snapshot-interpolation、state-sync-authority、pure-state-authority |
+| 默认同步 | `frame-sync-authority`，Lockstep capability，BattleWorldWithFrameSync | `state-sync-authority`，每帧 packed、每 30 帧 full |
+| 可选同步 | 无其他模板 | predict rollback、interpolation、batch、mass battle、hybrid、pure-state 等 |
+| 默认开战人数 | 由 MOBA tags/adapter 约束 | 2 名 ready 玩家 |
 
 新增玩法不应该复制 Gateway/Room/Battle 主链路，而应该新增：
 
@@ -293,20 +351,32 @@ ServerGameplayModuleCatalog 让 MOBA 和 Shooter 共享服务器主链路，但�
 |------|----------|
 | Gateway Router | 未注册 opCode、超时、异常转为统一 GatewayStatusCode |
 | Gateway Handler | 业务失败转为协议响应或 HTTP error mapper |
-| RoomGrain | 校验 owner/member/open/capacity，不满足时拒绝动作 |
+| RoomGrain | 校验 owner/member/phase/capacity；断线只标离线，遗弃清理按宽限策略执行 |
 | Room to Battle | Late join 失败时回滚 Room 成员状态 |
 | BattleLogicHost | 未初始化、world mismatch、input frame invalid、runtime start fail 都返回明确 result |
 | Runtime Adapter | Start/Join/MountBotAI 失败通过 Result 返回，不让异常成为常规控制流 |
 
+Battle runtime 启动失败时，`BattleLogicHostGrain` 会调用 `StopBattleRuntime()`：释放 timer 和 runtime session；Shooter session 的 `Dispose()` 最终调用 `DestroyBattleWorld`。因此当前风险重点是跨 Grain commit 的重试与业务清理，而不是“Start 失败后 world 必然泄漏”。
+
+仍有一项跨 Grain 边界：需要 FrameSync 的路线先初始化 `BattleFrameSyncGrain`，再初始化 Battle runtime；后者失败时 Room commit 会回滚，但当前方法没有在同一失败分支显式销毁已初始化的 FrameSync Grain。初始化本身应保持幂等，生产化仍需要为这类前置副作用增加补偿或孤儿资源回收证据。
+
+遗弃房间路径现在会显式调用 Battle 与 FrameSync 的 `DestroyAsync()`，可回收最终无人重连的孤儿运行时；它不是启动失败分支的同步事务补偿，也不能替代对 commit 部分失败的即时诊断。
+
 ## 12. 验收路径
 
-| 验收 | 可执行入口 | 覆盖内容 | 粒度限制 |
+| 证据等级 | 可执行入口 | 覆盖内容 | 粒度限制 |
 |------|------------|----------|----------|
-| Gateway tests | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release` | Handler 注册、错误映射、协议兼容、加载 Handler、TestingHost 房间成员集成、Admin API 边界 | 并非每个测试都经过 TCP；部分是 DTO、源码文本或纯映射断言 |
-| Grains tests | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Grains.Tests/AbilityKit.Orleans.Grains.Tests.csproj -c Release` | Room 状态机、Battle commit、故障矩阵、玩法适配、同步状态和存储计划 | `RoomMultiplayerE2EFlowTests` 通过纯函数模拟完整流程，不是多进程 E2E |
-| Shooter Smoke tests | `dotnet test Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/AbilityKit.Orleans.ShooterSmoke.Tests.csproj -c Release` | 重试策略、脚本契约、诊断 artifact、Replay summary 和 soak telemetry | 保护 Smoke harness 自身，不替代实际运行 Smoke |
-| MOBA 单/多进程 Smoke | `run_moba_smoke.ps1`、`run_moba_multiprocess_smoke.ps1` | 两客户端 TCP、房间启动、权威实体、状态恢复、可靠事件；多进程脚本隔离 Silo 与场景进程 | owner/member 仍是同一场景进程内两条连接 |
-| Shooter 单/多进程 Smoke | `run_shooter_smoke.ps1`、`run_shooter_multiprocess_smoke.ps1` | Guest login、room launch、snapshot、input、late join、reconnect、cleanup、Replay 与故障 profile | localhost 验收不等于跨机器生产集群 |
-| Mermaid/docs validation | 文档静态检查工具 | 服务端设计文档中的流程图可解析 | 不验证运行时行为 |
+| E0-E2 | Contracts、handlers、Room/Battle/adapters 与真实消费者 | 机制存在且被示例接入 | 行为正确或失败路径完整 |
+| E3 | Gateway、Grains、Shooter Smoke Harness tests | 状态机、commit、故障矩阵、协议与 harness 契约 | 大部分不经过真实 TCP；测试名含 E2E 不等于多进程 |
+| E4 | MOBA/Shooter 单进程与多进程 Smoke artifact | 对应 TCP、拓扑、恢复和 replay 场景在当次运行成立 | localhost 不等于跨机器生产集群 |
+| E5 | CI 中实际启用的命令与 artifact gate | 明确触发条件下阻断回归 | runner、脚本或契约测试存在本身不构成门禁 |
 
 服务端运行面的验收治理要求是：Smoke 输出、Gateway/Grain/Smoke Harness 测试和回放校验进入同一组门禁，并在报告中记录实际 profile、拓扑与 artifact。单项构建成功或某个测试类名包含 `E2E`，都不能替代端到端运行证据。
+
+2026-08-16 本批 Release E3 结果为 Gateway `162/162`、Grains `232/232`、Shooter Smoke Harness `33/33`。其中 Gateway/Grains 覆盖断线离线保留、rebound 防护、1 分钟遗弃策略、RoomType/能力声明和 Shooter adapter/catalog；Harness 只验证 Smoke runner/script 契约。本批没有运行真实 MOBA/Shooter Smoke，因此不产生新的 TCP 或多进程 E4 artifact。
+
+---
+
+> 文档版本：v3.1
+> 更新日期：2026-08-16
+> 更新责任：Room phase、loading opCode、commit 或 runtime route 变化时同步复核。

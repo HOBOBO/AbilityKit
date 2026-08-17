@@ -19,7 +19,11 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
     /// </summary>
     public sealed class BattleEndSummaryRecorder : IGamePhaseFeature
     {
+        private readonly BattleEndSettlementCollector _collector = new BattleEndSettlementCollector();
         private BattleContext _ctx;
+        private MobaPlayerActorMapService _playerMap;
+        private MobaActorLookupService _actorLookup;
+        private string _localPlayerId;
         private int _startFrame;
         private int _lastFrame;
 
@@ -27,11 +31,18 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
         {
             if (!ctx.Features.TryGet(out _ctx)) _ctx = null;
             _startFrame = _ctx?.LastFrame ?? 0;
+            _lastFrame = _startFrame;
+            _localPlayerId = _ctx?.ResolveLocalControlPlayerId() ?? string.Empty;
+            ResolveRuntimeServices(_ctx, out _playerMap, out _actorLookup);
         }
 
         public void OnDetach(in GamePhaseContext ctx)
         {
             BattleEndSummaryCache.Current = CaptureSummary();
+            _collector.Reset();
+            _playerMap = null;
+            _actorLookup = null;
+            _localPlayerId = string.Empty;
             _ctx = null;
         }
 
@@ -42,66 +53,90 @@ namespace AbilityKit.Game.Battle.Presentation.Features.Settlement
 
         private BattleEndSummary CaptureSummary()
         {
-            var summary = new BattleEndSummary();
-            summary.MatchDurationFrames = Math.Max(0, _lastFrame - _startFrame);
-            summary.MatchDurationSeconds = summary.MatchDurationFrames / 30; // 假定 30fps tick rate（MVP 估值）
-
-            if (_ctx == null || _ctx.Plan.LaunchSpec.Players == null)
+            _collector.Reset();
+            var players = _ctx?.Plan.LaunchSpec.Players;
+            if (players != null)
             {
-                return summary;
-            }
-
-            // 解析 world 服务
-            MobaPlayerActorMapService playerMap = null;
-            MobaActorLookupService actorLookup = null;
-            if (_ctx.Session != null
-                && _ctx.Session.TryGetWorld(out var world)
-                && world?.Services != null)
-            {
-                world.Services.TryResolve(out playerMap);
-                world.Services.TryResolve(out actorLookup);
-            }
-
-            var localPlayer = _ctx.ResolveLocalControlPlayerId();
-
-            foreach (var loadout in _ctx.Plan.LaunchSpec.Players)
-            {
-                int actorId = 0;
-                if (playerMap != null && !string.IsNullOrEmpty(loadout.PlayerId.Value))
+                foreach (var loadout in players)
                 {
-                    playerMap.TryGetActorId(loadout.PlayerId, out actorId);
+                    var playerId = loadout.PlayerId.Value ?? string.Empty;
+                    var finalHp = 0;
+                    var maxHp = 0;
+                    var isAlive = true;
+                    var actorId = 0;
+
+                    if (_playerMap != null && !string.IsNullOrEmpty(playerId))
+                    {
+                        _playerMap.TryGetActorId(loadout.PlayerId, out actorId);
+                    }
+
+                    if (_actorLookup != null && actorId > 0 &&
+                        _actorLookup.TryGetActorEntity(actorId, out var entity) && entity != null)
+                    {
+                        ReadEntityHp(entity, out var current, out var maximum, out isAlive);
+                        finalHp = (int)Math.Round(current);
+                        maxHp = (int)Math.Round(maximum);
+                    }
+
+                    var input = new BattleEndPlayerProjectionInput(
+                        playerId,
+                        loadout.TeamId,
+                        loadout.HeroId,
+                        string.Equals(playerId, _localPlayerId, StringComparison.OrdinalIgnoreCase),
+                        finalHp,
+                        maxHp,
+                        isAlive);
+                    _collector.AddPlayer(in input);
                 }
-
-                var row = new BattleEndPlayerRow
-                {
-                    PlayerId = loadout.PlayerId.Value ?? string.Empty,
-                    TeamId = loadout.TeamId,
-                    HeroId = loadout.HeroId,
-                    IsLocalPlayer = string.Equals(loadout.PlayerId.Value, localPlayer, StringComparison.OrdinalIgnoreCase),
-                };
-
-                if (actorLookup != null && actorId > 0
-                    && actorLookup.TryGetActorEntity(actorId, out var entity) && entity != null)
-                {
-                    ReadEntityHp(entity, out var cur, out var max, out var alive);
-                    row.FinalHp = (int)Math.Round(cur);
-                    row.MaxHp = (int)Math.Round(max);
-                    row.IsAlive = alive;
-                }
-
-                summary.Players.Add(row);
             }
 
-            // 胜负判定（MVP 简化）：本地玩家存活即胜利。
-            // 真实实现：由 Host / Server 推送 winningTeamId，覆盖此处判断。
-            var localRow = summary.Players.Find(r => r.IsLocalPlayer);
-            if (localRow != null)
+            return ToSummary(_collector.Build(_startFrame, _lastFrame));
+        }
+
+        private static BattleEndSummary ToSummary(BattleEndSettlementProjection projection)
+        {
+            var summary = new BattleEndSummary
             {
-                summary.WinningTeamId = localRow.TeamId;
-                summary.LocalPlayerVictory = localRow.IsAlive;
+                MatchDurationFrames = projection.MatchDurationFrames,
+                MatchDurationSeconds = projection.MatchDurationSeconds,
+                WinningTeamId = projection.WinningTeamId,
+                LocalPlayerVictory = projection.LocalPlayerVictory,
+            };
+
+            for (var i = 0; i < projection.Players.Count; i++)
+            {
+                var player = projection.Players[i];
+                summary.Players.Add(new BattleEndPlayerRow
+                {
+                    PlayerId = player.PlayerId,
+                    TeamId = player.TeamId,
+                    HeroId = player.HeroId,
+                    IsLocalPlayer = player.IsLocalPlayer,
+                    FinalHp = player.FinalHp,
+                    MaxHp = player.MaxHp,
+                    IsAlive = player.IsAlive,
+                });
             }
 
             return summary;
+        }
+
+        private static void ResolveRuntimeServices(
+            BattleContext context,
+            out MobaPlayerActorMapService playerMap,
+            out MobaActorLookupService actorLookup)
+        {
+            playerMap = null;
+            actorLookup = null;
+            if (context?.Session == null ||
+                !context.Session.TryGetWorld(out var world) ||
+                world?.Services == null)
+            {
+                return;
+            }
+
+            world.Services.TryResolve(out playerMap);
+            world.Services.TryResolve(out actorLookup);
         }
 
         private static void ReadEntityHp(ActorEntity entity, out float current, out float max, out bool alive)

@@ -1,5 +1,9 @@
 # 8.7 Targeting 目标搜索：查询管线、确定性与扩展边界
 
+> 文档类型：Canonical 设计（Targeting 跨模块边界）
+> 事实基线：2026-08-16
+> 文档版本：v3.2
+>
 > 本文面向技能系统接入者、战斗逻辑开发者和 Targeting 扩展维护者，说明 `com.abilitykit.combat.targeting` 解决什么问题、如何把业务需求拆成查询，以及各扩展点的职责和运行边界。阅读使用部分不要求了解引擎内部池化实现；开发自定义 Provider、Rule、Scorer 或 Selector 时，再继续阅读执行、所有权和性能章节。
 
 ---
@@ -97,6 +101,8 @@ flowchart LR
 | 运行保障 | 确定性决胜规则、结果硬上限、统计接口和临时资源回收 | 提供稳定输入、线程隔离、规模预算和性能验收标准 |
 
 Targeting 的输出是“在某次世界状态与查询配置下选出的目标”，不是目标锁定生命周期。持续锁定、丢失目标、自动重选、仇恨状态、技能命中处理和效果执行应由上层战斗状态机或技能流程管理。
+
+从资产归属看，Provider/Rule/Scorer/Selector/Mapper 的执行协议属于框架；空间索引、阵营与可见性、稳定实体键、查询目录内容和目标锁定状态属于项目；MOBA 的配置查询服务只是其中一种领域接法。新增通用组件前应先证明它不依赖项目实体模型或配置词汇，否则应留在应用层工厂中。
 
 ---
 
@@ -254,14 +260,13 @@ using var context = new SearchContext
 };
 
 using var builder = SearchPipelineBuilder.Create();
-var query = builder
-    .From(visibleEnemyProvider)
-    .Filter(new CircleShapeRule(casterPosition, skillRadius))
-    .Filter(new ExcludeEntityRule(casterId))
-    .ScoreBy(new DistanceToEntityScorer(casterId))
-    .Select(new StreamingTopKByScoreSelector())
-    .Take(3)
-    .Build();
+builder.From(visibleEnemyProvider);
+builder.Filter(new CircleShapeRule(casterPosition, skillRadius));
+builder.Filter(new ExcludeEntityRule(casterId));
+builder.ScoreBy(new DistanceToEntityScorer(casterId));
+builder.Select(new StreamingTopKByScoreSelector());
+builder.Take(3);
+var query = builder.Build();
 
 engine.SearchIds(in query, context, results);
 ApplySkillToLiveTargets(results);
@@ -289,7 +294,9 @@ flowchart LR
 
 `TargetQueryDatabase` 为轻量并发目录：单条注册、替换、移除、清空和读取操作受锁保护，注册相同 ID 会覆盖旧工厂，传入空 factory 会移除条目。读取方在锁内取得 Factory 快照后，于锁外执行动态构建和搜索，因此正在执行的查询不受后续替换影响，用户 Factory 也不会阻塞目录写锁。目录不提供多条配置的热更事务；需要整组 query ID 原子切换时仍由项目层提供版本化目录或发布边界。动态工厂可以根据 `SearchContext` 构造查询，适合包外根据运行数据生成规则；静态工厂适合策略对象生命周期稳定的固定查询。
 
-Rule、Scorer 和 Selector Registry 支持两种通用创建方式：Attribute 类型注册适合公开无参构造组件，`RegisterFactory(id, Func<T>)` 适合参数化组件。类型与工厂共享一个整数 ID 命名空间，同一实现类型只能绑定一个 Attribute ID，并遵循首次注册生效。注册、创建和扫描状态受实例锁保护；锁内只读取 Factory 或 Type 快照，用户 Factory 和反射构造在锁外执行。扫描只在完整成功后标记完成，异常后可重试，但已完成的部分注册不会事务性回滚。工厂不接收项目配置 DTO 或具体实体世界。无公开无参构造且未注册工厂时，`Create(id)` 返回 `null`，调用方应在装配或配置校验阶段给出诊断；Builder 的 ID 查找失败会保持已有配置，不隐式清空排序或 Selector。
+`SearchPipelineBuilder` 虽然是 `ref struct`，但当前 fluent 方法返回的是按值复制的 Builder，而不是 `ref this`。因此 Builder 本身也有租约别名风险：先声明 `using var builder`，再用 `builder.From(...).Filter(...).ScoreBy(...).Build()` 长链时，后续方法可能在临时副本上租借规则或排序列表，作用域结束只会 Dispose 原变量；反过来，复制一个已经拥有列表的 Builder 并分别 Dispose，又可能重复归还同一列表。推荐像上例一样始终对同一个局部变量逐句调用，禁止复制、赋值或从辅助方法返回一个已持有池化列表的 Builder。也可以把完整链的最终值直接赋给唯一的 `using var` 变量，但不能同时保留链中间副本。`Build` 只复制 Query 内容，不会转移或结束 Builder 租约。
+
+Rule、Scorer 和 Selector Registry 支持两种通用创建方式：Attribute 类型注册适合公开无参构造组件，`RegisterFactory(id, Func<T>)` 适合参数化组件。类型与工厂共享一个整数 ID 命名空间，同一实现类型只能绑定一个 Attribute ID，并遵循首次注册生效。注册、创建和扫描状态受实例锁保护；锁内只读取 Factory 或 Type 快照，用户 Factory 和反射构造在锁外执行。扫描只在完整成功后标记完成，异常后可重试，但已完成的部分注册不会事务性回滚。工厂不接收项目配置 DTO 或具体实体世界。无公开无参构造且未注册工厂时，`Create(id)` 返回 `null`；用户 Factory 返回 null 时也原样返回，Factory 或构造函数异常则向调用方传播。调用方应在装配或配置校验阶段给出诊断；Builder 的 ID 查找失败会保持已有配置，不隐式清空排序或 Selector。
 
 ---
 
@@ -313,6 +320,8 @@ Rule、Scorer 和 Selector Registry 支持两种通用创建方式：Attribute �
 | `TargetQueryDatabase` | 世界级配置服务 | 单条目录操作线程安全；多条配置的事务发布和版本切换由上层负责 |
 
 池化 Context 和 Result 使用原子租约状态，重复或并发 Release 幂等，但这不授权释放后继续使用对象。对象池复用同一实例，因此框架无法让已经保存的旧对象引用在该实例下一次租出后继续代表独立租约；调用方必须把对象及 `SearchResult.Ids` 视图限制在当前同步消费作用域。搜索结果、完整命中和 Top-K 缓冲区都在异常路径释放。Provider、rule、scorer 或 selector 仍不应把可预期的业务否决建模为异常；异常清理应由回归测试持续覆盖。
+
+调用方提供的结果列表不具备提交事务。所有列表重载会在入口先 `Clear()`，但失败时不会恢复旧内容：普通 Provider、Rule 或 Scorer 在结果写入前失败时通常留下空列表；自定义 Selector 可以先写入若干 ID 再抛错；泛型 `Search<T>` 的 Mapper 也可以在已映射部分对象后抛错。只有返回池化 `SearchResult` 的重载会在内部搜索失败时 Dispose 临时结果，失败对象不会返回给调用方。业务层必须把异常视为“本次输出无效”，需要强提交语义时先写临时列表，成功后再替换正式结果。
 
 ---
 
@@ -350,6 +359,8 @@ Rule 只做判定，Scorer 只做排序度量。昂贵且所有候选通用的�
 Selector 通过 `SearchHitView` 只读访问引擎拥有的完整命中序列，并通过 `SearchResultWriter` 追加实体 ID。扩展实现不能清空、重排或替换引擎内部列表；若算法需要工作缓冲区，应自行租借并在当前调用内释放。Writer 统一强制 `MaxCount`，扩展实现不承担数量越界防护。
 
 `IStreamingTopKByScoreSelector` 是公开的无成员能力接口。Selector 实现该接口且 `MaxCount > 0` 时，引擎使用统一的融合 Top-K 执行，并继续负责缓冲区生命周期、统计、提交后去重、NaN 排除与严格字典序语义。实现该接口表示 Selector 接受引擎定义的 Top-K 语义；需要完整命中后处理的 Selector 不应实现它，也不会进入融合路径。该 marker 不暴露 `Begin`、`Offer`、`End` 等执行态协议，避免把引擎缓冲和租约交给扩展实现。
+
+普通 Selector 是受信任扩展点。`SearchResultWriter` 只拒绝无效 ID 并限制 `MaxCount`，不会验证写入 ID 一定来自 `SearchHitView`，也不会自动去重；自定义 Selector 可以重复写入同一 ID，甚至写入未命中的其他有效 ID。`DuplicatePolicy` 只约束候选进入命中集前的去重，不约束 Selector 输出。需要“结果必为合格命中子集且唯一”的项目，应以 Selector 契约测试固定这一条件。
 
 自定义 selector 必须明确：
 
@@ -424,7 +435,7 @@ public void CollectTargets(IPositionProvider positions)
 
 ## 10. 验证现状与建议用例
 
-仓库目前提供纯 C# 示例、MOBA 集成调用和独立 Targeting 测试项目。Targeting 核心回归测试当前覆盖 67 项，除强类型键、框架能力属性清理、池化清理、随机种子 facade、Registry 工厂与冲突、负数量、重复候选、NaN/无穷值和 Top-K 契约外，还覆盖布尔组合恒等语义与短路、输入快照、嵌套组合、Provider 顺序与稳定键集合语义、异常后的池化状态清理、融合路径统计一致性、自定义 Selector 的完整命中视图与硬上限、提交后去重、重复释放、参数失败语义、池化对象释放后 fail-fast、Registry 与 Query Database 并发访问、Builder ID 查找失败保持状态、组合 Provider 异常前结构体 Consumer 状态传播，以及列表、数组和稳定键集合的异常容量回收。MOBA 回归当前通过 279 项；Sample 与 MOBA 调用方仍需随协议变更持续执行回归门禁。
+仓库提供纯 C# 示例、MOBA 集成调用和独立 Targeting 测试项目。2026-08-16 当次 `AbilityKit.Combat.Targeting.Tests` 为 `67/67`；`CompositeTargetingTests`、`SearchHitTests` 覆盖组合规则/Provider、命中值、稳定排序、Top-K、池化租约、Registry/Query Database 并发访问、异常容量回收和失败边界。构建仍产生测试代码可空性 warning，因此该结果不是“零警告”声明。MOBA 消费者证明配置查询和技能接线存在，但当前主工程 `279/305` 的启动配置阻断不能合并为 Targeting 项目级完整通过证据。
 
 最低应补的契约测试包括：
 
@@ -441,6 +452,8 @@ public void CollectTargets(IPositionProvider positions)
 11. MOBA 实体销毁或 ID 复用后的二次存活校验。
 
 这些用例在进入公司级公共资产门禁前，应落入可由 .NET 或 Unity EditMode 稳定执行的测试工程，并在 `tools/test-gates.json` 中按影响范围接入 P1 runtime contract 或 P2 regression。
+
+证据分层为：E0 查询内核与注册表实现；E1 纯 C# Sample；E2 MOBA 配置与技能消费者；E3 独立 Targeting 契约测试；尚无覆盖空间索引宿主、完整目标锁定、跨端回放和性能预算的统一 E4/E5 证据。E3 只证明公共查询语义，不替项目保证候选数据正确或目标在效果执行时仍然有效。
 
 ---
 
@@ -471,3 +484,7 @@ public void CollectTargets(IPositionProvider positions)
 ## 13. 边界结论
 
 Targeting 已具备顶层 Rule 顺序 AND、可嵌套且短路的 AND/OR/NOT Rule、候选源顺序拼接与稳定键并/交/差、双向稳定排序、完整命中后处理与能力声明式融合 Top-K 双执行路径、池化容器与容量治理、强类型上下文键、Attribute 与委托工厂两类组件创建方式、注册表与查询目录的并发保护，以及显式的数量、提交后去重、特殊分数和租约失效契约。框架保持通用：键只约束数据类型，工厂只创建通用组件接口，组合和去重只依据抽象实体稳定键，不理解阵营、技能或项目配置。性能路径限制为实现 `IStreamingTopKByScoreSelector` 且具有有效 K 的策略；需要全局后处理的自定义 Selector 保留完整命中视图，而引擎对两类路径统一强制结果预算。这组限制与灵活性的交换应继续通过基准和契约测试演进。其余成熟度边界主要是扫描与多条配置发布的事务性、策略对象自身线程安全、查询描述序列化、通用空间索引 Provider、Top-K 算法阈值和更广的性能/调用方异常门禁；这些能力应按所有权分别留在框架后续治理或项目接入层。
+
+---
+
+*文档类型：Canonical 设计（Targeting 跨模块边界） | 事实基线：2026-08-16 | 证据等级：E0-E3 | 文档版本：v3.2*

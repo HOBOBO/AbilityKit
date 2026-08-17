@@ -9,6 +9,27 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 public sealed class ShooterPureStateSnapshotRuntimeTests
 {
     [Fact]
+    public void PureStateWorldCacheReusesSameFrameScanAndInvalidatesOnMutation()
+    {
+        var runtime = CreateTransientRuntime();
+
+        runtime.ExportPureStateSnapshotTransient(70ul, isFullBaseline: true);
+        runtime.ExportPureStateSnapshotTransient(70ul, isFullBaseline: false);
+        var cached = runtime.PureStateWorldCacheDiagnostics;
+
+        Assert.Equal(1, cached.RebuildCount);
+        Assert.Equal(1, cached.HitCount);
+        Assert.True(cached.CachedEntityCount > 0);
+
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        player.X += 1f;
+        runtime.SetPlayer(in player);
+        runtime.ExportPureStateSnapshotTransient(70ul, isFullBaseline: false);
+
+        Assert.Equal(2, runtime.PureStateWorldCacheDiagnostics.RebuildCount);
+    }
+
+    [Fact]
     public void PureStateTransientSnapshotReusesCapacityBuffers()
     {
         var runtime = CreateTransientRuntime();

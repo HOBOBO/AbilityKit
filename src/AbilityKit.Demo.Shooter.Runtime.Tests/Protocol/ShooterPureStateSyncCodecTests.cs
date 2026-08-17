@@ -9,6 +9,46 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests.Protocol;
 public sealed class ShooterPureStateSyncCodecTests
 {
     [Fact]
+    public void ReusableDeserializeOverwritesStableArraysWithoutReplacingThem()
+    {
+        var snapshot = CreateSnapshot();
+        snapshot.Frame = 10;
+        var first = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var buffer = new ShooterPureStateSyncDecodeBuffer();
+
+        var firstDecoded = buffer.Decode(first.AsSpan());
+        var entities = firstDecoded.Entities;
+        var hints = firstDecoded.VisibilityHints;
+
+        snapshot.Frame = 11;
+        var second = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var secondDecoded = buffer.Decode(second.AsSpan());
+
+        Assert.Same(entities, secondDecoded.Entities);
+        Assert.Same(hints, secondDecoded.VisibilityHints);
+        Assert.Equal(11, secondDecoded.Frame);
+        Assert.Equal(snapshot.EffectiveEntityCount, secondDecoded.EffectiveEntityCount);
+    }
+
+    [Fact]
+    public void ReusableDeserializeDoesNotAllocateAfterWarmup()
+    {
+        var snapshot = CreateSnapshot();
+        var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var buffer = new ShooterPureStateSyncDecodeBuffer();
+        buffer.Decode(payload.AsSpan());
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 64; i++)
+        {
+            buffer.Decode(payload.AsSpan());
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(allocated < 256, $"Expected allocation-free steady state, actual={allocated} bytes.");
+    }
+
+    [Fact]
     public void TransientSerializationReusesExactLengthOutputBuffer()
     {
         var snapshot = CreateSnapshot();
@@ -118,6 +158,30 @@ public sealed class ShooterPureStateSyncCodecTests
 
         Assert.Equal(expected.ToArray(), actual.ToArray());
         Assert.Equal(new byte[] { 1, 2, 3 }, restored.Payload);
+    }
+
+    [Fact]
+    public void WireSnapshotDecodeBufferReusesStablePayloadArray()
+    {
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = 9,
+            Frame = 10,
+            PayloadOpCode = ShooterOpCodes.Snapshot.PureStateDelta,
+            Payload = new byte[] { 1, 2, 3, 4 },
+            EventEpoch = "epoch"
+        };
+        var encoded = WireRoomGatewayBinary.Serialize(in wire);
+        var buffer = new WireStateSyncSnapshotPushDecodeBuffer();
+
+        var first = buffer.Decode(encoded);
+        wire.Frame = 11;
+        encoded = WireRoomGatewayBinary.Serialize(in wire);
+        var second = buffer.Decode(encoded);
+
+        Assert.Same(first.Payload, second.Payload);
+        Assert.Equal(11, second.Frame);
+        Assert.Equal(wire.Payload, second.Payload);
     }
 
     [Fact]

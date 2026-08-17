@@ -9,6 +9,9 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Common.Composition;
+using AbilityKit.Demo.Common.Gameplay;
+using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Triggering.Runtime.Plan.Json;
@@ -16,6 +19,7 @@ using AbilityKit.Game.Flow;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -23,7 +27,6 @@ namespace AbilityKit.Game.Test.UnitTest
     [InitializeOnLoad]
     public static class LocalDemoHeadlessSkillReleaseCommand
     {
-        private const string DemoScenePath = "Assets/Scenes/MobaDemoScene.unity";
         private const string RunningKey = "AbilityKit.LocalDemoHeadlessSkillRelease.Running";
         private const string ResultPathKey = "AbilityKit.LocalDemoHeadlessSkillRelease.ResultPath";
         private const float FixedDeltaTime = 1f / 30f;
@@ -109,8 +112,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             try
             {
-                var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-                if (!scene.IsValid()) throw new InvalidOperationException($"Demo scene should load from {DemoScenePath}.");
+                DemoGameplayTestLauncher.OpenMobaLocalForPlay();
 
                 EditorApplication.EnterPlaymode();
             }
@@ -1049,6 +1051,114 @@ namespace AbilityKit.Game.Test.UnitTest
             public int RequiredDamageSteps { get; }
             public bool RequireCasterJump { get; }
             public bool RequireDamageAfterCasterLanding { get; }
+        }
+    }
+
+    [InitializeOnLoad]
+    internal static class DemoGameplayTestLauncher
+    {
+        private const string GameplayScenePath = "Assets/Scenes/" + DemoSceneRoutes.Gameplay + ".unity";
+        private const string PendingKey = "AbilityKit.DemoGameplayTestLauncher.Pending";
+        private const string GameplayKey = "AbilityKit.DemoGameplayTestLauncher.Gameplay";
+        private const string ModeKey = "AbilityKit.DemoGameplayTestLauncher.Mode";
+        private const string ProfileKey = "AbilityKit.DemoGameplayTestLauncher.Profile";
+
+        static DemoGameplayTestLauncher()
+        {
+            EditorApplication.playModeStateChanged -= HandlePlayModeStateChanged;
+            EditorApplication.playModeStateChanged += HandlePlayModeStateChanged;
+            RestorePendingRequest();
+        }
+
+        public static Scene OpenMobaLocalForPlay()
+        {
+            var scene = OpenGameplayScene();
+            ScheduleRequest(DemoGameplayId.Moba, DemoLaunchMode.Local, string.Empty);
+            return scene;
+        }
+
+        public static Scene OpenMobaLocalAndCompose()
+        {
+            Clear();
+            var scene = OpenGameplayScene();
+            PublishRequest(DemoGameplayId.Moba, DemoLaunchMode.Local, string.Empty);
+            var bootstrap = Object.FindObjectOfType<DemoGameplayBootstrap>();
+            if (bootstrap == null)
+            {
+                throw new InvalidOperationException(
+                    $"{DemoSceneRoutes.Gameplay} must contain a {nameof(DemoGameplayBootstrap)}.");
+            }
+            if (!bootstrap.TryLaunch(out var error))
+            {
+                throw new InvalidOperationException(
+                    $"Failed to compose the local MOBA test root: {error}");
+            }
+
+            return scene;
+        }
+
+        public static void Clear()
+        {
+            SessionState.EraseBool(PendingKey);
+            SessionState.EraseInt(GameplayKey);
+            SessionState.EraseInt(ModeKey);
+            SessionState.EraseString(ProfileKey);
+            DemoLaunchIntent.Clear();
+            DemoMultiplayerLaunchIntent.Clear();
+        }
+
+        private static Scene OpenGameplayScene()
+        {
+            var scene = EditorSceneManager.OpenScene(GameplayScenePath, OpenSceneMode.Single);
+            if (!scene.IsValid())
+            {
+                throw new InvalidOperationException(
+                    $"Unified gameplay scene should load from {GameplayScenePath}.");
+            }
+
+            return scene;
+        }
+
+        private static void ScheduleRequest(
+            DemoGameplayId gameplay,
+            DemoLaunchMode mode,
+            string profileId)
+        {
+            SessionState.SetInt(GameplayKey, (int)gameplay);
+            SessionState.SetInt(ModeKey, (int)mode);
+            SessionState.SetString(ProfileKey, profileId ?? string.Empty);
+            SessionState.SetBool(PendingKey, true);
+            PublishRequest(gameplay, mode, profileId);
+        }
+
+        private static void RestorePendingRequest()
+        {
+            if (!SessionState.GetBool(PendingKey, false))
+            {
+                return;
+            }
+
+            PublishRequest(
+                (DemoGameplayId)SessionState.GetInt(GameplayKey, (int)DemoGameplayId.Moba),
+                (DemoLaunchMode)SessionState.GetInt(ModeKey, (int)DemoLaunchMode.Local),
+                SessionState.GetString(ProfileKey, string.Empty));
+        }
+
+        private static void PublishRequest(
+            DemoGameplayId gameplay,
+            DemoLaunchMode mode,
+            string profileId)
+        {
+            var request = new DemoLaunchRequest(gameplay, mode, profileId);
+            DemoLaunchIntent.Request(in request);
+        }
+
+        private static void HandlePlayModeStateChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.EnteredEditMode)
+            {
+                Clear();
+            }
         }
     }
 }

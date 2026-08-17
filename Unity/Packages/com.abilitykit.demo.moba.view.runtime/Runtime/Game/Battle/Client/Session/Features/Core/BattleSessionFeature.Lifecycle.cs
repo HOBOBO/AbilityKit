@@ -61,37 +61,34 @@ namespace AbilityKit.Game.Flow
                 Battle.Replay.BattleReplayControlProvider.Current = null;
             }
 
-            TryDetachCleanup(
-                () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this)),
-                "sub-features");
-            TryDetachCleanup(_runtime.Spectator.Stop, "spectator session");
-            TryDetachCleanup(_runtime.Replay.Stop, "replay session");
-            TryDetachCleanup(StopSession, "battle session");
-            TryDetachCleanup(DisposeRemoteInterpolation, "remote interpolation");
-            TryDetachCleanup(ResetHandles, "session handles");
-            TryDetachCleanup(_state.ResetSessionFlags, "session flags");
-            TryDetachCleanup(() => _eventsCtrl.OnDetach(this), "session events");
-            TryDetachCleanup(() => SessionContextBinder.ClearSession(_ctx), "session context");
-            TryDetachCleanup(() => _runtime.UnbindContext(_ctx), "input context");
-            TryDetachCleanup(() => UnpublishAssetLoadPort(detachContext), "asset load port");
-            TryDetachCleanup(_runtime.Diagnostics.Dispose, "session diagnostics");
-            TryDetachCleanup(_runtime.Assets.Dispose, "asset lease");
+            SessionTeardownPolicy.Execute(
+                OnDetachCleanupFailed,
+                new SessionTeardownStep(
+                    "sub-features",
+                    () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this))),
+                new SessionTeardownStep("spectator session", _runtime.Spectator.Stop),
+                new SessionTeardownStep("replay session", _runtime.Replay.Stop),
+                new SessionTeardownStep("battle session", StopSession),
+                new SessionTeardownStep("remote interpolation", DisposeRemoteInterpolation),
+                new SessionTeardownStep("session handles", ResetHandles),
+                new SessionTeardownStep("session flags", _state.ResetSessionFlags),
+                new SessionTeardownStep("session events", () => _eventsCtrl.OnDetach(this)),
+                new SessionTeardownStep("session context", () => SessionContextBinder.ClearSession(_ctx)),
+                new SessionTeardownStep("input context", () => _runtime.UnbindContext(_ctx)),
+                new SessionTeardownStep("asset load port", () => UnpublishAssetLoadPort(detachContext)),
+                new SessionTeardownStep("session diagnostics", _runtime.Diagnostics.Dispose),
+                new SessionTeardownStep("asset lease", _runtime.Assets.Dispose));
 
             _ctx = null;
             _flow = null;
             _phaseCtx = default;
         }
 
-        private static void TryDetachCleanup(Action cleanup, string resourceName)
+        private static void OnDetachCleanupFailed(string resourceName, Exception exception)
         {
-            try
-            {
-                cleanup();
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[BattleSessionFeature] Failed to release {resourceName} during detach");
-            }
+            Log.Exception(
+                exception,
+                $"[BattleSessionFeature] Failed to release {resourceName} during detach");
         }
 
         internal void AdoptAssetLease(IBattleAssetLease lease) =>
@@ -126,16 +123,8 @@ namespace AbilityKit.Game.Flow
 
             if (_ctx != null)
             {
-                SessionContextBinder.BindLastFrame(_ctx, _state);
-                var fixedDelta = GetFixedDeltaSeconds();
-                if (fixedDelta > 0f)
-                {
-                    _ctx.LogicTimeSeconds = _lastFrame * (double)fixedDelta + (double)_tickAcc;
-                }
-                else
-                {
-                    _ctx.LogicTimeSeconds = 0d;
-                }
+                var projection = _tickLoop.CreateProjection();
+                SessionContextBinder.BindTickProjection(_ctx, in projection);
             }
 
             _subFeatureHost?.Tick(new FeatureModuleContext<BattleSessionFeature>(ctx, this), deltaTime);

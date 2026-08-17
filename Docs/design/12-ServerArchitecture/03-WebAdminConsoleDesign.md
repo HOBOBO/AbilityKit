@@ -1,8 +1,12 @@
 # 12.3 Web 后台：Admin Console 技术选型与职责边界
 
+> 文档类型：开发与验收控制面设计
+> 事实基线：2026-08-16
+> 安全口径：当前不是生产运维平台，`/api/admin` 路径隔离不等于管理员鉴权
+
 ## 1. 能力定位
 
-`Server/AdminConsole` 是 AbilityKit Orleans Gateway 的 Web 后台前端工程。它不是面向玩家客户端的业务协议实现，也不是单纯的演示页面，而是面向开发、验收、运维和诊断的管理控制台。
+`Server/AdminConsole` 是 AbilityKit Orleans Gateway 的 Web 后台前端工程。它不是面向玩家客户端的业务协议实现，也不是生产运维平台，而是面向开发、演示、验收和诊断的轻量控制台。
 
 后台主要承担四类职责：
 
@@ -11,9 +15,9 @@
 | 聚合总览 | 汇总玩法列表、房间目录、当前房间、运行状态、沙盒状态和服务器状态 | `AdminDashboardApi.dashboard` |
 | 会话与房间操作 | 创建/校验会话、创建房间、加入房间、准备、选英雄、启动战斗、添加机器人 | `SessionApi`、`RoomApi` |
 | 诊断分析 | 展示 Orleans 集群诊断、技能诊断模型、技能事件、验收 artifact、Shooter world diagnostics | `AdminClusterApi`、`AdminSkillApi` |
-| 运维控制 | 维护模式、排空模式、重启请求等 Gateway 进程级控制 | `AdminOpsApi` |
+| 运维意图 | 在单进程内记录维护、排空、重启请求标记，供页面和诊断读取 | `AdminOpsApi` |
 
-设计上，Web 后台服务于“服务端运行面可观察、可验收、可操作”的目标。它把 `Gateway`、`RoomGrain`、`BattleLogicHostGrain`、Shooter Sandbox、技能验收 artifact 等后端能力收束到一个受控入口，避免测试脚本、临时 HTTP 调用和手工日志排查成为主要工作方式。
+设计上，Web 后台服务于“服务端运行面可观察、可验收、可操作”的目标。它把 `Gateway`、`RoomGrain`、`BattleLogicHostGrain`、Shooter Sandbox、技能验收 artifact 等后端能力收束到一个开发入口；当前没有 ASP.NET Authentication/Authorization 中间件或管理员角色模型，因此“受控”只表示 API 聚合边界，不表示安全访问边界。
 
 ## 2. 源码入口
 
@@ -140,6 +144,17 @@ flowchart LR
 
 领域 store 的拆分条件不是页面数量本身，而是状态所有权是否开始跨领域冲突。session、rooms、skills、ops、cluster 等状态出现独立刷新周期、独立错误处理或独立权限边界时，应拆分为领域 store；在现有页面规模下，单 store 能降低跨页面状态同步成本。
 
+玩法默认值采用“后端 catalog 覆盖本地 fallback”的模式。store 初始选择 Shooter，`battle.syncTemplateId` 和 quick-start fallback 都是 `state-sync-authority`；dashboard 返回玩法列表后，`applyGameplayDefaults()` 再用 descriptor 的 `defaultMaxPlayers`、`gameplayId`、`defaultWorldType` 和 `defaultSyncTemplateId` 覆盖表单。前端默认值只是首屏/断网 fallback，后端 descriptor 才是本次请求可选项的事实源。
+
+当前 HTTP catalog 的边界如下：
+
+| HTTP 玩法 | 默认模板 | 支持模板 | 能力标记 |
+|-----------|----------|----------|----------|
+| `moba` | `frame-sync-authority` | 仅 `frame-sync-authority` | FrameSync=true，StateSyncPush=false |
+| `shooter` | `state-sync-authority` | Shooter 八类 state-sync 模板 | FrameSync=false，StateSyncPush=true |
+
+这里的 `moba` 是页面/API 兼容身份。RoomDirectory/Grain 在创建后会把它正规化为 `battle`；后台不得把展示 descriptor 与持久化 RoomType 当成两个玩法，也不应把 MOBA Smoke 的辅助权威快照恢复误写成可选择的 `state-sync-authority` 模板。
+
 ### 5.3 本地存储
 
 `storage.ts` 使用 `abilitykit.admin.` 作为新前缀，同时兼容旧的 `abilitykit.` 前缀。这保证后台从早期实验页面演进到正式 Admin Console 时，不会直接丢失开发者本地会话、房间和环境配置。
@@ -185,6 +200,8 @@ flowchart LR
 | Acceptance Artifacts | `GatewaySkillAcceptanceArtifacts` | 文件系统 artifact 根目录、模板、执行计划、用例 trace |
 | Shooter World | `GetAdminShooterWorldDiagnosticsAsync` | `IBattleLogicHostGrain.GetWorldDiagnosticsAsync` |
 
+Room Admin 的 `start-battle`、普通 HTTP room start 和 `ShooterSandboxGrain` 当前直接调用兼容的 `RoomGrain.StartBattleAsync`。这条路径会以 `LegacyStartBattle` 原因进入 commit，绕过正式 TCP 客户端的 BeginLoading/ReportAssetsLoaded 屏障。后台适合快速构造验收状态，但不能用这次成功证明 staged loading 协议已覆盖。
+
 ## 7. Dashboard 聚合流程
 
 ```mermaid
@@ -220,20 +237,20 @@ sequenceDiagram
 
 ### 8.1 进程运维
 
-`GatewayAdminOperations` 保存 Gateway 进程内状态：维护模式、排空模式、重启请求和最近操作信息。这个实现适用于演示、开发和单进程 Gateway 验收：
+`GatewayAdminOperations` 通过进程静态字段保存维护模式、排空模式、重启请求和最近操作信息。这个实现适用于演示、开发和单进程 Gateway 验收：
 
 | 能力 | 当前语义 |
 |------|----------|
-| maintenance | 标记后台希望 Gateway 进入维护模式 |
-| drain | 标记后台希望 Gateway 排空连接或停止接收新流量 |
-| restart-request | 同时置位 restart、maintenance、drain，表达受控重启意图 |
+| maintenance | 只记录希望进入维护模式；Gateway pipeline 当前不读取该标记拒绝流量 |
+| drain | 只记录排空意图；当前不会停止接收新连接或排空 Grain |
+| restart-request | 同时置位 restart、maintenance、drain；当前不会重启进程 |
 | status | 返回环境名、应用名、机器名、进程 ID、内存、线程数、运行时长和最后操作 |
 
-生产化时，这些状态不能只保存在进程内存里，需要接入共享配置、控制面或 Orleans Grain 状态，并且要让 Gateway pipeline、负载均衡、房间调度和连接接受策略真正消费这些标记。
+生产化时，这些状态不能只保存在进程内存里，需要接入共享配置、控制面或 Orleans Grain 状态，并且要让 Gateway pipeline、负载均衡、房间调度和连接接受策略真正消费这些标记。在闭环前，页面按钮应理解为“记录操作意图”，而不是“完成运维动作”。
 
 ### 8.2 Orleans 集群诊断
 
-`GatewayClusterDiagnostics` 提供 Orleans Gateway Client 与 Local Silo 的配置探针。源码中已经暴露 runtime metrics 的扩展位置，生产化诊断需要把该位置接入实际指标来源：
+`GatewayClusterDiagnostics` 当前提供 Orleans Gateway Client 与 Local Silo 的配置探针，并明确标记 runtime metrics adapter 尚未连接。下表是生产化诊断需要接入的指标目标，不是当前端点已经返回的实时 Orleans 指标：
 
 | 指标 | 用途 |
 |------|------|
@@ -260,26 +277,29 @@ sequenceDiagram
 
 ## 9. 可执行验证与当前缺口
 
-| 验证 | 命令或入口 | 当前能证明什么 | 未覆盖边界 |
+| 证据等级 | 命令或入口 | 当前能证明什么 | 未覆盖边界 |
 |------|------------|----------------|------------|
-| 前端类型检查与构建 | 在 `Server/AdminConsole` 执行 `npm run build` | `vue-tsc --noEmit` 通过，Vite 能生成 Gateway 的 `wwwroot/admin` 静态产物 | 不验证浏览器交互、接口联调、权限和目标浏览器兼容性 |
-| Gateway 后台测试 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release --filter FullyQualifiedName~GatewayAdminConsoleTests` | 前端工程结构、关键 API/组件源码、构建产物、Gateway 静态托管和后台 endpoint 约束 | 多数断言读取源码或产物文本，不是浏览器 DOM/E2E 测试 |
-| Gateway 全量测试 | `dotnet test Server/Orleans/src/AbilityKit.Orleans.Gateway.Tests/AbilityKit.Orleans.Gateway.Tests.csproj -c Release` | 后台依赖的会话、房间、错误映射、部署配置及部分 Orleans TestingHost 链路 | 不启动 Vite dev server，也不执行人工操作流程 |
-| 人工联调 | 启动 Gateway 后访问 `/admin/`，或运行 `npm run dev` 连接 `ABILITYKIT_GATEWAY_URL` | 页面、代理、真实 API 和静态托管的组合行为 | 当前没有仓库内自动化报告证明本步骤已执行 |
+| E0-E2 | Vue/Gateway 源码、静态托管和真实 API 消费 | 控制面结构与消费链存在 | UI、安全或操作效果正确 |
+| E3 | `npm run build` 与 `GatewayAdminConsoleTests`/Gateway tests | 类型构建、产物、endpoint 与部分 TestingHost 契约 | 浏览器 DOM/E2E、权限和跨浏览器兼容性 |
+| E4 | 启动 Gateway 后访问 `/admin/` 或 Vite dev server 的当次记录 | 页面、代理、API 和静态托管的组合行为 | 当前仓库没有自动化报告证明本步骤已执行 |
+| E5 | CI 中显式启用的 build/test/browser gate | 对应触发条件下阻断回归 | `package.json` 当前没有 test/lint/E2E script |
 
 `Server/AdminConsole/package.json` 当前没有 `test`、`lint` 或浏览器 E2E script，也没有前端测试依赖。现阶段自动门禁以 TypeScript/Vite 构建和后端 xUnit 源码/产物契约为主；不能据此宣称后台已具备 UI 回归、可访问性、安全或跨浏览器认证。
+
+2026-08-16 本批执行 `vue-tsc --noEmit` 通过，并随 Gateway tests 得到 `162/162`；为避免覆盖工作区现有 `wwwroot/admin` 构建产物，本批没有执行会写入该目录的 Vite build，也没有启动浏览器。这组结果只证明当前 TypeScript 类型和后端 Admin/catalog 契约可编译、可测试，不提供静态产物、DOM 或交互 E4 证据。
 
 ## 10. 设计约束与治理边界
 
 | 约束 | 源码边界 | 治理要求 |
 |------|----------|----------|
-| 权限 | 后台请求主要依赖 sessionToken，`/api/admin` 已形成独立路径边界 | 管理员角色、scope、操作审批和审计日志应由 Gateway 统一建模 |
+| 权限 | 多数写操作只校验普通 session token；部分 GET 诊断/artifact 接口无需 token；未配置 ASP.NET Authentication/Authorization middleware | 管理员角色、scope、操作审批、审计、CSRF 和速率限制必须由 Gateway/反向代理明确建模 |
+| 玩法目录 | HTTP catalog 保留 `moba`，Grain 规范身份为 `battle`；Shooter 默认模板为 `state-sync-authority` | API DTO、Room 正规化和前端选项必须分别测试，禁止用同一个字符串常量隐式合并三层身份 |
 | 状态管理 | `adminConsoleStore.ts` 集中承载后台状态、表单、刷新流程和 API 调用日志 | 领域状态出现独立生命周期或权限边界时拆分为 session、rooms、skills、ops、cluster 等 store |
 | API 类型 | 前端 `types.ts` 手写 DTO，与 Gateway HTTP DTO 需要人工保持一致 | Gateway DTO 或 OpenAPI 生成链路可作为类型一致性来源 |
 | 运维状态 | `GatewayAdminOperations` 使用进程内静态字段表达维护、排空和重启请求 | 多 Gateway 部署需要持久化到 Grain、配置中心或控制面，并接入 Gateway pipeline |
 | 集群指标 | `GatewayClusterDiagnostics` 已提供配置探针和 runtime metrics 扩展位置 | Orleans metrics、Dashboard 或 OpenTelemetry 是生产化指标来源 |
 | UI 组件 | 页面和样式由 Admin Console 自研，未绑定第三方组件库 | 表格、图表、筛选器和权限控件复杂度超过本地组件能力后再局部引入组件库 |
-| 安全 | `/api/admin` 是后台路径边界，部署层鉴权仍需外部配置配合 | Gateway middleware、反向代理鉴权、CSRF、审计和速率限制构成正式安全边界 |
+| 安全 | `/api/admin` 只是路径边界，当前不能据此视为受保护的管理面 | 正式环境在鉴权闭环前不得直接暴露该入口 |
 
 ## 11. 源码阅读路径
 
@@ -299,3 +319,9 @@ sequenceDiagram
 | `02-GatewayRoomBattleFlow.md` | 本文的房间、战斗、技能诊断最终落到 Gateway/Room/Battle 主链路 |
 | `07-NetworkSynchronization/05-SessionCoordination.md` | 后台会话、房间恢复、启动战斗依赖会话协调能力 |
 | `09-ImplementationExamples/Shooter/05-ServerFlowAndSmokeDeepDive.md` | Shooter sandbox、world diagnostics 和 smoke 验收可通过后台观察 |
+
+---
+
+> 文档版本：v3.1
+> 更新日期：2026-08-16
+> 更新责任：Admin API、认证授权、运维执行器、诊断数据源或前端 gate 变化时同步复核。

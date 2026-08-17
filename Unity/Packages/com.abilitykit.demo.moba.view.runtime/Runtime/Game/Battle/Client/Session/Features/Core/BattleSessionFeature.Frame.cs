@@ -34,6 +34,7 @@ namespace AbilityKit.Game.Flow
         {
             if (_firstFrameReceived) return;
 
+            NotifyWorldReadyOnce();
             _firstFrameReceived = true;
             _eventsCtrl.NotifyFirstFrameReceived(this);
         }

@@ -1,4 +1,4 @@
-# Ability Explain Mock Integration
+# Ability Explain 模拟集成
 
 ## 一、用途
 
@@ -55,7 +55,7 @@ Discovery 演示引用实体的按需展开。Relation 模式从当前 Forest �
 
 该图不是完整业务依赖图。缺失来源、未展开引用或不稳定 `NodeId` 都会造成缺边或身份漂移；当前展开缓存还可能跨实体保留。
 
-### 4.4 Timeline Details
+### 4.4 时间线详情
 
 Timeline Details 固定构造 Cast、SpawnProjectile 和 Hit 三行预览，并提供导航按钮。它不读取 ActionEditor 资产、ActionSchema DTO 或运行时事件，因此只证明详情扩展可以构建 UI。
 

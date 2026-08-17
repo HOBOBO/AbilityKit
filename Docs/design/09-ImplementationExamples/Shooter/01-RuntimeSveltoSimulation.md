@@ -1,5 +1,8 @@
 # Shooter Runtime、Svelto 装配与恢复边界
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文说明 Shooter 战斗世界如何装配、`ShooterBattleRuntimePort` 如何提供窄接口门面，以及 Svelto 实体结构变更、运行时生命周期、容量和 packed snapshot 恢复的真实边界。fixed tick 内部玩法顺序、命中、波次和 Bot AI 见 [Shooter 战斗玩法内核深潜](13-BattleGameplayKernelDeepDive.md)。
 
 ## 1. 能力定位
@@ -241,3 +244,23 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 10. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Application/Runtime/ShooterEntityLimitOptionsTests.cs`
 11. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Application/Runtime/ShooterPackedSnapshotRuntimeTests.cs`
 12. `src/AbilityKit.Demo.Shooter.Runtime.Tests/Application/Runtime/ShooterDeterministicReplayTests.cs`
+
+## 11. 设计归属、证据与限制
+
+| 层级 | 本文结论 |
+|------|----------|
+| 框架公共能力 | World/Module/Host、DI、Svelto adapter 与窄端口模式提供组合基础，但不规定 Shooter 的实体种类、step order 或恢复载荷 |
+| Shooter 项目策略 | `ShooterWorldModule`、`ShooterBattleRuntimePort`、统一实体预算、packed importer 和具体玩法 pipeline 均由示例包拥有 |
+| 可参考组合 | 一个 runtime 同时服务本地、客户端预测、服务端与测试，证明“领域核心 + 多宿主”可行；这些应用端口不应原样下沉为所有战斗项目的统一 facade |
+
+源码审计还限定了三项容易被误读的能力：`Tick(float)` 和主要玩法计算仍使用 `float`；`ComputeStateHash` 的 frame/revision 缓存是当前世界内的优化；仓库存在定点类型不表示 Shooter 战斗已经全面定点化。当前 replay/hash 测试证明相同构建与测试环境下的局部重放一致性，不构成跨平台逐位一致承诺。
+
+## 11. Runtime 输出与客户端所有权不能合并
+
+`ShooterBattleRuntimePort` 只拥有逻辑世界的输入、Tick、snapshot/hash 与导入导出契约。它不拥有 `ShooterPresentationSessionContext`、view binder、同步控制器或网络连接。单机 runner、远程客户端和服务端 adapter 虽然共享 runtime，退出顺序仍由各自宿主负责；runtime Dispose 不能替代客户端 session、presentation 与 transport 的回收。
+
+这一区分也解释了为什么 Shooter 应保持项目级 facade：packed importer 的 full/delta 语义可以作为同步设计参考，controlled-player 投影、渲染后端选择、Room 双连接和恢复协调则随游戏而变，不应从一个综合示例直接上移为框架默认应用套件。
+
+Batch N 在 2026-08-16 曾记录 Shooter Runtime `489/489`，这是当时的历史 E3 基线。后续 Batch W 全量复跑为 `481/490`：9 项失败集中在默认同步模型、acceptance 数量和 snapshot/session 旧预期漂移；同轮 battle handle/controller factory 聚焦测试 `22/22` 通过。Batch X 的 projection/PlaySessionRunner 聚焦测试 `66/66` 通过，但不覆盖本篇全部 runtime。本文不把历史 `489/489` 继续表述为当前全量通过。构建仍有既有 Entitas/DesperateDevs 依赖警告；本批未运行 Unity PlayMode、真实 Gateway/Orleans 或多进程 Smoke，因此没有新增 E4 证据，也没有改变 E5 触发范围。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

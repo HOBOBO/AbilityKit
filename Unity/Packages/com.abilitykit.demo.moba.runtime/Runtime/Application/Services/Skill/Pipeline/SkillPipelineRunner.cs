@@ -882,7 +882,6 @@ namespace AbilityKit.Demo.Moba.Services
             TryCancelSkillRuntime(in e, MobaSkillRuntimeEndReason.Cancelled);
             var entry = e;
             TryEndPhaseTrace(ref entry, TraceLifecycleReason.Cancelled);
-            TryEndTraceContext(entry, TraceLifecycleReason.Cancelled);
 
             RunCleanups(e.Context, reason);
             TryAddEndedSnapshot(in e, SkillCastStage.Cancelled);

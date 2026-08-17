@@ -13,27 +13,21 @@ namespace AbilityKit.Game.Test.UnitTest
         public void TryResolveLocalTrainingOpponent_SelectsFirstPlayerOnAnotherTeam()
         {
             var primaryPlayerId = new PlayerId("p1");
-            var context = CreateContext(
+            var input = new FakeIdentityPort(
                 BattleHostMode.Local,
+                "p1",
                 CreateLoadout("p1", teamId: 1),
                 CreateLoadout("p1_ally", teamId: 1),
                 CreateLoadout("p2", teamId: 2),
                 CreateLoadout("p3", teamId: 3));
 
-            try
-            {
-                var resolved = BattleInputSessionIdentity.TryResolveLocalTrainingOpponent(
-                    context,
-                    primaryPlayerId,
-                    out var opponentPlayerId);
+            var resolved = BattleInputSessionIdentity.TryResolveLocalTrainingOpponent(
+                input,
+                primaryPlayerId,
+                out var opponentPlayerId);
 
-                Assert.IsTrue(resolved);
-                Assert.AreEqual("p2", opponentPlayerId.Value);
-            }
-            finally
-            {
-                BattleContext.Return(context);
-            }
+            Assert.IsTrue(resolved);
+            Assert.AreEqual("p2", opponentPlayerId.Value);
         }
 
         [Test]
@@ -48,7 +42,7 @@ namespace AbilityKit.Game.Test.UnitTest
             try
             {
                 var resolved = BattleInputSessionIdentity.TryResolveLocalTrainingOpponent(
-                    context,
+                    (IBattleInputSessionIdentityPort)context,
                     primaryPlayerId,
                     out var opponentPlayerId);
 
@@ -73,7 +67,7 @@ namespace AbilityKit.Game.Test.UnitTest
             try
             {
                 var resolved = BattleInputSessionIdentity.TryResolveLocalTrainingOpponent(
-                    context,
+                    (IBattleInputSessionIdentityPort)context,
                     primaryPlayerId,
                     out var opponentPlayerId);
 
@@ -124,6 +118,28 @@ namespace AbilityKit.Game.Test.UnitTest
                 .WithLaunchSpec(in launchSpec)
                 .Build();
             return context;
+        }
+
+        private sealed class FakeIdentityPort : IBattleInputSessionIdentityPort
+        {
+            private readonly MobaPlayerLoadout[] _players;
+
+            public FakeIdentityPort(
+                BattleHostMode hostMode,
+                string localPlayerId,
+                params MobaPlayerLoadout[] players)
+            {
+                HostMode = hostMode;
+                LocalPlayerId = localPlayerId;
+                _players = players;
+            }
+
+            public BattleHostMode HostMode { get; }
+            public string LocalPlayerId { get; }
+
+            public string ResolveLocalControlPlayerId() => LocalPlayerId;
+
+            public MobaPlayerLoadout[] BuildEffectivePlayerLoadouts() => _players;
         }
 
         private static MobaPlayerLoadout CreateLoadout(string playerId, int teamId)

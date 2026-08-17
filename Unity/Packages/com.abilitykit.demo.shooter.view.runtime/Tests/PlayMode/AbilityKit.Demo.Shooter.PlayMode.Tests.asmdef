@@ -2,6 +2,7 @@
   "name": "AbilityKit.Demo.Shooter.PlayMode.Tests",
   "rootNamespace": "AbilityKit.Demo.Shooter.PlayMode.Tests",
   "references": [
+    "AbilityKit.Demo.Common",
     "AbilityKit.Demo.Shooter.View.Runtime",
     "AbilityKit.Network.Runtime"
   ],

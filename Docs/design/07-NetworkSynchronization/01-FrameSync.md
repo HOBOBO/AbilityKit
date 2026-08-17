@@ -1,5 +1,11 @@
 # 7.1 帧同步机制：输入帧、Host 驱动与 Orleans Relay
 
+> **文档类型：Canonical 设计**
+>
+> **事实基线：2026-08-16**
+>
+> **规范范围：** 帧号、输入归并、固定步长、帧时间、帧包广播与 Relay；不规定具体玩法输入语义。
+
 > 本文基于当前 `Unity/Packages/com.abilitykit.world.framesync`、`Unity/Packages/com.abilitykit.host.extension`、`Unity/Packages/com.abilitykit.world.networkfragments` 与 `Server/Orleans/src/AbilityKit.Orleans.*` 源码重写。当前 AbilityKit 的帧同步不是单纯的“所有客户端每帧 Tick 一次”概念文档，而是一条从输入命令、Host Hook、World Input Sink、快照打包、网络帧包到 Orleans FrameSync Grain 的完整链路。
 
 ---
@@ -395,6 +401,10 @@ flowchart TB
 
 这让逻辑系统可以通过 `IFrameTime` 获取当前帧、delta 和累计时间，而不直接依赖 Host 模块顺序。
 
+当前 `FrameTime` 的累计时间已改为 Q32.32 `Fixed64`：`StepTo` 和 `AlignTo` 在内部用整数累计与重建，`FrameAfterSeconds`、`TimeMilliseconds` 也从同一固定点事实导出；`DeltaTime` 与 `Time` 的 `float` 仅是接口兼容和表现读取视图。`FrameTimeRollbackStateProvider` payload v2 保存原始 `long`，使帧时钟能够与其它 rollback provider 一起恢复，而不通过浮点秒数反推。
+
+这项改动只证明帧时钟累计、对齐和回滚载荷的整数一致性。玩法状态、物理、随机源、容器遍历和业务 codec 是否确定，仍需分别审计；不能据此宣称整个战斗已全面定点化或跨平台逐位一致。
+
 ---
 
 ## 7.1.10 客户端网络适配：FramePacketNetAdapter
@@ -572,7 +582,7 @@ flowchart TB
     Grain --> Initialize["InitializeAsync"]
 ```
 
-这也解释了为什么文档不能把帧同步描述成唯一网络模式。AbilityKit 里帧同步、状态同步、快照同步可以根据 gameplay profile 并存或选择。
+这也解释了为什么文档不能把帧同步描述成整个框架的唯一网络模式。AbilityKit 允许不同 gameplay module 选择不同 profile；但选择发生在玩法目录边界，而不是保证每个玩法都同时提供 FrameSync 和 StateSync。当前 MOBA module 只注册 `frame-sync-authority`，Shooter module 则注册一组 StateSync 模板。
 
 ---
 
@@ -591,7 +601,9 @@ flowchart TB
 
 CatchUp 也需要按调用层拆分。`WorldCatchUpDriver` 已被会话侧控制器消费，证明按权威帧补跑并喂入快照的算法链存在；`FrameSyncCatchUpClientModule` 则只实现 `DecideCatchUp`、`ApplyCatchUpPayload` 和 `TryCatchUp`，源码仍明确说明尚未安装到客户端 reconnect flow。因此当前不能把“CatchUp primitive 有消费者”表述成“断线重连已自动完成 FrameSync CatchUp”。
 
-MOBA gameplay catalog 支持 `frame-sync-authority` 和 `state-sync-authority`，默认 gameplay profile 选择前者；MobaSmoke Program 也能解析 `--sync-template`。但现有 `run_moba_smoke.ps1`、`run_moba_multiprocess_smoke.ps1` 与 CI gate 没有透传该参数，Program 默认仍是 `state-sync-authority`。这意味着模板声明和 CLI 入口已有 E0/E1 证据，当前 smoke/CI 不能作为 FrameSync 模板的 E4/E5 证据。
+MOBA gameplay module 当前只注册 `frame-sync-authority`，runtime mode 为 `BattleWorldWithFrameSync`：Room 会初始化 `BattleFrameSyncGrain`，同时启动权威 `BattleLogicHostGrain`，而不是在 relay-only 和 StateSync 两条模板间切换。`RoomNetworkSyncCapabilityResolver` 对 MOBA 固定发布 `Lockstep` Profile，schema 范围为 `0..1`。
+
+MobaSmoke Program 仍支持 `--sync-template`，但其默认值已经是 `frame-sync-authority`。`run_moba_smoke.ps1` 与 `moba-smoke` gate 即使不显式透传参数，实际也会采用该默认模板；workflow 中的 `moba-smoke` job 覆盖 pull request、main push、schedule 和 manual，因此 FrameSync 双客户端场景已存在 E5 编排入口。证据仍需分层：静态接线能证明 gate 路线，不能证明当前提交已经产生新的 E4 PASS artifact；`moba-multiprocess` 虽在 gate catalog 声明 schedule-only，但当前 workflow 没有对应 job，不能获得同等级 E5 结论。
 
 ---
 
@@ -633,8 +645,20 @@ Orleans 负责分布式房间里的输入帧推进和观察者推送；Host Driv
 | 空输入帧可以跳过 | 空输入也会生成空数组并推进逻辑帧，避免不同端帧号分叉 |
 | `BattleFrameSyncGrain` 等同完整战斗服务器 | 它是 Orleans 帧通道/Relay，是否运行战斗逻辑取决于玩法模板和 runtime adapter |
 | CatchUp 类存在就代表 reconnect 闭环 | `WorldCatchUpDriver` 有消费者，但 `FrameSyncCatchUpClientModule` 尚未接入客户端 reconnect 主链 |
-| MobaSmoke 支持模板参数就代表 FrameSync gate 已建立 | Program 支持参数，但当前脚本和 gate 未透传，实际默认仍走 StateSync 模板 |
+| MobaSmoke 脚本未传模板就会走 StateSync | Program 默认已经是 `frame-sync-authority`，当前普通 smoke 实际走 FrameSync；参数入口只用于显式覆盖/诊断 |
+| `moba-smoke` 与 `moba-multiprocess` 具有相同 E5 | 前者有真实 workflow job；后者只有 gate catalog 声明，当前 workflow 未接线 |
 | 客户端收到 `FramePacket` 只用于表现 | 它同时可写入输入缓冲、确认缓冲，并喂给 `FrameSnapshotDispatcher` |
+| `FrameTime` 使用 `Fixed64` 就代表整场战斗确定 | 它只收敛帧时钟；业务数值、执行顺序、随机源与序列化仍需独立验证 |
+
+### 7.1.16.1 证据与验收边界
+
+| 证据 | 本轮结果 | 能证明什么 |
+|------|----------|------------|
+| `AbilityKit.World.FrameSync.Tests` | 18/18 | 帧时钟、并发缓冲、回滚等局部契约 |
+| `AbilityKit.World.Snapshot.Tests` | 7/7 | 快照路由与 pipeline 的局部契约 |
+| MOBA template/CLI | E0-E2 | 唯一 FrameSync 模板、BattleWorldWithFrameSync route 与默认参数进入正式主链 |
+| `moba-smoke` workflow | E5 编排入口 | PR/main/schedule/manual 会执行默认 FrameSync 双客户端 smoke；不代表本批已产生新 E4 PASS |
+| `moba-multiprocess` gate | E0/E1 + 本地 E4 入口 | catalog 和脚本存在，但当前 workflow 未发现对应 job |
 
 ---
 
@@ -648,7 +672,7 @@ Orleans 负责分布式房间里的输入帧推进和观察者推送；Host Driv
 6. `FramePacketNetAdapter.cs` 与 `RemoteFrameAggregator.cs`：客户端如何缓冲远端输入和快照。
 7. `FrameSyncCatchUpClientModule.cs` 与 `WorldCatchUpDriver`：CatchUp primitive、真实消费者和 reconnect 未接线边界。
 8. `BattleFrameSyncGrain.cs` 与 `FrameSyncModels.cs`：Orleans 侧按 TickRate 推送输入帧的 relay 模型。
-9. `ServerGameplayModuleCatalog.cs`、MobaSmoke `Program.cs` 与 `tools/test-gates.json`：模板声明、CLI 入口和当前 gate 覆盖的差异。
+9. `ServerGameplayModuleCatalog.cs`、`RoomNetworkSyncCapabilityResolver.cs`、MobaSmoke `Program.cs`、`tools/test-gates.json` 与 workflow：唯一模板、能力声明、CLI 默认和 gate 实际接线。
 
 ---
 
@@ -670,3 +694,7 @@ flowchart LR
 ```
 
 基于这条链路阅读状态同步、回滚预测和回放系统时，可以判断每个模块是在“生产输入”、“消费输入”、“保存帧状态”，还是“根据权威帧修正本地预测”。
+
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*

@@ -11,7 +11,6 @@ using AbilityKit.Demo.Moba.Services.EntityManager;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -20,7 +19,6 @@ namespace AbilityKit.Game.Test.UnitTest
     [InitializeOnLoad]
     public static class XiaoQiaoHeadlessSkillReleaseCommand
     {
-        private const string DemoScenePath = "Assets/Scenes/MobaDemoScene.unity";
         private const string RunningKey = "AbilityKit.XiaoQiaoHeadlessSkillRelease.Running";
         private const string ResultPathKey = "AbilityKit.XiaoQiaoHeadlessSkillRelease.ResultPath";
         private const float FixedDeltaTime = 1f / 30f;
@@ -132,8 +130,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             try
             {
-                var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-                if (!scene.IsValid()) throw new InvalidOperationException($"Demo scene should load from {DemoScenePath}.");
+                DemoGameplayTestLauncher.OpenMobaLocalForPlay();
 
                 EditorApplication.EnterPlaymode();
             }

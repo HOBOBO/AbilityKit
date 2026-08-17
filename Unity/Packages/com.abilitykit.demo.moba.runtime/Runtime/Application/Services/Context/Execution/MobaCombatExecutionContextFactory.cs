@@ -38,11 +38,11 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var snapshot = builder.Build();
-            var handle = origin.SkillRuntimeHandle;
-            if (!handle.IsValid && snapshot.SkillRuntimeHandle.IsValid)
-            {
-                handle = snapshot.SkillRuntimeHandle;
-            }
+            var originHandle = origin.SkillRuntimeHandle;
+            var snapshotHandle = snapshot.SkillRuntimeHandle;
+            var handle = ResolveSkillRuntimeHandle(
+                in originHandle,
+                in snapshotHandle);
 
             return new MobaCombatExecutionContext(payload, lineageInput, origin, snapshot, handle, frame);
         }
@@ -58,9 +58,11 @@ namespace AbilityKit.Demo.Moba.Services
                 .FromSnapshot(in executionSnapshot)
                 .Build();
 
-            var handle = executionContext.SkillRuntimeHandle.IsValid
-                ? executionContext.SkillRuntimeHandle
-                : snapshot.SkillRuntimeHandle;
+            var currentHandle = executionContext.SkillRuntimeHandle;
+            var snapshotHandle = snapshot.SkillRuntimeHandle;
+            var handle = ResolveSkillRuntimeHandle(
+                in currentHandle,
+                in snapshotHandle);
 
             return new MobaCombatExecutionContext(
                 executionContext.Payload,
@@ -69,6 +71,17 @@ namespace AbilityKit.Demo.Moba.Services
                 snapshot,
                 handle,
                 frame != 0 ? frame : executionContext.Frame);
+        }
+
+        private static MobaSkillCastRuntimeHandle ResolveSkillRuntimeHandle(
+            in MobaSkillCastRuntimeHandle current,
+            in MobaSkillCastRuntimeHandle incoming)
+        {
+            if (!current.IsValid) return incoming;
+            if (!incoming.IsValid || current.Equals(incoming)) return current;
+
+            throw new InvalidOperationException(
+                $"[MobaCombatExecutionContextFactory] Conflicting execution provenance. field=skillRuntimeHandle, current={current}, incoming={incoming}.");
         }
     }
 }

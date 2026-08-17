@@ -16,6 +16,38 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 public sealed class ShooterRoomGatewayConnectionTests
 {
     [Fact]
+    public void BattleDataPlaneDrainHonorsPushBudgetAndReportsBacklogWithoutReordering()
+    {
+        var connection = new FakeGatewayConnection();
+        using var battleTransport = CreateBattleTransport(connection);
+        var options = new ShooterBattleDataPlaneOptions(
+            maxPushesPerDrain: 1,
+            maxDrainDuration: TimeSpan.FromSeconds(1));
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport, options);
+        var received = new List<uint>();
+        battleDataPlane.ServerPushReceived += (opCode, _) => received.Add(opCode);
+
+        connection.Push(101u, Array.Empty<byte>());
+        connection.Push(102u, Array.Empty<byte>());
+        connection.Push(103u, Array.Empty<byte>());
+
+        Assert.Equal(1, battleDataPlane.Drain());
+        var firstDrain = battleDataPlane.Diagnostics;
+        Assert.Equal(new[] { 101u }, received);
+        Assert.Equal(2, firstDrain.QueueDepth);
+        Assert.Equal(3, firstDrain.PeakQueueDepth);
+        Assert.Equal(1, firstDrain.BudgetLimitedDrainCount);
+
+        Assert.Equal(1, battleDataPlane.Drain());
+        Assert.Equal(1, battleDataPlane.Drain());
+        var completed = battleDataPlane.Diagnostics;
+        Assert.Equal(new[] { 101u, 102u, 103u }, received);
+        Assert.Equal(0, completed.QueueDepth);
+        Assert.Equal(3, completed.EnqueuedPushCount);
+        Assert.Equal(3, completed.ProcessedPushCount);
+    }
+
+    [Fact]
     public void RoomStatePushUpdatesShooterRoomSnapshotFeedWithoutBattleSession()
     {
         var connection = new FakeGatewayConnection();

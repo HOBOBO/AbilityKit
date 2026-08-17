@@ -23,6 +23,15 @@ ActionTimeline 把编辑器资产压缩为纯 C# 数据协议，使 Unity 编辑
 
 因此该模块应被声明为“动作时间线数据协议与最小触发 helper”。MOBA 的 handler registry、event buffer 和 Ability phase 属于领域层扩展。
 
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| ActionSchema 公共包 | DTO、JSON 读取、一次性 clip 扫描和最小 sink 协议 | 技能阶段、业务 handler、回滚、动画同步和大规模调度 |
+| Editor/export 接入 | 将 authoring 资产稳定导出为协议数据，并维护兼容性 | 直接决定运行时副作用 |
+| 项目应用层 | clip 类型语义、handler registry、phase 完成条件、异常与回滚策略 | 要求所有游戏使用 MOBA clip 目录 |
+| MOBA/View 示例 | 展示 handler、event buffer 与 Ability Pipeline 接法 | 被视为公共播放器的默认应用套件 |
+
+公共包保持最小，能够低成本复用数据协议；真正多变的技能、动画和表现编排继续留在项目中。开箱即用在这里表示“DTO 与最小播放器可立即接入”，不表示“完整战斗时间线不需要项目开发”。
+
 ## 2. 源码与验证入口
 
 | 内容 | 路径 |
@@ -170,7 +179,7 @@ asset length 的完成语义属于 Ability phase，不属于公共播放器。�
 | 未知 clip | 静默跳过并标记 fired |
 | phase error | Pipeline error 路径处理，但已产生副作用不回滚 |
 
-截至 2026-08-02，ActionSchema package 内没有 Tests 目录或 NUnit `[Test]`、`[UnityTest]`，仓库也没有引用 `AbilityKit.ActionSchema` 的独立测试工程。已有证据是 `.NET` 镜像工程、ActionEditor 导出器、两个 View Runner 和 MOBA Ability Pipeline 的真实调用。构建证明协议可编译，调用点证明模块已被接入；两者都不等同于边界行为已有自动回归保护。
+截至 2026-08-15，ActionSchema package 内没有 Tests 目录或 NUnit `[Test]`、`[UnityTest]`，仓库也没有引用 `AbilityKit.ActionSchema` 的独立测试工程。`MobaMagicStringContractTests` 仅引用 MOBA ActionTimeline 命名空间，不构成公共播放器契约测试。已有证据是 `.NET` 镜像工程、ActionEditor 导出器、两个 View Runner 和 MOBA Ability Pipeline 的真实调用。构建证明协议可编译，调用点证明模块已被接入；两者都不等同于边界行为已有自动回归保护。
 
 优先补充：
 
@@ -193,3 +202,9 @@ ActionTimeline 已形成编辑器导出、共享 DTO、Unity/.NET 加载、MOBA 
 - [CodeGen 与 Luban 生产链路](07-CodeGenAndLubanProductionPipeline.md)：配置生成、候选晋升与发布边界。
 - [Pipeline 与 Ability Runtime](../08-GameplayModules/08-PipelineAndAbilityRuntime.md)：phase/run 生命周期与终止语义。
 - [技能系统架构](../08-GameplayModules/01-SkillSystemArchitecture.md)：Timeline phase 在技能执行链中的位置。
+
+---
+
+文档类型：Canonical 设计 | 事实基线：2026-08-15 | 证据等级：E0 公共实现、E1 .NET 构建/Editor 导出、E2 MOBA/View 消费；未达到实质 E3–E5
+
+*文档版本：v3.0 | 最后更新：2026-08-15*

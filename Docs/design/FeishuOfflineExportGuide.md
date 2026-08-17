@@ -1,6 +1,11 @@
 # Docs/design 飞书一键同步工具
 
-本工具链以 `Docs/design` 为唯一文档源，一次执行完成 Mermaid 校验、飞书友好格式导出、内容摘要比对和增量发布。默认使用 Board 兼容模式，把 Mermaid 语义转换成可编辑画板节点；需要保留 Mermaid fenced source 时可显式切换到 `native` 模式。默认通过用户 OAuth 以浏览器中登录的个人身份写入个人云空间，应用只承担 OAuth 客户端角色。发布时默认在目标根文件夹下镜像 `Docs/design` 的相对目录层级，避免全部文档扁平堆放。
+> **文档类型**：工具接入与发布指南
+> **事实基线**：2026-08-16
+> **证据范围**：导出/同步/Board 转换脚本、离线 Mermaid 与 Board 审计、日期化远端只读探针
+> **不覆盖**：飞书服务可用性承诺、远端内容原位更新或仓库源码权威关系
+
+本工具链以 `Docs/design` 作为飞书设计文档同步的唯一输入源，一次执行完成 Mermaid 校验、飞书友好格式导出、内容摘要比对和增量发布。这一约束只定义发布输入，不表示 `Docs/design` 是仓库全部文档或实现事实的唯一权威源；设计结论仍需回溯对应 package、源码、测试和 artifact。默认使用 Board 兼容模式，把 Mermaid 语义转换成可编辑画板节点；需要保留 Mermaid fenced source 时可显式切换到 `native` 模式。默认通过用户 OAuth 以浏览器中登录的个人身份写入个人云空间，应用只承担 OAuth 客户端角色。发布时默认在目标根文件夹下镜像 `Docs/design` 的相对目录层级，避免全部文档扁平堆放。
 
 ## 1. 最少配置
 
@@ -97,7 +102,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_fe
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -Preview -ListDocuments
 ```
 
-计划中的 `TargetFolder` 列会显示每篇文档预期挂载的相对目录。Preview 只计算目录路径，不枚举或创建远端文件夹，也不保存目录 token。
+计划中的 `TargetFolder` 列会显示每篇文档预期挂载的相对目录。Preview 会重新校验并生成本地导出包和同步计划，只是不调用飞书写接口、不枚举或创建远端文件夹，也不更新同步状态或目录 token。它不是“完全不改本地文件”的只读命令；审阅工作区时应把被忽略的导出目录与受版本控制的设计文档分开处理。
 
 计划输出到：
 
@@ -122,9 +127,11 @@ artifacts/feishu-design-export/feishu-sync-plan.md
 
 `native` 模式保留 Mermaid 源码，但真实探针确认 Markdown 导入器会将 Mermaid fenced source 导成 `block_type=14` 的 Docx 代码块。网页端可在该代码块内切换源码与预览，但它不是独立的飞书绘图组件。进一步开通 `docx:document.block:convert` 用户权限并调用官方 Markdown 块转换接口后，最小 Mermaid 输入仍只返回一个 `block_type=14` 块，源码位于 `code.elements`，响应不包含 `diagram`。Docx Open API 的块契约虽然包含 `diagram` 字段，但公开可写数据只有 `diagram_type`，没有 Mermaid 源码、绘图内容或可绑定的内容 token；块更新接口也只支持富文本更新。因此当前开放 API 无法把 Mermaid 源码写入独立绘图组件。`docx:document.block:convert` 不是日常同步的必要权限，脚本不会默认申请；需要保留源码时使用 `native` 代码块，需要 API 保证可编辑图形时使用 `board`。
 
-`board` 兼容模式通过 Docx Board 块与 Board 节点 API 写入可编辑绘图。转换器现已覆盖 `Docs/design` 中全部 575 张 Mermaid：383 张流程图、173 张时序图、14 张状态图、4 张类图和 1 张思维导图。流程图会保留 `subgraph` 分组框和标题；时序图支持 `alt`、`else`、`loop`、`opt`、`Note` 与 `autonumber`；状态图、类图和思维导图分别使用分层图或树形布局生成可编辑节点。离线审计不仅检查转换是否成功，还通过 Mermaid parser DB 核对分组、注释、自动编号、实体和关系数量，报告写入 `artifacts/feishu-board-audit/report.md`。
+`board` 兼容模式通过 Docx Board 块与 Board 节点 API 写入可编辑绘图。截至 2026-08-16，当次离线审计覆盖 `Docs/design` 中全部 630 张 Mermaid，`630/630` 完成结构与关键语义核对。流程图会保留 `subgraph` 分组框和标题；时序图支持 `alt`、`else`、`loop`、`opt`、`Note` 与 `autonumber`；状态图、类图和思维导图分别使用分层图或树形布局生成可编辑节点。离线审计不仅检查转换是否成功，还通过 Mermaid parser DB 核对分组、注释、自动编号、实体和关系数量，报告写入 `artifacts/feishu-board-audit/report.md`。
 
-该结论表示当前仓库图表达到 575/575 结构与关键语义覆盖，不等同于支持 Mermaid 的全部语法。当前状态图均为扁平状态，时序图未使用激活条；未来出现复合状态、激活条或其他未映射 parser 记录时，转换器仍会显式失败，不会降级为图片或静默丢失语义。类图的继承、组合、聚合和依赖关系会保留为连接线、已验证箭头及关系标签；受 Board 公开连接线样式限制，组合/聚合的菱形端点以文字关系标签表达。
+该结论表示当前仓库图表达到 `630/630` 结构与关键语义覆盖，不等同于支持 Mermaid 的全部语法，也不证明飞书远端写入持续可用。未来出现复合状态、激活条或其他未映射 parser 记录时，转换器仍会显式失败，不会降级为图片或静默丢失语义。类图的继承、组合、聚合和依赖关系会保留为连接线、已验证箭头及关系标签；受 Board 公开连接线样式限制，组合/聚合的菱形端点以文字关系标签表达。
+
+本地 `html/` 预览由导出脚本的受控 Markdown 转换逻辑生成，目标是发布前人工检查，不是完整 CommonMark 浏览器实现。复杂嵌套 Markdown、扩展语法和最终飞书排版仍需在目标文档中验收。
 
 若团队要求 URL 永久稳定，需要后续实现基于飞书 Docx Block API 的正文替换与标题更新；这与当前基于 Markdown 导入任务的一键版本化同步是两种更新模型。
 
@@ -166,7 +173,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_fe
 powershell -NoProfile -ExecutionPolicy Bypass -File tools/sync_design_docs_to_feishu.ps1 -Source 00-Prologue.md -VerifyBoard -Login -SkipExport -SkipMermaidValidation
 ```
 
-该命令不创建、修改或删除飞书内容。任何 API 错误、Board 数量不符或节点数量不符都会立即失败；只有成功读取全部节点后才打印计数。当前单文档探针的预期结果为 6 个 Board，节点数依次为 `22,15,23,11,14,11`，总计 96。
+该命令不创建、修改或删除飞书内容。任何 API 错误、Board 数量不符或节点数量不符都会立即失败；只有成功读取全部节点后才打印计数。历史单文档探针曾对 `00-Prologue.md` 回读 6 个 Board、共 96 个节点；这只是当时页面与源码版本的日期化 E4 证据，不是永久预期值。每次探针应以当次本地 manifest/转换结果和当前远端映射为准。
+
+工具证据应分层理解：脚本和参数存在属于 E0；本地 Mermaid 校验、导出与 `630/630` Board 审计属于 E2；带日期的真实远端写入/只读回读可作为 E4。当前没有 workflow 或发布 gate 持续证明 OAuth、导入任务和 Board API 可用，因此不能声明 E5。
 
 ## 6. 输出与状态
 
@@ -221,3 +230,7 @@ artifacts/feishu-design-export/
 公司内训 PPT 的文档跳转以 [`00-PresentationAndFeishuNavigation.md`](00-PresentationAndFeishuNavigation.md) 为总入口。PPT 中不要写入本地 Markdown 相对路径或源码路径；正式上传完成后，从 `feishu-sync-state.local.json` 中按源文件键读取 `feishuDocumentUrl`，再写入 PPT 超链接。
 
 当前工具不会把 Markdown 中的跨文档相对链接自动改写成目标飞书页面 URL，并且版本化重导入可能生成新的页面 URL。因此每次批量更新文档后，应重新核对 PPT 使用的 URL。建议至少验收导航总页、MOBA 总览、Shooter 总览、网络同步能力地图、玩法能力地图和工程质量入口六类链接。
+
+---
+
+*文档类型：工具接入与发布指南 | 事实基线：2026-08-16 | 证据等级：E0/E2，远端能力仅按日期化 E4 探针声明 | 文档版本：v3.0*

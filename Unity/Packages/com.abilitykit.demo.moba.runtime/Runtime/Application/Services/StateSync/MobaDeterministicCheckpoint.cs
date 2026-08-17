@@ -95,6 +95,8 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
             Validate(checkpoint);
 
             var frame = new FrameIndex(checkpoint.Frame);
+            PrepareRestore(frame, checkpoint.Entries);
+
             var rollback = CaptureEntries(frame);
             var imported = 0;
             try
@@ -102,7 +104,12 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
                 for (; imported < checkpoint.Entries.Length; imported++)
                 {
                     var entry = checkpoint.Entries[imported];
-                    _providersByKey[entry.Key].ImportState(frame, entry.Payload);
+                    var provider = _providersByKey[entry.Key];
+                    provider.ImportState(frame, entry.Payload);
+                    if (provider is IMobaStagedStateRecoveryProvider stagedProvider)
+                    {
+                        stagedProvider.ValidateRestoredState(frame, entry.Payload);
+                    }
                 }
 
                 var actualHash = ComputeStateHash(frame);
@@ -166,6 +173,18 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
             }
 
             return entries;
+        }
+
+        private void PrepareRestore(FrameIndex frame, MobaStateRecoveryEntry[] entries)
+        {
+            for (var index = 0; index < entries.Length; index++)
+            {
+                var entry = entries[index];
+                if (_providersByKey[entry.Key] is IMobaStagedStateRecoveryProvider stagedProvider)
+                {
+                    stagedProvider.PrepareRestore(frame, entry.Payload);
+                }
+            }
         }
 
         private void Validate(in MobaDeterministicCheckpoint checkpoint)

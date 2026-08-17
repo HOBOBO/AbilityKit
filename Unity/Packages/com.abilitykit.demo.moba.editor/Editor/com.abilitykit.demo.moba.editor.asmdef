@@ -2,6 +2,8 @@
   "name": "AbilityKit.Demo.Moba.Editor",
   "rootNamespace": "AbilityKit",
   "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Common.Unity",
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Demo.Moba.Runtime",
     "AbilityKit.Demo.Moba.Share",

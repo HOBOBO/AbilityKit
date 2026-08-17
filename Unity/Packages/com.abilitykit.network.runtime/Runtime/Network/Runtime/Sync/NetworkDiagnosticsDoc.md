@@ -2,7 +2,7 @@
 
 ## 新增类型（`network.runtime/Runtime/Network/Runtime/Sync/NetworkDiagnosticsSnapshot.cs`）
 
-### `NetworkDiagnosticsSnapshot` (readonly struct)
+### `NetworkDiagnosticsSnapshot`（只读结构体）
 统一快照，聚合所有关键网络健康指标：
 - `EstimatedRttMs` / `ClockOffsetMs` — 延迟 + 时钟偏移
 - `CurrentFrame` / `LastAuthoritativeFrame` / `FrameGap` — 帧进度 + 帧差

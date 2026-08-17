@@ -10,6 +10,9 @@ namespace AbilityKit.Game.Flow
 {
     internal static class GatewayRoomProtocolMapper
     {
+        private const string SyncTemplateIdTag = "syncTemplateId";
+        private const string SyncModelTag = "syncModel";
+
         internal static RoomGatewayLaunchSpec ToLaunchSpec(MultiplayerRoomLaunchSpec spec)
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
@@ -26,7 +29,9 @@ namespace AbilityKit.Game.Flow
                 spec.ProtocolVersion,
                 spec.WorldType,
                 spec.ClientId,
-                tags: BuildLaunchTags(spec));
+                tags: BuildLaunchTags(spec),
+                syncTemplateId: spec.SyncTemplateId,
+                syncModel: spec.SyncModel);
         }
 
         internal static IReadOnlyDictionary<string, string> BuildLaunchTags(
@@ -34,7 +39,7 @@ namespace AbilityKit.Game.Flow
         {
             if (spec == null) throw new ArgumentNullException(nameof(spec));
 
-            return new Dictionary<string, string>(StringComparer.Ordinal)
+            var tags = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 [RoomTagKeys.Gameplay] = spec.RoomType,
                 [RoomTagKeys.GameplayId] = spec.GameplayId.ToString(CultureInfo.InvariantCulture),
@@ -45,6 +50,17 @@ namespace AbilityKit.Game.Flow
                 [RoomTagKeys.ClientId] = spec.ClientId,
                 [RoomTagKeys.MinPlayers] = spec.MinPlayers.ToString(CultureInfo.InvariantCulture)
             };
+            if (!string.IsNullOrWhiteSpace(spec.SyncTemplateId))
+            {
+                tags[SyncTemplateIdTag] = spec.SyncTemplateId.Trim();
+            }
+
+            if (spec.SyncModel > 0)
+            {
+                tags[SyncModelTag] = spec.SyncModel.ToString(CultureInfo.InvariantCulture);
+            }
+
+            return tags;
         }
 
         internal static MultiplayerRoomRestoreResult ToRestoreResult(

@@ -8,7 +8,7 @@
 
 查询结果同时包含 `Phase` 与 `Availability`。不要只检查结果集合是否为空。
 
-### Phase
+### 阶段
 
 | Phase | 含义 | 处理方式 |
 | --- | --- | --- |
@@ -20,7 +20,7 @@
 | `Unavailable` | 当前无法提供结果 | 根据 Availability 定位 |
 | `Error` | 查询执行失败 | 记录 ErrorCode、Message、Scope 和 Revision |
 
-### Availability
+### 可用性
 
 | Availability | 含义 | 常见原因 |
 | --- | --- | --- |

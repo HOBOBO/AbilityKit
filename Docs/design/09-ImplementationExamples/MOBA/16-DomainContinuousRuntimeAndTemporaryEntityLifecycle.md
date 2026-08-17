@@ -1,5 +1,8 @@
 # MOBA 领域连续运行时与临时实体生命周期
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文补充 MOBA 示例中已经落地但此前文档覆盖较薄的两个稳定子域：Motion 领域连续运行时，以及 Summon 临时实体生命周期。它不是重复说明通用 continuous 生命周期，而是把源码中的位移源接入、motion tick、命中触发、召唤生成、容量策略、trace 快照、技能运行时保留、死亡清理和 gameplay trigger 绑定串成一条可维护的设计链路。
 
 ## 1. 能力定位
@@ -216,6 +219,17 @@ sequenceDiagram
 
 spawn post setup 至少写入 owner link、root owner、summon meta、是否 owner 死亡时销毁、生命周期结束时间和 model id。也就是说，召唤物从生成帧开始就具备清理所需的全部组件信息。
 
+生成成功只代表 actor transaction 已提交，不代表 Summon 领域初始化已经完成。`TrySummonInternal` 会把 trace 创建、属性继承、组件模板、技能装载、owner/source tracking 和 skill-runtime retain 放入后置阶段；任一步抛错都会调用 `CompensateFailedSpawn`，按事务条目补偿：
+
+1. 通过 `IMobaActorSpawnTransactionService.Rollback`（或 registrar fallback）撤销 actor 注册并销毁实体；
+2. 结束刚创建或已经跟踪的 spawn trace；
+3. 移除 root-owner tracking；
+4. 消费 source context；
+5. 释放已经取得的 skill-runtime retain；
+6. 记录 rejected，不发布成功 spawn 语义。
+
+特别是“parent runtime handle 有效但 `RetainChild` 失败”现在属于整个召唤失败，而不是生成一个失去父技能所有权的孤立实体。
+
 ### 6.2 容量与溢出策略
 
 `PrepareCapacityForSummon` 以 root owner 为维度统计同 summon id 的活跃数量。当达到 `MaxAlivePerOwner` 后，根据配置策略处理：
@@ -257,6 +271,8 @@ builder 的关键行为是：
 8. 最后 destroy entity。
 
 这个顺序的重点是先断开查询入口，再清理领域追踪和 trace，最后销毁实体。这样事件消费者拿到 despawn 事件时，能读到稳定的 reason、owner、summon id 与 source context，而不会留下活跃索引残留。
+
+`Clear`/`Dispose` 还承担世界级兜底：遍历剩余 source context，逐个释放 retain 并以 `SceneCleanup` 结束 trace，然后清空 owner/source 索引，最后执行 `ReleaseAllSkillRuntimes` 防止字典状态不一致时漏释放。它不会把普通 `Clear` 伪装成逐个 gameplay despawn 事件；场景关闭与正常离场是两种不同语义。
 
 ### 7.1 生命周期 System 负责时间与 owner 死亡
 
@@ -339,3 +355,11 @@ Gameplay 生命周期事件和召唤/位移事件不同，它是全局战斗级�
 | Gameplay trigger 可以绑定任意 scope | Gameplay binding 要求 TriggerPlanScope.Global |
 
 这篇专题的核心结论是：MOBA 示例已经把持续行为拆成通用生命周期与领域运行时两层。Motion 证明了“持续运行时可以只管理 source 生灭，而不接管物理/位移合成”；Summon 证明了“临时实体生命周期必须比普通 spawn 更严格地治理 owner、容量、trace、事件和清理”。
+
+## 13. 框架边界与验证证据
+
+Motion pipeline、Continuous manager、Trace 与通用实体构建事务可以作为稳定原语复用；motion group 目录、`motion.hit` payload、Summon overflow、owner/root-owner、属性继承、事件名和 scene cleanup 顺序属于 MOBA 项目应用层。其他游戏即使也有召唤物，也可能采用对象池、宠物 slot、服务器租约或跨场景持久化，不能直接复用此处整套 service。
+
+2026-08-16 本地 Unity ownership fixture 9/9 覆盖 Summon retain 失败补偿与 Clear 清理等所有权用例；它不是 Motion 碰撞、容量四策略、召唤事件和网络恢复的全矩阵验收。主 MOBA .NET 工程仍因同一个 SpawnArea 配置错误为 279/305，独立 View Runtime、Host、Acceptance 工程合计 161/161，但这些结果不能外推为本专题全部 E3/E4 路径通过。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

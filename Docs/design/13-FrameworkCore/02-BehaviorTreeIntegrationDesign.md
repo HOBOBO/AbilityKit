@@ -1,5 +1,9 @@
 # 行为树集成设计
 
+> 文档类型：FrameworkCore canonical
+> 事实基线：2026-08-16
+> 文档版本：v3.2
+>
 本文说明 AbilityKit 当前行为运行时、BTCore 树执行器与 MOBA 领域接入之间的关系。文中的“当前实现”以仓库中的代码和测试为准；未接入业务链路的适配器、尚未关闭的生命周期风险和后续优化分别说明，不作为已经交付的统一方案。
 
 ## 一、系统定位
@@ -90,6 +94,8 @@ stateDiagram-v2
 
 Duration 在每帧 Decision 和 Executor 执行之后检查。因此某个 Tick 即使已经达到时限，仍会先产生一次本帧决策，再完成行为。需要严格截止时间的业务不能假设超时帧完全不执行。
 
+`ElapsedSeconds` 当前不是逐帧 float 累加。`BehaviorRuntime` 通过 `DeterministicMathBridge` 把 `deltaTime` 转成 Q32.32 raw 值并使用整数累加，公开 float 只在属性边界换算。这降低了同一输入序列的累计漂移，但不自动保证树随机节点、领域查询或外部时钟也具有跨平台确定性。
+
 ### 2.3 完成、中断与异常
 
 Decision 可以通过以下方式结束行为：
@@ -101,11 +107,14 @@ Decision 可以通过以下方式结束行为：
 
 运行时捕获 Decision/Executor 的异常并转成 `Interrupt("Exception: " + ex.Message)`。这能阻止异常穿透主循环，但公开的中断状态只保留消息，不保留异常类型、堆栈和结构化上下文。生产诊断不能只依赖该字符串，宿主应在异常边界记录完整异常和 Behavior 身份。
 
+这个 catch 不等于完整异常隔离。`Tick` 在进入 Decision 前已经写入 CurrentFrame、累计 ElapsedSeconds 并清空上一帧 Output；Decision 或 Executor 失败后这些状态不会回滚。随后调用 `Interrupt` 时会先写 Phase，再同步执行公开中断回调和 `IContinuous.OnEnded`；任一回调再次抛错都会从 catch 内向外传播。Complete 路径也先写终态再通知，观察者异常不会恢复 Phase。
+
 ## 三、BehaviorManager 的所有权
 
-`BehaviorManager` 为每个行为分配单调递增的 InstanceId，并维护三类索引：
+`BehaviorManager` 为每个行为分配单调递增的 InstanceId，并维护四类索引或调度结构：
 
 - 全局 InstanceId 到 Runtime。
+- 反向注册序 Tick 使用的 `_orderedBehaviors` 列表。
 - OwnerId 到 Runtime 列表。
 - InstanceId 到可选 `BehaviorBinding`。
 
@@ -116,29 +125,27 @@ Decision 可以通过以下方式结束行为：
 3. 从 Binding、Owner 列表和全局表移除。
 4. 发布 `OnBehaviorEnded`。
 
+这两条路径都不是事务。`OnBehaviorCreated` 抛错时行为已经进入 Running 并存在所有索引中，但 `CreateBehavior` 不会正常返回句柄。结束时 Manager 在移除索引前先 Dispose Decision；Dispose 抛错会中断清理，使终态 Runtime 继续残留在 Manager，后续再次 Complete/Interrupt 又因 Phase 已终止而不会重触发清理。`OnBehaviorEnded` 抛错则发生在索引已移除之后，不会回滚。宿主应让 lifecycle observer 与 Decision Dispose 幂等且不抛异常，并为创建失败后按 InstanceId 扫描残留提供诊断。
+
 `InterruptAll` 和 Binding 的 `EndAllBehaviors` 都先复制 ID 或 Runtime 列表，避免在批量中断过程中修改正在遍历的集合。
 
-### 3.1 Tick 内同步删除风险
+### 3.1 Tick 顺序与重入边界
 
-当前 `BehaviorManager.Tick` 直接遍历 `_behaviors.Values`。与此同时，`BehaviorRuntime.Tick` 在完成或中断时会同步触发事件，事件处理立即从 `_behaviors` 删除当前项。
+当前 `BehaviorManager.Tick` 不再枚举 `_behaviors.Values`，而是从 `_orderedBehaviors.Count - 1` 到 `0` 反向遍历。Runtime 同步完成或中断时，`Cleanup()` 会同时从字典、owner 列表和 ordered list 移除对象。普通“当前项在自己的 Tick 中结束”不会触发 Dictionary 枚举失效，旧版风险描述已经不适用。
 
-```text
-BehaviorManager foreach Dictionary.Values
--> BehaviorRuntime.Tick
--> Complete / Interrupt
--> BehaviorManager.Cleanup
--> Dictionary.Remove
-```
+这同时形成一个必须显式记录的模拟契约：Tick 顺序是**反向注册序**，而不是源码注释所称的注册序。若后注册行为会读写前一行为同帧可见的状态，改变注册顺序就可能改变结果。
 
-在 .NET Dictionary 的枚举语义下，这条路径可能使后续 `MoveNext` 抛出集合已修改异常。现有生命周期测试只覆盖从 Manager 外部 Interrupt，或直接调用 Runtime Complete 后的释放次数，没有覆盖 Manager Tick 中 Decision 完成的场景。
+当前仍缺少 Tick 内结构变更的专项测试，而且 live-list 行为可以从源码精确推导：当前项自结束通常安全；当前项若同步结束一个更早注册、尚未执行的行为，自身会因列表左移而可能在下一次循环索引再次被 Tick；新建行为追加在列表尾，本轮通常不可见；结束已经执行过的更晚注册行为则不会让新对象补跑。也就是说，交叉结束不只是“顺序未定义”，还可能造成同一 Runtime 单帧重复执行。
 
-因此这不是已经由测试关闭的风险。修复时应采用 Tick 快照、延迟回收队列或稳定调度列表，并增加“一个行为在 Tick 中结束且其他行为继续执行”的回归测试。
+生产接入应在测试固化前避免从 Decision、Executor 或 `OnBehaviorEnded` 直接修改其他行为，优先使用 Tick 快照或延迟变更队列，并补“自结束、结束早注册项、结束晚注册项、新建项、同帧重复执行”的矩阵。
 
 ### 3.2 Manager 释放边界
 
-`BehaviorManager` 当前没有实现 `IDisposable`，也没有批量关闭所有存量行为的统一方法。MOBA 的 `MobaBrainService.Dispose()` 只清空失败创建缓存，不会中断 `_behaviors` 中仍然存活的 Runtime。
+`BehaviorManager` 当前没有实现 `IDisposable`，也没有批量关闭所有存量行为的统一方法。`InterruptAll(owner)` 只处理中断时仍为 Running 的 Runtime，Paused 行为会保留。MOBA 的 `MobaBrainService.Dispose()` 只清空失败创建缓存，不会中断 `_behaviors` 中仍然存活的 Runtime。
 
 现有战局销毁顺序可能通过 Actor/World 生命周期提前释放行为，但该假设没有固化在 Manager 契约中。后续应提供明确的 Shutdown/Dispose，并定义结束原因、Decision Dispose 和结束事件是否仍需发布。
+
+Pipeline 内嵌行为还有另一条独立所有权路径：`AbilityBehaviorPhase` 直接 `new BehaviorRuntime`，不注册到 `BehaviorManager`。其 Cleanup/Reset 只解绑事件并清空引用，不 Interrupt Runtime，也不 Dispose Decision；外部中断只会处理 Running 行为，Paused 行为同样可能被直接遗忘。Behavior 自然完成或异常中断时，Phase 的两个 Runtime 回调当前为空，领域 `OnBehaviorInterrupt` 不会从这里被调用；阶段通常要到输出请求或下一 Tick 才完成。不能把 Manager 的 Decision 清理保证外推到这个 Phase。自定义阶段采用前必须补终态、Reset、外部中断、暂停和 Decision Dispose 的专门所有权测试。
 
 ## 四、BTCore 树执行器
 
@@ -370,7 +377,7 @@ MOBA 树按响应式决策循环使用。节点若返回 Running，必须遵守�
 
 ## 九、测试证据
 
-当前测试能证明的范围如下：
+当前测试能证明的范围如下。2026-08-16 当次 `AbilityKit.BTCore.Tests` 为 `3/3`，`BehaviorManagerLifecycleTests` 聚焦筛选为 `2/2`；后者构建仍有既有依赖漏洞、Entitas 兼容性和可空性警告。
 
 | 能力 | 已有证据 |
 | --- | --- |
@@ -384,7 +391,7 @@ MOBA 树按响应式决策循环使用。节点若返回 Running，必须遵守�
 
 仍缺少的关键门禁：
 
-1. Behavior 在 Manager Tick 中完成或中断时，不得使集合枚举失效，且同帧其他行为仍能按协议执行。
+1. Behavior 在 Manager Tick 中自结束、结束其他行为或创建新行为时，反向注册序和同帧可见性必须稳定。
 2. Manager/Brain Service Shutdown 后所有 Decision 必须释放，索引和 Binding 必须清空。
 3. Behavior Pause/Resume 对 BTCore Running Node 的 Start/Stop 与时间语义。
 4. 通用 Action、Condition、Executor 和 Blackboard Bridge 的专项测试。
@@ -393,6 +400,8 @@ MOBA 树按响应式决策循环使用。节点若返回 Running，必须遵守�
 7. 相同输入与 Seed 下 Random 节点和 MOBA Intent 的逐帧一致性测试。
 8. 资产缓存失效、版本替换和多战局进程复用测试。
 9. Running 节点是否每帧刷新事实和重发意图的契约测试。
+10. `OnBehaviorCreated`、Decision Dispose、结束观察者抛错后的索引与终态残留。
+11. `AbilityBehaviorPhase` 在完成、中断、暂停、Reset 与 Pipeline 失败路径中的 Runtime/Decision 释放。
 
 ## 十、已知边界
 
@@ -440,7 +449,7 @@ MOBA 使用 Json.NET 的 TypeNameHandling 相关序列化设置，并在归一�
 
 ### P0：关闭生命周期缺口
 
-- 修复 Manager Tick 中同步删除 Dictionary 的问题。
+- 固化反向注册序是否为预期契约，并用 Tick 内自结束/交叉结束/创建测试关闭重入缺口。
 - 为 Manager 和 Brain Service 增加明确 Shutdown/Dispose。
 - 定义 Pause/Resume 对 Running Node 和时间源的语义。
 - 增加完成、中断、异常、替换和战局销毁的生命周期测试矩阵。
@@ -496,4 +505,8 @@ MOBA 使用 Json.NET 的 TypeNameHandling 相关序列化设置，并在归一�
 
 ### 12.1 构建与证据边界
 
-包内 Behavior Runtime 的 .NET 镜像工程应从 `src/` 目录中确认后执行对应 `dotnet build`；该命令只证明编译闭合，不证明 Unity 生命周期、Manager Tick 删除风险或行为树确定性已经正确。当前仓库可见消费者为 BTCore/MOBA 集成路径，E0 源码和 E1/E2 调用证据较明确；E3 仅覆盖部分生命周期与领域行为，E4/E5 的专项 Smoke、性能预算、CI 阻断和发布回滚证据尚未形成。
+包内 Behavior Runtime 的 .NET 镜像工程应从 `src/` 目录中确认后执行对应 `dotnet build`；该命令只证明编译闭合，不证明 Unity 生命周期、Manager Tick 重入语义或行为树确定性已经正确。当前仓库可见消费者为 BTCore/MOBA 集成路径，E0 源码和 E1/E2 调用证据较明确；E3 仅覆盖部分生命周期与领域行为，E4/E5 的专项 Smoke、性能预算、CI 阻断和发布回滚证据尚未形成。
+
+---
+
+*文档版本：v3.2 | 最后更新：2026-08-16 | 验证基线：BTCore 3/3、Behavior lifecycle 2/2*

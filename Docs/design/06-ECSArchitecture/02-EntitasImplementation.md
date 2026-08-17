@@ -2,6 +2,10 @@
 
 > 本文说明 AbilityKit 如何把 Entitas 上下文、系统容器、World.DI、模块治理与生命周期组合成一个 `IWorld` 实现，并记录当前实现的所有权与失败边界。
 
+> **文档类型：Canonical 设计**
+> **事实基线：2026-08-16**
+> **适用范围：`com.abilitykit.world.entitas` 可选适配层；MOBA generated contexts 与系统集合属于项目接入。**
+
 ---
 
 ## 目录
@@ -28,6 +32,8 @@
 ## 1. 能力定位
 
 Entitas 实现层的目标是让 AbilityKit 的通用世界抽象可以落到 Entitas ECS 上，同时保持 Host、DI、服务、系统生命周期的统一。它的边界如下：
+
+该适配层不是第二套统一 ECS API，也不要求所有项目采用 Entitas。它负责把第三方 contexts/systems 接到 World 生命周期；组件 schema、Matcher、Reactive 语义和业务系统仍由采用 Entitas 的项目所有。
 
 | 能力 | Entitas 实现职责 |
 |------|------------------|
@@ -205,6 +211,8 @@ sequenceDiagram
 
 `AutoSystemInstaller` 只扫描显式传入的 assemblies 和 namespace prefixes，并只选择带 `[WorldSystem]`、非抽象且非接口的类型。候选顺序固定为 `Phase -> Order -> Type.FullName`；不同 phase 被包装为独立 `Entitas.Systems` feature，再按 `PreExecute` 到 `PostExecute` 加入根 systems。
 
+`WorldSystemAttribute.Priority` 当前不参与排序。需要稳定先后关系时应使用 `Phase`、`Order` 或显式 installer，不能只设置 `Priority` 后假设运行顺序改变。自动构造或安装中途失败也没有移除已加入 systems 的事务回滚。
+
 自动构造不是通用 DI 构造器：每个候选必须具有 `(Entitas.IContexts contexts, IWorldResolver services)` 构造函数，并实现 `Entitas.ISystem`。缺少构造函数、类型不实现接口或构造函数内部抛错都会使组合失败。
 
 `ReactiveWorldSystemBase<TEntity>` 在 Initialize 时：
@@ -240,10 +248,25 @@ MOBA blueprint 在启用 EntitasContexts feature 时设置 [MobaEntitasContextsF
 
 ## 9. 验证与成熟度
 
-- .NET 构建入口直接编译 package Runtime 源，可用于验证适配层编译一致性。
+- `AbilityKit.World.Entitas` Release 构建成功，但产生 8 个第三方兼容警告：项目请求 Entitas `1.5.0` 时实际解析为 `1.13.0`，且 Entitas/DesperateDevs 的旧 .NET Framework 资产被用于当前 `net10.0` 构建。该结果是 E2 编译证据，不是升级兼容保证。
 - MOBA Console/Session 通过 world type registry 创建 `EntitasWorld`，业务系统、ActorId 索引和 smoke 流程提供生产接入证据。
 - 当前未发现覆盖构造后未初始化释放、Compose 部分失败、installer 排序、Tick 异常或 reactive 解绑的专门自动测试。
 - 因此本模块可视为“已生产接入、底层失败路径测试不足”；初始化回滚与 Dispose 完整性在补测试和实现修复前不得标记为已保证。
+
+### 9.1 E0-E5 证据表
+
+| 等级 | 当前证据 | 不可外推范围 |
+|------|----------|--------------|
+| E0 | `EntitasWorld`、Composer、installer 与 reactive 基类源码 | 仅确认当前实现和失败传播 |
+| E1 | MOBA generated contexts、ActorId 索引和业务 systems | 项目 schema 与组合不是框架默认 |
+| E2 | Release 构建成功，伴随 8 个兼容警告 | 不证明第三方版本升级安全 |
+| E3 | 未发现适配层独立专项测试 | MOBA 相邻测试不能替代构造/失败/释放契约 |
+| E4 | 无适配层独立运行 artifact | 不声明长时间运行和失败恢复成熟度 |
+| E5 | 无 Entitas 适配专项持续门禁 | 不把消费者 workflow 外推为底层阻断保证 |
+
+### 9.2 规范目标
+
+初始化应最终具备事务化语义：任一步失败都 TearDown 已初始化系统、释放 scope/container、归还 contexts，并让 world 进入不可重试的明确终态；Dispose 的每个资源步骤应独立隔离异常并继续清理。在这些修复完成前，宿主应把 `Initialize()` 抛错视为该 world 已损坏，而不是原对象可安全重试。
 
 ---
 
@@ -255,4 +278,4 @@ MOBA blueprint 在启用 EntitasContexts feature 时设置 [MobaEntitasContextsF
 
 ---
 
-*文档版本：v1.1 | 最后更新：2026-07-15*
+*文档版本：v3.0 | 最后更新：2026-08-16*

@@ -5,6 +5,7 @@ using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.ActionScheduler;
+using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Dispatcher;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -27,6 +28,42 @@ namespace AbilityKit.Triggering.Tests
             }
 
             public int Value { get; }
+        }
+
+        private sealed class ObservingContext : System.IServiceProvider, ITriggerActionExecutionScopeObserver
+        {
+            public int EnterCount { get; private set; }
+            public int ExitCount { get; private set; }
+            public int LastActionIndex { get; private set; } = -1;
+            public long LastActionId { get; private set; }
+            public bool LastSucceeded { get; private set; }
+
+            public object GetService(Type serviceType)
+            {
+                return serviceType == typeof(ITriggerActionExecutionScopeObserver) ? this : null;
+            }
+
+            public void EnterActionExecution(int actionIndex, long actionId)
+            {
+                EnterCount++;
+                LastActionIndex = actionIndex;
+                LastActionId = actionId;
+            }
+
+            public void ExitActionExecution(int actionIndex, long actionId, bool succeeded)
+            {
+                ExitCount++;
+                LastActionIndex = actionIndex;
+                LastActionId = actionId;
+                LastSucceeded = succeeded;
+            }
+        }
+
+        private sealed class ObservingContextSource : ITriggerContextSource<ObservingContext>
+        {
+            public ObservingContext Current { get; set; }
+
+            public ObservingContext GetContext() => Current;
         }
 
         private sealed class MutableContextSource : ITriggerContextSource<TestContext>
@@ -208,6 +245,79 @@ namespace AbilityKit.Triggering.Tests
             Assert.That(observedArgs, Is.Not.Null);
             Assert.That(observedArgs.TryGetValue("amount", out var amount), Is.True);
             Assert.That(amount.Ref.ConstValue, Is.EqualTo(12));
+        }
+
+        [Test]
+        public void PlannedTrigger_ActionScopeObserver_ExitsOnceAsSucceeded()
+        {
+            var bus = new EventBus();
+            var actions = new ActionRegistry();
+            var context = new ObservingContext();
+            var contextSource = new ObservingContextSource { Current = context };
+            var actionId = new ActionId(StableStringId.Get("test:trigger_runner:action_scope_success"));
+
+            actions.Register<NamedAction0<Ping, object, ObservingContext>>(
+                actionId,
+                (triggerArgs, actionArgs, ctx) => { },
+                isDeterministic: true);
+
+            var runner = new TriggerRunner<ObservingContext>(
+                bus,
+                new FunctionRegistry(),
+                actions,
+                contextSource: contextSource);
+            var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:action_scope_success_event"));
+            var plan = new TriggerPlan<Ping>(
+                phase: 0,
+                priority: 0,
+                triggerId: 1004,
+                actions: new[] { new ActionCallPlan(actionId) });
+
+            runner.RegisterPlan<Ping, ObservingContext>(key, in plan);
+            bus.Publish(key, new Ping());
+
+            Assert.That(context.EnterCount, Is.EqualTo(1));
+            Assert.That(context.ExitCount, Is.EqualTo(1));
+            Assert.That(context.LastActionIndex, Is.EqualTo(0));
+            Assert.That(context.LastActionId, Is.EqualTo(actionId.Value));
+            Assert.That(context.LastSucceeded, Is.True);
+        }
+
+        [Test]
+        public void PlannedTrigger_ActionScopeObserver_ExitsOnceAsFailedWhenActionThrows()
+        {
+            var bus = new EventBus();
+            var actions = new ActionRegistry();
+            var context = new ObservingContext();
+            var contextSource = new ObservingContextSource { Current = context };
+            var actionId = new ActionId(StableStringId.Get("test:trigger_runner:action_scope_failure"));
+
+            actions.Register<NamedAction0<Ping, object, ObservingContext>>(
+                actionId,
+                (triggerArgs, actionArgs, ctx) => throw new InvalidOperationException("expected action failure"),
+                isDeterministic: true);
+
+            var runner = new TriggerRunner<ObservingContext>(
+                bus,
+                new FunctionRegistry(),
+                actions,
+                contextSource: contextSource);
+            var key = new EventKey<Ping>(StableStringId.Get("test:trigger_runner:action_scope_failure_event"));
+            var plan = new TriggerPlan<Ping>(
+                phase: 0,
+                priority: 0,
+                triggerId: 1005,
+                actions: new[] { new ActionCallPlan(actionId) });
+
+            runner.RegisterPlan<Ping, ObservingContext>(key, in plan);
+
+            var error = Assert.Throws<InvalidOperationException>(() => bus.Publish(key, new Ping()));
+            Assert.That(error.Message, Is.EqualTo("expected action failure"));
+            Assert.That(context.EnterCount, Is.EqualTo(1));
+            Assert.That(context.ExitCount, Is.EqualTo(1));
+            Assert.That(context.LastActionIndex, Is.EqualTo(0));
+            Assert.That(context.LastActionId, Is.EqualTo(actionId.Value));
+            Assert.That(context.LastSucceeded, Is.False);
         }
 
         [Test]

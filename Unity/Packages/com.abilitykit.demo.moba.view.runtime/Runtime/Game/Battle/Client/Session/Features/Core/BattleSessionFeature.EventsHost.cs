@@ -16,6 +16,15 @@ namespace AbilityKit.Game.Flow
             Log.Info("[BattleSessionFeature] Session started");
             SessionStarted?.Invoke();
             Hooks?.SessionStarted.Invoke(plan);
+            if (plan.Sync.SyncMode == BattleSyncMode.Lockstep)
+            {
+                NotifyWorldReadyOnce();
+            }
+        }
+
+        void ISessionEventsHost.RaiseWorldReady()
+        {
+            WorldReady?.Invoke();
         }
 
         void ISessionEventsHost.RaiseSessionFailed(Exception exception)
@@ -45,12 +54,22 @@ namespace AbilityKit.Game.Flow
         internal BattleSessionHooks Hooks { get; private set; }
 
         public event Action SessionStarted;
+        public event Action WorldReady;
         public event Action FirstFrameReceived;
         public event Action<Exception> SessionFailed;
         public event Action<WireReliableBattleEvent> ReliableBattleEventReceived;
 
         // 阶段 7a：真实资源加载完成事件（manifest barrier）。
         public event Action AssetsLoadCompleted;
+
+        private void NotifyWorldReadyOnce()
+        {
+            if (_worldReady) return;
+
+            _worldReady = true;
+            Log.Info("[BattleSessionFeature] World ready");
+            _eventsCtrl.NotifyWorldReady(this);
+        }
 
         /// <summary>
         /// 阶段 7a：外部资源加载协调器在 manifest barrier 通过后调用，触发 <see cref="AssetsLoadCompleted"/>。

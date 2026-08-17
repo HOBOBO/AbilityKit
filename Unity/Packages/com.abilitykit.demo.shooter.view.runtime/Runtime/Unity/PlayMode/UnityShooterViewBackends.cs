@@ -2,6 +2,7 @@
 
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.View.Hosting;
+using Unity.Profiling;
 using UnityEngine;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
@@ -203,6 +204,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
     internal sealed class UnityShooterGpuInstancedViewSink : IUnityShooterViewSink
     {
+        private static readonly ProfilerMarker RebuildInstanceBufferMarker = new ProfilerMarker("AbilityKit.Shooter.View.GpuInstanced.RebuildInstanceBuffer");
+        private static readonly ProfilerMarker UploadIndirectBufferMarker = new ProfilerMarker("AbilityKit.Shooter.View.GpuInstanced.UploadIndirectBuffer");
+        private static readonly ProfilerMarker DrawBufferMarker = new ProfilerMarker("AbilityKit.Shooter.View.GpuInstanced.DrawBuffer");
+
         private const int MaxInstancesPerDraw = 1023;
         private static readonly bool DrawAuthorityOverlay = false;
         private readonly ShooterSnapshotViewProjection _clientProjection = new();
@@ -212,6 +217,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private readonly Matrix4x4[] _enemyMatrices = new Matrix4x4[MaxInstancesPerDraw];
         private readonly InstanceBuffer _clientInstances = new();
         private readonly InstanceBuffer _authorityInstances = new();
+        private readonly IndirectBufferSet _clientIndirectBuffers = new();
+        private readonly IndirectBufferSet _authorityIndirectBuffers = new();
         private readonly MaterialPropertyBlock _properties = new();
         private readonly GUIContent[] _hudLines = CreateHudLineCache(10);
         private Transform? _viewRoot;
@@ -263,6 +270,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private bool _hasAppliedAuthorityBatch;
         private bool _clientInstancesDirty = true;
         private bool _authorityInstancesDirty = true;
+        private bool _useIndirectRendering;
 
         public ShooterUnityViewRenderBackend Backend => ShooterUnityViewRenderBackend.GpuInstancedDotsReady;
 
@@ -283,10 +291,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (_clientInstancesDirty || viewKeyChanged)
             {
                 RebuildInstanceBuffer(_clientProjection.Store, _clientInstances, frame.ControlledPlayerId, frame.WorldScale, isAuthority: false);
+                UploadIndirectBuffers(_clientInstances, _clientIndirectBuffers);
                 _clientInstancesDirty = false;
             }
 
-            var clientDrawCounts = DrawBuffer(_clientInstances, isAuthority: false);
+            var clientDrawCounts = DrawBuffer(_clientInstances, _clientIndirectBuffers, isAuthority: false);
             CaptureHudData(in frame, in clientDrawCounts);
 
             if (frame.HasAuthorityBatch)
@@ -302,13 +311,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 if (_authorityInstancesDirty || viewKeyChanged)
                 {
                     RebuildInstanceBuffer(_authorityProjection.Store, _authorityInstances, frame.ControlledPlayerId, frame.WorldScale, isAuthority: true);
+                    UploadIndirectBuffers(_authorityInstances, _authorityIndirectBuffers);
                     _authorityInstancesDirty = false;
                 }
 
                 _hasAuthorityProjection = true;
                 if (DrawAuthorityOverlay)
                 {
-                    DrawBuffer(_authorityInstances, isAuthority: true);
+                    DrawBuffer(_authorityInstances, _authorityIndirectBuffers, isAuthority: true);
                 }
             }
             else
@@ -367,6 +377,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _authorityProjection.Clear();
             _clientInstances.Clear();
             _authorityInstances.Clear();
+            _clientIndirectBuffers.Dispose();
+            _authorityIndirectBuffers.Dispose();
             _hasAuthorityProjection = false;
             _hasHudData = false;
             _hudDirty = false;
@@ -402,6 +414,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastFirstPlayerPosition = Vector3.zero;
             _lastClientApplyResult = ShooterViewProjectionApplyResult.Empty;
             _lastCrossLayerDiagnostics = default;
+            _useIndirectRendering = false;
 
             if (_viewRoot != null)
             {
@@ -447,26 +460,26 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void RebuildInstanceBuffer(ShooterViewEntityStore store, InstanceBuffer buffer, int controlledPlayerId, float worldScale, bool isAuthority)
         {
+            using var rebuildSample = RebuildInstanceBufferMarker.Auto();
             buffer.Clear();
             buffer.EnsureCapacity(store.PlayerCount, store.BulletCount, store.EnemyCount);
-            foreach (var kvp in store.Entities)
+            for (var i = 0; i < store.DenseCount; i++)
             {
-                var entity = kvp.Value;
-                if (!entity.Alive)
+                if (!store.TryGetDenseEntityAndTransform(i, out var entity, out var transform))
                 {
                     if (!isAuthority && entity.Kind == ShooterViewEntityKind.Player)
                     {
-                        buffer.SkippedDeadPlayerCount++;
+                        buffer.SkippedPlayerWithoutTransformCount++;
                     }
 
                     continue;
                 }
 
-                if (!store.TryGetTransform(entity.Key, out var transform))
+                if (!entity.Alive)
                 {
                     if (!isAuthority && entity.Kind == ShooterViewEntityKind.Player)
                     {
-                        buffer.SkippedPlayerWithoutTransformCount++;
+                        buffer.SkippedDeadPlayerCount++;
                     }
 
                     continue;
@@ -507,24 +520,61 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
         }
 
-        private DrawCounts DrawBuffer(InstanceBuffer buffer, bool isAuthority)
+        private void UploadIndirectBuffers(InstanceBuffer buffer, IndirectBufferSet indirectBuffers)
         {
-            DrawInstances(ShooterViewEntityKind.Enemy, buffer.Enemies, isAuthority);
-            DrawInstances(ShooterViewEntityKind.Bullet, buffer.Bullets, isAuthority);
-            DrawInstances(ShooterViewEntityKind.Player, buffer.Players, isAuthority);
+            if (!_useIndirectRendering)
+            {
+                return;
+            }
+
+            using var uploadSample = UploadIndirectBufferMarker.Auto();
+            indirectBuffers.Upload(
+                MeshFor(ShooterViewEntityKind.Player),
+                buffer.Players,
+                MeshFor(ShooterViewEntityKind.Bullet),
+                buffer.Bullets,
+                MeshFor(ShooterViewEntityKind.Enemy),
+                buffer.Enemies,
+                buffer.HasControlledPlayer,
+                in buffer.ControlledPlayerMatrix);
+        }
+
+        private DrawCounts DrawBuffer(InstanceBuffer buffer, IndirectBufferSet indirectBuffers, bool isAuthority)
+        {
+            using var drawSample = DrawBufferMarker.Auto();
+            DrawInstances(ShooterViewEntityKind.Enemy, buffer.Enemies, indirectBuffers, isAuthority);
+            DrawInstances(ShooterViewEntityKind.Bullet, buffer.Bullets, indirectBuffers, isAuthority);
+            DrawInstances(ShooterViewEntityKind.Player, buffer.Players, indirectBuffers, isAuthority);
             _lastPlayerProbeDrawn = false;
 
             if (!isAuthority && buffer.HasControlledPlayer)
             {
-                _playerMatrices[0] = buffer.ControlledPlayerMatrix;
-                Flush(ShooterViewEntityKind.Player, _controlledPlayerMaterial ?? _playerMaterial, _playerMatrices, 1);
+                if (_useIndirectRendering)
+                {
+                    indirectBuffers.DrawControlled(_controlledPlayerMaterial ?? _playerMaterial);
+                }
+                else
+                {
+                    _playerMatrices[0] = buffer.ControlledPlayerMatrix;
+                    Flush(ShooterViewEntityKind.Player, _controlledPlayerMaterial ?? _playerMaterial, _playerMatrices, 1);
+                }
             }
 
             return new DrawCounts(buffer.PlayerCount, buffer.BulletCount, buffer.EnemyCount);
         }
 
-        private void DrawInstances(ShooterViewEntityKind kind, List<Matrix4x4> matrices, bool isAuthority)
+        private void DrawInstances(
+            ShooterViewEntityKind kind,
+            List<Matrix4x4> matrices,
+            IndirectBufferSet indirectBuffers,
+            bool isAuthority)
         {
+            if (_useIndirectRendering)
+            {
+                indirectBuffers.Draw(kind, MaterialFor(kind, isAuthority));
+                return;
+            }
+
             var sourceOffset = 0;
             var remaining = matrices.Count;
             var drawBuffer = BufferFor(kind);
@@ -637,11 +687,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _playerMesh = CreatePrimitiveMesh(PrimitiveType.Cube, "ShooterGpuPlayerMesh");
             _bulletMesh = CreatePrimitiveMesh(PrimitiveType.Sphere, "ShooterGpuBulletMesh");
             _enemyMesh = CreatePrimitiveMesh(PrimitiveType.Cube, "ShooterGpuEnemyMesh");
-            _playerMaterial = CreateMaterial("ShooterGpuPlayerMaterial", Color.cyan);
-            _controlledPlayerMaterial = CreateMaterial("ShooterGpuControlledPlayerMaterial", Color.green);
-            _bulletMaterial = CreateMaterial("ShooterGpuBulletMaterial", Color.yellow);
-            _enemyMaterial = CreateMaterial("ShooterGpuEnemyMaterial", Color.red);
-            _authorityMaterial = CreateMaterial("ShooterGpuAuthorityMaterial", new Color(1f, 0.2f, 0.65f, 0.55f));
+            var indirectShader = Resources.Load<Shader>("ShooterIndirectInstanced");
+            _useIndirectRendering = indirectShader != null && SystemInfo.supportsInstancing && SystemInfo.graphicsShaderLevel >= 45;
+            _playerMaterial = CreateMaterial("ShooterGpuPlayerMaterial", Color.cyan, _useIndirectRendering ? indirectShader : null);
+            _controlledPlayerMaterial = CreateMaterial("ShooterGpuControlledPlayerMaterial", Color.green, _useIndirectRendering ? indirectShader : null);
+            _bulletMaterial = CreateMaterial("ShooterGpuBulletMaterial", Color.yellow, _useIndirectRendering ? indirectShader : null);
+            _enemyMaterial = CreateMaterial("ShooterGpuEnemyMaterial", Color.red, _useIndirectRendering ? indirectShader : null);
+            _authorityMaterial = CreateMaterial("ShooterGpuAuthorityMaterial", new Color(1f, 0.2f, 0.65f, 0.55f), _useIndirectRendering ? indirectShader : null);
         }
 
         private void DrawHud()
@@ -768,9 +820,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             return mesh;
         }
 
-        private static Material CreateMaterial(string name, Color color)
+        private static Material CreateMaterial(string name, Color color, Shader? preferredShader = null)
         {
-            var shader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
+            var shader = preferredShader ?? Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard") ?? Shader.Find("Sprites/Default");
             var material = new Material(shader)
             {
                 name = name,
@@ -842,6 +894,180 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 {
                     matrices.Capacity = capacity;
                 }
+            }
+        }
+
+        private sealed class IndirectBufferSet : System.IDisposable
+        {
+            private readonly IndirectKindBuffer _players = new();
+            private readonly IndirectKindBuffer _bullets = new();
+            private readonly IndirectKindBuffer _enemies = new();
+            private readonly IndirectKindBuffer _controlledPlayer = new();
+            private readonly Matrix4x4[] _controlledMatrix = new Matrix4x4[1];
+
+            public void Upload(
+                Mesh? playerMesh,
+                List<Matrix4x4> players,
+                Mesh? bulletMesh,
+                List<Matrix4x4> bullets,
+                Mesh? enemyMesh,
+                List<Matrix4x4> enemies,
+                bool hasControlledPlayer,
+                in Matrix4x4 controlledPlayerMatrix)
+            {
+                _players.Upload(playerMesh, players);
+                _bullets.Upload(bulletMesh, bullets);
+                _enemies.Upload(enemyMesh, enemies);
+                if (hasControlledPlayer)
+                {
+                    _controlledMatrix[0] = controlledPlayerMatrix;
+                    _controlledPlayer.Upload(playerMesh, _controlledMatrix, 1);
+                }
+                else
+                {
+                    _controlledPlayer.ClearCount();
+                }
+            }
+
+            public void Draw(ShooterViewEntityKind kind, Material? material)
+            {
+                switch (kind)
+                {
+                    case ShooterViewEntityKind.Player:
+                        _players.Draw(material);
+                        break;
+                    case ShooterViewEntityKind.Bullet:
+                        _bullets.Draw(material);
+                        break;
+                    case ShooterViewEntityKind.Enemy:
+                        _enemies.Draw(material);
+                        break;
+                }
+            }
+
+            public void DrawControlled(Material? material)
+            {
+                _controlledPlayer.Draw(material);
+            }
+
+            public void Dispose()
+            {
+                _players.Dispose();
+                _bullets.Dispose();
+                _enemies.Dispose();
+                _controlledPlayer.Dispose();
+            }
+        }
+
+        private sealed class IndirectKindBuffer : System.IDisposable
+        {
+            private static readonly int MatricesProperty = Shader.PropertyToID("_ShooterMatrices");
+            private static readonly Bounds DrawBounds = new Bounds(Vector3.zero, Vector3.one * 10000f);
+            private readonly uint[] _arguments = new uint[5];
+            private readonly MaterialPropertyBlock _properties = new();
+            private ComputeBuffer? _matrices;
+            private ComputeBuffer? _args;
+            private int _capacity;
+            private int _count;
+            private Mesh? _mesh;
+
+            public void Upload(Mesh? mesh, List<Matrix4x4> matrices)
+            {
+                if (mesh == null || matrices.Count == 0)
+                {
+                    _mesh = mesh;
+                    ClearCount();
+                    return;
+                }
+
+                EnsureCapacity(matrices.Count);
+                _matrices!.SetData(matrices);
+                UpdateArguments(mesh, matrices.Count);
+            }
+
+            public void Upload(Mesh? mesh, Matrix4x4[] matrices, int count)
+            {
+                if (mesh == null || count <= 0)
+                {
+                    _mesh = mesh;
+                    ClearCount();
+                    return;
+                }
+
+                EnsureCapacity(count);
+                _matrices!.SetData(matrices, 0, 0, count);
+                UpdateArguments(mesh, count);
+            }
+
+            public void ClearCount()
+            {
+                _count = 0;
+            }
+
+            public void Draw(Material? material)
+            {
+                if (_count <= 0 || _mesh == null || material == null || _args == null || _matrices == null)
+                {
+                    return;
+                }
+
+                _properties.SetBuffer(MatricesProperty, _matrices);
+                Graphics.DrawMeshInstancedIndirect(
+                    _mesh,
+                    0,
+                    material,
+                    DrawBounds,
+                    _args,
+                    0,
+                    _properties,
+                    UnityEngine.Rendering.ShadowCastingMode.Off,
+                    receiveShadows: false);
+            }
+
+            public void Dispose()
+            {
+                _matrices?.Dispose();
+                _matrices = null;
+                _args?.Dispose();
+                _args = null;
+                _capacity = 0;
+                _count = 0;
+                _mesh = null;
+            }
+
+            private void EnsureCapacity(int count)
+            {
+                if (_capacity >= count && _matrices != null && _args != null)
+                {
+                    return;
+                }
+
+                var capacity = _capacity == 0 ? 16 : _capacity;
+                while (capacity < count)
+                {
+                    capacity = checked(capacity * 2);
+                }
+
+                _matrices?.Dispose();
+                _matrices = new ComputeBuffer(capacity, sizeof(float) * 16, ComputeBufferType.Structured);
+                if (_args == null)
+                {
+                    _args = new ComputeBuffer(1, sizeof(uint) * 5, ComputeBufferType.IndirectArguments);
+                }
+
+                _capacity = capacity;
+            }
+
+            private void UpdateArguments(Mesh mesh, int count)
+            {
+                _mesh = mesh;
+                _count = count;
+                _arguments[0] = mesh.GetIndexCount(0);
+                _arguments[1] = (uint)count;
+                _arguments[2] = mesh.GetIndexStart(0);
+                _arguments[3] = mesh.GetBaseVertex(0);
+                _arguments[4] = 0;
+                _args!.SetData(_arguments);
             }
         }
 

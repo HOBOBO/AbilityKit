@@ -35,10 +35,10 @@ namespace AbilityKit.Game.Flow
 
         public void RebindAllViews(IViewFeatureRuntime runtime)
         {
-            var battleCtx = runtime?.Context;
-            if (battleCtx?.EntityWorld == null) return;
+            var entityContext = runtime?.EntityContext;
+            if (entityContext?.EntityWorld == null) return;
 
-            runtime.Binder?.RebindAll(battleCtx.EntityWorld, battleCtx);
+            runtime.Binder?.RebindAll(entityContext.EntityWorld, runtime.RuntimeContext);
         }
 
         public void TickVfx(IViewFeatureRuntime runtime)
@@ -55,7 +55,7 @@ namespace AbilityKit.Game.Flow
         public void OnEntityDestroyed(IViewFeatureRuntime runtime, EC.EntityDestroyed evt)
         {
             var id = evt.EntityId;
-            runtime?.Context?.EntityLookup?.UnbindByEntityId(id);
+            runtime?.EntityContext?.EntityLookup?.UnbindByEntityId(id);
             runtime?.Binder?.OnDestroyed(id);
         }
     }

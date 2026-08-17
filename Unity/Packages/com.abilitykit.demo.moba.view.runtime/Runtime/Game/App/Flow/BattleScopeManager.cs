@@ -45,6 +45,7 @@ namespace AbilityKit.Game.Flow
 
         private IBattleSessionFeature _battleSessionFeature;
         private Action _sessionStartedHandler;
+        private Action _worldReadyHandler;
         private Action _firstFrameReceivedHandler;
         private Action<Exception> _sessionFailedHandler;
         private Action _assetsLoadCompletedHandler;
@@ -110,10 +111,12 @@ namespace AbilityKit.Game.Flow
             var generation = _battleWorldScope.ScopeGeneration;
             _battleSessionFeature = _callbacks.CreateBattleSessionFeature(bootstrapper, _callbacks.GetGatewayConnectionFactory());
             _sessionStartedHandler = () => OnBattleSessionStarted(generation);
+            _worldReadyHandler = () => OnBattleWorldReady(generation);
             _firstFrameReceivedHandler = () => OnBattleFirstFrameReceived(generation);
             _sessionFailedHandler = ex => OnBattleSessionFailed(generation, ex);
             _assetsLoadCompletedHandler = () => OnBattleAssetsLoadCompleted(generation);
             _battleSessionFeature.SessionStarted += _sessionStartedHandler;
+            _battleSessionFeature.WorldReady += _worldReadyHandler;
             _battleSessionFeature.FirstFrameReceived += _firstFrameReceivedHandler;
             _battleSessionFeature.SessionFailed += _sessionFailedHandler;
             _battleSessionFeature.AssetsLoadCompleted += _assetsLoadCompletedHandler;
@@ -126,6 +129,8 @@ namespace AbilityKit.Game.Flow
             {
                 if (_sessionStartedHandler != null)
                     _battleSessionFeature.SessionStarted -= _sessionStartedHandler;
+                if (_worldReadyHandler != null)
+                    _battleSessionFeature.WorldReady -= _worldReadyHandler;
                 if (_firstFrameReceivedHandler != null)
                     _battleSessionFeature.FirstFrameReceived -= _firstFrameReceivedHandler;
                 if (_sessionFailedHandler != null)
@@ -136,6 +141,7 @@ namespace AbilityKit.Game.Flow
 
             _battleSessionFeature = null;
             _sessionStartedHandler = null;
+            _worldReadyHandler = null;
             _firstFrameReceivedHandler = null;
             _sessionFailedHandler = null;
             _assetsLoadCompletedHandler = null;
@@ -158,6 +164,21 @@ namespace AbilityKit.Game.Flow
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
         }
 
+        internal void OnBattleWorldReady()
+        {
+            OnBattleWorldReady(_battleWorldScope.ScopeGeneration);
+        }
+
+        private void OnBattleWorldReady(int generation)
+        {
+            if (!IsCurrentBattleGeneration(generation, nameof(IBattleSessionFeature.WorldReady))) return;
+
+            _battleWorldScope.Resolve<IBattleRuntimeState>().WorldReady = true;
+            _log.Info($"[BattleScopeManager] WorldReady, activeBattle={_callbacks.GetActiveBattle()}");
+            var next = _advanceDecider.OnWorldReady(_callbacks.GetActiveBattle());
+            if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
+        }
+
         internal void OnBattleFirstFrameReceived()
         {
             OnBattleFirstFrameReceived(_battleWorldScope.ScopeGeneration);
@@ -167,7 +188,9 @@ namespace AbilityKit.Game.Flow
         {
             if (!IsCurrentBattleGeneration(generation, nameof(IBattleSessionFeature.FirstFrameReceived))) return;
 
-            _battleWorldScope.Resolve<IBattleRuntimeState>().FirstFrameReceived = true;
+            var state = _battleWorldScope.Resolve<IBattleRuntimeState>();
+            state.WorldReady = true;
+            state.FirstFrameReceived = true;
             _log.Info($"[BattleScopeManager] FirstFrameReceived, activeBattle={_callbacks.GetActiveBattle()}");
             var next = _advanceDecider.OnFirstFrameReceived(_callbacks.GetActiveBattle());
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
@@ -222,14 +245,22 @@ namespace AbilityKit.Game.Flow
         internal void TryAdvanceOnConnectEnter()
         {
             var state = _battleWorldScope.Resolve<IBattleRuntimeState>();
-            var next = _advanceDecider.OnStateEntered(MobaBattleState.Connect, state.SessionStarted, state.FirstFrameReceived);
+            var next = _advanceDecider.OnStateEntered(
+                MobaBattleState.Connect,
+                state.SessionStarted,
+                state.WorldReady,
+                state.FirstFrameReceived);
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
         }
 
         internal void TryAdvanceOnCreateOrJoinWorldEnter()
         {
             var state = _battleWorldScope.Resolve<IBattleRuntimeState>();
-            var next = _advanceDecider.OnStateEntered(MobaBattleState.CreateOrJoinWorld, state.SessionStarted, state.FirstFrameReceived);
+            var next = _advanceDecider.OnStateEntered(
+                MobaBattleState.CreateOrJoinWorld,
+                state.SessionStarted,
+                state.WorldReady,
+                state.FirstFrameReceived);
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);
         }
 
@@ -239,6 +270,7 @@ namespace AbilityKit.Game.Flow
             var next = _advanceDecider.OnStateEntered(
                 MobaBattleState.LoadAssets,
                 state.SessionStarted,
+                state.WorldReady,
                 state.FirstFrameReceived,
                 state.AssetsLoadCompleted);
             if (next.HasValue) _callbacks.TriggerBattleFsm(next.Value);

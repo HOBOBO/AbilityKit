@@ -203,16 +203,24 @@ namespace AbilityKit.Game.Battle.Agent
                         snapshot.RoomId,
                         _current.RoomId,
                         StringComparison.Ordinal);
+                    var completesNumericRoomId = sameRoom &&
+                        _current.NumericRoomId == 0UL &&
+                        snapshot.NumericRoomId != 0UL;
+                    var completesSyncCapabilities = sameRoom &&
+                        _current.SyncCapabilities == null &&
+                        snapshot.SyncCapabilities != null;
                     if (sameRoom && snapshot.NumericRoomId == 0UL)
                     {
                         snapshot.NumericRoomId = _current.NumericRoomId;
                     }
+                    if (sameRoom && snapshot.SyncCapabilities == null)
+                    {
+                        snapshot.SyncCapabilities = _current.SyncCapabilities;
+                    }
 
                     if (snapshot.RoomRevision == _current.RoomRevision)
                     {
-                        if (sameRoom &&
-                            _current.NumericRoomId == 0UL &&
-                            snapshot.NumericRoomId != 0UL)
+                        if (completesNumericRoomId || completesSyncCapabilities)
                         {
                             _current = snapshot;
                             toPublish = snapshot;

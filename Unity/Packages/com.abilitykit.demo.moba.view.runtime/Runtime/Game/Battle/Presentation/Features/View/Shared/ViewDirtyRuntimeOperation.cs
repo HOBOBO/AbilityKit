@@ -21,7 +21,8 @@ namespace AbilityKit.Game.Flow
             if (runtime == null) return;
 
             var refreshed = _dirtyEntities.Refresh(
-                runtime.Context,
+                runtime.RuntimeContext,
+                runtime.EntityContext,
                 runtime.Query,
                 runtime.Binder,
                 requireViewComponents: true,

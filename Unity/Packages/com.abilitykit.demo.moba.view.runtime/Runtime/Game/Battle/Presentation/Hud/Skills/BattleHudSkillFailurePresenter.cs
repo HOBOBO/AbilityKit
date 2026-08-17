@@ -9,14 +9,10 @@ namespace AbilityKit.Game.Flow
     {
         private const float VisibleDurationSeconds = 1.1f;
         private const float FadeDurationSeconds = 0.35f;
-        private const int QueryLimit = 64;
 
+        private readonly BattleHudSkillFailureFeed _feed = new BattleHudSkillFailureFeed();
         private BattleContext _context;
         private IBattleDiagnosticEventReadStore _store;
-        private int _actorId;
-        private long _observedRevision = -1;
-        private long _lastSequence;
-        private long _requestId;
         private GameObject _root;
         private Text _text;
         private CanvasGroup _canvasGroup;
@@ -26,6 +22,7 @@ namespace AbilityKit.Game.Flow
         {
             Dispose();
             _context = context;
+            _store = ResolveStore(context);
             if (hudRoot == null) return;
 
             _root = new GameObject("SkillFailurePrompt", typeof(RectTransform), typeof(CanvasGroup));
@@ -77,10 +74,7 @@ namespace AbilityKit.Game.Flow
 
             _context = null;
             _store = null;
-            _actorId = 0;
-            _observedRevision = -1;
-            _lastSequence = 0;
-            _requestId = 0;
+            _feed.Reset();
             _root = null;
             _text = null;
             _canvasGroup = null;
@@ -90,120 +84,36 @@ namespace AbilityKit.Game.Flow
         private void ReadLatestFailure()
         {
             var actorId = _context?.LocalActorId ?? 0;
-            if (actorId <= 0 || !TryResolveStore(out var store)) return;
-
-            if (!ReferenceEquals(_store, store) || _actorId != actorId)
+            if (actorId <= 0 || _store == null)
             {
-                _store = store;
-                _actorId = actorId;
-                _observedRevision = store.Revision;
-                _lastSequence = QueryLatestSequence(store, actorId);
+                _feed.Reset();
                 return;
             }
 
-            if (_observedRevision == store.Revision) return;
-            _observedRevision = store.Revision;
+            _feed.Bind(_store, actorId);
+            if (_feed.TryReadLatest(out var message)) Show(message);
+        }
 
-            var result = store.Query(CreateQuery(store.Revision, actorId));
-            BattleDiagnosticSkillFailurePayload latestFailure = default;
-            var latestFailureSequence = _lastSequence;
-            var highestSequence = _lastSequence;
-            var foundFailure = false;
-
-            for (var i = 0; i < result.Items.Count; i++)
+        private static IBattleDiagnosticEventReadStore ResolveStore(BattleContext context)
+        {
+            if (context == null ||
+                !context.TryGetRuntimeWorld(out var world) ||
+                world.Services == null ||
+                !world.Services.TryResolve<IBattleDiagnosticEventReadStore>(out var store))
             {
-                var item = result.Items[i];
-                if (item.Sequence > highestSequence) highestSequence = item.Sequence;
-                if (item.Sequence <= latestFailureSequence ||
-                    item.Kind != BattleDiagnosticEventKind.SkillFailure ||
-                    !item.Payload.TryGetSkillFailure(out var failure))
-                {
-                    continue;
-                }
-
-                latestFailure = failure;
-                latestFailureSequence = item.Sequence;
-                foundFailure = true;
+                return null;
             }
 
-            _lastSequence = highestSequence;
-            if (foundFailure)
-            {
-                Show(latestFailure);
-            }
+            return store;
         }
 
-        private long QueryLatestSequence(IBattleDiagnosticEventReadStore store, int actorId)
-        {
-            var result = store.Query(CreateQuery(store.Revision, actorId, 1));
-            return result.Items.Count > 0 ? result.Items[0].Sequence : 0;
-        }
-
-        private BattleDiagnosticEventQuery CreateQuery(long revision, int actorId, int limit = QueryLimit)
-        {
-            var filter = new BattleDiagnosticFilter(
-                BattleDiagnosticFilter.Default.Frames,
-                BattleDiagnosticEventChannel.Skill,
-                actorId,
-                BattleDiagnosticActorRelation.Source,
-                failuresOnly: true);
-            return new BattleDiagnosticEventQuery(
-                ++_requestId,
-                filter,
-                new BattleDiagnosticPageRequest(revision, 0, limit),
-                newestFirst: true);
-        }
-
-        private bool TryResolveStore(out IBattleDiagnosticEventReadStore store)
-        {
-            store = null;
-            return _context != null &&
-                   _context.TryGetRuntimeWorld(out var world) &&
-                   world.Services != null &&
-                   world.Services.TryResolve(out store) &&
-                   store != null;
-        }
-
-        private void Show(in BattleDiagnosticSkillFailurePayload failure)
+        private void Show(string message)
         {
             if (_text == null || _canvasGroup == null) return;
             _root.transform.SetAsLastSibling();
-            _text.text = BattleHudSkillFailureText.Format(failure.Code, failure.Message);
+            _text.text = message;
             _remainingSeconds = VisibleDurationSeconds + FadeDurationSeconds;
             _canvasGroup.alpha = 1f;
-        }
-    }
-
-    internal static class BattleHudSkillFailureText
-    {
-        public static string Format(string code, string message)
-        {
-            var detail = ((code ?? string.Empty) + " " + (message ?? string.Empty)).ToLowerInvariant();
-            if (ContainsAny(detail, "not_enough_mana", "not enough mana", "insufficient mana"))
-                return "蓝量不足";
-            if (ContainsAny(detail, "cooldown", "cool down"))
-                return "技能冷却中";
-            if (ContainsAny(detail, "alreadyrunning", "already running"))
-                return "技能正在释放";
-            if (ContainsAny(detail, "outofrange", "out of range", "outside cast range"))
-                return "超出施法范围";
-            if (ContainsAny(detail, "targetmissing", "target missing", "no valid target"))
-                return "没有有效目标";
-            if (ContainsAny(detail, "invalidslot", "missingskill", "skill not found"))
-                return "技能不可用";
-            if (ContainsAny(detail, "resource", "not_enough"))
-                return "资源不足";
-            return "技能释放失败";
-        }
-
-        private static bool ContainsAny(string value, params string[] candidates)
-        {
-            for (var i = 0; i < candidates.Length; i++)
-            {
-                if (value.IndexOf(candidates[i], StringComparison.Ordinal) >= 0) return true;
-            }
-
-            return false;
         }
     }
 }

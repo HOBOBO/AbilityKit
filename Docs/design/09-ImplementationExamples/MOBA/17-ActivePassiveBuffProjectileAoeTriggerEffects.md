@@ -1,5 +1,8 @@
 # MOBA 主动、被动、Buff、Projectile 与 AOE 触发效果设计
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文补齐 MOBA 示例中“触发效果如何从技能、被动、Buff、Projectile、AOE 进入 TriggerPlan，并最终落到领域服务”的专题说明。既有文档已经分别覆盖 Skill 执行、Buff 生命周期、Projectile/Damage、Trace/Context、PlanActions DSL 和英雄技能配置；本文只聚焦触发效果链路本身，说明哪些对象负责产生触发点，哪些对象负责执行 TriggerPlan，哪些对象负责承接副作用。
 
 ## 1. 能力定位
@@ -358,8 +361,27 @@ Area 阶段映射规则：
 | [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md) | 该文讲 trace/context 机制，本文补充不同触发源如何继承 context |
 | [10-Trigger、Validation 与 Presentation Cue 深潜](10-TriggerValidationPresentationDeepDive.md) | 该文讲 trigger validation/cue，本文补充主动/被动/Buff/Projectile/AOE 的入口分类 |
 | [11-PlanActions DSL 与 Continuous Runtime 深潜](11-PlanActionsAndContinuousRuntimeDeepDive.md) | 该文讲 DSL 和 continuous runtime，本文补充这些 action 在触发效果链路中的位置 |
-| [14-四英雄技能正式实现设计](14-HeroSkillFormalDesign.md) | 该文讲英雄资源映射，本文提供这些资源背后的通用运行时链路 |
+| [14-英雄技能正式实现设计](14-HeroSkillFormalDesign.md) | 该文讲英雄资源映射，本文提供这些资源背后的通用运行时链路 |
 
 ---
 
-*文档版本：v1.1 | 状态：跨触发源执行与生命周期边界 | 最后更新：2026-08-11 | 验证基线：`MobaTriggerPlanPayloadCompatibilityTests` 21/21 通过；本轮文档更新未重新执行全量测试*
+## 13. 当前收紧语义与证据边界
+
+近期源码把跨触发源链路的“来源”和“生命周期”进一步显式化：
+
+| 链路 | 当前约束 |
+|------|----------|
+| Effect/Action trace | canonical provenance 统一保留 immediate/parent/root/owner context；Action 必须在所属 Effect 下成对开始/结束 |
+| Buff 恢复 | parent skill runtime retain 必须重新取得；无效 parent 会回滚恢复项 |
+| Projectile | link、unlink、clear、dispose 统一消费 retain，launcher/projectile 不允许靠 GC 隐式结束 |
+| Area | `SpawnArea` 必须解析 Area runtime 与 Trace；注册失败回滚 runtime、despawn area 并以 Failed 结束 trace |
+| Damage | `attribute_source` 区分 AttributionActor 与 SkillCaster，数值属性来源不会篡改伤害归因 actor |
+| Skill pipeline | 正常结束、`ForceTerminate`、`Clear` 统一 exactly-once；Pipeline 不再重复结束 root trace |
+
+这些规则说明 direct trigger、owner-bound subscription 和 PlanAction 都只是项目执行入口，不能替代领域所有权。创建 Buff、Projectile、Area 或 Damage side effect 的 action 必须把控制权交给对应 service，并由该 service 在正常结束、失败和世界清理路径完成闭环。
+
+2026-08-16 View Runtime 147/147，其中包含 payload compatibility；本地 Unity ownership fixture 9/9 覆盖关键 retain/clear 语义。主 MOBA 工程 279/305 的 26 项失败均来自 trigger `10060201 / action[2]` 的 SpawnArea `duration_ms=300 < delay_ms=400`，因此不能继续引用旧的局部 21/21 结果作为全链路通过证明。
+
+Triggering、ActionSchema、Continuous、Projectile、Damage、Trace 是可复用原语；事件目录、payload 字段、owner key、PlanAction DSL、归因策略和各领域事务仍是 MOBA 项目应用组合。框架不应提供一套预制的“主动/被动/Buff/Projectile/AOE 全链路应用套件”。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

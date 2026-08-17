@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
@@ -387,6 +388,131 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(entity.TryGetRef(out BattleTransformComponent transform));
             Assert.AreEqual(new Vector3(50f, 0f, 50f), transform.Position,
                 "Position should reflect the latest snapshot (remote hero movement).");
+        }
+
+        [TestCase(false, 25f)]
+        [TestCase(true, 0f)]
+        public void RemoteInterpolation_LocalActorOwnershipMatchesPredictionMode(
+            bool enableClientPrediction,
+            float expectedX)
+        {
+            const int localActorId = 5001;
+            var world = new EntityWorld(initialCapacity: 4);
+            var lookup = new BattleEntityLookup();
+            var factory = new BattleEntityFactory(world, lookup);
+            var ctx = new BattleContext
+            {
+                EntityWorld = world,
+                EntityLookup = lookup,
+                EntityFactory = factory
+            };
+            BattleSnapshotEntityApplier.ApplySpawn(ctx, new[]
+            {
+                new MobaActorSpawnSnapshotEntry(
+                    localActorId,
+                    (int)SpawnEntityKind.Character,
+                    1001,
+                    1,
+                    0f,
+                    0f,
+                    0f)
+            });
+            var snapshot = new GatewayStateSyncSnapshot(
+                1UL,
+                10,
+                0d,
+                true,
+                new[]
+                {
+                    new GatewayStateSyncActorSnapshot(
+                        localActorId,
+                        25f,
+                        3f,
+                        4f,
+                        0f,
+                        0f,
+                        0f,
+                        100f,
+                        100f,
+                        1)
+                });
+            var excludedLocalActorId =
+                BattleRemoteInterpolationApplier.ResolveExcludedLocalActorId(
+                    enableClientPrediction,
+                    localActorId);
+
+            BattleRemoteInterpolationApplier.Apply(
+                ctx,
+                in snapshot,
+                excludedLocalActorId);
+
+            Assert.IsTrue(lookup.TryResolve(
+                world,
+                new BattleNetId(localActorId),
+                out var entity));
+            Assert.IsTrue(entity.TryGetRef(out BattleTransformComponent transform));
+            Assert.AreEqual(expectedX, transform.Position.x);
+        }
+
+        [Test]
+        public void RemoteInterpolation_WithoutSpawnSnapshot_MaterializesActorsAndUpdatesInPlace()
+        {
+            var world = new EntityWorld(initialCapacity: 4);
+            var lookup = new BattleEntityLookup();
+            var factory = new BattleEntityFactory(world, lookup);
+            var ctx = new BattleContext
+            {
+                EntityWorld = world,
+                EntityLookup = lookup,
+                EntityFactory = factory
+            };
+            var initial = new GatewayStateSyncSnapshot(
+                1UL,
+                10,
+                0d,
+                true,
+                new[]
+                {
+                    new GatewayStateSyncActorSnapshot(
+                        1001, 10f, 1f, 20f, 0f, 0f, 0f, 100f, 100f, 1,
+                        (int)SpawnEntityKind.Character, 1001),
+                    new GatewayStateSyncActorSnapshot(
+                        2002, -10f, 2f, -20f, 0f, 0f, 0f, 100f, 100f, 2,
+                        (int)SpawnEntityKind.Character, 1002)
+                });
+
+            BattleRemoteInterpolationApplier.Apply(ctx, in initial, localActorId: 0);
+
+            Assert.AreEqual(2, world.AliveCount);
+            Assert.AreEqual(2, lookup.Count);
+            Assert.NotNull(ctx.DirtyEntities);
+            Assert.AreEqual(2, ctx.DirtyEntities.Count);
+            Assert.IsTrue(lookup.TryResolve(world, new BattleNetId(1001), out var owner));
+            Assert.IsTrue(owner.TryGetRef(out BattleTransformComponent ownerTransform));
+            Assert.AreEqual(new Vector3(10f, 1f, 20f), ownerTransform.Position);
+            Assert.IsTrue(lookup.TryResolve(world, new BattleNetId(2002), out var member));
+            Assert.IsTrue(member.TryGetRef(out BattleTransformComponent memberTransform));
+            Assert.AreEqual(new Vector3(-10f, 2f, -20f), memberTransform.Position);
+
+            var update = new GatewayStateSyncSnapshot(
+                1UL,
+                11,
+                0.05d,
+                false,
+                new[]
+                {
+                    new GatewayStateSyncActorSnapshot(
+                        1001, 15f, 3f, 25f, 0f, 0f, 0f, 100f, 100f, 1,
+                        (int)SpawnEntityKind.Character, 1001)
+                });
+
+            BattleRemoteInterpolationApplier.Apply(ctx, in update, localActorId: 0);
+
+            Assert.AreEqual(2, world.AliveCount,
+                "An existing state-sync actor must be updated without creating a duplicate.");
+            Assert.AreEqual(2, lookup.Count);
+            Assert.AreEqual(new Vector3(15f, 3f, 25f), ownerTransform.Position);
+            Assert.AreEqual(3, ctx.DirtyEntities.Count);
         }
 
         /// <summary>

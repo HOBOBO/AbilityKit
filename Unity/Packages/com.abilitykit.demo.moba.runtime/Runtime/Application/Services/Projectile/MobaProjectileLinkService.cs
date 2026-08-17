@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 
@@ -19,6 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
+        [WorldInject] private MobaSkillCastRuntimeService _skillRuntimes = null;
 
         public int ActiveCount => _actorIdByProjectile.Count;
 
@@ -45,6 +47,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         {
             if (projectileId.Value == 0) return;
             if (!retainHandle.IsValid) return;
+            if (_skillRuntimes == null) throw new InvalidOperationException("Projectile retain ownership requires MobaSkillCastRuntimeService.");
+            if (_retainByProjectile.TryGetValue(projectileId, out var existing))
+            {
+                if (existing.Equals(retainHandle)) return;
+                throw new InvalidOperationException($"Projectile already owns a different skill runtime retain. projectileId={projectileId.Value}");
+            }
             _retainByProjectile[projectileId] = retainHandle;
         }
 
@@ -69,11 +77,17 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         {
             if (launcherActorId <= 0) return;
             if (!retainHandle.IsValid) return;
+            if (_skillRuntimes == null) throw new InvalidOperationException("Projectile launcher retain ownership requires MobaSkillCastRuntimeService.");
             if (!_launcherByActorId.TryGetValue(launcherActorId, out var link))
             {
                 throw new InvalidOperationException($"Projectile launcher retain requires a bound source. launcherActorId={launcherActorId}");
             }
 
+            if (link.RetainHandle.IsValid)
+            {
+                if (link.RetainHandle.Equals(retainHandle)) return;
+                throw new InvalidOperationException($"Projectile launcher already owns a different skill runtime retain. launcherActorId={launcherActorId}");
+            }
             link.RetainHandle = retainHandle;
         }
 
@@ -169,7 +183,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _projectileByActorId.Remove(actorId);
                 _actorIdByProjectile.Remove(pid);
                 _sourceByProjectile.Remove(pid);
-                _retainByProjectile.Remove(pid);
+                ConsumeAndReleaseRetain(pid);
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
                 CollectProjectileEnded(actorId, pid.Value, in capturedSource);
             }
@@ -189,7 +203,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             _sourceByProjectile.Remove(projectileId);
-            _retainByProjectile.Remove(projectileId);
+            ConsumeAndReleaseRetain(projectileId);
             if (removed)
             {
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
@@ -210,7 +224,7 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (expectedActorId > 0) _projectileByActorId.Remove(expectedActorId);
 
             _sourceByProjectile.Remove(projectileId);
-            _retainByProjectile.Remove(projectileId);
+            ConsumeAndReleaseRetain(projectileId);
             if (wasActive)
             {
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
@@ -220,17 +234,60 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         public void UnlinkLauncher(int launcherActorId)
         {
             if (launcherActorId <= 0) return;
+            ConsumeAndReleaseLauncherRetain(launcherActorId);
             _launcherByActorId.Remove(launcherActorId);
         }
 
         public void Clear()
         {
+            ReleaseAllRetains();
             _projectileByActorId.Clear();
             _actorIdByProjectile.Clear();
             _sourceByProjectile.Clear();
-            _retainByProjectile.Clear();
             _launcherByActorId.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, 0);
+        }
+
+        private bool ConsumeAndReleaseRetain(ProjectileId projectileId)
+        {
+            return TryConsumeRetain(projectileId, out var retainHandle) && ReleaseRetainCapability(in retainHandle, $"projectileId={projectileId.Value}");
+        }
+
+        private bool ConsumeAndReleaseLauncherRetain(int launcherActorId)
+        {
+            return TryConsumeLauncherRetain(launcherActorId, out var retainHandle) && ReleaseRetainCapability(in retainHandle, $"launcherActorId={launcherActorId}");
+        }
+
+        private bool ReleaseRetainCapability(in MobaSkillRuntimeRetainHandle retainHandle, string owner)
+        {
+            if (!retainHandle.IsValid) return false;
+            try
+            {
+                return _skillRuntimes != null && _skillRuntimes.ReleaseChild(in retainHandle);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[MobaProjectileLinkService] Release skill runtime retain failed ({owner})");
+                return false;
+            }
+        }
+
+        private void ReleaseAllRetains()
+        {
+            foreach (var pair in _retainByProjectile)
+            {
+                var retainHandle = pair.Value;
+                ReleaseRetainCapability(in retainHandle, $"projectileId={pair.Key.Value}");
+            }
+            _retainByProjectile.Clear();
+
+            foreach (var pair in _launcherByActorId)
+            {
+                var retainHandle = pair.Value.RetainHandle;
+                if (!retainHandle.IsValid) continue;
+                ReleaseRetainCapability(in retainHandle, $"launcherActorId={pair.Key}");
+                pair.Value.RetainHandle = default;
+            }
         }
 
         internal static MobaBattleDiagnosticEventDraft CreateProjectileEndedDraft(

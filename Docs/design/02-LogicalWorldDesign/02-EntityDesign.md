@@ -2,6 +2,8 @@
 
 > 本文基于 `Unity/Packages/com.abilitykit.world.ecs` 与 `.NET` 工程中的真实源码，解释 AbilityKit 基础 ECS 中实体的身份、句柄、创建、销毁、父子关系和事件输出。这里的实体不是逻辑世界 `IWorld` 本身，而是 ECS 适配层提供的数据载体入口。
 
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 适用范围：AbilityKit 基础 ECS 的 Unity 与 .NET 双实现
+
 ---
 
 ## 目录
@@ -26,6 +28,7 @@
   - [11. 验证入口与证据状态](#11-验证入口与证据状态)
   - [12. 边界判断](#12-边界判断)
   - [13. 源码阅读路径](#13-源码阅读路径)
+  - [14. 当前已知限制](#14-当前已知限制)
 
 ---
 
@@ -362,4 +365,20 @@ dotnet build src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-08-02*
+## 14. 当前已知限制
+
+以下内容是 2026-08-16 源码快照的事实，不是推荐用法：
+
+| 限制 | 当前源码行为 | 工程影响 |
+|------|--------------|----------|
+| Invalid 判定矛盾 | `IEntityId.Invalid` 是默认值 `(0, 0)`，但 `IsValid` 只判断 `Index >= 0`，因此 Invalid 的 `IsValid` 为 true | 不能只用 `IsValid` 判断空句柄，应结合世界存活校验；规范上应统一 Invalid 语义 |
+| 实体级 `Has<T>` 语义偏差 | `IEntity.Has<T>()` 转发到无实体参数的 `world.HasComponent<T>()`，表达世界里是否存在该组件类型 | 调用方可能把世界级存在误当成当前实体拥有；应补测试后修正 API 或命名 |
+| `initialCapacity` 不等于已验证预分配 | 构造函数先 Allocate，但初始槽位未压入 free stack，首次 Create 会从旧数组长度继续扩容分配 | 不能把该参数宣传为避免首次扩容的性能保证 |
+| 单线程模型 | 字典、父子表、组件索引和生命周期操作没有形成完整并发协议 | Create/Destroy/Query/层级修改应在同一世界调度线程执行 |
+| 祖先环未检测 | `SetParent` 只拒绝把实体自身设为父级 | A -> B -> A 等环可能形成，递归遍历和销毁存在风险 |
+| 逻辑 child id 一致性缺口 | 普通重挂只更新部分 `_children` 关系，同父级逻辑重挂可能重复加入，部分销毁分支未完整清理 `_childIds/_childIdToIndex` | 逻辑 ID 查找可能残留、重复或与真实父子关系不一致 |
+| 双实现漂移风险 | Unity/.NET 两份 `EntityWorld` 靠人工同步 | 任一端修复后都应同步评审，长期应共享实现或增加自动差异/契约门禁 |
+
+2026-08-16 实测 `dotnet build src/AbilityKit.World.ECS/AbilityKit.World.ECS.csproj -c Release` 为 0 警告、0 错误，只能提供 E2 构建证据。仓库仍无基础 ECS 独立测试工程和专项 workflow gate，上表生命周期、层级与逻辑 child id 语义均没有 E3 回归保护。规范目标应优先统一 Invalid/Has 语义、修正容量与层级映射，再用 Unity/.NET 共享契约测试固定双端行为。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

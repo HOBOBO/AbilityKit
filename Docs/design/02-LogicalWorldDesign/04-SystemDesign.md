@@ -2,6 +2,8 @@
 
 > 本文基于 `Unity/Packages/com.abilitykit.world.entitas` 和 Demo 系统源码，解释 AbilityKit 中“系统”如何被发现、排序、初始化、执行和清理。当前源码没有独立的 `IECSystem` 接口；系统主线来自 Entitas 生命周期接口与 AbilityKit 的 `WorldSystemBase`、`WorldSystemAttribute`、`AutoSystemInstaller`。
 
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 适用范围：可选 Entitas 系统适配；不代表基础 ECS、Svelto 或所有项目的统一 System API
+
 ---
 
 ## 目录
@@ -25,6 +27,7 @@
     - [9.6 多 ECS 路径保持开放](#96-多-ecs-路径保持开放)
   - [10. 边界判断](#10-边界判断)
   - [11. 源码阅读路径](#11-源码阅读路径)
+  - [12. 验证证据、失败边界与规范目标](#12-验证证据失败边界与规范目标)
 
 ---
 
@@ -135,6 +138,8 @@ flowchart TD
 
 `TearDown` 不受 `Enabled` 控制，这保证禁用过的系统仍有机会释放资源。
 
+`Priority` 当前不会参与 `AutoSystemInstaller` 的发现或排序。自动安装的权威顺序只来自 `WorldSystemAttribute.Phase`、`WorldSystemAttribute.Order` 和类型全名；项目不能通过运行时修改 `Priority` 改变安装顺序。
+
 ---
 
 ## 5. 属性标记与阶段排序
@@ -217,6 +222,8 @@ flowchart TD
 2. 再按 `Order` 排序。
 3. 最后按类型全名排序，保证同阶段同 order 时仍稳定。
 
+扫描范围也是显式边界：安装器只检查调用方传入的 assemblies，并按 namespace prefix 过滤。它不是“扫描 AppDomain 后自动装上全部系统”的全局发现器；这一约束使装配更可控，也要求项目把程序集与命名空间清单纳入启动配置。
+
 创建系统实例时要求构造函数形态是：
 
 ```csharp
@@ -227,6 +234,8 @@ public SomeSystem(global::Entitas.IContexts contexts, IWorldResolver services)
 ```
 
 如果缺少这个构造函数，自动安装器会抛出明确异常，指出系统必须提供 `(Entitas.IContexts contexts, IWorldResolver services)` 构造函数。
+
+标记了 `WorldSystemAttribute` 的候选还必须实现 `Entitas.ISystem`。遇到 `ReflectionTypeLoadException` 时安装器会使用已经成功加载的类型继续发现；但候选构造或加入系统容器失败会终止本次安装，当前没有回滚已构造实例及其副作用的事务机制。
 
 ---
 
@@ -364,6 +373,9 @@ AbilityKit 没有把所有业务强行塞进一个系统接口，而是让基础
 | Disabled 后 TearDown 也不执行 | `TearDown` 始终调用，用于释放资源 |
 | 所有查询都用 `EntityWorld.Query` | Entitas 系统通常通过 `Contexts` 和 Matcher/Group 查询 |
 | 同 order 系统顺序随机 | 源码会再按类型全名排序，保证稳定性 |
+| `Priority` 会影响自动排序 | 当前安装器不读取该属性，自动顺序只看 attribute 的 Phase/Order 和类型全名 |
+| 自动安装会发现所有已加载系统 | 只扫描显式 assemblies，并受 namespace prefix 限制 |
+| MOBA 的 `MobaSystemOrder` 是框架标准 | 它是项目应用策略，只示范如何在具体游戏中规划顺序 |
 
 ---
 
@@ -377,4 +389,12 @@ AbilityKit 没有把所有业务强行塞进一个系统接口，而是让基础
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-07-04*
+## 12. 验证证据、失败边界与规范目标
+
+2026-08-16 实测 `dotnet build src/AbilityKit.World.Entitas/AbilityKit.World.Entitas.csproj -c Release` 成功，但产生 8 个兼容性警告：声明的 Entitas `1.5.0` 实际解析为 `1.13.0`，且 Entitas/DesperateDevs 的旧 .NET Framework 包被用于当前 `net10.0` 目标。该结果只证明当前依赖组合可编译，不能证明未来 SDK 或运行时兼容性。
+
+仓库未发现该适配包的独立测试工程或专项 workflow gate，因此当前证据最高为带兼容警告的 E2。以下契约仍需 E3 回归：Phase/Order/FullName 稳定排序、namespace 过滤、`Enabled` 生命周期矩阵、构造失败副作用、部分类型加载以及 TearDown 顺序。
+
+当前实现与规范目标应明确分开：当前实现提供一套轻量 Entitas 自动安装器；规范目标是让扫描输入、排序和失败语义可预测；MOBA 系统目录只是项目应用策略示例。AbilityKit 作为战斗工具集应保留多 ECS 与项目专用应用层，不应为了“开箱即用”把某一游戏的 System 编排提升成框架唯一生命周期。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

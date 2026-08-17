@@ -70,6 +70,7 @@ namespace AbilityKit.Triggering.Runtime.Plan
         {
             var behaviorCue = !call.Cue.IsEmpty && _plan.Cue != null ? _plan.Cue : null;
             ExecCtxContextAccessorExtensions.TryGetService<TCtx, ITriggerActionExecutionScopeObserver>(in ctx, out var actionScopeObserver);
+            var succeeded = false;
             actionScopeObserver?.EnterActionExecution(scopeIndex, call.Id.Value);
             try
             {
@@ -107,10 +108,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     var executedContext = BuildBehaviorCueContext(in args, in call, in ctx, index, ECueLifecycleStage.Executed);
                     behaviorCue.OnExecuted(in executedContext);
                 }
+
+                succeeded = true;
             }
             finally
             {
-                actionScopeObserver?.ExitActionExecution(scopeIndex, call.Id.Value);
+                actionScopeObserver?.ExitActionExecution(scopeIndex, call.Id.Value, succeeded);
             }
         }
 

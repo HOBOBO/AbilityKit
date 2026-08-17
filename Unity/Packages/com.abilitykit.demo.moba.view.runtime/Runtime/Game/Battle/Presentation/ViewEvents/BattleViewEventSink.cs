@@ -62,7 +62,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _deathEvents = handlers.CreateDeathEvents(query, vfx, in vfxNode);
             _respawnEvents = handlers.CreateRespawnEvents(query, vfx, in vfxNode);
             _presentationCues = handlers.CreatePresentationCues(ctx, query, vfx, in vfxNode);
-            _dirtyViews = handlers.CreateDirtyViews(ctx, query, binder);
+            _dirtyViews = handlers.CreateDirtyViews(ctx, ctx, query, binder);
             var sourceMode = ctx != null
                 ? ctx.Plan.Sync.ViewEventSourceMode
                 : BattleViewEventSourceMode.SnapshotOnly;
@@ -166,7 +166,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             BattleViewBinder binder,
             BattleAreaViewSystem areaViews)
         {
-            return new BattleAreaViewEventHandler(ctx, query, binder, areaViews);
+            return new BattleAreaViewEventHandler(ctx?.EntityWorld, query, binder, areaViews);
         }
 
         public BattleDamageViewEventHandler CreateDamageEvents(
@@ -175,7 +175,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             in EC.IEntity vfxNode,
             BattleFloatingTextSystem floatingTexts)
         {
-            return new BattleDamageViewEventHandler(ctx, query, in vfxNode, floatingTexts);
+            return new BattleDamageViewEventHandler(ctx?.EntityWorld, query, in vfxNode, floatingTexts);
         }
 
         public BattleProjectileViewEventHandler CreateProjectileEvents(
@@ -190,7 +190,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
                 factory: templateId => resources?.CreateProjectileShell(actorId: 0, projectileTemplateId: templateId),
                 capacityPerTemplate: 8,
                 hierarchy: hierarchy);
-            return new BattleProjectileViewEventHandler(ctx, query, vfx, in vfxNode, resources, shellPool, null, hierarchy);
+            return new BattleProjectileViewEventHandler(ctx?.EntityWorld, query, vfx, in vfxNode, resources, shellPool, null, hierarchy);
         }
 
         public BattleSummonViewEventHandler CreateSummonEvents(
@@ -223,15 +223,21 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             BattleVfxManager vfx,
             in EC.IEntity vfxNode)
         {
-            return new BattlePresentationCueViewEventHandler(ctx, query, vfx, in vfxNode);
+            return new BattlePresentationCueViewEventHandler(ctx?.EntityWorld, query, vfx, in vfxNode);
         }
 
         public BattleViewDirtyEntityRefresher CreateDirtyViews(
-            BattleContext ctx,
+            IBattleRuntimeContext runtimeContext,
+            IBattleEntityContext entityContext,
             IBattleEntityQuery query,
             BattleViewBinder binder)
         {
-            return new BattleViewDirtyEntityRefresher(ctx, query, binder);
+            return new BattleViewDirtyEntityRefresher(
+                runtimeContext,
+                entityContext,
+                query,
+                binder,
+                operation: null);
         }
     }
 }

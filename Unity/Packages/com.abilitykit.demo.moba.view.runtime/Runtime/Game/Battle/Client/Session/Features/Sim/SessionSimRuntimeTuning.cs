@@ -46,4 +46,5 @@ namespace AbilityKit.Game.Flow
             return syncMode != BattleSyncMode.SnapshotAuthority;
         }
     }
+
 }

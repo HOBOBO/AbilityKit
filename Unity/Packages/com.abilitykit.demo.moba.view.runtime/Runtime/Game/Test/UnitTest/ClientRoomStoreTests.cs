@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Room;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Test.UnitTest
@@ -15,6 +18,26 @@ namespace AbilityKit.Game.Test.UnitTest
                 RoomRevision = revision,
                 LastEventSequence = eventSequence
             };
+        }
+
+        private static RoomGatewayNetworkSyncCapabilities NewStateSyncCapabilities()
+        {
+            var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
+            return RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(
+                new WireNetworkSyncCapabilities
+                {
+                    MetadataVersion = RoomGatewayNetworkSyncCapabilitiesConverter.CurrentMetadataVersion,
+                    ProfileName = "Moba.AuthoritativeRemoteInterpolation",
+                    MinimumSchemaVersion = 0,
+                    MaximumSchemaVersion = 1,
+                    ClientPlayback = (int)profile.ClientPlayback,
+                    Input = (int)profile.Input,
+                    Snapshot = (int)profile.Snapshot,
+                    Interest = (int)profile.Interest,
+                    Recovery = (int)profile.Recovery,
+                    ServerValidation = (int)profile.ServerValidation,
+                    ReliableEvent = (int)profile.ReliableEvent
+                });
         }
 
         private static ClientRoomSnapshot NewMembershipSnapshot(
@@ -113,6 +136,39 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(ClientRoomSnapshotApplyResult.Applied, result);
             Assert.AreEqual(9001UL, store.Current.NumericRoomId);
             Assert.AreEqual(2, published.Count);
+        }
+
+        [Test]
+        public void ApplyDuplicateRevision_WithSyncCapabilities_PublishesMetadataCompletion()
+        {
+            var store = new ClientRoomStore();
+            var published = new List<ClientRoomSnapshot>();
+            store.OnSnapshotChanged += snapshot => published.Add(snapshot);
+            store.ApplySnapshot(NewSnapshot(5, 5));
+            var capabilities = NewStateSyncCapabilities();
+            var completed = NewSnapshot(5, 5);
+            completed.SyncCapabilities = capabilities;
+
+            var result = store.ApplySnapshot(completed);
+
+            Assert.AreEqual(ClientRoomSnapshotApplyResult.Applied, result);
+            Assert.AreSame(capabilities, store.Current.SyncCapabilities);
+            Assert.AreEqual(2, published.Count);
+        }
+
+        [Test]
+        public void ApplyNewRevision_InheritsSyncCapabilitiesFromSameRoom()
+        {
+            var store = new ClientRoomStore();
+            var capabilities = NewStateSyncCapabilities();
+            var initial = NewSnapshot(5, 5);
+            initial.SyncCapabilities = capabilities;
+            store.ApplySnapshot(initial);
+
+            var result = store.ApplySnapshot(NewSnapshot(6, 6));
+
+            Assert.AreEqual(ClientRoomSnapshotApplyResult.Applied, result);
+            Assert.AreSame(capabilities, store.Current.SyncCapabilities);
         }
 
         [Test]

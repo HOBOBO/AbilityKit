@@ -125,7 +125,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
     }
 
     /// <summary>
-    /// Buff 运行时匹配键。sourceContextId 非零时按实例匹配，否则按 buff/source 的宽松规则匹配。
+    /// Buff 运行时匹配键。普通 apply 按 buff/source 匹配；sourceContextId 非零时按显式实例匹配。
     /// </summary>
     internal readonly struct BuffRuntimeKey
     {
@@ -158,7 +158,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         public static BuffRuntimeKey MatchApplyRequest(in BuffApplyRequest request)
         {
             if (request.SourceContextId != 0L) return MatchInstance(request.BuffId, request.SourceActorId, request.SourceContextId);
-            return MatchBuff(request.BuffId);
+            return MatchBuffAndSource(request.BuffId, request.SourceActorId);
         }
 
         public static BuffRuntimeKey MatchRemoveRequest(in BuffRemoveRequest request)

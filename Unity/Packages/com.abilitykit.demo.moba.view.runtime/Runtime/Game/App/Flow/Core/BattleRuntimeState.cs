@@ -17,6 +17,9 @@ namespace AbilityKit.Game.Flow
         /// <summary>会话是否已开始（对应原 <c>_battleSessionStarted</c>）。</summary>
         bool SessionStarted { get; set; }
 
+        /// <summary>同步模式所需的战斗世界资源是否已建立。</summary>
+        bool WorldReady { get; set; }
+
         /// <summary>是否已收到首帧（对应原 <c>_battleFirstFrameReceived</c>）。</summary>
         bool FirstFrameReceived { get; set; }
 
@@ -30,6 +33,8 @@ namespace AbilityKit.Game.Flow
     {
         public bool SessionStarted { get; set; }
 
+        public bool WorldReady { get; set; }
+
         public bool FirstFrameReceived { get; set; }
 
         public bool AssetsLoadCompleted { get; set; }
@@ -37,6 +42,7 @@ namespace AbilityKit.Game.Flow
         public void Reset()
         {
             SessionStarted = false;
+            WorldReady = false;
             FirstFrameReceived = false;
             AssetsLoadCompleted = false;
         }

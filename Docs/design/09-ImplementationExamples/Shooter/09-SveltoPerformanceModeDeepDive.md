@@ -1,5 +1,8 @@
 # Shooter Svelto 性能模式深潜
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文补充 Shooter 示例的 Svelto 性能模式。该模式不是普通战斗逻辑的替代品，而是展示 AbilityKit 如何用 Svelto struct component、分组、批量查询、预算诊断和确定性 benchmark 构建大规模 Shooter 场景。
 
 ## 1. 设计定位
@@ -350,3 +353,19 @@ Svelto 提供高效本地实体遍历，pure-state 提供网络侧预算与可�
 | Enemy wave system | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/Systems/ShooterEnemyWaveBattleSystem.cs` |
 | Bot AI target index | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Domain/Battle/AI/ShooterBotAiSystem.cs` |
 | Pure-state exporter | `Unity/Packages/com.abilitykit.demo.shooter.runtime/Runtime/Application/Synchronization/ShooterPureStateSnapshotExporter.cs` |
+
+## 14. 性能声明、门禁与项目边界
+
+struct component、批量查询和 transient buffer 的目标是降低托管对象与热路径成本，不是“零分配”承诺。当前玩法与同步实现仍包含 Dictionary、List、候选缓冲、快照编码和必要的 pooled resource 租还；benchmark 的 `AverageFrameAllocatedBytes` 正是为了持续观察实际分配，而不是预设其为零。
+
+性能证据需要区分三层：
+
+| 层级 | 当前入口 | 能证明什么 |
+|------|----------|------------|
+| E3 行为/预算测试 | Runtime 489/489、AOI/LOD 8/8 | 场景结果、预算和局部阈值契约 |
+| E5 smoke | workflow 的 `shooter-performance-smoke`，PR/main push | 低成本 AOI/LOD 阈值回归 |
+| E5 full | workflow 的 `shooter-performance-full`，Schedule/Manual | 较高成本 profile；不是每次 PR 阻断 |
+
+ScenarioRunner 没有真实 Gateway、序列化拥塞、Unity 渲染或多 observer 长稳负载，因此不能把本地 benchmark 外推成端到端容量结论。Shooter 的 Svelto layout、实体族和 scenario 是项目策略；框架可复用的是 ECS adapter、批处理与预算/测量方法，不应下沉一套固定 Shooter 性能应用层。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

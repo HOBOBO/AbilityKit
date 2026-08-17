@@ -1,6 +1,10 @@
 # Continuous 框架接口设计：IContinuous、IContinuousManager 与运行时模型
 
-> 本文以 `com.abilitykit.core/Runtime/Continuous/` 为准，解释 Continuous 框架的接口设计：最小配置接口 + 可选扩展接口的组合模式、生命周期管理器的职责边界、五种运行时模型（stack/periodic/cue/tag/modifier）的实现方式，以及与 moba.runtime、Behavior 包、Triggering 包的协作关系。
+> 文档类型：Canonical 设计（Continuous 公共契约与应用组合边界）
+> 事实基线：2026-08-16
+> 文档版本：v3.2
+>
+> 本文以独立包 `Unity/Packages/com.abilitykit.continuous/Runtime/` 为事实基线，解释 Continuous 的最小接口、默认管理器、准入与生命周期扩展点，并说明 MOBA 应用层如何在其上组合 stack/periodic/cue/tag/modifier 等领域模型。五种模型是参考应用组合，不是公共包强制提供的统一业务运行时。
 
 ---
 
@@ -8,15 +12,28 @@
 
 Continuous 框架解决的核心问题是：**如何统一管理所有具有"持续时间、可中断/可暂停"特征的游戏对象**。
 
-这类对象在 MOBA 中大量存在：Buff、被动技能、移动增益、光环效果、持续伤害、召唤物等。它们有共同的抽象特征，但具体行为差异巨大。Continuous 框架不实现任何具体业务逻辑，而是提供：
+这类对象在 MOBA 中大量存在：Buff、被动技能、移动增益、光环效果、持续伤害、召唤物等。它们有共同的生命周期外壳，但具体行为差异巨大。Continuous 公共包不实现具体 Buff、技能或运动规则，但已经提供通用管理逻辑：
 
-- **生命周期管理**：激活、暂停、恢复、结束、终止
-- **组织结构**：标签、互斥组、父子层级、堆叠
-- **扩展点**：生命周期钩子、修改器投影、间隔处理器
+- **生命周期管理**：注册、激活、暂停、恢复、结束、中断与注销。
+- **通用索引**：按 owner 保存持续体，维护注册顺序和活跃集合，提供批量操作与快照查询。
+- **横切扩展**：准入策略和生命周期 Binder；注册阶段 Binder 失败时回滚管理器状态并执行补偿通知。
+- **配置能力**：最小配置和 tag/mutex/duration/hierarchy/stack 可选接口。
+
+Tick、周期处理、Modifier 投影、表现 Cue、标签驱动暂停/终止和具体 runtime 状态同步不由默认管理器自动完成，仍需领域宿主实现。
+
+### 1.1 职责归属
+
+| 层级 | 稳定职责 | 不承诺的内容 |
+|------|----------|--------------|
+| Continuous 框架 | 生命周期协议、最小配置、owner 索引、默认管理器、准入策略和 Binder | Buff 叠层、周期伤害、属性投影、表现、领域 Tick 和完整回滚 |
+| 项目应用层 | runtime 类型、固定 Tick、配置目录、投影/间隔处理、标签规则、同步和销毁顺序 | 应为领域副作用与失败补偿负责 |
+| MOBA 示例 | `MobaContinuousManager` 及 Buff/Motion/Projectile 等 runtime 组合 | 是高接入参考，不是所有项目必须继承的 Battle Application Runtime |
 
 ---
 
 ## 2. 源码入口
+
+公共表项均相对 `Unity/Packages/com.abilitykit.continuous/`；MOBA 表项均相对 `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/`。
 
 | 类型 | 源码 | 说明 |
 |---|---|---|
@@ -120,13 +137,6 @@ public interface IHierarchyConfig
     bool CascadeOnExpire { get; }
 }
 
-// 间隔配置（周期效果）
-public interface IPeriodicConfig
-{
-    float IntervalSeconds { get; }
-    int MaxIntervalCount { get; }
-}
-
 // 标签容器抽象
 public interface ITagContainer
 {
@@ -137,6 +147,8 @@ public interface ITagContainer
 ```
 
 **设计意图：** 使用组合模式，而不是继承树。每个持续体只实现它需要的扩展接口，框架通过 `as` 转换检查可选能力。
+
+公共包当前没有 `IPeriodicConfig`。周期处理属于 MOBA 应用组合，其接口是 `IMobaContinuousPeriodicConfig`，字段为 `IntervalSeconds` 与 `IntervalEffectIds`，由 `MobaContinuousTickProcessor` 消费。其他项目可以定义不同的周期模型，无需兼容 MOBA 配置 DTO。
 
 ### 3.3 ContinuousState 与 ContinuousEndReason
 
@@ -217,15 +229,44 @@ public interface IContinuousLifecycleBinder
     void OnRegistered(IContinuous continuous, IContinuousManager manager);
     void OnActivated(IContinuous continuous, IContinuousManager manager);
     void OnPaused(IContinuous continuous, IContinuousManager manager);
-    void OnResumed(IContinuous continuous, IContinuousContinuousManager manager);
+    void OnResumed(IContinuous continuous, IContinuousManager manager);
     void OnEnded(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager);
     void OnUnregistered(IContinuous continuous, ContinuousEndReason reason, IContinuousManager manager);
 }
 ```
 
+### 4.4 注册、结束与补偿边界
+
+`DefaultContinuousManager` 维护 registered set、active set、注册顺序和 owner 索引。`TryActivate()` 会在对象尚未注册时先调用 `Register()`；对象通过 `OnEnded` 回调结束后，Manager 先移出 active set，通知 `OnEnded`，并在 `finally` 中执行 `Unregister()`。
+
+注册阶段具有局部事务语义：Manager 先建立索引和事件订阅，再按 binder 快照执行 `OnRegistered`。任一 binder 抛出时，会撤销索引/订阅，并对已经尝试过的 binder 逆序调用 `OnUnregistered(CleanedUp)`；补偿异常被吞掉，以保留原始注册异常。这个保证只覆盖 Manager 自身注册阶段，不覆盖 `OnActivated`、`OnEnded`、领域 runtime 创建或 binder 内任意外部副作用。
+
+`Unregister()` 会先移除 Manager 内部状态，再调用 binder 和公开事件；这些回调抛错时，内部移除不会回滚。项目若在 binder 中操作属性、Trace、Cue 或外部实体，仍需定义幂等收尾和自己的补偿顺序。
+
+### 4.5 查询租约、清理与失败矩阵
+
+Manager 的不同查询返回值不是同一种所有权：`GetOwnerContinuous` 返回内部 owner list 的 `AsReadOnly` 包装，属于随 Manager 写入变化的 live view；`GetOwnerActiveContinuous`、`GetAllContinuous` 和 `GetAllActiveContinuous` 会创建快照列表。live view 不能跨 Manager 写入长期保存，也不能在枚举期间触发同 owner 注册或注销。Config 的 `OwnerId` 还必须在注册期间保持不可变；注销时 Manager 会读取当前 OwnerId，若配置已改值，旧 owner bucket 中的引用可能无法移除。
+
+`Clear(CleanedUp)` 的语义只是逐个 `Unregister`。它不会调用 `End` 或 `Abort`，因此对象自身仍可能保持 Active，且 Manager 已经不再订阅其 `OnEnded`。它适合“外部已经终止对象后的索引清空”，不是统一 Shutdown。需要战局关闭时，应先按快照结束或中断对象，再确认终态，最后清理残留注册。
+
+| 失败点 | Manager 已提交 | 未保证内容 |
+|--------|----------------|------------|
+| admission policy 抛错 | 无新注册或激活提交 | 后续 policy 不执行，异常向外传播 |
+| Binder `OnRegistered` 抛错 | Manager 索引会回滚，并逆序尽力补偿已尝试 Binder | Binder 外部副作用不保证撤销；失败 Binder 自身也会收到补偿 |
+| 公开 `OnRegistered` 抛错 | 注册、owner 索引与事件订阅已经生效 | 不回滚，也不执行 Binder 补偿 |
+| `Activate/Pause/Resume` 或对应 Binder/事件抛错 | runtime 状态与 active set 可能已经改变 | 后续 Binder/事件、状态恢复与对外成功确认 |
+| runtime `End/Abort` 抛错 | 取决于 runtime 自身实现 | Manager 不做补偿 |
+| Binder `OnEnded` 抛错 | active set 已移除；finally 仍尝试 Unregister | 后续 ended Binder；Unregister 异常还可能覆盖原异常 |
+| Binder/事件 `OnUnregistered` 抛错 | registered、active、owner 和顺序索引已移除 | 后续 Binder/公开事件不保证执行 |
+| `Clear` 中一次 Unregister 抛错 | 当前对象可能已从 Manager 移除 | 后续对象不会继续清理 |
+
+批量 `InterruptAll/PauseAll/ResumeAll` 使用 owner 快照，可承受当前项同步注销，但不会逐项隔离异常；任一 runtime、Binder 或事件抛错都会停止剩余对象处理。生产宿主若要求 best-effort 全量关闭，应自行逐项捕获并汇总异常，同时最终核对 `TotalCount`、`ActiveCount` 和外部资源租约。
+
 ---
 
 ## 5. 运行时模型
+
+本节五种模型总结 MOBA 当前如何组合公共接口。公共包只识别 `IContinuous`、配置扩展、策略和 Binder，不会自动发现或执行下述投影、周期与 Cue 语义。
 
 ### 5.1 五种模型总览
 
@@ -294,8 +335,7 @@ public interface IStackConfig
 public interface IMobaContinuousPeriodicConfig
 {
     float IntervalSeconds { get; }
-    int MaxIntervalCount { get; }   // 最大触发次数
-    bool ResetIntervalOnStack { get; } // 叠加时重置计时器
+    IReadOnlyList<int> IntervalEffectIds { get; }
 }
 
 // 间隔处理器：MobaContinuousTickProcessor
@@ -310,7 +350,7 @@ public void Tick(IContinuous continuous, float deltaTimeSeconds)
 }
 
 // MOBA 中的应用：
-// - 灼烧效果：每 1 秒造成 50 点伤害，共 5 次
+// - 灼烧效果：按固定间隔执行配置的效果计划
 // - 回血效果：每 3 秒回复 100 点 HP
 ```
 
@@ -514,7 +554,7 @@ flowchart TB
         CEA["ContinuousExecutorAdapter<TCtx>"]
     end
 
-    subgraph ContinuousCore["com.abilitykit.core"]
+    subgraph ContinuousCore["com.abilitykit.continuous"]
         IC["IContinuous"]
         ICM["IContinuousManager"]
     end
@@ -594,9 +634,13 @@ flowchart TB
 
 | 约束 | 说明 |
 |---|---|
-| 禁止在 Core 包中实现具体管理逻辑 | 互斥、标签、堆叠由业务层实现 |
-| 禁止在 Core 包中定义业务配置类 | 配置由 moba.runtime 等业务层定义 |
+| 公共包只实现领域无关的管理逻辑 | `DefaultContinuousManager` 可以维护 owner 索引、状态操作、策略与 Binder；Buff 叠层、周期、投影和标签规则留在业务层 |
+| 禁止在 Continuous 包中定义具体游戏配置类 | 公共包只保留最小配置与能力接口，配置 DTO、目录和默认值由 moba.runtime 等项目层定义 |
 | Manager 不直接持有 Entity 引用 | 只通过 OwnerId 关联，不侵入 ECS |
+| 默认 Manager 不拥有 Tick | 时间推进、到期检查和领域 runtime 更新由宿主按固定系统顺序驱动 |
+| 回调不等于完整事务 | 注册阶段 Binder 异常有回滚/补偿；其他领域副作用仍需项目定义异常与补偿策略 |
+| Clear 不等于 Shutdown | Clear 只解除 Manager 注册，不终止仍活跃的 runtime；宿主必须先结束对象再清残留 |
+| OwnerId 在租约内不可变 | Manager 建立和移除 owner 索引时都读取 Config.OwnerId，运行中变更会破坏反向清理 |
 
 ### 8.2 扩展点
 
@@ -610,7 +654,19 @@ flowchart TB
 
 ---
 
-## 9. 关联文档
+## 9. 证据与关联文档
+
+### 9.1 证据状态与已知限制
+
+- **E0 实现**：`com.abilitykit.continuous` 提供接口、配置扩展、状态/结束原因、策略、Binder 和 `DefaultContinuousManager`。
+- **E1 示例**：MOBA 提供 Manager、runtime 基类、Tick processor、Modifier projector 和标签规则等组合实现。
+- **E2 集成**：MOBA Buff、Motion、Projectile、Triggering 与 Behavior runtime 消费 Continuous 契约。
+- **E3 契约**：2026-08-16 当次 `AbilityKit.Continuous.Tests` 为 `2/2`，覆盖 owner 索引、Activate/Pause/Resume/End 顺序和不可中断拒绝；MOBA 测试另覆盖部分上下文、事务与领域 runtime。
+- **E4/E5**：尚无跨项目 runtime、完整恢复、异常补偿、长局容量和性能预算的统一场景或发布门禁。
+
+默认管理器未声明线程安全，也不提供时间源、序列化或完整 snapshot。OwnerId 只是关联键，稳定性、World 隔离和跨端映射由宿主保证。五类 MOBA runtime 的通过不能替代其他游戏对自身持续规则的契约测试。
+
+当前最小测试还没有覆盖公开事件异常、激活/暂停 Binder 异常、live owner view 重入、OwnerId 变化、Clear 后对象仍 Active，以及批量操作中途失败。采用默认 Manager 作为统一战局关闭入口前，这些都应进入直接契约测试。
 
 | 文档 | 关系 |
 |---|---|
@@ -621,4 +677,4 @@ flowchart TB
 
 ---
 
-*文档版本：v1.0 | 状态：canonical | 最后更新：2026-07-22 | 基于 com.abilitykit.core Continuous 源码 v2026-Q3*
+*文档版本：v3.2 | 最后更新：2026-08-16 | 证据等级：E0-E3（包级 2/2，仅覆盖最小 Manager 契约）*

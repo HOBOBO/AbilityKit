@@ -18,7 +18,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
     public object CreateState(RoomSummary summary)
     {
         var maxPlayers = summary.MaxPlayers > 0 ? summary.MaxPlayers : ShooterGameplay.DefaultMaxPlayers;
-        var minPlayers = ReadIntTag(summary, ShooterRoomTagKeys.MinPlayers, 1);
+        var minPlayers = ReadIntTag(summary, ShooterRoomTagKeys.MinPlayers, ShooterGameplay.DefaultMinPlayers);
         return new ShooterRoomState(maxPlayers, minPlayers);
     }
 
@@ -261,7 +261,9 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
 
         public static ShooterRoomState Restore(ShooterPersistentSnapshot snapshot)
         {
-            var state = new ShooterRoomState(snapshot.MaxPlayers, snapshot.MinPlayers <= 0 ? 1 : snapshot.MinPlayers)
+            var state = new ShooterRoomState(
+                snapshot.MaxPlayers,
+                snapshot.MinPlayers <= 0 ? ShooterGameplay.DefaultMinPlayers : snapshot.MinPlayers)
             {
                 NextPlayerId = Math.Max(1, snapshot.NextPlayerId)
             };

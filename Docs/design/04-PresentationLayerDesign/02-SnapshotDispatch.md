@@ -23,6 +23,17 @@
 | MOBA 表现订阅 | `BattleSnapshotViewAdapter` | 把 MOBA OpCode 映射到 `IBattleViewEventSink` 的强类型方法 |
 | BattleContext 绑定 | `BattleContext.Snapshot.cs` | 保存当前战斗上下文里的 snapshot routing 实例，供 View Feature 读取 |
 
+这几层的所有权必须分开：
+
+| 层级 | 应负责 | 不应负责 |
+|------|--------|----------|
+| `world.snapshot` 通用包 | envelope 接收、OpCode/type 绑定、decoder、订阅、有序 stage、registry 与 dispose 契约 | 网络收包、世界采样、MOBA OpCode 目录和 Unity 表现 |
+| Host / Transport / Replay | 将正确世界、帧和来源的数据 Feed 到 dispatcher | 绕过类型注册直接把原始网络对象交给 View |
+| 项目协议层 | 定义稳定 OpCode、codec、registry 和 stage 顺序 | 让同一 OpCode 在不同消费者中解释成不同类型 |
+| 项目表现层 | 通过 Adapter 消费强类型 payload，并管理订阅生命周期 | 把 `BattleSnapshotViewAdapter` 写成框架默认表现实现 |
+
+通用包提供的是可直接组装的路由机制，不提供某款游戏的完整快照应用套件。MOBA 与 Shooter 可以共享 dispatcher/pipeline，同时保留各自协议和应用阶段。
+
 ---
 
 ## 4.2.2 核心对象关系
@@ -550,3 +561,37 @@ flowchart LR
 ```
 
 掌握这个模型后，再去看跨平台表现层，就能区分哪些代码属于“快照路由基础设施”，哪些代码属于“某个平台的表现实现”。
+
+---
+
+## 4.2.15 验证证据与已知限制
+
+| 证据 | 等级与结论 |
+|------|------------|
+| `world.snapshot` Runtime 源码 | E0：覆盖 dispatcher、pipeline、builder、catalog、cmd handler 和 registry 契约 |
+| `src/AbilityKit.World.Snapshot.Tests/SnapshotRoutingTests.cs` | E3：直接覆盖 catalog 成功/未知/null/重复、dispatcher 重复 Dispose 后停止分发、pipeline stage 重复 Dispose 后停止执行 |
+| MOBA 与 Shooter Runtime | E2：两套项目均真实消费框架 dispatcher/pipeline；项目 adapter 不属于通用包 |
+| Shooter protocol/pipeline tests | 局部 E3：验证 Gateway payload 进入框架管线等项目链路，不能替代通用路由全契约 |
+
+直接测试尚未完整覆盖 stage 稳定排序、decoder false/异常、Feed 重入、handler 异常、Dispose 与并发 Feed 竞态、registry builder 部分注册失败和跨世界误投。当前 API 主要按单线程宿主生命周期使用，不能仅凭 `IDisposable` 和类型检查声明线程安全或事务性。
+
+## 4.2.16 释放、重入与部分装配不是隐式保证
+
+源码中的 `IDisposable` 粒度必须按对象分别理解，不能概括为“Dispose 会清空整套路由”：
+
+| 对象/场景 | 当前源码行为 | 接入约束 |
+|-----------|--------------|----------|
+| typed subscription / stage registration | registration Dispose 负责移除对应 handler/stage，并支持重复 Dispose | 由注册方保存令牌并在停止 Feed 前释放 |
+| `FrameSnapshotDispatcher.Dispose()` | 当前为空实现，不清 route、handler，也不清 `FrameReceived` / `SnapshotReceived` 顶层事件 | 顶层事件必须由订阅方显式解绑；Dispose 后不可假设对象失效 |
+| `SnapshotPipeline.Dispose()` | 只从 dispatcher 解绑 `SnapshotReceived` | pipeline 自身 route/stage 仍保留，不应在 Dispose 后复用 |
+| handler/stage 派发 | 异常会记录并继续；遍历前不复制列表 | 回调内退订或修改同一路由会改变正在遍历的列表，当前轮语义不稳定 |
+| `SnapshotRoutingBuilder.Build()` | 依次创建对象并让 registry 注册，没有事务或 rollback | 外部 dispatcher 重载在 registry 中途抛错时会留下已挂接的 pipeline/cmd handler 与部分 route；调用方拿不到未返回的 instance 来清理 |
+| 并发 Feed/注册/释放 | route 与列表没有统一同步机制 | 默认单线程串行使用；不能仅凭 `IDisposable` 宣称线程安全 |
+
+同 order stage 由于插入条件只比较“小于”，当前保持注册顺序；这是可观察实现语义，但回调内增删 stage 仍不属于稳定契约。正常接入顺序应是“完整构建 -> 发布实例 -> 串行 Feed -> 停止输入 -> 释放外部 subscriptions/stages -> Dispose pipeline”。对共享 external dispatcher，当前 Builder 无法在构建失败后由调用方完整补偿，因而应先验证 registry、在隔离 dispatcher 上装配，或补充框架级事务/rollback 后再允许失败重试。
+
+Batch X 实测通用 Snapshot routing `7/7`，直接覆盖 catalog 和 subscription/stage registration 的部分契约；decoder false/异常、同 order、回调内退订、builder 中途失败与并发 Feed 尚未形成完整回归矩阵。源码分支可以界定当前行为，不能替代这些 E3 缺口。
+
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 通用实现、E2 MOBA/Shooter 消费、局部 E3 路由契约；未达到 E4/E5
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

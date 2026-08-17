@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View.PlayMode;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using UnityEditor;
@@ -27,6 +28,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private const int RequiredMovementSubmissions = 18;
         private const int RequiredSettleSnapshots = 8;
         private const int MaxSamples = 128;
+        private const uint FnvOffsetBasis = 2166136261u;
+        private const uint FnvPrime = 16777619u;
 
         private static ClientOptions? _options;
         private static Task<ClientState>? _runTask;
@@ -71,7 +74,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static float _maxReconciliationBackwardMovement;
         private static float _maxUnexplainedBackwardMovement;
         private static int _lastMovementAuthoritativeFrame;
+        private static int _lastActorAuthoritativeFrame;
         private static int _movementSampleCount;
+        private static readonly ShooterGatewaySnapshotDecoder SnapshotDecoder = new ShooterGatewaySnapshotDecoder();
+        private static readonly Dictionary<int, ShooterGatewayActorSnapshot> AuthoritativeActors =
+            new Dictionary<int, ShooterGatewayActorSnapshot>();
+        private static readonly List<int> SortedAuthoritativeActorIds = new List<int>();
         private static readonly List<AuthoritativeSample> Samples = new List<AuthoritativeSample>();
         private static readonly List<HashMismatchSample> HashMismatches = new List<HashMismatchSample>();
 
@@ -143,7 +151,14 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 throw new InvalidOperationException("Shooter login failed: " + login.Message);
             }
 
-            _profile = CreateProfile(options.IsOwner ? 1 : 2, 2);
+            var requestedTemplate = ShooterAcceptanceCatalog.GetSyncTemplate(options.SyncTemplateId);
+            if ((int)requestedTemplate.SyncModel != options.SyncModel)
+            {
+                throw new InvalidOperationException(
+                    $"Shooter headless sync model does not match template. Template={requestedTemplate.Id}, Expected={(int)requestedTemplate.SyncModel}, Actual={options.SyncModel}");
+            }
+
+            _profile = CreateProfile(options.IsOwner ? 1 : 2, 2, requestedTemplate.Id);
             var sessionOptions = _profile.BuildSessionOptions();
             var launchSpec = _profile.BuildRoomLaunchSpec(
                 sessionOptions,
@@ -349,11 +364,24 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         {
             if (state.playerCount < 2) throw new InvalidOperationException("Shooter client did not observe two room members.");
             if (state.roomPushCount < 1) throw new InvalidOperationException("Shooter client received no room-state push.");
-            if (state.snapshotAppliedCount < 5 || state.packedSnapshotAppliedCount < 1)
+            if (state.snapshotAppliedCount < 5)
                 throw new InvalidOperationException("Shooter client did not apply enough authoritative snapshots.");
-            if (state.fullSnapshotPushCount < 5 || state.deltaSnapshotPushCount != 0)
+
+            var usesActorStateSync = state.syncModel == (int)NetworkSyncModel.AuthoritativeInterpolation;
+            if (usesActorStateSync)
+            {
+                if (state.actorSnapshotAppliedCount < 5 || state.fullSnapshotPushCount < 1 || state.deltaSnapshotPushCount < 1)
+                    throw new InvalidOperationException(
+                        $"Shooter authoritative interpolation did not apply the expected full/delta actor snapshots. " +
+                        $"actor={state.actorSnapshotAppliedCount}, full={state.fullSnapshotPushCount}, delta={state.deltaSnapshotPushCount}");
+            }
+            else if (state.packedSnapshotAppliedCount < 1 || state.fullSnapshotPushCount < 5 || state.deltaSnapshotPushCount != 0)
+            {
                 throw new InvalidOperationException(
-                    $"Shooter predict-rollback flow did not use full authoritative snapshots exclusively. full={state.fullSnapshotPushCount}, delta={state.deltaSnapshotPushCount}");
+                    $"Shooter runtime snapshot flow did not use full packed snapshots exclusively. " +
+                    $"packed={state.packedSnapshotAppliedCount}, full={state.fullSnapshotPushCount}, delta={state.deltaSnapshotPushCount}");
+            }
+
             if (state.authoritativeHashMismatchCount != 0)
                 throw new InvalidOperationException(
                     $"Shooter authoritative snapshot imports mismatched {state.authoritativeHashMismatchCount} times: {FormatHashMismatches(state.hashMismatches)}");
@@ -392,11 +420,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     _snapshotAppliedCount++;
                     _packedSnapshotAppliedCount++;
                     CountAuthoritativeHashMismatch();
-                    CaptureAuthoritativeSample();
+                    CapturePackedAuthoritativeSample();
                     break;
                 case ShooterSnapshotApplyResult.AppliedActorSnapshot:
                     _snapshotAppliedCount++;
                     _actorSnapshotAppliedCount++;
+                    CaptureActorAuthoritativeSample(payload);
                     break;
                 case ShooterSnapshotApplyResult.IgnoredStaleSnapshot:
                     _staleSnapshotCount++;
@@ -472,7 +501,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             return string.Join(", ", parts);
         }
 
-        private static void CaptureAuthoritativeSample()
+        private static void CapturePackedAuthoritativeSample()
         {
             var session = _launcher?.GatewayConnection.CurrentSession;
             var runtime = _runtime;
@@ -489,7 +518,88 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             };
             CapturePlayer(runtime, 1, out sample.p1Present, out sample.p1x, out sample.p1y);
             CapturePlayer(runtime, 2, out sample.p2Present, out sample.p2x, out sample.p2y);
+            AddOrReplaceSample(sample);
+        }
 
+        private static void CaptureActorAuthoritativeSample(ArraySegment<byte> payload)
+        {
+            var snapshot = SnapshotDecoder.Decode(payload);
+            if (snapshot.Frame <= 0) return;
+
+            if (snapshot.IsFullSnapshot)
+            {
+                AuthoritativeActors.Clear();
+            }
+            for (var i = 0; i < snapshot.Actors.Count; i++)
+            {
+                var actor = snapshot.Actors[i];
+                AuthoritativeActors[actor.ActorId] = actor;
+            }
+            if (AuthoritativeActors.Count == 0) return;
+
+            _lastActorAuthoritativeFrame = snapshot.Frame;
+            var hash = ComputeActorAuthoritativeHash(snapshot.Frame);
+            var sample = new AuthoritativeSample
+            {
+                frame = snapshot.Frame,
+                authoritativeHash = FormatHash(hash),
+                importedHash = FormatHash(hash)
+            };
+            CaptureAuthoritativeActor(1, out sample.p1Present, out sample.p1x, out sample.p1y);
+            CaptureAuthoritativeActor(2, out sample.p2Present, out sample.p2x, out sample.p2y);
+            AddOrReplaceSample(sample);
+        }
+
+        private static uint ComputeActorAuthoritativeHash(int frame)
+        {
+            SortedAuthoritativeActorIds.Clear();
+            foreach (var actorId in AuthoritativeActors.Keys) SortedAuthoritativeActorIds.Add(actorId);
+            SortedAuthoritativeActorIds.Sort();
+
+            var hash = FnvOffsetBasis;
+            HashInt(ref hash, frame);
+            HashInt(ref hash, SortedAuthoritativeActorIds.Count);
+            for (var i = 0; i < SortedAuthoritativeActorIds.Count; i++)
+            {
+                var actor = AuthoritativeActors[SortedAuthoritativeActorIds[i]];
+                HashInt(ref hash, actor.ActorId);
+                HashFloat(ref hash, actor.X);
+                HashFloat(ref hash, actor.Y);
+                HashFloat(ref hash, actor.Rotation);
+                HashFloat(ref hash, actor.VelocityX);
+                HashFloat(ref hash, actor.VelocityY);
+                HashFloat(ref hash, actor.Hp);
+                HashFloat(ref hash, actor.HpMax);
+                HashInt(ref hash, actor.TeamId);
+            }
+            return hash;
+        }
+
+        private static void HashFloat(ref uint hash, float value)
+        {
+            HashInt(ref hash, BitConverter.ToInt32(BitConverter.GetBytes(value), 0));
+        }
+
+        private static void HashInt(ref uint hash, int value)
+        {
+            unchecked
+            {
+                hash = (hash ^ (byte)value) * FnvPrime;
+                hash = (hash ^ (byte)(value >> 8)) * FnvPrime;
+                hash = (hash ^ (byte)(value >> 16)) * FnvPrime;
+                hash = (hash ^ (byte)(value >> 24)) * FnvPrime;
+            }
+        }
+
+        private static void CaptureAuthoritativeActor(int actorId, out bool present, out float x, out float y)
+        {
+            present = AuthoritativeActors.TryGetValue(actorId, out var actor);
+            x = present ? actor.X : 0f;
+            y = present ? actor.Y : 0f;
+        }
+
+        private static void AddOrReplaceSample(AuthoritativeSample sample)
+        {
             for (var i = Samples.Count - 1; i >= 0; i--)
             {
                 if (Samples[i].frame != sample.frame) continue;
@@ -513,8 +623,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _maxBackwardMovement = 0f;
             _maxReconciliationBackwardMovement = 0f;
             _maxUnexplainedBackwardMovement = 0f;
-            _lastMovementAuthoritativeFrame = _launcher?.GatewayConnection.CurrentSession
-                ?.FrameSync.LastImportedSnapshotEvidence.Frame ?? 0;
+            _lastMovementAuthoritativeFrame = ResolveLatestAuthoritativeFrame();
             _movementSampleCount = 0;
             _hasMovementBaseline = true;
             _movementActive = true;
@@ -529,8 +638,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             var direction = options.IsOwner ? 1f : -1f;
             var progress = (player.X - _movementBaselineX) * direction;
             var backward = _lastMovementProgress - progress;
-            var authoritativeFrame = _launcher?.GatewayConnection.CurrentSession
-                ?.FrameSync.LastImportedSnapshotEvidence.Frame ?? _lastMovementAuthoritativeFrame;
+            var authoritativeFrame = ResolveLatestAuthoritativeFrame();
             if (backward > _maxBackwardMovement) _maxBackwardMovement = backward;
             if (backward > 0f)
             {
@@ -547,6 +655,13 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _lastMovementProgress = progress;
             _lastMovementAuthoritativeFrame = authoritativeFrame;
             _movementSampleCount++;
+        }
+
+        private static int ResolveLatestAuthoritativeFrame()
+        {
+            var packedFrame = _launcher?.GatewayConnection.CurrentSession
+                ?.FrameSync.LastImportedSnapshotEvidence.Frame ?? 0;
+            return Math.Max(packedFrame, _lastActorAuthoritativeFrame);
         }
 
         private static void CaptureRoomState()
@@ -569,6 +684,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             {
                 role = _options?.Role ?? string.Empty,
                 account = _options?.Account ?? string.Empty,
+                syncTemplateId = _options?.SyncTemplateId ?? string.Empty,
+                syncModel = _options?.SyncModel ?? 0,
                 stage = _stage,
                 detail = _detail,
                 roomId = _roomId,
@@ -698,10 +815,10 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             return null;
         }
 
-        private static ShooterMultiplayerProfileSO CreateProfile(int playerId, int playerCount)
+        private static ShooterMultiplayerProfileSO CreateProfile(int playerId, int playerCount, string syncTemplateId)
         {
             var profile = ScriptableObject.CreateInstance<ShooterMultiplayerProfileSO>();
-            SetProfileField(profile, "syncTemplateId", ShooterSyncTemplateIds.PredictRollbackAuthority);
+            SetProfileField(profile, "syncTemplateId", syncTemplateId);
             SetProfileField(profile, "controlledPlayerId", playerId);
             SetProfileField(profile, "playerCount", playerCount);
             SetProfileField(profile, "maxPlayers", playerCount);
@@ -785,6 +902,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public int Port = 4000;
             public string Region = "dev";
             public string ServerId = "local";
+            public string SyncTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
+            public int SyncModel = ShooterRoomLaunchSpec.DefaultSyncModel;
             public int TimeoutSeconds = 240;
             public bool IsOwner => string.Equals(Role, "owner", StringComparison.OrdinalIgnoreCase);
 
@@ -804,6 +923,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     Port = IntValue(args, "-gatewayPort", 4000),
                     Region = Value(args, "-gatewayRegion") ?? "dev",
                     ServerId = Value(args, "-gatewayServerId") ?? "local",
+                    SyncTemplateId = Value(args, "-shooterHeadlessSyncTemplate") ?? ShooterSyncTemplateIds.StateSyncAuthority,
+                    SyncModel = IntValue(args, "-shooterHeadlessSyncModel", ShooterRoomLaunchSpec.DefaultSyncModel),
                     TimeoutSeconds = IntValue(args, "-shooterHeadlessTimeoutSeconds", 240)
                 };
             }
@@ -844,6 +965,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         {
             public string role = string.Empty;
             public string account = string.Empty;
+            public string syncTemplateId = string.Empty;
+            public int syncModel;
             public string stage = string.Empty;
             public string detail = string.Empty;
             public string roomId = string.Empty;

@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.Demo.Common.Unity",
+  "rootNamespace": "AbilityKit.Demo.Common",
+  "references": [
+    "AbilityKit.Demo.Common"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

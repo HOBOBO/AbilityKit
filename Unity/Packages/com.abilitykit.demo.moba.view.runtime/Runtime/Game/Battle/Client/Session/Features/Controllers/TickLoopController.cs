@@ -25,6 +25,14 @@ namespace AbilityKit.Game.Flow
             TickAuxiliaryWorlds(deltaTime);
         }
 
+        public BattleSessionTickProjection CreateProjection()
+        {
+            return BattleSessionTickProjector.Create(
+                _state.Tick.LastFrame,
+                _state.Tick.TickAcc,
+                _host.GetFixedDeltaSeconds());
+        }
+
         private bool HasSession()
         {
             return _handles.Session != null;

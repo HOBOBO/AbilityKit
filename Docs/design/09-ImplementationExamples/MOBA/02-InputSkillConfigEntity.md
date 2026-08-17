@@ -1,5 +1,8 @@
 # MOBA 输入、技能准备、配置门面与实体索引
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文说明 MOBA Runtime 中一批帧输入如何被校验和路由，技能输入如何进入正式运行时，以及 Actor 生成后如何进入注册表和二级索引。输入、技能、配置和实体管理彼此协作，但并不由同一个协调器拥有。
 
 ## 1. 范围与证据边界
@@ -187,15 +190,15 @@ sequenceDiagram
 
 ## 8. 验证证据与未覆盖范围
 
-| 证据 | 2026-08-02 基线能证明什么 | 不能证明什么 |
+| 证据 | 当前基线能证明什么 | 不能证明什么 |
 |---|---|---|
-| MOBA .NET Release tests 232/232 | 当前测试程序集整体通过；包含输入端口、技能生命周期、配置契约、召唤回滚等测试 | 未在本篇单独执行 Unity Test Runner、真实远程输入乱序或热重载中的活跃技能迁移 |
+| 2026-08-16 MOBA .NET tests 279/305 | 279 项局部契约仍通过；26 项在 World 启动期被同一 SpawnArea 配置校验阻断 | 不能宣称主测试程序集当前整体通过，也不能把 26 个失败误归因于各自业务断言 |
 | `MobaRuntimeFirstFrameSnapshotAcceptanceTests` | 输入端口拒绝空批次、非法帧，并区分零处理、部分处理和完整处理 | 使用测试协调器的部分用例不等于所有真实 OpCode Handler 均已覆盖 |
-| `MobaSkillCastLifecycleSmokeTests` | 正式 World 中技能运行时可创建并结束 | 不覆盖每个英雄技能和所有并行/中断策略组合 |
+| `MobaSkillCastLifecycleSmokeTests` | 测试资产覆盖技能创建、死亡/销毁清理等路径 | 本轮相关用例被启动配置错误提前阻断，未产生新的业务通过证据 |
 | `MobaSkillConfigurationContractTests` | Resources/DTO 配置的关键技能契约可校验 | 不证明生产热更发布、回滚和运行对象迁移已闭合 |
-| `MobaSummonRollbackTests` | 召唤物状态导出/导入路径有回归证据 | 不等于所有投射物、召唤物和调试生成路径均具备事务恢复 |
+| Unity `MobaRuntimeOwnershipLifecycleTests` 9/9 artifact | Summon retain 失败回滚 Actor/trace；Clear/Dispose 释放 retain 并 exactly-once 结束 trace | 不是本轮完整 Unity 回归或真实多人运行 |
 
-本轮验证沿用同日已执行的 232/232 结果；测试仍有依赖漏洞、Entitas 兼容性、可空性和 xUnit Analyzer 警告，不能把“通过”写成无警告发布基线。
+独立的 MOBA View Runtime 147/147、Host 6/6、Acceptance 8/8 在 2026-08-16 通过。测试仍有依赖漏洞、Entitas 兼容性、可空性等警告；这些工程不包含完整 MOBA World 业务链，不能合并成“全部通过”。
 
 ## 9. 源码入口
 
@@ -211,4 +214,4 @@ sequenceDiagram
 
 ---
 
-*文档版本：v1.1 | 状态：canonical | 最后更新：2026-08-02 | 验证基线：MOBA .NET tests 232/232（有警告）*
+*文档版本：v3.0 | 最后更新：2026-08-16*

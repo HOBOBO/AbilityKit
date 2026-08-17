@@ -37,13 +37,23 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
             "com.abilitykit.demo.shooter.view.runtime",
             "Runtime", "Unity", "PlayMode", "ShooterRemotePresentationFrameBuilder.cs");
 
-        Assert.Contains("ResolveEffectiveControlledPlayerId(connectionResult.Launch.Flow, launchOptions.SessionOptions.ControlledPlayerId)", playModeHost);
+        Assert.Contains("_effectiveControlledPlayerId = ResolveEffectiveControlledPlayerId(", playModeHost);
         Assert.Contains("connectionResult.Launch.Session.Presentation.ControlledPlayerId = _effectiveControlledPlayerId;", playModeHost);
         Assert.Contains("ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId)", playModeHost);
         Assert.Contains("flow.PlayerId > 0u && flow.PlayerId <= int.MaxValue", playModeHost);
         Assert.Contains("int controlledPlayerId", frameBuilder);
         Assert.Contains("controlledPlayerId,", frameBuilder);
         Assert.DoesNotContain("connectionResult.Launch.Session.Presentation.ControlledPlayerId = launchOptions.SessionOptions.ControlledPlayerId;", playModeHost);
+
+        var bindPlayerIndex = playModeHost.IndexOf(
+            "connectionResult.Launch.Session.Presentation.ControlledPlayerId = _effectiveControlledPlayerId;",
+            StringComparison.Ordinal);
+        var fullSyncIndex = playModeHost.IndexOf(
+            "new ShooterInitialFullStateSyncCoordinator(",
+            bindPlayerIndex,
+            StringComparison.Ordinal);
+        Assert.True(bindPlayerIndex >= 0 && fullSyncIndex > bindPlayerIndex,
+            "The gateway-assigned player id must be bound before applying the AOI full baseline.");
     }
 
     [Fact]
@@ -65,13 +75,21 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
 
         Assert.Contains("public static bool IsPaused => _isPaused;", playModeHost);
         Assert.Contains("public static bool IsAutoReconnecting => _isAutoReconnecting;", playModeHost);
+        Assert.Contains("public static void Pause()", playModeHost);
         Assert.Contains("public static void PauseForReconnectValidation()", playModeHost);
+        Assert.Contains("Pause();", playModeHost);
         Assert.Contains("state.Launcher.Close();", playModeHost);
         Assert.Contains("_inputSubmitStrategy?.Reset();", playModeHost);
         Assert.Contains("if (state == null || _isPaused)", playModeHost);
         Assert.Contains("if (_isAutoReconnecting)", playModeHost);
         Assert.Contains("TickAutoReconnect(deltaSeconds);", playModeHost);
         Assert.Contains("public static Task<ShooterClientNetworkLaunchResult> ResumeFromPauseAsync()", playModeHost);
+        Assert.Contains("return ResumePausedSessionAsync(resumeOptions);", playModeHost);
+        Assert.Contains("restoredState = await StartSessionAsync(resumeOptions, generation);", playModeHost);
+        Assert.Contains("RenderRestoredStateWithoutAdvancingClient(restoredState, resumeOptions);", playModeHost);
+        Assert.Contains("ViewSink.Clear();", playModeHost);
+        Assert.Contains("ViewSink.Render(in frame);", playModeHost);
+        Assert.Contains("_isPaused = true;", playModeHost);
         Assert.Contains("TryBeginAutoReconnectAfterSocketLoss(state)", playModeHost);
         Assert.Contains("connection.State == ConnectionState.Connected", playModeHost);
         Assert.Contains("connection.State == ConnectionState.Connecting", playModeHost);
@@ -89,8 +107,30 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         Assert.Contains("RequiresInitialFullStateSync => EntryKind == ShooterRoomGatewayEntryKind.LateJoin", connectionFlow);
         Assert.Contains("SnapshotPushDispatched += OnSnapshotPushDispatched", initialFullStateSync);
         Assert.Contains("while (!snapshotApplied)", initialFullStateSync);
+        Assert.Contains("snapshot.IsFullSnapshot && IsApplied(result, session)", initialFullStateSync);
         Assert.Contains("IsApplied(result, session)", initialFullStateSync);
         Assert.Contains("LastInitialFullStateSyncApplyResult", playModeHost);
+
+        var resumeBodyStart = playModeHost.IndexOf(
+            "private static async Task<ShooterClientNetworkLaunchResult> ResumePausedSessionAsync(",
+            StringComparison.Ordinal);
+        var resumeBodyEnd = playModeHost.IndexOf(
+            "public static void Stop()",
+            resumeBodyStart,
+            StringComparison.Ordinal);
+        Assert.True(resumeBodyStart >= 0 && resumeBodyEnd > resumeBodyStart);
+        var resumeBody = playModeHost.Substring(resumeBodyStart, resumeBodyEnd - resumeBodyStart);
+        Assert.Contains("_lastError = ex;", resumeBody);
+        Assert.Contains("_isPaused = true;", resumeBody);
+        Assert.DoesNotContain(".Session.Tick(", resumeBody);
+        Assert.DoesNotContain("return StartAsync(resumeOptions);", resumeBody);
+
+        var renderLatestIndex = playModeHost.IndexOf(
+            "RenderRestoredStateWithoutAdvancingClient(restoredState, resumeOptions);",
+            StringComparison.Ordinal);
+        var resumeIndex = playModeHost.IndexOf("_isPaused = false;", renderLatestIndex, StringComparison.Ordinal);
+        Assert.True(renderLatestIndex >= 0 && resumeIndex > renderLatestIndex,
+            "The latest full state must render before client advancement resumes.");
     }
 
     [Fact]
@@ -99,18 +139,29 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         var playModeMenu = ReadUnityPackageSource(
             "com.abilitykit.demo.shooter.view.runtime",
             "Runtime", "Unity", "PlayMode", "ShooterPlayModeMenu.cs");
+        var formalMultiplayerController = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterFormalMultiplayerController.cs");
 
-        Assert.Contains("Pause Remote", playModeMenu);
-        Assert.Contains("ShooterRemoteStateSyncPlayModeHost.PauseForReconnectValidation();", playModeMenu);
-        Assert.Contains("Resume Remote", playModeMenu);
-        Assert.Contains("RunAsync(\"resume remote\", ResumeRemoteAsync);", playModeMenu);
+        Assert.Contains("Pause Client", playModeMenu);
+        Assert.Contains("ShooterRemoteStateSyncPlayModeHost.Pause();", playModeMenu);
+        Assert.Contains("Resume & Refresh", playModeMenu);
+        Assert.Contains("RunAsync(\"refresh latest state\", ResumeRemoteAsync);", playModeMenu);
         Assert.Contains("ShooterRemoteStateSyncPlayModeHost.ResumeFromPauseAsync()", playModeMenu);
         Assert.Contains("IsAutoReconnecting", playModeMenu);
         Assert.Contains("IsWaitingForInitialFullStateSync", playModeMenu);
         Assert.Contains("LastInitialFullStateSyncApplyResult", playModeMenu);
         Assert.Contains("return \"Syncing Latest State\";", playModeMenu);
+        Assert.Contains("return \"Refreshing Latest State\";", playModeMenu);
         Assert.Contains("return \"Auto Reconnecting\";", playModeMenu);
         Assert.Contains("return \"Paused\";", playModeMenu);
+        Assert.Contains("State: Client paused", formalMultiplayerController);
+        Assert.Contains("State: Refreshing latest state", formalMultiplayerController);
+        Assert.Contains("Pause Client", formalMultiplayerController);
+        Assert.Contains("Resume & Refresh", formalMultiplayerController);
+        Assert.Contains("ShooterRemoteStateSyncPlayModeHost.Pause();", formalMultiplayerController);
+        Assert.DoesNotContain("Simulate Disconnect", formalMultiplayerController);
+        Assert.DoesNotContain("simulating disconnect", formalMultiplayerController);
     }
 
     [Fact]

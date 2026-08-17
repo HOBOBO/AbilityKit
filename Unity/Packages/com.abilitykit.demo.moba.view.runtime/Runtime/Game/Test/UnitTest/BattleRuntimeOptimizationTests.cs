@@ -29,8 +29,11 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Game.Flow.Battle.View;
 using AbilityKit.Game.Flow.Battle.ViewEvents;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.CreateWorld;
+using AbilityKit.Protocol.Room;
 using AbilityKit.World.ECS;
 using EC = AbilityKit.World.ECS;
 using NUnit.Framework;
@@ -100,7 +103,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             try
             {
-                var handler = new BattleProjectileViewEventHandler(ctx, query, manager, in root, shellPool: shellPool);
+                var handler = new BattleProjectileViewEventHandler(world, query, manager, in root, shellPool: shellPool);
                 var spawn = new MobaProjectileEventSnapshotEntry
                 {
                     Kind = (int)ProtocolProjectileEventKind.Spawn,
@@ -274,7 +277,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             try
             {
-                var spawner = new BattlePresentationCueVfxSpawner(context, null, default);
+                var spawner = new BattlePresentationCueVfxSpawner(world, null, default);
 
                 spawner.Update(entity.Id, scale: 1f, radius: 1f, durationMsOverride: 2500);
                 Assert.AreEqual(2.5f, lifetime.ExpireAtTime - Time.time, 0.05f);
@@ -302,7 +305,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 [vfxId] = new VfxDTO { Id = vfxId, Resource = "missing/cue_vfx", DurationMs = 500 }
             }));
-            var handler = new BattlePresentationCueViewEventHandler(context, null, manager, in vfxRoot);
+            var handler = new BattlePresentationCueViewEventHandler(world, null, manager, in vfxRoot);
             var start = CreatePresentationCue(
                 PresentationCueStage.Started,
                 requestKey: "cue-lifecycle",
@@ -421,7 +424,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     Quaternion.identity,
                     out var projectileVfx));
                 var handler = new BattleProjectileViewEventHandler(
-                    ctx,
+                    world,
                     query,
                     manager,
                     in root);
@@ -1181,18 +1184,30 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public void BattleMoveInputState_DefersSameFrameStopAndRepeatsItAcrossFrames()
+        public void BattleMoveInputState_SubmitsSameFrameStartAfterInitialNeutralInput()
+        {
+            var state = new BattleMoveInputState();
+
+            Assert.IsTrue(state.TryGetMoveToSubmit(20, 0f, 0f, out _, out _));
+            Assert.IsTrue(state.TryGetMoveToSubmit(20, 1f, 0.25f, out var dx, out var dz));
+            Assert.AreEqual(1f, dx);
+            Assert.AreEqual(0.25f, dz);
+            Assert.IsFalse(state.TryGetMoveToSubmit(20, 1f, 0.25f, out _, out _));
+        }
+
+        [Test]
+        public void BattleMoveInputState_SubmitsSameFrameStopAndRepeatsItAcrossFrames()
         {
             var state = new BattleMoveInputState();
 
             Assert.IsTrue(state.TryGetMoveToSubmit(20, 1f, 0f, out _, out _));
-            Assert.IsFalse(state.TryGetMoveToSubmit(20, 0f, 0f, out _, out _));
-            Assert.IsTrue(state.TryGetMoveToSubmit(21, 0f, 0f, out var dx, out var dz));
+            Assert.IsTrue(state.TryGetMoveToSubmit(20, 0f, 0f, out var dx, out var dz));
             Assert.AreEqual(0f, dx);
             Assert.AreEqual(0f, dz);
+            Assert.IsFalse(state.TryGetMoveToSubmit(20, 0f, 0f, out _, out _));
+            Assert.IsTrue(state.TryGetMoveToSubmit(21, 0f, 0f, out _, out _));
             Assert.IsTrue(state.TryGetMoveToSubmit(22, 0f, 0f, out _, out _));
-            Assert.IsTrue(state.TryGetMoveToSubmit(23, 0f, 0f, out _, out _));
-            Assert.IsFalse(state.TryGetMoveToSubmit(24, 0f, 0f, out _, out _));
+            Assert.IsFalse(state.TryGetMoveToSubmit(23, 0f, 0f, out _, out _));
         }
 
         [Test]
@@ -1300,6 +1315,17 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 Assert.IsFalse(string.IsNullOrWhiteSpace(config.GetBattleStateDescription(state)), state.ToString());
             }
+        }
+
+        [Test]
+        public void MobaFlowConfiguration_DefaultLobbyExcludesRootDebugCommands()
+        {
+            var features = MobaFlowConfiguration.CreateDefault().LobbyFeatures.FeatureIds;
+
+            CollectionAssert.AreEqual(
+                new[] { "demo_lobby", "formal_lobby" },
+                features);
+            CollectionAssert.DoesNotContain(features, "root_debug");
         }
 
         [Test]
@@ -1430,6 +1456,63 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleScopeManager_WorldReady_AdvancesWithoutSnapshotFrame()
+        {
+            using var host = new BattleWorldScopeHost();
+            var triggered = new List<MobaBattleEvent>();
+            var activeBattle = MobaBattleState.Connect;
+            TestBattleSessionFeature session = null;
+            var manager = new BattleScopeManager(
+                new BattleScopeManager.Callbacks
+                {
+                    SetBattleRequested = _ => { },
+                    EnqueueRootEvent = _ => { },
+                    TriggerBattleFsm = battleEvent =>
+                    {
+                        triggered.Add(battleEvent);
+                        if (battleEvent == MobaBattleEvent.Connected)
+                            activeBattle = MobaBattleState.CreateOrJoinWorld;
+                    },
+                    GetActiveBattle = () => activeBattle,
+                    ClearGatewayConnectionFactory = () => { },
+                    GetGatewayConnectionFactory = () => null,
+                    CreateBattleSessionFeature = (_, __) =>
+                        session = new TestBattleSessionFeature(),
+                },
+                host,
+                new MobaBattleAdvanceDecider(),
+                new TestLogSink());
+
+            manager.EnterBattle(null);
+            manager.CreateBattleSessionFeature();
+
+            session.RaiseSessionStarted();
+            session.RaiseWorldReady();
+
+            var state = host.Resolve<IBattleRuntimeState>();
+            Assert.IsTrue(state.SessionStarted);
+            Assert.IsTrue(state.WorldReady);
+            Assert.IsFalse(state.FirstFrameReceived);
+            CollectionAssert.AreEqual(
+                new[] { MobaBattleEvent.Connected, MobaBattleEvent.JoinedWorld },
+                triggered);
+        }
+
+        [Test]
+        public void BattleScopeManager_SessionStarted_DoesNotBypassWorldReadyBarrier()
+        {
+            var decider = new MobaBattleAdvanceDecider();
+
+            var next = decider.OnStateEntered(
+                MobaBattleState.CreateOrJoinWorld,
+                sessionStarted: true,
+                worldReady: false,
+                firstFrameReceived: false);
+
+            Assert.IsFalse(next.HasValue);
+        }
+
+        [Test]
         public void BattleScopeManager_ClearSessionEvents_UnsubscribesCapturedHandlers()
         {
             using var host = new BattleWorldScopeHost();
@@ -1453,7 +1536,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             manager.EnterBattle(null);
             manager.CreateBattleSessionFeature();
-            Assert.AreEqual(4, session.SubscriberCount);
+            Assert.AreEqual(5, session.SubscriberCount);
 
             manager.ClearBattleSessionEvents();
             session.RaiseAll();
@@ -1561,6 +1644,44 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.IsTrue(plan.Gateway.UseGatewayTransport);
             Assert.IsFalse(plan.Gateway.AutoCreateRoom);
             Assert.IsFalse(plan.Gateway.AutoJoinRoom);
+        }
+
+        [Test]
+        public void ExistingGatewayRoomBattleBootstrapper_ServerStateSyncCapabilitiesAreRejected()
+        {
+            var sourcePlan = BattleStartPlanBuilder
+                .ForWorld("preset-world", "battle", "client_1", "7", tickRate: 30, inputDelayFrames: 0)
+                .WithSync(
+                    BattleSyncMode.Lockstep,
+                    AbilityKit.Game.Flow.BattleViewEventSourceMode.SnapshotOnly)
+                .Build();
+            var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
+            var capabilities = RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(
+                new WireNetworkSyncCapabilities
+                {
+                    MetadataVersion = RoomGatewayNetworkSyncCapabilitiesConverter.CurrentMetadataVersion,
+                    ProfileName = "Moba.AuthoritativeRemoteInterpolation",
+                    MinimumSchemaVersion = 0,
+                    MaximumSchemaVersion = 1,
+                    ClientPlayback = (int)profile.ClientPlayback,
+                    Input = (int)profile.Input,
+                    Snapshot = (int)profile.Snapshot,
+                    Interest = (int)profile.Interest,
+                    Recovery = (int)profile.Recovery,
+                    ServerValidation = (int)profile.ServerValidation,
+                    ReliableEvent = (int)profile.ReliableEvent,
+                });
+            var bootstrapper = new ExistingGatewayRoomBattleBootstrapper(
+                new FixedBattleBootstrapper(sourcePlan),
+                "authenticated-token",
+                "room-public-id",
+                "battle-authoritative-id",
+                9001UL,
+                7001UL,
+                42u,
+                syncCapabilities: capabilities);
+
+            Assert.Throws<RoomGatewaySyncCapabilityException>(() => bootstrapper.Build());
         }
 
         [Test]
@@ -1676,6 +1797,12 @@ namespace AbilityKit.Game.Test.UnitTest
 
             var plan = bootstrapper.Build();
 
+            Assert.AreEqual(
+                BattleSyncMode.Lockstep,
+                plan.Sync.SyncMode,
+                "MOBA Gateway room plans must always use Lockstep frame sync.");
+            Assert.AreEqual(MobaBattleLaunchSyncMode.FrameSync, plan.LaunchSpec.SyncMode);
+            Assert.AreEqual(MobaBattleLaunchAuthorityMode.ServerAuthority, plan.LaunchSpec.AuthorityMode);
             Assert.AreEqual("battle-id", plan.LaunchSpec.BattleId);
             Assert.AreEqual("battle-id", plan.LaunchSpec.MatchId);
             Assert.AreEqual("7001", plan.LaunchSpec.WorldId);
@@ -2389,12 +2516,14 @@ namespace AbilityKit.Game.Test.UnitTest
         private sealed class TestBattleSessionFeature : IBattleSessionFeature
         {
             public event Action SessionStarted;
+            public event Action WorldReady;
             public event Action FirstFrameReceived;
             public event Action<Exception> SessionFailed;
             public event Action AssetsLoadCompleted;
 
             public int SubscriberCount =>
                 (SessionStarted?.GetInvocationList().Length ?? 0) +
+                (WorldReady?.GetInvocationList().Length ?? 0) +
                 (FirstFrameReceived?.GetInvocationList().Length ?? 0) +
                 (SessionFailed?.GetInvocationList().Length ?? 0) +
                 (AssetsLoadCompleted?.GetInvocationList().Length ?? 0);
@@ -2407,9 +2536,12 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public void RaiseSessionStarted() => SessionStarted?.Invoke();
 
+            public void RaiseWorldReady() => WorldReady?.Invoke();
+
             public void RaiseAll()
             {
                 SessionStarted?.Invoke();
+                WorldReady?.Invoke();
                 FirstFrameReceived?.Invoke();
                 SessionFailed?.Invoke(new InvalidOperationException("test"));
                 AssetsLoadCompleted?.Invoke();

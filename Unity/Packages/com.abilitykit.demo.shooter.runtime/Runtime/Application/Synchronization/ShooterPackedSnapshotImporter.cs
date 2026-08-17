@@ -35,7 +35,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (!isDelta)
             {
                 _state.Reset(default);
-                ClearImportedEntities();
             }
 
             _state.CurrentFrame = snapshot.Frame;
@@ -43,12 +42,24 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var componentChunks = snapshot.ComponentChunks;
             if (componentChunks == null || componentChunks.Length == 0)
             {
-                return snapshot.EntityCount == 0;
+                var importedEmptySnapshot = snapshot.EntityCount == 0;
+                if (importedEmptySnapshot)
+                {
+                    _state.MarkSnapshotImported();
+                }
+
+                return importedEmptySnapshot;
             }
 
             ImportComponentChunks(componentChunks, isDelta);
 
-            return _entities.PlayerCount > 0 || snapshot.EntityCount == 0;
+            var imported = _entities.PlayerCount > 0 || snapshot.EntityCount == 0;
+            if (imported)
+            {
+                _state.MarkSnapshotImported();
+            }
+
+            return imported;
         }
 
         private void ImportComponentChunks(ShooterPackedComponentChunk[] componentChunks, bool isDelta = false)
@@ -90,49 +101,57 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 }
             }
 
-            foreach (var projectileId in removedProjectiles)
+            _entities.BeginStructuralChanges();
+            try
             {
-                projectiles.Remove(projectileId);
-                _entities.RemoveProjectile(projectileId);
-            }
-
-            foreach (var enemyId in removedEnemies)
-            {
-                enemies.Remove(enemyId);
-                _entities.RemoveEnemy(enemyId);
-            }
-
-            foreach (var player in players.Values)
-            {
-                var value = player;
-                if (isDelta && _entities.HasPlayer(value.PlayerId))
+                foreach (var projectileId in removedProjectiles)
                 {
-                    _entities.SetPlayer(in value);
-                }
-                else
-                {
-                    _entities.AddPlayer(in value);
-                }
-            }
-
-            foreach (var projectile in projectiles.Values)
-            {
-                var value = projectile;
-                if (isDelta && _entities.HasProjectile(value.BulletId))
-                {
-                    _entities.SetProjectile(in value);
-                }
-                else
-                {
-                    _entities.AddProjectile(in value);
+                    projectiles.Remove(projectileId);
+                    _entities.RemoveProjectile(projectileId);
                 }
 
-                _state.AdvanceBulletIdPast(value.BulletId);
-            }
+                foreach (var enemyId in removedEnemies)
+                {
+                    enemies.Remove(enemyId);
+                    _entities.RemoveEnemy(enemyId);
+                }
 
-            foreach (var enemy in enemies.Values)
+                foreach (var player in players.Values)
+                {
+                    var value = player;
+                    if (isDelta && _entities.HasPlayer(value.PlayerId))
+                    {
+                        _entities.SetPlayer(in value);
+                    }
+                    else
+                    {
+                        _entities.AddPlayer(in value);
+                    }
+                }
+
+                foreach (var projectile in projectiles.Values)
+                {
+                    var value = projectile;
+                    if (isDelta && _entities.HasProjectile(value.BulletId))
+                    {
+                        _entities.SetProjectile(in value);
+                    }
+                    else
+                    {
+                        _entities.AddProjectile(in value);
+                    }
+
+                    _state.AdvanceBulletIdPast(value.BulletId);
+                }
+
+                foreach (var enemy in enemies.Values)
+                {
+                    UpsertEnemy(in enemy);
+                }
+            }
+            finally
             {
-                UpsertEnemy(in enemy);
+                _entities.EndStructuralChanges();
             }
         }
 
@@ -326,11 +345,6 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
-        private void ClearImportedEntities()
-        {
-            _entities.Clear();
-        }
-
         private void UpsertEnemy(in ImportedEnemy enemy)
         {
             if (enemy.EntityId <= 0)
@@ -344,15 +358,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
             else
             {
-                _entities.AddEnemy(enemy.EntityId, in enemy.Transform, in enemy.Health);
+                _entities.AddEnemy(enemy.EntityId, in enemy.Transform, in enemy.Health, in enemy.Navigation);
+                return;
             }
 
-            if (_entities.SveltoContext.EntitiesDB.TryQueryMappedEntities<ShooterSveltoNavigationComponent>(
+            if (!_entities.SveltoContext.EntitiesDB.TryQueryMappedEntities<ShooterSveltoNavigationComponent>(
                     ShooterSveltoGroups.GameplayTargets,
-                    out var navigationMapper))
-            {
-                navigationMapper.Entity((uint)enemy.EntityId) = enemy.Navigation;
-            }
+                    out var navigationMapper)) return;
+
+            navigationMapper.Entity((uint)enemy.EntityId) = enemy.Navigation;
         }
 
         private struct ImportedEnemy

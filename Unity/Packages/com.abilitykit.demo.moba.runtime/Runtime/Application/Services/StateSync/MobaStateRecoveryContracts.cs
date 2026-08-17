@@ -13,6 +13,16 @@ namespace AbilityKit.Demo.Moba.Services.StateSync
         void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash);
     }
 
+    /// <summary>
+    /// Optional recovery capability for providers that can validate an incoming payload
+    /// before any provider mutates live state, and validate their applied state afterwards.
+    /// </summary>
+    public interface IMobaStagedStateRecoveryProvider : IMobaStateRecoveryProvider
+    {
+        void PrepareRestore(FrameIndex frame, byte[] payload);
+        void ValidateRestoredState(FrameIndex frame, byte[] payload);
+    }
+
     [MemoryPackable]
     public readonly partial struct MobaStateRecoverySnapshot
     {

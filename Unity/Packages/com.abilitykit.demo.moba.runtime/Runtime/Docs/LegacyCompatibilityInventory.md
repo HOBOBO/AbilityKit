@@ -1,4 +1,4 @@
-# Legacy / Compatibility Inventory
+# 旧版/兼容性清单
 
 本文记录 `com.abilitykit.demo.moba.runtime` 当前仍存在的 Legacy、Stub、TODO、兼容适配和临时占位路径。
 
@@ -236,7 +236,7 @@ SkillDTO
 - 业务系统应依赖稳定后的命令或事件模型。
 - 不再新增独立的 `IWorldInputSink` 兼容适配器。
 
-### Skill/Effect compatible keys
+### Skill/Effect 兼容键
 
 涉及文件：
 
@@ -260,7 +260,7 @@ SkillDTO
 3. 对仍需要的 key 建立正式常量或访问器。
 4. 删除无人读取的兼容 key。
 
-## False Positive
+## 误报
 
 ### RemoveObsoleteListeners
 

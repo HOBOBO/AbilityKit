@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         private readonly IShooterEntityManager _entities;
         private int _nextBulletId = 1;
+        private long _snapshotImportRevision;
         private ShooterSpatialTargetIndex _playerTargetIndex;
 
         public ShooterBattleState(IShooterEntityManager entities)
@@ -60,6 +61,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int CurrentFrame { get; set; }
 
         public ShooterStartGamePayload StartSpec { get; set; }
+
+        internal long SnapshotImportRevision => _snapshotImportRevision;
 
         public void Reset(in ShooterStartGamePayload spec)
         {
@@ -155,6 +158,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 _nextBulletId = bulletId + 1;
             }
         }
+
+        internal void MarkSnapshotImported()
+        {
+            unchecked
+            {
+                _snapshotImportRevision++;
+            }
+        }
+
         public void QueueDefeatedEnemyRemoval(int enemyId)
         {
             if (enemyId > 0)

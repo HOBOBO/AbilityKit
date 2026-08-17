@@ -103,25 +103,30 @@ internal static class ShooterServerSyncTemplateCatalog
         Packed(ShooterServerProtocol.PredictRollbackAuthorityTemplate, 1, 1, NetworkConditionProfile.Ideal),
         Packed(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate, 1, 60, NetworkConditionProfile.Lan),
         PureState(ShooterServerProtocol.BatchStateLowFrequencyTemplate, 60, 300, NetworkConditionProfile.Mobile4G, BatchStateSettings),
-        PureState(ShooterServerProtocol.MassBattleLodAoiTemplate, 90, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 48f, 60f, useObserverAoi: true),
+        PureState(ShooterServerProtocol.MassBattleLodAoiTemplate, 90, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true),
         Packed(ShooterServerProtocol.HybridHeroPredictionTemplate, 1, 30, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate, 1, 60, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.StateSyncAuthorityTemplate, 1, 30, NetworkConditionProfile.Ideal),
         PureState(ShooterServerProtocol.PureStateAuthorityTemplate, 1, 60, NetworkConditionProfile.Ideal, settings: null)
     };
 
-    public static ShooterServerSyncTemplatePolicy Default => Policies[0];
+    public static ShooterServerSyncTemplatePolicy Default =>
+        Resolve(ShooterServerProtocol.StateSyncAuthorityTemplate);
 
     public static ServerBattleSyncProfile CreateSyncProfile()
     {
-        var defaultTemplate = Default.CreateServerTemplate();
-        var additional = new ServerBattleSyncTemplate[Policies.Count - 1];
-        for (var i = 1; i < Policies.Count; i++)
+        var defaultPolicy = Default;
+        var defaultTemplate = defaultPolicy.CreateServerTemplate();
+        var additional = new List<ServerBattleSyncTemplate>(Policies.Count - 1);
+        for (var i = 0; i < Policies.Count; i++)
         {
-            additional[i - 1] = Policies[i].CreateServerTemplate();
+            if (!ReferenceEquals(Policies[i], defaultPolicy))
+            {
+                additional.Add(Policies[i].CreateServerTemplate());
+            }
         }
 
-        return ServerBattleSyncProfile.FromTemplates(defaultTemplate, additional);
+        return ServerBattleSyncProfile.FromTemplates(defaultTemplate, additional.ToArray());
     }
 
     public static ShooterServerSyncTemplatePolicy Resolve(string? templateId)

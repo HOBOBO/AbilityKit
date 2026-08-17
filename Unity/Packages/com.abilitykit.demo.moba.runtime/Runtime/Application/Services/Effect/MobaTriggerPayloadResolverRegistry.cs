@@ -9,9 +9,7 @@ namespace AbilityKit.Demo.Moba.Services
     {
         int Priority { get; }
         bool TryCreateContext(
-            object payload,
-            in MobaEffectLineageInput lineageInput,
-            in MobaTriggerExecutionSnapshot executionSnapshot,
+            in MobaCombatExecutionContext executionContext,
             MobaSkillCastRuntimeService skillRuntimes,
             int frame,
             out MobaTriggerConditionContext context);
@@ -22,14 +20,15 @@ namespace AbilityKit.Demo.Moba.Services
         public int Priority => int.MinValue;
 
         public bool TryCreateContext(
-            object payload,
-            in MobaEffectLineageInput lineageInput,
-            in MobaTriggerExecutionSnapshot executionSnapshot,
+            in MobaCombatExecutionContext executionContext,
             MobaSkillCastRuntimeService skillRuntimes,
             int frame,
             out MobaTriggerConditionContext context)
         {
-            context = MobaTriggerConditionContext.Create(payload, in lineageInput, in executionSnapshot, skillRuntimes, frame);
+            context = MobaTriggerConditionContext.Create(
+                in executionContext,
+                skillRuntimes,
+                frame);
             return true;
         }
     }
@@ -54,9 +53,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public bool TryCreateContext(
-            object payload,
-            in MobaEffectLineageInput lineageInput,
-            in MobaTriggerExecutionSnapshot executionSnapshot,
+            in MobaCombatExecutionContext executionContext,
             MobaSkillCastRuntimeService skillRuntimes,
             int frame,
             out MobaTriggerConditionContext context)
@@ -65,7 +62,11 @@ namespace AbilityKit.Demo.Moba.Services
 
             for (int i = 0; i < _resolvers.Count; i++)
             {
-                if (_resolvers[i].TryCreateContext(payload, in lineageInput, in executionSnapshot, skillRuntimes, frame, out context))
+                if (_resolvers[i].TryCreateContext(
+                        in executionContext,
+                        skillRuntimes,
+                        frame,
+                        out context))
                 {
                     return true;
                 }
@@ -73,18 +74,6 @@ namespace AbilityKit.Demo.Moba.Services
 
             context = default;
             return false;
-        }
-
-        public bool TryCreateContext(
-            object payload,
-            in MobaEffectTraceInput traceInput,
-            in MobaTriggerExecutionSnapshot executionSnapshot,
-            MobaSkillCastRuntimeService skillRuntimes,
-            int frame,
-            out MobaTriggerConditionContext context)
-        {
-            var lineageInput = traceInput.ToLineageInput();
-            return TryCreateContext(payload, in lineageInput, in executionSnapshot, skillRuntimes, frame, out context);
         }
 
         private void EnsureSorted()

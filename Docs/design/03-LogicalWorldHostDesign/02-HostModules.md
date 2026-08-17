@@ -2,6 +2,8 @@
 
 > 本文基于 `Unity/Packages/com.abilitykit.host` 与 `Unity/Packages/com.abilitykit.host.extension` 的真实源码，解释 Host 模块如何安装、卸载、订阅 Host 生命周期、注册共享能力，并与帧同步、时间、回滚和自动开局模块协作。
 
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 适用范围：Host 模块底座与 extension 示例模块；具体模块组合仍由项目拥有
+
 ---
 
 ## 目录
@@ -127,6 +129,8 @@ flowchart TD
 
 安装顺序会影响 Feature 依赖解析：部分模块会读取前置模块注册的 Feature。
 
+`WorldHostBuilder` 这里只直接调用 `module.Install(runtime, options)`，不会保存 `HostRuntimeModuleHost` 或返回模块释放句柄。安装中途抛异常也没有事务回滚：此前已经安装的模块、Hook 和 Feature 会保留，必须由调用方按项目策略清理。
+
 | 例子 | 原因 |
 |------|------|
 | 先装 `FrameSyncDriverModule`，再装 `ServerFrameTimeModule` | 时间模块会尝试读取 `IFrameSyncDriverEvents` |
@@ -144,6 +148,10 @@ flowchart LR
 ```
 
 逆序卸载符合资源依赖直觉：后安装的模块可能依赖先安装模块注册的能力，卸载时应该先释放后安装模块。
+
+必须区分“存在独立 ModuleHost 类型”和“Builder 已自动接入卸载”：当前 Builder 没有使用 `HostRuntimeModuleHost`。只有调用方显式创建并持有该宿主时，才获得逆序 `Uninstall`；通过 Builder 添加模块并不自动获得该关闭路径。
+
+两条路径都没有安装事务。`InstallAll` 或 Builder 的任一 Attach/Register/Install 抛错时，之前成功的驱动、Feature、Hook 和模块不会自动撤销；Builder 也不会返回部分构建结果，因此调用方可能无法完整定位已安装对象。`UninstallAll` 虽按逆序调用，却没有逐模块异常隔离：一个 `Uninstall` 抛错会阻止更早安装模块继续卸载。
 
 ---
 
@@ -164,11 +172,13 @@ flowchart LR
 Hook 内部按 `order` 排序：
 
 ```csharp
+private readonly StablePriorityList<Action<T>> _handlers =
+    new StablePriorityList<Action<T>>(capacity: 8);
+
 public void Add(Action<T> handler, int order = 0)
 {
     if (handler == null) throw new ArgumentNullException(nameof(handler));
-    _handlers.Add((order, handler));
-    _handlers.Sort((a, b) => a.order.CompareTo(b.order));
+    _handlers.Add(handler, order);
 }
 ```
 
@@ -422,6 +432,13 @@ public sealed class DiagnosticsHostModule : IHostRuntimeModule
 | Feature 能替代 World DI | Feature 是 Host 级能力注册表，不负责世界服务生命周期 |
 | 安装模块后不需要卸载 | 长生命周期服务器或测试中必须清理 Hook 和 Feature |
 | 任意顺序安装模块都安全 | 依赖 Feature 的模块需要排在提供 Feature 的模块之后 |
+| Builder 会在退出时自动 Uninstall | Builder 不接入 `HostRuntimeModuleHost`，也不返回模块释放句柄 |
+| Install 失败会回滚已安装模块 | 当前安装是顺序调用，失败后没有自动逆序补偿 |
+| Feature 重复注册会拒绝或释放旧值 | 同类型会覆盖，Feature 注册表不管理新旧对象生命周期 |
+| `UninstallAll` 会尽力卸载全部模块 | 当前逆序循环是 fail-fast；一个模块抛错会跳过剩余模块 |
+| Hook 可以在回调中自由注册/退订 | Hook 遍历 live list，无 snapshot；增删会影响本轮索引与执行集合，且异常会中断后续 handler |
+
+Feature 覆盖和注销只修改字典，不调用旧值或新值的 `Dispose`。因此 Feature 注册者必须保留所有权：覆盖前显式关闭旧对象，卸载时只移除自己仍拥有的映射，并避免误删后续模块已经替换的实例。当前接口没有 compare-and-remove，存在共享 Feature 时应由项目层建立 owner token 或禁止同契约覆盖。
 
 ---
 
@@ -437,7 +454,7 @@ dotnet test src/AbilityKit.Host.Tests/AbilityKit.Host.Tests.csproj
 dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj --filter FrameSyncDriverModuleHeadlessTests
 ```
 
-两组测试的责任不同：`AbilityKit.Host.Tests` 应承载 Host/模块底座契约，但当前只有 Builder 参数测试；Shooter Runtime Tests 验证具体示例装配，不应被解释为所有内置模块已经有独立测试。
+两组测试的责任不同：2026-08-16 的 `AbilityKit.Host.Tests` 为 8/8 通过，其中只有 `HookTests` 的 1 项直接覆盖稳定 order 与同一 registration 的 Remove，4 项 Builder 测试仍停留在参数边界；其余 3 项覆盖 Host 广播/发送与 fixed-step。Shooter Runtime Tests 验证具体示例装配，不应被解释为所有内置模块已经有独立测试。
 
 ### 14.2 FrameSyncDriverModule 的现有证据
 
@@ -456,7 +473,7 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 建议按底座契约补充以下独立测试：
 
 1. `WorldHostBuilder` 按添加顺序调用模块 `Install`，安装失败时已安装模块和 Host 的处置策略明确。
-2. `HostRuntimeModuleHost` 按安装逆序调用 `Uninstall`，重复卸载不会重复释放资源。
+2. `HostRuntimeModuleHost` 按安装逆序调用 `Uninstall`，明确单个卸载异常后的续处理和重复卸载语义。
 3. `Hook.Add(order)` 的排序稳定性、`Remove` 的同一委托引用要求，以及回调期间增删 handler 的行为。
 4. `HostRuntimeFeatures` 对空值、类型不兼容、同类型覆盖、注销和重复注销的返回值契约。
 5. `FrameSyncDriverModule.Uninstall` 后 Hook 与 Feature 都被移除，旧 session 和输入入口不再工作。
@@ -482,4 +499,6 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-08-02*
+当前 Hook 排序有局部 E3，且 Host 测试由 `core-stability` workflow 实际编排，可对该断言标记 E5；模块 Install/Uninstall、Builder 失败回滚和 Feature 所有权仍主要是 E0 源码证据。FrameSyncDriver 的 Shooter 测试只提供该具体模块的跨包 E3，不能外推全部模块。规范目标应让模块安装返回可释放所有权或由 Builder 统一托管，同时保留模块组合由项目决定，不把 Shooter/MOBA 应用套件固化成框架必选层。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

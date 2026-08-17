@@ -31,17 +31,17 @@ namespace AbilityKit.Game.Flow
         private bool _hasLastCasterPosition;
         private Vector3 _lastCasterPosition;
 
-        public bool TryResolve(BattleContext ctx, out BattleHudAimPreviewState state)
+        public bool TryResolve(IBattleHudAimPreviewReadPort input, out BattleHudAimPreviewState state)
         {
             state = default;
-            if (ctx == null) return false;
+            if (input == null) return false;
 
-            if (!ctx.TryReadHudSkillAimPreview(out var slot, out var aimDx, out var aimDz, out var submissionVersion))
+            if (!input.TryReadAimPreview(out var slot, out var aimDx, out var aimDz, out var submissionVersion))
             {
                 return false;
             }
 
-            if (!TryResolveCasterPosition(ctx, out var casterPosition))
+            if (!TryResolveCasterPosition(input, out var casterPosition))
             {
                 return false;
             }
@@ -53,14 +53,16 @@ namespace AbilityKit.Game.Flow
             return true;
         }
 
-        private bool TryResolveCasterPosition(BattleContext ctx, out Vector3 position)
+        private bool TryResolveCasterPosition(IBattleHudAimPreviewReadPort input, out Vector3 position)
         {
             position = default;
-            if (ctx == null || !ctx.TryResolveLocalActorWorldPos(out position))
+            if (input == null ||
+                !input.TryResolveLocalActorWorldPosition(out var x, out var y, out var z))
             {
                 return TryUseLastCasterPosition(out position);
             }
 
+            position = new Vector3(x, y, z);
             _lastCasterPosition = position;
             _hasLastCasterPosition = true;
             return true;

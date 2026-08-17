@@ -36,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
         [WorldInject(required: false)] private MobaTriggerPayloadResolverRegistry _payloadResolvers = null;
         [WorldInject(required: false)] private MobaTriggerConditionRegistry _triggerConditions = null;
+        [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
 
         private readonly MobaTriggerExecutionBudget _executionBudget = new MobaTriggerExecutionBudget();
@@ -62,13 +63,15 @@ namespace AbilityKit.Demo.Moba.Services
 
             public MobaCombatExecutionContext Context { get; private set; }
 
-            public void PromoteToExecutionRoot(
-                long rootContextId,
-                int effectConfigId)
+            public void AdvanceToEffectExecution(
+                long effectContextId,
+                int effectConfigId,
+                bool isRoot)
             {
-                Context = Context.WithExecutionRoot(
-                    rootContextId,
-                    effectConfigId);
+                Context = Context.WithEffectExecutionNode(
+                    effectContextId,
+                    effectConfigId,
+                    isRoot);
             }
         }
 
@@ -111,17 +114,34 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void EnterActionExecution(int actionIndex, long actionId)
         {
-            if (_traceScopes.Count == 0) return;
+            if (_traceScopes.Count == 0 || actionId == 0L) return;
 
             var scope = _traceScopes.Peek();
+            if (scope.CurrentActionContextId != 0L)
+            {
+                throw new InvalidOperationException(
+                    $"[MobaEffectExecutionService] Action trace scope is already active. effectContextId={scope.EffectContextId}, currentActionIndex={scope.CurrentActionIndex}, currentActionId={scope.CurrentActionId}, nextActionIndex={actionIndex}, nextActionId={actionId}.");
+            }
+
+            var childScope = Trace.CreateActionChild(
+                scope.EffectContextId,
+                checked((int)actionId),
+                scope.SourceActorId,
+                scope.TargetActorId);
+            if (childScope.ContextId == 0L)
+            {
+                throw new InvalidOperationException(
+                    $"[MobaEffectExecutionService] Failed to create action trace scope. effectContextId={scope.EffectContextId}, actionIndex={actionIndex}, actionId={actionId}.");
+            }
+
             scope.CurrentActionIndex = actionIndex;
             scope.CurrentActionId = actionId;
-            scope.CurrentActionContextId = actionIndex >= 0 && actionIndex < scope.ActionContextIds.Count
-                ? scope.ActionContextIds[actionIndex]
-                : 0L;
+            scope.CurrentActionContextId = childScope.ContextId;
+            scope.ActionContextIds.Add(childScope.ContextId);
+            BeginActionDiagnostics(scope);
         }
 
-        public void ExitActionExecution(int actionIndex, long actionId)
+        public void ExitActionExecution(int actionIndex, long actionId, bool succeeded)
         {
             if (_traceScopes.Count == 0) return;
 
@@ -131,9 +151,82 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
+            var actionContextId = scope.CurrentActionContextId;
+            ResetCurrentAction(scope);
+            if (actionContextId != 0L)
+            {
+                Trace.End(
+                    actionContextId,
+                    (int)(succeeded
+                        ? TraceLifecycleReason.Completed
+                        : TraceLifecycleReason.Failed));
+            }
+
+            CompleteActionDiagnostics(scope, succeeded);
+        }
+
+        private void BeginActionDiagnostics(EffectExecutionTraceScope scope)
+        {
+            if (_diagnostics == null) return;
+
+            _diagnostics.Counter(MobaBattleDiagnosticMetric.EffectActionInvoked);
+            scope.IsActionDiagnosticsSampled =
+                _diagnostics.ShouldSample(MobaBattleDiagnosticChannel.TriggerHook);
+            if (!scope.IsActionDiagnosticsSampled) return;
+
+            scope.ActionStartTimestamp = _diagnostics.GetTimestamp();
+            scope.ActionAllocatedBytesStart = TryGetAllocatedBytes(out var allocatedBytes)
+                ? allocatedBytes
+                : -1L;
+        }
+
+        private void CompleteActionDiagnostics(
+            EffectExecutionTraceScope scope,
+            bool succeeded)
+        {
+            if (_diagnostics == null) return;
+
+            _diagnostics.Counter(
+                succeeded
+                    ? MobaBattleDiagnosticMetric.EffectActionSucceeded
+                    : MobaBattleDiagnosticMetric.EffectActionFailed);
+            if (!scope.IsActionDiagnosticsSampled) return;
+
+            _diagnostics.RecordDuration(
+                MobaBattleDiagnosticMetric.EffectActionDuration,
+                scope.ActionStartTimestamp);
+            if (scope.ActionAllocatedBytesStart >= 0L &&
+                TryGetAllocatedBytes(out var allocatedBytes))
+            {
+                _diagnostics.Sample(
+                    MobaBattleDiagnosticMetric.EffectActionAllocatedBytes,
+                    Math.Max(0L, allocatedBytes - scope.ActionAllocatedBytesStart));
+            }
+
+            scope.IsActionDiagnosticsSampled = false;
+            scope.ActionStartTimestamp = 0L;
+            scope.ActionAllocatedBytesStart = 0L;
+        }
+
+        private static void ResetCurrentAction(EffectExecutionTraceScope scope)
+        {
             scope.CurrentActionIndex = -1;
             scope.CurrentActionContextId = 0L;
             scope.CurrentActionId = 0L;
+        }
+
+        private static bool TryGetAllocatedBytes(out long allocatedBytes)
+        {
+            try
+            {
+                allocatedBytes = GC.GetAllocatedBytesForCurrentThread();
+                return true;
+            }
+            catch (Exception)
+            {
+                allocatedBytes = 0L;
+                return false;
+            }
         }
 
         /// <summary>
@@ -197,35 +290,6 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         /// <summary>
-        /// 为 Plan 中的所有 Action 创建子节点（父子关系）
-        /// </summary>
-        private void CreateActionChildNodes(in TriggerPlan<object> plan, int sourceActorId, int targetActorId)
-        {
-            if (Trace == null || _traceScopes.Count == 0) return;
-            if (plan.Actions == null || plan.Actions.Length == 0) return;
-
-            var currentScope = _traceScopes.Peek();
-            currentScope.ActionContextIds.Clear();
-            foreach (var actionCall in plan.Actions)
-            {
-                var actionId = (int)actionCall.Id.Value;
-                if (actionId == 0)
-                {
-                    currentScope.ActionContextIds.Add(0L);
-                    continue;
-                }
-
-                var childScope = Trace.CreateActionChild(
-                    parentRootId: currentScope.EffectContextId,
-                    actionId: actionId,
-                    sourceActorId: sourceActorId,
-                    targetActorId: targetActorId);
-
-                currentScope.ActionContextIds.Add(childScope.ContextId);
-            }
-        }
-
-        /// <summary>
         /// 结束当前溯源链路
         /// </summary>
         private void EndCurrentTrace(int reason)
@@ -233,14 +297,16 @@ namespace AbilityKit.Demo.Moba.Services
             if (Trace == null || _traceScopes.Count == 0) return;
 
             var scope = _traceScopes.Pop();
-            foreach (var childId in scope.ActionContextIds)
+            if (scope.CurrentActionContextId != 0L)
             {
-                Trace.End(childId, reason);
+                Trace.End(scope.CurrentActionContextId, reason);
+                ResetCurrentAction(scope);
+                CompleteActionDiagnostics(
+                    scope,
+                    reason == (int)TraceLifecycleReason.Completed);
             }
             scope.ActionContextIds.Clear();
-            scope.CurrentActionIndex = -1;
-            scope.CurrentActionContextId = 0L;
-            scope.CurrentActionId = 0L;
+            ResetCurrentAction(scope);
 
             if (scope.IsRoot)
             {
@@ -332,15 +398,23 @@ namespace AbilityKit.Demo.Moba.Services
         {
             var frame = executionContext.Frame != 0 ? executionContext.Frame : CurrentBudgetFrame;
             var snapshot = executionContext.ExecutionSnapshot.WithFrame(frame);
-            var payload = executionContext.HasOriginalPayload ? executionContext.Payload : null;
-            var lineageInput = executionContext.LineageInput;
-            if (_payloadResolvers != null && _payloadResolvers.TryCreateContext(payload, in lineageInput, in snapshot, _skillRuntimes, frame, out var context))
+            var normalizedContext = MobaCombatExecutionContextFactory.WithSnapshot(
+                in executionContext,
+                in snapshot,
+                frame);
+            if (_payloadResolvers != null && _payloadResolvers.TryCreateContext(
+                    in normalizedContext,
+                    _skillRuntimes,
+                    frame,
+                    out var context))
             {
                 return context;
             }
 
-            var normalizedContext = MobaCombatExecutionContextFactory.WithSnapshot(in executionContext, in snapshot, frame);
-            return MobaTriggerConditionContext.Create(in normalizedContext, _skillRuntimes, frame);
+            return MobaTriggerConditionContext.Create(
+                in normalizedContext,
+                _skillRuntimes,
+                frame);
         }
 
         private MobaTriggerExecutionSnapshot CreateExecutionSnapshot(object payload, in MobaEffectLineageInput lineageInput, int triggerId, int configId)
@@ -417,17 +491,10 @@ namespace AbilityKit.Demo.Moba.Services
             try
             {
                 traceScope = BeginEffectTraceScope(effectConfigId, triggerId, in lineageInput);
-                if (lineageInput.CanCreateRootExecution)
-                {
-                    executionFrame.PromoteToExecutionRoot(
-                        traceScope.EffectContextId,
-                        traceScope.EffectConfigId);
-                }
-
-                if (plan.Actions != null && plan.Actions.Length > 0)
-                {
-                    CreateActionChildNodes(in plan, lineageInput.SourceActorId, lineageInput.TargetActorId);
-                }
+                executionFrame.AdvanceToEffectExecution(
+                    traceScope.EffectContextId,
+                    traceScope.EffectConfigId,
+                    traceScope.IsRoot);
 
                 CollectEffectStarted(traceScope, in lineageInput);
 

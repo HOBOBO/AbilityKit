@@ -110,6 +110,7 @@ namespace AbilityKit.Game.Flow
             var checkpoint = default(MobaReliableBattleEventCheckpoint);
             _checkpointStore?.TryLoad(_battleId, out checkpoint);
             var launchSpec = BuildAuthoritativeLaunchSpec(in plan.LaunchSpec);
+            _syncCapabilities?.EnsureProfile("Lockstep");
             var createWorldPayload = launchSpec.ToCreateWorldInitPayload();
             return new BattleStartPlan(
                 worldId: _worldId.ToString(),
@@ -135,7 +136,7 @@ namespace AbilityKit.Game.Flow
                 autoCreateWorld: auto.AutoCreateWorld,
                 autoJoin: auto.AutoJoin,
                 autoReady: auto.AutoReady,
-                syncMode: plan.Sync.SyncMode,
+                syncMode: BattleSyncMode.Lockstep,
                 viewEventSourceMode: plan.Sync.ViewEventSourceMode,
                 enableClientPrediction: plan.Authority.EnableClientPrediction,
                 enableConfirmedAuthorityWorld: plan.Authority.EnableConfirmedAuthorityWorld,
@@ -181,7 +182,7 @@ namespace AbilityKit.Game.Flow
                 tickRate: source.TickRate,
                 inputDelayFrames: source.InputDelayFrames,
                 launchMode: source.LaunchMode,
-                syncMode: source.SyncMode,
+                syncMode: MobaBattleLaunchSyncMode.FrameSync,
                 authorityMode: source.AuthorityMode,
                 players: players,
                 enterGameOpCode: source.EnterGameOpCode,

@@ -8,6 +8,26 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests.Presentation;
 public sealed class ShooterSnapshotViewProjectionTests
 {
     [Fact]
+    public void DenseStoreSwapBackKeepsMovedEntityAndTransformAligned()
+    {
+        var store = new ShooterViewEntityStore();
+        var first = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, 1);
+        var second = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, 2);
+        store.UpsertEntity(new ShooterViewEntityChange(first, 0, alive: true));
+        store.UpsertEntity(new ShooterViewEntityChange(second, 0, alive: true));
+        store.UpsertTransform(new ShooterViewTransformComponentChange(first, 1f, 2f, 1f, 0f, 0f, 0f));
+        store.UpsertTransform(new ShooterViewTransformComponentChange(second, 3f, 4f, 0f, 1f, 0f, 0f));
+
+        Assert.True(store.RemoveEntity(first));
+
+        Assert.Equal(1, store.DenseCount);
+        Assert.True(store.TryGetDenseEntityAndTransform(0, out var entity, out var transform));
+        Assert.Equal(second, entity.Key);
+        Assert.Equal(3f, transform.X);
+        Assert.Equal(4f, transform.Y);
+    }
+
+    [Fact]
     public void FullSnapshotProjectsEntitiesAndSeparatedComponentsIntoStore()
     {
         var projection = new ShooterSnapshotViewProjection();

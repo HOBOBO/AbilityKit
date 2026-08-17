@@ -21,6 +21,17 @@
 - 事件持久化。需要回放时应进入 Record/Replay 体系。
 - 多线程事件调度。当前实现主要面向单世界 Tick 中的同步派发。
 
+责任边界如下：
+
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| Core 框架 | 通道键、稳定顺序、同步派发、订阅句柄、载荷释放协议 | 具体事件目录、跨帧队列、业务补偿与网络可靠性 |
+| Host / World 接入 | dispatcher 的实例范围、Tick/线程约束、初始化与销毁顺序 | 替业务定义事件含义或默认持久化所有事件 |
+| 项目应用层 | 事件常量、载荷类型、监听生命周期、异常/重入策略和跨层适配 | 修改 Core 派发语义来迁就单个玩法 |
+| MOBA / Starter 示例 | 展示 Triggering 桥接、手动释放与最小订阅流程 | 作为所有游戏必须采用的事件目录或总线架构 |
+
+这种划分保留了工具集的低接入成本：项目可以直接使用同步分发机制，但不会被迫接受某一款游戏的事件分类、持久化或失败策略。
+
 源码入口：
 
 | 源码 | 作用 |
@@ -157,12 +168,12 @@ flowchart TB
 
 整数 `EventDispatcher.Publish<TArgs>` 使用 `try/finally`，即使监听者抛异常，事件参数的释放路径仍然会执行。`Channel<TArgs>.Publish` 会分别捕获并无条件吞掉每个监听者异常，后续监听者继续执行；当前实现没有日志、聚合异常或失败返回值，因此发布者不能通过异常判断监听处理是否成功。
 
-字符串重载当前存在两项必须显式规避的实现缺陷：
+字符串重载的当前委托链需要区分两种情况：
 
-- 非 `null` 字符串重载把原始 `autoReleaseArgs` 继续传给整数重载，而内外两层 `finally` 都执行相同释放逻辑。`autoReleaseArgs: true` 时，同一载荷会被 `Dispose`、归还对象池或调用 `OnPoolRelease` 两次。
-- `eventId == null` 时，字符串重载在进入 `try/finally` 前直接返回，因此即使 `autoReleaseArgs: true` 也不会释放载荷。
+- 非 `null` 字符串先取得稳定整数 ID，再以 `autoReleaseArgs: false` 调用整数重载，最后由字符串重载自己的 `finally` 按原始参数释放。因此不会发生内外层重复释放，且已有直接测试保护“恰好一次”。
+- `eventId == null` 时，字符串重载在进入 `try/finally` 前直接返回，因此即使 `autoReleaseArgs: true` 也不会释放载荷。这是调用方必须处理的剩余所有权边界。
 
-在该实现修复并补回归测试前，字符串事件应传 `autoReleaseArgs: false`，由调用方在单一 `finally` 中负责释放；或者使用整数事件 ID 的重载承接自动释放。Ability Triggering 的 `CommonEventDispatcherBus` 采用的正是前一种策略。
+Ability Triggering 的 `CommonEventDispatcherBus` 因为在外层拥有 `TriggerEvent.Args`，仍显式传 `autoReleaseArgs: false` 并在自己的 `finally` 释放。这里体现的是适配层所有权选择，不再是规避字符串重载缺陷。
 
 ---
 
@@ -268,11 +279,12 @@ flowchart TB
 - 释放优先级是 `IDisposable.Dispose()`、`Pools.TryRelease(boxed)`、无归还句柄时的 `IPoolable.OnPoolRelease()`；命中前一项后不会继续执行后一项。
 - 如果事件参数是池化对象，并且由 `Pools.Get` 或某个 `PoolScope.Get` 取出，`Pools.TryRelease` 可以把它归还到对应对象池。
 - 如果对象只实现 `IPoolable`，但没有被 `PoolManager` 记录归还句柄，则只会调用 `OnPoolRelease()`，不会进入某个具体池。
-- `Dispose()`、`Pools.TryRelease` 和兜底 `OnPoolRelease()` 的异常都会被吞掉，调用方不会收到释放失败信号。
+- `Dispose()` 与无池句柄时兜底 `OnPoolRelease()` 的异常会被吞掉。`Pools.TryRelease` 若命中池，其内部 release 生命周期回调异常没有被 `ReleaseArgs` 捕获，会穿透 `Publish`；调用方不能假设所有释放失败都静默。
 - 如果事件参数归属外部生命周期，应显式传 `autoReleaseArgs: false`。
-- 当前字符串发布存在双重释放缺陷，不能使用默认自动释放归还池化载荷。
+- 字符串重载先解析稳定 ID，再以 `autoReleaseArgs: false` 调用整数重载，最终只在字符串重载外层释放一次；字符串和整数入口都遵守单次自动释放所有权。
+- `eventId == null` 的字符串入口会直接返回，当前不会释放 `args`。调用方若可能传入 null，必须在进入 dispatcher 前校验，或自行负责载荷回收。
 
-安全示例使用整数事件 ID，让自动释放只经过一层 `finally`：
+整数 ID 适合已经集中定义事件目录的热路径；字符串 ID 也可使用默认自动释放：
 
 ```csharp
 var evt = Pools.Get(() => new DamageEvent());
@@ -329,7 +341,7 @@ public void Dispose()
 |------|------|
 | 用常量保存事件名或事件 ID | 避免字符串拼写错误导致发布和订阅进入不同通道；字符串名最终会被稳定哈希成 int |
 | 事件参数类型保持稳定 | `EventKey` 包含 `typeof(TArgs)`，类型变化会改变通道 |
-| 字符串发布暂时禁用自动释放 | 当前字符串重载会重复释放同一载荷；使用整数重载或由调用方单点释放 |
+| 字符串 ID 在入口处判空 | `null` 字符串在进入 `try/finally` 前直接返回，不派发也不自动释放载荷；调用方仍拥有它 |
 | 监听者回调保持短小并避免递归发布 | 当前派发同步且没有重入保护，长耗时阻塞发布者，递归会改变 once 和调用顺序语义 |
 | 需要跨帧保存事件数据时复制字段 | 自动释放后，池化事件对象可能被复用 |
 | 模块卸载时调用 `Unsubscribe()` | `IEventSubscription` 没有 `Dispose()`，订阅所有者必须显式退订 |
@@ -365,6 +377,12 @@ once listener 是在处理器调用结束后移除。若处理器同步递归发
 
 多监听者路径会先复制 `_listeners` 到 snapshot，再遍历 snapshot。某个监听者在回调中退订另一个监听者时，被退订者如果已经在当前 snapshot 中，仍可能在当前发布周期被调用。需要强制阻止当前发布周期的后续逻辑时，应在事件参数或监听者自身状态里加显式有效性判断。
 
+### 10.6 单监听者快路径不是多监听者 snapshot 的缩小版
+
+只有一个监听者时，`Channel<TArgs>.Publish` 直接读取 `_listeners[0]`，回调结束后再按 once 执行 `RemoveAt(0)`。因此 once 回调若重入同一通道并插入更高优先级监听者，索引 0 可能已经指向新监听者：外层返回后会删掉新监听者，原 once 反而保留。该行为是当前源码缺陷，不是支持的动态订阅协议；在修复和补测前，应禁止同通道 once 回调内新增监听者，并用业务门禁防止递归消费。
+
+多监听者 snapshot 与单监听者快路径由监听者数量决定，同一事件在运行期间可能在两种语义间切换。项目不能把“当前恰好只有一个监听者”当成稳定契约，也不应依赖回调内增删订阅来控制本轮派发。
+
 ---
 
 ## 11. 生产证据、样例与测试成熟度
@@ -374,9 +392,9 @@ once listener 是在处理器调用结束后移除。若处理器同步递归发
 | `Ability/Triggering/CommonEventDispatcherBus.cs` | 直接注入 Core `EventDispatcher`；桥接 Triggering 时传 `autoReleaseArgs: false`，再在外层 `finally` 释放 `TriggerEvent.Args`，属于真实生产适配 |
 | `Samples/Starter/FoundationStarter.cs` | 可执行 Starter 直接演示订阅、发布和退订；事件发布同样显式关闭自动释放 |
 | `Samples/Foundation/EventSystem.cs` | 仍包含实例化 `GlobalEventDispatcher`、`Dispatch` 和 `subscription.Dispose()` 等过期 API，只能视为待修样例文本，不能作为当前契约证据 |
-| 独立测试 | 当前未找到以 Core `EventDispatcher` 命名的独立契约测试；Triggering 自身 `EventBus` 测试不能替代 Core 的优先级、snapshot、重入、异常和释放测试 |
+| `src/AbilityKit.Core.Tests/EventDispatcherTests.cs` | 覆盖字符串载荷恰好释放一次、稳定优先级/同优先级顺序、once 和监听器异常隔离，构成 Core 直接 E3 契约证据 |
 
-当前最需要补的回归测试是：同优先级顺序、回调中增删监听器、once 递归发布、监听器异常隔离、字符串双重释放、`null` 字符串 ID 的所有权，以及整数自动释放的三段优先级。修复字符串发布前，不应把默认自动释放升级为稳定能力声明。
+2026-08-16 聚焦执行结果为 3/3 通过。当前仍需补的回归测试是：回调中增删监听器、单监听者 once 重入插入、once 递归发布、`null` 字符串 ID 的所有权、整数自动释放的三段优先级、跨线程误用和嵌套发布后的顺序。已有测试可以支持其覆盖范围内的契约声明，但不能外推为重入或线程安全保证。
 
 ---
 
@@ -385,7 +403,7 @@ once listener 是在处理器调用结束后移除。若处理器同步递归发
 1. `EventDispatcher.Subscribe<TArgs>`：事件 ID、`EventKey` 和 `Channel<TArgs>` 的关系。
 2. `Channel<TArgs>.Add`：优先级和订阅顺序。
 3. `Channel<TArgs>.Publish`：单监听者快路径、多监听者 snapshot、异常隔离和 once 移除。
-4. string/int `Publish<TArgs>` 的两层 `finally`：自动释放和当前双重释放缺陷。
+4. string/int `Publish<TArgs>` 的委托关系：字符串入口关闭内层释放，由外层 `finally` 单点回收。
 5. `GlobalEventDispatcher` 与 `CommonEventDispatcherBus`：全局 facade 和生产适配的所有权差异。
 6. [对象池](./02-ObjectPool.md)：`Pools.TryRelease` 和事件系统的关系。
 
@@ -400,4 +418,6 @@ once listener 是在处理器调用结束后移除。若处理器同步递归发
 
 ---
 
-*文档版本：v2.2 | 最后更新：2026-07-15*
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 源码、E2 生产消费者、E3 Core 契约测试；未达到 E4/E5
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

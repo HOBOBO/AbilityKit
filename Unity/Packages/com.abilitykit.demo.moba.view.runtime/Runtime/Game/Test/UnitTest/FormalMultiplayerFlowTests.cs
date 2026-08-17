@@ -383,6 +383,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 Assert.That(spec.MinPlayers, Is.EqualTo(2));
                 Assert.That(spec.GameplayId, Is.EqualTo(1));
                 Assert.That(spec.WorldType, Is.EqualTo("moba"));
+                Assert.That(spec.SyncTemplateId, Is.EqualTo("frame-sync-authority"));
+                Assert.That(spec.SyncModel, Is.EqualTo(1));
 
                 request = new DemoMultiplayerLaunchRequest(
                     "gateway.example",
@@ -551,6 +553,22 @@ namespace AbilityKit.Game.Test.UnitTest
             var tags = GatewayMultiplayerRoomSession.BuildLaunchTags(spec);
 
             Assert.That(tags[RoomTagKeys.MinPlayers], Is.EqualTo("2"));
+        }
+
+        [Test]
+        public void LaunchSpec_ProjectsFrameSyncTemplateAndModelToGateway()
+        {
+            var spec = CreateLaunchSpec();
+            spec.SyncTemplateId = "frame-sync-authority";
+            spec.SyncModel = 1;
+
+            var projected = GatewayRoomProtocolMapper.ToLaunchSpec(spec);
+
+            Assert.That(projected.SyncTemplateId, Is.EqualTo("frame-sync-authority"));
+            Assert.That(projected.SyncModel, Is.EqualTo(1));
+            Assert.That(projected.Tags, Is.Not.Null);
+            Assert.That(projected.Tags!["syncTemplateId"], Is.EqualTo("frame-sync-authority"));
+            Assert.That(projected.Tags["syncModel"], Is.EqualTo("1"));
         }
 
         [Test]

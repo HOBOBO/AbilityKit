@@ -21,6 +21,15 @@
 - 状态清理成本高于重新创建成本的对象。
 - 持有外部资源且销毁语义复杂的对象，除非明确实现 `onDestroy` 或 `IPoolable.OnPoolDestroy()`。
 
+责任边界如下：
+
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| Core 框架 | 单池复用、容量、生命周期钩子、scope、反向归还与配置仲裁 | 哪些业务对象必须池化、战斗结束失效规则、跨线程租约协议 |
+| Host / World 接入 | scope 的创建/销毁时机、主线程约束、诊断采样 | 猜测业务对象是否仍被外部引用 |
+| 项目应用层 | 选择池化对象、状态清理、容量参数、租约所有权和性能基准 | 把对象池当通用对象仓库或生命周期替代品 |
+| 示例 | 展示事件、流程节点和战斗对象的典型复用 | 规定所有游戏相同的 pool key、scope 名和容量 |
+
 源码入口：
 
 | 源码 | 作用 |
@@ -37,7 +46,7 @@
 | `Unity/Packages/com.abilitykit.core/Runtime/Pooling/Config/PoolItemConfig.cs` | 单个池的 enabled、capacity、prewarm、trim、neverTrim 配置 |
 | `Unity/Packages/com.abilitykit.core/Runtime/Pooling/Config/PoolConfigRequest.cs` | 配置查询键：scopeName + elementType + PoolKey |
 | `src/AbilityKit.Core/AbilityKit.Core.csproj` | `.NET` 工程直接编译 package 的非 Unity Runtime 源码，可验证对象池在纯 `.NET` 目标中的编译闭合 |
-| `src/AbilityKit.Core.Tests/AbilityKit.Core.Tests.csproj` | 现有 xUnit 工程壳；当前目录没有测试源文件，不能作为对象池契约证据 |
+| `src/AbilityKit.Core.Tests/ObjectPoolTests.cs` | Core xUnit 契约测试，覆盖生命周期与复用、重复归还、引用身份和溢出销毁 |
 
 ---
 
@@ -137,8 +146,8 @@ flowchart TB
     Inc --> Has{"_stack.Count > 0?"}
     Has -->|是| Pop["Pop inactive object"]
     Pop --> Hit["_hitCount++"]
-    Hit --> EditorRemove["UNITY_EDITOR: inactiveSet.Remove"]
-    EditorRemove --> Peak["UpdatePeakActiveCount"]
+    Hit --> InactiveRemove["collectionCheck: inactiveSet.Remove"]
+    InactiveRemove --> Peak["UpdatePeakActiveCount"]
     Has -->|否| Miss["_missCount++"]
     Miss --> Create["createFunc"]
     Create --> Null{created == null?}
@@ -172,7 +181,7 @@ flowchart TB
     Null -->|是| ThrowNull["ArgumentNullException"]
     Null -->|否| Lock["lock _syncRoot"]
     Lock --> Inc["_releaseTotal++"]
-    Inc --> Check{UNITY_EDITOR collectionCheck?}
+    Inc --> Check{collectionCheck?}
     Check -->|重复归还| ThrowDouble["InvalidOperationException"]
     Check -->|通过| PoolRelease["TryOnPoolRelease"]
     PoolRelease --> OnRelease["onRelease?.Invoke"]
@@ -180,7 +189,7 @@ flowchart TB
     Full -->|是| Destroy["DestroyElementUnsafe"]
     Destroy --> Overflow["_overflowDestroyCount++"]
     Full -->|否| Push["_stack.Push"]
-    Push --> EditorAdd["UNITY_EDITOR: inactiveSet.Add"]
+    Push --> InactiveAdd["collectionCheck: inactiveSet.Add"]
 ```
 
 这条顺序决定了一个重要约束：对象状态清理发生在是否溢出销毁之前。即使池已满，对象也会先走 `OnPoolRelease()` 和 `onRelease`，再走销毁逻辑。release 生命周期和销毁生命周期同样全部位于单池锁内。
@@ -444,9 +453,21 @@ flowchart TB
 | 管理层并发 | `PoolManager.GetOrCreate` 使用 `_gate`，但 `TryGet`、`Remove`、`RegisterForObjectRelease` 等路径没有统一锁住同一批字典/集合，不能声明 manager/registry 整体线程安全 |
 | 回调重入 | monitor 允许同线程重入；回调再次 Get/Release 会改变当前操作期间的 stack 和统计，跨池调用还可能形成锁顺序问题 |
 | 异常传播 | create、get/release/destroy、config provider 异常通常直接传播；对象位置与统计不会事务回滚 |
-| 重复归还检查 | collection check 仅在 `UNITY_EDITOR` 编译条件下维护 inactive set；Player 构建不能依赖它阻止同一引用被重复压栈 |
+| 重复归还检查 | `CollectionCheck=true` 时所有构建都会维护 inactive set，并按引用身份拒绝重复归还；关闭检查后不提供该保护 |
 
 默认工程策略应是按世界或主线程串行操作管理层，把回调写成短小、可重复且不抛异常的状态重置逻辑。需要跨线程租借时，应在外层建立明确的调度和所有权协议，并单独验证 manager 与 scope 生命周期，而不能只依据 `ObjectPool<T>` 内部存在锁。
+
+失败后的状态需要按具体入口判断，不能统称为“操作失败所以池未变化”：
+
+| 失败点 | 异常时已经发生的状态变化 | 调用方风险 |
+|--------|--------------------------|------------|
+| `Get` 的 `TryOnPoolGet/onGet` | get/hit 或 miss 统计已增加；inactive 对象已弹栈，创建对象的 created 统计已增加 | 对象不会自动压回，调用方又拿不到返回值，形成租约和统计缺口 |
+| `Release` 的 release hook | release 统计已增加，但对象尚未入栈，也不会自动 destroy | 调用方仍持有对象，却不能依据统计判断归还成功 |
+| `Prewarm` 的 release hook | created 统计已增加，对象尚未入栈 | 构造池或预热中途失败会留下不可达对象；此前成功项仍在池中 |
+| `Clear/Trim` 的 destroy hook | 当前对象已弹栈、destroyed 统计先增加；循环在异常处停止 | 当前池只完成部分清理，剩余 inactive 对象保留 |
+| `PoolScope.Dispose` 的 `ClearAll` | scope 在清理前先写 `_disposed=true` | 某个池销毁失败后 scope 已不可再操作，剩余池无法通过该 scope 补清理 |
+
+`PoolManager.ClearAll/TrimAll/ForceTrimAll` 在 manager 锁内顺序遍历池，没有逐池异常隔离；一个池回调失败会跳过后续池。`PoolRegistry.ClearAll` 虽先复制 scope 列表以避免 registry 枚举失效，但同样不会隔离单个 scope 的异常。需要释放外部资源的对象不能只依赖批量清理，项目应让销毁回调幂等、无异常，并在 scope 外保留必要的兜底所有权。
 
 ---
 
@@ -474,7 +495,7 @@ flowchart TB
 
 ### 14.6 把 `PooledObject<T>` 当作可复制的幂等句柄
 
-它是没有 disposed 状态的 readonly struct。每个副本都会对同一 `Value` 调用 `Release`；编辑器可能抛重复归还异常，Player 构建则可能把同一引用多次压入栈。应限制为单一局部变量的 `using` 生命周期，不手动重复释放，也不复制或装箱后传递。
+它是没有 disposed 状态的 readonly struct。每个副本都会对同一 `Value` 调用 `Release`；启用 collection check 时第二次归还会抛异常，关闭检查时仍可能把同一引用多次压入栈。应限制为单一局部变量的 `using` 生命周期，不手动重复释放，也不复制或装箱后传递。
 
 ### 14.7 认为移除池会让旧对象无法归还
 
@@ -491,9 +512,9 @@ manager 映射被移除不代表旧 weak-table release handle 被撤销。旧租
 | Combat 与 Demo | Targeting、Projectile、Motion、MOBA runtime、Shooter view 等存在直接池化调用，覆盖全局池、显式 `ObjectPool<T>` 和生命周期委托 |
 | `FoundationStarter.cs` | 提供 Core 对象池的可执行最小样例 |
 | `PoolConfigSample.cs` | 覆盖配置 module、override provider、snapshot/report 和命名 scope，可作为配置链样例证据 |
-| 独立测试 | 仓库有 `src/AbilityKit.Core.Tests/AbilityKit.Core.Tests.csproj`，但目录没有任何测试源文件；当前没有 `ObjectPool`、`PoolManager` 或 `PoolConfigCenter` 契约测试，上层模块测试只能证明特定使用路径 |
+| `ObjectPoolTests.cs` | 2026-08-16 聚焦执行 4/4 通过；直接覆盖 get/release 生命周期和复用、所有构建中的重复归还拒绝、引用身份比较及 max-size 溢出销毁；属于 E3 Core 契约证据 |
 
-优先补测：生命周期顺序、回调异常后的统计/对象位置、Player 重复归还、`PooledObject<T>` 副本、并发 GetOrCreate/Remove/Register、scope 销毁后的旧 release handle、同 key 配置首次创建固化，以及 provider 异常与同优先级后注册覆盖。
+仍需补测：回调异常后的统计/对象位置、`PooledObject<T>` 副本、PoolManager/Scope 生命周期、并发 GetOrCreate/Remove/Register、scope 销毁后的旧 release handle、同 key 配置首次创建固化，以及 provider 异常与同优先级后注册覆盖。
 
 ---
 
@@ -516,4 +537,6 @@ manager 映射被移除不代表旧 weak-table release handle 被撤销。旧租
 
 ---
 
-*文档版本：v2.3 | 最后更新：2026-08-02*
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 源码、E2 多模块生产消费者、E3 ObjectPool 契约测试；未达到管理层 E3 或 E4/E5
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

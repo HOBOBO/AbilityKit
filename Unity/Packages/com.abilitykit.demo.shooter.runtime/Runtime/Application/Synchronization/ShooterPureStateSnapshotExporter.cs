@@ -8,14 +8,35 @@ using Svelto.ECS;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
+    public readonly struct ShooterPureStateWorldCacheDiagnostics
+    {
+        public ShooterPureStateWorldCacheDiagnostics(long rebuildCount, long hitCount, int cachedFrame, int cachedEntityCount)
+        {
+            RebuildCount = rebuildCount;
+            HitCount = hitCount;
+            CachedFrame = cachedFrame;
+            CachedEntityCount = cachedEntityCount;
+        }
+
+        public long RebuildCount { get; }
+
+        public long HitCount { get; }
+
+        public int CachedFrame { get; }
+
+        public int CachedEntityCount { get; }
+    }
+
     public sealed class ShooterPureStateSnapshotExporter
     {
         private const int PositionScale = 1000;
         private const int VelocityScale = 1000;
+        private const long SnapshotWorldRevision = long.MinValue;
 
         private readonly ShooterBattleState _state;
         private readonly IShooterSnapshotReadPort _snapshotReadPort;
         private readonly IShooterStateHashProvider _stateHashProvider;
+        private readonly IShooterEntityManager? _entities;
         private readonly ISveltoWorldContext? _context;
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
         private readonly ShooterPureStateInterestPolicy _interestPolicy = new();
@@ -27,11 +48,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly List<ShooterPureStateVisibilityHint> _aoiSelectedHints = new List<ShooterPureStateVisibilityHint>();
         private readonly AoiSampleBufferView _aoiSampleView = new AoiSampleBufferView();
         private ShooterPureStateCandidate[] _candidateBuffer = Array.Empty<ShooterPureStateCandidate>();
+        private ShooterPureStateWorldSample[] _worldSampleBuffer = Array.Empty<ShooterPureStateWorldSample>();
         private AoiEntitySample[] _aoiSampleBuffer = Array.Empty<AoiEntitySample>();
         private ShooterPureStateEntityDelta[] _transientEntities = Array.Empty<ShooterPureStateEntityDelta>();
         private ShooterPureStateVisibilityHint[] _transientVisibilityHints = Array.Empty<ShooterPureStateVisibilityHint>();
         private ulong _unscopedReplicationWorldId;
         private bool _hasUnscopedReplicationWorld;
+        private int _cachedWorldFrame = -1;
+        private long _cachedWorldMutationRevision = -1;
+        private int _cachedWorldSampleCount;
+        private long _worldCacheRebuildCount;
+        private long _worldCacheHitCount;
 
         public ShooterPureStateSnapshotExporter(
             ShooterBattleState state,
@@ -50,8 +77,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _snapshotReadPort = snapshotReadPort ?? throw new ArgumentNullException(nameof(snapshotReadPort));
             _stateHashProvider = stateHashProvider ?? throw new ArgumentNullException(nameof(stateHashProvider));
+            _entities = entities;
             _context = entities?.SveltoContext;
         }
+
+        public ShooterPureStateWorldCacheDiagnostics WorldCacheDiagnostics => new ShooterPureStateWorldCacheDiagnostics(
+            _worldCacheRebuildCount,
+            _worldCacheHitCount,
+            _cachedWorldFrame,
+            _cachedWorldSampleCount);
 
         public ShooterPureStateSnapshotPayload Export(
             ulong worldId,
@@ -177,39 +211,37 @@ namespace AbilityKit.Demo.Shooter.Runtime
             var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
             var bullets = snapshot.Bullets ?? Array.Empty<ShooterBulletSnapshot>();
             frame = snapshot.Frame <= 0 ? _state.CurrentFrame : snapshot.Frame;
-            return BuildCandidates(players, bullets, isFullBaseline, isLowFrequencyFrame, interestScope, cullToAoiBoundary);
+            var sampleCount = GetWorldSamples(players, bullets, frame);
+            return BuildCandidatesFromWorldSamples(
+                sampleCount,
+                isFullBaseline,
+                isLowFrequencyFrame,
+                interestScope,
+                cullToAoiBoundary);
         }
- 
-        private int BuildCandidates(
+
+        private int GetWorldSamples(
             ShooterPlayerSnapshot[] players,
             ShooterBulletSnapshot[] bullets,
-            bool isFullBaseline,
-            bool isLowFrequencyFrame,
-            ShooterPureStateInterestScope? interestScope,
-            bool cullToAoiBoundary)
+            int frame)
         {
-            var candidates = EnsureCandidateCapacity(players.Length + bullets.Length);
+            if (_cachedWorldFrame == frame && _cachedWorldMutationRevision == SnapshotWorldRevision)
+            {
+                _worldCacheHitCount++;
+                return _cachedWorldSampleCount;
+            }
+
+            _worldSampleBuffer = EnsureCapacity(_worldSampleBuffer, players.Length + bullets.Length);
             var index = 0;
             for (var i = 0; i < players.Length; i++)
             {
                 var player = players[i];
-                if (cullToAoiBoundary && !IsInsideAoiBoundary(player.X, player.Y, interestScope!.Value))
-                {
-                    continue;
-                }
-
                 var flags = CreatePlayerFlags(in player);
-                if (isLowFrequencyFrame && !player.Alive)
-                {
-                    flags |= ShooterPureStateEntityFlags.LowFrequency;
-                }
-
-                var priority = _interestPolicy.CreatePlayerPriority(in player, interestScope);
                 var entity = new ShooterPureStateEntityDelta(
                     player.PlayerId,
                     ShooterPackedEntityKinds.Player,
                     ShooterPureStateEntityLayers.KeyInteraction,
-                    CreateDeltaKind(isFullBaseline),
+                    ShooterPureStateDeltaKinds.None,
                     player.PlayerId,
                     QuantizePosition(player.X),
                     QuantizePosition(player.Y),
@@ -219,40 +251,18 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     player.Score,
                     0,
                     flags);
-                var hint = new ShooterPureStateVisibilityHint(
-                    player.PlayerId,
-                    ShooterPackedEntityKinds.Player,
-                    ShooterPureStateEntityLayers.KeyInteraction,
-                    flags,
-                    priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId, player.X, player.Y);
+                _worldSampleBuffer[index++] = new ShooterPureStateWorldSample(entity, player.X, player.Y, player.Alive);
             }
 
             for (var i = 0; i < bullets.Length; i++)
             {
                 var bullet = bullets[i];
-                if (cullToAoiBoundary && !IsInsideAoiBoundary(bullet.X, bullet.Y, interestScope!.Value))
-                {
-                    continue;
-                }
-
                 var flags = (byte)(ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
-                if (isLowFrequencyFrame)
-                {
-                    flags |= ShooterPureStateEntityFlags.LowFrequency;
-                }
-
-                var priority = _interestPolicy.CreateBulletPriority(in bullet, interestScope);
-                if (priority <= 0)
-                {
-                    flags = (byte)(flags & ~ShooterPureStateEntityFlags.Visible);
-                }
-
                 var entity = new ShooterPureStateEntityDelta(
                     bullet.BulletId,
                     ShooterPackedEntityKinds.Projectile,
                     ShooterPureStateEntityLayers.Combat,
-                    CreateDeltaKind(isFullBaseline),
+                    ShooterPureStateDeltaKinds.None,
                     bullet.OwnerPlayerId,
                     QuantizePosition(bullet.X),
                     QuantizePosition(bullet.Y),
@@ -262,16 +272,14 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     0,
                     bullet.RemainingFrames,
                     flags);
-                var hint = new ShooterPureStateVisibilityHint(
-                    bullet.BulletId,
-                    ShooterPackedEntityKinds.Projectile,
-                    ShooterPureStateEntityLayers.Combat,
-                    flags,
-                    priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId, bullet.X, bullet.Y);
+                _worldSampleBuffer[index++] = new ShooterPureStateWorldSample(entity, bullet.X, bullet.Y, alive: true);
             }
 
-            return index;
+            _cachedWorldFrame = frame;
+            _cachedWorldMutationRevision = SnapshotWorldRevision;
+            _cachedWorldSampleCount = index;
+            _worldCacheRebuildCount++;
+            return _cachedWorldSampleCount;
         }
  
         private int BuildCandidates(
@@ -281,36 +289,94 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterPureStateInterestScope? interestScope,
             bool cullToAoiBoundary)
         {
+            var sampleCount = GetWorldSamples(context);
+            return BuildCandidatesFromWorldSamples(
+                sampleCount,
+                isFullBaseline,
+                isLowFrequencyFrame,
+                interestScope,
+                cullToAoiBoundary);
+        }
+
+        private int BuildCandidatesFromWorldSamples(
+            int sampleCount,
+            bool isFullBaseline,
+            bool isLowFrequencyFrame,
+            ShooterPureStateInterestScope? interestScope,
+            bool cullToAoiBoundary)
+        {
+            var candidates = EnsureCandidateCapacity(sampleCount);
+            var index = 0;
+            for (var i = 0; i < sampleCount; i++)
+            {
+                var sample = _worldSampleBuffer[i];
+                if (cullToAoiBoundary && !IsInsideAoiBoundary(sample.X, sample.Y, interestScope!.Value))
+                {
+                    continue;
+                }
+
+                var entity = sample.Entity;
+                entity.DeltaKind = CreateDeltaKind(isFullBaseline);
+                if (isLowFrequencyFrame &&
+                    (entity.EntityKind == ShooterPackedEntityKinds.Projectile || !sample.Alive))
+                {
+                    entity.Flags |= ShooterPureStateEntityFlags.LowFrequency;
+                }
+
+                var priority = CreateWorldSamplePriority(in sample, interestScope);
+                if (priority <= 0 && entity.EntityKind != ShooterPackedEntityKinds.Player)
+                {
+                    entity.Flags = (byte)(entity.Flags & ~ShooterPureStateEntityFlags.Visible);
+                }
+
+                var hint = new ShooterPureStateVisibilityHint(
+                    entity.EntityId,
+                    entity.EntityKind,
+                    entity.EntityLayer,
+                    entity.Flags,
+                    priority);
+                candidates[index++] = new ShooterPureStateCandidate(
+                    entity,
+                    hint,
+                    priority,
+                    _interestPolicy.ComputeDistanceSquared(sample.X, sample.Y, interestScope),
+                    entity.EntityId,
+                    sample.X,
+                    sample.Y);
+            }
+
+            return index;
+        }
+
+        private int GetWorldSamples(ISveltoWorldContext context)
+        {
+            var frame = _state.CurrentFrame;
+            var mutationRevision = _entities?.MutationRevision ?? -1;
+            if (_cachedWorldFrame == frame && _cachedWorldMutationRevision == mutationRevision)
+            {
+                _worldCacheHitCount++;
+                return _cachedWorldSampleCount;
+            }
+
             var playerCollection = context.EntitiesDB.QueryEntities<ShooterSveltoPlayerComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Players);
             playerCollection.Deconstruct(out NB<ShooterSveltoPlayerComponent> players, out _, out var playerCount);
             var projectileCollection = context.EntitiesDB.QueryEntities<ShooterSveltoProjectileComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.Projectiles);
             projectileCollection.Deconstruct(out NB<ShooterSveltoProjectileComponent> bullets, out _, out var bulletCount);
             var enemyCollection = context.EntitiesDB.QueryEntities<ShooterSveltoTransformComponent, ShooterSveltoHealthComponent>((ExclusiveGroupStruct)ShooterSveltoGroups.GameplayTargets);
             enemyCollection.Deconstruct(out NB<ShooterSveltoTransformComponent> enemyTransforms, out NB<ShooterSveltoHealthComponent> enemyHealths, out var enemyIds, out var enemyCount);
-            var candidates = EnsureCandidateCapacity(playerCount + bulletCount + enemyCount);
+            _worldSampleBuffer = EnsureCapacity(_worldSampleBuffer, playerCount + bulletCount + enemyCount);
             var index = 0;
 
             var playerOrder = _orderBuffer.CreateSortedPlayerOrder(players, playerCount);
             for (var i = 0; i < playerCount; i++)
             {
                 var player = players[playerOrder[i]];
-                if (cullToAoiBoundary && !IsInsideAoiBoundary(player.X, player.Y, interestScope!.Value))
-                {
-                    continue;
-                }
-
                 var flags = CreatePlayerFlags(in player);
-                if (isLowFrequencyFrame && !player.Alive)
-                {
-                    flags |= ShooterPureStateEntityFlags.LowFrequency;
-                }
-
-                var priority = _interestPolicy.CreatePlayerPriority(in player, interestScope);
                 var entity = new ShooterPureStateEntityDelta(
                     player.PlayerId,
                     ShooterPackedEntityKinds.Player,
                     ShooterPureStateEntityLayers.KeyInteraction,
-                    CreateDeltaKind(isFullBaseline),
+                    ShooterPureStateDeltaKinds.None,
                     player.PlayerId,
                     QuantizePosition(player.X),
                     QuantizePosition(player.Y),
@@ -320,41 +386,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     player.Score,
                     0,
                     flags);
-                var hint = new ShooterPureStateVisibilityHint(
-                    player.PlayerId,
-                    ShooterPackedEntityKinds.Player,
-                    ShooterPureStateEntityLayers.KeyInteraction,
-                    flags,
-                    priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(player.X, player.Y, interestScope), player.PlayerId, player.X, player.Y);
+                _worldSampleBuffer[index++] = new ShooterPureStateWorldSample(entity, player.X, player.Y, player.Alive);
             }
 
             var projectileOrder = _orderBuffer.CreateSortedProjectileOrder(bullets, bulletCount);
             for (var i = 0; i < bulletCount; i++)
             {
                 var bullet = bullets[projectileOrder[i]];
-                if (cullToAoiBoundary && !IsInsideAoiBoundary(bullet.X, bullet.Y, interestScope!.Value))
-                {
-                    continue;
-                }
-
                 var flags = (byte)(ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
-                if (isLowFrequencyFrame)
-                {
-                    flags |= ShooterPureStateEntityFlags.LowFrequency;
-                }
-
-                var priority = _interestPolicy.CreateBulletPriority(in bullet, interestScope);
-                if (priority <= 0)
-                {
-                    flags = (byte)(flags & ~ShooterPureStateEntityFlags.Visible);
-                }
-
                 var entity = new ShooterPureStateEntityDelta(
                     bullet.BulletId,
                     ShooterPackedEntityKinds.Projectile,
                     ShooterPureStateEntityLayers.Combat,
-                    CreateDeltaKind(isFullBaseline),
+                    ShooterPureStateDeltaKinds.None,
                     bullet.OwnerPlayerId,
                     QuantizePosition(bullet.X),
                     QuantizePosition(bullet.Y),
@@ -364,13 +408,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     0,
                     bullet.RemainingFrames,
                     flags);
-                var hint = new ShooterPureStateVisibilityHint(
-                    bullet.BulletId,
-                    ShooterPackedEntityKinds.Projectile,
-                    ShooterPureStateEntityLayers.Combat,
-                    flags,
-                    priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(bullet.X, bullet.Y, interestScope), bullet.BulletId, bullet.X, bullet.Y);
+                _worldSampleBuffer[index++] = new ShooterPureStateWorldSample(entity, bullet.X, bullet.Y, alive: true);
             }
 
             var enemyOrder = _orderBuffer.CreateSortedEnemyOrder(enemyIds, enemyCount);
@@ -380,33 +418,17 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 var entityId = checked((int)enemyIds[enemyIndex]);
                 var transform = enemyTransforms[enemyIndex];
                 var health = enemyHealths[enemyIndex];
-                if (cullToAoiBoundary && !IsInsideAoiBoundary(transform.X, transform.Y, interestScope!.Value))
-                {
-                    continue;
-                }
-
                 var flags = (byte)ShooterPureStateEntityFlags.Visible;
                 if (health.Alive != 0)
                 {
                     flags |= ShooterPureStateEntityFlags.Alive;
                 }
 
-                if (isLowFrequencyFrame && health.Alive == 0)
-                {
-                    flags |= ShooterPureStateEntityFlags.LowFrequency;
-                }
-
-                var priority = _interestPolicy.CreateEnemyPriority(in transform, in health, interestScope);
-                if (priority <= 0)
-                {
-                    flags = (byte)(flags & ~ShooterPureStateEntityFlags.Visible);
-                }
-
                 var entity = new ShooterPureStateEntityDelta(
                     entityId,
                     ShooterPackedEntityKinds.Enemy,
                     ShooterPureStateEntityLayers.Combat,
-                    CreateDeltaKind(isFullBaseline),
+                    ShooterPureStateDeltaKinds.None,
                     0,
                     QuantizePosition(transform.X),
                     QuantizePosition(transform.Y),
@@ -416,16 +438,47 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     0,
                     0,
                     flags);
-                var hint = new ShooterPureStateVisibilityHint(
-                    entityId,
-                    ShooterPackedEntityKinds.Enemy,
-                    ShooterPureStateEntityLayers.Combat,
-                    flags,
-                    priority);
-                candidates[index++] = new ShooterPureStateCandidate(entity, hint, priority, _interestPolicy.ComputeDistanceSquared(transform.X, transform.Y, interestScope), entityId, transform.X, transform.Y);
+                _worldSampleBuffer[index++] = new ShooterPureStateWorldSample(entity, transform.X, transform.Y, health.Alive != 0);
             }
 
-            return index;
+            _cachedWorldFrame = frame;
+            _cachedWorldMutationRevision = mutationRevision;
+            _cachedWorldSampleCount = index;
+            _worldCacheRebuildCount++;
+            return _cachedWorldSampleCount;
+        }
+
+        private int CreateWorldSamplePriority(
+            in ShooterPureStateWorldSample sample,
+            ShooterPureStateInterestScope? interestScope)
+        {
+            var entity = sample.Entity;
+            switch (entity.EntityKind)
+            {
+                case ShooterPackedEntityKinds.Player:
+                {
+                    var priority = sample.Alive ? 100 : 10;
+                    if (!interestScope.HasValue) return priority;
+                    var scope = interestScope.Value;
+                    if (scope.ObserverPlayerId > 0 && entity.EntityId == scope.ObserverPlayerId) return 1000;
+                    return _interestPolicy.IsInsideScope(sample.X, sample.Y, scope) ? priority + 200 : priority;
+                }
+                case ShooterPackedEntityKinds.Projectile:
+                {
+                    if (!interestScope.HasValue) return 80;
+                    var scope = interestScope.Value;
+                    if (scope.ObserverPlayerId > 0 && entity.OwnerId == scope.ObserverPlayerId) return 250;
+                    return _interestPolicy.IsInsideScope(sample.X, sample.Y, scope) ? 180 : 1;
+                }
+                case ShooterPackedEntityKinds.Enemy:
+                {
+                    var priority = sample.Alive ? 70 : 5;
+                    if (!interestScope.HasValue) return priority;
+                    return _interestPolicy.IsInsideScope(sample.X, sample.Y, interestScope.Value) ? priority + 160 : 1;
+                }
+                default:
+                    return 0;
+            }
         }
 
         private ShooterPureStateSelection SelectCandidates(
@@ -985,6 +1038,25 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 var distance = DistanceSquared.CompareTo(other.DistanceSquared);
                 return distance != 0 ? distance : TieBreaker.CompareTo(other.TieBreaker);
             }
+        }
+
+        private readonly struct ShooterPureStateWorldSample
+        {
+            public ShooterPureStateWorldSample(ShooterPureStateEntityDelta entity, float x, float y, bool alive)
+            {
+                Entity = entity;
+                X = x;
+                Y = y;
+                Alive = alive;
+            }
+
+            public ShooterPureStateEntityDelta Entity { get; }
+
+            public float X { get; }
+
+            public float Y { get; }
+
+            public bool Alive { get; }
         }
 
         private sealed class AoiSampleBufferView : IReadOnlyList<AoiEntitySample>

@@ -29,6 +29,12 @@ namespace AbilityKit.Game.Flow
             set => _state.Tick.TickAcc = value;
         }
 
+        private bool _worldReady
+        {
+            get => _state.Tick.WorldReady;
+            set => _state.Tick.WorldReady = value;
+        }
+
         private bool _firstFrameReceived
         {
             get => _state.Tick.FirstFrameReceived;

@@ -264,31 +264,23 @@ namespace AbilityKit.Game
     {
         private readonly BattleGatewayConfigSO _config;
         private readonly DemoMultiplayerLaunchRequest _launchRequest;
-        private NetworkSdkClient _sdkClient;
-        private DedicatedThreadDispatcher _ioDispatcher;
-        private CancellationTokenSource _lifetime;
-        private ClientRoomStore _store;
-        private GatewayRoomClient _client;
-        private GatewayMultiplayerRoomSession _session;
-        private ClientRoomSnapshotProvider _snapshotProvider;
-        private MultiplayerRoomFlowController _controller;
-        private MultiplayerBattleAssetLoader _assetLoader;
-        private ClientRoomPushSynchronizer _pushSynchronizer;
-        private LobbyBattleEntrySelection _selection;
-        private MultiplayerGatewayRecoveryRuntime _recovery;
-        private NetworkSdkClientRecoveryBinding _recoveryBinding;
-        private MultiplayerGatewayRootServices _rootServices;
-        private bool _recoverySignalsEnabled;
+        private readonly GatewayPushOperationRuntime _pushOperations =
+            new GatewayPushOperationRuntime();
+        private readonly MultiplayerGatewayEntryRuntime _entryRuntime =
+            new MultiplayerGatewayEntryRuntime();
+        private MultiplayerGatewayEntryResources _resources;
 
-        public bool IsRemoteActive => _selection?.IsRemoteSelected == true;
+        public bool IsRemoteActive => _resources?.Selection?.IsRemoteSelected == true;
         public ConnectionState ConnectionState =>
-            _sdkClient != null ? _sdkClient.State : ConnectionState.Disconnected;
+            _resources?.SdkClient != null
+                ? _resources.SdkClient.State
+                : ConnectionState.Disconnected;
         public MultiplayerRecoveryState RecoveryState =>
-            _recovery?.State ?? MultiplayerRecoveryState.None;
+            _resources?.Recovery?.State ?? MultiplayerRecoveryState.None;
         public NetworkSessionRecoveryDecision RecoveryDecision =>
-            _recovery?.Decision ?? default;
+            _resources?.Recovery?.Decision ?? default;
         public NetworkSessionRecoveryDiagnostics RecoveryDiagnostics =>
-            _recovery?.Diagnostics ?? default;
+            _resources?.Recovery?.Diagnostics ?? default;
 
         public MultiplayerGatewayEntryModule(
             BattleGatewayConfigSO config,
@@ -308,155 +300,181 @@ namespace AbilityKit.Game
             }
 
             ValidateConfig(_config, _launchRequest);
-
-            _lifetime = new CancellationTokenSource();
-            _ioDispatcher = new DedicatedThreadDispatcher("LobbyGatewayNetworkThread");
-            var callbackDispatcher = UnityMainThreadDispatcher.CaptureCurrent();
-            _sdkClient = new NetworkSdkBuilder()
-                .UseTransportFactory(() => new TcpTransport())
-                .ConfigureConnection(options =>
-                {
-                    options.FrameCodec = LengthPrefixedFrameCodec.Instance;
-                    options.EnableKickHandling = true;
-                    options.KickPushOpCode = RoomGatewayOpCodes.SessionKicked;
-                    options.EnableReconnect = true;
-                    options.ReconnectInitialDelay = TimeSpan.FromSeconds(1);
-                    options.ReconnectMaxDelay = TimeSpan.FromSeconds(15);
-                    options.ReconnectBackoffMultiplier = 2d;
-                    options.ReconnectMaxAttempts =
-                        AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts;
-                })
-                .UseDispatchers(callbackDispatcher, _ioDispatcher)
-                .Build();
-            _store = new ClientRoomStore();
-            _client = new GatewayRoomClient(
-                _sdkClient,
-                GatewayRoomOpCodes.Default);
-#if UNITY_5_3_OR_NEWER
-            _session = new GatewayMultiplayerRoomSession(
-                _client,
-                _store,
-                reliableEventCheckpointStore:
-                    MobaUnityReliableEventCheckpointStores.CreateBufferedFile(),
-                ownsReliableEventCheckpointStore: true);
-#else
-            _session = new GatewayMultiplayerRoomSession(_client, _store);
-#endif
-            _snapshotProvider = new ClientRoomSnapshotProvider(_store);
-            _assetLoader = new MultiplayerBattleAssetLoader(
-                ResourcesBattleAssetLoadService.Default,
-                dependencyProvider: ResourcesBattleAssetDependencyProvider.Default,
-                mainThreadDispatcher: callbackDispatcher);
-            _controller = new MultiplayerRoomFlowController(_session, _snapshotProvider, _assetLoader);
-            _pushSynchronizer = new ClientRoomPushSynchronizer(
-                _client,
-                _store,
-                RefreshCurrentRoomAsync);
-            _recovery = new MultiplayerGatewayRecoveryRuntime(
-                RestoreRoomAfterReconnectAsync,
-                () => _controller?.CurrentRoomId ?? string.Empty,
-                exception => Log.Exception(
-                    exception,
-                    "[MultiplayerGatewayEntryModule] Room recovery action failed."));
-
-            _sdkClient.ServerPushReceived += HandleServerPush;
-            _sdkClient.Disconnected += HandleDisconnected;
-            _recoveryBinding = _sdkClient.BindRecoverySignals(
-                _recovery,
-                new NetworkSdkClientRecoveryBindingOptions
-                {
-                    CorrelationContextProvider =
-                        () => _controller?.CurrentRoomId ?? string.Empty,
-                    ReportingFailure = exception => Log.Exception(
-                        exception,
-                        "[MultiplayerGatewayEntryModule] Failed to report a recovery signal.")
-                });
-            _recoverySignalsEnabled = true;
-            _controller.StateChanged += HandleRoomFlowStateChanged;
-            ctx.Root.TryGetRef(out _selection);
-            if (_selection != null)
+            var root = ctx.Root;
+            _entryRuntime.Attach(attachment =>
             {
-                _selection.Changed += HandleEntrySelectionChanged;
-            }
+                var resources = new MultiplayerGatewayEntryResources();
+                _resources = resources;
+                attachment.Register(() =>
+                {
+                    if (ReferenceEquals(_resources, resources)) _resources = null;
+                });
 
-            _rootServices = new MultiplayerGatewayRootServices(
-                _config,
-                _launchRequest,
-                _store,
-                _client,
-                _session,
-                _session,
-                _snapshotProvider,
-                _controller,
-                _pushSynchronizer,
-                _assetLoader,
-                this);
-            _rootServices.Publish(ctx.Root);
-            ApplyEntrySelection();
+                resources.IoDispatcher =
+                    new DedicatedThreadDispatcher("LobbyGatewayNetworkThread");
+                attachment.Register(resources.IoDispatcher.Dispose);
+                var callbackDispatcher = UnityMainThreadDispatcher.CaptureCurrent();
+                resources.SdkClient = new NetworkSdkBuilder()
+                    .UseTransportFactory(() => new TcpTransport())
+                    .ConfigureConnection(options =>
+                    {
+                        options.FrameCodec = LengthPrefixedFrameCodec.Instance;
+                        options.EnableKickHandling = true;
+                        options.KickPushOpCode = RoomGatewayOpCodes.SessionKicked;
+                        options.EnableReconnect = true;
+                        options.ReconnectInitialDelay = TimeSpan.FromSeconds(1);
+                        options.ReconnectMaxDelay = TimeSpan.FromSeconds(15);
+                        options.ReconnectBackoffMultiplier = 2d;
+                        options.ReconnectMaxAttempts =
+                            AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts;
+                    })
+                    .UseDispatchers(callbackDispatcher, resources.IoDispatcher)
+                    .Build();
+                attachment.Register(resources.SdkClient.Dispose);
+                resources.Store = new ClientRoomStore();
+                resources.Client = new GatewayRoomClient(
+                    resources.SdkClient,
+                    GatewayRoomOpCodes.Default);
+                attachment.Register(resources.Client.Dispose);
+#if UNITY_5_3_OR_NEWER
+                resources.Session = new GatewayMultiplayerRoomSession(
+                    resources.Client,
+                    resources.Store,
+                    reliableEventCheckpointStore:
+                        MobaUnityReliableEventCheckpointStores.CreateBufferedFile(),
+                    ownsReliableEventCheckpointStore: true);
+#else
+                resources.Session = new GatewayMultiplayerRoomSession(
+                    resources.Client,
+                    resources.Store);
+#endif
+                attachment.Register(resources.Session.Dispose);
+                resources.SnapshotProvider =
+                    new ClientRoomSnapshotProvider(resources.Store);
+                attachment.Register(resources.SnapshotProvider.Dispose);
+                resources.AssetLoader = new MultiplayerBattleAssetLoader(
+                    ResourcesBattleAssetLoadService.Default,
+                    dependencyProvider: ResourcesBattleAssetDependencyProvider.Default,
+                    mainThreadDispatcher: callbackDispatcher);
+                resources.Controller = new MultiplayerRoomFlowController(
+                    resources.Session,
+                    resources.SnapshotProvider,
+                    resources.AssetLoader);
+                attachment.Register(resources.Controller.Dispose);
+                resources.PushSynchronizer = new ClientRoomPushSynchronizer(
+                    resources.Client,
+                    resources.Store,
+                    RefreshCurrentRoomAsync);
+                _pushOperations.Attach(
+                    (opCode, payload, cancellationToken) =>
+                        resources.PushSynchronizer.HandleServerPushAsync(
+                            opCode,
+                            payload,
+                            cancellationToken),
+                    exception => Log.Exception(
+                        exception,
+                        "[MultiplayerGatewayEntryModule] Failed to process Room push."));
+                attachment.Register(_pushOperations.Detach);
+                resources.Recovery = new MultiplayerGatewayRecoveryRuntime(
+                    RestoreRoomAfterReconnectAsync,
+                    () => resources.Controller.CurrentRoomId ?? string.Empty,
+                    exception => Log.Exception(
+                        exception,
+                        "[MultiplayerGatewayEntryModule] Room recovery action failed."));
+                attachment.Register(async () =>
+                {
+                    var pendingRecovery = resources.Recovery.PendingExecution;
+                    resources.Recovery.Reset();
+                    try
+                    {
+                        await pendingRecovery.ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                    }
+                });
+
+                resources.SdkClient.ServerPushReceived += HandleServerPush;
+                resources.SdkClient.Disconnected += HandleDisconnected;
+                attachment.Register(() =>
+                {
+                    resources.SdkClient.ServerPushReceived -= HandleServerPush;
+                    resources.SdkClient.Disconnected -= HandleDisconnected;
+                });
+                resources.RecoveryBinding = resources.SdkClient.BindRecoverySignals(
+                    resources.Recovery,
+                    new NetworkSdkClientRecoveryBindingOptions
+                    {
+                        CorrelationContextProvider =
+                            () => resources.Controller.CurrentRoomId ?? string.Empty,
+                        ReportingFailure = exception => Log.Exception(
+                            exception,
+                            "[MultiplayerGatewayEntryModule] Failed to report a recovery signal.")
+                    });
+                attachment.Register(resources.RecoveryBinding.Dispose);
+                resources.RecoverySignalsEnabled = true;
+                resources.Controller.StateChanged += HandleRoomFlowStateChanged;
+                attachment.Register(() =>
+                    resources.Controller.StateChanged -= HandleRoomFlowStateChanged);
+                root.TryGetRef(out resources.Selection);
+                if (resources.Selection != null)
+                {
+                    resources.Selection.Changed += HandleEntrySelectionChanged;
+                    attachment.Register(() =>
+                        resources.Selection.Changed -= HandleEntrySelectionChanged);
+                }
+
+                resources.RootServices = new MultiplayerGatewayRootServices(
+                    _config,
+                    _launchRequest,
+                    resources.Store,
+                    resources.Client,
+                    resources.Session,
+                    resources.Session,
+                    resources.SnapshotProvider,
+                    resources.Controller,
+                    resources.PushSynchronizer,
+                    resources.AssetLoader,
+                    this);
+                resources.RootServices.Publish(root);
+                attachment.Register(resources.RootServices.Withdraw);
+                attachment.Register(() =>
+                    SetRecoverySignalsEnabled(enabled: false, reset: true));
+                ApplyEntrySelection();
+            });
         }
 
         public void Tick(in GameEntryModuleContext ctx, float deltaTime)
         {
-            _sdkClient?.Tick(deltaTime);
+            _resources?.SdkClient?.Tick(deltaTime);
         }
 
         public void OnDetach(in GameEntryModuleContext ctx)
         {
-            _lifetime?.Cancel();
-            SetRecoverySignalsEnabled(enabled: false, reset: true);
-            _recoveryBinding?.Dispose();
-            if (_selection != null)
+            var teardown = _entryRuntime.Detach();
+            if (!teardown.IsCompletedSuccessfully)
             {
-                _selection.Changed -= HandleEntrySelectionChanged;
+                _ = teardown.ContinueWith(
+                    failed => Log.Exception(
+                        failed.Exception,
+                        "[MultiplayerGatewayEntryModule] Gateway teardown failed."),
+                    CancellationToken.None,
+                    TaskContinuationOptions.OnlyOnFaulted |
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
             }
-
-            if (_sdkClient != null)
-            {
-                _sdkClient.ServerPushReceived -= HandleServerPush;
-                _sdkClient.Disconnected -= HandleDisconnected;
-            }
-
-            if (_controller != null)
-            {
-                _controller.StateChanged -= HandleRoomFlowStateChanged;
-            }
-
-            _rootServices?.Withdraw();
-
-            _controller?.Dispose();
-            _snapshotProvider?.Dispose();
-            _session?.Dispose();
-            _client?.Dispose();
-            _sdkClient?.Dispose();
-            _ioDispatcher?.Dispose();
-            _lifetime?.Dispose();
-
-            _rootServices = null;
-            _recoveryBinding = null;
-            _recovery = null;
-            _pushSynchronizer = null;
-            _selection = null;
-            _controller = null;
-            _assetLoader = null;
-            _snapshotProvider = null;
-            _session = null;
-            _client = null;
-            _store = null;
-            _sdkClient = null;
-            _ioDispatcher = null;
-            _lifetime = null;
-            _recoverySignalsEnabled = false;
         }
 
         public void ResetReconnect()
         {
-            _recovery?.Reset();
-            if (_recoveryBinding != null)
+            var resources = _resources;
+            resources?.Recovery?.Reset();
+            if (resources?.RecoveryBinding != null)
             {
-                _recoveryBinding.Enabled = true;
-                _recoverySignalsEnabled = true;
+                resources.RecoveryBinding.Enabled = true;
+                resources.RecoverySignalsEnabled = true;
             }
-            _sdkClient?.ResetReconnect();
+            resources?.SdkClient?.ResetReconnect();
         }
 
         private void HandleDisconnected()
@@ -464,7 +482,7 @@ namespace AbilityKit.Game
             // 断线仅提交当前位置，不删除检查点；后续重连仍需从该位置恢复。
             try
             {
-                _session?.FlushReliableEventCheckpointsAsync(
+                _resources?.Session?.FlushReliableEventCheckpointsAsync(
                     ReliableEventCheckpointFlushTrigger.Disconnect).GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -477,16 +495,21 @@ namespace AbilityKit.Game
 
         private void HandleRoomFlowStateChanged(MultiplayerRoomFlowState state)
         {
-            _recovery?.ObserveRoomFlowState(state);
+            _resources?.Recovery?.ObserveRoomFlowState(state);
         }
 
         private async Task<MultiplayerRoomRestoreResult> RestoreRoomAfterReconnectAsync(
             CancellationToken cancellationToken)
         {
-            var controller = _controller;
+            var resources = _resources;
+            var controller = resources?.Controller;
             var spec = controller?.CurrentLaunchSpec;
-            var lifetime = _lifetime;
-            if (controller == null || spec == null || lifetime == null)
+            var attachmentGeneration = _entryRuntime.AttachmentGeneration;
+            var lifetime = _entryRuntime.LifetimeToken;
+            if (resources == null ||
+                controller == null ||
+                spec == null ||
+                !_entryRuntime.IsCurrent(attachmentGeneration))
             {
                 return new MultiplayerRoomRestoreResult(
                     string.Empty,
@@ -503,14 +526,22 @@ namespace AbilityKit.Game
 
             using var linked = CancellationTokenSource.CreateLinkedTokenSource(
                 cancellationToken,
-                lifetime.Token);
+                lifetime);
             var fallbackPlayerId = _config.RestoreFallbackPlayerId == 0u
                 ? 1u
                 : _config.RestoreFallbackPlayerId;
-            return await controller.RestoreAsync(
+            var result = await controller.RestoreAsync(
                 spec,
                 fallbackPlayerId,
                 linked.Token);
+            linked.Token.ThrowIfCancellationRequested();
+            if (!_entryRuntime.IsCurrent(attachmentGeneration) ||
+                !ReferenceEquals(_resources, resources))
+            {
+                throw new OperationCanceledException(linked.Token);
+            }
+
+            return result;
         }
 
         private void HandleEntrySelectionChanged()
@@ -520,7 +551,8 @@ namespace AbilityKit.Game
 
         private void ApplyEntrySelection()
         {
-            if (_sdkClient == null)
+            var resources = _resources;
+            if (resources?.SdkClient == null)
             {
                 return;
             }
@@ -528,73 +560,55 @@ namespace AbilityKit.Game
             if (IsRemoteActive)
             {
                 SetRecoverySignalsEnabled(enabled: true, reset: false);
-                if (_sdkClient.State == ConnectionState.Disconnected)
+                if (resources.SdkClient.State == ConnectionState.Disconnected)
                 {
-                    _sdkClient.Open(EffectiveHost(), EffectivePort());
+                    resources.SdkClient.Open(EffectiveHost(), EffectivePort());
                 }
 
                 return;
             }
 
             SetRecoverySignalsEnabled(enabled: false, reset: true);
-            _controller?.Cancel();
-            _store?.Reset();
-            if (_sdkClient.State != ConnectionState.Disconnected)
+            resources.Controller?.Cancel();
+            resources.Store?.Reset();
+            if (resources.SdkClient.State != ConnectionState.Disconnected)
             {
-                _sdkClient.Close();
+                resources.SdkClient.Close();
             }
         }
 
         private void SetRecoverySignalsEnabled(bool enabled, bool reset)
         {
-            var binding = _recoveryBinding;
+            var resources = _resources;
+            var binding = resources?.RecoveryBinding;
             if (binding == null) return;
 
             if (reset)
             {
                 binding.Reset();
-                _recovery?.Reset();
+                resources.Recovery?.Reset();
             }
 
-            if (_recoverySignalsEnabled == enabled) return;
+            if (resources.RecoverySignalsEnabled == enabled) return;
             binding.Enabled = enabled;
-            _recoverySignalsEnabled = enabled;
+            resources.RecoverySignalsEnabled = enabled;
         }
 
-        private async void HandleServerPush(uint opCode, ArraySegment<byte> payload)
+        private void HandleServerPush(uint opCode, ArraySegment<byte> payload)
         {
-            var synchronizer = _pushSynchronizer;
-            var lifetime = _lifetime;
-            if (synchronizer == null || lifetime == null)
-            {
-                return;
-            }
-
-            try
-            {
-                await synchronizer.HandleServerPushAsync(
-                    opCode,
-                    payload,
-                    lifetime.Token);
-            }
-            catch (OperationCanceledException) when (lifetime.IsCancellationRequested)
-            {
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, "[MultiplayerGatewayEntryModule] Failed to process Room push.");
-            }
+            _pushOperations.TryStart(opCode, payload);
         }
 
         private Task RefreshCurrentRoomAsync(CancellationToken cancellationToken)
         {
-            var roomId = _store?.Current?.RoomId;
-            if (string.IsNullOrWhiteSpace(roomId))
+            var resources = _resources;
+            var roomId = resources?.Store?.Current?.RoomId;
+            if (string.IsNullOrWhiteSpace(roomId) || resources?.Session == null)
             {
                 throw new InvalidOperationException("Cannot refresh Room snapshot before joining a room.");
             }
 
-            return _session.RefreshSnapshotAsync(roomId, cancellationToken);
+            return resources.Session.RefreshSnapshotAsync(roomId, cancellationToken);
         }
 
         private static void ValidateConfig(
@@ -635,6 +649,24 @@ namespace AbilityKit.Game
             return _launchRequest != null && _launchRequest.Port > 0
                 ? _launchRequest.Port
                 : _config.Port;
+        }
+
+        private sealed class MultiplayerGatewayEntryResources
+        {
+            public NetworkSdkClient SdkClient;
+            public DedicatedThreadDispatcher IoDispatcher;
+            public ClientRoomStore Store;
+            public GatewayRoomClient Client;
+            public GatewayMultiplayerRoomSession Session;
+            public ClientRoomSnapshotProvider SnapshotProvider;
+            public MultiplayerRoomFlowController Controller;
+            public MultiplayerBattleAssetLoader AssetLoader;
+            public ClientRoomPushSynchronizer PushSynchronizer;
+            public LobbyBattleEntrySelection Selection;
+            public MultiplayerGatewayRecoveryRuntime Recovery;
+            public NetworkSdkClientRecoveryBinding RecoveryBinding;
+            public MultiplayerGatewayRootServices RootServices;
+            public bool RecoverySignalsEnabled;
         }
     }
 }

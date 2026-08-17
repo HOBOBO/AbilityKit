@@ -1,5 +1,8 @@
 # Shooter 纯状态预算与兴趣范围深潜
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文以当前运行时代码为准，说明 pure-state 导出如何组合实体预算、候选优先级、AOI 状态、低频标记和 baseline/delta 校验。它不是普通快照的另一种编码格式，而是一条具有独立选择与恢复语义的同步链路。
 
 ## 1. 设计目标与边界
@@ -20,7 +23,7 @@
 - `ShooterPureStateSnapshotExporter` 负责一次导出，不负责决定何时发送 baseline 或 delta；`BaselineIntervalFrames`、`DeltaIntervalFrames` 和发送节奏由上层调度策略消费。
 - 仅传入 `interestScope` 不会维护跨帧可见集合，也不是严格的半径硬过滤；只有同时传入 `AoiInterestSet` 才执行 AOI 进入、保持和离开迁移。
 - `StateHash` 是完整权威状态的校验值，不是“本次裁剪后实体数组”的摘要。
-- 预算裁剪保证流量上界，不保证预算外实体最终一定轮转发送；若业务需要公平轮转，应在策略层增加年龄或欠账权重。
+- 使用 `AoiInterestSet` 时，导出器保留最多一半预算给 priority >= 250 的稳定前缀，并用 observer 级 `RotationCursor` 轮转其余可见实体；无状态 `interestScope` 路径仍只是单帧稳定裁剪，不提供跨帧轮转承诺。
 
 ## 2. 组件职责
 
@@ -176,9 +179,9 @@ stateDiagram-v2
 - 投射物统一增加 `LowFrequency` flag；
 - 死亡玩家和死亡敌人增加该 flag；
 - 候选仍受 `ActiveSyncBudget` 和相同排序/裁剪约束；
-- 导出器没有基于“多久未发送”轮换候选，也不会自动扩大预算。
+- AOI 路径不会按“多久未发送”计算年龄或扩大预算，而是在稳定高优先级前缀之后推进 `RotationCursor`；无 `AoiInterestSet` 路径不保存该游标。
 
-因此低频帧可供客户端或上层策略区分更新类别，但不能宣称它已经保证所有低优先级实体最终收敛。若要实现长期公平补偿，需要显式增加候选年龄、分层预算或轮转游标，并为断线恢复建立测试。
+因此低频标记本身不负责公平性；当前“普通可见实体最终获得首次 Spawn 和后续更新”的保证来自 AOI 轮转窗口。该保证受观察者状态持续存在、候选持续可见和旋转预算大于零约束，不能外推到无状态导出、断线后重建或任意项目兴趣策略。
 
 ## 9. 量化与载荷元数据
 
@@ -255,7 +258,7 @@ sequenceDiagram
 4. 有 AOI 状态集时验证 `Enter -> Stay -> Leave`，并验证边界半径迟滞。
 5. leave 数量不受可见预算截断，且生成 `Despawn`。
 6. full baseline 重置 AOI 集合并重新输出 spawn。
-7. 低频帧类别、flags 和预算符合当前实现，不误测为自动轮转。
+7. 低频帧类别、flags 和预算符合当前实现，并把低频标记与 AOI `RotationCursor` 的轮转职责分开验证。
 8. 陈旧帧被忽略；缺失基线和 baseline frame/hash 不匹配触发 full baseline resync。
 9. 校验失败时表现层回调未执行，成功提交后诊断字段正确更新。
 10. 量化边界、负坐标和大值不会产生非确定性结果。
@@ -271,3 +274,16 @@ sequenceDiagram
 | 通用 AOI 可见集合 | `Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync/Aoi/AoiInterestSet.cs` |
 | baseline/delta 校验器 | `Unity/Packages/com.abilitykit.network.runtime/Runtime/Network/Runtime/Sync/BaselineDeltaSnapshotValidator.cs` |
 | pure-state 客户端控制器 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterPureStateSnapshotSyncController.cs` |
+
+## 14. 观察者状态所有权、证据与限制
+
+AOI 轮转依赖持久的 observer replication state。exporter 以 `AoiInterestSet` 保存 `Replicated` 集合和 `RotationCursor`，leave 作为生命周期消息单独生成，不占普通可见状态预算。服务端 adapter 还按 observer key 保存 AOI/replication 上下文；当前主要在 adapter 整体清理时统一释放。因此长时间 observer churn 的状态增长、单 observer 主动逐出和上限诊断仍是需要项目补齐的运维边界。
+
+| 路径 | 跨帧状态 | 公平性/生命周期语义 |
+|------|----------|---------------------|
+| 仅 `interestScope` | 无 | 单帧排序与裁剪，不承诺轮转，不生成 Enter/Stay/Leave |
+| `interestScope` + `AoiInterestSet` | 可见集合、已复制集合、轮转游标 | 稳定高优先级前缀 + 普通可见实体轮转，leave 独立发送 |
+
+量化比例 1000 只定义 pure-state wire 字段，不改变 Shooter 主体 `float` 模拟。2026-08-16 聚焦 `AbilityKit.Demo.Shooter.AoiLodBenchmarks.Tests` 8/8 通过，属于 E3；没有在本批运行大规模真实 observer soak、跨进程丢包恢复或 Unity 表现验收。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

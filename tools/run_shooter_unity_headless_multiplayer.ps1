@@ -7,6 +7,8 @@ param(
     [int]$GatewayPort = 4000,
     [string]$GatewayRegion = 'dev',
     [string]$GatewayServerId = 'local',
+    [string]$SyncTemplateId = 'state-sync-authority',
+    [int]$SyncModel = 3,
     [int]$TimeoutSeconds = 300,
     [ValidateRange(1, 5)]
     [int]$CompileWarmupAttempts = 3,
@@ -83,6 +85,8 @@ function New-ClientArguments {
         '-shooterHeadlessFinalize', $finalizePath,
         '-shooterHeadlessState', $StatePath,
         '-shooterHeadlessResult', $ResultPath,
+        '-shooterHeadlessSyncTemplate', $SyncTemplateId,
+        '-shooterHeadlessSyncModel', $SyncModel,
         '-shooterHeadlessTimeoutSeconds', $TimeoutSeconds,
         '-gatewayHost', $GatewayHost,
         '-gatewayPort', $GatewayPort,
@@ -280,41 +284,56 @@ try {
     if (-not $ownerState.soloLobbyVerified) {
         throw 'Shooter owner did not verify the one-player lobby gate.'
     }
+    if ([string]$ownerState.syncTemplateId -ne $SyncTemplateId -or
+        [string]$memberState.syncTemplateId -ne $SyncTemplateId -or
+        [int]$ownerState.syncModel -ne $SyncModel -or
+        [int]$memberState.syncModel -ne $SyncModel) {
+        throw "Shooter clients used an unexpected sync configuration. expected=$SyncTemplateId/$SyncModel, owner=$($ownerState.syncTemplateId)/$($ownerState.syncModel), member=$($memberState.syncTemplateId)/$($memberState.syncModel)"
+    }
     if (-not $selectedSample) {
         throw 'Shooter clients completed without a common authoritative sample.'
     }
 
+    $selectedFrame = [int]$selectedSample.frame
+    $ownerSelectedSample = @($ownerState.samples) |
+        Where-Object { [int]$_.frame -eq $selectedFrame } |
+        Select-Object -First 1
+    $memberSelectedSample = @($memberState.samples) |
+        Where-Object { [int]$_.frame -eq $selectedFrame } |
+        Select-Object -First 1
+    if (-not $ownerSelectedSample -or -not $memberSelectedSample -or
+        [string]$ownerSelectedSample.authoritativeHash -ne [string]$memberSelectedSample.authoritativeHash) {
+        throw "Shooter clients did not retain the selected authoritative sample. frame=$selectedFrame"
+    }
+
+    $authoritativeDeltas = @{}
     foreach ($player in @('p1', 'p2')) {
         $presentName = "${player}Present"
         $xName = "${player}x"
         $yName = "${player}y"
-        if (-not [bool]$ownerState.$presentName -or -not [bool]$memberState.$presentName) {
-            throw "Shooter $player was not present on both clients."
+        if (-not [bool]$ownerSelectedSample.$presentName -or
+            -not [bool]$memberSelectedSample.$presentName) {
+            throw "Shooter $player was not present in both authoritative samples."
         }
-        $dx = [double]$ownerState.$xName - [double]$memberState.$xName
-        $dy = [double]$ownerState.$yName - [double]$memberState.$yName
+        $dx = [double]$ownerSelectedSample.$xName - [double]$memberSelectedSample.$xName
+        $dy = [double]$ownerSelectedSample.$yName - [double]$memberSelectedSample.$yName
         $delta = [Math]::Sqrt($dx * $dx + $dy * $dy)
+        $authoritativeDeltas[$player] = $delta
         if ($delta -gt 0.35) {
-            throw "Shooter $player positions diverged across clients. delta=$delta"
+            throw "Shooter $player authoritative positions diverged across clients. frame=$selectedFrame, delta=$delta"
         }
     }
-
-    $p1dx = [double]$ownerState.p1x - [double]$memberState.p1x
-    $p1dy = [double]$ownerState.p1y - [double]$memberState.p1y
-    $p1Delta = [Math]::Sqrt($p1dx * $p1dx + $p1dy * $p1dy)
-    $p2dx = [double]$ownerState.p2x - [double]$memberState.p2x
-    $p2dy = [double]$ownerState.p2y - [double]$memberState.p2y
-    $p2Delta = [Math]::Sqrt($p2dx * $p2dx + $p2dy * $p2dy)
 
     Write-Host ''
     Write-Host 'Shooter Unity two-client authoritative state-sync acceptance PASSED.' -ForegroundColor Green
     Write-Host "RoomId=$($ownerState.roomId) BattleId=$($ownerState.battleId) WorldId=$($ownerState.worldId)"
     Write-Host "Room flow: ownerPushes=$($ownerState.roomPushCount), memberPushes=$($memberState.roomPushCount), soloLobbyVerified=$($ownerState.soloLobbyVerified)"
-    Write-Host "State sync: commonFrame=$($selectedSample.frame), hash=$($selectedSample.authoritativeHash), ownerApplied=$($ownerState.snapshotAppliedCount), memberApplied=$($memberState.snapshotAppliedCount)"
+    Write-Host "State sync: template=$SyncTemplateId, model=$SyncModel, commonFrame=$selectedFrame, hash=$($ownerSelectedSample.authoritativeHash), ownerApplied=$($ownerState.snapshotAppliedCount), memberApplied=$($memberState.snapshotAppliedCount)"
     Write-Host "Snapshots: ownerFull=$($ownerState.fullSnapshotPushCount), ownerDelta=$($ownerState.deltaSnapshotPushCount), memberFull=$($memberState.fullSnapshotPushCount), memberDelta=$($memberState.deltaSnapshotPushCount), hashMismatches=$([int]$ownerState.authoritativeHashMismatchCount + [int]$memberState.authoritativeHashMismatchCount)"
     Write-Host "Inputs: owner=$($ownerState.inputSuccessCount)/$($ownerState.inputAttemptCount), member=$($memberState.inputSuccessCount)/$($memberState.inputAttemptCount), resync=0"
     Write-Host "Movement: ownerProgress=$([double]$ownerState.maxMovementProgress), ownerMaxBackward=$([double]$ownerState.maxBackwardMovement), memberProgress=$([double]$memberState.maxMovementProgress), memberMaxBackward=$([double]$memberState.maxBackwardMovement)"
-    Write-Host "Convergence: p1Delta=$($p1Delta.ToString('F3')), p2Delta=$($p2Delta.ToString('F3'))"
+    Write-Host "Authoritative convergence: p1Delta=$($authoritativeDeltas.p1.ToString('F3')), p2Delta=$($authoritativeDeltas.p2.ToString('F3'))"
+    Write-Host "Runtime diagnostics: ownerP1=($($ownerState.p1x),$($ownerState.p1y)), memberP1=($($memberState.p1x),$($memberState.p1y)), ownerP2=($($ownerState.p2x),$($ownerState.p2y)), memberP2=($($memberState.p2x),$($memberState.p2y))"
     Write-Host "Artifacts: $runDirectory"
 }
 finally {

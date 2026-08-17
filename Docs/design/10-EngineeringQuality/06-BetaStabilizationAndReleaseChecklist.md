@@ -2,6 +2,12 @@
 
 > 本文定义 AbilityKit 单个 Unity package 从开发版本进入 `0.1.x` Beta 的发布边界、证据要求和执行顺序。公司级成熟度、试点和弃用规则见 [公司级采用与模块治理规范](04-CompanyAdoptionAndModuleGovernance.md)；本文只回答一次 Beta 发布怎样准备、怎样验证、怎样失败退出，以及发布记录必须留下什么。
 
+> 文档类型：Canonical Beta 发布规范
+>
+> 事实基线：2026-08-16
+>
+> 当前状态：仓库已有 cohort 对齐、版本审计、候选批次和本地 tag 工具，但尚无统一 package 发布 E5 gate
+
 ---
 
 ## 1. Beta 版本表达什么
@@ -23,9 +29,9 @@
 
 ## 2. 当前仓库基线
 
-仓库当前同时存在 `0.0.x` 与 `0.1.0` package。Core、World DI、Network Runtime、Host、World FrameSync、World Snapshot、Record 等基础或同步相关包已经有 `0.1.0` 清单和 CHANGELOG；许多编辑器、协议、第三方桥接、Demo 和实验包仍处于 `0.0.x`。
+仓库现有发布策略把可发布 Framework package 统一到单一 cohort，当前为 `0.1.0`；`com.abilitykit.thirdparty.*` 与 `com.abilitykit.demo.*` 明确列入 never-released 范围。2026-08-16 执行 `audit-versions.js` 的结果为 version mismatch、BOM remaining、framework off cohort 均为 `0`。这只能证明当前版本声明一致，不等于每个 Framework package 都已进入发布批次或达到 Beta 准入。
 
-这意味着后续工作不是把所有 `com.abilitykit.*` 批量改成同一版本，而是逐包确认资产类型、依赖闭包和可承诺边界。Demo、Editor、ThirdParty、Runtime 和协议包可以采用不同的发布节奏。
+`release-manifest.json` 当前只定义 `batch-1-leaves`，状态为 `candidate`，包含 Core、Deterministic、GameplayTags、Threading、Diagnostics、AI Abstractions、Protocol 和 Network Runtime 共 8 个 package。`release.js --include-candidate` dry-run 能列出这 8 个候选；只有批次改为 `ready` 才允许 `--tag`，且工具只创建本地 git tag，不 push、不等待 OpenUPM 发布结果。Demo、Editor、ThirdParty、Runtime 和协议的资产分类仍需逐项评审，不能因 cohort 一致就一起承诺成熟度。
 
 当前还应注意以下仓库事实：
 
@@ -162,11 +168,24 @@ flowchart TD
 | 工具或门禁 | 当前能证明什么 | 不能证明什么 |
 |---|---|---|
 | `tools/validate_abilitykit_package_json.ps1` | 所有 `com.abilitykit*` 目录下的 `package.json` 可被 JSON 解析 | 字段完整、版本合法、依赖存在或版本闭合 |
+| `tools/publish/align-versions.js` | 默认 dry-run 展示 Framework cohort 与内部引用对齐；`--apply` 才写入 | package 成熟度、CHANGELOG、测试和发布签核 |
+| `tools/publish/audit-versions.js` | 检查 Framework cohort、内部引用版本和 BOM，失败时返回非零 | 依赖 package 已发布、候选已验收或 registry 可用 |
+| `tools/publish/release.js` | 按 manifest 检查 batch、依赖闭包和 never-released 依赖；默认 dry-run，`--tag` 只建本地 tag | CI 重建、签核、tag push、registry 发布完成和撤回 |
+| `tools/publish/release-manifest.json` | 明确允许发布的批次、状态和 package 白名单 | `candidate` 已达到 `ready`，或未列出的 Framework package 自动可发布 |
 | `tools/audit_unity_package_dependencies.ps1` | 指定 package 的生产 asmdef 引用具有直接 manifest 依赖 | 默认只审计四个 Demo package；未知程序集只警告，不必然失败 |
 | `tools/run_test_gate.ps1 -Gate <name>` | `tools/test-gates.json` 中该 gate 的步骤在本次环境执行 | gate 未列出的 package、平台和场景也通过 |
 | `regression` gate | 主要纯 C# 回归和列出的 Unity 验收路径 | 全部 package 的发布兼容性与全部生产拓扑 |
 | package CHANGELOG | 维护者声明的版本边界和已知限制 | 声明已经被运行证据验证 |
 | `AbilityKitStable=true` | 工程选择加入名为 Stable 的构建策略 | 当前仓库中该策略具体包含哪些警告规则 |
+
+### 6.1 Gate 配置也必须校验可执行性
+
+发布候选不能因为 `tools/test-gates.json` 存在 gate 条目或 workflow 存在同名 job 就默认通过。2026-08-16 复核发现 `moba-codegen` 引用以下不存在路径：
+
+- `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator/AbilityKit.SourceGenerator.csproj`
+- `src/AbilityKit.CodeGen.Tests/AbilityKit.CodeGen.Tests.csproj`
+
+同时，多个在 JSON 中声明 PR/schedule 策略的 MOBA 与 Network gate 没有对应 workflow job。发布签核必须先验证项目、脚本和 fixture 路径存在，再记录实际运行的命令、退出码和 artifact；失效路径或未接线配置只能记为未执行风险。
 
 发布记录应同时引用工具结果和覆盖缺口。工具名称不能替代对其实现的理解。
 
@@ -266,12 +285,23 @@ flowchart TD
 
 | 优先级 | 缺口 | 影响 | 建议动作 |
 |---|---|---|---|
-| P0 | 版本更新脚本名称与行为相反 | 可能把已发布 package 和 lock 依赖降回 `0.0.1` | 重命名为明确的重置工具，或改为带目标版本、package 白名单和 dry-run 的版本工具 |
+| P0 | 旧版本重置脚本仍与新发布工具并存 | 误用 `update_abilitykit_package_versions.ps1` 仍可能把已发布 package 和 lock 依赖降回 `0.0.1` | 将旧脚本明确标为 reset/legacy，并让发布入口只引用带 dry-run 的 `tools/publish` |
 | P0 | 缺少统一 package 发布门禁 | JSON 语法、依赖、CHANGELOG、版本闭包和测试证据彼此分散 | 新增 package release gate，输出机器可读 artifact |
 | P1 | `AbilityKitStable` 缺少仓库级可核对定义 | 文档和 csproj 无法共同证明“零警告”策略 | 在共享构建配置中定义并测试，或移除无法生效的成熟度声明 |
 | P1 | 依赖审计默认范围有限 | 非四个 Demo package 的缺失依赖可能不在默认命令中暴露 | 支持 `-All` 或从变更 package 集合自动推导范围 |
 | P1 | 部分历史 CHANGELOG 保留已过时依赖状态 | 发布后的当前依赖关系与发布时说明可能混淆 | 保留历史原文，同时在新版本条目或勘误中说明当前状态 |
 | P2 | 缺少统一制品发布和撤回流程 | 测试通过后仍需人工拼接版本、制品和回滚证据 | 在现有 workflow 上增加候选、签核、发布和撤回阶段 |
+
+### 10.1 Beta 证据等级
+
+| 等级 | 发布语义 |
+|---|---|
+| E1/E2 | manifest、版本或构建存在，只能形成候选制品 |
+| E3 | package 直接契约和静态依赖校验通过，证明局部边界 |
+| E4 | 候选版本在目标 Unity/.NET/Server 场景重建并完成项目验收 |
+| E5 | 版本闭包、CHANGELOG、候选重建、门禁、artifact、签核和撤回策略均由实际发布 workflow 阻断 |
+
+AbilityKit 当前可以按清单人工组合 E3/E4 证据，但尚不能宣称 package 发布链达到 E5。任何 Beta 发布都必须把未执行项和人工步骤写入签核记录。
 
 ---
 
@@ -296,7 +326,14 @@ Beta 是版本阶段，Pilot、Supported、Recommended 是采用成熟度，两�
 - package JSON 语法校验：[`tools/validate_abilitykit_package_json.ps1`](../../../tools/validate_abilitykit_package_json.ps1)
 - Unity package 依赖审计：[`tools/audit_unity_package_dependencies.ps1`](../../../tools/audit_unity_package_dependencies.ps1)
 - 当前版本重置脚本：[`tools/update_abilitykit_package_versions.ps1`](../../../tools/update_abilitykit_package_versions.ps1)
+- 发布工具说明：[`tools/publish/README.md`](../../../tools/publish/README.md)
+- cohort 对齐与审计：[`tools/publish/align-versions.js`](../../../tools/publish/align-versions.js)、[`tools/publish/audit-versions.js`](../../../tools/publish/audit-versions.js)
+- 候选批次与本地 tag：[`tools/publish/release-manifest.json`](../../../tools/publish/release-manifest.json)、[`tools/publish/release.js`](../../../tools/publish/release.js)
 - 公司级成熟度与采用治理：[公司级采用与模块治理规范](04-CompanyAdoptionAndModuleGovernance.md)
 - 测试与 Smoke 入口：[正式测试流程、单元测试与冒烟测试](01-TestingWorkflow.md)
 - 性能证据规则：[跨模块性能与热路径治理](05-CrossModulePerformanceAndHotPathGovernance.md)
 - 运行证据规则：[Analysis Artifact 与运行证据](07-AnalysisArtifactAndRuntimeEvidence.md)
+
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16*

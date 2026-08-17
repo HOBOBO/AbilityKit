@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Shooter.View.Tests
 
             Assert.That(profile, Is.Not.Null, FormalProfilePath);
             Assert.That(profile.RoomTitle, Is.EqualTo("Shooter Room"));
-            Assert.That(profile.MaxPlayers, Is.EqualTo(4));
+            Assert.That(profile.MaxPlayers, Is.EqualTo(2));
             Assert.That(profile.RoomListLimit, Is.EqualTo(10));
             Assert.That(profile.AutoReady, Is.False);
             Assert.That(profile.AutoStart, Is.False);

@@ -242,16 +242,15 @@ namespace AbilityKit.Game.View.Runtime.Tests
         // ====================================================================
 
         [Fact]
-        public void LobbyFeatures_StateId_ClearBeforeEnter_DemoLobbyFormalLobbyRootDebug_NoActions()
+        public void LobbyFeatures_StateId_ClearBeforeEnter_DefaultEntryFeaturesOnly_NoActions()
         {
-            // 阶段 7b：append-only 追加 formal_lobby（不删除 demo_lobby）。
             var f = _config.LobbyFeatures;
             Assert.Equal("Lobby", f.StateId);
             Assert.True(f.ClearBeforeEnter);
-            Assert.Equal(3, f.FeatureIds.Count);
+            Assert.Equal(2, f.FeatureIds.Count);
             Assert.Equal("demo_lobby", f.FeatureIds[0]);
             Assert.Equal("formal_lobby", f.FeatureIds[1]);
-            Assert.Equal("root_debug", f.FeatureIds[2]);
+            Assert.DoesNotContain("root_debug", f.FeatureIds);
             Assert.Empty(f.EnterBeforeActionIds);
             Assert.Empty(f.EnterAfterActionIds);
             Assert.Empty(f.ExitActionIds);

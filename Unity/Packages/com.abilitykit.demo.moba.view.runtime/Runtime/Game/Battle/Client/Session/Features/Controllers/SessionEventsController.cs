@@ -8,6 +8,7 @@ namespace AbilityKit.Game.Flow
         void OnStartSessionRequested();
 
         void RaiseSessionStarted(BattleStartPlan plan);
+        void RaiseWorldReady();
         void RaiseSessionFailed(Exception exception);
         void RaiseFirstFrameReceived();
 
@@ -54,6 +55,12 @@ namespace AbilityKit.Game.Flow
         {
             if (host == null) return;
             host.RaiseSessionStarted(plan);
+        }
+
+        public void NotifyWorldReady(ISessionEventsHost host)
+        {
+            if (host == null) return;
+            host.RaiseWorldReady();
         }
 
         public void NotifySessionFailed(ISessionEventsHost host, Exception exception)

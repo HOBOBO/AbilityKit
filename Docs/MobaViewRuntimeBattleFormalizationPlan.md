@@ -645,3 +645,72 @@ P4-P5 已按 13.8 的顺序完成。实现过程中保持既有 public port、�
 - ET driver 的 snapshot collection 已复用字段级 `List<WorldStateSnapshot>`，View runtime 的 allocation smoke test 改为跨帧复用同一 caller-owned list。旧 frame dispatcher 的数组 ownership contract，以及 spawn、damage、projectile、skill 等 codec 需要独立数组的序列化边界继续保留；本批不把这些必要 materialization 误判为可消除的热路径分配。
 - snapshot buffer 定向测试覆盖追加顺序、destination 复用、peek 不消费、drain 消费、旧 `CopyTo` 兼容和 null 参数。最终过滤执行结果为 4/4 通过；View runtime port 与 allocation budget 过滤测试为 11/11 通过，均为 0 failed、0 skipped。
 - MOBA Core、MOBA Tests 与 View Runtime Tests 串行构建均为 0 errors，warning 分别为 10892、190、30，属于既有 nullable、XML 文档、包兼容性和已知依赖漏洞基线。scoped `git diff --check` 退出码为 0，仅有既有 LF/CRLF 提示；三个受影响 Unity source 的既有 `.meta` 均存在且未修改，本批没有新增 Unity 资源或 GUID。
+
+### 13.12 表现层下一批：FormalLobby 纯 C# 边界收敛实施结果
+
+- 大厅决策、展示投影和文案分别迁入 `FormalLobbyDecision`、`FormalLobbyPresenter` 与 `LobbyNoticeFormatter`。这些组件不依赖 `UnityEngine`，负责本地玩家解析、owner 缺席判定、battle entry gate、默认 loadout 冲突调整、按钮可用性、玩家标签、同步状态以及 membership/player state/phase rollback 文案。
+- 新增纯 C# `FormalLobbyCommandCoordinator`，统一编排 restore、prepare、自动 loading、create、join、leave、return 和退出前离房。协调器通过最小 `ILobbyRoomCommandPort` 操作房间流程，并复用 `FormalLobbyRuntime` 的 attachment/operation generation、取消 token 与自动化 marker；late completion、prepare 失败和 automatic start 失败均不会提交过期状态。
+- `ILobbyRoomCommandPort` 下沉至 Flow Core 的 Multiplayer 边界，由 `MultiplayerRoomFlowController` 直接实现。Core 不反向依赖 Boot，`MultiplayerRoomFlowController` 继续作为房间状态机和 snapshot 的唯一 owner；协调器只组合命令，不复制房间状态。
+- `FormalLobbyFeature` 收敛为 phase attach/detach、scope 解析、Unity 配置资产到纯 spec 的适配、目录刷新回调、时间输入、battle/scene exit adapter 与 IMGUI 绘制。GUI callback 只转交协调器命令，不再直接编排房间异步流程；场景退出中的同步 `Cancel` 保留为 Unity cleanup adapter。
+- 普通 .NET 测试程序集直接编译同一份 package 源码。5 个决策/投影/文案/policy 测试与 3 个命令协调测试共 8/8 通过，覆盖 stale snapshot、authenticated player 解析、owner/capacity 自动开始约束、prepare marker 回滚、leave-refresh 顺序及 detach 后 late completion 拒绝。
+- 普通 .NET View Runtime 项目构建为 0 errors；Unity 自动刷新后的 View Runtime 生成项目构建为 0 errors，证明 Boot coordinator、Core port 与 Feature adapter 的 asmdef 依赖方向成立。5 个新增 Unity source metadata 均存在，GUID 在全部 `*.meta` 中各唯一命中一次；scoped `git diff --check` 通过，仅有既有换行风格提示。
+- 推荐顺序中的下一项为 `BattleContext`：按 Input、Entity、Runtime、Presentation 和 Snapshot 调用方继续削减跨域可变 facade，使可脱离 Unity 的绑定决策、reset policy 与查询投影进入普通 .NET 可测试边界。
+
+### 13.13 后续表现层优化优先级与实施边界
+
+后续工作继续以“先明确可变状态 owner，再缩小 concrete Unity facade，最后整理物理文件”为排序原则。文件行数和 partial 数量只作为风险信号，不作为优先级本身；每一批必须先建立普通 .NET 可运行的行为测试，再迁移 Unity adapter。
+
+| 顺序 | 优先级 | 批次 | 主要问题 | 目标边界 | 退出条件 |
+|---:|:---:|---|---|---|---|
+| 1 | P0 | `BattleContext` ownership | pool reset 同时清理 Session、Snapshot、Input、Prediction、Entity、VFX；`InputRecordWriter` 等资源的创建 owner 与 dispose owner 不完全一致 | 提取纯 C# `BattleContextLifetime`/binding owner，分别管理 runtime session、input/prediction、snapshot、entity/presentation binding generation；`BattleContext` 只聚合只读 ports 和兼容投影 | reset 顺序、幂等释放、reference-equality unbind、stale generation 拒绝可由普通 .NET fake 测试；pool release 不再直接知道具体跨域资源类型 |
+| 2 | P0 | `BattleContext` consumer ports | HUD、Snapshot applier、Debug、Session、View controller 大量接收完整 concrete context，形成跨域 service locator | 按调用方使用面迁移至 `IBattleRuntimeReadModel`、`IBattleEntityReadModel`、`IBattleInputPort`、`IBattleSnapshotRoutingPort`、`IBattlePresentationPort`；命令与查询分离 | 新增生产调用不再以 `BattleContext` 作为通用参数；核心 resolver、loadout projection、snapshot routing decision 可在普通 .NET 测试中运行；兼容 facade 仅保留明确清单 |
+| 3 | P0 | Entry 异步生命周期 | `MultiplayerGatewayEntryModule` 同时创建 SDK/dispatcher/session/controller/assets、管理订阅、恢复、push 和 teardown；`async void` push completion 无可等待 owner | 提取纯 C# `MultiplayerGatewayEntryRuntime` 与 `GatewayPushOperationRuntime`，统一 attachment generation、pending task、异常汇报和 dispose 顺序；Entry module 只负责 Unity dispatcher、配置资产、transport factory 与 root publication | detach 后 push/recovery late completion 不提交；所有订阅成对解除；pending task 可等待；teardown 顺序和部分构造失败回滚由普通 .NET 测试覆盖；Module 不再持有十余个独立可变资源字段 |
+| 4 | P1 | `GatewayRoomClient` transport/wire 分层 | transport delegate、push subscription、wire session、请求 codec、response mapping 与 battle input sequence 聚在同一 partial facade | 建立 `IGatewayRequestTransport`、纯 C# room/state-sync protocol client、独立 mapper 和 `BattleInputSequence` owner；Unity/SDK adapter 只实现 transport 与 push source | wire request/response、错误映射、sequence 单调性、取消传递可普通 .NET 测试；协议 client 不引用 SDK concrete type；`Dispose` 只处置明确 owned transport/subscription |
+| 5 | P1 | `BattleSessionFeature` facade 收尾 | 已有 runtime/controllers/handles owner，但 Feature 仍以大量 partial 转发私有状态、生命周期 cleanup 和 Unity log/editor hook | 将 detach transaction、tick projection、log/editor hooks 分离；subfeature 依赖改为稳定 runtime ports；Feature 只保留 phase adapter、稳定 public facade 和 composition | detach transaction 的顺序、异常隔离、幂等性可普通 .NET 测试；subfeature 不依赖 concrete Feature；单行 accessor partial 合并或删除；不复制 `BattleSessionRuntime` 状态 |
+| 6 | P2 | Debug 与物理文件整理 | debug query 仍有 world service 解析，测试和 partial 文件较碎；但行为 owner 风险低于前五批 | Debug 仅消费只读 ports 和命令服务；生产 ownership 稳定后再合并空壳/单行 partial、按领域拆大型测试 fixture | Debug/IMGUI 不直接解析 world service；单文件/空 partial 为零；测试数量、case source、`.meta` GUID 和条件编译行为保持不变 |
+
+实施约束：
+
+- 第 1、2 批可以连续设计，但必须分批提交：先迁移 owner 和 reset policy，再缩小调用方参数。否则 context facade 与新 owner 同时可写，反而增加双状态风险。
+- 第 3 批先处理 Entry runtime，再调整 Gateway client。Entry 需要先形成稳定 transport/session composition port，避免 Gateway 拆分后仍由 Unity module 直接拼装所有 concrete 资源。
+- 第 4 批不改变 op-code、wire codec、timeout、错误码或 command sequence 语义；只调整依赖方向和 ownership。
+- 第 5 批不得再创建平行 Session 状态机。`BattleSessionRuntime`、`BattleSessionHandles` 和现有 controllers 是迁移目标 owner，Feature 只减少转发和 Unity 耦合。
+- 第 6 批必须最后执行。物理文件减少不应与高风险生命周期迁移同批，避免 `.meta`、条件编译和行为变更混在同一差异中。
+
+统一门禁：每批至少包含普通 .NET 定向测试、受影响 SDK-style 项目构建、Unity 生成项目编译、Unity `.meta` GUID 唯一性检查、禁止反向程序集依赖的源码搜索以及 scoped `git diff --check`。涉及 MonoBehaviour、Editor hook、Resources 或主线程 dispatcher 的 adapter 行为，再补 Unity EditMode/PlayMode 测试；不以 Unity 测试替代可在纯 C# 边界完成的逻辑验证。
+
+### 13.14 P0-P2 边界收敛实施结果
+
+本轮已按 13.13 的顺序完成 P0-P2。实现保持现有 public facade、wire op-code/codec、timeout、取消传递、错误映射、command sequence、push 订阅和 teardown 顺序不变；主要变化是将可变 owner、纯策略和协议行为迁到可由普通 .NET 项目直接编译同一份 package 源码的边界。
+
+- **P0 BattleContext 与 consumer ports。** 收敛 pooled Context 的资源 owner、binding generation、reference-equality unbind 和 reset policy，并按 runtime、entity、input、snapshot routing、presentation 的实际使用面缩小 consumer 依赖。旧 Context 仅保留明确兼容投影，stale generation 不会清理替代 binding。
+- **P0 Entry 异步生命周期。** Entry 的 attachment generation、pending push/recovery operation、异常汇报、订阅配对和 teardown 编排进入独立纯 C# runtime；Unity module 只保留 dispatcher、配置资产、transport factory 和 root publication adapter。detach 后的 late completion 不提交状态，pending operation 可等待。
+- **P1 Gateway 分层。** `GatewayRoomClient` 保留 facade 和 composition，transport ownership/push source、wire protocol client、无状态 response mapper 与线程安全 `BattleInputCommandSequence` 分别迁入独立物理文件。普通 .NET 项目显式链接这些 package 源码，既有边界测试继续覆盖参数转发、订阅配对、owned dependency 单次释放、wire 字段和并发 sequence 单调唯一性。
+- **P1 Session facade 收尾。** teardown failure isolation 与 tick projection 分别迁入 `SessionTeardownPolicy` 和 `BattleSessionTickProjector`；现有 runtime/controllers 继续作为状态 owner，没有建立平行 Session 状态机。Unity lifecycle/log/editor adapter 仍留在 Feature 边界。
+- **P2 Debug 与 metadata。** 新增 Actor ID 语义的 `BattleDebugEntityId`，避免将 ECS world index/version 兼容类型暴露到 debug API；obsolete `EcsEntityId` 只保留在 `DefaultBattleDebugFacade` 的单点 adapter。新增 equality、hash、ordering、sentinel 契约测试。Gateway、Session、Debug 共 7 个新 Unity source 均具备标准 metadata 和稳定 GUID。
+
+验证结果：
+
+- 普通 .NET View Runtime 全量测试 147/147 通过，0 failed、0 skipped；SDK-style Runtime 项目构建为 0 errors。
+- Unity 2022.3.62f1 batchmode 完成脚本编译并通过 `SyncVS.SyncSolution` 自动刷新 generated projects；7 个新源码全部进入 `AbilityKit.Demo.Moba.View.Runtime.csproj`，`AbilityKit.Game.UnitTests.csproj` 保持对 Runtime 的项目引用，两个 generated `.csproj` 均无 retained tracked diff。
+- generated Runtime 串行构建通过（135 warnings、0 errors），generated UnitTests 串行构建通过（154 warnings、0 errors）。警告为工程既有 Unity framework 引用冲突、nullable 和未使用测试成员。
+- 7 个新纯 C# source 的 `UnityEngine` 引用为 0；7 个新 GUID 在全部 Unity metadata 中各唯一命中一次；拆分类型各只有一个声明；Debug 范围内 `EcsEntityId` 仅命中单点兼容 adapter。
+- scoped `git diff --check` 通过，仅报告工作树既有 LF/CRLF 转换提示；额外扫描 15 个新增 source、metadata 和 test 文件，尾随空格错误为 0。
+
+### 13.15 P3-P4 HUD 与 Formal Lobby 实施结果
+
+本轮继续按推荐顺序完成 P3-P4，并收尾 P0-P2 的表现层边界审计。实现保持既有 Unity Feature、Gateway、GameEntry 和 public compatibility facade 的生命周期入口不变，新增纯 C# owner 通过 source link 镜像到普通 .NET View Runtime 项目。
+
+- **P3 HUD session model。** 新增纯 C# `BattleHudSessionModel`，负责 local player/actor 解析、loadout revision 与 binding decision、snapshot actor resolution 以及会话状态投影；`BattleHudFeature` 保留 Unity 生命周期装配，`BattleHudInputController` 保留输入适配，Unity UI 类型不进入 model。
+- **P4 Formal Lobby screen boundary。** 新增纯 screen snapshot、presenter 和 renderer 边界；`FormalLobbyFeature` 负责 phase attach/detach、配置适配、snapshot 构建和命令转交，`FormalLobbyRenderer` 统一负责 IMGUI 状态绘制。`FormalLobbyRuntime` 继续负责 attachment generation、成对解绑、取消 token 和反向 async teardown，Entry/GameEntry 不复制 Lobby 状态机。
+- **P1 diagnostics owner。** 将 input submission statistics 从 Unity 聚合器拆为纯 C# `InputSubmissionStatsSnapshot` 与 `InputSubmissionStatsProvider`；`BattleReplicationRuntime` 只依赖纯 owner，Unity `BattleFlowDebugProvider` 保留透明兼容代理，并维持 reference-equality 清理语义。
+- **P2 capability narrowing。** projectile、damage 和 presentation cue handlers 不再接收完整 `BattleContext`；cue handler 进一步收窄为 `IECWorld`。remote interpolation 使用 `IBattleEntityContext`。world service locator 命中仅存在于 attach/bind/composition 阶段，callback/tick 热路径使用缓存端口；Unity Feature 生命周期字段属于明确的 attach/detach 边界，不作为共享 handler 参数。
+
+验证结果：
+
+- 普通 .NET View Runtime SDK-style 项目构建为 0 errors；全量测试 174/174 通过，0 failed、0 skipped。
+- Unity 2022.3.62f1 generated Runtime 项目构建通过（0 errors），generated UnitTests 项目构建通过（0 errors）；本轮 UnitTests 生成程序集构建为 172 warnings、0 errors。此次未实际运行 Unity Test Runner，因此上述结果仅证明生成项目编译和程序集引用有效，不宣称 Unity 行为测试已执行。
+- `BattleHudSessionModel.cs`、`FormalLobbyScreenSnapshot.cs`、`InputSubmissionStatsSnapshot.cs`、`InputSubmissionStatsProvider.cs` 均存在对应 `.meta`，四个文件均无 `UnityEngine`/`UnityEditor` 引用；全 Unity `*.meta` GUID 重复组为 0。
+- `BattlePresentationCueViewEventHandler(BattleContext ...)`、ViewEvents 中长期持有 concrete context 的共享 handler 残留均为 0；scoped `git diff --check` 通过。generated Runtime 项目已包含本轮新增 source link，保留其 BOM，未产生额外手工 generated 文件差异。
+
+本轮 P0-P4 的代码、测试/source link、metadata、依赖方向与 scoped diff 门禁均已完成；后续仅需按更大范围继续削减 Unity Feature 生命周期上下文和整理物理 partial 文件，不作为本轮完成条件。

@@ -25,9 +25,9 @@ namespace AbilityKit.Game.Flow
         private BattlePresentationSessionContext _presentation;
         private readonly BattlePresentationSessionResolver _presentationSessions = new BattlePresentationSessionResolver();
         private readonly BattleHudFeatureControllerFactory _controllers = new BattleHudFeatureControllerFactory();
+        private readonly BattleHudSessionModel _session = new BattleHudSessionModel();
 
         private BattleHudAimPreview _aimPreview;
-        private readonly BattleHudSkillTemplateBindingState _skillTemplateBinding = new BattleHudSkillTemplateBindingState();
 
         public void OnAttach(in GamePhaseContext ctx)
         {
@@ -37,6 +37,7 @@ namespace AbilityKit.Game.Flow
             _camera = Camera.main;
             _config = BattleHudConfig.Default;
             _presentation = _presentationSessions.Resolve(ctx);
+            SynchronizeSessionFromContext();
 
             if (_ctx != null && _ctx.EntityNode.IsValid)
             {
@@ -74,7 +75,7 @@ namespace AbilityKit.Game.Flow
 
             _aimPreview?.Clear();
             _aimPreview = null;
-            _skillTemplateBinding.Reset();
+            _session.Reset();
 
             _canvasController?.Dispose();
             _canvasController = null;
@@ -114,13 +115,14 @@ namespace AbilityKit.Game.Flow
 
         public void RefreshLocalControlSkillTemplates()
         {
+            SynchronizeSessionFromContext();
             ApplyLaunchSpecSkillTemplates();
         }
 
         private void EnsureLocalControlSkillTemplates()
         {
-            var revision = _ctx != null ? _ctx.RuntimePlayerLoadoutRevision : 0;
-            if (_skillTemplateBinding.RequiresBinding(ResolveLocalPlayerId(), revision))
+            SynchronizeSessionFromContext();
+            if (_session.RequiresLoadoutBinding)
             {
                 ApplyLaunchSpecSkillTemplates();
             }
@@ -132,7 +134,6 @@ namespace AbilityKit.Game.Flow
             var launchSpec = _ctx.Plan.LaunchSpec;
             if (launchSpec.Players == null || launchSpec.Players.Length == 0) return;
 
-            var playerId = ResolveLocalPlayerId();
             var worldId = !string.IsNullOrEmpty(_ctx.Plan.World.WorldId)
                 ? _ctx.Plan.World.WorldId
                 : launchSpec.WorldId;
@@ -140,13 +141,13 @@ namespace AbilityKit.Game.Flow
             var res = new EnterMobaGameRes(
                 new WorldId(worldId),
                 launchSpec.LocalPlayerId,
-                _ctx.LocalActorId,
+                _session.LocalActorId,
                 launchSpec.RandomSeed,
                 launchSpec.TickRate,
                 launchSpec.InputDelayFrames,
                 playersLoadout: _ctx.BuildEffectivePlayerLoadouts());
 
-            ApplySkillButtonTemplates(res, playerId);
+            ApplySkillButtonTemplates(res);
         }
 
         private void SubscribeEntityLifecycle()
@@ -171,33 +172,30 @@ namespace AbilityKit.Game.Flow
         private void OnEnterGameSnapshot(EnterMobaGameRes res)
         {
             if (_ctx == null) return;
-            if (res.LocalActorId > 0 && _ctx.LocalActorId <= 0)
-            {
-                _ctx.LocalActorId = res.LocalActorId;
-            }
+            SynchronizeSessionFromContext();
+            _session.ApplyEnterGameSnapshot(res.PlayerId.Value, res.LocalActorId);
+            PublishLocalActorId();
 
-            var controlledPlayerId = _ctx.LocalControlPlayerId;
-            if (!string.IsNullOrEmpty(controlledPlayerId) &&
-                !string.Equals(controlledPlayerId, res.PlayerId.Value, System.StringComparison.OrdinalIgnoreCase))
+            if (!_session.ShouldUseEnterGameLoadout(
+                    res.PlayerId.Value,
+                    !string.IsNullOrEmpty(_ctx.LocalControlPlayerId)))
             {
                 ApplyLaunchSpecSkillTemplates();
                 return;
             }
 
-            ApplySkillButtonTemplates(res, ResolveLocalPlayerId(res));
+            ApplySkillButtonTemplates(res);
         }
 
-        private void ApplySkillButtonTemplates(EnterMobaGameRes res, string playerId)
+        private void ApplySkillButtonTemplates(EnterMobaGameRes res)
         {
             if (_inputController == null ||
-                !_inputController.ApplySkillButtonTemplates(res, playerId))
+                !_inputController.ApplySkillButtonTemplates(res, _session.LocalPlayerId))
             {
                 return;
             }
 
-            _skillTemplateBinding.MarkBound(
-                playerId,
-                _ctx != null ? _ctx.RuntimePlayerLoadoutRevision : 0);
+            _session.MarkLoadoutBound();
             _aimPreview?.SetSkillSpecs(_inputController.SkillSpecs);
         }
 
@@ -210,11 +208,17 @@ namespace AbilityKit.Game.Flow
         private void OnSkillStateSnapshot(MobaSkillStateSnapshotEntry[] entries)
         {
             if (_ctx == null || entries == null || entries.Length == 0) return;
-            var localActorId = ResolveLocalActorId(entries);
-            if (localActorId > 0 && _ctx.LocalActorId <= 0)
+            SynchronizeSessionFromContext();
+            System.Predicate<MobaSkillStateSnapshotEntry> matchesLoadout = null;
+            if (_inputController != null)
             {
-                _ctx.LocalActorId = localActorId;
+                matchesLoadout = _inputController.SkillStateMatchesTemplate;
             }
+
+            var localActorId = _session.ResolveLocalActorId(
+                entries,
+                matchesLoadout);
+            PublishLocalActorId();
 
             _inputController?.ApplySkillStates(entries, localActorId);
         }
@@ -225,52 +229,23 @@ namespace AbilityKit.Game.Flow
             _binder?.OnPresentationCues(entries);
         }
 
-        private string ResolveLocalPlayerId(EnterMobaGameRes res = default)
+        private void SynchronizeSessionFromContext()
         {
-            if (_ctx == null) return string.Empty;
-            var controlledPlayerId = _ctx.ResolveLocalControlPlayerId();
-            if (!string.IsNullOrEmpty(controlledPlayerId)) return controlledPlayerId;
-            if (!string.IsNullOrEmpty(res.PlayerId.Value)) return res.PlayerId.Value;
-            return _ctx.Plan.LaunchSpec.LocalPlayerId.Value;
+            if (_ctx == null) return;
+            _session.Synchronize(
+                _ctx.ResolveLocalControlPlayerId(),
+                _ctx.LocalActorId,
+                _ctx.RuntimePlayerLoadoutRevision);
         }
 
-        private int ResolveLocalActorId(MobaSkillStateSnapshotEntry[] entries)
+        private void PublishLocalActorId()
         {
-            if (_ctx == null) return 0;
-            if (_ctx.LocalActorId > 0) return _ctx.LocalActorId;
-            return _inputController != null
-                ? _inputController.ResolveActorIdFromSkillStates(entries)
-                : 0;
+            if (_ctx != null && _ctx.LocalActorId <= 0 && _session.LocalActorId > 0)
+            {
+                _ctx.LocalActorId = _session.LocalActorId;
+            }
         }
 
-    }
-
-    internal sealed class BattleHudSkillTemplateBindingState
-    {
-        private string _playerId;
-        private int _loadoutRevision = -1;
-
-        public bool RequiresBinding(string playerId, int loadoutRevision)
-        {
-            return !string.IsNullOrEmpty(playerId) &&
-                   (!string.Equals(
-                        playerId,
-                        _playerId,
-                        System.StringComparison.OrdinalIgnoreCase) ||
-                    loadoutRevision != _loadoutRevision);
-        }
-
-        public void MarkBound(string playerId, int loadoutRevision)
-        {
-            _playerId = playerId;
-            _loadoutRevision = loadoutRevision;
-        }
-
-        public void Reset()
-        {
-            _playerId = null;
-            _loadoutRevision = -1;
-        }
     }
 
     internal sealed class BattleHudFeatureControllerFactory

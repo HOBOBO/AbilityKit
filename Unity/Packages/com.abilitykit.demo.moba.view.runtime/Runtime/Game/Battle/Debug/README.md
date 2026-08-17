@@ -1,4 +1,4 @@
-# Battle Debug Tools Boundary
+# 战斗调试工具边界
 
 [`Debug`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Debug) 目录只承载开发期调试能力，例如 [`BattleDebugOnGUIFeature`](Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Debug/BattleDebugOnGUIFeature.cs)。
 

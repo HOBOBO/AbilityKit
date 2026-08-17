@@ -3,7 +3,7 @@ using AbilityKit.Core.Pooling;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class BattleContext : IPoolable, IBattleHudInputSink, IBattleRuntimeContext, IBattleEntityContext, IBattleInputContext, IBattleSnapshotRoutingContext
+    public sealed partial class BattleContext : IPoolable, IBattleHudInputSink, IBattleRuntimeContext, IBattleEntityContext, IBattleInputContext, IBattleSnapshotRoutingContext, IBattleInputSessionIdentityPort
     {
         private static readonly ObjectPool<BattleContext> Pool = Pools.GetPool(
             key: "BattleContext",
@@ -28,15 +28,15 @@ namespace AbilityKit.Game.Flow
 
         void IPoolable.OnPoolRelease()
         {
-            Reset(disposeOwnedResources: true, destroyCollections: false);
+            Reset(destroyCollections: false);
         }
 
         void IPoolable.OnPoolDestroy()
         {
-            Reset(disposeOwnedResources: true, destroyCollections: true);
+            Reset(destroyCollections: true);
         }
 
-        private void Reset(bool disposeOwnedResources, bool destroyCollections)
+        private void Reset(bool destroyCollections)
         {
             Session = null;
             RuntimeWorld = null;
@@ -52,12 +52,6 @@ namespace AbilityKit.Game.Flow
             Hooks = null;
 
             ClearSnapshotRouting();
-
-            if (disposeOwnedResources)
-            {
-                InputRecordWriter?.Dispose();
-            }
-
             ResetInputRuntime();
             ResetPredictionRuntime();
 

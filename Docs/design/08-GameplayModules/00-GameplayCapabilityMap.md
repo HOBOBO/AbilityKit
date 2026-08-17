@@ -1,5 +1,9 @@
 # 玩法能力地图
 
+> 文档类型：玩法能力导航与组合边界
+> 事实基线：2026-08-16
+> 文档版本：v3.2
+>
 AbilityKit 的玩法层不是一个单体技能系统，而是一组可组合的战斗表达原语：Triggering 负责“事件-条件-动作”执行，Ability 负责 GameplayEffect 生命周期，Combat 包提供投射物、目标搜索、伤害、运动和实体管理等领域原语，Config/CodeGen 负责把配置转为可执行计划。
 
 ---
@@ -75,6 +79,68 @@ flowchart TB
     Projectile --> Frame
     Damage --> Snapshot
 ```
+
+### 1.1 框架原语与项目应用层
+
+玩法层采用“稳定原语下沉、易变策略上留”的边界。复杂战斗不是通过一个公共 `BattleApplication` 类解决，而是由项目应用层组合 Triggering、Ability、Continuous 和 `combat.*` 原语完成。
+
+| 责任 | 框架层提供 | 项目应用层负责 | MOBA 示例中的代表实现 |
+|------|------------|----------------|------------------------|
+| 输入语义 | Pipeline 的阶段、暂停、中断和终态 | Press/Hold/Release 如何映射技能、输入失败如何反馈 | `SkillCastCoordinator`、技能输入处理器 |
+| 规则执行 | EventBus、TriggerPlan、Action/Function Registry、ExecCtx | 事件 ID、payload、条件、动作注册和失败政策 | `MobaTriggerExecutionGateway`、PlanAction modules |
+| 持续生命周期 | `IContinuous`、Manager、Policy、暂停/恢复/终止契约 | Buff、引导、光环、位移等领域对象怎样绑定生命周期 | Buff/Passive/Motion continuous runtimes |
+| 目标与结算 | Targeting、Damage、Projectile、Motion 等原语 | 阵营、免疫、命中、护盾、资源、死亡和复活规则 | `MobaTargetQueryFactories`、`MobaDamageService` |
+| 上下文与诊断 | Context、Trace、Record、Snapshot 端口 | 业务来源类型、Actor 身份、归因字段和展示粒度 | `MobaTraceRegistry`、snapshot emitters |
+| 装配与驱动 | World.DI、Host、System、固定 Tick | 服务注册、System 顺序、World profile 和 readiness gate | `MobaBattleWorldBlueprint`、Bootstrap module |
+
+上表中的 MOBA 类型不是框架缺失实现的临时替代品。它们包含技能资源、阵营、Actor、Entitas、配置表和表现协议等项目决策，默认归示例应用层所有。其他项目可以复用其组织思路，但应重新建立自己的领域入口和失败语义。
+
+### 1.2 能力下沉判定
+
+一段示例应用代码只有同时满足以下条件，才适合从 Demo 晋升为框架能力：
+
+1. **语义稳定**：不同类型游戏对它的状态、终态和失败有相同理解。
+2. **依赖可反转**：不依赖具体 Actor、配置表、ECS 组件、资源或表现协议。
+3. **所有权明确**：创建、Tick、取消、销毁、回滚和异常清理能够形成闭合契约。
+4. **扩展成本受控**：不需要大量布尔开关、回调和服务定位来覆盖项目差异。
+5. **交叉验证**：至少由第二类非同构示例或真实项目证明可复用。
+
+若只满足“多个项目大概都有这段代码”，但控制流和策略需要被大幅修改，更适合保留为 Recipe、Starter 或示例源码，而不是发布为运行时依赖。
+
+### 1.3 专题覆盖矩阵
+
+本地图后续章节只展开最具代表性的执行链，不意味着未单列章节的能力缺失。玩法专题的完整导航如下：
+
+| 能力 | 公共包或核心入口 | 专题 | 当前成熟度边界 |
+|------|------------------|------|----------------|
+| 技能组织 | `pipeline`、`ability`、项目 cast coordinator | [01-SkillSystemArchitecture](01-SkillSystemArchitecture.md) | 公共阶段/Pipeline 可复用；施法事务与技能槽属于项目层 |
+| 触发规则 | `triggering` | [02-TriggeringSystem](02-TriggeringSystem.md) | 公共执行器有专项测试；事件目录和 Action 语义由项目提供 |
+| Buff | `ability`、`continuous` 与项目 runtime | [03-BuffSystem](03-BuffSystem.md) | 没有统一跨游戏 Buff 应用层 |
+| Projectile | `combat.projectile` | [04-ProjectileSystem](04-ProjectileSystem.md) | 公共运动/命中/回滚原语与项目命中结算分离 |
+| Attribute/Modifier | `attributes`、`modifiers` | [05-AttributeSystem](05-AttributeSystem.md) | 数值容器可复用；属性目录和刷新策略由项目拥有 |
+| Damage | `combat.damage`、`dataflow` | [06-DamageCalculation](06-DamageCalculation.md) | 公共 processor 链不定义 MOBA 护盾、死亡和归因规则 |
+| Targeting | `combat.targeting` | [07-TargetingSystem](07-TargetingSystem.md) | 候选/规则/评分/选择稳定；阵营和空间查询由项目注入 |
+| Ability Runtime | `pipeline`、`ability`、`triggering` | [08-PipelineAndAbilityRuntime](08-PipelineAndAbilityRuntime.md) | 组合契约可复用，不提供统一 Battle Application |
+| Entity/Skill Index | `combat.entitymanager`、`combat.skilllibrary` | [09-EntityAndSkillIndexing](09-EntityAndSkillIndexing.md) | 索引原语与具体 Actor/技能身份分离 |
+| Motion | `combat.motion` | [10-MotionPipeline](10-MotionPipeline.md) | 求解与生命周期原语可复用；命中/优先级属于项目策略 |
+| Continuous | `continuous` | [11-ContinuousFrameworkDesign](11-ContinuousFrameworkDesign.md) | 公共生命周期 Manager；五类 MOBA runtime 是参考组合 |
+| GameplayTags | `gameplaytags` | [12-GameplayTagsHierarchyAndEngineeringBoundaries](12-GameplayTagsHierarchyAndEngineeringBoundaries.md) | 层级标签与查询可复用；目录、复制和序列化仍需治理 |
+
+### 1.4 可组合基础设施的闭环边界
+
+公共包已经把复杂战斗需要的“执行原语”拆到了可单独组合的粒度，但这些原语并不共同承诺一次跨模块事务。本批源码复核得到的关闭边界如下：
+
+| 基础设施 | 已提供的低成本能力 | 宿主仍必须补齐的闭环 |
+|----------|--------------------|----------------------|
+| Targeting | Provider/Rule/Score/Selector、稳定 Top-K、池化 Context/Result | Builder 唯一租约、失败结果不提交、自定义 Selector 子集/唯一性校验 |
+| Pipeline | 跨帧阶段、组合、暂停/中断、Registry/Trace | 启动与终态回调异常隔离、活跃 run 显式关闭、context 与阶段列表最终归还 |
+| Entity/Skill Index | 主表与单键/多键派生查询 | 聚合写入口、比较器统一、回填/更新失败后的重建或整体切换 |
+| Motion | Source 合成、约束求解、固定步长辅助、局部快照 | Collision world、命中副作用去重、source 进度与领域 token 的完整回滚 |
+| Continuous | Owner 索引、准入、状态操作、Binder | Tick/到期、Clear 前终止、批量关闭异常汇总、领域 Buff/周期/投影语义 |
+| GameplayTags | 名称层级、Container/Query/Stack | 稳定目录版本、受检反序列化、Owner 来源租约快照和 Reset 句柄隔离 |
+| Behavior | Decision/Executor、Manager、BTCore 适配 | 重入调度、Paused/全量 Shutdown、Pipeline Phase 的 Decision/Runtime 释放 |
+
+这张表解释了为什么“工具集可以低成本组合复杂战斗”与“不提供统一应用套件”并不矛盾：框架减少的是算法、数据结构和生命周期原语的重复实现；项目仍拥有跨原语的提交顺序、失败补偿、稳定身份和关闭协议。只有这些语义在第二类非同构游戏中也保持一致时，才适合继续下沉。
 
 ---
 
@@ -440,3 +506,5 @@ sequenceDiagram
 ```
 
 这条链路说明：AbilityKit 的技能能力来自多个小模块协作，而不是由单个 Skill 类承担所有职责。这样设计的收益是：每个战斗原语都可以独立测试、独立替换，并接入帧同步、回滚和服务端运行。
+
+*文档版本：v3.2 | 最后更新：2026-08-16 | 证据说明：当前实现与测试范围以各玩法专题和 MOBA/Shooter 示例专题为准*

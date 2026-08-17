@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Threading;
 
 namespace AbilityKit.Demo.Common.Rooms
 {
@@ -49,7 +48,8 @@ namespace AbilityKit.Demo.Common.Rooms
     /// </summary>
     public static class DemoMultiplayerLaunchIntent
     {
-        private static int _requested;
+        private static readonly object Gate = new object();
+        private static bool _requested;
         private static DemoMultiplayerGameplay _gameplay;
         private static DemoMultiplayerLaunchRequest _request;
 
@@ -57,25 +57,54 @@ namespace AbilityKit.Demo.Common.Rooms
             DemoMultiplayerGameplay gameplay,
             DemoMultiplayerLaunchRequest request)
         {
-            _gameplay = gameplay;
-            _request = request ?? throw new ArgumentNullException(nameof(request));
-            Interlocked.Exchange(ref _requested, 1);
+            lock (Gate)
+            {
+                _gameplay = gameplay;
+                _request = request ?? throw new ArgumentNullException(nameof(request));
+                _requested = true;
+            }
         }
 
         public static bool TryConsume(
             DemoMultiplayerGameplay expectedGameplay,
             out DemoMultiplayerLaunchRequest request)
         {
-            if (Interlocked.Exchange(ref _requested, 0) == 0)
+            lock (Gate)
             {
-                request = null;
-                return false;
-            }
+                if (!_requested)
+                {
+                    request = null;
+                    return false;
+                }
 
-            request = _request;
-            var matches = _gameplay == expectedGameplay;
-            _request = default;
-            return matches;
+                request = _request;
+                var matches = _gameplay == expectedGameplay;
+                _request = default;
+                _requested = false;
+                return matches;
+            }
+        }
+
+        public static bool TryPeek(
+            out DemoMultiplayerGameplay gameplay,
+            out DemoMultiplayerLaunchRequest request)
+        {
+            lock (Gate)
+            {
+                gameplay = _gameplay;
+                request = _request;
+                return _requested;
+            }
+        }
+
+        public static void Clear()
+        {
+            lock (Gate)
+            {
+                _gameplay = default;
+                _request = default;
+                _requested = false;
+            }
         }
     }
 }

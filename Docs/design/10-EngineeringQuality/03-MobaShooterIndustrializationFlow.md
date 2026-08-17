@@ -2,6 +2,12 @@
 
 > 本文聚焦 MOBA 与 Shooter 两个示例的工业化验证链路：单元测试如何覆盖领域规则，DSL/配置环境测试如何冻结可执行契约，冒烟测试如何证明示例按正式运行路径闭环，并通过 artifact/replay 为回归定位提供证据。全仓测试门禁总览见 [01-正式测试流程、单元测试与冒烟测试](01-TestingWorkflow.md)。
 
+> 文档类型：Canonical 示例验证设计
+>
+> 事实基线：2026-08-16
+>
+> 适用范围：MOBA/Shooter 示例的领域测试、运行时验收、网络 smoke、artifact 与 CI 接线；不把示例应用层提升为框架通用 API
+
 ---
 
 ## 1. 能力定位
@@ -19,6 +25,8 @@ MOBA 与 Shooter 的工业化流程不是简单把测试工程列出来，而是
 1. 纯领域规则优先放在纯 C# xUnit，避免 Unity/Orleans 启动成本影响快速反馈。
 2. 配置、DSL、稳定错误码、artifact schema 必须通过机器可读字段断言，而不是只看日志文本。
 3. 端到端 smoke 只承担跨进程、跨网络、真实 runtime 装配的验收职责，失败后应能用 trace/replay 缩小问题。
+
+示例中的房间流程、技能编排、英雄规则、客户端会话和运营参数属于参考应用层。它们的价值是证明底层 package 可以低成本组合成复杂战斗，而不是形成跨游戏统一的应用套件。框架层稳定的是生命周期、上下文、执行管线、同步、记录和诊断等工具契约；项目应在这些扩展点上保留自己的应用编排。
 
 ---
 
@@ -116,14 +124,14 @@ summary 的稳定字段包括 `caseId`、`worldId`、`tickRate`、`scenario.name
 
 Console smoke 和完整战局 acceptance 仍不等于真实多人网络闭环。当前网络层有两个独立 gate：
 
-| Gate | CI policy | 当前能证明什么 |
-|---|---|---|
-| P1 `moba-smoke` | pull request、push、schedule；要求 artifact | owner/member 两客户端经 TCP Gateway 完成登录、房间阶段、战斗启动和输入提交，权威聚合帧包含双方输入 |
-| P2 `moba-multiprocess` | schedule-only；要求 artifact | host-only Orleans silo 与标准 smoke client 场景处于独立 OS 进程，端口隔离和进程生命周期可复核 |
+| Gate | gate 配置声明 | workflow 实际接线（2026-08-16） | 当前能证明什么 |
+|---|---|---|---|
+| P1 `moba-smoke` | pull request、push、schedule；要求 artifact | 有 `moba-smoke` job | owner/member 两客户端经 TCP Gateway 完成登录、房间阶段、战斗启动和输入提交，权威聚合帧包含双方输入 |
+| P2 `moba-multiprocess` | schedule-only；要求 artifact | 未发现对应 job | 本地脚本可验证 host-only silo 与 client-only 场景进程隔离、双方收敛、全量恢复及可靠事件 ACK；不能宣称当前 schedule 已自动执行 |
 
-`moba-multiprocess` 当前不是“一客户端一进程”。拓扑是一个 host-only silo 进程加一个 client-only 场景进程，owner/member 两条 TCP 连接仍由后者共同持有。文档和发布证据必须按该拓扑表述，不能扩张成多客户端进程隔离。
+`moba-multiprocess` 当前不是“一客户端一进程”。拓扑是一个 host-only silo 进程加一个 client-only 场景进程，owner/member 两条 TCP 连接仍由后者共同持有。场景已覆盖双方快照/移动收敛、显式全量恢复，以及可靠事件 epoch/watermark ACK；gate 描述仍把 client-only 写成未来扩展，已经落后于 runner。文档和发布证据必须按实际脚本表述，既不能缩减为普通 smoke，也不能扩张成多客户端进程隔离。
 
-MOBA gameplay catalog 同时声明 `frame-sync-authority` 和 `state-sync-authority`，默认 gameplay profile 使用 FrameSync；MobaSmoke Program 也支持 `--sync-template`。但两个 smoke 脚本和 `tools/test-gates.json` 当前均未透传该参数，Program 默认仍是 StateSync。现有网络 gate 因此只证明默认 smoke 模板链路，不证明 FrameSync 模板已具备 E4/E5 覆盖。
+MOBA gameplay module 当前只声明 `frame-sync-authority`，runtime mode 为 `BattleWorldWithFrameSync`；Room 对外能力固定为 `Lockstep`、schema `0..1`。MobaSmoke Program 支持 `--sync-template`，默认值也已经是 `frame-sync-authority`，所以两个脚本即使不透传参数，实际仍走 FrameSync。`moba-smoke` 有覆盖 pull request、main push、schedule 和 manual 的 workflow job，可作为该场景的 E5 编排入口；本批未真实运行，不能据静态接线新增 E4 PASS。`moba-multiprocess` 仍只有 gate catalog 的 schedule 声明，workflow 未发现对应 job。
 
 ### 3.6 完整战局生命周期门禁
 
@@ -134,7 +142,7 @@ MOBA gameplay catalog 同时声明 `frame-sync-authority` 和 `state-sync-author
 | Console World smoke | `MobaCompleteBattleLifecycleSmokeTests` | 正式 DI 装配、死亡、复活、再次死亡、再次复活、终局 |
 | Unity EditMode acceptance | `MobaCompleteBattleJourneyAcceptanceTests` | EnterGame、移动、技能 2、Effect trace、Projectile 命中、Buff、伤害、死亡、异地半血复活、再次战斗和结算 |
 
-两者由 P1 `moba-complete-battle-journey` gate 统一执行。`MobaUnitLifecycleService` 只负责已批准复活的状态转换；自动复活倒计时、出生点策略和次数限制属于玩法规则。当前 Unity acceptance 验证逻辑层和技能表现事件链，不应据此声称多人网络死亡/复活表现已经闭环；独立网络表现事件和 View handler 正式接线仍是后续验收项。
+两者由 P1 `moba-complete-battle-journey` gate 配置统一描述，但当前 workflow 未发现对应 job；只有手动或本地执行结果时，应按实际命令和 artifact 记录证据，不能宣称已经形成自动 CI 门禁。`MobaUnitLifecycleService` 只负责已批准复活的状态转换；自动复活倒计时、出生点策略和次数限制属于玩法规则。当前 Unity acceptance 验证逻辑层和技能表现事件链，不应据此声称多人网络死亡/复活表现已经闭环；独立网络表现事件和 View handler 正式接线仍是后续验收项。
 
 ---
 
@@ -153,6 +161,8 @@ Shooter 的主测试工程是 `src/AbilityKit.Demo.Shooter.Runtime.Tests/Ability
 | Presentation | `ShooterSnapshotViewProjectionTests.cs` | snapshot 到 view projection 的表现层投影 |
 | Rollback/Synchronization | state recovery、frame sync controller、fast reconnect、pure-state controller | 回滚恢复、重连、状态同步控制器 |
 | Orleans smoke | `Server/Orleans/tools/run_shooter_smoke.ps1` | Gateway/Room/Battle/StateSync/replay artifact 端到端验收 |
+
+默认 Shooter policy 是 `state-sync-authority`、packed 每帧推送且每 30 帧 full，Room 至少需要 2 名成员并要求全部 ready。当前单进程 `ShooterSmokeRunner` 只登录一个网络账号，却给本地 `ShooterStartGamePayload` 放入两个模拟玩家；这两种身份不能互相替代。在真实脚本复跑前，Harness E3 只能证明 runner/adapter 契约，不能证明单进程默认场景已满足当前 Room 启动条件。
 
 ### 4.2 纯战斗内核与 acceptance
 
@@ -255,6 +265,8 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 
 P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本地、PR 或 nightly。实际准入以每个 gate 的 `requiredBefore`、`failurePolicy` 和 `ciPolicy` 为准；artifact 存在也不能替代场景断言和领域回读。
 
+还必须继续核对 workflow：`ciPolicy` 表示期望触发策略，手写 job 才表示当前自动编排。MOBA 的 network options、多个英雄 Unity fixture、完整战局和 multiprocess gate 当前存在接线缺口；Shooter fast、integration、PlayMode、multiprocess、compatibility、soak、ownership cleanup 和 performance 则已有对应 job。任何发布说明都应引用实际执行的 job/命令，而不是只引用 gate 名称。
+
 ---
 
 ## 7. 工业化维护约束
@@ -287,3 +299,23 @@ P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本�
 13. `tools/test-gates.json`：MOBA/Shooter gate level、触发策略、失败策略和 artifact 要求。
 14. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/TriggerPlanExecutableTests.cs`：TriggerPlan 可执行 DSL 与 metadata validator。
 15. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/ValidatingTriggerPlanJsonDatabaseExecutionRootTests.cs`：JSON ExecutionRoot 校验和稳定错误码。
+
+---
+
+## 9. 当前证据结论
+
+| 能力面 | 当前最高可复用证据 | 仍然缺少 |
+|---|---|---|
+| MOBA 领域与 Console | 多个 E3 契约及 Console 场景 E4 入口 | 所有入口的统一 CI 接线和版本发布责任 |
+| MOBA Gateway FrameSync smoke | `moba-smoke` workflow 的 E5 编排入口；Program 和脚本默认实际走 FrameSync | 当前提交的新 E4 PASS，以及 multiprocess workflow 接线 |
+| MOBA 完整战局/英雄 fixture | 源码与局部测试入口 | 对应 workflow job，且网络表现链仍需独立验收 |
+| Shooter 领域、同步与服务端 | E3 测试、E4 smoke/回读以及多类 E5 job | 不同 job 的最近通过记录仍需随发布候选归档 |
+| 示例应用层 | 在指定 Demo 中证明组合方式 | 跨游戏稳定语义；默认不晋升为框架层能力 |
+
+2026-08-16 的静态 gate 复核为 `166/168`，两个失败均来自 `moba-codegen` 的缺失工程路径；该 validator 不会自动发现所有 `ciPolicy` 与 workflow job 的缺口。本轮没有重跑 MOBA Gateway、Shooter 默认 Smoke、multiprocess 或 Unity 场景，因此这里对网络和 Unity 的 E4 结论沿用既有源码、脚本与已归档证据，不把静态检查计为新的场景通过。E5 只按 workflow 实际 job 和触发条件声明。
+
+这组示例应被视为“高接入度参考实现 + 正式验证资产”。它们降低项目理解和接入成本，但项目仍拥有应用编排、玩法规则和产品策略；只有在多个项目出现稳定同构需求并能定义不含玩法假设的契约时，才评估将局部能力上移为可选 package。
+
+---
+
+*文档版本：v3.1 | 最后更新：2026-08-16*

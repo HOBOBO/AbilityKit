@@ -1,9 +1,69 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Room
 {
+    [MemoryPackable]
+    internal partial class ReusableWireStateSyncSnapshotPush
+    {
+        [MemoryPackOrder(0)] public ulong WorldId;
+        [MemoryPackOrder(1)] public int Frame;
+        [MemoryPackOrder(2)] public double Timestamp;
+        [MemoryPackOrder(3)] public bool IsFullSnapshot;
+        [MemoryPackOrder(4)] public List<WireStateSyncActorSnapshot>? Actors;
+        [MemoryPackOrder(5)] public int PayloadOpCode;
+        [MemoryPackOrder(6)] public byte[]? Payload = Array.Empty<byte>();
+        [MemoryPackOrder(7)] public long ServerTicks;
+        [MemoryPackOrder(8)] public long EventWatermark;
+        [MemoryPackOrder(9)] public int SchemaVersion;
+        [MemoryPackOrder(10)] public List<int>? RemovedActorIds;
+        [MemoryPackOrder(11)] public string EventEpoch = string.Empty;
+    }
+
+    public sealed class WireStateSyncSnapshotPushDecodeBuffer
+    {
+        private ReusableWireStateSyncSnapshotPush? _buffer = new ReusableWireStateSyncSnapshotPush();
+
+        public WireStateSyncSnapshotPush Decode(ArraySegment<byte> payload)
+        {
+            if (payload.Array == null || payload.Count == 0)
+            {
+                return default;
+            }
+
+            return Decode(new ReadOnlySpan<byte>(payload.Array, payload.Offset, payload.Count));
+        }
+
+        public WireStateSyncSnapshotPush Decode(ReadOnlySpan<byte> payload)
+        {
+            if (payload.Length == 0)
+            {
+                return default;
+            }
+
+            MemoryPackSerializer.Deserialize(payload, ref _buffer);
+            var value = _buffer ?? new ReusableWireStateSyncSnapshotPush();
+            _buffer = value;
+            return new WireStateSyncSnapshotPush
+            {
+                WorldId = value.WorldId,
+                Frame = value.Frame,
+                Timestamp = value.Timestamp,
+                IsFullSnapshot = value.IsFullSnapshot,
+                Actors = value.Actors,
+                PayloadOpCode = value.PayloadOpCode,
+                Payload = value.Payload,
+                ServerTicks = value.ServerTicks,
+                EventWatermark = value.EventWatermark,
+                SchemaVersion = value.SchemaVersion,
+                RemovedActorIds = value.RemovedActorIds,
+                EventEpoch = value.EventEpoch
+            };
+        }
+    }
+
     public static class WireRoomGatewayBinary
     {
         public static ArraySegment<byte> Serialize<T>(in T value)

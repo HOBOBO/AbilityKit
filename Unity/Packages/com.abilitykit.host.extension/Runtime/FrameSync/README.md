@@ -1,4 +1,4 @@
-# Client Prediction Driver（Host Extension / FrameSync）
+# 客户端预测驱动器（Host Extension / FrameSync）
 
 本目录的核心是 `ClientPredictionDriverModule`：它把 **远端权威输入流**、**本地输入队列**、**预测窗口**、**回滚/重演**、**对账（hash reconcile）**、以及 **idealFrame 时间门控** 集成到 HostRuntime 的 tick 流程中。
 
@@ -58,7 +58,7 @@
 
 ## 3. 预测窗口（Prediction Window）
 
-### 3.1 raw window
+### 3.1 原始窗口
 
 窗口的原始估计来自：
 

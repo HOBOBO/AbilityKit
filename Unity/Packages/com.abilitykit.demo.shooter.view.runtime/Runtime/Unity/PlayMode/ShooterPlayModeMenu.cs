@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         private const float Width = 440f;
         private const float TextFieldWidth = 180f;
-        private const string DefaultTemplateId = ShooterSyncTemplateIds.PredictRollbackAuthority;
+        private const string DefaultTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
         private static readonly string[] EnemyBudgetLabels =
         {
             "Playable 512",
@@ -52,7 +52,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [Header("Room")]
         [SerializeField] private string roomId = string.Empty;
         [SerializeField] private string roomTitle = "Unity Shooter Room";
-        [SerializeField] private int maxPlayers = 4;
+        [SerializeField] private int maxPlayers = ShooterGameplay.DefaultMaxPlayers;
         [SerializeField] private int roomListLimit = 10;
 
         private readonly DemoMultiplayerAccountState _accountState = new DemoMultiplayerAccountState(
@@ -71,6 +71,12 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 DemoMultiplayerGameplay.Shooter,
                 out _);
             EnsureUniqueDefaultIdentity();
+        }
+
+        private void OnDestroy()
+        {
+            ShooterPlayModeSessionHost.Stop();
+            ShooterRemoteStateSyncPlayModeHost.Stop();
         }
 
         private void OnGUI()
@@ -266,16 +272,18 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 && ShooterRemoteStateSyncPlayModeHost.IsRunning
                 && !ShooterRemoteStateSyncPlayModeHost.IsPaused
                 && !ShooterRemoteStateSyncPlayModeHost.IsAutoReconnecting;
-            if (GUILayout.Button("Pause Remote"))
+            if (GUILayout.Button("Pause Client"))
             {
-                ShooterRemoteStateSyncPlayModeHost.PauseForReconnectValidation();
-                SetStatus("Remote session paused for reconnect validation.");
+                ShooterRemoteStateSyncPlayModeHost.Pause();
+                SetStatus("Client simulation paused; server battle continues.");
             }
 
-            GUI.enabled = !_busy && ShooterRemoteStateSyncPlayModeHost.IsPaused;
-            if (GUILayout.Button("Resume Remote"))
+            GUI.enabled = !_busy
+                && ShooterRemoteStateSyncPlayModeHost.IsPaused
+                && !ShooterRemoteStateSyncPlayModeHost.IsStarting;
+            if (GUILayout.Button("Resume & Refresh"))
             {
-                RunAsync("resume remote", ResumeRemoteAsync);
+                RunAsync("refresh latest state", ResumeRemoteAsync);
             }
 
             GUI.enabled = !_busy && (ShooterRemoteStateSyncPlayModeHost.IsRunning || ShooterRemoteStateSyncPlayModeHost.IsPaused || ShooterRemoteStateSyncPlayModeHost.IsStarting);
@@ -472,7 +480,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var launch = await ShooterRemoteStateSyncPlayModeHost.ResumeFromPauseAsync();
             var flow = launch.Flow;
             roomId = flow.RoomId;
-            SetStatus($"Remote resumed through reconnect: room={flow.RoomId} battle={flow.BattleId}");
+            SetStatus($"Client resumed at latest server state: room={flow.RoomId} battle={flow.BattleId}");
         }
 
         private static string RemoteStateLabel()
@@ -480,6 +488,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             if (ShooterRemoteStateSyncPlayModeHost.IsWaitingForInitialFullStateSync)
             {
                 return "Syncing Latest State";
+            }
+
+            if (ShooterRemoteStateSyncPlayModeHost.IsPaused && ShooterRemoteStateSyncPlayModeHost.IsStarting)
+            {
+                return "Refreshing Latest State";
             }
 
             if (ShooterRemoteStateSyncPlayModeHost.IsStarting)

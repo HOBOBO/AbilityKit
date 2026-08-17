@@ -12,32 +12,30 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class BattlePresentationCueViewEventHandler
     {
-        private readonly BattleContext _ctx;
         private readonly IBattleEntityQuery _query;
         private readonly BattlePresentationCueVfxSpawner _spawner;
         private readonly BattlePresentationCueResolver _resolver;
         private readonly Dictionary<BattlePresentationCueRequestKey, EC.IEntityId> _activeByRequestKey = new();
 
         public BattlePresentationCueViewEventHandler(
-            BattleContext ctx,
+            EC.IECWorld world,
             IBattleEntityQuery query,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode)
-            : this(ctx, query, vfx, in vfxNode, null)
+            : this(world, query, vfx, in vfxNode, null)
         {
         }
 
         internal BattlePresentationCueViewEventHandler(
-            BattleContext ctx,
+            EC.IECWorld world,
             IBattleEntityQuery query,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode,
             BattlePresentationCueViewEventHandlerFactory handlers)
         {
-            _ctx = ctx;
             _query = query;
             handlers ??= new BattlePresentationCueViewEventHandlerFactory();
-            _spawner = handlers.CreateSpawner(ctx, vfx, in vfxNode);
+            _spawner = handlers.CreateSpawner(world, vfx, in vfxNode);
             _resolver = handlers.CreateResolver();
         }
 
@@ -146,23 +144,23 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         }
 
         public BattlePresentationCueVfxSpawner CreateSpawner(
-            BattleContext ctx,
+            EC.IECWorld world,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode)
         {
-            return new BattlePresentationCueVfxSpawner(ctx, vfx, in vfxNode);
+            return new BattlePresentationCueVfxSpawner(world, vfx, in vfxNode);
         }
     }
 
     internal sealed class BattlePresentationCueVfxSpawner
     {
-        private readonly BattleContext _ctx;
+        private readonly EC.IECWorld _world;
         private readonly BattleVfxManager _vfx;
         private readonly EC.IEntity _vfxNode;
 
-        public BattlePresentationCueVfxSpawner(BattleContext ctx, BattleVfxManager vfx, in EC.IEntity vfxNode)
+        public BattlePresentationCueVfxSpawner(EC.IECWorld world, BattleVfxManager vfx, in EC.IEntity vfxNode)
         {
-            _ctx = ctx;
+            _world = world;
             _vfx = vfx;
             _vfxNode = vfxNode;
         }
@@ -171,7 +169,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             get
             {
-                if (_ctx?.EntityWorld == null) return false;
+                if (_world == null) return false;
                 if (_vfx == null) return false;
                 if (!_vfxNode.IsValid) return false;
                 return true;
@@ -185,7 +183,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             if (vfxId <= 0) return false;
 
             if (!_vfx.TryCreateVfxEntity(
-                    _ctx.EntityWorld,
+                    _world,
                     _vfxNode,
                     vfxId,
                     followTarget,
@@ -214,10 +212,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
         public void Destroy(EC.IEntityId id)
         {
-            if (_ctx?.EntityWorld == null) return;
+            if (_world == null) return;
             if (id == default) return;
 
-            _vfx.DestroyVfxEntity(_ctx.EntityWorld, id);
+            _vfx.DestroyVfxEntity(_world, id);
         }
 
         /// <summary>
@@ -236,7 +234,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             if (durationMsOverride <= 0) return;
 
-            var world = _ctx?.EntityWorld;
+            var world = _world;
             if (world == null || !world.IsAlive(id)) return;
 
             var entity = world.Wrap(id);
@@ -248,7 +246,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private void ApplyPresentationScale(EC.IEntityId id, float scale, float radius)
         {
             if (!id.IsValid) return;
-            var world = _ctx.EntityWorld;
+            var world = _world;
             if (world == null || !world.IsAlive(id)) return;
             var entity = world.Wrap(id);
             if (!entity.TryGetRef(out BattleViewGameObjectComponent goComp) || goComp == null || goComp.GameObject == null) return;

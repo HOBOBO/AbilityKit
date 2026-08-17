@@ -123,7 +123,8 @@ namespace AbilityKit.Game.Flow
                    !string.IsNullOrWhiteSpace(snapshot.RoomId) &&
                    snapshot.NumericRoomId > 0UL &&
                    !string.IsNullOrWhiteSpace(snapshot.BattleId) &&
-                   snapshot.WorldId > 0UL;
+                   snapshot.WorldId > 0UL &&
+                   snapshot.SyncCapabilities != null;
         }
     }
 
@@ -315,6 +316,8 @@ namespace AbilityKit.Game.Flow
         public int ProtocolVersion { get; set; } = 1;
         public string WorldType { get; set; } = "moba";
         public string ClientId { get; set; } = "moba-client";
+        public string SyncTemplateId { get; set; } = string.Empty;
+        public int SyncModel { get; set; }
     }
 
     /// <summary>

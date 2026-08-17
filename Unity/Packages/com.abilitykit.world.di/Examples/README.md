@@ -1,4 +1,4 @@
-# Examples
+# 示例
 
 本目录用于展示 `com.abilitykit.world.di` 的基础与常用用法。
 

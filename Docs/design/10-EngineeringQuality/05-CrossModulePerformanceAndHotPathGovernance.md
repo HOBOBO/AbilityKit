@@ -2,6 +2,12 @@
 
 > 本文定义 AbilityKit 跨模块热路径的识别、测量、基线、预算、回归判断和门禁晋升规则。当前仓库已经存在 Shooter 场景 benchmark，以及 Attributes、Modifiers、Record、Targeting、EventDispatcher、Pipeline、Triggering 共用的运行时测量、JSON artifact 和 P2 informational gate，但尚未建立覆盖全框架的统一性能预算或通用性能阻断门禁。本文既记录现状，也规定后续把场景 benchmark 晋升为公司级治理能力所需的证据。
 
+> 文档类型：Canonical 性能治理规范
+>
+> 事实基线：2026-08-16
+>
+> 当前边界：Runtime 通用测量是 informational；Shooter AOI/LOD 是独立的阈值阻断场景，二者不得合并解释
+
 ---
 
 ## 1. 治理目标与边界
@@ -43,6 +49,10 @@
 
 因此当前准确表述是：“仓库已有可复用测量基础设施、Attributes/Modifiers/Record/Targeting package 与 EventDispatcher/Pipeline/Triggering capability 场景基线和分层门禁，但没有框架级通用性能预算门禁。”
 
+workflow 已有 `runtime-performance-measurement` job，也把 `shooter-performance` 拆成 smoke/full 两个 job。前者只在 benchmark 契约、命令执行或 artifact 生产失败时阻断，数值仍为 informational；后者由 `run_shooter_aoi_lod_gate.ps1` 执行阈值判断，属于 Shooter 场景策略。不能因为两者都上传 JSON 就认为它们具有相同的预算语义。
+
+通用 `BenchmarkRunner` 本身没有 baseline reader、比较器或预算模型；报告中的 `result` 固定为 `measurement`，并明确写入“指标仅供信息使用”。Shooter AOI/LOD runner 则把 CPU、当前线程分配、payload、AOI churn、starvation 和可选 baseline regression 转换为 `ThresholdFailure`，任一 case 超阈值时进程返回 `2`。因此阈值能力属于 Shooter 专项 runner，不是 `abilitykit.runtime-benchmark.v1` 的隐含功能。
+
 ### 2.3 Runtime package 与 capability 首批基线
 
 通用测量契约位于 `src/AbilityKit.Benchmarking`，场景入口位于 `src/AbilityKit.Runtime.Benchmarks`，契约与场景正确性测试位于 `src/AbilityKit.Runtime.Benchmarks.Tests`。artifact schema 为 `abilitykit.runtime-benchmark.v1`，统一记录环境、配置、workload、原始样本、mean/median/P95/P99/max、当前线程托管分配、吞吐和确定性摘要。初始化、iteration setup、验证、清理和 JSON 序列化均在测量区间外。
@@ -75,6 +85,8 @@ tools/run_test_gate.ps1 -Gate runtime-performance-measurement -Configuration Rel
 2026-07-27 的首轮本地 Release 测量只用于验证口径，不是批准预算。结果显示 1,000/5,000 active Pipeline runs 的 Tick 路径保持零当前线程托管分配且单位成本同阶；Triggering 默认空 Cue 路径移除无效上下文构造后，复用 control 的 64/256 fanout 均保持零当前线程托管分配，隐式 control 表现为每事件固定分配并随 fanout 摊薄。同步 Pipeline Start 仍包含 Run 和独立 phase 实例的生命周期分配，需要在后续历史趋势中继续观察，不能与纯 Tick 成本混为一项预算。Attributes dirty recompute、Modifiers pre-sorted composition、Record ID hash、Targeting Streaming Top-K 和 EventDispatcher persistent publish 是后续新增样板；Record hash 已通过契约测试确认 UTF-8 兼容和稳态零当前线程托管分配，但这些 workload 仍需经过 nightly 积累后才能形成趋势结论。
 
 2026-08-11 的第三批小样本同样只用于验证口径：Targeting Streaming Top-K 在 128/1,024 candidates 下分别约为 0.92/0.11 B per candidate-evaluation，对应每次查询近似固定的 117 B 当前线程托管分配；EventDispatcher 单订阅整数 ID 派发为 0 B per handler-invocation，64 fanout 的 snapshot 派发约为 0.89 B per handler-invocation，对应每事件约 57 B。该结果用于暴露查询池和多订阅 snapshot 路径的优化候选，不构成零分配声明或批准预算。
+
+2026-08-16 本地只重跑了 `AbilityKit.Runtime.Benchmarks.Tests`，结果 `24/24` 通过。它证明参数解析、19/31 场景 catalog、scope 分类、确定性摘要和 runner 契约仍成立；本轮没有执行真实 benchmark 采样，也没有产生新的耗时、分配或 Shooter 阈值结论。运行时报告当前自动记录 machine、OS、架构、framework、processor count、Server GC、构建配置和 commit；branch、dirty 状态、CPU 型号、内存等仍需由外层任务补充，不能假设 runner 已完整采集治理清单中的所有环境字段。
 
 FrameRecord 优化二进制 codec 当前公开边界绑定文件路径，内部 track 编解码也绑定 `BinaryReader`/`BinaryWriter`。现阶段不把文件系统耗时包装成 CPU 微基准；H2 codec workload 应在生产代码提供 stream/memory 核心后，分别记录 encode/decode CPU、payload bytes、当前线程托管分配与文件 I/O 端到端耗时，避免口径混淆。World Snapshot 当前可用的纯内存入口主要是 opCode 路由、解码和有序阶段派发，与已覆盖的 Pipeline/EventDispatcher 调度成本高度重叠；在形成快照构造、内存编解码或 rollback ring-buffer 的独立 workload 前，不为追求模块数量重复加入 catalog。
 
@@ -410,6 +422,8 @@ Artifact schema 变化属于行为契约变化。历史基线无法读取时，�
 
 性能治理不是给每个模块贴上“高性能”标签，而是把工作负载、测量口径、基线、预算和阻断策略逐层建立。AbilityKit 当前已有统一测量 artifact、Attributes/Modifiers/Record/Targeting package、EventDispatcher/Pipeline/Triggering capability workload 和 informational CI 基础，但框架级性能治理仍需扩展独立热路径覆盖、积累稳定历史并完成预算审批。任何性能声明都必须限定场景和证据；任何优化都不能以破坏生命周期、稳定顺序、确定性、恢复能力或可观测性为代价。
 
+证据上，benchmark 类型或脚本存在属于 E1，契约测试和可重复执行属于 E3，固定硬件与场景的趋势/预算验证属于 E4，实际 workflow 按批准预算阻断并归档 artifact 才是 E5。当前 Runtime 通用数值最高按 E3/E4 informational 证据表述；Shooter AOI/LOD 可按其真实 job、阈值和最近运行结果评估 E5，但不能外推为框架通用预算。
+
 ---
 
-*文档版本：v1.3 | 最后更新：2026-08-11*
+*文档版本：v3.1 | 最后更新：2026-08-16*

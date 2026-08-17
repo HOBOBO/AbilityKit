@@ -18,10 +18,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public static void BuildGameplayTarget(ISveltoWorldContext context, uint entityId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health)
         {
+            var navigation = default(ShooterSveltoNavigationComponent);
+            BuildGameplayTarget(context, entityId, in transform, in health, in navigation);
+        }
+
+        public static void BuildGameplayTarget(
+            ISveltoWorldContext context,
+            uint entityId,
+            in ShooterSveltoTransformComponent transform,
+            in ShooterSveltoHealthComponent health,
+            in ShooterSveltoNavigationComponent navigation)
+        {
             var initializer = context.EntityFactory.BuildEntity<ShooterSveltoGameplayTargetDescriptor>(entityId, ShooterSveltoGroups.GameplayTargets);
             initializer.Init(transform);
             initializer.Init(health);
-            initializer.Init(default(ShooterSveltoNavigationComponent));
+            initializer.Init(navigation);
         }
     }
 }

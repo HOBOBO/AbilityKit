@@ -98,6 +98,11 @@ namespace AbilityKit.Demo.Moba.Services
             return _query.ValidateChain(rootId);
         }
 
+        public MobaTraceValidationResult ValidateChainDetailed(long rootId)
+        {
+            return _query.ValidateChainDetailed(rootId);
+        }
+
         public bool TrySetSkillPhaseLocation(
             long contextId,
             int skillId,

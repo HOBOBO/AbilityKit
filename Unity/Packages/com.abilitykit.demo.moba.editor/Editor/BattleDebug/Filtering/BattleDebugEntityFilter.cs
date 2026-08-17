@@ -1,7 +1,6 @@
 using System;
 using AbilityKit.Attributes.Core;
 using AbilityKit.GameplayTags;
-using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Game.Battle;
 using GameplayTagsUtil = AbilityKit.GameplayTags.GameplayTags;
 
@@ -9,7 +8,10 @@ namespace AbilityKit.Game.Editor
 {
     internal static class BattleDebugEntityFilterImpl
     {
-        public static bool Matches(IBattleDebugFacade facade, EcsEntityId id, string filter)
+        public static bool Matches(
+            IBattleDebugFacade facade,
+            BattleDebugEntityId id,
+            string filter)
         {
             if (facade == null) return false;
             if (string.IsNullOrWhiteSpace(filter)) return true;
@@ -23,7 +25,10 @@ namespace AbilityKit.Game.Editor
             return true;
         }
 
-        private static bool MatchesToken(IBattleDebugFacade facade, EcsEntityId id, string token)
+        private static bool MatchesToken(
+            IBattleDebugFacade facade,
+            BattleDebugEntityId id,
+            string token)
         {
             if (string.IsNullOrWhiteSpace(token)) return true;
 

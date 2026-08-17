@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public const int PlayModeHighDensityEnemyBudget = 8192;
 
         public static ShooterPlayModeSessionOptions Default => FromTemplate(
-            ShooterAcceptanceCatalog.GetSyncTemplate(ShooterSyncTemplateIds.PredictRollbackAuthority));
+            ShooterAcceptanceCatalog.GetSyncTemplate(ShooterSyncTemplateIds.StateSyncAuthority));
 
         public static ShooterPlayModeSessionOptions FromTemplate(in ShooterSyncTemplate template)
         {
@@ -351,7 +351,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     spawnFrameInterval: 1,
                     enemyCount: enemiesInWave,
                     enemyHp: 2 + reinforcementGroup * 2,
-                    spawnRadius: 18f + i % 16);
+                    spawnRadius: (18f + i % 16) * 2f);
                 remainingEnemies -= enemiesInWave;
             }
 

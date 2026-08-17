@@ -19,6 +19,12 @@ namespace AbilityKit.Game.Flow
         public static Dictionary<string, TimeSyncStatsSnapshot> TimeSyncStatsByWorld { get; set; }
 
         public static ConfirmedAuthorityWorldStatsSnapshot ConfirmedAuthorityWorldStats { get; set; }
+
+        public static InputSubmissionStatsSnapshot InputSubmissionStats
+        {
+            get => InputSubmissionStatsProvider.Current;
+            set => InputSubmissionStatsProvider.Current = value;
+        }
     }
 
     public sealed class ConfirmedAuthorityWorldStatsSnapshot

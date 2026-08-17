@@ -5,6 +5,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Game.Battle.Agent;
+using AbilityKit.Network.Room;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Room;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
@@ -132,14 +135,7 @@ namespace AbilityKit.Game.Flow.Tests
         public void BattleEntryCoordinator_AcceptsOnceAndReopensAfterEntryFailure()
         {
             var coordinator = new LobbyBattleEntryCoordinator();
-            var snapshot = new MultiplayerRoomSnapshot
-            {
-                RoomId = "room-a",
-                BattleId = "battle-a",
-                NumericRoomId = 10UL,
-                WorldId = 20UL,
-                Phase = MultiplayerRoomPhase.InBattle
-            };
+            var snapshot = NewBattleSnapshot();
             var entered = 0;
             coordinator.Attach();
 
@@ -156,6 +152,37 @@ namespace AbilityKit.Game.Flow.Tests
                 snapshot,
                 () => entered++), Is.False);
             Assert.That(entered, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void BattleEntryGate_WaitsForAuthoritativeSyncCapabilitiesWithoutConsumingGeneration()
+        {
+            var gate = new MultiplayerBattleEntryGate();
+            var snapshot = NewBattleSnapshot();
+            snapshot.SyncCapabilities = null;
+
+            Assert.That(
+                MultiplayerBattleEntryGate.CanEnter(
+                    MultiplayerRoomFlowState.InBattle,
+                    snapshot),
+                Is.False);
+            Assert.That(
+                gate.TryAccept(MultiplayerRoomFlowState.InBattle, snapshot),
+                Is.False);
+
+            snapshot.SyncCapabilities = NewStateSyncCapabilities();
+
+            Assert.That(
+                MultiplayerBattleEntryGate.CanEnter(
+                    MultiplayerRoomFlowState.InBattle,
+                    snapshot),
+                Is.True);
+            Assert.That(
+                gate.TryAccept(MultiplayerRoomFlowState.InBattle, snapshot),
+                Is.True);
+            Assert.That(
+                gate.TryAccept(MultiplayerRoomFlowState.InBattle, snapshot),
+                Is.False);
         }
 
         [Test]
@@ -256,6 +283,39 @@ namespace AbilityKit.Game.Flow.Tests
             Assert.That(runtime.IsLoaded, Is.False);
             Assert.That(runtime.Rooms, Is.Empty);
             Assert.That(runtime.IsBusy, Is.False);
+        }
+
+        private static MultiplayerRoomSnapshot NewBattleSnapshot()
+        {
+            return new MultiplayerRoomSnapshot
+            {
+                RoomId = "room-a",
+                BattleId = "battle-a",
+                NumericRoomId = 10UL,
+                WorldId = 20UL,
+                Phase = MultiplayerRoomPhase.InBattle,
+                SyncCapabilities = NewStateSyncCapabilities()
+            };
+        }
+
+        private static RoomGatewayNetworkSyncCapabilities NewStateSyncCapabilities()
+        {
+            var profile = NetworkSyncProfiles.AuthoritativeInterpolation;
+            return RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(
+                new WireNetworkSyncCapabilities
+                {
+                    MetadataVersion = RoomGatewayNetworkSyncCapabilitiesConverter.CurrentMetadataVersion,
+                    ProfileName = "Moba.AuthoritativeRemoteInterpolation",
+                    MinimumSchemaVersion = 0,
+                    MaximumSchemaVersion = 1,
+                    ClientPlayback = (int)profile.ClientPlayback,
+                    Input = (int)profile.Input,
+                    Snapshot = (int)profile.Snapshot,
+                    Interest = (int)profile.Interest,
+                    Recovery = (int)profile.Recovery,
+                    ServerValidation = (int)profile.ServerValidation,
+                    ReliableEvent = (int)profile.ReliableEvent
+                });
         }
 
         private static ClientRoomSnapshot NewClientSnapshot(long revision)

@@ -1,10 +1,20 @@
 # Shooter RVO 与 Jobs 邻居加速
 
+> **文档类型：Canonical 设计**
+> **事实基线：2026-08-16**
+> **适用范围：Shooter 项目应用层的局部避障与可选 Unity Jobs 后端；不是公共 Navigation 包能力。**
+
 ## 一、文档定位
 
 Shooter Demo 使用 Svelto ECS 保存敌人的权威位置和导航速度，以托管 RVO 求解器完成局部避障，并允许 Unity Jobs/Burst 后端替换邻居收集阶段。当前实现不是一套通用导航包，也不是把完整 ORCA 求解迁移到 Job；它是 Shooter 领域运行时中的局部避障链路。
 
 旧实施计划曾把 Jobs/Burst 列为后续优化方向。当前仓库已经包含 `com.abilitykit.demo.shooter.jobs`，因此本文以现有源码和测试为准，不再把 Jobs 后端描述为未实现能力。
+
+| 层次 | 本文结论 |
+|------|----------|
+| 当前实现 | Shooter 以 Managed RVO 定义语义，Jobs 仅替换邻居收集；失败或无效输出在同帧回退 Managed |
+| 规范目标 | 加速后端不改变排序与战斗结果，资源随 World 释放，回退可观测，并由性能预算决定启用阈值 |
+| 示例策略 | 这套 group、workspace、敌人目标选择和同步字段服务 Shooter；其他游戏应复用设计原则或抽取稳定原语，而不是直接采用整套应用运行时 |
 
 ## 二、运行时分层
 
@@ -170,7 +180,7 @@ Pure State Snapshot 当前代码明确量化投射物速度，但没有与 Packe
 
 ## 九、验证现状
 
-现有 Runtime 测试已经覆盖：
+本次使用 `FullyQualifiedName~Rvo` 运行 Shooter Runtime 聚焦测试，结果为 12/12 通过。其测试资产覆盖：
 
 - Managed 模式能把完全重叠的敌人分开；
 - Disabled 模式保留直接追踪行为；
@@ -178,16 +188,30 @@ Pure State Snapshot 当前代码明确量化投射物速度，但没有与 Packe
 - AcceleratedPreferred 在服务成功、拒绝、异常、不可用及多种伪造输出下都与 Managed hash 一致；
 - Managed 模式从不调用已注册的加速服务。
 
-Unity Editor Jobs 测试覆盖：
+Unity Editor Jobs 包存在 3 项直接测试，源码覆盖：
 
 - 跨正负 cell 边界时与全量参考收集一致；
 - buffer 扩容和跨帧复用不会保留旧结果；
 - NaN、派生值溢出和 cell 坐标越界会被拒绝；
 - Dispose 后服务不可用。
 
+这 3 项 Unity Editor 测试本轮未运行，也未发现对应 workflow gate 接线，因此只能记录为测试资产存在，不能写成本次已通过或持续门禁证据。
+
 这些测试证明同一运行环境中的行为一致性和回退协议。它们没有提供 2,048 Agent RVO 帧耗、稳态分配、Managed/Jobs 性能交叉点、跨平台 hash 或不同 Burst 配置下的一致性证据。仓库中的 2,048 实体表现/同步测试不能替代 RVO 性能验收。
 
-### 9.1 P0 测试
+### 9.1 E0-E5 证据
+
+| 等级 | 当前证据 | 可得结论 |
+|------|----------|----------|
+| E0 | Shooter Managed solver、workspace、acceleration contract 与 Jobs service 源码 | 可确认语义分层、同步等待和回退路径 |
+| E1 | Shooter Intent/Solve/Integration、snapshot/hash 消费 | 证明领域链路实际接入，不能外推为公共导航能力 |
+| E2 | Shooter Runtime 测试工程成功构建 | 当前纯 .NET RVO 组合可编译；Unity Jobs 另属 Editor 环境 |
+| E3 | Runtime RVO 聚焦测试 12/12 通过 | 验证 Managed、Disabled、确定性和伪造加速输出回退 |
+| E3 资产 | Unity Jobs Editor 3 项测试存在但本轮未运行 | 不能声明 Jobs 后端当前测试通过 |
+| E4 | 无 64/128/512/2048 Agent 正式性能 artifact | 不证明默认 64 阈值或帧预算合理 |
+| E5 | `shooter-fast` workflow 与夜间 `regression` 编排完整 Shooter Runtime Tests | Runtime 契约有持续接线；Jobs Editor 3 项未发现同等 gate |
+
+### 9.2 P0 测试
 
 | 测试 | 目的 |
 |---|---|
@@ -198,7 +222,7 @@ Unity Editor Jobs 测试覆盖：
 | Packed Snapshot 连续恢复后多帧 hash | 证明 Navigation Velocity 恢复足以延续 RVO |
 | Pure State 敌人速度 round-trip | 补齐该同步模式的权威状态协议 |
 
-### 9.2 P1 测试与证据
+### 9.3 P1 测试与证据
 
 | 测试或指标 | 目的 |
 |---|---|
@@ -235,3 +259,7 @@ Unity Editor Jobs 测试覆盖：
 - Agent 输入按 EntityId 排序，依赖 EntityId 在当前 World 中唯一。
 - Packed Snapshot 已覆盖敌人 Navigation Velocity；Pure State 路径仍需专项协议证据。
 - 现有测试没有证明 2,048 Agent RVO 的帧预算或稳态零分配目标。
+
+---
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

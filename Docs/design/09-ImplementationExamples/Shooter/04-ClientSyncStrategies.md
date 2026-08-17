@@ -1,5 +1,8 @@
 # Shooter 客户端同步策略
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文说明 Shooter 客户端如何在统一会话门面下装配预测回滚、权威插值、批状态、MassBattle LOD 和混合英雄预测，并区分输入提交、packed 权威校正、pure-state baseline/delta 与表现插值的真实边界。
 
 ## 1. 分层结论
@@ -46,11 +49,11 @@ flowchart TD
 
 ## 3. Profile 与工厂映射
 
-工厂先通过 `NetworkSyncProfileRegistry` 解析兼容 `NetworkSyncModel`，再由 `NetworkSyncProfileControllerRegistry` 创建控制器。默认映射如下：
+工厂先通过 `NetworkSyncProfileRegistry` 解析兼容 `NetworkSyncModel`，再由 `NetworkSyncProfileControllerRegistry` 创建控制器。需要区分两种“默认”：Shooter 产品/Room 当前默认声明是 `AuthoritativeInterpolation`；只有调用 registry 时传入兼容枚举 `Unspecified`，才会落到 `PredictRollback` builder。后者是 API 兼容回退，不是当前产品默认策略。
 
 | Profile / model | 实际顶层控制器 | 当前语义 |
 |-----------------|----------------|----------|
-| `Unspecified` | `ShooterClientPredictRollbackSyncController` | 兼容回退到默认预测回滚 |
+| `Unspecified` | `ShooterClientPredictRollbackSyncController` | registry 兼容回退；不代表 Shooter 产品默认 |
 | `PredictRollback` | `ShooterClientPredictRollbackSyncController` | packed 权威状态导入本地 runtime，执行校正/回放 |
 | `AuthoritativeInterpolation` | `ShooterClientAuthoritativeInterpolationSyncController` | 本地主控继续预测，远端样本仅缓冲插值 |
 | `BatchStateSync` | `ShooterClientAuthoritativeInterpolationSyncController` | 复用插值实现，保留 Batch model 标识 |
@@ -277,6 +280,7 @@ Fast reconnect phase 和相关健康事件由共享 core 暴露，但 factory �
 | 插值缓冲饥饿 | 保持最后姿态并报告 starvation |
 | 静态 factory builder 被测试替换 | 测试结束需 `ResetToDefaults()` |
 | 重建 session | 旧 session 的 frame、baseline、buffer 和 recovery 状态不能隐式复用 |
+| launcher teardown 时仍有 full-state recovery 在途 | battle handle 内部 runtime 缺少显式 dispose/reset owner；应阻止旧 completion 进入新 session，并补生命周期专项测试 |
 
 控制器接口当前不以 `IDisposable` 形式统一暴露。生命周期所有者在替换 session 时应停止旧 Tick、解绑网关 observer 和表现会话，防止旧实例继续消费 push。
 
@@ -284,7 +288,8 @@ Fast reconnect phase 和相关健康事件由共享 core 暴露，但 factory �
 
 | 场景 | 必验结果 |
 |------|----------|
-| 默认/Unspecified | 实际创建预测回滚控制器 |
+| Shooter 产品默认 | 协商得到 `AuthoritativeInterpolation`，创建权威插值控制器 |
+| registry `Unspecified` | 仅兼容分支创建预测回滚控制器，不外推为产品默认 |
 | PredictRollback | packed import、hash 对比、需要时 rollback/replay |
 | AuthoritativeInterpolation | 本地主控 pending input 确认、局部 pose 校正和有界重演；远端状态不导入 runtime，buffer/publish/starvation 可观测 |
 | BatchStateSync | 使用插值控制器但 `SyncModel` 保持 Batch |
@@ -324,4 +329,23 @@ Fast reconnect phase 和相关健康事件由共享 core 暴露，但 factory �
 | Full state 请求与去重 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientBattleHandle.cs` |
 | Push/reconnect 恢复触发 | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs` |
 
-*文档版本：v2.1 | 最后更新：2026-08-09*
+## 16. 协商会话、可靠事件与项目边界
+
+`CreateSession` 是当前正式装配入口：先由 `NetworkSyncSessionBuilder` 校验 profile、能力与 schema，再把不可变 descriptor 同控制器一起交给 `ShooterClientSession`。默认 controller 映射如下：
+
+| Profile | 当前顶层控制器 |
+|---------|----------------|
+| `PredictRollback` | `ShooterClientPredictRollbackSyncController` |
+| `AuthoritativeInterpolation` | `ShooterClientAuthoritativeInterpolationSyncController` |
+| `BatchStateSync` / `MassBattleLodSync` | 复用 authoritative interpolation controller |
+| `HybridHeroPrediction` | `ShooterClientHybridHeroPredictionSyncController` |
+
+复用同一控制器只表示顶层应用策略共享，不表示采样频率、AOI、预算、可靠事件或服务端发送语义等价。profile 的端到端含义仍由协商 descriptor、服务端 route 与项目配置共同决定。
+
+`ShooterClientSession` 还以该 descriptor 创建 `ShooterReliableBattleEventConsumer` 和 `NetworkSessionRecoveryCoordinator`。`ShooterClientBattleHandle` 再为该 coordinator 创建 action router 与 `NetworkSessionRecoveryRuntime`，采用 Manual 模式；`RequestFullSnapshot` 和 `RestoreReliableEventBaseline` 都路由到 Shooter full-state RPC，由 handle 保留 request key、single-flight 与 timeout。框架 runtime 负责 generation、取消和 stale completion 抑制，不决定 RPC payload 或 baseline 应用。
+
+可靠消费者通过 `ReliableEventSessionBuilder` 建立会话，只有所有 sink 成功后才推进 checkpoint；sink 失败会保留缺口并要求 full baseline。checkpoint flush 已接入 Disconnect、ApplicationPause、ApplicationQuit 与 Dispose，PlayerPrefs store 也有项目工厂，但持久化介质和生命周期绑定仍是 Shooter/Unity 宿主责任，不是同步框架自动完成的行为。当前 handle 自身未实现 `IDisposable`，launcher teardown 也未显式 reset/dispose 其 recovery runtime，因此在途恢复的取消和代次收口仍是需要补齐的所有权契约；这不应被直接表述为已证实的内存泄漏。
+
+Batch N 的 Shooter Runtime `489/489`、Network Client `3/3`、Network Battle `12/12` 是此前 E3 基线。Batch W 在当前工作区重跑 Shooter Runtime 得到 `481/490`：9 项失败集中于仍期待旧 PredictRollback 默认、旧矩阵数量、旧 snapshot apply 类型和 session 计数的测试；battle handle 与 controller factory 聚焦用例 `22/22` 通过。该结果说明恢复/工厂局部契约可用，但全量测试基线尚未跟随当前默认路线收口。Unity PlayMode 与真实多进程链未运行；这些应用层控制器和 facade 是高接入度参考，不是框架承诺的统一战斗客户端套件。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

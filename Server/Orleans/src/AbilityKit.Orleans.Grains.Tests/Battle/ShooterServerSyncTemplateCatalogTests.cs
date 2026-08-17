@@ -22,7 +22,7 @@ public sealed class ShooterServerSyncTemplateCatalogTests
     }
 
     [Fact]
-    public void Catalog_DefaultPredictRollback_PublishesFullPackedAuthorityEveryFrame()
+    public void Catalog_DefaultStateSync_PublishesPackedAuthorityWithPeriodicFullSnapshots()
     {
         var policy = ShooterServerSyncTemplateCatalog.Resolve(null);
         var pushOptions = policy.CreatePushOptions("ideal");
@@ -30,12 +30,12 @@ public sealed class ShooterServerSyncTemplateCatalogTests
             policy.SnapshotIntervalFrames,
             policy.FullSnapshotIntervalFrames);
 
-        Assert.Equal(ShooterServerProtocol.PredictRollbackAuthorityTemplate, policy.TemplateId);
+        Assert.Equal(ShooterServerProtocol.StateSyncAuthorityTemplate, policy.TemplateId);
         Assert.Equal(1, policy.SnapshotIntervalFrames);
-        Assert.Equal(1, policy.FullSnapshotIntervalFrames);
+        Assert.Equal(30, policy.FullSnapshotIntervalFrames);
         Assert.Equal(ShooterStateSyncPushPayloadMode.Packed, pushOptions.PayloadMode);
-        Assert.True(snapshotPolicy.ShouldCreateFullSnapshot(1));
-        Assert.True(snapshotPolicy.ShouldCreateFullSnapshot(2));
+        Assert.False(snapshotPolicy.ShouldCreateFullSnapshot(1));
+        Assert.True(snapshotPolicy.ShouldCreateFullSnapshot(30));
     }
 
     [Fact]
@@ -58,8 +58,8 @@ public sealed class ShooterServerSyncTemplateCatalogTests
         Assert.Equal(NetworkConditionProfile.LimitedBandwidth.BandwidthKbps, massOptions.NetworkCondition.BandwidthKbps);
         Assert.Equal(2048, massOptions.ResolvePureStateSettings().ActiveSyncBudget);
         Assert.Equal(20000, massOptions.ResolvePureStateSettings().MaxEntityCount);
-        Assert.Equal(48f, massOptions.AoiVisibleRadius);
-        Assert.Equal(60f, massOptions.AoiBoundaryRadius);
+        Assert.Equal(24f, massOptions.AoiVisibleRadius);
+        Assert.Equal(30f, massOptions.AoiBoundaryRadius);
         Assert.True(massOptions.UseObserverAoi);
     }
 

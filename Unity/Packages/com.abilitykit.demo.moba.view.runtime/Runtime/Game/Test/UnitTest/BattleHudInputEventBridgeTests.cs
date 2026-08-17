@@ -543,6 +543,89 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        [Test]
+        public void AimPreviewPositionResolver_UsesReadPortWithoutBattleContext()
+        {
+            var input = new FakeAimPreviewReadPort
+            {
+                Slot = 2,
+                AimDx = 3f,
+                AimDz = 4f,
+                SubmissionVersion = 7,
+                CasterX = 10f,
+                CasterY = 1f,
+                CasterZ = 20f,
+            };
+            var resolver = new BattleHudAimPreviewPositionResolver();
+
+            Assert.IsTrue(resolver.TryResolve(input, out var state));
+            Assert.AreEqual(2, state.Slot);
+            Assert.AreEqual(new Vector3(10f, 1f, 20f), state.CasterPosition);
+            Assert.AreEqual(new Vector3(0.6f, 0f, 0.8f), state.AimDirection);
+            Assert.AreEqual(5f, state.AimDistance, 0.0001f);
+            Assert.AreEqual(7, state.SubmissionVersion);
+        }
+
+        [Test]
+        public void AimPreviewPositionResolver_ReusesLastCasterPositionWhenLookupTemporarilyFails()
+        {
+            var input = new FakeAimPreviewReadPort
+            {
+                Slot = 1,
+                AimDx = 1f,
+                CasterX = 2f,
+                CasterY = 0.5f,
+                CasterZ = 3f,
+            };
+            var resolver = new BattleHudAimPreviewPositionResolver();
+
+            Assert.IsTrue(resolver.TryResolve(input, out var first));
+            input.CanResolveCasterPosition = false;
+            input.AimDx = 0f;
+            input.AimDz = 2f;
+
+            Assert.IsTrue(resolver.TryResolve(input, out var second));
+            Assert.AreEqual(first.CasterPosition, second.CasterPosition);
+            Assert.AreEqual(Vector3.forward, second.AimDirection);
+            Assert.AreEqual(2f, second.AimDistance, 0.0001f);
+        }
+
+        private sealed class FakeAimPreviewReadPort : IBattleHudAimPreviewReadPort
+        {
+            public int Slot { get; set; }
+            public float AimDx { get; set; }
+            public float AimDz { get; set; }
+            public int SubmissionVersion { get; set; }
+            public bool CanResolveCasterPosition { get; set; } = true;
+            public float CasterX { get; set; }
+            public float CasterY { get; set; }
+            public float CasterZ { get; set; }
+
+            public bool TryReadAimPreview(
+                out int slot,
+                out float dx,
+                out float dz,
+                out int submissionVersion)
+            {
+                slot = Slot;
+                dx = AimDx;
+                dz = AimDz;
+                submissionVersion = SubmissionVersion;
+                return true;
+            }
+
+            public bool TryResolveLocalActorWorldPosition(
+                out float x,
+                out float y,
+                out float z)
+            {
+                x = CasterX;
+                y = CasterY;
+                z = CasterZ;
+                return CanResolveCasterPosition;
+            }
+        }
+
         private sealed class BattleHudInputEventBridgeFixture : System.IDisposable
         {
             private readonly GameObject _root;

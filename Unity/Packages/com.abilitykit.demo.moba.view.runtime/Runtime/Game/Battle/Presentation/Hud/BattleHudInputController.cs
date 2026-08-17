@@ -80,7 +80,7 @@ namespace AbilityKit.Game.Flow
                 for (int i = 0; i < entries.Length; i++)
                 {
                     var entry = entries[i];
-                    if (!ShouldApplySkillState(entry, localActorId, entries)) continue;
+                    if (!ShouldApplySkillState(entry, localActorId)) continue;
                     if (!TryResolveSkillView(entry.Slot, entry.SkillId, out var view)) continue;
 
                     view.ApplySkillState(entry);
@@ -94,67 +94,19 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        public int ResolveActorIdFromSkillStates(MobaSkillStateSnapshotEntry[] entries)
-        {
-            if (entries == null || entries.Length == 0) return 0;
-
-            var matchedActorId = 0;
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var entry = entries[i];
-                if (entry.ActorId <= 0) continue;
-                if (!SkillStateMatchesTemplate(entry)) continue;
-
-                if (matchedActorId <= 0)
-                {
-                    matchedActorId = entry.ActorId;
-                    continue;
-                }
-
-                if (matchedActorId != entry.ActorId)
-                {
-                    return 0;
-                }
-            }
-
-            if (matchedActorId > 0) return matchedActorId;
-
-            var singleActorId = 0;
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var actorId = entries[i].ActorId;
-                if (actorId <= 0) continue;
-                if (singleActorId <= 0)
-                {
-                    singleActorId = actorId;
-                    continue;
-                }
-
-                if (singleActorId != actorId)
-                {
-                    return 0;
-                }
-            }
-
-            return singleActorId;
-        }
-
         public void Dispose()
         {
             _inputEvents.ResetHudAim();
             DestroyInputUi();
         }
 
-        private bool ShouldApplySkillState(in MobaSkillStateSnapshotEntry entry, int localActorId, MobaSkillStateSnapshotEntry[] entries)
+        private static bool ShouldApplySkillState(in MobaSkillStateSnapshotEntry entry, int localActorId)
         {
             if (entry.ActorId <= 0) return false;
-            if (localActorId > 0) return entry.ActorId == localActorId;
-
-            var resolvedActorId = ResolveActorIdFromSkillStates(entries);
-            return resolvedActorId > 0 && entry.ActorId == resolvedActorId;
+            return localActorId > 0 && entry.ActorId == localActorId;
         }
 
-        private bool SkillStateMatchesTemplate(in MobaSkillStateSnapshotEntry entry)
+        internal bool SkillStateMatchesTemplate(MobaSkillStateSnapshotEntry entry)
         {
             if (entry.Slot <= 0) return false;
             if (!_templateBinder.SkillSpecs.TryGetValue(entry.Slot, out var spec)) return false;

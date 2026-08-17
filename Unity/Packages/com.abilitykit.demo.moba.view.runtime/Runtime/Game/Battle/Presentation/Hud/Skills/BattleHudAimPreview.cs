@@ -31,9 +31,9 @@ namespace AbilityKit.Game.Flow
             _skillSpecs = skillSpecs;
         }
 
-        public void Tick(BattleContext ctx, float deltaTime = 0f)
+        public void Tick(IBattleHudAimPreviewReadPort input, float deltaTime = 0f)
         {
-            if (!_positions.TryResolve(ctx, out var state) || !TryGetSpec(state.Slot, out var spec))
+            if (!_positions.TryResolve(input, out var state) || !TryGetSpec(state.Slot, out var spec))
             {
                 Hide();
                 return;

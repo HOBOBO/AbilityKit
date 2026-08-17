@@ -1,4 +1,4 @@
-# MOBA Golden Skill Flow Guide
+# MOBA 标准技能流程指南
 
 本文档定义 `moba.runtime` 当前推荐的主动技能黄金链路。它不是描述某一个固定技能 ID，而是描述一类表驱动主动技能的标准执行路径：输入或宿主发起施法，读取技能配置，构建 Pipeline，按时间轴触发 Effect，再由 Trigger Plan Action 进入投射物、伤害、Buff、召唤和表现事件。
 

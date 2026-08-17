@@ -166,10 +166,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
         }
 
-        public static void PauseForReconnectValidation()
+        public static void Pause()
         {
             var state = _state;
-            if (state == null || _isPaused)
+            if (state == null || _isPaused || _isStarting)
             {
                 return;
             }
@@ -180,6 +180,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             state.Launcher.Close();
             _isPaused = true;
             NotifyStateChanged();
+        }
+
+        public static void PauseForReconnectValidation()
+        {
+            Pause();
         }
 
         public static Task<ShooterClientNetworkLaunchResult> ResumeFromPauseAsync()
@@ -195,13 +200,67 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 throw new InvalidOperationException("Shooter remote state-sync host is not paused.");
             }
 
+            if (_isStarting)
+            {
+                throw new InvalidOperationException("Shooter remote state-sync resume is already in progress.");
+            }
+
             var resumeOptions = _pausedResumeOptions;
             if (string.IsNullOrWhiteSpace(resumeOptions.SessionToken))
             {
                 resumeOptions = ShooterReconnectLaunchOptionsBuilder.RestoreOnly(_options, _state?.Launch.Flow.RoomId ?? _options.RoomId);
             }
 
-            return StartAsync(resumeOptions);
+            return ResumePausedSessionAsync(resumeOptions);
+        }
+
+        private static async Task<ShooterClientNetworkLaunchResult> ResumePausedSessionAsync(
+            ShooterRemoteStateSyncLaunchOptions resumeOptions)
+        {
+            var generation = AdvanceLifecycleGeneration();
+            var previousState = _state;
+            var previousConnectionResult = _lastConnectionResult;
+            var previousControlledPlayerId = _effectiveControlledPlayerId;
+            _isStarting = true;
+            _lastError = null;
+            NotifyStateChanged();
+
+            ShooterRemoteStateSyncRuntimeState? restoredState = null;
+            try
+            {
+                restoredState = await StartSessionAsync(resumeOptions, generation);
+                ThrowIfStaleLifecycle(generation);
+
+                RenderRestoredStateWithoutAdvancingClient(restoredState, resumeOptions);
+                ActivateRunningState(restoredState, resumeOptions);
+                _renderCount = 1;
+                restoredState = null;
+                previousState?.Dispose();
+                _isPaused = false;
+                return _state!.Launch;
+            }
+            catch (Exception ex)
+            {
+                restoredState?.Dispose();
+                if (IsCurrentLifecycle(generation))
+                {
+                    _state = previousState;
+                    _lastConnectionResult = previousConnectionResult;
+                    _effectiveControlledPlayerId = previousControlledPlayerId;
+                    _lastError = ex;
+                    _isPaused = true;
+                }
+
+                throw;
+            }
+            finally
+            {
+                if (IsCurrentLifecycle(generation))
+                {
+                    _isStarting = false;
+                    NotifyStateChanged();
+                }
+            }
         }
 
         public static void Stop()
@@ -300,6 +359,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     (uint)launchOptions.SessionOptions.ControlledPlayerId).ConfigureAwait(false);
 
                 ThrowIfStaleLifecycle(generation);
+                _effectiveControlledPlayerId = ResolveEffectiveControlledPlayerId(
+                    connectionResult.Launch.Flow,
+                    launchOptions.SessionOptions.ControlledPlayerId);
+                connectionResult.Launch.Session.Presentation.ControlledPlayerId = _effectiveControlledPlayerId;
                 await new ShooterInitialFullStateSyncCoordinator(
                     waiting => SetWaitingForInitialFullStateSync(generation, waiting),
                     result => SetLastInitialFullStateSyncApplyResult(generation, result),
@@ -311,8 +374,6 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
                 ThrowIfStaleLifecycle(generation);
                 _lastConnectionResult = connectionResult;
-                _effectiveControlledPlayerId = ResolveEffectiveControlledPlayerId(connectionResult.Launch.Flow, launchOptions.SessionOptions.ControlledPlayerId);
-                connectionResult.Launch.Session.Presentation.ControlledPlayerId = _effectiveControlledPlayerId;
 
                 return new ShooterRemoteStateSyncRuntimeState(runtimeWorld, launcher, connectionResult.Launch);
             }
@@ -379,6 +440,29 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static ShooterRemoteLatencyCompensationDiagnostics CreateRemoteLatencyCompensationDiagnostics()
         {
             return _inputSubmitStrategy?.CreateLatencyDiagnostics() ?? default;
+        }
+
+        private static void RenderRestoredStateWithoutAdvancingClient(
+            ShooterRemoteStateSyncRuntimeState restoredState,
+            ShooterRemoteStateSyncLaunchOptions resumeOptions)
+        {
+            var launch = restoredState.Launch;
+            var controlledPlayerId = ResolveEffectiveControlledPlayerId(
+                launch.Flow,
+                resumeOptions.SessionOptions.ControlledPlayerId);
+            var localTimeAnchor = ShooterTimeAnchorCoordinator.CreateLocal(
+                resumeOptions.SessionOptions.TickRate).LastLocalAnchor;
+            var remoteTimeAnchor = launch.Flow.RemoteTimeAnchorProjection.TimeAnchor;
+            var frame = ShooterRemotePresentationFrameBuilder.Build(
+                launch,
+                resumeOptions.SessionOptions,
+                controlledPlayerId,
+                remoteTimeAnchor,
+                localTimeAnchor,
+                default);
+
+            ViewSink.Clear();
+            ViewSink.Render(in frame);
         }
 
         private static int ResolveEffectiveControlledPlayerId(ShooterRoomGatewayFlowResult flow, int fallbackPlayerId)

@@ -27,18 +27,18 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly HashSet<int> _seenHitActorIds = new HashSet<int>();
 
         public BattleProjectileViewEventHandler(
-            BattleContext ctx,
+            EC.IECWorld world,
             IBattleEntityQuery query,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode,
             BattleViewResourceProvider resources = null,
             BattleProjectileShellPool shellPool = null)
-            : this(ctx, query, vfx, in vfxNode, resources, shellPool, null, null)
+            : this(world, query, vfx, in vfxNode, resources, shellPool, null, null)
         {
         }
 
         internal BattleProjectileViewEventHandler(
-            BattleContext ctx,
+            EC.IECWorld world,
             IBattleEntityQuery query,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode,
@@ -50,7 +50,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             handlers ??= new BattleProjectileViewEventHandlerFactory();
 
             _query = query;
-            _vfxSpawner = handlers.CreateSpawner(ctx, vfx, in vfxNode);
+            _vfxSpawner = handlers.CreateSpawner(world, vfx, in vfxNode);
             _shellSpawner = handlers.CreateShellSpawner(shellPool, query, hierarchy);
             _vfx = handlers.CreateTriggerResolver(resources);
             _snapshotVfx = handlers.CreateSnapshotResolver(query, resources);
@@ -293,11 +293,11 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     internal sealed class BattleProjectileViewEventHandlerFactory
     {
         public BattleProjectileVfxSpawner CreateSpawner(
-            BattleContext ctx,
+            EC.IECWorld world,
             BattleVfxManager vfx,
             in EC.IEntity vfxNode)
         {
-            return new BattleProjectileVfxSpawner(ctx, vfx, in vfxNode);
+            return new BattleProjectileVfxSpawner(world, vfx, in vfxNode);
         }
 
         public BattleProjectileShellSpawner CreateShellSpawner(

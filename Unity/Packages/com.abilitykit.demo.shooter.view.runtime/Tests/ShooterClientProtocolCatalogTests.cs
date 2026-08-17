@@ -12,15 +12,17 @@ namespace AbilityKit.Demo.Shooter.View.Tests
         {
             var spec = ShooterRoomLaunchSpec.CreateDefault("unity-test");
 
-            Assert.AreEqual(ShooterSyncTemplateIds.PredictRollbackAuthority, ShooterRoomLaunchSpec.DefaultSyncTemplateId);
-            Assert.AreEqual(ShooterSyncTemplateIds.PredictRollbackAuthority, spec.SyncTemplateId);
-            Assert.AreEqual((int)NetworkSyncModel.PredictRollback, spec.SyncModel);
-            Assert.AreEqual("1", spec.Tags[ShooterRoomLaunchTagKeys.MinPlayers]);
+            Assert.AreEqual(ShooterSyncTemplateIds.StateSyncAuthority, ShooterRoomLaunchSpec.DefaultSyncTemplateId);
+            Assert.AreEqual(ShooterSyncTemplateIds.StateSyncAuthority, spec.SyncTemplateId);
+            Assert.AreEqual((int)NetworkSyncModel.AuthoritativeInterpolation, spec.SyncModel);
+            Assert.AreEqual("2", spec.Tags[ShooterRoomLaunchTagKeys.MinPlayers]);
+            Assert.AreEqual(2, spec.MaxPlayers);
         }
 
         [Test]
         public void CatalogContainsAllPublishedTemplateIds()
         {
+            AssertTemplate(ShooterSyncTemplateIds.StateSyncAuthority, NetworkSyncModel.AuthoritativeInterpolation);
             AssertTemplate(ShooterSyncTemplateIds.PredictRollbackAuthority, NetworkSyncModel.PredictRollback);
             AssertTemplate(ShooterSyncTemplateIds.AuthoritativeInterpolationPresentation, NetworkSyncModel.AuthoritativeInterpolation);
             AssertTemplate(ShooterSyncTemplateIds.BatchStateLowFrequency, NetworkSyncModel.BatchStateSync);

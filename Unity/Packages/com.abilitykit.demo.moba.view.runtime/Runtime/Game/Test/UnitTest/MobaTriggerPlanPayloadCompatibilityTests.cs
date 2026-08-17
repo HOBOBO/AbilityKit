@@ -473,6 +473,66 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void TriggerPayloadResolver_AdvancedEffectContextDoesNotReparseUpstreamPayloadNode()
+        {
+            var upstreamLineage = new MobaEffectLineageInput(
+                EffectContextKind.Skill,
+                MobaTraceKind.SkillCast,
+                sourceActorId: 17,
+                targetActorId: 23,
+                parentContextId: 1001L,
+                rootContextId: 1001L,
+                ownerContextId: 1001L,
+                originConfigId: 7001);
+            var upstreamSnapshot = new MobaTriggerExecutionSnapshot(
+                EffectContextKind.Skill,
+                sourceActorId: 17,
+                targetActorId: 23,
+                sourceContextId: 1001L,
+                rootContextId: 1001L,
+                ownerContextId: 1001L,
+                triggerId: 9001,
+                configId: 7001,
+                frame: 11,
+                skillRuntimeHandle: default);
+            var upstreamContext = new MobaCombatExecutionContext(
+                payload: null,
+                upstreamLineage,
+                origin: default,
+                upstreamSnapshot,
+                skillRuntimeHandle: default,
+                frame: 11);
+            var upstreamPayload = new BorrowedContextContinuous(in upstreamContext);
+            var activeContext = new MobaCombatExecutionContext(
+                    upstreamPayload,
+                    upstreamLineage,
+                    origin: default,
+                    upstreamSnapshot,
+                    skillRuntimeHandle: default,
+                    frame: 11)
+                .WithEffectExecutionNode(
+                    effectContextId: 2001L,
+                    effectConfigId: 7002,
+                    isRoot: false);
+            var registry = new MobaTriggerPayloadResolverRegistry();
+
+            Assert.DoesNotThrow(() =>
+            {
+                Assert.IsTrue(registry.TryCreateContext(
+                    in activeContext,
+                    skillRuntimes: null,
+                    frame: 11,
+                    out var condition));
+                Assert.AreEqual(2001L, condition.ParentContextId);
+                Assert.AreEqual(2001L, condition.ExecutionSnapshot.SourceContextId);
+                Assert.AreEqual(1001L, condition.RootContextId);
+                Assert.AreEqual(1001L, condition.ExecutionSnapshot.RootContextId);
+                Assert.IsTrue(condition.TryGetPayload<BorrowedContextContinuous>(out var resolvedPayload));
+                Assert.AreSame(upstreamPayload, resolvedPayload);
+            });
+        }
+
+        [Test]
         public void ContinuousContextLifecycleBinder_DoesNotEndBorrowedParentContext()
         {
             var trace = new MobaTraceRegistry();

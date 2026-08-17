@@ -18,7 +18,6 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class LocalDemoHeadlessSkillReleaseTests
     {
-        private const string DemoScenePath = "Assets/Scenes/MobaDemoScene.unity";
         private const float FixedDeltaTime = 1f / 30f;
 
         [TearDown]
@@ -30,13 +29,14 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            DemoGameplayTestLauncher.Clear();
         }
 
         [UnityTest]
-        public IEnumerator MobaDemoScene_LocalBattle_ReleasesLianPoSkill1AndMovesLocalActor()
+        public IEnumerator UnifiedGameplayScene_LocalBattle_ReleasesLianPoSkill1AndMovesLocalActor()
         {
-            var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-            Assert.IsTrue(scene.IsValid(), $"Demo scene should load from {DemoScenePath}.");
+            var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            Assert.IsTrue(scene.IsValid(), "Unified gameplay scene should load for the local MOBA profile.");
 
             var entry = Object.FindObjectOfType<GameEntry>();
             Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
@@ -72,10 +72,10 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [UnityTest]
-        public IEnumerator MobaDemoScene_LocalBattle_LianPoSkill3AimMovesAndJumpsToSelectedPoint()
+        public IEnumerator UnifiedGameplayScene_LocalBattle_LianPoSkill3AimMovesAndJumpsToSelectedPoint()
         {
-            var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-            Assert.IsTrue(scene.IsValid(), $"Demo scene should load from {DemoScenePath}.");
+            var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            Assert.IsTrue(scene.IsValid(), "Unified gameplay scene should load for the local MOBA profile.");
 
             var entry = Object.FindObjectOfType<GameEntry>();
             Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
@@ -134,10 +134,10 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [UnityTest]
-        public IEnumerator MobaDemoScene_LocalBattle_LianPoSkill3DoesNotPullBackAfterInsertedSkill1Dash()
+        public IEnumerator UnifiedGameplayScene_LocalBattle_LianPoSkill3DoesNotPullBackAfterInsertedSkill1Dash()
         {
-            var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-            Assert.IsTrue(scene.IsValid(), $"Demo scene should load from {DemoScenePath}.");
+            var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            Assert.IsTrue(scene.IsValid(), "Unified gameplay scene should load for the local MOBA profile.");
 
             var entry = Object.FindObjectOfType<GameEntry>();
             Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
@@ -198,10 +198,10 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [UnityTest]
-        public IEnumerator MobaDemoScene_LocalBattle_CameraResolvesAndFollowsLocalActorWithoutSkillInput()
+        public IEnumerator UnifiedGameplayScene_LocalBattle_CameraResolvesAndFollowsLocalActorWithoutSkillInput()
         {
-            var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-            Assert.IsTrue(scene.IsValid(), $"Demo scene should load from {DemoScenePath}.");
+            var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            Assert.IsTrue(scene.IsValid(), "Unified gameplay scene should load for the local MOBA profile.");
 
             var entry = Object.FindObjectOfType<GameEntry>();
             Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");
@@ -241,10 +241,10 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [UnityTest]
-        public IEnumerator MobaDemoScene_LocalBattle_LianPoSkill2RefreshesSkill1CooldownWhenEnemyInRange()
+        public IEnumerator UnifiedGameplayScene_LocalBattle_LianPoSkill2RefreshesSkill1CooldownWhenEnemyInRange()
         {
-            var scene = EditorSceneManager.OpenScene(DemoScenePath, OpenSceneMode.Single);
-            Assert.IsTrue(scene.IsValid(), $"Demo scene should load from {DemoScenePath}.");
+            var scene = DemoGameplayTestLauncher.OpenMobaLocalAndCompose();
+            Assert.IsTrue(scene.IsValid(), "Unified gameplay scene should load for the local MOBA profile.");
 
             var entry = Object.FindObjectOfType<GameEntry>();
             Assert.IsNotNull(entry, "Demo scene must contain a GameEntry.");

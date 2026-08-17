@@ -1,3 +1,3 @@
 # com.abilitykit.protocol.editor
 
-Editor tooling for defining protocols (schema) and generating glue code into business protocol packages.
+用于定义协议（架构）并向业务协议包生成衔接代码的编辑器工具。

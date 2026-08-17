@@ -95,6 +95,11 @@ namespace AbilityKit.Network.Battle
         /// </summary>
         public event Action<Exception> AuthenticationFailed;
         /// <summary>
+        /// 输入提交收到的最终权威响应。成功和最终业务拒绝都会触发；
+        /// stale-frame 重试的中间响应不会触发。
+        /// </summary>
+        public event Action<NetworkSubmitInputResponse> SubmitInputCompleted;
+        /// <summary>
         /// 输入提交的异常出口（网络错误/序列化失败等，不含服务端业务拒绝 —— 拒绝走
         /// <see cref="NetworkSubmitInputResponse"/>）。两条提交路径异常时都会触发；
         /// <see cref="SendInputAsync"/> 的 await 方拿到的仍是 default 响应，需要区分异常请订阅此事件。
@@ -192,6 +197,7 @@ namespace AbilityKit.Network.Battle
                     if (response.Accepted)
                     {
                         _options.OnSubmitInputAck?.Invoke(response.ServerFrame);
+                        SubmitInputCompleted?.Invoke(response);
                         return response;
                     }
 
@@ -202,6 +208,7 @@ namespace AbilityKit.Network.Battle
                         Log.Warning(
                             $"[NetworkTransport] Input rejected. serverFrame={response.ServerFrame} " +
                             $"reasonCode={response.ReasonCode} status={response.Status} message={response.Message}");
+                        SubmitInputCompleted?.Invoke(response);
                         return response;
                     }
 

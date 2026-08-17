@@ -1,5 +1,11 @@
 # 04-回放系统
 
+> **文档类型：Canonical 设计**
+>
+> **事实基线：2026-08-16**
+>
+> **规范范围：** 通用 Record、FrameRecord 与 Demo 回放的职责、兼容性和证据边界；三种格式不互相冒充。
+
 > 回放系统负责把已经发生过的战斗或模拟过程按帧固化下来，并在后续以可控速度、可寻址方式重新播放。AbilityKit 源码里同时存在三层实现：通用 `RecordContainer`/`RecordSession` 体系、按帧 `FrameRecordFile` 体系、以及 Console Demo 的 `.akrec` 二进制文件体系。三者都服务于问题复现和同步验证，但适用边界不同。
 
 ---
@@ -355,7 +361,11 @@ flowchart LR
 
 `FrameRecordOptimizedBinaryCodec` 只是 `IFrameRecordCodec` 的 facade；真正的数据格式由 `FrameRecordOptimizedBinaryDataCodec` 中的 writer/reader 实现。当前 reader 会校验 magic、版本范围、track count、player index、payload length 和尾部数据，拒绝 future version、负 track count、截断 payload 以及未消费的 trailing data。
 
-仓库中的 `FrameRecordOptimizedBinaryCodecTests` 已覆盖 v4 state hash round-trip、压缩开关、v3 legacy layout compatibility、future version rejection、negative track count rejection 和 truncated payload rejection。这些是 E3 codec 契约证据，不等同于完整战斗 Smoke 或发布门禁。
+仓库中的 `FrameRecordOptimizedBinaryCodecTests` 已覆盖 v4 state hash round-trip、压缩开关、v3 legacy layout compatibility、future version rejection、negative track count rejection 和 truncated payload rejection。这些测试只把 v3/v4 作为可回归兼容范围；源码 reader 的分支接受 v1-v4，但 v1/v2 尚没有同等级 legacy fixture。因而“实现可接受版本”和“E3 已锁定版本”必须分别声明，不能由 reader 条件外推为四代格式均已验证。
+
+当前 writer 只写 v4，reader 支持 v1-v4；v4 保存真实 state hash schema version。`RecordIdHash` 另有专项测试固定标识计算契约。兼容性的判断单位必须是“容器版本 + track schema/version + 领域 payload codec”，不能只看扩展名、magic 或“能完成反序列化”。
+
+所有现有 writer 都先在内存累积，在 `Dispose()` 时一次性创建目录并写完整文件；当前没有临时文件、flush journal 或原子 rename。进程崩溃、磁盘写满或最终写入中断时，不能把目标文件存在等同于一次完整提交。长期回归产物应在写后重新打开、校验并由 manifest 记录 hash/长度，协议层后续再补原子提交策略。
 
 ---
 
@@ -549,6 +559,15 @@ Shooter smoke 的 replay 记录范围当前包含 `input-state`、`input-logic`�
 | 快照语义过弱 | Console `FrameSnapshot` 只存 actorCount/hash | 标明它是校验快照，不是完整世界快照 |
 | 时钟倍速异常 | `Speed` 过高导致一帧消费过多 | 回放 UI/测试要限制速度范围或分帧消费 |
 
+### 10.3 证据矩阵
+
+| 证据 | 当前事实 | 结论边界 |
+|------|----------|----------|
+| Record E3 | 本轮 `AbilityKit.Record.Tests` 23/23 | codec、diff、标识与局部回放契约 |
+| Shooter replay artifact E4 | 指定 Smoke 运行生成并回读的产物 | 仅代表该次配置和数据链 |
+| `shooter-fast` 等 E5 | 以 `tools/test-gates.json` 和 workflow 触发条件为准 | Schedule/Manual gate 不能写成每次 PR 均执行 |
+| Console `.akrec` | Demo 专用文件与回放控制器 | 不等于通用 FrameRecord 长期兼容协议 |
+
 ---
 
 ## 11. 源码阅读路径
@@ -562,4 +581,4 @@ Shooter smoke 的 replay 记录范围当前包含 `input-state`、`input-logic`�
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-08-09*
+*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*

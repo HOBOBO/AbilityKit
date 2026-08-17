@@ -14,12 +14,14 @@ namespace AbilityKit.Game.Flow
     public sealed class BattleSyncFeature : IGamePhaseFeature
     {
         private BattleContext _ctx;
+        private IMobaBattleDiagnosticEventSink _diagnosticSink;
 
         private readonly BattleSubscriptionGroup _subscriptions = new BattleSubscriptionGroup(3);
 
         public void OnAttach(in GamePhaseContext ctx)
         {
             ctx.Features.TryGet(out _ctx);
+            _diagnosticSink = ResolveDiagnosticSink(_ctx);
 
             var syncMode = _ctx != null ? _ctx.Plan.Sync.SyncMode : BattleSyncMode.Lockstep;
 
@@ -57,6 +59,7 @@ namespace AbilityKit.Game.Flow
                 _ctx.HasRuntimeWorldId = false;
             }
 
+            _diagnosticSink = null;
             _ctx = null;
         }
 
@@ -120,24 +123,30 @@ namespace AbilityKit.Game.Flow
         {
             try
             {
-                if (_ctx == null ||
-                    !_ctx.TryGetRuntimeWorld(out var world) ||
-                    world.Services == null ||
-                    !world.Services.TryResolve<IMobaBattleDiagnosticEventSink>(out var collector) ||
-                    collector == null)
-                {
-                    return;
-                }
+                if (_diagnosticSink == null) return;
 
                 var draft = MobaSyncDiagnosticProducer.CreateSnapshotReceivedDraft(
                     authoritativeFrame,
                     stateHash);
-                collector.TryCollect(in draft);
+                _diagnosticSink.TryCollect(in draft);
             }
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSyncFeature] Failed to collect StateHash sync diagnostic");
             }
+        }
+
+        private static IMobaBattleDiagnosticEventSink ResolveDiagnosticSink(BattleContext context)
+        {
+            if (context == null ||
+                !context.TryGetRuntimeWorld(out var world) ||
+                world.Services == null ||
+                !world.Services.TryResolve<IMobaBattleDiagnosticEventSink>(out var sink))
+            {
+                return null;
+            }
+
+            return sink;
         }
 
         private void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries)

@@ -3,8 +3,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Flow;
 using AbilityKit.Network.Room;
-using AbilityKit.Protocol.Room;
-using WireRoomStateChangedPush = AbilityKit.Protocol.Room.WireRoomStateChangedPush;
 
 namespace AbilityKit.Game.Battle.Agent
 {
@@ -214,9 +212,7 @@ namespace AbilityKit.Game.Battle.Agent
 
         public ClientRoomSnapshot DeserializeRoomStateChangedPush(ArraySegment<byte> payload)
         {
-            var wire = WireRoomGatewayBinary.Deserialize<WireRoomStateChangedPush>(payload);
-            var wireSnapshot = wire.Snapshot;
-            return ClientRoomSnapshotMapper.ToClientSnapshot(wireSnapshot);
+            return _wireClient.DeserializeRoomStateChangedPush(payload);
         }
 
         public bool IsRoomStateChangedPush(uint opCode)

@@ -65,7 +65,8 @@ namespace AbilityKit.Game.Flow
             _presentation = null;
         }
 
-        BattleContext IViewSharedSubFeatureHost.Context => RuntimeContext;
+        IBattleRuntimeContext IViewSharedSubFeatureHost.RuntimeContext => RuntimeContext;
+        IBattleEntityContext IViewSharedSubFeatureHost.EntityContext => RuntimeContext;
         BattleViewBinder IViewSharedSubFeatureHost.Binder => _binder;
         bool IViewSharedSubFeatureHost.IsConfirmed => RuntimeIsConfirmed;
         WorldId IViewSharedSubFeatureHost.WorldId => RuntimeContext != null ? RuntimeContext.RuntimeWorldId : default;
@@ -76,6 +77,8 @@ namespace AbilityKit.Game.Flow
         void IViewSharedSubFeatureHost.RebindAllViews() => _operations.RebindAllViews(this);
         void IViewSharedSubFeatureHost.TickVfx() => _operations.TickVfx(this);
         void IViewSharedSubFeatureHost.TickFloatingTexts(float deltaTime) => _operations.TickFloatingTexts(this, deltaTime);
+
+        BattleContext IViewFeatureRuntime.Context => RuntimeContext;
 
         IBattleEntityQuery IViewFeatureRuntime.Query
         {

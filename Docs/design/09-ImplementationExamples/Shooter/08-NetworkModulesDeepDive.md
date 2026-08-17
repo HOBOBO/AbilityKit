@@ -1,5 +1,8 @@
 # Shooter 网络模块深潜
 
+> 文档类型：项目示例深潜
+> 事实基线：2026-08-16
+>
 > 本文聚焦 Shooter 示例的网络模块组合：客户端 Session、Room 控制面连接、独立 battle 数据面、同步控制器、快照编码、纯状态预算、延迟补偿与重连验收。它补充 `04-ClientSyncStrategies.md` 与 `05-ServerFlowAndSmokeDeepDive.md` 中没有展开的网络模块职责边界。
 
 ## 1. 网络模块全景
@@ -249,12 +252,14 @@ sequenceDiagram
 
 这些模块共同支撑 stale snapshot、late join、reconnect 和 state hash 校验。恢复还依赖 battle handle 的 full-state single-flight：同一请求 key 的并发请求复用在途任务，并受自动 timeout 约束；可靠事件 ack 失败时请求 `ReliableEventGap` baseline，full snapshot watermark 可恢复可靠事件 cursor。
 
+当前 handle 已正式采用 `NetworkSessionRecoveryActionRouter<TResult>` 与 `NetworkSessionRecoveryRuntime<TResult>`。runtime 使用 Manual 模式，session coordinator 先产出决策，handle 再显式执行；`RequestFullSnapshot` 和 `RestoreReliableEventBaseline` 共享 Shooter full-state handler。框架层提供的是决策/执行分离、generation、取消、陈旧完成抑制和诊断，Shooter 仍拥有 request DTO、RPC、single-flight key 与成功判定。
+
 证据必须分层声明：
 
 | 层级 | 当前证据 | 可证明范围 |
 |------|----------|------------|
 | E0 | launcher、handle、data plane、transport gateway client 源码 | 类型与结构存在 |
-| E2 | `ShooterRemoteStateSyncPlayModeHost` 正式组合链 | Shooter 业务运行时采用，且不依赖 coordinator |
+| E2 | `ShooterRemoteStateSyncPlayModeHost` 正式组合链 | Shooter 业务运行时采用通用 recovery coordinator/router/runtime，并保留项目 full-state handler |
 | E3 | battle handle、Room flow、remote coordinator contract 等测试 | wire contract、重试、single-flight、resync、旧路径删除 |
 | E4 | Shooter 多进程 Smoke 和 diagnostic/replay artifact | 真实进程故障恢复与组合收敛 |
 | E5 | Shooter CI gate 配置 | main/schedule/manual 的阻断责任；完整多进程矩阵不是 PR gate |
@@ -300,3 +305,20 @@ sequenceDiagram
 | Battle handle 测试 | `src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterClientBattleHandleTests.cs` |
 | 正式链去 coordinator 契约测试 | `src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterRemoteCoordinatorInputContractTests.cs` |
 | 阶段化 Room flow 测试 | `src/AbilityKit.Demo.Shooter.Runtime.Tests/Gateway/ShooterRoomGatewayFlowTests.cs` |
+
+## 12. 双连接所有权、会话恢复与验证边界
+
+Shooter 当前采用两条物理连接：Room Gateway connection 承担登录、入场、能力声明与恢复控制面，独立 `NetworkTransport` 承担 battle 输入和 push 数据面。两者共享稳定身份，但不能由两个对象同时消费 battle push；双连接模式下 `ShooterBattleDataPlane` 必须保持唯一 push 订阅者，接收线程只入队，主线程 `Drain` 后才进入 Session。
+
+`ShooterClientNetworkLauncher.Tick(float)` 的参数必须来自真实墙钟 delta，用于同时泵送 Room 与 battle transport、恢复和超时；不能用逻辑 fixed delta 代替网络时间。释放顺序先以 Dispose trigger flush 可靠事件 checkpoint，再解除 recovery binding、释放 battle data/host，最后关闭对应连接。Disconnect、ApplicationPause、ApplicationQuit 也有显式 flush 入口，调用方仍需把 Unity 生命周期事件接到 launcher。
+
+这里仍有一个明确缺口：`ShooterClientBattleHandle` 持有 recovery runtime，但自身不实现 `IDisposable`，launcher 的释放链也没有显式 reset/dispose 它。runtime 可以处理 superseded/reset 后的 stale completion，但 teardown 若没有触发 reset，就缺少在途 full-state recovery 的统一取消边界。应由 handle 或 launcher owner 补齐该生命周期并覆盖 teardown/relaunch 测试；当前证据不足以直接断言资源泄漏。
+
+| 归属 | 可复用内容 | 项目保留内容 |
+|------|------------|--------------|
+| Network/Host 公共包 | transport、请求响应、队列、同步 descriptor、恢复与可靠事件原语 | 无 Shooter opCode、Room 流程或表现策略 |
+| Shooter view runtime | 双连接 launcher、battle handle/data plane、controller/facade 组合 | 身份绑定、profile 选择、checkpoint store、主线程应用与 Dispose 编排 |
+
+2026-08-16 的 Batch N 历史 E3 为 Shooter Runtime `489/489`、Host `3/3`、Network Client `3/3`、Network Battle `12/12`。Batch W 当前重跑 Shooter Runtime 为 `481/490`，其中 recovery battle handle 与 controller factory 聚焦 `22/22` 通过，9 项失败属于默认 template/profile、矩阵数量、snapshot apply 类型和 session 旧预期漂移。没有启动 Gateway/Orleans、Unity PlayMode 或多进程 runner，因此不能把这些结果表述为真实网络 E4。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

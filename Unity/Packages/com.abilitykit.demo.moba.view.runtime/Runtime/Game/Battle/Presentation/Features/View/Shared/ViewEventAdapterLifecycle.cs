@@ -68,9 +68,11 @@ namespace AbilityKit.Game.Flow
 
     public sealed class ViewEventSourceModePolicy
     {
-        public BattleViewEventSourceMode Resolve(BattleContext ctx)
+        public BattleViewEventSourceMode Resolve(IBattleRuntimeContext context)
         {
-            return ctx != null ? ctx.Plan.Sync.ViewEventSourceMode : BattleViewEventSourceMode.SnapshotOnly;
+            return context != null
+                ? context.Plan.Sync.ViewEventSourceMode
+                : BattleViewEventSourceMode.SnapshotOnly;
         }
 
         public bool ShouldUseTriggerAdapter(BattleViewEventSourceMode mode)

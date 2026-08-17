@@ -26,7 +26,7 @@ namespace AbilityKit.Triggering.Runtime.Context
     public interface ITriggerActionExecutionScopeObserver
     {
         void EnterActionExecution(int actionIndex, long actionId);
-        void ExitActionExecution(int actionIndex, long actionId);
+        void ExitActionExecution(int actionIndex, long actionId, bool succeeded);
     }
 
     /// <summary>

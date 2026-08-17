@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: ShooterMultiplayerProfile
   m_EditorClassIdentifier:
   roomTitle: Shooter Room
-  maxPlayers: 4
+  maxPlayers: 2
   roomListLimit: 10
   autoReady: 0
   autoStart: 0
-  syncTemplateId: predict-rollback-authority
+  syncTemplateId: state-sync-authority
   randomSeed: 3901
   playerCount: 2
   controlledPlayerId: 1

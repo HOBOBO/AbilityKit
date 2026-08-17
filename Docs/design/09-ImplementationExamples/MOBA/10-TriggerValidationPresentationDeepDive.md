@@ -1,5 +1,8 @@
 # MOBA Trigger、Validation 与 Presentation Cue 深潜
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文补充 MOBA 示例中尚未单独展开的触发器执行网关、owner-bound 订阅、运行时校验、阶段触发、效果 Step 与表现 Cue。它解释“触发器如何从配置变成运行时订阅、如何被门控、如何被校验、如何把逻辑事件转成表现快照”。
 
 ## 1. 设计目标
@@ -349,6 +352,16 @@ MOBA Trigger、Validation 与 Presentation Cue 覆盖面较宽，以下主题适
 | cue factory | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Cue/MobaPresentationCueFactory.cs` |
 | presentation cue | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/Cue/MobaPresentationTriggerCue.cs` |
 
+## 13. Strict validation、当前阻断与证据边界
+
+`BootstrapStrict` 是 World 创建事务的一部分，而不是只写日志的 Editor 检查。当前 config-reference validator 会比较 SpawnArea 的 effective duration 与 delay；若区域在延迟触发前已经过期，则生成 blocking error 并拒绝启动。
+
+2026-08-16 实际运行 `AbilityKit.Demo.Moba.Tests` 得到 279/305：26 项共同失败于 `trigger 10060201 / action[2]`，其 `duration_ms = 300`、`delay_ms = 400`。这证明严格门禁正在生效，同时说明当前工作区的主 World 基线不可宣称通过。文档任务不修改该配置，也不通过降低 validation mode 绕过错误。
+
+独立通过的 View Runtime 147/147、Host 6/6、Acceptance 8/8 不创建同一完整 World，不能覆盖这一失败。本地 Unity ownership 9/9 artifact 只覆盖 runtime 所有权，不覆盖 TriggerPlan 全表完整性；`moba-smoke` 是另一层 E4/E5 编排，本批未运行。
+
+Trigger gateway、owner-bound subscription、MOBA validator 集合和 Cue schema 都是项目应用策略。框架可稳定提供 Triggering、ActionSchema、Snapshot 与 Validation 原语，但不能预置每个游戏的 event registry、PlanAction DSL、启动阻断规则或表现 Cue。
+
 ---
 
-*文档版本：v1.1 | 状态：Trigger 路由、生命周期所有权与表现边界 | 最后更新：2026-08-11 | 验证基线：`MobaTriggerPlanPayloadCompatibilityTests` 21/21 通过；本轮文档更新未重新执行全量测试*
+*文档版本：v3.0 | 最后更新：2026-08-16*

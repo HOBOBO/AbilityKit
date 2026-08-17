@@ -449,6 +449,76 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public async System.Threading.Tasks.Task RoomStatePushSynchronizer_RefreshesAfterPushSilence()
+        {
+            var conn = new MockConnection();
+            var client = CreateClient(conn);
+            var store = new ClientRoomStore();
+            store.ApplySnapshot(new ClientRoomSnapshot
+            {
+                RoomId = "room-silent",
+                RoomRevision = 2,
+                LastEventSequence = 2
+            });
+            var refreshCalls = 0;
+            var synchronizer = new ClientRoomPushSynchronizer(
+                client,
+                store,
+                _ =>
+                {
+                    refreshCalls++;
+                    store.ApplySnapshot(new ClientRoomSnapshot
+                    {
+                        RoomId = "room-silent",
+                        RoomRevision = 5,
+                        LastEventSequence = 5
+                    });
+                    return System.Threading.Tasks.Task.CompletedTask;
+                });
+
+            var refreshed = await synchronizer.TryRefreshAfterSilenceAsync(TimeSpan.Zero);
+
+            Assert.IsTrue(refreshed);
+            Assert.AreEqual(1, refreshCalls);
+            Assert.AreEqual(1, synchronizer.RefreshFallbackCount);
+            Assert.AreEqual(5, store.Current.RoomRevision);
+        }
+
+        [Test]
+        public async System.Threading.Tasks.Task RoomStatePushSynchronizer_SilentRefreshIsSingleFlight()
+        {
+            var conn = new MockConnection();
+            var client = CreateClient(conn);
+            var store = new ClientRoomStore();
+            store.ApplySnapshot(new ClientRoomSnapshot
+            {
+                RoomId = "room-single-flight",
+                RoomRevision = 2,
+                LastEventSequence = 2
+            });
+            var refreshCompletion = new System.Threading.Tasks.TaskCompletionSource<bool>(
+                System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+            var refreshCalls = 0;
+            var synchronizer = new ClientRoomPushSynchronizer(
+                client,
+                store,
+                _ =>
+                {
+                    refreshCalls++;
+                    return refreshCompletion.Task;
+                });
+
+            var first = synchronizer.TryRefreshAfterSilenceAsync(TimeSpan.Zero);
+            var second = await synchronizer.TryRefreshAfterSilenceAsync(TimeSpan.Zero);
+            refreshCompletion.SetResult(true);
+
+            Assert.IsTrue(await first);
+            Assert.IsFalse(second);
+            Assert.AreEqual(1, refreshCalls);
+            Assert.AreEqual(1, synchronizer.RefreshFallbackCount);
+        }
+
+        [Test]
         public void SubmitBattleInputAsync_UsesAuthoritativeProtocolAndPreservesResponse()
         {
             var conn = new MockConnection();

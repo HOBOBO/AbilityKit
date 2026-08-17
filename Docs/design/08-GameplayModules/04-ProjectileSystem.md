@@ -1,5 +1,9 @@
 # 8.4 投射物系统
 
+> 文档类型：Canonical 设计（Projectile 跨模块边界）
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > 本文从源码出发说明 AbilityKit 中投射物能力的真实边界：它不是“发射一个飞行物”这么简单，而是由 [`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:16) 负责的投射物运行时、[`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11) 负责的调度与事件编排、以及 Demo 层的 MOBA 绑定服务共同组成的一套可回滚、可追踪、可扩展的战斗子系统。
 
 ---
@@ -9,6 +13,7 @@
 - [8.4 投射物系统](#84-投射物系统)
   - [目录](#目录)
   - [1. 能力定位](#1-能力定位)
+    - [1.1 职责归属与接入边界](#11-职责归属与接入边界)
   - [2. 源码入口](#2-源码入口)
   - [3. 设计总览](#3-设计总览)
   - [4. 核心数据模型](#4-核心数据模型)
@@ -25,7 +30,8 @@
     - [9.1 发射流程](#91-发射流程)
     - [9.2 事件转译](#92-事件转译)
   - [10. 扩展点与约束](#10-扩展点与约束)
-  - [11. 关联文档](#11-关联文档)
+  - [11. 证据与关联文档](#11-证据与关联文档)
+    - [11.1 证据状态与已知限制](#111-证据状态与已知限制)
 
 ---
 
@@ -42,6 +48,16 @@
 - 允许 Demo 层在不改底层模块的前提下，挂接角色、来源上下文、技能运行时和触发器协作。
 
 底层核心是 [`ProjectileWorld`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Runtime/ProjectileWorld.cs:16)，面向外部的统一入口是 [`ProjectileService`](../../../Unity/Packages/com.abilitykit.combat.projectile/Runtime/Projectile/Services/ProjectileService.cs:11)。
+
+### 1.1 职责归属与接入边界
+
+| 层级 | 稳定职责 | 项目策略 |
+|------|----------|----------|
+| Projectile 框架 | 生成与调度、运动推进、碰撞候选、命中过滤/策略、生命周期事件和核心快照 | 不解释阵营、技能效果、Actor、表现、权威同步或来源上下文 |
+| 项目应用层 | 碰撞世界与目标过滤、命中效果、Actor 投影、事件消费顺序、附加绑定快照及恢复 | 必须定义 drain 所有权、确定性输入和回滚完整性 |
+| MOBA 示例 | `MobaProjectileService`、链接服务、Trace/runtime retain、Trigger 转译和协议快照 | 证明一种完整接法，不是公共包默认事件总线或实体模型 |
+
+只有运动、命中与生命周期这类跨项目语义稳定的部分进入框架。伤害、Buff、阵营与表现始终通过事件由项目接管，从而避免投射物包成为新的战斗应用层。
 
 ---
 
@@ -299,7 +315,7 @@ flowchart LR
     F --> G["Rebuild Projectile list from pool"]
 ```
 
-底层快照保存的是底层运行状态；Demo 层额外的演员链接、来源上下文、技能 retain handle 等，需要由 Demo 侧服务自行维护或在生命周期中重新绑定。
+该快照只覆盖 `ProjectileWorld` 的 active projectile 列表与 `_nextId`，并不覆盖 `ProjectileService` 的 schedule、AreaWorld、事件缓冲、`_nextScheduleId`、return/tracking provider 或项目自定义过滤器。Import 会清空 schedule 和各类事件缓冲，但不会恢复或清理 AreaWorld；恢复对象的 HitFilter/HitCooldown 也会回到默认值。Demo 层额外的 Actor 链接、来源上下文、技能 retain handle 和表现游标同样需要由项目侧在更高层恢复事务中重建。
 
 ---
 
@@ -378,11 +394,22 @@ flowchart TD
 
 ---
 
-## 11. 关联文档
+## 11. 证据与关联文档
+
+### 11.1 证据状态与已知限制
+
+- **E0 实现**：`ProjectileWorld`、`ProjectileService`、策略、事件和快照接口存在。
+- **E1 示例**：包内模式示例与 MOBA 发射/事件转译展示基础和高接入用法。
+- **E2 集成**：MOBA 技能、Trigger、临时 Actor、Trace 与快照链真实消费公共投射物能力。
+- **E3 契约**：2026-08-16 当次 `AbilityKit.Combat.Projectile.Tests` 为 `8/8`，覆盖 ID、定点飞行/归一化、距离退出、球体命中和 active projectile raw-bit rollback。未覆盖 schedule/Area、事件 drain 所有权、provider/filter 恢复及 MOBA 链接事务。
+- **E4 场景**：P0 Smoke/Unity artifact 只为其日期化实际发射和命中路径提供场景证据，不能推出所有碰撞世界、回旋、穿透和回滚绑定均已验收；本批未重跑 Unity。
+- **E5 门禁**：尚无覆盖完整业务绑定恢复、性能预算和跨端协议兼容的统一强制门禁。
+
+核心快照不自动包含 MOBA 的 Actor 链接、来源上下文、技能 runtime retain 和表现消费游标。采用回滚或预测时，项目必须把这些附加状态纳入同一恢复事务。
 
 - [属性系统](05-AttributeSystem.md) - Attributes 与 Modifiers
 - [伤害计算](06-DamageCalculation.md) - 伤害公式
 
 ---
 
-*文档版本：v2.0 | 最后更新：2026-06-23*
+*文档类型：Canonical 设计（Projectile 跨模块边界） | 事实基线：2026-08-16 | 证据等级：公共包局部 E3；E4 仅限日期化历史 artifact | 文档版本：v3.0*

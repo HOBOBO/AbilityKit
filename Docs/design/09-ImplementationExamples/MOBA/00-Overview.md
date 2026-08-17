@@ -1,8 +1,22 @@
 # MOBA Demo 专题总览
 
+> 文档类型：MOBA 项目应用组合导航与证据地图
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > 本目录按运行边界拆解 MOBA 示例，说明逻辑世界、Entitas、配置、输入、技能、Buff、Projectile、Damage、Snapshot、表现层与预测回滚当前怎样协作。各专题分别标明源码事实、验证证据和未完成项；目录中的接口或示例入口不自动代表联机、表现或生产部署能力已经完成。
 
 ## 1. 拆分理由
+
+MOBA Demo 是接入程度较高的项目应用层参考，不是待整体抽入框架的默认实现。阅读本目录时应先区分三类内容：
+
+| 内容属性 | 代表内容 | 复用方式 |
+|----------|----------|----------|
+| 框架契约的实际消费者 | Triggering、Pipeline、Continuous、Targeting、Projectile、Trace、World.DI | 其他项目直接依赖对应 framework package，并遵守其生命周期和失败契约 |
+| 可参考的应用层组织 | Cast preparation、领域 Service/System 分工、Context 传播、Snapshot emitter、严格启动校验 | 参考结构后由项目实现和拥有，不承诺与 Demo 同步升级 |
+| MOBA 专用策略 | 英雄技能槽、阵营与 Actor 模型、Buff/伤害规则、配置表、Entitas 组件、表现和协议字段 | 仅作为 MOBA 示例事实，不应外推为框架标准 |
+
+判断一段代码属于哪一类时，以语义稳定性和所有权为准，而不是以代码量或复用次数为准。应用层编排即使在多个 MOBA 英雄之间复用，也可能仍然只是 MOBA 领域能力；只有摆脱具体实体、配置和结算规则，并经过非同构玩法验证后，才具备向框架层下沉的条件。
 
 MOBA 示例已经进一步拆成更细专题，便于单独阅读每个设计点：
 
@@ -16,12 +30,12 @@ MOBA 示例已经进一步拆成更细专题，便于单独阅读每个设计点
 | 战斗服务总览 | Buff、Projectile、Damage 的协作入口和领域边界 | [03-Buff、Projectile 与 Damage 管线](03-BuffProjectileDamage.md) |
 | Buff 命令与生命周期收敛 | Immediate 入队语义、drain 预算、拒绝、结束顺序与持续状态调和 | [07-Buff 命令执行与生命周期收敛深潜](07-BuffLifecycleDeepDive.md) |
 | Projectile 与 Damage | 投射物运行时、命中、伤害请求和结果发布 | [08-Projectile 与 Damage 深潜](08-ProjectileDamageDeepDive.md) |
-| Trace/Context/Effect | TraceTreeRegistry、MobaTraceRegistry、LineageInput、CombatExecutionContext、EffectInvoker | [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md) |
+| Trace/Context/Effect | canonical provenance、Effect/Action trace lifecycle、跨帧 ownership、结构校验与 Action 诊断指标 | [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md) |
 | Trigger/Validation/Presentation Cue | TriggerExecutionGateway、Owner-bound Subscription、RuntimeValidation、StageTrigger、PresentationCue | [10-Trigger、Validation 与 Presentation Cue 深潜](10-TriggerValidationPresentationDeepDive.md) |
 | PlanActions/Continuous Runtime | ActionSchema、PlanActionModule、ContinuousRuntimeView、LifecycleBinder、ContextSourceBoundary | [11-PlanActions DSL 与 Continuous Runtime 深潜](11-PlanActionsAndContinuousRuntimeDeepDive.md) |
 | 工业化流程 | 单元测试、Console smoke、trace artifact、DSL/配置环境测试、CI 分层门禁 | [工程质量：MOBA 与 Shooter 示例工业化流程](../../10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) |
 | Continuous 能力组合设计 | stack、periodic、cue、tag、modifier 与领域 runtime 的组合边界 | [13-持续行为能力组合设计](13-ContinuousCapabilityCompositionDesign.md) |
-| 四英雄技能正式实现 | 廉颇、小乔、赵云、墨子的技能/被动需求映射、TriggerPlan、Buff、Projectile、Counter 与验证路径 | [14-四英雄技能正式实现设计](14-HeroSkillFormalDesign.md) |
+| 六英雄技能正式实现 | 廉颇、小乔、赵云、墨子、妲己、嬴政的技能/被动需求映射、TriggerPlan、Buff、Projectile、Area、Counter 与验证路径 | [14-六英雄技能正式实现设计](14-HeroSkillFormalDesign.md) |
 | 技能 Flow 与 Pipeline 配置 | skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil 与 Pipeline 持续标签模板 | [18-技能 Flow 与 Pipeline 配置设计](18-SkillFlowPipelineConfigDesign.md) |
 | 联机会话与协议契约 | Gateway room、EnterGame、BattleSessionFeature、RuntimePort、远程/确认辅助世界 | [15-联机会话与协议契约](15-OnlineSessionAndProtocolContract.md) |
 | 领域连续运行时与临时实体生命周期 | Motion source、motion.hit、Summon owner/root-owner、容量策略、trace、despawn、gameplay trigger 绑定 | [16-领域连续运行时与临时实体生命周期](16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md) |
@@ -124,14 +138,14 @@ sequenceDiagram
 6. [06-配置、实体索引与生成深潜](06-ConfigEntitySpawnDeepDive.md)：查看配置加载、实体索引、Spawn 编排与失败清理。
 7. [03-Buff、Projectile 与 Damage 管线](03-BuffProjectileDamage.md)：先阅读三个战斗领域服务的协作总览。
 8. [07-Buff 命令执行与生命周期收敛深潜](07-BuffLifecycleDeepDive.md) 与 [08-Projectile 与 Damage 深潜](08-ProjectileDamageDeepDive.md)：再进入各领域的命令、运行时和失败语义。
-9. [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md)：效果执行的来源、父子 trace 与验收结构。
+9. [09-Trace、Context 与 Effect 执行深潜](09-TraceContextEffectDeepDive.md)：canonical provenance、Effect 节点推进、Action 成对生命周期、runtime retain/release、结构校验与诊断证据。
 10. [10-Trigger、Validation 与 Presentation Cue 深潜](10-TriggerValidationPresentationDeepDive.md)：触发器订阅、运行时校验、阶段触发与表现 Cue。
 11. [11-PlanActions DSL 与 Continuous Runtime 深潜](11-PlanActionsAndContinuousRuntimeDeepDive.md)：配置动作 DSL、强类型 action module、持续运行时查询与上下文边界。
 12. [19-Runtime 战斗逻辑层深潜](19-MobaRuntimeLogicLayerDeepDive.md)：从整体上核对输入输出、System/Service 分工、World DI 与测试策略。
 13. [20-Console Demo 装配链路深潜](20-ConsoleDemoBootstrapAndFeatureDeepDive.md)：查看 Console 宿主怎样装配 Runtime、同步适配器和自动测试入口。
 14. [工程质量：MOBA 与 Shooter 示例工业化流程](../../10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md)：按证据层级理解单元测试、Console smoke、Unity acceptance、artifact 与 CI 门禁。
 15. [13-持续行为能力组合设计](13-ContinuousCapabilityCompositionDesign.md)：stack、periodic、cue、tag、modifier 与领域 runtime 的组合边界。
-16. [14-四英雄技能正式实现设计](14-HeroSkillFormalDesign.md)：廉颇、小乔、赵云、墨子如何通过 TriggerPlan、Buff、Projectile、Counter 与通用 predicate 落地。
+16. [14-六英雄技能正式实现设计](14-HeroSkillFormalDesign.md)：廉颇、小乔、赵云、墨子、妲己、嬴政如何通过 TriggerPlan、Buff、Projectile、Area、Counter 与通用 predicate 落地。
 17. [18-技能 Flow 与 Pipeline 配置设计](18-SkillFlowPipelineConfigDesign.md)：skills.json、skill_flows.json、Phase Type、Timeline、RulePlan、Sequence、WaitUntil 与 Pipeline 持续标签模板的当前映射。
 18. [16-领域连续运行时与临时实体生命周期](16-DomainContinuousRuntimeAndTemporaryEntityLifecycle.md)：Motion source、motion.hit、Summon 生命周期与 gameplay trigger 绑定的当前实现。
 19. [17-主动、被动、Buff、Projectile 与 AOE 触发效果设计](17-ActivePassiveBuffProjectileAoeTriggerEffects.md)：主动技能、被动 owner-bound、Buff、Projectile stage 与 AOE stage 如何进入 TriggerPlan 并落到领域服务。
@@ -149,6 +163,8 @@ sequenceDiagram
 | Unity EditMode 单局 journey acceptance | `MobaCompleteBattleJourneyAcceptanceTests.DajiBattleJourney_ShouldCoverCombatDeathRespawnAndSettlement` | 进场、移动、技能、Effect trace、Projectile、Buff、伤害、死亡、异地半血复活、再次战斗和终局 | 多客户端联机、自动复活规则、正式死亡/复活表现接线 |
 
 P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证据显示该门禁于 2026-07-27 通过；这是一次已执行验证记录，不是持续通过保证。修改死亡、复活、技能事件链或相关装配后仍需重新运行门禁。
+
+2026-08-16 当次 `.NET` 主工程结果为 `279/305`。26 项共同在 World 启动前被 `trigger 10060201 / action[2]` 的 SpawnArea 严格校验阻断：Trigger action 覆盖 `duration_ms=300`，Console 配置中的 Area `40060201` 仍解析为 `delay_ms=400`。这不会推翻 2026-07-27 的历史 journey artifact，但说明当前工作区不能把 Console World、AI、Summon 或生命周期 Smoke 写成持续通过。独立 View Runtime、Host、Acceptance 和 Unity ownership 结果必须继续与主 World 分层陈述。
 
 尚未闭合的范围包括自动复活倒计时、出生点配置、复活次数规则、独立的死亡/复活网络表现事件，以及 `BattleActorDeathViewEventHandler`、`BattleActorRespawnViewEventHandler` 到正式 runtime/network event sink 的接线。因此本节只描述单局测试旅程，不将其扩展为多人网络战局或生产玩法完成度。
 
@@ -173,9 +189,12 @@ P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证
 | Damage 服务 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaDamageService.cs` |
 | Unit 生命周期 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Unit/MobaUnitLifecycleService.cs` |
 | Trace Registry | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRegistry.cs` |
+| Trace retention / validation | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRetention.cs`、`Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRuntimeServices.cs` |
 | Effect Lineage | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Lineage/MobaEffectLineageInput.cs` |
+| Canonical provenance | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Providers/MobaTriggerContextResolveExtensions.cs` |
 | Combat Context | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Context/Execution/MobaCombatExecutionContext.cs` |
 | Effect Invoker | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Effect/MobaEffectInvokerService.cs` |
+| Effect/Action lifecycle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Effects/MobaEffectExecutionService.cs` |
 | Transform Snapshot | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Actor/MobaActorTransformSnapshotService.cs` |
 | Trigger Execution Gateway | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaTriggerExecutionGateway.cs` |
 | Stage Trigger Service | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Triggering/MobaStageTriggerService.cs` |
@@ -205,4 +224,4 @@ P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证
 | 远程驱动 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
 | 快照路由 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/FrameSnapshotDispatcher.cs` |
 
-*文档版本：v1.1 | 状态：示例入口与证据地图 | 最后更新：2026-08-02 | 验证基线：`moba-complete-battle-journey` 于 2026-07-27 通过，后续源码变更需重新执行门禁*
+*文档版本：v3.0 | 最后更新：2026-08-16 | 当前主工程：279/305；历史 journey：2026-07-27 通过；聚焦 Unity：canonical 14/14、ownership 9/9、Trace 15/15、Action diagnostics 15/15*

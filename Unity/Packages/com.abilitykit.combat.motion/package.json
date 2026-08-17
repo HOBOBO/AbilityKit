@@ -10,7 +10,7 @@
     "samples":  [
                     {
                         "displayName":  "Motion Examples",
-                        "description":  "combat motion 妯″潡鐨?pipeline銆佸垎缁勬姂鍒躲€佽矾寰勮建杩逛笌杈撳叆娣峰悎绀轰緥",
+                        "description":  "战斗运动模块的管线、分组抑制、路径轨迹与输入混合示例",
                         "path":  "Samples~/MotionExamples"
                     }
                 ],

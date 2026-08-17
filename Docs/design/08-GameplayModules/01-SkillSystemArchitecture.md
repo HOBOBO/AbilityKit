@@ -1,5 +1,9 @@
 # 8.1 技能系统架构
 
+> 文档类型：示例分析（MOBA 技能应用层）
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 > 本文从源码出发说明 AbilityKit 中“技能”能力的真实组成方式：框架核心并不把技能实现为一个巨型 `SkillExecutor`，而是通过输入、配置、Pipeline、Triggering、GameplayEffect、Combat 原语、Trace/Runtime 快照协作完成一次技能释放。
 
 ---
@@ -9,6 +13,7 @@
 - [8.1 技能系统架构](#81-技能系统架构)
   - [目录](#目录)
   - [1. 能力定位](#1-能力定位)
+    - [1.1 职责归属与复用边界](#11-职责归属与复用边界)
   - [2. 源码入口](#2-源码入口)
   - [3. 总体设计](#3-总体设计)
   - [4. 技能输入到释放的主流程](#4-技能输入到释放的主流程)
@@ -20,7 +25,8 @@
   - [9. 扩展点与约束](#9-扩展点与约束)
     - [9.1 扩展点](#91-扩展点)
     - [9.2 关键约束](#92-关键约束)
-  - [10. 关联文档](#10-关联文档)
+  - [10. 证据与关联文档](#10-证据与关联文档)
+    - [10.1 证据状态与已知限制](#101-证据状态与已知限制)
 
 ---
 
@@ -35,6 +41,16 @@ AbilityKit 的技能系统不是单个包中的封闭系统，而是一个跨模
 - `com.abilitykit.demo.moba.runtime` 给出一套完整 MOBA 技能落地路径，包含输入、配置库、释放协调器、运行时追踪和 Entitas 实体同步。
 
 因此，本文中的“技能系统架构”主要描述当前工程中最完整的 MOBA 技能闭环，而不是虚构一个框架内不存在的 `SkillConfig -> SkillExecutor` 固定结构。
+
+### 1.1 职责归属与复用边界
+
+| 层级 | 稳定职责 | 不在该层承诺的内容 |
+|------|----------|--------------------|
+| 框架包 | Pipeline 的阶段推进与终态、Triggering 的计划执行、Effect 生命周期以及 Targeting/Projectile/Damage 等战斗原语 | 技能槽、资源消耗、冷却事务、蓄力/引导规则、角色状态和整套施法事务 |
+| 项目应用层 | 把输入、角色、配置、资源、并发策略、Pipeline 和清理路径编排成项目自己的技能释放协议 | 不应把项目 DTO、阶段名称或失败码反向声明为框架公共 API |
+| MOBA 示例 | `SkillCastPreparationService`、PreCast/Cast、Timeline、RulePlan、Trace 与 runtime handle 的一套高接入参考 | 不是所有战斗项目开包即用的统一 Skill Runtime；其他项目可以替换整个应用层编排 |
+
+这一区分是工具集定位的直接结果：框架降低稳定机制的重复实现成本，项目保留多变战斗规则的最终所有权。只有当多个项目对某段逻辑的语义、失败路径、依赖方向和生命周期均达成一致时，才考虑继续下沉。
 
 ---
 
@@ -379,10 +395,23 @@ flowchart LR
 6. **旧 Checks/Handlers 阶段不应继续扩散**：源码已明确要求迁移到 RulePlan 条件与动作。
 7. **不要把通用 `AbilityTimelinePhase.cs` 当成当前技能时间线实现**：该文件当前只是停用占位，MOBA 正在使用的是 `SkillTimelinePhase`。
 8. **长生命周期阶段要确认运行实例隔离**：有状态阶段应实现 `IAbilityPipelinePhaseInstanceFactory<TCtx>`，或者像 MOBA 配置库一样每次从 PhaseDefinition 创建新阶段。
+9. **清理回调不是事务边界**：通用 `AbilityPipeline<TCtx>` 在完成、失败和中断时会调用 `ReleaseContext`，但当前实现会吞掉该回调异常，再注销 Registry 并归还阶段列表。宿主需要在自己的 cleanup 中记录失败并保证幂等，不能依靠异常向上传播判断资源是否释放完整。
+10. **Registry 只提供观察索引**：`PipelineRegistry` 未初始化时 `Register` 静默跳过，`Shutdown()` 只清空 owner 列表，不会中断仍在运行的 Pipeline。项目 runtime 的 ForceTerminate/Clear 责任不能转交给 Registry。
 
 ---
 
-## 10. 关联文档
+## 10. 证据与关联文档
+
+### 10.1 证据状态与已知限制
+
+- **E0 实现**：Pipeline、Ability、Triggering 与 Combat 包提供可组合原语；MOBA 包提供完整的技能应用层实现。
+- **E1 示例**：纯 C# Pipeline 示例与 MOBA 配置/装配展示了即时、跨帧和表驱动组合方式。
+- **E2 集成**：MOBA 技能释放、被动生命周期、Trigger/Effect 与 Combat 动作存在真实消费者和集成测试。
+- **E3 契约**：2026-08-16 当次 `AbilityKit.Pipeline.Tests` 为 `3/3`，覆盖 PhaseId 和执行异常与 error handler 双失败聚合；`AbilityKit.Ability.Tests` 为 `4/4`，覆盖 TriggerEvent 构造和 Effect 定点时间累计。它们没有覆盖 Registry shutdown、ReleaseContext 异常、全部组合阶段或 MOBA 施法事务。
+- **E4 场景**：历史 P0 Console/Unity artifact 只能证明其日期化覆盖路径。当前 MOBA 主工程为 `279/305`，26 项在 World 创建前被同一个 SpawnArea 严格配置错误阻断，不能写成 2026-08-16 技能主路径已重新通过。
+- **E5 门禁**：当前没有把“完整通用技能应用层”作为发布能力的独立预算和强制门禁；这是有意保留的非目标，而非待补齐的单一框架类。
+
+已知限制是 MOBA 施法准备、槽位、冷却、资源、失败码和清理策略仍然项目专用。采用方应复制其组织思路并重新定义领域协议，而不是直接依赖示例命名形成跨项目兼容承诺。
 
 - [玩法能力地图](00-GameplayCapabilityMap.md) - 玩法层整体能力与模块协作。
 - [触发器系统](02-TriggeringSystem.md) - 事件、条件、动作、计划化执行。
@@ -390,4 +419,4 @@ flowchart LR
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-07-04*
+*文档类型：示例分析（MOBA 技能应用层） | 事实基线：2026-08-16 | 证据等级：公共包局部 E3；E4 仅限日期化历史 artifact | 文档版本：v3.0*

@@ -216,25 +216,26 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private void DrawBattleStatus()
         {
             var isPaused = ShooterRemoteStateSyncPlayModeHost.IsPaused;
+            var isRefreshing = isPaused && ShooterRemoteStateSyncPlayModeHost.IsStarting;
             var areaHeight = isPaused ? 140f : 120f;
             GUILayout.BeginArea(new Rect(12f, 12f, 320f, areaHeight), "Shooter Multiplayer", GUI.skin.window);
             GUILayout.Label($"Room: {ShooterRemoteStateSyncPlayModeHost.Flow?.RoomId ?? string.Empty}");
-            GUILayout.Label(isPaused ? "State: Paused (simulating disconnect)" : "State: In battle");
+            GUILayout.Label(isRefreshing ? "State: Refreshing latest state" : isPaused ? "State: Client paused" : "State: In battle");
 
-            GUI.enabled = !_busy;
+            GUI.enabled = !_busy && !isRefreshing;
             if (isPaused)
             {
-                if (GUILayout.Button("Resume (Reconnect)", GUILayout.Height(28f)))
+                if (GUILayout.Button("Resume & Refresh", GUILayout.Height(28f)))
                 {
-                    RunAsync("Resuming battle", () => ResumeBattleAsync());
+                    RunAsync("Refreshing latest state", () => ResumeBattleAsync());
                 }
             }
             else
             {
-                if (GUILayout.Button("Pause (Simulate Disconnect)", GUILayout.Height(28f)))
+                if (GUILayout.Button("Pause Client", GUILayout.Height(28f)))
                 {
-                    ShooterRemoteStateSyncPlayModeHost.PauseForReconnectValidation();
-                    _status = "Paused: connection closed";
+                    ShooterRemoteStateSyncPlayModeHost.Pause();
+                    _status = "Client paused; server battle continues";
                 }
             }
             GUI.enabled = true;
@@ -247,9 +248,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             try
             {
-                _status = "Reconnecting...";
+                _status = "Refreshing latest server state...";
                 await ShooterRemoteStateSyncPlayModeHost.ResumeFromPauseAsync();
-                _status = "Battle resumed";
+                _status = "Battle resumed at latest server state";
             }
             catch (Exception ex)
             {
@@ -684,6 +685,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             _lifetime.Cancel();
             DisposeRoomFlow(disposeLauncher: true);
+            ShooterRemoteStateSyncPlayModeHost.Stop();
             _lifetime.Dispose();
         }
 

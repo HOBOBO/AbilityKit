@@ -4,16 +4,18 @@ namespace AbilityKit.Game.Flow
 {
     public sealed partial class BattleContext
     {
-        private BattlePredictionRuntime _predictionRuntime;
+        private readonly ReferenceBindingOwner<BattlePredictionRuntime>
+            _predictionRuntimeBinding =
+                new ReferenceBindingOwner<BattlePredictionRuntime>();
 
         public IClientPredictionDriverStats PredictionStats =>
-            _predictionRuntime?.Stats;
+            _predictionRuntimeBinding.Value?.Stats;
         public IClientPredictionReconcileTarget PredictionReconcileTarget =>
-            _predictionRuntime?.ReconcileTarget;
+            _predictionRuntimeBinding.Value?.ReconcileTarget;
         public IClientPredictionReconcileControl PredictionReconcileControl =>
-            _predictionRuntime?.ReconcileControl;
+            _predictionRuntimeBinding.Value?.ReconcileControl;
         public IClientPredictionTuningControl PredictionTuningControl =>
-            _predictionRuntime?.TuningControl;
+            _predictionRuntimeBinding.Value?.TuningControl;
 
         internal BattlePredictionRuntime PredictionRuntime =>
             EnsurePredictionRuntime();
@@ -22,27 +24,35 @@ namespace AbilityKit.Game.Flow
         {
             if (runtime == null)
                 throw new System.ArgumentNullException(nameof(runtime));
-            if (ReferenceEquals(_predictionRuntime, runtime)) return;
+            if (ReferenceEquals(_predictionRuntimeBinding.Value, runtime)) return;
 
             ReleasePredictionRuntimeBinding();
-            _predictionRuntime = runtime;
+            _predictionRuntimeBinding.Bind(runtime);
             runtime.BindContext(this);
         }
 
         internal void UnbindPredictionRuntime(BattlePredictionRuntime runtime)
         {
-            if (!ReferenceEquals(_predictionRuntime, runtime)) return;
+            if (!_predictionRuntimeBinding.TryClear(
+                    runtime,
+                    out var released,
+                    out _))
+            {
+                return;
+            }
 
-            runtime.UnbindContext(this);
-            _predictionRuntime = null;
+            released.UnbindContext(this);
         }
 
         private BattlePredictionRuntime EnsurePredictionRuntime()
         {
-            if (_predictionRuntime != null) return _predictionRuntime;
+            var runtime = _predictionRuntimeBinding.Value;
+            if (runtime != null) return runtime;
 
-            _predictionRuntime = new BattlePredictionRuntime();
-            return _predictionRuntime;
+            runtime = new BattlePredictionRuntime();
+            _predictionRuntimeBinding.Bind(runtime, ownsValue: true);
+            runtime.BindContext(this);
+            return runtime;
         }
 
         private void ResetPredictionRuntime() =>
@@ -50,9 +60,14 @@ namespace AbilityKit.Game.Flow
 
         private void ReleasePredictionRuntimeBinding()
         {
-            var runtime = _predictionRuntime;
-            _predictionRuntime = null;
-            runtime?.UnbindContext(this);
+            if (!_predictionRuntimeBinding.Reset(
+                    out var runtime,
+                    out _))
+            {
+                return;
+            }
+
+            runtime.UnbindContext(this);
         }
     }
 }

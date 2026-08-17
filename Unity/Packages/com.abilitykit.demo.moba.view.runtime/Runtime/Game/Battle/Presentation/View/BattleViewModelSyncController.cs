@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Flow
             _shells = factory.CreateShellSyncOperation(shells);
         }
 
-        public bool Sync(in BattleViewEntitySyncInput input, BattleContext ctx, out BattleViewHandle handle)
+        public bool Sync(in BattleViewEntitySyncInput input, IBattleRuntimeContext ctx, out BattleViewHandle handle)
         {
             if (!_handles.TryResolve(input.Entity.Id, out handle)) return false;
 
@@ -106,7 +106,7 @@ namespace AbilityKit.Game.Flow
             _transforms = transforms;
         }
 
-        public void Sample(in BattleViewEntitySyncInput input, BattleContext ctx)
+        public void Sample(in BattleViewEntitySyncInput input, IBattleRuntimeContext ctx)
         {
             var position = input.Transform.Position;
             _transforms.SampleEntity(input.Entity, in position, ctx);

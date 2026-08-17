@@ -42,6 +42,23 @@ public sealed class ShooterRoomGameplayAdapterTests
     }
 
     [Fact]
+    public void CanStart_DefaultShooterRoomRequiresTwoReadyPlayers()
+    {
+        var adapter = new ShooterRoomGameplayAdapter();
+        var summary = CreateSummary(maxPlayers: ShooterGameplay.DefaultMaxPlayers);
+        var state = adapter.CreateState(summary);
+        adapter.Join(state, summary, new HashSet<string>(), "player-a");
+        adapter.SetReady(state, new RoomReadyRequest("player-a", true));
+
+        Assert.False(adapter.CanStart(state));
+
+        adapter.Join(state, summary, new HashSet<string> { "player-a" }, "player-b");
+        adapter.SetReady(state, new RoomReadyRequest("player-b", true));
+
+        Assert.True(adapter.CanStart(state));
+    }
+
+    [Fact]
     public void BuildBattleInitParams_WhenShooterRoomReady_MapsRoomToBattleInit()
     {
         var adapter = new ShooterRoomGameplayAdapter();

@@ -25,23 +25,23 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         private readonly BattleDamageFloatingTextSpawner _floatingTexts;
 
         public BattleDamageViewEventHandler(
-            BattleContext ctx,
+            EC.IECWorld world,
             IBattleEntityQuery query,
             in EC.IEntity vfxNode,
             BattleFloatingTextSystem floatingTexts)
-            : this(ctx, query, in vfxNode, floatingTexts, null)
+            : this(world, query, in vfxNode, floatingTexts, null)
         {
         }
 
         internal BattleDamageViewEventHandler(
-            BattleContext ctx,
+            EC.IECWorld world,
             IBattleEntityQuery query,
             in EC.IEntity vfxNode,
             BattleFloatingTextSystem floatingTexts,
             BattleDamageViewEventHandlerFactory handlers)
         {
             handlers ??= new BattleDamageViewEventHandlerFactory();
-            _floatingTexts = handlers.CreateFloatingTexts(ctx, query, in vfxNode, floatingTexts);
+            _floatingTexts = handlers.CreateFloatingTexts(world, query, in vfxNode, floatingTexts);
         }
 
         public void HandleDamageResult(DamageResult result)
@@ -66,13 +66,13 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
     internal sealed class BattleDamageViewEventHandlerFactory
     {
         public BattleDamageFloatingTextSpawner CreateFloatingTexts(
-            BattleContext ctx,
+            EC.IECWorld world,
             IBattleEntityQuery query,
             in EC.IEntity vfxNode,
             BattleFloatingTextSystem floatingTexts)
         {
             return new BattleDamageFloatingTextSpawner(
-                ctx,
+                world,
                 in vfxNode,
                 floatingTexts,
                 new BattleDamageFloatingTextPositionResolver(query));

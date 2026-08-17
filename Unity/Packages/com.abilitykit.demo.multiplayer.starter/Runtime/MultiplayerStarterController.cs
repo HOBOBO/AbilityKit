@@ -2,6 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
+using AbilityKit.Demo.Common.Gameplay;
 using AbilityKit.Demo.Common.Rooms;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -142,7 +143,11 @@ namespace AbilityKit.Starter
                 _accountId,
                 _sessionToken,
                 requestTimeout));
-            LoadGame(selectedConfig.MobaSceneName, "Opening MOBA (automated)");
+            DemoLaunchIntent.Request(new DemoLaunchRequest(
+                DemoGameplayId.Moba,
+                DemoLaunchMode.Multiplayer,
+                selectedConfig.MobaProfileId));
+            LoadGame(selectedConfig.GameplaySceneName, "Opening MOBA (automated)");
         }
 
         private async Task AuthenticateAsync(
@@ -183,7 +188,11 @@ namespace AbilityKit.Starter
                 _accountId,
                 _sessionToken,
                 selectedConfig.RequestTimeout));
-            LoadGame(selectedConfig.MobaSceneName, "Opening MOBA");
+            DemoLaunchIntent.Request(new DemoLaunchRequest(
+                DemoGameplayId.Moba,
+                DemoLaunchMode.Multiplayer,
+                selectedConfig.MobaProfileId));
+            LoadGame(selectedConfig.GameplaySceneName, "Opening MOBA");
         }
 
         private void LaunchShooter()
@@ -197,7 +206,11 @@ namespace AbilityKit.Starter
                 _accountId,
                 _sessionToken,
                 selectedConfig.RequestTimeout));
-            LoadGame(selectedConfig.ShooterSceneName, "Opening Shooter");
+            DemoLaunchIntent.Request(new DemoLaunchRequest(
+                DemoGameplayId.Shooter,
+                DemoLaunchMode.Multiplayer,
+                selectedConfig.ShooterProfileId));
+            LoadGame(selectedConfig.GameplaySceneName, "Opening Shooter");
         }
 
         private void LoadGame(string sceneName, string status)

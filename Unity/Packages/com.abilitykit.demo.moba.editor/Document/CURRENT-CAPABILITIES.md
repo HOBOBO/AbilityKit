@@ -77,7 +77,7 @@ Battle Debug 在本地 Play Mode 提供嵌入式录像控制区。当前 MVP 不
 
 当前录像文件不包含完整 Map、玩家 Loadout 和 LaunchSpec，因此加载录像要求 Play Mode 中已经存在活动 `BattleLogicSession`，并复用该 Session 的完整启动计划。Replay 与原实时 Session 不并行存在；加载会重启当前 Session。Artifact 仍是可在 Edit Mode 打开的单快照离线现场，不因 Replay 能力而获得历史 Timeline。
 
-## Event Store
+## 事件存储
 
 事件 Ring Store 当前具备：
 
@@ -103,7 +103,7 @@ Battle Debug 在本地 Play Mode 提供嵌入式录像控制区。当前 MVP 不
 
 完整跨帧 Timeline 和 Bookmark 尚未落地；诊断快照导出由 Battle Debug 顶部 Artifact 工作流提供。
 
-## Trace Store
+## 溯源存储
 
 Trace 面板按 Root Context ID 查询真实 Trace Registry 导出的树预序快照；既可手工输入根，也可由事件详情自动打开根并定位事件 Context。面板提供：
 

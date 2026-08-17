@@ -1,5 +1,9 @@
 # 确定性网格导航
 
+> **文档类型：Canonical 设计**
+> **事实基线：2026-08-16**
+> **适用范围：`com.abilitykit.combat.navigation` 的整数 cell 搜索；MOBA 烘焙、路径跟随和浮点运动是项目消费者。**
+
 ## 一、文档定位
 
 `com.abilitykit.combat.navigation` 提供均匀方格导航数据、整数格 A*、路径简化和导航世界接口。实现不依赖 UnityEngine，核心搜索在整数 cell 空间完成，适合逻辑服、回放和需要稳定路径选择的战斗运行时。
@@ -105,6 +109,8 @@ Open 集使用自维护二叉堆，排序键为：
 
 `GridPathfinder` 为 g-cost 和 closed 集使用 search stamp，避免每次清空整张数组。网格 cell 数变化时才重建这些数组。
 
+pathfinder 同时持有 heap、parent、g-cost、stamp 和临时路径缓冲的可变状态，单个实例不支持并发查询或重入调用。`NavigationWorld` 将其作为内部长期对象复用时，应由同一战斗执行线程顺序调用。
+
 `_search` 溢出时被改回 `1`，但 stamp 数组不会同步清零。经过约 21 亿次查询后，旧搜索留下的 stamp `1` 可能被误认为本次状态。该边界在常规会话中很远，但严格长期服务应在回绕时清空 stamp 数组。
 
 ## 五、起点、目标与返回状态
@@ -203,6 +209,17 @@ MOBA 接入只在烘焙时使用 `NavigationWorldOptions.AgentRadius`：对每�
 
 现有“确定性”测试只验证同一进程、同一实例、连续两次调用，不覆盖不同实例、不同运行时、烘焙结果 hash 或大量对称路径。
 
+本次聚焦运行中 `GridPathfinderTests` 为 5/5 通过。它们位于 MOBA 消费者测试工程，未发现导航专项 E5 gate；因此测试结果只能作为局部 E3，不能外推为跨平台确定性或完整公共包契约。
+
+| 等级 | 当前证据 | 可得结论 |
+|------|----------|----------|
+| E0 | NavigationGrid、GridPathfinder、NavigationWorld 源码 | 可确认整数搜索、固定邻接、投影和失败语义 |
+| E1 | MOBA Bake 与 PathFollowing 消费 | 证明公共导航原语可接入项目运动链 |
+| E2 | MOBA 聚焦测试工程成功编译执行 | 当前消费者组合可编译 |
+| E3 | `GridPathfinderTests` 5/5 通过 | 只覆盖基本路径、失败、简化和同实例复现 |
+| E4 | 无网格 golden artifact 或跨平台运行记录 | 不证明独立烘焙和运动链一致 |
+| E5 | 未发现导航专项持续门禁 | 不把相邻 workflow 或碰撞 gate 外推为导航 gate |
+
 ### 9.1 P0 测试
 
 | 测试 | 目的 |
@@ -244,6 +261,12 @@ MOBA 接入只在烘焙时使用 `NavigationWorldOptions.AgentRadius`：对每�
 - blocked 目标只尝试固定扫描顺序中的第一个 free cell，不寻找最近可达候选。
 - `MaxIterations` 耗尽与真正不可达都返回 `Failed`。
 - blocked 位图由调用方数组直接持有，没有不可变复制。
+- 每次成功寻路会为 cell 路径、waypoint 和可选简化结果创建数组；当前没有无分配查询承诺。
+- `GridPathfinder` 复用可变搜索状态，不可重入且不保证线程安全；`_search` 回绕时也未清空旧 stamp。
 - 没有动态障碍更新、多半径网格、地形代价、坡度、高度层或 NavMesh 多边形能力。
 - MOBA 路径跟随和运动仍使用浮点，不属于整数 A* 的确定性范围。
 - 当前测试证明基本行为和单实例复现，尚未形成跨平台确定性证据。
+
+---
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

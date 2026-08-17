@@ -30,6 +30,16 @@ namespace AbilityKit.Game.Flow
             ctx.LastFrame = state.Tick.LastFrame;
         }
 
+        public static void BindTickProjection(
+            BattleContext ctx,
+            in BattleSessionTickProjection projection)
+        {
+            if (ctx == null) return;
+
+            ctx.LastFrame = projection.LastFrame;
+            ctx.LogicTimeSeconds = projection.LogicTimeSeconds;
+        }
+
         public static void BindSession(
             BattleContext ctx,
             BattleSessionState state,

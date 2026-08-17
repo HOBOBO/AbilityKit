@@ -7,6 +7,11 @@ public static class Program
         try
         {
             var arguments = Arguments.Parse(args);
+            if (arguments.GetBool("pipeline", false))
+            {
+                return RunPipelineBenchmark(arguments);
+            }
+
             var options = new BenchmarkOptions
             {
                 Seed = arguments.GetInt("seed", 0x5A17),
@@ -47,6 +52,41 @@ public static class Program
         }
     }
 
+    private static int RunPipelineBenchmark(Arguments arguments)
+    {
+        var options = new SyncPipelineBenchmarkOptions
+        {
+            Entities = arguments.GetInt("entities", 1000),
+            WarmupIterations = arguments.GetInt("warmup", 5),
+            MeasurementIterations = arguments.GetInt("measurement", 64),
+            FullBaseline = !string.Equals(arguments.Get("snapshot"), "delta", StringComparison.OrdinalIgnoreCase),
+            MaxP99Milliseconds = arguments.GetDouble("max-p99-ms", 16.7),
+            MaxAllocatedBytesPerIteration = arguments.GetLong("max-alloc-bytes", 4 * 1024 * 1024)
+        };
+        var report = ShooterSyncPipelineBenchmarkRunner.Run(options);
+        var output = arguments.Get("output") ?? Path.Combine("artifacts", "shooter-sync-pipeline", options.FullBaseline ? "full.json" : "delta.json");
+        ShooterSyncPipelineBenchmarkRunner.WriteReport(output, report);
+
+        Console.WriteLine(
+            $"Shooter sync pipeline: {(report.Passed ? "PASS" : "FAIL")} entities={options.Entities} " +
+            $"snapshot={(options.FullBaseline ? "full" : "delta")} mean={report.Total.MeanMilliseconds:F3}ms " +
+            $"p95={report.Total.P95Milliseconds:F3}ms p99={report.Total.P99Milliseconds:F3}ms " +
+            $"alloc={report.Total.AllocatedBytesPerIteration}B payload={report.PayloadBytes}B output={Path.GetFullPath(output)}");
+        foreach (var phase in report.Phases)
+        {
+            Console.WriteLine(
+                $"  {phase.Key}: mean={phase.Value.MeanMilliseconds:F3}ms " +
+                $"p95={phase.Value.P95Milliseconds:F3}ms p99={phase.Value.P99Milliseconds:F3}ms " +
+                $"alloc={phase.Value.AllocatedBytesPerIteration}B");
+        }
+        foreach (var failure in report.Failures)
+        {
+            Console.Error.WriteLine($"  {failure}");
+        }
+
+        return report.Passed ? 0 : 2;
+    }
+
     private sealed class Arguments
     {
         private readonly Dictionary<string, string> _values = new(StringComparer.OrdinalIgnoreCase);
@@ -77,6 +117,18 @@ public static class Program
 
         public int GetInt(string key, int fallback) => Get(key) is { } value
             ? int.Parse(value, System.Globalization.CultureInfo.InvariantCulture)
+            : fallback;
+
+        public long GetLong(string key, long fallback) => Get(key) is { } value
+            ? long.Parse(value, System.Globalization.CultureInfo.InvariantCulture)
+            : fallback;
+
+        public double GetDouble(string key, double fallback) => Get(key) is { } value
+            ? double.Parse(value, System.Globalization.CultureInfo.InvariantCulture)
+            : fallback;
+
+        public bool GetBool(string key, bool fallback) => Get(key) is { } value
+            ? bool.Parse(value)
             : fallback;
 
         public IReadOnlyList<BenchmarkCase> CreateCases()

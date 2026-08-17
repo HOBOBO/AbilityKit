@@ -124,8 +124,8 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             ExportLog.Warning($"FindAssets('t:AbilityModuleSO') found 0 under '{assetFolder}'. Trying fallback scan...");
 
-            // Fallback: some Unity setups may fail to resolve t:AbilityModuleSO queries for types defined in packages.
-            // Scan ScriptableObjects and filter by main asset type.
+            // 回退：某些 Unity 环境可能无法通过 t:AbilityModuleSO 查询解析包中定义的类型。
+            // 扫描 ScriptableObject，并按主资产类型过滤。
             var soGuids = AssetDatabase.FindAssets("t:ScriptableObject", new[] { assetFolder });
             var soCount = soGuids != null ? soGuids.Length : 0;
             if (soGuids == null || soGuids.Length == 0)

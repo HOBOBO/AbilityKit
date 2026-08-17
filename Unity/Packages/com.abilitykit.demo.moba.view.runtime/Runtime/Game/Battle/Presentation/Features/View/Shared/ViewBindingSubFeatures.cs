@@ -29,9 +29,10 @@ namespace AbilityKit.Game.Flow
             _interpolationSettings.Apply(ctx.Phase, runtime.Binder);
 
             runtime.EntityDestroyedSubscription?.Dispose();
-            if (runtime.Context?.EntityWorld != null)
+            var world = runtime.EntityContext?.EntityWorld;
+            if (world != null)
             {
-                runtime.EntityDestroyedSubscription = runtime.Context.EntityWorld.EntityDestroyed(runtime.OnEntityDestroyed);
+                runtime.EntityDestroyedSubscription = world.EntityDestroyed(runtime.OnEntityDestroyed);
             }
         }
 

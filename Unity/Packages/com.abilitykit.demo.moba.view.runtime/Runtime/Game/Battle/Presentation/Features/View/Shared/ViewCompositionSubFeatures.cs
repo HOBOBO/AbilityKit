@@ -10,7 +10,7 @@ namespace AbilityKit.Game.Flow
             var runtime = ctx.Feature;
             if (runtime == null) return;
 
-            runtime.Query = runtime.Context != null ? runtime.Context.EntityQuery : null;
+            runtime.Query = runtime.EntityContext?.EntityQuery;
         }
 
         public void OnDetach(in FeatureModuleContext<TFeature> ctx)

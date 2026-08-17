@@ -1,5 +1,4 @@
 using System;
-using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.ECS;
@@ -12,7 +11,7 @@ namespace AbilityKit.Game.Editor
     {
         public BattleDebugContext(
             IBattleDebugFacade facade,
-            EcsEntityId selectedId,
+            BattleDebugEntityId selectedId,
             IUnitFacade selectedUnit,
             Action requestRepaint,
             Action<long> selectActor = null,
@@ -45,7 +44,7 @@ namespace AbilityKit.Game.Editor
         }
 
         public IBattleDebugFacade Facade { get; }
-        public EcsEntityId SelectedId { get; }
+        public BattleDebugEntityId SelectedId { get; }
         public IUnitFacade SelectedUnit { get; }
         public Action RequestRepaint { get; }
         public Action<long> SelectActor { get; }

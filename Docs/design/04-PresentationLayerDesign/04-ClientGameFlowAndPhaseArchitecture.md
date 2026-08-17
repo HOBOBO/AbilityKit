@@ -18,6 +18,13 @@
 
 它是整个客户端的顶层生命周期治理层，不是整个客户端项目框架。Session、Sync、Input、View、HUD 和 Diagnostics 都可以被它装配，但各能力内部仍由项目自行选择 ECS、MVC、MVVM、MonoBehaviour 或其他实现。
 
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| `game.view.runtime` 公共包 | Phase spec/validator、Feature binding/host、presentation primitives 等稳定生命周期机制 | MOBA 大厅、Shooter 连接步骤、项目 UI 与网络策略 |
+| 客户端宿主 | 驱动状态机、绑定 feature、拥有 scope/CTS/run identity 和退出闭环 | 把异步回调直接写入已换代的战斗状态 |
+| 项目应用层 | Root/Battle 状态目录、条件、Action/Flow、Session/Sync/Input/View 组合与失败恢复 | 要求其他游戏复用自己的阶段枚举和配置 |
+| MOBA/Shooter 示例 | 提供高接入程度的完整组装参考 | 被解释为框架统一客户端应用运行时 |
+
 ---
 
 ## 2. 运行时职责
@@ -240,7 +247,9 @@ ET 的价值在于“业务对象和事件系统统一”，GameFramework 的价
 12. 新增状态、Feature 或异步协调器时，应补生命周期故障注入测试，覆盖 Attach 失败、Detach 失败、取消后迟到完成、Battle End 和快速重入。
 13. ET、Console、Headless 接入可以替换 Feature 或 View Boundary 实现，但不应改变顶层状态语义与作用域契约。
 
-当前源码优先修正项是 Host 生命周期异常安全、正常 Battle End 的 Scope 释放、Session 回调的 ScopeGeneration 校验，以及资源加载与房间流程的 RunId/CTS 隔离。这些是现有架构闭环问题，不需要新增状态层或万能 FeatureManager。
+当前源码已经为 `PhaseFeatureHost` 与 `ModuleHost` 补齐 Attach 失败逆序回滚、回滚失败聚合、Detach 尽力清理和失败后状态复位测试；`BattleWorldScopeHostTests` 也覆盖正常 End、重入替换、Dispose 与 scope generation。房间控制器和 Formal Lobby command coordinator 已有取消/迟到完成的局部契约。
+
+剩余重点不再是“Host 完全没有异常安全”，而是跨层闭环：真实 Battle End 是否在所有入口释放 scope，资源/网络任务是否统一绑定 run identity，旧 session push 是否会穿透新一局，以及 Unity 场景销毁、网络恢复和快速重入能否留下可诊断 artifact。这些仍不需要新增万能 Manager，而需要沿现有 ownership 边界补集成和故障测试。
 
 ---
 
@@ -269,3 +278,37 @@ ET 的价值在于“业务对象和事件系统统一”，GameFramework 的价
 - 本文组合 Flow/HFSM；[05-Flow 流程引擎](../05-CommonModules/05-FlowEngine.md) 和 [06-HFSM 分层状态机](../05-CommonModules/06-HFSMStateMachine.md) 说明底层通用机制。
 - [客户端流程编排框架演进设计](../../客户端流程编排框架演进设计.md) 记录目标边界与包演进；[客户端流程编排阶段性复盘](../../客户端流程编排阶段性复盘.md) 记录实现审计和修正优先级。
 - MOBA/Shooter 示例文档应引用本文作为客户端流程治理原则，再说明各自的 Feature、Session、Sync 和 View Pipeline。
+
+---
+
+## 11. 验证证据与已知限制
+
+| 证据 | 等级与结论 |
+|------|------------|
+| `AbilityKit.Game.View.Runtime.Tests` | E3：覆盖 Phase spec/validator、Feature registry/binding/host、ModuleHost、scope、loading、decider、presentation facade/sink 等纯逻辑契约 |
+| `PhaseFeatureHostTests` / `ModuleHostTests` | E3：直接覆盖 attach rollback、聚合异常、detach 尽力清理、重试和稳定顺序 |
+| `BattleWorldScopeHostTests` | E3：直接覆盖单局 scope、generation、正常 End、重复 End、重入和 Dispose |
+| MOBA View Runtime 与 Formal Lobby tests | E2 + 局部 E3：证明项目层阶段/房间/命令协调接入，但不把 MOBA 枚举提升为公共契约 |
+| Unity/多人 smoke | 分散 E4/E5：必须按具体 gate 和 artifact 日期声明，不能由测试工程存在概括为整个客户端流程已验收 |
+
+当前主要缺口是状态机、网络、资源、Scene 和 battle scope 跨边界的真实故障矩阵，以及长期运行中的订阅/任务/资源泄漏预算。公共包提供机制和测试支点，项目仍必须定义自己的状态图、恢复策略和最终验收。
+
+## 4.4.15 静态会话宿主的替换与失败边界
+
+Shooter 当前提供两类有代表性的宿主。`ShooterPresentationSessionHost.Start` 先 `Stop` 旧 session，再构造并发布新 session；`Stop` 在 `finally` 中清空 `Current` 并发布 `SessionChanged(null)`。`ShooterPlayModeSessionHost` 则在 `SubsystemRegistration` 时调用 `Uninstall`，并显式拆除 runner、网络 profile hook、PlayerLoop 节点和 host registry。
+
+这些实现展示了项目应用层应如何承接 Unity 生命周期，但不是公共 Flow 自动提供的保证：
+
+| 场景 | 当前结果 | 设计要求 |
+|------|----------|----------|
+| 替换已运行 presentation session | 旧 session 先被 Dispose，再创建新 session | 调用方必须接受“替换失败后旧会话已不存在” |
+| 新 session 构造或 Connect 抛错 | 没有事务恢复旧 session；`Current` 保持空 | 启动失败应由项目阶段机记录并进入可重试/退出状态 |
+| 静态事件订阅 | SessionHost 不自动识别外部订阅 owner | domain reload、测试 teardown 与应用退出必须显式解绑或统一 reset |
+| PlayMode domain/subsystem reset | `ResetStatics -> Uninstall` 清静态宿主资源 | 自定义静态宿主应提供同等 reset 入口 |
+| 多线程 Start/Stop/Tick | 静态字段没有锁 | 由主线程/唯一调度器串行化 |
+
+阶段宿主的核心不变量是“同一资源只有一个最终 owner，阶段替换要么完成新图，要么进入明确空/失败态”。是否保留旧会话、是否重试 Connect、是否加载 Scene 和资源，都是项目状态机策略；公共框架适合提供 attach/detach、rollback hook 与 scope 原语，不适合规定所有游戏相同的 Lobby/Battle 状态图。
+
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 公共/项目实现、E2 MOBA/Shooter 消费、较完整 E3 生命周期契约；E4/E5 按场景分散
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

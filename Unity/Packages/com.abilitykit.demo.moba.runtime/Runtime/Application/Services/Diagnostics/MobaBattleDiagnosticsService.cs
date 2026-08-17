@@ -226,6 +226,11 @@ namespace AbilityKit.Demo.Moba.Services
         public const string TriggerExecuted = "moba.trigger.executed";
         public const string TriggerExecuteDuration = "moba.trigger.execute.durationMs";
         public const string TriggerShortCircuit = "moba.trigger.shortCircuit";
+        public const string EffectActionInvoked = "moba.effect.action.invoked";
+        public const string EffectActionSucceeded = "moba.effect.action.succeeded";
+        public const string EffectActionFailed = "moba.effect.action.failed";
+        public const string EffectActionDuration = "moba.effect.action.durationMs";
+        public const string EffectActionAllocatedBytes = "moba.effect.action.allocatedBytes";
         public const string TriggerActionInterrupted = "moba.trigger.action.interrupted";
         public const string TriggerActionFailed = "moba.trigger.action.failed";
         public const string PipelineTraceEvent = "moba.pipeline.trace.event";

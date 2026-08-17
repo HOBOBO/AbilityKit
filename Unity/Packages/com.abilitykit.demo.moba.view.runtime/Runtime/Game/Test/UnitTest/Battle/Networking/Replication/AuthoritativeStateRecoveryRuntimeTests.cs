@@ -48,26 +48,63 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
-        public void IncrementalSnapshot_AppliesRemovedActorsAfterBaseline()
+        public void IncrementalSnapshot_AppliesMaterializedAuthoritativeStateAfterBaseline()
         {
             using var fixture = new Fixture();
             fixture.BeginGeneration();
-            fixture.Runtime.HandleSnapshot(FullSnapshot(frame: 20));
+            fixture.Runtime.HandleSnapshot(FullSnapshot(
+                frame: 20,
+                actors: new[]
+                {
+                    ActorSnapshot(actorId: 7, x: 1f),
+                    ActorSnapshot(actorId: 9, x: 2f)
+                }));
             var incremental = new GatewayStateSyncSnapshot(
                 1UL,
                 21,
                 0d,
                 false,
-                Array.Empty<GatewayStateSyncActorSnapshot>(),
+                new[] { ActorSnapshot(actorId: 7, x: 3f) },
                 GatewayStateSyncSnapshot.CurrentSchemaVersion,
-                new[] { 7, 9 },
+                new[] { 9 },
                 0L,
                 "epoch-1");
 
             fixture.Runtime.HandleSnapshot(incremental);
 
-            Assert.That(fixture.World.RemovedActorBatches, Has.Count.EqualTo(1));
-            Assert.That(fixture.World.RemovedActorBatches[0], Is.EqualTo(new[] { 7, 9 }));
+            Assert.That(fixture.World.AppliedSnapshots, Has.Count.EqualTo(1));
+            var applied = fixture.World.AppliedSnapshots[0];
+            Assert.That(applied.Frame, Is.EqualTo(21));
+            Assert.That(applied.IsFullSnapshot, Is.True);
+            Assert.That(applied.RemovedActorIds, Is.Empty);
+            Assert.That(applied.Actors, Has.Length.EqualTo(1));
+            Assert.That(applied.Actors[0].ActorId, Is.EqualTo(7));
+            Assert.That(applied.Actors[0].X, Is.EqualTo(3f));
+        }
+
+        [Test]
+        public void AuthoritativeStateApplyFailure_RequestsFullState()
+        {
+            using var fixture = new Fixture();
+            fixture.BeginGeneration();
+            fixture.Runtime.HandleSnapshot(FullSnapshot(frame: 20));
+            fixture.World.ApplySucceeds = false;
+
+            fixture.Runtime.HandleSnapshot(new GatewayStateSyncSnapshot(
+                1UL,
+                21,
+                0d,
+                false,
+                new[] { ActorSnapshot(actorId: 7, x: 3f) },
+                GatewayStateSyncSnapshot.CurrentSchemaVersion,
+                Array.Empty<int>(),
+                0L,
+                "epoch-1"));
+
+            Assert.That(fixture.Transport.FullStateRequests, Has.Count.EqualTo(1));
+            Assert.That(fixture.Transport.FullStateRequests[0], Is.EqualTo(("state-apply-failed", 21)));
+            Assert.That(fixture.Runtime.PendingStateImport, Is.True);
+            Assert.That(fixture.Context.CanSubmitGameplayInput, Is.False);
         }
 
         [Test]
@@ -221,18 +258,37 @@ namespace AbilityKit.Game.Test.UnitTest
 
         private static GatewayStateSyncSnapshot FullSnapshot(
             int frame,
-            long eventWatermark = 0L)
+            long eventWatermark = 0L,
+            GatewayStateSyncActorSnapshot[] actors = null)
         {
             return new GatewayStateSyncSnapshot(
                 1UL,
                 frame,
                 0d,
                 true,
-                Array.Empty<GatewayStateSyncActorSnapshot>(),
+                actors ?? Array.Empty<GatewayStateSyncActorSnapshot>(),
                 GatewayStateSyncSnapshot.CurrentSchemaVersion,
                 Array.Empty<int>(),
                 eventWatermark,
                 "epoch-1");
+        }
+
+        private static GatewayStateSyncActorSnapshot ActorSnapshot(int actorId, float x)
+        {
+            return new GatewayStateSyncActorSnapshot(
+                actorId: actorId,
+                x: x,
+                y: 0f,
+                z: 0f,
+                rotation: 0f,
+                velocityX: 0f,
+                velocityZ: 0f,
+                hp: 100f,
+                hpMax: 100f,
+                teamId: 1,
+                kind: 1,
+                code: 1001,
+                ownerNetId: actorId);
         }
 
         private sealed class Fixture : IDisposable
@@ -303,9 +359,11 @@ namespace AbilityKit.Game.Test.UnitTest
         private sealed class TrackingWorldRecoveryPort : IBattleAuthoritativeWorldRecoveryPort
         {
             internal bool ImportSucceeds { get; set; } = true;
+            internal bool ApplySucceeds { get; set; } = true;
             internal bool ThrowOnConfigure { get; set; }
             internal List<int> ImportedFrames { get; } = new List<int>();
-            internal List<int[]> RemovedActorBatches { get; } = new List<int[]>();
+            internal List<GatewayStateSyncSnapshot> AppliedSnapshots { get; } =
+                new List<GatewayStateSyncSnapshot>();
             internal int ResetCount { get; private set; }
 
             public void Configure(
@@ -327,11 +385,10 @@ namespace AbilityKit.Game.Test.UnitTest
                 return ImportSucceeds;
             }
 
-            public int ApplyRemovedActors(in GatewayStateSyncSnapshot snapshot)
+            public bool TryApplyAuthoritativeState(in GatewayStateSyncSnapshot snapshot)
             {
-                var actorIds = snapshot.RemovedActorIds ?? Array.Empty<int>();
-                RemovedActorBatches.Add((int[])actorIds.Clone());
-                return actorIds.Length;
+                AppliedSnapshots.Add(snapshot);
+                return ApplySucceeds;
             }
 
             public void ResetAfterReconnect()

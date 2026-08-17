@@ -1,5 +1,11 @@
 # 网络同步能力地图
 
+> **文档类型：能力地图**
+>
+> **事实基线：2026-08-16**
+>
+> **适用范围：** 同步 Profile、帧/状态同步、预测回滚、会话协调、可靠事件与回放能力的选型入口。
+
 > 本文从源码角度梳理 AbilityKit 的网络同步能力边界。它不是单一“帧同步类”或“状态同步类”，而是由输入帧、快照信封、阶段化 Room 控制面、业务数据面、Room/Battle 服务端 Grain、回放记录和 Demo 接入层共同组成。源码入口以 `Unity/Packages` 为准，`src` 中还包含 Console Demo 的实验性同步实现，不能反推为通用 Package 能力。
 
 ---
@@ -41,6 +47,37 @@ AbilityKit 网络同步层解决的是“多人战斗怎么从本地输入变成
 - Console Demo 的 `SyncAdapterFactory` 和 `HybridSyncAdapter` 属于该 Demo 的实验实现，不是 coordinator Package 的通用 adapter。
 - `RoomGrain` 管成员、准备、晚加入、恢复和开战入口；`BattleLogicHostGrain` 管权威战斗推进。
 - `Record` 不绑定某个 Demo。Console/MOBA 可以有自己的文件格式，但通用记录系统仍然按 frame/track/event 组织。
+- 服务端最终解析出的 template、runtime mode 和 `SyncCapabilities` 才是联网会话事实源；客户端本地默认值、模板名字或 HTTP catalog 展示名都不能替代 Room snapshot 中的权威声明。
+
+### 1.1 三层事实边界
+
+| 层级 | 本文如何描述 | 不应外推的结论 |
+|------|--------------|----------------|
+| 当前实现 | Package、Server 与真实消费者中已经存在的类型、分支和生命周期 | 类型存在不等于完整生产链已经闭环 |
+| 规范目标 | Profile、能力协商、可靠事件、恢复与证据分层应保持的稳定契约 | 规范目标不等于框架必须提供统一同步算法 |
+| 项目策略 | MOBA、Shooter、Console 对通用零件的具体装配 | 示例应用层不是所有游戏都应复用的框架层默认实现 |
+
+AbilityKit 的开箱能力位于“稳定协议、装配器、生命周期与诊断边界”，同步算法仍由项目注册。`NetworkSyncSessionBuilder<TController,TContext>` 会解析稳定 Profile、冻结 Catalog 与 options、校验本地能力和控制器注册，并按 `Ignore`、`NegotiateWhenAvailable` 或 `Require` 处理远端声明；它返回 controller 与不可变 descriptor，但不替项目决定预测、插值、回滚或权威模拟算法。
+
+Room 侧把最终模板/Profile 的 `SyncCapabilities` 写入 commit、持久化状态和 wire snapshot。客户端 `RoomGatewayNetworkSyncSessionBinding` 对 metadata version、策略位和 Profile 做拒绝式校验，并区分 `Ignored`、`LegacyFallback`、`RemoteDeclared`、`MissingRequired`。旧服务端不带声明时仍可显式走 legacy fallback；要求远端能力时则必须失败，而不是静默采用本地假设。
+
+### 1.2 服务端目录、能力声明与运行策略不是同一层
+
+当前服务端源码给出了两个有意不同的项目策略。它们共享 Room/Battle 和能力协商契约，但不共享默认同步算法：
+
+| 玩法 | 服务端默认模板 | Runtime mode | 对外 Profile | 当前默认发送/人数策略 |
+|------|----------------|--------------|--------------|----------------------|
+| MOBA | 仅 `frame-sync-authority` | `BattleWorldWithFrameSync` | `Lockstep`，schema `0..1` | 同时启动 FrameSync route 与权威 Battle runtime；没有可选 StateSync 模板 |
+| Shooter | `state-sync-authority` | `BattleWorld` | `AuthoritativeInterpolation` | packed 每帧推送、每 30 帧 full；默认至少 2 名玩家且所有成员 ready |
+
+这里有四个必须分开的概念：
+
+1. `ServerGameplayModuleCatalog` 决定某玩法支持哪些服务端模板以及默认 runtime mode。
+2. `ShooterServerSyncTemplateCatalog` 决定 Shooter 各模板的快照节奏、payload、弱网配置和 AOI；默认模板不是 `predict-rollback-authority`。
+3. `RoomNetworkSyncCapabilityResolver` 把最终模板映射为客户端可协商的 Profile；模板名和 Profile 名不要求相同。
+4. MOBA 的规范 RoomType 是 `battle`，`moba` 是兼容/展示身份；身份别名不能被解释成第二套 gameplay module 或第二种同步模式。
+
+因此，“Shooter 代码包含预测回滚控制器”不等于默认房间使用 PredictRollback；“MOBA 客户端还能消费恢复快照”也不等于服务端 catalog 提供 StateSync 模板。项目能力可以比默认路线更丰富，但开战时必须以服务端最终 commit 的模板和能力声明为准。
 
 ---
 
@@ -114,7 +151,8 @@ flowchart TB
 | Snapshot | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting` | `FrameSnapshotDispatcher` 的 opCode 路由与 typed handler |
 | StateSync | `Unity/Packages/com.abilitykit.world.statesync/Runtime/StateSync` | 预测、服务器修正、状态槽、快照应用 |
 | Coordinator | `Unity/Packages/com.abilitykit.coordinator/Runtime` | 当前仅有会话配置、host/policy 契约和数据 DTO；不含 coordinator/adapter/transport 实现 |
-| Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | 阶段化 `RoomGatewaySessionFlow`；`GatewayMultiplayerSession` 当前仅类型存在、未发现消费者 |
+| Network Room | `Unity/Packages/com.abilitykit.network.room/Runtime` | 阶段化 `RoomGatewaySessionFlow`、线性 `GatewayMultiplayerSession`，以及 Room 远端同步能力绑定 |
+| Network SDK | `Unity/Packages/com.abilitykit.network.sdk/Runtime` | `NetworkSyncSessionBuilder`、`ReliableEventSessionBuilder` 与恢复策略；装配通用契约，不内置玩法同步算法 |
 | Host Extension | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session`、`Runtime/Client/StateSync` | `FramePacketNetAdapter`、远端输入提交队列 |
 | Record | `Unity/Packages/com.abilitykit.record/Runtime/Record` | 通用容器、事件轨道、固定步长回放、按帧记录文件 |
 | Demo View | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session` | `BattleSessionNetAdapter` 如何复用通用 `FramePacketNetAdapter` |
@@ -263,7 +301,9 @@ sequenceDiagram
 | Shooter 远端会话 | `ShooterClientSession`、`ShooterClientNetworkLauncher`、`ShooterClientBattleHandle`、`ShooterBattleDataPlane` | 业务运行链、测试和多进程 Smoke 均有证据；采用双连接 |
 | Console adapter 实验 | `src/AbilityKit.Demo.Moba.Console/Battle/Sync` | Demo 自有实现；不能声明为通用 coordinator adapter |
 
-`GatewayMultiplayerSession.CreateAsync` 是 `network.room` 中的高层门面，但全仓未发现真实消费者。它当前只能记为 E0/WIP，不能描述为已 dogfood 的推荐主入口。
+`GatewayMultiplayerSession` 是 `network.room` 中面向线性/最小房间流程的高层门面。`GatewayBattleClientHost.EnterAsync` 与 Console `StateSyncAdapter` 已形成真实采用；Shooter 使用同一 Host 的原语构造路径，MOBA 则只复用 `BuildBattleOptions` 并保留自己的阶段化 Room flow。后者不是接入缺失，而是 hero-pick、loading、恢复等事件驱动阶段不适合被压成一次线性调用。
+
+该门面是一次性 host：`Dispose` 不代替 `LeaveRoom`，重连应新建门面或由项目驱动 staged restore。两连接拓扑必须关闭 Room 连接上的 battle push 订阅，让独立数据面成为唯一订阅者；`Tick` 接收真实墙钟 delta，不能传加速后的游戏时间。
 
 ---
 
@@ -333,6 +373,8 @@ flowchart TD
 ```
 
 Room 的职责是会话域：成员、玩法房间状态、准备、恢复、晚加入、目录通知。Battle 的职责是战斗域：运行时 session、输入缓冲、权威 Tick、快照推送。
+
+`gameplay.CanStart` 不是通用的“至少一人 ready”。Shooter adapter 从房间 tag 读取 `minPlayers`，默认值是 `ShooterGameplay.DefaultMinPlayers = 2`，并要求当前全部玩家 ready；MOBA 则还要满足自己的 loadout 约束。Room 只调用玩法 adapter，不在框架层统一这些产品规则。
 
 ### 5.3 Battle Host 的权威 Tick
 
@@ -423,8 +465,20 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 | 聚合器不裁剪 | 长连接内存增长 | 定期调用 `RemoteFrameAggregator.TrimBefore` |
 | 使用已删除实现 | 集成代码引用 coordinator、adapter 或 transport 历史类型 | 以当前 Package 文件清单和编译结果为准，不从旧文档复制 API |
 | 会话生命周期重复 | Shooter/View 层出现两个 world、重复连接或双 Tick | 明确业务 session 是唯一所有者；Room 控制面与 battle 数据面各自只创建一次 |
+| 模板、Profile 与控制器混写 | 把 `state-sync-authority` 写成 PredictRollback，或把 MOBA 恢复快照写成 StateSync 模板 | 同时核对服务端 template catalog、`RoomNetworkSyncCapabilityResolver` 和客户端 controller 注册 |
 | 快照 handler 耦合协议 | 表现层依赖 Gateway DTO | 让 transport 产出 `FramePacket`、`SnapshotEntityState[]` 或 envelope，再交给 dispatcher |
 | 回放格式分裂 | 通用 Record 和 Demo `.akrec` 混用 | 在文档/工具中标清使用哪种格式和适用场景 |
+
+### 8.1 证据等级
+
+| 等级 | 本目录中的含义 | 当前示例 |
+|------|----------------|----------|
+| E0 | 类型、配置或协议存在 | Profile、builder、codec、策略枚举 |
+| E1 | 有明确装配点或消费者 | Shooter/MOBA 同步 session builder，Console/Host 会话门面 |
+| E2 | 进入可运行的项目主链 | Room 能力声明、两连接数据面、业务预测/回滚控制器 |
+| E3 | 单元或契约测试 | 本轮 FrameSync 18、StateSync 12、Snapshot 7、Record 23、Network SDK 96、Network Room 36 |
+| E4 | 可留档的 Smoke/多进程 artifact | Shooter/MOBA/Console 对应 smoke 产物；需逐次核对日期与配置 |
+| E5 | CI 发布或合并门禁 | `tools/test-gates.json` 与 workflow 实际接线；不能由本地测试通过反推 |
 
 ---
 
@@ -439,4 +493,4 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 
 ---
 
-*文档版本：v2.1 | 最后更新：2026-08-09*
+*文档版本：v3.1 | 最后更新：2026-08-16 | 文档类型：能力地图*

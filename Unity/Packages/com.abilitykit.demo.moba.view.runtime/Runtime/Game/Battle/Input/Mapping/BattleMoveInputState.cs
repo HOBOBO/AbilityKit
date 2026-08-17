@@ -12,13 +12,6 @@ namespace AbilityKit.Game.Flow
 
         public bool TryGetMoveToSubmit(int targetFrame, float dx, float dz, out float submitDx, out float submitDz)
         {
-            if (targetFrame == _lastSubmittedFrame)
-            {
-                submitDx = 0f;
-                submitDz = 0f;
-                return false;
-            }
-
             if (!_hasSubmitted)
             {
                 _hasSubmitted = true;
@@ -28,6 +21,14 @@ namespace AbilityKit.Game.Flow
                 submitDx = dx;
                 submitDz = dz;
                 return true;
+            }
+
+            var inputChanged = Math.Abs(dx - _lastDx) > 0.0001f || Math.Abs(dz - _lastDz) > 0.0001f;
+            if (targetFrame == _lastSubmittedFrame && !inputChanged)
+            {
+                submitDx = 0f;
+                submitDz = 0f;
+                return false;
             }
 
             var wasMoving = Math.Abs(_lastDx) > 0.0001f || Math.Abs(_lastDz) > 0.0001f;

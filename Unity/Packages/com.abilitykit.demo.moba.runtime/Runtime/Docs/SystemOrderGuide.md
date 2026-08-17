@@ -153,14 +153,14 @@ Entity Sync (Pre) → Input Processing → Core Logic → Effects → Buffs → 
 
 ## 8. 系统分类参考
 
-### PreExecute (Early)
+### PreExecute（早期）
 
 | 系统 | Order | 职责 |
 |-----|-------|------|
 | EntityManagerSync | Base + Early + 5 | 实体管理器同步 |
 | MotionInit | Base + Early + 10 | 移动系统初始化 |
 
-### Execute (Normal)
+### Execute（常规）
 
 | 系统 | Order | 职责 |
 |-----|-------|------|
@@ -172,7 +172,7 @@ Entity Sync (Pre) → Input Processing → Core Logic → Effects → Buffs → 
 | BuffsApply | Base + Normal + 300 | Buff 应用 |
 | BuffsTick | Base + Normal + 310 | Buff tick |
 
-### PostExecute (Late)
+### PostExecute（后期）
 
 | 系统 | Order | 职责 |
 |-----|-------|------|

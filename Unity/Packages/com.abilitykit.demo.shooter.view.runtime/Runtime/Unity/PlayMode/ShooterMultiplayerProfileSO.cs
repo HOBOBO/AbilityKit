@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         [Header("Room")]
         [SerializeField] private string roomTitle = "Shooter Room";
-        [SerializeField] private int maxPlayers = 4;
+        [SerializeField] private int maxPlayers = ShooterGameplay.DefaultMaxPlayers;
         [SerializeField] private int roomListLimit = 10;
 
         [Header("Flow")]
@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private bool autoStart = true;
 
         [Header("Battle Template")]
-        [SerializeField] private string syncTemplateId = ShooterSyncTemplateIds.PredictRollbackAuthority;
+        [SerializeField] private string syncTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
         [SerializeField] private int randomSeed = 3901;
         [SerializeField] private int playerCount = 2;
         [SerializeField] private int controlledPlayerId = 1;
@@ -51,7 +51,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var normalizedControlledPlayer = Math.Min(Math.Max(1, controlledPlayerId), normalizedPlayers);
             var template = ShooterAcceptanceCatalog.GetSyncTemplate(
                 string.IsNullOrWhiteSpace(syncTemplateId)
-                    ? ShooterSyncTemplateIds.PredictRollbackAuthority
+                    ? ShooterSyncTemplateIds.StateSyncAuthority
                     : syncTemplateId.Trim());
             var templateOptions = ShooterPlayModeSessionOptions.FromTemplate(
                 template,

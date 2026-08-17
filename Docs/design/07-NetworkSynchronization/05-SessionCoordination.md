@@ -1,5 +1,11 @@
 # 7.5 会话协调
 
+> **文档类型：Canonical 设计**
+>
+> **事实基线：2026-08-16**
+>
+> **规范范围：** Room 控制面、battle 数据面、同步能力绑定、可靠事件恢复和客户端所有权；不替项目定义房间交互状态机。
+
 > 本文从源码角度说明 AbilityKit 如何把阶段化 Gateway 入场、业务客户端会话、Room 生命周期、Battle Host 权威推进、端侧数据面、帧包适配和状态恢复串成一次可恢复、可重连、可观测的联机会话。当前 `com.abilitykit.coordinator` 只保留配置、契约和值对象；历史 `SessionCoordinator`、同步 adapter 与远端 transport 实现不在当前 Package 中，不能再作为现役主链。
 
 ---
@@ -57,7 +63,10 @@ AbilityKit 当前把这些职责拆成几层：
 | Coordinator 配置与契约 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Core` | `SessionConfig`、枚举、host/policy、drive gate、spawn service 等；不含 coordinator 实现 |
 | Coordinator 数据对象 | `Unity/Packages/com.abilitykit.coordinator/Runtime/Data` | payload codec、实体状态、帧快照、端点、输入和 spawn DTO |
 | Gateway flow | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs` | create/join/ready/loading/start/subscribe/restore 阶段编排 |
-| Gateway 高层门面 | `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs` | E0 类型存在；当前未发现真实消费者，不作为默认入口 |
+| Gateway 高层门面 | `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs` | 线性/最小房间流程入口；已由 Gateway Host/Console 路径采用，复杂阶段仍用原子 Flow |
+| 同步会话装配 | `Unity/Packages/com.abilitykit.network.sdk/Runtime/NetworkSyncSessionBuilder.cs` | Profile 解析、本地校验、远端能力协商、controller 工厂与不可变 descriptor |
+| 可靠事件会话 | `Unity/Packages/com.abilitykit.network.sdk/Runtime/ReliableEventSessionBuilder.cs` | cursor、checkpoint store、权威 baseline、flush/retry/circuit 与生命周期诊断 |
+| Room 能力绑定 | `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewayNetworkSyncSessionBinding.cs` | 把 wire capability metadata 转换并绑定到同步 session |
 | 帧包适配 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs` | 输入双写和快照路由 |
 | 远端输入队列 | `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs` | 一个在途请求加一个最新等待输入；不拥有连接生命周期 |
 | MOBA view adapter | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/BattleSessionNetAdapter.cs` | Demo View 包对通用帧包适配器的封装 |
@@ -150,6 +159,7 @@ flowchart TB
 | MOBA host 实现残留契约 | 业务源码消费者 | E1/E2，限契约采用 |
 | 历史 coordinator/adapter 可直接使用 | 当前无实现文件 | 不成立 |
 | Console Demo 有 Local/Remote/Hybrid adapter | Console Demo 源码 | E1，限 Demo 实验路径 |
+| 同步 Profile 与远端能力协商 | SDK/Room 源码、Shooter/MOBA 消费者与专项测试 | E1-E3；不代表框架提供统一同步算法 |
 
 ---
 
@@ -159,7 +169,9 @@ flowchart TB
 
 `RoomGatewaySessionFlow` 位于 `com.abilitykit.network.room`。它面向 `IRoomGatewaySessionClient` 提供原子阶段，由业务会话决定 create、join、restore、ready、loading、start 和 subscribe 的组合顺序。它不拥有本地 world，也不驱动每帧输入或 battle push。
 
-`GatewayMultiplayerSession.CreateAsync` 会创建 SDK client 并要求启动结果同时满足 started/subscribed，但全仓未找到真实消费者。当前成熟度只能记为 E0/WIP，不能作为已 dogfood 的高层推荐入口。
+`GatewayMultiplayerSession.CreateAsync` 与 `RunRoomFlowAsync` 已覆盖 create/join、join 失败或异常时 fallback create、ready 前后 hook、可选 battle-start 等待和可选 Room 连接订阅。`GatewayBattleClientHost.EnterAsync` 实际消费该流程，Console `StateSyncAdapter` 又通过 Host 进入；因此“零消费者/E0”结论已经失效。
+
+它仍只适合线性/最小流程。MOBA 的 hero-pick、loading、恢复和阶段化交互继续由 `RoomGatewaySessionFlow` 与项目状态机驱动；强行迁移到 facade 会丢失表达力。facade 是一次性 host，`Dispose` 不主动 `LeaveRoom`，重连需新建或由项目运行 staged restore。`Tick` 必须使用真实墙钟 delta。
 
 ### 5.2 Shooter 双连接业务链
 
@@ -196,6 +208,16 @@ flowchart LR
 | 权威状态客户端 | 业务 session + 明确 transport + snapshot pipeline | 输入确认、baseline、reconnect、线程切换 |
 | Shooter 双连接 | launcher、battle handle、data plane、输入队列 | 控制面与数据面身份一致；连接各自只创建一次 |
 | 通用 Local/Remote/Hybrid adapter | 当前不可直接选用 | Package 中实现面缺失，需先恢复设计与验证 |
+
+### 5.5 Profile、远端能力与可靠事件
+
+同步会话创建顺序应固定为：解析稳定 Profile，冻结 Catalog/options，校验本地能力，再根据 Room 声明执行 schema/能力交集，最后解析 controller 并产生 descriptor。`Ignore`、`NegotiateWhenAvailable`、`Require` 是兼容策略，不是同步算法。controller factory 抛出的异常原样传播，项目应在会话入口把它转成明确的入场失败，而不是静默回退到另一套玩法。
+
+服务端 `RoomNetworkSyncCapabilityResolver` 根据最终 template/profile 产生 metadata version 1 的 `SyncCapabilities`，并随 commit、persistent state 与 wire snapshot 流动。客户端拒绝未知 metadata version、未知策略位和 Profile 不匹配；旧服务器的空/0 metadata 转成 `null`，由 binding 明确标为 `LegacyFallback` 或 `MissingRequired`。
+
+当前服务端投影有意隐藏部分模板字符串差异：MOBA 的规范 RoomType 是 `battle`，`moba` 是兼容别名，两者都固定声明 `Lockstep` 和 schema `0..1`；MOBA profile 只支持 `frame-sync-authority`。Shooter 默认 `state-sync-authority`，其余模板按 sync options 或最终 template 映射到 PredictRollback、AuthoritativeInterpolation、BatchStateSync、MassBattleLodSync 或 HybridHeroPrediction；pure-state 模板使用 pure-state schema 范围，其余使用 packed schema 范围。客户端应协商 capability metadata，不能把 template 名称直接当作完整能力位集合。
+
+可靠事件的 checkpoint、权威 baseline 与重连必须由同一个会话 owner 串联。`ReliableEventSessionBuilder` 可以从显式 checkpoint 或 store 恢复，按 Profile 决定持久化和 baseline recovery，并提供 flush failure policy、retry、circuit breaker 与 diagnostics；但 store 的持久化位置、application pause/quit 调用时机、baseline RPC 和订阅连接仍由项目接线。两连接拓扑中 battle 数据面应是唯一 push 订阅者，Room 侧订阅必须关闭，否则 last-writer-wins 绑定可能把 push 抢回控制连接。
 
 成熟度采用公司治理定义，详见[公司级采用与模块治理规范](../10-EngineeringQuality/04-CompanyAdoptionAndModuleGovernance.md)。
 
@@ -280,14 +302,10 @@ flowchart TD
 
 `RoomGrain` 持有：
 
-- `RoomSummary`
-- `IRoomGameplayAdapter`
-- 玩法房间状态 `_gameplayState`
-- `RoomMemberTracker`
-- `_closed`
-- `_battleId`
-- `_worldId`
-- `_worldStartAnchor`
+- `RoomPersistentState`：summary、phase、members、launch generation、gameplay state、BattleCommit、revision 和 event sequence 的持久化事实。
+- `IRoomGameplayAdapter` 与恢复后的玩法状态：只承接 Room 阶段的项目差异。
+- `RoomMemberTracker` 及 `_battleId/_worldId/_worldStartAnchor` 的 activation 投影：服务运行缓存，不替代持久化事实。
+- Room push binding 与遗弃清理 timer：分别负责在线状态传播和全部客户端离线后的收敛。
 
 关键 API：
 
@@ -297,55 +315,47 @@ flowchart TD
 | `RestoreAsync` | 根据账号恢复 active room/battle 状态 |
 | `SetReadyAsync` | 设置准备状态 |
 | `SubmitGameplayCommandAsync` | 提交房间玩法命令 |
-| `StartBattleAsync` | 构造 battle init params，初始化 FrameSync/Battle Host |
+| `BeginLoadingWithResultAsync` / `ReportAssetsLoadedWithResultAsync` | 正式客户端 staged loading；最后一名成员上报后立即尝试 commit |
+| `StartBattleAsync` | HTTP/Admin/Sandbox 兼容直启；写入 `LegacyStartBattle` 后复用同一 commit，不是正式 TCP 协议入口 |
 | `GetSnapshotAsync` | 返回 RoomSnapshot |
-| `CloseAsync` | 关闭房间并清理映射 |
+| `MarkOfflineWithResultAsync` / `LeaveWithResultAsync` | 分别表达暂时断线与显式离场 |
+| `TickAsync` | 遗弃清理、Loading 超时、局部离线淘汰和 Pending commit 恢复 |
+| `CloseAsync` | owner 显式关闭房间并清理映射 |
 
 ### 7.2 开战时 Room 做什么
 
-`RoomGrain.StartBattleAsync` 的源码顺序：
+正式客户端先由 owner `BeginLoading` 冻结 roster 并递增 `Launch.Generation`，所有成员携带同一 generation 上报 manifest 已加载。最后一名成员上报时，Room 在同一次调用内进入 `Starting` 并执行持久化 commit；`TickAsync` 只为超时和 activation 恢复提供补偿。
 
-1. 校验 request。
-2. 读取 summary、gameplay、gameplayState。
-3. 确认操作者是房主。
-4. 如果 `_battleId` 已存在，直接返回已有 battle 信息。
-5. 确认房间 open。
-6. `gameplay.CanStart(gameplayState)`。
-7. `_battleId = summary.RoomId`。
-8. `gameplay.BuildBattleInitParams`。
-9. `RoomBattleSyncOptionsMapper.Resolve`。
-10. 保存 `_worldId`。
-11. `RoomFrameSyncRoute.ResolveStartRoute`。
-12. 如果有 frame sync options，初始化 `IBattleFrameSyncGrain`。
-13. 如果需要 battle runtime，初始化 `IBattleLogicHostGrain` 并读取 `WorldStartAnchor`。
-14. 否则本地创建 `WorldStartAnchor`。
-15. `_closed = true`。
-16. 通知 room directory。
-17. 返回 `StartRoomBattleResponse`。
+commit 顺序：
+
+1. 由 adapter 构造 `BattleInitParams`，解析最终 sync options/template。
+2. 生成稳定 `CommitId=roomId:generation` 和 `InitSpecHash`，先持久化 `Pending`。
+3. `RoomFrameSyncRoute` 决定是否初始化 FrameSync Grain、Battle runtime 或两者。
+4. Battle 以 CommitId/InitSpecHash 幂等初始化；相同提交可重放，冲突或 hash mismatch 被拒绝。
+5. 成功后持久化 `Committed/InBattle`、battleId、worldId、anchor 与 sync capabilities，再发布完整 Room snapshot。
+6. 普通失败累计 attempt，最多 3 次；hash mismatch 强制进入新 generation，避免旧初始化参数被覆盖。
 
 ```mermaid
 flowchart TD
-    A[StartBattleAsync] --> B[Ensure owner]
-    B --> C{battle exists}
-    C -- yes --> D[return existing response]
-    C -- no --> E[EnsureOpen]
-    E --> F{gameplay.CanStart}
-    F -- no --> X[throw not ready]
-    F -- yes --> G[BuildBattleInitParams]
-    G --> H[Resolve sync options]
-    H --> I[Resolve start route]
-    I --> J{FrameSyncOptions}
-    J -- yes --> K[IBattleFrameSyncGrain.InitializeAsync]
-    J -- no --> L[skip]
-    K --> M{RequiresBattleRuntime}
-    L --> M
-    M -- yes --> N[IBattleLogicHostGrain.InitializeBattleAsync]
-    N --> O[GetWorldStartAnchorAsync]
-    M -- no --> P[CreateWorldStartAnchor]
-    O --> Q[Close room and notify]
-    P --> Q
-    Q --> R[StartRoomBattleResponse]
+    A[BeginLoading] --> B[freeze roster and increment generation]
+    B --> C[all members ReportAssetsLoaded]
+    C --> D[prepare Pending commit]
+    D --> E[resolve template and start route]
+    E --> F{needs FrameSync}
+    F -- yes --> G[initialize FrameSync grain]
+    F -- no --> H[skip FrameSync]
+    G --> I{needs Battle runtime}
+    H --> I
+    I -- yes --> J[idempotent Battle initialize]
+    I -- no --> K[create local start anchor]
+    J --> L{commit result}
+    K --> L
+    L -- success --> M[persist InBattle and publish snapshot]
+    L -- retryable --> N[increment attempt and compensate later]
+    L -- hash mismatch --> O[rollback to new generation]
 ```
+
+`StartBattleAsync` 仍供 HTTP/Admin/Sandbox 使用，但只是在 `LegacyStartBattle` 阶段原因下进入上述 commit；它绕过 roster loading barrier，不能作为客户端集成捷径。
 
 ### 7.3 `BattleLogicHostGrain` 的职责
 
@@ -462,6 +472,23 @@ sequenceDiagram
 4. 构造 `FramePushedEvent`。
 5. 调用所有 observer 的 `OnFramePushed`。
 6. `_frame++`。
+
+MOBA 默认 `frame-sync-authority` 路线会同时创建 FrameSync Grain 与 Battle runtime，并由 FrameSync 驱动权威 world；Shooter 默认 `state-sync-authority` 不创建独立 FrameSync Grain。`DestroyAsync()` 会停止 timer，清 observer、输入、历史与录制状态并请求 deactivate，因此最终房间清理可以显式释放该运行时。
+
+### 7.7 断线不是 Leave：恢复窗口与最终清理
+
+`GatewayTransportHandler.OnClosed()` 会取消旧连接请求队列并解除三类 push 订阅，但房间成员清理通过后台队列执行，且先检查账号是否已 rebound 到新连接。`GatewayRoomMembershipService` 再校验 account-room mapping，确认仍属于旧 room 后只调用 `MarkOfflineWithResultAsync()`；只有返回 `NotMember` 时才清陈旧 mapping。
+
+这形成两级收敛：
+
+| 场景 | Room 行为 | 会话含义 |
+|------|-----------|----------|
+| 单连接短暂断开 | 成员和 mapping 保留，记录 `OfflineSinceTicks` | 客户端可在宽限期内 Restore/Reconnect |
+| 离线 owner 仍有在线 peer | owner 转移给最早在线成员，离线成员仍保留 | 大厅控制权连续，旧 owner 仍可重连 |
+| 仍有在线客户端且某成员超期 | `TickAsync` 按 offline grace 清局部离线成员 | 活跃房间继续运行 |
+| 所有真实客户端都离线 1 分钟 | 遗弃策略优先清整个房间；Bot 不阻止 | Battle、FrameSync、mapping、directory、store 最终释放 |
+
+遗弃 deadline 取最后一名真实客户端的离线时间加 1 分钟。Room 在 activation 恢复和每次持久化后重算一次性 timer，`TickAsync` 使用相同 policy 兜底；任一真实客户端重连会让条件失效。清理跨多个 Grain/store，按 Battle Destroy、FrameSync Destroy、mapping、directory、runtime state 顺序执行，失败 30 秒后重试但不回滚已完成步骤。因此 session 恢复必须把“宽限期内可重连”和“到期后 RoomExpired”作为显式分支，不能无限重试同一个 roomId。
 
 ---
 
@@ -598,7 +625,19 @@ MOBA 的 `MultiplayerRoomFlowController.RestoreAsync` 只根据 `NextStep` 定�
 
 恢复失败使用结构化诊断而不是统一抛出 `InvalidOperationException`。`NoActiveRoom`、`NotMember`、`RoomClosed`、`RoomExpired`、`InvalidSession`、`Timeout` 和 `Failed/InternalError` 会保留到示例结果；`Timeout` 与内部错误标记为可重试，调用者取消仍保持取消语义并直接抛出。
 
-### 10.3 已有 world 的唯一所有权
+### 10.3 通用恢复原语与项目动作
+
+`NetworkSessionRecoveryCoordinator`、`NetworkSessionRecoveryActionRouter<TResult>` 和 `NetworkSessionRecoveryRuntime<TResult>` 已形成可复用的“信号 -> 决策 -> 动作执行”链。runtime 支持 Automatic/Manual 两种模式，重置或新决策可取消旧执行，并以 generation 阻止 superseded/reset 后的陈旧完成覆盖新会话；诊断会分别记录当前决策、执行状态和 generation。
+
+| 消费者 | 执行模式 | 注册动作 | 项目所有权 |
+|--------|----------|----------|------------|
+| Shooter `ShooterClientBattleHandle` | Manual | `RequestFullSnapshot`、`RestoreReliableEventBaseline` | 两类动作都进入 Shooter full-state RPC，并保留 single-flight/timeout/request key 语义 |
+| MOBA `MultiplayerGatewayRecoveryRuntime` | Automatic | `WaitForReconnect`、`RebuildSession` | 重连后恢复 Room，解释 `NextStep`，不恢复战斗 world 状态 |
+| MOBA `AuthoritativeStateRecoveryRuntime` | coordinator + action router 手动执行 | full snapshot、reliable baseline | 按项目 generation 重置权威快照、插值和可靠事件，再请求全量状态 |
+
+共享的是决策、路由、取消和诊断机制，不是业务恢复脚本。Room restore、full-state RPC、reliable baseline 的协议映射以及表现重整都依赖具体游戏的状态机和 payload，必须留在项目 handler；框架不应提供一个假定所有战斗相同的开箱恢复应用层。
+
+### 10.4 已有 world 的唯一所有权
 
 当前没有 `ExistingWorldSessionCoordinatorHost`。已有 world 的客户端必须由业务 session 明确承担创建、Tick、销毁和网络恢复责任，不能从旧文档复制 overlay host 接法。
 
@@ -617,6 +656,8 @@ flowchart TD
 ```
 
 该边界避免为了转发一次已接受输入而创建第二套 world、连接和 Tick。Shooter 仍复用框架 `RemoteClientInputSubmitQueue` 的背压、最新值替换和诊断能力；协议提交、ack 与 full-state 恢复留在 `ShooterClientBattleHandle`。
+
+当前 `ShooterClientBattleHandle` 内部持有 recovery runtime，但 handle 本身未实现 `IDisposable`，launcher teardown 也没有对该 runtime 执行显式 reset/dispose。现有 runtime 能抑制被新决策取代的完成，但 session/launcher 结束时缺少清晰的 handle 生命周期边界；在补齐所有权前，应避免让 teardown 与在途 full-state recovery 并发，并以专项测试锁定取消和代次收口。这里是生命周期契约缺口，不直接等同于已经发生资源泄漏。
 
 ---
 
@@ -655,6 +696,7 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 | 已有 world 被重复创建 | 客户端出现两个逻辑世界或双 Tick | 业务 session 是 world 唯一所有者，并覆盖启动/恢复/释放测试 |
 | Room/Battle 边界混乱 | 晚加入、恢复、权威 Tick 互相影响 | Room 只管成员/生命周期，Battle 只管 runtime/Tick |
 | 恢复 cursor 丢失 | 重连后可靠事件重复或遗漏 | InBattle restore/subscribe 保留 `eventEpoch` 与 `lastEventAck`，由唯一订阅所有者推进确认 |
+| 恢复 runtime 跨 session 存活 | 旧 full-state/Room restore 在新 generation 完成 | owner 在切换时 reset/dispose，保留 generation/stale completion 诊断；Shooter handle teardown 仍需补显式边界 |
 | 把房间恢复等同 FrameSync CatchUp | Room 已恢复但本地预测世界仍缺帧 | 分别验证 room/session restore、StateSync baseline 和 FrameSync CatchUp；`FrameSyncCatchUpClientModule` 当前仍未接入 reconnect 主链 |
 | 输入帧落点不一致 | 客户端请求帧与服务端接受帧不同步 | 检查 `BattleInputSubmitResult.AcceptedFrame` 和 `Status` |
 | 快照订阅缺失 | 战斗开始后客户端没有状态推送 | Gateway flow 是否调用 `SubscribeStateSyncAsync` |
@@ -668,14 +710,22 @@ Room 如果直接 Tick 战斗，会混入成员清理、目录通知、玩法房
 1. `Unity/Packages/com.abilitykit.coordinator/Runtime/Core`：当前保留的配置和 host/policy 契约。
 2. `Unity/Packages/com.abilitykit.coordinator/Runtime/Data`：当前保留的数据对象和 codec。
 3. `Unity/Packages/com.abilitykit.network.room/Runtime/RoomGatewaySessionFlow.cs`：阶段化 create/join/ready/loading/start/restore 编排。
-4. `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs`：仅 E0、当前零消费者的高层门面。
+4. `Unity/Packages/com.abilitykit.network.room/Runtime/GatewayMultiplayerSession.cs`：线性流程门面、hook、订阅开关与一次性 host 边界。
 5. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterClientNetworkLauncher.cs`：Room 控制面与 battle 数据面的装配。
 6. `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs`：push 排队和主线程 Drain。
 7. `Unity/Packages/com.abilitykit.host.extension/Runtime/Client/StateSync/RemoteClientInputSubmitQueue.cs`：远端输入背压和最新值替换。
 8. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs`：房间和恢复语义。
 9. `Server/Orleans/src/AbilityKit.Orleans.Grains/Battle/BattleLogicHostGrain.cs`：权威 Tick 和输入调度。
 10. `Unity/Packages/com.abilitykit.host.extension/Runtime/Session/FramePacketNetAdapter.cs`：通用帧包如何落到输入源和快照路由。
+11. `Unity/Packages/com.abilitykit.network.sdk/Runtime/NetworkSyncSessionBuilder.cs`：Profile 与远端能力协商。
+12. `Unity/Packages/com.abilitykit.network.sdk/Runtime/ReliableEventSessionBuilder.cs`：checkpoint、baseline 与 flush 生命周期。
+13. `Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomNetworkSyncCapabilityResolver.cs`：服务端能力声明来源。
+14. `Unity/Packages/com.abilitykit.network.sdk/Runtime/NetworkSyncSessionBuilder.cs`：恢复 coordinator、action router 与 runtime 的统一实现。
+15. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Entry/MultiplayerGatewayEntryModule.cs`：MOBA Automatic Room 恢复消费者。
+16. `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Net/AuthoritativeStateRecoveryRuntime.cs`：MOBA 权威状态恢复消费者。
+
+Batch W 的 Network SDK E3 为 `96/96`；Network Room `36/36` 来自 Batch V，Gateway `162/162`、Grains `232/232`、Shooter Smoke Harness `33/33` 来自 Batch U，覆盖断线标记、rebound 防护、遗弃清理、Room metadata 和脚本契约。这些结果都没有运行 Batch W 的真实双连接抢订阅、长期持久化故障或多进程 Smoke，不能合并成新的 E4。
 
 ---
 
-*文档版本：v2.3 | 最后更新：2026-08-09*
+*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*

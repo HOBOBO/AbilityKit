@@ -19,6 +19,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly HashSet<int> _enemyIds = new HashSet<int>();
         private int _structuralChangeDepth;
         private bool _hasPendingStructuralChanges;
+        private long _mutationRevision;
 
         public ShooterEntityManager(ISveltoWorldContext context)
             : this(context, ShooterEntityLimitOptions.Default)
@@ -40,6 +41,10 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int ProjectileCount => _projectileIds.Count;
 
         public int EnemyCount => _enemyIds.Count;
+
+        public long MutationRevision => _mutationRevision;
+
+        public long StructuralChangeSubmissionCount { get; private set; }
 
         public IReadOnlyCollection<int> PlayerIds => _playerIds;
 
@@ -71,6 +76,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _playerIds.Clear();
             _projectileIds.Clear();
             _enemyIds.Clear();
+            AdvanceMutationRevision();
 
             if (removed)
             {
@@ -109,6 +115,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             _hasPendingStructuralChanges = false;
             _context.SubmitEntities();
+            StructuralChangeSubmissionCount++;
         }
 
         public bool HasPlayer(int playerId)
@@ -153,6 +160,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             ShooterSveltoEntityLayout.BuildPlayer(_context, in player);
             _playerIds.Add(player.PlayerId);
+            AdvanceMutationRevision();
             SubmitStructuralChanges();
         }
 
@@ -175,6 +183,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             mapper.Entity((uint)player.PlayerId) = player;
+            AdvanceMutationRevision();
         }
 
         public void RemovePlayer(int playerId)
@@ -185,6 +194,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _context.EntityFunctions.RemoveEntity<ShooterSveltoPlayerDescriptor>((uint)playerId, ShooterSveltoGroups.Players);
+            AdvanceMutationRevision();
             SubmitStructuralChanges();
         }
 
@@ -230,6 +240,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             ShooterSveltoEntityLayout.BuildProjectile(_context, in projectile);
             _projectileIds.Add(projectile.BulletId);
+            AdvanceMutationRevision();
             SubmitStructuralChanges();
         }
 
@@ -252,6 +263,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             mapper.Entity((uint)projectile.BulletId) = projectile;
+            AdvanceMutationRevision();
         }
 
         public void RemoveProjectile(int bulletId)
@@ -262,6 +274,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _context.EntityFunctions.RemoveEntity<ShooterSveltoProjectileDescriptor>((uint)bulletId, ShooterSveltoGroups.Projectiles);
+            AdvanceMutationRevision();
             SubmitStructuralChanges();
         }
 
@@ -293,6 +306,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public void AddEnemy(int enemyId, in ShooterSveltoTransformComponent transform, in ShooterSveltoHealthComponent health)
         {
+            var navigation = default(ShooterSveltoNavigationComponent);
+            AddEnemy(enemyId, in transform, in health, in navigation);
+        }
+
+        public void AddEnemy(
+            int enemyId,
+            in ShooterSveltoTransformComponent transform,
+            in ShooterSveltoHealthComponent health,
+            in ShooterSveltoNavigationComponent navigation)
+        {
             if (enemyId <= 0)
             {
                 return;
@@ -309,8 +332,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            ShooterSveltoEntityLayout.BuildGameplayTarget(_context, (uint)enemyId, in transform, in health);
+            ShooterSveltoEntityLayout.BuildGameplayTarget(_context, (uint)enemyId, in transform, in health, in navigation);
             _enemyIds.Add(enemyId);
+            AdvanceMutationRevision();
             SubmitStructuralChanges();
         }
 
@@ -336,6 +360,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             transformMapper.Entity(entityId) = transform;
             healthMapper.Entity(entityId) = health;
+            AdvanceMutationRevision();
         }
 
         public void RemoveEnemy(int enemyId)
@@ -346,7 +371,16 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
 
             _context.EntityFunctions.RemoveEntity<ShooterSveltoGameplayTargetDescriptor>((uint)enemyId, ShooterSveltoGroups.GameplayTargets);
+            AdvanceMutationRevision();
             SubmitStructuralChanges();
+        }
+
+        private void AdvanceMutationRevision()
+        {
+            unchecked
+            {
+                _mutationRevision++;
+            }
         }
 
         private bool IsEntityBudgetFull()

@@ -152,7 +152,7 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("roomType: 'shooter'", store);
         Assert.Contains("gameplayId: 2", store);
         Assert.Contains("worldType: 'shooter_battle'", store);
-        Assert.Contains("syncTemplateId: 'predict-rollback-authority'", store);
+        Assert.Contains("syncTemplateId: 'state-sync-authority'", store);
         Assert.Contains("startShooterRoomQuick", store);
         Assert.Contains("roomRobots", store);
         Assert.Contains("addRoomRobots", store);
@@ -164,7 +164,7 @@ public sealed class GatewayAdminConsoleTests
     {
         var shooter = Assert.Single(GatewayGameplayCatalog.All, gameplay => gameplay.RoomType == "shooter");
 
-        Assert.Equal(ShooterServerProtocol.PredictRollbackAuthorityTemplate, shooter.DefaultSyncTemplateId);
+        Assert.Equal(ShooterServerProtocol.StateSyncAuthorityTemplate, shooter.DefaultSyncTemplateId);
         Assert.Equal(ShooterServerProtocol.CreateStateSyncTemplateIds(), shooter.SupportedSyncTemplateIds);
         Assert.Contains(ShooterServerProtocol.BatchStateLowFrequencyTemplate, shooter.SupportedSyncTemplateIds);
         Assert.Contains(ShooterServerProtocol.MassBattleLodAoiTemplate, shooter.SupportedSyncTemplateIds);

@@ -20,7 +20,7 @@ MonoBehaviour:
   serverId: dev
   roomId: 
   timeoutSeconds: 10
-  syncTemplateId: predict-rollback-authority
+  syncTemplateId: state-sync-authority
   randomSeed: 3901
   playerCount: 2
   controlledPlayerId: 2

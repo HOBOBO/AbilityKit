@@ -109,7 +109,7 @@ latest-only Actor Store 使用统一语义：
 
 Event 和 Trace 等历史 Store 应显式定义 `Evicted`、`Truncated`、分页和 revision 行为。
 
-### Revision
+### 修订号
 
 每个独立数据面使用独立单调 revision。只有可观察数据变化时才推进。不要用 Event revision 代替 Actor State revision，也不要为方便 UI 刷新而合并无关 revision。
 
@@ -177,7 +177,7 @@ Capability 表示当前 Session 的真实可用表面，不表示未来规划或
 
 `AllLocal` 只是枚举组合便利项，不应作为 Local Session 默认能力声明。
 
-## Editor ViewModel
+## 编辑器 ViewModel
 
 ViewModel 负责：
 
@@ -203,7 +203,7 @@ ViewModel 不应依赖 `UnityEditor`，以便在 EditMode 测试中直接验证�
 
 `InvalidateCache()` 只清除 ViewModel 缓存，不修改 Store；Panel 需要同时请求窗口 Repaint。
 
-## Editor Panel
+## 编辑器面板
 
 新 Panel 实现 `IBattleDebugPanel`：
 
@@ -232,7 +232,7 @@ Panel Registry 通过反射自动发现面板，无需手工注册。新增类�
 - `NotProduced`、`NotCaptured`、`Empty`。
 - Freeze、Clear 和 revision。
 
-### Runtime
+### 运行时
 
 至少覆盖：
 

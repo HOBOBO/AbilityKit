@@ -23,7 +23,7 @@ namespace AbilityKit.Game.Flow
             Func<bool> shouldForceHashMismatch);
 
         bool TryImport(in GatewayStateSyncSnapshot snapshot);
-        int ApplyRemovedActors(in GatewayStateSyncSnapshot snapshot);
+        bool TryApplyAuthoritativeState(in GatewayStateSyncSnapshot snapshot);
         void ResetAfterReconnect();
     }
 
@@ -81,26 +81,7 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            var actors = snapshot.Actors ?? Array.Empty<GatewayStateSyncActorSnapshot>();
-            var imports = new MobaActorStateImport[actors.Length];
-            for (var i = 0; i < actors.Length; i++)
-            {
-                var actor = actors[i];
-                imports[i] = new MobaActorStateImport(
-                    actor.ActorId,
-                    actor.X,
-                    actor.Y,
-                    actor.Z,
-                    actor.Rotation,
-                    actor.Hp,
-                    actor.HpMax,
-                    actor.TeamId,
-                    actor.Kind,
-                    actor.Code,
-                    actor.OwnerNetId);
-            }
-
-            var result = importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
+            var result = ImportAuthoritativeState(importer, in snapshot);
             if (result.Failed > 0)
             {
                 Log.Warning(
@@ -125,23 +106,26 @@ namespace AbilityKit.Game.Flow
             return true;
         }
 
-        public int ApplyRemovedActors(in GatewayStateSyncSnapshot snapshot)
+        public bool TryApplyAuthoritativeState(in GatewayStateSyncSnapshot snapshot)
         {
-            var actorIds = snapshot.RemovedActorIds;
-            if (actorIds == null || actorIds.Length == 0) return 0;
-
             var world = _handles.RemoteDriven.World;
             if (world?.Services == null ||
                 !world.Services.TryResolve<MobaLogicWorldStateImporter>(out var importer) ||
                 importer == null)
             {
                 Log.Warning(
-                    $"[BattleAuthoritativeWorldRecoveryPort] Removed actors skipped. " +
-                    $"frame={snapshot.Frame} count={actorIds.Length}");
-                return 0;
+                    $"[BattleAuthoritativeWorldRecoveryPort] Authoritative state apply skipped. " +
+                    $"frame={snapshot.Frame}");
+                return false;
             }
 
-            return importer.ApplyRemovedActors(actorIds, snapshot.Frame);
+            var result = ImportAuthoritativeState(importer, in snapshot);
+            if (result.Failed == 0) return true;
+
+            Log.Warning(
+                $"[BattleAuthoritativeWorldRecoveryPort] Authoritative state apply incomplete. " +
+                $"frame={snapshot.Frame} failed={result.Failed}");
+            return false;
         }
 
         public void ResetAfterReconnect()
@@ -157,6 +141,32 @@ namespace AbilityKit.Game.Flow
 
             reconcile.ResetReconcile(worldId);
             reconcile.SetReconcileEnabled(worldId, true);
+        }
+
+        private static MobaStateImportResult ImportAuthoritativeState(
+            MobaLogicWorldStateImporter importer,
+            in GatewayStateSyncSnapshot snapshot)
+        {
+            var actors = snapshot.Actors ?? Array.Empty<GatewayStateSyncActorSnapshot>();
+            var imports = new MobaActorStateImport[actors.Length];
+            for (var i = 0; i < actors.Length; i++)
+            {
+                var actor = actors[i];
+                imports[i] = new MobaActorStateImport(
+                    actor.ActorId,
+                    actor.X,
+                    actor.Y,
+                    actor.Z,
+                    actor.Rotation,
+                    actor.Hp,
+                    actor.HpMax,
+                    actor.TeamId,
+                    actor.Kind,
+                    actor.Code,
+                    actor.OwnerNetId);
+            }
+
+            return importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
         }
     }
 
@@ -318,7 +328,8 @@ namespace AbilityKit.Game.Flow
                 return;
             }
 
-            if (_replication.PendingStateImport)
+            var pendingStateImport = _replication.PendingStateImport;
+            if (pendingStateImport)
             {
                 if (!snapshot.IsFullSnapshot ||
                     !_worldRecovery.TryImport(in snapshot) ||
@@ -344,13 +355,19 @@ namespace AbilityKit.Game.Flow
                     detail: "authoritative-baseline-adopted");
                 _sessionRecovery.TryReport(in recovered, out _);
             }
-            else if (!snapshot.IsFullSnapshot)
+
+            var materialized = _replication.AuthoritativeSnapshotState?.Apply(in snapshot) ?? snapshot;
+            if (!pendingStateImport && !_worldRecovery.TryApplyAuthoritativeState(in materialized))
             {
-                _worldRecovery.ApplyRemovedActors(in snapshot);
+                ReportAndExecute(
+                    NetworkSessionRecoverySignalKind.SnapshotResyncRequired,
+                    SyncHealthSeverity.Error,
+                    "state-apply-failed",
+                    snapshot.Frame);
+                return;
             }
 
             _firstFrameReceived?.Invoke();
-            var materialized = _replication.AuthoritativeSnapshotState?.Apply(in snapshot) ?? snapshot;
             var sample = new MobaRemoteSnapshotSample(
                 materialized.WorldId,
                 materialized.Frame,

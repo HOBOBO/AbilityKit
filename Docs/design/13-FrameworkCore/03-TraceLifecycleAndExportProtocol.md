@@ -1,10 +1,14 @@
 # Trace 生命周期与导出协议
 
+> 文档类型：FrameworkCore canonical
+> 事实基线：2026-08-16
+> 文档版本：v3.0
+>
 ## 一、文档定位
 
 Trace 包提供一棵按因果关系组织的运行时树。一个根节点代表一次完整来源，例如技能释放、效果执行或一次服务调用；子节点记录该来源继续派生出的阶段和结果。框架保存父子关系、创建与结束帧、结束原因和业务元数据，调用方可以查询链路、订阅变化或导出快照。
 
-本文讨论通用 Trace 注册表，不展开 MOBA 技能、Effect 和伤害的业务链路。MOBA 的生产接入与字段映射见 `09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md`。
+本文讨论通用 Trace 注册表，不展开 MOBA 技能、Effect 和伤害的业务链路。MOBA 的生产接入与字段映射见 [MOBA Trace、Context 与 Effect 执行深潜](../09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md)。
 
 当前实现位于 `com.abilitykit.trace`，核心代码不依赖 UnityEngine。Editor 包提供树窗口和节点详情插件，但编辑器展示不是本文定义的持久化协议。
 
@@ -64,7 +68,7 @@ flowchart TB
 | `CreateRootScope()` | 返回 `TraceRootScope` | Dispose 时释放根引用 |
 | `CreateChildScope()` | 返回 `TraceTreeScope` | Dispose 时结束子节点 |
 
-创建子节点要求父节点存在，否则抛出 `ArgumentException`。当前实现允许在已经结束的父节点下继续创建子节点，也允许只结束父节点而让子节点继续活动；框架没有强制结构状态机，业务层需要决定这种链路是否合理。
+创建子节点要求父节点存在，否则抛出 `ArgumentException`。当前实现允许在已经结束的父节点下继续创建子节点，也允许只结束父节点而让子节点继续活动；通用注册表没有强制结构状态机。领域接入若需要更严格的树约束，应在查询或提交边界增加显式校验。MOBA 的 `ValidateChainDetailed()` 已检查根身份、RootId 一致性、父节点存在性、跨根父子关系、环和子节点计数，但该校验不会自动阻止通用注册表写入。
 
 子节点未显式传入来源、目标或 Actor 时，会从根元数据继承，而不是从直接父节点逐级复制。这样可以让整棵树保持相同的原始来源，同时让节点通过自己的元数据记录局部参数。
 
@@ -198,19 +202,25 @@ flowchart LR
 
 ## 六、生产接入
 
-MOBA 示例已将技能释放、Effect 执行和伤害结果组织为 lineage，并将 Trace context 写入战斗执行上下文。该接入证明通用树可以承载真实战斗链路，但生产事实主要覆盖业务注册表与验收导出，不等于通用包所有生命周期分支都已验证。
+MOBA 示例已把 Skill、Effect、Action、Damage、Buff、Projectile 和 Summon 组织为可传播 lineage，并将 Trace identity 写入战斗执行上下文。正式 Effect 执行会先创建或挂接 `EffectExecution` 节点，再把执行上下文推进到该节点；Triggering 执行器通过 action observer 在每个正式 Action 前后建立 `EffectAction` 子节点，并用 `try/finally` 保证成功、异常和清理路径都有退出信号。
+
+长生命周期 runtime 不依赖 Scope 猜测所有权。Skill、Buff、Projectile 和 Summon 在持有可跨帧来源时显式 `RetainRoot()`，并由一次性 retention handle 在正常结束、强制终止、Clear、Dispose 和失败回滚路径 `ReleaseRoot()`。`OwnerContextId` 只是路由身份，不自动授予结束或释放 Trace 的权限。
 
 接入时建议遵循以下约束：
 
 1. 根节点对应一个可解释的原始请求，不要按每个低层函数创建根。
 2. `Kind` 和 `EndReason` 由业务集中注册，避免不同模块复用相同整数表达不同语义。
-3. 节点结束在业务状态提交后执行，使 `EndedFrame` 与实际结果帧一致。
-4. 导出前决定是否需要保留元数据；元数据可能包含业务对象，不应默认进入网络或公开日志。
-5. 运行时定期执行 `Purge()`，并监控 RootCount、TotalNodeCount 和长期非零外部引用。
+3. 节点结束在业务状态提交后执行，使 `EndedFrame` 与实际结果帧一致；异常清理应复用同一幂等收尾入口。
+4. 跨帧 runtime 必须显式记录自己取得的 retention handle，并覆盖正常结束、强制结束、清空、释放和创建失败回滚。
+5. 在验收、诊断导出或恢复边界调用领域结构校验；不要把“能够写入注册表”等同于“链路结构有效”。
+6. 导出前决定是否需要保留元数据；元数据可能包含业务对象，不应默认进入网络或公开日志。
+7. 运行时定期执行 `Purge()`，并监控 RootCount、TotalNodeCount、长期非零外部引用和 stale retained root 告警。
 
 ## 七、验证现状与待补测试
 
-当前包目录没有独立的 Runtime 或 Editor 测试程序集。MOBA 深潜与验收链路提供了集成证据，但以下通用行为仍应补专项测试：
+`com.abilitykit.trace` 包目录仍没有独立的 Runtime 或 Editor 测试程序集，因此通用注册表的全部组合契约尚未形成包级 E3。MOBA Editor 测试已提供寄宿式 E3 证据：`MobaTraceDiagnosticProducerTests` 覆盖有效树、缺失根和把 child 当作 root 的稳定结构错误；ownership fixture 覆盖 Buff、Projectile、Summon 和 Skill runtime 的 retain/release 与强制清理；Effect diagnostics fixture 覆盖 Action 成功、失败、重复退出和异常 cleanup 的 exactly-once 结果。
+
+2026-08-15 聚焦验证结果为：Trace fixture 15/15、ownership fixture 9/9、Effect diagnostics fixture 15/15。这些结果证明 MOBA 接入契约，不替代下列通用包专项测试：
 
 | 优先级 | 测试 |
 |---|---|
@@ -226,12 +236,13 @@ MOBA 示例已将技能释放、Effect 执行和伤害结果组织为 lineage，
 
 - 注册表按实例维护单调 ID，`Clear()` 后会复用 ID 区间；ID 不能脱离 session 单独持久化。
 - API 没有锁，事件同步执行，当前设计面向单逻辑线程。
-- 可以在已结束父节点下创建子节点，结构合法性由业务层保证。
+- 可以在已结束父节点下创建子节点；严格结构校验由领域查询层显式执行，MOBA 校验不属于通用包写入门禁。
 - `TraceRootScope.Dispose()` 不结束树；`TraceTreeScope.Dispose()` 不释放 `BeginChild()` 增加的根引用。
-- `ReleaseRoot()` 对多余释放静默钳制为零，无法直接发现引用配对错误。
+- `ReleaseRoot()` 对多余释放静默钳制为零，无法直接发现引用配对错误；MOBA 用一次性 retention handle 和 stale-root 扫描补强，但没有改变通用契约。
+- `OwnerContextId`、Context entity 与 Trace lifecycle ownership 是不同概念，不能互相推导。
 - `ActiveOnly` 只筛选根，导出活动树时仍包含其中的已结束节点。
 - 导出 DTO 的 metadata 是 `object`，没有稳定 Schema；长期证据应投影到版本化产物。
-- 通用包缺少专项自动化测试，生命周期和清理协议的修改应先补回归测试。
+- 通用包缺少专项自动化测试；当前 E3 证据来自 MOBA 寄宿式生命周期、结构和诊断测试。
 
 ## 九、源码入口
 
@@ -244,8 +255,14 @@ MOBA 示例已将技能释放、Effect 执行和伤害结果组织为 lineage，
 | 导出选项与 DTO | `Unity/Packages/com.abilitykit.trace/Runtime/TraceTreeExport.cs` |
 | 来源与生命周期原因 | `Unity/Packages/com.abilitykit.trace/Runtime/TraceOrigin.cs` |
 | Editor 树视图 | `Unity/Packages/com.abilitykit.trace/Editor/Windows/TraceTreeWindow.cs` |
-| MOBA 生产接入深潜 | `Docs/design/09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md` |
+| MOBA 结构校验 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRuntimeServices.cs` |
+| MOBA retention handle | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Trace/MobaTraceRetention.cs` |
+| MOBA 生产接入深潜 | [MOBA Trace、Context 与 Effect 执行深潜](../09-ImplementationExamples/MOBA/09-TraceContextEffectDeepDive.md) |
 
 ## 十、结论
 
-Trace 的核心契约是一棵带帧状态和业务元数据的因果树。创建、结束、外部持有和清理分别由不同 API 管理，任何接入都应显式处理这四个阶段。当前查询和导出能力足以支持编辑器观察、诊断聚合与示例验收，但 child scope 引用配对、并发与事件异常、稳定序列化协议和专项测试仍是明确的工程边界。
+Trace 的核心契约是一棵带帧状态和业务元数据的因果树。创建、结束、外部持有和清理分别由不同 API 管理，任何接入都应显式处理这四个阶段。MOBA 已在领域层补齐跨帧 runtime ownership、Effect/Action 真实生命周期、结构校验和寄宿式 E3 证据；这些补强没有改变通用注册表的弱结构约束。child scope 引用配对、并发与事件异常、稳定序列化协议和通用包专项测试仍是明确工程边界。
+
+---
+
+*文档版本：v3.0 | 最后更新：2026-08-16 | 验证基线：MOBA Trace 15/15、ownership 9/9、Effect diagnostics 15/15（2026-08-15 artifact）；通用 Trace 包仍无独立专项测试程序集*

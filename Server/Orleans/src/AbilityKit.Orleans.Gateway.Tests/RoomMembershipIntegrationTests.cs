@@ -117,7 +117,7 @@ public sealed class RoomMembershipIntegrationTests
     }
 
     [Fact]
-    public async Task ConnectionClosed_WhenOwnerIsOnlyMember_ClosesAndRemovesRoom()
+    public async Task ConnectionClosed_WhenOwnerIsOnlyMember_MarksOfflineAndKeepsRoomDuringGracePeriod()
     {
         var accountId = NewId("owner");
         var (_, roomId) = await CreateMappedRoomAsync(accountId);
@@ -126,7 +126,12 @@ public sealed class RoomMembershipIntegrationTests
         try
         {
             transport.Handler.OnClosed(10);
-            await WaitUntilAsync(async () => await Mapping.TryGetAccountRoomAsync(accountId) == null);
+            await WaitUntilAsync(async () =>
+            {
+                var snapshot = await _client.GetGrain<IRoomGrain>(roomId).GetSnapshotAsync();
+                return snapshot.MemberStates?.TryGetValue(accountId, out var member) == true &&
+                    !member.IsOnline;
+            });
 
             var rooms = await Directory.ListRoomsAsync(
                 new AbilityKit.Orleans.Contracts.Rooms.ListRoomsRequest(
@@ -136,7 +141,8 @@ public sealed class RoomMembershipIntegrationTests
                     0,
                     100,
                     null));
-            Assert.DoesNotContain(rooms.Rooms, room => room.RoomId == roomId);
+            Assert.Contains(rooms.Rooms, room => room.RoomId == roomId);
+            Assert.Equal(roomId, await Mapping.TryGetAccountRoomAsync(accountId));
         }
         finally
         {
@@ -146,7 +152,51 @@ public sealed class RoomMembershipIntegrationTests
     }
 
     [Fact]
-    public async Task ConnectionClosed_WhenOwnerHasPeer_TransfersOwnershipAndKeepsRoom()
+    public async Task Tick_WhenAllClientsHaveBeenOfflineForOneMinute_RemovesRoomAndMappings()
+    {
+        var accountId = NewId("owner");
+        var (_, roomId) = await CreateMappedRoomAsync(accountId);
+        var room = _client.GetGrain<IRoomGrain>(roomId);
+        var transport = await CreateStartedTransportAsync(accountId, roomId, connectionId: 12);
+
+        try
+        {
+            transport.Handler.OnClosed(12);
+            await WaitUntilAsync(async () =>
+            {
+                var snapshot = await room.GetSnapshotAsync();
+                return snapshot.MemberStates?.TryGetValue(accountId, out var member) == true &&
+                    !member.IsOnline;
+            });
+
+            var cleanupTime = DateTimeOffset.UtcNow.AddMinutes(2);
+            var cleanup = await room.TickAsync(new RoomTickRequest(
+                cleanupTime.UtcTicks,
+                cleanupTime.ToUnixTimeMilliseconds()));
+
+            Assert.True(cleanup.Success);
+            Assert.True(cleanup.Applied);
+            Assert.Null(await Mapping.TryGetAccountRoomAsync(accountId));
+
+            var rooms = await Directory.ListRoomsAsync(
+                new AbilityKit.Orleans.Contracts.Rooms.ListRoomsRequest(
+                    accountId,
+                    "local",
+                    "integration",
+                    0,
+                    100,
+                    null));
+            Assert.DoesNotContain(rooms.Rooms, candidate => candidate.RoomId == roomId);
+        }
+        finally
+        {
+            await transport.BackgroundTasks.StopAsync(default);
+            transport.BackgroundTasks.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task ConnectionClosed_WhenOwnerHasPeer_MarksOwnerOfflineAndKeepsMembership()
     {
         var ownerId = NewId("owner");
         var peerId = NewId("peer");
@@ -158,12 +208,18 @@ public sealed class RoomMembershipIntegrationTests
         try
         {
             transport.Handler.OnClosed(11);
-            await WaitUntilAsync(async () => await Mapping.TryGetAccountRoomAsync(ownerId) == null);
+            await WaitUntilAsync(async () =>
+            {
+                var current = await _client.GetGrain<IRoomGrain>(roomId).GetSnapshotAsync();
+                return current.MemberStates?.TryGetValue(ownerId, out var member) == true &&
+                    !member.IsOnline;
+            });
 
             var snapshot = await _client.GetGrain<IRoomGrain>(roomId).GetSnapshotAsync();
-            Assert.Equal(new[] { peerId }, snapshot.Members);
+            Assert.Equal(new[] { ownerId, peerId }, snapshot.Members);
             Assert.Equal(peerId, snapshot.Summary.OwnerAccountId);
             Assert.Equal(RoomPhase.Lobby, snapshot.Phase);
+            Assert.Equal(roomId, await Mapping.TryGetAccountRoomAsync(ownerId));
             Assert.Equal(roomId, await Mapping.TryGetAccountRoomAsync(peerId));
         }
         finally

@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4a4d8d75c3648b3af1b3e198c417c79, type: 3}
+  m_Name: ShooterLocalProfile
+  m_EditorClassIdentifier: 
+  profileId: shooter-local
+  gameplay: 1
+  mode: 0
+  rootPrefab: {fileID: 2795796105505745665, guid: 5f1ae5f6becf04f419090ae638af1196, type: 3}

@@ -9,15 +9,6 @@ EditorBuildSettings:
     path: Assets/Scenes/MultiplayerStarterScene.unity
     guid: 672e44a33f4f4236bd4dfd0433ed0c75
   - enabled: 1
-    path: Assets/Scenes/MobaMultiplayerScene.unity
-    guid: d407a84786903264aa721ded0533a333
-  - enabled: 1
-    path: Assets/Scenes/ShooterMultiplayerScene.unity
-    guid: c6d6554ef15300f45b88e20a4477d16f
-  - enabled: 1
-    path: Assets/Scenes/MobaDemoScene.unity
-    guid: c2abad2fe83f2254cae76d0ca863421d
-  - enabled: 1
-    path: Assets/Scenes/ShooterDemoScene.unity
-    guid: 044737b8a84752540a4e755f3bb34a61
+    path: Assets/Scenes/DemoGameplayBootstrapScene.unity
+    guid: 3e86c2c2b54defc4ca5d64d1fb092d08
   m_configObjects: {}

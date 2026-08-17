@@ -32,12 +32,13 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
 
         var roomId = Guid.NewGuid().ToString("N");
         var createdAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var roomType = GameplayRoomTypes.Normalize(request.RoomType);
 
         var summary = new RoomSummary(
             request.Region,
             request.ServerId,
             roomId,
-            request.RoomType,
+            roomType,
             request.Title ?? string.Empty,
             request.IsPublic,
             request.MaxPlayers,
@@ -72,7 +73,11 @@ public sealed class RoomDirectoryGrain : Grain, IRoomDirectoryGrain
         IEnumerable<RoomSummary> query = await _roomStateStore.ListRoomsAsync(directoryKey);
         if (!string.IsNullOrWhiteSpace(request.RoomType))
         {
-            query = query.Where(r => string.Equals(r.RoomType, request.RoomType, StringComparison.Ordinal));
+            var roomType = GameplayRoomTypes.Normalize(request.RoomType);
+            query = query.Where(r => string.Equals(
+                GameplayRoomTypes.Normalize(r.RoomType),
+                roomType,
+                StringComparison.OrdinalIgnoreCase));
         }
 
         query = query.Where(r => r.IsPublic);

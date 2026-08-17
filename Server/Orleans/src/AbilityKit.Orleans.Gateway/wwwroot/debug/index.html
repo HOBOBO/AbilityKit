@@ -289,7 +289,7 @@
             configVersion: 1,
             protocolVersion: 1,
             worldType: 'shooter_battle',
-            syncTemplateId: 'predict-rollback-authority'
+            syncTemplateId: 'state-sync-authority'
           },
           sandbox: {
             sandboxId: 'default',
@@ -514,7 +514,7 @@
             this.battle.configVersion = 1;
             this.battle.protocolVersion = 1;
             this.battle.worldType = 'shooter_battle';
-            this.battle.syncTemplateId = this.battle.syncTemplateId || 'predict-rollback-authority';
+            this.battle.syncTemplateId = this.battle.syncTemplateId || 'state-sync-authority';
           }
 
           await this.setReady();

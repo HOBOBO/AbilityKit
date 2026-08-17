@@ -15,7 +15,7 @@ public sealed class GatewayDebugConsoleTests
         Assert.Contains("roomType: 'shooter'", html);
         Assert.Contains("gameplayId: 2", html);
         Assert.Contains("worldType: 'shooter_battle'", html);
-        Assert.Contains("syncTemplateId: 'predict-rollback-authority'", html);
+        Assert.Contains("syncTemplateId: 'state-sync-authority'", html);
         Assert.Contains("maxPlayers: 4", html);
     }
 

@@ -1,5 +1,8 @@
 # MOBA 配置、实体索引与生成深潜
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文基于当前 MOBA runtime 源码，说明配置数据如何进入统一门面、Actor 如何构造和注册，以及 `MobaActorRegistry`、`MobaEntityManager` 与 Entitas entity 之间如何维持一致性。重点覆盖失败语义和非事务性边界。
 
 ## 1. 三条相互独立的链路
@@ -355,10 +358,15 @@ Despawn 事件只由显式 `Unregister()` 发布，且 payload 从当时 entity 
 
 | 项目 | 当前基线 |
 |------|----------|
-| 文档版本 | 2026-08-03 |
+| 文档版本 | v3.0 / 2026-08-16 |
 | 审计范围 | MOBA 配置门面、Actor 构造/生成、两类索引及 Sync/Cleanup 系统 |
-| 证据来源 | 当前仓库源码；`MobaHeroLoadoutResolverTests` 中两项 Pipeline 失败补偿测试；Test Harness/Acceptance 的成功业务路径 |
-| 本轮实际执行 | 仅进行源码、测试引用、Markdown 结构与路径静态检查；未重新执行 Unity Test Runner |
-| 已确认缺口 | 配置门面、生产 spawn service、索引事件与 Sync/Cleanup 尚缺直接专项回归；JSON text strict 参数未下传 |
+| 证据来源 | 当前工作区源码、四个 .NET 聚焦工程和本地 Unity ownership 9/9 artifact |
+| 本轮实际执行 | MOBA 主工程 279/305，26 项被同一 SpawnArea strict validation 阻断；View Runtime 147/147、Host 6/6、Acceptance 8/8 通过 |
+| 已确认所有权 | Summon spawn retain 失败会事务性补偿 Actor、trace、owner/source tracking 与 retain；Clear/Dispose 释放全部 retain 并结束 active spawn trace |
+| 仍有缺口 | 配置门面、通用生产 spawn、索引事件与 Sync/Cleanup 缺完整专项回归；JSON text strict 参数仍未下传；外部 callback/订阅副作用不在 Actor spawn transaction 内 |
+
+Summon 的项目级 `MobaTemporaryEntitySpawnTransaction` 是对通用 Actor spawn 补偿的扩展，不表示所有 Actor 类型自动具备相同事务。框架适合提供 spawn/registry/transaction 原语；archetype、post-setup、Summon owner/source/trace 与配置门禁仍由 MOBA 项目定义。
 
 后续修改这些链路时，应先更新第 14 节中对应证据行，再根据实际测试执行结果更新本节。历史测试名称或场景存在不能替代本轮执行记录。
+
+*文档版本：v3.0 | 最后更新：2026-08-16*

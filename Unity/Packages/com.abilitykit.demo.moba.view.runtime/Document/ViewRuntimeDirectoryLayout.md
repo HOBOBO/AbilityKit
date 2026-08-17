@@ -1,8 +1,8 @@
-# View Runtime Directory Layout
+# 视图运行时目录布局
 
 本文定义 `com.abilitykit.demo.moba.view.runtime` 的目标目录、依赖方向和分批迁移规则。当前目录仍处于过渡期；本规范同时用于判断新代码归属和约束后续迁移。
 
-## 1. Current Problems
+## 1. 当前问题
 
 当前粗粒度分区已经建立，但仍存在以下结构性问题：
 
@@ -12,7 +12,7 @@
 - EditMode 测试平铺在 `Test/UnitTest`，测试文件与被测模块缺乏稳定映射。
 - `Shared` 包含上下文、模块宿主、订阅和 domain 对象；只有被两个以上稳定子域依赖的轻量契约才应继续留在这里。
 
-## 2. Target Top-level
+## 2. 目标顶层结构
 
 短期保留现有程序集和公共命名空间，先让物理目录稳定。最终目标如下：
 
@@ -53,7 +53,7 @@ Runtime/Game/
 
 历史 `EntityViewModel` 已整体迁入 `Battle/Presentation/Entities`。历史 `Client/SnapshotRouting` 按职责拆分：纯 decoder/registry 进入 `Battle/Networking/Replication/Routing`，实体快照应用进入 `Battle/Presentation/Snapshots`，依赖 `BattleContext` 和 session 生命周期的 command/composition bridge 留在 `Client/Session/Features/Snapshot`。历史 `Client/Synchronization` 已按 Networking、Prediction、Presentation、Session 和 Testing 边界拆空。`Client/Session` 中其余网络和模拟实现必须先从会话宿主中解耦，再分别迁入对应职责目录。
 
-## 3. Dependency Direction
+## 3. 依赖方向
 
 允许的主要依赖方向为：
 
@@ -74,7 +74,7 @@ Input -> Contracts
 - `App` 负责选择和装配，不承载对局内 tick、快照或输入实现。
 - 新代码不得放入 `Legacy`；旧代码只有在归属明确后迁出，否则删除。
 
-## 4. Naming And Assembly Policy
+## 4. 命名与程序集策略
 
 本轮目录治理不批量调整 namespace，不新增 package，也不立即拆分主 runtime asmdef。原因是路径迁移、API 重命名和程序集拆分同时发生会显著扩大 Unity 编译与序列化风险。
 
@@ -87,7 +87,7 @@ Input -> Contracts
 
 目录名使用职责名词。`Core`、`Shared`、`Common`、`Features` 不能作为默认收容目录；新增此类目录必须说明其中对象的共同契约和依赖方向。
 
-## 5. Test Layout
+## 5. 测试布局
 
 测试目录镜像被测职责，不按历史任务或缺陷命名：
 
@@ -104,13 +104,13 @@ Input -> Contracts
 
 测试 namespace 暂时保持不变，避免目录整理与 fixture filter 迁移耦合。
 
-## 6. Migration Batches
+## 6. 迁移批次
 
-### Batch 1: Test taxonomy
+### 批次 1：测试分类
 
 先迁移纯测试文件，建立目录镜像并验证 Unity GUID 保持不变。此批不修改生产 API。
 
-### Batch 2: Replication boundary
+### 批次 2：复制边界
 
 此批按依赖切片执行，不直接搬空历史目录：
 
@@ -126,11 +126,11 @@ Input -> Contracts
 
 本批保持 namespace、类型名和公开 API；只为 Session 生命周期测试增加包内 stream contract 与注入构造器。版本控制内桌面工程的权威插值 controller 和 Demo Harness carrier 显式源码路径已同步更新，其余移动文件由 Unity runtime asmdef 自动收录。
 
-### Batch 3: Session and simulation
+### 批次 3：会话与模拟
 
 将 `Client/Session` 拆成稳定的 `Session` 宿主与 `Simulation` 实现。`BattleSessionFeature.*` partial 文件按 lifecycle、networking、simulation 三组逐步减少，而不是继续增加 partial surface。
 
-### Batch 4: Presentation taxonomy
+### 批次 4：表现层分类
 
 - 已将历史 `EntityViewModel` 整体迁入 `Presentation/Entities`，保留 Components、Entities、Features 子目录以及全部脚本和目录 `.meta` GUID；namespace、类型名和公开 API 不变。
 - 已将历史 `Battle/Hierarchy` 整体迁入 `Presentation/Composition`。该目录继续承载 View、VFX、HUD 共用的场景层级组合基础设施，四个脚本及目录 `.meta` GUID、namespace、类型名和公开 API 均保持不变。
@@ -144,11 +144,11 @@ Input -> Contracts
 - 已将 HUD 根目录中的 Canvas controller 迁入新建的 `Presentation/Hud/Canvas`，归并共享 `UIRoot`/`UILayer.Main` 复用、fallback Canvas 创建与所有权销毁，以及 EventSystem 存在性保证；脚本 `.meta` GUID、namespace、类型名和公开 API 保持不变，新目录使用独立 `.meta` GUID。HUD feature、总 binder、输入协调、entity lifecycle binding 和 snapshot subscription controller 继续留在 HUD 根目录，作为跨 Controls、HP bar、Buff、FloatingText 与 Skills 的装配和运行时编排层，不为单个适配器创建碎片化职责目录。
 - 后续只在运行时编排能够形成稳定闭包时继续拆分 HUD 根目录。所有 MonoBehaviour、Prefab 和 ScriptableObject 移动必须保留 `.meta`。
 
-### Batch 5: Namespace and asmdef enforcement
+### 批次 5：命名空间与 asmdef 约束
 
 逐子域调整 namespace，并在依赖图无环后评估 `Contracts`、`Networking`、`Presentation` 的 asmdef。不得为追求目录整齐而制造循环程序集引用。
 
-## 7. Migration Checklist
+## 7. 迁移检查清单
 
 每批迁移必须满足：
 

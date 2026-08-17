@@ -136,11 +136,19 @@ public sealed class GatewayTransportHandler : IGatewayTransportEvents
             return;
         }
 
-        _backgroundTasks.TryQueue(cancellationToken =>
-            _roomMembership.CleanupDisconnectedSessionAsync(
+        _backgroundTasks.TryQueue(async cancellationToken =>
+        {
+            if (_sessionRegistry.TryGetConnectionIdByAccount(accountId, out var reboundConnectionId) &&
+                reboundConnectionId != connectionId)
+            {
+                return;
+            }
+
+            await _roomMembership.CleanupDisconnectedSessionAsync(
                 accountId,
                 roomId,
-                cancellationToken));
+                cancellationToken);
+        });
     }
 
     internal void RegisterSession(IGatewayTransportSession session)

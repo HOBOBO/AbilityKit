@@ -1,19 +1,26 @@
 using System;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Recording.FrameRecord;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Battle.Entity;
 using UnityEngine;
 
 namespace AbilityKit.Game.Flow
 {
-    public sealed partial class BattleContext : IBattleLocalActorResolutionPort
+    public sealed partial class BattleContext :
+        IBattleLocalActorResolutionPort,
+        IBattleHudInputReadPort,
+        IBattleInputSubmissionPort,
+        IBattleHudAimPreviewReadPort
     {
-        private BattleInputRuntime _inputRuntime;
-        private bool _ownsInputRuntime;
-        private IFrameRecordWriter _inputRecordWriter;
+        private readonly ReferenceBindingOwner<BattleInputRuntime> _inputRuntimeBinding =
+            new ReferenceBindingOwner<BattleInputRuntime>();
+        private readonly ReferenceBindingOwner<IFrameRecordWriter> _inputRecordWriterBinding =
+            new ReferenceBindingOwner<IFrameRecordWriter>();
 
-        public IFrameRecordWriter InputRecordWriter => _inputRecordWriter;
+        public IFrameRecordWriter InputRecordWriter => _inputRecordWriterBinding.Value;
         public BattleLocalInputQueue LocalInputQueue => EnsureInputRuntime().LocalInputQueue;
 
         internal BattleInputRuntime InputRuntime => EnsureInputRuntime();
@@ -21,21 +28,17 @@ namespace AbilityKit.Game.Flow
         internal void BindInputRuntime(BattleInputRuntime runtime)
         {
             if (runtime == null) throw new ArgumentNullException(nameof(runtime));
-            if (ReferenceEquals(_inputRuntime, runtime)) return;
+            if (ReferenceEquals(_inputRuntimeBinding.Value, runtime)) return;
 
             ReleaseInputRuntimeBinding();
-            _inputRuntime = runtime;
-            _ownsInputRuntime = false;
+            _inputRuntimeBinding.Bind(runtime);
             runtime.Bind(this);
         }
 
         internal void UnbindInputRuntime(BattleInputRuntime runtime)
         {
-            if (!ReferenceEquals(_inputRuntime, runtime)) return;
-
+            if (!_inputRuntimeBinding.TryClear(runtime, out _, out _)) return;
             runtime.Unbind(this);
-            _inputRuntime = null;
-            _ownsInputRuntime = false;
         }
 
         internal bool TryReadHudMove(out float dx, out float dz) =>
@@ -61,6 +64,45 @@ namespace AbilityKit.Game.Flow
                 out aimDirY,
                 out aimDirZ);
 
+        bool IBattleHudInputReadPort.TryReadMove(out float dx, out float dz) =>
+            TryReadHudMove(out dx, out dz);
+
+        bool IBattleHudInputReadPort.TryConsumeSkillClick(out int slot) =>
+            TryConsumeHudSkillClick(out slot);
+
+        bool IBattleHudInputReadPort.TryConsumeSkillAimSubmit(
+            out BattleSkillAimSubmitInput input)
+        {
+            if (TryConsumeHudSkillAimSubmit(
+                    out var slot,
+                    out var aimPosX,
+                    out var aimPosY,
+                    out var aimPosZ,
+                    out var aimDirX,
+                    out var aimDirY,
+                    out var aimDirZ))
+            {
+                input = new BattleSkillAimSubmitInput(
+                    slot,
+                    aimPosX,
+                    aimPosY,
+                    aimPosZ,
+                    aimDirX,
+                    aimDirY,
+                    aimDirZ);
+                return true;
+            }
+
+            input = default;
+            return false;
+        }
+
+        bool IBattleInputSubmissionPort.Submit(
+            in PlayerInputCommand command,
+            PlayerId playerId,
+            WorldId worldId) =>
+            EnsureInputRuntime().Submit(in command, playerId, worldId);
+
         public void BeginHudMove() => EnsureInputRuntime().BeginMove();
         public void EndHudMove() => EnsureInputRuntime().EndMove();
         public void SetHudMove(float dx, float dz) => EnsureInputRuntime().SetMove(dx, dz);
@@ -77,6 +119,32 @@ namespace AbilityKit.Game.Flow
             out float dz,
             out int submissionVersion) =>
             EnsureInputRuntime().TryReadSkillAimPreview(out slot, out dx, out dz, out submissionVersion);
+
+        bool IBattleHudAimPreviewReadPort.TryReadAimPreview(
+            out int slot,
+            out float dx,
+            out float dz,
+            out int submissionVersion) =>
+            TryReadHudSkillAimPreview(out slot, out dx, out dz, out submissionVersion);
+
+        bool IBattleHudAimPreviewReadPort.TryResolveLocalActorWorldPosition(
+            out float x,
+            out float y,
+            out float z)
+        {
+            if (TryResolveLocalActorWorldPos(out var position))
+            {
+                x = position.x;
+                y = position.y;
+                z = position.z;
+                return true;
+            }
+
+            x = 0f;
+            y = 0f;
+            z = 0f;
+            return false;
+        }
 
         internal bool TryResolveLocalActorId(out int actorId) =>
             EnsureInputRuntime().TryResolveLocalActorId(out actorId);
@@ -121,42 +189,46 @@ namespace AbilityKit.Game.Flow
             return true;
         }
 
-        internal void BindInputRecordWriter(IFrameRecordWriter writer)
+        internal long BindInputRecordWriter(IFrameRecordWriter writer)
         {
-            _inputRecordWriter = writer;
+            return _inputRecordWriterBinding.Bind(
+                writer ?? throw new ArgumentNullException(nameof(writer)));
+        }
+
+        internal bool ClearInputRecordWriter(long bindingGeneration, IFrameRecordWriter writer)
+        {
+            return _inputRecordWriterBinding.TryClear(
+                bindingGeneration,
+                writer,
+                out _,
+                out _);
         }
 
         internal void ClearInputRecordWriter(IFrameRecordWriter writer)
         {
-            if (ReferenceEquals(_inputRecordWriter, writer))
-            {
-                _inputRecordWriter = null;
-            }
+            _inputRecordWriterBinding.TryClear(writer, out _, out _);
         }
 
         private BattleInputRuntime EnsureInputRuntime()
         {
-            if (_inputRuntime != null) return _inputRuntime;
+            var runtime = _inputRuntimeBinding.Value;
+            if (runtime != null) return runtime;
 
-            _inputRuntime = new BattleInputRuntime();
-            _ownsInputRuntime = true;
-            _inputRuntime.Bind(this);
-            return _inputRuntime;
+            runtime = new BattleInputRuntime();
+            _inputRuntimeBinding.Bind(runtime, ownsValue: true);
+            runtime.Bind(this);
+            return runtime;
         }
 
         private void ResetInputRuntime()
         {
             ReleaseInputRuntimeBinding();
-            _inputRecordWriter = null;
+            _inputRecordWriterBinding.Reset(out _, out _);
         }
 
         private void ReleaseInputRuntimeBinding()
         {
-            var runtime = _inputRuntime;
-            var ownsRuntime = _ownsInputRuntime;
-            _inputRuntime = null;
-            _ownsInputRuntime = false;
-            if (runtime == null) return;
+            if (!_inputRuntimeBinding.Reset(out var runtime, out var ownsRuntime)) return;
 
             if (ownsRuntime) runtime.Dispose();
             else runtime.Unbind(this);

@@ -1,14 +1,16 @@
 # 帧同步与状态同步审计记录（2026-08-03）
 
-> 文档性质：历史审计记录，不是当前稳定设计或发布 gate 清单。
-> 原始审计日期：2026-08-03；当前事实复核：2026-08-09。
+> 文档类型：Historical Audit Record，不是当前稳定设计或发布 gate 清单。
+>
+> 原始审计日期：2026-08-03；当前事实复核：2026-08-16。
+>
 > 当前契约以 [帧同步](../07-NetworkSynchronization/01-FrameSync.md)、[状态同步](../07-NetworkSynchronization/02-StateSync.md)、[测试工作流](01-TestingWorkflow.md)、[Beta 发布检查清单](06-BetaStabilizationAndReleaseChecklist.md) 和 [Analysis Artifact 与运行证据](07-AnalysisArtifactAndRuntimeEvidence.md) 为准。
 
 ---
 
 ## 当前复核摘要
 
-| 原审计结论 | 2026-08-09 状态 | 当前边界 |
+| 原审计结论 | 2026-08-16 状态 | 当前边界 |
 | --- | --- | --- |
 | 预测类型被错误标记为废弃 | 已修复 | `ClientPredictionRunner` 与 `ClientPredictionReconciler` 仍有活跃消费者 |
 | MOBA diagnostics 返回空值 | 已修复 | `MobaBattleRuntimeAdapter.GetWorldDiagnostics` 已输出可用诊断 |
@@ -16,10 +18,14 @@
 | `FrameCommandBuffer._latestFrame` 缺少并发保护 | 已修复 | 当前使用原子读写和 compare-exchange 更新 |
 | CatchUp 客户端能力可用于重连 | 已实现但未接入 | `WorldCatchUpDriver` 有真实消费者；`FrameSyncCatchUpClientModule` 仍未安装到客户端 reconnect 主链 |
 | MOBA Smoke 已覆盖 FrameSync 模板 | 未形成 gate | Program 支持 `--sync-template`，但现有 smoke 脚本和 `moba-smoke`、`moba-multiprocess` gate 未透传该参数 |
+| gate JSON 的同步策略等于真实 CI 覆盖 | 不成立 | `moba-smoke` 有 workflow job；`moba-multiprocess` 没有对应 job，配置意图与实际编排必须分开核对 |
+| MOBA multiprocess 仍只有单进程场景 | 部分失效 | runner 已将 host-only Orleans silo 和 client-only 场景放到独立进程；client-only 场景内部仍由一个进程创建 owner/member 两条 TCP 连接，不是两个独立客户端 OS 进程 |
 | `SessionLifecycleHost` 需要 Options 重构 | 历史项已失效 | Options 重构已经完成，未稳定的 create/join/restore 聚合入口也已删除 |
 | LZ4/Zstd 可作为压缩实现 | 未实现 | 当前明确抛出 `NotSupportedException`，不能作为可用 codec 宣称 |
 
 历史章节中的“已完成”只表示 2026-08-03 当批实施记录。任何当前发布判断都必须重新核验源码、测试、脚本、CI policy 和 artifact，不能从本记录直接推导。
+
+2026-08-16 复核没有把本页改写为 canonical 设计。当前同步语义、客户端策略和恢复边界由 FrameSync/StateSync 设计文档负责；自动化证据由测试工作流负责；发布缺口由 Beta 检查清单负责。本页保留原始问题、当时修复和低优先级 backlog，供追溯决策背景使用。
 
 ---
 
@@ -140,7 +146,18 @@
 - 新增 `MobaSmokeConstants.DefaultSyncTemplateId` 常量
 - 新增 `ParseStringArgument` 辅助方法
 
-**2026-08-09 复核**：Program 的参数入口仍存在，但 `run_moba_smoke.ps1`、`run_moba_multiprocess_smoke.ps1` 和 `tools/test-gates.json` 没有透传该参数。原记录中的 multiprocess 命令当前不可直接执行，因此这项只证明 E0/E1 级模板选择入口存在，不证明 FrameSync 模板具备 E4/E5 gate 覆盖。
+**2026-08-16 复核**：Program 的参数入口仍存在，但 `run_moba_smoke.ps1`、`run_moba_multiprocess_smoke.ps1` 和 `tools/test-gates.json` 没有透传该参数。因此这项只证明 E0/E1 级模板选择入口存在，不证明 FrameSync 模板具备 E4/E5 gate 覆盖。当前 multiprocess runner 已能启动独立 host-only silo 进程和独立 client-only 场景进程，但仍使用默认同步模板。
+
+### 2.5 MOBA multiprocess 当前拓扑与证据边界
+
+2026-08-16 源码复核确认 `run_moba_multiprocess_smoke.ps1` 已不再只是“标准 smoke 加 host-only 存活检查”：
+
+1. Orleans host-only silo 在独立 OS 进程运行；
+2. client-only 场景在另一个独立 OS 进程运行；
+3. client-only 进程内创建 owner/member 两条 TCP 连接；
+4. 场景核对双方快照和移动收敛、显式全量恢复，以及可靠事件 epoch/watermark ACK。
+
+这已经是有效的多进程 E4 场景，但不能扩大成“两个客户端进程”或“FrameSync 模板已覆盖”。`tools/test-gates.json` 中 `moba-multiprocess` 的描述仍把 client-only 写成未来扩展，已经落后于 runner；同时 `.github/workflows/abilitykit-test-gates.yml` 只有 `moba-smoke` job，没有 `moba-multiprocess` job，因此配置项存在不等于 E5 持续执行。
 
 ---
 
@@ -329,3 +346,7 @@
 | PredictRollback | ✅ PackedSnapshot 回滚 | ✅ Hash mismatch → resync |
 | AuthoritativeInterpolation | ❌ 纯插值 | ❌ |
 | HybridHeroPrediction | ✅ 仅本地英雄 | ✅ 仅本地英雄 |
+
+---
+
+*历史记录版本：v3.0 | 当前事实复核：2026-08-16 | 原始审计：2026-08-03*

@@ -43,6 +43,10 @@ public sealed class ShooterPlaySessionRunnerTests
         Assert.True(firstReinforcementFrame >= ShooterAcceptanceLab.DefaultTickRate * 60);
         Assert.True(flow.DurationFrames >= ShooterAcceptanceLab.DefaultTickRate * 600);
         Assert.Equal(ShooterAcceptanceLab.DefaultTickRate * 2, flow.EnemyAttackIntervalFrames);
+        Assert.Equal(36f, scenario.ArenaRadius);
+        Assert.All(flow.Waves, wave => Assert.True(
+            wave.SpawnRadius >= 36f,
+            $"Expected doubled PlayMode spawn radius, got {wave.SpawnRadius}."));
     }
 
     [Theory]
@@ -276,6 +280,30 @@ public sealed class ShooterPlaySessionRunnerTests
         Assert.True(view.MaxPlayerCount > 0, "Expected the controlled player to be visible in the projected menu view.");
         Assert.True(view.MaxEnemyCount > 0, "Expected wave enemies to be visible in the projected menu view.");
         Assert.True(view.MaxBulletCount > 0 || view.TotalExplicitEntityRemovals > 0 || view.TotalDeadEntityRemovals > 0, "Expected fired bullets to enter or be removed from the projected menu view.");
+    }
+
+    [Fact]
+    public void MassBattlePlayModeHidesEnemiesUntilTheyEnterConfiguredAoi()
+    {
+        var template = ShooterAcceptanceCatalog.GetSyncTemplate(ShooterSyncTemplateIds.MassBattleLodAoi);
+        var input = new ScriptedInputSource(Array.Empty<ShooterHostFrameInput>());
+        var view = new AggregatingViewSink();
+        using var runner = new ShooterPlaySessionRunner(input, view);
+        runner.Start(ShooterPlayModeSessionOptions.FromTemplate(in template));
+
+        runner.Tick(1f / runner.Options.TickRate);
+
+        Assert.Equal(template.SendPolicy.SnapshotIntervalFrames, runner.PresentationSnapshotIntervalTicks);
+        Assert.True(runner.Session!.Runtime.GetSnapshot().Enemies.Length > 0);
+        Assert.Equal(0, view.ProjectedEnemyCount);
+
+        var ticksUntilEnemyEnters = runner.Options.TickRate * 9;
+        for (var tick = 1; tick < ticksUntilEnemyEnters; tick++)
+        {
+            runner.Tick(1f / runner.Options.TickRate);
+        }
+
+        Assert.True(view.ProjectedEnemyCount > 0, "Expected inward-moving enemies to appear after entering the configured AOI radius.");
     }
 
     [Fact]

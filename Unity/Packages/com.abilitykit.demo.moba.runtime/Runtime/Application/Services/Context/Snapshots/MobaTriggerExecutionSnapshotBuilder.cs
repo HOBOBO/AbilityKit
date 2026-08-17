@@ -1,3 +1,5 @@
+using System;
+
 namespace AbilityKit.Demo.Moba.Services
 {
     public sealed class MobaTriggerExecutionSnapshotBuilder
@@ -12,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services
         private int _configId;
         private int _frame;
         private MobaSkillCastRuntimeHandle _skillRuntimeHandle;
+
         private MobaTriggerExecutionSnapshotBuilder()
         {
         }
@@ -24,11 +27,11 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaTriggerExecutionSnapshotBuilder FromLineage(in MobaEffectLineageInput lineageInput)
         {
             if (lineageInput.ContextKind != EffectContextKind.Unknown) _kind = lineageInput.ContextKind;
-            if (lineageInput.SourceActorId != 0) _sourceActorId = lineageInput.SourceActorId;
+            MergeIdentity(ref _sourceActorId, lineageInput.SourceActorId, "sourceActorId");
             if (lineageInput.TargetActorId != 0) _targetActorId = lineageInput.TargetActorId;
-            if (lineageInput.ParentContextId != 0) _sourceContextId = lineageInput.ParentContextId;
-            if (lineageInput.EffectiveRootContextId != 0) _rootContextId = lineageInput.EffectiveRootContextId;
-            if (lineageInput.OwnerContextId != 0) _ownerContextId = lineageInput.OwnerContextId;
+            MergeIdentity(ref _sourceContextId, lineageInput.ParentContextId, "sourceContextId");
+            MergeIdentity(ref _rootContextId, lineageInput.EffectiveRootContextId, "rootContextId");
+            MergeIdentity(ref _ownerContextId, lineageInput.OwnerContextId, "ownerContextId");
             if (lineageInput.OriginConfigId != 0) _configId = lineageInput.OriginConfigId;
             return this;
         }
@@ -46,7 +49,7 @@ namespace AbilityKit.Demo.Moba.Services
                 && skillRuntimeContext.TryGetSkillRuntimeHandle(out var handle)
                 && handle.IsValid)
             {
-                _skillRuntimeHandle = handle;
+                MergeSkillRuntimeHandle(in handle);
             }
 
             return this;
@@ -56,15 +59,16 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (!snapshot.IsValid) return this;
             if (snapshot.Kind != EffectContextKind.Unknown) _kind = snapshot.Kind;
-            if (snapshot.SourceActorId != 0) _sourceActorId = snapshot.SourceActorId;
+            MergeIdentity(ref _sourceActorId, snapshot.SourceActorId, "sourceActorId");
             if (snapshot.TargetActorId != 0) _targetActorId = snapshot.TargetActorId;
-            if (snapshot.SourceContextId != 0) _sourceContextId = snapshot.SourceContextId;
-            if (snapshot.RootContextId != 0) _rootContextId = snapshot.RootContextId;
-            if (snapshot.OwnerContextId != 0) _ownerContextId = snapshot.OwnerContextId;
+            MergeIdentity(ref _sourceContextId, snapshot.SourceContextId, "sourceContextId");
+            MergeIdentity(ref _rootContextId, snapshot.RootContextId, "rootContextId");
+            MergeIdentity(ref _ownerContextId, snapshot.OwnerContextId, "ownerContextId");
             if (snapshot.TriggerId != 0) _triggerId = snapshot.TriggerId;
             if (snapshot.ConfigId != 0) _configId = snapshot.ConfigId;
             if (snapshot.Frame != 0) _frame = snapshot.Frame;
-            if (snapshot.SkillRuntimeHandle.IsValid) _skillRuntimeHandle = snapshot.SkillRuntimeHandle;
+            var skillRuntimeHandle = snapshot.SkillRuntimeHandle;
+            if (skillRuntimeHandle.IsValid) MergeSkillRuntimeHandle(in skillRuntimeHandle);
             return this;
         }
 
@@ -85,6 +89,45 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (_frame == 0 && frame != 0) _frame = frame;
             return this;
+        }
+
+        private static void MergeIdentity(ref int current, int incoming, string fieldName)
+        {
+            if (incoming == 0) return;
+            if (current != 0 && current != incoming)
+            {
+                throw CreateConflict(fieldName, current, incoming);
+            }
+
+            current = incoming;
+        }
+
+        private static void MergeIdentity(ref long current, long incoming, string fieldName)
+        {
+            if (incoming == 0L) return;
+            if (current != 0L && current != incoming)
+            {
+                throw CreateConflict(fieldName, current, incoming);
+            }
+
+            current = incoming;
+        }
+
+        private void MergeSkillRuntimeHandle(in MobaSkillCastRuntimeHandle incoming)
+        {
+            if (!incoming.IsValid) return;
+            if (_skillRuntimeHandle.IsValid && !_skillRuntimeHandle.Equals(incoming))
+            {
+                throw CreateConflict("skillRuntimeHandle", _skillRuntimeHandle, incoming);
+            }
+
+            _skillRuntimeHandle = incoming;
+        }
+
+        private static InvalidOperationException CreateConflict(string fieldName, object current, object incoming)
+        {
+            return new InvalidOperationException(
+                $"[MobaTriggerExecutionSnapshotBuilder] Conflicting execution provenance. field={fieldName}, current={current}, incoming={incoming}.");
         }
 
         public MobaTriggerExecutionSnapshot Build()

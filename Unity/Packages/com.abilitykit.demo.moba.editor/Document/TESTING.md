@@ -54,7 +54,7 @@ Unity Editor 已运行时，不启动第二实例，也不结束用户进程。�
 
 录像驱动测试程序集：`AbilityKit.Game.UnitTests`
 
-### Editor Test Runner
+### 编辑器测试运行器
 
 1. 在 Unity 打开 `Window > General > Test Runner`。
 2. 选择 EditMode。

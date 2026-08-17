@@ -41,7 +41,7 @@ let apiCallLogId = 0;
 
 const account = reactive({ accountId: adminStorage.get('accountId', ''), expireSeconds: 86400, kickExisting: true });
 const create = reactive({ roomType: 'shooter', title: 'Shooter 后台房间', isPublic: true, maxPlayers: 4, tagsJson: '{\n  "source": "admin-console"\n}' });
-const battle = reactive({ gameplayId: 2, ruleSetId: 0, configVersion: 1, protocolVersion: 1, worldType: 'shooter_battle', syncTemplateId: 'predict-rollback-authority' });
+const battle = reactive({ gameplayId: 2, ruleSetId: 0, configVersion: 1, protocolVersion: 1, worldType: 'shooter_battle', syncTemplateId: 'state-sync-authority' });
 const skillLoadout = reactive({ heroId: 1, teamId: 1, spawnPointId: 1, level: 1, attributeTemplateId: 1, basicAttackSkillId: 1001, skillIdsText: '1002,1003,1004' });
 const skillEventFilter = reactive<{ battleId: string; actorId: number | null; skillId: number | null; limit: number }>({ battleId: '', actorId: null, skillId: null, limit: 100 });
 const sandbox = reactive<{ sandboxId: string; botCount: number; maxPlayers: number; tickRate: number; state: ShooterSandboxState | null }>({ sandboxId: 'default', botCount: 3, maxPlayers: 4, tickRate: 30, state: null });
@@ -725,7 +725,7 @@ async function startShooterRoomQuick(): Promise<void> {
   battle.configVersion = 1;
   battle.protocolVersion = 1;
   battle.worldType = 'shooter_battle';
-  battle.syncTemplateId = battle.syncTemplateId || 'predict-rollback-authority';
+  battle.syncTemplateId = battle.syncTemplateId || 'state-sync-authority';
   await call(apis.rooms.ready({ sessionToken: sessionToken.value, roomId: roomId.value, ready: true }));
   await startBattle();
 }

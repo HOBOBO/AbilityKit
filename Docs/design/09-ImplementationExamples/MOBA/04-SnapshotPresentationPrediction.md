@@ -1,5 +1,8 @@
 # MOBA 快照、表现层与预测回滚
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文以当前 MOBA runtime、通用 snapshot package 和 MOBA view runtime 为准，拆分逻辑快照输出、客户端分发/表现 Pipeline、远程输入驱动与预测回滚。仓库中存在多个同名 `FrameSnapshotDispatcher`，本文会明确每一处所指类型。
 
 ## 1. 四条链路不能混用
@@ -17,21 +20,21 @@ Snapshot 不是 rollback state。能够播放表现快照，不代表本地逻�
 
 ## 2. 逻辑侧 Emitter 契约
 
-MOBA emitter 实现 `IMobaSnapshotEmitter.TryGetSnapshot(frame, out snapshot)`。继承 `LogicWorldSnapshotEmitterBase<T>` 的 emitter 还获得同帧门禁：
+MOBA emitter 实现 `IMobaSnapshotEmitter.TryGetSnapshot(frame, out snapshot)`。继承 `LogicWorldSnapshotEmitterBase<T>` 且保留默认 `UseFrameGuard` 的 emitter 获得成功输出门禁：
 
 ```text
 CanEmit(frame) == false -> no snapshot
 frame == lastFrame      -> no snapshot
-otherwise               -> update lastFrame, build snapshot
+otherwise               -> build snapshot; success 后 update lastFrame
 ```
 
-同一个 emitter 在同一 frame 最多成功尝试构建一次。注意 `_lastFrame` 在调用 `TryBuildSnapshot()` 前更新，即使本次因缓冲为空返回 false，同帧再次调用也不会重新构建。
+普通 emitter 在同一 frame 最多成功输出一次。`_lastFrame` 只在 `TryBuildSnapshot()` 返回 true 后更新；首次因数据未就绪或缓冲为空返回 false 时不会消费 frame，同帧后续可以再次尝试。
 
-Buffer emitter 使用 `MobaSnapshotBuffer<TEntry>`，成功编码后调用 `ToArrayClearAndTrim()` 清空缓冲；Dispose 时也会清空并按容量策略收缩。
+Buffer emitter 使用 `MobaSnapshotBuffer<TEntry>`，并通过 `LogicWorldSnapshotBufferEmitterBase.UseFrameGuard => false` 关闭帧门禁。成功编码后调用 `ToArrayClearAndTrim()` 清空缓冲；若同一 frame 随后又写入新事件，可以再次 drain。Dispose 时也会清空并按容量策略收缩。
 
 ## 3. Emitter 注册与排序
 
-Emitter 类型通过 `MobaSnapshotEmitterAttribute(priority)` 标记。`MobaSnapshotEmitterRegistry.CreateDefault()` 扫描已加载程序集，按 priority 排序，再从 world services 解析实例。
+Emitter 类型通过 `MobaSnapshotEmitterAttribute(priority)` 标记。`MobaSnapshotEmitterRegistry.CreateDefault()` 优先读取 generated manifest 并合并外部程序集提供项；只有 generated 结果为零时才回退到已加载程序集反射扫描。可以通过 `AbilityKit.Moba.DisableSnapshotEmitterReflectionFallback` 禁止回退，此时 manifest 为空会直接抛错。最终目录按 priority 排序，再从 world services 解析实例。
 
 当前常见优先级示例：
 
@@ -62,7 +65,7 @@ Router 同时注册为：
 初始化时它：
 
 1. 可选解析 diagnostics；
-2. 扫描 Attribute registry；
+2. 加载 generated manifest 与外部目录，必要时才执行 Attribute 反射回退；
 3. 按 priority 解析 emitter 实例；
 4. 重建 emitter health entries；
 5. 对照默认 output contract 记录缺失的必需 emitter；
@@ -70,7 +73,7 @@ Router 同时注册为：
 
 ### 4.1 单快照读取
 
-`TryGetSnapshot()` 按顺序找到第一个成功 emitter 后立即返回。由于 emitter 有同帧门禁，多次调用可能依次取出不同 emitter 的快照，但调用方不能依赖无限轮询；更明确的批量出口是 `CollectSnapshots()`。
+`TryGetSnapshot()` 按顺序找到第一个成功 emitter 后立即返回。普通 emitter 成功后有同帧门禁，buffer emitter 没有；多次调用可能依次取出不同 emitter 的快照，也可能 drain 同一 buffer emitter 在调用间新写入的数据。调用方不能依赖无限轮询；更明确的批量出口是 `CollectSnapshots()`。
 
 ### 4.2 批量读取
 
@@ -79,11 +82,11 @@ Router 同时注册为：
 - destination 为 null 时抛异常；
 - `maxSnapshots <= 0` 时抛异常；
 - 按 emitter priority 遍历；
-- 每个 emitter 最多追加一个 snapshot；
+- 单次 `CollectSnapshots` 调用中，每个 emitter 最多调用一次并追加一个 snapshot；
 - 达到上限立即停止；
 - 不清空调用方传入的 destination。
 
-`maxSnapshots` 小于本帧可输出 emitter 数量时，后续 emitter 本轮不会被调用。若调用方随后在同帧再次收集，先前已经调用过的 emitter 会被 frame guard 跳过，未调用的 emitter仍有机会输出。
+`maxSnapshots` 小于本帧可输出 emitter 数量时，后续 emitter 本轮不会被调用。若调用方随后在同帧再次收集，已成功输出的普通 emitter 会被 frame guard 跳过，未成功或未调用的普通 emitter 仍可尝试；buffer emitter 若又积累了数据也可再次输出。因此“每个 emitter 每帧最多一条”不是 Router 的统一契约。
 
 ### 4.3 健康数据
 
@@ -288,7 +291,7 @@ WorldAutoStartModule
 5. 释放使用 Core dispatcher 的 confirmed-view runtime；
 6. 销毁 remote-driven world 与其他 session resources。
 
-只销毁 world 不会自动解除旧 MOBA view dispatcher 对 `BattleLogicSession` 的事件订阅；只 Dispose dispatcher 也不会销毁逻辑 world。confirmed-view 的 Core dispatcher 不持有 session 订阅，其 teardown 不应假设存在 MOBA dispatcher 的自动解绑行为。
+只销毁 world 不会自动解除旧 MOBA view dispatcher 对 `BattleLogicSession` 的事件订阅；只 Dispose dispatcher 也不会销毁逻辑 world。confirmed-view 的 Core dispatcher 不持有 session 订阅，其 teardown 不应假设存在 MOBA dispatcher 的自动解绑行为。`MobaSnapshotRouter.Dispose()` 会清引用和 emitter/health 列表，但没有 `_disposed` 状态防护；Dispose 后继续调用不保证统一抛 `ObjectDisposedException`，宿主必须先停止采集再释放 Router。
 
 ## 14. 失败诊断矩阵
 
@@ -296,7 +299,7 @@ WorldAutoStartModule
 |------|----------|
 | 完全没有 snapshot | Router emitter count、InGame gate、world snapshot provider |
 | 某 opcode 永远缺失 | emitter 是否被 Attribute 扫描并能从 services 解析、output contract missing list |
-| 同帧第二次读取为空 | emitter frame guard 是否已在首次空构建时消费该 frame |
+| 同帧第二次读取为空 | 普通 emitter 是否已成功输出并消费 frame；首次空构建不会消费，buffer emitter 则无 frame guard |
 | Transform 缺 Actor | actor registry 是否注册、entity 是否有 Transform |
 | 客户端 warning no route | MOBA view dispatcher 是否注册对应 opcode route |
 | Pipeline stage 不执行 | Pipeline 自己的 decoder/route 是否注册，而非只注册 dispatcher |
@@ -318,7 +321,7 @@ WorldAutoStartModule
 | 大乔、小乔、嬴政、墨子技能验收中的移动 Projectile Transform 断言 | 指定业务路径创建的移动 Projectile 会进入 Actor Transform snapshot，供 view 查找 | 不覆盖 InGame=false、空 registry、缺 Transform、registry key 不一致或枚举顺序 |
 | `MobaSynchronizationCompositionTests.AuthoritativeStateHash_IsStableAndSharedBySnapshotService` | authority hash 不依赖 rollback provider 注册顺序；state hash snapshot service 与预测组合共享 calculator | Transform snapshot 自身没有稳定排序保证，不能作为确定性 hash 输入 |
 
-仍需补充 `MobaSnapshotRouter` 专项测试，直接覆盖 emitter priority、必需 emitter health、single/batch 同帧门禁、destination 保留语义和 `maxSnapshots` 截断后的续读；还需为 `MobaActorTransformSnapshotService` 覆盖 InGame、空 registry、缺 Transform 与有效实体采样。
+仍需补充 `MobaSnapshotRouter` 专项测试，直接覆盖 generated manifest/reflection fallback、emitter priority、必需 emitter health、普通 emitter 成功后门禁、空构建同帧重试、buffer emitter 同帧再次 drain、destination 保留语义和 `maxSnapshots` 截断后的续读；还需为 `MobaActorTransformSnapshotService` 覆盖 InGame、空 registry、缺 Transform 与有效实体采样。
 
 ### 15.2 Dispatcher 与 Pipeline
 
@@ -371,8 +374,10 @@ WorldAutoStartModule
 
 ## 17. 版本与验证基线
 
-- 文档核对日期：2026-08-11。
-- 当前事实基线：MOBA prediction history 以 `RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames = 600` 及对应 Unity 单元测试为准；本文不再沿用旧的 240 帧描述。
-- 历史执行记录：2026-08-02 的 MOBA .NET Release 测试记录为 232/232 通过，执行过程存在警告。该记录只说明当时对应测试集的结果，不代表本文列出的 Unity 测试或待补边界已在本轮执行。
-- 本轮验证范围：重新核对上述生产源码、测试入口及断言；`AbilityKit.Demo.Moba.Runtime.csproj` 与 `AbilityKit.Game.UnitTests.csproj` 编译为 0 errors，并完成 `MobaTriggerPlanPayloadCompatibilityTests` 21/21、`MobaRollbackProviderTests` 5/5 定向验证；文档更新阶段未重新运行全量 Unity 测试。因此“直接证明”仍只按具体被测对象解释，不由编译或定向 fixture 扩大覆盖。
-- 证据使用原则：Shooter 测试、类型存在、编译成功和单个 Smoke 不向上推导为 MOBA 快照、预测回滚或表现恢复的完整验收。
+- prediction history 仍以 `RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames = 600` 为准。Snapshot、rollback state、表现事件和 authority frame 是四条不同契约，不能因共享 frame 编号而合并所有权。
+- 2026-08-16 MOBA View Runtime 147/147 通过，是本篇最直接的 .NET E3；Host 6/6 与 Acceptance 8/8 分别补充 adapter 和离线 verdict。主 MOBA 工程 279/305，26 项因 World 启动期 SpawnArea 配置错误被 strict validation 阻断，不是快照/预测断言的集中失败。
+- 本地 Unity ownership fixture 9/9 只覆盖运行时子对象清理，不覆盖 emitter、dispatcher、rollback、表现去重和 PlayMode 渲染的完整矩阵。
+- 本批未运行 Unity PlayMode、真实双端同步、弱网或回滚 artifact，不新增 E4；`moba-smoke` 的 workflow 接线也不能由本地 E3 结果替代。
+- 通用 `SnapshotPipeline`、dispatcher 和 rollback 原语属于框架；MOBA emitter registry、opcode、View dispatcher、预测历史与 Session teardown 是项目组合，不应下沉为统一战斗表现应用层。
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

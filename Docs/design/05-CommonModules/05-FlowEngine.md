@@ -39,6 +39,15 @@ Flow 解决的是“一个可被外部 Tick 或事件唤醒推进的流程，如
 
 设计上，Flow 的核心不是“状态机”，而是“可组合流程树”。每个节点只需要实现四段生命周期，组合节点负责把多个子节点编排成控制流。
 
+| 层级 | 应负责 | 不应由该层统一规定 |
+|------|--------|--------------------|
+| Flow 包 | 节点生命周期、Runner/Session、组合节点、唤醒和 pump 限制 | 登录、选角、技能、结算等项目阶段目录 |
+| Host / World 接入 | 驱动时机、session 所有权、停止/销毁和诊断出口 | 替项目选择流程树或失败恢复策略 |
+| 项目应用层 | 组装业务节点、上下文数据、外部事件订阅和补偿逻辑 | 将项目流程名称下沉为通用节点 |
+| Samples / Starter | 给出 Sequence、Race、等待和启动示例 | 作为统一 Battle Flow 应用运行时 |
+
+Flow 的开箱即用价值来自控制结构和生命周期契约，而不是来自一套固定战斗流程。项目专用编排可以大量复用节点机制，同时继续拥有自己的阶段、上下文和失败策略。
+
 ---
 
 ## 2. 源码入口
@@ -299,6 +308,12 @@ sequenceDiagram
 
 节点生命周期抛出的异常由 runner 捕获：先通知 `ExceptionHandler` 和 `UnhandledException`，再以 `Failed` 中止根流程；异常回调自身抛出的二次异常会被吞掉，避免遮蔽原始中止流程。外部 `Stop` 则按 `Canceled` 中断当前根节点。泵循环超过默认 128 次时记录 `PumpLimitExceeded`，构造异常并按失败路径中止。
 
+Runner 对“推进时失败”和“主动停止时失败”的处理强度并不相同。`Step/Pump` 中的生命周期异常会进入统一失败与中断路径；`Stop()` 调用根节点 `Interrupt` 时，异常会在 `finally` 清除 runner 运行状态后继续向外传播。再次 `Start()` 会先 Stop 旧流程，因此旧 root 的 Interrupt 抛错会阻止新 root 启动。
+
+`Dispose()` 不是 best-effort 清理器：它先调用 `Stop()`，只有 Stop 正常返回后才清 callback、context 并写 `_disposed=true`。Interrupt 抛错时 runner 虽已停止，但 Dispose 后半段不会执行；`FlowSession.Dispose()` 经 `FlowPools.ReleaseRunner` 归还 runner 时也会继承这一风险。宿主应把 Stop/Dispose 放在自己的异常隔离边界内，并把节点 `Interrupt` 设计为幂等、无异常的资源回收路径。
+
+组合节点同样存在局部提交点。`FinallyNode` 会保存 try 分支终态再执行 finally；`UsingResourceNode` 若资源创建委托已经产生外部副作用、随后抛异常，则节点拿不到完整资源引用，无法自动补偿。Flow 能统一“已取得所有权的节点资源”退出流程，但不能替业务撤销创建委托内部的半完成副作用。
+
 Flow 不提供跨线程同步。`FlowWakeUp` 和 `AwaitCallbackNode` 的回调唤醒必须与 runner 的使用线程协调；若外部异步 API 在工作线程回调，应先投递回宿主线程，再调用 wake，不能把 wake 视为线程安全调度器。
 
 ### 9.1 HFSM 适配边界
@@ -336,8 +351,9 @@ Flow 可以被业务层使用，但它本身不规定“技能阶段”或“触
 | 纯逻辑样例 | `src/AbilityKit.Samples.Logic/Samples/Flow` | Sequence、Race、等待和技能计时等组合可被真实调用 | 不是完整契约测试套件 |
 | package sample | `Unity/Packages/com.abilitykit.flow/Samples~/FlowExamples` | Unity package 的接入形态与典型节点组合 | 不等于自动回归门禁 |
 | Starter 调用 | `Unity/Assets/Scripts/Starter/StarterFlowManager.cs` | Unity 宿主存在生产式启动入口 | 不覆盖所有异常和池化分支 |
+| 最小测试 | `src/AbilityKit.Flow.Tests/EnumTests.cs` | 2026-08-16 聚焦执行 2/2 通过；`FlowStatus` 与 `FlowExecutionResult` 默认值有 E3 值对象测试 | 不覆盖 Runner、节点、pump、池化和异常 |
 
-当前 package 未发现独立 Flow 测试工程。涉及 `ParallelAllNode` 非 fail-fast、`FinallyNode` 状态保留、同步执行步数上限、wake pump 上限和池化清理的变更，应补聚焦契约测试；业务工程中名称包含 Flow 的测试不能自动视为通用 Flow 引擎测试。
+仓库已有 `AbilityKit.Flow.Tests`，但当前仅是最小枚举/值对象覆盖。涉及 `ParallelAllNode` 非 fail-fast、`FinallyNode` 状态保留、同步执行步数上限、wake pump 上限、池化清理和异常传播的变更，仍应补聚焦契约测试；业务工程中名称包含 Flow 的测试不能自动视为通用 Flow 引擎测试。
 
 ---
 
@@ -349,3 +365,9 @@ Flow 可以被业务层使用，但它本身不规定“技能阶段”或“触
 | [技能系统架构](../08-GameplayModules/01-SkillSystemArchitecture.md) | 该文解释技能 Pipeline，本文说明 Flow 与 Pipeline 的边界 |
 | [触发器系统](../08-GameplayModules/02-TriggeringSystem.md) | Triggering 负责事件条件动作，Flow 负责流程树和等待控制 |
 | [Console Demo 解析](../09-ImplementationExamples/01-ConsoleDemoAnalysis.md) | Console `BattleFlow` 是示例阶段流，不等于通用 Flow 引擎 |
+
+---
+
+文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 源码、E1 .NET 构建、E2 Samples/Starter、最小 E3 值对象测试；核心执行契约未达到 E3，未达到 E4/E5
+
+*文档版本：v3.2 | 最后更新：2026-08-16*

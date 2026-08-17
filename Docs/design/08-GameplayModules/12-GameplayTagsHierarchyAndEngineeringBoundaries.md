@@ -1,5 +1,11 @@
 # GameplayTags 层级语义与工程边界
 
+> **文档类型**：Canonical 设计（GameplayTags 跨模块工程边界）
+> **事实基线**：2026-08-16
+> **文档版本**：v3.2
+> **证据范围**：Core/Ability/MOBA 源码、包内文档与当次 .NET `2/2` 最小值对象测试
+> **不覆盖**：稳定跨进程目录协议、完整查询/租约测试、并发安全与 E4/E5 发布门禁
+
 ## 一、文档定位
 
 GameplayTags 包提供名称注册、层级匹配、标签容器、条件查询、计数栈、模板和持久化等基础能力。Ability 包在其上实现按 Owner 保存标签状态、按来源计数和事件路由；MOBA Demo 再用领域目录、配置模板和战斗规则完成接入。
@@ -9,6 +15,8 @@ GameplayTags 包提供名称注册、层级匹配、标签容器、条件查询�
 - GameplayTags 核心包定义标签值和查询语义；
 - Ability 包拥有实体运行时标签状态；
 - MOBA Demo 决定哪些名称代表不可选中、沉默、控制免疫等领域规则。
+
+正式所有权进一步约束如下：框架拥有标签值、层级匹配、Container/Query/Requirements 和来源计数等稳定语义；项目拥有稳定名称目录、协议身份、领域含义、目录版本与生成发布流程；MOBA 目录及其兼容别名只属于示例。即使多个项目使用相似标签名称，也不能据此把业务目录固化到公共包。
 
 本文记录当前源码已经实现的语义及其工程边界。它不是对 Unreal GAS GameplayTags 的等价性声明，也不把尚无测试证据的接口视为生产级协议。
 
@@ -72,13 +80,17 @@ State.Control.Stunned
 
 因此 `GameplayTag.Value` 和 NetIndex 目前只能作为当前注册表生命周期内的高效句柄。除非协议先固定目录版本和映射表，否则不能把它们直接写入长期存档、跨版本配置、回放或独立进程消息。
 
-`GameplayTag.FromId` 只构造带 Id 的值对象，不验证该 Id 是否已注册。`GameplayTag.FromNetIndex` 则构造 Id 为零、只带 NetIndex 的值；由于 `IsValid` 和相等比较只看 Id，该值不会自动解析成已注册标签。网络读取应通过 Manager 的映射入口完成，不能把 `FromNetIndex` 当作完整反序列化。
+`GameplayTag.FromId` 只构造带 Id 的值对象，不验证该 Id 是否已注册。任意正数都会使 `IsValid` 为 true；`GetName` 对越界 Id 返回空字符串，但 `GetParent`、`GetRootTag`、子节点枚举等部分 Manager API 会直接按 Id 索引节点数组并可能抛 `ArgumentOutOfRangeException`。因此 `IsValid` 只表示“Id 非零”，不表示“已在当前目录解析”。外部数值输入必须先通过 Manager 的受检映射入口。
+
+`GameplayTag.FromNetIndex` 构造 Id 为零、只带 NetIndex 的值；由于 `IsValid`、相等和 hash 都只看 Id，它会表现得与 `None` 相同，不会自动解析成已注册标签。网络读取应使用 `GameplayTagManager.GetTagFromNetIndex`，并在目录版本一致的前提下处理未命中；不能把 `FromNetIndex` 当作完整反序列化。
 
 ### 3.3 Manager 是进程级可变单例
 
 `GameplayTagManager.Instance` 跨 World 共享，内部集合没有锁。它适合在单线程启动阶段构建目录，不适合多个 World 在运行中并发注册、重置或导入目录。
 
 `Reset` 会清空所有自定义节点，但已经存在的 `GameplayTag`、Container、模板和静态领域目录不会收到失效通知。尤其是含静态 `GameplayTag` 字段的生成代码或领域类，在 Reset 后可能继续持有指向新目录中其他节点的旧 Id。生产运行时不应调用 Reset；测试若必须调用，需要隔离测试进程或完整重建所有静态缓存。
+
+这里不存在 generation 或 catalog identity。Reset 后若以不同顺序重新注册，旧句柄不仅可能失效，还可能静默别名到另一个新标签；此时 `IsValid`、相等和 Container 查询都无法识别跨目录租约。持久对象、静态字段和缓存必须与完整 Manager 生命周期同生共死。
 
 ## 四、层级匹配方向
 
@@ -126,7 +138,7 @@ HasTag(State.Control.Stunned) == false
 
 Container 的网络写入还有三个边界：
 
-1. 数量被转换为 byte，超过 255 个标签时会截断计数；
+1. 数量被转换为 byte，但 writer 仍遍历并写入全部 int Id；超过 255 个标签时 reader 只按截断后的数量读取，尾部字节会遗留在流中并污染后续字段；
 2. 写入的是进程内 int Id，而不是名称或目录版本；
 3. HashSet 枚举顺序未稳定排序。
 
@@ -225,6 +237,8 @@ Editor `GameplayTagDatabase` 保存名称、说明和分类，支持排序、去
 
 生成代码中的静态标签字段会在类型初始化时调用 `RequestTag`。虽然排序可以稳定该文件内部的注册顺序，但其他模块更早注册标签仍会改变 Id 和 NetIndex。因此代码生成提升的是名称安全，不自动产生跨进程稳定数值协议。
 
+Core Manager 自带的 JSON 接口当前也不能作为目录往返协议：`SerializeToJson()` 输出 `parentId`，而 `DeserializeFromJson()` 的简化 parser 查找 `parentName`。把导出结果直接导回时，父子层级不会按原结构恢复。反序列化还采用 merge 语义并吞掉解析异常，因此调用方无法从返回值判断目录是否完整载入。生产链应使用结构化 JSON parser、统一 schema 与显式 replace/merge 结果，而不是依赖这组接口做权威目录迁移。
+
 ### 8.2 Runtime 字符串持久化
 
 `DefaultTagSerializer` 按名称保存标签，反序列化未知名称时会调用 `RequestTag` 并扩展全局目录。名称比数值 Id 更适合长期数据，但当前容器格式通过字符串拼接和逗号 Split 解析，不是完整 JSON parser；标签名称若包含逗号、引号或反斜杠，往返语义不可靠。
@@ -257,6 +271,19 @@ TagName 或由该版本显式定义的 StableIndex
 
 如果使用紧凑 StableIndex，映射必须由构建产物生成并进入协议版本，客户端、服务端、回放和工具共同校验。当前 Manager 的 Id/NetIndex 不能直接替代 StableIndex。
 
+Manager 的二进制 `NetworkDeserialize` 同样是 merge，不会先 Reset 当前目录；它接受流中的 `parentId` 和 `netIndex`，但没有验证父节点拓扑、重复 NetIndex、目录版本或全量完整性。它适合受控同版本启动数据的实验性装载，不构成不可信输入边界或重连时的原子目录替换。
+
+目录导入的失败语义需要按格式区分：
+
+| 入口 | 当前提交方式 | 失败与尾数据边界 |
+|------|--------------|------------------|
+| Manager JSON | 解析后逐条 merge，外层吞异常 | writer 输出 `parentId`、reader 查 `parentName`；解析或注册中途失败时调用方无返回值，可能只导入前缀 |
+| Manager binary | 从 reader 逐条直接写 Manager | 截断流会抛异常但保留已写前缀；不校验重复 NetIndex、非法/前向 parentId、名称规范或剩余尾数据 |
+| Container binary | 先清空当前 Id，再按 byte count 读取 int | 截断流会留下部分新集合；超过 255 项时 count 截断而 writer 仍写全部项，后续字段错位 |
+| DefaultTagSerializer | 按名称动态 RequestTag | 简化逗号拆分不是完整 JSON；未知名称会修改全局目录，失败没有严格/迁移模式 |
+
+这些入口都不是先验证完整输入、再一次性替换的事务导入。权威同步或存档恢复应先反序列化到独立 DTO，校验目录版本、数量、唯一性、父拓扑、名称和完整消费长度，再构造新目录或在明确发布点切换。
+
 ### 9.2 稳定顺序
 
 Manager 的 Dictionary 枚举、Container 的 HashSet 枚举和 Stack 的 Dictionary 枚举都未定义协议顺序。用于 hash、快照、回放、网络或 diff artifact 时必须先按稳定身份排序。若目录版本固定，可以按 StableIndex；长期可读产物优先按标签名称 Ordinal 排序。
@@ -275,7 +302,7 @@ Manager 的 Dictionary 枚举、Container 的 HashSet 枚举和 Stack 的 Dictio
 
 ## 十、验证现状
 
-当前 `AbilityKit.GameplayTags.Tests` 只验证 `GameplayTag.None` 等于默认值且 Value 为零。样例项目演示了层级、Container、Requirements 和 Stack 的常见调用，MOBA 验收也会间接使用领域标签，但这些不能替代核心契约的自动化测试。
+当次执行 `AbilityKit.GameplayTags.Tests` 为 `2/2`，只验证 `GameplayTag.None` 等于默认值且 Value 为零。样例项目演示了层级、Container、Requirements 和 Stack 的常见调用，MOBA 验收也会间接使用领域标签，但这些不能替代核心契约的自动化测试。
 
 现有证据不足以声明以下能力已生产验证：
 
@@ -338,8 +365,10 @@ Manager 的 Dictionary 枚举、Container 的 HashSet 枚举和 Stack 的 Dictio
 - `GameplayTagManager` 是进程级可变单例，不按 World 隔离，也没有并发保护。
 - Id、NetIndex 和模板自增 Id 都依赖运行时注册顺序，不是天然稳定协议身份。
 - `FromNetIndex` 不会解析为有效 Id，当前 NetIndex API 尚未形成闭环。
+- `FromId` 的正数只满足非零检查，越界句柄在部分 Manager API 中会抛错；句柄没有 catalog generation，Reset 后可能静默别名。
 - Container 只保存显式标签；非精确查询是持有子标签向查询父标签匹配。
 - Container/Stack 枚举顺序不稳定，简化网络格式未版本化且 Container 计数受 byte 限制。
+- Manager JSON 的 writer/reader 分别使用 `parentId`/`parentName`，当前不能保持层级往返；二进制目录导入是缺少完整校验的 merge。
 - `GameplayTagContainer.Empty` 是可变共享实例。
 - Query builder 的批量 Require/And 当前执行 Any 语义，纯 Exclude 对空 Container 返回 false。
 - Requirements 的单标签重载没有完整遵循 Exact，并与 Container 重载存在匹配方向差异。
@@ -364,4 +393,8 @@ Manager 的 Dictionary 枚举、Container 的 HashSet 枚举和 Stack 的 Dictio
 6. `Unity/Packages/com.abilitykit.gameplaytags/Editor/GameplayTags/GameplayTagDatabase.cs` 与 `GameplayTagJsonExporter.cs`
 7. `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Tags/MobaGameplayTagCatalog.cs`
 
-当前 .NET 测试入口为 `src/AbilityKit.GameplayTags.Tests`；本轮源码审计确认独立测试目前只覆盖 `GameplayTag.None` 默认值和零值，不能替代 Query、引用计数、目录一致性和序列化契约测试。证据等级为 E0 Core/Service/Editor 实现、E1 MOBA 注册装配、E2 业务消费者、E3 局部测试，尚无 E4/E5 专项验收或发布门禁。
+当前 .NET 测试入口为 `src/AbilityKit.GameplayTags.Tests`；本轮执行 `2/2`，只覆盖 `GameplayTag.None` 默认值和零值，不能替代 Query、引用计数、目录一致性和序列化契约测试。证据等级为 E0 Core/Service/Editor 实现、E1 MOBA 注册装配、E2 业务消费者、E3 最小值对象测试，尚无 E4/E5 专项验收或发布门禁。
+
+---
+
+*文档类型：Canonical 设计（GameplayTags 跨模块工程边界） | 事实基线：2026-08-16 | 证据等级：E0-E3（E3 仅为最小值对象测试） | 文档版本：v3.2*

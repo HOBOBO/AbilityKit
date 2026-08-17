@@ -2,6 +2,10 @@
 
 > 本文说明 AbilityKit 如何通过 `SveltoWorldModule` 与 `SveltoWorldContext` 将 Svelto ECS 接入 World.DI，并为 Shooter 等高性能示例提供实体数据库、工厂、函数和提交调度器。
 
+> **文档类型：Canonical 设计**
+> **事实基线：2026-08-16**
+> **适用范围：`com.abilitykit.world.svelto` 可选适配；Shooter 的 group、descriptor、快照和 RVO 仍属于项目应用层。**
+
 ---
 
 ## 目录
@@ -39,6 +43,8 @@ AbilityKit 的 Svelto 接入层不是重新封装完整 ECS，而是把 Svelto �
 | `IEntityFunctions` | 删除、移动、修改实体 |
 
 这种设计适合 Shooter 等需要高性能结构化模拟的示例：AbilityKit 保持 Host、网络、快照、玩法服务统一，而局部模拟可以使用 Svelto 的 group、engine、component 体系。
+
+它不把 Svelto 重新抽象成与轻量 ECS 或 Entitas 同构的统一查询 API。项目选择 Svelto 后，需要直接承担其 group、submission、engine 和版本升级语义；AbilityKit 只提供 World.DI 组合与生命周期入口。
 
 ---
 
@@ -154,6 +160,8 @@ flowchart LR
 
 `ThrowIfDisposed` 保证释放后不能再提交实体。
 
+当前释放顺序是 `EnginesRoot.Dispose()` 后 `Scheduler.Dispose()`，中间没有逐步异常隔离；若 root 释放抛错，scheduler 的释放可能被跳过。该顺序是源码事实，不应外推为异常路径已完整闭合。
+
 ---
 
 ## 6. Shooter 生产接入
@@ -240,6 +248,19 @@ flowchart LR
 
 当前基础 `com.abilitykit.world.svelto` 适配层未发现独立单元测试工程；现有强证据主要来自 Shooter 集成测试，不能等同于所有模块注册替换、释放后访问和 Svelto 升级兼容性都已被隔离验证。后续应为 `TryRegister` 组合、`EntitiesDB` 上游接口来源、重复 Dispose/提交和结构批处理配对增加聚焦契约测试。
 
+本次 `AbilityKit.World.Svelto` Release 构建为 0 警告、0 错误。证据分层如下：
+
+| 等级 | 当前证据 | 结论与限制 |
+|------|----------|------------|
+| E0 | context/module 与第三方接口源码 | 可确认 `entitiesForTesting` 来源、注册键和释放顺序 |
+| E1 | Shooter group、entity manager、snapshot/hash 消费 | 证明项目采用，不代表公共适配层契约 |
+| E2 | Svelto .NET Release 构建通过，0 警告、0 错误 | 证明当前依赖组合可编译 |
+| E3 | Shooter 有相邻集成测试；适配层无独立专项测试 | 不能外推替换注册、异常释放或升级兼容性 |
+| E4 | 无适配层独立 artifact | 不声明大规模运行和长期资源稳定性 |
+| E5 | 未发现 Svelto 适配专项 gate | 消费者 gate 不自动保护第三方内部接口 |
+
+规范目标是为整组 Svelto 服务提供单一可替换注册入口，并把 `EntitiesDB` 的上游依赖封装在有版本契约的 adapter 后；在实现前，只覆盖 `ISveltoWorldContext` 不能被描述为替换了完整 Svelto world。
+
 ---
 
 ## 9. 关联文档
@@ -252,4 +273,4 @@ flowchart LR
 
 ---
 
-*文档版本：v1.1 | 最后更新：2026-07-15*
+*文档版本：v3.0 | 最后更新：2026-08-16*

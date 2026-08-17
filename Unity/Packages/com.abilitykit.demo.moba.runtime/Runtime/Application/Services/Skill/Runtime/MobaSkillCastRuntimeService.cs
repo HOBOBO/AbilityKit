@@ -290,74 +290,131 @@ namespace AbilityKit.Demo.Moba.Services
         public bool MarkPipelineEnded(long runtimeId, MobaSkillRuntimeEndReason reason)
         {
             if (!TryGet(runtimeId, out var runtime)) return false;
-            runtime.PipelineEnded = true;
-            runtime.Stage = ToStage(reason);
-            runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.PipelineCompleted : reason;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.PipelineEnded, runtime, default, default, runtime.EndReason, forced: false);
-            TryFinalize(runtime);
-            return true;
+            return EndPipeline(runtime, reason, ToStage(reason));
         }
 
         public bool MarkPipelineEnded(in MobaSkillCastRuntimeHandle handle, MobaSkillRuntimeEndReason reason)
         {
             if (!TryGet(in handle, out var runtime)) return false;
-            runtime.PipelineEnded = true;
-            runtime.Stage = ToStage(reason);
-            runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.PipelineCompleted : reason;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.PipelineEnded, runtime, default, default, runtime.EndReason, forced: false);
-            TryFinalize(runtime);
-            return true;
+            return EndPipeline(runtime, reason, ToStage(reason));
         }
 
         public bool Cancel(long runtimeId, MobaSkillRuntimeEndReason reason = MobaSkillRuntimeEndReason.Cancelled)
         {
             if (!TryGet(runtimeId, out var runtime)) return false;
-            runtime.PipelineEnded = true;
-            runtime.Stage = SkillCastStage.Cancelled;
-            runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.Cancelled : reason;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.PipelineEnded, runtime, default, default, runtime.EndReason, forced: false);
-            TryFinalize(runtime);
-            return true;
+            return EndPipeline(runtime, NormalizeCancelReason(reason), SkillCastStage.Cancelled);
         }
 
         public bool Cancel(in MobaSkillCastRuntimeHandle handle, MobaSkillRuntimeEndReason reason = MobaSkillRuntimeEndReason.Cancelled)
         {
             if (!TryGet(in handle, out var runtime)) return false;
-            runtime.PipelineEnded = true;
-            runtime.Stage = SkillCastStage.Cancelled;
-            runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.Cancelled : reason;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.PipelineEnded, runtime, default, default, runtime.EndReason, forced: false);
-            TryFinalize(runtime);
-            return true;
+            return EndPipeline(runtime, NormalizeCancelReason(reason), SkillCastStage.Cancelled);
         }
 
         public bool ForceTerminate(in MobaSkillCastRuntimeHandle handle, MobaSkillRuntimeEndReason reason = MobaSkillRuntimeEndReason.RollbackCleanup)
         {
             if (!TryGet(in handle, out var runtime)) return false;
-            runtime.PipelineEnded = true;
-            runtime.Stage = SkillCastStage.Cancelled;
-            runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.RollbackCleanup : reason;
-            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.ForceTerminated, runtime, default, default, runtime.EndReason, forced: true);
-            TryFinalize(runtime, force: true);
-            return true;
+            return ForceTerminateRuntime(runtime, reason, MobaSkillRuntimeLifecycleEventKind.ForceTerminated);
         }
 
         public void Clear()
         {
-            _runtimes.Clear();
+            while (_runtimes.Count > 0)
+            {
+                MobaSkillCastRuntime runtime = null;
+                foreach (var pair in _runtimes)
+                {
+                    runtime = pair.Value;
+                    break;
+                }
+
+                if (runtime == null)
+                {
+                    _runtimes.Clear();
+                    break;
+                }
+
+                ForceTerminateRuntime(runtime, MobaSkillRuntimeEndReason.RollbackCleanup, MobaSkillRuntimeLifecycleEventKind.Cleared);
+            }
+
             _runtimeByTraceContextId.Clear();
             _retains.Clear();
             _endingBuffer.Clear();
             _diagnosticChildrenBuffer.Clear();
-            _nextRuntimeId = 1L;
-            _nextRetainId = 1L;
-            _nextGeneration = 1;
         }
 
         public void Dispose()
         {
             Clear();
             LifecycleHooks.Clear();
+        }
+
+        private bool EndPipeline(MobaSkillCastRuntime runtime, MobaSkillRuntimeEndReason reason, SkillCastStage stage)
+        {
+            if (runtime == null || runtime.IsEnded || runtime.IsEnding || runtime.PipelineEnded) return false;
+            runtime.PipelineEnded = true;
+            runtime.Stage = stage;
+            runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.PipelineCompleted : reason;
+            NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.PipelineEnded, runtime, default, default, runtime.EndReason, forced: false);
+            TryFinalize(runtime);
+            return true;
+        }
+
+        private bool ForceTerminateRuntime(
+            MobaSkillCastRuntime runtime,
+            MobaSkillRuntimeEndReason reason,
+            MobaSkillRuntimeLifecycleEventKind lifecycleKind)
+        {
+            if (runtime == null || runtime.IsEnded || runtime.IsEnding) return false;
+            runtime.PipelineEnded = true;
+            runtime.Stage = SkillCastStage.Cancelled;
+            runtime.EndReason = reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.RollbackCleanup : reason;
+            NotifyLifecycle(lifecycleKind, runtime, default, default, runtime.EndReason, forced: true);
+            RevokeChildCapabilities(runtime, runtime.EndReason);
+            TryFinalize(runtime, force: true);
+            return true;
+        }
+
+        private void RevokeChildCapabilities(MobaSkillCastRuntime runtime, MobaSkillRuntimeEndReason reason)
+        {
+            if (runtime == null || runtime.PendingChildren == 0)
+            {
+                RemoveRetains(runtime != null ? runtime.Handle : default);
+                return;
+            }
+
+            var children = new List<MobaSkillRuntimeChildRef>(runtime.PendingChildren);
+            runtime.CopyChildrenTo(children);
+            for (var i = 0; i < children.Count; i++)
+            {
+                var child = children[i];
+                var retainHandle = TakeRetain(runtime.Handle, in child);
+                if (!runtime.ReleaseChild(in child)) continue;
+                NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind.ChildReleased, runtime, in child, in retainHandle, reason, forced: true);
+            }
+
+            RemoveRetains(runtime.Handle);
+        }
+
+        private MobaSkillRuntimeRetainHandle TakeRetain(in MobaSkillCastRuntimeHandle runtimeHandle, in MobaSkillRuntimeChildRef child)
+        {
+            var retainId = 0L;
+            var retainHandle = default(MobaSkillRuntimeRetainHandle);
+            foreach (var pair in _retains)
+            {
+                if (!pair.Value.Runtime.Equals(runtimeHandle) || !pair.Value.Child.Equals(child)) continue;
+                retainId = pair.Key;
+                retainHandle = pair.Value;
+                break;
+            }
+
+            if (retainId != 0L) _retains.Remove(retainId);
+            return retainHandle;
+        }
+
+        private static MobaSkillRuntimeEndReason NormalizeCancelReason(MobaSkillRuntimeEndReason reason)
+        {
+            return reason == MobaSkillRuntimeEndReason.None ? MobaSkillRuntimeEndReason.Cancelled : reason;
         }
 
         private void TryFinalize(MobaSkillCastRuntime runtime, bool force = false)

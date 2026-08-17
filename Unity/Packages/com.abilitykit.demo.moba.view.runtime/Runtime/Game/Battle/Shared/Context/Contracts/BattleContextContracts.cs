@@ -1,9 +1,13 @@
+using System.Collections.Generic;
+using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Recording.FrameRecord;
 using AbilityKit.Core.Snapshots.Routing;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Entity;
+using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Game.Flow.Battle.Modules;
+using AbilityKit.Protocol.Moba;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
@@ -33,6 +37,7 @@ namespace AbilityKit.Game.Flow
         BattleEntityLookup EntityLookup { get; }
         BattleEntityFactory EntityFactory { get; }
         IBattleEntityQuery EntityQuery { get; }
+        List<EC.IEntityId> DirtyEntities { get; set; }
     }
 
     /// <summary>
@@ -42,6 +47,42 @@ namespace AbilityKit.Game.Flow
     {
         IFrameRecordWriter InputRecordWriter { get; }
         BattleLocalInputQueue LocalInputQueue { get; }
+    }
+
+    internal interface IBattleInputSessionIdentityPort
+    {
+        BattleHostMode HostMode { get; }
+        string ResolveLocalControlPlayerId();
+        MobaPlayerLoadout[] BuildEffectivePlayerLoadouts();
+    }
+
+    internal interface IBattleHudInputReadPort
+    {
+        bool TryReadMove(out float dx, out float dz);
+        bool TryConsumeSkillClick(out int slot);
+        bool TryConsumeSkillAimSubmit(out BattleSkillAimSubmitInput input);
+    }
+
+    internal interface IBattleInputSubmissionPort
+    {
+        bool Submit(
+            in PlayerInputCommand command,
+            PlayerId playerId,
+            WorldId worldId);
+    }
+
+    internal interface IBattleHudAimPreviewReadPort
+    {
+        bool TryReadAimPreview(
+            out int slot,
+            out float dx,
+            out float dz,
+            out int submissionVersion);
+
+        bool TryResolveLocalActorWorldPosition(
+            out float x,
+            out float y,
+            out float z);
     }
 
     /// <summary>

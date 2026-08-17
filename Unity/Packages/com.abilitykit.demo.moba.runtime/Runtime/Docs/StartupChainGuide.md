@@ -1,4 +1,4 @@
-# MOBA Runtime Startup Chain Guide
+# MOBA 运行时启动链指南
 
 本文档说明 `com.abilitykit.demo.moba.runtime` 的逻辑世界启动链路。它关注从外部宿主请求创建世界，到 Blueprint 配置、World Module 装配、World DI 注册、Bootstrap Flow 执行、Entitas System 安装与帧内顺序生效的完整路径。
 

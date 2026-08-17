@@ -137,32 +137,94 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
-            if (!HasFormalIdentityConflict(in selected, in candidate)) return;
-
+            var currentIdentity = MobaCanonicalProvenance.FromContextSource(in selected);
+            var incomingIdentity = MobaCanonicalProvenance.FromContextSource(in candidate);
             var payloadType = payload.GetType().FullName;
+            var mergedIdentity = currentIdentity.Merge(
+                in incomingIdentity,
+                selectedKind.ToString(),
+                candidate.ResolveKind.ToString());
+            var identityProjection = mergedIdentity.ApplyTo(in selected);
+            selected = MergeProjection(
+                in identityProjection,
+                in candidate,
+                payloadType,
+                selectedKind);
+        }
+
+        private static MobaContextSourceView MergeProjection(
+            in MobaContextSourceView selected,
+            in MobaContextSourceView candidate,
+            string payloadType,
+            MobaContextSourceResolveKind selectedKind)
+        {
+            var contextKind = MergeValue(
+                selected.ContextKind,
+                candidate.ContextKind,
+                EffectContextKind.Unknown,
+                "contextKind",
+                payloadType,
+                selectedKind,
+                candidate.ResolveKind);
+            var triggerId = MergeValue(
+                selected.TriggerId,
+                candidate.TriggerId,
+                0,
+                "triggerId",
+                payloadType,
+                selectedKind,
+                candidate.ResolveKind);
+            var frame = MergeValue(
+                selected.Frame,
+                candidate.Frame,
+                0,
+                "frame",
+                payloadType,
+                selectedKind,
+                candidate.ResolveKind);
+
+            return new MobaContextSourceView(
+                selected.ResolveKind,
+                selected.Boundary,
+                contextKind,
+                selected.TraceKind != MobaTraceKind.None
+                    ? selected.TraceKind
+                    : candidate.TraceKind,
+                selected.SourceActorId,
+                selected.TargetActorId,
+                selected.SourceContextId,
+                selected.ParentContextId,
+                selected.RootContextId,
+                selected.OwnerContextId,
+                selected.ConfigId != 0 ? selected.ConfigId : candidate.ConfigId,
+                triggerId,
+                frame,
+                selected.RuntimeKind ?? candidate.RuntimeKind,
+                selected.RuntimeConfigId != 0
+                    ? selected.RuntimeConfigId
+                    : candidate.RuntimeConfigId,
+                selected.HasLiveRuntime || candidate.HasLiveRuntime,
+                selected.SkillRuntimeHandle);
+        }
+
+        private static T MergeValue<T>(
+            T current,
+            T incoming,
+            T missing,
+            string fieldName,
+            string payloadType,
+            MobaContextSourceResolveKind selectedKind,
+            MobaContextSourceResolveKind candidateKind)
+            where T : struct
+        {
+            var currentMissing = current.Equals(missing);
+            var incomingMissing = incoming.Equals(missing);
+            if (currentMissing) return incoming;
+            if (incomingMissing || current.Equals(incoming)) return current;
+
             throw new InvalidOperationException(
                 $"[MobaTriggerContextResolveExtensions] Conflicting formal context providers. " +
-                $"payloadType={payloadType} selected={selectedKind} candidate={candidate.ResolveKind} " +
-                $"selectedSourceActor={selected.SourceActorId} candidateSourceActor={candidate.SourceActorId} " +
-                $"selectedSourceContext={selected.SourceContextId} candidateSourceContext={candidate.SourceContextId} " +
-                $"selectedRootContext={selected.RootContextId} candidateRootContext={candidate.RootContextId} " +
-                $"selectedOwnerContext={selected.OwnerContextId} candidateOwnerContext={candidate.OwnerContextId}.");
-        }
-
-        private static bool HasFormalIdentityConflict(
-            in MobaContextSourceView left,
-            in MobaContextSourceView right)
-        {
-            return Conflicts(left.SourceActorId, right.SourceActorId)
-                   || Conflicts(left.SourceContextId, right.SourceContextId)
-                   || Conflicts(left.ParentContextId, right.ParentContextId)
-                   || Conflicts(left.RootContextId, right.RootContextId)
-                   || Conflicts(left.OwnerContextId, right.OwnerContextId);
-        }
-
-        private static bool Conflicts(long left, long right)
-        {
-            return left != 0L && right != 0L && left != right;
+                $"payloadType={payloadType}, field={fieldName}, current={current}, incoming={incoming}, selected={selectedKind}, candidate={candidateKind}.");
         }
 
         public static bool TryResolveExecutionSnapshot(this object payload, out MobaTriggerExecutionSnapshot snapshot)
@@ -212,6 +274,218 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             return false;
+        }
+    }
+
+    public enum MobaProvenanceFieldState
+    {
+        Missing = 0,
+        Synthesized = 1,
+        Inherited = 2,
+        Explicit = 3
+    }
+
+    /// <summary>
+    /// 上下文投影共享的规范身份。配置 ID 未纳入该模型，因为来源配置和执行配置
+    /// 属于不同语义字段。
+    /// </summary>
+    public readonly struct MobaCanonicalProvenance
+    {
+        private MobaCanonicalProvenance(
+            int sourceActorId,
+            int targetActorId,
+            long sourceContextId,
+            long parentContextId,
+            long rootContextId,
+            long ownerContextId,
+            in MobaSkillCastRuntimeHandle skillRuntimeHandle,
+            MobaProvenanceFieldState sourceActorState,
+            MobaProvenanceFieldState targetActorState,
+            MobaProvenanceFieldState sourceContextState,
+            MobaProvenanceFieldState parentContextState,
+            MobaProvenanceFieldState rootContextState,
+            MobaProvenanceFieldState ownerContextState,
+            MobaProvenanceFieldState skillRuntimeState)
+        {
+            SourceActorId = sourceActorId;
+            TargetActorId = targetActorId;
+            SourceContextId = sourceContextId;
+            ParentContextId = parentContextId;
+            RootContextId = rootContextId;
+            OwnerContextId = ownerContextId;
+            SkillRuntimeHandle = skillRuntimeHandle;
+            SourceActorState = sourceActorState;
+            TargetActorState = targetActorState;
+            SourceContextState = sourceContextState;
+            ParentContextState = parentContextState;
+            RootContextState = rootContextState;
+            OwnerContextState = ownerContextState;
+            SkillRuntimeState = skillRuntimeState;
+        }
+
+        public int SourceActorId { get; }
+        public int TargetActorId { get; }
+        public long SourceContextId { get; }
+        public long ParentContextId { get; }
+        public long RootContextId { get; }
+        public long OwnerContextId { get; }
+        public MobaSkillCastRuntimeHandle SkillRuntimeHandle { get; }
+        public MobaProvenanceFieldState SourceActorState { get; }
+        public MobaProvenanceFieldState TargetActorState { get; }
+        public MobaProvenanceFieldState SourceContextState { get; }
+        public MobaProvenanceFieldState ParentContextState { get; }
+        public MobaProvenanceFieldState RootContextState { get; }
+        public MobaProvenanceFieldState OwnerContextState { get; }
+        public MobaProvenanceFieldState SkillRuntimeState { get; }
+
+        public static MobaCanonicalProvenance FromContextSource(in MobaContextSourceView source)
+        {
+            var valueState = source.ResolveKind == MobaContextSourceResolveKind.DirectProvider
+                ? MobaProvenanceFieldState.Explicit
+                : source.Boundary == MobaContextSourceBoundary.LiveRuntime
+                  || source.ResolveKind == MobaContextSourceResolveKind.RuntimeDebug
+                    ? MobaProvenanceFieldState.Synthesized
+                    : MobaProvenanceFieldState.Inherited;
+            var handle = source.SkillRuntimeHandle;
+            return new MobaCanonicalProvenance(
+                source.SourceActorId,
+                source.TargetActorId,
+                source.SourceContextId,
+                source.ParentContextId,
+                source.RootContextId,
+                source.OwnerContextId,
+                in handle,
+                StateFor(source.SourceActorId != 0, valueState),
+                StateFor(source.TargetActorId != 0, valueState),
+                StateFor(source.SourceContextId != 0L, valueState),
+                StateFor(source.ParentContextId != 0L, valueState),
+                StateFor(source.RootContextId != 0L, valueState),
+                StateFor(source.OwnerContextId != 0L, valueState),
+                StateFor(handle.IsValid, valueState));
+        }
+
+        public MobaCanonicalProvenance Merge(
+            in MobaCanonicalProvenance incoming,
+            string currentSource,
+            string incomingSource)
+        {
+            var sourceActorId = Merge(SourceActorId, incoming.SourceActorId, "sourceActorId", currentSource, incomingSource);
+            var targetActorId = Merge(TargetActorId, incoming.TargetActorId, "targetActorId", currentSource, incomingSource);
+            var sourceContextId = Merge(SourceContextId, incoming.SourceContextId, "sourceContextId", currentSource, incomingSource);
+            var parentContextId = Merge(ParentContextId, incoming.ParentContextId, "parentContextId", currentSource, incomingSource);
+            var rootContextId = Merge(RootContextId, incoming.RootContextId, "rootContextId", currentSource, incomingSource);
+            var ownerContextId = Merge(OwnerContextId, incoming.OwnerContextId, "ownerContextId", currentSource, incomingSource);
+            var handle = MergeSkillRuntime(in incoming, currentSource, incomingSource);
+            return new MobaCanonicalProvenance(
+                sourceActorId,
+                targetActorId,
+                sourceContextId,
+                parentContextId,
+                rootContextId,
+                ownerContextId,
+                in handle,
+                MergeState(SourceActorId != 0, SourceActorState, incoming.SourceActorState),
+                MergeState(TargetActorId != 0, TargetActorState, incoming.TargetActorState),
+                MergeState(SourceContextId != 0L, SourceContextState, incoming.SourceContextState),
+                MergeState(ParentContextId != 0L, ParentContextState, incoming.ParentContextState),
+                MergeState(RootContextId != 0L, RootContextState, incoming.RootContextState),
+                MergeState(OwnerContextId != 0L, OwnerContextState, incoming.OwnerContextState),
+                MergeState(SkillRuntimeHandle.IsValid, SkillRuntimeState, incoming.SkillRuntimeState));
+        }
+
+        private static MobaProvenanceFieldState StateFor(
+            bool hasValue,
+            MobaProvenanceFieldState valueState)
+        {
+            return hasValue ? valueState : MobaProvenanceFieldState.Missing;
+        }
+
+        private static MobaProvenanceFieldState MergeState(
+            bool currentHasValue,
+            MobaProvenanceFieldState current,
+            MobaProvenanceFieldState incoming)
+        {
+            if (!currentHasValue) return incoming;
+            return current >= incoming ? current : incoming;
+        }
+
+        public MobaContextSourceView ApplyTo(in MobaContextSourceView source)
+        {
+            return new MobaContextSourceView(
+                source.ResolveKind,
+                source.Boundary,
+                source.ContextKind,
+                source.TraceKind,
+                SourceActorId,
+                TargetActorId,
+                SourceContextId,
+                ParentContextId,
+                RootContextId,
+                OwnerContextId,
+                source.ConfigId,
+                source.TriggerId,
+                source.Frame,
+                source.RuntimeKind,
+                source.RuntimeConfigId,
+                source.HasLiveRuntime,
+                SkillRuntimeHandle);
+        }
+
+        private MobaSkillCastRuntimeHandle MergeSkillRuntime(
+            in MobaCanonicalProvenance incoming,
+            string currentSource,
+            string incomingSource)
+        {
+            if (SkillRuntimeHandle.IsValid
+                && incoming.SkillRuntimeHandle.IsValid
+                && !SkillRuntimeHandle.Equals(incoming.SkillRuntimeHandle))
+            {
+                throw Conflict(
+                    "skillRuntimeHandle",
+                    SkillRuntimeHandle,
+                    incoming.SkillRuntimeHandle,
+                    currentSource,
+                    incomingSource);
+            }
+
+            return SkillRuntimeHandle.IsValid
+                ? SkillRuntimeHandle
+                : incoming.SkillRuntimeHandle;
+        }
+
+        private static int Merge(
+            int current,
+            int incoming,
+            string field,
+            string currentSource,
+            string incomingSource)
+        {
+            if (current != 0 && incoming != 0 && current != incoming)
+                throw Conflict(field, current, incoming, currentSource, incomingSource);
+            return current != 0 ? current : incoming;
+        }
+
+        private static long Merge(
+            long current,
+            long incoming,
+            string field,
+            string currentSource,
+            string incomingSource)
+        {
+            if (current != 0L && incoming != 0L && current != incoming)
+                throw Conflict(field, current, incoming, currentSource, incomingSource);
+            return current != 0L ? current : incoming;
+        }
+
+        private static InvalidOperationException Conflict(
+            string field,
+            object current,
+            object incoming,
+            string currentSource,
+            string incomingSource)
+        {
+            return new InvalidOperationException(
+                $"[MobaCanonicalProvenance] Conflicting execution provenance. field={field}, current={current}, incoming={incoming}, currentSource={currentSource}, incomingSource={incomingSource}.");
         }
     }
 }

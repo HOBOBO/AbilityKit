@@ -1,5 +1,8 @@
 # MOBA Projectile 与 Damage 深潜
 
+> 文档类型：MOBA 项目应用组合深潜
+> 事实基线：2026-08-16
+>
 > 本文以当前运行时代码为准，拆解“发射意图 -> 投射物运动 -> 命中事件 -> 触发效果 -> 伤害计算 -> HP 与快照”的完整边界。Projectile 与 Damage 相邻但不直连，不能简化为一个命中扣血函数。
 
 ## 1. 职责分层
@@ -130,7 +133,7 @@ classDiagram
     MobaProjectileLinkService --> ProjectileActor
 ```
 
-如果 launcher Actor 已创建但 emitter sequence 不存在、启动失败或启动过程抛出异常，服务都会请求 launcher despawn，避免失败路径遗留临时 Actor。despawn cleanup 先读取保留的 source 并结束 launcher trace，再消费 retain、调用 `ReleaseChild`，最后 `UnlinkLauncher` 删除整个记录。`TryConsumeLauncherRetain` 只清空 retain 字段，不提前丢弃 source，保证 trace 清理仍有归因数据。调用返回成功只表示序列已启动，不表示所有 projectile 已完成、命中或造成伤害。
+如果 launcher Actor 已创建但 emitter sequence 不存在、启动失败或启动过程抛出异常，事务会回滚 launcher link、trace 和 Actor。正常 despawn cleanup 可以先读取 source、结束 trace、消费 retain 并 `ReleaseChild`；`UnlinkLauncher` 自身也会消费并释放仍未被取走的 retain，作为异常/直接清理的所有权兜底。`TryConsumeLauncherRetain` 只清空 retain 字段，不提前丢弃 source，保证 trace 清理仍有归因数据。调用返回成功只表示序列已启动，不表示所有 projectile 已完成、命中或造成伤害。
 
 ## 5. 来源上下文与技能运行时保留
 
@@ -298,6 +301,7 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 |--------|--------------|------------|----------------|
 | 通用 Projectile 运行时 | `DajiRectangularProjectileTests.RectangularSweep_ShouldHitOffsetTargetThatPointRayMisses`、`RectangularSweep_ShouldSkipIgnoredColliderAndHitTargetBehindIt`、`RectangularSweep_BlockerShouldExitPiercingProjectileWithoutHitEvent`、`ManualDespawn_ShouldQueueExitWithoutHitEvent`、`Rollback_ShouldRetainRectangularCollisionHalfExtents` | 矩形 sweep、Ignore/Block 响应、手动退出事件、ActiveCount 清理和碰撞几何回滚 | MOBA Actor spawn、launcher sequence、source/retain、配置转译和命中 Trigger |
 | MOBA launcher 契约 | `MobaTriggerPlanPayloadCompatibilityTests.ProjectileLinkService_LauncherRecordConsumesRetainWithoutLosingSource` | launcher 单 record、consume retain 后 source 仍可读取，以及 launcher/projectile child identity 分离 | emitter sequence 的全部失败路径和实际 Actor despawn 系统组合 |
+| Unity ownership fixture | `ProjectileLinks_UnlinkClearAndDispose_ReleaseEachOwnedRetainOnce` | projectile/launcher 在 Unlink、Clear、Dispose 下各自释放 owned retain exactly once | 真实运动、碰撞、Trigger 和 Damage 业务结果 |
 | MOBA Trace 单测 | `MobaTraceRegistrySmokeTests.Projectile_source_snapshot_survives_link_cleanup_while_trace_remains_until_purge` | link 清理后来源快照仍可用于 trace，trace 按独立保留策略清理 | 实际 projectile 退出是否同时释放 Actor、retain 与临时实体计数 |
 | Console 生命周期 Smoke | `MobaCompleteBattleLifecycleSmokeTests.ConsoleWorldCompletesDeathRespawnRedeathAndSettlement`，以及 `MobaSkillCastLifecycleSmokeTests` 中死亡相关用例 | 正式 World 可解析并调用 `DamagePipelineService`，致死结果可驱动死亡、复活和施法取消规则 | damage stage 顺序、减伤、护盾、clamp、heal 或 snapshot 的逐项正确性 |
 | Unity 单局 journey/英雄验收 | `DajiBattleJourney_ShouldCoverCombatDeathRespawnAndSettlement`、`Skill10050101_ShouldLaunchRectangularWaveAndDamageOffsetTarget`、`Skill10050201_ShouldAutoLockEnemyLaunchHomingCharmAndApplyControlOnHit`、`Skill10050301_ShouldLaunchExactlyFiveFoxfiresFromOneCast`、`Skill10040201_ShouldLaunchCannonAndSpawnEndpointCrater` | 具体配置可执行 ShootProjectile，产生 projectile spawn，推进运动，并在部分英雄路径中命中、伤害、控制或生成后续区域 | 任意 projectile 配置均正确，也不覆盖所有失败分支、阵营过滤、随机确定性或多人复制 |
@@ -312,7 +316,7 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 4. `MobaStageTriggerService` 对“命中只执行配置 effect/trigger，不隐式造成伤害”和 source context 进入 `ProjectileHitArgs` 的专项测试。
 5. `DamagePipelineService` 的 stage 顺序、减伤、护盾、最终实际值和事件时序；现有致死 Smoke 只证明一条组合路径可执行。
 6. damage/heal 的过量 clamp、零实际变化、reason、HP、帧内批处理与 `InGame` snapshot 门禁。
-7. projectile exit 后 Actor、link、source、retain 与临时实体计数的端到端清理。
+7. 在已覆盖 link ownership 的基础上，补 projectile exit 后 Actor、trace、source、临时实体计数和真实运动服务的端到端清理。
 
 ## 15. 源码索引
 
@@ -329,6 +333,12 @@ snapshot emitter 只在 `InGame` 阶段工作，同一帧最多导出一次；�
 | 战斗效果门面 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Combat/MobaCombatEffectService.cs` |
 | Damage/Heal 事件快照 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Snapshot/MobaDamageEventSnapshotService.cs` |
 
+## 16. 当前验证与归属结论
+
+本地 Unity ownership artifact 9/9 中有一项直接覆盖 Projectile/launcher retain exactly-once 释放。2026-08-16 主 MOBA .NET 工程为 279/305，26 项被同一个 SpawnArea 启动配置错误阻断；View Runtime 147/147、Host 6/6、Acceptance 8/8 独立通过。本批没有运行完整 Unity projectile journey、PlayMode 或多人 Smoke。
+
+通用 projectile 包拥有运动、碰撞和生命周期协议，Damage/Pipeline 包拥有计算原语；launcher Actor、source context、skill retain、TriggerPlan 和事件快照是 MOBA 项目适配。link service 的强所有权适合复用为设计原则，但其 Actor/trace 组合不应整体下沉为框架默认应用套件。
+
 ---
 
-*文档版本：v1.2 | 状态：Projectile 与 Damage 实现及分层测试证据 | 最后更新：2026-08-11 | 验证基线：`MobaTriggerPlanPayloadCompatibilityTests` 21/21 通过；`MobaRollbackProviderTests` 5/5 通过；本轮文档更新未重新执行全量测试*
+*文档版本：v3.0 | 最后更新：2026-08-16*
