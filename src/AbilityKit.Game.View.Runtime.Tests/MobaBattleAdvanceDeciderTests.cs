@@ -85,16 +85,17 @@ namespace AbilityKit.Game.View.Runtime.Tests
 
         [Theory]
         // Connect：SessionStarted 或 FirstFrameReceived 任一为真即推进
-        [InlineData((int)MobaBattleState.Connect, true, false, (int)MobaBattleEvent.Connected)]
-        [InlineData((int)MobaBattleState.Connect, false, true, (int)MobaBattleEvent.Connected)]
-        [InlineData((int)MobaBattleState.Connect, true, true, (int)MobaBattleEvent.Connected)]
-        // CreateOrJoinWorld：仅看 FirstFrameReceived
-        [InlineData((int)MobaBattleState.CreateOrJoinWorld, false, true, (int)MobaBattleEvent.JoinedWorld)]
-        public void OnStateEntered_Advances(int current, bool sessionStarted, bool firstFrameReceived, int expected)
+        [InlineData((int)MobaBattleState.Connect, true, false, false, (int)MobaBattleEvent.Connected)]
+        [InlineData((int)MobaBattleState.Connect, false, false, true, (int)MobaBattleEvent.Connected)]
+        [InlineData((int)MobaBattleState.Connect, true, false, true, (int)MobaBattleEvent.Connected)]
+        // CreateOrJoinWorld：仅看 WorldReady（sessionStarted/firstFrameReceived 不参与）
+        [InlineData((int)MobaBattleState.CreateOrJoinWorld, false, true, false, (int)MobaBattleEvent.JoinedWorld)]
+        [InlineData((int)MobaBattleState.CreateOrJoinWorld, true, true, true, (int)MobaBattleEvent.JoinedWorld)]
+        public void OnStateEntered_Advances(int current, bool sessionStarted, bool worldReady, bool firstFrameReceived, int expected)
         {
             Assert.Equal(
                 (MobaBattleEvent)expected,
-                _decider.OnStateEntered((MobaBattleState)current, sessionStarted, firstFrameReceived));
+                _decider.OnStateEntered((MobaBattleState)current, sessionStarted, worldReady, firstFrameReceived));
         }
 
         [Fact]
@@ -105,28 +106,29 @@ namespace AbilityKit.Game.View.Runtime.Tests
                 _decider.OnStateEntered(
                     MobaBattleState.LoadAssets,
                     sessionStarted: true,
+                    worldReady: true,
                     firstFrameReceived: true,
                     assetsLoadCompleted: true));
         }
 
         [Theory]
         // 标志均未满足
-        [InlineData((int)MobaBattleState.Connect, false, false)]
-        [InlineData((int)MobaBattleState.CreateOrJoinWorld, false, false)]
-        // CreateOrJoinWorld 不看 SessionStarted
-        [InlineData((int)MobaBattleState.CreateOrJoinWorld, true, false)]
+        [InlineData((int)MobaBattleState.Connect, false, false, false)]
+        [InlineData((int)MobaBattleState.CreateOrJoinWorld, false, false, false)]
+        // CreateOrJoinWorld 不看 SessionStarted / FirstFrameReceived
+        [InlineData((int)MobaBattleState.CreateOrJoinWorld, true, false, true)]
         // 阶段 7a：LoadAssets 不再因 firstFrameReceived 自动推进（真实资源加载完成由 OnAssetsLoadCompleted 驱动）
-        [InlineData((int)MobaBattleState.LoadAssets, false, false)]
-        [InlineData((int)MobaBattleState.LoadAssets, true, false)]
-        [InlineData((int)MobaBattleState.LoadAssets, false, true)]
-        [InlineData((int)MobaBattleState.LoadAssets, true, true)]
+        [InlineData((int)MobaBattleState.LoadAssets, false, false, false)]
+        [InlineData((int)MobaBattleState.LoadAssets, true, false, false)]
+        [InlineData((int)MobaBattleState.LoadAssets, false, false, true)]
+        [InlineData((int)MobaBattleState.LoadAssets, true, false, true)]
         // 无补判规则的状态
-        [InlineData((int)MobaBattleState.Prepare, true, true)]
-        [InlineData((int)MobaBattleState.InMatch, true, true)]
-        [InlineData((int)MobaBattleState.End, true, true)]
-        public void OnStateEntered_NoAdvance(int current, bool sessionStarted, bool firstFrameReceived)
+        [InlineData((int)MobaBattleState.Prepare, true, true, true)]
+        [InlineData((int)MobaBattleState.InMatch, true, true, true)]
+        [InlineData((int)MobaBattleState.End, true, true, true)]
+        public void OnStateEntered_NoAdvance(int current, bool sessionStarted, bool worldReady, bool firstFrameReceived)
         {
-            Assert.Null(_decider.OnStateEntered((MobaBattleState)current, sessionStarted, firstFrameReceived));
+            Assert.Null(_decider.OnStateEntered((MobaBattleState)current, sessionStarted, worldReady, firstFrameReceived));
         }
     }
 }

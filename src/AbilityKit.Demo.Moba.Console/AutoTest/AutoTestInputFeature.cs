@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba.Console.Battle.Input;
 using AbilityKit.Demo.Moba.Console.Battle.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
 using AbilityKit.Demo.Moba.Testing;
+using AbilityKit.Demo.Moba.Input;
 
 namespace AbilityKit.Demo.Moba.Console.AutoTest
 {
@@ -63,15 +64,15 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
             switch (step.Kind)
             {
                 case BattleTestStepKind.Move:
-                    SetMove(step.Dx, step.Dz);
+                    ApplyIntent(MobaActorIntent.MoveDirection(step.Dx, step.Dz));
                     break;
                 case BattleTestStepKind.Skill:
-                    ClickSkill(step.Slot);
+                    ApplyIntent(MobaActorIntent.Cast(step.Slot));
                     break;
                 case BattleTestStepKind.Wait:
                     break;
                 case BattleTestStepKind.Idle:
-                    SetMove(0, 0);
+                    ApplyIntent(MobaActorIntent.Hold);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(step), step.Kind, "Unsupported battle test step kind.");
@@ -87,6 +88,20 @@ namespace AbilityKit.Demo.Moba.Console.AutoTest
         }
 
         #region IInputFeature 实现
+
+        public void ApplyIntent(in MobaActorIntent intent)
+        {
+            if (!intent.HasFiniteMovement())
+            {
+                SetMove(0f, 0f);
+                return;
+            }
+            if (intent.MovementKind == MobaActorMovementIntentKind.Direction)
+                SetMove(intent.MoveX, intent.MoveZ);
+            else if (intent.MovementKind == MobaActorMovementIntentKind.Hold)
+                SetMove(0f, 0f);
+            if (intent.HasCast && intent.SkillSlot > 0) ClickSkill(intent.SkillSlot);
+        }
 
         public void SetMoveInput(float dx, float dz)
         {

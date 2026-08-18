@@ -246,6 +246,110 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void BuffLifecyclePayload_RoundTripsEveryFieldAndRejectsWrongEventKind()
+        {
+            var lifecycle = new BattleDiagnosticBuffLifecyclePayload(
+                BattleDiagnosticBuffLifecycleStage.StackChanged,
+                stackCount: 3,
+                previousStackCount: 2,
+                durationMilliseconds: 12000,
+                remainingMilliseconds: 8750,
+                intervalRemainingMilliseconds: 750,
+                maxStacks: 5,
+                modifierBindingCount: 4,
+                modifierSourceId: 77,
+                removeReason: 9);
+            var payload = BattleDiagnosticEventPayload.FromBuffLifecycle(in lifecycle);
+
+            Assert.That(payload.Kind, Is.EqualTo(BattleDiagnosticPayloadKind.BuffLifecycle));
+            Assert.That(payload.SchemaVersion, Is.EqualTo(BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion));
+            Assert.That(payload.TryGetBuffLifecycle(out var restored), Is.True);
+            Assert.That(restored, Is.EqualTo(lifecycle));
+            Assert.That(restored.GetHashCode(), Is.EqualTo(lifecycle.GetHashCode()));
+            Assert.That(payload, Is.EqualTo(BattleDiagnosticEventPayload.FromBuffLifecycle(in lifecycle)));
+            Assert.That(BattleDiagnosticEventPayload.FromSkillFailure(
+                new BattleDiagnosticSkillFailurePayload()).TryGetBuffLifecycle(out _), Is.False);
+
+            Assert.DoesNotThrow(() => new BattleDiagnosticEvent(
+                _scope,
+                10,
+                1,
+                100L,
+                BattleDiagnosticEventKind.BuffAdded,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                payload: payload));
+            Assert.DoesNotThrow(() => new BattleDiagnosticEvent(
+                _scope,
+                10,
+                2,
+                101L,
+                BattleDiagnosticEventKind.BuffRemoved,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                payload: payload));
+            Assert.Throws<System.ArgumentException>(() => new BattleDiagnosticEvent(
+                _scope,
+                10,
+                3,
+                102L,
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                payload: payload));
+        }
+
+        [TestCase("removed")]
+        [TestCase("13")]
+        [TestCase("83")]
+        public void RingStore_TextSearch_MatchesStructuredBuffLifecycleFields(string searchText)
+        {
+            var store = new BattleDiagnosticEventRingStore(_scope, 4);
+            var lifecycle = new BattleDiagnosticBuffLifecyclePayload(
+                BattleDiagnosticBuffLifecycleStage.Removed,
+                stackCount: 13,
+                previousStackCount: 17,
+                durationMilliseconds: 23000,
+                remainingMilliseconds: 310,
+                intervalRemainingMilliseconds: 470,
+                maxStacks: 19,
+                modifierBindingCount: 2,
+                modifierSourceId: 6107,
+                removeReason: 83);
+            var payload = BattleDiagnosticEventPayload.FromBuffLifecycle(in lifecycle);
+            store.TryAppend(new BattleDiagnosticEvent(
+                _scope,
+                20,
+                1,
+                100L,
+                BattleDiagnosticEventKind.BuffRemoved,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                sourceActorId: 7,
+                targetActorId: 11,
+                configId: 701,
+                payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                summary: "Structured lifecycle",
+                payload: payload));
+
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                1,
+                BattleDiagnosticFilter.Default.WithSearchText(searchText),
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+            var unrelated = store.Query(new BattleDiagnosticEventQuery(
+                2,
+                BattleDiagnosticFilter.Default.WithSearchText("not-a-lifecycle-value"),
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(result.Items.Count, Is.EqualTo(1));
+            Assert.That(result.Items[0].Sequence, Is.EqualTo(1));
+            Assert.That(unrelated.Items, Is.Empty);
+        }
+
+        [Test]
         public void SkillFailurePayload_RoundTripsEveryFieldAndRejectsWrongKind()
         {
             var failure = new BattleDiagnosticSkillFailurePayload(

@@ -16,7 +16,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// </summary>
     public sealed class MobaShieldRollbackProvider : IRollbackStateProvider
     {
-        public const int DefaultKey = 10006;
+        public const int DefaultKey = 10007;
         // v2 (2026-08-15): 护盾数值字段定点化（Q32.32），快照以 raw long 存储（TotalRemaining/TransferRatio/CurrentValue/MaxValue/InitialValue/AbsorbRatio）。
         private const int CurrentPayloadVersion = 2;
 

@@ -13,7 +13,7 @@
       },
       "Actions": [
         {
-          "ActionId": -1873296895,
+          "ActionId": 176148626,
           "Arity": 2,
           "Args": {
             "damage_value": {
@@ -41,7 +41,7 @@
       },
       "Actions": [
         {
-          "ActionId": -1873296895,
+          "ActionId": 176148626,
           "Arity": 2,
           "Args": {
             "damage_value": {
@@ -69,7 +69,7 @@
       },
       "Actions": [
         {
-          "ActionId": -1873296895,
+          "ActionId": 176148626,
           "Arity": 2,
           "Args": {
             "damage_value": {

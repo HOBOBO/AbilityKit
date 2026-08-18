@@ -114,14 +114,12 @@ namespace AbilityKit.Combat
     /// </summary>
     public abstract class DamageProcessor : DataflowProcessor<DamageRequest, DamageResult>, IDamageProcessor
     {
-        protected DamageResult _result;
-
-        protected override void OnBeforeProcess(DamageRequest input, IDataflowContext context)
+        protected static DamageResult GetCurrentResult(DamageRequest input, IDataflowContext context)
         {
-            base.OnBeforeProcess(input, context);
             var damageContext = context as DamageCalculationContext;
-            _result = damageContext?.Result ?? DamageResult.Create(input);
-            _result.Request = input;
+            var result = damageContext?.Result ?? DamageResult.Create(input);
+            result.Request = input;
+            return result;
         }
 
         protected override void OnAfterProcess(DamageRequest input, IDataflowContext context, DamageResult result)
@@ -142,26 +140,28 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
+
             // 验证基础条件
             if (input.Attacker == null)
             {
                 context.Abort();
-                return _result;
+                return result;
             }
 
             if (input.Target == null)
             {
                 context.Abort();
-                return _result;
+                return result;
             }
 
             if (input.BaseValue <= 0 && !IsDot(input))
             {
                 context.Abort();
-                return _result;
+                return result;
             }
 
-            return _result;
+            return result;
         }
 
         private static bool IsDot(DamageRequest request)
@@ -177,6 +177,8 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
+
             // 使用强类型槽位获取暴击数据
             var critChance = context.GetData(DamageSlots.CritChance);
             var critMultiplier = context.GetData(DamageSlots.CritMultiplier);
@@ -185,15 +187,15 @@ namespace AbilityKit.Combat
             // 暴击计算：随机值由上层注入，便于纯逻辑测试、回放和确定性 sample。
             if (critChance > 0 && critRoll < critChance)
             {
-                _result.Request.Flags |= DamageFlags.Critical;
-                _result.CriticalMultiplier = critMultiplier;
+                result.Request.Flags |= DamageFlags.Critical;
+                result.CriticalMultiplier = critMultiplier;
             }
             else
             {
-                _result.CriticalMultiplier = 1f;
+                result.CriticalMultiplier = 1f;
             }
 
-            return _result;
+            return result;
         }
     }
 
@@ -204,33 +206,34 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
             var damageContext = context as DamageCalculationContext;
-            _result.RawDamage = input.BaseValue;
-            _result.PreArmorDamage = input.BaseValue;
+            result.RawDamage = input.BaseValue;
+            result.PreArmorDamage = input.BaseValue;
 
             if (damageContext != null)
             {
                 // 根据伤害类型应用对应的攻击力加成
                 if (input.DamageType == DamageType.Physical)
                 {
-                    _result.RawDamage += damageContext.AttackerPhysicalDamage;
-                    _result.PreArmorDamage = _result.RawDamage;
+                    result.RawDamage += damageContext.AttackerPhysicalDamage;
+                    result.PreArmorDamage = result.RawDamage;
                 }
                 else if (input.DamageType == DamageType.Magic)
                 {
-                    _result.RawDamage += damageContext.AttackerMagicDamage;
-                    _result.PreArmorDamage = _result.RawDamage;
+                    result.RawDamage += damageContext.AttackerMagicDamage;
+                    result.PreArmorDamage = result.RawDamage;
                 }
 
                 // 应用暴击
-                if (_result.IsCritical)
+                if (result.IsCritical)
                 {
-                    _result.RawDamage *= _result.CriticalMultiplier;
-                    _result.PreArmorDamage = _result.RawDamage;
+                    result.RawDamage *= result.CriticalMultiplier;
+                    result.PreArmorDamage = result.RawDamage;
                 }
             }
 
-            return _result;
+            return result;
         }
     }
 
@@ -241,6 +244,8 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
+
             // 使用强类型槽位获取伤害加成数据
             var bonusPercent = context.GetData(DamageSlots.DamageBonusPercent);
             var bonusFlat = context.GetData(DamageSlots.DamageBonusFlat);
@@ -248,18 +253,18 @@ namespace AbilityKit.Combat
             // 应用百分比加成
             if (bonusPercent != 0)
             {
-                _result.BonusDamage = _result.RawDamage * bonusPercent;
-                _result.RawDamage += _result.BonusDamage;
+                result.BonusDamage = result.RawDamage * bonusPercent;
+                result.RawDamage += result.BonusDamage;
             }
 
             // 应用固定加成
             if (bonusFlat != 0)
             {
-                _result.RawDamage += bonusFlat;
-                _result.BonusDamage += bonusFlat;
+                result.RawDamage += bonusFlat;
+                result.BonusDamage += bonusFlat;
             }
 
-            return _result;
+            return result;
         }
     }
 
@@ -270,22 +275,24 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
+
             // 只处理物理伤害
             if (input.DamageType != DamageType.Physical)
             {
-                return _result;
+                return result;
             }
 
             // 真实伤害和魔法伤害不受护甲影响
             if (input.DamageType == DamageType.True)
             {
-                return _result;
+                return result;
             }
 
             var damageContext = context as DamageCalculationContext;
             if (damageContext == null)
             {
-                return _result;
+                return result;
             }
 
             // 使用强类型槽位获取护甲穿透数据
@@ -303,10 +310,10 @@ namespace AbilityKit.Combat
 
             // 护甲减免公式：damage * 100 / (100 + armor)
             var reduction = effectiveArmor / (100f + effectiveArmor);
-            _result.ArmorReduction = _result.RawDamage * reduction;
-            _result.RawDamage *= (1f - reduction);
+            result.ArmorReduction = result.RawDamage * reduction;
+            result.RawDamage *= (1f - reduction);
 
-            return _result;
+            return result;
         }
     }
 
@@ -317,16 +324,18 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
+
             // 只处理魔法伤害
             if (input.DamageType != DamageType.Magic)
             {
-                return _result;
+                return result;
             }
 
             var damageContext = context as DamageCalculationContext;
             if (damageContext == null)
             {
-                return _result;
+                return result;
             }
 
             // 使用强类型槽位获取魔抗穿透数据
@@ -344,10 +353,10 @@ namespace AbilityKit.Combat
 
             // 魔抗减免公式
             var reduction = effectiveResist / (100f + effectiveResist);
-            _result.ResistReduction = _result.RawDamage * reduction;
-            _result.RawDamage *= (1f - reduction);
+            result.ResistReduction = result.RawDamage * reduction;
+            result.RawDamage *= (1f - reduction);
 
-            return _result;
+            return result;
         }
     }
 
@@ -358,13 +367,15 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
+
             // 最终伤害 = 当前计算结果
-            _result.FinalDamage = _result.RawDamage;
+            result.FinalDamage = result.RawDamage;
 
             // 向下取整避免浮点问题
-            _result.FinalDamage = (float)Math.Floor(_result.FinalDamage);
+            result.FinalDamage = (float)Math.Floor(result.FinalDamage);
 
-            return _result;
+            return result;
         }
     }
 
@@ -375,43 +386,44 @@ namespace AbilityKit.Combat
     {
         protected override DamageResult OnProcess(DamageRequest input, IDataflowContext context)
         {
+            var result = GetCurrentResult(input, context);
             var damageContext = context as DamageCalculationContext;
 
             if (damageContext != null && damageContext.TargetCurrentHealth > 0)
             {
                 // 计算溢出伤害
-                if (_result.FinalDamage > damageContext.TargetCurrentHealth)
+                if (result.FinalDamage > damageContext.TargetCurrentHealth)
                 {
-                    _result.Overkill = _result.FinalDamage - damageContext.TargetCurrentHealth;
-                    _result.ActualDamage = damageContext.TargetCurrentHealth;
+                    result.Overkill = result.FinalDamage - damageContext.TargetCurrentHealth;
+                    result.ActualDamage = damageContext.TargetCurrentHealth;
                 }
                 else
                 {
-                    _result.ActualDamage = _result.FinalDamage;
+                    result.ActualDamage = result.FinalDamage;
                 }
 
                 // 使用强类型槽位获取护盾数据
                 var targetShield = context.GetData(DamageSlots.TargetShield);
                 if (targetShield > 0)
                 {
-                    if (_result.FinalDamage <= targetShield)
+                    if (result.FinalDamage <= targetShield)
                     {
-                        _result.ShieldDamage = _result.FinalDamage;
-                        _result.ActualDamage = 0;
+                        result.ShieldDamage = result.FinalDamage;
+                        result.ActualDamage = 0;
                     }
                     else
                     {
-                        _result.ShieldDamage = targetShield;
-                        _result.ActualDamage = _result.FinalDamage - targetShield;
+                        result.ShieldDamage = targetShield;
+                        result.ActualDamage = result.FinalDamage - targetShield;
                     }
                 }
             }
             else
             {
-                _result.ActualDamage = _result.FinalDamage;
+                result.ActualDamage = result.FinalDamage;
             }
 
-            return _result;
+            return result;
         }
     }
 }

@@ -18,6 +18,55 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests.HostExtension;
 public sealed class FrameSyncDriverModuleHeadlessTests
 {
     [Fact]
+    public void ClientPredictionWithoutRollbackDoesNotAssemblePredictionBuffers()
+    {
+        var module = new ClientPredictionDriverModule(
+            _ => null,
+            _ => null,
+            enableRollback: false,
+            rollbackHistoryFrames: 16,
+            buildComputeHash: _ => frame => new WorldStateHash((uint)frame.Value));
+
+        Assert.Equal(ClientPredictionDriverBufferFeatures.None, module.BufferOptions.Features);
+        Assert.Equal(0, module.BufferOptions.InputHistoryCapacity);
+        Assert.Equal(0, module.BufferOptions.StateHashHistoryCapacity);
+        Assert.Equal(0, module.BufferOptions.RollbackSnapshotCapacity);
+    }
+
+    [Fact]
+    public void ClientPredictionCanAssembleRollbackSnapshotsWithoutInputOrHashHistory()
+    {
+        const float fixedDelta = 1f / 30f;
+        var bufferOptions = new ClientPredictionDriverBufferOptions(
+            ClientPredictionDriverBufferFeatures.RollbackSnapshots,
+            inputHistoryCapacity: 0,
+            stateHashHistoryCapacity: 0,
+            rollbackSnapshotCapacity: 8);
+        var worlds = new PredictionWorldManager();
+        var runtimeOptions = new HostRuntimeOptions();
+        var runtime = new HostRuntime(worlds, runtimeOptions);
+        var module = new ClientPredictionDriverModule(
+            _ => null,
+            _ => null,
+            maxPredictionAheadFrames: 1,
+            minPredictionWindow: 1,
+            enableRollback: true,
+            rollbackHistoryFrames: 16,
+            bufferOptions: bufferOptions);
+        var worldId = new WorldId("rollback-only-buffers");
+
+        module.Install(runtime, runtimeOptions);
+        var world = Assert.IsType<PredictionWorld>(runtime.CreateWorld(new WorldCreateOptions(worldId, "test-world")));
+        runtime.Tick(fixedDelta);
+
+        Assert.Same(bufferOptions, module.BufferOptions);
+        Assert.Equal(ClientPredictionDriverBufferFeatures.RollbackSnapshots, module.BufferOptions.Features);
+        Assert.Equal(new[] { 1 }, world.SimulatedFrames);
+        Assert.True(module.TryGetFrames(worldId, out _, out var predicted));
+        Assert.Equal(1, predicted.Value);
+    }
+
+    [Fact]
     public void HeadlessSession_WhenTicked_FlushesInputsAndBroadcastsFramePacketWithoutWorld()
     {
         var worlds = new EmptyWorldManager();

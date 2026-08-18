@@ -4,6 +4,7 @@
       "id": 10010000,
       "name": "廉颇-勇士之魂-释放技能时霸体战意",
       "event": "skill.cast.complete",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",
@@ -12,9 +13,7 @@
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [
-            10010000
-          ],
+          "buffIds": [10010000],
           "target_self": true,
           "duration_ms": 1500
         },
@@ -23,8 +22,98 @@
           "message": "廉颇被动触发：添加霸体战意与防御韧性状态",
           "dump_args": false
         }
+      ]
+    },
+    {
+      "id": 10010004,
+      "name": "廉颇-勇士之魂-造成伤害获得怒气",
+      "event": "damage.apply.after",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 45,
+      "conditions": [
+        {
+          "type": "owner_matches_payload_source"
+        },
+        {
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
+        },
+        {
+          "type": "arg_neq",
+          "left": "payload:attacker_actor_id",
+          "right": "payload:target_actor_id"
+        }
       ],
-      "scope": "owner"
+      "actions": [
+        {
+          "type": "modify_resource",
+          "resource_type": 3,
+          "amount": 10,
+          "max": 100,
+          "target_payload_field": "attacker_actor_id"
+        }
+      ]
+    },
+    {
+      "id": 10010002,
+      "name": "廉颇-勇士之魂-承受伤害获得怒气",
+      "event": "damage.apply.after",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 44,
+      "conditions": [
+        {
+          "type": "owner_matches_payload_target"
+        },
+        {
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
+        },
+        {
+          "type": "arg_neq",
+          "left": "payload:attacker_actor_id",
+          "right": "payload:target_actor_id"
+        }
+      ],
+      "actions": [
+        {
+          "type": "modify_resource",
+          "resource_type": 3,
+          "amount": 5,
+          "max": 100,
+          "target_payload_field": "target_actor_id"
+        }
+      ]
+    },
+    {
+      "id": 10010003,
+      "name": "廉颇-勇士之魂-脱战怒气转生命",
+      "event": "",
+      "enabled": true,
+      "allowExternal": true,
+      "phase": "immediate",
+      "priority": 40,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "convert_resource_to_heal",
+          "resource_type": 3,
+          "amount": 10,
+          "heal_ratio": 8,
+          "out_of_combat_seconds": 5,
+          "heal_type": 0,
+          "reason_kind": 2,
+          "reason_param": 10010000,
+          "target_self": true
+        }
+      ]
     }
   ]
 }

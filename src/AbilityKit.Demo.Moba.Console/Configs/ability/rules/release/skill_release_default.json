@@ -6,6 +6,25 @@
   "event": "",
   "allowExternal": false,
   "priority": 0,
-  "conditions": [],
+  "conditions": [
+    {
+      "type": "compare_numeric",
+      "op": "GreaterThanOrEqual",
+      "left": {
+        "payload": "caster.resource.2"
+      },
+      "right": {
+        "payload": "skill.cost"
+      }
+    },
+    {
+      "type": "compare_numeric",
+      "op": "LessThanOrEqual",
+      "left": {
+        "payload": "skill.cooldown_remaining_ms"
+      },
+      "right": 0
+    }
+  ],
   "actions": []
 }

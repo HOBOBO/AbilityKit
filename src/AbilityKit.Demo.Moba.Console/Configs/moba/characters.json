@@ -1,85 +1,86 @@
 [
     {
-        "Id": 1001,
-        "Name": "廉颇",
-        "ModelId": 1001,
-        "AttributeTemplateId": 1001,
-        "SkillIds": [
-            10010101,
-            10010201,
-            10010301,
-            9900001
-        ],
-        "PassiveSkillIds": [
-            10010000
-        ]
+        "Id":  1001,
+        "Name":  "廉颇",
+        "ModelId":  1001,
+        "AttributeTemplateId":  1001,
+        "SkillIds":  [
+                         10010101,
+                         10010201,
+                         10010301
+                     ],
+        "PassiveSkillIds":  [
+                                10010000
+                            ]
     },
     {
-        "Id": 1002,
-        "Name": "小乔",
-        "ModelId": 1002,
-        "AttributeTemplateId": 1002,
-        "SkillIds": [
-            10020101,
-            10020201,
-            10020301
-        ],
-        "PassiveSkillIds": [
-            10020000
-        ]
+        "Id":  1002,
+        "Name":  "小乔",
+        "ModelId":  1002,
+        "AttributeTemplateId":  1002,
+        "SkillIds":  [
+                         10020101,
+                         10020201,
+                         10020301
+                     ],
+        "PassiveSkillIds":  [
+                                10020000
+                            ]
     },
     {
-        "Id": 1003,
-        "Name": "赵云",
-        "ModelId": 1003,
-        "AttributeTemplateId": 1003,
-        "SkillIds": [
-            10030101,
-            10030201,
-            10030301
-        ],
-        "PassiveSkillIds": [
-            10030000
-        ]
+        "Id":  1003,
+        "Name":  "赵云",
+        "ModelId":  1003,
+        "AttributeTemplateId":  1003,
+        "SkillIds":  [
+                         10030101,
+                         10030201,
+                         10030301
+                     ],
+        "PassiveSkillIds":  [
+                                10030000
+                            ]
     },
     {
-        "Id": 1004,
-        "Name": "墨子",
-        "ModelId": 1004,
-        "AttributeTemplateId": 1004,
-        "SkillIds": [
-            10040101,
-            10040201,
-            10040301
-        ],
-        "PassiveSkillIds": [
-            10040000
-        ]
+        "Id":  1004,
+        "Name":  "墨子",
+        "ModelId":  1004,
+        "AttributeTemplateId":  1004,
+        "SkillIds":  [
+                         10040101,
+                         10040201,
+                         10040301
+                     ],
+        "PassiveSkillIds":  [
+                                10040000
+                            ]
     },
     {
-        "Id": 1005,
-        "Name": "妲己",
-        "ModelId": 1005,
-        "AttributeTemplateId": 1005,
-        "SkillIds": [
-            10050101,
-            10050201,
-            10050301
-        ],
-        "PassiveSkillIds": []
+        "Id":  1005,
+        "Name":  "妲己",
+        "ModelId":  1005,
+        "AttributeTemplateId":  1005,
+        "SkillIds":  [
+                         10050101,
+                         10050201,
+                         10050301
+                     ],
+        "PassiveSkillIds":  [
+                                 10050000
+                             ]
     },
     {
-        "Id": 1006,
-        "Name": "嬴政",
-        "ModelId": 1006,
-        "AttributeTemplateId": 1006,
-        "SkillIds": [
-            10060101,
-            10060201,
-            10060301
-        ],
-        "PassiveSkillIds": [
-            10060000
-        ]
+        "Id":  1006,
+        "Name":  "嬴政",
+        "ModelId":  1006,
+        "AttributeTemplateId":  1006,
+        "SkillIds":  [
+                         10060101,
+                         10060201,
+                         10060301
+                     ],
+        "PassiveSkillIds":  [
+                                 10060000
+                             ]
     }
 ]

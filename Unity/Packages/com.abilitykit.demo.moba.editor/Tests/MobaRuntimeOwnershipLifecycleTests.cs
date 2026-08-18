@@ -192,7 +192,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
-        public void BuffRecovery_InvalidParentRuntime_RollsBackRestoredEntry()
+        public void BuffRecovery_InvalidParentRuntime_FailsBeforeMutation()
         {
             var contexts = new Contexts();
             var actors = new MobaActorRegistry();
@@ -202,14 +202,53 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             actor.AddActorId(502);
             actors.Register(502, actor);
             var invalidParent = new MobaSkillCastRuntimeHandle(9999L, 77, 8888L);
-            actor.AddBuffs(new List<BuffRuntime> { CreateBuffRuntime(602, 502, 702, 2502L, invalidParent) });
+            var existing = CreateBuffRuntime(602, 502, 702, 2502L, invalidParent);
+            actor.AddBuffs(new List<BuffRuntime> { existing });
             var recovery = new MobaBuffStateRecoveryProvider(actors, runtimeContexts, skillRuntimes);
             var frame = new FrameIndex(10);
 
             var payload = recovery.ExportState(frame);
-            recovery.ImportState(frame, payload);
+            var exception = Assert.Throws<InvalidOperationException>(() => recovery.ImportState(frame, payload));
 
-            Assert.That(actor.buffs.Active, Is.Null);
+            Assert.That(exception.Message, Does.Contain("parent runtime not found"));
+            Assert.That(actor.buffs.Active, Has.Count.EqualTo(1));
+            Assert.That(actor.buffs.Active[0], Is.SameAs(existing));
+            Assert.That(skillRuntimes.Count, Is.Zero);
+
+            runtimeContexts.Dispose();
+            skillRuntimes.Dispose();
+            actors.Dispose();
+            contexts.actor.DestroyAllEntities();
+        }
+
+        [Test]
+        public void BuffRecovery_UnsupportedVersionAndMalformedPayload_DoNotMutateLiveState()
+        {
+            var contexts = new Contexts();
+            var actors = new MobaActorRegistry();
+            var runtimeContexts = new MobaRuntimeContextService();
+            var skillRuntimes = new MobaSkillCastRuntimeService();
+            var actor = contexts.actor.CreateEntity();
+            actor.AddActorId(503);
+            actors.Register(503, actor);
+            var existing = CreateBuffRuntime(603, 503, 703, 2503L, default);
+            actor.AddBuffs(new List<BuffRuntime> { existing });
+            var recovery = new MobaBuffStateRecoveryProvider(actors, runtimeContexts, skillRuntimes);
+            var frame = new FrameIndex(11);
+            var unsupported = recovery.ExportState(frame);
+            Buffer.BlockCopy(
+                BitConverter.GetBytes(MobaBuffStateRecoveryProvider.CurrentPayloadVersion - 1),
+                0,
+                unsupported,
+                0,
+                sizeof(int));
+
+            Assert.Throws<InvalidOperationException>(() => recovery.PrepareRestore(frame, unsupported));
+            Assert.Throws<InvalidOperationException>(() => recovery.ImportState(frame, unsupported));
+            Assert.Throws<InvalidOperationException>(() => recovery.ImportState(frame, new byte[] { 0x7f, 0x01, 0x02 }));
+
+            Assert.That(actor.buffs.Active, Has.Count.EqualTo(1));
+            Assert.That(actor.buffs.Active[0], Is.SameAs(existing));
             Assert.That(skillRuntimes.Count, Is.Zero);
 
             runtimeContexts.Dispose();

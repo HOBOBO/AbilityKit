@@ -3,6 +3,7 @@
   "rootNamespace": "AbilityKit.Demo.Moba.Diagnostics.Tests",
   "references": [
     "AbilityKit.Demo.Moba.Diagnostics.Core",
+    "AbilityKit.Modifiers",
     "AbilityKit.Demo.Moba.Runtime",
     "AbilityKit.Protocol.Moba",
     "AbilityKit.Diagnostics",

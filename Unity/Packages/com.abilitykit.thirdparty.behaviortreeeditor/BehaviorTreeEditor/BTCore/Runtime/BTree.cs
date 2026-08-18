@@ -9,10 +9,12 @@
 
 using System.Collections.Generic;
 using System.Runtime.Serialization;
+using System;
 using BTCore.Runtime.Blackboards;
 using BTCore.Runtime.Composites;
 using BTCore.Runtime.Conditions;
 using BTCore.Runtime.Decorators;
+using Newtonsoft.Json;
 
 namespace BTCore.Runtime
 {
@@ -178,6 +180,150 @@ namespace BTCore.Runtime
                     _preIndex = index;
                     _preState = RunNode(index, i, _preState);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Captures runtime-only state without serializing the tree definition.
+        /// </summary>
+        public BTreeRuntimeSnapshot CaptureRuntimeSnapshot()
+        {
+            var snapshot = new BTreeRuntimeSnapshot
+            {
+                TreeState = TreeState,
+                PreIndex = _preIndex,
+                PreState = _preState
+            };
+
+            for (var i = 0; i < _nodeList.Count; i++)
+            {
+                var nodeSnapshot = new BTreeNodeRuntimeSnapshot
+                {
+                    Guid = _nodeList[i].Guid,
+                    State = _nodeList[i].State,
+                    ChildIndex = _nodeList[i] is ParentNode parent ? parent.Index : -1
+                };
+                if (_nodeList[i] is IBTNodeRuntimeSnapshot custom)
+                {
+                    nodeSnapshot.CustomSnapshotType = custom.RuntimeSnapshotType;
+                    nodeSnapshot.CustomSnapshot = custom.CaptureRuntimeSnapshot();
+                }
+                snapshot.Nodes.Add(nodeSnapshot);
+            }
+
+            if (Blackboard?.Values != null)
+            {
+                foreach (var value in Blackboard.Values)
+                {
+                    if (value == null) continue;
+                    var valueProperty = value.GetType().GetProperty("Value");
+                    var rawValue = valueProperty?.GetValue(value);
+                    snapshot.BlackboardValues.Add(new BTreeBlackboardValueSnapshot
+                    {
+                        Name = value.Name,
+                        TypeName = value.Type?.AssemblyQualifiedName,
+                        JsonValue = JsonConvert.SerializeObject(rawValue, BTDef.SerializerSettingsAuto)
+                    });
+                }
+            }
+
+            foreach (var reevaluate in _conditionalReevaluates)
+            {
+                snapshot.ConditionalReevaluates.Add(new BTreeConditionalReevaluateSnapshot
+                {
+                    Index = reevaluate.Index,
+                    State = reevaluate.State,
+                    CompositeIndex = reevaluate.CompositeIndex
+                });
+            }
+
+            foreach (var stack in _runStack)
+            {
+                var stackSnapshot = new BTreeRunStackSnapshot();
+                // Stack enumerates from top to bottom; reverse so Push order is preserved.
+                foreach (var index in stack) stackSnapshot.Nodes.Insert(0, index);
+                snapshot.RunStacks.Add(stackSnapshot);
+            }
+
+            return snapshot;
+        }
+
+        /// <summary>
+        /// Restores runtime-only state and rejects snapshots from an incompatible tree.
+        /// </summary>
+        public void RestoreRuntimeSnapshot(BTreeRuntimeSnapshot snapshot)
+        {
+            if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            if (snapshot.Version != 1)
+                throw new InvalidOperationException($"Unsupported BT runtime snapshot version '{snapshot.Version}'.");
+            if (snapshot.Nodes == null || snapshot.Nodes.Count != _nodeList.Count)
+                throw new InvalidOperationException("BT runtime snapshot node count does not match the enabled tree.");
+
+            for (var i = 0; i < _nodeList.Count; i++)
+            {
+                var nodeSnapshot = snapshot.Nodes[i];
+                if (nodeSnapshot == null || !string.Equals(nodeSnapshot.Guid, _nodeList[i].Guid, StringComparison.Ordinal))
+                    throw new InvalidOperationException("BT runtime snapshot node identity does not match the enabled tree.");
+            }
+
+            if (snapshot.RunStacks == null || snapshot.RunStacks.Count == 0)
+                throw new InvalidOperationException("BT runtime snapshot must contain at least one run stack.");
+
+            for (var i = 0; i < snapshot.Nodes.Count; i++)
+            {
+                _nodeList[i].State = snapshot.Nodes[i].State;
+                if (_nodeList[i] is ParentNode parent)
+                    parent.RestoreRuntimeIndex(snapshot.Nodes[i].ChildIndex);
+                if (_nodeList[i] is IBTNodeRuntimeSnapshot custom
+                    && !string.IsNullOrEmpty(snapshot.Nodes[i].CustomSnapshot))
+                {
+                    if (!string.Equals(custom.RuntimeSnapshotType, snapshot.Nodes[i].CustomSnapshotType, StringComparison.Ordinal))
+                        throw new InvalidOperationException("BT runtime snapshot custom node state type does not match the enabled tree.");
+                    custom.RestoreRuntimeSnapshot(snapshot.Nodes[i].CustomSnapshot);
+                }
+            }
+
+            TreeState = snapshot.TreeState;
+            _preIndex = snapshot.PreIndex;
+            _preState = snapshot.PreState;
+
+            _runStack.Clear();
+            foreach (var stackSnapshot in snapshot.RunStacks)
+            {
+                var stack = new Stack<int>();
+                var nodes = stackSnapshot?.Nodes ?? new List<int>();
+                foreach (var index in nodes)
+                {
+                    if (index < 0 || index >= _nodeList.Count)
+                        throw new InvalidOperationException("BT runtime snapshot contains an invalid run-stack node index.");
+                    stack.Push(index);
+                }
+                _runStack.Add(stack);
+            }
+
+            _conditionalReevaluates.Clear();
+            _index2ConditionalReevaluate.Clear();
+            foreach (var item in snapshot.ConditionalReevaluates ?? new List<BTreeConditionalReevaluateSnapshot>())
+            {
+                if (item == null || item.Index < 0 || item.Index >= _nodeList.Count)
+                    throw new InvalidOperationException("BT runtime snapshot contains an invalid conditional index.");
+                if (item.CompositeIndex < -1 || item.CompositeIndex >= _nodeList.Count)
+                    throw new InvalidOperationException("BT runtime snapshot contains an invalid conditional parent index.");
+                var reevaluate = new ConditionalReevaluate(item.Index, item.State, item.CompositeIndex);
+                _conditionalReevaluates.Add(reevaluate);
+                _index2ConditionalReevaluate[item.Index] = reevaluate;
+            }
+
+            if (Blackboard?.Values == null) return;
+            foreach (var valueSnapshot in snapshot.BlackboardValues ?? new List<BTreeBlackboardValueSnapshot>())
+            {
+                if (valueSnapshot == null || string.IsNullOrEmpty(valueSnapshot.Name)) continue;
+                var value = Blackboard.Values.Find(item => string.Equals(item.Name, valueSnapshot.Name, StringComparison.Ordinal));
+                if (value == null || value.Type == null || !string.Equals(value.Type.AssemblyQualifiedName, valueSnapshot.TypeName, StringComparison.Ordinal))
+                    throw new InvalidOperationException($"BT runtime snapshot blackboard key '{valueSnapshot.Name}' does not match the enabled tree.");
+                var valueProperty = value.GetType().GetProperty("Value");
+                if (valueProperty == null || !valueProperty.CanWrite) continue;
+                valueProperty.SetValue(value, JsonConvert.DeserializeObject(valueSnapshot.JsonValue ?? "null", value.Type, BTDef.SerializerSettingsAuto));
             }
         }
 

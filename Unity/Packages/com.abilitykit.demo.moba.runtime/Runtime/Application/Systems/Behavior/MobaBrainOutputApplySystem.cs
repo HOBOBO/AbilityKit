@@ -6,6 +6,7 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Map;
+using AbilityKit.Demo.Moba.Input;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -29,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private SkillCastCoordinator _skills;
         private IFrameTime _frameTime;
         private IMobaMapRuntimeService _maps;
+        private MobaCombatRulesService _combatRules;
         private Entitas.IGroup<global::ActorEntity> _group;
 
         public MobaBrainOutputApplySystem(global::Entitas.IContexts contexts, IWorldResolver services)
@@ -42,6 +44,7 @@ namespace AbilityKit.Demo.Moba.Systems
             Services.TryResolve(out _skills);
             Services.TryResolve(out _frameTime);
             Services.TryResolve(out _maps);
+            Services.TryResolve(out _combatRules);
             _group = Contexts.Actor().GetGroup(global::ActorMatcher.AllOf(
                 global::ActorComponentsLookup.ActorId,
                 global::ActorComponentsLookup.ActorBrain));
@@ -58,14 +61,29 @@ namespace AbilityKit.Demo.Moba.Systems
                 if (e == null || !e.hasActorBrain || !e.hasTransform) continue;
 
                 var instanceId = e.actorBrain.BehaviorInstanceId;
-                if (!_brains.TryGetBehavior(instanceId, out var behavior) || behavior == null) continue;
-                if (behavior.Phase != BehaviorPhase.Running) continue;
-
-                var movement = behavior.Output.Movement;
-                var wroteMovement = false;
-                if (movement.HasValue && movement.Value.TargetPosition.HasValue)
+                // A zero id denotes a non-Behavior controller (currently actor HFSM). It owns its
+                // input after ActorStateMachineTick; BrainService clears stale input on switching.
+                if (instanceId <= 0) continue;
+                if (!_brains.TryGetBehavior(instanceId, out var behavior) || behavior == null
+                    || behavior.Phase != BehaviorPhase.Running)
                 {
-                    var targetPos = movement.Value.TargetPosition.Value;
+                    WriteMoveInput(e, 0f, 0f);
+                    continue;
+                }
+
+                var intent = MobaBrainIntentReader.Read(behavior.Output);
+                var wroteMovement = false;
+                var canMove = intent.IsValid()
+                    && (_combatRules == null || _combatRules.CanMove(e.actorId.Value));
+                if (canMove && intent.MovementKind == MobaActorMovementIntentKind.Direction)
+                {
+                    WriteMoveInput(e, intent.MoveX, intent.MoveZ);
+                    wroteMovement = System.Math.Abs(intent.MoveX) > 0.0001f
+                        || System.Math.Abs(intent.MoveZ) > 0.0001f;
+                }
+                else if (canMove && intent.MovementKind == MobaActorMovementIntentKind.TargetPosition)
+                {
+                    var targetPos = intent.MoveTarget;
                     if (_maps != null && _maps.IsLoaded
                         && _maps.TryProjectToWalkable(in targetPos, 0.5f, out var projectedTarget))
                     {
@@ -84,36 +102,25 @@ namespace AbilityKit.Demo.Moba.Systems
                 }
 
                 if (!wroteMovement) WriteMoveInput(e, 0f, 0f);
-                ApplySkillEvents(e, behavior.Output.PendingEvents);
+                ApplySkillIntent(e, in intent);
             }
         }
 
-        private void ApplySkillEvents(
-            global::ActorEntity actor,
-            System.Collections.Generic.IReadOnlyList<PendingEvent> events)
+        private void ApplySkillIntent(global::ActorEntity actor, in MobaActorIntent intent)
         {
-            if (_skills == null || events == null || actor == null || !actor.hasActorId) return;
+            if (_skills == null || actor == null || !actor.hasActorId || !intent.IsValid() || !intent.HasCast
+                || intent.SkillSlot <= 0 || !IsSkillReady(actor, intent.SkillSlot, intent.SkillId)
+                || (_combatRules != null && !_combatRules.CanCastSkill(actor.actorId.Value).Passed))
+                return;
 
-            for (var i = 0; i < events.Count; i++)
-            {
-                var evt = events[i];
-                if (!string.Equals(evt.EventId, MobaBrainExecutor.SkillCastEventId,
-                        System.StringComparison.Ordinal))
-                    continue;
-
-                var payload = evt.Payload;
-                if (payload == null || !TryGet(payload, MobaBrainExecutor.SkillSlotParam, out int slot) || slot <= 0)
-                    continue;
-                TryGet(payload, MobaBrainExecutor.SkillIdParam, out int skillId);
-                if (!IsSkillReady(actor, slot, skillId)) continue;
-
-                TryGet(payload, MobaBrainExecutor.TargetActorIdParam, out int targetActorId);
-                TryGet(payload, MobaBrainExecutor.AimPositionParam, out Vec3 aimPosition);
-                if (!TryGet(payload, MobaBrainExecutor.AimDirectionParam, out Vec3 aimDirection))
-                    aimDirection = Vec3.Forward;
-
-                _skills.TryCastBySlot(actor.actorId.Value, slot, in aimPosition, in aimDirection, targetActorId);
-            }
+            var aimPosition = intent.AimPosition;
+            var aimDirection = intent.AimDirection;
+            _skills.TryCastBySlot(
+                actor.actorId.Value,
+                intent.SkillSlot,
+                in aimPosition,
+                in aimDirection,
+                intent.TargetActorId);
         }
 
         private bool IsSkillReady(global::ActorEntity actor, int slot, int expectedSkillId)
@@ -125,21 +132,6 @@ namespace AbilityKit.Demo.Moba.Systems
             if (runtime == null) return false;
             if (expectedSkillId > 0 && runtime.SkillId != expectedSkillId) return false;
             return _frameTime == null || runtime.CooldownEndTimeMs <= MobaSkillRuntimeAccess.GetCurrentTimeMs(_frameTime);
-        }
-
-        private static bool TryGet<T>(
-            System.Collections.Generic.IReadOnlyDictionary<string, object> payload,
-            string key,
-            out T value)
-        {
-            if (payload.TryGetValue(key, out var raw) && raw is T typed)
-            {
-                value = typed;
-                return true;
-            }
-
-            value = default;
-            return false;
         }
 
         private static void WriteMoveInput(global::ActorEntity e, float dx, float dz)

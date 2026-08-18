@@ -1,21 +1,20 @@
 {
-  "triggers": [
-    {
-      "id": 22001,
-      "name": "Trigger_22001",
-      "event": "",
-      "enabled": true,
-      "allowExternal": false,
-      "phase": "immediate",
-      "priority": 50,
-      "conditions": [],
-      "actions": [
+    "triggers": [
         {
-          "emitterId": 400001,
-          "type": "emit"
+            "id": 22001,
+            "name": "Trigger_22001",
+            "event": "",
+            "enabled": true,
+            "allowExternal": false,
+            "phase": "immediate",
+            "priority": 50,
+            "conditions": [],
+            "actions": [
+                {
+                    "emitterId": 400001,
+                    "type": "emit"
+                }
+            ]
         }
-      ],
-      "scope": "owner"
-    }
-  ]
+    ]
 }

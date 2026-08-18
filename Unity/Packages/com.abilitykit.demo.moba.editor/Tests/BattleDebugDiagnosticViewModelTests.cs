@@ -537,6 +537,37 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void EventsOpenEvent_PinsExactEventAndUpdatesWorkspaceSelection()
+        {
+            var diagnosticEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                42,
+                7,
+                8,
+                BattleDiagnosticEventKind.BuffRemoved,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                targetActorId: 12,
+                configId: 13,
+                rootContextId: 14,
+                contextId: 15);
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(RecordingSession.Scope, 50);
+            var panel = new BattleDebugDiagnosticEventsPanel();
+
+            panel.OpenEvent(in diagnosticEvent, workspace);
+
+            Assert.That(panel.SelectedEvent, Is.EqualTo(diagnosticEvent));
+            Assert.That(workspace.Selection.Kind, Is.EqualTo(BattleDiagnosticSelectionKind.Event));
+            Assert.That(workspace.Selection.Id, Is.EqualTo(7));
+            Assert.That(workspace.Selection.Frame, Is.EqualTo(42));
+            Assert.That(workspace.Selection.RelatedId, Is.EqualTo(14));
+            Assert.That(workspace.FrameCursor.Frame, Is.EqualTo(42));
+            Assert.That(workspace.FrameCursor.FollowsLive, Is.False);
+            Assert.That(workspace.Navigation.Count, Is.EqualTo(1));
+        }
+
+        [Test]
         public void EventsClipboardText_IncludesNavigationAndCorrelationFields()
         {
             var diagnosticEvent = new BattleDiagnosticEvent(
@@ -639,6 +670,49 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(text, Does.Contain("SkillFailureStage=Preparation"));
             Assert.That(text, Does.Contain("SkillFailureCode=Cast.TargetOutOfRange"));
             Assert.That(text, Does.Contain("SkillFailureMessage=Target is outside cast range."));
+        }
+
+        [Test]
+        public void EventsClipboardText_IncludesBuffLifecyclePayload()
+        {
+            var lifecycle = new BattleDiagnosticBuffLifecyclePayload(
+                BattleDiagnosticBuffLifecycleStage.Removed,
+                stackCount: 3,
+                previousStackCount: 4,
+                durationMilliseconds: 12000,
+                remainingMilliseconds: 250,
+                intervalRemainingMilliseconds: 750,
+                maxStacks: 5,
+                modifierBindingCount: 2,
+                modifierSourceId: 77,
+                removeReason: 9);
+            var payload = BattleDiagnosticEventPayload.FromBuffLifecycle(in lifecycle);
+            var diagnosticEvent = new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                42,
+                7,
+                8,
+                BattleDiagnosticEventKind.BuffRemoved,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                configId: 701,
+                payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                payload: payload);
+
+            var text = BattleDebugDiagnosticEventsPanel.BuildClipboardText(in diagnosticEvent);
+
+            Assert.That(text, Does.Contain("PayloadKind=BuffLifecycle"));
+            Assert.That(text, Does.Contain("PayloadSchemaVersion=1"));
+            Assert.That(text, Does.Contain("BuffLifecycleStage=Removed"));
+            Assert.That(text, Does.Contain("BuffLifecycleStackCount=3"));
+            Assert.That(text, Does.Contain("BuffLifecyclePreviousStackCount=4"));
+            Assert.That(text, Does.Contain("BuffLifecycleDurationMilliseconds=12000"));
+            Assert.That(text, Does.Contain("BuffLifecycleRemainingMilliseconds=250"));
+            Assert.That(text, Does.Contain("BuffLifecycleIntervalRemainingMilliseconds=750"));
+            Assert.That(text, Does.Contain("BuffLifecycleMaxStacks=5"));
+            Assert.That(text, Does.Contain("BuffLifecycleModifierBindingCount=2"));
+            Assert.That(text, Does.Contain("BuffLifecycleModifierSourceId=77"));
+            Assert.That(text, Does.Contain("BuffLifecycleRemoveReason=9"));
         }
 
         [Test]
@@ -835,7 +909,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
-        public void BuffCacheKey_IncludesBuffRevisionActorAndFrame()
+        public void BuffCacheKey_TracksBuffAndEventRevisionsIndependently()
         {
             var session = new RecordingSession();
             var viewModel = new BattleDebugDiagnosticBuffsViewModel();
@@ -843,19 +917,159 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             viewModel.RefreshIfNeeded(session, 11);
             viewModel.RefreshIfNeeded(session, 11);
             Assert.That(session.BuffQueryCount, Is.EqualTo(1));
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
 
             session.StateStoreRevision++;
             viewModel.RefreshIfNeeded(session, 11);
             Assert.That(session.BuffQueryCount, Is.EqualTo(1));
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
 
             session.ActorBuffStoreRevision++;
             viewModel.RefreshIfNeeded(session, 11);
+            Assert.That(session.BuffQueryCount, Is.EqualTo(2));
+            Assert.That(session.EventQueryCount, Is.EqualTo(1));
+
+            session.EventStoreRevision++;
+            viewModel.RefreshIfNeeded(session, 11);
+            Assert.That(session.BuffQueryCount, Is.EqualTo(2));
+            Assert.That(session.EventQueryCount, Is.EqualTo(2));
+
             viewModel.RefreshIfNeeded(session, 12);
             viewModel.RefreshIfNeeded(session, 12, 5);
 
             Assert.That(session.BuffQueryCount, Is.EqualTo(4));
+            Assert.That(session.EventQueryCount, Is.EqualTo(4));
             Assert.That(session.LastBuffActorId, Is.EqualTo(12));
             Assert.That(session.LastBuffFrame, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void BuffTimeline_QueriesTargetActorAndKeepsOnlyStructuredLifecycleEvents()
+        {
+            var lifecycle = new BattleDiagnosticBuffLifecyclePayload(
+                BattleDiagnosticBuffLifecycleStage.Applied,
+                stackCount: 1,
+                previousStackCount: 0,
+                durationMilliseconds: 5000,
+                remainingMilliseconds: 5000,
+                intervalRemainingMilliseconds: 1000,
+                maxStacks: 3,
+                modifierBindingCount: 2,
+                modifierSourceId: 77,
+                removeReason: 0);
+            var lifecyclePayload = BattleDiagnosticEventPayload.FromBuffLifecycle(in lifecycle);
+            var session = new RecordingSession
+            {
+                EventStoreRevision = 6,
+                Events = new[]
+                {
+                    new BattleDiagnosticEvent(
+                        RecordingSession.Scope,
+                        10,
+                        1,
+                        100,
+                        BattleDiagnosticEventKind.BuffAdded,
+                        BattleDiagnosticEventChannel.Buff,
+                        BattleDiagnosticEventOutcome.Succeeded,
+                        sourceActorId: 7,
+                        targetActorId: 11,
+                        configId: 301,
+                        payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                        payload: lifecyclePayload),
+                    new BattleDiagnosticEvent(
+                        RecordingSession.Scope,
+                        10,
+                        2,
+                        101,
+                        BattleDiagnosticEventKind.BuffAdded,
+                        BattleDiagnosticEventChannel.Buff,
+                        BattleDiagnosticEventOutcome.Succeeded,
+                        targetActorId: 11),
+                    new BattleDiagnosticEvent(
+                        RecordingSession.Scope,
+                        10,
+                        3,
+                        102,
+                        BattleDiagnosticEventKind.Damage,
+                        BattleDiagnosticEventChannel.DamageAndHeal,
+                        BattleDiagnosticEventOutcome.Succeeded,
+                        targetActorId: 11)
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticBuffsViewModel();
+
+            viewModel.RefreshIfNeeded(session, 11);
+
+            Assert.That(viewModel.TimelineEvents.Count, Is.EqualTo(1));
+            Assert.That(viewModel.TimelineEvents[0].Sequence, Is.EqualTo(1));
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Buff));
+            Assert.That(session.LastEventQuery.Filter.ActorId, Is.EqualTo(11));
+            Assert.That(session.LastEventQuery.Filter.ActorRelation, Is.EqualTo(BattleDiagnosticActorRelation.Target));
+            Assert.That(session.LastEventQuery.Page.StoreRevision, Is.EqualTo(6));
+            Assert.That(session.LastEventQuery.NewestFirst, Is.True);
+        }
+
+        [Test]
+        public void BuffTimeline_ScansNextPageForStructuredLifecycleEventsAtFixedRevision()
+        {
+            const long eventRevision = 9;
+            var events = new List<BattleDiagnosticEvent>();
+            for (var i = 0; i < 128; i++)
+            {
+                events.Add(new BattleDiagnosticEvent(
+                    RecordingSession.Scope,
+                    200 - i,
+                    i + 1,
+                    1000 + i,
+                    BattleDiagnosticEventKind.BuffAdded,
+                    BattleDiagnosticEventChannel.Buff,
+                    BattleDiagnosticEventOutcome.Succeeded,
+                    targetActorId: 11,
+                    configId: 301));
+            }
+
+            var lifecycle = new BattleDiagnosticBuffLifecyclePayload(
+                BattleDiagnosticBuffLifecycleStage.Removed,
+                stackCount: 1,
+                previousStackCount: 1,
+                durationMilliseconds: 5000,
+                remainingMilliseconds: 0,
+                intervalRemainingMilliseconds: 0,
+                maxStacks: 3,
+                modifierBindingCount: 2,
+                modifierSourceId: 77,
+                removeReason: 8);
+            var lifecyclePayload = BattleDiagnosticEventPayload.FromBuffLifecycle(in lifecycle);
+            events.Add(new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                72,
+                129,
+                1129,
+                BattleDiagnosticEventKind.BuffRemoved,
+                BattleDiagnosticEventChannel.Buff,
+                BattleDiagnosticEventOutcome.Succeeded,
+                targetActorId: 11,
+                configId: 301,
+                payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                payload: lifecyclePayload));
+            var session = new RecordingSession
+            {
+                EventStoreRevision = eventRevision,
+                Events = events,
+                PageEventResults = true
+            };
+            var viewModel = new BattleDebugDiagnosticBuffsViewModel();
+
+            viewModel.RefreshIfNeeded(session, 11);
+
+            Assert.That(viewModel.TimelineEvents.Count, Is.EqualTo(1));
+            Assert.That(viewModel.TimelineEvents[0].Sequence, Is.EqualTo(129));
+            Assert.That(session.EventQueryCount, Is.EqualTo(2));
+            Assert.That(session.LastEventQuery.Page.StoreRevision, Is.EqualTo(eventRevision));
+            Assert.That(session.LastEventQuery.Page.Offset, Is.EqualTo(128));
+            Assert.That(session.LastEventQuery.NewestFirst, Is.True);
+            Assert.That(viewModel.EventQueryStatus.Phase, Is.EqualTo(BattleDiagnosticQueryPhase.Ready));
+            Assert.That(viewModel.EventStatusMessage, Is.Empty);
         }
 
         [Test]

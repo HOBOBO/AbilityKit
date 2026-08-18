@@ -249,43 +249,87 @@ namespace AbilityKit.Diagnostics
                 return;
             }
 
-            var elapsedNanoseconds = TicksToNanoseconds(Stopwatch.GetTimestamp() - token.StartTimestamp);
+            var nowTimestamp = Stopwatch.GetTimestamp();
+            var elapsedNanoseconds = TicksToNanoseconds(nowTimestamp - token.StartTimestamp);
             lock (_lock)
             {
                 var stack = GetThreadStack(Thread.CurrentThread.ManagedThreadId);
-                ActiveFrame frame = null;
-
-                if (stack.Count > 0)
-                {
-                    frame = stack.Pop();
-                    if (!string.Equals(frame.Name, token.Name, StringComparison.Ordinal))
-                    {
-                        frame = FindAndRemoveFrame(stack, token.Name) ?? frame;
-                    }
-                }
-
-                if (frame == null)
+                if (stack.Count == 0)
                 {
                     RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
                     return;
                 }
 
-                frame.Node.AddMeasurement(elapsedNanoseconds);
-                var elapsedMilliseconds = elapsedNanoseconds / 1000000.0d;
-                AddSampleLocked(frame.Name, elapsedMilliseconds);
-                UpdateDurationSummaryLocked(frame.Name, elapsedMilliseconds);
-                CheckDurationThresholdLocked(frame.Name, elapsedMilliseconds);
-
-                var selfNanoseconds = elapsedNanoseconds - frame.ChildNanoseconds;
-                if (selfNanoseconds > 0)
+                var top = stack.Peek();
+                if (string.Equals(top.Name, token.Name, StringComparison.Ordinal))
                 {
-                    frame.Node.SelfNanoseconds += selfNanoseconds;
+                    CompleteFrameLocked(stack, stack.Pop(), elapsedNanoseconds);
+                    return;
                 }
 
-                if (stack.Count > 0)
+                // 乱序 Complete：向下弹出直到目标帧。目标帧上方的未配对帧按各自开始时间
+                // 依次强制收尾（自顶向下），不丢弃任何帧的数据；目标帧最后收尾。
+                var popped = new List<ActiveFrame>();
+                ActiveFrame targetFrame = null;
+                while (stack.Count > 0)
                 {
-                    stack.Peek().ChildNanoseconds += elapsedNanoseconds;
+                    var frame = stack.Pop();
+                    popped.Add(frame);
+                    if (string.Equals(frame.Name, token.Name, StringComparison.Ordinal))
+                    {
+                        targetFrame = frame;
+                        break;
+                    }
                 }
+
+                if (targetFrame == null)
+                {
+                    // 目标不在本线程栈上（已收尾过或跨线程）：恢复栈，本次 elapsed 记为
+                    // 独立时长，绝不归属到栈顶的无关帧上。
+                    for (int i = popped.Count - 1; i >= 0; i--)
+                    {
+                        stack.Push(popped[i]);
+                    }
+
+                    RecordDurationLocked(token.Name, elapsedNanoseconds, attachToCurrentStack: true);
+                    return;
+                }
+
+                // popped = [顶帧, ..., 目标帧]（弹出顺序）。i 从 0（顶）到目标前一帧：
+                // 各自收尾并把耗时累计到列表中的下一帧（即其父帧）。
+                for (int i = 0; i < popped.Count - 1; i++)
+                {
+                    var frame = popped[i];
+                    var frameElapsed = TicksToNanoseconds(nowTimestamp - frame.StartTimestamp);
+                    RecordFrameMeasurementLocked(frame, frameElapsed);
+                    popped[i + 1].ChildNanoseconds += frameElapsed;
+                }
+
+                CompleteFrameLocked(stack, targetFrame, elapsedNanoseconds);
+            }
+        }
+
+        private void RecordFrameMeasurementLocked(ActiveFrame frame, long elapsedNanoseconds)
+        {
+            frame.Node.AddMeasurement(elapsedNanoseconds);
+            var elapsedMilliseconds = elapsedNanoseconds / 1000000.0d;
+            AddSampleLocked(frame.Name, elapsedMilliseconds);
+            UpdateDurationSummaryLocked(frame.Name, elapsedMilliseconds);
+            CheckDurationThresholdLocked(frame.Name, elapsedMilliseconds);
+
+            var selfNanoseconds = elapsedNanoseconds - frame.ChildNanoseconds;
+            if (selfNanoseconds > 0)
+            {
+                frame.Node.SelfNanoseconds += selfNanoseconds;
+            }
+        }
+
+        private void CompleteFrameLocked(Stack<ActiveFrame> stack, ActiveFrame frame, long elapsedNanoseconds)
+        {
+            RecordFrameMeasurementLocked(frame, elapsedNanoseconds);
+            if (stack.Count > 0)
+            {
+                stack.Peek().ChildNanoseconds += elapsedNanoseconds;
             }
         }
 
@@ -532,35 +576,6 @@ namespace AbilityKit.Diagnostics
             return stack;
         }
 
-        private static ActiveFrame FindAndRemoveFrame(Stack<ActiveFrame> stack, string name)
-        {
-            if (stack.Count == 0)
-            {
-                return null;
-            }
-
-            var buffer = new Stack<ActiveFrame>();
-            ActiveFrame found = null;
-            while (stack.Count > 0)
-            {
-                var frame = stack.Pop();
-                if (found == null && string.Equals(frame.Name, name, StringComparison.Ordinal))
-                {
-                    found = frame;
-                    break;
-                }
-
-                buffer.Push(frame);
-            }
-
-            while (buffer.Count > 0)
-            {
-                stack.Push(buffer.Pop());
-            }
-
-            return found;
-        }
-
         private void AddSampleLocked(string name, double value)
         {
             if (!_samples.TryGetValue(name, out var list))
@@ -606,7 +621,8 @@ namespace AbilityKit.Diagnostics
                 _rateSamples[name] = queue;
             }
 
-            queue.Enqueue(new RateSample { Timestamp = now, Value = Math.Abs(value) });
+            // Math.Abs(long.MinValue) 会抛 OverflowException，取 long.MaxValue 作为封顶。
+            queue.Enqueue(new RateSample { Timestamp = now, Value = value == long.MinValue ? long.MaxValue : Math.Abs(value) });
             RefreshRateLocked(name, now);
             CheckRateThresholdLocked(name, now);
         }
@@ -824,9 +840,20 @@ namespace AbilityKit.Diagnostics
             return _root.EndTimestamp != 0L ? _root.EndTimestamp : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         }
 
-        private static long TicksToNanoseconds(long stopwatchTicks)
+        // internal 供测试直接验证大 tick 数换算（真实探针要 >9.2s 才触发溢出，测试里不可行）。
+        internal static long TicksToNanoseconds(long stopwatchTicks)
         {
-            return stopwatchTicks <= 0L ? 0L : stopwatchTicks * 1000000000L / Stopwatch.Frequency;
+            if (stopwatchTicks <= 0L)
+            {
+                return 0L;
+            }
+
+            // 直接乘 1e9 在 ticks > ~9.2e9 时中间溢出（Linux 上 Frequency==1e9，
+            // 即超过 ~9.2 秒的探针会溢出成负纳秒）。拆成整秒 + 余数两段换算，
+            // remainder < Frequency ≤ ~4e9，各段乘法都不会溢出。
+            var seconds = stopwatchTicks / Stopwatch.Frequency;
+            var remainder = stopwatchTicks % Stopwatch.Frequency;
+            return seconds * 1000000000L + remainder * 1000000000L / Stopwatch.Frequency;
         }
 
         private static string GetCategory(string name)

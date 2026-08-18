@@ -1057,7 +1057,8 @@ namespace AbilityKit.Game.Test.UnitTest
     [InitializeOnLoad]
     internal static class DemoGameplayTestLauncher
     {
-        private const string GameplayScenePath = "Assets/Scenes/" + DemoSceneRoutes.Gameplay + ".unity";
+        private const string GameplayScenePath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Scenes/" + DemoSceneRoutes.Moba + ".unity";
         private const string PendingKey = "AbilityKit.DemoGameplayTestLauncher.Pending";
         private const string GameplayKey = "AbilityKit.DemoGameplayTestLauncher.Gameplay";
         private const string ModeKey = "AbilityKit.DemoGameplayTestLauncher.Mode";
@@ -1086,7 +1087,7 @@ namespace AbilityKit.Game.Test.UnitTest
             if (bootstrap == null)
             {
                 throw new InvalidOperationException(
-                    $"{DemoSceneRoutes.Gameplay} must contain a {nameof(DemoGameplayBootstrap)}.");
+                    $"{DemoSceneRoutes.Moba} must contain a {nameof(DemoGameplayBootstrap)}.");
             }
             if (!bootstrap.TryLaunch(out var error))
             {
@@ -1113,7 +1114,7 @@ namespace AbilityKit.Game.Test.UnitTest
             if (!scene.IsValid())
             {
                 throw new InvalidOperationException(
-                    $"Unified gameplay scene should load from {GameplayScenePath}.");
+                    $"MOBA gameplay scene should load from {GameplayScenePath}.");
             }
 
             return scene;

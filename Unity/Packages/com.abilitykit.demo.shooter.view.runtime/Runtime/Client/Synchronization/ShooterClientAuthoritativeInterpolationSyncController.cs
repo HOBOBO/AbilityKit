@@ -16,7 +16,7 @@ namespace AbilityKit.Demo.Shooter.View
     /// 本地玩家使用权威 pose、输入确认和有界未确认输入重放；远端 actor 只进入服务器时间线插值，
     /// 不导入本地模拟，也不触发整世界回滚。
     /// </summary>
-    public sealed class ShooterClientAuthoritativeInterpolationSyncController : IShooterClientSyncController, IInterpolationDiagnosticsProvider
+    public sealed class ShooterClientAuthoritativeInterpolationSyncController : IShooterClientSyncController, IShooterClientFrameSyncCapability, IShooterClientInputCapability, IInterpolationDiagnosticsProvider
     {
         private const int MaxPendingInputs = 128;
         private const int MaxReplayFrames = 120;
@@ -71,11 +71,12 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterGatewaySnapshotDecoder? decoder,
             IShooterRoomGatewayClient? gateway,
             InterpolationConfig config,
-            NetworkSyncModel syncModel)
+            NetworkSyncModel syncModel,
+            ShooterClientPredictionBufferOptions? predictionBufferOptions = null)
         {
             _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
-            _core = new ShooterClientSyncCore(_runtime, presentation, tickRate, decoder, gateway);
+            _core = new ShooterClientSyncCore(_runtime, presentation, tickRate, decoder, gateway, predictionBufferOptions);
             _decoder = decoder ?? new ShooterGatewaySnapshotDecoder();
             _playback = new RemoteInterpolationPlayback<ShooterRemoteSnapshotSample>(config);
             _syncModel = syncModel;

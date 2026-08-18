@@ -47,9 +47,7 @@ namespace AbilityKit.Game.Flow
             var factory = entityContext.EntityFactory;
             if (world == null || lookup == null || factory == null) return;
 
-            var actors = snapshot.Actors;
-            if (actors == null || actors.Length == 0) return;
-
+            var actors = snapshot.Actors ?? System.Array.Empty<GatewayStateSyncActorSnapshot>();
             var dirty = entityContext.DirtyEntities;
             if (dirty == null)
             {
@@ -57,10 +55,16 @@ namespace AbilityKit.Game.Flow
                 entityContext.DirtyEntities = dirty;
             }
 
+            var authoritativeActorIds = snapshot.IsFullSnapshot
+                ? new HashSet<int>()
+                : null;
             for (int i = 0; i < actors.Length; i++)
             {
                 var actor = actors[i];
-                if (actor.ActorId <= 0 || actor.ActorId == localActorId) continue;
+                if (actor.ActorId <= 0) continue;
+
+                authoritativeActorIds?.Add(actor.ActorId);
+                if (actor.ActorId == localActorId) continue;
 
                 var netId = new BattleNetId(actor.ActorId);
                 if (!lookup.TryResolve(world, netId, out var entity))
@@ -82,6 +86,42 @@ namespace AbilityKit.Game.Flow
                 transform.Position = new Vector3(actor.X, actor.Y, actor.Z);
                 transform.Forward = RotationToForward(actor.Rotation);
                 dirty.Add(entity.Id);
+            }
+
+            if (authoritativeActorIds != null)
+            {
+                RemoveActorsMissingFromFullSnapshot(
+                    world,
+                    lookup,
+                    authoritativeActorIds,
+                    localActorId);
+            }
+        }
+
+        private static void RemoveActorsMissingFromFullSnapshot(
+            IECWorld world,
+            BattleEntityLookup lookup,
+            HashSet<int> authoritativeActorIds,
+            int localActorId)
+        {
+            var staleEntities = new List<IEntityId>();
+            world.ForEachAlive(entity =>
+            {
+                if (!entity.TryGetRef(out BattleNetIdComponent netId) || netId == null) return;
+                if (netId.NetId.Value == localActorId) return;
+                if (authoritativeActorIds.Contains(netId.NetId.Value)) return;
+
+                staleEntities.Add(entity.Id);
+            });
+
+            for (int i = 0; i < staleEntities.Count; i++)
+            {
+                var entityId = staleEntities[i];
+                lookup.UnbindByEntityId(entityId);
+                if (world.IsAlive(entityId))
+                {
+                    world.Wrap(entityId).Destroy();
+                }
             }
         }
 

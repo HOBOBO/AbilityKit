@@ -1,0 +1,10 @@
+<Project>
+  <!--
+    Stable packages reject warning codes that are not part of the current baseline.
+    Baseline warnings stay visible in build output and should be removed code-by-code as debt is fixed.
+  -->
+  <PropertyGroup Condition="'$(AbilityKitStable)' == 'true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);CS0067;CS0114;CS0414;CS0436;CS0618;CS1570;CS1573;CS1574;CS1587;CS1591;CS8600;CS8601;CS8602;CS8603;CS8604;CS8605;CS8618;CS8619;CS8622;CS8625;CS8714;CS8765;CS8767;NU1603;NU1701</WarningsNotAsErrors>
+  </PropertyGroup>
+</Project>

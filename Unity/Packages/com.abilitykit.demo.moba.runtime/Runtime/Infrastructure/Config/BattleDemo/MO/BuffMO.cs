@@ -69,6 +69,13 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         }
     }
 
+    public enum BuffDispelPolicy
+    {
+        LegacyTag = 0,
+        Dispellable = 1,
+        Undispellable = 2,
+    }
+
     public sealed class BuffMO
     {
         public int Id { get; }
@@ -87,6 +94,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int ContinuousTagTemplateId { get; }
         public GameplayTagContainer Tags { get; }
         public IReadOnlyList<ContinuousModifierMO> Modifiers { get; }
+        public BuffDispelPolicy DispelPolicy { get; }
+        public int DispelCategory { get; }
+        public GameplayTagContainer DispelBlockedByTags { get; }
 
         public BuffMO(BuffDTO dto)
         {
@@ -107,6 +117,9 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
             ContinuousTagTemplateId = dto.ContinuousTagTemplateId;
             Tags = MobaGameplayTagCatalog.ToContainer(dto.TagNames);
             Modifiers = CreateModifiers(dto.Modifiers);
+            DispelPolicy = (BuffDispelPolicy)dto.DispelPolicy;
+            DispelCategory = dto.DispelCategory;
+            DispelBlockedByTags = MobaGameplayTagCatalog.ToContainer(dto.DispelBlockedByTagNames);
         }
 
         private static IReadOnlyList<ContinuousModifierMO> CreateModifiers(ContinuousModifierDTO[] modifiers)

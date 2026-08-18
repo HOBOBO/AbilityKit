@@ -12,7 +12,8 @@ namespace AbilityKit.Game.Editor
     [InitializeOnLoad]
     public static class MobaDemoSceneMenu
     {
-        private const string GameplayScenePath = "Assets/Scenes/" + DemoSceneRoutes.Gameplay + ".unity";
+        private const string GameplayScenePath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Scenes/" + DemoSceneRoutes.Moba + ".unity";
         private const string LocalProfileId = "moba-local";
         private const string PendingLaunchKey = "AbilityKit.MobaDemo.PendingUnifiedLaunch";
         private const string MenuRoot = "Tools/AbilityKit/Demos/Moba/";
@@ -36,7 +37,7 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            EditorUtility.DisplayDialog("MOBA Demo", $"Unified demo composition is ready:\n{GameplayScenePath}", "OK");
+            EditorUtility.DisplayDialog("MOBA Demo", $"MOBA package composition is ready:\n{GameplayScenePath}", "OK");
             PingSceneAsset();
         }
 
@@ -45,7 +46,7 @@ namespace AbilityKit.Game.Editor
             DemoGameplayCompositionBuilder.GenerateAll();
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(GameplayScenePath) == null)
             {
-                throw new InvalidOperationException("Unable to create or refresh the unified gameplay scene.");
+                throw new InvalidOperationException("Unable to create or refresh the MOBA gameplay scene.");
             }
         }
 
@@ -78,7 +79,7 @@ namespace AbilityKit.Game.Editor
             var scene = EditorSceneManager.OpenScene(GameplayScenePath, OpenSceneMode.Single);
             if (!scene.IsValid())
             {
-                throw new InvalidOperationException($"Unable to open unified gameplay scene '{GameplayScenePath}'.");
+                throw new InvalidOperationException($"Unable to open MOBA gameplay scene '{GameplayScenePath}'.");
             }
 
             return true;

@@ -222,12 +222,16 @@ namespace AbilityKit.Ability.Flow.Pooling
         {
             if (provider == null) throw new ArgumentNullException(nameof(provider));
 
-            return Scope.Get(
+            // provider 不能放进池的 onGet 闭包：Core 池只在首次创建时登记 options，
+            // 后续调用传入的 onGet 会被丢弃，第一个 provider 会被闭包永久固化。
+            // 改为 Get 之后显式绑定本次调用传入的 provider。
+            var host = Scope.Get(
                 HostKey,
                 () => new FlowHost<TArgs>(deferRent: true),
                 PoolItemConfig.Default(defaultCapacity: 2, maxSize: 32, prewarmCount: 0, collectionCheck: true),
-                onGet: host => host.ResetForRent(provider, RentSession()),
                 onRelease: host => host.ResetForRelease());
+            host.ResetForRent(provider, RentSession());
+            return host;
         }
 
         /// <summary>

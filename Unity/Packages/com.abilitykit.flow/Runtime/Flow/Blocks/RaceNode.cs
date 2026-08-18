@@ -37,6 +37,8 @@ namespace AbilityKit.Ability.Flow.Blocks
         public FlowStatus Tick(FlowContext ctx, float deltaTime)
         {
             if (!_entered) return FlowStatus.Succeeded;
+            // 空组与空 Sequence/ParallelAll 一致：立即 Succeeded，而不是永远 Running。
+            if (_nodes.Length == 0) return FlowStatus.Succeeded;
 
             for (int i = 0; i < _nodes.Length; i++)
             {

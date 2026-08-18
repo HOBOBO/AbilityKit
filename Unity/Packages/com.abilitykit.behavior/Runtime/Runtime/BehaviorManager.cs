@@ -71,7 +71,7 @@ namespace AbilityKit.Ability.Behavior
     /// - 不依赖任何业务层接口
     /// - 由业务层决定何时创建/中断行为
     /// </summary>
-    public class BehaviorManager
+    public class BehaviorManager : IDisposable
     {
         #region Private Fields
         
@@ -343,6 +343,25 @@ namespace AbilityKit.Ability.Behavior
         /// 总行为数量
         /// </summary>
         public int TotalCount => _behaviors.Count;
+
+        public void Dispose()
+        {
+            foreach (var behavior in _orderedBehaviors.ToArray())
+            {
+                if (behavior == null) continue;
+                if (behavior.Phase == BehaviorPhase.Running || behavior.Phase == BehaviorPhase.Paused)
+                    behavior.Interrupt("BehaviorManagerDisposed");
+                else
+                    Cleanup(behavior, behavior.Phase == BehaviorPhase.Completed
+                        ? BehaviorEndReason.Completed
+                        : BehaviorEndReason.Interrupted);
+            }
+
+            _behaviors.Clear();
+            _orderedBehaviors.Clear();
+            _entityBehaviors.Clear();
+            _bindings.Clear();
+        }
         
         #endregion
         

@@ -21,7 +21,6 @@
         "com.abilitykit.core",
         "com.abilitykit.deterministic",
         "com.abilitykit.gameplaytags",
-        "com.abilitykit.threading",
         "com.abilitykit.diagnostics",
         "com.abilitykit.ai.abstractions",
         "com.abilitykit.protocol",

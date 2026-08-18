@@ -54,6 +54,14 @@ namespace AbilityKit.Game.Flow
             }
 
             runtime.ContextVfxBindingGeneration = 0;
+
+            var vfxNode = runtime.VfxNode;
+            runtime.Vfx?.Clear(in vfxNode);
+            if (vfxNode.IsValid)
+            {
+                vfxNode.Destroy();
+            }
+
             runtime.Vfx = null;
             runtime.VfxNode = default;
             runtime.Hierarchy = null;

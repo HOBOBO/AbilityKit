@@ -1,0 +1,743 @@
+#nullable enable
+AbilityKit.Core.Collections.PriorityDirection
+AbilityKit.Core.Collections.PriorityDirection.Ascending = 0 -> AbilityKit.Core.Collections.PriorityDirection
+AbilityKit.Core.Collections.PriorityDirection.Descending = 1 -> AbilityKit.Core.Collections.PriorityDirection
+AbilityKit.Core.Collections.StablePriorityList<T>
+AbilityKit.Core.Collections.StablePriorityList<T>.Add(T item, int priority = 0) -> void
+AbilityKit.Core.Collections.StablePriorityList<T>.Clear() -> void
+AbilityKit.Core.Collections.StablePriorityList<T>.Count.get -> int
+AbilityKit.Core.Collections.StablePriorityList<T>.GetEnumerator() -> System.Collections.Generic.IEnumerator<T>!
+AbilityKit.Core.Collections.StablePriorityList<T>.RemoveFirst(System.Predicate<T>! match) -> bool
+AbilityKit.Core.Collections.StablePriorityList<T>.StablePriorityList(AbilityKit.Core.Collections.PriorityDirection direction = AbilityKit.Core.Collections.PriorityDirection.Ascending, int capacity = 0) -> void
+AbilityKit.Core.Collections.StablePriorityList<T>.this[int index].get -> T
+AbilityKit.Core.Collections.StablePriorityList<T>.TryUpdatePriority(System.Predicate<T>! match, int priority) -> bool
+AbilityKit.Core.Configuration.FlatJsonSettings
+AbilityKit.Core.Configuration.FlatJsonSettings.FlatJsonSettings(System.Collections.Generic.Dictionary<string!, object!>! values) -> void
+AbilityKit.Core.Configuration.FlatJsonSettings.TryGetBool(string! key, out bool value) -> bool
+AbilityKit.Core.Configuration.FlatJsonSettings.TryGetFloat(string! key, out float value) -> bool
+AbilityKit.Core.Configuration.FlatJsonSettings.TryGetInt(string! key, out int value) -> bool
+AbilityKit.Core.Configuration.FlatJsonSettings.TryGetString(string! key, out string! value) -> bool
+AbilityKit.Core.Configuration.FlatJsonSettings.Values.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object!>!
+AbilityKit.Core.Configuration.JsonSettingsFiles
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.BaseValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object!>!
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.BuildEffectiveView() -> System.Collections.Generic.Dictionary<string!, object!>!
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ClearOverride(string! key) -> bool
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ClearOverrides() -> void
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.LayeredJsonSettingsStore() -> void
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.OnChanged -> System.Action<string!>!
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.OverrideValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object!>!
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.PersistentValues.get -> System.Collections.Generic.IReadOnlyDictionary<string!, object!>!
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ReplaceBase(AbilityKit.Core.Configuration.FlatJsonSettings! settings) -> void
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ReplacePersistent(AbilityKit.Core.Configuration.FlatJsonSettings! settings) -> void
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.SetOverride(string! key, object! value) -> void
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.TryGetBool(string! key, out bool value) -> bool
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.TryGetFloat(string! key, out float value) -> bool
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.TryGetInt(string! key, out int value) -> bool
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.TryGetRaw(string! key, out object! value) -> bool
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.TryGetString(string! key, out string! value) -> bool
+AbilityKit.Core.Configuration.ModuleInstallerConfig
+AbilityKit.Core.Configuration.ModuleInstallerConfig.GetEffectiveMethod() -> string!
+AbilityKit.Core.Configuration.ModuleInstallerConfig.InstallerMethod -> string!
+AbilityKit.Core.Configuration.ModuleInstallerConfig.InstallerType -> string!
+AbilityKit.Core.Configuration.ModuleInstallerConfig.IsValid.get -> bool
+AbilityKit.Core.Configuration.ModuleInstallerConfig.ModuleInstallerConfig() -> void
+AbilityKit.Core.Configuration.ModuleInstallerConfig.ModuleKey -> string!
+AbilityKit.Core.Configuration.ModuleInstallerConfigSet
+AbilityKit.Core.Configuration.ModuleInstallerConfigSet.FindModule(string! moduleKey) -> AbilityKit.Core.Configuration.ModuleInstallerConfig!
+AbilityKit.Core.Configuration.ModuleInstallerConfigSet.ModuleInstallerConfigSet() -> void
+AbilityKit.Core.Configuration.ModuleInstallerConfigSet.Modules -> AbilityKit.Core.Configuration.ModuleInstallerConfig![]!
+AbilityKit.Core.Configuration.PersistentJsonConfigLoader
+AbilityKit.Core.Continuous.AllowAllContinuousAdmissionPolicy
+AbilityKit.Core.Continuous.AllowAllContinuousAdmissionPolicy.CanActivate(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager, out string? reason) -> bool
+AbilityKit.Core.Continuous.AllowAllContinuousAdmissionPolicy.CanRegister(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager, out string? reason) -> bool
+AbilityKit.Core.Continuous.BlockByOwnerActiveTagsPolicy
+AbilityKit.Core.Continuous.BlockByOwnerActiveTagsPolicy.BlockByOwnerActiveTagsPolicy(AbilityKit.Core.Continuous.ITagContainer! blockedTags) -> void
+AbilityKit.Core.Continuous.BlockByOwnerActiveTagsPolicy.CanActivate(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager, out string? reason) -> bool
+AbilityKit.Core.Continuous.BlockByOwnerActiveTagsPolicy.CanRegister(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager, out string? reason) -> bool
+AbilityKit.Core.Continuous.ContinuousEndReason
+AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp = 3 -> AbilityKit.Core.Continuous.ContinuousEndReason
+AbilityKit.Core.Continuous.ContinuousEndReason.Completed = 0 -> AbilityKit.Core.Continuous.ContinuousEndReason
+AbilityKit.Core.Continuous.ContinuousEndReason.Interrupted = 1 -> AbilityKit.Core.Continuous.ContinuousEndReason
+AbilityKit.Core.Continuous.ContinuousEndReason.SourceEnded = 2 -> AbilityKit.Core.Continuous.ContinuousEndReason
+AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.ContinuousState.Aborted = 5 -> AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.ContinuousState.Activating = 1 -> AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.ContinuousState.Active = 2 -> AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.ContinuousState.Expired = 4 -> AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.ContinuousState.Inactive = 0 -> AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.ContinuousState.Paused = 3 -> AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.DefaultContinuousManager
+AbilityKit.Core.Continuous.DefaultContinuousManager.ActiveCount.get -> int
+AbilityKit.Core.Continuous.DefaultContinuousManager.AddAdmissionPolicy(AbilityKit.Core.Continuous.IContinuousAdmissionPolicy! policy) -> void
+AbilityKit.Core.Continuous.DefaultContinuousManager.AddLifecycleBinder(AbilityKit.Core.Continuous.IContinuousLifecycleBinder! binder) -> void
+AbilityKit.Core.Continuous.DefaultContinuousManager.Clear(AbilityKit.Core.Continuous.ContinuousEndReason reason = AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp) -> void
+AbilityKit.Core.Continuous.DefaultContinuousManager.DefaultContinuousManager(System.Collections.Generic.IEnumerable<AbilityKit.Core.Continuous.IContinuousAdmissionPolicy!>? admissionPolicies = null, System.Collections.Generic.IEnumerable<AbilityKit.Core.Continuous.IContinuousLifecycleBinder!>? lifecycleBinders = null) -> void
+AbilityKit.Core.Continuous.DefaultContinuousManager.GetAllActiveContinuous() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Continuous.IContinuous!>!
+AbilityKit.Core.Continuous.DefaultContinuousManager.GetAllContinuous() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Continuous.IContinuous!>!
+AbilityKit.Core.Continuous.DefaultContinuousManager.GetOwnerActiveContinuous(long ownerId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Continuous.IContinuous!>!
+AbilityKit.Core.Continuous.DefaultContinuousManager.GetOwnerContinuous(long ownerId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Continuous.IContinuous!>!
+AbilityKit.Core.Continuous.DefaultContinuousManager.InterruptAll(long ownerId, string! reason) -> void
+AbilityKit.Core.Continuous.DefaultContinuousManager.LastRejectReason.get -> string?
+AbilityKit.Core.Continuous.DefaultContinuousManager.OnActivated -> System.Action<AbilityKit.Core.Continuous.IContinuous!>?
+AbilityKit.Core.Continuous.DefaultContinuousManager.OnRegistered -> System.Action<AbilityKit.Core.Continuous.IContinuous!>?
+AbilityKit.Core.Continuous.DefaultContinuousManager.OnUnregistered -> System.Action<AbilityKit.Core.Continuous.IContinuous!, AbilityKit.Core.Continuous.ContinuousEndReason>?
+AbilityKit.Core.Continuous.DefaultContinuousManager.PauseAll(long ownerId) -> void
+AbilityKit.Core.Continuous.DefaultContinuousManager.Register(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.RemoveAdmissionPolicy(AbilityKit.Core.Continuous.IContinuousAdmissionPolicy! policy) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.RemoveLifecycleBinder(AbilityKit.Core.Continuous.IContinuousLifecycleBinder! binder) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.ResumeAll(long ownerId) -> void
+AbilityKit.Core.Continuous.DefaultContinuousManager.TotalCount.get -> int
+AbilityKit.Core.Continuous.DefaultContinuousManager.TryActivate(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.TryEnd(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason = AbilityKit.Core.Continuous.ContinuousEndReason.Completed) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.TryInterrupt(AbilityKit.Core.Continuous.IContinuous! continuous, string! reason) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.TryPause(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.TryResume(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.DefaultContinuousManager.Unregister(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason = AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp) -> void
+AbilityKit.Core.Continuous.IContinuous
+AbilityKit.Core.Continuous.IContinuous.Abort(string! reason) -> void
+AbilityKit.Core.Continuous.IContinuous.Activate() -> void
+AbilityKit.Core.Continuous.IContinuous.Config.get -> AbilityKit.Core.Continuous.IContinuousConfig!
+AbilityKit.Core.Continuous.IContinuous.ElapsedSeconds.get -> float
+AbilityKit.Core.Continuous.IContinuous.End(AbilityKit.Core.Continuous.ContinuousEndReason reason) -> void
+AbilityKit.Core.Continuous.IContinuous.IsActive.get -> bool
+AbilityKit.Core.Continuous.IContinuous.IsPaused.get -> bool
+AbilityKit.Core.Continuous.IContinuous.IsTerminated.get -> bool
+AbilityKit.Core.Continuous.IContinuous.OnEnded -> System.Action<AbilityKit.Core.Continuous.IContinuous!, AbilityKit.Core.Continuous.ContinuousEndReason>!
+AbilityKit.Core.Continuous.IContinuous.Pause() -> void
+AbilityKit.Core.Continuous.IContinuous.Resume() -> void
+AbilityKit.Core.Continuous.IContinuous.State.get -> AbilityKit.Core.Continuous.ContinuousState
+AbilityKit.Core.Continuous.IContinuousAdmissionPolicy
+AbilityKit.Core.Continuous.IContinuousAdmissionPolicy.CanActivate(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager, out string? reason) -> bool
+AbilityKit.Core.Continuous.IContinuousAdmissionPolicy.CanRegister(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager, out string? reason) -> bool
+AbilityKit.Core.Continuous.IContinuousConfig
+AbilityKit.Core.Continuous.IContinuousConfig.CanBeInterrupted.get -> bool
+AbilityKit.Core.Continuous.IContinuousConfig.Id.get -> string!
+AbilityKit.Core.Continuous.IContinuousConfig.OwnerId.get -> long
+AbilityKit.Core.Continuous.IContinuousLifecycleBinder
+AbilityKit.Core.Continuous.IContinuousLifecycleBinder.OnActivated(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.IContinuousLifecycleBinder.OnEnded(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.IContinuousLifecycleBinder.OnPaused(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.IContinuousLifecycleBinder.OnRegistered(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.IContinuousLifecycleBinder.OnResumed(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.IContinuousLifecycleBinder.OnUnregistered(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.IContinuousManager
+AbilityKit.Core.Continuous.IContinuousManager.ActiveCount.get -> int
+AbilityKit.Core.Continuous.IContinuousManager.GetOwnerActiveContinuous(long ownerId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Continuous.IContinuous!>!
+AbilityKit.Core.Continuous.IContinuousManager.GetOwnerContinuous(long ownerId) -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Continuous.IContinuous!>!
+AbilityKit.Core.Continuous.IContinuousManager.InterruptAll(long ownerId, string! reason) -> void
+AbilityKit.Core.Continuous.IContinuousManager.PauseAll(long ownerId) -> void
+AbilityKit.Core.Continuous.IContinuousManager.Register(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.IContinuousManager.ResumeAll(long ownerId) -> void
+AbilityKit.Core.Continuous.IContinuousManager.TotalCount.get -> int
+AbilityKit.Core.Continuous.IContinuousManager.TryActivate(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.IContinuousManager.TryEnd(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason = AbilityKit.Core.Continuous.ContinuousEndReason.Completed) -> bool
+AbilityKit.Core.Continuous.IContinuousManager.TryInterrupt(AbilityKit.Core.Continuous.IContinuous! continuous, string! reason) -> bool
+AbilityKit.Core.Continuous.IContinuousManager.TryPause(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.IContinuousManager.TryResume(AbilityKit.Core.Continuous.IContinuous! continuous) -> bool
+AbilityKit.Core.Continuous.IContinuousManager.Unregister(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason = AbilityKit.Core.Continuous.ContinuousEndReason.CleanedUp) -> void
+AbilityKit.Core.Continuous.IDurationConfig
+AbilityKit.Core.Continuous.IDurationConfig.DurationSeconds.get -> float?
+AbilityKit.Core.Continuous.IHierarchyConfig
+AbilityKit.Core.Continuous.IHierarchyConfig.CascadeOnExpire.get -> bool
+AbilityKit.Core.Continuous.IHierarchyConfig.ParentId.get -> string!
+AbilityKit.Core.Continuous.IMutexConfig
+AbilityKit.Core.Continuous.IMutexConfig.MutexGroup.get -> string!
+AbilityKit.Core.Continuous.IMutexConfig.Priority.get -> int
+AbilityKit.Core.Continuous.IStackConfig
+AbilityKit.Core.Continuous.IStackConfig.MaxStack.get -> int
+AbilityKit.Core.Continuous.IStackConfig.Stack.get -> int
+AbilityKit.Core.Continuous.IStackConfig.Stack.set -> void
+AbilityKit.Core.Continuous.ITagConfig
+AbilityKit.Core.Continuous.ITagConfig.BlockByTags.get -> AbilityKit.Core.Continuous.ITagContainer!
+AbilityKit.Core.Continuous.ITagConfig.PauseByTags.get -> AbilityKit.Core.Continuous.ITagContainer!
+AbilityKit.Core.Continuous.ITagConfig.Tags.get -> AbilityKit.Core.Continuous.ITagContainer!
+AbilityKit.Core.Continuous.ITagContainer
+AbilityKit.Core.Continuous.ITagContainer.Count.get -> int
+AbilityKit.Core.Continuous.ITagContainer.HasAny(AbilityKit.Core.Continuous.ITagContainer! other) -> bool
+AbilityKit.Core.Continuous.ITagContainer.HasTag(string! tag) -> bool
+AbilityKit.Core.Continuous.NullContinuousLifecycleBinder
+AbilityKit.Core.Continuous.NullContinuousLifecycleBinder.OnActivated(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.NullContinuousLifecycleBinder.OnEnded(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.NullContinuousLifecycleBinder.OnPaused(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.NullContinuousLifecycleBinder.OnRegistered(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.NullContinuousLifecycleBinder.OnResumed(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Continuous.NullContinuousLifecycleBinder.OnUnregistered(AbilityKit.Core.Continuous.IContinuous! continuous, AbilityKit.Core.Continuous.ContinuousEndReason reason, AbilityKit.Core.Continuous.IContinuousManager! manager) -> void
+AbilityKit.Core.Debugging.DebugDrawColor
+AbilityKit.Core.Debugging.DebugDrawColor.DebugDrawColor() -> void
+AbilityKit.Core.Debugging.DebugDrawColor.DebugDrawColor(byte r, byte g, byte b, byte a = 255) -> void
+AbilityKit.Core.Debugging.DebugDrawContext
+AbilityKit.Core.Debugging.DebugDrawContext.DebugDrawContext() -> void
+AbilityKit.Core.Debugging.DebugDrawContext.DebugDrawContext(AbilityKit.Core.Debugging.DebugDrawMask enabledMask) -> void
+AbilityKit.Core.Debugging.DebugDrawMask
+AbilityKit.Core.Debugging.DebugDrawMask.DebugDrawMask() -> void
+AbilityKit.Core.Debugging.DebugDrawMask.DebugDrawMask(int value) -> void
+AbilityKit.Core.Debugging.DebugDrawMask.Equals(AbilityKit.Core.Debugging.DebugDrawMask other) -> bool
+AbilityKit.Core.Debugging.DebugDrawStyle
+AbilityKit.Core.Debugging.DebugDrawStyle.DebugDrawStyle() -> void
+AbilityKit.Core.Debugging.DebugDrawStyle.DebugDrawStyle(in AbilityKit.Core.Debugging.DebugDrawColor color) -> void
+AbilityKit.Core.Debugging.IDebugDraw
+AbilityKit.Core.Debugging.IDebugDraw.DrawLine(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b, in AbilityKit.Core.Debugging.DebugDrawStyle style) -> void
+AbilityKit.Core.Debugging.IDebugDraw.DrawWireAabb(in AbilityKit.Core.Mathematics.Vec3 center, in AbilityKit.Core.Mathematics.Vec3 size, in AbilityKit.Core.Debugging.DebugDrawStyle style) -> void
+AbilityKit.Core.Debugging.IDebugDraw.DrawWireCapsule(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b, float radius, in AbilityKit.Core.Debugging.DebugDrawStyle style) -> void
+AbilityKit.Core.Debugging.IDebugDraw.DrawWireSphere(in AbilityKit.Core.Mathematics.Vec3 center, float radius, in AbilityKit.Core.Debugging.DebugDrawStyle style) -> void
+AbilityKit.Core.Debugging.IDebugDrawContributor
+AbilityKit.Core.Debugging.IDebugDrawContributor.Draw(in AbilityKit.Core.Debugging.DebugDrawContext ctx, AbilityKit.Core.Debugging.IDebugDraw! draw) -> void
+AbilityKit.Core.Debugging.IDebugDrawContributor.Mask.get -> AbilityKit.Core.Debugging.DebugDrawMask
+AbilityKit.Core.Eventing.EventDispatcher
+AbilityKit.Core.Eventing.EventDispatcher.EventDispatcher() -> void
+AbilityKit.Core.Eventing.EventDispatcher.GetOrRegisterEventId(string! eventId) -> int
+AbilityKit.Core.Eventing.EventDispatcher.Publish<TArgs>(int eventId, in TArgs args, bool autoReleaseArgs = true) -> void
+AbilityKit.Core.Eventing.EventDispatcher.Publish<TArgs>(string! eventId, in TArgs args, bool autoReleaseArgs = true) -> void
+AbilityKit.Core.Eventing.EventDispatcher.Subscribe<TArgs>(int eventId, System.Action<TArgs>! handler, int priority = 0, bool once = false) -> AbilityKit.Core.Eventing.IEventSubscription!
+AbilityKit.Core.Eventing.EventDispatcher.Subscribe<TArgs>(string! eventId, System.Action<TArgs>! handler, int priority = 0, bool once = false) -> AbilityKit.Core.Eventing.IEventSubscription!
+AbilityKit.Core.Eventing.EventDispatcher.SubscribeOnce<TArgs>(string! eventId, System.Action<TArgs>! handler, int priority = 0) -> AbilityKit.Core.Eventing.IEventSubscription!
+AbilityKit.Core.Eventing.EventKey
+AbilityKit.Core.Eventing.EventKey.Equals(AbilityKit.Core.Eventing.EventKey other) -> bool
+AbilityKit.Core.Eventing.EventKey.EventKey() -> void
+AbilityKit.Core.Eventing.EventKey.EventKey(int id, System.Type! argsType) -> void
+AbilityKit.Core.Eventing.EventKey.EventKey(string! id, System.Type! argsType) -> void
+AbilityKit.Core.Eventing.EventKey<TArgs>
+AbilityKit.Core.Eventing.EventKey<TArgs>.Equals(AbilityKit.Core.Eventing.EventKey<TArgs> other) -> bool
+AbilityKit.Core.Eventing.EventKey<TArgs>.EventKey() -> void
+AbilityKit.Core.Eventing.EventKey<TArgs>.EventKey(int id) -> void
+AbilityKit.Core.Eventing.EventKey<TArgs>.EventKey(string! id) -> void
+AbilityKit.Core.Eventing.GlobalEventDispatcher
+AbilityKit.Core.Eventing.IEventSubscription
+AbilityKit.Core.Eventing.IEventSubscription.Unsubscribe() -> void
+AbilityKit.Core.Identifiers.StableStringIdRegistry
+AbilityKit.Core.Identifiers.StableStringIdRegistry.GetOrRegister(string! name) -> int
+AbilityKit.Core.Identifiers.StableStringIdRegistry.StableStringIdRegistry() -> void
+AbilityKit.Core.Identifiers.StableStringIdRegistry.TryGetId(string! name, out int id) -> bool
+AbilityKit.Core.Identifiers.StableStringIdRegistry.TryGetName(int id, out string! name) -> bool
+AbilityKit.Core.Logging.ILogSink
+AbilityKit.Core.Logging.ILogSink.Error(string! message) -> void
+AbilityKit.Core.Logging.ILogSink.Exception(System.Exception! exception, string! message = null) -> void
+AbilityKit.Core.Logging.ILogSink.Info(string! message) -> void
+AbilityKit.Core.Logging.ILogSink.Warning(string! message) -> void
+AbilityKit.Core.Logging.Log
+AbilityKit.Core.Logging.NullLogSink
+AbilityKit.Core.Logging.NullLogSink.Error(string! message) -> void
+AbilityKit.Core.Logging.NullLogSink.Exception(System.Exception! exception, string! message = null) -> void
+AbilityKit.Core.Logging.NullLogSink.Info(string! message) -> void
+AbilityKit.Core.Logging.NullLogSink.Warning(string! message) -> void
+AbilityKit.Core.Markers.IMarkerRegistry
+AbilityKit.Core.Markers.IMarkerRegistry.Count.get -> int
+AbilityKit.Core.Markers.IMarkerRegistry.Register(System.Type! implType) -> void
+AbilityKit.Core.Markers.KeyedMarkerBootstrapper<TKey, TAttr, TRegistry>
+AbilityKit.Core.Markers.KeyedMarkerBootstrapper<TKey, TAttr, TRegistry>.KeyedMarkerBootstrapper(TRegistry! registry) -> void
+AbilityKit.Core.Markers.KeyedMarkerBootstrapper<TKey, TAttr, TRegistry>.Registry.get -> TRegistry!
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.Contains(TKey key) -> bool
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.Count.get -> int
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.ForEach(System.Action<TKey, System.Type!>! action) -> void
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.Get(TKey key) -> System.Type!
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.GetOrCreateInstance(TKey key) -> object?
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.GetOrCreateInstance<T>(TKey key) -> T?
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.KeyedMarkerRegistry() -> void
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.Keys.get -> System.Collections.Generic.IEnumerable<TKey>!
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.Register(System.Type! implType) -> void
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.Register(TKey key, System.Type! implType) -> void
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.TryGet(TKey key, out System.Type! type) -> bool
+AbilityKit.Core.Markers.KeyedMarkerRegistry<TKey, TAttr>.Types.get -> System.Collections.Generic.IReadOnlyList<System.Type!>!
+AbilityKit.Core.Markers.MarkerAttribute
+AbilityKit.Core.Markers.MarkerAttribute.MarkerAttribute() -> void
+AbilityKit.Core.Markers.MarkerBootstrapper<TAttr, TRegistry>
+AbilityKit.Core.Markers.MarkerBootstrapper<TAttr, TRegistry>.MarkerBootstrapper(TRegistry! registry) -> void
+AbilityKit.Core.Markers.MarkerBootstrapper<TAttr, TRegistry>.Registry.get -> TRegistry!
+AbilityKit.Core.Markers.MarkerRegistration
+AbilityKit.Core.Markers.MarkerRegistration.AssemblyFilter.get -> System.Func<System.Reflection.Assembly!, bool>?
+AbilityKit.Core.Markers.MarkerRegistration.AttributeType.get -> System.Type!
+AbilityKit.Core.Markers.MarkerRegistration.MarkerRegistration(System.Type! attributeType, AbilityKit.Core.Markers.IMarkerRegistry! registry, System.Func<System.Reflection.Assembly!, bool>? assemblyFilter) -> void
+AbilityKit.Core.Markers.MarkerRegistration.Registry.get -> AbilityKit.Core.Markers.IMarkerRegistry!
+AbilityKit.Core.Markers.MarkerRegistration.Scan(System.Reflection.Assembly![]! allAssemblies) -> void
+AbilityKit.Core.Markers.MarkerRegistry<TAttr>
+AbilityKit.Core.Markers.MarkerRegistry<TAttr>.Count.get -> int
+AbilityKit.Core.Markers.MarkerRegistry<TAttr>.Find(System.Func<System.Type!, bool>! predicate) -> System.Type?
+AbilityKit.Core.Markers.MarkerRegistry<TAttr>.ForEach(System.Action<System.Type!>! action) -> void
+AbilityKit.Core.Markers.MarkerRegistry<TAttr>.MarkerRegistry() -> void
+AbilityKit.Core.Markers.MarkerRegistry<TAttr>.Types.get -> System.Collections.Generic.IReadOnlyList<System.Type!>!
+AbilityKit.Core.Markers.MarkerRegistry<TAttr>.Where(System.Func<System.Type!, bool>! predicate) -> System.Collections.Generic.IEnumerable<System.Type!>!
+AbilityKit.Core.Markers.MarkerScanner<TAttr>
+AbilityKit.Core.Markers.MarkerScannerExtensions
+AbilityKit.Core.Markers.MarkerSystem
+AbilityKit.Core.Markers.StaticMarkerBootstrapper<TSelf, TAttr, TRegistry>
+AbilityKit.Core.Markers.StaticMarkerBootstrapper<TSelf, TAttr, TRegistry>.StaticMarkerBootstrapper() -> void
+AbilityKit.Core.Mathematics.MathUtil
+AbilityKit.Core.Mathematics.Quat
+AbilityKit.Core.Mathematics.Quat.Conjugate.get -> AbilityKit.Core.Mathematics.Quat
+AbilityKit.Core.Mathematics.Quat.Equals(AbilityKit.Core.Mathematics.Quat other) -> bool
+AbilityKit.Core.Mathematics.Quat.Inverse.get -> AbilityKit.Core.Mathematics.Quat
+AbilityKit.Core.Mathematics.Quat.Normalized.get -> AbilityKit.Core.Mathematics.Quat
+AbilityKit.Core.Mathematics.Quat.Quat() -> void
+AbilityKit.Core.Mathematics.Quat.Quat(float x, float y, float z, float w) -> void
+AbilityKit.Core.Mathematics.Quat.Rotate(in AbilityKit.Core.Mathematics.Vec3 v) -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Quat.ToNumerics() -> System.Numerics.Quaternion
+AbilityKit.Core.Mathematics.Ray3
+AbilityKit.Core.Mathematics.Ray3.GetPoint(float distance) -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Ray3.Ray3() -> void
+AbilityKit.Core.Mathematics.Ray3.Ray3(in AbilityKit.Core.Mathematics.Vec3 origin, in AbilityKit.Core.Mathematics.Vec3 direction) -> void
+AbilityKit.Core.Mathematics.Transform3
+AbilityKit.Core.Mathematics.Transform3.Equals(AbilityKit.Core.Mathematics.Transform3 other) -> bool
+AbilityKit.Core.Mathematics.Transform3.Forward.get -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Transform3.Inverse.get -> AbilityKit.Core.Mathematics.Transform3
+AbilityKit.Core.Mathematics.Transform3.InverseTransformDirection(in AbilityKit.Core.Mathematics.Vec3 worldDir) -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Transform3.InverseTransformPoint(in AbilityKit.Core.Mathematics.Vec3 worldPoint) -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Transform3.Right.get -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Transform3.Transform3() -> void
+AbilityKit.Core.Mathematics.Transform3.Transform3(in AbilityKit.Core.Mathematics.Vec3 position, in AbilityKit.Core.Mathematics.Quat rotation, in AbilityKit.Core.Mathematics.Vec3 scale) -> void
+AbilityKit.Core.Mathematics.Transform3.TransformDirection(in AbilityKit.Core.Mathematics.Vec3 localDir) -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Transform3.TransformPoint(in AbilityKit.Core.Mathematics.Vec3 localPoint) -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Transform3.Up.get -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Vec2
+AbilityKit.Core.Mathematics.Vec2.Equals(AbilityKit.Core.Mathematics.Vec2 other) -> bool
+AbilityKit.Core.Mathematics.Vec2.Magnitude.get -> float
+AbilityKit.Core.Mathematics.Vec2.Normalized.get -> AbilityKit.Core.Mathematics.Vec2
+AbilityKit.Core.Mathematics.Vec2.SqrMagnitude.get -> float
+AbilityKit.Core.Mathematics.Vec2.Vec2() -> void
+AbilityKit.Core.Mathematics.Vec2.Vec2(float x, float y) -> void
+AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Vec3.Equals(AbilityKit.Core.Mathematics.Vec3 other) -> bool
+AbilityKit.Core.Mathematics.Vec3.Magnitude.get -> float
+AbilityKit.Core.Mathematics.Vec3.Normalized.get -> AbilityKit.Core.Mathematics.Vec3
+AbilityKit.Core.Mathematics.Vec3.SqrMagnitude.get -> float
+AbilityKit.Core.Mathematics.Vec3.ToNumerics() -> System.Numerics.Vector3
+AbilityKit.Core.Mathematics.Vec3.Vec3() -> void
+AbilityKit.Core.Mathematics.Vec3.Vec3(float x, float y, float z) -> void
+AbilityKit.Core.Pooling.IPoolable
+AbilityKit.Core.Pooling.IPoolable.OnPoolDestroy() -> void
+AbilityKit.Core.Pooling.IPoolable.OnPoolGet() -> void
+AbilityKit.Core.Pooling.IPoolable.OnPoolRelease() -> void
+AbilityKit.Core.Pooling.IPoolConfigProvider
+AbilityKit.Core.Pooling.IPoolConfigProvider.TryGetConfig(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolItemConfig config) -> bool
+AbilityKit.Core.Pooling.IPoolConfigProviderInfo
+AbilityKit.Core.Pooling.IPoolConfigProviderInfo.Info.get -> AbilityKit.Core.Pooling.PoolConfigProviderInfo
+AbilityKit.Core.Pooling.ObjectPool<T>
+AbilityKit.Core.Pooling.ObjectPool<T>.ActiveCount.get -> int
+AbilityKit.Core.Pooling.ObjectPool<T>.Clear(bool destroy = false) -> void
+AbilityKit.Core.Pooling.ObjectPool<T>.ForceTrim(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+AbilityKit.Core.Pooling.ObjectPool<T>.Get() -> T!
+AbilityKit.Core.Pooling.ObjectPool<T>.GetPooled() -> AbilityKit.Core.Pooling.PooledObject<T!>
+AbilityKit.Core.Pooling.ObjectPool<T>.InactiveCount.get -> int
+AbilityKit.Core.Pooling.ObjectPool<T>.MaxSize.get -> int
+AbilityKit.Core.Pooling.ObjectPool<T>.NeverTrim.get -> bool
+AbilityKit.Core.Pooling.ObjectPool<T>.ObjectPool(AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options) -> void
+AbilityKit.Core.Pooling.ObjectPool<T>.Prewarm(int count) -> void
+AbilityKit.Core.Pooling.ObjectPool<T>.Release(T! element) -> void
+AbilityKit.Core.Pooling.ObjectPool<T>.Stats.get -> AbilityKit.Core.Pooling.PoolStats
+AbilityKit.Core.Pooling.ObjectPool<T>.Trim() -> int
+AbilityKit.Core.Pooling.ObjectPool<T>.Trim(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.CollectionCheck -> bool
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.CreateFunc -> System.Func<T!>!
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.DefaultCapacity -> int
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.MaxSize -> int
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.NeverTrim -> bool
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.ObjectPoolOptions(System.Func<T!>! createFunc) -> void
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnDestroy -> System.Action<T!>!
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnGet -> System.Action<T!>!
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnRelease -> System.Action<T!>!
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.TrimPolicy -> AbilityKit.Core.Pooling.PoolTrimPolicy
+AbilityKit.Core.Pooling.PoolConfigBuilder
+AbilityKit.Core.Pooling.PoolConfigBuilder.Add<T>(AbilityKit.Core.Pooling.PoolItemConfig config, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+AbilityKit.Core.Pooling.PoolConfigBuilder.Add<T>(int defaultCapacity, int maxSize, int prewarmCount = -1, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy), bool neverTrim = false, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+AbilityKit.Core.Pooling.PoolConfigBuilder.Add<T>(string! scopeName, AbilityKit.Core.Pooling.PoolKey key, AbilityKit.Core.Pooling.PoolItemConfig config) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+AbilityKit.Core.Pooling.PoolConfigBuilder.Add<T>(string! scopeName, AbilityKit.Core.Pooling.PoolKey key, int defaultCapacity, int maxSize, int prewarmCount = -1, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy), bool neverTrim = false) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+AbilityKit.Core.Pooling.PoolConfigBuilder.Build() -> AbilityKit.Core.Pooling.PoolConfigModule!
+AbilityKit.Core.Pooling.PoolConfigBuilder.Disable<T>(AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+AbilityKit.Core.Pooling.PoolConfigBuilder.Disable<T>(string! scopeName, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+AbilityKit.Core.Pooling.PoolConfigBuilder.PoolConfigBuilder(string? defaultScopeName = null, string? moduleName = null, string? source = null, int priority = 0) -> void
+AbilityKit.Core.Pooling.PoolConfigCenter
+AbilityKit.Core.Pooling.PoolConfigExtensions
+AbilityKit.Core.Pooling.PoolConfigMatch
+AbilityKit.Core.Pooling.PoolConfigMatch.Config.get -> AbilityKit.Core.Pooling.PoolItemConfig
+AbilityKit.Core.Pooling.PoolConfigMatch.IsWinner.get -> bool
+AbilityKit.Core.Pooling.PoolConfigMatch.PoolConfigMatch() -> void
+AbilityKit.Core.Pooling.PoolConfigMatch.PoolConfigMatch(AbilityKit.Core.Pooling.PoolConfigRequest request, AbilityKit.Core.Pooling.PoolItemConfig config, AbilityKit.Core.Pooling.PoolConfigProviderInfo provider, bool isWinner) -> void
+AbilityKit.Core.Pooling.PoolConfigMatch.Provider.get -> AbilityKit.Core.Pooling.PoolConfigProviderInfo
+AbilityKit.Core.Pooling.PoolConfigMatch.Request.get -> AbilityKit.Core.Pooling.PoolConfigRequest
+AbilityKit.Core.Pooling.PoolConfigModule
+AbilityKit.Core.Pooling.PoolConfigModule.Configs.get -> System.Collections.Generic.IReadOnlyDictionary<AbilityKit.Core.Pooling.PoolConfigRequest, AbilityKit.Core.Pooling.PoolItemConfig>!
+AbilityKit.Core.Pooling.PoolConfigModule.Info.get -> AbilityKit.Core.Pooling.PoolConfigProviderInfo
+AbilityKit.Core.Pooling.PoolConfigModule.TryGetConfig(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolItemConfig config) -> bool
+AbilityKit.Core.Pooling.PoolConfigProviderInfo
+AbilityKit.Core.Pooling.PoolConfigProviderInfo.PoolConfigProviderInfo() -> void
+AbilityKit.Core.Pooling.PoolConfigProviderInfo.PoolConfigProviderInfo(string! name, string! source, int priority, int registrationOrder) -> void
+AbilityKit.Core.Pooling.PoolConfigRegistration
+AbilityKit.Core.Pooling.PoolConfigRegistration.Dispose() -> void
+AbilityKit.Core.Pooling.PoolConfigRegistration.Info.get -> AbilityKit.Core.Pooling.PoolConfigProviderInfo
+AbilityKit.Core.Pooling.PoolConfigRegistration.IsValid.get -> bool
+AbilityKit.Core.Pooling.PoolConfigRegistration.PoolConfigRegistration() -> void
+AbilityKit.Core.Pooling.PoolConfigRegistration.PoolConfigRegistration(AbilityKit.Core.Pooling.IPoolConfigProvider! provider, AbilityKit.Core.Pooling.PoolConfigProviderInfo info) -> void
+AbilityKit.Core.Pooling.PoolConfigRegistration.Unregister() -> bool
+AbilityKit.Core.Pooling.PoolConfigReport
+AbilityKit.Core.Pooling.PoolConfigReport.HasWinner.get -> bool
+AbilityKit.Core.Pooling.PoolConfigReport.Matches.get -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Pooling.PoolConfigMatch>!
+AbilityKit.Core.Pooling.PoolConfigReport.PoolConfigReport() -> void
+AbilityKit.Core.Pooling.PoolConfigReport.PoolConfigReport(AbilityKit.Core.Pooling.PoolConfigRequest request, System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Pooling.PoolConfigMatch>! matches, AbilityKit.Core.Pooling.PoolConfigMatch winner) -> void
+AbilityKit.Core.Pooling.PoolConfigReport.Request.get -> AbilityKit.Core.Pooling.PoolConfigRequest
+AbilityKit.Core.Pooling.PoolConfigReport.Winner.get -> AbilityKit.Core.Pooling.PoolConfigMatch
+AbilityKit.Core.Pooling.PoolConfigRequest
+AbilityKit.Core.Pooling.PoolConfigRequest.Equals(AbilityKit.Core.Pooling.PoolConfigRequest other) -> bool
+AbilityKit.Core.Pooling.PoolConfigRequest.PoolConfigRequest() -> void
+AbilityKit.Core.Pooling.PoolConfigRequest.PoolConfigRequest(string! scopeName, System.Type! elementType, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> void
+AbilityKit.Core.Pooling.PoolConfigSnapshot
+AbilityKit.Core.Pooling.PoolConfigSnapshot.PoolConfigSnapshot() -> void
+AbilityKit.Core.Pooling.PoolConfigSnapshot.PoolConfigSnapshot(AbilityKit.Core.Pooling.PoolConfigRequest request, AbilityKit.Core.Pooling.PoolItemConfig config, AbilityKit.Core.Pooling.PoolConfigProviderInfo provider) -> void
+AbilityKit.Core.Pooling.PoolDebugSnapshot
+AbilityKit.Core.Pooling.PoolDebugSnapshot.PoolDebugSnapshot() -> void
+AbilityKit.Core.Pooling.PoolDebugSnapshot.PoolDebugSnapshot(System.Type! elementType, AbilityKit.Core.Pooling.PoolKey key, AbilityKit.Core.Pooling.PoolStats stats, int maxSize) -> void
+AbilityKit.Core.Pooling.PoolDebugSnapshot.PoolDebugSnapshot(System.Type! elementType, AbilityKit.Core.Pooling.PoolKey key, AbilityKit.Core.Pooling.PoolStats stats, int maxSize, bool neverTrim) -> void
+AbilityKit.Core.Pooling.PooledObject<T>
+AbilityKit.Core.Pooling.PooledObject<T>.Dispose() -> void
+AbilityKit.Core.Pooling.PooledObject<T>.PooledObject() -> void
+AbilityKit.Core.Pooling.PoolItemConfig
+AbilityKit.Core.Pooling.PoolItemConfig.IsSpecified.get -> bool
+AbilityKit.Core.Pooling.PoolItemConfig.PoolItemConfig() -> void
+AbilityKit.Core.Pooling.PoolItemConfig.PoolItemConfig(bool enabled = true, int defaultCapacity = 0, int maxSize = 1024, int prewarmCount = -1, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy), bool neverTrim = false) -> void
+AbilityKit.Core.Pooling.PoolKey
+AbilityKit.Core.Pooling.PoolKey.Equals(AbilityKit.Core.Pooling.PoolKey other) -> bool
+AbilityKit.Core.Pooling.PoolKey.PoolKey() -> void
+AbilityKit.Core.Pooling.PoolKey.PoolKey(string! value) -> void
+AbilityKit.Core.Pooling.PoolManager
+AbilityKit.Core.Pooling.PoolManager.ClearAll(bool destroy = false) -> void
+AbilityKit.Core.Pooling.PoolManager.ForceTrimAll(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+AbilityKit.Core.Pooling.PoolManager.GetOrCreate<T>(AbilityKit.Core.Pooling.PoolKey key, AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+AbilityKit.Core.Pooling.PoolManager.PoolManager() -> void
+AbilityKit.Core.Pooling.PoolManager.RegisterForObjectRelease<T>(AbilityKit.Core.Pooling.ObjectPool<T!>! pool) -> void
+AbilityKit.Core.Pooling.PoolManager.Remove<T>(AbilityKit.Core.Pooling.PoolKey key, bool destroy = false) -> bool
+AbilityKit.Core.Pooling.PoolManager.TrimAll() -> int
+AbilityKit.Core.Pooling.PoolManager.TrimAll(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+AbilityKit.Core.Pooling.PoolManager.TryGet<T>(AbilityKit.Core.Pooling.PoolKey key, out AbilityKit.Core.Pooling.ObjectPool<T!>! pool) -> bool
+AbilityKit.Core.Pooling.PoolManager.TryRelease(object! element) -> bool
+AbilityKit.Core.Pooling.PoolOptions
+AbilityKit.Core.Pooling.PoolRegistry
+AbilityKit.Core.Pooling.Pools
+AbilityKit.Core.Pooling.PoolScope
+AbilityKit.Core.Pooling.PoolScope.Clear(bool destroy = false) -> void
+AbilityKit.Core.Pooling.PoolScope.DestroyPool<T>(AbilityKit.Core.Pooling.PoolKey key, bool destroy = true) -> bool
+AbilityKit.Core.Pooling.PoolScope.DestroyPool<T>(bool destroy = true) -> bool
+AbilityKit.Core.Pooling.PoolScope.Dispose() -> void
+AbilityKit.Core.Pooling.PoolScope.ForceTrimAll(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+AbilityKit.Core.Pooling.PoolScope.Get<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, AbilityKit.Core.Pooling.PoolItemConfig fallbackConfig, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null) -> T!
+AbilityKit.Core.Pooling.PoolScope.Get<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> T!
+AbilityKit.Core.Pooling.PoolScope.Get<T>(System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> T!
+AbilityKit.Core.Pooling.PoolScope.GetPool<T>(AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+AbilityKit.Core.Pooling.PoolScope.GetPool<T>(AbilityKit.Core.Pooling.PoolKey key, AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+AbilityKit.Core.Pooling.PoolScope.GetPool<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, AbilityKit.Core.Pooling.PoolItemConfig fallbackConfig, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+AbilityKit.Core.Pooling.PoolScope.GetPool<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+AbilityKit.Core.Pooling.PoolScope.GetPool<T>(System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+AbilityKit.Core.Pooling.PoolScope.GetPooled<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, AbilityKit.Core.Pooling.PoolItemConfig fallbackConfig, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null) -> AbilityKit.Core.Pooling.PooledObject<T!>
+AbilityKit.Core.Pooling.PoolScope.GetPooled<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.PooledObject<T!>
+AbilityKit.Core.Pooling.PoolScope.GetPooled<T>(System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.PooledObject<T!>
+AbilityKit.Core.Pooling.PoolScope.IsDisposed.get -> bool
+AbilityKit.Core.Pooling.PoolScope.Name.get -> string!
+AbilityKit.Core.Pooling.PoolScope.PoolScope(string? name = null, bool destroyOnDispose = true) -> void
+AbilityKit.Core.Pooling.PoolScope.Release(object! element) -> void
+AbilityKit.Core.Pooling.PoolScope.Release<T>(AbilityKit.Core.Pooling.PoolKey key, T! element) -> void
+AbilityKit.Core.Pooling.PoolScope.Release<T>(T! element) -> void
+AbilityKit.Core.Pooling.PoolScope.TrimAll() -> int
+AbilityKit.Core.Pooling.PoolScope.TrimAll(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+AbilityKit.Core.Pooling.PoolScope.TryRelease(object! element) -> bool
+AbilityKit.Core.Pooling.PoolScope.TryRelease<T>(AbilityKit.Core.Pooling.PoolKey key, T! element) -> bool
+AbilityKit.Core.Pooling.PoolScope.TryRelease<T>(T! element) -> bool
+AbilityKit.Core.Pooling.PoolStats
+AbilityKit.Core.Pooling.PoolStats.PoolStats() -> void
+AbilityKit.Core.Pooling.PoolStats.PoolStats(int createdTotal, int getTotal, int releaseTotal, int inactiveCount, int activeCount) -> void
+AbilityKit.Core.Pooling.PoolStats.PoolStats(int createdTotal, int getTotal, int releaseTotal, int inactiveCount, int activeCount, int peakActiveCount, int hitCount, int missCount, int overflowDestroyCount, int clearDestroyCount, int droppedInactiveCount, int trimDestroyCount) -> void
+AbilityKit.Core.Pooling.PoolTrimPolicy
+AbilityKit.Core.Pooling.PoolTrimPolicy.PoolTrimPolicy() -> void
+AbilityKit.Core.Pooling.PoolTrimPolicy.PoolTrimPolicy(int minInactiveCount, int maxInactiveCount) -> void
+AbilityKit.Core.Reflection.ReflectionInvokeUtils
+AbilityKit.Core.Utilities.DisposeUtils
+abstract AbilityKit.Core.Markers.StaticMarkerBootstrapper<TSelf, TAttr, TRegistry>.CreateRegistry() -> TRegistry!
+const AbilityKit.Core.Mathematics.MathUtil.Epsilon = 1E-06 -> float
+const AbilityKit.Core.Pooling.PoolRegistry.GlobalScopeName = "Global" -> string!
+override AbilityKit.Core.Debugging.DebugDrawMask.Equals(object! obj) -> bool
+override AbilityKit.Core.Debugging.DebugDrawMask.GetHashCode() -> int
+override AbilityKit.Core.Debugging.DebugDrawMask.ToString() -> string!
+override AbilityKit.Core.Eventing.EventKey.Equals(object! obj) -> bool
+override AbilityKit.Core.Eventing.EventKey.GetHashCode() -> int
+override AbilityKit.Core.Eventing.EventKey<TArgs>.Equals(object! obj) -> bool
+override AbilityKit.Core.Eventing.EventKey<TArgs>.GetHashCode() -> int
+override AbilityKit.Core.Mathematics.Quat.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Quat.GetHashCode() -> int
+override AbilityKit.Core.Mathematics.Quat.ToString() -> string!
+override AbilityKit.Core.Mathematics.Transform3.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Transform3.GetHashCode() -> int
+override AbilityKit.Core.Mathematics.Transform3.ToString() -> string!
+override AbilityKit.Core.Mathematics.Vec2.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Vec2.GetHashCode() -> int
+override AbilityKit.Core.Mathematics.Vec2.ToString() -> string!
+override AbilityKit.Core.Mathematics.Vec3.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Vec3.GetHashCode() -> int
+override AbilityKit.Core.Mathematics.Vec3.ToString() -> string!
+override AbilityKit.Core.Pooling.PoolConfigProviderInfo.ToString() -> string!
+override AbilityKit.Core.Pooling.PoolConfigRequest.Equals(object! obj) -> bool
+override AbilityKit.Core.Pooling.PoolConfigRequest.GetHashCode() -> int
+override AbilityKit.Core.Pooling.PoolConfigRequest.ToString() -> string!
+override AbilityKit.Core.Pooling.PoolKey.Equals(object! obj) -> bool
+override AbilityKit.Core.Pooling.PoolKey.GetHashCode() -> int
+override AbilityKit.Core.Pooling.PoolKey.ToString() -> string!
+readonly AbilityKit.Core.Debugging.DebugDrawColor.A -> byte
+readonly AbilityKit.Core.Debugging.DebugDrawColor.B -> byte
+readonly AbilityKit.Core.Debugging.DebugDrawColor.G -> byte
+readonly AbilityKit.Core.Debugging.DebugDrawColor.R -> byte
+readonly AbilityKit.Core.Debugging.DebugDrawContext.EnabledMask -> AbilityKit.Core.Debugging.DebugDrawMask
+readonly AbilityKit.Core.Debugging.DebugDrawMask.Value -> int
+readonly AbilityKit.Core.Debugging.DebugDrawStyle.Color -> AbilityKit.Core.Debugging.DebugDrawColor
+readonly AbilityKit.Core.Eventing.EventKey.ArgsType -> System.Type!
+readonly AbilityKit.Core.Eventing.EventKey.IntId -> int
+readonly AbilityKit.Core.Eventing.EventKey.StringId -> string!
+readonly AbilityKit.Core.Eventing.EventKey<TArgs>.IntId -> int
+readonly AbilityKit.Core.Eventing.EventKey<TArgs>.StringId -> string!
+readonly AbilityKit.Core.Mathematics.Quat.W -> float
+readonly AbilityKit.Core.Mathematics.Quat.X -> float
+readonly AbilityKit.Core.Mathematics.Quat.Y -> float
+readonly AbilityKit.Core.Mathematics.Quat.Z -> float
+readonly AbilityKit.Core.Mathematics.Ray3.Direction -> AbilityKit.Core.Mathematics.Vec3
+readonly AbilityKit.Core.Mathematics.Ray3.Origin -> AbilityKit.Core.Mathematics.Vec3
+readonly AbilityKit.Core.Mathematics.Transform3.Position -> AbilityKit.Core.Mathematics.Vec3
+readonly AbilityKit.Core.Mathematics.Transform3.Rotation -> AbilityKit.Core.Mathematics.Quat
+readonly AbilityKit.Core.Mathematics.Transform3.Scale -> AbilityKit.Core.Mathematics.Vec3
+readonly AbilityKit.Core.Mathematics.Vec2.X -> float
+readonly AbilityKit.Core.Mathematics.Vec2.Y -> float
+readonly AbilityKit.Core.Mathematics.Vec3.X -> float
+readonly AbilityKit.Core.Mathematics.Vec3.Y -> float
+readonly AbilityKit.Core.Mathematics.Vec3.Z -> float
+readonly AbilityKit.Core.Pooling.PoolConfigProviderInfo.Name -> string!
+readonly AbilityKit.Core.Pooling.PoolConfigProviderInfo.Priority -> int
+readonly AbilityKit.Core.Pooling.PoolConfigProviderInfo.RegistrationOrder -> int
+readonly AbilityKit.Core.Pooling.PoolConfigProviderInfo.Source -> string!
+readonly AbilityKit.Core.Pooling.PoolConfigRequest.ElementType -> System.Type!
+readonly AbilityKit.Core.Pooling.PoolConfigRequest.Key -> AbilityKit.Core.Pooling.PoolKey
+readonly AbilityKit.Core.Pooling.PoolConfigRequest.ScopeName -> string!
+readonly AbilityKit.Core.Pooling.PoolConfigSnapshot.Config -> AbilityKit.Core.Pooling.PoolItemConfig
+readonly AbilityKit.Core.Pooling.PoolConfigSnapshot.Provider -> AbilityKit.Core.Pooling.PoolConfigProviderInfo
+readonly AbilityKit.Core.Pooling.PoolConfigSnapshot.Request -> AbilityKit.Core.Pooling.PoolConfigRequest
+readonly AbilityKit.Core.Pooling.PoolDebugSnapshot.ElementType -> System.Type!
+readonly AbilityKit.Core.Pooling.PoolDebugSnapshot.Key -> AbilityKit.Core.Pooling.PoolKey
+readonly AbilityKit.Core.Pooling.PoolDebugSnapshot.MaxSize -> int
+readonly AbilityKit.Core.Pooling.PoolDebugSnapshot.NeverTrim -> bool
+readonly AbilityKit.Core.Pooling.PoolDebugSnapshot.Stats -> AbilityKit.Core.Pooling.PoolStats
+readonly AbilityKit.Core.Pooling.PooledObject<T>.Value -> T!
+readonly AbilityKit.Core.Pooling.PoolItemConfig.CollectionCheck -> bool
+readonly AbilityKit.Core.Pooling.PoolItemConfig.DefaultCapacity -> int
+readonly AbilityKit.Core.Pooling.PoolItemConfig.Enabled -> bool
+readonly AbilityKit.Core.Pooling.PoolItemConfig.MaxSize -> int
+readonly AbilityKit.Core.Pooling.PoolItemConfig.NeverTrim -> bool
+readonly AbilityKit.Core.Pooling.PoolItemConfig.PrewarmCount -> int
+readonly AbilityKit.Core.Pooling.PoolItemConfig.TrimPolicy -> AbilityKit.Core.Pooling.PoolTrimPolicy
+readonly AbilityKit.Core.Pooling.PoolKey.Value -> string!
+readonly AbilityKit.Core.Pooling.PoolStats.ActiveCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.ClearDestroyCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.CreatedTotal -> int
+readonly AbilityKit.Core.Pooling.PoolStats.DroppedInactiveCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.GetTotal -> int
+readonly AbilityKit.Core.Pooling.PoolStats.HitCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.InactiveCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.MissCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.OverflowDestroyCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.PeakActiveCount -> int
+readonly AbilityKit.Core.Pooling.PoolStats.ReleaseTotal -> int
+readonly AbilityKit.Core.Pooling.PoolStats.TrimDestroyCount -> int
+readonly AbilityKit.Core.Pooling.PoolTrimPolicy.MaxInactiveCount -> int
+readonly AbilityKit.Core.Pooling.PoolTrimPolicy.MinInactiveCount -> int
+static AbilityKit.Core.Configuration.FlatJsonSettings.Empty() -> AbilityKit.Core.Configuration.FlatJsonSettings!
+static AbilityKit.Core.Configuration.FlatJsonSettings.FromJson(string! json, System.Func<string!, System.Collections.Generic.Dictionary<string!, object!>!>! deserialize) -> AbilityKit.Core.Configuration.FlatJsonSettings!
+static AbilityKit.Core.Configuration.JsonSettingsFiles.LoadFlatOrEmpty(string! filePath, System.Func<string!, System.Collections.Generic.Dictionary<string!, object!>!>! deserialize) -> AbilityKit.Core.Configuration.FlatJsonSettings!
+static AbilityKit.Core.Configuration.JsonSettingsFiles.TrySaveOverrides(string! filePath, System.Collections.Generic.IReadOnlyDictionary<string!, object!>! overrides, System.Func<System.Collections.Generic.IReadOnlyDictionary<string!, object!>!, string!>! serialize) -> bool
+static AbilityKit.Core.Configuration.PersistentJsonConfigLoader.ClearCache() -> void
+static AbilityKit.Core.Configuration.PersistentJsonConfigLoader.LoadOrDefault<T>(string! filePath, System.Func<string!, T!>! deserialize) -> T!
+static AbilityKit.Core.Configuration.PersistentJsonConfigLoader.TryLoad<T>(string! filePath, System.Func<string!, T!>! deserialize) -> T!
+static AbilityKit.Core.Debugging.DebugDrawColor.Cyan.get -> AbilityKit.Core.Debugging.DebugDrawColor
+static AbilityKit.Core.Debugging.DebugDrawColor.Green.get -> AbilityKit.Core.Debugging.DebugDrawColor
+static AbilityKit.Core.Debugging.DebugDrawColor.Red.get -> AbilityKit.Core.Debugging.DebugDrawColor
+static AbilityKit.Core.Debugging.DebugDrawColor.White.get -> AbilityKit.Core.Debugging.DebugDrawColor
+static AbilityKit.Core.Debugging.DebugDrawColor.Yellow.get -> AbilityKit.Core.Debugging.DebugDrawColor
+static AbilityKit.Core.Debugging.DebugDrawMask.All.get -> AbilityKit.Core.Debugging.DebugDrawMask
+static AbilityKit.Core.Debugging.DebugDrawMask.None.get -> AbilityKit.Core.Debugging.DebugDrawMask
+static AbilityKit.Core.Debugging.DebugDrawStyle.Default.get -> AbilityKit.Core.Debugging.DebugDrawStyle
+static AbilityKit.Core.Eventing.GlobalEventDispatcher.GetOrRegisterEventId(string! eventId) -> int
+static AbilityKit.Core.Eventing.GlobalEventDispatcher.Publish<TArgs>(int eventId, in TArgs args, bool autoReleaseArgs = true) -> void
+static AbilityKit.Core.Eventing.GlobalEventDispatcher.Publish<TArgs>(string! eventId, in TArgs args, bool autoReleaseArgs = true) -> void
+static AbilityKit.Core.Eventing.GlobalEventDispatcher.Subscribe<TArgs>(int eventId, System.Action<TArgs>! handler, int priority = 0, bool once = false) -> AbilityKit.Core.Eventing.IEventSubscription!
+static AbilityKit.Core.Eventing.GlobalEventDispatcher.Subscribe<TArgs>(string! eventId, System.Action<TArgs>! handler, int priority = 0, bool once = false) -> AbilityKit.Core.Eventing.IEventSubscription!
+static AbilityKit.Core.Logging.Log.Error(string! message) -> void
+static AbilityKit.Core.Logging.Log.Exception(System.Exception! exception, string! message = null) -> void
+static AbilityKit.Core.Logging.Log.Info(string! message) -> void
+static AbilityKit.Core.Logging.Log.SetSink(AbilityKit.Core.Logging.ILogSink! sink) -> void
+static AbilityKit.Core.Logging.Log.Sink.get -> AbilityKit.Core.Logging.ILogSink!
+static AbilityKit.Core.Logging.Log.Trace(string! message) -> void
+static AbilityKit.Core.Logging.Log.Warning(string! message) -> void
+static AbilityKit.Core.Markers.MarkerScanner<TAttr>.Scan(System.Reflection.Assembly![]! assemblies, AbilityKit.Core.Markers.IMarkerRegistry! registry) -> void
+static AbilityKit.Core.Markers.MarkerScanner<TAttr>.ScanAll(AbilityKit.Core.Markers.IMarkerRegistry! registry) -> void
+static AbilityKit.Core.Markers.MarkerScannerExtensions.GetAssembliesByName(string! nameContains) -> System.Reflection.Assembly![]!
+static AbilityKit.Core.Markers.MarkerScannerExtensions.ScanAllExcludingSystem<TAttr>(this AbilityKit.Core.Markers.IMarkerRegistry! registry, bool excludeSystemAssemblies = true) -> void
+static AbilityKit.Core.Markers.MarkerScannerExtensions.ScanByNamespace<TAttr>(this AbilityKit.Core.Markers.IMarkerRegistry! registry, string! namespacePrefix) -> void
+static AbilityKit.Core.Markers.MarkerScannerExtensions.ScanByNamespace<TAttr>(this AbilityKit.Core.Markers.IMarkerRegistry! registry, string![]! namespacePrefixes) -> void
+static AbilityKit.Core.Markers.MarkerScannerExtensions.ScanExcluding<TAttr>(this AbilityKit.Core.Markers.IMarkerRegistry! registry, params string![]! excludeAssemblyNames) -> void
+static AbilityKit.Core.Markers.MarkerScannerExtensions.ScanWithReferences<TAttr>(this AbilityKit.Core.Markers.IMarkerRegistry! registry, System.Reflection.Assembly! startAssembly, int maxDepth = 2) -> void
+static AbilityKit.Core.Markers.MarkerSystem.GetRegistrations() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Markers.MarkerRegistration!>!
+static AbilityKit.Core.Markers.MarkerSystem.GetRegistry<TRegistry>() -> TRegistry?
+static AbilityKit.Core.Markers.MarkerSystem.IsInitialized.get -> bool
+static AbilityKit.Core.Markers.MarkerSystem.Register(System.Type! attrType, AbilityKit.Core.Markers.IMarkerRegistry! registry, System.Func<System.Reflection.Assembly!, bool>? assemblyFilter = null) -> void
+static AbilityKit.Core.Markers.MarkerSystem.Register<TAttr, TRegistry>(TRegistry registry, System.Func<System.Reflection.Assembly!, bool>? assemblyFilter = null) -> void
+static AbilityKit.Core.Markers.MarkerSystem.RegistrationCount.get -> int
+static AbilityKit.Core.Markers.MarkerSystem.Reset() -> void
+static AbilityKit.Core.Markers.MarkerSystem.ScanAll() -> void
+static AbilityKit.Core.Markers.MarkerSystem.ScanAll(System.Reflection.Assembly![]! assemblies) -> void
+static AbilityKit.Core.Markers.MarkerSystem.TotalScannedTypes.get -> int
+static AbilityKit.Core.Markers.StaticMarkerBootstrapper<TSelf, TAttr, TRegistry>.EnsureInitialized() -> void
+static AbilityKit.Core.Mathematics.MathUtil.Abs(float v) -> float
+static AbilityKit.Core.Mathematics.MathUtil.Approximately(float a, float b, float epsilon = 1E-06) -> bool
+static AbilityKit.Core.Mathematics.MathUtil.Clamp(float v, float min, float max) -> float
+static AbilityKit.Core.Mathematics.MathUtil.Clamp(int v, int min, int max) -> int
+static AbilityKit.Core.Mathematics.MathUtil.Clamp01(float v) -> float
+static AbilityKit.Core.Mathematics.MathUtil.IsZero(float v, float epsilon = 1E-06) -> bool
+static AbilityKit.Core.Mathematics.MathUtil.Lerp(float a, float b, float t) -> float
+static AbilityKit.Core.Mathematics.MathUtil.Max(float a, float b) -> float
+static AbilityKit.Core.Mathematics.MathUtil.Min(float a, float b) -> float
+static AbilityKit.Core.Mathematics.MathUtil.Saturate(float v) -> float
+static AbilityKit.Core.Mathematics.MathUtil.Sign(float v) -> int
+static AbilityKit.Core.Mathematics.MathUtil.Sqrt(float v) -> float
+static AbilityKit.Core.Mathematics.Quat.FromAxisAngle(in AbilityKit.Core.Mathematics.Vec3 axis, float angleRad) -> AbilityKit.Core.Mathematics.Quat
+static AbilityKit.Core.Mathematics.Quat.FromNumerics(in System.Numerics.Quaternion q) -> AbilityKit.Core.Mathematics.Quat
+static AbilityKit.Core.Mathematics.Quat.Identity.get -> AbilityKit.Core.Mathematics.Quat
+static AbilityKit.Core.Mathematics.Quat.LookRotation(in AbilityKit.Core.Mathematics.Vec3 forward, in AbilityKit.Core.Mathematics.Vec3 up) -> AbilityKit.Core.Mathematics.Quat
+static AbilityKit.Core.Mathematics.Quat.operator *(in AbilityKit.Core.Mathematics.Quat a, in AbilityKit.Core.Mathematics.Quat b) -> AbilityKit.Core.Mathematics.Quat
+static AbilityKit.Core.Mathematics.Transform3.Identity.get -> AbilityKit.Core.Mathematics.Transform3
+static AbilityKit.Core.Mathematics.Vec2.Dot(in AbilityKit.Core.Mathematics.Vec2 a, in AbilityKit.Core.Mathematics.Vec2 b) -> float
+static AbilityKit.Core.Mathematics.Vec2.Max(in AbilityKit.Core.Mathematics.Vec2 a, in AbilityKit.Core.Mathematics.Vec2 b) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.Min(in AbilityKit.Core.Mathematics.Vec2 a, in AbilityKit.Core.Mathematics.Vec2 b) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.One.get -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.operator *(float s, in AbilityKit.Core.Mathematics.Vec2 v) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.operator *(in AbilityKit.Core.Mathematics.Vec2 v, float s) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.operator +(in AbilityKit.Core.Mathematics.Vec2 a, in AbilityKit.Core.Mathematics.Vec2 b) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.operator -(in AbilityKit.Core.Mathematics.Vec2 a, in AbilityKit.Core.Mathematics.Vec2 b) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.operator -(in AbilityKit.Core.Mathematics.Vec2 v) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.operator /(in AbilityKit.Core.Mathematics.Vec2 v, float s) -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec2.Zero.get -> AbilityKit.Core.Mathematics.Vec2
+static AbilityKit.Core.Mathematics.Vec3.Back.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Cross(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Distance(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b) -> float
+static AbilityKit.Core.Mathematics.Vec3.Dot(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b) -> float
+static AbilityKit.Core.Mathematics.Vec3.Down.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Forward.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.FromNumerics(in System.Numerics.Vector3 v) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Left.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Lerp(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b, float t) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Max(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Min(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.One.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.operator *(float s, in AbilityKit.Core.Mathematics.Vec3 v) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.operator *(in AbilityKit.Core.Mathematics.Vec3 v, float s) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.operator +(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.operator -(in AbilityKit.Core.Mathematics.Vec3 a, in AbilityKit.Core.Mathematics.Vec3 b) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.operator -(in AbilityKit.Core.Mathematics.Vec3 v) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.operator /(in AbilityKit.Core.Mathematics.Vec3 v, float s) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Right.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Up.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.Vec3.Zero.get -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Pooling.PoolConfigCenter.ClearProviders() -> void
+static AbilityKit.Core.Pooling.PoolConfigCenter.GetConfigOrDefault(AbilityKit.Core.Pooling.PoolConfigRequest request, AbilityKit.Core.Pooling.PoolItemConfig fallback = default(AbilityKit.Core.Pooling.PoolItemConfig)) -> AbilityKit.Core.Pooling.PoolItemConfig
+static AbilityKit.Core.Pooling.PoolConfigCenter.GetProviderInfos() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Pooling.PoolConfigProviderInfo>!
+static AbilityKit.Core.Pooling.PoolConfigCenter.RegisterProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider) -> AbilityKit.Core.Pooling.PoolConfigRegistration
+static AbilityKit.Core.Pooling.PoolConfigCenter.RegisterProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider, string! name, string? source = null, int priority = 0) -> AbilityKit.Core.Pooling.PoolConfigRegistration
+static AbilityKit.Core.Pooling.PoolConfigCenter.TryGetConfig(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolItemConfig config) -> bool
+static AbilityKit.Core.Pooling.PoolConfigCenter.TryGetConfigReport(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolConfigReport report) -> bool
+static AbilityKit.Core.Pooling.PoolConfigCenter.TryGetConfigSnapshot(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolConfigSnapshot snapshot) -> bool
+static AbilityKit.Core.Pooling.PoolConfigCenter.UnregisterProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider) -> bool
+static AbilityKit.Core.Pooling.PoolConfigExtensions.DisablePool<T>(this AbilityKit.Core.Pooling.PoolConfigBuilder! builder, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+static AbilityKit.Core.Pooling.PoolConfigExtensions.For(this string! scopeName, System.Type! elementType, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigRequest
+static AbilityKit.Core.Pooling.PoolConfigExtensions.For<T>(this string! scopeName, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigRequest
+static AbilityKit.Core.Pooling.PoolConfigExtensions.Pool<T>(this AbilityKit.Core.Pooling.PoolConfigBuilder! builder, AbilityKit.Core.Pooling.PoolItemConfig config, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+static AbilityKit.Core.Pooling.PoolConfigExtensions.Pool<T>(this AbilityKit.Core.Pooling.PoolConfigBuilder! builder, int defaultCapacity, int maxSize, int prewarmCount = -1, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy), bool neverTrim = false, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+static AbilityKit.Core.Pooling.PoolConfigExtensions.Pool<T>(this AbilityKit.Core.Pooling.PoolConfigBuilder! builder, string! scopeName, int defaultCapacity, int maxSize, int prewarmCount = -1, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy), bool neverTrim = false, AbilityKit.Core.Pooling.PoolKey key = default(AbilityKit.Core.Pooling.PoolKey)) -> AbilityKit.Core.Pooling.PoolConfigBuilder!
+static AbilityKit.Core.Pooling.PoolConfigExtensions.TryGetConfig<T>(this AbilityKit.Core.Pooling.IPoolConfigProvider! provider, string! scopeName, AbilityKit.Core.Pooling.PoolKey key, out AbilityKit.Core.Pooling.PoolItemConfig config) -> bool
+static AbilityKit.Core.Pooling.PoolItemConfig.Default(int defaultCapacity = 0, int maxSize = 1024, int prewarmCount = -1, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy), bool neverTrim = false) -> AbilityKit.Core.Pooling.PoolItemConfig
+static AbilityKit.Core.Pooling.PoolItemConfig.Disabled.get -> AbilityKit.Core.Pooling.PoolItemConfig
+static AbilityKit.Core.Pooling.PoolItemConfig.Unspecified.get -> AbilityKit.Core.Pooling.PoolItemConfig
+static AbilityKit.Core.Pooling.PoolKey.implicit operator AbilityKit.Core.Pooling.PoolKey(string! value) -> AbilityKit.Core.Pooling.PoolKey
+static AbilityKit.Core.Pooling.PoolKey.Normalize(AbilityKit.Core.Pooling.PoolKey key) -> AbilityKit.Core.Pooling.PoolKey
+static AbilityKit.Core.Pooling.PoolOptions.For<T>(System.Func<T!>! createFunc, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy), bool neverTrim = false) -> AbilityKit.Core.Pooling.ObjectPoolOptions<T!>!
+static AbilityKit.Core.Pooling.PoolOptions.FromConfig<T>(System.Func<T!>! createFunc, AbilityKit.Core.Pooling.PoolItemConfig config) -> AbilityKit.Core.Pooling.ObjectPoolOptions<T!>!
+static AbilityKit.Core.Pooling.PoolOptions.WithCapacity<T>(this AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options, int defaultCapacity, int maxSize) -> AbilityKit.Core.Pooling.ObjectPoolOptions<T!>!
+static AbilityKit.Core.Pooling.PoolOptions.WithLifecycle<T>(this AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null) -> AbilityKit.Core.Pooling.ObjectPoolOptions<T!>!
+static AbilityKit.Core.Pooling.PoolOptions.WithTrim<T>(this AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy, bool neverTrim = false) -> AbilityKit.Core.Pooling.ObjectPoolOptions<T!>!
+static AbilityKit.Core.Pooling.PoolRegistry.ClearAll(bool destroy = false, bool includeGlobal = true) -> void
+static AbilityKit.Core.Pooling.PoolRegistry.ClearConfigProviders() -> void
+static AbilityKit.Core.Pooling.PoolRegistry.DestroyScope(string! name, bool destroy = true) -> bool
+static AbilityKit.Core.Pooling.PoolRegistry.GetConfigOrDefault(AbilityKit.Core.Pooling.PoolConfigRequest request, AbilityKit.Core.Pooling.PoolItemConfig fallback = default(AbilityKit.Core.Pooling.PoolItemConfig)) -> AbilityKit.Core.Pooling.PoolItemConfig
+static AbilityKit.Core.Pooling.PoolRegistry.GetConfigProviderInfos() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Pooling.PoolConfigProviderInfo>!
+static AbilityKit.Core.Pooling.PoolRegistry.GetOrCreateScope(string! name, bool destroyOnDispose = true) -> AbilityKit.Core.Pooling.PoolScope!
+static AbilityKit.Core.Pooling.PoolRegistry.Global.get -> AbilityKit.Core.Pooling.PoolScope!
+static AbilityKit.Core.Pooling.PoolRegistry.RegisterConfigModule(System.Action<AbilityKit.Core.Pooling.PoolConfigBuilder!>! configure, string? defaultScopeName = null, string? moduleName = null, string? source = null, int priority = 0) -> AbilityKit.Core.Pooling.PoolConfigModule!
+static AbilityKit.Core.Pooling.PoolRegistry.RegisterConfigProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider) -> AbilityKit.Core.Pooling.PoolConfigRegistration
+static AbilityKit.Core.Pooling.PoolRegistry.RegisterConfigProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider, string! name, string? source = null, int priority = 0) -> AbilityKit.Core.Pooling.PoolConfigRegistration
+static AbilityKit.Core.Pooling.PoolRegistry.TryGetConfig(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolItemConfig config) -> bool
+static AbilityKit.Core.Pooling.PoolRegistry.TryGetConfigReport(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolConfigReport report) -> bool
+static AbilityKit.Core.Pooling.PoolRegistry.TryGetConfigSnapshot(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolConfigSnapshot snapshot) -> bool
+static AbilityKit.Core.Pooling.PoolRegistry.TryGetScope(string! name, out AbilityKit.Core.Pooling.PoolScope! scope) -> bool
+static AbilityKit.Core.Pooling.PoolRegistry.UnregisterConfigProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider) -> bool
+static AbilityKit.Core.Pooling.Pools.ClearAll(bool destroy = false) -> void
+static AbilityKit.Core.Pooling.Pools.ClearConfigProviders() -> void
+static AbilityKit.Core.Pooling.Pools.DestroyPool<T>(AbilityKit.Core.Pooling.PoolKey key, bool destroy = true) -> bool
+static AbilityKit.Core.Pooling.Pools.DestroyPool<T>(bool destroy = true) -> bool
+static AbilityKit.Core.Pooling.Pools.DestroyScope(string! name, bool destroy = true) -> bool
+static AbilityKit.Core.Pooling.Pools.ForceTrimAll(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+static AbilityKit.Core.Pooling.Pools.Get<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, AbilityKit.Core.Pooling.PoolItemConfig fallbackConfig, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null) -> T!
+static AbilityKit.Core.Pooling.Pools.Get<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> T!
+static AbilityKit.Core.Pooling.Pools.Get<T>(System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> T!
+static AbilityKit.Core.Pooling.Pools.GetConfigProviderInfos() -> System.Collections.Generic.IReadOnlyList<AbilityKit.Core.Pooling.PoolConfigProviderInfo>!
+static AbilityKit.Core.Pooling.Pools.GetOrCreateScope(string! name, bool destroyOnDispose = true) -> AbilityKit.Core.Pooling.PoolScope!
+static AbilityKit.Core.Pooling.Pools.GetPool<T>(AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+static AbilityKit.Core.Pooling.Pools.GetPool<T>(AbilityKit.Core.Pooling.PoolKey key, AbilityKit.Core.Pooling.ObjectPoolOptions<T!>! options) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+static AbilityKit.Core.Pooling.Pools.GetPool<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, AbilityKit.Core.Pooling.PoolItemConfig fallbackConfig, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+static AbilityKit.Core.Pooling.Pools.GetPool<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+static AbilityKit.Core.Pooling.Pools.GetPool<T>(System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.ObjectPool<T!>!
+static AbilityKit.Core.Pooling.Pools.GetPooled<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, AbilityKit.Core.Pooling.PoolItemConfig fallbackConfig, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null) -> AbilityKit.Core.Pooling.PooledObject<T!>
+static AbilityKit.Core.Pooling.Pools.GetPooled<T>(AbilityKit.Core.Pooling.PoolKey key, System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.PooledObject<T!>
+static AbilityKit.Core.Pooling.Pools.GetPooled<T>(System.Func<T!>! createFunc, System.Action<T!>? onGet = null, System.Action<T!>? onRelease = null, System.Action<T!>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, AbilityKit.Core.Pooling.PoolTrimPolicy trimPolicy = default(AbilityKit.Core.Pooling.PoolTrimPolicy)) -> AbilityKit.Core.Pooling.PooledObject<T!>
+static AbilityKit.Core.Pooling.Pools.GlobalScope.get -> AbilityKit.Core.Pooling.PoolScope!
+static AbilityKit.Core.Pooling.Pools.RegisterConfigModule(System.Action<AbilityKit.Core.Pooling.PoolConfigBuilder!>! configure, string? defaultScopeName = null, string? moduleName = null, string? source = null, int priority = 0) -> AbilityKit.Core.Pooling.PoolConfigModule!
+static AbilityKit.Core.Pooling.Pools.RegisterConfigProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider) -> AbilityKit.Core.Pooling.PoolConfigRegistration
+static AbilityKit.Core.Pooling.Pools.RegisterConfigProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider, string! name, string? source = null, int priority = 0) -> AbilityKit.Core.Pooling.PoolConfigRegistration
+static AbilityKit.Core.Pooling.Pools.Release(object! element) -> void
+static AbilityKit.Core.Pooling.Pools.Release<T>(AbilityKit.Core.Pooling.PoolKey key, T! element) -> void
+static AbilityKit.Core.Pooling.Pools.Release<T>(T! element) -> void
+static AbilityKit.Core.Pooling.Pools.TrimAll() -> int
+static AbilityKit.Core.Pooling.Pools.TrimAll(AbilityKit.Core.Pooling.PoolTrimPolicy policy) -> int
+static AbilityKit.Core.Pooling.Pools.TryGetConfigReport(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolConfigReport report) -> bool
+static AbilityKit.Core.Pooling.Pools.TryGetConfigSnapshot(AbilityKit.Core.Pooling.PoolConfigRequest request, out AbilityKit.Core.Pooling.PoolConfigSnapshot snapshot) -> bool
+static AbilityKit.Core.Pooling.Pools.TryGetScope(string! name, out AbilityKit.Core.Pooling.PoolScope! scope) -> bool
+static AbilityKit.Core.Pooling.Pools.TryRelease(object! element) -> bool
+static AbilityKit.Core.Pooling.Pools.TryRelease<T>(AbilityKit.Core.Pooling.PoolKey key, T! element) -> bool
+static AbilityKit.Core.Pooling.Pools.TryRelease<T>(T! element) -> bool
+static AbilityKit.Core.Pooling.Pools.UnregisterConfigProvider(AbilityKit.Core.Pooling.IPoolConfigProvider! provider) -> bool
+static AbilityKit.Core.Pooling.PoolTrimPolicy.KeepAll.get -> AbilityKit.Core.Pooling.PoolTrimPolicy
+static AbilityKit.Core.Pooling.PoolTrimPolicy.KeepDefaultCapacity.get -> AbilityKit.Core.Pooling.PoolTrimPolicy
+static AbilityKit.Core.Pooling.PoolTrimPolicy.KeepNone.get -> AbilityKit.Core.Pooling.PoolTrimPolicy
+static AbilityKit.Core.Reflection.ReflectionInvokeUtils.FindType(string! typeNameOrAssemblyQualified) -> System.Type!
+static AbilityKit.Core.Reflection.ReflectionInvokeUtils.TryInvokeStaticMethod(string! typeNameOrAssemblyQualified, string! methodName) -> bool
+static AbilityKit.Core.Reflection.ReflectionInvokeUtils.TryInvokeStaticMethod(string! typeNameOrAssemblyQualified, string! methodName, out System.Exception! exception) -> bool
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose(ref System.IDisposable! disposable) -> void
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose(ref System.IDisposable! disposable, System.Action<System.Exception!>! onException) -> void
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose<T>(ref T! disposable) -> void
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose<T>(ref T! disposable, System.Action<System.Exception!>! onException) -> void
+static readonly AbilityKit.Core.Continuous.AllowAllContinuousAdmissionPolicy.Instance -> AbilityKit.Core.Continuous.AllowAllContinuousAdmissionPolicy!
+static readonly AbilityKit.Core.Continuous.NullContinuousLifecycleBinder.Instance -> AbilityKit.Core.Continuous.NullContinuousLifecycleBinder!
+static readonly AbilityKit.Core.Eventing.GlobalEventDispatcher.Instance -> AbilityKit.Core.Eventing.EventDispatcher!
+static readonly AbilityKit.Core.Logging.NullLogSink.Instance -> AbilityKit.Core.Logging.NullLogSink!
+static readonly AbilityKit.Core.Pooling.PoolKey.Default -> AbilityKit.Core.Pooling.PoolKey
+virtual AbilityKit.Core.Continuous.DefaultContinuousManager.CanActivate(AbilityKit.Core.Continuous.IContinuous! continuous, out string? reason) -> bool
+virtual AbilityKit.Core.Continuous.DefaultContinuousManager.CanRegister(AbilityKit.Core.Continuous.IContinuous! continuous, out string? reason) -> bool
+virtual AbilityKit.Core.Continuous.DefaultContinuousManager.ResolveEndReason(AbilityKit.Core.Continuous.IContinuous! continuous) -> AbilityKit.Core.Continuous.ContinuousEndReason
+virtual AbilityKit.Core.Markers.KeyedMarkerBootstrapper<TKey, TAttr, TRegistry>.AssemblyFilter.get -> System.Func<System.Reflection.Assembly!, bool>?
+virtual AbilityKit.Core.Markers.KeyedMarkerBootstrapper<TKey, TAttr, TRegistry>.AutoRegister.get -> bool
+virtual AbilityKit.Core.Markers.MarkerAttribute.OnScanned(System.Type! implType, AbilityKit.Core.Markers.IMarkerRegistry! registry) -> void
+virtual AbilityKit.Core.Markers.MarkerBootstrapper<TAttr, TRegistry>.AssemblyFilter.get -> System.Func<System.Reflection.Assembly!, bool>?
+virtual AbilityKit.Core.Markers.MarkerBootstrapper<TAttr, TRegistry>.AutoRegister.get -> bool
+virtual AbilityKit.Core.Markers.MarkerRegistry<TAttr>.Register(System.Type! implType) -> void
+virtual AbilityKit.Core.Markers.StaticMarkerBootstrapper<TSelf, TAttr, TRegistry>.AssemblyFilter.get -> System.Func<System.Reflection.Assembly!, bool>?
+virtual AbilityKit.Core.Markers.StaticMarkerBootstrapper<TSelf, TAttr, TRegistry>.Register() -> void

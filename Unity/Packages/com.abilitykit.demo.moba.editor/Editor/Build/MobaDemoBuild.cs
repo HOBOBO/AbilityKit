@@ -12,12 +12,18 @@ namespace AbilityKit.Game.Editor
 {
     public static class MobaDemoBuild
     {
-        private const string MultiplayerStarterScenePath = "Assets/Scenes/" + DemoSceneRoutes.Starter + ".unity";
-        private const string GameplayBootstrapScenePath = "Assets/Scenes/" + DemoSceneRoutes.Gameplay + ".unity";
-        private const string GameplayCatalogPath = "Assets/DemoComposition/Profiles/DemoGameplayCatalog.asset";
+        private const string StarterScenePath = "Assets/Scenes/" + DemoSceneRoutes.Starter + ".unity";
+        private const string MobaGameplayScenePath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Scenes/" + DemoSceneRoutes.Moba + ".unity";
+        private const string ShooterGameplayScenePath =
+            "Packages/com.abilitykit.demo.shooter.view.runtime/Scenes/" + DemoSceneRoutes.Shooter + ".unity";
+        private const string MobaGameplayCatalogPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Composition/Profiles/MobaGameplayCatalog.asset";
+        private const string ShooterGameplayCatalogPath =
+            "Packages/com.abilitykit.demo.shooter.view.runtime/Composition/Profiles/ShooterGameplayCatalog.asset";
         private const string MobaMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build MOBA Windows IL2CPP";
         private const string ShooterMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build Shooter Windows IL2CPP";
-        private const string MultiplayerMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build Multiplayer Starter Windows IL2CPP";
+        private const string MultiplayerMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build Starter Windows IL2CPP";
         private const string AllMenuPath = "Tools/AbilityKit/Demos/Moba/Builds/Build All Windows IL2CPP";
         private const string MobaExecutableName = "AbilityKitMobaDemo.exe";
         private const string ShooterExecutableName = "AbilityKitShooterDemo.exe";
@@ -30,7 +36,7 @@ namespace AbilityKit.Game.Editor
         {
             ConfigurePlayerSettings();
             BuildDemo(
-                new[] { GameplayBootstrapScenePath },
+                new[] { MobaGameplayScenePath },
                 "Moba",
                 MobaExecutableName,
                 "MOBA Local",
@@ -42,7 +48,7 @@ namespace AbilityKit.Game.Editor
         {
             ConfigurePlayerSettings();
             BuildDemo(
-                new[] { GameplayBootstrapScenePath },
+                new[] { ShooterGameplayScenePath },
                 "Shooter",
                 ShooterExecutableName,
                 "Shooter Local",
@@ -54,10 +60,10 @@ namespace AbilityKit.Game.Editor
         {
             ConfigurePlayerSettings();
             BuildDemo(
-                new[] { MultiplayerStarterScenePath, GameplayBootstrapScenePath },
+                new[] { StarterScenePath, MobaGameplayScenePath, ShooterGameplayScenePath },
                 "Multiplayer",
                 MultiplayerExecutableName,
-                "Multiplayer Starter",
+                "Starter",
                 Array.Empty<string>());
         }
 
@@ -66,22 +72,22 @@ namespace AbilityKit.Game.Editor
         {
             ConfigurePlayerSettings();
             BuildDemo(
-                new[] { GameplayBootstrapScenePath },
+                new[] { MobaGameplayScenePath },
                 "Moba",
                 MobaExecutableName,
                 "MOBA Local",
                 new[] { MobaLocalBuildDefine });
             BuildDemo(
-                new[] { GameplayBootstrapScenePath },
+                new[] { ShooterGameplayScenePath },
                 "Shooter",
                 ShooterExecutableName,
                 "Shooter Local",
                 new[] { ShooterLocalBuildDefine });
             BuildDemo(
-                new[] { MultiplayerStarterScenePath, GameplayBootstrapScenePath },
+                new[] { StarterScenePath, MobaGameplayScenePath, ShooterGameplayScenePath },
                 "Multiplayer",
                 MultiplayerExecutableName,
-                "Multiplayer Starter",
+                "Starter",
                 Array.Empty<string>());
         }
 
@@ -89,10 +95,11 @@ namespace AbilityKit.Game.Editor
         {
             var expectedScenes = new[]
             {
-                MultiplayerStarterScenePath,
-                GameplayBootstrapScenePath
+                StarterScenePath,
+                MobaGameplayScenePath,
+                ShooterGameplayScenePath
             };
-            ValidateBuildInput(expectedScenes, "Multiplayer Starter");
+            ValidateBuildInput(expectedScenes, "Starter");
 
             var buildScenes = EditorBuildSettings.scenes;
             var enabledScenePaths = new List<string>(buildScenes.Length);
@@ -108,7 +115,7 @@ namespace AbilityKit.Game.Editor
             {
                 throw new InvalidOperationException(
                     $"Build Settings must contain exactly {expectedScenes.Length} enabled demo scenes: " +
-                    $"'{MultiplayerStarterScenePath}' and '{GameplayBootstrapScenePath}'.");
+                    $"'{StarterScenePath}', '{MobaGameplayScenePath}', and '{ShooterGameplayScenePath}'.");
             }
             for (var i = 0; i < expectedScenes.Length; i++)
             {
@@ -120,19 +127,26 @@ namespace AbilityKit.Game.Editor
             }
 
             ValidateStarterScene();
-            ValidateGameplayComposition();
+            ValidateGameplayComposition(
+                MobaGameplayScenePath,
+                MobaGameplayCatalogPath,
+                DemoGameplayId.Moba);
+            ValidateGameplayComposition(
+                ShooterGameplayScenePath,
+                ShooterGameplayCatalogPath,
+                DemoGameplayId.Shooter);
 
             Debug.Log("[MobaDemoBuild] Unified demo gameplay topology validation passed.");
         }
 
         private static void ValidateStarterScene()
         {
-            var scene = EditorSceneManager.OpenScene(MultiplayerStarterScenePath, OpenSceneMode.Single);
+            var scene = EditorSceneManager.OpenScene(StarterScenePath, OpenSceneMode.Single);
             var roots = scene.GetRootGameObjects();
             GameObject starterRoot = null;
             for (var i = 0; i < roots.Length; i++)
             {
-                if (string.Equals(roots[i].name, "MultiplayerStarter", StringComparison.Ordinal))
+                if (string.Equals(roots[i].name, "Starter", StringComparison.Ordinal))
                 {
                     starterRoot = roots[i];
                     break;
@@ -141,33 +155,36 @@ namespace AbilityKit.Game.Editor
 
             if (starterRoot == null)
             {
-                throw new InvalidOperationException("MultiplayerStarterScene must contain a MultiplayerStarter root object.");
+                throw new InvalidOperationException("StarterScene must contain a Starter root object.");
             }
 
             var behaviours = starterRoot.GetComponents<MonoBehaviour>();
             if (behaviours.Length != 1 || behaviours[0] == null ||
-                !string.Equals(behaviours[0].GetType().FullName, "AbilityKit.Starter.MultiplayerStarterController", StringComparison.Ordinal))
+                !string.Equals(behaviours[0].GetType().FullName, "AbilityKit.Starter.StarterController", StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
-                    "MultiplayerStarter root must contain exactly one MultiplayerStarterController.");
+                    "Starter root must contain exactly one StarterController.");
             }
         }
 
-        private static void ValidateGameplayComposition()
+        private static void ValidateGameplayComposition(
+            string scenePath,
+            string expectedCatalogPath,
+            DemoGameplayId expectedGameplay)
         {
-            var scene = EditorSceneManager.OpenScene(GameplayBootstrapScenePath, OpenSceneMode.Single);
+            var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
             var roots = scene.GetRootGameObjects();
             if (roots.Length != 1)
             {
                 throw new InvalidOperationException(
-                    $"{DemoSceneRoutes.Gameplay} must contain exactly one root object, but found {roots.Length}.");
+                    $"'{scenePath}' must contain exactly one root object, but found {roots.Length}.");
             }
 
             var bootstraps = roots[0].GetComponentsInChildren<DemoGameplayBootstrap>(includeInactive: true);
             if (bootstraps.Length != 1)
             {
                 throw new InvalidOperationException(
-                    $"{DemoSceneRoutes.Gameplay} must contain exactly one {nameof(DemoGameplayBootstrap)}.");
+                    $"'{scenePath}' must contain exactly one {nameof(DemoGameplayBootstrap)}.");
             }
 
             var serializedBootstrap = new SerializedObject(bootstraps[0]);
@@ -180,26 +197,28 @@ namespace AbilityKit.Game.Editor
             }
 
             var catalogPath = AssetDatabase.GetAssetPath(catalog);
-            if (!string.Equals(catalogPath, GameplayCatalogPath, StringComparison.Ordinal))
+            if (!string.Equals(catalogPath, expectedCatalogPath, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
-                    $"Gameplay bootstrap catalog must be '{GameplayCatalogPath}', but was '{catalogPath}'.");
+                    $"Gameplay bootstrap catalog must be '{expectedCatalogPath}', but was '{catalogPath}'.");
             }
 
-            ValidateGameplayCatalog(catalog);
+            ValidateGameplayCatalog(catalog, expectedGameplay);
         }
 
-        private static void ValidateGameplayCatalog(DemoGameplayCatalogSO catalog)
+        private static void ValidateGameplayCatalog(
+            DemoGameplayCatalogSO catalog,
+            DemoGameplayId expectedGameplay)
         {
             var profiles = catalog.Profiles;
-            if (profiles.Count != 4)
+            if (profiles.Count != 2)
             {
                 throw new InvalidOperationException(
-                    $"Gameplay catalog must contain exactly four launch profiles, but found {profiles.Count}.");
+                    $"{expectedGameplay} catalog must contain exactly two launch profiles, but found {profiles.Count}.");
             }
 
             var profileIds = new HashSet<string>(StringComparer.Ordinal);
-            var launchKeys = new HashSet<string>(StringComparer.Ordinal);
+            var modes = new HashSet<DemoLaunchMode>();
             for (var i = 0; i < profiles.Count; i++)
             {
                 var profile = profiles[i];
@@ -211,29 +230,30 @@ namespace AbilityKit.Game.Editor
                 {
                     throw new InvalidOperationException(error);
                 }
+                if (profile.Gameplay != expectedGameplay)
+                {
+                    throw new InvalidOperationException(
+                        $"Catalog for {expectedGameplay} contains profile '{profile.ProfileId}' for {profile.Gameplay}.");
+                }
                 if (!profileIds.Add(profile.ProfileId))
                 {
                     throw new InvalidOperationException($"Duplicate gameplay profile id '{profile.ProfileId}'.");
                 }
-
-                var launchKey = profile.Gameplay + "/" + profile.Mode;
-                if (!launchKeys.Add(launchKey))
+                if (!modes.Add(profile.Mode))
                 {
-                    throw new InvalidOperationException($"Duplicate gameplay launch profile '{launchKey}'.");
+                    throw new InvalidOperationException(
+                        $"Duplicate {expectedGameplay} launch mode '{profile.Mode}'.");
                 }
 
                 ValidateGameplayRoot(profile);
             }
 
-            foreach (DemoGameplayId gameplay in Enum.GetValues(typeof(DemoGameplayId)))
+            foreach (DemoLaunchMode mode in Enum.GetValues(typeof(DemoLaunchMode)))
             {
-                foreach (DemoLaunchMode mode in Enum.GetValues(typeof(DemoLaunchMode)))
+                if (!modes.Contains(mode))
                 {
-                    var launchKey = gameplay + "/" + mode;
-                    if (!launchKeys.Contains(launchKey))
-                    {
-                        throw new InvalidOperationException($"Gameplay catalog is missing launch profile '{launchKey}'.");
-                    }
+                    throw new InvalidOperationException(
+                        $"{expectedGameplay} catalog is missing launch mode '{mode}'.");
                 }
             }
         }
@@ -300,13 +320,25 @@ namespace AbilityKit.Game.Editor
             string[] extraScriptingDefines)
         {
             ValidateBuildInput(scenePaths, demoName);
-            ValidateGameplayComposition();
             for (var i = 0; i < scenePaths.Length; i++)
             {
-                if (string.Equals(scenePaths[i], MultiplayerStarterScenePath, StringComparison.Ordinal))
+                if (string.Equals(scenePaths[i], StarterScenePath, StringComparison.Ordinal))
                 {
                     ValidateStarterScene();
-                    break;
+                }
+                else if (string.Equals(scenePaths[i], MobaGameplayScenePath, StringComparison.Ordinal))
+                {
+                    ValidateGameplayComposition(
+                        MobaGameplayScenePath,
+                        MobaGameplayCatalogPath,
+                        DemoGameplayId.Moba);
+                }
+                else if (string.Equals(scenePaths[i], ShooterGameplayScenePath, StringComparison.Ordinal))
+                {
+                    ValidateGameplayComposition(
+                        ShooterGameplayScenePath,
+                        ShooterGameplayCatalogPath,
+                        DemoGameplayId.Shooter);
                 }
             }
 

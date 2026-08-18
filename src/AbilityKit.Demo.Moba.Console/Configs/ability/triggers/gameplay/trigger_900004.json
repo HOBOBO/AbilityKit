@@ -1,0 +1,26 @@
+{
+    "id": 900004,
+    "enabled": true,
+    "phase": "immediate",
+    "event": "unit.die",
+    "name": "Gameplay Kill Score Limit",
+    "allowExternal": false,
+    "scope": "global",
+    "execution": "once",
+    "conditions": [
+        {
+            "type": "arg_gte",
+            "left_var_domain": "gameplay",
+            "left_var_key": "1001",
+            "value": 5
+        }
+    ],
+    "actions": [
+        {
+            "type": "end_game",
+            "reason_id": 1,
+            "win_team_id": 0
+        }
+    ],
+    "priority": 1
+}

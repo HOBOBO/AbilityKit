@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Demo.Common",
     "AbilityKit.Demo.Common.Unity",
+    "AbilityKit.Demo.Starter",
     "AbilityKit.Demo.Moba.Diagnostics.Core",
     "AbilityKit.Demo.Moba.Runtime",
     "AbilityKit.Demo.Moba.Share",
@@ -20,6 +21,7 @@
     "AbilityKit.Combat.Navigation",
     "AbilityKit.Combat.Projectile",
     "AbilityKit.Attributes",
+    "AbilityKit.Modifiers",
     "AbilityKit.World.FrameSync",
     "AbilityKit.World.ECS",
     "AbilityKit.World.Snapshot",

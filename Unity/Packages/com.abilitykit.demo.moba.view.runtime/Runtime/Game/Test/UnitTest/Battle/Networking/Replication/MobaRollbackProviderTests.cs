@@ -11,6 +11,7 @@ using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.GameplayTags;
+using MemoryPack;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Tests
@@ -94,6 +95,97 @@ namespace AbilityKit.Game.Tests
                     () => provider.Import(new FrameIndex(12), payload));
                 Assert.That(exception.Message, Does.Contain("membership changed"));
                 Assert.That(first.Remaining, Is.EqualTo(3f), "Validation must complete before mutation.");
+            }
+            finally
+            {
+                context.DestroyAllEntities();
+            }
+        }
+
+        [Test]
+        public void BuffRollback_RejectsUnsupportedVersionBeforeMutation()
+        {
+            var context = new ActorContext();
+            try
+            {
+                var actor = context.CreateEntity();
+                var runtime = CreateBuffRuntime(7001, 10, 101L, 1001L, 6f, 0.4f, 1);
+                actor.AddBuffs(new List<BuffRuntime> { runtime });
+
+                var actors = new MobaActorRegistry();
+                actors.Register(42, actor);
+                var provider = new MobaBuffTimerRollbackProvider(actors);
+                var snapshot = DeserializeBuffPayload(provider.Export(new FrameIndex(12)));
+                var payload = MemoryPackSerializer.Serialize(
+                    new MobaBuffTimerRollbackPayload(2, snapshot.Entries));
+                runtime.Remaining = 3f;
+
+                var exception = Assert.Throws<NotSupportedException>(
+                    () => provider.Import(new FrameIndex(12), payload));
+
+                Assert.That(exception.Message, Does.Contain("Unsupported Buff rollback payload version"));
+                Assert.That(runtime.Remaining, Is.EqualTo(3f), "Version validation must complete before mutation.");
+            }
+            finally
+            {
+                context.DestroyAllEntities();
+            }
+        }
+
+        [Test]
+        public void BuffRollback_RejectsDuplicateSnapshotIdentityBeforeMutation()
+        {
+            var context = new ActorContext();
+            try
+            {
+                var actor = context.CreateEntity();
+                var first = CreateBuffRuntime(7001, 10, 101L, 1001L, 6f, 0.4f, 1);
+                var second = CreateBuffRuntime(7001, 20, 202L, 1002L, 9f, 0.8f, 2);
+                actor.AddBuffs(new List<BuffRuntime> { first, second });
+
+                var actors = new MobaActorRegistry();
+                actors.Register(42, actor);
+                var provider = new MobaBuffTimerRollbackProvider(actors);
+                var snapshot = DeserializeBuffPayload(provider.Export(new FrameIndex(12)));
+                var payload = MemoryPackSerializer.Serialize(
+                    new MobaBuffTimerRollbackPayload(3, new[] { snapshot.Entries[0], snapshot.Entries[0] }));
+                first.Remaining = 3f;
+
+                var exception = Assert.Throws<InvalidOperationException>(
+                    () => provider.Import(new FrameIndex(12), payload));
+
+                Assert.That(exception.Message, Does.Contain("stable unique identities"));
+                Assert.That(first.Remaining, Is.EqualTo(3f), "Identity validation must complete before mutation.");
+            }
+            finally
+            {
+                context.DestroyAllEntities();
+            }
+        }
+
+        [Test]
+        public void BuffRollback_RejectsContinuousBindingChangeBeforeMutation()
+        {
+            var context = new ActorContext();
+            try
+            {
+                var actor = context.CreateEntity();
+                var runtime = CreateBuffRuntime(7001, 10, 101L, 1001L, 6f, 0.4f, 1);
+                actor.AddBuffs(new List<BuffRuntime> { runtime });
+
+                var actors = new MobaActorRegistry();
+                actors.Register(42, actor);
+                var provider = new MobaBuffTimerRollbackProvider(actors);
+                var payload = provider.Export(new FrameIndex(12));
+                runtime.Continuous = null;
+                runtime.Remaining = 3f;
+
+                var exception = Assert.Throws<InvalidOperationException>(
+                    () => provider.Import(new FrameIndex(12), payload));
+
+                Assert.That(exception.Message, Does.Contain("Continuous binding changed"));
+                Assert.That(runtime.Remaining, Is.EqualTo(3f), "Binding validation must complete before mutation.");
+                Assert.That(runtime.Continuous, Is.Null);
             }
             finally
             {
@@ -215,6 +307,11 @@ namespace AbilityKit.Game.Tests
             Assert.That(runtime.SkillRuntimeHandle.Generation, Is.EqualTo(4));
             Assert.That(runtime.SkillRuntimeHandle.RootTraceContextId, Is.EqualTo(3001L));
             Assert.That(runtime.SkillRuntimeRetainHandle.IsValid, Is.False);
+        }
+
+        private static MobaBuffTimerRollbackPayload DeserializeBuffPayload(byte[] payload)
+        {
+            return MemoryPackSerializer.Deserialize<MobaBuffTimerRollbackPayload>(payload);
         }
 
         private static BuffRuntime CreateBuffRuntime(

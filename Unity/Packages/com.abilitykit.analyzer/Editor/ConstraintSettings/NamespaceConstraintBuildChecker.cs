@@ -7,6 +7,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using Newtonsoft.Json;
+using AbilityKit.Analyzer.Configuration;
 
 namespace AbilityKit.Analyzer.Editor
 {
@@ -15,8 +16,7 @@ namespace AbilityKit.Analyzer.Editor
     /// </summary>
     public class NamespaceConstraintBuildChecker : IPreprocessBuildWithReport
     {
-        private static readonly string LogPath = @"C:\analyzer_build_check.log";
-        private static readonly string ErrorLogPath = @"C:\analyzer_build_errors.txt";
+        private const string LogDirectoryName = "AbilityKit.Analyzer";
 
         public int callbackOrder => -1000;
 
@@ -30,7 +30,7 @@ namespace AbilityKit.Analyzer.Editor
                 var errorMsg = $"Namespace constraint violations found in {violations.Count} assembly/namespace combination(s). See below for details.\n\n";
                 errorMsg += string.Join("\n", violations);
 
-                File.WriteAllText(ErrorLogPath, errorMsg);
+                WriteErrorReport(errorMsg);
                 WriteLog($"Found {violations.Count} violations - build will fail");
 
                 throw new BuildFailedException(errorMsg);
@@ -43,7 +43,11 @@ namespace AbilityKit.Analyzer.Editor
         {
             var violations = new List<string>();
             var config = LoadConfig();
-            if (config == null || !config.GlobalDefaults.Enabled)
+            var hasExplicitConstraints = config?.Constraints != null && config.Constraints.Count > 0;
+            var appliesGlobalDefaults = config?.GlobalDefaults != null &&
+                                        config.GlobalDefaults.Enabled &&
+                                        config.GlobalDefaults.ApplyToUnlistedPackages;
+            if (!hasExplicitConstraints && !appliesGlobalDefaults)
             {
                 WriteLog("Config not found or disabled");
                 return violations;
@@ -88,9 +92,7 @@ namespace AbilityKit.Analyzer.Editor
                             continue;
                         }
 
-                        var forbidden = new HashSet<string>(constraint.ForbiddenNamespaces ?? new List<string>(),
-                            StringComparer.OrdinalIgnoreCase);
-                        if (forbidden.Count == 0)
+                        if (constraint.ForbiddenNamespaces == null || constraint.ForbiddenNamespaces.Count == 0)
                         {
                             WriteLog($"[Whitelist] Skipping {asmName} - no forbidden namespaces");
                             continue;
@@ -103,7 +105,7 @@ namespace AbilityKit.Analyzer.Editor
 
                         foreach (var file in sourceFiles)
                         {
-                            var fileViolations = CheckFile(file, forbidden);
+                            var fileViolations = CheckFile(file, constraint);
                             foreach (var v in fileViolations)
                             {
                                 var msg = $"AK1001 [{asmName}] {v} in {GetRelativePath(file)}";
@@ -122,40 +124,12 @@ namespace AbilityKit.Analyzer.Editor
             return violations;
         }
 
-        private static ConstraintEntry GetEffectiveConstraint(ConfigData config, string asmName)
+        private static PackageConstraint GetEffectiveConstraint(PackageConstraintsConfig config, string asmName)
         {
-            // [临时调试] 跳过白名单，直接对所有包生效
-
-            // 1. 检查 Constraints 中是否有精确匹配
-            if (config.Constraints.TryGetValue(asmName, out var constraint))
-            {
-                return constraint;
-            }
-
-            // 2. 检查通配符匹配
-            foreach (var key in config.Constraints.Keys)
-            {
-                if (key.Contains("*"))
-                {
-                    var pattern = key.Replace(".", "\\.").Replace("*", ".*");
-                    if (System.Text.RegularExpressions.Regex.IsMatch(asmName, $"^{pattern}$",
-                        System.Text.RegularExpressions.RegexOptions.IgnoreCase))
-                    {
-                        return config.Constraints[key];
-                    }
-                }
-            }
-
-            // [临时调试] 不再检查 ApplyToUnlistedPackages，直接使用全局默认
-            // 回退到全局默认
-            return new ConstraintEntry
-            {
-                IsEnabled = config.GlobalDefaults.Enabled,
-                ForbiddenNamespaces = config.GlobalDefaults.ForbiddenNamespaces
-            };
+            return config?.GetEffectiveConstraint(asmName);
         }
 
-        private static List<string> CheckFile(string filePath, HashSet<string> forbidden)
+        private static List<string> CheckFile(string filePath, PackageConstraint constraint)
         {
             var violations = new List<string>();
             try
@@ -167,7 +141,7 @@ namespace AbilityKit.Analyzer.Editor
                     if (line.StartsWith("using "))
                     {
                         var ns = ExtractNamespace(line);
-                        if (!string.IsNullOrEmpty(ns) && IsForbidden(ns, forbidden))
+                        if (!string.IsNullOrEmpty(ns) && constraint.IsNamespaceForbidden(ns))
                         {
                             violations.Add($"Forbidden namespace '{ns}' at line {i + 1}");
                         }
@@ -189,15 +163,6 @@ namespace AbilityKit.Analyzer.Editor
             return ns.StartsWith("global") ? null : ns;
         }
 
-        private static bool IsForbidden(string ns, HashSet<string> forbidden)
-        {
-            foreach (var f in forbidden)
-            {
-                if (ns == f || ns.StartsWith(f + ".")) return true;
-            }
-            return false;
-        }
-
         private static bool IsExcluded(string path)
         {
             var n = path.Replace('\\', '/');
@@ -206,7 +171,7 @@ namespace AbilityKit.Analyzer.Editor
                    n.Contains("/~") || n.Contains("/Tests~");
         }
 
-        private static ConfigData LoadConfig()
+        private static PackageConstraintsConfig LoadConfig()
         {
             var paths = new[]
             {
@@ -221,7 +186,7 @@ namespace AbilityKit.Analyzer.Editor
                     try
                     {
                         var json = File.ReadAllText(p);
-                        return JsonConvert.DeserializeObject<ConfigData>(json);
+                        return JsonConvert.DeserializeObject<PackageConstraintsConfig>(json);
                     }
                     catch { }
                 }
@@ -253,28 +218,23 @@ namespace AbilityKit.Analyzer.Editor
         {
             try
             {
-                File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+                var logPath = GetLogPath("build-check.log");
+                Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+                File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n");
             }
             catch { }
         }
-    }
 
-    internal class ConfigData
-    {
-        public GlobalDefaults GlobalDefaults { get; set; } = new();
-        public Dictionary<string, ConstraintEntry> Constraints { get; set; } = new();
-    }
+        private static void WriteErrorReport(string message)
+        {
+            var errorLogPath = GetLogPath("build-errors.txt");
+            Directory.CreateDirectory(Path.GetDirectoryName(errorLogPath));
+            File.WriteAllText(errorLogPath, message);
+        }
 
-    internal class GlobalDefaults
-    {
-        public bool Enabled { get; set; }
-        public List<string> ForbiddenNamespaces { get; set; } = new();
-        public bool ApplyToUnlistedPackages { get; set; } = true;
-    }
-
-    internal class ConstraintEntry
-    {
-        public bool IsEnabled { get; set; } = true;
-        public List<string> ForbiddenNamespaces { get; set; } = new();
+        private static string GetLogPath(string fileName)
+        {
+            return Path.Combine(GetProjectRoot(), "Logs", LogDirectoryName, fileName);
+        }
     }
 }

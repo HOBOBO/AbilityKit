@@ -133,7 +133,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             float magnitude,
             int priority,
             int sourceId,
-            int magnitudeType)
+            int magnitudeType,
+            float declaredValue = 0f,
+            float stackedValue = 0f,
+            float projectedValue = 0f,
+            float currentValue = 0f,
+            bool hasCurrentValue = false,
+            float capturedValue = 0f,
+            bool hasCapturedValue = false,
+            int evaluationPolicy = 0,
+            int stackCount = 1,
+            string captureMode = "",
+            string explanation = "")
         {
             if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
             if (actorId == 0) throw new ArgumentOutOfRangeException(nameof(actorId));
@@ -148,6 +159,17 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             Priority = priority;
             SourceId = sourceId;
             MagnitudeType = magnitudeType;
+            DeclaredValue = declaredValue;
+            StackedValue = stackedValue;
+            ProjectedValue = projectedValue;
+            CurrentValue = currentValue;
+            HasCurrentValue = hasCurrentValue;
+            CapturedValue = capturedValue;
+            HasCapturedValue = hasCapturedValue;
+            EvaluationPolicy = evaluationPolicy;
+            StackCount = stackCount;
+            CaptureMode = captureMode ?? string.Empty;
+            Explanation = explanation ?? string.Empty;
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
@@ -159,13 +181,32 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public int Priority { get; }
         public int SourceId { get; }
         public int MagnitudeType { get; }
+        public float DeclaredValue { get; }
+        public float StackedValue { get; }
+        public float ProjectedValue { get; }
+        public float CurrentValue { get; }
+        public bool HasCurrentValue { get; }
+        public float CapturedValue { get; }
+        public bool HasCapturedValue { get; }
+        public int EvaluationPolicy { get; }
+        public int StackCount { get; }
+        public string CaptureMode { get; }
+        public string Explanation { get; }
+        public bool HasExplanation => HasCurrentValue || HasCapturedValue || !string.IsNullOrEmpty(Explanation);
 
         public bool Equals(BattleDiagnosticActorAttributeModifier other)
         {
             return Scope.Equals(other.Scope) && Frame == other.Frame && ActorId == other.ActorId &&
                    AttributeId == other.AttributeId && Operation == other.Operation &&
                    Magnitude.Equals(other.Magnitude) && Priority == other.Priority &&
-                   SourceId == other.SourceId && MagnitudeType == other.MagnitudeType;
+                   SourceId == other.SourceId && MagnitudeType == other.MagnitudeType &&
+                   DeclaredValue.Equals(other.DeclaredValue) && StackedValue.Equals(other.StackedValue) &&
+                   ProjectedValue.Equals(other.ProjectedValue) && CurrentValue.Equals(other.CurrentValue) &&
+                   HasCurrentValue == other.HasCurrentValue && CapturedValue.Equals(other.CapturedValue) &&
+                   HasCapturedValue == other.HasCapturedValue && EvaluationPolicy == other.EvaluationPolicy &&
+                   StackCount == other.StackCount &&
+                   string.Equals(CaptureMode, other.CaptureMode, StringComparison.Ordinal) &&
+                   string.Equals(Explanation, other.Explanation, StringComparison.Ordinal);
         }
 
         public override bool Equals(object obj) => obj is BattleDiagnosticActorAttributeModifier other && Equals(other);
@@ -183,6 +224,17 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ Priority;
                 hashCode = (hashCode * 397) ^ SourceId;
                 hashCode = (hashCode * 397) ^ MagnitudeType;
+                hashCode = (hashCode * 397) ^ DeclaredValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ StackedValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ ProjectedValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ CurrentValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ HasCurrentValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ CapturedValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ HasCapturedValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ EvaluationPolicy;
+                hashCode = (hashCode * 397) ^ StackCount;
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(CaptureMode ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Explanation ?? string.Empty);
                 return hashCode;
             }
         }
@@ -206,7 +258,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             long rootContextId,
             int modifierBindingCount,
             int maxStacks = 0,
-            string name = "")
+            string name = "",
+            int modifierSourceId = 0)
         {
             if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
             if (actorId == 0) throw new ArgumentOutOfRangeException(nameof(actorId));
@@ -234,6 +287,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             ModifierBindingCount = modifierBindingCount;
             MaxStacks = maxStacks;
             Name = name ?? string.Empty;
+            ModifierSourceId = modifierSourceId;
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
@@ -252,6 +306,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public int ModifierBindingCount { get; }
         public int MaxStacks { get; }
         public string Name { get; }
+        public int ModifierSourceId { get; }
 
         public bool Equals(BattleDiagnosticActorBuff other)
         {
@@ -262,7 +317,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    SourceContextId == other.SourceContextId && RuntimeContextId == other.RuntimeContextId &&
                    RuntimeContextVersion == other.RuntimeContextVersion && SkillRuntime.Equals(other.SkillRuntime) &&
                    RootContextId == other.RootContextId && ModifierBindingCount == other.ModifierBindingCount &&
-                   MaxStacks == other.MaxStacks && string.Equals(Name, other.Name, StringComparison.Ordinal);
+                   MaxStacks == other.MaxStacks && string.Equals(Name, other.Name, StringComparison.Ordinal) &&
+                   ModifierSourceId == other.ModifierSourceId;
         }
 
         public override bool Equals(object obj) => obj is BattleDiagnosticActorBuff other && Equals(other);
@@ -287,6 +343,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ ModifierBindingCount;
                 hashCode = (hashCode * 397) ^ MaxStacks;
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Name ?? string.Empty);
+                hashCode = (hashCode * 397) ^ ModifierSourceId;
                 return hashCode;
             }
         }
@@ -655,6 +712,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             {
                 throw new ArgumentException(
                     "SkillFailure payload requires a SkillFailure event kind.",
+                    nameof(payload));
+            }
+
+            if (payload.Kind == BattleDiagnosticPayloadKind.BuffLifecycle &&
+                kind != BattleDiagnosticEventKind.BuffAdded &&
+                kind != BattleDiagnosticEventKind.BuffRemoved)
+            {
+                throw new ArgumentException(
+                    "BuffLifecycle payload requires a BuffAdded or BuffRemoved event kind.",
                     nameof(payload));
             }
 

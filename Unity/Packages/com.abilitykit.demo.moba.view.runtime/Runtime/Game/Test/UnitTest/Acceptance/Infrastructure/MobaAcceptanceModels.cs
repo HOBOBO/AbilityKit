@@ -272,6 +272,28 @@ namespace AbilityKit.Game.Test.UnitTest
         public string semanticVersion;
     }
 
+    /// <summary>
+    /// Controls an acceptance test run and its diagnostic artifacts.
+    /// Machine-readable artifacts preserve the existing json/jsonl contract; the optional
+    /// trace text is intended for direct inspection after individual or batch test runs.
+    /// </summary>
+    public sealed class MobaAcceptanceRunOptions
+    {
+        public string ArtifactDirectory { get; set; }
+        public bool ExportArtifacts { get; set; } = true;
+        public MobaAcceptanceTraceExportOptions TraceExport { get; set; }
+        public bool Recursive { get; set; } = true;
+        public string CategoryFilter { get; set; }
+        public string TagFilter { get; set; }
+
+        public bool ShouldExportTraceText => TraceExport != null && TraceExport.DetailedText;
+    }
+
+    public sealed class MobaAcceptanceTraceExportOptions
+    {
+        public bool DetailedText { get; set; } = true;
+    }
+
     [Serializable]
     public sealed class MobaAcceptanceSummary
     {
@@ -299,6 +321,7 @@ namespace AbilityKit.Game.Test.UnitTest
         public string traceDictionaryVersion;
         public MobaAcceptanceDiagnosticsSummary diagnostics;
         public string traceJsonlPath;
+        public string traceTextPath;
         public string summaryJsonPath;
     }
 

@@ -1,4 +1,4 @@
-using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Ability.StateSync
 {
@@ -23,9 +23,8 @@ namespace AbilityKit.Ability.StateSync
     /// 【使用方式】
     /// 1. 实现 IPredictionHandler 接口定义 Handler（如 MovementHandler, CooldownHandler）
     /// 2. 注册 Handler 到 PredictionCoordinator
-    /// 3. 调用 RecordInput 记录输入
-    /// 4. 每帧调用 AdvancePrediction 推进预测
-    /// 5. 调用 ApplyServerSnapshot 应用服务器校正，如有冲突自动回滚
+    /// 3. 每帧调用 ProcessInput 或 ProcessInputs 执行并记录本地预测
+    /// 4. 调用 ApplyServerSnapshot 应用服务器校正，如有冲突自动回滚
     /// </summary>
     public interface IPredictionCoordinator
     {
@@ -34,10 +33,9 @@ namespace AbilityKit.Ability.StateSync
         int ServerConfirmedFrame { get; }
         bool NeedsRollback { get; }
 
-        void RecordInput(int frame, IInputCommand input);
+        void ProcessInput(IInputCommand input);
+        void ProcessInputs(IReadOnlyList<IInputCommand> inputs);
         void ApplyServerSnapshot(int serverFrame, int objectId, StateSync.Prediction.StateSlots serverSlots);
-        void ExecuteRollback();
-        void AdvancePrediction();
         void Reset();
     }
 }

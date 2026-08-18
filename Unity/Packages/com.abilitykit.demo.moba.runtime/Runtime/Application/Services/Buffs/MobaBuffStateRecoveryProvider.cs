@@ -3,23 +3,31 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services.Attributes;
-using AbilityKit.Core.Logging;
+using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Lifecycle;
+using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
+using AbilityKit.Demo.Moba.Services.Buffs.Tagging;
 using AbilityKit.Demo.Moba.Services.StateSync;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs
 {
     [WorldService(typeof(MobaBuffStateRecoveryProvider))]
-    public sealed class MobaBuffStateRecoveryProvider : IMobaStateRecoveryProvider
+    public sealed class MobaBuffStateRecoveryProvider : IMobaStagedStateRecoveryProvider
     {
         public const int DefaultKey = 10030;
+        public const int CurrentPayloadVersion = 2;
 
         private readonly MobaActorRegistry _actors;
         private readonly MobaRuntimeContextService _runtimeContexts;
         private readonly MobaSkillCastRuntimeService _skillRuntimes;
         private readonly BuffRuntimeBindingCoordinator _runtimeBindings;
+        [WorldInject(required: false)] private MobaConfigDatabase _configs = null;
+        [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates = null;
+        [WorldInject(required: false)] private IMobaEffectiveTagQueryService _tags = null;
+        [WorldInject(required: false)] private IContinuousManager _continuous = null;
 
         public MobaBuffStateRecoveryProvider(
             MobaActorRegistry actors,
@@ -55,31 +63,52 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             }
 
             entries.Sort(CompareEntries);
-            return MemoryPackSerializer.Serialize(new MobaBuffStateRecoveryPayload(1, entries.Count == 0 ? Array.Empty<MobaBuffStateRecoveryEntry>() : entries.ToArray()));
+            return MemoryPackSerializer.Serialize(new MobaBuffStateRecoveryPayload(CurrentPayloadVersion, entries.Count == 0 ? Array.Empty<MobaBuffStateRecoveryEntry>() : entries.ToArray()));
+        }
+
+        public void PrepareRestore(FrameIndex frame, byte[] payload)
+        {
+            ParseAndValidate(payload);
         }
 
         public void ImportState(FrameIndex frame, byte[] payload)
         {
-            ClearAllBuffs(frame);
+            var incoming = ParseAndValidate(payload);
+            var rollbackPayload = ExportState(frame);
 
-            if (payload == null || payload.Length == 0) return;
-
-            var p = MemoryPackSerializer.Deserialize<MobaBuffStateRecoveryPayload>(payload);
-            if (p.Entries == null || p.Entries.Length == 0) return;
-
-            Array.Sort(p.Entries, CompareEntries);
-            for (int i = 0; i < p.Entries.Length; i++)
+            try
             {
-                var entry = p.Entries[i];
-                if (!_actors.TryGet(entry.TargetActorId, out var actor) || actor == null) continue;
-
-                var hadRuntimeList = actor.hasBuffs && actor.buffs.Active != null;
-                var list = hadRuntimeList ? actor.buffs.Active : new BuffRepository().GetOrCreateList(actor);
-                if (TryRestoreEntry(frame, in entry, list)) continue;
-
-                if (!hadRuntimeList && list.Count == 0)
+                ApplyPrepared(frame, incoming);
+            }
+            catch (Exception restoreFailure)
+            {
+                try
                 {
-                    BuffRepository.ReleaseList(actor);
+                    ApplyPrepared(frame, ParseAndValidate(rollbackPayload));
+                }
+                catch (Exception rollbackFailure)
+                {
+                    throw new AggregateException("Buff state restore failed and rollback could not restore the previous state.", restoreFailure, rollbackFailure);
+                }
+
+                throw new InvalidOperationException("Buff state restore failed; the previous Buff state was restored.", restoreFailure);
+            }
+        }
+
+        public void ValidateRestoredState(FrameIndex frame, byte[] payload)
+        {
+            var expected = ParseAndValidate(payload);
+            var actual = ParseAndValidate(ExportState(frame));
+            if (expected.Length != actual.Length)
+            {
+                throw new InvalidOperationException($"Buff state validation failed. expectedCount={expected.Length} actualCount={actual.Length}.");
+            }
+
+            for (int i = 0; i < expected.Length; i++)
+            {
+                if (!EntriesEqual(in expected[i], in actual[i]))
+                {
+                    throw new InvalidOperationException($"Buff state validation failed at index {i}. target={expected[i].TargetActorId} buffId={expected[i].BuffId} sourceContextId={expected[i].SourceContextId}.");
                 }
             }
         }
@@ -97,10 +126,93 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             }
         }
 
+        private MobaBuffStateRecoveryEntry[] ParseAndValidate(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) return Array.Empty<MobaBuffStateRecoveryEntry>();
+
+            MobaBuffStateRecoveryPayload snapshot;
+            try
+            {
+                snapshot = MemoryPackSerializer.Deserialize<MobaBuffStateRecoveryPayload>(payload);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException("Buff state payload could not be deserialized.", ex);
+            }
+
+            if (snapshot.Version != CurrentPayloadVersion)
+            {
+                throw new InvalidOperationException($"Unsupported Buff state payload version. expected={CurrentPayloadVersion} actual={snapshot.Version}.");
+            }
+
+            var entries = snapshot.Entries ?? Array.Empty<MobaBuffStateRecoveryEntry>();
+            Array.Sort(entries, CompareEntries);
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.TargetActorId <= 0 || entry.BuffId <= 0 || entry.SourceContextId == 0L)
+                {
+                    throw new InvalidOperationException($"Invalid Buff state identity. target={entry.TargetActorId} buffId={entry.BuffId} sourceContextId={entry.SourceContextId}.");
+                }
+
+                if (i > 0 && SameIdentity(in entries[i - 1], in entry))
+                {
+                    throw new InvalidOperationException($"Duplicate Buff state identity. target={entry.TargetActorId} buffId={entry.BuffId} source={entry.SourceActorId} sourceContextId={entry.SourceContextId}.");
+                }
+
+                if (!_actors.TryGet(entry.TargetActorId, out var actor) || actor == null)
+                {
+                    throw new InvalidOperationException($"Buff state target actor not found. target={entry.TargetActorId} buffId={entry.BuffId}.");
+                }
+
+                var skillHandle = entry.SkillRuntimeHandle;
+                if (skillHandle.IsValid && !_skillRuntimes.TryGet(in skillHandle, out _))
+                {
+                    throw new InvalidOperationException($"Buff state parent runtime not found. target={entry.TargetActorId} buffId={entry.BuffId} runtime={skillHandle}.");
+                }
+
+                if (entry.HasContinuous)
+                {
+                    if (_configs == null || !_configs.TryGetBuff(entry.BuffId, out var buff) || buff == null)
+                    {
+                        throw new InvalidOperationException($"Buff state continuous config not found. target={entry.TargetActorId} buffId={entry.BuffId}.");
+                    }
+
+                    if (_continuous == null)
+                    {
+                        throw new InvalidOperationException($"Buff state continuous manager is unavailable. target={entry.TargetActorId} buffId={entry.BuffId}.");
+                    }
+
+                    if (buff.ContinuousTagTemplateId > 0 && _tagTemplates == null)
+                    {
+                        throw new InvalidOperationException($"Buff state tag template registry is unavailable. target={entry.TargetActorId} buffId={entry.BuffId} template={buff.ContinuousTagTemplateId}.");
+                    }
+                }
+            }
+
+            return entries;
+        }
+
+        private void ApplyPrepared(FrameIndex frame, MobaBuffStateRecoveryEntry[] entries)
+        {
+            ClearAllBuffs(frame);
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                _actors.TryGet(entry.TargetActorId, out var actor);
+                var list = actor.hasBuffs && actor.buffs.Active != null
+                    ? actor.buffs.Active
+                    : new BuffRepository().GetOrCreateList(actor);
+                RestoreEntry(frame, actor, in entry, list);
+            }
+        }
+
         private void ClearAllBuffs(FrameIndex frame)
         {
+            var continuousBindings = new BuffContinuousBindingService(_continuous, _tags);
             foreach (var kv in _actors.Entries)
             {
+                var actorId = kv.Key;
                 var actor = kv.Value;
                 if (actor == null || !actor.hasBuffs || actor.buffs.Active == null) continue;
 
@@ -109,6 +221,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 {
                     var runtime = active[i];
                     if (runtime == null) continue;
+                    continuousBindings.Cleanup(actor, actorId, runtime, applyRemovalTags: false);
                     _runtimeContexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Destroyed, frame.Value);
                     _runtimeBindings.ReleaseSkillRuntime(runtime);
                     BuffRepository.ReleaseRuntime(runtime);
@@ -118,7 +231,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             }
         }
 
-        private bool TryRestoreEntry(FrameIndex frame, in MobaBuffStateRecoveryEntry entry, List<BuffRuntime> list)
+        private void RestoreEntry(FrameIndex frame, global::ActorEntity actor, in MobaBuffStateRecoveryEntry entry, List<BuffRuntime> list)
         {
             var runtime = BuffRepository.RentRuntime();
             var added = false;
@@ -127,8 +240,19 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 entry.ApplyTo(runtime);
                 if (!TryReacquireSkillRuntime(runtime))
                 {
-                    Log.Warning($"[MobaBuffStateRecoveryProvider] Reject restored buff with invalid parent runtime. target={entry.TargetActorId} buffId={entry.BuffId} sourceContextId={entry.SourceContextId} runtime={runtime.SkillRuntimeHandle}");
-                    return false;
+                    throw new InvalidOperationException($"Buff state parent retain failed. target={entry.TargetActorId} buffId={entry.BuffId} runtime={runtime.SkillRuntimeHandle}.");
+                }
+
+                if (entry.HasContinuous)
+                {
+                    _configs.TryGetBuff(entry.BuffId, out var buff);
+                    var requirements = BuffTagLifecycle.ResolveRequirements(buff, _tagTemplates);
+                    runtime.TagRequirements = requirements;
+                    var continuousBindings = new BuffContinuousBindingService(_continuous, _tags);
+                    if (!continuousBindings.EnsureActive(runtime, buff, entry.SourceActorId, entry.TargetActorId, entry.RemainingSeconds, requirements))
+                    {
+                        throw new InvalidOperationException($"Buff state continuous activation failed. target={entry.TargetActorId} buffId={entry.BuffId} sourceContextId={entry.SourceContextId}.");
+                    }
                 }
 
                 list.Add(runtime);
@@ -138,25 +262,17 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                     runtime,
                     MobaBuffRuntimeContextData.FromRuntime(runtime, entry.TargetActorId, frame.Value, MobaRuntimeContextLifecycleState.Active));
                 runtime = null;
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[MobaBuffStateRecoveryProvider] Restore buff failed. target={entry.TargetActorId} buffId={entry.BuffId} sourceContextId={entry.SourceContextId}");
-                return false;
             }
             finally
             {
                 if (runtime != null)
                 {
-                    if (added && list.Remove(runtime))
-                    {
-                        BuffRepository.MarkDirty(list);
-                    }
-
+                    if (added && list.Remove(runtime)) BuffRepository.MarkDirty(list);
+                    new BuffContinuousBindingService(_continuous, _tags).Cleanup(actor, entry.TargetActorId, runtime, applyRemovalTags: false);
                     _runtimeContexts.SnapshotAndDestroyBuffContext(runtime, MobaRuntimeContextLifecycleState.Destroyed, frame.Value);
                     _runtimeBindings.ReleaseSkillRuntime(runtime);
                     BuffRepository.ReleaseRuntime(runtime);
+                    if (list.Count == 0) BuffRepository.ReleaseList(actor);
                 }
             }
         }
@@ -190,6 +306,36 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             return a.SourceContextId.CompareTo(b.SourceContextId);
         }
 
+        private static bool SameIdentity(in MobaBuffStateRecoveryEntry a, in MobaBuffStateRecoveryEntry b)
+        {
+            return a.TargetActorId == b.TargetActorId
+                && a.BuffId == b.BuffId
+                && a.SourceActorId == b.SourceActorId
+                && a.SourceContextId == b.SourceContextId;
+        }
+
+        private static bool EntriesEqual(in MobaBuffStateRecoveryEntry a, in MobaBuffStateRecoveryEntry b)
+        {
+            return SameIdentity(in a, in b)
+                && a.RemainingSeconds.Equals(b.RemainingSeconds)
+                && a.IntervalRemainingSeconds.Equals(b.IntervalRemainingSeconds)
+                && a.StackCount == b.StackCount
+                && a.RuntimeContextId == b.RuntimeContextId
+                && a.RuntimeContextVersion == b.RuntimeContextVersion
+                && a.OriginSourceActorId == b.OriginSourceActorId
+                && a.OriginTargetActorId == b.OriginTargetActorId
+                && a.OriginTraceKind == b.OriginTraceKind
+                && a.OriginConfigId == b.OriginConfigId
+                && a.OriginImmediateContextId == b.OriginImmediateContextId
+                && a.OriginParentContextId == b.OriginParentContextId
+                && a.OriginRootContextId == b.OriginRootContextId
+                && a.OriginOwnerContextId == b.OriginOwnerContextId
+                && a.SkillRuntimeId == b.SkillRuntimeId
+                && a.SkillRuntimeGeneration == b.SkillRuntimeGeneration
+                && a.SkillRuntimeRootTraceContextId == b.SkillRuntimeRootTraceContextId
+                && a.HasContinuous == b.HasContinuous;
+        }
+
         private static void AddEntryHash(in MobaBuffStateRecoveryEntry entry, ref MobaStateHashBuilder hash)
         {
             hash.AddInt(entry.TargetActorId);
@@ -212,6 +358,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             hash.AddLong(entry.SkillRuntimeId);
             hash.AddInt(entry.SkillRuntimeGeneration);
             hash.AddLong(entry.SkillRuntimeRootTraceContextId);
+            hash.AddInt(entry.HasContinuous ? 1 : 0);
         }
 
 
@@ -256,6 +403,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
         [MemoryPackOrder(17)] public readonly long SkillRuntimeId;
         [MemoryPackOrder(18)] public readonly int SkillRuntimeGeneration;
         [MemoryPackOrder(19)] public readonly long SkillRuntimeRootTraceContextId;
+        [MemoryPackOrder(20)] public readonly bool HasContinuous;
+
+        public MobaSkillCastRuntimeHandle SkillRuntimeHandle =>
+            SkillRuntimeId != 0L && SkillRuntimeGeneration > 0
+                ? new MobaSkillCastRuntimeHandle(SkillRuntimeId, SkillRuntimeGeneration, SkillRuntimeRootTraceContextId)
+                : default;
 
         public MobaBuffStateRecoveryEntry(
             int targetActorId,
@@ -277,7 +430,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             long originOwnerContextId,
             long skillRuntimeId,
             int skillRuntimeGeneration,
-            long skillRuntimeRootTraceContextId)
+            long skillRuntimeRootTraceContextId,
+            bool hasContinuous = false)
         {
             TargetActorId = targetActorId;
             BuffId = buffId;
@@ -299,6 +453,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             SkillRuntimeId = skillRuntimeId;
             SkillRuntimeGeneration = skillRuntimeGeneration;
             SkillRuntimeRootTraceContextId = skillRuntimeRootTraceContextId;
+            HasContinuous = hasContinuous;
         }
 
         public static MobaBuffStateRecoveryEntry FromRuntime(int targetActorId, BuffRuntime runtime)
@@ -325,7 +480,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 origin.OwnerContextId,
                 skill.RuntimeId,
                 skill.Generation,
-                skill.RootTraceContextId);
+                skill.RootTraceContextId,
+                runtime.Continuous != null && !runtime.Continuous.IsTerminated);
         }
 
         public void ApplyTo(BuffRuntime runtime)
@@ -341,9 +497,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             runtime.RuntimeContextId = RuntimeContextId;
             runtime.RuntimeContextVersion = RuntimeContextVersion;
 
-            var skill = SkillRuntimeId != 0L && SkillRuntimeGeneration > 0
-                ? new MobaSkillCastRuntimeHandle(SkillRuntimeId, SkillRuntimeGeneration, SkillRuntimeRootTraceContextId)
-                : default;
+            var skill = SkillRuntimeHandle;
 
             runtime.Origin = new MobaGameplayOrigin(
                 OriginSourceActorId,

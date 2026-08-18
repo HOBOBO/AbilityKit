@@ -34,7 +34,7 @@ namespace AbilityKit.Game.Flow
             clearSelection?.Invoke();
             _destroyGameEntry();
             _loadScene(string.IsNullOrWhiteSpace(starterScene)
-                ? "MultiplayerStarterScene"
+                ? "StarterScene"
                 : starterScene.Trim());
         }
 

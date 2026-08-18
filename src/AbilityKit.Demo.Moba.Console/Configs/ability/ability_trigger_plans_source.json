@@ -1,0 +1,2310 @@
+{
+    "$schema":  "abilitykit-trigger-source-v1",
+    "version":  1,
+    "description":  "MOBA demo readable trigger source. Human-authored actions use readable type names and are compiled to runtime ActionId values by the trigger source exporter.",
+    "actions":  {
+                    "debug_log":  {
+                                      "type":  "debug_log",
+                                      "displayName":  "调试日志",
+                                      "category":  "Debug",
+                                      "params":  [
+                                                     {
+                                                         "name":  "message",
+                                                         "type":  "string",
+                                                         "required":  true
+                                                     },
+                                                     {
+                                                         "name":  "dump_args",
+                                                         "type":  "bool",
+                                                         "required":  false,
+                                                         "defaultValue":  false
+                                                     }
+                                                 ]
+                                  },
+                    "shoot_projectile":  {
+                                             "type":  "shoot_projectile",
+                                             "displayName":  "发射弹道",
+                                             "category":  "Combat",
+                                             "params":  [
+                                                            {
+                                                                "name":  "launcher_id",
+                                                                "type":  "int",
+                                                                "required":  true
+                                                            },
+                                                            {
+                                                                "name":  "projectile_id",
+                                                                "type":  "int",
+                                                                "required":  true
+                                                            },
+                                                            {
+                                                                "name":  "continuous_process_id",
+                                                                "type":  "int",
+                                                                "required":  false,
+                                                                "defaultValue":  0
+                                                            },
+                                                            {
+                                                                "name":  "targetCode",
+                                                                "type":  "int",
+                                                                "required":  false,
+                                                                "defaultValue":  0
+                                                            },
+                                                            {
+                                                                "name":  "directionSource",
+                                                                "type":  "string",
+                                                                "required":  false,
+                                                                "defaultValue":  "cast_context"
+                                                            }
+                                                        ]
+                                         },
+                    "spawn_area":  {
+                                       "type":  "spawn_area",
+                                       "displayName":  "生成区域",
+                                       "category":  "Combat",
+                                       "params":  [
+                                                      {
+                                                          "name":  "area_id",
+                                                          "type":  "int",
+                                                          "required":  true
+                                                      },
+                                                      {
+                                                          "name":  "position_mode",
+                                                          "type":  "int",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "radius",
+                                                          "type":  "float",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "duration_ms",
+                                                          "type":  "int",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "duration_frames",
+                                                          "type":  "int",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "stay_interval_frames",
+                                                          "type":  "int",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "collision_layer_mask",
+                                                          "type":  "int",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "offset_x",
+                                                          "type":  "float",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "offset_y",
+                                                          "type":  "float",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "offset_z",
+                                                          "type":  "float",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "target_query_id",
+                                                          "type":  "int",
+                                                          "required":  false,
+                                                          "defaultValue":  0
+                                                      },
+                                                      {
+                                                          "name":  "target_max_count",
+                                                          "type":  "int",
+                                                          "required":  false,
+                                                          "defaultValue":  1
+                                                      }
+                                                  ]
+                                   },
+                    "give_damage":  {
+                                        "type":  "give_damage",
+                                        "displayName":  "造成伤害",
+                                        "category":  "Combat",
+                                        "params":  [
+                                                       {
+                                                           "name":  "damage_value",
+                                                           "type":  "float",
+                                                           "required":  true
+                                                       },
+                                                       {
+                                                           "name":  "damage_type",
+                                                           "type":  "int",
+                                                           "required":  false,
+                                                           "defaultValue":  0
+                                                       },
+                                                       {
+                                                           "name":  "reason_param",
+                                                           "type":  "int",
+                                                           "required":  false,
+                                                           "defaultValue":  0
+                                                       },
+                                                       {
+                                                           "name":  "target_query_id",
+                                                           "type":  "int",
+                                                           "required":  false,
+                                                           "defaultValue":  0
+                                                       }
+                                                   ]
+                                    },
+                    "add_buff":  {
+                                     "type":  "add_buff",
+                                     "displayName":  "添加Buff",
+                                     "category":  "Buff",
+                                     "params":  [
+                                                    {
+                                                        "name":  "buffIds",
+                                                        "type":  "int[]",
+                                                        "required":  true
+                                                    },
+                                                    {
+                                                        "name":  "targetCode",
+                                                        "type":  "int",
+                                                        "required":  false,
+                                                        "defaultValue":  0
+                                                    },
+                                                    {
+                                                        "name":  "target_self",
+                                                        "type":  "bool",
+                                                        "required":  false,
+                                                        "defaultValue":  false
+                                                    },
+                                                    {
+                                                        "name":  "target_payload_field_id",
+                                                        "type":  "int",
+                                                        "required":  false,
+                                                        "defaultValue":  0
+                                                    }
+                                                ]
+                                 },
+                    "dash":  {
+                                 "type":  "dash",
+                                 "displayName":  "冲刺位移",
+                                 "category":  "Motion",
+                                 "params":  [
+                                                {
+                                                    "name":  "speed",
+                                                    "type":  "float",
+                                                    "required":  true
+                                                },
+                                                {
+                                                    "name":  "duration_ms",
+                                                    "type":  "int",
+                                                    "required":  true
+                                                },
+                                                {
+                                                    "name":  "direction_mode",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "apply_to_caster",
+                                                    "type":  "bool",
+                                                    "required":  false,
+                                                    "defaultValue":  true
+                                                },
+                                                {
+                                                    "name":  "priority",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  10
+                                                },
+                                                {
+                                                    "name":  "motion_group_id",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  2
+                                                }
+                                            ]
+                             },
+                    "pull":  {
+                                 "type":  "pull",
+                                 "displayName":  "牵引/击飞位移",
+                                 "category":  "Motion",
+                                 "params":  [
+                                                {
+                                                    "name":  "speed",
+                                                    "type":  "float",
+                                                    "required":  true
+                                                },
+                                                {
+                                                    "name":  "duration_ms",
+                                                    "type":  "int",
+                                                    "required":  true
+                                                },
+                                                {
+                                                    "name":  "direction_mode",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "target_distance",
+                                                    "type":  "float",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "priority",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  12
+                                                },
+                                                {
+                                                    "name":  "motion_group_id",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  3
+                                                },
+                                                {
+                                                    "name":  "continuous_process_id",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "continuous_tag_template_id",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "trigger_ids",
+                                                    "type":  "int[]",
+                                                    "required":  false
+                                                },
+                                                {
+                                                    "name":  "interval_ms",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "interval_trigger_ids",
+                                                    "type":  "int[]",
+                                                    "required":  false
+                                                }
+                                            ]
+                             },
+                    "add_shield":  {
+                                       "type":  "add_shield",
+                                       "displayName":  "添加护盾",
+                                       "category":  "Buff",
+                                       "params":  [
+                                                      {
+                                                          "name":  "shield_id",
+                                                          "type":  "int",
+                                                          "required":  true
+                                                      },
+                                                      {
+                                                          "name":  "shield_value",
+                                                          "type":  "float",
+                                                          "required":  true
+                                                      },
+                                                      {
+                                                          "name":  "duration_ms",
+                                                          "type":  "int",
+                                                          "required":  true
+                                                      },
+                                                      {
+                                                          "name":  "absorb_ratio",
+                                                          "type":  "float",
+                                                          "required":  false,
+                                                          "defaultValue":  1
+                                                      },
+                                                      {
+                                                          "name":  "target_self",
+                                                          "type":  "bool",
+                                                          "required":  false,
+                                                          "defaultValue":  false
+                                                      }
+                                                  ]
+                                   },
+                    "modify_resource":  {
+                                            "type":  "modify_resource",
+                                            "displayName":  "修改资源",
+                                            "category":  "Resource",
+                                            "params":  [
+                                                           {
+                                                               "name":  "resource_type",
+                                                               "type":  "int",
+                                                               "required":  true
+                                                           },
+                                                           {
+                                                               "name":  "amount",
+                                                               "type":  "float",
+                                                               "required":  true
+                                                           },
+                                                           {
+                                                               "name":  "min",
+                                                               "type":  "float",
+                                                               "required":  false
+                                                           },
+                                                           {
+                                                               "name":  "max",
+                                                               "type":  "float",
+                                                               "required":  false
+                                                           },
+                                                           {
+                                                               "name":  "target_self",
+                                                               "type":  "bool",
+                                                               "required":  false,
+                                                               "defaultValue":  false
+                                                           },
+                                                           {
+                                                               "name":  "target_payload_field",
+                                                               "type":  "string",
+                                                               "required":  false
+                                                           }
+                                                       ]
+                                        },
+                    "convert_resource_to_heal":  {
+                                                     "type":  "convert_resource_to_heal",
+                                                     "displayName":  "资源转治�?",
+                                                     "category":  "Resource",
+                                                     "params":  [
+                                                                    {
+                                                                        "name":  "resource_type",
+                                                                        "type":  "int",
+                                                                        "required":  true
+                                                                    },
+                                                                    {
+                                                                        "name":  "amount",
+                                                                        "type":  "float",
+                                                                        "required":  true
+                                                                    },
+                                                                    {
+                                                                        "name":  "heal_ratio",
+                                                                        "type":  "float",
+                                                                        "required":  false,
+                                                                        "defaultValue":  1
+                                                                    },
+                                                                    {
+                                                                        "name":  "out_of_combat_seconds",
+                                                                        "type":  "float",
+                                                                        "required":  false,
+                                                                        "defaultValue":  0
+                                                                    },
+                                                                    {
+                                                                        "name":  "heal_type",
+                                                                        "type":  "int",
+                                                                        "required":  false,
+                                                                        "defaultValue":  0
+                                                                    },
+                                                                    {
+                                                                        "name":  "reason_kind",
+                                                                        "type":  "int",
+                                                                        "required":  false,
+                                                                        "defaultValue":  0
+                                                                    },
+                                                                    {
+                                                                        "name":  "reason_param",
+                                                                        "type":  "int",
+                                                                        "required":  false,
+                                                                        "defaultValue":  0
+                                                                    },
+                                                                    {
+                                                                        "name":  "target_self",
+                                                                        "type":  "bool",
+                                                                        "required":  false,
+                                                                        "defaultValue":  false
+                                                                    }
+                                                                ]
+                                                 },
+                    "adjust_damage_number":  {
+                                                 "type":  "adjust_damage_number",
+                                                 "displayName":  "调整伤害数�?",
+                                                 "category":  "Combat",
+                                                 "params":  [
+                                                                {
+                                                                    "name":  "number_slot",
+                                                                    "type":  "int",
+                                                                    "required":  false,
+                                                                    "defaultValue":  0
+                                                                },
+                                                                {
+                                                                    "name":  "op",
+                                                                    "type":  "int",
+                                                                    "required":  false,
+                                                                    "defaultValue":  1
+                                                                },
+                                                                {
+                                                                    "name":  "value",
+                                                                    "type":  "float",
+                                                                    "required":  false,
+                                                                    "defaultValue":  0
+                                                                },
+                                                                {
+                                                                    "name":  "source_id",
+                                                                    "type":  "int",
+                                                                    "required":  false,
+                                                                    "defaultValue":  0
+                                                                },
+                                                                {
+                                                                    "name":  "reason_kind",
+                                                                    "type":  "int",
+                                                                    "required":  false,
+                                                                    "defaultValue":  0
+                                                                },
+                                                                {
+                                                                    "name":  "reason_param",
+                                                                    "type":  "int",
+                                                                    "required":  false,
+                                                                    "defaultValue":  0
+                                                                },
+                                                                {
+                                                                    "name":  "require_skill_runtime",
+                                                                    "type":  "bool",
+                                                                    "required":  false,
+                                                                    "defaultValue":  true
+                                                                },
+                                                                {
+                                                                    "name":  "skip_first_hit",
+                                                                    "type":  "bool",
+                                                                    "required":  false,
+                                                                    "defaultValue":  true
+                                                                },
+                                                                {
+                                                                    "name":  "repeat_target_decay_factor",
+                                                                    "type":  "float",
+                                                                    "required":  false,
+                                                                    "defaultValue":  0
+                                                                },
+                                                                {
+                                                                    "name":  "target_hit_count_key_base",
+                                                                    "type":  "int",
+                                                                    "required":  false,
+                                                                    "defaultValue":  1200000
+                                                                }
+                                                            ]
+                                             },
+                    "heal":  {
+                                 "type":  "heal",
+                                 "displayName":  "治疗",
+                                 "category":  "Combat",
+                                 "params":  [
+                                                {
+                                                    "name":  "amount",
+                                                    "type":  "float",
+                                                    "required":  true
+                                                },
+                                                {
+                                                    "name":  "heal_type",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "reason_kind",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "reason_param",
+                                                    "type":  "int",
+                                                    "required":  false,
+                                                    "defaultValue":  0
+                                                },
+                                                {
+                                                    "name":  "target_self",
+                                                    "type":  "bool",
+                                                    "required":  false,
+                                                    "defaultValue":  false
+                                                }
+                                            ]
+                             },
+                    "advance_gameplay_counter":  {
+                                                     "type":  "advance_gameplay_counter",
+                                                     "displayName":  "推进玩法计数�?",
+                                                     "category":  "Gameplay",
+                                                     "params":  [
+                                                                    {
+                                                                        "name":  "key_id",
+                                                                        "type":  "int",
+                                                                        "required":  true
+                                                                    },
+                                                                    {
+                                                                        "name":  "scope_payload_field_id",
+                                                                        "type":  "int",
+                                                                        "required":  false,
+                                                                        "defaultValue":  0
+                                                                    },
+                                                                    {
+                                                                        "name":  "threshold",
+                                                                        "type":  "float",
+                                                                        "required":  true
+                                                                    },
+                                                                    {
+                                                                        "name":  "delta",
+                                                                        "type":  "float",
+                                                                        "required":  false,
+                                                                        "defaultValue":  1
+                                                                    },
+                                                                    {
+                                                                        "name":  "reset_value",
+                                                                        "type":  "float",
+                                                                        "required":  false,
+                                                                        "defaultValue":  0
+                                                                    },
+                                                                    {
+                                                                        "name":  "trigger_id",
+                                                                        "type":  "int",
+                                                                        "required":  false,
+                                                                        "defaultValue":  0
+                                                                    }
+                                                                ]
+                                                 }
+                },
+    "triggers":  [
+                     {
+                         "id":  10010000,
+                         "name":  "廉颇-勇士之魂-释放技能时霸体战意",
+                         "event":  "skill.cast.complete",
+                         "scope":  "owner",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10010000
+                                                         ],
+                                             "targetCode":  1,
+                                             "duration_ms":  1500
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇被动触发：添加霸体战意与防御韧性状�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010004,
+                         "name":  "廉颇-勇士之魂-造成伤害获得怒气",
+                         "event":  "damage.apply.after",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  45,
+                         "conditions":  [
+                                            {
+                                                "type":  "arg_gt",
+                                                "arg_name":  "damage_value",
+                                                "value":  0
+                                            },
+                                            {
+                                                "type":  "arg_neq",
+                                                "left":  "payload:attacker_actor_id",
+                                                "right":  "payload:target_actor_id"
+                                            }
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "modify_resource",
+                                             "resource_type":  3,
+                                             "amount":  10,
+                                             "max":  100,
+                                             "target_payload_field":  "attacker_actor_id"
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010002,
+                         "name":  "廉颇-勇士之魂-承受伤害获得怒气",
+                         "event":  "damage.apply.after",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  44,
+                         "conditions":  [
+                                            {
+                                                "type":  "arg_gt",
+                                                "arg_name":  "damage_value",
+                                                "value":  0
+                                            },
+                                            {
+                                                "type":  "arg_neq",
+                                                "left":  "payload:attacker_actor_id",
+                                                "right":  "payload:target_actor_id"
+                                            }
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "modify_resource",
+                                             "resource_type":  3,
+                                             "amount":  5,
+                                             "max":  100,
+                                             "target_payload_field":  "target_actor_id"
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010003,
+                         "name":  "廉颇-勇士之魂-脱战怒气转生�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  true,
+                         "phase":  "immediate",
+                         "priority":  40,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "convert_resource_to_heal",
+                                             "resource_type":  3,
+                                             "amount":  10,
+                                             "heal_ratio":  8,
+                                             "out_of_combat_seconds":  5,
+                                             "heal_type":  0,
+                                             "reason_kind":  2,
+                                             "reason_param":  10010000,
+                                             "target_self":  true
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010101,
+                         "name":  "廉颇-爆裂冲撞-发起冲锋",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10010000
+                                                         ],
+                                             "targetCode":  1,
+                                             "duration_ms":  1500
+                                         },
+                                         {
+                                             "type":  "dash",
+                                             "speed":  12.3,
+                                             "duration_ms":  650,
+                                             "direction_mode":  0,
+                                             "apply_to_caster":  true,
+                                             "priority":  20,
+                                             "motion_group_id":  2,
+                                             "hit_trigger_plan_id":  10010111
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇一技能：霸体并向指向方向冲锋，移动过程命中触发判�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010111,
+                         "name":  "廉颇-爆裂冲撞-命中伤害",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "pull",
+                                             "speed":  7.0,
+                                             "duration_ms":  300,
+                                             "direction_mode":  2,
+                                             "target_distance":  0,
+                                             "priority":  100,
+                                             "motion_group_id":  3,
+                                             "continuous_tag_template_id":  10000001
+                                         },
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  160,
+                                             "damage_type":  1,
+                                             "reason_param":  10010101,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇一技能：冲撞命中造成物理伤害并击飞目�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010201,
+                         "name":  "廉颇-熔岩重击-生成蓄力区域",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10010000
+                                                         ],
+                                             "targetCode":  1,
+                                             "duration_ms":  1500
+                                         },
+                                         {
+                                             "type":  "add_shield",
+                                             "shield_id":  10010201,
+                                             "shield_value":  350,
+                                             "absorb_ratio":  1.0,
+                                             "duration_ms":  2500,
+                                             "priority":  20,
+                                             "target_self":  true,
+                                             "stacking_policy":  1,
+                                             "consume_policy":  0
+                                         },
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40010201,
+                                             "position_mode":  0,
+                                             "radius":  3.5,
+                                             "duration_ms":  700
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇二技能：获得护盾并生成延迟范围伤害区�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010211,
+                         "name":  "廉颇-熔岩重击-区域伤害",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  180,
+                                             "damage_type":  1,
+                                             "reason_param":  10010201,
+                                             "target_query_id":  50010201
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10010212
+                                                         ],
+                                             "target_query_id":  50010201,
+                                             "target_max_count":  10,
+                                             "duration_ms":  1500
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇二技能：蓄力区域造成物理伤害并降低目标移�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010301,
+                         "name":  "廉颇-天崩地裂-第一段区�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10010000
+                                                         ],
+                                             "targetCode":  1,
+                                             "duration_ms":  1800
+                                         },
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40010301,
+                                             "position_mode":  0,
+                                             "radius":  4.5,
+                                             "duration_ms":  300
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇三技能：第一段砸地区�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010311,
+                         "name":  "廉颇-天崩地裂-第二段区�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40010311,
+                                             "position_mode":  0,
+                                             "radius":  4.5,
+                                             "duration_ms":  300
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇三技能：第二段砸地区�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010321,
+                         "name":  "廉颇-天崩地裂-第三段区�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40010321,
+                                             "position_mode":  0,
+                                             "radius":  4.5,
+                                             "duration_ms":  300
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇三技能：第三段砸地区域，命中目标触发击飞",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010331,
+                         "name":  "廉颇-天崩地裂-段落伤害",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  150,
+                                             "damage_type":  1,
+                                             "reason_param":  10010301,
+                                             "target_query_id":  50010301
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇三技能：段落范围造成物理伤害",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10010341,
+                         "name":  "廉颇-天崩地裂-第三段击�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "pull",
+                                             "speed":  8.0,
+                                             "duration_ms":  500,
+                                             "direction_mode":  2,
+                                             "target_distance":  0,
+                                             "priority":  110,
+                                             "motion_group_id":  3,
+                                             "continuous_tag_template_id":  10000001,
+                                             "target_query_id":  50010301,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "廉颇三技能：第三段命中击飞目�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020000,
+                         "name":  "小乔-治愈微笑-释放技能后短暂移�?",
+                         "event":  "skill.cast.complete",
+                         "scope":  "owner",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10020001
+                                                         ],
+                                             "target_self":  true
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔被动触发：释放技能后添加短暂移速状�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020101,
+                         "name":  "小乔-绽放之舞-发射扇子",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "shoot_projectile",
+                                             "launcher_id":  31020101,
+                                             "projectile_id":  30020101,
+                                             "continuous_process_id":  10020101,
+                                             "directionSource":  "cast_context"
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔一技能：发射扇子投射�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020111,
+                         "name":  "小乔-绽放之舞-扇子命中",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  500,
+                                             "source_attack_ratio":  0.80,
+                                             "damage_type":  2,
+                                             "reason_param":  10020101
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔一技能：扇子往返命中造成法术伤害",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020112,
+                         "name":  "小乔-绽放之舞-多目标伤害衰�?",
+                         "event":  "damage.attack.before_calc",
+                         "scope":  "owner",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  61,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "adjust_damage_number",
+                                             "number_slot":  0,
+                                             "op":  1,
+                                             "reason_kind":  1,
+                                             "reason_param":  10020101,
+                                             "require_skill_runtime":  true,
+                                             "skip_first_hit":  true,
+                                             "repeat_target_decay_factor":  0.8,
+                                             "target_hit_count_key_base":  1202010
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020201,
+                         "name":  "小乔-甜蜜恋风-生成区域",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40020201,
+                                             "position_mode":  1,
+                                             "radius":  4.0,
+                                             "duration_ms":  1000
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔二技能：生成击飞区域",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020211,
+                         "name":  "小乔-甜蜜恋风-区域命中",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  100,
+                                             "damage_type":  2,
+                                             "reason_param":  10020201,
+                                             "target_query_id":  50020201,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "pull",
+                                             "speed":  8.0,
+                                             "duration_ms":  500,
+                                             "direction_mode":  2,
+                                             "target_distance":  0,
+                                             "priority":  110,
+                                             "motion_group_id":  3,
+                                             "continuous_tag_template_id":  10000001,
+                                             "target_query_id":  50020201,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔二技能：区域命中造成法术伤害并击飞目�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020301,
+                         "name":  "小乔-星华缭乱-添加持续状�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10020301
+                                                         ],
+                                             "targetCode":  1
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔三技能：添加持续落星状�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020311,
+                         "name":  "小乔-星华缭乱-周期搜敌落星",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40020301,
+                                             "position_mode":  1,
+                                             "radius":  2.5,
+                                             "duration_ms":  700,
+                                             "target_query_id":  50020301,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔三技能：周期搜敌并在目标位置生成延迟落星区域",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020312,
+                         "name":  "小乔-星华缭乱-重复命中伤害衰减",
+                         "event":  "damage.attack.before_calc",
+                         "scope":  "owner",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  60,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "adjust_damage_number",
+                                             "number_slot":  0,
+                                             "op":  1,
+                                             "reason_kind":  1,
+                                             "reason_param":  10020301,
+                                             "require_skill_runtime":  true,
+                                             "skip_first_hit":  true,
+                                             "repeat_target_decay_factor":  0.5,
+                                             "target_hit_count_key_base":  1200000
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10020313,
+                         "name":  "小乔-星华缭乱-落星区域延迟伤害",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  80,
+                                             "damage_type":  2,
+                                             "reason_param":  10020301,
+                                             "target_query_id":  50020302,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "小乔三技能：落星区域延迟命中造成法术伤害",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030000,
+                         "name":  "赵云-龙鸣-低血量免伤配�?",
+                         "event":  "damage.attack.before_calc",
+                         "scope":  "owner",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  65,
+                         "conditions":  [
+                                            {
+                                                "type":  "owner_matches_payload_target"
+                                            }
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "adjust_damage_number",
+                                             "number_slot":  0,
+                                             "op":  1,
+                                             "value":  0,
+                                             "target_missing_hp_ratio_coefficient":  -0.33,
+                                             "source_id":  10030000,
+                                             "reason_kind":  0,
+                                             "reason_param":  0,
+                                             "require_skill_runtime":  false,
+                                             "skip_first_hit":  false
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云被动龙鸣：按已损生命配置免伤参数，运行时后续补充动态比例计�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030002,
+                         "name":  "赵云-龙鸣-配置标记",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  true,
+                         "phase":  "immediate",
+                         "priority":  40,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10030000
+                                                         ],
+                                             "target_self":  true
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云被动龙鸣：配置声明每损失3%最大生命获�?%免伤，最�?3%",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030101,
+                         "name":  "赵云-惊雷之龙-位移并强化普�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "dash",
+                                             "speed":  17.8,
+                                             "duration_ms":  450,
+                                             "direction_mode":  0,
+                                             "apply_to_caster":  true,
+                                             "priority":  20,
+                                             "motion_group_id":  2
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10030101
+                                                         ],
+                                             "target_self":  true,
+                                             "duration_ms":  5000
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云一技能惊雷之龙：向指定方向突进，并使下一次普攻附带额外伤害与减�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030111,
+                         "name":  "赵云-惊雷之龙-强化普攻命中",
+                         "event":  "damage.apply.after",
+                         "scope":  "owner",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  55,
+                         "conditions":  [
+                                            {
+                                                "type":  "arg_gt",
+                                                "arg_name":  "damage_value",
+                                                "value":  0
+                                            },
+                                            {
+                                                "type":  "arg_eq",
+                                                "left":  "payload:reason_kind",
+                                                "right":  "2"
+                                            },
+                                            {
+                                                "type":  "has_buff",
+                                                "buff_id":  10030101,
+                                                "check_stack":  0
+                                            }
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  190,
+                                             "source_attack_ratio":  1,
+                                             "damage_type":  1,
+                                             "reason_param":  10030101,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10030102
+                                                         ],
+                                             "target_max_count":  1,
+                                             "duration_ms":  2000
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云一技能强化普攻：造成额外物理伤害并减速；Buff消耗逻辑后续补齐",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030201,
+                         "name":  "赵云-破云之龙-四段枪刺",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40030201,
+                                             "position_mode":  0,
+                                             "radius":  3.5,
+                                             "duration_ms":  760
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云二技能破云之龙：向前连续四次刺击，命中造成物理伤害并回复自身生�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030211,
+                         "name":  "赵云-破云之龙-第一段命�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  85,
+                                             "source_attack_ratio":  0.35,
+                                             "damage_type":  1,
+                                             "reason_param":  10030201,
+                                             "target_query_id":  50030201,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "heal",
+                                             "amount":  35,
+                                             "heal_type":  0,
+                                             "reason_kind":  1,
+                                             "reason_param":  10030201,
+                                             "target_self":  true
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云二技能第一段：命中敌人并回血",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030212,
+                         "name":  "赵云-破云之龙-第二段命�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  85,
+                                             "source_attack_ratio":  0.35,
+                                             "damage_type":  1,
+                                             "reason_param":  10030201,
+                                             "target_query_id":  50030201,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "heal",
+                                             "amount":  35,
+                                             "heal_type":  0,
+                                             "reason_kind":  1,
+                                             "reason_param":  10030201,
+                                             "target_self":  true
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030213,
+                         "name":  "赵云-破云之龙-第三段命�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  85,
+                                             "source_attack_ratio":  0.35,
+                                             "damage_type":  1,
+                                             "reason_param":  10030201,
+                                             "target_query_id":  50030201,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "heal",
+                                             "amount":  35,
+                                             "heal_type":  0,
+                                             "reason_kind":  1,
+                                             "reason_param":  10030201,
+                                             "target_self":  true
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030214,
+                         "name":  "赵云-破云之龙-第四段命�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  85,
+                                             "source_attack_ratio":  0.35,
+                                             "damage_type":  1,
+                                             "reason_param":  10030201,
+                                             "target_query_id":  50030201,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "heal",
+                                             "amount":  35,
+                                             "heal_type":  0,
+                                             "reason_kind":  1,
+                                             "reason_param":  10030201,
+                                             "target_self":  true
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030301,
+                         "name":  "赵云-天翔之龙-跃向目标区域",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40030301,
+                                             "position_mode":  2,
+                                             "radius":  4.5,
+                                             "duration_ms":  700
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云三技能天翔之龙：跃向目标区域，落地造成伤害、击飞并施加感电标记",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030311,
+                         "name":  "赵云-天翔之龙-落地伤害与感�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  350,
+                                             "source_attack_ratio":  1.3,
+                                             "damage_type":  1,
+                                             "reason_param":  10030301,
+                                             "target_query_id":  50030301,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10030301
+                                                         ],
+                                             "target_query_id":  50030301,
+                                             "target_max_count":  10,
+                                             "duration_ms":  5000
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云三技能：落地命中目标并附加感电标�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030312,
+                         "name":  "赵云-天翔之龙-感电目标额外伤害",
+                         "event":  "damage.apply.after",
+                         "scope":  "owner",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  45,
+                         "conditions":  [
+                                            {
+                                                "type":  "arg_gt",
+                                                "arg_name":  "damage_value",
+                                                "value":  0
+                                            },
+                                            {
+                                                "type":  "has_buff",
+                                                "buff_id":  10030301,
+                                                "check_stack":  0
+                                            }
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  30,
+                                             "source_attack_ratio":  0.13,
+                                             "damage_type":  2,
+                                             "reason_param":  10030301,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云三技能感电：后续伤害触发额外法术伤害；标记消耗逻辑后续补齐",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10030321,
+                         "name":  "赵云-天翔之龙-落地击飞",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "pull",
+                                             "speed":  8,
+                                             "duration_ms":  500,
+                                             "direction_mode":  2,
+                                             "target_distance":  0,
+                                             "priority":  100,
+                                             "motion_group_id":  3,
+                                             "target_query_id":  50030301,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "赵云三技能：落地区域击飞敌人",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040000,
+                         "name":  "墨子-机关�?释放技能获得护�?",
+                         "event":  "skill.cast.complete",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10040000
+                                                         ],
+                                             "target_self":  true,
+                                             "duration_ms":  3000
+                                         },
+                                         {
+                                             "type":  "add_shield",
+                                             "shield_id":  10040000,
+                                             "shield_value":  300,
+                                             "absorb_ratio":  1,
+                                             "duration_ms":  3000,
+                                             "priority":  20,
+                                             "target_self":  true,
+                                             "stacking_policy":  1,
+                                             "consume_policy":  0
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子被动机关术：释放技能获得机关护�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040001,
+                         "name":  "墨子-机关�?普攻计数",
+                         "event":  "damage.apply.after",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  45,
+                         "conditions":  [
+                                            {
+                                                "type":  "arg_gt",
+                                                "arg_name":  "damage_value",
+                                                "value":  0
+                                            },
+                                            {
+                                                "type":  "arg_eq",
+                                                "left":  "payload:reason_kind",
+                                                "right":  "2"
+                                            },
+                                            {
+                                                "type":  "arg_neq",
+                                                "left":  "payload:attacker_actor_id",
+                                                "right":  "payload:target_actor_id"
+                                            }
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "advance_gameplay_counter",
+                                             "key_id":  10040001,
+                                             "scope_payload_field_id":  1993035528,
+                                             "threshold":  4,
+                                             "delta":  1,
+                                             "reset_value":  0,
+                                             "trigger_id":  10040002
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040002,
+                         "name":  "墨子-机关�?第四次普攻炮�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  true,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "shoot_projectile",
+                                             "launcher_id":  31040201,
+                                             "projectile_id":  30040201,
+                                             "directionSource":  "cast_context"
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10040000
+                                                         ],
+                                             "target_self":  true,
+                                             "duration_ms":  3000
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子被动机关术：第四次普攻转换为机关炮击并刷新护�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040101,
+                         "name":  "墨子-和平漫步-突进并强化普�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "dash",
+                                             "speed":  18,
+                                             "duration_ms":  450,
+                                             "direction_mode":  0,
+                                             "apply_to_caster":  true,
+                                             "priority":  20,
+                                             "motion_group_id":  2,
+                                             "hit_trigger_plan_id":  10040111
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10040101
+                                                         ],
+                                             "target_self":  true
+                                         },
+                                         {
+                                             "type":  "add_shield",
+                                             "shield_id":  10040101,
+                                             "shield_value":  300,
+                                             "absorb_ratio":  1,
+                                             "duration_ms":  3000,
+                                             "priority":  20,
+                                             "target_self":  true,
+                                             "stacking_policy":  1,
+                                             "consume_policy":  0
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子一技能和平漫步：向前突进，获得强化普攻Buff，普攻技能ID临时替换为强化炮�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040111,
+                         "name":  "墨子-和平漫步-路径命中",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  200,
+                                             "source_attack_ratio":  0.6,
+                                             "damage_type":  2,
+                                             "reason_param":  10040101,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子一技能：突进路径命中造成法术伤害",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040112,
+                         "name":  "墨子-和平漫步-强化近战普攻",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  55,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  240,
+                                             "source_attack_ratio":  0.7,
+                                             "damage_type":  2,
+                                             "reason_param":  10040112,
+                                             "target_mode":  2,
+                                             "target_max_count":  1
+                                         },
+                                         {
+                                             "type":  "pull",
+                                             "speed":  12,
+                                             "duration_ms":  300,
+                                             "direction_mode":  1,
+                                             "target_distance":  3,
+                                             "priority":  15,
+                                             "motion_group_id":  3,
+                                             "target_mode":  2
+                                         },
+                                         {
+                                             "type":  "remove_buff",
+                                             "buff_id":  10040101,
+                                             "target_self":  true,
+                                             "remove_all":  true
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子一技能强化普攻：近战命中造成法术伤害、击退目标并消耗强化普攻Buff",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040201,
+                         "name":  "墨子-机关重炮-发射炮弹",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "shoot_projectile",
+                                             "launcher_id":  31040201,
+                                             "projectile_id":  30040201,
+                                             "directionSource":  "cast_context"
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子二技能机关重炮：发射远程炮弹，命中后在目标点爆炸并眩�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040211,
+                         "name":  "墨子-机关重炮-命中生成爆炸",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40040201,
+                                             "position_mode":  2,
+                                             "radius":  3.5,
+                                             "duration_ms":  2000
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子二技能：炮弹结束后生成弹坑持续伤害区�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040212,
+                         "name":  "墨子-机关重炮-爆炸伤害与眩�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  525,
+                                             "source_attack_ratio":  0.45,
+                                             "damage_type":  2,
+                                             "reason_param":  10040201,
+                                             "target_query_id":  50040201,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10040001
+                                                         ],
+                                             "target_query_id":  50040201,
+                                             "target_max_count":  10,
+                                             "duration_ms":  1000
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子二技能：爆炸范围造成法术伤害并眩�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040301,
+                         "name":  "墨子-墨守成规-展开机关屏障",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "spawn_area",
+                                             "area_id":  40040301,
+                                             "position_mode":  0,
+                                             "radius":  5,
+                                             "duration_ms":  3500
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10040003
+                                                         ],
+                                             "target_self":  true,
+                                             "duration_ms":  3500
+                                         },
+                                         {
+                                             "type":  "add_shield",
+                                             "shield_id":  10040301,
+                                             "shield_value":  450,
+                                             "absorb_ratio":  1,
+                                             "duration_ms":  3500,
+                                             "priority":  20,
+                                             "target_self":  true,
+                                             "stacking_policy":  1,
+                                             "consume_policy":  0
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子三技能墨守成规：展开机关屏障，持续伤害并控制范围敌人",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040311,
+                         "name":  "墨子-墨守成规-持续伤害与控�?",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "give_damage",
+                                             "damage_value":  200,
+                                             "source_attack_ratio":  0.45,
+                                             "damage_type":  2,
+                                             "reason_param":  10040301,
+                                             "target_query_id":  50040301,
+                                             "target_max_count":  10
+                                         },
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10040002
+                                                         ],
+                                             "target_query_id":  50040301,
+                                             "target_max_count":  10,
+                                             "duration_ms":  500
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子三技能：屏障内敌人受到持续法术伤害和短暂眩晕",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+                         "id":  10040321,
+                         "name":  "墨子-墨守成规-进入屏障控制",
+                         "event":  "",
+                         "enabled":  true,
+                         "allowExternal":  false,
+                         "phase":  "immediate",
+                         "priority":  50,
+                         "conditions":  [
+
+                                        ],
+                         "actions":  [
+                                         {
+                                             "type":  "add_buff",
+                                             "buffIds":  [
+                                                             10040002
+                                                         ],
+                                             "duration_ms":  500
+                                         },
+                                         {
+                                             "type":  "debug_log",
+                                             "message":  "墨子三技能：敌人进入屏障时受到短暂控�?",
+                                             "dump_args":  false
+                                         }
+                                     ]
+                     },
+                     {
+  "id": 10010001,
+  "name": "廉颇-普通攻击",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 120,
+      "source_attack_ratio": 1,
+      "damage_type": 1,
+      "reason_kind": 2,
+      "reason_param": 10010001,
+      "target_mode": 2,
+      "target_max_count": 1
+    }
+  ]
+},
+                     {
+  "id": 10020001,
+  "name": "小乔-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31020001,
+      "projectile_id": 30020001
+    }
+  ]
+},
+                     {
+  "id": 10020011,
+  "name": "小乔-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 105,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10020001
+    }
+  ]
+},
+                     {
+  "id": 10030001,
+  "name": "赵云-普通攻击",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 115,
+      "source_attack_ratio": 1,
+      "damage_type": 1,
+      "reason_kind": 2,
+      "reason_param": 10030001,
+      "target_mode": 2,
+      "target_max_count": 1
+    }
+  ]
+},
+                     {
+  "id": 10040011,
+  "name": "墨子-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31040011,
+      "projectile_id": 30040011
+    }
+  ]
+},
+                     {
+  "id": 10040012,
+  "name": "墨子-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 110,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10040011
+    }
+  ]
+},
+                     {
+  "id": 10050001,
+  "name": "妲己-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31050001,
+      "projectile_id": 30050001
+    }
+  ]
+},
+                     {
+  "id": 10050011,
+  "name": "妲己-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 105,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10050001
+    }
+  ]
+},
+                     {
+  "id": 10060001,
+  "name": "嬴政-普通攻击-发射",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "shoot_projectile",
+      "launcher_id": 31060001,
+      "projectile_id": 30060001
+    }
+  ]
+},
+                     {
+  "id": 10060011,
+  "name": "嬴政-普通攻击-命中伤害",
+  "event": "",
+  "enabled": true,
+  "allowExternal": false,
+  "phase": "immediate",
+  "priority": 50,
+  "conditions": [],
+  "actions": [
+    {
+      "type": "give_damage",
+      "damage_value": 110,
+      "source_attack_ratio": 1,
+      "damage_type": 2,
+      "reason_kind": 2,
+      "reason_param": 10060001
+    }
+  ]
+}
+                 ]
+}

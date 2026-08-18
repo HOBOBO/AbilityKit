@@ -78,12 +78,12 @@ namespace AbilityKit.Ability.Triggering.Json
             }
         }
 
-        private static void ApplyLegacyMigrations(string json)
+        private static string ApplyLegacyMigrations(string json)
         {
             // 注意：此方法会通过迁移废弃字段主动修改触发器数据。
             // 旧版：AllowExternal=false 曾作为过滤外部事件的快捷写法。
             // 新版：通过显式条件 arg_eq(key='common.is_external', value=0) 表达。
-            if (string.IsNullOrEmpty(json)) return;
+            if (string.IsNullOrEmpty(json)) return json;
 
             JObject root;
             try
@@ -92,11 +92,11 @@ namespace AbilityKit.Ability.Triggering.Json
             }
             catch
             {
-                return;
+                return json;
             }
 
             var triggers = root["Triggers"] as JArray;
-            if (triggers == null) return;
+            if (triggers == null) return json;
 
             for (int i = 0; i < triggers.Count; i++)
             {
@@ -151,6 +151,7 @@ namespace AbilityKit.Ability.Triggering.Json
                 // 前置插入，让迁移后的过滤条件更清晰。
                 conditions.Insert(0, migrated);
             }
+            return root.ToString(Formatting.None);
         }
 
         private static ConditionDef BuildConditionDef(ConditionDTO dto)
@@ -257,7 +258,7 @@ namespace AbilityKit.Ability.Triggering.Json
             }
 
             // 反序列化前先迁移废弃字段。
-            ApplyLegacyMigrations(json);
+            json = ApplyLegacyMigrations(json);
 
             AbilityTriggerDatabaseDTO dto;
             try

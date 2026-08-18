@@ -450,6 +450,97 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void BattleVfxManager_Clear_DestroysActiveVfxAndRetainedPoolObjectsIdempotently()
+        {
+            const int vfxId = 90004002;
+            var manager = new BattleVfxManager(new VfxDatabase(new Dictionary<int, VfxDTO>
+            {
+                [vfxId] = new VfxDTO { Id = vfxId, Resource = "missing/cleanup_vfx", DurationMs = 30000 }
+            }));
+            var world = new EntityWorld();
+            var root = world.Create("vfxRoot");
+
+            try
+            {
+                Assert.IsTrue(manager.TryCreateVfxEntity(
+                    world, root, vfxId, default, Vector3.zero, Quaternion.identity, out var first));
+                Assert.IsTrue(manager.TryCreateVfxEntity(
+                    world, root, vfxId, default, Vector3.one, Quaternion.identity, out var second));
+                manager.DestroyVfxEntity(world, first.Id);
+
+                var beforeClear = manager.PoolForStats.DebugStats;
+                Assert.IsTrue(world.IsAlive(second.Id));
+                Assert.AreEqual(1, beforeClear.InPool);
+                Assert.AreEqual(1, beforeClear.Active);
+
+                manager.Clear(in root);
+
+                var afterClear = manager.PoolForStats.DebugStats;
+                Assert.IsFalse(world.IsAlive(second.Id));
+                Assert.AreEqual(0, afterClear.Buckets);
+                Assert.AreEqual(0, afterClear.InPool);
+                Assert.AreEqual(0, afterClear.Active);
+
+                manager.Clear(in root);
+                var afterSecondClear = manager.PoolForStats.DebugStats;
+                Assert.AreEqual(0, afterSecondClear.Buckets);
+                Assert.AreEqual(0, afterSecondClear.InPool);
+                Assert.AreEqual(0, afterSecondClear.Active);
+            }
+            finally
+            {
+                if (root.IsValid) world.DestroyRecursive(root.Id);
+                manager.Clear(in root);
+            }
+        }
+
+        [Test]
+        public void BattleProjectileViewEventHandler_Clear_ReturnsActiveFallbackShellsAndIsIdempotent()
+        {
+            const int templateId = 30060301;
+            var manager = new BattleVfxManager(new VfxDatabase(new Dictionary<int, VfxDTO>()));
+            var world = new EntityWorld();
+            var root = world.Create("vfxRoot");
+            var lookup = new BattleEntityLookup();
+            var query = new BattleEntityQuery(world, lookup);
+            var shellPool = new BattleProjectileShellPool(_ => new GameObject("fallback-shell"));
+            var handler = new BattleProjectileViewEventHandler(world, query, manager, in root, shellPool: shellPool);
+
+            try
+            {
+                var shellSpawner = (BattleProjectileShellSpawner)typeof(BattleProjectileViewEventHandler)
+                    .GetField(
+                        "_shellSpawner",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                    ?.GetValue(handler);
+                Assert.IsNotNull(shellSpawner);
+                Assert.IsNotNull(shellSpawner.TrySpawn(
+                    templateId,
+                    projectileActorId: 10042,
+                    position: Vector3.zero,
+                    forward: Vector3.forward,
+                    launcherActorId: 0));
+
+                Assert.AreEqual(1, shellPool.DebugStats.TotalActive);
+                Assert.AreEqual(0, shellPool.DebugStats.TotalInPool);
+
+                handler.Clear();
+
+                Assert.AreEqual(0, shellPool.DebugStats.TotalActive);
+                Assert.AreEqual(1, shellPool.DebugStats.TotalInPool);
+
+                handler.Clear();
+                Assert.AreEqual(0, shellPool.DebugStats.TotalActive);
+                Assert.AreEqual(1, shellPool.DebugStats.TotalInPool);
+            }
+            finally
+            {
+                shellPool.Clear();
+                if (root.IsValid) world.DestroyRecursive(root.Id);
+            }
+        }
+
+        [Test]
         public void BattlePresentationCueResolver_StopsByStableRequestKeyAndIgnoresMissingVfx()
         {
             var resolver = new BattlePresentationCueResolver();
@@ -1058,6 +1149,93 @@ namespace AbilityKit.Game.Test.UnitTest
         public void RemoteDrivenRuntimeModuleFactory_RetainsSixHundredPredictionFrames()
         {
             Assert.AreEqual(600, RemoteDrivenRuntimeModuleFactory.PredictionRollbackHistoryFrames);
+        }
+
+        [Test]
+        public void RemoteDrivenRuntimeModuleFactory_ForwardsPredictionBufferOptionsToClientPrediction()
+        {
+            var bufferOptions = new ClientPredictionDriverBufferOptions(
+                ClientPredictionDriverBufferFeatures.RollbackSnapshots,
+                inputHistoryCapacity: 0,
+                stateHashHistoryCapacity: 0,
+                rollbackSnapshotCapacity: 37);
+            var options = new RemoteDrivenWorldRuntimeFactoryOptions(
+                plan: default,
+                fixedDelta: 1f / 30f,
+                inputDelayFrames: 0,
+                enableClientPrediction: true,
+                resolveRemoteInputs: null,
+                resolveLocalInputs: null,
+                resolveIdealFrameLimit: null,
+                buildRollbackRegistry: null,
+                buildComputeHash: null,
+                predictionBufferOptions: bufferOptions);
+
+            var module = (ClientPredictionDriverModule)typeof(RemoteDrivenRuntimeModuleFactory)
+                .GetMethod(
+                    "CreateClientPredictionModule",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(null, new object[] { options });
+
+            Assert.AreSame(bufferOptions, module.BufferOptions);
+            Assert.AreEqual(ClientPredictionDriverBufferFeatures.RollbackSnapshots, module.BufferOptions.Features);
+            Assert.AreEqual(37, module.BufferOptions.RollbackSnapshotCapacity);
+        }
+
+        [Test]
+        public void RemoteDrivenRuntimeModuleFactory_RemoteOnlyDefaultsToDisabledPredictionBuffers()
+        {
+            var options = new RemoteDrivenWorldRuntimeFactoryOptions(
+                plan: default,
+                fixedDelta: 1f / 30f,
+                inputDelayFrames: 0,
+                enableClientPrediction: false,
+                resolveRemoteInputs: null,
+                resolveLocalInputs: null,
+                resolveIdealFrameLimit: null,
+                buildRollbackRegistry: null,
+                buildComputeHash: null);
+
+            var module = (ClientPredictionDriverModule)typeof(RemoteDrivenRuntimeModuleFactory)
+                .GetMethod(
+                    "CreateRemoteOnlyModule",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(null, new object[] { options });
+
+            Assert.AreEqual(ClientPredictionDriverBufferFeatures.None, module.BufferOptions.Features);
+            Assert.AreEqual(0, module.BufferOptions.InputHistoryCapacity);
+            Assert.AreEqual(0, module.BufferOptions.StateHashHistoryCapacity);
+            Assert.AreEqual(0, module.BufferOptions.RollbackSnapshotCapacity);
+        }
+
+        [Test]
+        public void RemoteDrivenRuntimeModuleFactory_ClientPredictionDefaultsToSixHundredInputAndRollbackBuffers()
+        {
+            var options = new RemoteDrivenWorldRuntimeFactoryOptions(
+                plan: default,
+                fixedDelta: 1f / 30f,
+                inputDelayFrames: 0,
+                enableClientPrediction: true,
+                resolveRemoteInputs: null,
+                resolveLocalInputs: null,
+                resolveIdealFrameLimit: null,
+                buildRollbackRegistry: null,
+                buildComputeHash: null);
+
+            var module = (ClientPredictionDriverModule)typeof(RemoteDrivenRuntimeModuleFactory)
+                .GetMethod(
+                    "CreateClientPredictionModule",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)
+                .Invoke(null, new object[] { options });
+
+            Assert.AreEqual(
+                ClientPredictionDriverBufferFeatures.AppliedInputHistory
+                    | ClientPredictionDriverBufferFeatures.AuthoritativeInputHistory
+                    | ClientPredictionDriverBufferFeatures.RollbackSnapshots,
+                module.BufferOptions.Features);
+            Assert.AreEqual(600, module.BufferOptions.InputHistoryCapacity);
+            Assert.AreEqual(600, module.BufferOptions.RollbackSnapshotCapacity);
+            Assert.AreEqual(0, module.BufferOptions.StateHashHistoryCapacity);
         }
 
         [Test]

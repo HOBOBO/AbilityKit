@@ -3,6 +3,7 @@ using System.Threading;
 using AbilityKit.Demo.Moba.Console.Battle.Input;
 using AbilityKit.Demo.Moba.Console.Battle.Flow;
 using AbilityKit.Demo.Moba.Console.Platform;
+using AbilityKit.Demo.Moba.Input;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Input
 {
@@ -69,42 +70,42 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
             switch (key)
             {
                 case InputKey.Up:
-                    _inputFeature.SetMoveInput(0f, -1f);
+                    _inputFeature.ApplyIntent(MobaActorIntent.MoveDirection(0f, -1f));
                     Log.Input("[W] Move Up");
                     break;
 
                 case InputKey.Down:
-                    _inputFeature.SetMoveInput(0f, 1f);
+                    _inputFeature.ApplyIntent(MobaActorIntent.MoveDirection(0f, 1f));
                     Log.Input("[S] Move Down");
                     break;
 
                 case InputKey.Left:
-                    _inputFeature.SetMoveInput(-1f, 0f);
+                    _inputFeature.ApplyIntent(MobaActorIntent.MoveDirection(-1f, 0f));
                     Log.Input("[A] Move Left");
                     break;
 
                 case InputKey.Right:
-                    _inputFeature.SetMoveInput(1f, 0f);
+                    _inputFeature.ApplyIntent(MobaActorIntent.MoveDirection(1f, 0f));
                     Log.Input("[D] Move Right");
                     break;
 
                 case InputKey.Skill1:
-                    _inputFeature.ClickSkill(1);
+                    _inputFeature.ApplyIntent(MobaActorIntent.Cast(1));
                     Log.Input("[J] Skill 1");
                     break;
 
                 case InputKey.Skill2:
-                    _inputFeature.ClickSkill(2);
+                    _inputFeature.ApplyIntent(MobaActorIntent.Cast(2));
                     Log.Input("[K] Skill 2");
                     break;
 
                 case InputKey.Skill3:
-                    _inputFeature.ClickSkill(3);
+                    _inputFeature.ApplyIntent(MobaActorIntent.Cast(3));
                     Log.Input("[L] Skill 3");
                     break;
 
                 case InputKey.Attack:
-                    _inputFeature.SetMoveInput(0f, 0f);
+                    _inputFeature.ApplyIntent(MobaActorIntent.Hold);
                     Log.Input("[SPACE] Stop move");
                     break;
 

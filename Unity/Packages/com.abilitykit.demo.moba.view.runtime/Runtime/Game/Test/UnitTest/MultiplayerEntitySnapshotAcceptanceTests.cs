@@ -4,6 +4,7 @@ using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Flow;
+using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Protocol.Room;
 using AbilityKit.World.ECS;
@@ -515,6 +516,121 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.AreEqual(3, ctx.DirtyEntities.Count);
         }
 
+        [Test]
+        public void RemoteInterpolation_FullSnapshot_RemovesMissingRemoteActorsButPreservesLocalActor()
+        {
+            const int localActorId = 1001;
+            const int retainedRemoteActorId = 2002;
+            const int staleRemoteActorId = 3003;
+            var world = new EntityWorld(initialCapacity: 4);
+            var lookup = new BattleEntityLookup();
+            var factory = new BattleEntityFactory(world, lookup);
+            var ctx = new BattleContext
+            {
+                EntityWorld = world,
+                EntityLookup = lookup,
+                EntityFactory = factory
+            };
+            factory.CreateCharacter(new BattleNetId(localActorId), 1001);
+            factory.CreateCharacter(new BattleNetId(retainedRemoteActorId), 1002);
+            factory.CreateProjectile(
+                new BattleNetId(staleRemoteActorId),
+                new BattleNetId(retainedRemoteActorId),
+                2001);
+
+            var delta = new GatewayStateSyncSnapshot(
+                1UL,
+                11,
+                0.05d,
+                false,
+                new[]
+                {
+                    new GatewayStateSyncActorSnapshot(
+                        retainedRemoteActorId,
+                        20f,
+                        0f,
+                        30f,
+                        0f,
+                        0f,
+                        0f,
+                        100f,
+                        100f,
+                        2,
+                        (int)SpawnEntityKind.Character,
+                        1002)
+                });
+
+            BattleRemoteInterpolationApplier.Apply(ctx, in delta, localActorId);
+
+            Assert.AreEqual(3, world.AliveCount,
+                "Delta omission must not remove presentation entities.");
+            Assert.IsTrue(lookup.TryResolve(
+                world,
+                new BattleNetId(staleRemoteActorId),
+                out _));
+
+            var full = new GatewayStateSyncSnapshot(
+                1UL,
+                12,
+                0.1d,
+                true,
+                new[]
+                {
+                    new GatewayStateSyncActorSnapshot(
+                        retainedRemoteActorId,
+                        25f,
+                        0f,
+                        35f,
+                        0f,
+                        0f,
+                        0f,
+                        100f,
+                        100f,
+                        2,
+                        (int)SpawnEntityKind.Character,
+                        1002)
+                });
+
+            BattleRemoteInterpolationApplier.Apply(ctx, in full, localActorId);
+
+            Assert.AreEqual(2, world.AliveCount,
+                "A full snapshot must remove remote entities absent from the authoritative actor set.");
+            Assert.AreEqual(2, lookup.Count);
+            Assert.IsFalse(lookup.TryResolve(
+                world,
+                new BattleNetId(staleRemoteActorId),
+                out _));
+            Assert.IsTrue(lookup.TryResolve(
+                world,
+                new BattleNetId(localActorId),
+                out _),
+                "The predicted local actor is owned by PredictionViewBridge and must be preserved.");
+            Assert.IsTrue(lookup.TryResolve(
+                world,
+                new BattleNetId(retainedRemoteActorId),
+                out var retainedRemote));
+            Assert.IsTrue(retainedRemote.TryGetRef(out BattleTransformComponent transform));
+            Assert.AreEqual(new Vector3(25f, 0f, 35f), transform.Position);
+        }
+
+        [Test]
+        public void SharedDirtySync_Tick_ForwardsPendingEntitiesWithoutClearingThemFirst()
+        {
+            var dirty = new List<IEntityId> { new IEntityId(3, 1) };
+            var host = new DirtySyncTestHost(new BattleContext
+            {
+                DirtyEntities = dirty
+            });
+            var context = new FeatureModuleContext<DirtySyncTestHost>(default, host);
+            var feature = new SharedDirtySyncSubFeature<DirtySyncTestHost>();
+
+            feature.Tick(in context, 0.016f);
+
+            Assert.AreEqual(1, host.RefreshCount);
+            Assert.AreEqual(1, dirty.Count,
+                "The refresh operation owns clearing after it has synchronized pending entities.");
+        }
+
         /// <summary>
         /// ApplySpawn 过滤 NetId<=0 的无效 entry——不创建实体也不抛异常。
         /// </summary>
@@ -541,6 +657,34 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.AreEqual(1, world.AliveCount,
                 "Only the valid entry (NetId=1001) should create an entity.");
+        }
+
+        private sealed class DirtySyncTestHost : IViewSharedSubFeatureHost
+        {
+            private readonly BattleContext _context;
+
+            public DirtySyncTestHost(BattleContext context)
+            {
+                _context = context;
+            }
+
+            public int RefreshCount { get; private set; }
+            public IBattleRuntimeContext RuntimeContext => _context;
+            public IBattleEntityContext EntityContext => _context;
+            public BattleViewBinder Binder => null;
+            public bool IsConfirmed => false;
+            public AbilityKit.Ability.World.Abstractions.WorldId WorldId => default;
+
+            public void RefreshDirtyViews()
+            {
+                RefreshCount++;
+            }
+
+            public void RegisterAllSeekables() { }
+            public void SeekAllToCurrentFrame() { }
+            public void RebindAllViews() { }
+            public void TickVfx() { }
+            public void TickFloatingTexts(float deltaTime) { }
         }
     }
 }

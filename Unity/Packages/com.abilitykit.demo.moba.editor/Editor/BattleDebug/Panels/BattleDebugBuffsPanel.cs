@@ -68,6 +68,9 @@ namespace AbilityKit.Game.Editor
                     DrawBuff(in ctx, buffs[i]);
                 }
             }
+
+            EditorGUILayout.Space(8f);
+            DrawTimeline(in ctx, session);
             EditorGUILayout.EndScrollView();
         }
 
@@ -97,8 +100,93 @@ namespace AbilityKit.Game.Editor
             }
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.LabelField(
-                $"BuffStoreRevision={_viewModel.StoreRevision}",
+                $"BuffStoreRevision={_viewModel.StoreRevision}  EventStoreRevision={_viewModel.EventStoreRevision}",
                 EditorStyles.miniLabel);
+        }
+
+        private void DrawTimeline(
+            in BattleDebugContext ctx,
+            IBattleDiagnosticReadOnlySession session)
+        {
+            EditorGUILayout.LabelField("生命周期时间线", EditorStyles.boldLabel);
+            if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.Events))
+            {
+                EditorGUILayout.HelpBox(
+                    "当前诊断会话不包含事件轨道。",
+                    MessageType.Info);
+                return;
+            }
+
+            if (!string.IsNullOrEmpty(_viewModel.EventStatusMessage))
+            {
+                EditorGUILayout.HelpBox(
+                    _viewModel.EventStatusMessage,
+                    _viewModel.EventQueryStatus.CanDisplayResults
+                        ? MessageType.Info
+                        : MessageType.Warning);
+            }
+
+            var events = _viewModel.TimelineEvents;
+            if (events == null || events.Count == 0) return;
+
+            for (var i = 0; i < events.Count; i++)
+            {
+                DrawTimelineEvent(in ctx, events[i]);
+            }
+        }
+
+        private static void DrawTimelineEvent(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticEvent diagnosticEvent)
+        {
+            if (!diagnosticEvent.Payload.TryGetBuffLifecycle(out var payload)) return;
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(
+                $"F{diagnosticEvent.Frame}  {payload.Stage}",
+                EditorStyles.miniBoldLabel,
+                GUILayout.Width(150f));
+            EditorGUILayout.LabelField(
+                $"Buff {diagnosticEvent.ConfigId}",
+                EditorStyles.miniLabel,
+                GUILayout.Width(100f));
+            GUILayout.FlexibleSpace();
+            EditorGUI.BeginDisabledGroup(ctx.OpenEvent == null);
+            if (GUILayout.Button(
+                    new GUIContent($"Seq {diagnosticEvent.Sequence}", "在诊断事件面板中查看完整事件"),
+                    EditorStyles.miniButton,
+                    GUILayout.Width(90f)))
+            {
+                ctx.OpenEvent?.Invoke(diagnosticEvent);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            var stackText = payload.Stage == BattleDiagnosticBuffLifecycleStage.StackChanged
+                ? $"{payload.PreviousStackCount} -> {payload.StackCount}"
+                : payload.MaxStacks > 0
+                    ? $"{payload.StackCount}/{payload.MaxStacks}"
+                    : payload.StackCount.ToString();
+            EditorGUILayout.LabelField(
+                $"Stack={stackText}  Duration={FormatMilliseconds(payload.DurationMilliseconds)}  " +
+                $"Remaining={FormatMilliseconds(payload.RemainingMilliseconds)}  " +
+                $"Interval={FormatMilliseconds(payload.IntervalRemainingMilliseconds)}",
+                EditorStyles.miniLabel);
+            EditorGUILayout.LabelField(
+                $"SourceActor={diagnosticEvent.SourceActorId}  RootContext={diagnosticEvent.RootContextId}  " +
+                $"Context={diagnosticEvent.ContextId}  SkillRuntime={diagnosticEvent.SkillRuntime}",
+                EditorStyles.miniLabel);
+            EditorGUILayout.LabelField(
+                $"ModifierBindings={payload.ModifierBindingCount}  ModifierSource={payload.ModifierSourceId}" +
+                (payload.RemoveReason != 0 ? $"  RemoveReason={payload.RemoveReason}" : string.Empty),
+                EditorStyles.miniLabel);
+            EditorGUILayout.EndVertical();
+        }
+
+        private static string FormatMilliseconds(int milliseconds)
+        {
+            return milliseconds <= 0 ? "0s" : $"{milliseconds / 1000f:0.###}s";
         }
 
         private static void DrawBuff(
@@ -127,7 +215,8 @@ namespace AbilityKit.Game.Editor
                 $"RootContext={buff.RootContextId}",
                 EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
-                $"SkillRuntime={buff.SkillRuntime}  ModifierBindings={buff.ModifierBindingCount}",
+                $"SkillRuntime={buff.SkillRuntime}  ModifierBindings={buff.ModifierBindingCount}  " +
+                $"ModifierSource={buff.ModifierSourceId}",
                 EditorStyles.miniLabel);
             EditorGUI.BeginDisabledGroup(buff.BuffId <= 0 || ctx.OpenConfig == null);
             if (GUILayout.Button("打开配置", GUILayout.Width(80)))

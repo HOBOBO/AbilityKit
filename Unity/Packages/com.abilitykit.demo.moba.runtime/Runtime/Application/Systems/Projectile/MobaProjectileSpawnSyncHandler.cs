@@ -157,7 +157,8 @@ namespace AbilityKit.Demo.Moba.Runtime.Application.Systems.Projectile
                     $"Projectile '{templateId}' references missing HFSM profile '{config.StateMachineProfileId}'.");
             }
 
-            actor.AddActorStateMachine(config.StateMachineProfileId, runtime);
+            actor.AddActorStateMachine(config.StateMachineProfileId, runtime,
+                AbilityKit.Demo.Moba.Components.MobaActorStateMachineOwnerKind.Projectile);
         }
 
         private void IncrementLauncherActiveBullets(int launcherActorId)

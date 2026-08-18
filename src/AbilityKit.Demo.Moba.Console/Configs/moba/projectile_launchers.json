@@ -96,7 +96,7 @@
         "DurationMs":  2500,
         "IntervalMs":  250,
         "CountPerShot":  5,
-        "FanAngleDeg":  12
+        "FanAngleDeg":  0
     },
     {
         "Id":  31020001,

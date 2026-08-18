@@ -7,12 +7,18 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Config.BattleDemo;
+using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.ECS;
 using AbilityKit.Effect;
 using AbilityKit.GameplayTags;
+using AbilityKit.Modifiers;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -162,6 +168,74 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TrySampleActorAttributes_ExplainMatchesMappedAttributeAndIsConsumedOnce()
+        {
+            const int actorId = 10;
+            const int sourceId = 77;
+            var context = new ActorContext();
+            var entity = context.CreateEntity();
+            var attributeContext = new AttributeContext();
+            var group = new AttributeGroup("test", attributeContext);
+            group.SetBase(MobaAttributeIds.PHYSICS_ATTACK, 20f);
+            group.AddModifier(MobaAttributeIds.PHYSICS_ATTACK, ModifierOp.Add, 5f, sourceId);
+            group.AddModifier(MobaAttributeIds.PHYSICS_ATTACK, ModifierOp.Add, 5f, sourceId);
+            entity.AddAttributeGroup(group, attributeContext);
+
+            var declared = new MobaContinuousModifierMagnitudeView(
+                MagnitudeSource.Fixed(2.5f), 2.5f, true);
+            var stacked = new MobaContinuousModifierMagnitudeView(
+                MagnitudeSource.Fixed(5f), 5f, true);
+            var projected = new MobaContinuousModifierMagnitudeView(
+                MagnitudeSource.Fixed(4.75f), 4.75f, true);
+            var explanations = new[]
+            {
+                new MobaContinuousModifierExplainResult(
+                    null,
+                    actorId,
+                    MobaContinuousModifierTargetKind.Attribute,
+                    (int)BattleAttributeType.PHYSICS_ATTACK,
+                    (int)ModifierOp.Add,
+                    5f,
+                    MobaContinuousModifierEvaluationPolicy.OnApplySnapshot,
+                    10,
+                    2,
+                    sourceId,
+                    declared,
+                    stacked,
+                    projected,
+                    5.25f,
+                    true,
+                    4.75f,
+                    true,
+                    "OnApplySnapshot",
+                    "Captured on apply")
+            };
+            var attributes = new List<BattleDiagnosticActorAttribute>();
+            var modifiers = new List<BattleDiagnosticActorAttributeModifier>();
+
+            var ok = MobaBattleDiagnosticStateSampler.TrySampleActorAttributes(
+                _scope,
+                3,
+                actorId,
+                entity,
+                attributes,
+                modifiers,
+                explanations);
+
+            Assert.That(ok, Is.True);
+            Assert.That(attributes, Has.Count.EqualTo(1));
+            Assert.That(modifiers, Has.Count.EqualTo(2));
+            Assert.That(modifiers.FindAll(item => item.HasExplanation), Has.Count.EqualTo(1));
+            var explained = modifiers.Find(item => item.HasExplanation);
+            Assert.That(explained.DeclaredValue, Is.EqualTo(2.5f));
+            Assert.That(explained.StackedValue, Is.EqualTo(5f));
+            Assert.That(explained.ProjectedValue, Is.EqualTo(4.75f));
+            Assert.That(explained.CapturedValue, Is.EqualTo(4.75f));
+            Assert.That(explained.StackCount, Is.EqualTo(2));
+            Assert.That(explained.Explanation, Is.EqualTo("Captured on apply"));
+        }
+
+        [Test]
         public void TrySampleActorBuffs_ActorWithoutBuffs_ReturnsEmptySuccess()
         {
             var context = new ActorContext();
@@ -180,25 +254,36 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var context = new ActorContext();
             var entity = context.CreateEntity();
+            var runtime = new BuffRuntime
+            {
+                BuffId = 1001,
+                SourceId = 20,
+                StackCount = 2,
+                Remaining = float.PositiveInfinity,
+                IntervalRemainingSeconds = 1.5f,
+                SourceContextId = 30,
+                RuntimeContextId = 40,
+                RuntimeContextVersion = 3,
+                ModifierBindings = new List<AbilityKit.Demo.Moba.Components.BuffModifierBinding>
+                {
+                    new AbilityKit.Demo.Moba.Components.BuffModifierBinding()
+                }
+            };
+            var config = new BuffMO(new BuffDTO { Id = runtime.BuffId });
+            runtime.Continuous = new BuffContinuousRuntime(
+                config,
+                runtime.SourceId,
+                10,
+                5f,
+                new ContinuousTagRequirements());
+            runtime.Continuous.BindRuntime(runtime);
+            runtime.Continuous.BindSourceContext(runtime.SourceContextId);
+            var expectedModifierSourceId = runtime.Continuous.ModifierSourceId;
             entity.AddBuffs(new List<BuffRuntime>
             {
                 null,
                 new BuffRuntime { BuffId = 0 },
-                new BuffRuntime
-                {
-                    BuffId = 1001,
-                    SourceId = 20,
-                    StackCount = 2,
-                    Remaining = float.PositiveInfinity,
-                    IntervalRemainingSeconds = 1.5f,
-                    SourceContextId = 30,
-                    RuntimeContextId = 40,
-                    RuntimeContextVersion = 3,
-                    ModifierBindings = new List<AbilityKit.Demo.Moba.Components.BuffModifierBinding>
-                    {
-                        new AbilityKit.Demo.Moba.Components.BuffModifierBinding()
-                    }
-                }
+                runtime
             });
             var buffs = new List<BattleDiagnosticActorBuff>();
 
@@ -217,6 +302,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(buffs[0].RuntimeContextId, Is.EqualTo(40));
             Assert.That(buffs[0].RuntimeContextVersion, Is.EqualTo(3));
             Assert.That(buffs[0].ModifierBindingCount, Is.EqualTo(1));
+            Assert.That(buffs[0].ModifierSourceId, Is.EqualTo(expectedModifierSourceId));
+            Assert.That(buffs[0].ModifierSourceId, Is.Not.Zero);
         }
 
         [Test]

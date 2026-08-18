@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle;
@@ -16,6 +17,11 @@ namespace AbilityKit.Network.Battle
         private bool _fullStateSyncRequestInFlight;
         private bool _disposed;
         private readonly NetworkTransportOptions _options;
+        private readonly object _authenticationGate = new object();
+        private TaskCompletionSource<bool> _authenticationCompletion;
+        private int _authenticationGeneration;
+        private bool _connectionAttemptPending;
+        private bool _authenticationStarted;
 
         public NetworkTransportOptions Options => _options;
 
@@ -94,6 +100,19 @@ namespace AbilityKit.Network.Battle
         /// 订阅方应把它当作"推送流未建立"处理（如触发重登或整体重连）。
         /// </summary>
         public event Action<Exception> AuthenticationFailed;
+        /// <summary>当前 TCP 连接代际完成 RenewSession/PostAuthentication 后触发。</summary>
+        public event Action ConnectionAuthenticated;
+        public bool IsAuthenticated
+        {
+            get
+            {
+                lock (_authenticationGate)
+                {
+                    return _authenticationCompletion != null &&
+                        _authenticationCompletion.Task.Status == TaskStatus.RanToCompletion;
+                }
+            }
+        }
         /// <summary>
         /// 输入提交收到的最终权威响应。成功和最终业务拒绝都会触发；
         /// stale-frame 重试的中间响应不会触发。
@@ -108,6 +127,20 @@ namespace AbilityKit.Network.Battle
 
         public void Connect()
         {
+            ThrowIfDisposed();
+            lock (_authenticationGate)
+            {
+                if (_authenticationCompletion == null ||
+                    _authenticationCompletion.Task.IsCompleted ||
+                    _connectionAttemptPending ||
+                    _authenticationStarted)
+                {
+                    BeginAuthenticationGenerationLocked();
+                }
+
+                _connectionAttemptPending = true;
+            }
+
             Log.Info($"[NetworkTransport] Connect -> {_options.Host}:{_options.Port}");
             _sdkClient.Open(_options.Host, _options.Port);
         }
@@ -153,13 +186,27 @@ namespace AbilityKit.Network.Battle
             if (_options.SerializeSubmitInput == null) throw new InvalidOperationException("SerializeSubmitInput is not configured.");
             if (_options.DeserializeSubmitInputResponse == null)
             {
-                var prepared = _options.PrepareSubmitInput?.Invoke(request) ?? request;
-                var payload = _options.SerializeSubmitInput.Invoke(prepared);
-                _sdkClient.SendPacket(_options.OpSubmitInput, payload, flags: (ushort)NetworkPacketFlags.Request);
+                _ = SendInputWithoutResponseAsync(request);
                 return;
             }
 
             _ = SendInputWithResponseAsync(request);
+        }
+
+        private async Task SendInputWithoutResponseAsync(SubmitInputRequest request)
+        {
+            try
+            {
+                await WaitForAuthenticationAsync();
+                var prepared = _options.PrepareSubmitInput?.Invoke(request) ?? request;
+                var payload = _options.SerializeSubmitInput.Invoke(prepared);
+                _sdkClient.SendPacket(_options.OpSubmitInput, payload, flags: (ushort)NetworkPacketFlags.Request);
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[NetworkTransport] Input submission failed.");
+                SubmitInputFailed?.Invoke(ex);
+            }
         }
 
         /// <summary>
@@ -186,6 +233,7 @@ namespace AbilityKit.Network.Battle
             NetworkSubmitInputResponse response = default;
             try
             {
+                await WaitForAuthenticationAsync();
                 for (var attempt = 0; attempt < 2; attempt++)
                 {
                     var payload = _options.SerializeSubmitInput.Invoke(current);
@@ -300,6 +348,7 @@ namespace AbilityKit.Network.Battle
         {
             if (_disposed) return;
             _disposed = true;
+            FailAuthenticationGeneration(new ObjectDisposedException(nameof(NetworkTransport)));
 
             _sdkClient.PacketReceived -= OnPacketReceived;
             _sdkClient.ServerPushReceived -= OnServerPushReceived;
@@ -313,12 +362,29 @@ namespace AbilityKit.Network.Battle
 
         private void OnConnected()
         {
+            int generation;
+            TaskCompletionSource<bool> completion;
+            lock (_authenticationGate)
+            {
+                if (!_connectionAttemptPending)
+                {
+                    BeginAuthenticationGenerationLocked();
+                }
+
+                _connectionAttemptPending = false;
+                _authenticationStarted = true;
+                generation = _authenticationGeneration;
+                completion = _authenticationCompletion;
+            }
+
             Log.Info($"[NetworkTransport] Connected: {_options.Host}:{_options.Port}");
             ConnectionEstablished?.Invoke();
-            _ = AuthenticateConnectionAsync();
+            _ = AuthenticateConnectionAsync(generation, completion);
         }
 
-        private async System.Threading.Tasks.Task AuthenticateConnectionAsync()
+        private async System.Threading.Tasks.Task AuthenticateConnectionAsync(
+            int generation,
+            TaskCompletionSource<bool> completion)
         {
             try
             {
@@ -329,9 +395,11 @@ namespace AbilityKit.Network.Battle
 
                     var renewPayload = _options.SerializeRenewSession.Invoke(_options.SessionToken);
                     await _sdkClient.SendRawRequestAsync(_options.OpRenewSession, renewPayload);
+                    if (!IsCurrentAuthenticationGeneration(generation, completion)) return;
                     Log.Info("[NetworkTransport] RenewSession ok (bound token/account to this connection).");
                 }
 
+                if (!IsCurrentAuthenticationGeneration(generation, completion)) return;
                 if (_options.OpPostAuthentication != 0)
                 {
                     ArraySegment<byte> subscribePayload;
@@ -354,11 +422,16 @@ namespace AbilityKit.Network.Battle
                     }
 
                     await _sdkClient.SendRawRequestAsync(_options.OpPostAuthentication, subscribePayload);
+                    if (!IsCurrentAuthenticationGeneration(generation, completion)) return;
                     Log.Info("[NetworkTransport] Post-authentication request ok (authoritative frame subscription active).");
                 }
+
+                if (!TryCompleteAuthentication(generation, completion)) return;
+                ConnectionAuthenticated?.Invoke();
             }
             catch (Exception ex)
             {
+                if (!TryFailAuthentication(generation, completion, ex)) return;
                 Log.Exception(ex, "[NetworkTransport] Connection authentication failed");
                 AuthenticationFailed?.Invoke(ex);
             }
@@ -366,8 +439,83 @@ namespace AbilityKit.Network.Battle
 
         private void OnDisconnected()
         {
+            FailAuthenticationGeneration(new InvalidOperationException("Connection closed before input submission."));
             Log.Warning($"[NetworkTransport] Disconnected: {_options.Host}:{_options.Port}");
             ConnectionClosed?.Invoke();
+        }
+
+        private Task WaitForAuthenticationAsync()
+        {
+            lock (_authenticationGate)
+            {
+                ThrowIfDisposed();
+                if (_authenticationCompletion == null)
+                {
+                    BeginAuthenticationGenerationLocked();
+                }
+
+                return _authenticationCompletion.Task;
+            }
+        }
+
+        private void BeginAuthenticationGenerationLocked()
+        {
+            _authenticationCompletion?.TrySetCanceled();
+            _authenticationGeneration++;
+            _authenticationStarted = false;
+            _authenticationCompletion = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private bool IsCurrentAuthenticationGeneration(
+            int generation,
+            TaskCompletionSource<bool> completion)
+        {
+            lock (_authenticationGate)
+            {
+                return !_disposed &&
+                    generation == _authenticationGeneration &&
+                    ReferenceEquals(completion, _authenticationCompletion) &&
+                    !completion.Task.IsCompleted;
+            }
+        }
+
+        private bool TryCompleteAuthentication(int generation, TaskCompletionSource<bool> completion)
+        {
+            lock (_authenticationGate)
+            {
+                if (_disposed || generation != _authenticationGeneration ||
+                    !ReferenceEquals(completion, _authenticationCompletion)) return false;
+                return completion.TrySetResult(true);
+            }
+        }
+
+        private bool TryFailAuthentication(
+            int generation,
+            TaskCompletionSource<bool> completion,
+            Exception exception)
+        {
+            lock (_authenticationGate)
+            {
+                if (generation != _authenticationGeneration ||
+                    !ReferenceEquals(completion, _authenticationCompletion)) return false;
+                return completion.TrySetException(exception);
+            }
+        }
+
+        private void FailAuthenticationGeneration(Exception exception)
+        {
+            lock (_authenticationGate)
+            {
+                _connectionAttemptPending = false;
+                _authenticationStarted = false;
+                _authenticationCompletion?.TrySetException(exception);
+            }
+        }
+
+        private void ThrowIfDisposed()
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(NetworkTransport));
         }
 
         private void OnError(Exception ex)

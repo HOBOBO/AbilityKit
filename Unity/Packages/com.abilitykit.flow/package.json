@@ -4,6 +4,12 @@
   "displayName": "AbilityKit Flow",
   "unity": "2022.3",
   "description": "Lightweight flow runner/state machine for gameplay logic.",
+  "keywords": [
+    "abilitykit",
+    "flow",
+    "orchestration",
+    "runtime"
+  ],
   "author": { "name": "AbilityKit" },
   "samples": [
     {

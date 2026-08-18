@@ -381,10 +381,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 GUILayout.Label($"Error: {_error}");
             }
 
-            if (_multiplayerEntry && !_busy && GUILayout.Button("Exit to Multiplayer Starter", GUILayout.Height(28f)))
+            if (_multiplayerEntry && !_busy && GUILayout.Button("Exit to Starter", GUILayout.Height(28f)))
             {
                 ShooterRemoteStateSyncPlayModeHost.Stop();
-                SceneManager.LoadScene("MultiplayerStarterScene", LoadSceneMode.Single);
+                SceneManager.LoadScene("StarterScene", LoadSceneMode.Single);
             }
         }
 

@@ -25,7 +25,8 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
             maxSize: 2048,
             collectionCheck: false);
 
-        private static readonly BuffRuntimeIndex s_index = new BuffRuntimeIndex();
+        private static readonly ConditionalWeakTable<List<BuffRuntime>, BuffRuntimeIndex> s_indices =
+            new ConditionalWeakTable<List<BuffRuntime>, BuffRuntimeIndex>();
 
         public List<BuffRuntime> GetOrCreateList(global::ActorEntity target)
         {
@@ -50,7 +51,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
         public static void ReleaseList(global::ActorEntity target)
         {
             if (target == null || !target.hasBuffs || target.buffs.Active == null) return;
-            s_runtimeListPool.Release(target.buffs.Active);
+            var list = target.buffs.Active;
+            s_indices.Remove(list);
+            s_runtimeListPool.Release(list);
             target.ReplaceBuffs(null);
         }
 
@@ -76,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
         public static void MarkDirty(List<BuffRuntime> list)
         {
             if (list == null) return;
-            s_index.MarkDirty();
+            s_indices.GetOrCreateValue(list).MarkDirty();
         }
 
         /// <summary>
@@ -107,52 +110,176 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core
 
         private static bool TryGetIndexedRuntime(List<BuffRuntime> list, in BuffRuntimeKey key, out BuffRuntime runtime, out int index)
         {
-            index = s_index.TryGetIndex(list, in key);
-            if (index < 0)
+            if (list == null)
+            {
+                runtime = null;
+                index = -1;
+                return false;
+            }
+
+            index = s_indices.GetOrCreateValue(list).TryGetIndex(list, in key);
+            if (index < 0 || index >= list.Count)
             {
                 runtime = null;
                 return false;
             }
 
             runtime = list[index];
-            return runtime != null;
+            return runtime != null && key.Matches(runtime);
         }
 
         private sealed class BuffRuntimeIndex
         {
-            private int _version;
-            private int _cachedVersion = -1;
-            private int[] _indices = System.Array.Empty<int>();
+            private readonly Dictionary<int, int> _byBuff = new Dictionary<int, int>();
+            private readonly Dictionary<BuffSourceKey, int> _byBuffAndSource = new Dictionary<BuffSourceKey, int>();
+            private readonly Dictionary<BuffContextKey, int> _byBuffAndContext = new Dictionary<BuffContextKey, int>();
+            private readonly Dictionary<BuffInstanceKey, int> _byInstance = new Dictionary<BuffInstanceKey, int>();
+            private bool _dirty = true;
+            private int _indexedCount = -1;
 
             public void MarkDirty()
             {
-                unchecked
-                {
-                    _version++;
-                }
-            }
-
-            public void RebuildIfNeeded(List<BuffRuntime> list)
-            {
-                if (list == null) return;
-                if (_cachedVersion == _version && _indices.Length == list.Count) return;
-                _indices = new int[list.Count];
-                for (var i = 0; i < list.Count; i++) _indices[i] = i;
-                _cachedVersion = _version;
+                _dirty = true;
             }
 
             public int TryGetIndex(List<BuffRuntime> list, in BuffRuntimeKey key)
             {
-                if (list == null) return -1;
                 RebuildIfNeeded(list);
-                for (var i = 0; i < _indices.Length; i++)
+
+                if (key.SourceContextId != 0L)
                 {
-                    var index = _indices[i];
-                    if (index < 0 || index >= list.Count) continue;
-                    if (key.Matches(list[index])) return index;
+                    if (key.SourceActorId > 0)
+                    {
+                        return _byInstance.TryGetValue(
+                            new BuffInstanceKey(key.BuffId, key.SourceActorId, key.SourceContextId),
+                            out var instanceIndex)
+                            ? instanceIndex
+                            : -1;
+                    }
+
+                    return _byBuffAndContext.TryGetValue(
+                        new BuffContextKey(key.BuffId, key.SourceContextId),
+                        out var contextIndex)
+                        ? contextIndex
+                        : -1;
                 }
 
-                return -1;
+                if (key.SourceActorId > 0)
+                {
+                    return _byBuffAndSource.TryGetValue(
+                        new BuffSourceKey(key.BuffId, key.SourceActorId),
+                        out var sourceIndex)
+                        ? sourceIndex
+                        : -1;
+                }
+
+                return _byBuff.TryGetValue(key.BuffId, out var buffIndex) ? buffIndex : -1;
+            }
+
+            private void RebuildIfNeeded(List<BuffRuntime> list)
+            {
+                if (!_dirty && _indexedCount == list.Count) return;
+
+                _byBuff.Clear();
+                _byBuffAndSource.Clear();
+                _byBuffAndContext.Clear();
+                _byInstance.Clear();
+                for (var i = 0; i < list.Count; i++)
+                {
+                    var runtime = list[i];
+                    if (runtime == null) continue;
+
+                    if (!_byBuff.ContainsKey(runtime.BuffId))
+                    {
+                        _byBuff.Add(runtime.BuffId, i);
+                    }
+
+                    var sourceKey = new BuffSourceKey(runtime.BuffId, runtime.SourceId);
+                    if (!_byBuffAndSource.ContainsKey(sourceKey))
+                    {
+                        _byBuffAndSource.Add(sourceKey, i);
+                    }
+
+                    var contextKey = new BuffContextKey(runtime.BuffId, runtime.SourceContextId);
+                    if (!_byBuffAndContext.ContainsKey(contextKey))
+                    {
+                        _byBuffAndContext.Add(contextKey, i);
+                    }
+
+                    var instanceKey = new BuffInstanceKey(runtime.BuffId, runtime.SourceId, runtime.SourceContextId);
+                    if (!_byInstance.ContainsKey(instanceKey))
+                    {
+                        _byInstance.Add(instanceKey, i);
+                    }
+                }
+
+                _indexedCount = list.Count;
+                _dirty = false;
+            }
+        }
+
+        private readonly struct BuffSourceKey : System.IEquatable<BuffSourceKey>
+        {
+            private readonly int _buffId;
+            private readonly int _sourceActorId;
+
+            public BuffSourceKey(int buffId, int sourceActorId)
+            {
+                _buffId = buffId;
+                _sourceActorId = sourceActorId;
+            }
+
+            public bool Equals(BuffSourceKey other) =>
+                _buffId == other._buffId && _sourceActorId == other._sourceActorId;
+
+            public override bool Equals(object obj) => obj is BuffSourceKey other && Equals(other);
+            public override int GetHashCode() => (_buffId * 397) ^ _sourceActorId;
+        }
+
+        private readonly struct BuffContextKey : System.IEquatable<BuffContextKey>
+        {
+            private readonly int _buffId;
+            private readonly long _sourceContextId;
+
+            public BuffContextKey(int buffId, long sourceContextId)
+            {
+                _buffId = buffId;
+                _sourceContextId = sourceContextId;
+            }
+
+            public bool Equals(BuffContextKey other) =>
+                _buffId == other._buffId && _sourceContextId == other._sourceContextId;
+
+            public override bool Equals(object obj) => obj is BuffContextKey other && Equals(other);
+            public override int GetHashCode() => (_buffId * 397) ^ _sourceContextId.GetHashCode();
+        }
+
+        private readonly struct BuffInstanceKey : System.IEquatable<BuffInstanceKey>
+        {
+            private readonly int _buffId;
+            private readonly int _sourceActorId;
+            private readonly long _sourceContextId;
+
+            public BuffInstanceKey(int buffId, int sourceActorId, long sourceContextId)
+            {
+                _buffId = buffId;
+                _sourceActorId = sourceActorId;
+                _sourceContextId = sourceContextId;
+            }
+
+            public bool Equals(BuffInstanceKey other) =>
+                _buffId == other._buffId &&
+                _sourceActorId == other._sourceActorId &&
+                _sourceContextId == other._sourceContextId;
+
+            public override bool Equals(object obj) => obj is BuffInstanceKey other && Equals(other);
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    var hash = (_buffId * 397) ^ _sourceActorId;
+                    return (hash * 397) ^ _sourceContextId.GetHashCode();
+                }
             }
         }
     }

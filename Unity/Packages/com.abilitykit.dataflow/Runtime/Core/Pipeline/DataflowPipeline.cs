@@ -103,26 +103,36 @@ namespace AbilityKit.Dataflow
                 context = new DataflowContext();
             }
 
-            if (_processors.Count == 0)
+            if (context.IsAborted)
+            {
+                return DataflowResult<TOutput>.Aborted(default, 0);
+            }
+
+            var processors = _processors.ToArray();
+            if (processors.Length == 0)
             {
                 return DataflowResult<TOutput>.Success(default, 0);
             }
 
             int processedCount = 0;
+            int failedProcessorIndex = -1;
+            string failedProcessorName = null;
             var lastOutput = default(TOutput);
             var hasOutput = false;
             try
             {
-                for (int i = 0; i < _processors.Count; i++)
+                for (int i = 0; i < processors.Length; i++)
                 {
-                    // 检查是否被中断
                     if (context.IsAborted)
                     {
-                        return DataflowResult<TOutput>.Aborted(default, processedCount);
+                        return DataflowResult<TOutput>.Aborted(
+                            hasOutput ? lastOutput : default,
+                            processedCount);
                     }
 
-                    // 执行处理器
-                    var processor = _processors[i];
+                    var processor = processors[i];
+                    failedProcessorIndex = i;
+                    failedProcessorName = processor.Name;
                     var output = processor.Process(input, context);
                     lastOutput = output;
                     hasOutput = true;
@@ -135,13 +145,23 @@ namespace AbilityKit.Dataflow
                     }
 
                     processedCount++;
+
+                    if (context.IsAborted)
+                    {
+                        return DataflowResult<TOutput>.Aborted(lastOutput, processedCount);
+                    }
                 }
 
                 return DataflowResult<TOutput>.Success(hasOutput ? lastOutput : default, processedCount);
             }
             catch (Exception ex)
             {
-                return DataflowResult<TOutput>.Failure(ex, default, processedCount);
+                return DataflowResult<TOutput>.Failure(
+                    ex,
+                    hasOutput ? lastOutput : default,
+                    processedCount,
+                    failedProcessorIndex,
+                    failedProcessorName);
             }
         }
 
@@ -160,10 +180,18 @@ namespace AbilityKit.Dataflow
         /// <inheritdoc />
         public IDataflowPipeline<TInput, TOutput> AddProcessors(params IDataflowProcessor<TInput, TOutput>[] processors)
         {
-            foreach (var processor in processors)
+            if (processors == null)
             {
-                AddProcessor(processor);
+                throw new ArgumentNullException(nameof(processors));
             }
+
+            for (var i = 0; i < processors.Length; i++)
+            {
+                if (processors[i] == null)
+                    throw new ArgumentException("Processor batches cannot contain null entries.", nameof(processors));
+            }
+
+            _processors.AddRange(processors);
             return this;
         }
 
@@ -283,7 +311,7 @@ namespace AbilityKit.Dataflow
         /// </summary>
         public DataflowPipeline<TInput, TOutput> Build()
         {
-            return _pipeline;
+            return _pipeline.Clone();
         }
 
         /// <summary>

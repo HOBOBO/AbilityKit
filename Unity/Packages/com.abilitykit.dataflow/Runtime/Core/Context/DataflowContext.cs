@@ -9,10 +9,41 @@ namespace AbilityKit.Dataflow
     /// </summary>
     public class DataflowContext : IDataflowContext
     {
+        private readonly struct SlotKey : IEquatable<SlotKey>
+        {
+            public SlotKey(string name, Type valueType)
+            {
+                Name = name;
+                ValueType = valueType;
+            }
+
+            private string Name { get; }
+            private Type ValueType { get; }
+
+            public bool Equals(SlotKey other)
+            {
+                return ValueType == other.ValueType &&
+                       string.Equals(Name, other.Name, StringComparison.Ordinal);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is SlotKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    return (StringComparer.Ordinal.GetHashCode(Name) * 397) ^ ValueType.GetHashCode();
+                }
+            }
+        }
+
         /// <summary>
-        /// 内部数据存储（使用槽位名称作为键）
+        /// 内部数据存储（使用槽位名称和数据类型作为键）
         /// </summary>
-        private readonly Dictionary<string, object> _data = new Dictionary<string, object>();
+        private readonly Dictionary<SlotKey, object> _data = new Dictionary<SlotKey, object>();
 
         /// <summary>
         /// 数据流请求的源对象
@@ -54,9 +85,9 @@ namespace AbilityKit.Dataflow
                 throw new ArgumentNullException(nameof(slot));
             }
 
-            if (_data.TryGetValue(slot.Name, out var value) && value is T typedValue)
+            if (_data.TryGetValue(GetKey(slot), out var value))
             {
-                return typedValue;
+                return value == null ? default : (T)value;
             }
             return slot.GetDefault();
         }
@@ -69,9 +100,9 @@ namespace AbilityKit.Dataflow
                 throw new ArgumentNullException(nameof(slot));
             }
 
-            if (_data.TryGetValue(slot.Name, out var value) && value is T typedValue)
+            if (_data.TryGetValue(GetKey(slot), out var value))
             {
-                return typedValue;
+                return value == null ? default : (T)value;
             }
             return defaultValue;
         }
@@ -83,7 +114,7 @@ namespace AbilityKit.Dataflow
             {
                 throw new ArgumentNullException(nameof(slot));
             }
-            _data[slot.Name] = value;
+            _data[GetKey(slot)] = value;
         }
 
         /// <inheritdoc />
@@ -94,9 +125,9 @@ namespace AbilityKit.Dataflow
                 throw new ArgumentNullException(nameof(slot));
             }
 
-            if (_data.TryGetValue(slot.Name, out var obj) && obj is T typedValue)
+            if (_data.TryGetValue(GetKey(slot), out var obj))
             {
-                value = typedValue;
+                value = obj == null ? default : (T)obj;
                 return true;
             }
             value = default;
@@ -110,15 +141,13 @@ namespace AbilityKit.Dataflow
             {
                 return false;
             }
-            return _data.ContainsKey(slot.Name);
+            return _data.ContainsKey(GetKey(slot));
         }
 
         /// <inheritdoc />
         public void Clear()
         {
-            _data.Clear();
-            _source = null;
-            _isAborted = false;
+            Reset();
         }
 
         /// <summary>
@@ -129,6 +158,11 @@ namespace AbilityKit.Dataflow
             _data.Clear();
             _source = null;
             _isAborted = false;
+        }
+
+        private static SlotKey GetKey<T>(DataflowSlot<T> slot)
+        {
+            return new SlotKey(slot.Name, typeof(T));
         }
     }
 }

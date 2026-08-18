@@ -51,7 +51,7 @@ flowchart LR
 
 Project Config 持有启用模板和默认路径；Template 持有单表参数及 Table Asset 引用；Table Asset 持有本地 DataList；Baseline Asset 保存最近一次导入时的 Excel 路径、sheet、headers 和按主键索引的字符串行。
 
-Baseline 是导出比较依据，不是运行时配置或完整文件快照。它不带源文件 hash、mtime、schema version 或提交 ID。`BaselineStatus` 只检查资产是否存在，不能证明它与当前 Excel、schema 或 Table Asset 对齐。
+Baseline 是导出比较依据，不是运行时配置或完整文件快照。它不带源文件 hash、mtime、schema version 或提交 ID。`BaselineStatus` 只检查资产是否存在，不能证明它与当前 Excel、schema、sheet、行列布局、主键或 Table Asset 对齐；Safe Export 在合并前也不会自动拒绝这些元数据漂移。
 
 ## 4. Schema 与 Codec
 
@@ -82,7 +82,7 @@ flowchart TD
 
 空主键、空白字符串主键和数值零主键会跳过。重复主键不会阻断：DataList 可包含多条相同 key，而 baseline map 只保留第一次出现的行，后续三方比较因此失去一一对应关系。生产表必须增加唯一性 gate。
 
-导入不是事务。DataList 赋值、资产 dirty、baseline 更新、SaveAssets 和 Refresh 是连续副作用；赋值后的异常可能形成资产已改但 baseline 未更新，或 baseline 与资产保存状态不一致。
+导入不是事务。DataList 赋值、资产 dirty、baseline 更新、SaveAssets 和 Refresh 是连续副作用；赋值后的异常可能形成资产已改但 baseline 未更新，或 baseline 与资产保存状态不一致。批量导入还会逐行创建/修改 ScriptableObject，前面已成功的行不会因后续行失败而自动删除或回滚。
 
 ## 6. Safe Export
 
@@ -123,7 +123,7 @@ flowchart TD
 
 `GenerateCode` 创建输出目录，仅在缺失时生成 Row partial 壳类，每次重写 Table ScriptableObject 壳类；已绑定资产时还生成 partial raw 字段，然后 Refresh。Table 文件会直接覆盖，生成目录不能存放手写同名类；写入没有临时文件或批次回滚。
 
-`GenerateAllCode`、`ImportAll` 和 `ExportAll` 逐模板执行并汇总错误，不因单表失败停止其余模板。`ExportAll` 会跳过 baseline 缺失的模板。
+`GenerateAllCode`、`ImportAll` 和 `ExportAll` 逐模板执行并汇总错误，不因单表失败停止其余模板。`ExportAll` 会跳过 baseline 缺失的模板；前面模板的成功修改不会因后续模板失败而回滚。
 
 `GenerateAndImportAll` 实际执行生成代码、创建未绑定资产、批量导入。虽然注释写“等待编译”，实现没有等待 Unity compilation pipeline；首次生成新类型时可能无法解析类型，随后继续汇总未绑定错误。首次接入应拆成生成、等待编译成功、创建/绑定资产、导入四步。
 
@@ -131,13 +131,13 @@ flowchart TD
 
 EPPlus reader 在 sheet 名为空时选择首个 sheet，指定 sheet 不存在时也回退首个 sheet，并支持读取合并单元格左上角值。writer 可创建缺失 sheet，但高层 safe export 仍要求文件存在。空 workbook、损坏文件和 IO 错误会抛异常。
 
-导出只有显式 Save 才提交。工具没有文件锁协议、并发写检测或原子 replace；应避免 Excel 客户端、版本控制合并工具和 Unity 同时写同一文件。
+导出只有显式 Save 才提交。工具没有文件锁协议、并发写检测或原子 replace；应避免 Excel 客户端、版本控制合并工具和 Unity 同时写同一文件。Safe Export 只保证冲突时不调用 `package.Save()`，不保证 Excel、baseline、冲突报告和外部文件系统之间的整体原子性。
 
 单表模板服务捕获异常、记录 `Debug.LogException` 并返回失败结果；批处理通过 `BatchResult` 继续汇总。底层同步 API 多数直接抛异常。批量成功只表示步骤返回成功，不证明代码已编译、业务引用有效或运行时发布完成。
 
 ## 9. 测试与验证
 
-截至 2026-08-15：
+截至 2026-08-17：
 
 - package 内没有 NUnit `[Test]` 或 `[UnityTest]`。
 - 没有独立 `.NET` 镜像工程，核心依赖 UnityEditor、Odin 和 EPPlus。
@@ -163,7 +163,7 @@ Excel Sync 输出只是 authoring 资产。若运行时使用 ConfigDatabase 或
 
 ## 11. 采用结论
 
-Excel Sync 已具备模板、反射映射、codec、baseline 和三方冲突检测的完整编辑器工具面。冲突时不保存 EPPlus package 是有效保护，但重复主键、非事务导入、baseline 不刷新、无删除传播、无编译等待和无自动测试仍限制成熟度。
+Excel Sync 已具备模板、反射映射、codec、baseline 和三方冲突检测的完整编辑器工具面。冲突时不保存 EPPlus package 是有效保护，但重复主键、非事务导入、baseline 不刷新、无删除传播、无编译等待、批处理不回滚和无自动测试仍限制成熟度。
 
 生产声明应限定为“受版本控制和人工审查保护的 Unity Editor 双向同步工具”，不能称为无人值守配置发布系统或跨端运行时配置方案。
 
@@ -176,6 +176,6 @@ Excel Sync 已具备模板、反射映射、codec、baseline 和三方冲突检�
 
 ---
 
-文档类型：Canonical 设计与 Editor 工作流 | 事实基线：2026-08-15 | 证据等级：E0 Editor 实现、E1 静态可审计、E2 authoring 接入；无独立 E3、E4 或自动 E5
+文档类型：Canonical 设计与 Editor 工作流 | 事实基线：2026-08-17 | 证据等级：E0 Editor 实现、E1 静态可审计、E2 authoring 接入；无独立 E3、E4 或自动 E5
 
-*文档版本：v3.0 | 最后更新：2026-08-15*
+*文档版本：v3.1 | 最后更新：2026-08-17*

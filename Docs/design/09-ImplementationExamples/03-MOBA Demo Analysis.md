@@ -739,7 +739,56 @@ sequenceDiagram
 
 ---
 
-## 14. 源码索引
+## 14. Unity Starter、包内场景与项目组合根
+
+MOBA 的 Unity 可玩入口在当前工作区采用“公共启动协议 + MOBA 包拥有资产”的两段式装配。公共层只定义 `DemoLaunchRequest`、一次性 `DemoLaunchIntent`、Profile/Catalog 查询和 `DemoGameplayBootstrap`；MOBA package 自己拥有 `MobaDemoGameplayScene`、Bootstrap Prefab、Local/Multiplayer Profile 与 `MobaDemoRoot`。真正启动战斗应用层的仍是 Root 内的 `AbilityKit.Game.GameEntry`。
+
+```mermaid
+sequenceDiagram
+    participant Starter as StarterController
+    participant Intent as DemoLaunchIntent
+    participant Scene as MobaDemoGameplayScene
+    participant Bootstrap as DemoGameplayBootstrap
+    participant Catalog as MobaGameplayCatalog
+    participant Root as MobaDemoRoot and GameEntry
+
+    Starter->>Intent: Request Moba and Local or Multiplayer
+    Starter->>Scene: LoadSceneAsync
+    Scene->>Bootstrap: Start and TryLaunch
+    Bootstrap->>Intent: TryConsume once
+    Bootstrap->>Catalog: Resolve gameplay mode and optional profile id
+    Bootstrap->>Root: Instantiate and move into gameplay scene
+    Root->>Root: GameEntry Awake and start project flow
+```
+
+### 14.1 当前资产拓扑
+
+| 资产 | 所有者 | 当前事实 |
+|------|--------|----------|
+| `Assets/Scenes/StarterScene.unity` | Unity 示例入口 | 选择 MOBA/Shooter 与 Local/Multiplayer，不持有游戏 Root |
+| `Packages/com.abilitykit.demo.moba.view.runtime/Scenes/MobaDemoGameplayScene.unity` | MOBA View package | 场景只有一个 Bootstrap Root，引用 MOBA Catalog |
+| `MobaLocalProfile.asset` | MOBA View package | `moba-local`，指向 `MobaDemoRoot.prefab` |
+| `MobaMultiplayerProfile.asset` | MOBA View package | `moba-multiplayer`，同样指向 `MobaDemoRoot.prefab` |
+| `MobaDemoRoot.prefab` | MOBA View package | 持有 Camera、地图、`GameEntry` 与项目级配置引用 |
+
+Local 与 Multiplayer 复用同一个 MOBA Root，不代表两种运行模式相同。多人路径由 Starter 同时写入 `DemoMultiplayerLaunchIntent`；`GameEntry.ApplyPendingLaunchIntent` 消费该意图并选择 `GatewayRemote` preset，本地路径则不携带多人意图。Profile 负责选择 Root，Root 内的项目入口负责解释多人会话参数，这两个职责不能合并成一个通用 Bootstrap。
+
+### 14.2 一次性请求、失败与释放语义
+
+| 边界 | 当前语义 | 接入要求 |
+|------|----------|----------|
+| 请求槽 | `DemoLaunchIntent` 是加锁的进程静态单槽；第二次 `Request` 会覆盖未消费请求，没有 generation/token | Launcher 必须串行发起场景切换，不能把它当队列 |
+| Profile 解析 | 可按 gameplay/mode 与可选精确 profile id 匹配；多条匹配直接失败 | Catalog 内同一选择键应保持唯一 |
+| 双意图校验 | Local 拒绝任何多人意图；Multiplayer 要求存在且 gameplay 一致 | Composition 请求与网络请求必须成对写入 |
+| 失败处理 | Bootstrap launch 失败会清空 Composition 与 Multiplayer 两个意图 | 清空只防止脏请求，不负责回滚登录、Room 或网络连接 |
+| Root 释放 | `Shutdown` 只 Destroy 已实例化 Root，并清空 active profile/root；`OnDestroy` 会调用它 | `GameEntry.OnDestroy` 才负责 Flow shutdown 与 Entry Module detach |
+| 返回 Starter | 发起异步 Single scene load，但不保留 `AsyncOperation`，也不观测完成/失败 | 产品入口需要显式处理加载失败、超时与重复点击 |
+
+`DemoGameplayCompositionBuilder` 是 Editor 生成和迁移工具：它迁移旧 `Assets/DemoComposition` 资产，重建两游戏 Profile/Catalog/Bootstrap/Scene，更新 Starter 配置和 Build Settings，再删除旧共享 Composition。这个工具不参与 Player runtime，且它会改写资产与 Build Settings；运行时能力判断应以已序列化的 package 资产和实际场景为准，而不是把生成器菜单当成启动依赖。
+
+---
+
+## 15. 源码索引
 
 | 模块 | 源码 |
 |------|------|
@@ -760,10 +809,14 @@ sequenceDiagram
 | session-bound 快照 Dispatcher | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Snapshot/FrameSnapshotDispatcher.cs` |
 | 通用快照 Pipeline | `Unity/Packages/com.abilitykit.world.snapshot/Runtime/SnapshotRouting/SnapshotPipeline.cs` |
 | MOBA 快照 registry | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Snapshot/BattleSnapshotRegistry.cs` |
+| Unity 启动请求 | `Unity/Packages/com.abilitykit.demo.common/Runtime/Gameplay/DemoLaunchIntent.cs` |
+| Unity Gameplay Bootstrap | `Unity/Packages/com.abilitykit.demo.common/Runtime/Composition/DemoGameplayBootstrap.cs` |
+| MOBA Unity 入口 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Entry/GameEntry.cs` |
+| Composition 生成器 | `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Composition/DemoGameplayCompositionBuilder.cs` |
 
 ---
 
-## 15. 验证证据与已知限制
+## 16. 验证证据与已知限制
 
 | 证据 | 等级与结论 |
 |------|------------|
@@ -775,6 +828,6 @@ sequenceDiagram
 
 当前仍需按真实项目要求治理：应用层类型数量与依赖方向、配置/生成 gate、客户端资源与 scope 故障闭环、预测/回滚预算、双连接恢复、长期内存/分配，以及跨平台 artifact。MOBA 示例证明复杂组合可行，但它的英雄、表、PlanAction、session 和表现目录不构成公共框架兼容承诺。
 
-文档类型：示例架构分析 | 事实基线：2026-08-15 | 证据等级：E0 完整项目实现、E2 多宿主消费、广泛 E3、分散 E4/E5
+文档类型：示例架构分析 | 事实基线：2026-08-17 | 证据等级：E0 完整项目实现、E2 多宿主消费、广泛 E3、分散 E4/E5
 
-*文档版本：v3.0 | 最后更新：2026-08-15*
+*文档版本：v3.1 | 最后更新：2026-08-17*

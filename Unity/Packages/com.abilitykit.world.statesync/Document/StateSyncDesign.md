@@ -267,10 +267,9 @@ public interface IPredictionCoordinator
     int ServerConfirmedFrame { get; }
     bool NeedsRollback { get; }
 
-    void RecordInput(int frame, IInputCommand input);
+    void ProcessInput(IInputCommand input);
+    void ProcessInputs(IReadOnlyList<IInputCommand> inputs);
     void ApplyServerSnapshot(int serverFrame, int objectId, StateSlots serverSlots);
-    void ExecuteRollback();
-    void AdvancePrediction();
     void Reset();
 }
 ```
@@ -336,8 +335,8 @@ public interface IHashableState
 服务器广播 Frame(100) Hash = 0xABCD1234
   → 客户端比较本地哈希
   → 匹配 → 继续预测
-  → 不匹配 → NeedsRollback = true
-  → ExecuteRollback() → 恢复到帧100 → 重新执行
+  → 不匹配 → 调用 ApplyServerSnapshot(...)
+  → 协调器自动恢复到帧100 → 按原帧批重演未确认输入
 ```
 
 ---

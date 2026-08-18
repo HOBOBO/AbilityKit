@@ -33,7 +33,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         [Header("Presentation")]
         [SerializeField] private ShooterUnityViewRenderBackend renderBackend = ShooterUnityViewRenderBackendCatalog.DefaultBackend;
-        [SerializeField] private string starterSceneName = "MultiplayerStarterScene";
+        [SerializeField] private string starterSceneName = "StarterScene";
 
         public string RoomTitle => string.IsNullOrWhiteSpace(roomTitle) ? "Shooter Room" : roomTitle.Trim();
         public int MaxPlayers => Math.Max(1, maxPlayers);
@@ -42,7 +42,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public bool AutoStart => autoStart;
         public ShooterUnityViewRenderBackend RenderBackend => ShooterUnityViewRenderBackendCatalog.Normalize(renderBackend);
         public string StarterSceneName => string.IsNullOrWhiteSpace(starterSceneName)
-            ? "MultiplayerStarterScene"
+            ? "StarterScene"
             : starterSceneName.Trim();
 
         public ShooterPlayModeSessionOptions BuildSessionOptions()

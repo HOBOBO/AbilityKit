@@ -5,6 +5,7 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using MemoryPack;
 using UnityHFSM.Extension;
@@ -55,6 +56,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                         entries.Add(new MobaActorStateMachineRollbackEntry(
                             pair.Key,
                             hasRuntime: false,
+                            ownerKind: (int)MobaActorStateMachineOwnerKind.Unknown,
                             profileId: string.Empty,
                             profileContentHash: string.Empty,
                             deltaTime: 0f,
@@ -67,6 +69,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                     entries.Add(new MobaActorStateMachineRollbackEntry(
                         pair.Key,
                         hasRuntime: true,
+                        ownerKind: (int)actor.actorStateMachine.OwnerKind,
                         snapshot.ProfileId,
                         snapshot.ProfileContentHash,
                         snapshot.DeltaTime,
@@ -78,7 +81,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 var array = entries.Count == 0
                     ? Array.Empty<MobaActorStateMachineRollbackEntry>()
                     : entries.ToArray();
-                return MemoryPackSerializer.Serialize(new MobaActorStateMachineRollbackPayload(3, array));
+                return MemoryPackSerializer.Serialize(new MobaActorStateMachineRollbackPayload(4, array));
             }
             finally
             {
@@ -91,7 +94,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (payload == null || payload.Length == 0) return;
 
             var snapshot = MemoryPackSerializer.Deserialize<MobaActorStateMachineRollbackPayload>(payload);
-            if (snapshot.Version != 2 && snapshot.Version != 3)
+            if (snapshot.Version != 2 && snapshot.Version != 3 && snapshot.Version != 4)
             {
                 throw new InvalidOperationException(
                     $"Unsupported actor state-machine rollback payload version '{snapshot.Version}'.");
@@ -100,7 +103,10 @@ namespace AbilityKit.Demo.Moba.Rollback
             var entries = snapshot.Entries ?? Array.Empty<MobaActorStateMachineRollbackEntry>();
             for (var i = 0; i < entries.Length; i++)
             {
-                RestoreEntry(entries[i], requireContentHash: snapshot.Version >= 3);
+                RestoreEntry(
+                    entries[i],
+                    requireContentHash: snapshot.Version >= 3,
+                    restoreOwnerKind: snapshot.Version >= 4);
             }
         }
 
@@ -114,7 +120,8 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         private void RestoreEntry(
             in MobaActorStateMachineRollbackEntry entry,
-            bool requireContentHash)
+            bool requireContentHash,
+            bool restoreOwnerKind)
         {
             if (!_actors.TryGet(entry.ActorId, out var actor) || actor == null) return;
 
@@ -154,10 +161,17 @@ namespace AbilityKit.Demo.Moba.Rollback
                         $"Cannot rebuild actor '{entry.ActorId}' state-machine profile '{entry.ProfileId}' during rollback.");
                 }
 
+                var ownerKind = restoreOwnerKind
+                    ? (MobaActorStateMachineOwnerKind)entry.OwnerKind
+                    : actor.hasActorStateMachine
+                        ? actor.actorStateMachine.OwnerKind
+                        : actor.hasActorBrain
+                            ? MobaActorStateMachineOwnerKind.Brain
+                            : MobaActorStateMachineOwnerKind.Unknown;
                 if (actor.hasActorStateMachine)
-                    actor.ReplaceActorStateMachine(entry.ProfileId, runtime);
+                    actor.ReplaceActorStateMachine(entry.ProfileId, runtime, ownerKind);
                 else
-                    actor.AddActorStateMachine(entry.ProfileId, runtime);
+                    actor.AddActorStateMachine(entry.ProfileId, runtime, ownerKind);
             }
 
             runtime.RestoreSnapshot(new MobaActorStateMachineRuntimeSnapshot(
@@ -290,10 +304,12 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(4)] public readonly MobaActorStateMachineRollbackState State;
         [MemoryPackOrder(5)] public readonly MobaHfsmSnapshotNode Root;
         [MemoryPackOrder(6)] public readonly string ProfileContentHash;
+        [MemoryPackOrder(7)] public readonly int OwnerKind;
 
         public MobaActorStateMachineRollbackEntry(
             int actorId,
             bool hasRuntime,
+            int ownerKind,
             string profileId,
             string profileContentHash,
             float deltaTime,
@@ -302,6 +318,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             ActorId = actorId;
             HasRuntime = hasRuntime;
+            OwnerKind = ownerKind;
             ProfileId = profileId ?? string.Empty;
             DeltaTime = deltaTime;
             State = state;

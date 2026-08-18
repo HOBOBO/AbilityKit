@@ -109,8 +109,8 @@ sequenceDiagram
 
 ## 六、注意事项
 
-- `ProtocolRegistry` 构造函数会尝试创建内部 MemoryPack 反射序列化器，失败后回退到 `BinaryObjectWireSerializer`；正式使用 MemoryPack 时推荐通过 `protocol.memorypack` 显式安装。
-- `WireSerializer.Current` 和 `ProtocolRegistry` 内部 `_serializer` 是两条入口，接入时要确认使用哪一个，避免后端不一致。
+- 协议包通过反射调用 MemoryPack（不直接依赖 MemoryPack DLL）；正式使用需经 `MemoryPackWireSerializerInstaller.InstallAsCurrent()` 安装到 `WireSerializer.Current`。
+- 序列化器统一由 `WireSerializer.Current` 决定（单一真相源）；`ProtocolRegistry` 不再持有序列化器，其 `Encode/Decode` 委托给 `WireSerializer`（2026-08-17 收敛）。
 - `package.json` 声明依赖 Newtonsoft Json，asmdef 中也预编译引用 `Newtonsoft.Json.dll`。
 - `Encode<T>` 约束 `T : struct`，但 `Encode(object)` 可接受对象；协议类型设计最好保持值类型和不可变字段。
 
@@ -118,11 +118,13 @@ sequenceDiagram
 
 ## 七、后续演进
 
-- 统一 `WireSerializer.Current` 与 `ProtocolRegistry.SetSerializer` 的使用约定。
+- （已完成 2026-08-17）统一序列化器到 `WireSerializer.Current`，删除 `ProtocolRegistry.SetSerializer`。
+- （已完成 2026-08-17）注册表扫描幂等化，重复扫描/重复注册同类型不再抛异常。
+- （已完成 2026-08-17）`DecodeByOpCode` 对未注册 opCode 改为拒绝，不再静默解码。
 - 明确默认二进制对象序列化器的兼容性边界。
-- 为注册表增加重复扫描、协议版本和导出诊断。
+- 为注册表增加协议版本和导出诊断。
 
 ---
 
-*文档版本：1.0*  
-*最后更新：2026-06-05*
+*文档版本：1.1*  
+*最后更新：2026-08-17*

@@ -1,7 +1,7 @@
 # MOBA 世界启动与运行时装配
 
 > 文档类型：MOBA 项目应用组合深潜
-> 事实基线：2026-08-16
+> 事实基线：2026-08-17
 >
 > 本文以当前 MOBA runtime 与 view runtime 源码为准，说明 battle world 如何完成类型注册、Blueprint 配置、服务容器构建、Entitas 系统安装、远程帧驱动和会话释放。本文只描述已有实现，不把可替换能力当作已实现能力。
 
@@ -243,7 +243,35 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 
 最终失败点可能落在 module 构造、world options 构造或运行阶段，集成层应提前验证启动计划。
 
-## 10. 扩展准则
+## 10. Scene Bootstrap 与 World Bootstrap 不是同一层
+
+当前 Unity 示例同时存在 `DemoGameplayBootstrap` 和 `MobaWorldBootstrapModule`。前者是 Scene Composition owner，后者是 MOBA runtime World Module；二者不应因为名称接近而合并。
+
+```mermaid
+flowchart LR
+    Scene[Package gameplay scene] --> Composition[DemoGameplayBootstrap]
+    Composition --> Root[MobaDemoRoot]
+    Root --> Entry[GameEntry]
+    Entry --> Session[Moba session and host composition]
+    Session --> Manager[WorldManager]
+    Manager --> Blueprint[MobaBattleWorldBlueprint]
+    Blueprint --> Module[MobaWorldBootstrapModule]
+    Module --> Services[MOBA services and Entitas systems]
+```
+
+| 对象 | 创建/持有者 | 生命周期终点 | 失败责任 |
+|------|-------------|--------------|----------|
+| launch request | Starter 或 Editor menu | `DemoGameplayBootstrap` 调用 `DemoLaunchIntent.TryConsume` 一次性消费 | Scene launch 失败清空两类 intent |
+| Gameplay Root | `DemoGameplayBootstrap` | `Shutdown` / Bootstrap `OnDestroy` 销毁实例 | 只补偿 Root 实例化，不回滚外部登录或 Room |
+| `GameEntry` 应用 Root | `MobaDemoRoot` Prefab | `GameEntry.OnDestroy` 关闭 Flow、Detach Entry Modules | 应用入口负责自身模块与多人会话资源 |
+| Host/World | Session/World factory | Session disposer、WorldManager/HostRuntime teardown | 各创建阶段需要项目侧补偿与聚合异常策略 |
+| World services/systems | Blueprint + `MobaWorldBootstrapModule` | 随 World teardown | 由 World 生命周期管理，不由 Scene Bootstrap 逐项销毁 |
+
+Scene Bootstrap 成功只表示正确 Root 已进入正确 scene，不等于 World 已创建、配置严格校验已通过、多人 Room 已进入 InBattle，或网络资源已具备 teardown。反过来，纯 .NET Console 与 ET 可以直接组合 Host/World 而完全不消费 Scene Bootstrap。这个分层保证开箱入口不会污染战斗工具包的跨宿主边界。
+
+`DemoLaunchIntent` 当前是无 generation 的静态单槽，`ReturnToStarter` 和 Starter 的 `LoadSceneAsync` 都不观测异步加载结果。若产品需要并发请求、取消、加载重试或跨进程恢复，应在项目层引入带 request id/generation 的状态机；不应把这些应用策略塞进 `MobaWorldBootstrapModule`。
+
+## 11. 扩展准则
 
 | 需求 | 推荐接入点 |
 |------|------------|
@@ -257,11 +285,11 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 
 不要只向 feature 位集中增加枚举值并假设能力自动生效；必须同时提供实际服务、系统或 Flow stage，并补充 readiness 验证。
 
-## 11. 自动测试证据与补测边界
+## 12. 自动测试证据与补测边界
 
 本节不把类型存在、测试 Harness 能创建 world 或其他示例的相似启动路径扩大为 MOBA view 生产装配证据。结论按当前能定位到的实际断言分层。
 
-### 11.1 已有直接证据
+### 12.1 已有直接证据
 
 | 证据 | 当前直接证明 | 不能据此证明 |
 |------|--------------|--------------|
@@ -272,7 +300,7 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 | `SessionOrchestratorLifecycleTests.DestroyBattleWorlds_WhenBothDestroyOperationsFail_AggregatesBothFailures` | 两个 world 销毁都失败时按执行顺序聚合异常 | 不覆盖 HostRuntime 部分创建失败后的补偿清理 |
 | `BattleHudInputEventBridgeTests` 中 `CreateWorldOptions(..., registerWorldInitData: false)` 路径 | HUD 输入桥接测试实际使用会话工厂构造不含 `WorldInitData` 的 world options | 该测试目的不是审计 service builder，不能据此宣称配置、快照、技能和 projectile 服务全部可解析 |
 
-### 11.2 当前由源码固定的装配契约
+### 12.2 当前由源码固定的装配契约
 
 | 契约 | 源码事实 | 待固定的回归边界 |
 |------|----------|------------------|
@@ -284,7 +312,7 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 | remote-driven 创建 | 依次创建 manager/runtime、安装 modules、构造 authority source、创建 world 并 best-effort 绑定 authority service | module 安装、options 构造、`CreateWorld` 和 bind 各阶段失败时的真实资源状态 |
 | prediction/remote-only | prediction 使用 ahead=30、history=600、capture=1、rollback=true；remote-only 使用 null local input、ahead=0、history=0、rollback=false、hash=null | 两种工厂组合的直接构造测试，以及 driver feature、registry 和 hash calculator 的实际解析 |
 
-### 11.3 优先补测
+### 12.3 优先补测
 
 1. 为 `MobaBattleWorldBlueprint.Configure` 增加直接测试，固定 profile、feature、双 Module 和精确类型去重。
 2. 为 `SessionMobaWorldBootstrapFactory` 增加 service resolution 测试，分别覆盖 init data 开关和 authority source 可选注册。
@@ -292,7 +320,7 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 4. 对 `RemoteDrivenWorldRuntimeFactory.Create` 注入 module 安装、world 创建和 authority bind 故障，验证调用方补偿清理责任。
 5. 使用真实 session resources 验证 teardown 后 remote world、confirmed world、snapshot routing 和表现订阅均不再活动；现有 `FailureInjectingHost` 只固定编排状态机。
 
-## 12. 源码索引
+## 13. 源码索引
 
 | 主题 | 源码 |
 |------|------|
@@ -309,8 +337,11 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 | 远程 handles | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Core/BattleSessionHandles.RemoteDriven.cs` |
 | Session 生命周期测试 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/SessionOrchestratorLifecycleTests.cs` |
 | 预测历史常量测试 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/UnitTest/BattleRuntimeOptimizationTests.cs` |
+| Scene Composition Bootstrap | `Unity/Packages/com.abilitykit.demo.common/Runtime/Composition/DemoGameplayBootstrap.cs` |
+| Gameplay Profile/Catalog | `Unity/Packages/com.abilitykit.demo.common/Runtime/Composition/DemoGameplayProfileSO.cs`、`DemoGameplayCatalogSO.cs` |
+| MOBA Unity Entry | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Entry/GameEntry.cs` |
 
-## 13. 版本与验证基线
+## 14. 版本与验证基线
 
 - 当前事实仍是 battle Blueprint 同时安装服务扫描与 Bootstrap 两个 Module，prediction rollback history 为 600；框架 World/Host 提供装配机制，具体 Blueprint、Bootstrap Stage、Entitas system order 和 Session disposer 均由 MOBA 项目拥有。
 - `PlanTriggeringStage` 在 World 创建期执行严格 runtime validation。2026-08-16 `AbilityKit.Demo.Moba.Tests` 共 305 项，279 通过、26 失败；共同阻断是 trigger `10060201` 的 SpawnArea 有效持续时间 300ms 小于延迟 400ms。失败说明启动门禁生效，不应通过跳过校验把配置错误伪装成 World 可用。
@@ -318,4 +349,4 @@ WorldId 直接来自 `options.Plan.World.WorldId`，world type 则来自启动�
 - 本地 Unity ownership artifact 记录 9/9 通过，覆盖 Buff/Projectile/Summon/Skill runtime 所有权；它不是本轮重新执行的完整 Unity EditMode/PlayMode，也不是发布 gate 运行记录。
 - 构建与测试仍有依赖漏洞、Entitas/DesperateDevs 兼容性、nullable 等既有警告，不能记为零警告基线。
 
-*文档版本：v3.0 | 最后更新：2026-08-16*
+*文档版本：v3.1 | 最后更新：2026-08-17*

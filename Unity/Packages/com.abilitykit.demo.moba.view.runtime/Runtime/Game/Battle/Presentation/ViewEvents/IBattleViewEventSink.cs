@@ -26,6 +26,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         void OnPresentationCueSnapshot(ISnapshotEnvelope packet, PresentationCueData[] entries);
 
         void Tick();
+
+        /// <summary>Releases transient state owned by this sink.</summary>
+        void Clear();
     }
 }
 

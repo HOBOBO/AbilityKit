@@ -71,18 +71,19 @@ Unity Editor 构建检查器和 Roslyn Analyzer 各自实现配置读取，不�
 - 按程序集名称匹配约束；
 - 跳过 Editor、Example 和 Test 目录；
 - 对每个 asmdef 的处理异常捕获后写日志，可能导致单个程序集静默漏检；
-- 当前 `GetEffectiveConstraint()` 没有真正应用 `ApplyToUnlistedPackages`，未列程序集会回退到全局默认约束。
+- 精确规则优先于通配符规则；未列程序集仅在 `GlobalDefaults.Enabled=true` 且 `ApplyToUnlistedPackages=true` 时使用全局默认约束。
 
 这是一种轻量文本扫描，不是 C# 语义分析，无法完整处理别名、条件编译、全限定名、生成代码或复杂语法。
 
 ### 5.2 构建阻断和日志风险
 
-发现违规时构建失败是当前最强的门禁行为。但检查日志硬编码写入：
+发现违规时构建失败是当前最强的门禁行为。检查日志统一写入 Unity 工程的 `Logs/AbilityKit.Analyzer/`：
 
-- `C:\analyzer_build_check.log`；
-- `C:\analyzer_build_errors.txt`。
+- `build-check.log` 和 `build-errors.txt`：构建前检查与违规报告；
+- `compile-check.log`：编译检查；
+- `editor-check.log`：Editor 手动检查。
 
-该实现依赖 Windows 根目录写权限，在非 Windows、受限权限或 CI 容器中可能失败或丢失诊断。每个程序集异常只记录日志而不重新抛出，也可能让构建通过但实际漏检。
+日志不再依赖 Windows 根目录写权限，但工程目录只读时仍可能丢失诊断。每个程序集异常只记录日志而不重新抛出，也可能让构建通过但实际漏检。
 
 ## 六、Roslyn Analyzer 运行面
 
@@ -133,25 +134,26 @@ Unity Editor 构建检查器和 Roslyn Analyzer 各自实现配置读取，不�
 | 发现违规 | 不负责阻断 | 抛 `BuildFailedException` | 报告诊断 |
 | 语义复杂 using | 不检查 | 文本扫描可能漏检 | 由 Roslyn 语义模型分析 |
 | asmdef 处理异常 | 不适用 | 捕获并可能静默漏检 | 不适用 |
-| 未列程序集 | 查询返回配置默认语义 | 当前忽略 `ApplyToUnlistedPackages` | 取决于配置匹配逻辑 |
+| 未列程序集 | 仅在全局默认启用且允许应用到未列包时返回默认约束 | 与 Runtime 使用相同配置模型语义 | 取决于配置匹配逻辑 |
 | 生成代码 | 不适用 | 取决于扫描路径 | 当前忽略生成代码 |
-| 日志不可写 | 取决于调用方 | 硬编码 C:\ 路径有风险 | 由编译器报告 |
+| 日志不可写 | 取决于调用方 | 项目内日志写入失败时当前会吞掉异常 | 由编译器报告 |
 
 ## 九、采用证据与成熟度
 
 已确认的采用证据：
 
 - `src/AbilityKit.Demo.Moba.Core/AbilityKit.Demo.Moba.Core.csproj` 显式注入 `PackageConstraints.json`，证明 Roslyn 运行面存在真实 .NET 消费者；
-- Unity Editor 构建检查器实现了构建前阻断路径。
+- Unity Editor 构建检查器实现了构建前阻断路径；
+- `src/AbilityKit.Analyzer.Configuration.Tests` 覆盖精确规则、通配符、未列包开关、全局关闭和空配置字段。
 
-当前未确认 Analyzer 专项自动测试、跨平台构建验证、插件版本一致性校验或 CI 发布门禁。因此成熟度如下：
+当前已具备配置语义专项测试，但尚未覆盖 Roslyn 诊断、跨平台构建验证、插件版本一致性校验或 CI 发布门禁。因此成熟度如下：
 
 | 等级 | 状态 | 说明 |
 |---|---|---|
 | E0 | 已具备 | Runtime、Editor 和 Roslyn 源码存在 |
 | E1 | 已具备 | Unity Editor 检查入口和 .NET Analyzer 可加载 |
 | E2 | 局部具备 | Moba Core csproj 使用 AdditionalFiles |
-| E3 | 未确认 | 未找到 Analyzer 专项自动测试 |
+| E3 | 局部具备 | 配置语义已有自动测试，Roslyn 诊断和 Unity 构建阻断仍缺专项覆盖 |
 | E4 | 未确认 | 未找到跨平台 Smoke 或归档 artifact |
 | E5 | 未确认 | 构建阻断存在，但配置完整性、产物同步和 CI 责任未闭合 |
 
@@ -165,10 +167,8 @@ Unity Editor 构建检查器和 Roslyn Analyzer 各自实现配置读取，不�
 
 ## 十一、后续治理顺序
 
-1. 抽取或对齐三条运行面的配置加载和版本记录；
-2. 修复 `ApplyToUnlistedPackages` 语义与注释不一致问题；
-3. 将构建检查日志改为项目相对路径或可配置输出；
-4. 对 asmdef 异常从静默日志升级为可观测失败；
-5. 增加 Roslyn 诊断、AdditionalFiles 缺失、Unity 构建阻断和配置解析的自动测试；
-6. 建立插件 DLL 与 Debug/Release 产物的单一构建来源和一致性校验；
-7. 把配置完整性和 Analyzer 版本锁定接入 CI 后，再升级 E4-E5。
+1. 统一三条运行面的配置发现路径和版本记录；
+2. 对 asmdef 异常从静默日志升级为可观测失败；
+3. 增加 Roslyn 诊断、AdditionalFiles 缺失和 Unity 构建阻断的自动测试；
+4. 建立插件 DLL 与 Debug/Release 产物的单一构建来源和一致性校验；
+5. 把配置完整性和 Analyzer 版本锁定接入 CI 后，再升级 E4-E5。

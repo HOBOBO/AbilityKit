@@ -1,3 +1,5 @@
+using AbilityKit.Demo.Moba.Input;
+
 namespace AbilityKit.Demo.Moba.Console.Battle.Input
 {
     /// <summary>
@@ -9,6 +11,8 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
         /// 本地玩家 ID
         /// </summary>
         int LocalActorId { get; }
+
+        void ApplyIntent(in MobaActorIntent intent);
 
         /// <summary>
         /// 设置移动输入

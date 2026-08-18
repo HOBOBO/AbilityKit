@@ -1,8 +1,10 @@
 # Ability-Kit
 
-> 通用游戏战斗工具集合源码 | Logic-Presentation Separation | Ability System | 按需组合
+> 可组合的游戏战斗工具集 | Pure C# Runtime | Logic-Presentation Separation | Unity + .NET
 
-**Ability-Kit** 是一个基于 Unity UPM 的通用游戏战斗框架，专注于**技能系统、战斗逻辑**。框架采用模块化设计，提供数据驱动的技能编排、事件触发系统、流程引擎等核心能力，支持按需组合以适配不同类型的游戏（MOBA、MMO、ARPG、RTS 等）。核心战斗逻辑以纯 C# runtime 形式实现，可脱离 Unity 环境运行（例如服务器/工具链/单元测试）；与 Unity 强相关的部分主要集中在表现层与少量适配层。
+**Ability-Kit** 是一个面向复杂战斗项目的可组合工具集。它以 Unity UPM Package 组织源码，同时提供大量 .NET 工程用于脱离 Unity 的编译、测试、Console 宿主和 Orleans 服务端接入。项目关注的不是替项目预制一套固定 MOBA、ARPG 或 Shooter 应用层，而是提供技能编排、规则触发、战斗原子能力、逻辑世界、同步、回放、网络和表现解耦等可复用机制。
+
+核心战斗模块尽量保持为纯 C# runtime；Unity 相关代码主要承担场景入口、资源与配置创作、表现投影和编辑器工具。游戏规则、房间流程、账号接入、技能配置规范、会话组合根和表现策略仍由具体项目决定。MOBA、Shooter、Console、ET 与 Orleans 代码用于展示这些机制如何落地，不是所有项目必须继承的统一应用套件。
 
 Ability-Kit 目前处于**开发期**。这个仓库保存的是 AbilityKit 相关模块包、示例工程、工具链和第三方适配的**完整源码集合**，方便统一开发、编译验证、示例演示和设计文档维护。
 
@@ -10,22 +12,22 @@ Ability-Kit 目前处于**开发期**。这个仓库保存的是 AbilityKit 相�
 
 - 只做技能/触发：组合 `core`、`pipeline`、`triggering`、`ability` 等包。
 - 只做逻辑流程：组合 `flow`、`hfsm`、`timer`、`context` 等包。
-- 做帧同步/状态同步：组合 `world.framesync`、`world.snapshot`、`world.statesync`、`record`、`network` 等包。
+- 做帧同步/状态同步：组合 `world.framesync`、`world.snapshot`、`world.statesync`、`record` 与所需的 `network.*` 包。
 - 做 Unity 表现和编辑器工具：按需加入 `unity.pool`、`base.editor`、`demo.moba.editor` 等包。
-- 参考完整落地方式：阅读 `demo.moba.*` 最佳实践示例，但不要把示例包误认为所有项目的必选依赖。
+- 参考完整落地方式：阅读 `demo.moba.*`、`demo.shooter.*` 及 Console/ET/Orleans 接入，但不要把示例策略误认为框架默认策略。
 
 ---
 
 ## 仓库定位
 
-这个仓库更接近一个“工具箱源码仓库”，而不是单一框架产品包。
+这个仓库是 AbilityKit 的完整工具集源码仓库，而不是单一产品包，也不是安装一个 Package 就能获得完整游戏规则的应用模板。
 
 | 目录 | 定位 |
 |------|------|
 | `Unity/Packages/` | Unity UPM 包源码。各 `com.abilitykit.*` 包是主要模块边界。 |
 | `src/` | .NET 解决方案和样例工程，复用 `Unity/Packages/` 中的源码，用于纯 C# 编译、控制台运行和示例验证。 |
-| `Server/` | 服务端、Orleans、网关等实验和集成代码。 |
-| `Docs/` | 跨模块设计记录、规则说明和集成备忘。 |
+| `Server/` | Orleans Host、Gateway、Room、Battle Grain、Smoke 与运维接入代码。 |
+| `Docs/design/` | 当前跨模块设计的 canonical 入口，记录能力边界、源码落点、生命周期、限制和证据等级。 |
 | `LubanConfig/` | 配置表与生成相关素材。 |
 | `tools/` | 本地开发、验证、smoke test 辅助脚本。 |
 
@@ -37,7 +39,8 @@ Ability-Kit 目前处于**开发期**。这个仓库保存的是 AbilityKit 相�
 
 - 项目仍在开发期，部分包的 API、目录结构和依赖声明还会继续收敛。
 - 许多模块已经具备独立包边界，但 `package.json`、`asmdef`、示例工程和服务端工程之间仍有一些历史依赖需要持续整理。
-- `demo.moba` 是参考工程，用来展示框架组合方式、配置组织、协议同步、编辑器工具和运行时流程。
+- `demo.moba` 与 `demo.shooter` 是项目级参考实现，用来展示战斗表达、同步、网络、表现、配置和验收的不同组合方式。
+- 当前源码、已被示例采用、自动测试通过、真实 Smoke 通过和进入发布门禁是不同成熟度；README 不用“存在实现”代替“生产就绪”。
 - 第三方包位于 `com.abilitykit.thirdparty.*`，主要作为源码/依赖承载，不建议直接放入 AbilityKit 业务扩展。
 
 ---
@@ -48,10 +51,10 @@ Ability-Kit 目前处于**开发期**。这个仓库保存的是 AbilityKit 相�
 | 特性          | 说明                                        |
 | ----------- | ----------------------------------------- |
 | **逻辑与表现分离** | 纯 C# 逻辑层可在服务器、客户端、编辑器环境下运行，通过事件与表现层解耦     |
-| **帧同步确定性**  | 支持帧同步、回滚、客户端预测、断线重连，保证多人战斗的确定性            |
-| **数据驱动**    | 技能、效果、触发器均可通过配置定义，配合可视化编辑器提升效率            |
+| **同步与恢复机制**  | 提供帧同步、快照、状态同步、预测校正、记录回放和恢复相关组件；项目仍需定义权威模型与确定性边界 |
+| **数据驱动链路**    | Trigger Plan、Action Schema、Timeline 与项目配置工具可把规则落到强类型运行时；具体配置规范由项目拥有 |
 | **高度可扩展**   | 模块化设计，支持 Hook/Feature/Blueprint 扩展机制，按需裁剪 |
-| **高性能**     | 索引表查询、对象池、流式处理、零 GC 分配优化                  |
+| **性能基础设施**     | 提供索引、对象池、空间分桶、批处理和低分配 API；是否达到零分配与性能预算必须按具体链路验证 |
 
 ---
 
@@ -116,100 +119,76 @@ Ability-Kit 的高价值点不只在于模块数量，而在于这些模块可�
 
 仓库中的示例不是必选依赖，而是用来展示框架能力边界的参考工程：
 
-| 示例               | 主要展示能力                                                                                      | 适合关注的问题                                            |
-| ---------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| `demo.moba.*`    | 复杂战斗玩法表达：技能输入、技能 Pipeline、Trigger Plan、Buff/Continuous、投射物、区域、伤害、位移、**寻路避障(A\*)**、**墙体交互(墙滑/穿墙/闪烁终点投影)**、**碰撞 grid broadphase**、**BT AI 寻路**、表现 Cue、配置加载与 Entitas 集成 | 如何把一个 MOBA/ARPG 风格从硬编码拆成配置、流程、触发、Action、运行实例、碰撞/寻路/墙体 统一基础设施 |
-| `demo.shooter.*` | 多人同步与运行时工程：预测回滚、权威插值、混合同步、快照导入导出、状态 Hash、断线重连、Svelto ECS、纯 C# 验收和 Editor 展示外壳               | 如何验证框架在网络同步、高性能实体和可观测验收场景下的边界                      |
+| 示例/宿主 | 主要展示能力 | 应当复用什么 |
+| --- | --- | --- |
+| `demo.moba.*` | 技能输入、Pipeline、Trigger Plan、Buff/Continuous、投射物、区域、伤害、位移、召唤、寻路、碰撞、BT AI、表现 Cue、配置加载与 Entitas 集成 | 复用公共接口、战斗机制和分层思路；英雄规则、Blueprint、服务门面、System 顺序和配置 schema 属于 MOBA 项目策略 |
+| `demo.shooter.*` | 权威插值、预测校正、快照投影、可靠事件、重连恢复、Svelto ECS、双连接网络链和多进程验收 | 复用同步、快照、网络与记录组件；Room flow、客户端 controller、表现 step order 和容量策略属于 Shooter 项目策略 |
+| Unity Starter/Composition | 用统一的 launch request、Profile/Catalog 查询和 Gameplay Root 实例化入口启动 MOBA 或 Shooter | 公共层只解决“选择并启动哪个 Root”；scene、profile、root、session 和玩法流程继续由游戏 Package 或项目拥有 |
+| MOBA Console | 在纯 .NET 进程中组合 World、Host、同步适配、输入、表现投影和回放 | 用于理解完整组合根与无 Unity 验证；它自己的 Local/Hybrid adapter 不是 coordinator 包的公共实现 |
+| ET Demo | 把 ET Scene、Component/System、房间玩家和表现对象接到 MOBA runtime | 参考第三方宿主适配方法，不要求真实项目采用 ET 的对象模型 |
+| Orleans Server/Smoke | Gateway、Room、Battle Host、协议路由、状态存储边界和多进程验收 | 参考服务端权威链和验收方法；源码或 workflow 入口存在不等于本次构建已经通过真实 Smoke |
 
-因此，`demo.moba` 更像“复杂战斗能力展柜”，`demo.shooter` 更像“同步与验收能力展柜”。真实项目可以从这两个示例中选取需要的组织方式，但不建议直接把示例包整体当作业务必选框架层。
+这些示例刻意保留不同的应用组合方式。战斗应用层变化通常大于网络连接、序列化或基础容器，因此框架只稳定可复用机制和接入协议，不强行抽象一套所有游戏都要实现的 `BattleApplication`。
 
 ---
 
 ## 架构总览
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Ability-Kit 框架                               │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                          游戏应用层                                   │   │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │   │
-│  │   │   技能系统   │  │   战斗系统   │  │   录像回放   │             │   │
-│  │   │  (Pipeline) │  │  (Combat)   │  │  (Record)   │             │   │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘             │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                        │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                          引擎层                                       │   │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │   │
-│  │   │   流程引擎   │  │   触发系统   │  │   状态机     │             │   │
-│  │   │    (Flow)    │  │ (Triggering) │  │   (HFSM)     │             │   │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘             │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                        │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                          世界层                                       │   │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │   │
-│  │   │   依赖注入   │  │    ECS      │  │   帧同步     │             │   │
-│  │   │  (World.DI)  │  │ (World.ECS) │  │(FrameSync)  │             │   │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘             │   │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │   │
-│  │   │  状态同步    │  │ 帧数据层     │  │ 战斗传输层   │             │   │
-│  │   │(StateSync)  │  │(NetworkFrag)  │  │(Battle.Trans)│             │   │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘             │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                    │                                        │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                          核心层                                       │   │
-│  │   ┌──────────────┐  ┌──────────────┐  ┌──────────────┐             │   │
-│  │   │   数学库     │  │   属性系统   │  │   效果系统   │             │   │
-│  │   │    (Math)    │  │(Attributes) │  │  (Effects)   │             │   │
-│  │   └──────────────┘  └──────────────┘  └──────────────┘             │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 运行环境装配
-
-`com.abilitykit.coordinator` 位于运行时装配层，负责把不同运行环境提供的 Host、Transport、View 外壳统一装配成可运行的战斗会话。业务工程只需要实现 `ISessionCoordinatorHost`，提供 WorldHost 创建、WorldCreateOptions 配置、服务注册、配置加载和出生数据；`SessionCoordinator` 则根据 `SessionConfig` 创建逻辑世界、选择同步适配器、挂载 SubFeature、驱动 Tick，并把逻辑事件转交给表现层或远端同步层。
-
 ```mermaid
-flowchart TD
-    subgraph Env[运行环境]
-        Unity["Unity Client / PlayMode"]
-        Console["Console / Pure C# Test"]
-        Server["Server / Orleans Host"]
-        Remote["Remote Client"]
+flowchart TB
+    subgraph Hosts[项目应用与宿主层]
+        Unity["Unity Root / GameEntry"]
+        Console["Console Bootstrapper"]
+        ET["ET Scene + Systems"]
+        Orleans["Orleans Gateway / Room / Battle"]
     end
 
-    Unity --> Host["ISessionCoordinatorHost"]
-    Console --> Host
-    Server --> Host
-    Remote --> Host
-    Host --> Config["SessionConfig<br/>SyncMode / HostMode / TickRate"]
-    Config --> Coordinator["SessionCoordinator"]
+    subgraph Project[项目策略层]
+        Composition["Composition Root / Session / Flow"]
+        Rules["Game Rules / Config Schema / System Order"]
+        Projection["Presentation Projection / UI / Assets"]
+        NetPolicy["Room / Authority / Recovery Policy"]
+    end
 
-    Coordinator --> WorldHost["IWorldHost"]
-    WorldHost --> World["Logic World<br/>World.DI + ECS + Services"]
+    subgraph Toolkit[AbilityKit 可组合机制]
+        Gameplay["Pipeline / Triggering / Ability / Combat"]
+        Runtime["Core / DI / World / Host / ECS"]
+        Sync["FrameSync / Snapshot / StateSync / Record"]
+        Network["Network SDK / Room / Battle / Transports"]
+        Tooling["Config / Analyzer / Editor / TestKit"]
+    end
 
-    Coordinator --> AdapterFactory["SyncAdapterFactory"]
-    AdapterFactory --> Local["LocalSyncAdapter<br/>Lockstep / Pure Local"]
-    AdapterFactory --> RemoteAdapter["RemoteSyncAdapter<br/>StateSync / SnapshotAuthority"]
-    AdapterFactory --> Hybrid["HybridSyncAdapter<br/>Prediction + Server Authority"]
-
-    Coordinator --> SubFeatures["Session SubFeatures<br/>TickLoop / Events / SnapshotRouting"]
-    Coordinator --> ViewTimeline["ViewTimeline / IViewEventSink"]
-    RemoteAdapter --> Transport["IRemoteBattleSyncTransport"]
-    Hybrid --> Transport
-
-    World --> Battle["Ability / Triggering / Combat / StateSync"]
-    Battle --> ViewTimeline
-    Battle --> SubFeatures
+    Unity --> Composition
+    Console --> Composition
+    ET --> Composition
+    Orleans --> Composition
+    Composition --> Rules
+    Composition --> Projection
+    Composition --> NetPolicy
+    Rules --> Gameplay
+    Gameplay --> Runtime
+    NetPolicy --> Sync
+    NetPolicy --> Network
+    Projection --> Sync
+    Tooling --> Rules
 ```
 
-这层的价值是把“同一套战斗逻辑”放到不同运行环境中复用：本地 Demo 可以走 `LocalSyncAdapter`，远程状态同步可以走 `RemoteSyncAdapter`，带客户端预测的多人玩法可以走 `HybridSyncAdapter`，测试与 Console 环境可以复用纯 C# World 和同一套会话生命周期。
+### 三层责任边界
+
+| 层次 | 稳定内容 | 不应由这一层决定 |
+| --- | --- | --- |
+| 框架机制层 | Phase/Trigger/Action 契约，World/Host 生命周期接口，ECS 适配，同步、快照、记录、网络和诊断基础设施 | 英雄规则、房间阶段、账号登录、UI 流程、具体配置表结构 |
+| 项目应用层 | 组合根、会话、配置发布、权威模型、系统顺序、失败补偿、表现投影和资源所有权 | 把本项目策略包装成所有游戏必须使用的框架默认 |
+| 示例宿主层 | MOBA、Shooter、Console、ET、Unity Starter 和 Orleans 的可运行或可审计参考 | 证明另一种宿主、同步模式或项目规则也已自动适用 |
+
+这种边界是工具集的核心取舍：框架提供足够细且可以组合的积木，示例提供高接入度的完整对象图，但真实项目可以替换应用层而不需要 fork 基础机制。
+
+### 多宿主装配
+
+- Unity Starter 只统一启动请求、Profile/Catalog 查询和 Gameplay Root 实例化；MOBA/Shooter 的 scene、root、entry、session 与 teardown 仍由各自 Package 拥有。
+- MOBA Console 由 `Program` 与 `ConsoleBattleBootstrapper` 直接构造完整对象图，不消费 Unity Profile/Catalog，也不依赖一个公共 `SessionCoordinator`。
+- ET 由 ET Scene、Component/System 和 `ETBattleWorldFactory` 适配 MOBA runtime；Orleans 则由 Gateway、Room 和 Battle Host 组织服务端权威链。
+- `com.abilitykit.coordinator` 当前是收缩后的契约包，只保留 `SessionConfig`、host/policy 接口、drive gate、DTO 与 codec。仓库当前没有历史文档中的 `SessionCoordinator`、Local/Remote/Hybrid adapter 或统一远端 transport 实现。
 
 ---
 
@@ -240,6 +219,8 @@ flowchart TD
 | `com.abilitykit.world.networkfragments` | 帧数据包：FramePacket、RemoteFrameBuffer、RemoteFrameAggregator |
 | `com.abilitykit.world.statesync`        | 状态同步与客户端预测：Rollback、Per-Entity/ECSPrediction、StateHash   |
 | `com.abilitykit.record`                 | 录像回放：Session、Container、Track，支持输入录制、状态哈希采样               |
+| `com.abilitykit.deterministic`          | 定点时间与确定性基础类型；它帮助约束时间表达，但不自动保证整个战斗逐位确定 |
+| `com.abilitykit.world.entitas` / `world.svelto` | 可选 ECS 适配层；不同 ECS 不是透明可互换后端，项目需要显式选择并装配 |
 
 
 ### 技能与战斗层
@@ -252,13 +233,14 @@ flowchart TD
 | `com.abilitykit.actionschema`    | Action/Timeline 数据结构与运行时辅助，用于把时序动作、技能事件和编辑器数据表达为稳定 DTO |
 | `com.abilitykit.ability`         | 技能聚合运行时：Ability、Effect、Triggering、EffectSource、配置加载、热重载和编辑器工具 |
 | `com.abilitykit.ability.explain` | 技能解释/调试框架：Forest、Tree + Navigation Protocol                                  |
+| `com.abilitykit.continuous`      | 持续效果运行时：条件驱动的激活、阻止、暂停、恢复与移除；具体 Buff/玩法绑定由项目实现 |
 | `com.abilitykit.behavior`        | 行为运行时与 Pipeline 行为阶段：可将行为决策/执行器嵌入技能流程，适合复杂 AI、引导、锁定和持续决策 |
 | `com.abilitykit.combat.motion`   | 移动系统：MotionPipeline、来源组合(dash/jump/path)、碰撞求解(墙滑/穿墙/终点投影)、per-skill CollisionPolicy 透传 |
 | `com.abilitykit.combat.navigation`  | 导航系统：NavigationGrid + 确定性 A\* 寻路(无定点数学)、GridPathfinder、INavigationWorld/INavigationService |
 | `com.abilitykit.combat.collision.abstractions` | 碰撞：ICollisionWorld Naive/Grid 双实现 + OBB sweep 窄相 + GridBroadphase + LayerFilter |
 | `com.abilitykit.combat.entitymanager` | 实体管理器：索引表实现高效查询 |
 | `com.abilitykit.combat.skilllibrary`  | 技能库：索引表实现高效技能查询 |
-| `com.abilitykit.combat.targeting`     | 目标查找：查找目标、筛选、排序、流式处理、零 GC |
+| `com.abilitykit.combat.targeting`     | 目标查找：候选提供、筛选、评分、选择、流式处理和可池化的低分配执行路径 |
 | `com.abilitykit.combat.projectile`    | 投射物系统：对象池、帧同步、命中策略、范围效果 |
 | `com.abilitykit.combat.damage`        | 伤害系统：DamagePipeline、自定义伤害公式 |
 
@@ -271,7 +253,7 @@ flowchart TD
 | ------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `com.abilitykit.host`           | 服务器端抽象：World 管理、客户端连接、消息广播                                                                         |
 | `com.abilitykit.host.extension` | Host 扩展：Session（FramePacketNetAdapter）、FrameSync、Rollback、Hook、Feature、Blueprint                   |
-| `com.abilitykit.coordinator`    | 战斗会话协调：统一创建 WorldHost/World、加载配置、注册服务、选择 Local/Remote/Hybrid SyncAdapter、挂载 SubFeature 与 ViewTimeline |
+| `com.abilitykit.coordinator`    | 会话配置、host/policy 契约、逻辑世界 drive gate、跨层 DTO 与 codec；当前不包含统一 Session 实现或 Sync Adapter |
 | `com.abilitykit.flow`           | **流程编排引擎**：IFlowNode 节点树（Sequence/Race/Parallel/If/Timeout/Await），FlowContext 作用域注入，WAKE/PUMP 事件驱动 |
 | `com.abilitykit.hfsm`           | **分层状态机**：基于 UnityHFSM，ITriggerable 事件转换、IAction 行为层（BehaviorStatus）、Decorator AOP 包装              |
 
@@ -279,21 +261,35 @@ flowchart TD
 ### 战斗传输层
 
 
-| 模块                                             | 说明                                                           |
-| ---------------------------------------------- | ------------------------------------------------------------ |
-| `com.abilitykit.game.battle.runtime`           | 战斗逻辑传输接口：IBattleLogicTransport、请求/响应类型                       |
-| `com.abilitykit.game.battle.transport.runtime` | 传输层实现：NetworkTransport、StateSyncAdapter（Moba）、INetworkClient |
+| 模块 | 说明 |
+| --- | --- |
+| `com.abilitykit.game.battle.runtime` | 面向战斗逻辑的 transport contract、请求/响应和值对象 |
+| `com.abilitykit.network.battle` | Battle data plane 客户端、handle、push 与输入提交基础设施 |
+| `com.abilitykit.network.battle.config` | Battle 网络配置与绑定数据 |
 
 
 ### 网络层
 
 
-| 模块                                   | 说明               |
-| ------------------------------------ | ---------------- |
-| `com.abilitykit.network.runtime`     | 网络运行时抽象          |
-| `com.abilitykit.protocol`            | 协议定义：客户端/服务器共享协议 |
-| `com.abilitykit.protocol.moba`       | MOBA 协议定义        |
-| `com.abilitykit.protocol.memorypack` | MemoryPack 序列化实现 |
+| 模块 | 说明 |
+| --- | --- |
+| `com.abilitykit.network.runtime` / `network.client` / `network.host` | 连接、收发、dispatcher 和 client/host 运行时基础设施 |
+| `com.abilitykit.network.sdk` | 登录、Gateway、Room 等客户端 facade 与阶段化接入能力；复杂项目可以直接使用较细接口 |
+| `com.abilitykit.network.room` | Room metadata、能力声明、成员状态与客户端 Room 流程组件 |
+| `com.abilitykit.network.transport.inmemory` | 测试与进程内回环 transport |
+| `com.abilitykit.network.transport.litenet` / `transport.websocket` | 可选 transport 实现；当前采用面和服务端闭环不同，不能视为与 TCP 主链等价 |
+| `com.abilitykit.protocol` / `protocol.room` | 公共协议与 Room 协议 |
+| `com.abilitykit.protocol.moba` / `protocol.shooter` | 示例项目协议，不是通用玩法 schema |
+
+### 创作、分析与编辑器工具
+
+| 模块 | 说明 |
+| --- | --- |
+| `com.abilitykit.ability.testkit` / `ability.explain` | 技能测试支架、解释树和调试导航协议 |
+| `com.abilitykit.analyzer` | Roslyn 静态分析与项目约束检查 |
+| `com.abilitykit.base.editor` / `actioneditor.impl` | Unity Editor 基础设施与 Action/Timeline 创作工具 |
+| `com.abilitykit.excel-sync` / `demo.moba.codegen` | Excel 同步、MOBA 配置生成和项目校验链；这些是项目生产工具，不是通用运行时必选依赖 |
+| `com.abilitykit.diagnostics` | runtime/editor 诊断、Profiler 和结构化证据导出入口 |
 
 
 ---
@@ -478,7 +474,6 @@ src/
 ├── AbilityKit.BTCore/                      # Behavior Tree 核心
 ├── AbilityKit.Context/                      # 上下文抽象
 ├── AbilityKit.Dataflow/                    # 数据流处理
-├── AbilityKit.Threading/                    # 线程抽象
 ├── AbilityKit.Timer/                       # 定时器
 ├── AbilityKit.Trace/                       # 追踪系统
 │
@@ -511,8 +506,10 @@ src/
 ├── AbilityKit.Combat.Collision.Abstractions/ # 碰撞抽象
 ├── AbilityKit.Combat.Navigation/          # 导航网格 + 确定性 A\*
 │
-├── AbilityKit.Game.Battle.Runtime/          # 战斗传输接口
-├── AbilityKit.Game.Battle.Transport.Runtime/ # 传输层实现
+├── AbilityKit.Game.Battle.Runtime/          # 战斗传输契约
+├── AbilityKit.Network.SDK/                  # 登录/Gateway/Room 客户端接入
+├── AbilityKit.Network.Room/                 # Room 能力与流程组件
+├── AbilityKit.Network.Battle/               # Battle data plane
 │
 ├── AbilityKit.Samples/                      # 示例聚合入口
 ├── AbilityKit.Samples.Abstractions/         # 示例抽象
@@ -520,11 +517,14 @@ src/
 ├── AbilityKit.Demo.Moba.Core/              # MOBA 示例核心
 ├── AbilityKit.Demo.Moba.Infrastructure/    # MOBA 示例基础设施
 ├── AbilityKit.Demo.Moba.Console/           # MOBA Console Demo（可执行）
+├── AbilityKit.Demo.ET.*/                   # ET 宿主接入
+├── AbilityKit.Demo.Shooter.*/              # Shooter 逻辑、Host、Console 与测试
 │
-├── AbilityKit.CodeGen/                     # 代码生成器
 ├── AbilityKit.Analyzer/                    # Roslyn 分析器
 ├── AbilityKit.ThirdParty.Luban.Runtime/    # Luban 配置热更
 ```
+
+该目录树只展示能力分组，不是完整工程清单。仓库还包含协议、transport、AI、Editor、Smoke、benchmark 和大量聚焦测试工程；实际依赖以对应 `.csproj`、`package.json`、`asmdef` 和设计文档为准。
 
 ---
 
@@ -532,19 +532,44 @@ src/
 
 ### 环境要求
 
-- Unity 2022.3 LTS 或更高版本
-- .NET SDK 6.0+（用于 `src/` 目录下的纯 C# 开发）
+- Unity `2022.3.62f1`（工程记录版本；Package 基线为 Unity 2022.3）
+- .NET SDK `10.0.300`（由根目录 `global.json` 固定）
+- Windows/PowerShell 是仓库现有构建、Unity batchmode 和 Smoke 脚本覆盖最完整的开发环境
 
-### 安装
+### 在当前仓库开发
 
-1.  按需选择所需的包进行复制即可，暂时没拆分对应的package url（参见各模块的 README）
+1. 安装 `global.json` 指定的 .NET SDK。
+2. 用 Unity Hub 打开 `Unity/`；不要在同一工程已被 Editor 占用时再启动 batchmode 测试实例。
+3. 按目标选择入口：纯 C# 从 `src/` 开始，Unity 可玩入口从 Starter 或游戏 Package scene 开始，服务端从 `Server/Orleans/` 开始。
+
+### 接入其他项目
+
+仓库尚未把所有 Package 发布为可直接引用的独立 Git URL。接入真实项目时，应从 `Unity/Packages/` 复制需要的 `com.abilitykit.*` 包及其传递依赖，并同时检查 `package.json`、asmdef、第三方包和项目配置。不要只复制某个 Demo Root，也不要默认复制仓库中的全部 Package。
+
+推荐从能力最小集开始：
+
+| 目标 | 起始组合 | 项目仍需实现 |
+| --- | --- | --- |
+| 技能流程与规则 | `core`、`pipeline`、`triggering`，按需加入 `ability`、`actionschema` | 技能输入、配置发布、Action 服务和玩法生命周期 |
+| 战斗原子能力 | Targeting、Damage、Projectile、Motion、Collision、Navigation 等所需 `combat.*` 包 | 实体存储、World 服务注册、系统顺序和表现反馈 |
+| 逻辑世界与宿主 | `world.di`、所选 ECS、`host`/`host.extension` | World 创建策略、模块组合、Tick 与 teardown owner |
+| 联机同步 | FrameSync/Snapshot/StateSync/Record 与所需 `network.*` 包 | 权威模型、Room 能力、连接恢复、协议版本和场景验收 |
 
 ### 运行 Console Demo
 
 ```powershell
-cd src/AbilityKit.Demo.Moba.Console
-dotnet run
+dotnet run --project src/AbilityKit.Demo.Moba.Console/AbilityKit.Demo.Moba.Console.csproj
 ```
+
+Console Demo 是独立组合根。它适合验证纯 C# World、输入、战斗运行时、同步适配和表现投影，但其 CLI 正常退出路径当前只调用 `Stop()`，不能据此假定对象图已经完整 `Dispose()`。
+
+### 运行 Unity 示例
+
+- `Unity/Assets/Scenes/StarterScene.unity`：统一 Starter，可选择 MOBA/Shooter 与 Local/Multiplayer Profile。
+- `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Scenes/MobaDemoGameplayScene.unity`：MOBA Package 自有 Gameplay scene。
+- `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Scenes/ShooterDemoGameplayScene.unity`：Shooter Package 自有 Gameplay scene。
+
+Starter 的公共 Composition 只负责选择 Profile 并实例化 Root。多人服务、账号、Room、session 和玩法 teardown 由对应 Root 内的项目组件继续处理；当前工作区 Composition 应按源码实现面理解，不等于已经发布的稳定 Package API。
 
 ### 触发器与流程
 
@@ -553,7 +578,7 @@ dotnet run
 | **Triggering** | EventBus + TriggerRunner，按 phase/priority 调度触发器 | `com.abilitykit.triggering/Samples/` |
 | **Flow** | FlowSession + IFlowNode，支持异步/时间驱动的流程编排 | `com.abilitykit.flow/Samples~/` |
 
-> 完整示例代码见各模块 `Samples/` 目录，包含 TriggerPlan、DSL 写法、Flow 组合等参考实现。
+> 示例目录名可能是 `Samples/` 或 Unity UPM 约定的 `Samples~/`。完整运行链优先从下方设计文档索引进入。
 
 ---
 
@@ -564,20 +589,32 @@ dotnet run
 | 目标 | 建议入口 |
 | ---- | -------- |
 | 快速判断框架是否适合项目 | 先读 `框架价值`、`适用边界`、`示例定位` |
-| 理解技能系统主线 | 读 `Pipeline`、`Triggering`、`Ability` 相关模块文档，再看 `demo.moba.*` 的技能运行链路 |
-| 理解复杂战斗落地 | 从 `demo.moba.*` 入手，重点看技能输入、Trigger Plan、Buff/Continuous、Projectile、Trace 与配置加载 |
-| 理解网络同步能力 | 从 `demo.shooter.*` 和 `world.statesync`、`world.snapshot`、`world.networkfragments` 文档入手 |
-| 理解战斗基础设施 | 读 `com.abilitykit.combat.{motion,collision,navigation,projectile,damage,targeting}` 模块文档 + ability-kit skill 的 combat_* 子目录 |
+| 理解技能系统主线 | 先读玩法能力地图，再看 Pipeline、Triggering、Ability 与 `demo.moba.*` 的技能运行链路 |
+| 理解复杂战斗落地 | 从 MOBA Overview 和专题文档入手，重点看输入、SkillFlow、Trigger Plan、Buff/Continuous、Projectile、Trace 与配置发布 |
+| 理解网络同步能力 | 先读同步能力地图，再按 FrameSync、StateSync、Snapshot、Record、Network SDK 与 Shooter 示例深入 |
+| 理解战斗基础设施 | 读 Collision、Navigation、Motion、Projectile、Damage、Targeting 的 canonical 设计与对应 Package 文档 |
 | 只想复用基础模块 | 按 `模块速览` 选择 `core`、`flow`、`hfsm`、`timer`、`context` 等轻量包 |
 | 准备接入真实项目 | 先按需裁剪包，再建立配置规范、Trace/诊断入口和自动化回归门禁 |
 
-根 README 只保留项目总览和导航。具体实现细节应优先阅读对应包的 `Document/`、示例文档或源码旁的设计记录。
+根 README 提供足够完整的能力认知和接入起点；涉及精确 API、所有权、失败恢复、测试覆盖或成熟度时，以对应 canonical 设计、Package 文档和当前源码为准。
 
 ---
 
 ## 文档导航
 
-详细设计文档位于各模块的 `Document/` 或 `Documentation~/` 目录下：
+跨模块设计的首要入口是 [Docs/design/00-index.md](./Docs/design/00-index.md)。该目录已经按当前源码整理能力边界、应用层归属、生命周期、已知限制和 E0-E5 证据；Package 内的 `Document/` 或 `Documentation~/` 继续承担局部 API 与实现说明。
+
+| 主题 | Canonical 入口 |
+| --- | --- |
+| 总体能力与阅读路径 | [设计文档总索引](./Docs/design/00-index.md) |
+| 玩法机制与应用层边界 | [玩法能力地图](./Docs/design/08-GameplayModules/00-GameplayCapabilityMap.md) |
+| 同步、恢复与网络能力 | [同步能力地图](./Docs/design/07-NetworkSynchronization/00-SynchronizationCapabilityMap.md) |
+| MOBA 参考实现 | [MOBA Overview](./Docs/design/09-ImplementationExamples/MOBA/00-Overview.md) |
+| Console、ET、MOBA、Shooter 顶层分析 | [实现示例目录](./Docs/design/09-ImplementationExamples/) |
+| 测试、Smoke、性能与发布证据 | [工程质量目录](./Docs/design/10-EngineeringQuality/) |
+| 文档覆盖与后续治理 | [文档完善路线图](./Docs/design/11-DocumentationCompletionPlan.md) |
+
+常用 Package 文档入口：
 
 
 | 模块                                                                                                | 文档                                         |
@@ -610,41 +647,62 @@ dotnet run
 
 ### 分层模型
 
+```mermaid
+flowchart TB
+    App["Project Session / Sync Controller"]
+
+    subgraph Control[Control Plane]
+        SDK["Network SDK"]
+        Gateway["Gateway / Login"]
+        Room["Room Membership / Capability"]
+    end
+
+    subgraph Data[Battle Data Plane]
+        Handle["Battle Handle / Input Queue"]
+        Push["Battle Push / Snapshot Messages"]
+        Transport["TCP mainline / optional transports"]
+    end
+
+    subgraph Sync[Simulation and Projection]
+        Frame["FrameSync / FramePacket"]
+        Snapshot["Snapshot Decode / Routing"]
+        State["StateSync / Prediction / Reconciliation"]
+        Record["FrameRecord / Replay / Hash"]
+    end
+
+    App --> SDK --> Gateway --> Room
+    Room --> Handle --> Transport
+    Transport --> Push
+    Handle --> Frame
+    Push --> Snapshot --> State
+    Frame --> Record
+    State --> Record
 ```
-┌────────────────────────────────────────────────────┐
-│                  游戏应用层                         │
-│         (MOBAGame、FPSTest、RPGDemo)               │
-├────────────────────────────────────────────────────┤
-│                  战斗传输层                         │
-│  IBattleLogicTransport ← NetworkTransport           │
-│                  (game.battle)                     │
-├────────────────────────────────────────────────────┤
-│               状态同步与客户端预测                   │
-│  IClientPredictionModule / IPredictionCoordinator  │
-│                  (world.statesync)                 │
-├──────────────────────┬─────────────────────────────┤
-│        帧数据层       │         快照路由层          │
-│  FramePacket、Buffer │  FrameSnapshotDispatcher     │
-│   (networkfragments) │         (world.snapshot)    │
-├──────────────────────┴─────────────────────────────┤
-│                  Host / Session                    │
-│           FramePacketNetAdapter                    │
-│              (host.extension)                     │
-├────────────────────────────────────────────────────┤
-│                  网络层                            │
-│          INetworkClient、Orleans                   │
-│             (network.runtime)                     │
-└────────────────────────────────────────────────────┘
-```
 
-### 两种同步风格
+Network SDK 负责登录、Gateway 和 Room 等控制面阶段；真正的战斗输入与 push 可以使用独立 battle connection/data plane。快照包负责解码和路由，StateSync/Prediction 负责项目选择的校正算法，Record 保存输入、状态哈希或快照证据。复杂项目可以使用 facade 快速接入，也可以直接组合阶段化 Flow、Room 客户端、battle handle 和恢复组件。
 
+### 同步模式不是单一预设
 
-| 风格                  | 推荐游戏            | 特点                     |
-| ------------------- | --------------- | ---------------------- |
-| **帧同步（FrameSync）**  | MOBA、格斗、RTS     | 服务器统一驱动，每帧输入同步，客户端本地计算 |
-| **状态同步（StateSync）** | MMORPG、大型多人、FPS | 服务器权威，客户端接收快照，可选预测回滚   |
-| **混合同步（Hybrid）**    | FPS+技能          | 移动帧同步，伤害状态同步           |
+| 机制 | 框架提供 | 项目必须决定 |
+| --- | --- | --- |
+| FrameSync | 帧时钟、输入历史、FramePacket、回滚和相关 Host 组件 | 输入排序、权威提交、确定性约束、追帧策略和断线恢复 |
+| Snapshot/StateSync | 快照消息、解码路由、状态槽位、预测与校正组件 | full/delta schema、实体恢复、插值策略、容量和基线切换 |
+| Record/Replay | FrameRecord codec、输入/哈希/快照轨道与回放组件 | 版本兼容、深复制、压缩、持久化、审计和发布证据 |
+| Network/Room | SDK、Room metadata/capability、battle data plane 与多种 transport 基础设施 | 登录体系、房间规则、协议版本、重连补偿、服务端部署和安全策略 |
+
+当前示例也没有采用同一个默认：MOBA 的服务端模板和 Smoke 主链以 FrameSync 为主；Shooter 产品路径以权威状态同步和表现插值为主，并保留预测/混合实验能力。同步能力必须按具体 Profile、宿主、测试和 artifact 声明，不能从枚举或类名推导为完整生产能力。
+
+### 能力证据等级
+
+| 等级 | README 中的含义 |
+| --- | --- |
+| E0 | 源码、接口或配置存在，可以定位实现 |
+| E1-E2 | 有示例消费者，或已经进入某个项目/服务端主链 |
+| E3 | 有可执行的单元、契约或本地回环测试 |
+| E4 | 有指定环境、配置和日期的 Smoke/Acceptance artifact |
+| E5 | 有实际 CI/发布门禁、预算和失败阻断责任 |
+
+AbilityKit 各模块成熟度并不相同。例如 TCP 是当前多人主链，InMemory/LiteNet/WebSocket 的实现、测试和服务端采用面不同；局部 E3 通过不能外推为跨平台 E4，也不能用 workflow 文件存在替代本次 E5 运行结果。
 
 
 ---

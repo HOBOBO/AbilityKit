@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// frame facts are refreshed before Update, and intent nodes must publish their request each tick.
     /// Persistent state belongs under memory.* rather than in transient fact or intent keys.
     /// </summary>
-    internal sealed class MobaBTreeDecision : IBehaviorDecision, IDisposable
+    internal sealed class MobaBTreeDecision : IBehaviorDecision, IBehaviorRuntimeSnapshot, IDisposable
     {
         private static readonly Lazy<IReadOnlyDictionary<string, Type>> s_nodeTypes =
             new Lazy<IReadOnlyDictionary<string, Type>>(DiscoverNodeTypes, LazyThreadSafetyMode.ExecutionAndPublication);
@@ -31,6 +31,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         private bool _disposed;
 
         public string DecisionType => "MobaBTree";
+        public string SnapshotType => "MobaBTree.Runtime.v1";
         public string CurrentState { get; private set; } = "Running";
         internal Blackboard Blackboard => _tree.Blackboard;
 
@@ -238,6 +239,24 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             _disposed = true;
             _runtimeContext.EndEvaluation();
             CurrentState = "Disposed";
+        }
+
+        public byte[] CaptureSnapshot()
+        {
+            if (_disposed) return Array.Empty<byte>();
+            var snapshot = _tree.CaptureRuntimeSnapshot();
+            return System.Text.Encoding.UTF8.GetBytes(
+                JsonConvert.SerializeObject(snapshot, BTDef.SerializerSettingsAuto));
+        }
+
+        public void RestoreSnapshot(byte[] payload)
+        {
+            if (_disposed || payload == null || payload.Length == 0) return;
+            var json = System.Text.Encoding.UTF8.GetString(payload);
+            var snapshot = JsonConvert.DeserializeObject<global::BTCore.Runtime.BTreeRuntimeSnapshot>(
+                json, BTDef.SerializerSettingsAuto);
+            _tree.RestoreRuntimeSnapshot(snapshot);
+            _reportedRunningRoot = false;
         }
 
         private static IReadOnlyDictionary<string, Type> DiscoverNodeTypes()

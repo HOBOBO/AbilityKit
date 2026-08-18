@@ -1,3 +1,4 @@
+using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.PlayMode;
@@ -19,9 +20,15 @@ public sealed class ShooterClientSyncAssemblyOptionsTests
             SerializeConcurrentFlushes = false,
             TreatReportedStoreFailureAsFlushFailure = false
         };
+        var predictionBufferOptions = new ShooterClientPredictionBufferOptions(
+            ShooterClientPredictionBufferFeatures.RollbackSnapshots,
+            inputHistoryCapacity: 0,
+            rollbackSnapshotCapacity: 32,
+            stateHashHistoryCapacity: 0);
         var options = ShooterClientSyncAssemblyOptions.Default
             .WithReliableEventCheckpointStore(store)
             .WithReliableEventCheckpointLifecycleOptions(lifecycleOptions)
+            .WithPredictionBufferOptions(predictionBufferOptions)
             .WithInterpolationConfig(null)
             .WithDecoder(null)
             .WithSyncModel(NetworkSyncModel.PredictRollback)
@@ -29,6 +36,7 @@ public sealed class ShooterClientSyncAssemblyOptionsTests
 
         Assert.Same(store, options.ReliableEventCheckpointStore);
         Assert.Same(lifecycleOptions, options.ReliableEventCheckpointLifecycleOptions);
+        Assert.Same(predictionBufferOptions, options.PredictionBufferOptions);
 
         var profile = options.SyncProfile;
         var capabilities = options.AvailableCapabilities;
@@ -42,14 +50,38 @@ public sealed class ShooterClientSyncAssemblyOptionsTests
             options.WithSchemaVersionRange(options.MinimumSchemaVersion, options.MaximumSchemaVersion),
             options.WithProfileCatalog(options.ProfileName, options.ProfileCatalog),
             options.WithRemoteCapabilities(null, NetworkSyncRemoteCapabilityPolicy.Ignore),
-            options.WithReliableEventCheckpointStore(store)
+            options.WithReliableEventCheckpointStore(store),
+            options.WithPredictionBufferOptions(predictionBufferOptions)
         };
 
         Assert.All(derivedOptions, derived =>
         {
             Assert.Same(store, derived.ReliableEventCheckpointStore);
             Assert.Same(lifecycleOptions, derived.ReliableEventCheckpointLifecycleOptions);
+            Assert.Same(predictionBufferOptions, derived.PredictionBufferOptions);
         });
+    }
+
+    [Fact]
+    public void SessionFactoryForwardsPredictionBufferOptionsToFrameSyncController()
+    {
+        var predictionBufferOptions = ShooterClientPredictionBufferOptions.Disabled;
+        var assemblyOptions = ShooterClientSyncAssemblyOptions
+            .ForModel(NetworkSyncModel.PredictRollback)
+            .WithPredictionBufferOptions(predictionBufferOptions);
+        var session = new ShooterClientSession(
+            new ShooterBattleRuntimePort(),
+            ShooterPresentationSessionContext.CreateFromFacade(new ShooterPresentationFacade()),
+            tickRate: 30,
+            in assemblyOptions,
+            gateway: null);
+
+        Assert.True(session.TryGetFrameSync(out var frameSync));
+        Assert.NotNull(frameSync);
+        Assert.Same(predictionBufferOptions, frameSync!.PredictionBufferOptions);
+        Assert.False(frameSync.HasFrameworkInputHistory);
+        Assert.False(frameSync.HasRollbackSnapshotHistory);
+        Assert.False(frameSync.HasStateHashHistory);
     }
 
     [Fact]

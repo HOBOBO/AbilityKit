@@ -39,6 +39,8 @@
 | [生成配置表 manifest 壳](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/Core/MobaGeneratedConfigTableManifest.cs) | 消费生成 specs，并控制反射 fallback |
 | [MOBA 配置 registry](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Infrastructure/Config/BattleDemo/MobaConfigRegistry.cs) | 从生成 manifest 创建运行时表目录 |
 
+包根 DLL 通过 Unity importer 标记为 `RoslynAnalyzer`，所以 Unity 编译消费的是已构建 DLL，而不是直接执行包内 csproj。工程可构建、DLL 存在、DLL 与当前源码一致是三项不同证据。包 README 当前仍称框架级 `com.abilitykit.codegen` generator 存在，与仓库实际文件树矛盾；生产判断应以 csproj、package import 设置和真实构建结果为准，README 需要随 gate 一起修正。
+
 当前生成域包括：
 
 - 配置表。
@@ -148,13 +150,13 @@ JSON 与 C# 当前是非对称链路：
 
 | 环节 | 当前事实 | 工程含义 |
 |------|----------|----------|
-| Luban 原生调用 | 脚本设置 `$ErrorActionPreference = "Stop"`，但两次 `dotnet` 后未显式检查 `$LASTEXITCODE` | 原生进程失败不应仅依赖 PowerShell 异常语义，需补退出码阻断 |
+| Luban 原生调用 | 脚本设置 `$ErrorActionPreference = "Stop"`，但两次 `dotnet` 后未显式检查 `$LASTEXITCODE` | PowerShell 的 Stop 策略不会自动把所有原生非零退出码变成异常；前一次失败后仍可能继续生成/复制，需补逐步退出码阻断 |
 | staging | 只确保目录存在，导出前不预清理 | 已删除或改名输出可能残留并被复制 |
 | JSON 晋升 | 候选不自动写权威目录 | 需要人工审查或独立晋升步骤，这是设计保护也是操作责任 |
 | C# 发布 | staged code 直接递归覆盖 `LubanGen` | 没有 manifest、完整性校验或原子替换 |
 | 副本同步 | Check/DryRun/Apply 权限清晰，支持语义化 JSON 比较 | 只能证明目录副本一致，不能证明业务引用正确 |
 | 运行时 fallback | 部分 manifest 保留 reflection/DI 兼容路径 | 可能掩盖 Analyzer DLL 未生效或生成清单为空 |
-| `moba-codegen` gate | CI 已配置在 PR/push 运行 | gate 内仍引用两个不存在目标，当前不能声明可执行闭环 |
+| `moba-codegen` gate | CI workflow 已配置在 PR/push 运行 | gate catalog 仍引用两个不存在目标，当前会在进入完整验证前失败，不能声明为有效 E5 阻断 |
 | `moba-content-contracts` | gate 已定义 | PR/push/schedule 均为 false，属于手动 gate |
 
 `moba-codegen` 当前失效引用为：
@@ -162,7 +164,7 @@ JSON 与 C# 当前是非对称链路：
 - `Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator/AbilityKit.SourceGenerator.csproj`
 - `src/AbilityKit.CodeGen.Tests/AbilityKit.CodeGen.Tests.csproj`
 
-`validate_moba_codegen_ownership.ps1` 也枚举了不存在的通用 CodeGen 源码根。它们是待修 gate 配置，不是当前包缺失某个构建错误的历史基线；文档不保留旧 `SyntaxReceiver` 冲突或固定错误数字。
+`validate_moba_codegen_ownership.ps1` 也枚举了不存在的通用 CodeGen 源码根。在 `$ErrorActionPreference = 'Stop'` 下，`Get-ChildItem` 会先因缺失 `Unity/Packages/com.abilitykit.codegen` 中止，脚本来不及输出其余 ownership contract 结果。因此“validator 失败”目前主要证明入口陈旧，不能证明 MOBA 十组 Generator/Analyzer 的所有权规则被完整执行。它们是待修 gate 配置，不是当前包缺失某个构建错误的历史基线；文档不保留旧 `SyntaxReceiver` 冲突或固定错误数字。
 
 ---
 
@@ -172,9 +174,9 @@ JSON 与 C# 当前是非对称链路：
 |------|----------|------------|
 | MOBA CodeGen、Contracts、Analyzer 源码 | E0 | 当前生成域、共享契约和诊断设计可审计 |
 | Runtime manifest/registry 消费 | E2 | 生成清单是 MOBA 默认运行路径，部分域保留 fallback |
-| 生成器工程及 DLL | E1 候选 | 存在可构建工程和包根 DLL；本次文档修订未执行重建，不能声明二者 hash 一致 |
+| 生成器工程及 DLL | E1 候选 | 存在可构建工程和包根 RoslynAnalyzer DLL；只有直接构建能证明源码可编译，仍需 hash/版本记录证明 DLL 对应当前源码 |
 | MOBA 配置/清单相关测试 | 局部 E3 | 可覆盖具体运行时清单契约，不能替代完整 Generator/Analyzer compilation tests |
-| `moba-codegen` | E5 配置但不可闭环 | workflow 会触发，但 gate 引用缺失项目，应先修清单 |
+| `moba-codegen` | E5 入口存在但不可闭环 | workflow 会触发，但 gate 引用缺失项目，ownership validator 也会在缺失目录处提前中止；不能计为有效 E5 |
 | `moba-content-contracts` | 手动 E5 入口 | 未配置自动触发，不是持续 CI 保护 |
 
 生产声明应限定为：“MOBA 已建立项目专用生成清单与候选/权威/副本数据模型；现有运行时有真实消费，但编译期 gate 和 Luban 失败传播仍需收敛。”
@@ -203,6 +205,6 @@ JSON 与 C# 当前是非对称链路：
 
 ---
 
-文档类型：Canonical 设计与生产链审计 | 事实基线：2026-08-15 | 证据等级：E0 编译期/脚本源码、E2 MOBA Runtime 消费、局部 E3；E5 已配置但当前不可完整执行
+文档类型：Canonical 设计与生产链审计 | 事实基线：2026-08-17 | 证据等级：E0 编译期/脚本源码、E2 MOBA Runtime 消费、局部 E3；E5 入口存在但当前不可完整执行
 
-*文档版本：v3.0 | 最后更新：2026-08-15*
+*文档版本：v3.1 | 最后更新：2026-08-17*

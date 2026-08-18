@@ -1,0 +1,143 @@
+﻿#nullable enable
+AbilityKit.Deterministic.DeterministicHash
+static AbilityKit.Deterministic.DeterministicHash.Combine(long hash, AbilityKit.Deterministic.Fixed64 value) -> long
+static AbilityKit.Deterministic.DeterministicHash.Combine(long hash, AbilityKit.Deterministic.FixedVec2 value) -> long
+static AbilityKit.Deterministic.DeterministicHash.Combine(long hash, AbilityKit.Deterministic.FixedVec3 value) -> long
+static AbilityKit.Deterministic.DeterministicHash.Combine(long hash, long value) -> long
+static AbilityKit.Deterministic.DeterministicHash.Hash(AbilityKit.Deterministic.Fixed64 value) -> long
+static AbilityKit.Deterministic.DeterministicHash.Hash(AbilityKit.Deterministic.FixedVec2 value) -> long
+static AbilityKit.Deterministic.DeterministicHash.Hash(AbilityKit.Deterministic.FixedVec3 value) -> long
+static AbilityKit.Deterministic.DeterministicHash.OffsetBasis.get -> long
+static AbilityKit.Deterministic.DeterministicHash.Prime.get -> long
+AbilityKit.Deterministic.DeterministicMath
+static AbilityKit.Deterministic.DeterministicMath.Abs(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Acos(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Asin(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Atan(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Atan2(AbilityKit.Deterministic.Fixed64 y, AbilityKit.Deterministic.Fixed64 x) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Ceiling(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Clamp(AbilityKit.Deterministic.Fixed64 value, AbilityKit.Deterministic.Fixed64 min, AbilityKit.Deterministic.Fixed64 max) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Cos(AbilityKit.Deterministic.Fixed64 angle) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.E.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Floor(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.HalfPi.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Lerp(AbilityKit.Deterministic.Fixed64 from, AbilityKit.Deterministic.Fixed64 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.LerpClamped(AbilityKit.Deterministic.Fixed64 from, AbilityKit.Deterministic.Fixed64 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Max(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Min(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Pi.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Round(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Sin(AbilityKit.Deterministic.Fixed64 angle) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Sqrt(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.Tan(AbilityKit.Deterministic.Fixed64 angle) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.DeterministicMath.TwoPi.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.DeterministicRandom
+AbilityKit.Deterministic.DeterministicRandom.DeterministicRandom(ulong seed = 305419896) -> void
+AbilityKit.Deterministic.DeterministicRandom.NextFixed(AbilityKit.Deterministic.Fixed64 minInclusive, AbilityKit.Deterministic.Fixed64 maxExclusive) -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.DeterministicRandom.NextFixed01() -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.DeterministicRandom.NextInt32(int minInclusive, int maxExclusive) -> int
+AbilityKit.Deterministic.DeterministicRandom.NextUInt64() -> ulong
+AbilityKit.Deterministic.DeterministicRandom.Sequence.get -> ulong
+AbilityKit.Deterministic.DeterministicRandom.SetSeed(ulong seed) -> void
+AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.Fixed64.CompareTo(AbilityKit.Deterministic.Fixed64 other) -> int
+AbilityKit.Deterministic.Fixed64.CompareTo(object? obj) -> int
+AbilityKit.Deterministic.Fixed64.Equals(AbilityKit.Deterministic.Fixed64 other) -> bool
+AbilityKit.Deterministic.Fixed64.Fixed64() -> void
+static AbilityKit.Deterministic.Fixed64.FractionalBits.get -> int
+static AbilityKit.Deterministic.Fixed64.Half.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.MaxValue.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.MinValue.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.One.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.OneRaw.get -> long
+AbilityKit.Deterministic.Fixed64.RawValue.get -> long
+AbilityKit.Deterministic.Fixed64.ToDecimal() -> decimal
+AbilityKit.Deterministic.Fixed64.ToDouble() -> double
+AbilityKit.Deterministic.Fixed64.ToInt32() -> int
+AbilityKit.Deterministic.Fixed64.ToInt64() -> long
+AbilityKit.Deterministic.Fixed64.ToSingle() -> float
+static AbilityKit.Deterministic.Fixed64.Zero.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.FromDecimal(decimal value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.FromDouble(double value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.FromInt32(int value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.FromInt64(long value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.FromRatio(long numerator, long denominator) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.FromRaw(long rawValue) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.FromSingle(float value) -> AbilityKit.Deterministic.Fixed64
+override AbilityKit.Deterministic.Fixed64.Equals(object? obj) -> bool
+override AbilityKit.Deterministic.Fixed64.GetHashCode() -> int
+override AbilityKit.Deterministic.Fixed64.ToString() -> string!
+static AbilityKit.Deterministic.Fixed64.explicit operator decimal(AbilityKit.Deterministic.Fixed64 value) -> decimal
+static AbilityKit.Deterministic.Fixed64.explicit operator double(AbilityKit.Deterministic.Fixed64 value) -> double
+static AbilityKit.Deterministic.Fixed64.explicit operator float(AbilityKit.Deterministic.Fixed64 value) -> float
+static AbilityKit.Deterministic.Fixed64.explicit operator int(AbilityKit.Deterministic.Fixed64 value) -> int
+static AbilityKit.Deterministic.Fixed64.explicit operator long(AbilityKit.Deterministic.Fixed64 value) -> long
+static AbilityKit.Deterministic.Fixed64.implicit operator AbilityKit.Deterministic.Fixed64(int value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.operator !=(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> bool
+static AbilityKit.Deterministic.Fixed64.operator *(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.operator +(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.operator -(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.operator -(AbilityKit.Deterministic.Fixed64 value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.operator /(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.Fixed64.operator <(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> bool
+static AbilityKit.Deterministic.Fixed64.operator <=(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> bool
+static AbilityKit.Deterministic.Fixed64.operator ==(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> bool
+static AbilityKit.Deterministic.Fixed64.operator >(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> bool
+static AbilityKit.Deterministic.Fixed64.operator >=(AbilityKit.Deterministic.Fixed64 left, AbilityKit.Deterministic.Fixed64 right) -> bool
+AbilityKit.Deterministic.FixedVec2
+AbilityKit.Deterministic.FixedVec2.Equals(AbilityKit.Deterministic.FixedVec2 other) -> bool
+AbilityKit.Deterministic.FixedVec2.FixedVec2(AbilityKit.Deterministic.Fixed64 x, AbilityKit.Deterministic.Fixed64 y) -> void
+AbilityKit.Deterministic.FixedVec2.FixedVec2() -> void
+AbilityKit.Deterministic.FixedVec2.Magnitude.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.FixedVec2.Normalized.get -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.One.get -> AbilityKit.Deterministic.FixedVec2
+AbilityKit.Deterministic.FixedVec2.SqrMagnitude.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.FixedVec2.X.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.FixedVec2.Y.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec2.Zero.get -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.Angle(AbilityKit.Deterministic.FixedVec2 from, AbilityKit.Deterministic.FixedVec2 to) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec2.Cross(AbilityKit.Deterministic.FixedVec2 left, AbilityKit.Deterministic.FixedVec2 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec2.Distance(AbilityKit.Deterministic.FixedVec2 left, AbilityKit.Deterministic.FixedVec2 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec2.Dot(AbilityKit.Deterministic.FixedVec2 left, AbilityKit.Deterministic.FixedVec2 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec2.Lerp(AbilityKit.Deterministic.FixedVec2 from, AbilityKit.Deterministic.FixedVec2 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.LerpClamped(AbilityKit.Deterministic.FixedVec2 from, AbilityKit.Deterministic.FixedVec2 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.FixedVec2
+override AbilityKit.Deterministic.FixedVec2.Equals(object? obj) -> bool
+override AbilityKit.Deterministic.FixedVec2.GetHashCode() -> int
+override AbilityKit.Deterministic.FixedVec2.ToString() -> string!
+static AbilityKit.Deterministic.FixedVec2.operator !=(AbilityKit.Deterministic.FixedVec2 left, AbilityKit.Deterministic.FixedVec2 right) -> bool
+static AbilityKit.Deterministic.FixedVec2.operator *(AbilityKit.Deterministic.Fixed64 scalar, AbilityKit.Deterministic.FixedVec2 vector) -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.operator *(AbilityKit.Deterministic.FixedVec2 vector, AbilityKit.Deterministic.Fixed64 scalar) -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.operator +(AbilityKit.Deterministic.FixedVec2 left, AbilityKit.Deterministic.FixedVec2 right) -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.operator -(AbilityKit.Deterministic.FixedVec2 left, AbilityKit.Deterministic.FixedVec2 right) -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.operator -(AbilityKit.Deterministic.FixedVec2 value) -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.operator /(AbilityKit.Deterministic.FixedVec2 vector, AbilityKit.Deterministic.Fixed64 scalar) -> AbilityKit.Deterministic.FixedVec2
+static AbilityKit.Deterministic.FixedVec2.operator ==(AbilityKit.Deterministic.FixedVec2 left, AbilityKit.Deterministic.FixedVec2 right) -> bool
+AbilityKit.Deterministic.FixedVec3
+AbilityKit.Deterministic.FixedVec3.Equals(AbilityKit.Deterministic.FixedVec3 other) -> bool
+AbilityKit.Deterministic.FixedVec3.FixedVec3(AbilityKit.Deterministic.Fixed64 x, AbilityKit.Deterministic.Fixed64 y, AbilityKit.Deterministic.Fixed64 z) -> void
+AbilityKit.Deterministic.FixedVec3.FixedVec3() -> void
+AbilityKit.Deterministic.FixedVec3.Magnitude.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.FixedVec3.Normalized.get -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.One.get -> AbilityKit.Deterministic.FixedVec3
+AbilityKit.Deterministic.FixedVec3.SqrMagnitude.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.FixedVec3.X.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.FixedVec3.Y.get -> AbilityKit.Deterministic.Fixed64
+AbilityKit.Deterministic.FixedVec3.Z.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec3.Zero.get -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.Angle(AbilityKit.Deterministic.FixedVec3 from, AbilityKit.Deterministic.FixedVec3 to) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec3.Cross(AbilityKit.Deterministic.FixedVec3 left, AbilityKit.Deterministic.FixedVec3 right) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.Distance(AbilityKit.Deterministic.FixedVec3 left, AbilityKit.Deterministic.FixedVec3 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec3.Dot(AbilityKit.Deterministic.FixedVec3 left, AbilityKit.Deterministic.FixedVec3 right) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Deterministic.FixedVec3.Lerp(AbilityKit.Deterministic.FixedVec3 from, AbilityKit.Deterministic.FixedVec3 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.LerpClamped(AbilityKit.Deterministic.FixedVec3 from, AbilityKit.Deterministic.FixedVec3 to, AbilityKit.Deterministic.Fixed64 t) -> AbilityKit.Deterministic.FixedVec3
+override AbilityKit.Deterministic.FixedVec3.Equals(object? obj) -> bool
+override AbilityKit.Deterministic.FixedVec3.GetHashCode() -> int
+override AbilityKit.Deterministic.FixedVec3.ToString() -> string!
+static AbilityKit.Deterministic.FixedVec3.operator !=(AbilityKit.Deterministic.FixedVec3 left, AbilityKit.Deterministic.FixedVec3 right) -> bool
+static AbilityKit.Deterministic.FixedVec3.operator *(AbilityKit.Deterministic.Fixed64 scalar, AbilityKit.Deterministic.FixedVec3 vector) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.operator *(AbilityKit.Deterministic.FixedVec3 vector, AbilityKit.Deterministic.Fixed64 scalar) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.operator +(AbilityKit.Deterministic.FixedVec3 left, AbilityKit.Deterministic.FixedVec3 right) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.operator -(AbilityKit.Deterministic.FixedVec3 left, AbilityKit.Deterministic.FixedVec3 right) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.operator -(AbilityKit.Deterministic.FixedVec3 value) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.operator /(AbilityKit.Deterministic.FixedVec3 vector, AbilityKit.Deterministic.Fixed64 scalar) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Deterministic.FixedVec3.operator ==(AbilityKit.Deterministic.FixedVec3 left, AbilityKit.Deterministic.FixedVec3 right) -> bool

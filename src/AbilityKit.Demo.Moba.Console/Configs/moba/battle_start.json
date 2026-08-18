@@ -18,11 +18,11 @@
     "Port": 4000
   },
   "Players": [
-    { "PlayerId": "player_1", "TeamId": 1, "HeroId": 1001, "Name": "廉颇", "Level": 1, "AttributeTemplateId": 1001, "BasicAttackSkillId": 10010101, "SkillIds": [10010101, 10010201, 10010301], "PositionX": 0, "PositionZ": 0 },
-    { "PlayerId": "player_2", "TeamId": 1, "HeroId": 1002, "Name": "小乔", "Level": 1, "AttributeTemplateId": 1002, "BasicAttackSkillId": 10020101, "SkillIds": [10020101, 10020201, 10020301], "PositionX": 10, "PositionZ": 0 },
-    { "PlayerId": "player_3", "TeamId": 1, "HeroId": 1003, "Name": "赵云", "Level": 1, "AttributeTemplateId": 1003, "BasicAttackSkillId": 10030101, "SkillIds": [10030101, 10030201, 10030301], "PositionX": -10, "PositionZ": 0 },
-    { "PlayerId": "ai_1", "TeamId": 2, "HeroId": 1001, "Name": "Enemy Warrior", "Level": 1, "AttributeTemplateId": 1001, "BasicAttackSkillId": 10010101, "SkillIds": [10010101, 10010201, 10010301], "PositionX": 0, "PositionZ": 50, "BrainId": 100, "EnableBrainOnSpawn": false },
-    { "PlayerId": "ai_2", "TeamId": 2, "HeroId": 1002, "Name": "Enemy Archer", "Level": 1, "AttributeTemplateId": 1002, "BasicAttackSkillId": 10020101, "SkillIds": [10020101, 10020201, 10020301], "PositionX": 10, "PositionZ": 50, "BrainId": 100, "EnableBrainOnSpawn": false },
-    { "PlayerId": "ai_3", "TeamId": 2, "HeroId": 1003, "Name": "Enemy Mage", "Level": 1, "AttributeTemplateId": 1003, "BasicAttackSkillId": 10030101, "SkillIds": [10030101, 10030201, 10030301], "PositionX": -10, "PositionZ": 50, "BrainId": 100, "EnableBrainOnSpawn": false }
+    { "PlayerId": "player_1", "TeamId": 1, "HeroId": 1001, "Name": "廉颇", "PositionX": 0, "PositionZ": 0 },
+    { "PlayerId": "player_2", "TeamId": 1, "HeroId": 1002, "Name": "小乔", "PositionX": 10, "PositionZ": 0 },
+    { "PlayerId": "player_3", "TeamId": 1, "HeroId": 1003, "Name": "赵云", "PositionX": -10, "PositionZ": 0 },
+    { "PlayerId": "ai_1", "TeamId": 2, "HeroId": 1001, "Name": "Enemy Warrior", "PositionX": 0, "PositionZ": 50, "BrainId": 100, "EnableBrainOnSpawn": false },
+    { "PlayerId": "ai_2", "TeamId": 2, "HeroId": 1002, "Name": "Enemy Archer", "PositionX": 10, "PositionZ": 50, "BrainId": 100, "EnableBrainOnSpawn": false },
+    { "PlayerId": "ai_3", "TeamId": 2, "HeroId": 1003, "Name": "Enemy Mage", "PositionX": -10, "PositionZ": 50, "BrainId": 100, "EnableBrainOnSpawn": false }
   ]
 }

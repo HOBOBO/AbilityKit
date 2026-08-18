@@ -477,7 +477,7 @@ public sealed class MobaActorStateMachineRuntimeTests
         var payload = MemoryPackSerializer.Deserialize<MobaActorStateMachineRollbackPayload>(
             provider.Export(new FrameIndex(5)));
 
-        Assert.Equal(3, payload.Version);
+        Assert.Equal(4, payload.Version);
         var entry = Assert.Single(payload.Entries);
         Assert.Equal(runtime.ProfileContentHash, entry.ProfileContentHash);
         Assert.True(catalog.TryGetContentHash("combat", out var catalogHash));

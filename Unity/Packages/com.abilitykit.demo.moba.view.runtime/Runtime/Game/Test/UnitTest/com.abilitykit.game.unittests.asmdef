@@ -4,7 +4,7 @@
     "references": [
         "AbilityKit.Demo.Common",
         "AbilityKit.Demo.Common.Unity",
-        "AbilityKit.Demo.Multiplayer.Starter",
+        "AbilityKit.Demo.Starter",
         "AbilityKit.Demo.Moba.View.Runtime",
         "AbilityKit.Demo.Moba.Runtime",
         "AbilityKit.Demo.Moba.Share",

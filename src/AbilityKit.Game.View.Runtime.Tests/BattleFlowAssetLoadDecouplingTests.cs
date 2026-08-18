@@ -50,6 +50,7 @@ namespace AbilityKit.Game.View.Runtime.Tests
             Assert.Null(decider.OnStateEntered(
                 MobaBattleState.LoadAssets,
                 sessionStarted: false,
+                worldReady: false,
                 firstFrameReceived: true));
         }
 
@@ -62,6 +63,7 @@ namespace AbilityKit.Game.View.Runtime.Tests
                 decider.OnStateEntered(
                     MobaBattleState.LoadAssets,
                     sessionStarted: true,
+                    worldReady: true,
                     firstFrameReceived: true,
                     assetsLoadCompleted: true));
         }

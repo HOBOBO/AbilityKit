@@ -77,7 +77,7 @@ DTO 层级为 Asset、Group、Track、Clip。核心字段包括：
 | Track | `type`、`name`、active/locked、`clips` |
 | Clip | `type`、`start`、`length`、`blendIn`、`blendOut`、字符串 `args` |
 
-DTO 使用可变 public 字段和可变集合。加载器和播放器不复制数据；调用方持有并共享同一对象图。播放期间修改 group、track、clip 或 args 会立即影响后续扫描，没有冻结、并发保护或版本戳。
+DTO 使用可变 public 字段和可变集合。加载器和播放器不复制数据；调用方持有并共享同一对象图。播放期间修改 group、track、clip 或 args 会立即影响后续扫描，没有冻结、并发保护或版本戳。播放器因此借用 asset，不拥有 asset；发布方负责在播放期间保持对象图稳定。
 
 协议没有显式 `schemaVersion`。Newtonsoft.Json 默认可容忍额外字段，但缺字段、null 集合、负时间、重复 clip 和未知类型不会在加载阶段被业务校验。
 
@@ -122,15 +122,15 @@ flowchart TD
 
 ## 6. Clip identity 与 Reset
 
-播放器用以下字段拼接 fired key：
+公共播放器和 MOBA 播放器用以下字段拼接 fired key：
 
 ```text
 group.name | track.name | clip.type | clip.start | clip.length
 ```
 
-key 不包含 group/track/clip 索引、actorId、args 或稳定 GUID。相同 group name、track name、type、start、length 的不同 clip 会碰撞，只触发一次。协议也没有转义分隔符，名称中的 `|` 会进一步扩大歧义。
+key 不包含 group/track/clip 索引、actorId、args 或稳定 GUID。相同 group name、track name、type、start、length 的不同 clip 会碰撞，只触发一次。实现使用 `ToString("R")`，但没有显式指定 `InvariantCulture`；在依赖本地文化的环境中，字符串身份仍不应被当作跨平台稳定 ID。协议也没有转义分隔符，名称中的 `|` 会进一步扩大歧义。
 
-`Reset(time)` 只设置当前时间并清空 fired 集合。若 reset 到非零时间，下一次 update 即使 delta 为零，也会补触发所有 start 不晚于该时间的 active clip。它不是 seek 语义，也不保存“目标时间之前已消费”的状态。
+`Reset(time)` 只设置当前时间并清空 fired 集合。若 reset 到非零时间，下一次 update 即使 delta 为零，也会补触发所有 start 不晚于该时间的 active clip。它不是 seek 语义，也不保存“目标时间之前已消费”的状态。中断后重新使用同一 player 会重新允许旧 clip 触发。
 
 需要稳定回放时，应在数据协议中加入不可变 clip ID，并显式区分 restart、seek 与 restore；在此之前不要依赖同字段 clip 的独立触发。
 
@@ -140,7 +140,7 @@ key 不包含 group/track/clip 索引、actorId、args 或稳定 GUID。相同 g
 
 - registry 按精确字符串键保存 handler，重复注册覆盖旧值。
 - 默认 registry 只注册 `TriggerLogHandler`。
-- handler 缺失、sink 为 null 或 handler 返回 false 时，clip 仍被标记 fired。
+- handler 缺失、sink 为 null 或 handler 返回 false 时，clip 仍被标记 fired；`TryHandle` 的 false 不会自动重试。
 - handler 异常没有统一捕获，会从 Update 向调用方传播。
 
 `AbilityTimelinePhase` 负责把领域播放器接入技能 Pipeline：
@@ -152,11 +152,11 @@ key 不包含 group/track/clip 索引、actorId、args 或稳定 GUID。相同 g
 5. 每 tick 更新播放器。
 6. 当 player time 不小于 asset length 时完成 phase。
 
-asset length 的完成语义属于 Ability phase，不属于公共播放器。中断、错误和 reset 只清除 phase 对 player/asset 的引用；event buffer、外部 sink 已产生的副作用和 handler 内状态不会自动回滚。
+asset length 的完成语义属于 Ability phase，不属于公共播放器。中断、错误和 reset 只清除 phase 对 player/asset 的引用；event buffer、外部 sink 已产生的副作用和 handler 内状态不会自动回滚。公共 `TimelinePlayer` 以 float 累计时间，而 MOBA player 目前以 Q32.32 raw 时间累计；两者并不因此获得端到端确定性，DTO 时间、handler、副作用和外部 tick 仍需单独约束。
 
 ## 8. 时间、顺序与确定性边界
 
-当前结果依赖 DTO 中 group、track、clip 的存储顺序。播放器不会按 start 排序；同一 tick 到期的 clip 按对象图顺序执行。JSON 数组顺序通常可保留，但编辑器导出、人工修改和数据迁移都必须把顺序视为协议的一部分。
+当前结果依赖 DTO 中 group、track、clip 的存储顺序。播放器不会按 start 排序；同一 tick 到期的 clip 按对象图顺序执行，而且 out-of-order 的未来事件可能挡住数组中更晚出现但时间更早的 clip。JSON 数组顺序通常可保留，但编辑器导出、人工修改和数据迁移都必须把顺序视为协议的一部分。
 
 浮点时间使用累计加法和固定 epsilon，没有 tick index、定点数或量化。若用于帧同步、预测或回放：
 
@@ -176,10 +176,11 @@ asset length 的完成语义属于 Ability phase，不属于公共播放器。�
 | DTO 业务校验 | 不存在 |
 | 公共 sink | 回调异常直接传播 |
 | MOBA handler/sink | 异常直接传播 |
-| 未知 clip | 静默跳过并标记 fired |
+| 未知/不支持 clip | 静默跳过并标记 fired |
+| handler 返回 false | MOBA 播放器仍标记 fired，不会自动重试 |
 | phase error | Pipeline error 路径处理，但已产生副作用不回滚 |
 
-截至 2026-08-15，ActionSchema package 内没有 Tests 目录或 NUnit `[Test]`、`[UnityTest]`，仓库也没有引用 `AbilityKit.ActionSchema` 的独立测试工程。`MobaMagicStringContractTests` 仅引用 MOBA ActionTimeline 命名空间，不构成公共播放器契约测试。已有证据是 `.NET` 镜像工程、ActionEditor 导出器、两个 View Runner 和 MOBA Ability Pipeline 的真实调用。构建证明协议可编译，调用点证明模块已被接入；两者都不等同于边界行为已有自动回归保护。
+截至 2026-08-17，ActionSchema package 内没有 Tests 目录或 NUnit `[Test]`、`[UnityTest]`，仓库也没有引用 `AbilityKit.ActionSchema` 的独立测试工程。`MobaMagicStringContractTests` 仅引用 MOBA ActionTimeline 命名空间，不构成公共播放器契约测试。已有证据是 `.NET` 镜像工程、ActionEditor 导出器、两个 View Runner 和 MOBA Ability Pipeline 的真实调用。构建证明协议可编译，调用点证明模块已被接入；两者都不等同于边界行为已有自动回归保护。
 
 优先补充：
 
@@ -205,6 +206,6 @@ ActionTimeline 已形成编辑器导出、共享 DTO、Unity/.NET 加载、MOBA 
 
 ---
 
-文档类型：Canonical 设计 | 事实基线：2026-08-15 | 证据等级：E0 公共实现、E1 .NET 构建/Editor 导出、E2 MOBA/View 消费；未达到实质 E3–E5
+文档类型：Canonical 设计 | 事实基线：2026-08-17 | 证据等级：E0 公共实现、E1 .NET 构建/Editor 导出、E2 MOBA/View 消费；未达到实质 E3–E5
 
-*文档版本：v3.0 | 最后更新：2026-08-15*
+*文档版本：v3.1 | 最后更新：2026-08-17*

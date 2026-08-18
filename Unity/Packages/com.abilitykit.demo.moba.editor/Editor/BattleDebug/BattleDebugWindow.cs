@@ -16,6 +16,11 @@ namespace AbilityKit.Game.Editor
     public sealed class BattleDebugWindow : EditorWindow
     {
         private const string PreferencesPrefix = "AbilityKit.BattleDebug.";
+        private const float DefaultRefreshIntervalSeconds = 0.25f;
+        private const float MinRefreshIntervalSeconds = 0.05f;
+        private const float MaxRefreshIntervalSeconds = 5f;
+        private static readonly float[] RefreshIntervalOptions = { 0.05f, 0.1f, 0.25f, 0.5f, 1f, 2f, 5f };
+        private static readonly string[] RefreshIntervalLabels = { "20Hz", "10Hz", "4Hz", "2Hz", "1Hz", "0.5Hz", "0.2Hz" };
         private const float MinEntityPaneWidth = 160f;
         private const float MaxEntityPaneWidth = 420f;
         private const float MinInspectorPaneWidth = 260f;
@@ -42,6 +47,7 @@ namespace AbilityKit.Game.Editor
         private bool _resizingEntityPane;
         private bool _resizingInspectorPane;
         private bool _autoRefresh = true;
+        private float _refreshIntervalSeconds = DefaultRefreshIntervalSeconds;
         private bool _renderReplayPresentation = true;
         private bool _showEntityPane = true;
         private bool _showStatusArea = true;
@@ -85,16 +91,23 @@ namespace AbilityKit.Game.Editor
                 0,
                 EditorPrefs.GetInt(PreferencesPrefix + "DiagnosticsPanelIndex", 0));
             _renderReplayPresentation = EditorPrefs.GetBool(PreferencesPrefix + "RenderReplayPresentation", true);
+            _refreshIntervalSeconds = Mathf.Clamp(
+                EditorPrefs.GetFloat(PreferencesPrefix + "RefreshIntervalSeconds", DefaultRefreshIntervalSeconds),
+                MinRefreshIntervalSeconds,
+                MaxRefreshIntervalSeconds);
             _showEntityPane = EditorPrefs.GetBool(PreferencesPrefix + "ShowEntityPane", true);
             _showStatusArea = EditorPrefs.GetBool(PreferencesPrefix + "ShowStatusArea", true);
             _showSelectionInspector = EditorPrefs.GetBool(PreferencesPrefix + "ShowSelectionInspector", true);
             _nextRefreshAt = EditorApplication.timeSinceStartup;
+            EditorApplication.update += OnEditorUpdate;
         }
 
         private void OnDisable()
         {
+            EditorApplication.update -= OnEditorUpdate;
             EditorPrefs.SetFloat(PreferencesPrefix + "EntityPaneWidth", _entityPaneWidth);
             EditorPrefs.SetFloat(PreferencesPrefix + "InspectorPaneWidth", _inspectorPaneWidth);
+            EditorPrefs.SetFloat(PreferencesPrefix + "RefreshIntervalSeconds", _refreshIntervalSeconds);
             EditorPrefs.SetInt(PreferencesPrefix + "Workspace", (int)_workspace);
             EditorPrefs.SetInt(PreferencesPrefix + "ActorPanelIndex", _selectedActorPanelIndex);
             EditorPrefs.SetInt(PreferencesPrefix + "DiagnosticsPanelIndex", _selectedDiagnosticsPanelIndex);
@@ -107,6 +120,11 @@ namespace AbilityKit.Game.Editor
         private void OnDestroy()
         {
             _diagnosticSource.Dispose();
+        }
+
+        private void OnEditorUpdate()
+        {
+            AutoRefresh();
         }
 
         private void OnGUI()
@@ -143,6 +161,7 @@ namespace AbilityKit.Game.Editor
                 selectActor: SelectActor,
                 openTrace: OpenTrace,
                 openEvents: OpenEvents,
+                openEvent: OpenEvent,
                 openRecentFailures: OpenRecentFailures,
                 openConfig: OpenConfig,
                 seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,
@@ -285,8 +304,10 @@ namespace AbilityKit.Game.Editor
                 new GUIContent("自动刷新", "仅控制此窗口的周期轮询，不影响底层诊断采集"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(70));
+            DrawRefreshIntervalControl();
             if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(50)))
             {
+                _nextRefreshAt = EditorApplication.timeSinceStartup + _refreshIntervalSeconds;
                 RefreshEntities();
                 Repaint();
             }
@@ -871,15 +892,27 @@ namespace AbilityKit.Game.Editor
                 names[i] = _visiblePanels[i].Name;
             }
 
-            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("面板", GUILayout.Width(30));
-            var nextIndex = EditorGUILayout.Popup(
-                selectedIndex,
-                names,
-                EditorStyles.toolbarPopup,
-                GUILayout.MinWidth(140));
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
+            int nextIndex;
+            if (_workspace == BattleDebugWorkspace.Actor)
+            {
+                nextIndex = GUILayout.Toolbar(
+                    selectedIndex,
+                    names,
+                    EditorStyles.toolbarButton,
+                    GUILayout.Height(22));
+            }
+            else
+            {
+                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+                GUILayout.Label("面板", GUILayout.Width(30));
+                nextIndex = EditorGUILayout.Popup(
+                    selectedIndex,
+                    names,
+                    EditorStyles.toolbarPopup,
+                    GUILayout.MinWidth(140));
+                GUILayout.FlexibleSpace();
+                EditorGUILayout.EndHorizontal();
+            }
             if (nextIndex != selectedIndex)
             {
                 _detailScroll = Vector2.zero;
@@ -941,6 +974,33 @@ namespace AbilityKit.Game.Editor
             }
         }
 
+        private void DrawRefreshIntervalControl()
+        {
+            EditorGUI.BeginDisabledGroup(!_autoRefresh);
+            GUILayout.Label(new GUIContent("频率", "仅控制编辑器窗口从逻辑层轮询和重绘的频率，不改变逻辑层诊断采样频率"), EditorStyles.miniLabel, GUILayout.Width(30));
+            var selectedIndex = FindRefreshIntervalOption(_refreshIntervalSeconds);
+            var nextIndex = EditorGUILayout.Popup(selectedIndex, RefreshIntervalLabels, EditorStyles.toolbarPopup, GUILayout.Width(58));
+            EditorGUI.EndDisabledGroup();
+
+            if (nextIndex == selectedIndex) return;
+            _refreshIntervalSeconds = RefreshIntervalOptions[Mathf.Clamp(nextIndex, 0, RefreshIntervalOptions.Length - 1)];
+            _nextRefreshAt = EditorApplication.timeSinceStartup;
+        }
+
+        private static int FindRefreshIntervalOption(float value)
+        {
+            var closestIndex = 0;
+            var closestDistance = float.MaxValue;
+            for (var i = 0; i < RefreshIntervalOptions.Length; i++)
+            {
+                var distance = Mathf.Abs(RefreshIntervalOptions[i] - value);
+                if (distance >= closestDistance) continue;
+                closestDistance = distance;
+                closestIndex = i;
+            }
+            return closestIndex;
+        }
+
         private void AutoRefresh()
         {
             if (!_autoRefresh) return;
@@ -948,7 +1008,7 @@ namespace AbilityKit.Game.Editor
             var now = EditorApplication.timeSinceStartup;
             if (now < _nextRefreshAt) return;
 
-            _nextRefreshAt = now + 0.25;
+            _nextRefreshAt = now + _refreshIntervalSeconds;
             RefreshEntities();
             Repaint();
         }
@@ -1238,6 +1298,13 @@ namespace AbilityKit.Game.Editor
             OpenEventsTarget(target => target.OpenForActor(actorId));
         }
 
+        private void OpenEvent(BattleDiagnosticEvent diagnosticEvent)
+        {
+            OpenEventsTarget(target => target.OpenEvent(
+                in diagnosticEvent,
+                _diagnosticWorkspaceState));
+        }
+
         private void OpenRecentFailures()
         {
             OpenEventsTarget(target => target.OpenRecentFailures());
@@ -1417,6 +1484,7 @@ namespace AbilityKit.Game.Editor
                 selectActor: SelectActor,
                 openTrace: OpenTrace,
                 openEvents: OpenEvents,
+                openEvent: OpenEvent,
                 openRecentFailures: OpenRecentFailures,
                 openConfig: OpenConfig,
                 seekReplayFrame: CanSeekReplayFrame() ? SeekReplayFrame : null,

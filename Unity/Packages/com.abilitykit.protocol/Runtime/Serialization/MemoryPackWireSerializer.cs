@@ -1,15 +1,18 @@
 using System;
-using System.Buffers;
 using System.Reflection;
-using AbilityKit.Protocol.Serialization;
 
 namespace AbilityKit.Protocol.Serialization
 {
-    public sealed class MemoryPackWireSerializer : IWireSerializer
+    /// <summary>
+    /// 基于反射的 MemoryPack 序列化实现。
+    /// protocol 包本身不依赖 MemoryPack；运行时若加载了 MemoryPack 则通过反射调用其
+    /// MemoryPackSerializer.Serialize/Deserialize，否则抛异常。
+    /// </summary>
+    internal sealed class MemoryPackWireSerializer : IWireSerializer
     {
-        private static readonly Type SerializerType = FindSerializerType();
+        private static readonly Type? SerializerType = FindSerializerType();
 
-        private static Type FindSerializerType()
+        private static Type? FindSerializerType()
         {
             try
             {
@@ -26,107 +29,37 @@ namespace AbilityKit.Protocol.Serialization
             catch
             {
             }
-
             return null;
-        }
-
-        private static MethodInfo GetSerializeMethod(Type serializerType, Type valueType)
-        {
-            var methods = serializerType.GetMethods(BindingFlags.Public | BindingFlags.Static);
-            for (int i = 0; i < methods.Length; i++)
-            {
-                var method = methods[i];
-                if (!string.Equals(method.Name, "Serialize", StringComparison.Ordinal)) continue;
-                if (!method.IsGenericMethodDefinition) continue;
-                if (method.ReturnType != typeof(byte[])) continue;
-
-                var genericArguments = method.GetGenericArguments();
-                if (genericArguments.Length != 1) continue;
-
-                var parameters = method.GetParameters();
-                if (parameters.Length < 1 || !AreRemainingParametersOptional(parameters, 1)) continue;
-
-                var parameterType = UnwrapByRef(parameters[0].ParameterType);
-                if (parameterType != genericArguments[0]) continue;
-                return method.MakeGenericMethod(valueType);
-            }
-
-            return null;
-        }
-
-        private static MethodInfo GetDeserializeMethod(Type serializerType, Type valueType)
-        {
-            var methods = serializerType.GetMethods(BindingFlags.Public | BindingFlags.Static);
-            for (int i = 0; i < methods.Length; i++)
-            {
-                var method = methods[i];
-                if (!string.Equals(method.Name, "Deserialize", StringComparison.Ordinal)) continue;
-                if (!method.IsGenericMethodDefinition) continue;
-
-                var genericArguments = method.GetGenericArguments();
-                if (genericArguments.Length != 1) continue;
-                if (method.ReturnType != genericArguments[0]) continue;
-
-                var parameters = method.GetParameters();
-                if (parameters.Length < 1 || !AreRemainingParametersOptional(parameters, 1)) continue;
-                if (UnwrapByRef(parameters[0].ParameterType) != typeof(ReadOnlySequence<byte>)) continue;
-                return method.MakeGenericMethod(valueType);
-            }
-
-            return null;
-        }
-
-        private static Type UnwrapByRef(Type type)
-        {
-            return type.IsByRef ? type.GetElementType() : type;
-        }
-
-        private static bool AreRemainingParametersOptional(ParameterInfo[] parameters, int startIndex)
-        {
-            for (int i = startIndex; i < parameters.Length; i++)
-            {
-                if (!parameters[i].IsOptional) return false;
-            }
-
-            return true;
-        }
-
-        private static object[] CreateInvokeArguments(MethodInfo method, object firstArgument)
-        {
-            var parameters = method.GetParameters();
-            var arguments = new object[parameters.Length];
-            arguments[0] = firstArgument;
-            for (int i = 1; i < arguments.Length; i++)
-            {
-                arguments[i] = Type.Missing;
-            }
-
-            return arguments;
         }
 
         public byte[] Serialize<T>(in T value)
         {
             var t = SerializerType;
-            if (t == null) throw new InvalidOperationException("MemoryPack is not available. Add MemoryPack DLL to this Unity package (Runtime/Plugins) or install via NuGet on server side.");
+            if (t == null) throw new InvalidOperationException("MemoryPack is not available.");
 
-            var m = GetSerializeMethod(t, typeof(T));
-            if (m == null) throw new MissingMethodException("MemoryPackSerializer.Serialize<T>(T, options) not found.");
+            var method = t.GetMethod("Serialize", BindingFlags.Public | BindingFlags.Static);
+            if (method != null && method.IsGenericMethodDefinition)
+            {
+                method = method.MakeGenericMethod(typeof(T));
+                return (byte[])method.Invoke(null, new object[] { value })!;
+            }
 
-            var result = m.Invoke(null, CreateInvokeArguments(m, value));
-            return (byte[])result;
+            throw new InvalidOperationException("MemoryPackSerializer.Serialize<T> not found.");
         }
 
         public T Deserialize<T>(byte[] bytes)
         {
             var t = SerializerType;
-            if (t == null) throw new InvalidOperationException("MemoryPack is not available. Add MemoryPack DLL to this Unity package (Runtime/Plugins) or install via NuGet on server side.");
+            if (t == null) throw new InvalidOperationException("MemoryPack is not available.");
 
-            var m = GetDeserializeMethod(t, typeof(T));
-            if (m == null) throw new MissingMethodException("MemoryPackSerializer.Deserialize<T>(ReadOnlySequence<byte>, options) not found.");
+            var method = t.GetMethod("Deserialize", BindingFlags.Public | BindingFlags.Static);
+            if (method != null && method.IsGenericMethodDefinition)
+            {
+                method = method.MakeGenericMethod(typeof(T));
+                return (T)method.Invoke(null, new object[] { bytes })!;
+            }
 
-            var sequence = new ReadOnlySequence<byte>(bytes);
-            var result = m.Invoke(null, CreateInvokeArguments(m, sequence));
-            return (T)result;
+            throw new InvalidOperationException("MemoryPackSerializer.Deserialize<T> not found.");
         }
 
         public T Deserialize<T>(ReadOnlySpan<byte> bytes)

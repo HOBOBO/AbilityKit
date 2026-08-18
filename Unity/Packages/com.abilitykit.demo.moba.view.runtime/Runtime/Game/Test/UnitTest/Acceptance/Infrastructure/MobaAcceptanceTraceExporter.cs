@@ -70,6 +70,23 @@ namespace AbilityKit.Game.Test.UnitTest
             string traceJsonlPath,
             string summaryJsonPath)
         {
+            return BuildSummary(
+                harness,
+                expectation,
+                records,
+                traceJsonlPath,
+                GetTraceTextPath(Path.GetDirectoryName(traceJsonlPath), expectation != null ? expectation.caseId : null),
+                summaryJsonPath);
+        }
+
+        public static MobaAcceptanceSummary BuildSummary(
+            MobaSkillConfigTestHarness harness,
+            MobaAcceptanceExpectation expectation,
+            MobaAcceptanceTraceRecord[] records,
+            string traceJsonlPath,
+            string traceTextPath,
+            string summaryJsonPath)
+        {
             if (harness == null) throw new ArgumentNullException(nameof(harness));
             if (expectation == null) throw new ArgumentNullException(nameof(expectation));
             if (records == null) throw new ArgumentNullException(nameof(records));
@@ -126,16 +143,27 @@ namespace AbilityKit.Game.Test.UnitTest
                 traceDictionaryVersion = BuildTraceDictionaryVersion(harness),
                 diagnostics = diagnostics,
                 traceJsonlPath = NormalizePath(traceJsonlPath),
+                traceTextPath = NormalizePath(traceTextPath),
                 summaryJsonPath = NormalizePath(summaryJsonPath)
             };
         }
 
         public static void Export(string artifactDirectory, MobaAcceptanceSummary summary, MobaAcceptanceTraceRecord[] records)
         {
+            Export(artifactDirectory, summary, records, exportArtifacts: true, exportTraceText: false);
+        }
+
+        public static void Export(
+            string artifactDirectory,
+            MobaAcceptanceSummary summary,
+            MobaAcceptanceTraceRecord[] records,
+            bool exportArtifacts,
+            bool exportTraceText)
+        {
             if (summary == null) throw new ArgumentNullException(nameof(summary));
             if (records == null) throw new ArgumentNullException(nameof(records));
 
-            var directory = string.IsNullOrEmpty(artifactDirectory) ? DefaultArtifactDirectory : artifactDirectory;
+            var directory = ResolveArtifactDirectory(artifactDirectory);
             Directory.CreateDirectory(directory);
 
             var tracePath = string.IsNullOrEmpty(summary.traceJsonlPath)
@@ -144,26 +172,251 @@ namespace AbilityKit.Game.Test.UnitTest
             var summaryPath = string.IsNullOrEmpty(summary.summaryJsonPath)
                 ? Path.Combine(directory, summary.caseId + "_summary.json")
                 : summary.summaryJsonPath;
+            var traceTextPath = string.IsNullOrEmpty(summary.traceTextPath)
+                ? Path.Combine(directory, summary.caseId + ".trace.txt")
+                : summary.traceTextPath;
 
-            using (var writer = new StreamWriter(tracePath, false))
+            if (exportArtifacts)
             {
-                for (var i = 0; i < records.Length; i++)
+                using (var writer = new StreamWriter(tracePath, false))
                 {
-                    writer.WriteLine(JsonUtility.ToJson(records[i]));
+                    for (var i = 0; i < records.Length; i++)
+                    {
+                        writer.WriteLine(JsonUtility.ToJson(records[i]));
+                    }
                 }
+
+                File.WriteAllText(summaryPath, JsonUtility.ToJson(summary, true));
             }
 
-            File.WriteAllText(summaryPath, JsonUtility.ToJson(summary, true));
+            if (exportTraceText)
+            {
+                File.WriteAllText(traceTextPath, BuildTraceText(summary, records));
+            }
         }
 
         public static string GetTraceJsonlPath(string artifactDirectory, string caseId)
         {
-            return Path.Combine(string.IsNullOrEmpty(artifactDirectory) ? DefaultArtifactDirectory : artifactDirectory, caseId + "_trace.jsonl");
+            return Path.Combine(ResolveArtifactDirectory(artifactDirectory), caseId + "_trace.jsonl");
+        }
+
+        public static string GetTraceTextPath(string artifactDirectory, string caseId)
+        {
+            return Path.Combine(ResolveArtifactDirectory(artifactDirectory), (string.IsNullOrEmpty(caseId) ? "moba_acceptance" : caseId) + ".trace.txt");
         }
 
         public static string GetSummaryJsonPath(string artifactDirectory, string caseId)
         {
-            return Path.Combine(string.IsNullOrEmpty(artifactDirectory) ? DefaultArtifactDirectory : artifactDirectory, caseId + "_summary.json");
+            return Path.Combine(ResolveArtifactDirectory(artifactDirectory), caseId + "_summary.json");
+        }
+
+        public static string ResolveArtifactDirectory(string artifactDirectory)
+        {
+            var directory = string.IsNullOrEmpty(artifactDirectory) ? DefaultArtifactDirectory : artifactDirectory;
+            if (Path.IsPathRooted(directory)) return Path.GetFullPath(directory);
+
+            var current = new DirectoryInfo(Directory.GetCurrentDirectory());
+            while (current != null)
+            {
+                if (Directory.Exists(Path.Combine(current.FullName, "Unity", "Packages"))
+                    && Directory.Exists(Path.Combine(current.FullName, "src")))
+                {
+                    return Path.GetFullPath(Path.Combine(current.FullName, directory));
+                }
+
+                current = current.Parent;
+            }
+
+            return Path.GetFullPath(directory);
+        }
+
+        public static string BuildTraceText(MobaAcceptanceSummary summary, MobaAcceptanceTraceRecord[] records)
+        {
+            if (summary == null) throw new ArgumentNullException(nameof(summary));
+            if (records == null) throw new ArgumentNullException(nameof(records));
+
+            var builder = new StringBuilder(Math.Max(2048, records.Length * 320));
+            builder.AppendLine("AbilityKit MOBA 战斗效果溯源");
+            builder.AppendLine("============================");
+            builder.Append("用例: ").AppendLine(FormatText(summary.caseId));
+            builder.Append("结果: ").AppendLine(summary.result != null && summary.result.passed ? "通过" : "失败");
+            builder.Append("世界: ").Append(FormatText(summary.worldId))
+                .Append("  TickRate: ").Append(summary.tickRate)
+                .Append("  最终帧: ").Append(summary.result != null ? summary.result.finalFrame : 0)
+                .Append("  最终时间: ").Append(summary.result != null ? summary.result.finalTimeMs : 0).AppendLine(" ms");
+            builder.Append("节点: ").Append(records.Length)
+                .Append("  EffectRoot: ").Append(summary.result != null ? summary.result.effectRootId : 0)
+                .AppendLine();
+
+            AppendCoverage(builder, summary.coverage);
+            AppendTraceCounts(builder, summary.traceCounts);
+            builder.AppendLine();
+            builder.AppendLine("溯源树");
+            builder.AppendLine("------");
+
+            if (records.Length == 0)
+            {
+                builder.AppendLine("(没有捕获到溯源节点)");
+                return builder.ToString();
+            }
+
+            var nodeById = new Dictionary<long, MobaAcceptanceTraceRecord>();
+            var childrenByParent = new Dictionary<long, List<MobaAcceptanceTraceRecord>>();
+            var rootIds = new List<long>();
+            var knownRoots = new HashSet<long>();
+
+            for (var i = 0; i < records.Length; i++)
+            {
+                var record = records[i];
+                if (record == null) continue;
+                nodeById[record.nodeId] = record;
+                if (knownRoots.Add(record.rootId)) rootIds.Add(record.rootId);
+                if (record.parentId == 0) continue;
+                if (!childrenByParent.TryGetValue(record.parentId, out var children))
+                {
+                    children = new List<MobaAcceptanceTraceRecord>();
+                    childrenByParent[record.parentId] = children;
+                }
+                children.Add(record);
+            }
+
+            rootIds.Sort();
+            var visited = new HashSet<long>();
+            for (var i = 0; i < rootIds.Count; i++)
+            {
+                var rootId = rootIds[i];
+                builder.AppendLine();
+                builder.Append("Root #").Append(rootId).AppendLine();
+                if (nodeById.TryGetValue(rootId, out var root))
+                {
+                    AppendTraceNode(builder, root, 0, childrenByParent, visited);
+                }
+                else
+                {
+                    builder.AppendLine("- (根节点记录缺失)");
+                }
+            }
+
+            if (visited.Count < nodeById.Count)
+            {
+                builder.AppendLine();
+                builder.AppendLine("未连接节点");
+                builder.AppendLine("----------");
+                foreach (var record in records)
+                {
+                    if (record != null && !visited.Contains(record.nodeId))
+                    {
+                        AppendTraceNode(builder, record, 0, childrenByParent, visited);
+                    }
+                }
+            }
+
+            return builder.ToString();
+        }
+
+        private static void AppendCoverage(StringBuilder builder, MobaAcceptanceCoverageSummary coverage)
+        {
+            if (coverage == null) return;
+
+            builder.Append("覆盖: 节点 ").Append(coverage.matchedExpectedTraceNodeCount).Append('/').Append(coverage.expectedTraceNodeCount)
+                .Append("  Action ").Append(coverage.executedExpectedActionCount).Append('/').Append(coverage.expectedActionCount)
+                .Append("  关系 ").Append(coverage.satisfiedRelationshipCount).Append('/').Append(coverage.expectedRelationshipCount)
+                .AppendLine();
+            AppendProblem(builder, "缺失节点", coverage.missingTraceNodes);
+            AppendProblem(builder, "意外节点", coverage.unexpectedTraceNodes);
+            AppendProblem(builder, "缺失 Action", coverage.missingActions);
+            AppendProblem(builder, "缺失关系", coverage.missingRelationships);
+        }
+
+        private static void AppendProblem(StringBuilder builder, string label, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            builder.Append(label).Append(": ").AppendLine(FormatText(value));
+        }
+
+        private static void AppendTraceCounts(StringBuilder builder, MobaAcceptanceTraceCount[] counts)
+        {
+            if (counts == null || counts.Length == 0) return;
+
+            builder.Append("类型统计: ");
+            for (var i = 0; i < counts.Length; i++)
+            {
+                if (i > 0) builder.Append(", ");
+                builder.Append(FormatText(counts[i].kind)).Append('=').Append(counts[i].count);
+            }
+            builder.AppendLine();
+        }
+
+        private static void AppendTraceNode(
+            StringBuilder builder,
+            MobaAcceptanceTraceRecord record,
+            int depth,
+            Dictionary<long, List<MobaAcceptanceTraceRecord>> childrenByParent,
+            HashSet<long> visited)
+        {
+            if (record == null || !visited.Add(record.nodeId)) return;
+
+            var indent = new string(' ', depth * 2);
+            var detailIndent = indent + "  ";
+            builder.Append(indent).Append("- [").Append(record.nodeId).Append("] ")
+                .Append(FormatText(record.kind));
+            if (!string.IsNullOrWhiteSpace(record.displayName) && !string.Equals(record.displayName, record.kind, StringComparison.Ordinal))
+            {
+                builder.Append(" | ").Append(FormatText(record.displayName));
+            }
+            builder.AppendLine();
+
+            builder.Append(detailIndent).Append("上下文: root=").Append(record.rootId)
+                .Append(" parent=").Append(record.parentId)
+                .Append(" children=").Append(record.childCount)
+                .Append(" kindValue=").Append(record.kindValue)
+                .AppendLine();
+            builder.Append(detailIndent).Append("时间: frame=").Append(record.frame)
+                .Append(" time=").Append(record.timeMs).Append("ms")
+                .Append(" 状态=").Append(record.isEnded ? "已结束" : "进行中");
+            if (record.isEnded)
+            {
+                builder.Append(" endedFrame=").Append(record.endedFrame).Append(" reason=").Append(record.endReason);
+            }
+            builder.AppendLine();
+
+            builder.Append(detailIndent).Append("配置: id=").Append(record.configId)
+                .Append(" label=").Append(FormatText(record.configLabel))
+                .Append(" source=").Append(FormatText(record.configSource))
+                .AppendLine();
+            builder.Append(detailIndent).Append("角色: source=").Append(FormatActor(record.sourceActorLabel, record.sourceActorId))
+                .Append(" -> target=").Append(FormatActor(record.targetActorLabel, record.targetActorId))
+                .AppendLine();
+            builder.Append(detailIndent).Append("运行时: sourceId=").Append(record.sourceId)
+                .Append(" targetId=").Append(record.targetId)
+                .AppendLine();
+            builder.Append(detailIndent).Append("来源: source=").Append(FormatOrigin(record.originSource, record.originSourceId))
+                .Append(" -> target=").Append(FormatOrigin(record.originTarget, record.originTargetId))
+                .AppendLine();
+
+            if (!childrenByParent.TryGetValue(record.nodeId, out var children)) return;
+            children.Sort(CompareTraceRecord);
+            for (var i = 0; i < children.Count; i++)
+            {
+                AppendTraceNode(builder, children[i], depth + 1, childrenByParent, visited);
+            }
+        }
+
+        private static string FormatActor(string label, long id)
+        {
+            return string.IsNullOrWhiteSpace(label) ? "#" + id : FormatText(label);
+        }
+
+        private static string FormatOrigin(string label, long id)
+        {
+            if (!string.IsNullOrWhiteSpace(label)) return FormatText(label) + " (#" + id + ")";
+            return "#" + id;
+        }
+
+        private static string FormatText(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return "-";
+            return value.Replace('\r', ' ').Replace('\n', ' ').Trim();
         }
 
         private static int CompareTraceRecord(MobaAcceptanceTraceRecord x, MobaAcceptanceTraceRecord y)

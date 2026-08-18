@@ -35,6 +35,7 @@ namespace AbilityKit.Game.Flow
             SyncControllerRegistry = CreateSyncControllerRegistry();
 
         private readonly object _inputSubmissionStatsGate = new object();
+        private readonly Action _beforeInputSubmissionStatsBind;
         private int _generation;
         private Action<object> _snapshotPushed;
         private Action<object> _reliableEventsPushed;
@@ -50,6 +51,11 @@ namespace AbilityKit.Game.Flow
         private Func<string> _previousGetReliableEventEpoch;
         private Func<long> _previousGetReliableEventLastAcknowledgedSequence;
         private Action<int> _previousSubmitInputAck;
+
+        internal BattleReplicationRuntime(Action beforeInputSubmissionStatsBind = null)
+        {
+            _beforeInputSubmissionStatsBind = beforeInputSubmissionStatsBind;
+        }
 
         internal NetworkTransport Transport { get; private set; }
         internal MobaClientAuthoritativeInterpolationSyncController InterpolationController { get; private set; }
@@ -149,6 +155,7 @@ namespace AbilityKit.Game.Flow
                 {
                     if (IsCurrent(generation, transport)) onAuthenticationFailed?.Invoke(ex);
                 };
+                _beforeInputSubmissionStatsBind?.Invoke();
                 _inputSubmissionStats = new InputSubmissionStatsSnapshot();
                 InputSubmissionStatsProvider.Current = _inputSubmissionStats;
                 _submitInputCompleted = response =>

@@ -1,0 +1,24 @@
+{
+    "id": 900002,
+    "enabled": true,
+    "phase": "immediate",
+    "event": "gameplay.started",
+    "name": "Gameplay Score Init",
+    "allowExternal": false,
+    "scope": "global",
+    "execution": "once",
+    "conditions": [],
+    "actions": [
+        {
+            "type": "set_gameplay_var",
+            "key_id": 1001,
+            "value": 0
+        },
+        {
+            "type": "set_gameplay_var",
+            "key_id": 1002,
+            "value": 0
+        }
+    ],
+    "priority": 0
+}

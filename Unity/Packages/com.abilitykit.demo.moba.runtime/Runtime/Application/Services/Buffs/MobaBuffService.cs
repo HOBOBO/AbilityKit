@@ -167,7 +167,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
         public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int sourceActorId, bool removeAll, TraceLifecycleReason reason)
         {
-            if (targetActorId <= 0 || _draining > 0 || !MobaGameplayTagCatalog.TryResolve(tagName, out var tag)) return 0;
+            return RemoveBuffsWithTagImmediate(targetActorId, tagName, dispelCategory: 0, sourceActorId, removeAll, reason);
+        }
+
+        public int RemoveBuffsWithTagImmediate(int targetActorId, string tagName, int dispelCategory, int sourceActorId, bool removeAll, TraceLifecycleReason reason)
+        {
+            if (targetActorId <= 0 || dispelCategory < 0 || _draining > 0 || !MobaGameplayTagCatalog.TryResolve(tagName, out var tag)) return 0;
 
             var target = TryGetActorEntity(targetActorId);
             if (target == null || !target.hasBuffs || target.buffs.Active == null || target.buffs.Active.Count == 0 || _configs == null)
@@ -182,6 +187,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var runtime = active[i];
                 if (runtime == null || (sourceActorId > 0 && runtime.SourceId != sourceActorId)) continue;
                 if (!_configs.TryGetBuff(runtime.BuffId, out var buff) || buff?.Tags == null || !buff.Tags.HasTag(tag)) continue;
+                if (!CanDispel(targetActorId, runtime, buff, dispelCategory)) continue;
 
                 var removeSourceId = sourceActorId > 0 ? sourceActorId : runtime.SourceId;
                 if (!EnqueueRemove(targetActorId, runtime.BuffId, removeSourceId, runtime.SourceContextId, reason)) continue;
@@ -191,6 +197,48 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
             }
 
             return DrainImmediateCommands(commandSeqs, Math.Max(256, commandSeqs.Count + 32));
+        }
+
+        private bool CanDispel(int targetActorId, BuffRuntime runtime, BuffMO buff, int dispelCategory)
+        {
+            if (buff.DispelPolicy == BuffDispelPolicy.Undispellable)
+            {
+                ReportDispelRejected("buff.dispel.undispellable", targetActorId, runtime, buff, dispelCategory);
+                return false;
+            }
+
+            if (dispelCategory > 0 && buff.DispelCategory > 0 && buff.DispelCategory != dispelCategory)
+            {
+                ReportDispelRejected("buff.dispel.categoryMismatch", targetActorId, runtime, buff, dispelCategory);
+                return false;
+            }
+
+            if (buff.DispelBlockedByTags == null || buff.DispelBlockedByTags.Count == 0) return true;
+            if (_tags == null)
+            {
+                ReportDispelRejected("buff.dispel.tagQueryUnavailable", targetActorId, runtime, buff, dispelCategory);
+                return false;
+            }
+
+            var effectiveTags = _tags.GetEffectiveTags(targetActorId);
+            if (!MobaGameplayTagCatalog.HasAny(effectiveTags, buff.DispelBlockedByTags)) return true;
+
+            ReportDispelRejected("buff.dispel.immunityBlocked", targetActorId, runtime, buff, dispelCategory);
+            return false;
+        }
+
+        private void ReportDispelRejected(string code, int targetActorId, BuffRuntime runtime, BuffMO buff, int dispelCategory)
+        {
+            var sourceActorId = runtime != null ? runtime.SourceId : 0;
+            var buffId = buff != null ? buff.Id : runtime != null ? runtime.BuffId : 0;
+            var buffCategory = buff != null ? buff.DispelCategory : 0;
+            var policy = buff != null ? buff.DispelPolicy.ToString() : "unknown";
+            ReportRejected(
+                code,
+                () => $"Dispel rejected. rejectCode={code} target={targetActorId} buffId={buffId} source={sourceActorId} requestedCategory={dispelCategory} buffCategory={buffCategory} policy={policy}",
+                targetActorId,
+                buffId,
+                sourceActorId);
         }
 
         /// <summary>
@@ -266,7 +314,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         {
             if (maxCommands <= 0) return;
 
-            // 防止执行 Buff 效果时再次调用 ApplyBuffImmediate 导致重入递归；新命令留到下一轮 drain。
+            // 防止 Immediate API 在效果回调中递归 drain；普通命令追加到尾部，并在本轮预算允许时继续消费。
             if (_draining > 0) return;
 
             var diagnostics = _diagnostics;
@@ -479,10 +527,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var requestSnapshot = request;
                 ReportRejected(rejectCode, () => FormatApplyRejectedMessage(requestSnapshot, hasLifecycle, rejectCode, reject.Message), request.TargetActorId, request.BuffId, request.SourceActorId);
             }
-            else
-            {
-                CollectBuffAdded(in request);
-            }
 
             return ok;
         }
@@ -503,10 +547,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 var hasLifecycle = _lifecycle != null;
                 var requestSnapshot = request;
                 ReportRejected(rejectCode, () => FormatRemoveRejectedMessage(requestSnapshot, hasLifecycle, rejectCode, reject.Message), request.TargetActorId, request.BuffId, request.SourceActorId);
-            }
-            else
-            {
-                CollectBuffRemoved(in request);
             }
 
             return ok;

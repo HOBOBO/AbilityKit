@@ -43,7 +43,7 @@ FrameSync rollback、Host prediction driver 与 Shooter 专用状态同步控制
 |--------|------|----------|----------|
 | P0 | 同步能力协商与版本兼容 | builder、Room 声明和 binding 已实现，仍需覆盖服务端声明到客户端 controller 的完整链路 | legacy、remote-declared、missing-required、未知版本/策略位、Profile 不匹配均有 E2E；descriptor 可进入诊断 artifact |
 | P0 | 可靠事件 checkpoint/baseline/reconnect 所有权 | builder、store、flush/retry/circuit 已有；项目持久化、生命周期触发和重连 baseline 仍需按客户端闭环 | pause/quit/dispose、store 故障、circuit open、timeline 变化、baseline watermark 与双连接唯一订阅均有故障测试 |
-| P1 | `PredictionCoordinator.Reset` 快照残留 | `PruneBefore(Frame.Invalid)` 通常不清非负帧，`Dispose` 也不清 store | 明确 Clear 契约并补测试，或把 store 所有权公开交给调用方且文档禁止把 Reset 当完整清理 |
+| 已关闭 | `PredictionCoordinator` 时间线残留、同帧重演和浅复制 | 2026-08-17 已增加 store `Clear`、按帧批次 replay、Record/Get 双侧隔离和 `IStateSlotValueCloner`；移除分裂式旧预测接口 | StateSync `20/20` 覆盖 Reset、同帧/空帧、帧级事件、克隆策略与事务覆盖；后续只按新回归修正 |
 | P1 | FrameTime 定点范围与完整确定性 | Q32.32 帧时钟和 rollback payload 已完成，但业务状态并未自动定点化 | 建立跨运行时输入回放与状态 hash 矩阵，逐项审计随机、容器顺序、物理和 codec；不得只测时钟 |
 | P1 | 非 TCP 服务端闭环 | WebSocket canonical 注册存在但默认关闭；LiteNet/UDP server listener 未完成 | WebSocket 真实 Gateway/TLS/反代/断线 E2E；LiteNet listener、配置、协议和 Smoke |
 | P2 | `DemoHarnessRunner` 迁出 runtime | 测试基础设施仍位于运行时包边界 | 独立 test-infra 包、消费者迁移、UPM 依赖审计与相关 gate 全部通过 |

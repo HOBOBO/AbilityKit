@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Shooter.View
     /// （<see cref="ShooterClientFrameSyncController"/> + <see cref="ShooterClientInputCoordinator"/>）
     /// 包装到通用 <see cref="IShooterClientSyncController"/> 接缝之后，让会话无需了解当前同步模型即可委托执行。
     /// </summary>
-    public sealed class ShooterClientPredictRollbackSyncController : IShooterClientSyncController
+    public sealed class ShooterClientPredictRollbackSyncController : IShooterClientSyncController, IShooterClientFrameSyncCapability, IShooterClientInputCapability
     {
         private readonly ShooterClientSyncCore _core;
 
@@ -26,9 +26,10 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterPresentationFacade presentation,
             int tickRate,
             ShooterGatewaySnapshotDecoder? decoder,
-            IShooterRoomGatewayClient? gateway)
+            IShooterRoomGatewayClient? gateway,
+            ShooterClientPredictionBufferOptions? predictionBufferOptions = null)
         {
-            _core = new ShooterClientSyncCore(runtime, presentation, tickRate, decoder, gateway);
+            _core = new ShooterClientSyncCore(runtime, presentation, tickRate, decoder, gateway, predictionBufferOptions);
         }
 
         public NetworkSyncModel SyncModel => NetworkSyncModel.PredictRollback;

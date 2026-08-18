@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using Newtonsoft.Json;
+using AbilityKit.Analyzer.Configuration;
 
 namespace AbilityKit.Analyzer.Editor
 {
@@ -16,8 +17,6 @@ namespace AbilityKit.Analyzer.Editor
     {
         private static readonly List<CompilerError> _errors = new();
         private static readonly object _lock = new();
-        private static readonly string LogPath = @"C:\analyzer_debug.log";
-
         static NamespaceConstraintChecker()
         {
             WriteLog("Static ctor called");
@@ -25,7 +24,13 @@ namespace AbilityKit.Analyzer.Editor
 
         private static void WriteLog(string msg)
         {
-            try { File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n"); } catch { }
+            try
+            {
+                var logPath = Path.Combine(GetProjectRoot(), "Logs", "AbilityKit.Analyzer", "compile-check.log");
+                Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+                File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+            }
+            catch { }
         }
 
         public static void CheckAssembly(string assemblyName, string assemblyPath)
@@ -38,7 +43,11 @@ namespace AbilityKit.Analyzer.Editor
             WriteLog($"Checking assembly: {assemblyName} at {assemblyPath}");
 
             var config = LoadConfig();
-            if (config == null || !config.GlobalDefaults.Enabled)
+            var hasExplicitConstraints = config?.Constraints != null && config.Constraints.Count > 0;
+            var appliesGlobalDefaults = config?.GlobalDefaults != null &&
+                                        config.GlobalDefaults.Enabled &&
+                                        config.GlobalDefaults.ApplyToUnlistedPackages;
+            if (!hasExplicitConstraints && !appliesGlobalDefaults)
             {
                 WriteLog("No config or disabled");
                 return;
@@ -73,7 +82,7 @@ namespace AbilityKit.Analyzer.Editor
             }
         }
 
-        private static ConfigData LoadConfig()
+        private static PackageConstraintsConfig LoadConfig()
         {
             var paths = new[]
             {
@@ -88,7 +97,7 @@ namespace AbilityKit.Analyzer.Editor
                     try
                     {
                         var json = File.ReadAllText(p);
-                        return JsonConvert.DeserializeObject<ConfigData>(json);
+                        return JsonConvert.DeserializeObject<PackageConstraintsConfig>(json);
                     }
                     catch { }
                 }
@@ -96,19 +105,9 @@ namespace AbilityKit.Analyzer.Editor
             return null;
         }
 
-        private static ForbiddenConstraint GetConstraint(ConfigData config, string assemblyName)
+        private static PackageConstraint GetConstraint(PackageConstraintsConfig config, string assemblyName)
         {
-            if (config.Constraints != null && config.Constraints.TryGetValue(assemblyName, out var c) && c.IsEnabled)
-                return c;
-
-            if (!config.GlobalDefaults.Enabled)
-                return null;
-
-            return new ForbiddenConstraint
-            {
-                ForbiddenNamespaces = config.GlobalDefaults.ForbiddenNamespaces ?? new List<string>(),
-                IsEnabled = true
-            };
+            return config?.GetEffectiveConstraint(assemblyName);
         }
 
         private static List<string> CollectSourceFiles(string assemblyPath, string assemblyName)
@@ -156,7 +155,7 @@ namespace AbilityKit.Analyzer.Editor
             return n.Contains("/Example") || n.Contains("/Examples") || n.Contains("/Test") || n.Contains("/Tests");
         }
 
-        private static void CheckFile(string filePath, ForbiddenConstraint constraint, string assemblyName)
+        private static void CheckFile(string filePath, PackageConstraint constraint, string assemblyName)
         {
             try
             {
@@ -167,7 +166,7 @@ namespace AbilityKit.Analyzer.Editor
                     if (line.TrimStart().StartsWith("using "))
                     {
                         var ns = ExtractNamespace(line);
-                        if (!string.IsNullOrEmpty(ns) && IsForbidden(ns, constraint.ForbiddenNamespaces))
+                        if (!string.IsNullOrEmpty(ns) && constraint.IsNamespaceForbidden(ns))
                         {
                             var msg = $"AK1001 Forbidden namespace '{ns}' in {assemblyName} at {filePath}:{i + 1}";
                             WriteLog($"VIOLATION: {msg}");
@@ -203,15 +202,6 @@ namespace AbilityKit.Analyzer.Editor
             return ns.StartsWith("global") ? null : ns;
         }
 
-        private static bool IsForbidden(string ns, List<string> forbidden)
-        {
-            foreach (var f in forbidden)
-            {
-                if (ns == f || ns.StartsWith(f + ".")) return true;
-            }
-            return false;
-        }
-
         private static string GetProjectRoot()
         {
             var dir = AppDomain.CurrentDomain.BaseDirectory;
@@ -235,21 +225,4 @@ namespace AbilityKit.Analyzer.Editor
         public string message { get; set; }
     }
 
-    internal class ForbiddenConstraint
-    {
-        public List<string> ForbiddenNamespaces { get; set; } = new();
-        public bool IsEnabled { get; set; }
-    }
-
-    internal class ConfigData
-    {
-        public GlobalDefaults GlobalDefaults { get; set; } = new();
-        public Dictionary<string, ForbiddenConstraint> Constraints { get; set; } = new();
-    }
-
-    internal class GlobalDefaults
-    {
-        public bool Enabled { get; set; }
-        public List<string> ForbiddenNamespaces { get; set; } = new();
-    }
 }

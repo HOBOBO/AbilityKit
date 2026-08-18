@@ -4,6 +4,13 @@
   "displayName": "AbilityKit World DI",
   "unity": "2022.3",
   "description": "World DI and service container.",
+  "keywords": [
+    "abilitykit",
+    "di",
+    "world",
+    "container",
+    "runtime"
+  ],
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.core": "0.1.0"

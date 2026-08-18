@@ -81,14 +81,13 @@ public sealed class NamespaceConstraintPostProcessor
         _loader = new ConstraintLoader();
 
         var config = _loader.Load();
-        
-        // TODO: 临时注释配置检查逻辑，全量分析
-        // if (config == null ||
-        //     ((config.Constraints == null || config.Constraints.Count == 0) && !config.GlobalDefaults.Enabled))
-        // {
-        //     // 无配置，跳过
-        //     return;
-        // }
+
+        var hasExplicitConstraints = config?.Constraints != null && config.Constraints.Count > 0;
+        var appliesGlobalDefaults = config?.GlobalDefaults != null &&
+                                    config.GlobalDefaults.Enabled &&
+                                    config.GlobalDefaults.ApplyToUnlistedPackages;
+        if (!hasExplicitConstraints && !appliesGlobalDefaults)
+            return;
 
         _violationsCount = 0;
         _warningsCount = 0;
@@ -104,11 +103,9 @@ public sealed class NamespaceConstraintPostProcessor
 
     private void CheckAssemblyConstraints(string assemblyName, PackageConstraintsConfig config)
     {
-        // 白名单模式：只检查配置中明确列出的包
+        // 精确规则、通配符规则和允许应用到未列包的全局默认都在 Loader 中解析。
         var constraint = _loader.GetConstraint(assemblyName);
-        
-        // GetConstraint 已经包含了通配符匹配逻辑
-        // 如果包不在配置中，GetConstraint 返回 null
+
         if (constraint == null || !constraint.IsEnabled)
             return;
 

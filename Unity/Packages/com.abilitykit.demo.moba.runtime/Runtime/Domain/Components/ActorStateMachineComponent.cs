@@ -4,10 +4,18 @@ using Entitas.CodeGeneration.Attributes;
 
 namespace AbilityKit.Demo.Moba.Components
 {
+    public enum MobaActorStateMachineOwnerKind
+    {
+        Unknown = 0,
+        Brain = 1,
+        Projectile = 2,
+    }
+
     [Actor]
     public sealed class ActorStateMachineComponent : IComponent
     {
         public string ProfileId;
         public MobaActorStateMachineRuntime Runtime;
+        public MobaActorStateMachineOwnerKind OwnerKind;
     }
 }

@@ -36,6 +36,7 @@ namespace AbilityKit.Dataflow
 
         public virtual TOutput Process(TInput input, IDataflowContext context)
         {
+            if (context == null) throw new ArgumentNullException(nameof(context));
             OnBeforeProcess(input, context);
             var result = OnProcess(input, context);
             OnAfterProcess(input, context, result);

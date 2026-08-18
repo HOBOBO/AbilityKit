@@ -32,6 +32,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (tr.ConditionsStrong.Count == 1)
                 {
                     cond = ToJsonConditionNode(tr.ConditionsStrong[0]);
+                    if (cond == null)
+                    {
+                        failReason = "condition_conversion_failed";
+                        return false;
+                    }
                 }
                 else
                 {
@@ -39,7 +44,12 @@ namespace AbilityKit.Ability.Editor.Utilities
                     for (int i = 0; i < tr.ConditionsStrong.Count; i++)
                     {
                         var n = ToJsonConditionNode(tr.ConditionsStrong[i]);
-                        if (n != null) items.Add(n);
+                        if (n == null)
+                        {
+                            failReason = "condition_conversion_failed";
+                            return false;
+                        }
+                        items.Add(n);
                     }
                     cond = new JsonConditionEditorConfig { TypeValue = TriggerConditionTypes.All, Items = items };
                 }
@@ -51,6 +61,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (tr.ActionsStrong.Count == 1)
                 {
                     act = ToJsonActionNode(tr.ActionsStrong[0]);
+                    if (act == null)
+                    {
+                        failReason = "action_conversion_failed";
+                        return false;
+                    }
                 }
                 else
                 {
@@ -58,7 +73,12 @@ namespace AbilityKit.Ability.Editor.Utilities
                     for (int i = 0; i < tr.ActionsStrong.Count; i++)
                     {
                         var n = ToJsonActionNode(tr.ActionsStrong[i]);
-                        if (n != null) items.Add(n);
+                        if (n == null)
+                        {
+                            failReason = "action_conversion_failed";
+                            return false;
+                        }
+                        items.Add(n);
                     }
                     act = new JsonActionEditorConfig { TypeValue = TriggerActionTypes.Seq, Items = items };
                 }

@@ -184,14 +184,13 @@ flowchart TB
 | [02-对象池](05-CommonModules/02-ObjectPool.md) | 对象复用 | Pools/Scope/Manager/ObjectPool、全构建 collection check、引用身份、锁内回调、旧句柄、PooledObject 与分层测试边界 |
 | [03-定时器框架](05-CommonModules/03-TimerFramework.md) | 时间调度 | 最小时间工具定位、Scheduler 所有权、任务参数/顺序/分配/异常和终止语义，以及当前无生产消费者/专项测试的证据边界 |
 | [04-配置系统](05-CommonModules/04-ConfigurationSystem.md) | 配置链路 | 通用 ConfigDatabase 的 factory-first/反射 fallback 与批次提交；MOBA 表目录、Luban、强类型门面、行为配置和业务校验归项目层 |
-| [05-Flow 流程引擎](05-CommonModules/05-FlowEngine.md) | 流程编排 | 通用流程树而非 Battle Flow；Runner/Session/Pool、Context、组合节点、唤醒/pump、HFSM 边界和最小测试证据 |
+| [05-Flow 流程引擎](05-CommonModules/05-FlowEngine.md) | 流程编排 | 通用流程树而非 Battle Flow；Runner/Session/Pool、Context、组合节点、唤醒/pump、HFSM 边界；2026-08-17 扩至 236 项契约测试并修复 8 个缺陷（provider 池固化/重入/ParallelAll 遗忘失败等） |
 | [06-HFSM 分层状态机](05-CommonModules/06-HFSMStateMachine.md) | 状态机 | 稳定状态机语义与项目状态图分层，转移/exit-time/pending、Shooter/MOBA 消费、Graph 工具和核心契约缺口 |
 | [07-MOBA CodeGen 与 Luban 生产链](05-CommonModules/07-CodeGenAndLubanProductionPipeline.md) | 项目生成与发布供应链 | MOBA 十组 manifest/analyzer、Contracts 所有权、Luban 候选/权威/副本模型，以及当前 gate 失效引用与收敛顺序 |
 | [08-ActionTimeline 数据协议与播放边界](05-CommonModules/08-ActionTimelineDataAndPlayback.md) | 时间线数据协议 | 公共 DTO/最小播放器与项目 handler/phase 分层，clip identity、reset、异常、确定性和无实质 E3 的边界 |
 | [09-Excel 与 ScriptableObject 编辑器同步](05-CommonModules/09-ExcelScriptableObjectSync.md) | Editor 数据同步 | Editor-only 同步机制与项目 schema/发布分层，baseline 三方合并、批处理、非事务和无自动测试限制 |
-| [Dataflow 处理器链与执行边界](../../Unity/Packages/com.abilitykit.dataflow/Document/Dataflow数据流处理模块开发设计文档.md) | 包内 canonical | 类型兼容回灌、Damage 异形 Context 协议、slot 字符串键、Abort/Failure、Clone/Processor 所有权、E1 采用与测试缺口 |
-| [HotReload Entitas 系统热替换设计](../../Unity/Packages/com.abilitykit.hotreload/Document/HotReload热更新运行时模块开发设计文档.md) | 包内 canonical | Entry/Proxy/Overlay、Editor DLL 装载、Apply 非事务语义、世界状态所有权、静态重置、失败矩阵与 E1 成熟度 |
-| [Threading 线程与并发工具](../../Unity/Packages/com.abilitykit.threading/Document/Threading线程与并发工具模块开发设计文档.md) | 包内 canonical | 动态线程池、优先级队列、Fiber、轮询与关闭限制、E0 独立/实验性基础设施及生产采用门槛 |
+| [Dataflow 处理器链与执行边界](../../Unity/Packages/com.abilitykit.dataflow/Document/Dataflow数据流处理模块开发设计文档.md) | 包内 canonical | 类型兼容回灌、Damage 异形 Context 协议、typed slot、Abort/Failure 部分输出、执行快照与 Processor 所有权、Runtime 局部 E3 |
+| [HotReload Entitas 系统热替换设计](../../Unity/Packages/com.abilitykit.hotreload/Document/HotReload热更新运行时模块开发设计文档.md) | 包内 canonical | staged Apply、实例级 world 隔离、自动/显式释放、overlay/static 所有权、失败矩阵、Runtime E3 与 Editor E1 边界 |
 
 ### 06 ECS 架构
 
@@ -354,12 +353,11 @@ flowchart TB
 | StateSync | `Unity/Packages/com.abilitykit.world.statesync/Runtime` | `src/AbilityKit.World.StateSync` | Gateway state sync handlers |
 | Triggering | `Unity/Packages/com.abilitykit.triggering/Runtime` | `src/AbilityKit.Triggering` | - |
 | Pipeline | `Unity/Packages/com.abilitykit.pipeline/Runtime` | package-linked build entry | Demo skill runner composes phases |
-| Dataflow | `Unity/Packages/com.abilitykit.dataflow/Runtime` | `src/AbilityKit.Dataflow` | DamageCalculationPipeline 与 Samples.Logic 为 E1；Dataflow 无专项测试，Damage 测试不覆盖 Pipeline |
+| Dataflow | `Unity/Packages/com.abilitykit.dataflow/Runtime` | `src/AbilityKit.Dataflow`、`src/AbilityKit.Dataflow.Tests` | DamageCalculationPipeline 与 Samples.Logic 为 E1；Dataflow `20/20`、Damage `5/5` 建立 Runtime 局部 E3，不外推 Unity/Smoke/E5 |
 | Ability | `Unity/Packages/com.abilitykit.ability/Runtime` | `src/AbilityKit.Ability` | Demo battle host loads runtime assemblies |
 | Behavior | `Unity/Packages/com.abilitykit.behavior/Runtime` | `src/AbilityKit.Behavior` | Samples.Logic、BTCore 与 MOBA 有 E1/E2 调用；Manager 当前按反向注册序 Tick，普通当前项自结束可同步清理，交叉结束/创建的重入语义与统一 Shutdown 仍待补 |
 | GameplayTags | `Unity/Packages/com.abilitykit.gameplaytags/Runtime` | `src/AbilityKit.GameplayTags`、`src/AbilityKit.GameplayTags.Tests` | Ability 服务与 MOBA 有 E1/E2 消费；独立测试目前仅覆盖 `GameplayTag.None` 默认值和零值 |
-| HotReload | `Unity/Packages/com.abilitykit.hotreload/Runtime` | `src/AbilityKit.HotReload` | MOBA Editor 加载 HotUpdate DLL；当前无专项测试工程 |
-| Threading | `Unity/Packages/com.abilitykit.threading/Runtime` | `src/AbilityKit.Threading` | E0 独立/实验性基础设施；未发现框架外稳定生产消费者或专项测试，关闭与 Fiber 契约待治理 |
+| HotReload | `Unity/Packages/com.abilitykit.hotreload/Runtime` | `src/AbilityKit.HotReload`、`src/AbilityKit.HotReload.Tests` | MOBA Editor 加载 HotUpdate DLL；Runtime 专项契约测试 `13/13` |
 | Targeting | `Unity/Packages/com.abilitykit.combat.targeting/Runtime` | package-linked build entry | Demo battle logic composes query adapters |
 | Entity / Skill Indexing | `Unity/Packages/com.abilitykit.combat.entitymanager/Runtime`、`Unity/Packages/com.abilitykit.combat.skilllibrary/Runtime` | `src/AbilityKit.Combat.EntityManager`、`src/AbilityKit.Combat.SkillLibrary` | MOBA entity indexing; SkillLibrary currently package example only |
 | Motion | `Unity/Packages/com.abilitykit.combat.motion/Runtime` | `src/AbilityKit.Combat.Motion` | MOBA motion component, init system and PlanActions |
@@ -476,6 +474,11 @@ flowchart TB
 | 2026-08-16 | 2.80 | 表现投影与客户端宿主生命周期复核：修订表现层 4 篇、Shooter 4 篇与 MOBA Snapshot 共 9 篇正文，加总索引和路线图共 11 篇；补 Snapshot routing 空 Dispose/回调重入/非事务构建、adapter/Binder ownership、GameObject/DOTS/Headless 证据边界、静态宿主失败后空态、Shooter full/delta 投影与三条宿主 teardown 差异，并纠正 MOBA emitter 成功后门禁、buffer 同帧 drain 和 generated manifest 优先级；Snapshot `7/7`、Shooter projection/runner `66/66`，历史 `489/489` 与当前 `481/490` 分层，真实 Smoke、浏览器和 Unity 未运行且不新增 E4 |
 | 2026-08-16 | 2.81 | 通用运行时生命周期与重入边界复核：修订 Event、ObjectPool、Timer、Flow、HFSM、HostRuntime、HostModules、WorldManager 与 ServiceContainer 共 9 篇正文，加总索引和路线图共 11 篇；补单监听者 once 重入、池回调部分提交、scheduler 延迟清理、Flow Stop/Dispose、HFSM 结构恢复、Hook live-list、模块非事务装配、World 返回 ID 入表及 DI 初始化失败所有权，并确认 null 事件 ID 不接管载荷；Core `79/79`、Flow `2/2`、Host `8/8`、World DI `31/31`，HFSM Core 与 Timer 构建通过，Timer 保留 52 个既有警告；Unity 未运行，不新增 E4 |
 | 2026-08-16 | 2.82 | 可组合战斗执行基础设施的生命周期与确定性复核：修订玩法能力地图、Targeting、Pipeline/Ability、Entity/Skill 索引、Motion、Continuous、GameplayTags 与 Behavior Tree 共 8 篇正文，加总索引和路线图共 10 篇；补 Builder 值复制与池所有权、阶段/索引/运动/序列化的部分提交矩阵、live view 与重入边界、标签代际缺口、Continuous 清理语义，以及 Behavior Manager 与直接 Phase 的不同终止责任；Targeting `67/67`、Pipeline `3/3`、Ability `4/4`、EntityManager `3/3`、Motion `8/8`、Continuous `2/2`、GameplayTags `2/2`、BTCore `3/3`、Behavior lifecycle `2/2`，SkillLibrary 构建 0 错误；Unity 未运行，不新增 E4 |
+| 2026-08-17 | 2.83 | 配置创作到运行时发布链复核：修订 ConfigDatabase、MOBA 输入/配置/实体、配置实体生成、MOBA SkillFlow、Triggering、MOBA CodeGen/Luban、ActionTimeline 与 Excel Sync 共 8 篇正文；补全量/增量提交与表身份、双 ConfigReloadBus/同步通知异常、SkillFlow 缓存失效与 Timeline Q32.32/顺序、TriggerPlan 派生索引与注册 handle、CodeGen 失效 gate、Luban 退出码/staging、Excel baseline/批处理非事务和 E0-E5 证据边界；未运行 Unity、浏览器或真实 Smoke，不新增 E4 |
+| 2026-08-17 | 2.84 | 示例宿主与统一装配边界复核：修订 Console、ET、MOBA、Shooter 顶层示例，MOBA 总览、World/Bootstrap、Console 深潜与示例工业化共 8 篇正文；补公共 launch/Profile/Catalog/Bootstrap 与 package-owned scene/root 分层、Local/Multiplayer 双 intent、Starter 加载失败、Root/会话/World teardown、Editor 迁移生成器、拓扑与 headless 证据边界；Console/ET 保持独立组合根，当前未提交 Composition 只记 E0，本批未运行 Unity、浏览器或真实 Smoke，不新增 E4 |
+| 2026-08-17 | 2.85 | StateSync 预测历史与快照所有权修复：通用 Coordinator 支持同帧命令批次并按原 Frame 重演，保留空输入帧；store Record/Get 隔离、引用槽位显式克隆、覆盖失败事务化，Reset/Dispose 清理完整时间线；删除分裂式旧预测接口并补齐帧级预测事件，StateSync `20/20` 通过，不外推为 Host/表现/跨端 E4 |
+| 2026-08-17 | 2.86 | HotReload 运行时所有权与失败收敛：Apply 按候选 Install/Initialize、旧版本 Uninstall/TearDown、最终提交分阶段执行；world 状态改为实例弱键，补显式与 world TearDown 自动释放、跨 world 单飞与重入拒绝门禁；删除无效 Static Attribute 与未消费 proxy helper，新增 HotReload 专项测试 `13/13`，Editor/Unity/程序集卸载仍保持 E1/未验证边界 |
+| 2026-08-17 | 2.87 | Dataflow 与 Damage 运行时语义收敛：修复末阶段 Abort、保留中止/失败部分输出与失败阶段身份，执行期采用 Processor 快照，批量追加与 Builder 改为原子校验/结构快照；Context 使用 `(name,type)` 槽位键并统一 Clear/Reset，Composite 恢复兼容回灌；移除越界通用领域槽位与 Damage Processor 共享 `_result`，新增 Dataflow `20/20`、Damage `5/5` 契约测试；仅证明 Runtime 局部 E3，Unity/Smoke/性能与集合并发仍未验证 |
 
 ---
 

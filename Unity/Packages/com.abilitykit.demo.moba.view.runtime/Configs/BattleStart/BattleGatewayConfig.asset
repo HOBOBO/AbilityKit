@@ -43,7 +43,7 @@ MonoBehaviour:
   - 10010101
   - 10010201
   - 10010301
-  StarterSceneName: MultiplayerStarterScene
+  StarterSceneName: StarterScene
   TimeSyncOpCode: 1300
   TimeSyncIntervalMs: 1000
   TimeSyncAlpha: 0.2

@@ -43,6 +43,9 @@ namespace AbilityKit.Demo.Moba.Services
         private IBattleDiagnosticActorAttributeStore _attributeStore = null;
 
         [WorldInject(required: false)]
+        private IMobaContinuousModifierQueryService _modifierQuery = null;
+
+        [WorldInject(required: false)]
         private IBattleDiagnosticActorBuffStore _buffStore = null;
 
         [WorldInject(required: false)]
@@ -141,13 +144,17 @@ namespace AbilityKit.Demo.Moba.Services
                         actorIds?.Add(actorId);
                         if (_attributeStore != null)
                         {
+                            var explanations = _modifierQuery?.ExplainActiveModifiers(
+                                actorId,
+                                MobaContinuousModifierTargetKind.Attribute);
                             TrySampleActorAttributes(
                                 scope,
                                 frame,
                                 actorId,
                                 entity,
                                 attributes,
-                                modifiers);
+                                modifiers,
+                                explanations);
                         }
                         if (_buffStore != null)
                         {
@@ -393,6 +400,25 @@ namespace AbilityKit.Demo.Moba.Services
             ICollection<BattleDiagnosticActorAttribute> attributes,
             ICollection<BattleDiagnosticActorAttributeModifier> modifiers)
         {
+            return TrySampleActorAttributes(
+                scope,
+                frame,
+                actorId,
+                entityObj,
+                attributes,
+                modifiers,
+                explanations: null);
+        }
+
+        public static bool TrySampleActorAttributes(
+            BattleDiagnosticSessionScope scope,
+            int frame,
+            int actorId,
+            object entityObj,
+            ICollection<BattleDiagnosticActorAttribute> attributes,
+            ICollection<BattleDiagnosticActorAttributeModifier> modifiers,
+            IReadOnlyList<MobaContinuousModifierExplainResult> explanations)
+        {
             if (entityObj == null || actorId <= 0 || attributes == null || modifiers == null)
             {
                 return false;
@@ -407,6 +433,9 @@ namespace AbilityKit.Demo.Moba.Services
                     return false;
                 }
 
+                var consumedExplanations = explanations != null
+                    ? new bool[explanations.Count]
+                    : null;
                 foreach (var entry in entity.attributeGroup.Group.Attributes)
                 {
                     var attributeId = entry.Key;
@@ -430,6 +459,31 @@ namespace AbilityKit.Demo.Moba.Services
                     for (var i = 0; i < activeModifiers.Length; i++)
                     {
                         var modifier = activeModifiers[i];
+                        var explanationIndex = FindExplanation(
+                            actorId,
+                            attributeId,
+                            (int)modifier.Op,
+                            modifier.Priority,
+                            modifier.SourceId,
+                            explanations,
+                            consumedExplanations);
+                        if (explanationIndex < 0)
+                        {
+                            modifiers.Add(new BattleDiagnosticActorAttributeModifier(
+                                scope,
+                                frame,
+                                actorId,
+                                attributeId,
+                                (int)modifier.Op,
+                                modifier.Magnitude.BaseValue,
+                                modifier.Priority,
+                                modifier.SourceId,
+                                (int)modifier.Magnitude.Type));
+                            continue;
+                        }
+
+                        consumedExplanations[explanationIndex] = true;
+                        var explanation = explanations[explanationIndex];
                         modifiers.Add(new BattleDiagnosticActorAttributeModifier(
                             scope,
                             frame,
@@ -439,7 +493,18 @@ namespace AbilityKit.Demo.Moba.Services
                             modifier.Magnitude.BaseValue,
                             modifier.Priority,
                             modifier.SourceId,
-                            (int)modifier.Magnitude.Type));
+                            (int)modifier.Magnitude.Type,
+                            explanation.DeclaredMagnitude.CalculatedValue,
+                            explanation.StackedMagnitude.CalculatedValue,
+                            explanation.ProjectedMagnitude.CalculatedValue,
+                            explanation.CurrentValue,
+                            explanation.HasCurrentValue,
+                            explanation.CapturedValue,
+                            explanation.HasCapturedValue,
+                            explanation.EvaluationPolicy,
+                            explanation.Stack,
+                            explanation.CaptureMode,
+                            explanation.Reason));
                     }
                 }
 
@@ -449,6 +514,43 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return false;
             }
+        }
+
+        private static int FindExplanation(
+            int actorId,
+            int attributeId,
+            int operation,
+            int priority,
+            int sourceId,
+            IReadOnlyList<MobaContinuousModifierExplainResult> explanations,
+            bool[] consumed)
+        {
+            if (explanations == null || consumed == null) return -1;
+
+            for (var i = 0; i < explanations.Count; i++)
+            {
+                if (consumed[i]) continue;
+
+                var explanation = explanations[i];
+                if (explanation.OwnerActorId != actorId ||
+                    explanation.TargetKind != MobaContinuousModifierTargetKind.Attribute ||
+                    explanation.ModifierSourceId != sourceId ||
+                    explanation.Op != operation ||
+                    explanation.Priority != priority)
+                {
+                    continue;
+                }
+
+                var mappedAttribute = MobaAttributeIds.Get(
+                    (BattleAttributeType)explanation.TargetId);
+                if (mappedAttribute.IsValid &&
+                    mappedAttribute == AbilityKit.Attributes.Core.AttributeId.FromRaw(attributeId))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
         }
 
         public static bool TrySampleActorBuffs(
@@ -518,7 +620,8 @@ namespace AbilityKit.Demo.Moba.Services
                             ? new BattleDiagnosticRuntimeHandle(skillHandle.RuntimeId, skillHandle.Generation)
                             : default,
                         rootContextId,
-                        runtime.ModifierBindings?.Count ?? 0));
+                        runtime.ModifierBindings?.Count ?? 0,
+                        modifierSourceId: continuous?.ModifierSourceId ?? 0));
                 }
 
                 return true;

@@ -11,6 +11,68 @@ using AbilityKit.Protocol.Shooter;
 namespace AbilityKit.Demo.Shooter.View
 {
     /// <summary>
+    /// Optional frame-sync capability exposed by controllers that own a local frame timeline.
+    /// </summary>
+    public interface IShooterClientFrameSyncCapability
+    {
+        ShooterClientFrameSyncController FrameSync { get; }
+    }
+
+    /// <summary>
+    /// Optional input coordination capability exposed by controllers that submit local commands.
+    /// </summary>
+    public interface IShooterClientInputCapability
+    {
+        ShooterClientInputCoordinator InputCoordinator { get; }
+    }
+
+    /// <summary>
+    /// Capability lookup helpers keep optional controller features discoverable without putting
+    /// concrete implementations on the base synchronization contract.
+    /// </summary>
+    public static class ShooterClientSyncControllerCapabilityExtensions
+    {
+        public static bool TryGetCapability<TCapability>(
+            this IShooterClientSyncController controller,
+            out TCapability? capability)
+            where TCapability : class
+        {
+            if (controller == null) throw new ArgumentNullException(nameof(controller));
+
+            capability = controller as TCapability;
+            return capability != null;
+        }
+
+        public static bool TryGetFrameSync(
+            this IShooterClientSyncController controller,
+            out ShooterClientFrameSyncController? frameSync)
+        {
+            if (controller is IShooterClientFrameSyncCapability capability)
+            {
+                frameSync = capability.FrameSync;
+                return true;
+            }
+
+            frameSync = null;
+            return false;
+        }
+
+        public static bool TryGetInputCoordinator(
+            this IShooterClientSyncController controller,
+            out ShooterClientInputCoordinator? inputCoordinator)
+        {
+            if (controller is IShooterClientInputCapability capability)
+            {
+                inputCoordinator = capability.InputCoordinator;
+                return true;
+            }
+
+            inputCoordinator = null;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// 单个 Shooter <see cref="NetworkSyncModel"/> 的客户端同步控制器。
     /// 它承接 <see cref="ShooterClientSession"/> 门面委托的运行时行为：启动世界、推进帧、
     /// 提交本地输入、消费网关推送并驱动恢复。不同同步模型（预测回滚、权威插值、批量状态同步）
@@ -23,11 +85,7 @@ namespace AbilityKit.Demo.Shooter.View
     public interface IShooterClientSyncController
         : INetworkSyncController, IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample>
     {
-        ShooterClientFrameSyncController FrameSync { get; }
-
         int GatewayInputFrame { get; }
-
-        ShooterClientInputCoordinator InputCoordinator { get; }
 
         ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics { get; }
 

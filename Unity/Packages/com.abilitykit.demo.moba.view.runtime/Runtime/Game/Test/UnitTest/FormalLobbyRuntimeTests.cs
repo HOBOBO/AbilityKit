@@ -239,7 +239,7 @@ namespace AbilityKit.Game.Flow.Tests
             {
                 "lifetime",
                 "destroy",
-                "scene:MultiplayerStarterScene"
+                "scene:StarterScene"
             }));
         }
 

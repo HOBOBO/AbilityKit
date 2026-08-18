@@ -3,7 +3,6 @@
   "rootNamespace": "AbilityKit.Ability.StateSync",
   "references": [
     "AbilityKit.Core",
-    "AbilityKit.World.FrameSync",
     "AbilityKit.World.Snapshot",
     "MemoryPack"
   ],

@@ -1,7 +1,7 @@
 # MOBA 输入、技能准备、配置门面与实体索引
 
 > 文档类型：MOBA 项目应用组合深潜
-> 事实基线：2026-08-16
+> 事实基线：2026-08-17
 >
 > 本文说明 MOBA Runtime 中一批帧输入如何被校验和路由，技能输入如何进入正式运行时，以及 Actor 生成后如何进入注册表和二级索引。输入、技能、配置和实体管理彼此协作，但并不由同一个协调器拥有。
 
@@ -115,9 +115,9 @@ flowchart LR
 - Bytes 与 JSON/Bytes 混合来源。
 - 有序 `IConfigGroup`。
 
-Bytes 路径要求显式提供 `IMobaConfigDtoBytesDeserializer`，否则重载返回失败。成功或失败的重载会发布到全局 `ConfigReloadBus`；当前成功结果按 `fullReload: true` 发布，`changedIds` 为 `null`，因此不能据此声称已经具备表级增量热更新和运行中对象迁移。
+Bytes 路径要求显式提供 `IMobaConfigDtoBytesDeserializer`，否则重载返回失败。成功或失败的正常结果会发布到全局 `ConfigReloadBus`；当前 MOBA 成功包装结果固定按 `fullReload: true` 发布，`changedIds` 为 `null`。内部通用库会先同步发布自己的 `config` 结果，随后门面才发布 `moba.config`；任一订阅者抛错都可能打断后续通知，而此时配置提交可能已经完成。因此不能据此声称已经具备表级增量热更新、可靠广播和运行中对象迁移。
 
-门面提供 `Get/TryGet` 类型化查询，覆盖 Character、Skill、Buff、Projectile、Aoe、Summon、组件模板、标签模板、地图和玩法等表。业务服务依赖该门面可以隔离来源差异，但仍需自己决定缺失配置、版本变化和运行中缓存失效语义。
+门面提供 `Get/TryGet` 类型化查询，覆盖 Character、Skill、Buff、Projectile、Aoe、Summon、组件模板、标签模板、地图和玩法等表。业务服务依赖该门面可以隔离来源差异，但仍需自己决定缺失配置、版本变化和运行中缓存失效语义。例如 `TableDrivenMobaSkillPipelineLibrary` 按 skillId 缓存已构建 Flow，却不跟踪 `MobaConfigDatabase.Version`、也不订阅 reload；热重载后已有缓存会继续使用旧 DTO/MO 引用和事件数组，直到显式 `Dispose` 或重建该 Library。
 
 ## 6. Actor 生成与注册是两个步骤
 
@@ -198,7 +198,7 @@ sequenceDiagram
 | `MobaSkillConfigurationContractTests` | Resources/DTO 配置的关键技能契约可校验 | 不证明生产热更发布、回滚和运行对象迁移已闭合 |
 | Unity `MobaRuntimeOwnershipLifecycleTests` 9/9 artifact | Summon retain 失败回滚 Actor/trace；Clear/Dispose 释放 retain 并 exactly-once 结束 trace | 不是本轮完整 Unity 回归或真实多人运行 |
 
-独立的 MOBA View Runtime 147/147、Host 6/6、Acceptance 8/8 在 2026-08-16 通过。测试仍有依赖漏洞、Entitas 兼容性、可空性等警告；这些工程不包含完整 MOBA World 业务链，不能合并成“全部通过”。
+独立的 MOBA View Runtime `174/174` 在 2026-08-17 通过；Host 6/6、Acceptance 8/8 是既有 2026-08-16 证据。测试仍有依赖漏洞、Entitas 兼容性、可空性等警告；这些工程不包含完整 MOBA World 业务链，不能合并成“全部通过”。
 
 ## 9. 源码入口
 
@@ -214,4 +214,4 @@ sequenceDiagram
 
 ---
 
-*文档版本：v3.0 | 最后更新：2026-08-16*
+*文档版本：v3.1 | 最后更新：2026-08-17*

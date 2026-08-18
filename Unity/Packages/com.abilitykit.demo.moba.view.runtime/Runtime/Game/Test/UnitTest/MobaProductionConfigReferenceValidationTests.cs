@@ -71,7 +71,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(gateway.DefaultAttributeTemplateId, Is.EqualTo(1001));
             Assert.That(gateway.DefaultBasicAttackSkillId, Is.EqualTo(10010001));
             Assert.That(gateway.DefaultSkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
-            Assert.That(gateway.StarterSceneName, Is.EqualTo("MultiplayerStarterScene"));
+            Assert.That(gateway.StarterSceneName, Is.EqualTo("StarterScene"));
             Assert.That(preset.HostMode, Is.EqualTo(BattleHostMode.GatewayRemote));
             Assert.That(preset.GatewaySO, Is.SameAs(gateway));
             Assert.That(gateway.TryValidateFormalLobby(out var validationError), Is.True, validationError);
@@ -126,6 +126,90 @@ namespace AbilityKit.Game.Test.UnitTest
             AssertWarning(report, "skillButtonTemplate.7101.dashDistance");
             AssertNoWarning(report, "skillButtonTemplate.7101.longPressSeconds");
             AssertNoWarning(report, "skillButtonTemplate.7101.aimMaxRadius");
+        }
+
+        [Test]
+        public void BuffDispelPolicy_InvalidAndRedundantValues_AreReportedWithStableCodes()
+        {
+            var config = new MobaTestConfigBuilder()
+                .AddDtos(
+                    CreateBuffDto(7201, dispelPolicy: 99, dispelCategory: 0),
+                    CreateBuffDto(7202, dispelPolicy: 1, dispelCategory: -1),
+                    CreateBuffDto(
+                        7203,
+                        dispelPolicy: 2,
+                        dispelCategory: 7,
+                        dispelBlockedByTagNames: new[] { MobaGameplayTagCatalog.State.ControlImmune }))
+                .BuildDatabase();
+            var report = new MobaRuntimeValidationReport();
+            var validator = new MobaBattleConfigReferenceValidator();
+
+            validator.Validate(
+                new MobaRuntimeValidationContext(new ConfigOnlyWorldResolver(config), "test"),
+                report);
+
+            Assert.That(report.ShouldBlockStartup, Is.True, report.FormatAllEntries());
+            AssertEntry(
+                report,
+                MobaRuntimeValidationSeverity.Error,
+                "buff.7201.dispelPolicy",
+                "moba.buff.dispel.invalid_policy");
+            AssertEntry(
+                report,
+                MobaRuntimeValidationSeverity.Error,
+                "buff.7202.dispelCategory",
+                "moba.buff.dispel.negative_category");
+            AssertEntry(
+                report,
+                MobaRuntimeValidationSeverity.Warning,
+                "buff.7203.dispelCategory",
+                "moba.buff.dispel.redundant_category");
+            AssertEntry(
+                report,
+                MobaRuntimeValidationSeverity.Warning,
+                "buff.7203.dispelBlockedByTags",
+                "moba.buff.dispel.redundant_blocked_tags");
+        }
+
+        private static BuffDTO CreateBuffDto(
+            int id,
+            int dispelPolicy,
+            int dispelCategory,
+            string[] dispelBlockedByTagNames = null)
+        {
+            return new BuffDTO
+            {
+                Id = id,
+                Name = "dispel-validation-" + id,
+                DurationMs = 1000,
+                MaxStacks = 1,
+                OnAddEffects = Array.Empty<int>(),
+                OnRemoveEffects = Array.Empty<int>(),
+                OnIntervalEffects = Array.Empty<int>(),
+                TriggerIds = Array.Empty<int>(),
+                TagNames = Array.Empty<string>(),
+                Modifiers = Array.Empty<ContinuousModifierDTO>(),
+                DispelPolicy = dispelPolicy,
+                DispelCategory = dispelCategory,
+                DispelBlockedByTagNames = dispelBlockedByTagNames ?? Array.Empty<string>(),
+            };
+        }
+
+        private static void AssertEntry(
+            MobaRuntimeValidationReport report,
+            MobaRuntimeValidationSeverity severity,
+            string path,
+            string code)
+        {
+            foreach (var entry in report.Entries)
+            {
+                if (entry.Severity == severity && entry.Path == path && entry.Code == code)
+                {
+                    return;
+                }
+            }
+
+            Assert.Fail($"Expected {severity} at {path} with code {code}. {report.FormatAllEntries()}");
         }
 
         private static void AssertWarning(MobaRuntimeValidationReport report, string path)

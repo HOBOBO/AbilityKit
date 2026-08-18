@@ -28,6 +28,7 @@
     <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
     <ProjectReference Include="..\AbilityKit.World.NetworkFragments\AbilityKit.World.NetworkFragments.csproj" />
     <ProjectReference Include="..\AbilityKit.World.Snapshot\AbilityKit.World.Snapshot.csproj" />
+    <ProjectReference Include="..\AbilityKit.Timer\AbilityKit.Timer.csproj" />
   </ItemGroup>
 
 </Project>

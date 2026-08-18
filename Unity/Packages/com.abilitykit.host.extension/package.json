@@ -12,6 +12,7 @@
     "com.abilitykit.world.framesync": "0.1.0",
     "com.abilitykit.world.networkfragments": "0.1.0",
     "com.abilitykit.world.snapshot": "0.1.0",
-    "com.abilitykit.network.runtime": "0.1.0"
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.timer": "0.1.0"
   }
 }

@@ -1,8 +1,8 @@
 # MOBA Demo 专题总览
 
 > 文档类型：MOBA 项目应用组合导航与证据地图
-> 事实基线：2026-08-16
-> 文档版本：v3.0
+> 事实基线：2026-08-17
+> 文档版本：v3.1
 >
 > 本目录按运行边界拆解 MOBA 示例，说明逻辑世界、Entitas、配置、输入、技能、Buff、Projectile、Damage、Snapshot、表现层与预测回滚当前怎样协作。各专题分别标明源码事实、验证证据和未完成项；目录中的接口或示例入口不自动代表联机、表现或生产部署能力已经完成。
 
@@ -42,6 +42,7 @@ MOBA 示例已经进一步拆成更细专题，便于单独阅读每个设计点
 | 主动/被动/Buff/Projectile/AOE 触发效果 | 主动技能、被动 owner-bound、Buff 生命周期、Projectile stage 与 AOE stage 进入 TriggerPlan 和领域服务的当前实现 | [17-主动、被动、Buff、Projectile 与 AOE 触发效果设计](17-ActivePassiveBuffProjectileAoeTriggerEffects.md) |
 | Runtime 逻辑层 | 输入输出边界、System/Service 分工、World DI 与轻量测试环境 | [19-Runtime 战斗逻辑层深潜](19-MobaRuntimeLogicLayerDeepDive.md) |
 | Console Demo 装配 | Bootstrapper、FeatureHost、同步适配器、自动测试与录制入口 | [20-Console Demo 装配链路深潜](20-ConsoleDemoBootstrapAndFeatureDeepDive.md) |
+| Unity 示例宿主 | Starter、package scene、Profile/Catalog、Root 与战斗会话所有权 | [01-世界启动与运行时装配](01-WorldAndBootstrap.md)、[MOBA Demo 顶层解析](../03-MOBA%20Demo%20Analysis.md) |
 | 快照与表现 | WorldStateSnapshot、SnapshotBuffer、FrameSnapshotDispatcher、BattleSnapshotPipeline | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
 | 远程驱动 | RemoteDrivenWorldRuntimeFactory、ClientPredictionDriverModule、RollbackRegistry | [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md) |
 
@@ -128,7 +129,35 @@ sequenceDiagram
     View->>Pipeline: 解码并分发到表现阶段
 ```
 
-## 4. 源码阅读路径
+## 4. Unity 示例宿主与包内装配边界
+
+MOBA 专题需要区分三层“启动”，它们名称相似但所有者不同：
+
+| 层次 | 入口 | 负责 | 不负责 |
+|------|------|------|--------|
+| 示例导航 | `StarterController` | 登录、本地/多人选择、写入 launch intent、加载游戏专用 scene | 创建 MOBA World、拥有战斗会话 |
+| Scene Composition | `DemoGameplayBootstrap` | 从 MOBA Catalog 选择 Profile，实例化 `MobaDemoRoot` 并绑定到当前 scene | 解释英雄/房间规则、销毁账号或网络会话 |
+| MOBA 应用与 World | `GameEntry`、`MobaSessionCoordinatorHost`、`MobaWorldBootstrapModule` | 解释多人 intent/preset，创建应用 Flow、会话、World，安装服务和 System | 成为 Shooter、ET 或 Console 的统一应用层 |
+
+```mermaid
+flowchart TB
+    Starter[Starter] --> Request[Demo launch request]
+    Request --> PackageScene[Moba package gameplay scene]
+    PackageScene --> SceneBootstrap[DemoGameplayBootstrap]
+    SceneBootstrap --> Profile[Moba local or multiplayer profile]
+    Profile --> Root[MobaDemoRoot]
+    Root --> Entry[GameEntry]
+    Entry --> Session[Moba session composition]
+    Session --> World[Moba runtime world]
+```
+
+公共 Composition 层只稳定 `gameplay + mode + optional profileId` 的选择协议。当前 `DemoLaunchIntent` 是进程静态、加锁、一次性单槽：后写覆盖前写，没有 generation；Bootstrap 在消费后若 Profile、多人意图或实例化失败，会清空两类 intent。Local 与 Multiplayer 的网络差异不藏在 Catalog 中，而由 Root 入口继续消费 `DemoMultiplayerLaunchIntent`。这让包内资产可开箱运行，同时保留项目应用层自由度。
+
+当前 package 资产事实是：MOBA Local/Multiplayer Profile 均指向同一个 `MobaDemoRoot`；Shooter 则用两个 Root。两种形式都符合公共装配协议，说明 Profile/Catalog 是选择机制，不是强制的应用套件。`DemoGameplayCompositionBuilder` 只在 Editor 中生成/迁移 Profile、Catalog、Bootstrap Prefab、package scene 和 Build Settings，不是 Player runtime 依赖。
+
+---
+
+## 5. 源码阅读路径
 
 1. [01-世界启动与运行时装配](01-WorldAndBootstrap.md)：MOBA world 的创建、模块装配和生命周期入口。
 2. [12-DI 与 System/Service 协作深潜](12-DIAndSystemServiceCollaborationDeepDive.md)：服务注册、System 调度和业务服务分层。
@@ -151,7 +180,7 @@ sequenceDiagram
 19. [17-主动、被动、Buff、Projectile 与 AOE 触发效果设计](17-ActivePassiveBuffProjectileAoeTriggerEffects.md)：主动技能、被动 owner-bound、Buff、Projectile stage 与 AOE stage 如何进入 TriggerPlan 并落到领域服务。
 20. [04-快照、表现层与预测回滚](04-SnapshotPresentationPrediction.md)：逻辑结果怎样进入客户端表现，以及远程驱动和预测回滚目前覆盖到哪里。
 
-## 5. 单局验收范围
+## 6. 单局验收范围
 
 当前示例有一条可重复执行的死亡、复活、再次战斗和结算测试旅程。`MobaUnitLifecycleService` 只执行已经由玩法规则批准的复活状态转换：校验死亡状态、恢复生命、应用可选复活位置、重置死亡去重状态、发布 `unit.respawn`，并同步恢复结果快照。复活时机、出生点选择和次数限制仍属于上层 gameplay rule。
 
@@ -168,7 +197,7 @@ P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证
 
 尚未闭合的范围包括自动复活倒计时、出生点配置、复活次数规则、独立的死亡/复活网络表现事件，以及 `BattleActorDeathViewEventHandler`、`BattleActorRespawnViewEventHandler` 到正式 runtime/network event sink 的接线。因此本节只描述单局测试旅程，不将其扩展为多人网络战局或生产玩法完成度。
 
-## 6. 关键源码入口
+## 7. 关键源码入口
 
 | 主题 | 源码 |
 |------|------|
@@ -223,5 +252,10 @@ P1 门禁 `moba-complete-battle-journey` 组合运行这两个测试。仓库证
 | 运行时端口 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/IO/IMobaBattleRuntimePort.cs` |
 | 远程驱动 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Sim/RemoteDrivenWorldRuntimeFactory.cs` |
 | 快照路由 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/SnapshotRouting/FrameSnapshotDispatcher.cs` |
+| 统一启动请求 | `Unity/Packages/com.abilitykit.demo.common/Runtime/Gameplay/DemoLaunchIntent.cs` |
+| Scene Composition Bootstrap | `Unity/Packages/com.abilitykit.demo.common/Runtime/Composition/DemoGameplayBootstrap.cs` |
+| MOBA package scene | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Scenes/MobaDemoGameplayScene.unity` |
+| MOBA Root 入口 | `Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/App/Entry/GameEntry.cs` |
+| Composition 生成与迁移 | `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Composition/DemoGameplayCompositionBuilder.cs` |
 
-*文档版本：v3.0 | 最后更新：2026-08-16 | 当前主工程：279/305；历史 journey：2026-07-27 通过；聚焦 Unity：canonical 14/14、ownership 9/9、Trace 15/15、Action diagnostics 15/15*
+*文档版本：v3.1 | 最后更新：2026-08-17 | 当前主工程：279/305；历史 journey：2026-07-27 通过；聚焦 Unity：canonical 14/14、ownership 9/9、Trace 15/15、Action diagnostics 15/15*

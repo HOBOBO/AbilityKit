@@ -1,7 +1,7 @@
 # Console Demo 源码级装配链路：Bootstrapper、FeatureHost、SyncAdapter 与自动测试
 
 > 文档类型：MOBA 项目应用组合深潜
-> 事实基线：2026-08-16
+> 事实基线：2026-08-17
 >
 > 本文在 [01-ConsoleDemoAnalysis.md](../01-ConsoleDemoAnalysis.md) 的基础上，说明 Console Demo 当前的组合根、阶段内 Feature 生命周期、同步适配器、自动测试输入和录制回放入口。文中的“存在”只表示源码入口已闭合；联机、预测校正和回放能力是否可用，按各节列出的验证证据和未完成项判断。
 
@@ -524,7 +524,23 @@ AutoTestInputFeature 只写入 `ctx.HudMoveDx/HudSkillClickSlot`，不直接调�
 
 ---
 
-## 12. 组合根边界与已知债务
+## 12. 与 Unity Starter/Composition 的边界
+
+Console 的 `Bootstrapper` 与 Unity 的 `DemoGameplayBootstrap` 不是同一个抽象的两个实现。前者是完整应用组合根，直接构造平台适配器、阶段、Feature、Host 网络、runtime World、同步适配器、View 与 replay；后者只从 package Catalog 选择一个 Root Prefab。Console 不消费 `DemoLaunchIntent`、Profile/Catalog、package scene 或 `GameEntry`。
+
+| 能力 | Console | Unity Composition |
+|------|---------|-------------------|
+| 选择游戏/模式 | CLI 与 `BattleStartConfig` | Starter 写入 `DemoLaunchRequest` |
+| 创建应用对象 | `ConsoleBattleBootstrapper` 构造完整对象图 | `DemoGameplayBootstrap` 只实例化 Profile 指向的 Root |
+| 创建 World | Bootstrapper 内 `ConfigureWorld/CreateBattleSession` | Root 内项目入口继续创建 Session/World |
+| Tick owner | Console 主循环调用 `Bootstrapper.Tick` | Unity PlayerLoop 驱动 Root 中的 MonoBehaviour/Host |
+| 停止与释放 | `Stop` 只停止 Flow；`Dispose` 才释放完整对象图 | Composition `Shutdown` 销毁 Root；Root 入口负责内部 teardown |
+
+这说明可复用边界应落在 World/Host/Input/Snapshot/Room 等工具契约，而不是再抽象一个同时理解 CLI、Unity Scene、ET Scene 与每种游戏 Flow 的“大一统 Bootstrap”。宿主组合根天然包含平台和项目策略，正式文档与示例比把它下沉到框架更能保持边界清晰。
+
+---
+
+## 13. 组合根边界与已知债务
 
 Console Demo 的价值在于展示一个非 Unity 宿主如何组合 World、Feature、输入、同步和表现原语；它不是框架必须复制的应用层。`ConsoleBattleBootstrapper`、阶段名、Feature 依赖、三种 adapter、ASCII view、自动测试替换和两套 replay 都是项目选择。
 
@@ -537,7 +553,8 @@ Console Demo 的价值在于展示一个非 Unity 宿主如何组合 World、Fea
 | Hybrid `Connect()` 未实现 | 只有本地 PredictionCoordinator 与手工 snapshot 注入，不是联机 Hybrid 闭环 |
 | Share replay snapshot 仍是占位 actor 数组 | 不能恢复完整 World；`.akrec` 与 Share replay 也不是同一协议 |
 | `FeatureHost.Attach` 单个 Feature 失败后继续并最终标 attached | 缺少 attach transaction/rollback，不能作为生产模块宿主的默认失败语义 |
+| `Program.Main` 的 `finally` 只调用 `Stop()` | `Stop` 只停止 Flow；未调用 `Dispose` 时 Host、WorldManager、adapter、dispatcher 与 view 的完整释放路径没有从 CLI 入口闭合 |
 
 框架可复用的是 Host、Room/battle 双连接、Feature/phase、Snapshot、Replay 与输入契约；Console 的组合顺序和降级策略应继续留在示例层，用正式文档展示取舍而不是下沉为统一套件。
 
-*文档版本：v3.0 | 最后更新：2026-08-16*
+*文档版本：v3.1 | 最后更新：2026-08-17*

@@ -4,6 +4,12 @@
   "displayName": "AbilityKit HFSM",
   "unity": "2022.3",
   "description": "Hierarchical FSM utilities.",
+  "keywords": [
+    "abilitykit",
+    "hfsm",
+    "state-machine",
+    "runtime"
+  ],
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.core": "0.1.0",

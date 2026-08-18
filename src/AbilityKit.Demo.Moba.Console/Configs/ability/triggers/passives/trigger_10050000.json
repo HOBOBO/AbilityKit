@@ -1,0 +1,22 @@
+{
+  "triggers": [
+    {
+      "id": 10050000,
+      "name": "妲己-失心-被动入口",
+      "event": "",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "debug_log",
+          "message": "妲己被动失心：技能伤害命中时由技能触发器叠加降低法术防御状态",
+          "dump_args": false
+        }
+      ]
+    }
+  ]
+}

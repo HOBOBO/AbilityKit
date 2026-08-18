@@ -121,6 +121,17 @@ namespace AbilityKit.Ability.Behavior
         /// </summary>
         DecisionResult Decide(IBehaviorContext context, IWorldQuery world);
     }
+
+    /// <summary>
+    /// Optional deterministic runtime snapshot contract used by rollback-capable decisions.
+    /// The payload format is owned by the concrete decision and must be versioned by SnapshotType.
+    /// </summary>
+    public interface IBehaviorRuntimeSnapshot
+    {
+        string SnapshotType { get; }
+        byte[] CaptureSnapshot();
+        void RestoreSnapshot(byte[] payload);
+    }
     
     /// <summary>
     /// 可组合的决策器接口

@@ -124,9 +124,39 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterPresentationFacade Presentation => _presentation;
 
-        public ShooterClientFrameSyncController FrameSync => _syncController.FrameSync;
+        /// <summary>
+        /// Compatibility facade for callers that still require the concrete frame-sync controller.
+        /// New code should use <see cref="TryGetFrameSync"/> or capability lookup on
+        /// <see cref="SyncController"/> so state-only controllers can omit this feature.
+        /// </summary>
+        public ShooterClientFrameSyncController FrameSync => GetRequiredCapability<IShooterClientFrameSyncCapability>().FrameSync;
 
-        public ShooterClientInputCoordinator InputCoordinator => _syncController.InputCoordinator;
+        /// <summary>
+        /// Compatibility facade for callers that still require input coordination.
+        /// </summary>
+        public ShooterClientInputCoordinator InputCoordinator => GetRequiredCapability<IShooterClientInputCapability>().InputCoordinator;
+
+        public bool TryGetFrameSync(out ShooterClientFrameSyncController? frameSync)
+        {
+            return _syncController.TryGetFrameSync(out frameSync);
+        }
+
+        public bool TryGetInputCoordinator(out ShooterClientInputCoordinator? inputCoordinator)
+        {
+            return _syncController.TryGetInputCoordinator(out inputCoordinator);
+        }
+
+        private TCapability GetRequiredCapability<TCapability>()
+            where TCapability : class
+        {
+            if (_syncController.TryGetCapability<TCapability>(out var capability) && capability != null)
+            {
+                return capability;
+            }
+
+            throw new InvalidOperationException(
+                $"Shooter sync controller '{_syncController.GetType().Name}' does not provide capability '{typeof(TCapability).Name}'.");
+        }
 
         public ShooterClientReconciliationResult LastReconciliationResult => _syncController.LastReconciliationResult;
 

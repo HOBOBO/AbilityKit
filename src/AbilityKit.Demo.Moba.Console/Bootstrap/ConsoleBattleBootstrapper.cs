@@ -118,6 +118,7 @@ namespace AbilityKit.Demo.Moba.Console
         public ShareReplayPlayer? ReplayPlayer => _replayPlayer;
         public IWorldResolver? RuntimeServices => _runtimeWorld?.Services;
         public bool RuntimeInputPortReady => _runtimeWorld?.Services?.TryResolve<IMobaBattleInputPort>(out var port) == true && port != null;
+        public IInputFeature InputFeature => _inputFeature;
         public bool HostNetworkReady => _hostNetwork?.Connections.IsListening == true && _hostClient?.IsConnected == true;
         public Bootstrap.RuntimeInputDiagnostics RuntimeInputDiagnostics => _runtimeInputSink?.Diagnostics ?? Bootstrap.RuntimeInputDiagnostics.Empty;
 

@@ -5,6 +5,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEditor;
 using Newtonsoft.Json;
+using AbilityKit.Analyzer.Configuration;
 
 namespace AbilityKit.Analyzer.Editor
 {
@@ -13,8 +14,6 @@ namespace AbilityKit.Analyzer.Editor
     /// </summary>
     public class NamespaceConstraintEditorChecker : MonoBehaviour
     {
-        private static readonly string LogPath = @"C:\analyzer_editor_check.log";
-
         /// <summary>
         /// 手动触发检查，可在菜单中调用
         /// </summary>
@@ -61,19 +60,13 @@ namespace AbilityKit.Analyzer.Editor
         {
             var violations = new List<string>();
             var config = LoadConfig();
-            if (config == null || !config.GlobalDefaults.Enabled)
+            var hasExplicitConstraints = config?.Constraints != null && config.Constraints.Count > 0;
+            var appliesGlobalDefaults = config?.GlobalDefaults != null &&
+                                        config.GlobalDefaults.Enabled &&
+                                        config.GlobalDefaults.ApplyToUnlistedPackages;
+            if (!hasExplicitConstraints && !appliesGlobalDefaults)
             {
                 WriteLog("Config not found or disabled");
-                return violations;
-            }
-
-            var forbidden = new HashSet<string>(
-                config.GlobalDefaults.ForbiddenNamespaces ?? new List<string>(),
-                StringComparer.OrdinalIgnoreCase);
-
-            if (forbidden.Count == 0)
-            {
-                WriteLog("No forbidden namespaces defined");
                 return violations;
             }
 
@@ -103,6 +96,13 @@ namespace AbilityKit.Analyzer.Editor
                         // Skip Editor assemblies
                         if (asmName.Contains(".Editor")) continue;
 
+                        var constraint = config.GetEffectiveConstraint(asmName);
+                        if (constraint == null || !constraint.IsEnabled ||
+                            constraint.ForbiddenNamespaces == null || constraint.ForbiddenNamespaces.Count == 0)
+                        {
+                            continue;
+                        }
+
                         var asmDir = Path.GetDirectoryName(asmdef);
                         var sourceFiles = Directory.GetFiles(asmDir, "*.cs", SearchOption.AllDirectories)
                             .Where(f => !IsExcluded(f))
@@ -110,7 +110,7 @@ namespace AbilityKit.Analyzer.Editor
 
                         foreach (var file in sourceFiles)
                         {
-                            var fileViolations = CheckFile(file, forbidden);
+                            var fileViolations = CheckFile(file, constraint);
                             foreach (var v in fileViolations)
                             {
                                 var msg = $"Forbidden namespace '{v.Namespace}' in {asmName} (line {v.Line})";
@@ -129,7 +129,7 @@ namespace AbilityKit.Analyzer.Editor
             return violations;
         }
 
-        private static List<NamespaceViolation> CheckFile(string filePath, HashSet<string> forbidden)
+        private static List<NamespaceViolation> CheckFile(string filePath, PackageConstraint constraint)
         {
             var violations = new List<NamespaceViolation>();
             try
@@ -141,7 +141,7 @@ namespace AbilityKit.Analyzer.Editor
                     if (line.StartsWith("using "))
                     {
                         var ns = ExtractNamespace(line);
-                        if (!string.IsNullOrEmpty(ns) && IsForbidden(ns, forbidden))
+                        if (!string.IsNullOrEmpty(ns) && constraint.IsNamespaceForbidden(ns))
                         {
                             violations.Add(new NamespaceViolation { Namespace = ns, Line = i + 1 });
                         }
@@ -163,15 +163,6 @@ namespace AbilityKit.Analyzer.Editor
             return ns.StartsWith("global") ? null : ns;
         }
 
-        private static bool IsForbidden(string ns, HashSet<string> forbidden)
-        {
-            foreach (var f in forbidden)
-            {
-                if (ns == f || ns.StartsWith(f + ".")) return true;
-            }
-            return false;
-        }
-
         private static bool IsExcluded(string path)
         {
             var n = path.Replace('\\', '/');
@@ -180,7 +171,7 @@ namespace AbilityKit.Analyzer.Editor
                    n.Contains("/~") || n.Contains("/Tests~");
         }
 
-        private static ConfigData LoadConfig()
+        private static PackageConstraintsConfig LoadConfig()
         {
             var paths = new[]
             {
@@ -195,7 +186,7 @@ namespace AbilityKit.Analyzer.Editor
                     try
                     {
                         var json = File.ReadAllText(p);
-                        return JsonConvert.DeserializeObject<ConfigData>(json);
+                        return JsonConvert.DeserializeObject<PackageConstraintsConfig>(json);
                     }
                     catch { }
                 }
@@ -227,7 +218,9 @@ namespace AbilityKit.Analyzer.Editor
         {
             try
             {
-                File.AppendAllText(LogPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+                var logPath = Path.Combine(GetProjectRoot(), "Logs", "AbilityKit.Analyzer", "editor-check.log");
+                Directory.CreateDirectory(Path.GetDirectoryName(logPath));
+                File.AppendAllText(logPath, $"[{DateTime.Now:HH:mm:ss}] {msg}\n");
             }
             catch { }
         }

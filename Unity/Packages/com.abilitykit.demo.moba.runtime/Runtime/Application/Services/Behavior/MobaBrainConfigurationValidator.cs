@@ -38,7 +38,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                         ValidateBTreeBrain(in definition, decisionDrivers, textAssetLoader, errors);
                         break;
                     case MobaBrainDriverKind.Hfsm:
-                        if (!profiles.TryGet(definition.DecisionName, out _))
+                        if (!decisionDrivers.Contains(MobaBrainDriverKind.Hfsm)
+                            && !profiles.TryGet(definition.DecisionName, out _))
                         {
                             errors.Add(
                                 $"Brain '{definition.BrainId}' references missing HFSM profile '{definition.DecisionName}'.");

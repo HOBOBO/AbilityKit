@@ -29,6 +29,8 @@ namespace AbilityKit.Game.Flow
         {
             var runtime = ctx.Feature;
             if (runtime == null) return;
+
+            runtime.EventSink?.Clear();
             runtime.EventSink = null;
         }
 

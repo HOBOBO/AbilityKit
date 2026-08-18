@@ -38,12 +38,30 @@ namespace AbilityKit.Dataflow
         /// </summary>
         public int ProcessedCount { get; }
 
-        public DataflowResult(TOutput output, int processedCount, bool aborted = false, Exception error = null)
+        /// <summary>
+        /// 失败处理器索引；非失败结果为 -1。
+        /// </summary>
+        public int FailedProcessorIndex { get; }
+
+        /// <summary>
+        /// 失败处理器名称；非失败结果为 null。
+        /// </summary>
+        public string FailedProcessorName { get; }
+
+        public DataflowResult(
+            TOutput output,
+            int processedCount,
+            bool aborted = false,
+            Exception error = null,
+            int failedProcessorIndex = -1,
+            string failedProcessorName = null)
         {
             Output = output;
             ProcessedCount = processedCount;
             IsAborted = aborted;
             Error = error;
+            FailedProcessorIndex = failedProcessorIndex;
+            FailedProcessorName = failedProcessorName;
         }
 
         /// <summary>
@@ -65,9 +83,20 @@ namespace AbilityKit.Dataflow
         /// <summary>
         /// 创建错误结果
         /// </summary>
-        public static DataflowResult<TOutput> Failure(Exception ex, TOutput output, int processedCount)
+        public static DataflowResult<TOutput> Failure(
+            Exception ex,
+            TOutput output,
+            int processedCount,
+            int failedProcessorIndex = -1,
+            string failedProcessorName = null)
         {
-            return new DataflowResult<TOutput>(output, processedCount, error: ex);
+            if (ex == null) throw new ArgumentNullException(nameof(ex));
+            return new DataflowResult<TOutput>(
+                output,
+                processedCount,
+                error: ex,
+                failedProcessorIndex: failedProcessorIndex,
+                failedProcessorName: failedProcessorName);
         }
     }
 }

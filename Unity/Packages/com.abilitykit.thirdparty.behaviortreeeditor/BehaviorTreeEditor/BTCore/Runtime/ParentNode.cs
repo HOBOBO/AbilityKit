@@ -19,6 +19,11 @@ namespace BTCore.Runtime
         protected List<BTNode> Children { get; } = new();
 
         public List<BTNode> GetChildren() => Children;
+
+        internal void RestoreRuntimeIndex(int index)
+        {
+            Index = index;
+        }
         
         public virtual void OnChildStart() { }
         public virtual void OnConditionalAbort(int index) { }

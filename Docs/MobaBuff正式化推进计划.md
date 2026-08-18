@@ -202,7 +202,20 @@ Buff 模块正式化的目标不是继续堆功能，而是让 Buff 成为可维
 3. 整理表现与网络同步契约。
 4. 建立 Buff 模块正式化验收清单。
 
-## 7. 完成定义
+## 7. 本轮 P0-P3 实施状态
+
+截至 2026-08-17，推荐顺序中的正式化基线已完成：
+
+| 阶段 | 已落地内容 | 验收证据 |
+|------|------------|----------|
+| P0 | 全量恢复 payload v2 版本/身份/依赖预校验；导入失败恢复旧快照；重获 skill retain，重建 Continuous、Tag requirement 和 context，依赖缺失时 fail-fast | 恢复失败不破坏现态、无资源泄漏及 ownership 专项通过 |
+| P1 | `DrainPending` 固化预算、尾部保留、重入和异常隔离；单项 Immediate 返回执行结果；EndFlow 在清理异常时完成剩余补偿；timer rollback v3 使用完整实例身份并保证未命中零写入 | Unity 生命周期及 timer rollback 专项通过 |
+| P2 | `BuffDispelPolicy`、可选驱散类别、不可驱散和目标有效 Tag 阻断；Tag 查询缺失 fail-closed；运行时与配置验收使用稳定诊断 code | 生命周期 fixture 18/18、配置验收 fixture 5/5 |
+| P3 | `BuffRepository` 改为按列表身份隔离的四类首项哈希索引；`MarkDirty(list)` 只失效指定列表；列表回池前清除索引；同步深潜文档 | Repository 首项语义和列表级失效专项通过 |
+
+构建证据：Runtime、Diagnostics Core Tests、Game UnitTests 均为 0 error；warning 数量分别为 111、148、162，与本轮既有基线一致。详细生命周期边界见 [`07-BuffLifecycleDeepDive.md`](design/09-ImplementationExamples/MOBA/07-BuffLifecycleDeepDive.md)。
+
+## 8. 完成定义
 
 Buff 模块达到正式化完成态时，应满足：
 

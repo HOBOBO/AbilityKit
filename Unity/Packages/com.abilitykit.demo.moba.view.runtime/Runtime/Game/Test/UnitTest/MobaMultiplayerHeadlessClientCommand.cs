@@ -46,7 +46,6 @@ namespace AbilityKit.Game.Test.UnitTest
         private const string OptionsKey = "AbilityKit.MobaMultiplayerHeadless.Options";
         private static readonly TimeSpan StateWriteInterval = TimeSpan.FromSeconds(1);
         private static readonly TimeSpan SoloLobbyObservationDuration = TimeSpan.FromSeconds(2);
-        private static readonly TimeSpan RoomSnapshotRecoveryInterval = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan SkillObservationDuration = TimeSpan.FromSeconds(3);
         private static readonly TimeSpan MovementInputDuration = TimeSpan.FromSeconds(2.2);
         private const int SkillSettleRequiredFrames = 30;
@@ -65,13 +64,12 @@ namespace AbilityKit.Game.Test.UnitTest
         private static IMultiplayerGatewayRuntime? _gatewayRuntime;
         private static Task? _operation;
         private static Task? _starterOperation;
-        private static MultiplayerStarterController? _starterController;
+        private static StarterController? _starterController;
         private static ClientStage _stage;
         private static string _stageDetail = string.Empty;
         private static DateTime _deadlineUtc;
         private static DateTime _gatewayConnectedUtc;
         private static DateTime _soloLobbyObservationStartedUtc;
-        private static DateTime _nextRoomSnapshotRecoveryUtc;
         private static DateTime _movementStartedUtc;
         private static DateTime _skillStartedUtc;
         private static DateTime _nextStateWriteUtc;
@@ -113,12 +111,9 @@ namespace AbilityKit.Game.Test.UnitTest
             EditorApplication.update -= ContinueInPlayMode;
             EditorApplication.update += ContinueInPlayMode;
 
-            // Domain reload happens between executeMethod and scene Awake. Re-publish the
-            // one-shot launch intent here so GameEntry consumes the authenticated request.
             if (SessionState.GetBool(RunningKey, false))
             {
                 TryRestoreOptions();
-                PublishLaunchIntent();
             }
         }
 
@@ -196,11 +191,11 @@ namespace AbilityKit.Game.Test.UnitTest
             }
 
             var activeScene = SceneManager.GetActiveScene();
-            if (!string.Equals(activeScene.name, DemoSceneRoutes.Gameplay, StringComparison.Ordinal))
+            if (!string.Equals(activeScene.name, DemoSceneRoutes.Moba, StringComparison.Ordinal))
             {
                 SetStage(
                     ClientStage.WaitingForEntry,
-                    $"waiting for unified gameplay scene '{DemoSceneRoutes.Gameplay}' (active='{activeScene.name}')");
+                    $"waiting for MOBA gameplay scene '{DemoSceneRoutes.Moba}' (active='{activeScene.name}')");
                 return;
             }
 
@@ -254,9 +249,9 @@ namespace AbilityKit.Game.Test.UnitTest
                     {
                         if (!TryReadRoomId(out var roomId)) return;
                         StartOperation(
-                            _controller!.StartJoinRoomAsync(BuildLaunchSpec(), roomId, _lifetime!.Token),
+                            JoinAndPrepareAsync(roomId),
                             ClientStage.JoiningRoom,
-                            "joining " + roomId);
+                            "joining and preparing " + roomId);
                     }
                     return;
 
@@ -277,7 +272,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     }
                     SetStage(
                         ClientStage.WaitingAllReady,
-                        "joined room; formal lobby is preparing the default loadout");
+                        "joined room with the externally driven default loadout");
                     return;
 
                 case ClientStage.ObservingSoloLobby:
@@ -298,17 +293,6 @@ namespace AbilityKit.Game.Test.UnitTest
                     var players = _controller.CurrentSnapshot?.Players;
                     if (players == null || players.Count < 2 || players.Any(player => !player.LobbyReady))
                     {
-                        if (DateTime.UtcNow >= _nextRoomSnapshotRecoveryUtc)
-                        {
-                            _nextRoomSnapshotRecoveryUtc = DateTime.UtcNow + RoomSnapshotRecoveryInterval;
-                            StartOperation(
-                                _pushSynchronizer!.TryRefreshAfterSilenceAsync(
-                                    RoomSnapshotRecoveryInterval,
-                                    _lifetime!.Token),
-                                ClientStage.WaitingAllReady,
-                                "recovering authoritative room snapshot after push silence");
-                            return;
-                        }
                         SetStage(
                             ClientStage.WaitingAllReady,
                             $"waiting for two ready players ({players?.Count ?? 0}/2 joined)");
@@ -472,10 +456,10 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             if (_starterOperation == null)
             {
-                _starterController = Object.FindObjectOfType<MultiplayerStarterController>();
+                _starterController = Object.FindObjectOfType<StarterController>();
                 if (_starterController == null)
                 {
-                    SetStage(ClientStage.WaitingForStarter, "waiting for MultiplayerStarterController");
+                    SetStage(ClientStage.WaitingForStarter, "waiting for StarterController");
                     return;
                 }
 
@@ -485,7 +469,8 @@ namespace AbilityKit.Game.Test.UnitTest
                     _options.Port,
                     _options.Region,
                     _options.ServerId,
-                    TimeSpan.FromSeconds(_options.RequestTimeoutSeconds));
+                    TimeSpan.FromSeconds(_options.RequestTimeoutSeconds),
+                    suppressAutomaticLobbyActions: true);
                 SetStage(ClientStage.StartingFromStarter, "Starter is logging in and launching MOBA");
                 return;
             }
@@ -518,13 +503,35 @@ namespace AbilityKit.Game.Test.UnitTest
             if (_options!.Role == ClientRole.Owner)
             {
                 StartOperation(
-                    _controller!.StartCreateRoomAsync(BuildLaunchSpec(), _lifetime!.Token),
+                    CreateAndPrepareAsync(),
                     ClientStage.CreatingRoom,
-                    "creating authoritative room");
+                    "creating and preparing authoritative room");
                 return;
             }
 
             SetStage(ClientStage.WaitingForRoom, "waiting for owner room coordination");
+        }
+
+        private static async Task CreateAndPrepareAsync()
+        {
+            await _controller!.StartCreateRoomAsync(BuildLaunchSpec(), _lifetime!.Token);
+            await PrepareDefaultLoadoutAsync();
+        }
+
+        private static async Task JoinAndPrepareAsync(string roomId)
+        {
+            await _controller!.StartJoinRoomAsync(BuildLaunchSpec(), roomId, _lifetime!.Token);
+            await PrepareDefaultLoadoutAsync();
+        }
+
+        private static async Task PrepareDefaultLoadoutAsync()
+        {
+            var loadout = FormalLobbyFeature.ResolveAvailableDefaultLoadout(
+                _gatewayConfig!.BuildDefaultLoadout(),
+                _controller!.CurrentSnapshot,
+                _controller.LocalPlayerId);
+            await _controller.PickHeroAsync(loadout, _lifetime!.Token);
+            await _controller.SetReadyAsync(true, _lifetime.Token);
         }
 
         private static MultiplayerRoomLaunchSpec BuildLaunchSpec()
@@ -1341,22 +1348,6 @@ namespace AbilityKit.Game.Test.UnitTest
             return true;
         }
 
-        private static void PublishLaunchIntent()
-        {
-            if (_options == null || string.IsNullOrWhiteSpace(_options.SessionToken)) return;
-            DemoMultiplayerLaunchIntent.Request(
-                DemoMultiplayerGameplay.Moba,
-                new DemoMultiplayerLaunchRequest(
-                    _options.Host,
-                    _options.Port,
-                    _options.Region,
-                    _options.ServerId,
-                    _options.AccountId,
-                    _options.SessionToken,
-                    TimeSpan.FromSeconds(_options.RequestTimeoutSeconds),
-                    suppressAutomaticLobbyActions: false));
-        }
-
         private static void ResetRuntime(ClientOptions options)
         {
             _options = options;
@@ -1372,7 +1363,7 @@ namespace AbilityKit.Game.Test.UnitTest
             _starterOperation = null;
             _starterController = null;
             _stage = ClientStage.WaitingForStarter;
-            _stageDetail = "opening multiplayer Starter scene";
+            _stageDetail = "opening Starter scene";
             _deadlineUtc = default;
             _gatewayConnectedUtc = default;
             _soloLobbyObservationStartedUtc = default;

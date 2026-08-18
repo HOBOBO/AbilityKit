@@ -72,6 +72,10 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         public void Tick()
         {
         }
+
+        public void Clear()
+        {
+        }
     }
 
     internal sealed class DebugBattleViewEventSinkFactory

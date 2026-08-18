@@ -266,13 +266,13 @@ flowchart TB
 
 AbilityKit 中存在三层不同职责的客户端预测实现，不能仅因都包含“prediction”或“rollback”命名就视为同一套完整能力：
 
-1. `PredictionCoordinator`：StateSync 包内的通用流程骨架，管理 `StateSlots`、输入历史和字典快照；冲突分支会先提取待重演输入，再清空旧历史并执行 replay。
+1. `PredictionCoordinator`：StateSync 包内的通用流程骨架，管理 `StateSlots`、按帧输入历史和字典快照；冲突分支会先提取完整帧批次，再清空旧历史并按原帧执行 replay。
 2. `ClientPredictionRunner`：轻量封装，适合测试或简单客户端；其恢复入口直接尝试恢复分歧帧，不能替代 Host 的完整对账模块。
 3. `ClientPredictionDriverModule`：Host Extension 的正式运行时模块，包含远端输入源、本地输入源、预测窗口、权威输入对账、哈希对账和 replay 超时保护。
 
 正式业务接入应优先选择第 3 层或业务专用控制器，并单独核验输入保留、状态导入、回滚帧选择、重演终点和表现层刷新，而不能把通用 Coordinator 的 API 存在误写成完整 reconciliation。
 
-通用 `PredictionCoordinator` 还有一个不能忽略的输入粒度约束：其 `InputHistory.GetInputs` 返回拍平后的命令序列，`ReplayInputs` 对每条命令递增一次帧号。同一帧若经 `RecordInput` 保存多条命令，重演就会多推进帧。现有测试只证明每帧一条命令可重演；需要同帧批量输入的项目应使用按帧保存输入数组的 `InputHistoryRingBuffer`/Host 驱动，或先修复通用 Coordinator 的分组契约。
+通用 `PredictionCoordinator` 已提供 `ProcessInputs` 表达同一预测帧中的命令批次。`InputHistory.GetFrameBatches` 会保留服务器确认帧之后到原预测终点的每一个 Frame，包括空输入帧；重演时同帧命令使用相同帧号并只捕获一次帧末快照。命令对象本身不会由历史自动复制，调用方仍必须保证命令在保留期间不可变。
 
 ### 7.1 轻量 Runner
 
@@ -325,7 +325,7 @@ sequenceDiagram
 
 需要注意两个源码事实：轻量 `ClientPredictionRunner.HandleRollbackRequested` 当前直接 `TryRestore(rollbackFrame)`，其中 `rollbackFrame` 是 `ClientPredictionReconciler` 触发的哈希不一致帧；Host Extension 的完整模块则会回滚到 `mismatchFrame - 1`，再从分歧帧开始重演。正式游戏接入更应该参考 `ClientPredictionDriverModule` 的逻辑。
 
-此外，StateSync 通用 `PredictionCoordinator.Reset()` 的实现是将当前帧设为 0、确认帧设为 `Frame.Invalid`、清空输入历史，并调用 `_snapshotStore.PruneBefore(Frame.Invalid)`。由于 `Frame.Invalid.Value == -1`，该裁剪只删除小于 -1 的帧，通常不会清理从 0 开始的已有预测快照。文档、测试和业务调用方应把它视为“重置游标与输入”，而不是“完整清空预测历史”。
+此外，StateSync 通用 `PredictionCoordinator.Reset()` 现在会同时重置帧游标、清空输入历史、snapshot store 和当前槽位；`Dispose()` 继续清理 handler/listener，并解除事件引用。`DictionarySnapshotStore.Record/Get` 两侧都返回隔离副本，可变引用槽位必须提供 `IStateSlotValueCloner`，否则在捕获或覆盖前快速失败。
 
 `RollbackCoordinator` 的恢复路径会先解析全部 Provider，再开始 Import，并通过 `ArrayPool` 租用临时 Provider 数组；这避免“解析到一半才发现 Key 缺失”，但 Import 本身不是事务。若后续 Provider 导入失败，前面的 Provider 可能已经恢复，调用方必须把失败视为可能存在部分恢复，并进入全量基线或重建路径。`OperationCompleted` 观察者异常会被记录和隔离，不会改写回滚操作结果。
 
@@ -537,7 +537,8 @@ flowchart LR
 | 约束 | 原因 | 建议 |
 |------|------|------|
 | Provider 必须覆盖影响未来模拟的全部状态 | 恢复不完整会导致重演仍然分歧 | 不只保存位置/血量，也要保存随机数、冷却、事件日志、命令日志等 |
-| 通用 Coordinator 只按每条输入推进一帧 | 同帧多命令会在 replay 中被展开成多帧 | 当前限制为每帧一条命令，或采用按帧输入数组的 Host 驱动；补分组重演专项测试后再放宽 |
+| 通用 Coordinator 按帧批次重演 | 同帧多命令必须共享帧号，空输入帧也必须保留 | 使用 `ProcessInputs` 提交帧批次；命令在进入历史后保持不可变，复杂 World 仍优先采用 Host 的输入数组驱动 |
+| 引用型 StateSlot 必须可复制 | 静默浅复制会让历史快照随当前状态一起变化 | 为 Coordinator/StateSlots 注入 `IStateSlotValueCloner`；值类型和字符串无需额外策略 |
 | `rollbackHistoryFrames` 必须大于最大网络抖动/预测窗口 | 旧帧被覆盖后无法恢复 | 结合 tick rate、RTT、重连窗口配置容量 |
 | Key 必须稳定且不冲突 | 快照恢复依赖 Key 查找 Provider | 为每个模块分配固定 Key 段 |
 | 捕获频率影响精度与性能 | 每帧捕获最准确但成本最高 | 客户端预测通常每帧捕获；服务端可按功能调整 `captureEveryNFrames` |

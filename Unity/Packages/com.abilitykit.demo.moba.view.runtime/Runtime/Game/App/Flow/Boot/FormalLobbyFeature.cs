@@ -138,21 +138,24 @@ namespace AbilityKit.Game.Flow
         {
             if (!ShouldShowFlowWindow(_selection)) return;
 
-            if (string.IsNullOrEmpty(_configurationError) &&
-                !_runtime.InitializationStarted &&
-                _gatewayRuntime?.ConnectionState == ConnectionState.Connected)
+            if (ShouldRunAutomaticLobbyActions(_launchRequest))
             {
-                if (_runtime.TryBeginInitialization())
+                if (string.IsNullOrEmpty(_configurationError) &&
+                    !_runtime.InitializationStarted &&
+                    _gatewayRuntime?.ConnectionState == ConnectionState.Connected)
                 {
-                    StartOperation("Opening multiplayer lobby", InitializeLobbyAsync);
+                    if (_runtime.TryBeginInitialization())
+                    {
+                        StartOperation("Opening multiplayer lobby", InitializeLobbyAsync);
+                    }
                 }
-            }
 
-            TryStartAutomaticPreparation();
-            TryStartAutomaticMatch();
-            TryRecoverCurrentRoomSnapshot();
-            TryRefreshRoomsAutomatically();
-            TryStartAutomaticCreate();
+                TryStartAutomaticPreparation();
+                TryStartAutomaticMatch();
+                TryRecoverCurrentRoomSnapshot();
+                TryRefreshRoomsAutomatically();
+                TryStartAutomaticCreate();
+            }
 
             if (!ShouldEnterBattle(_selection, _controller)) return;
 
@@ -202,6 +205,12 @@ namespace AbilityKit.Game.Flow
         internal static bool ShouldShowFlowWindow(LobbyBattleEntrySelection selection)
         {
             return selection?.IsRemoteSelected == true;
+        }
+
+        internal static bool ShouldRunAutomaticLobbyActions(
+            DemoMultiplayerLaunchRequest launchRequest)
+        {
+            return launchRequest?.SuppressAutomaticLobbyActions != true;
         }
 
         internal static bool ShouldEnterBattle(

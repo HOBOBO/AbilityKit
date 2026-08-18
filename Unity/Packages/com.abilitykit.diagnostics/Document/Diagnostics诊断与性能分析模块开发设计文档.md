@@ -157,5 +157,17 @@ sequenceDiagram
 
 ---
 
-*文档版本：1.2*
-*最后更新：2026-07-01*
+## EditorProfiler 缺陷修复记录（2026-08-17）
+
+| 缺陷 | 修复 |
+|------|------|
+| `TicksToNanoseconds` 直接 `ticks * 1e9` 在 ticks > ~9.2e9 时中间溢出（Linux 上 Frequency==1e9，即 >9.2 秒的探针溢出成负纳秒，负值被 FlameNode 忽略但负毫秒仍流入样本与阈值判断） | 拆成整秒 + 余数两段换算，各段乘法不溢出；改为 internal 供测试直接验证（`InternalsVisibleTo`） |
+| 乱序 `Complete`：栈顶帧名与令牌不匹配时，被弹出的栈顶帧被直接丢弃（FlameNode 恒 HitCount=0、无耗时）；目标帧不在栈上时耗时被错误归属到栈顶无关帧 | unwind 语义：向下弹到目标帧，目标上方未配对帧按各自开始时间强制收尾（自顶向下、耗时累计到各自父帧），不丢数据；目标不在栈上时记为独立时长，绝不归属到无关帧 |
+| `Add(counter, long.MinValue)` 时 `Math.Abs` 抛 `OverflowException` | 封顶为 `long.MaxValue` |
+
+已知语义（保留现状）：`CounterRecord.MinValue/MaxValue/MeanValue` 跟踪的是运行总量的统计而非单次增量；采样路径仍是 Stopwatch 硬接线、无时钟注入（测试只断言结构与单调性，不断言绝对毫秒）。
+
+---
+
+*文档版本：1.3*
+*最后更新：2026-08-17*

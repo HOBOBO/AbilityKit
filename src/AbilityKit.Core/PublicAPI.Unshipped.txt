@@ -1,0 +1,59 @@
+#nullable enable
+AbilityKit.Core.Buffers.PooledBufferClearMode
+AbilityKit.Core.Buffers.PooledBufferClearMode.None = 0 -> AbilityKit.Core.Buffers.PooledBufferClearMode
+AbilityKit.Core.Buffers.PooledBufferClearMode.OnRent = 1 -> AbilityKit.Core.Buffers.PooledBufferClearMode
+AbilityKit.Core.Buffers.PooledBufferClearMode.OnReturn = 2 -> AbilityKit.Core.Buffers.PooledBufferClearMode
+AbilityKit.Core.Buffers.PooledBufferOwner<T>
+AbilityKit.Core.Buffers.PooledBufferOwner<T>.Dispose() -> void
+AbilityKit.Core.Buffers.PooledBufferOwner<T>.IsDisposed.get -> bool
+AbilityKit.Core.Buffers.PooledBufferOwner<T>.Length.get -> int
+AbilityKit.Core.Buffers.PooledBufferOwner<T>.Memory.get -> System.Memory<T>
+AbilityKit.Core.Buffers.PooledBufferOwner<T>.Segment.get -> System.ArraySegment<T>
+AbilityKit.Core.Buffers.PooledBufferOwner<T>.Span.get -> System.Span<T>
+static AbilityKit.Core.Buffers.PooledBufferOwner<T>.Rent(int length, AbilityKit.Core.Buffers.PooledBufferClearMode clearMode = AbilityKit.Core.Buffers.PooledBufferClearMode.None) -> AbilityKit.Core.Buffers.PooledBufferOwner<T>!
+static AbilityKit.Core.Buffers.PooledBufferOwner<T>.Rent(int length, System.Buffers.ArrayPool<T>! pool, AbilityKit.Core.Buffers.PooledBufferClearMode clearMode = AbilityKit.Core.Buffers.PooledBufferClearMode.None) -> AbilityKit.Core.Buffers.PooledBufferOwner<T>!
+AbilityKit.Core.Collections.SortedIntSet
+AbilityKit.Core.Collections.SortedIntSet.Add(int value) -> bool
+AbilityKit.Core.Collections.SortedIntSet.Clear() -> void
+AbilityKit.Core.Collections.SortedIntSet.Contains(int value) -> bool
+AbilityKit.Core.Collections.SortedIntSet.Count.get -> int
+AbilityKit.Core.Collections.SortedIntSet.LowerBound(int value) -> int
+AbilityKit.Core.Collections.SortedIntSet.Remove(int value) -> bool
+AbilityKit.Core.Collections.SortedIntSet.RemoveRange(int index, int count) -> void
+AbilityKit.Core.Collections.SortedIntSet.SortedIntSet(int capacity = 0) -> void
+AbilityKit.Core.Collections.SortedIntSet.this[int index].get -> int
+AbilityKit.Core.Collections.SortedIntSet.UpperBound(int value) -> int
+AbilityKit.Core.Identifiers.StableHashV1
+static AbilityKit.Core.Identifiers.StableHashV1.Fnv1a32Utf16(string! value) -> int
+static AbilityKit.Core.Identifiers.StableHashV1.Fnv1a32Utf16NonNegative(string! value) -> int
+static AbilityKit.Core.Identifiers.StableHashV1.Fnv1a32Utf8(string! value) -> int
+AbilityKit.Core.Lifetime.DisposableRegistration
+static AbilityKit.Core.Lifetime.DisposableRegistration.Create(System.Action! release) -> System.IDisposable!
+static AbilityKit.Core.Lifetime.DisposableRegistration.Create<TState>(TState state, System.Action<TState>! release) -> System.IDisposable!
+AbilityKit.Core.Timing.IMonotonicClock
+AbilityKit.Core.Timing.IMonotonicClock.Frequency.get -> long
+AbilityKit.Core.Timing.IMonotonicClock.Timestamp.get -> long
+AbilityKit.Core.Timing.MonotonicTime
+static AbilityKit.Core.Timing.MonotonicTime.DurationToTimestampTicks(System.TimeSpan duration, long frequency) -> long
+static AbilityKit.Core.Timing.MonotonicTime.GetMilliseconds() -> long
+static AbilityKit.Core.Timing.MonotonicTime.GetTimestamp() -> long
+static AbilityKit.Core.Timing.MonotonicTime.TimestampFrequency.get -> long
+static AbilityKit.Core.Timing.MonotonicTime.ToMilliseconds(long timestamp, long frequency) -> long
+AbilityKit.Core.Timing.StopwatchMonotonicClock
+AbilityKit.Core.Timing.StopwatchMonotonicClock.Frequency.get -> long
+static AbilityKit.Core.Timing.StopwatchMonotonicClock.Instance.get -> AbilityKit.Core.Timing.StopwatchMonotonicClock!
+AbilityKit.Core.Timing.StopwatchMonotonicClock.Timestamp.get -> long
+AbilityKit.Core.Mathematics.DeterministicMathBridge
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Epsilon.get -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Magnitude(in AbilityKit.Core.Mathematics.Vec3 value) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Normalize(in AbilityKit.Core.Mathematics.Quat value) -> AbilityKit.Core.Mathematics.Quat
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Normalize(in AbilityKit.Core.Mathematics.Vec3 value) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Sqrt(float value) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(in AbilityKit.Core.Mathematics.Vec3 value) -> AbilityKit.Deterministic.FixedVec3
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.ToVec3(in AbilityKit.Deterministic.FixedVec3 value) -> AbilityKit.Core.Mathematics.Vec3
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.ToFixed(float value) -> AbilityKit.Deterministic.Fixed64
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.ToSingle(AbilityKit.Deterministic.Fixed64 value) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Cos(float radians) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Sin(float radians) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Tan(float radians) -> float
+static AbilityKit.Core.Mathematics.DeterministicMathBridge.Atan2(float y, float x) -> float

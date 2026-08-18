@@ -28,6 +28,7 @@ namespace AbilityKit.Ability.Flow
         private readonly FlowWakeUp _wakeUp;
         private bool _wakeRequested;
         private bool _pumping;
+        private bool _stepping;
         private bool _disposed;
 
         internal FlowRunner()
@@ -83,6 +84,31 @@ namespace AbilityKit.Ability.Flow
         public FlowStatus Step(float deltaTime)
         {
             ThrowIfDisposed();
+            if (_stepping)
+            {
+                // 重入（节点回调里再触发 Wake/Step）：登记唤醒，由外层步进结束后统一推进，
+                // 避免对外层尚未完成 Enter 的节点树发起嵌套 Tick/重复 Enter。
+                _wakeRequested = true;
+                return _status;
+            }
+
+            _stepping = true;
+            try
+            {
+                return StepCore(deltaTime);
+            }
+            finally
+            {
+                _stepping = false;
+                if (!_pumping && _wakeRequested && _root != null && _status == FlowStatus.Running)
+                {
+                    Pump();
+                }
+            }
+        }
+
+        private FlowStatus StepCore(float deltaTime)
+        {
             if (_root == null) return _status;
             if (_status != FlowStatus.Running) return _status;
 
@@ -103,6 +129,12 @@ namespace AbilityKit.Ability.Flow
                 try
                 {
                     FlowDiagnostics.Exit(_ctx, finishedRoot, _status);
+                }
+                catch (Exception exitEx)
+                {
+                    // 根节点 Exit 抛异常不改变已达成的终态：按二级异常上报，
+                    // 收尾流程（清理 ctx/rootScope、NotifyFinished）照常完成。
+                    HandleUnhandledException(exitEx);
                 }
                 finally
                 {
@@ -162,7 +194,7 @@ namespace AbilityKit.Ability.Flow
             if (_disposed) return;
             if (_status != FlowStatus.Running) return;
             _wakeRequested = true;
-            if (_pumping) return;
+            if (_pumping || _stepping) return;
 
             Pump();
         }
@@ -308,6 +340,7 @@ namespace AbilityKit.Ability.Flow
             _pumpIterations = 0;
             _wakeRequested = false;
             _pumping = false;
+            _stepping = false;
             MaxPumpIterationsPerWake = 128;
             _diagnostics = null;
             ResetCallbacks();
@@ -332,6 +365,7 @@ namespace AbilityKit.Ability.Flow
             _pumpIterations = 0;
             _wakeRequested = false;
             _pumping = false;
+            _stepping = false;
             MaxPumpIterationsPerWake = 128;
             _diagnostics = null;
             _disposed = true;

@@ -7,7 +7,6 @@
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
-    "com.abilitykit.world.framesync": "0.1.0",
     "com.abilitykit.world.snapshot": "0.1.0",
     "com.cysharp.memorypack": "1.10.0"
   }

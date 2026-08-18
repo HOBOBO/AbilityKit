@@ -50,12 +50,14 @@ namespace AbilityKit.Ability.Flow
             ThrowIfDisposed();
             _runner.Observer = Observer;
             _runner.TraceRecorder = TraceRecorder;
+            // Started 先于 runner.Start 触发：立即完成的流程 Finished 会在 Start 内触发，
+            // 若 Started 放在后面，订阅者会先收到 Finished 再收到 Started（时序倒置）。
+            Started?.Invoke();
             _runner.Start(
                 root,
                 onFinished: s => Finished?.Invoke(s),
                 onStatusChanged: (prev, next) => StatusChanged?.Invoke(prev, next)
             );
-            Started?.Invoke();
         }
 
         public FlowStatus Step(float deltaTime)

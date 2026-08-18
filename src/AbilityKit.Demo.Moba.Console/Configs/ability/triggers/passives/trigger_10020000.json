@@ -2,39 +2,26 @@
   "triggers": [
     {
       "id": 10020000,
-      "name": "小乔-治愈微笑-技能命中后短暂移速",
-      "event": "damage.apply.after",
+      "name": "小乔-治愈微笑-释放技能后短暂移速",
+      "event": "skill.cast.complete",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",
       "priority": 50,
-      "conditions": [
-        {
-          "type": "arg_gt",
-          "arg_name": "damage_value",
-          "value": 0
-        },
-        {
-          "type": "arg_neq",
-          "left": "payload:attacker_actor_id",
-          "right": "payload:target_actor_id"
-        }
-      ],
+      "conditions": [],
       "actions": [
         {
           "type": "add_buff",
-          "buffIds": [
-            10020001
-          ],
-          "target_payload_field_id": 1993035528
+          "buffIds": [10020001],
+          "target_self": true
         },
         {
           "type": "debug_log",
-          "message": "小乔被动触发：技能命中后添加短暂移速状态（配置先行）",
+          "message": "小乔被动触发：释放技能后添加短暂移速状态",
           "dump_args": false
         }
-      ],
-      "scope": "owner"
+      ]
     }
   ]
 }

@@ -41,7 +41,8 @@ namespace AbilityKit.Game.Flow
                 rollbackHistoryFrames: PredictionRollbackHistoryFrames,
                 rollbackCaptureEveryNFrames: 1,
                 buildRollbackRegistry: options.BuildRollbackRegistry,
-                buildComputeHash: options.BuildComputeHash);
+                buildComputeHash: options.BuildComputeHash,
+                bufferOptions: options.PredictionBufferOptions);
         }
 
         private static ClientPredictionDriverModule CreateRemoteOnlyModule(RemoteDrivenWorldRuntimeFactoryOptions options)
@@ -58,7 +59,8 @@ namespace AbilityKit.Game.Flow
                 rollbackHistoryFrames: 0,
                 rollbackCaptureEveryNFrames: 0,
                 buildRollbackRegistry: _ => new RollbackRegistry(),
-                buildComputeHash: _ => null);
+                buildComputeHash: _ => null,
+                bufferOptions: options.PredictionBufferOptions);
         }
     }
 }

@@ -25,6 +25,7 @@ namespace AbilityKit.Game.Editor
         private readonly BattleDebugDiagnosticEventsViewModel _viewModel = new BattleDebugDiagnosticEventsViewModel();
         private Vector2 _scroll;
         private BattleDiagnosticEvent? _selectedEvent;
+        internal BattleDiagnosticEvent? SelectedEvent => _selectedEvent;
         private BattleDebugSkillInvestigationCase? _selectedInvestigation;
         private BattleDebugInvestigationConfidenceFilter _investigationConfidenceFilter;
         private BattleDebugInvestigationCauseFilter _investigationCauseFilter;
@@ -41,6 +42,17 @@ namespace AbilityKit.Game.Editor
             _viewModel.SearchText = string.Empty;
             _viewModel.InvalidateCache();
             ClearSelection();
+        }
+
+        public void OpenEvent(
+            in BattleDiagnosticEvent diagnosticEvent,
+            BattleDiagnosticWorkspaceState workspaceState)
+        {
+            _selectedEvent = diagnosticEvent;
+            _selectedInvestigation = null;
+            _actionStatus = string.Empty;
+            _scroll = Vector2.zero;
+            workspaceState?.Select(CreateEventSelection(in diagnosticEvent));
         }
 
         public void OpenRecentFailures()
@@ -773,6 +785,16 @@ namespace AbilityKit.Game.Editor
             {
                 GUILayout.Label(skillFailure.Code, EditorStyles.miniLabel, GUILayout.Width(180));
             }
+            else if (evt.Payload.TryGetBuffLifecycle(out var buffLifecycle))
+            {
+                GUILayout.Label(buffLifecycle.Stage.ToString(), EditorStyles.miniLabel, GUILayout.Width(85));
+                GUILayout.Label(
+                    buffLifecycle.Stage == BattleDiagnosticBuffLifecycleStage.StackChanged
+                        ? $"stack={buffLifecycle.PreviousStackCount}->{buffLifecycle.StackCount}"
+                        : $"stack={buffLifecycle.StackCount}/{buffLifecycle.MaxStacks}",
+                    EditorStyles.miniLabel,
+                    GUILayout.Width(90));
+            }
 
             if (evt.ConfigId != 0)
             {
@@ -848,6 +870,10 @@ namespace AbilityKit.Game.Editor
             else if (evt.Payload.TryGetSkillFailure(out var skillFailure))
             {
                 DrawSkillFailurePayloadDetails(in skillFailure, evt.Payload.SchemaVersion);
+            }
+            else if (evt.Payload.TryGetBuffLifecycle(out var buffLifecycle))
+            {
+                DrawBuffLifecyclePayloadDetails(in buffLifecycle, evt.Payload.SchemaVersion);
             }
             else if (evt.Payload.TryGetSyncSnapshotReceived(out var syncPayload))
             {
@@ -949,13 +975,19 @@ namespace AbilityKit.Game.Editor
         {
             _selectedEvent = diagnosticEvent;
             _actionStatus = string.Empty;
-            ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
+            ctx.WorkspaceState?.Select(CreateEventSelection(in diagnosticEvent));
+            ctx.RequestRepaint?.Invoke();
+        }
+
+        internal static BattleDiagnosticSelection CreateEventSelection(
+            in BattleDiagnosticEvent diagnosticEvent)
+        {
+            return new BattleDiagnosticSelection(
                 diagnosticEvent.Scope,
                 BattleDiagnosticSelectionKind.Event,
                 diagnosticEvent.Sequence,
                 diagnosticEvent.Frame,
-                diagnosticEvent.RootContextId));
-            ctx.RequestRepaint?.Invoke();
+                diagnosticEvent.RootContextId);
         }
 
         private void RestoreWorkspaceEventSelection(
@@ -1019,6 +1051,10 @@ namespace AbilityKit.Game.Editor
             else if (evt.Payload.TryGetSkillFailure(out var skillFailure))
             {
                 AppendSkillFailurePayloadClipboard(builder, in skillFailure, evt.Payload.SchemaVersion);
+            }
+            else if (evt.Payload.TryGetBuffLifecycle(out var buffLifecycle))
+            {
+                AppendBuffLifecyclePayloadClipboard(builder, in buffLifecycle, evt.Payload.SchemaVersion);
             }
             else if (evt.Payload.TryGetSyncSnapshotReceived(out var syncPayload))
             {
@@ -1094,6 +1130,43 @@ namespace AbilityKit.Game.Editor
                 $"SkillFailure v{schemaVersion}: code={payload.Code}, slot={payload.Slot}");
             EditorGUILayout.LabelField("Failure Source / Stage", $"{payload.Source} / {payload.Stage}");
             EditorGUILayout.LabelField("Failure Message", payload.Message);
+        }
+
+        private static void DrawBuffLifecyclePayloadDetails(
+            in BattleDiagnosticBuffLifecyclePayload payload,
+            int schemaVersion)
+        {
+            EditorGUILayout.LabelField(
+                "Payload",
+                $"BuffLifecycle v{schemaVersion}: stage={payload.Stage}, " +
+                $"stack={payload.PreviousStackCount}->{payload.StackCount}, max={payload.MaxStacks}");
+            EditorGUILayout.LabelField(
+                "Buff Timing (ms)",
+                $"duration={payload.DurationMilliseconds}, remaining={payload.RemainingMilliseconds}, " +
+                $"interval={payload.IntervalRemainingMilliseconds}");
+            EditorGUILayout.LabelField(
+                "Buff Modifiers",
+                $"bindings={payload.ModifierBindingCount}, source={payload.ModifierSourceId}, " +
+                $"removeReason={payload.RemoveReason}");
+        }
+
+        private static void AppendBuffLifecyclePayloadClipboard(
+            StringBuilder builder,
+            in BattleDiagnosticBuffLifecyclePayload payload,
+            int schemaVersion)
+        {
+            builder.AppendLine($"PayloadKind={BattleDiagnosticPayloadKind.BuffLifecycle}");
+            builder.AppendLine($"PayloadSchemaVersion={schemaVersion}");
+            builder.AppendLine($"BuffLifecycleStage={payload.Stage}");
+            builder.AppendLine($"BuffLifecycleStackCount={payload.StackCount}");
+            builder.AppendLine($"BuffLifecyclePreviousStackCount={payload.PreviousStackCount}");
+            builder.AppendLine($"BuffLifecycleDurationMilliseconds={payload.DurationMilliseconds}");
+            builder.AppendLine($"BuffLifecycleRemainingMilliseconds={payload.RemainingMilliseconds}");
+            builder.AppendLine($"BuffLifecycleIntervalRemainingMilliseconds={payload.IntervalRemainingMilliseconds}");
+            builder.AppendLine($"BuffLifecycleMaxStacks={payload.MaxStacks}");
+            builder.AppendLine($"BuffLifecycleModifierBindingCount={payload.ModifierBindingCount}");
+            builder.AppendLine($"BuffLifecycleModifierSourceId={payload.ModifierSourceId}");
+            builder.AppendLine($"BuffLifecycleRemoveReason={payload.RemoveReason}");
         }
 
         private static void AppendSkillFailurePayloadClipboard(

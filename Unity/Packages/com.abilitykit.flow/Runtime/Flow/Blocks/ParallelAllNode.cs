@@ -38,7 +38,6 @@ namespace AbilityKit.Ability.Flow.Blocks
         {
             if (!_entered) return FlowStatus.Succeeded;
 
-            var anyFailed = false;
             var allDone = true;
 
             for (int i = 0; i < _nodes.Length; i++)
@@ -54,12 +53,18 @@ namespace AbilityKit.Ability.Flow.Blocks
 
                 _status[i] = s;
                 FlowDiagnostics.Exit(ctx, _nodes[i], s);
-
-                if (s != FlowStatus.Succeeded) anyFailed = true;
             }
 
             if (!allDone) return FlowStatus.Running;
-            return anyFailed ? FlowStatus.Failed : FlowStatus.Succeeded;
+
+            // 终态判定看全部子节点的最终状态，而不是本次 Tick 的局部标记——
+            // 早先轮次失败的子节点必须参与最终判定（任一非 Succeeded 即整体 Failed）。
+            for (int i = 0; i < _nodes.Length; i++)
+            {
+                if (_status[i] != FlowStatus.Succeeded) return FlowStatus.Failed;
+            }
+
+            return FlowStatus.Succeeded;
         }
 
         public void Exit(FlowContext ctx)

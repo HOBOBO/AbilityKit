@@ -1,0 +1,25 @@
+{
+    "id": 900001,
+    "enabled": true,
+    "phase": "immediate",
+    "event": "gameplay.tick",
+    "name": "Gameplay Time Limit",
+    "allowExternal": false,
+    "scope": "global",
+    "execution": "once",
+    "conditions": [
+        {
+            "type": "arg_gte",
+            "arg_name": "elapsed_seconds",
+            "value": 600
+        }
+    ],
+    "actions": [
+        {
+            "type": "end_game",
+            "reason_id": 0,
+            "win_team_id": 0
+        }
+    ],
+    "priority": 0
+}

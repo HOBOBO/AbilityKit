@@ -14,7 +14,8 @@ namespace AbilityKit.Ability.Flow.Blocks
 
         public void Enter(FlowContext ctx)
         {
-            if (_created) return;
+            // 每次运行都重新创建并写入：_created 是防 Tick 内重复的守卫，
+            // 不能跨运行存留（同节点实例第二次运行必须重新 Set）。
             var value = _create(ctx);
             ctx.Set(value);
             _created = true;

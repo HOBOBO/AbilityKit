@@ -656,7 +656,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private void LoadStarterScene()
         {
             SceneManager.LoadScene(
-                profile != null ? profile.StarterSceneName : "MultiplayerStarterScene",
+                profile != null ? profile.StarterSceneName : "StarterScene",
                 LoadSceneMode.Single);
         }
 

@@ -360,7 +360,25 @@ trace 断言用于验证技能配置链路是否执行到了关键节点。
 7. 运行 unit test 或 `dotnet build` 做基础编译验证。
 8. 检查导出的 trace/summary artifact，补充缺失断言。
 
-### 11.2 调试失败 case
+### 11.2 随测试导出可读溯源文本
+
+单例和批量 runner 都支持通过同一个测试 options 开启人类可读的战斗效果溯源：
+
+```csharp
+var options = new MobaAcceptanceRunOptions
+{
+    ArtifactDirectory = "local/Logs/moba-acceptance",
+    ExportArtifacts = true,
+    TraceExport = new MobaAcceptanceTraceExportOptions(),
+    Recursive = true
+};
+
+var batch = MobaAcceptanceRunner.RunExpectationDirectory(options, ExpectationDirectory);
+```
+
+`TraceExport` 默认为 `null`；未携带该配置时不会生成可读溯源文本。显式传入后，每个 case 会额外生成 `{caseId}.trace.txt`。文本包含测试结论与覆盖缺口、节点类型统计、按 root 展开的父子树，以及每个节点的配置、角色、来源、帧、上下文和结束状态；批量执行后可以直接按 case 文件名定位，无需先解析 JSONL。机器分析仍使用原有的 `*_trace.jsonl` 与 `*_summary.json`。
+
+### 11.3 调试失败 case
 
 建议按顺序排查：
 
@@ -371,7 +389,7 @@ trace 断言用于验证技能配置链路是否执行到了关键节点。
 5. state 断言的 expected/tolerance 是否合理。
 6. context 断言的 kind 是否匹配实际 trace kind。
 
-### 11.3 什么时候用 trace，什么时候用 state
+### 11.4 什么时候用 trace，什么时候用 state
 
 - trace：验证配置链路是否执行，如技能、效果、action、projectile 是否被触发。
 - state：验证游戏最终结果，如 HP、Mana、Position、Team。

@@ -4,6 +4,7 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Demo.Moba.Components;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.StateMachine;
@@ -25,14 +26,17 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
             MobaBrainDecisionDriverRegistry.CreateDefault(),
             profiles);
         var actor = CreateActor(101);
+        actor.AddMoveInput(1f, 0f);
 
         Assert.True(service.ActivateBrain(actor, 1, sourceKind: 7, sourceId: 9));
         Assert.True(actor.hasActorBrain);
         Assert.Equal(1, actor.actorBrain.BrainId);
         Assert.Equal(0, actor.actorBrain.BehaviorInstanceId);
+        Assert.Equal(0f, actor.moveInput.Dx);
+        Assert.Equal(0f, actor.moveInput.Dz);
 
         Assert.True(factory.TryCreate(actor, "idle", out var runtime));
-        actor.AddActorStateMachine("idle", runtime);
+        actor.AddActorStateMachine("idle", runtime, MobaActorStateMachineOwnerKind.Brain);
 
         Assert.True(service.DeactivateBrain(actor));
         Assert.False(actor.hasActorBrain);
@@ -134,13 +138,37 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
         var actor = CreateActor(105);
         Assert.True(service.ActivateBrain(actor, 1, sourceKind: 4, sourceId: 40));
         Assert.True(factory.TryCreate(actor, "idle", out var runtime));
-        actor.AddActorStateMachine("idle", runtime);
+        actor.AddActorStateMachine("idle", runtime, MobaActorStateMachineOwnerKind.Brain);
 
         Assert.False(service.ActivateBrain(actor, 2, sourceKind: 4, sourceId: 41));
 
         Assert.Equal(1, actor.actorBrain.BrainId);
         Assert.Same(runtime, actor.actorStateMachine.Runtime);
         Assert.False(runtime.IsDisposed);
+    }
+
+    [Fact]
+    public void Brain_system_does_not_reconcile_projectile_owned_state_machine()
+    {
+        var brains = new MutableBrainCatalog();
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.BTree, "tree"));
+        var profiles = CreateProfiles("projectile");
+        var fixture = CreateSystemFixture(brains, profiles);
+        var actor = CreateActor(fixture.Contexts.actor, 106);
+        actor.AddActorBrain(1, 106, 5, 50, 0L);
+        var factory = new MobaActorStateMachineFactory(
+            null,
+            profiles,
+            new MobaActorStateMachineRuntimeRegistry());
+        Assert.True(factory.TryCreate(actor, "projectile", out var runtime));
+        actor.AddActorStateMachine("projectile", runtime, MobaActorStateMachineOwnerKind.Projectile);
+
+        fixture.System.Execute();
+
+        Assert.True(actor.hasActorStateMachine);
+        Assert.Same(runtime, actor.actorStateMachine.Runtime);
+        Assert.False(runtime.IsDisposed);
+        fixture.System.TearDown();
     }
 
     private static (MobaActorStateMachineSystem System, Contexts Contexts, TestWorldClock Clock) CreateSystemFixture(

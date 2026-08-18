@@ -101,15 +101,18 @@ namespace AbilityKit.Moba.Behavior
         private readonly IEntityManager _entityManager;
         private readonly IBuffManager _buffManager;
         private readonly IAttributeSystem _attributeSystem;
+        private readonly bool _allowMutations;
         
         public MobaWorldQuery(
             IEntityManager entityManager,
             IBuffManager buffManager,
-            IAttributeSystem attributeSystem)
+            IAttributeSystem attributeSystem,
+            bool allowMutations = true)
         {
             _entityManager = entityManager;
             _buffManager = buffManager;
             _attributeSystem = attributeSystem;
+            _allowMutations = allowMutations;
         }
         
         public Vec3 GetPosition(BehaviorEntityId id) => 
@@ -119,6 +122,7 @@ namespace AbilityKit.Moba.Behavior
         
         public void SetPosition(BehaviorEntityId id, Vec3 position)
         {
+            EnsureMutationsAllowed();
             if (_entityManager.Exists(id.Value))
                 _entityManager.SetPosition(id.Value, position);
         }
@@ -130,6 +134,7 @@ namespace AbilityKit.Moba.Behavior
         
         public void SetForward(BehaviorEntityId id, Vec3 forward)
         {
+            EnsureMutationsAllowed();
             if (_entityManager.Exists(id.Value))
                 _entityManager.SetForward(id.Value, forward);
         }
@@ -153,7 +158,10 @@ namespace AbilityKit.Moba.Behavior
         
         public T GetData<T>(BehaviorEntityId id, string key, T defaultValue = default) => defaultValue;
         
-        public void SetData<T>(BehaviorEntityId id, string key, T value) { }
+        public void SetData<T>(BehaviorEntityId id, string key, T value)
+        {
+            EnsureMutationsAllowed();
+        }
         
         public bool HasData(BehaviorEntityId id, string key) => false;
         
@@ -178,6 +186,15 @@ namespace AbilityKit.Moba.Behavior
         
         public float GetMoveSpeed(BehaviorEntityId id, float defaultValue = 5f) =>
             _attributeSystem.GetAttribute(id.Value, MobaBehaviorContracts.WorldDataKey.MoveSpeed);
+
+        private void EnsureMutationsAllowed()
+        {
+            if (!_allowMutations)
+            {
+                throw new InvalidOperationException(
+                    "This world query is read-only. Decisions must emit an intent instead of mutating the logic world.");
+            }
+        }
     }
     
     /// <summary>

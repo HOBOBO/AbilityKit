@@ -6,9 +6,12 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/MultiplayerStarterScene.unity
+    path: Assets/Scenes/StarterScene.unity
     guid: 672e44a33f4f4236bd4dfd0433ed0c75
   - enabled: 1
-    path: Assets/Scenes/DemoGameplayBootstrapScene.unity
-    guid: 3e86c2c2b54defc4ca5d64d1fb092d08
+    path: Packages/com.abilitykit.demo.moba.view.runtime/Scenes/MobaDemoGameplayScene.unity
+    guid: cad495d952e23304c82ab99f8c1b3222
+  - enabled: 1
+    path: Packages/com.abilitykit.demo.shooter.view.runtime/Scenes/ShooterDemoGameplayScene.unity
+    guid: e000a3f2e9a3828409ba84418e14d23d
   m_configObjects: {}

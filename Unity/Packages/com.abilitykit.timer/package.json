@@ -4,10 +4,17 @@
   "displayName": "AbilityKit Timer",
   "unity": "2022.3",
   "description": "General timer and scheduling framework.",
+  "keywords": [
+    "abilitykit",
+    "timer",
+    "scheduler",
+    "runtime"
+  ],
   "author": {
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.core": "0.1.0"
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.deterministic": "0.1.0"
   }
 }

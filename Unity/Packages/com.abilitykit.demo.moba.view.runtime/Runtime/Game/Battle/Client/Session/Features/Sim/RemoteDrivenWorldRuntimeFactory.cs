@@ -49,6 +49,7 @@ namespace AbilityKit.Game.Flow
         public readonly Func<WorldId, int> ResolveIdealFrameLimit;
         public readonly Func<IWorld, RollbackRegistry> BuildRollbackRegistry;
         public readonly Func<IWorld, Func<FrameIndex, WorldStateHash>> BuildComputeHash;
+        public readonly ClientPredictionDriverBufferOptions PredictionBufferOptions;
 
         public RemoteDrivenWorldRuntimeFactoryOptions(
             BattleStartPlan plan,
@@ -59,7 +60,8 @@ namespace AbilityKit.Game.Flow
             Func<WorldId, ILocalInputSource<LocalPlayerInputEvent[]>> resolveLocalInputs,
             Func<WorldId, int> resolveIdealFrameLimit,
             Func<IWorld, RollbackRegistry> buildRollbackRegistry,
-            Func<IWorld, Func<FrameIndex, WorldStateHash>> buildComputeHash)
+            Func<IWorld, Func<FrameIndex, WorldStateHash>> buildComputeHash,
+            ClientPredictionDriverBufferOptions predictionBufferOptions = null)
         {
             Plan = plan;
             FixedDelta = fixedDelta;
@@ -70,6 +72,7 @@ namespace AbilityKit.Game.Flow
             ResolveIdealFrameLimit = resolveIdealFrameLimit;
             BuildRollbackRegistry = buildRollbackRegistry;
             BuildComputeHash = buildComputeHash;
+            PredictionBufferOptions = predictionBufferOptions;
         }
     }
 

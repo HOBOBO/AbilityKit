@@ -159,7 +159,7 @@ hotfix 只动出问题的包，其余包保持原 cohort 版本。`audit-version
 
 7 个无内部依赖的叶子框架包：
 
-`com.abilitykit.core`、`com.abilitykit.gameplaytags`、`com.abilitykit.threading`、`com.abilitykit.diagnostics`、`com.abilitykit.ai.abstractions`、`com.abilitykit.protocol`、`com.abilitykit.network.runtime`。
+`com.abilitykit.core`、`com.abilitykit.deterministic`、`com.abilitykit.gameplaytags`、`com.abilitykit.diagnostics`、`com.abilitykit.ai.abstractions`、`com.abilitykit.protocol`、`com.abilitykit.network.runtime`。
 
 已在 `release.js` 预演中全部通过校验。
 
@@ -296,7 +296,7 @@ tag 推送后到 registry 可见，存在构建与索引延迟（首次含人工
 
 | 批次 | 依赖深度 | 状态 | 候选包 |
 | --- | --- | --- | --- |
-| batch-1-leaves | 0（叶子） | candidate | core、gameplaytags、threading、diagnostics、ai.abstractions、protocol、network.runtime |
+| batch-1-leaves | 0（叶子） | candidate | core、deterministic、gameplaytags、diagnostics、ai.abstractions、protocol、network.runtime |
 | batch-2-mid | 1（仅依赖叶子） | 待规划 | timer、hfsm、trace、modifiers、world.di、world.ecs、actionschema、flow、context、dataflow、behavior、ability.explain、combat.entitymanager、combat.targeting、combat.skilllibrary、network.sdk、network.transport.{inmemory,litenet,websocket}、gameframework.network、protocol.room、protocol.editor、pipeline、unity.pool、game.view.runtime、ai.mlagents.bridge |
 | batch-3-upper | ≥2（上层） | 待规划 | ability、attributes、combat.{damage,motion,projectile,collision.abstractions,navigation}、host、host.extension、coordinator、game.battle.runtime、world.{framesync,snapshot,statesync,networkfragments}、network.{battle,battle.config,client,room}、record、triggering 等 |
 

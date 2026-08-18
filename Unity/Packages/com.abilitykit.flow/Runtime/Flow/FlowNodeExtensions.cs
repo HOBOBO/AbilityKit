@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Flow
             if (root == null) throw new ArgumentNullException(nameof(root));
 
             options = options ?? FlowExecutionOptions.Default;
-            Exception capturedException = null;
+            Exception? capturedException = null;
             var runner = FlowPools.RentRunner();
 
             try

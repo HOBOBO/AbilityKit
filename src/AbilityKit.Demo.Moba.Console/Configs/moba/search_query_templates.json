@@ -17,13 +17,15 @@
                           "Kind":  769
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  2,
@@ -45,13 +47,15 @@
                           "Kind":  769
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50010201,
@@ -68,13 +72,15 @@
                           "Radius":  3.5
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50010301,
@@ -91,13 +97,15 @@
                           "Radius":  4.5
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50020201,
@@ -114,13 +122,15 @@
                           "Radius":  4.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50020301,
@@ -137,13 +147,15 @@
                           "Radius":  8.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8194,
-                       "RandomSeed":  10020301
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8194,
+                            "RandomSeed":  10020301
+                        }
+                    ]
     },
     {
         "Id":  50020302,
@@ -160,13 +172,15 @@
                           "Radius":  2.5
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  1
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  1
+                        }
+                    ]
     },
     {
         "Id":  50030201,
@@ -185,13 +199,15 @@
                           "HalfAngleDeg":  35
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50030202,
@@ -210,13 +226,15 @@
                           "HalfAngleDeg":  40.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50030203,
@@ -235,13 +253,15 @@
                           "HalfAngleDeg":  45.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50030301,
@@ -258,13 +278,15 @@
                           "Radius":  4.5
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50030302,
@@ -281,13 +303,15 @@
                           "Radius":  5.5
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50040201,
@@ -304,13 +328,15 @@
                           "Radius":  3.5
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50040301,
@@ -327,17 +353,19 @@
                           "Radius":  5
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50050201,
-        "Name":  "妲己-偶像魅力-目标点锁定敌方查询",
+        "Name":  "妲己-偶像魅力-施法范围锁定敌方查询",
         "MaxCount":  1,
         "ExplicitTargetPolicy":  2,
         "Provider":  {
@@ -346,17 +374,19 @@
         "Rules":  [
                       {
                           "Kind":  257,
-                          "Center":  1,
-                          "Radius":  3.0
+                          "Center":  0,
+                          "Radius":  10.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50050301,
@@ -373,13 +403,15 @@
                           "Radius":  8.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50060101,
@@ -396,13 +428,15 @@
                           "Radius":  4.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     },
     {
         "Id":  50060201,
@@ -419,12 +453,14 @@
                           "Radius":  4.0
                       }
                   ],
-        "Scorer":  {
-                       "Kind":  8196,
-                       "Source":  0
-                   },
         "Selector":  {
                          "Kind":  4097
-                     }
+                     },
+        "Scorers":  [
+                        {
+                            "Kind":  8196,
+                            "Source":  0
+                        }
+                    ]
     }
 ]

@@ -7,7 +7,7 @@ namespace AbilityKit.Ability.Flow
     /// </summary>
     public readonly struct FlowExecutionResult
     {
-        public FlowExecutionResult(FlowStatus status, int steps, Exception exception)
+        public FlowExecutionResult(FlowStatus status, int steps, Exception? exception)
         {
             Status = status;
             Steps = steps;
@@ -27,7 +27,7 @@ namespace AbilityKit.Ability.Flow
         /// <summary>
         /// 执行过程中捕获到的首个异常。无异常时为 null。
         /// </summary>
-        public Exception Exception { get; }
+        public Exception? Exception { get; }
 
         /// <summary>
         /// 是否成功完成。

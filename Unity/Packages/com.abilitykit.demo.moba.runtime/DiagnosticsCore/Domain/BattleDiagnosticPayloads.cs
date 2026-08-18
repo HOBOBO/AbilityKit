@@ -10,7 +10,85 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         None = 0,
         SyncSnapshotReceived = 1,
         TriggerAnalysis = 2,
-        SkillFailure = 3
+        SkillFailure = 3,
+        BuffLifecycle = 4
+    }
+
+    public enum BattleDiagnosticBuffLifecycleStage
+    {
+        Applied = 1,
+        Refreshed = 2,
+        StackChanged = 3,
+        Interval = 4,
+        Removed = 5
+    }
+
+    public readonly struct BattleDiagnosticBuffLifecyclePayload : IEquatable<BattleDiagnosticBuffLifecyclePayload>
+    {
+        public const int CurrentSchemaVersion = 1;
+
+        public BattleDiagnosticBuffLifecyclePayload(
+            BattleDiagnosticBuffLifecycleStage stage,
+            int stackCount,
+            int previousStackCount,
+            int durationMilliseconds,
+            int remainingMilliseconds,
+            int intervalRemainingMilliseconds,
+            int maxStacks,
+            int modifierBindingCount,
+            int modifierSourceId,
+            int removeReason)
+        {
+            Stage = stage;
+            StackCount = stackCount;
+            PreviousStackCount = previousStackCount;
+            DurationMilliseconds = durationMilliseconds;
+            RemainingMilliseconds = remainingMilliseconds;
+            IntervalRemainingMilliseconds = intervalRemainingMilliseconds;
+            MaxStacks = maxStacks;
+            ModifierBindingCount = modifierBindingCount;
+            ModifierSourceId = modifierSourceId;
+            RemoveReason = removeReason;
+        }
+
+        public BattleDiagnosticBuffLifecycleStage Stage { get; }
+        public int StackCount { get; }
+        public int PreviousStackCount { get; }
+        public int DurationMilliseconds { get; }
+        public int RemainingMilliseconds { get; }
+        public int IntervalRemainingMilliseconds { get; }
+        public int MaxStacks { get; }
+        public int ModifierBindingCount { get; }
+        public int ModifierSourceId { get; }
+        public int RemoveReason { get; }
+
+        public bool Equals(BattleDiagnosticBuffLifecyclePayload other)
+        {
+            return Stage == other.Stage && StackCount == other.StackCount && PreviousStackCount == other.PreviousStackCount &&
+                   DurationMilliseconds == other.DurationMilliseconds && RemainingMilliseconds == other.RemainingMilliseconds &&
+                   IntervalRemainingMilliseconds == other.IntervalRemainingMilliseconds && MaxStacks == other.MaxStacks &&
+                   ModifierBindingCount == other.ModifierBindingCount && ModifierSourceId == other.ModifierSourceId &&
+                   RemoveReason == other.RemoveReason;
+        }
+
+        public override bool Equals(object obj) => obj is BattleDiagnosticBuffLifecyclePayload other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = (int)Stage;
+                hashCode = (hashCode * 397) ^ StackCount;
+                hashCode = (hashCode * 397) ^ PreviousStackCount;
+                hashCode = (hashCode * 397) ^ DurationMilliseconds;
+                hashCode = (hashCode * 397) ^ RemainingMilliseconds;
+                hashCode = (hashCode * 397) ^ IntervalRemainingMilliseconds;
+                hashCode = (hashCode * 397) ^ MaxStacks;
+                hashCode = (hashCode * 397) ^ ModifierBindingCount;
+                hashCode = (hashCode * 397) ^ ModifierSourceId;
+                return (hashCode * 397) ^ RemoveReason;
+            }
+        }
     }
 
     public enum BattleDiagnosticTriggerAnalysisStage
@@ -360,6 +438,47 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 _int32Value10,
                 _stringValue,
                 _stringValue2);
+            return true;
+        }
+
+        public static BattleDiagnosticEventPayload FromBuffLifecycle(
+            in BattleDiagnosticBuffLifecyclePayload payload)
+        {
+            return new BattleDiagnosticEventPayload(
+                BattleDiagnosticPayloadKind.BuffLifecycle,
+                BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                (int)payload.Stage,
+                0U,
+                payload.StackCount,
+                payload.PreviousStackCount,
+                payload.DurationMilliseconds,
+                payload.RemainingMilliseconds,
+                payload.IntervalRemainingMilliseconds,
+                payload.MaxStacks,
+                payload.ModifierBindingCount,
+                payload.ModifierSourceId,
+                payload.RemoveReason);
+        }
+
+        public bool TryGetBuffLifecycle(out BattleDiagnosticBuffLifecyclePayload payload)
+        {
+            if (Kind != BattleDiagnosticPayloadKind.BuffLifecycle || SchemaVersion != BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion)
+            {
+                payload = default;
+                return false;
+            }
+
+            payload = new BattleDiagnosticBuffLifecyclePayload(
+                (BattleDiagnosticBuffLifecycleStage)_int32Value,
+                _int32Value2,
+                _int32Value3,
+                _int32Value4,
+                _int32Value5,
+                _int32Value6,
+                _int32Value7,
+                _int32Value8,
+                _int32Value9,
+                _int32Value10);
             return true;
         }
 

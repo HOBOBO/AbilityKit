@@ -23,11 +23,18 @@ namespace AbilityKit.Demo.Shooter.View
             ShooterPresentationFacade presentation,
             int tickRate,
             ShooterGatewaySnapshotDecoder? decoder,
-            IShooterRoomGatewayClient? gateway)
+            IShooterRoomGatewayClient? gateway,
+            ShooterClientPredictionBufferOptions? predictionBufferOptions = null)
         {
             _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
-            _frameSync = new ShooterClientFrameSyncController(_runtime, _presentation, tickRate, decoder);
+            _frameSync = new ShooterClientFrameSyncController(
+                _runtime,
+                _presentation,
+                tickRate,
+                decoder,
+                rollbackWorldId: 0ul,
+                predictionBufferOptions: predictionBufferOptions ?? ShooterClientPredictionBufferOptions.Default);
             _input = new ShooterClientInputCoordinator(_frameSync, gateway);
             _lastHealthEvents = new SyncHealthEventListView(
                 () => _frameSync.LastFastReconnectHealthEvents,

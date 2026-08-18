@@ -1,4 +1,5 @@
 ﻿using AbilityKit.Ability.Share.ECS;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Game.Battle;
 
 namespace AbilityKit.Game.Editor
@@ -33,6 +34,9 @@ namespace AbilityKit.Game.Editor
     internal interface IBattleDebugEventsTarget
     {
         void OpenForActor(long actorId);
+        void OpenEvent(
+            in BattleDiagnosticEvent diagnosticEvent,
+            BattleDiagnosticWorkspaceState workspaceState);
         void OpenRecentFailures();
     }
 }

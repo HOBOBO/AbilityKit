@@ -86,11 +86,6 @@
       },
       "steps": [
         {
-          "name": "Build framework source generators",
-          "kind": "dotnet-build",
-          "project": "Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator/AbilityKit.SourceGenerator.csproj"
-        },
-        {
           "name": "Build framework analyzers",
           "kind": "dotnet-build",
           "project": "Unity/Packages/com.abilitykit.analyzer/DotNet~/AbilityKit.Analyzer/AbilityKit.Analyzer.csproj"
@@ -106,9 +101,9 @@
           "script": "tools/validate_moba_codegen_ownership.ps1"
         },
         {
-          "name": "MOBA CodeGen and analyzer contract tests",
+          "name": "Analyzer configuration semantics tests",
           "kind": "dotnet-test",
-          "project": "src/AbilityKit.CodeGen.Tests/AbilityKit.CodeGen.Tests.csproj"
+          "project": "src/AbilityKit.Analyzer.Configuration.Tests/AbilityKit.Analyzer.Configuration.Tests.csproj"
         }
       ]
     },
@@ -344,8 +339,10 @@
       "name": "core-stability",
       "level": "P1",
       "owner": "Runtime Platform",
-      "description": "Core package correctness, namespace ownership, lifecycle, synchronization, allocation, and Unity direct-dependency contracts.",
+      "description": "Core package correctness, stable-package warning baseline, namespace ownership, lifecycle, synchronization, allocation, and Unity direct-dependency contracts.",
       "scope": [
+        "analyzer-configuration",
+        "stable-package-warnings",
         "core-api",
         "core-boundary",
         "core-namespace-ownership",
@@ -360,6 +357,8 @@
         "context",
         "attributes",
         "modifiers",
+        "dataflow",
+        "hotreload",
         "unity-package-dependencies",
         "allocation-contracts"
       ],
@@ -368,7 +367,7 @@
         "change-runtime-lifecycle-or-synchronization-contract",
         "change-attributes-or-modifiers-hot-path"
       ],
-      "failurePolicy": "Block the change until core package tests, allocation contracts, and direct UPM dependency declarations pass.",
+      "failurePolicy": "Block the change until core package tests, the stable-package warning baseline, allocation contracts, and direct UPM dependency declarations pass.",
       "ciPolicy": {
         "runOnPullRequest": true,
         "runOnPush": true,
@@ -376,6 +375,11 @@
         "artifactRequired": true
       },
       "steps": [
+        {
+          "name": "Analyzer configuration semantics tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Analyzer.Configuration.Tests/AbilityKit.Analyzer.Configuration.Tests.csproj"
+        },
         {
           "name": "Core tests and Public API compatibility",
           "kind": "dotnet-test",
@@ -454,6 +458,21 @@
           "project": "src/AbilityKit.Host.Tests/AbilityKit.Host.Tests.csproj"
         },
         {
+          "name": "Host extension timer scheduler tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Host.Extension.Tests/AbilityKit.Host.Extension.Tests.csproj"
+        },
+        {
+          "name": "Dataflow pipeline tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Dataflow.Tests/AbilityKit.Dataflow.Tests.csproj"
+        },
+        {
+          "name": "HotReload runtime contract tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.HotReload.Tests/AbilityKit.HotReload.Tests.csproj"
+        },
+        {
           "name": "Triggering tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Triggering.Tests/AbilityKit.Triggering.Tests.csproj"
@@ -482,6 +501,57 @@
             "com.abilitykit.continuous,com.abilitykit.behavior,com.abilitykit.record,com.abilitykit.world.statesync,com.abilitykit.world.framesync,com.abilitykit.network.runtime,com.abilitykit.network.transport.websocket,com.abilitykit.host,com.abilitykit.triggering,com.abilitykit.context,com.abilitykit.attributes,com.abilitykit.modifiers,com.abilitykit.demo.moba.runtime,com.abilitykit.demo.moba.editor,com.abilitykit.demo.moba.view.runtime"
           ],
           "timeoutSeconds": 120
+        }
+      ]
+    },
+    {
+      "name": "foundation-units",
+      "level": "P1",
+      "owner": "Runtime Platform",
+      "description": "Foundation leaf-package unit contracts: timer scheduling semantics, gameplay tag hierarchy/query/persistence, diagnostics profiler data, flow engine contracts, and protocol wire serialization.",
+      "scope": [
+        "timer",
+        "gameplaytags",
+        "diagnostics",
+        "flow",
+        "protocol"
+      ],
+      "requiredBefore": [
+        "merge-foundation-package-change",
+        "publish-foundation-leaf-package"
+      ],
+      "failurePolicy": "Block foundation package changes or leaf-package publication until the unit contracts pass.",
+      "ciPolicy": {
+        "runOnPullRequest": true,
+        "runOnPush": true,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Timer scheduling tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Timer.Tests/AbilityKit.Timer.Tests.csproj"
+        },
+        {
+          "name": "GameplayTags hierarchy and query tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.GameplayTags.Tests/AbilityKit.GameplayTags.Tests.csproj"
+        },
+        {
+          "name": "Diagnostics profiler tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Diagnostics.Tests/AbilityKit.Diagnostics.Tests.csproj"
+        },
+        {
+          "name": "Flow engine tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Flow.Tests/AbilityKit.Flow.Tests.csproj"
+        },
+        {
+          "name": "Protocol wire serialization tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Protocol.Tests/AbilityKit.Protocol.Tests.csproj"
         }
       ]
     },
@@ -515,6 +585,11 @@
           "name": "Core package stability",
           "kind": "gate",
           "gate": "core-stability"
+        },
+        {
+          "name": "Foundation unit contracts",
+          "kind": "gate",
+          "gate": "foundation-units"
         },
         {
           "name": "Network SDK layer",

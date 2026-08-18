@@ -36,6 +36,24 @@ public sealed class BehaviorManagerLifecycleTests
         Assert.Equal(0, manager.TotalCount);
     }
 
+    [Fact]
+    public void Dispose_interrupts_all_running_behaviors_and_is_idempotent()
+    {
+        var manager = new BehaviorManager();
+        var first = new DisposableTestDecision();
+        var second = new DisposableTestDecision();
+        CreateBehavior(manager, first);
+        CreateBehavior(manager, second);
+
+        manager.Dispose();
+        manager.Dispose();
+
+        Assert.Equal(1, first.DisposeCount);
+        Assert.Equal(1, second.DisposeCount);
+        Assert.Equal(0, manager.TotalCount);
+        Assert.Equal(0, manager.RunningCount);
+    }
+
     private static BehaviorRuntime CreateBehavior(BehaviorManager manager, IBehaviorDecision decision)
     {
         return manager.CreateBehavior(new BehaviorCreateConfig

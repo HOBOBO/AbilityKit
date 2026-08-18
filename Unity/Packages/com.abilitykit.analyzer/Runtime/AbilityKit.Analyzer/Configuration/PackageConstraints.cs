@@ -47,11 +47,14 @@ public sealed class PackageConstraint
     /// <returns>如果违反约束则返回 true</returns>
     public bool IsNamespaceForbidden(string @namespace)
     {
-        if (string.IsNullOrEmpty(@namespace) || !IsEnabled)
+        if (string.IsNullOrEmpty(@namespace) || !IsEnabled || ForbiddenNamespaces == null)
             return false;
 
         foreach (var forbidden in ForbiddenNamespaces)
         {
+            if (string.IsNullOrEmpty(forbidden))
+                continue;
+
             if (@namespace == forbidden || @namespace.StartsWith(forbidden + "."))
                 return true;
         }
@@ -65,11 +68,14 @@ public sealed class PackageConstraint
     /// <returns>如果违反约束则返回 true</returns>
     public bool IsAssemblyForbidden(string assemblyName)
     {
-        if (string.IsNullOrEmpty(assemblyName) || !IsEnabled)
+        if (string.IsNullOrEmpty(assemblyName) || !IsEnabled || ForbiddenAssemblies == null)
             return false;
 
         foreach (var forbidden in ForbiddenAssemblies)
         {
+            if (string.IsNullOrEmpty(forbidden))
+                continue;
+
             if (assemblyName == forbidden || assemblyName.StartsWith(forbidden))
                 return true;
         }
@@ -99,6 +105,9 @@ public sealed class PackageConstraintsConfig
         if (string.IsNullOrEmpty(packageName))
             return null;
 
+        if (Constraints == null)
+            return null;
+
         if (Constraints.TryGetValue(packageName, out var constraint))
             return constraint;
 
@@ -125,6 +134,9 @@ public sealed class PackageConstraintsConfig
         if (constraint != null)
             return constraint;
 
+        if (GlobalDefaults == null)
+            return null;
+
         // 如果包没有单独配置，且不允许对未配置的包应用全局规则，则返回 null
         if (!GlobalDefaults.ApplyToUnlistedPackages)
             return null;
@@ -135,8 +147,8 @@ public sealed class PackageConstraintsConfig
         return new PackageConstraint
         {
             PackageName = packageName,
-            ForbiddenNamespaces = GlobalDefaults.ForbiddenNamespaces,
-            ForbiddenAssemblies = GlobalDefaults.ForbiddenAssemblies,
+            ForbiddenNamespaces = GlobalDefaults.ForbiddenNamespaces ?? new List<string>(),
+            ForbiddenAssemblies = GlobalDefaults.ForbiddenAssemblies ?? new List<string>(),
             IsEnabled = GlobalDefaults.Enabled,
             Severity = GlobalDefaults.Severity,
             CheckUsingAliases = GlobalDefaults.CheckUsingAliases

@@ -1,7 +1,7 @@
 # 9.4 Shooter Demo 与 Orleans Smoke：网络闭环与分层证据
 
 > 文档类型：示例架构与验收分析
-> 事实基线：2026-08-16
+> 事实基线：2026-08-17
 > 最近保留的多进程 E4 记录：2026-07-19；本批未重新运行真实 Smoke
 
 > 本文从源码出发说明 Shooter 示例如何把 `Svelto` 战斗模拟、权威快照、纯状态同步、客户端同步控制器、Gateway 房间流程、Orleans 房间/战斗 Grain，以及烟测校验串成一个完整闭环。
@@ -363,6 +363,23 @@ sequenceDiagram
 
 断线恢复的关键点是 `TryBeginAutoReconnectAfterSocketLoss`：当底层连接不再处于 connected/connecting，Host 会构造 `RestoreOnly` launch options，清空输入队列，关闭 launcher，并异步调用 `StartAsync` 重新进入连接流。
 
+### 8.1 Starter 到 package scene 的装配链
+
+当前 Unity 入口不再用一个共享 Gameplay Scene 承载所有示例资产。`StarterScene` 只负责选择游戏和模式；Shooter 自己拥有 `ShooterDemoGameplayScene`、`ShooterGameplayBootstrap`、Catalog、两个 Profile 与两个 Root Prefab。
+
+| 模式 | Profile | Root 与入口组件 | 多人意图 |
+|------|---------|-----------------|----------|
+| Local | `shooter-local` | `ShooterLocalDemoRoot` / `ShooterPlayModeMenu` | Starter 先清空 `DemoMultiplayerLaunchIntent`；不要求登录 |
+| Multiplayer | `shooter-multiplayer` | `ShooterMultiplayerDemoRoot` / `ShooterFormalMultiplayerController` | Starter 同时写入已认证的 Shooter 多人请求与 Composition 请求 |
+
+Shooter 与 MOBA 的差异具有设计意义：MOBA 两种模式可由同一个 `GameEntry` 根据 pending multiplayer intent 选 preset；Shooter Local 菜单和正式多人控制器的生命周期、房间流程与 UI 不同，因此使用两个 Root。公共 Profile/Catalog 机制允许这种差异存在，并没有要求所有游戏使用统一应用层入口。
+
+### 8.2 Bootstrap 与会话的所有权边界
+
+`DemoGameplayBootstrap` 消费一次性 Composition 请求、解析 Profile、校验 Local/Multiplayer 意图是否匹配，然后实例化 Root 并移动到当前 Shooter scene。它的 `Shutdown` 只销毁这个 Root：Local Root 的 `ShooterPlayModeMenu.OnDestroy` 停止本地与远程静态 Host；Multiplayer Root 的 `ShooterFormalMultiplayerController.OnDestroy` 取消 lifetime、释放 Room flow/launcher 并停止远程 Host。也就是说，Bootstrap 拥有“哪个 Root 存活”，入口组件拥有“Root 内部会话怎样停止”。
+
+启动失败时 Bootstrap 会同时清空两个 launch intent，但不会注销账号、离开已创建 Room 或释放一个在 Root 外提前创建的网络资源。Starter 调用 `SceneManager.LoadSceneAsync` 后也没有保留返回的 `AsyncOperation`；如果加载失败，`_loadingScene` 不会恢复，pending request 也没有 generation 可用于识别过期请求。因此生产启动器仍需要加载超时、错误观测、请求代际和会话补偿，不能把示例的进程静态单槽当作通用跨场景消息总线。
+
 ---
 
 ## 9. Gateway 与 Orleans 编排
@@ -593,6 +610,9 @@ CI 触发也必须分层陈述：`shooter-fast`、`shooter-integration` 等快�
 | 房间流程 | [`ShooterRoomGatewayFlow`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Gateway/ShooterRoomGatewayFlow.cs) |
 | Unity 远程状态同步宿主 | [`ShooterRemoteStateSyncPlayModeHost`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/PlayMode/ShooterRemoteStateSyncPlayModeHost.cs) |
 | PlayMode 连接流 | [`ShooterRemoteStateSyncConnectionFlow`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/PlayMode/ShooterRemoteStateSyncConnectionFlow.cs) |
+| 统一 Gameplay Bootstrap | [`DemoGameplayBootstrap`](../../../Unity/Packages/com.abilitykit.demo.common/Runtime/Composition/DemoGameplayBootstrap.cs) |
+| Shooter Local 入口 | [`ShooterPlayModeMenu`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/PlayMode/ShooterPlayModeMenu.cs) |
+| Shooter Multiplayer 入口 | [`ShooterFormalMultiplayerController`](../../../Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/PlayMode/ShooterFormalMultiplayerController.cs) |
 | 房间 Grain | [`RoomGrain`](../../../Server/Orleans/src/AbilityKit.Orleans.Grains/Rooms/RoomGrain.cs) |
 | Shooter 房间适配 | [`ShooterRoomGameplayAdapter`](../../../Server/Orleans/src/AbilityKit.Orleans.Grains/Gameplays/Shooter/Rooms/ShooterRoomGameplayAdapter.cs) |
 | Shooter 战斗适配 | [`ShooterBattleRuntimeAdapter`](../../../Server/Orleans/src/AbilityKit.Orleans.Grains/Gameplays/Shooter/Battle/ShooterBattleRuntimeAdapter.cs) |
@@ -602,10 +622,10 @@ CI 触发也必须分层陈述：`shooter-fast`、`shooter-integration` 等快�
 
 ---
 
-文档类型：示例架构与验收分析 | 事实基线：2026-08-16 | 证据等级：E0 完整源码面、E2 Shooter/Orleans 组合、广泛 E3；最近文档化 E4 为 2026-07-19，E5 按触发条件分层
+文档类型：示例架构与验收分析 | 事实基线：2026-08-17 | 证据等级：E0 完整源码面、E2 Shooter/Orleans 组合、广泛 E3；最近文档化 E4 为 2026-07-19，E5 按触发条件分层
 
 主要源码：`Unity/Packages/com.abilitykit.demo.shooter.runtime`；`Unity/Packages/com.abilitykit.demo.shooter.view.runtime`；`Server/Orleans/src`
 
 当前限制：Shooter 策略不等于框架默认应用层；本批未重新运行多进程 smoke 或生成新 artifact
 
-文档版本：v3.1 | 更新日期：2026-08-16
+文档版本：v3.2 | 更新日期：2026-08-17

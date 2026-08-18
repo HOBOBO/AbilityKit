@@ -36,7 +36,7 @@ var frameReq = WireCustomBinary.DeserializeSubmitFrameInputReq(payload);
 byte[] bytes = WireSerializer.Serialize(value);   // → IWireSerializer.Current
 T value = WireSerializer.Deserialize<T>(bytes);
 ```
-- `protocol`（base）定义 `IWireSerializer` + 静态 `WireSerializer.Current`；`protocol.memorypack` 提供 `MemoryPackWireSerializer` 实现（reflection 找 MemoryPack DLL，Unity 友好）。
+- `protocol`（base）定义 `IWireSerializer` + 静态 `WireSerializer.Current`，并提供 `MemoryPackWireSerializer` 反射实现（reflection 找 MemoryPack DLL，Unity 友好）。
 - 安装：`MemoryPackWireSerializerInstaller.InstallAsCurrent()`（启动时调一次）。
 - **用途**：需要换序列化后端（测试 mock / alt format）时用。**不在热路径用**（reflection 间接开销）。
 

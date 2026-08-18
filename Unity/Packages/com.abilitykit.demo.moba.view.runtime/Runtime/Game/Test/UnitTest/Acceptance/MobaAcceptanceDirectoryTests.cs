@@ -25,13 +25,117 @@ namespace AbilityKit.Game.Test.UnitTest
         [Test]
         public void AcceptanceExpectationDirectory_ExportsBatchSummary()
         {
-            var batch = MobaAcceptanceRunner.RunExpectationDirectory(ExpectationDirectory, ArtifactDirectory, exportArtifacts: true, recursive: true);
+            var batch = MobaAcceptanceRunner.RunExpectationDirectory(
+                new MobaAcceptanceRunOptions
+                {
+                    ArtifactDirectory = ArtifactDirectory,
+                    ExportArtifacts = true,
+                    TraceExport = new MobaAcceptanceTraceExportOptions(),
+                    Recursive = true
+                },
+                ExpectationDirectory);
 
             Assert.GreaterOrEqual(batch.total, 1);
             Assert.AreEqual(batch.total, batch.passed + batch.failed);
             Assert.IsTrue(string.IsNullOrEmpty(batch.categoryFilter));
             Assert.IsTrue(batch.allPassed, "Acceptance batch has failed cases; inspect " + batch.batchSummaryJsonPath);
             Assert.IsTrue(File.Exists(batch.batchSummaryJsonPath), $"Batch summary artifact missing: {batch.batchSummaryJsonPath}");
+            for (var i = 0; i < batch.results.Length; i++)
+            {
+                Assert.IsNotNull(batch.results[i].summary, "Passing batch case must expose its summary: " + batch.results[i].caseId);
+                Assert.IsTrue(
+                    File.Exists(batch.results[i].summary.traceTextPath),
+                    "Human-readable trace artifact missing: " + batch.results[i].summary.traceTextPath);
+            }
+        }
+
+        [Test]
+        public void RunOptions_DefaultDoesNotExportTraceText()
+        {
+            var options = new MobaAcceptanceRunOptions
+            {
+                ArtifactDirectory = Path.Combine(ArtifactDirectory, "default-no-trace-" + Guid.NewGuid().ToString("N")),
+                ExportArtifacts = false
+            };
+
+            Assert.IsNull(options.TraceExport);
+            Assert.IsFalse(options.ShouldExportTraceText);
+
+            var summary = MobaAcceptanceRunner.RunSkillExpectationFile(options, Skill10010101ExpectationPath);
+
+            Assert.IsFalse(File.Exists(summary.traceTextPath), "Default run options must not write a trace text artifact: " + summary.traceTextPath);
+        }
+
+        [Test]
+        public void TraceText_FormatsParentChildTreeAndDiagnosticFields()
+        {
+            var summary = new MobaAcceptanceSummary
+            {
+                caseId = "trace_text_example",
+                worldId = "test-world",
+                tickRate = 30,
+                result = new MobaAcceptanceResult
+                {
+                    passed = true,
+                    finalFrame = 8,
+                    finalTimeMs = 267,
+                    effectRootId = 1
+                },
+                coverage = new MobaAcceptanceCoverageSummary
+                {
+                    expectedTraceNodeCount = 2,
+                    matchedExpectedTraceNodeCount = 2,
+                    expectedActionCount = 1,
+                    executedExpectedActionCount = 1
+                },
+                traceCounts = new[]
+                {
+                    new MobaAcceptanceTraceCount { kind = "EffectAction", count = 1 },
+                    new MobaAcceptanceTraceCount { kind = "EffectExecution", count = 1 }
+                }
+            };
+            var records = new[]
+            {
+                new MobaAcceptanceTraceRecord
+                {
+                    nodeId = 1,
+                    rootId = 1,
+                    kind = "EffectExecution",
+                    kindValue = 2,
+                    configId = 1001,
+                    configLabel = "Effect Fire (#1001)",
+                    sourceActorId = 10,
+                    sourceActorLabel = "来源角色 player (#10)",
+                    targetActorId = 20,
+                    targetActorLabel = "目标角色 enemy (#20)",
+                    childCount = 1,
+                    isRoot = true
+                },
+                new MobaAcceptanceTraceRecord
+                {
+                    nodeId = 2,
+                    rootId = 1,
+                    parentId = 1,
+                    kind = "EffectAction",
+                    kindValue = 3,
+                    configId = 2001,
+                    configLabel = "Damage (#2001)",
+                    frame = 3,
+                    timeMs = 100,
+                    isEnded = true,
+                    endedFrame = 3,
+                    endReason = 1
+                }
+            };
+
+            var text = MobaAcceptanceTraceExporter.BuildTraceText(summary, records);
+
+            StringAssert.Contains("用例: trace_text_example", text);
+            StringAssert.Contains("Root #1", text);
+            StringAssert.Contains("- [1] EffectExecution", text);
+            StringAssert.Contains("  - [2] EffectAction", text);
+            StringAssert.Contains("配置: id=2001", text);
+            StringAssert.Contains("状态=已结束 endedFrame=3 reason=1", text);
         }
 
         [Test]

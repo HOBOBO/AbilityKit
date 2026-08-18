@@ -65,6 +65,15 @@ public sealed class ShooterClientSessionTests
     }
 
     [Fact]
+    public void ClientSyncControllerBaseContractDoesNotRequireOptionalCapabilities()
+    {
+        Assert.Null(typeof(IShooterClientSyncController).GetProperty("FrameSync"));
+        Assert.Null(typeof(IShooterClientSyncController).GetProperty("InputCoordinator"));
+        Assert.NotNull(typeof(IShooterClientFrameSyncCapability).GetProperty("FrameSync"));
+        Assert.NotNull(typeof(IShooterClientInputCapability).GetProperty("InputCoordinator"));
+    }
+
+    [Fact]
     public void ClientSessionDelegatesToPredictRollbackSyncController()
     {
         var runtime = new ShooterBattleRuntimePort();
@@ -79,8 +88,17 @@ public sealed class ShooterClientSessionTests
 
         Assert.IsType<ShooterClientPredictRollbackSyncController>(session.SyncController);
         Assert.Equal(NetworkSyncModel.PredictRollback, session.SyncController.SyncModel);
-        Assert.Same(session.SyncController.FrameSync, session.FrameSync);
-        Assert.Same(session.SyncController.InputCoordinator, session.InputCoordinator);
+        Assert.True(session.SyncController.TryGetCapability<IShooterClientFrameSyncCapability>(out var frameCapability));
+        Assert.True(session.SyncController.TryGetCapability<IShooterClientInputCapability>(out var inputCapability));
+        Assert.NotNull(frameCapability);
+        Assert.NotNull(inputCapability);
+        Assert.Same(frameCapability!.FrameSync, session.FrameSync);
+        Assert.Same(inputCapability!.InputCoordinator, session.InputCoordinator);
+
+        Assert.True(session.TryGetFrameSync(out var frameSync));
+        Assert.True(session.TryGetInputCoordinator(out var inputCoordinator));
+        Assert.Same(session.FrameSync, frameSync);
+        Assert.Same(session.InputCoordinator, inputCoordinator);
     }
 
     [Fact]
@@ -117,6 +135,8 @@ public sealed class ShooterClientSessionTests
 
         Assert.IsType<ShooterClientAuthoritativeInterpolationSyncController>(session.SyncController);
         Assert.Equal(NetworkSyncModel.AuthoritativeInterpolation, session.SyncModel);
+        Assert.True(session.SyncController.TryGetFrameSync(out _));
+        Assert.True(session.SyncController.TryGetInputCoordinator(out _));
     }
 
     [Fact]

@@ -299,9 +299,11 @@ namespace AbilityKit.Modifiers
 
     /// <summary>
     /// 默认来源记录器实现。
-    /// 预分配固定大小数组，无扩容 GC。
+    /// 预分配固定大小数组，Record 路径无扩容 GC（记录器对象本身为调用方创建的一次性分配）。
+    /// 必须是 class：记录器通过 IModifierRecorder 接口按引用传入计算核心，
+    /// 若为 struct 会在装箱副本上写入，调用方永远无法观察到 Count/GetEntry。
     /// </summary>
-    public struct DefaultRecorder : IModifierRecorder
+    public class DefaultRecorder : IModifierRecorder
     {
         private ModifierSourceEntry[] _entries;
         private int _count;

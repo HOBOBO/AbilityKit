@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Game.Battle.Component;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Flow;
@@ -13,6 +14,8 @@ namespace AbilityKit.Game.Battle.Vfx
         private readonly BattleVfxEntityFactory _factory;
         private readonly BattleVfxFollowController _followController;
         private readonly BattleVfxGameObjectPool _pool;
+        private readonly BattleVfxEntityCollector _collector = new BattleVfxEntityCollector();
+        private readonly List<EC.IEntityId> _clearIds = new List<EC.IEntityId>(32);
 
         public BattleVfxManager(VfxDatabase db)
             : this(db, null)
@@ -146,6 +149,27 @@ namespace AbilityKit.Game.Battle.Vfx
         public int DestroyVfxByFollowTargetActorId(in EC.IEntity vfxRoot, int targetActorId)
         {
             return _followController.DestroyByFollowTargetActorId(vfxRoot, targetActorId, DestroyVfxEntity);
+        }
+
+        /// <summary>
+        /// Destroys every active VFX below the supplied root and releases retained pool objects.
+        /// Safe to call repeatedly during partial attach or teardown recovery.
+        /// </summary>
+        public void Clear(in EC.IEntity vfxRoot)
+        {
+            if (vfxRoot.IsValid)
+            {
+                var world = vfxRoot.World;
+                _clearIds.Clear();
+                _collector.Collect(vfxRoot, _clearIds);
+                for (var i = 0; i < _clearIds.Count; i++)
+                {
+                    DestroyVfxEntity(world, _clearIds[i]);
+                }
+                _clearIds.Clear();
+            }
+
+            _pool?.Clear();
         }
 
         private void DestroyVfxGameObject(EC.IEntity entity)

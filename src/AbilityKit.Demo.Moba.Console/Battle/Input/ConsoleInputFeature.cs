@@ -11,6 +11,7 @@ using AbilityKit.Protocol.Moba;
 using PlayerId = AbilityKit.Ability.Host.PlayerId;
 using Platform = AbilityKit.Demo.Moba.Console.Platform;
 using ECSComponents = AbilityKit.Demo.Moba.Console.Battle.ECS.Components;
+using AbilityKit.Demo.Moba.Input;
 
 namespace AbilityKit.Demo.Moba.Console.Battle.Input
 {
@@ -179,6 +180,22 @@ namespace AbilityKit.Demo.Moba.Console.Battle.Input
             Context.HudMoveDx = dx;
             Context.HudMoveDz = dz;
             Context.HudHasMove = Math.Abs(dx) > 0.01f || Math.Abs(dz) > 0.01f;
+        }
+
+        public void ApplyIntent(in MobaActorIntent intent)
+        {
+            if (!intent.HasFiniteMovement())
+            {
+                SetMoveInput(0f, 0f);
+                return;
+            }
+
+            if (intent.MovementKind == MobaActorMovementIntentKind.Direction)
+                SetMoveInput(intent.MoveX, intent.MoveZ);
+            else if (intent.MovementKind == MobaActorMovementIntentKind.Hold)
+                SetMoveInput(0f, 0f);
+
+            if (intent.HasCast && intent.SkillSlot > 0) ClickSkill(intent.SkillSlot);
         }
 
         public void ClickSkill(int slot)

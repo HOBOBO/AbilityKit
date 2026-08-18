@@ -4,6 +4,13 @@
   "displayName": "AbilityKit Network SDK",
   "unity": "2022.3",
   "description": "Transport-independent AbilityKit network SDK composition root and lifecycle owner.",
+  "keywords": [
+    "abilitykit",
+    "network",
+    "sdk",
+    "client",
+    "runtime"
+  ],
   "author": {
     "name": "AbilityKit"
   },

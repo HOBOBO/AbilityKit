@@ -8,6 +8,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.Demo.Moba.Components;
 
 namespace AbilityKit.Demo.Moba.Systems
 {
@@ -118,6 +119,12 @@ namespace AbilityKit.Demo.Moba.Systems
             // Runtime-owned state machines, such as projectile HFSMs, are attached explicitly
             // and do not use an ActorBrain catalog binding. Their owner controls removal.
             if (actor == null) return;
+            if (actor.hasActorStateMachine
+                && actor.actorStateMachine.OwnerKind == MobaActorStateMachineOwnerKind.Projectile)
+            {
+                _failedBindings.Remove(actor);
+                return;
+            }
             if (!actor.hasActorBrain)
             {
                 _failedBindings.Remove(actor);
@@ -160,6 +167,14 @@ namespace AbilityKit.Demo.Moba.Systems
                 return false;
             }
 
+            // A registered HFSM decision driver owns a BehaviorRuntime controller. Only the
+            // compatibility path without such a driver attaches the logic state-machine runtime.
+            if (_brainService != null
+                && _brainService.DecisionDrivers.Contains(MobaBrainDriverKind.Hfsm))
+            {
+                return false;
+            }
+
             binding = MobaActorStateMachineBinding.From(actor, definition.DecisionName);
             return true;
         }
@@ -174,7 +189,7 @@ namespace AbilityKit.Demo.Moba.Systems
                 if (_factory.TryCreate(actor, binding.ProfileId, out var runtime) && runtime != null)
                 {
                     _failedBindings.Remove(actor);
-                    actor.AddActorStateMachine(binding.ProfileId, runtime);
+                    actor.AddActorStateMachine(binding.ProfileId, runtime, MobaActorStateMachineOwnerKind.Brain);
                     return;
                 }
 

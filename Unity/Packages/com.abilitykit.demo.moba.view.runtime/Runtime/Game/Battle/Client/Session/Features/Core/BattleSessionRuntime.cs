@@ -134,6 +134,7 @@ namespace AbilityKit.Game.Flow
         internal BattleSnapshotRoutingRuntime SnapshotRouting { get; }
         internal GatewaySessionRuntime GatewayRoom { get; private set; }
         internal BattleReplicationRuntime Replication { get; }
+        internal InputSubmissionDiagnosticsBinding InputSubmissionDiagnostics { get; }
         internal ReliableBattleEventDeliveryRuntime ReliableEvents { get; private set; }
         internal AuthoritativeStateRecoveryRuntime Recovery { get; private set; }
         internal BattleSessionDiagnostics Diagnostics { get; }
@@ -149,7 +150,8 @@ namespace AbilityKit.Game.Flow
         {
             State = new BattleSessionState();
             Handles = new BattleSessionHandles();
-            Replication = new BattleReplicationRuntime();
+            InputSubmissionDiagnostics = new InputSubmissionDiagnosticsBinding();
+            Replication = new BattleReplicationRuntime(InputSubmissionDiagnostics.Dispose);
             Diagnostics = new BattleSessionDiagnostics(Replication);
             Input = new BattleInputRuntime();
             Prediction = new BattlePredictionRuntime();
@@ -227,6 +229,7 @@ namespace AbilityKit.Game.Flow
         {
             Recovery?.Dispose();
             Replication.Dispose();
+            InputSubmissionDiagnostics.Dispose();
         }
     }
 }

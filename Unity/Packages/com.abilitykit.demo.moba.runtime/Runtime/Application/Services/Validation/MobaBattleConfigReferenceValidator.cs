@@ -415,6 +415,56 @@ namespace AbilityKit.Demo.Moba.Services
                     report.Warning(Source, path + ".stackingPolicy", "ignore-if-exists buff should not rely on multi-stack semantics.", buff.Id.ToString());
                 }
 
+                if (!Enum.IsDefined(typeof(BuffDispelPolicy), buff.DispelPolicy))
+                {
+                    report.Error(
+                        Source,
+                        path + ".dispelPolicy",
+                        $"buff dispel policy value {(int)buff.DispelPolicy} is not supported.",
+                        buff.Id.ToString(),
+                        code: "moba.buff.dispel.invalid_policy",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: buff.Id);
+                }
+
+                if (buff.DispelCategory < 0)
+                {
+                    report.Error(
+                        Source,
+                        path + ".dispelCategory",
+                        "buff dispel category cannot be negative.",
+                        buff.Id.ToString(),
+                        code: "moba.buff.dispel.negative_category",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: buff.Id);
+                }
+
+                if (buff.DispelPolicy == BuffDispelPolicy.Undispellable && buff.DispelCategory > 0)
+                {
+                    report.Warning(
+                        Source,
+                        path + ".dispelCategory",
+                        "undispellable buff ignores its configured dispel category.",
+                        buff.Id.ToString(),
+                        code: "moba.buff.dispel.redundant_category",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: buff.Id);
+                }
+
+                if (buff.DispelPolicy == BuffDispelPolicy.Undispellable &&
+                    buff.DispelBlockedByTags != null &&
+                    buff.DispelBlockedByTags.Count > 0)
+                {
+                    report.Warning(
+                        Source,
+                        path + ".dispelBlockedByTags",
+                        "undispellable buff ignores its configured dispel-blocking tags.",
+                        buff.Id.ToString(),
+                        code: "moba.buff.dispel.redundant_blocked_tags",
+                        category: MobaRuntimeValidationCategory.Config,
+                        businessNumericId: buff.Id);
+                }
+
                 ValidateTriggerRefs(triggers, buff.OnAddEffects, report, path + ".onAddEffects", buff.Id);
                 ValidateTriggerRefs(triggers, buff.OnRemoveEffects, report, path + ".onRemoveEffects", buff.Id);
                 ValidateTriggerRefs(triggers, buff.OnIntervalEffects, report, path + ".onIntervalEffects", buff.Id);

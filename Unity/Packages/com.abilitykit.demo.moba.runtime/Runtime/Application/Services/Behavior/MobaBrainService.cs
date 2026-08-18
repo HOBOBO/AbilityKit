@@ -67,7 +67,8 @@ namespace AbilityKit.Demo.Moba.Services
             _worldQuery = new MobaWorldQuery(
                 new MobaBrainEntityManager(registry),
                 new MobaBrainBuffManager(registry),
-                new MobaBrainAttributeSystem(registry));
+                new MobaBrainAttributeSystem(registry),
+                allowMutations: false);
         }
 
         public BehaviorRuntime EnsureBehavior(global::ActorEntity actor)
@@ -96,10 +97,11 @@ namespace AbilityKit.Demo.Moba.Services
                 return null;
             }
 
-            if (definition.DriverKind == MobaBrainDriverKind.Hfsm)
+            if (IsLogicHfsm(in definition))
             {
                 _failedCreations.Remove(ownerActorId);
                 ReleaseBehavior(actor, "HfsmOwnership");
+                StopMovement(actor);
                 return null;
             }
 
@@ -125,6 +127,7 @@ namespace AbilityKit.Demo.Moba.Services
                 brain.SourceKind,
                 brain.SourceId,
                 runtime.InstanceId);
+            RemoveBrainOwnedStateMachine(actor);
 
             if (previousInstanceId > 0 && previousInstanceId != runtime.InstanceId)
                 _behaviors.Interrupt(previousInstanceId, "BrainReplaced");
@@ -142,7 +145,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (definition.DriverKind == MobaBrainDriverKind.Hfsm)
+            if (IsLogicHfsm(in definition))
             {
                 if (_stateMachineProfiles == null
                     || !_stateMachineProfiles.TryGet(definition.DecisionName, out _))
@@ -153,8 +156,9 @@ namespace AbilityKit.Demo.Moba.Services
 
                 var previousInstanceId = actor.hasActorBrain ? actor.actorBrain.BehaviorInstanceId : 0L;
                 CommitBrain(actor, brainId, sourceKind, sourceId, behaviorInstanceId: 0L);
-                if (actor.hasActorStateMachine) actor.RemoveActorStateMachine();
+                RemoveBrainOwnedStateMachine(actor);
                 if (previousInstanceId > 0) _behaviors.Interrupt(previousInstanceId, "BrainReplaced");
+                StopMovement(actor);
                 _failedCreations.Remove(actor.actorId.Value);
                 return true;
             }
@@ -167,7 +171,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             var oldInstanceId = actor.hasActorBrain ? actor.actorBrain.BehaviorInstanceId : 0L;
             CommitBrain(actor, brainId, sourceKind, sourceId, runtime.InstanceId);
-            if (actor.hasActorStateMachine) actor.RemoveActorStateMachine();
+            RemoveBrainOwnedStateMachine(actor);
             if (oldInstanceId > 0 && oldInstanceId != runtime.InstanceId)
                 _behaviors.Interrupt(oldInstanceId, "BrainReplaced");
             _failedCreations.Remove(actor.actorId.Value);
@@ -180,7 +184,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             var hadBrain = actor.hasActorBrain;
             var instanceId = hadBrain ? actor.actorBrain.BehaviorInstanceId : 0L;
-            if (actor.hasActorStateMachine) actor.RemoveActorStateMachine();
+            RemoveBrainOwnedStateMachine(actor);
             if (hadBrain)
             {
                 actor.RemoveActorBrain();
@@ -208,6 +212,7 @@ namespace AbilityKit.Demo.Moba.Services
                 brain.SourceId,
                 0L);
             _behaviors.Interrupt(instanceId, string.IsNullOrWhiteSpace(reason) ? "BrainReleased" : reason);
+            StopMovement(actor);
             if (actor.hasActorId) _failedCreations.Remove(actor.actorId.Value);
             return true;
         }
@@ -216,6 +221,31 @@ namespace AbilityKit.Demo.Moba.Services
         {
             behavior = instanceId > 0 ? _behaviors.GetBehavior(instanceId) : null;
             return behavior != null;
+        }
+
+        public bool TryRestoreBehaviorSnapshot(
+            global::ActorEntity actor,
+            string snapshotType,
+            byte[] payload)
+        {
+            if (actor == null || !actor.hasActorBrain || actor.actorBrain.BehaviorInstanceId <= 0
+                || string.IsNullOrWhiteSpace(snapshotType) || payload == null || payload.Length == 0)
+                return false;
+            if (!(_behaviors.GetBehavior(actor.actorBrain.BehaviorInstanceId) is { } behavior)
+                || behavior.Decision is not IBehaviorRuntimeSnapshot snapshot
+                || !string.Equals(snapshot.SnapshotType, snapshotType, StringComparison.Ordinal))
+                return false;
+
+            try
+            {
+                snapshot.RestoreSnapshot(payload);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, $"[MobaBrain] behavior snapshot restore failed. actor={actor.actorId.Value}");
+                return false;
+            }
         }
 
         public void Tick(float deltaTimeSeconds, long frame)
@@ -231,7 +261,29 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Dispose()
         {
+            _behaviors.Dispose();
             _failedCreations.Clear();
+        }
+
+        private static void StopMovement(global::ActorEntity actor)
+        {
+            if (actor != null && actor.hasMoveInput)
+                actor.ReplaceMoveInput(0f, 0f);
+        }
+
+        private static void RemoveBrainOwnedStateMachine(global::ActorEntity actor)
+        {
+            if (actor == null || !actor.hasActorStateMachine) return;
+            if (actor.actorStateMachine.OwnerKind ==
+                global::AbilityKit.Demo.Moba.Components.MobaActorStateMachineOwnerKind.Projectile)
+                return;
+            actor.RemoveActorStateMachine();
+        }
+
+        private bool IsLogicHfsm(in MobaActorBrainDefinition definition)
+        {
+            return definition.DriverKind == MobaBrainDriverKind.Hfsm
+                && !_decisionDrivers.Contains(MobaBrainDriverKind.Hfsm);
         }
 
         private bool TryCreateBehaviorRuntime(

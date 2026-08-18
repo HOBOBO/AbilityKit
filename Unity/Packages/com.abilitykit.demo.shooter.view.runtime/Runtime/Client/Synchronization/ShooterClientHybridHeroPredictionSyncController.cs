@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Shooter.View
     /// <see cref="NetworkSyncModel.HybridHeroPrediction"/> 的混合同步控制器。
     /// 本地模拟与权威校正仍委托给预测回滚；已解码的远端 actor 样本会进入缓冲，并通过延迟权威插值播放。
     /// </summary>
-    public sealed class ShooterClientHybridHeroPredictionSyncController : IShooterClientSyncController, IInterpolationDiagnosticsProvider
+    public sealed class ShooterClientHybridHeroPredictionSyncController : IShooterClientSyncController, IShooterClientFrameSyncCapability, IShooterClientInputCapability, IInterpolationDiagnosticsProvider
     {
         private readonly ShooterClientPredictRollbackSyncController _rollback;
         private readonly ShooterPresentationFacade _presentation;
@@ -39,7 +39,8 @@ namespace AbilityKit.Demo.Shooter.View
             int tickRate,
             ShooterGatewaySnapshotDecoder? decoder,
             IShooterRoomGatewayClient? gateway,
-            InterpolationConfig config)
+            InterpolationConfig config,
+            ShooterClientPredictionBufferOptions? predictionBufferOptions = null)
         {
             _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
             _decoder = decoder ?? new ShooterGatewaySnapshotDecoder();
@@ -48,7 +49,8 @@ namespace AbilityKit.Demo.Shooter.View
                 presentation,
                 tickRate,
                 decoder,
-                gateway);
+                gateway,
+                predictionBufferOptions);
             _playback = new RemoteInterpolationPlayback<ShooterRemoteSnapshotSample>(config);
         }
 

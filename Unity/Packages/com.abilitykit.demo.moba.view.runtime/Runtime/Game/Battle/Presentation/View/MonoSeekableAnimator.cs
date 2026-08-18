@@ -16,7 +16,14 @@ namespace AbilityKit.Game.Flow
         {
             if (Animator == null) return;
 
-            Animator.Play(StateHash, LayerIndex, NormalizedTime);
+            var elapsedSeconds = Mathf.Max(0, frameIndex) * Mathf.Max(0f, secondsPerFrame);
+            Animator.Play(StateHash, LayerIndex, 0f);
+            Animator.Update(0f);
+            var state = Animator.GetCurrentAnimatorStateInfo(LayerIndex);
+            var frameNormalizedTime = state.length > Mathf.Epsilon
+                ? elapsedSeconds / state.length
+                : 0f;
+            Animator.Play(StateHash, LayerIndex, NormalizedTime + frameNormalizedTime);
             Animator.Update(0f);
         }
 

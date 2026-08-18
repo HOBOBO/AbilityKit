@@ -516,7 +516,25 @@ flowchart LR
 
 ---
 
-## 19. 验证证据与已知限制
+## 19. 与 Unity 统一装配入口的关系
+
+Unity 示例新增的 `DemoLaunchRequest`、`DemoGameplayCatalogSO`、`DemoGameplayProfileSO` 与 `DemoGameplayBootstrap` 只解决 Unity 进程内从 Starter 选择游戏、解析包内 Profile 并实例化 Root Prefab 的问题。Console Demo 不消费这些类型，也不加载 `StarterScene`、MOBA/Shooter package scene 或任何 `ScriptableObject` Profile。它的组合根仍是 `Program.Main` 与 `ConsoleBattleBootstrapper`。
+
+| 比较项 | Console Demo | Unity Starter / Gameplay Bootstrap |
+|--------|--------------|------------------------------------|
+| 启动请求 | CLI 参数与 `BattleStartConfig` | 进程静态一次性 `DemoLaunchIntent` |
+| 组合描述 | C# 构造函数、Module 列表、`BattleStartPlan`、`MobaBattleLaunchSpec` | `DemoGameplayProfileSO` 与 `DemoGameplayCatalogSO` |
+| 运行载体 | 纯 .NET 进程、Console 平台适配器 | Unity Scene、Prefab、`MonoBehaviour` |
+| 战斗入口 | `ConsoleBattleBootstrapper.Initialize/Start/SetupBattle` | Root Prefab 内的 `GameEntry` 或 Shooter 入口组件 |
+| 释放入口 | `Stop()` 停止流；完整资源释放在 `Dispose()` | `DemoGameplayBootstrap.Shutdown()` 只销毁实例化 Root，Root 自己负责内部会话和运行时释放 |
+
+这两条路径共享的是 World、Host、输入、Snapshot 和 MOBA runtime 等底层契约，不共享应用层启动协议。项目可以借鉴 Unity Profile/Catalog 的数据驱动思想，但不应让无 Unity 宿主反向依赖 `ScriptableObject`，也不应把 Console 的 `BattleFlow` 和 Feature 集合塞进统一 Starter。
+
+当前 Console 入口还有一个需要明确治理的生命周期差异：`Program.Main` 的 `finally` 只调用 `_bootstrapper.Stop()`，而 `Stop()` 只把 `_running` 置为 false 并停止 Flow；Host client/network、WorldManager、SnapshotDispatcher、SyncAdapter 和 View 等完整清理由 `Dispose()` 执行。测试常通过 `using` 或显式释放覆盖这条路径，但交互式 CLI 正常退出并未在入口处调用 `Dispose()`。因此不能把“主循环停止”描述成“所有资源已经释放”。
+
+---
+
+## 20. 验证证据与已知限制
 
 | 证据 | 等级与结论 |
 |------|------------|
@@ -527,6 +545,6 @@ flowchart LR
 
 当前同步适配器仍主要承担 Demo 诊断和模型切换，权威输入已统一走 in-process Host 网络。生产采用应复用 Host/World/协议机制，并重新实现项目流程、表现和部署拓扑；不要把 Console 自有 ECS、HUD 或 `BattleFlow` 下沉为框架默认。
 
-文档类型：示例分析与纯 .NET 验收指南 | 事实基线：2026-08-15 | 证据等级：E0/E1 源码构建面、E2 可执行入口、较多 E3 bootstrapper 消费；未在本批生成 E4/E5 artifact
+文档类型：示例分析与纯 .NET 验收指南 | 事实基线：2026-08-17 | 证据等级：E0/E1 源码构建面、E2 可执行入口、较多 E3 bootstrapper 消费；未在本批生成 E4/E5 artifact
 
-*文档版本：v3.0 | 最后更新：2026-08-15*
+*文档版本：v3.1 | 最后更新：2026-08-17*

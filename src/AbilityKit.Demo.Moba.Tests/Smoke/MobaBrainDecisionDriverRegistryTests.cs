@@ -1,4 +1,5 @@
 using AbilityKit.Ability.Behavior;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using Xunit;
 
@@ -87,6 +88,25 @@ public sealed class MobaBrainDecisionDriverRegistryTests
         Assert.True(created);
         Assert.NotNull(decision);
         Assert.Equal("TestDriver", decision.DecisionType);
+    }
+
+    [Fact]
+    public void Registered_hfsm_driver_is_used_as_behavior_controller()
+    {
+        var catalog = new MobaActorBrainCatalog();
+        catalog.Register(new MobaActorBrainDefinition(12, MobaBrainDriverKind.Hfsm, "test"));
+        var registry = new MobaBrainDecisionDriverRegistry(new[] { new TestDriver() });
+        var service = new MobaBrainService(new MobaActorRegistry(), catalog, null, registry);
+        var actor = new ActorContext().CreateEntity();
+        actor.AddActorId(1200);
+
+        Assert.True(service.ActivateBrain(actor, 12, sourceKind: 1, sourceId: 2));
+        Assert.True(actor.hasActorBrain);
+        Assert.True(actor.actorBrain.BehaviorInstanceId > 0);
+        Assert.True(service.TryGetBehavior(actor.actorBrain.BehaviorInstanceId, out var behavior));
+        Assert.NotNull(behavior);
+        Assert.False(actor.hasActorStateMachine);
+        service.Dispose();
     }
 
     [Fact]

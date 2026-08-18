@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace AbilityKit.Ability.StateSync.Prediction
@@ -41,13 +42,32 @@ public interface IPredictionHandler
 }
 
 /// <summary>
+/// Copies mutable reference values when state slots are snapshotted.
+/// Value types and strings are copied by the default StateSlots policy.
+/// </summary>
+public interface IStateSlotValueCloner
+{
+    /// <summary>Returns an independent value with the same runtime type.</summary>
+    object Clone(string slotName, object value);
+}
+
+/// <summary>
 /// 状态槽位集合
 /// 通用的状态存储，按字符串键索引
 /// </summary>
 public sealed class StateSlots
 {
     private readonly Dictionary<string, SlotValue> _slots = new Dictionary<string, SlotValue>();
+    private readonly IStateSlotValueCloner _valueCloner;
     private long _version;
+
+    /// <summary>
+    /// Creates slots with an optional strategy for mutable reference values.
+    /// </summary>
+    public StateSlots(IStateSlotValueCloner valueCloner = null)
+    {
+        _valueCloner = valueCloner;
+    }
 
     public long Version => _version;
 
@@ -167,15 +187,23 @@ public sealed class StateSlots
             _version++;
     }
 
+    /// <summary>Removes every slot from the current state.</summary>
+    public void Clear()
+    {
+        if (_slots.Count == 0) return;
+        _slots.Clear();
+        _version++;
+    }
+
     /// <summary>
     /// 复制槽位
     /// </summary>
     public StateSlots Clone()
     {
-        var clone = new StateSlots();
+        var clone = new StateSlots(_valueCloner);
         foreach (var kvp in _slots)
         {
-            clone._slots[kvp.Key] = kvp.Value;
+            clone._slots[kvp.Key] = CloneSlotValue(kvp.Key, kvp.Value);
         }
         clone._version = _version;
         return clone;
@@ -186,15 +214,46 @@ public sealed class StateSlots
     /// </summary>
     public void OverwriteFrom(StateSlots other)
     {
-        if (other == null) throw new System.ArgumentNullException(nameof(other));
+        if (other == null) throw new ArgumentNullException(nameof(other));
         if (ReferenceEquals(this, other)) return;
 
-        _slots.Clear();
+        // Clone before commit so an unsupported reference value cannot leave a partial state.
+        var replacement = new Dictionary<string, SlotValue>(other._slots.Count);
         foreach (var kvp in other._slots)
+        {
+            replacement[kvp.Key] = CloneSlotValue(kvp.Key, kvp.Value);
+        }
+
+        _slots.Clear();
+        foreach (var kvp in replacement)
         {
             _slots[kvp.Key] = kvp.Value;
         }
         _version++;
+    }
+
+    private SlotValue CloneSlotValue(string slotName, SlotValue slot)
+    {
+        var value = slot.Value;
+        if (value == null || value is string || value.GetType().IsValueType)
+            return slot;
+
+        if (_valueCloner == null)
+        {
+            throw new InvalidOperationException(
+                $"State slot '{slotName}' contains mutable reference type '{value.GetType().FullName}'. " +
+                $"Construct StateSlots with an {nameof(IStateSlotValueCloner)} to snapshot it safely.");
+        }
+
+        var clonedValue = _valueCloner.Clone(slotName, value);
+        if (clonedValue == null || !value.GetType().IsInstanceOfType(clonedValue))
+        {
+            throw new InvalidOperationException(
+                $"The clone strategy for state slot '{slotName}' must return a non-null " +
+                $"'{value.GetType().FullName}' value.");
+        }
+
+        return new SlotValue(clonedValue);
     }
 }
 
@@ -213,9 +272,13 @@ public interface IPredictionListener
 /// </summary>
 public interface ISnapshotStore
 {
+    /// <summary>Captures state independently from subsequent source mutations.</summary>
     void Record(Frame frame, StateSlots state);
+
+    /// <summary>Returns an independent snapshot that callers may mutate safely.</summary>
     StateSlots Get(Frame frame);
     void PruneBefore(Frame frame);
+    void Clear();
 }
 
 /// <summary>
@@ -228,11 +291,13 @@ public sealed class DictionarySnapshotStore : ISnapshotStore
 
     public DictionarySnapshotStore(int maxFrames)
     {
+        if (maxFrames <= 0) throw new ArgumentOutOfRangeException(nameof(maxFrames));
         _maxFrames = maxFrames;
     }
 
     public void Record(Frame frame, StateSlots state)
     {
+        if (state == null) throw new ArgumentNullException(nameof(state));
         _snapshots[frame] = state.Clone();
         if (_snapshots.Count > _maxFrames)
         {
@@ -254,7 +319,7 @@ public sealed class DictionarySnapshotStore : ISnapshotStore
     public StateSlots Get(Frame frame)
     {
         StateSlots result;
-        return _snapshots.TryGetValue(frame, out result) ? result : null;
+        return _snapshots.TryGetValue(frame, out result) ? result.Clone() : null;
     }
 
     public void PruneBefore(Frame frame)
@@ -265,23 +330,44 @@ public sealed class DictionarySnapshotStore : ISnapshotStore
         foreach (var k in keys)
             _snapshots.Remove(k);
     }
+
+    public void Clear()
+    {
+        _snapshots.Clear();
+    }
 }
 
 /// <summary>
 /// 输入历史
 /// </summary>
-public sealed class InputHistory
+public interface IInputHistory
+{
+    /// <summary>Retains one command under its original prediction frame.</summary>
+    void Record(Frame frame, IInputCommand input);
+
+    /// <summary>Returns immutable batches for every frame in the requested replay interval.</summary>
+    IReadOnlyList<InputFrameBatch> GetFrameBatches(Frame from, Frame to);
+
+    void Clear();
+}
+
+/// <summary>
+/// In-memory input history bounded by prediction frames.
+/// </summary>
+public sealed class InputHistory : IInputHistory
 {
     private readonly Dictionary<Frame, List<IInputCommand>> _inputs = new Dictionary<Frame, List<IInputCommand>>();
     private readonly int _maxFrames;
 
     public InputHistory(int maxFrames)
     {
+        if (maxFrames <= 0) throw new ArgumentOutOfRangeException(nameof(maxFrames));
         _maxFrames = maxFrames;
     }
 
     public void Record(Frame frame, IInputCommand input)
     {
+        if (input == null) throw new ArgumentNullException(nameof(input));
         if (!_inputs.ContainsKey(frame))
             _inputs[frame] = new List<IInputCommand>();
         _inputs[frame].Add(input);
@@ -303,21 +389,57 @@ public sealed class InputHistory
         }
     }
 
-    public List<IInputCommand> GetInputs(Frame from, Frame to)
+    /// <summary>
+    /// Captures every frame in the requested interval, including frames without commands.
+    /// </summary>
+    public IReadOnlyList<InputFrameBatch> GetFrameBatches(Frame from, Frame to)
     {
-        var result = new List<IInputCommand>();
-        var f = new Frame(from.Value + 1);
-        var end = new Frame(to.Value);
-        while (f <= end)
+        var result = new List<InputFrameBatch>();
+        var frame = new Frame(from.Value + 1);
+        while (frame <= to)
         {
-            if (_inputs.TryGetValue(f, out var inputs))
-                result.AddRange(inputs);
-            f = new Frame(f.Value + 1);
+            IInputCommand[] snapshot;
+            if (_inputs.TryGetValue(frame, out var inputs))
+                snapshot = inputs.ToArray();
+            else
+                snapshot = Array.Empty<IInputCommand>();
+
+            result.Add(new InputFrameBatch(frame, snapshot));
+            frame = new Frame(frame.Value + 1);
         }
         return result;
     }
 
     public void Clear() => _inputs.Clear();
+}
+
+/// <summary>
+/// Immutable view of the commands recorded for one prediction frame.
+/// Command instances must remain immutable while retained in history.
+/// </summary>
+public sealed class InputFrameBatch
+{
+    public InputFrameBatch(Frame frame, IReadOnlyList<IInputCommand> inputs)
+    {
+        if (inputs == null) throw new ArgumentNullException(nameof(inputs));
+
+        var snapshot = new IInputCommand[inputs.Count];
+        for (var i = 0; i < inputs.Count; i++)
+        {
+            snapshot[i] = inputs[i] ?? throw new ArgumentException(
+                "Input frame batches cannot contain null commands.",
+                nameof(inputs));
+        }
+
+        Frame = frame;
+        Inputs = Array.AsReadOnly(snapshot);
+    }
+
+    /// <summary>The original prediction frame.</summary>
+    public Frame Frame { get; }
+
+    /// <summary>Commands in their original within-frame order.</summary>
+    public IReadOnlyList<IInputCommand> Inputs { get; }
 }
 
 }

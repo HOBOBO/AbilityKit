@@ -27,22 +27,33 @@ namespace AbilityKit.Ability.Flow
             {
                 foreach (var s in _scopes)
                 {
-                    if (s.TryGetValue(typeof(T), out var scoped) && scoped is T scopedTyped)
+                    if (s.TryGetValue(typeof(T), out var scoped) && Matches<T>(scoped))
                     {
-                        value = scopedTyped;
+                        value = As<T>(scoped);
                         return true;
                     }
                 }
             }
 
-            if (_map.TryGetValue(typeof(T), out var obj) && obj is T typed)
+            if (_map.TryGetValue(typeof(T), out var obj) && Matches<T>(obj))
             {
-                value = typed;
+                value = As<T>(obj);
                 return true;
             }
 
             value = default;
             return false;
+        }
+
+        private static bool Matches<T>(object stored)
+        {
+            // 显式存入的 null 对引用类型槽是"存在但为 null"，必须可见（is T 对 null 恒 false）。
+            return stored is T || (stored == null && default(T) == null);
+        }
+
+        private static T As<T>(object stored)
+        {
+            return stored == null ? default : (T)stored;
         }
 
         public T Get<T>()

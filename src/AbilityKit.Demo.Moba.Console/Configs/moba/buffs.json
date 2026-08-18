@@ -5,7 +5,7 @@
         "DurationMs":  3000,
         "OngoingEffectId":  0,
         "OnAddEffects":  [
-                             1000001
+
                          ],
         "OnRemoveEffects":  [
 
@@ -97,30 +97,6 @@
                               "Op":  0,
                               "Value":  1.0,
                               "Priority":  30
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  8,
-                              "TargetId":  8,
-                              "Op":  3,
-                              "Value":  0,
-                              "MagnitudeSourceType":  5,
-                              "MagnitudeBaseValue":  0,
-                              "MagnitudeCoefficient":  0.2,
-                              "MagnitudeContextKey":  "resource.rage.ratio",
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  9,
-                              "TargetId":  9,
-                              "Op":  3,
-                              "Value":  0,
-                              "MagnitudeSourceType":  5,
-                              "MagnitudeBaseValue":  0,
-                              "MagnitudeCoefficient":  0.2,
-                              "MagnitudeContextKey":  "resource.rage.ratio",
-                              "Priority":  20
                           }
                       ]
     },
@@ -402,7 +378,7 @@
         "RefreshPolicy":  1,
         "MaxStacks":  1,
         "TriggerIds":  [
-
+                           10030111
                        ],
         "Tags":  [
                      "State.NextBasicAttackEnhanced",
@@ -410,6 +386,42 @@
                  ],
         "Modifiers":  [
 
+                      ]
+    },
+    {
+        "Id":  10030104,
+        "Name":  "赵云-惊雷之龙-短暂加速",
+        "DurationMs":  3000,
+        "OngoingEffectId":  0,
+        "OnAddEffects":  [
+
+                         ],
+        "OnRemoveEffects":  [
+
+                            ],
+        "OnIntervalEffects":  [
+
+                              ],
+        "IntervalMs":  0,
+        "StackingPolicy":  0,
+        "RefreshPolicy":  1,
+        "MaxStacks":  1,
+        "TriggerIds":  [
+
+                       ],
+        "Tags":  [
+                     "MoveSpeed.Up",
+                     "Zhaoyun.ThunderDragon"
+                 ],
+        "Modifiers":  [
+                          {
+                              "TargetKind":  1,
+                              "AttrTypeId":  17,
+                              "TargetId":  17,
+                              "Op":  3,
+                              "Value":  0.3,
+                              "Priority":  20
+                          }
                       ]
     },
     {
@@ -704,7 +716,7 @@
     },
     {
         "Id":  10050201,
-        "Name":  "妲己-偶像魅力-眩晕",
+        "Name":  "妲己-偶像魅力-眩晕控制",
         "DurationMs":  1500,
         "OngoingEffectId":  0,
         "OnAddEffects":  [
@@ -739,9 +751,9 @@
     },
     {
         "Id":  10050301,
-        "Name":  "妲己-女王崇拜-持续狐火状态",
+        "Name":  "妲己-女王崇拜-狐火状态",
         "DurationMs":  1600,
-        "OngoingEffectId":  20050301,
+        "OngoingEffectId":  0,
         "PresentationTemplateId":  90005003,
         "OnAddEffects":  [
 
@@ -750,9 +762,9 @@
 
                             ],
         "OnIntervalEffects":  [
-                              10050311
-                              ],
-        "IntervalMs":  400,
+
+                               ],
+        "IntervalMs":  0,
         "StackingPolicy":  0,
         "RefreshPolicy":  1,
         "MaxStacks":  1,

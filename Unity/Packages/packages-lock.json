@@ -383,14 +383,6 @@
         "com.abilitykit.demo.moba.view.abstractions": "0.1.0"
       }
     },
-    "com.abilitykit.demo.multiplayer.starter": {
-      "version": "file:com.abilitykit.demo.multiplayer.starter",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.demo.common": "0.0.1"
-      }
-    },
     "com.abilitykit.demo.shooter.ai": {
       "version": "file:com.abilitykit.demo.shooter.ai",
       "depth": 0,
@@ -504,6 +496,14 @@
         "com.abilitykit.gameframework.network": "0.1.0"
       }
     },
+    "com.abilitykit.demo.starter": {
+      "version": "file:com.abilitykit.demo.starter",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.demo.common": "0.0.1"
+      }
+    },
     "com.abilitykit.deterministic": {
       "version": "file:com.abilitykit.deterministic",
       "depth": 0,
@@ -600,7 +600,8 @@
         "com.abilitykit.world.framesync": "0.1.0",
         "com.abilitykit.world.networkfragments": "0.1.0",
         "com.abilitykit.world.snapshot": "0.1.0",
-        "com.abilitykit.network.runtime": "0.1.0"
+        "com.abilitykit.network.runtime": "0.1.0",
+        "com.abilitykit.timer": "0.1.0"
       }
     },
     "com.abilitykit.host.network": {
@@ -840,18 +841,13 @@
       "source": "embedded",
       "dependencies": {}
     },
-    "com.abilitykit.threading": {
-      "version": "file:com.abilitykit.threading",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
     "com.abilitykit.timer": {
       "version": "file:com.abilitykit.timer",
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.1.0"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.trace": {
@@ -946,7 +942,6 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.world.framesync": "0.1.0",
         "com.abilitykit.world.snapshot": "0.1.0",
         "com.cysharp.memorypack": "1.10.0"
       }

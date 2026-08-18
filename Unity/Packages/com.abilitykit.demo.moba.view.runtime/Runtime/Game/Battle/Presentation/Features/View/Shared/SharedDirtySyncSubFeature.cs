@@ -12,13 +12,8 @@ namespace AbilityKit.Game.Flow
         {
             var f = ctx.Feature;
             var dirty = f?.EntityContext?.DirtyEntities;
-            if (dirty == null) return;
+            if (dirty == null || dirty.Count == 0) return;
 
-            // Clear at the start of the frame so multiple producers (Spawn + Transform)
-            // can all append without overwriting each other's entries.
-            dirty.Clear();
-
-            if (dirty.Count == 0) return;
             f.RefreshDirtyViews();
         }
 

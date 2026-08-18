@@ -378,18 +378,14 @@ public sealed class MobaAiActionMapper
         if (action == null) throw new ArgumentNullException(nameof(action));
         if (bootstrapper == null) throw new ArgumentNullException(nameof(bootstrapper));
 
-        var context = bootstrapper.Context;
-        var moveX = action.Continuous.Length > 0 ? ClampUnit(action.Continuous[0]) : 0f;
-        var moveZ = action.Continuous.Length > 1 ? ClampUnit(action.Continuous[1]) : 0f;
-        context.HudMoveDx = moveX;
-        context.HudMoveDz = moveZ;
-        context.HudHasMove = MathF.Abs(moveX) > 0.01f || MathF.Abs(moveZ) > 0.01f;
-
+        var moveX = action.Continuous.Length > 0 ? action.Continuous[0] : 0f;
+        var moveZ = action.Continuous.Length > 1 ? action.Continuous[1] : 0f;
+        var intent = global::AbilityKit.Demo.Moba.Input.MobaActorIntent.MoveDirection(moveX, moveZ);
         var slot = action.Discrete.Length > 0 ? action.Discrete[0] : 0;
-        context.HudSkillClickSlot = slot < 0 ? 0 : slot > 3 ? 3 : slot;
+        slot = slot < 0 ? 0 : slot > 3 ? 3 : slot;
+        if (slot > 0) intent = intent.WithCast(slot);
+        bootstrapper.InputFeature.ApplyIntent(in intent);
     }
-
-    private static float ClampUnit(float value) => value < -1f ? -1f : value > 1f ? 1f : value;
 }
 
 /// <summary>

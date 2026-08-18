@@ -42,7 +42,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.Trace.Nodes, Is.EqualTo(source.Trace.Nodes));
             Assert.That(restored.Attributes.Attributes, Is.EqualTo(source.Attributes.Attributes));
             Assert.That(restored.Attributes.Modifiers, Is.EqualTo(source.Attributes.Modifiers));
+            Assert.That(restored.Attributes.Modifiers.Single().HasExplanation, Is.True);
+            StringAssert.Contains("\"declaredValue\": 2.5", json);
+            StringAssert.Contains("\"explanation\": \"Captured on buff apply\"", json);
             Assert.That(restored.Buffs.Items, Is.EqualTo(source.Buffs.Items));
+            Assert.That(restored.Buffs.Items.Single().ModifierSourceId, Is.EqualTo(77));
+            StringAssert.Contains("\"modifierSourceId\": 77", json);
             Assert.That(restored.Tags.Items, Is.EqualTo(source.Tags.Items));
             Assert.That(restored.Effects.Items, Is.EqualTo(source.Effects.Items));
 
@@ -61,6 +66,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(failure.Stage, Is.EqualTo("Preparation"));
             Assert.That(failure.Code, Is.EqualTo("Cast.TargetOutOfRange"));
             Assert.That(failure.Message, Is.EqualTo("Target is outside cast range."));
+            Assert.That(restored.Events.Events[4].Payload.TryGetBuffLifecycle(out var buff), Is.True);
+            Assert.That(buff.Stage, Is.EqualTo(BattleDiagnosticBuffLifecycleStage.Removed));
+            Assert.That(buff.StackCount, Is.EqualTo(3));
+            Assert.That(buff.PreviousStackCount, Is.EqualTo(4));
+            Assert.That(buff.DurationMilliseconds, Is.EqualTo(12000));
+            Assert.That(buff.RemainingMilliseconds, Is.EqualTo(250));
+            Assert.That(buff.IntervalRemainingMilliseconds, Is.EqualTo(750));
+            Assert.That(buff.MaxStacks, Is.EqualTo(5));
+            Assert.That(buff.ModifierBindingCount, Is.EqualTo(2));
+            Assert.That(buff.ModifierSourceId, Is.EqualTo(77));
+            Assert.That(buff.RemoveReason, Is.EqualTo(9));
+            Assert.That(restored.Events.Events[4].SourceActorId, Is.EqualTo(1));
+            Assert.That(restored.Events.Events[4].TargetActorId, Is.EqualTo(2));
+            Assert.That(restored.Events.Events[4].RootContextId, Is.EqualTo(900));
+            Assert.That(restored.Events.Events[4].ContextId, Is.EqualTo(903));
+            Assert.That(restored.Events.Events[4].SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(700, 2)));
+            StringAssert.Contains("\"buffLifecycleModifierSourceId\": 77", json);
+            StringAssert.Contains("\"buffLifecycleRemoveReason\": 9", json);
         }
 
         [Test]
@@ -282,6 +305,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.That(actors.Items.Count, Is.EqualTo(2));
                 Assert.That(attributes.Items.Single().Name, Is.EqualTo("Attack"));
                 Assert.That(modifiers.Items.Single().Magnitude, Is.EqualTo(5f));
+                Assert.That(modifiers.Items.Single().HasExplanation, Is.True);
+                Assert.That(modifiers.Items.Single().CapturedValue, Is.EqualTo(4.75f));
+                Assert.That(modifiers.Items.Single().Explanation, Is.EqualTo("Captured on buff apply"));
                 Assert.That(buffs.Items.Single().Name, Is.EqualTo("Power"));
                 Assert.That(tags.Items.Single().Name, Is.EqualTo("Empowered"));
                 Assert.That(effects.Items.Single().InstanceId, Is.EqualTo(501));
@@ -382,6 +408,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 code: "Cast.TargetOutOfRange",
                 message: "Target is outside cast range.");
             var failurePayload = BattleDiagnosticEventPayload.FromSkillFailure(in failureData);
+            var buffData = new BattleDiagnosticBuffLifecyclePayload(
+                BattleDiagnosticBuffLifecycleStage.Removed,
+                stackCount: 3,
+                previousStackCount: 4,
+                durationMilliseconds: 12000,
+                remainingMilliseconds: 250,
+                intervalRemainingMilliseconds: 750,
+                maxStacks: 5,
+                modifierBindingCount: 2,
+                modifierSourceId: 77,
+                removeReason: 9);
+            var buffPayload = BattleDiagnosticEventPayload.FromBuffLifecycle(in buffData);
             var events = new[]
             {
                 new BattleDiagnosticEvent(
@@ -444,7 +482,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
                     payloadVersion: BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion,
                     summary: "Structured cast failure",
-                    payload: failurePayload)
+                    payload: failurePayload),
+                new BattleDiagnosticEvent(
+                    _scope,
+                    Frame,
+                    5,
+                    1030,
+                    BattleDiagnosticEventKind.BuffRemoved,
+                    BattleDiagnosticEventChannel.Buff,
+                    BattleDiagnosticEventOutcome.Succeeded,
+                    sourceActorId: 1,
+                    targetActorId: 2,
+                    configId: 301,
+                    rootContextId: 900,
+                    contextId: 903,
+                    skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
+                    payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
+                    summary: "Buff removed",
+                    payload: buffPayload)
             };
             var metrics = new BattleDiagnosticStoreMetrics(8, events.Length, EventRevision, 2, 0, 1, true);
             var actors = new[]
@@ -463,11 +518,31 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             };
             var modifiers = new[]
             {
-                new BattleDiagnosticActorAttributeModifier(_scope, Frame, 1, 10, 1, 5f, 10, 77, 2)
+                new BattleDiagnosticActorAttributeModifier(
+                    _scope,
+                    Frame,
+                    1,
+                    10,
+                    1,
+                    5f,
+                    10,
+                    77,
+                    2,
+                    declaredValue: 2.5f,
+                    stackedValue: 5f,
+                    projectedValue: 4.75f,
+                    currentValue: 5.25f,
+                    hasCurrentValue: true,
+                    capturedValue: 4.75f,
+                    hasCapturedValue: true,
+                    evaluationPolicy: 1,
+                    stackCount: 2,
+                    captureMode: "OnApplySnapshot",
+                    explanation: "Captured on buff apply")
             };
             var buffs = new[]
             {
-                new BattleDiagnosticActorBuff(_scope, Frame, 1, 301, 1, 2, 4f, 1f, 901, 902, 1, new BattleDiagnosticRuntimeHandle(700, 2), 900, 1, 3, "Power")
+                new BattleDiagnosticActorBuff(_scope, Frame, 1, 301, 1, 2, 4f, 1f, 901, 902, 1, new BattleDiagnosticRuntimeHandle(700, 2), 900, 1, 3, "Power", 77)
             };
             var tags = new[]
             {

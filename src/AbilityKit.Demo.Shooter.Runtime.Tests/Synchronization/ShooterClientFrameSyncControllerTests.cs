@@ -369,6 +369,92 @@ public sealed class ShooterClientFrameSyncControllerTests
     }
 
     [Fact]
+    public void ClientFrameSyncControllerTicksAndReplaysWithoutPredictionBuffers()
+    {
+        var start = new ShooterStartGamePayload(
+            "no-prediction-buffers",
+            30,
+            5911,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", 0f, 0f),
+                new ShooterStartPlayer(2, "P2", 8f, 0f)
+            });
+        var replayedCommand = new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, false);
+
+        var authority = new ShooterBattleRuntimePort();
+        Assert.True(authority.StartGame(in start));
+        Assert.True(authority.Tick(1f / 30f));
+        var packed = authority.ExportPackedSnapshot(5991ul, isFullSnapshot: true, authorityOverride: true);
+        var payload = CreatePackedPushPayload(in packed, timestamp: 591.5, serverTicks: 591500L);
+
+        var local = new ShooterBattleRuntimePort();
+        Assert.True(local.StartGame(in start));
+        var controller = new ShooterClientFrameSyncController(
+            local,
+            new ShooterPresentationFacade(),
+            tickRate: 30,
+            decoder: null,
+            rollbackWorldId: 0ul,
+            ShooterClientPredictionBufferOptions.Disabled);
+        Assert.Equal(1, controller.SubmitLocalInput(new ShooterPlayerCommand(1, 0f, 1f, 0f, 1f, false)));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        Assert.Equal(1, controller.SubmitLocalInput(replayedCommand));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+
+        var expected = new ShooterBattleRuntimePort();
+        Assert.True(expected.ImportPackedSnapshot(in packed));
+        Assert.Equal(1, expected.SubmitInput(packed.Frame, new[] { replayedCommand }));
+        Assert.True(expected.Tick(1f / 30f));
+
+        Assert.Equal(
+            ShooterSnapshotApplyResult.AppliedPackedSnapshot,
+            controller.ApplyGatewayPush(RoomGatewayOpCodes.SnapshotPushed, payload));
+        Assert.Equal(expected.CurrentFrame, local.CurrentFrame);
+        Assert.Equal(expected.ComputeStateHash(), local.ComputeStateHash());
+        Assert.False(controller.HasFrameworkInputHistory);
+        Assert.False(controller.HasRollbackSnapshotHistory);
+        Assert.False(controller.HasStateHashHistory);
+        Assert.False(controller.TryRestorePredictedSnapshot(packed.Frame));
+    }
+
+    [Fact]
+    public void ClientFrameSyncControllerCanAssembleRollbackSnapshotsOnly()
+    {
+        var start = new ShooterStartGamePayload(
+            "rollback-only",
+            30,
+            5921,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+        var options = new ShooterClientPredictionBufferOptions(
+            ShooterClientPredictionBufferFeatures.RollbackSnapshots,
+            inputHistoryCapacity: 0,
+            rollbackSnapshotCapacity: 8,
+            stateHashHistoryCapacity: 0);
+        var local = new ShooterBattleRuntimePort();
+        Assert.True(local.StartGame(in start));
+        var controller = new ShooterClientFrameSyncController(
+            local,
+            new ShooterPresentationFacade(),
+            tickRate: 30,
+            decoder: null,
+            rollbackWorldId: 0ul,
+            options);
+
+        Assert.Equal(1, controller.SubmitLocalInput(new ShooterPlayerCommand(1, 1f, 0f, 1f, 0f, false)));
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+        var capturedFrame = local.CurrentFrame;
+        var capturedHash = local.ComputeStateHash();
+        Assert.Equal(1, controller.Tick(1f / 30f).Ticks);
+
+        Assert.False(controller.HasFrameworkInputHistory);
+        Assert.True(controller.HasRollbackSnapshotHistory);
+        Assert.False(controller.HasStateHashHistory);
+        Assert.True(controller.TryRestorePredictedSnapshot(capturedFrame));
+        Assert.Equal(capturedHash, local.ComputeStateHash());
+    }
+
+    [Fact]
     public void ClientFrameSyncControllerIgnoresLateStaleAuthoritySnapshot()
     {
         var start = new ShooterStartGamePayload(

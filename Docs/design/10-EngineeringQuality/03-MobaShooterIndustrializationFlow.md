@@ -4,7 +4,7 @@
 
 > 文档类型：Canonical 示例验证设计
 >
-> 事实基线：2026-08-16
+> 事实基线：2026-08-17
 >
 > 适用范围：MOBA/Shooter 示例的领域测试、运行时验收、网络 smoke、artifact 与 CI 接线；不把示例应用层提升为框架通用 API
 
@@ -251,7 +251,52 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 
 ---
 
-## 6. 推荐执行层级
+## 6. 示例宿主与 Composition 验收层
+
+Unity 示例入口本身也需要一条独立工业化链。它验证的是 Starter、package scene、Profile/Catalog、Root 与真实入口组件之间的组合，不替代 MOBA/Shooter 玩法、网络或长稳测试。
+
+```mermaid
+flowchart LR
+    Builder[Editor Composition Builder] --> Assets[Package-owned assets]
+    Assets --> Topology[Static topology validation]
+    Topology --> Starter[Starter local launch headless]
+    Starter --> Runtime[Gameplay runtime acceptance]
+    Runtime --> Network[Multiplayer smoke and artifacts]
+```
+
+### 6.1 生成、构建与运行证据分层
+
+| 验收入口 | 直接检查 | 证据边界 |
+|----------|----------|----------|
+| `DemoGameplayCompositionBuilder.GenerateAll` | 迁移旧 `Assets/DemoComposition`，创建/更新两游戏 Profile、Catalog、Bootstrap Prefab、package scene、Starter 配置与 Build Settings | E1 工具行为；生成成功不证明 Player 能加载或 Root 能启动，而且生成器会改写/删除资产，只应在受控 Editor 流程运行 |
+| `MobaDemoBuild.ValidateMultiplayerSceneTopology` | Build Settings 恰好为 Starter、MOBA、Shooter 三个 enabled scene 且顺序固定；每个 package scene 只有一个 Root/Bootstrap；Catalog 恰好含 Local/Multiplayer；Root 中 Camera、AudioListener 和入口类型符合预期 | E2 静态装配契约；不执行 Scene load、Root `Awake`、登录或战斗循环 |
+| Local 独立 build | 只包含本游戏 package scene，并注入 `ABILITYKIT_DEMO_MOBA_LOCAL` 或 `ABILITYKIT_DEMO_SHOOTER_LOCAL` | 构建拓扑隔离；不证明产物已在目标机运行 |
+| Multiplayer build | 场景顺序为 Starter → MOBA → Shooter，不注入 Local define | 入口和两游戏 scene 被打入同一 Player；不证明两条多人会话都能完成 |
+| `DemoGameplayCompositionTests` | Intent 只消费一次、Catalog 无 id 解析、Root 实例化/Shutdown、多人 gameplay mismatch 清理 | E3 组件契约；使用测试对象，不读取真实 package scene/prefab |
+| `StarterLocalLaunchHeadlessCommand` | 打开真实 Starter，通过公开 Local API 切换到对应 package scene，等待 ActiveProfile/Root，并断言 scene/profile/root 均归本游戏 package | 执行型 Unity 验收入口；只覆盖 Local，且一次结果必须由当次 JSON/退出码形成 E4，源码存在不是 PASS |
+
+### 6.2 双 Intent 与失败矩阵
+
+| 场景 | Composition intent | Multiplayer intent | 预期 |
+|------|--------------------|--------------------|------|
+| Local | 对应 gameplay + Local | 必须为空 | Bootstrap 选择 Local Profile |
+| Multiplayer | 对应 gameplay + Multiplayer | 必须存在且 gameplay 相同 | Root 继续消费认证/房间请求 |
+| Local 携带多人请求 | Local | 存在 | 拒绝并清空两类 intent |
+| Multiplayer 缺少或 gameplay 不同 | Multiplayer | 缺失或不一致 | 拒绝并清空两类 intent |
+| Catalog 无匹配或重复匹配 | 任意 | 任意 | 拒绝；不得任意选择第一个 Profile |
+| Root 实例化失败 | 已消费 | 已校验 | 销毁局部实例并清空 intent；外部登录/Room 补偿仍归项目入口 |
+
+Starter 当前通过 `SceneManager.LoadSceneAsync` 发起切换，但不保留或观测 `AsyncOperation`；`_loadingScene` 在加载失败时不会复位。`DemoLaunchIntent` 是无 generation 的进程静态单槽，重复 `Request` 会覆盖 pending 请求。`DemoGameplayBootstrap.ReturnToStarter` 同样不观察加载结果。因此这套入口适合受控 Demo 和 headless 验收，产品化时还需 request generation、取消/超时、加载失败恢复、重复点击抑制和会话补偿测试。
+
+### 6.3 资产所有权与变更证据
+
+MOBA 与 Shooter 的 scene、Profile、Catalog、Bootstrap Prefab 和 Root 必须由各自 View package 拥有；公共 package 只拥有协议和 Bootstrap 组件类型。这样一个游戏可以复用同一个 Root 区分 Local/Multiplayer，另一个游戏可以使用两个 Root，而无需扩张公共应用层。
+
+当前 package-owned Composition 是工作区中的未提交实现面。文档可以按 E0 源码与序列化资产描述它，但在形成提交、构建产物和日期化运行 artifact 前，不应把它宣布为已发布 package 能力。历史优化记录或手工计划属于辅助材料，不能替代 canonical 测试结果、JSON 结果文件和进程退出码。
+
+---
+
+## 7. 推荐执行层级
 
 | 改动面 | 最小入口 | 放大入口 |
 |------|----------|-----------|
@@ -262,6 +307,7 @@ MOBA 与 Shooter 的工业化流程都依赖 Triggering、PlanAction、JSON 配�
 | TriggerPlan、ActionCall、ExecutionRoot、PlanAction schema | Unity Triggering Editor NUnit | 受影响示例的完整配置与 acceptance gate |
 | artifact/replay/trace 消费 | codec、schema 和字段级测试 | 对应 smoke/multiprocess gate，并保留完整 artifact |
 | 长稳、兼容和性能 | targeted benchmark 或故障场景 | schedule-only compatibility/soak/performance gate |
+| Starter、scene、Profile、Root 变更 | Composition tests + topology validator | 两游戏 Starter Local headless；多人入口再分别进入 MOBA/Shooter network smoke |
 
 P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本地、PR 或 nightly。实际准入以每个 gate 的 `requiredBefore`、`failurePolicy` 和 `ciPolicy` 为准；artifact 存在也不能替代场景断言和领域回读。
 
@@ -269,7 +315,7 @@ P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本�
 
 ---
 
-## 7. 工业化维护约束
+## 8. 工业化维护约束
 
 1. 新增 MOBA 技能、Buff、Projectile、Summon、Motion 行为时，至少补齐领域单测和一条 trace/context 断言；如果配置通过 TriggerPlan 或 PlanAction 表达，还要覆盖 DSL/配置校验。
 2. 新增 Shooter 战斗规则、敌人波次、Bot AI 或 projectile 行为时，先补 runtime/acceptance 测试，再按是否影响同步决定是否补 sync smoke。
@@ -279,10 +325,12 @@ P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本�
 6. 文档更新后必须运行 Mermaid 校验和 `git diff --check`，防止流程图或 Markdown 空白破坏后续同步。
 7. 改动 MOBA 死亡、复活或结算状态时，必须运行 `moba-complete-battle-journey`；在网络事件和 View handler 接线完成前，不得把逻辑 acceptance 作为多人复活表现完成的证据。
 8. 改动 Shooter PlayMode 波次、胜利目标或密度预算时，必须验证同屏预算与整场总量分离、输入钳制和低密度可结束；2K 以上表现能力必须附带对应硬件上的长时 soak 结果。
+9. 改动 Starter、`DemoLaunchIntent`、Profile/Catalog、Gameplay Bootstrap、package scene 或 Root Prefab 时，先跑静态拓扑，再分别跑 MOBA/Shooter Local headless；涉及 Multiplayer intent 或入口组件时继续跑对应网络 smoke，不能用 Local 切场景替代多人证据。
+10. Editor Composition 生成器包含资产迁移、Build Settings 重写和旧资产删除，只能在明确的生成/迁移任务中运行；普通文档或验证任务不得为了“刷新”而隐式执行。
 
 ---
 
-## 8. 源码阅读路径
+## 9. 源码阅读路径
 
 1. `Docs/design/10-EngineeringQuality/01-TestingWorkflow.md`：全仓测试分层、P0/P1/P2 门禁与 smoke 字段总览。
 2. `src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj`：MOBA 测试工程依赖和配置复制边界。
@@ -299,10 +347,14 @@ P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本�
 13. `tools/test-gates.json`：MOBA/Shooter gate level、触发策略、失败策略和 artifact 要求。
 14. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/TriggerPlanExecutableTests.cs`：TriggerPlan 可执行 DSL 与 metadata validator。
 15. `Unity/Packages/com.abilitykit.triggering/Tests/Editor/ValidatingTriggerPlanJsonDatabaseExecutionRootTests.cs`：JSON ExecutionRoot 校验和稳定错误码。
+16. `Unity/Packages/com.abilitykit.demo.common/Runtime/Composition/DemoGameplayBootstrap.cs` 与 `Runtime/Gameplay/DemoLaunchIntent.cs`：公共选择协议、双 intent 校验、Root 实例化和失败清理。
+17. `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Composition/DemoGameplayCompositionBuilder.cs`：package-owned 资产生成、旧资产迁移与 Build Settings 改写。
+18. `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Build/MobaDemoBuild.cs`：本地/多人构建拓扑和 Profile/Root/入口组件静态校验。
+19. `Unity/Packages/com.abilitykit.demo.moba.editor/Editor/Automation/StarterLocalLaunchHeadlessCommand.cs`：真实 Starter Local 切场景与 package ownership 验收。
 
 ---
 
-## 9. 当前证据结论
+## 10. 当前证据结论
 
 | 能力面 | 当前最高可复用证据 | 仍然缺少 |
 |---|---|---|
@@ -311,11 +363,12 @@ P0/P1/P2 是 `tools/test-gates.json` 的 gate level，不应直接等同于本�
 | MOBA 完整战局/英雄 fixture | 源码与局部测试入口 | 对应 workflow job，且网络表现链仍需独立验收 |
 | Shooter 领域、同步与服务端 | E3 测试、E4 smoke/回读以及多类 E5 job | 不同 job 的最近通过记录仍需随发布候选归档 |
 | 示例应用层 | 在指定 Demo 中证明组合方式 | 跨游戏稳定语义；默认不晋升为框架层能力 |
+| Unity Starter/Composition | E0 当前源码与 package 资产、E3 组件测试入口、可执行 Local headless 命令 | 本批未重跑 Unity；未提交工作区实现不等于已发布 package 能力，Local 也不证明 Multiplayer |
 
-2026-08-16 的静态 gate 复核为 `166/168`，两个失败均来自 `moba-codegen` 的缺失工程路径；该 validator 不会自动发现所有 `ciPolicy` 与 workflow job 的缺口。本轮没有重跑 MOBA Gateway、Shooter 默认 Smoke、multiprocess 或 Unity 场景，因此这里对网络和 Unity 的 E4 结论沿用既有源码、脚本与已归档证据，不把静态检查计为新的场景通过。E5 只按 workflow 实际 job 和触发条件声明。
+2026-08-16 的静态 gate 复核为 `166/168`，两个失败均来自 `moba-codegen` 的缺失工程路径；该 validator 不会自动发现所有 `ciPolicy` 与 workflow job 的缺口。本轮没有重跑 MOBA Gateway、Shooter 默认 Smoke、multiprocess 或 Unity 场景，因此这里对网络和 Unity 的 E4 结论沿用既有源码、脚本与已归档证据，不把静态检查计为新的场景通过。E5 只按 workflow 实际 job 和触发条件声明。2026-08-17 对 Starter/Composition 的结论来自当前工作区源码和序列化资产审计，仍是 E0；本批不把历史计划中记载的退出码提升为新 E4。
 
 这组示例应被视为“高接入度参考实现 + 正式验证资产”。它们降低项目理解和接入成本，但项目仍拥有应用编排、玩法规则和产品策略；只有在多个项目出现稳定同构需求并能定义不含玩法假设的契约时，才评估将局部能力上移为可选 package。
 
 ---
 
-*文档版本：v3.1 | 最后更新：2026-08-16*
+*文档版本：v3.2 | 最后更新：2026-08-17*

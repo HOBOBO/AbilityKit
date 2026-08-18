@@ -21,7 +21,8 @@ namespace AbilityKit.Demo.Shooter.View
             InterpolationConfig? interpolationConfig = null,
             IReliableEventCheckpointStore? reliableEventCheckpointStore = null,
             ReliableEventCheckpointLifecycleOptions? reliableEventCheckpointLifecycleOptions = null,
-            NetworkSessionRecoveryOptions? sessionRecoveryOptions = null)
+            NetworkSessionRecoveryOptions? sessionRecoveryOptions = null,
+            ShooterClientPredictionBufferOptions? predictionBufferOptions = null)
             : this(
                 NetworkSyncProfileRegistry.Resolve(syncModel),
                 syncModel.ToString(),
@@ -35,7 +36,8 @@ namespace AbilityKit.Demo.Shooter.View
                 NetworkSyncRemoteCapabilityPolicy.Ignore,
                 reliableEventCheckpointStore,
                 reliableEventCheckpointLifecycleOptions,
-                sessionRecoveryOptions)
+                sessionRecoveryOptions,
+                predictionBufferOptions)
         {
         }
 
@@ -45,7 +47,8 @@ namespace AbilityKit.Demo.Shooter.View
             InterpolationConfig? interpolationConfig = null,
             IReliableEventCheckpointStore? reliableEventCheckpointStore = null,
             ReliableEventCheckpointLifecycleOptions? reliableEventCheckpointLifecycleOptions = null,
-            NetworkSessionRecoveryOptions? sessionRecoveryOptions = null)
+            NetworkSessionRecoveryOptions? sessionRecoveryOptions = null,
+            ShooterClientPredictionBufferOptions? predictionBufferOptions = null)
             : this(
                 in syncProfile,
                 syncProfile.CompatibilityModel.ToString(),
@@ -59,7 +62,8 @@ namespace AbilityKit.Demo.Shooter.View
                 NetworkSyncRemoteCapabilityPolicy.Ignore,
                 reliableEventCheckpointStore,
                 reliableEventCheckpointLifecycleOptions,
-                sessionRecoveryOptions)
+                sessionRecoveryOptions,
+                predictionBufferOptions)
         {
         }
 
@@ -76,7 +80,8 @@ namespace AbilityKit.Demo.Shooter.View
             NetworkSyncRemoteCapabilityPolicy remoteCapabilityPolicy,
             IReliableEventCheckpointStore? reliableEventCheckpointStore,
             ReliableEventCheckpointLifecycleOptions? reliableEventCheckpointLifecycleOptions,
-            NetworkSessionRecoveryOptions? sessionRecoveryOptions)
+            NetworkSessionRecoveryOptions? sessionRecoveryOptions,
+            ShooterClientPredictionBufferOptions? predictionBufferOptions)
         {
             SyncProfile = syncProfile;
             ProfileName = profileName;
@@ -94,6 +99,7 @@ namespace AbilityKit.Demo.Shooter.View
             ReliableEventCheckpointStore = reliableEventCheckpointStore;
             ReliableEventCheckpointLifecycleOptions = reliableEventCheckpointLifecycleOptions;
             SessionRecoveryOptions = sessionRecoveryOptions;
+            PredictionBufferOptions = predictionBufferOptions ?? ShooterClientPredictionBufferOptions.Default;
         }
 
         public static ShooterClientSyncAssemblyOptions Default => ForModel(ShooterClientSyncControllerFactory.DefaultSyncModel);
@@ -131,6 +137,9 @@ namespace AbilityKit.Demo.Shooter.View
         /// <summary>统一会话恢复决策采用的策略、升级和诊断选项。</summary>
         public NetworkSessionRecoveryOptions? SessionRecoveryOptions { get; }
 
+        /// <summary>本地预测链路按需创建的历史缓冲与容量配置。</summary>
+        public ShooterClientPredictionBufferOptions PredictionBufferOptions { get; }
+
         /// <summary>Shooter 客户端实际提供的同步能力。</summary>
         public NetworkSyncCapabilities AvailableCapabilities { get; }
 
@@ -161,7 +170,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         public ShooterClientSyncAssemblyOptions WithInterpolationConfig(InterpolationConfig? interpolationConfig)
@@ -179,7 +189,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         public ShooterClientSyncAssemblyOptions WithSyncModel(NetworkSyncModel syncModel)
@@ -198,7 +209,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         public ShooterClientSyncAssemblyOptions WithSyncProfile(in NetworkSyncProfile syncProfile)
@@ -216,7 +228,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         /// <summary>替换接入模块实际提供的能力声明。</summary>
@@ -236,7 +249,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         /// <summary>替换会话要求和客户端支持的协议结构版本范围。</summary>
@@ -264,7 +278,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         /// <summary>使用项目目录中的稳定名称覆盖 Profile 诊断标识。</summary>
@@ -290,7 +305,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         /// <summary>设置远端能力声明及其参与启动协商的策略。</summary>
@@ -311,7 +327,8 @@ namespace AbilityKit.Demo.Shooter.View
                 policy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         /// <summary>设置可靠事件检查点存储提供器，供重连或新客户端会话自动恢复。</summary>
@@ -331,7 +348,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 checkpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         /// <summary>设置可靠事件检查点的生命周期 flush 与失败处理策略。</summary>
@@ -351,7 +369,8 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 lifecycleOptions,
-                SessionRecoveryOptions);
+                SessionRecoveryOptions,
+                PredictionBufferOptions);
         }
 
         /// <summary>设置统一会话恢复协调器的策略、升级和诊断选项。</summary>
@@ -371,9 +390,103 @@ namespace AbilityKit.Demo.Shooter.View
                 RemoteCapabilityPolicy,
                 ReliableEventCheckpointStore,
                 ReliableEventCheckpointLifecycleOptions,
-                recoveryOptions);
+                recoveryOptions,
+                PredictionBufferOptions);
         }
 
+        public ShooterClientSyncAssemblyOptions WithPredictionBufferOptions(
+            ShooterClientPredictionBufferOptions? predictionBufferOptions)
+        {
+            return new ShooterClientSyncAssemblyOptions(
+                SyncProfile,
+                ProfileName,
+                ProfileCatalog,
+                Decoder,
+                InterpolationConfig,
+                AvailableCapabilities,
+                MinimumSchemaVersion,
+                MaximumSchemaVersion,
+                RemoteCapabilities,
+                RemoteCapabilityPolicy,
+                ReliableEventCheckpointStore,
+                ReliableEventCheckpointLifecycleOptions,
+                SessionRecoveryOptions,
+                predictionBufferOptions);
+        }
+
+    }
+
+    [Flags]
+    public enum ShooterClientPredictionBufferFeatures
+    {
+        None = 0,
+        InputHistory = 1 << 0,
+        RollbackSnapshots = 1 << 1,
+        StateHashHistory = 1 << 2,
+        All = InputHistory | RollbackSnapshots | StateHashHistory
+    }
+
+    /// <summary>
+    /// Controls which prediction histories are assembled for a Shooter client. Disabled features
+    /// allocate no ring buffer; enabled features validate and use their own capacity.
+    /// </summary>
+    public sealed class ShooterClientPredictionBufferOptions
+    {
+        public const int DefaultCapacity = 240;
+
+        public ShooterClientPredictionBufferOptions(
+            ShooterClientPredictionBufferFeatures features,
+            int inputHistoryCapacity = DefaultCapacity,
+            int rollbackSnapshotCapacity = DefaultCapacity,
+            int stateHashHistoryCapacity = DefaultCapacity)
+        {
+            if ((features & ~ShooterClientPredictionBufferFeatures.All) != 0)
+                throw new ArgumentOutOfRangeException(nameof(features));
+
+            ValidateCapacity(features, ShooterClientPredictionBufferFeatures.InputHistory, inputHistoryCapacity, nameof(inputHistoryCapacity));
+            ValidateCapacity(features, ShooterClientPredictionBufferFeatures.RollbackSnapshots, rollbackSnapshotCapacity, nameof(rollbackSnapshotCapacity));
+            ValidateCapacity(features, ShooterClientPredictionBufferFeatures.StateHashHistory, stateHashHistoryCapacity, nameof(stateHashHistoryCapacity));
+
+            Features = features;
+            InputHistoryCapacity = inputHistoryCapacity;
+            RollbackSnapshotCapacity = rollbackSnapshotCapacity;
+            StateHashHistoryCapacity = stateHashHistoryCapacity;
+        }
+
+        public static ShooterClientPredictionBufferOptions Default { get; } =
+            new ShooterClientPredictionBufferOptions(ShooterClientPredictionBufferFeatures.All);
+
+        public static ShooterClientPredictionBufferOptions Disabled { get; } =
+            new ShooterClientPredictionBufferOptions(
+                ShooterClientPredictionBufferFeatures.None,
+                inputHistoryCapacity: 0,
+                rollbackSnapshotCapacity: 0,
+                stateHashHistoryCapacity: 0);
+
+        public ShooterClientPredictionBufferFeatures Features { get; }
+
+        public int InputHistoryCapacity { get; }
+
+        public int RollbackSnapshotCapacity { get; }
+
+        public int StateHashHistoryCapacity { get; }
+
+        public bool Has(ShooterClientPredictionBufferFeatures feature)
+        {
+            return (Features & feature) == feature;
+        }
+
+        private static void ValidateCapacity(
+            ShooterClientPredictionBufferFeatures features,
+            ShooterClientPredictionBufferFeatures feature,
+            int capacity,
+            string parameterName)
+        {
+            if ((features & feature) != 0 && capacity <= 0)
+            {
+                throw new ArgumentOutOfRangeException(parameterName);
+            }
+        }
     }
 
 #if UNITY_5_3_OR_NEWER

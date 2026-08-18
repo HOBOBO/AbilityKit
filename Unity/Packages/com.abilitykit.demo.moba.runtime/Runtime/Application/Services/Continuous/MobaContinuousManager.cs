@@ -40,6 +40,7 @@ namespace AbilityKit.Demo.Moba.Services
             services.TryResolve(out IFrameTime frameTime);
             services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
             services.TryResolve(out MobaRuntimeContextService runtimeContexts);
+            services.TryResolve(out IMobaBattleDiagnosticEventSink diagnostics);
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerPlanSubscriptionService triggerSubscriptions);
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaOwnerBoundTriggerGateService ownerBoundTriggerGates);
             services.TryResolve(out MobaTriggerExecutionGateway triggerGateway);
@@ -60,7 +61,13 @@ namespace AbilityKit.Demo.Moba.Services
             var events = new BuffEventPublisher(eventBus);
             var stageEffects = new BuffStageEffectExecutor(triggerGateway);
             var presentationCues = new MobaBuffPresentationCueReporter(configs, cueSnapshots);
-            _buffIntervalHandler = new BuffContinuousIntervalHandler(configs, events, stageEffects, presentationCues, buffContextRegistry);
+            _buffIntervalHandler = new BuffContinuousIntervalHandler(
+                configs,
+                events,
+                stageEffects,
+                presentationCues,
+                buffContextRegistry,
+                diagnostics);
             _intervalHandlers.Add(_buffIntervalHandler);
             _triggerIntervalHandler = new MobaTriggerIntervalContinuousHandler(triggerGateway, combatActivity);
             _intervalHandlers.Add(_triggerIntervalHandler);

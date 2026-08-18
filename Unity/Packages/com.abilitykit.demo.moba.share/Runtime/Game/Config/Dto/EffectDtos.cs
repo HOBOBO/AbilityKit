@@ -62,6 +62,13 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int ContinuousTagTemplateId;
         public string[] TagNames;
         public ContinuousModifierDTO[] Modifiers;
+
+        // 0 keeps legacy tag-based dispel behavior; 1 is explicitly dispellable; 2 is undispellable.
+        public int DispelPolicy;
+        // 0 means any category. Positive values are project-defined dispel categories.
+        public int DispelCategory;
+        // Effective target tags that block a dispel attempt for this buff.
+        public string[] DispelBlockedByTagNames;
     }
 
     public enum SkillEffectType

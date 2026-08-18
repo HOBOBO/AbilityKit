@@ -351,9 +351,22 @@ Flow 可以被业务层使用，但它本身不规定“技能阶段”或“触
 | 纯逻辑样例 | `src/AbilityKit.Samples.Logic/Samples/Flow` | Sequence、Race、等待和技能计时等组合可被真实调用 | 不是完整契约测试套件 |
 | package sample | `Unity/Packages/com.abilitykit.flow/Samples~/FlowExamples` | Unity package 的接入形态与典型节点组合 | 不等于自动回归门禁 |
 | Starter 调用 | `Unity/Assets/Scripts/Starter/StarterFlowManager.cs` | Unity 宿主存在生产式启动入口 | 不覆盖所有异常和池化分支 |
-| 最小测试 | `src/AbilityKit.Flow.Tests/EnumTests.cs` | 2026-08-16 聚焦执行 2/2 通过；`FlowStatus` 与 `FlowExecutionResult` 默认值有 E3 值对象测试 | 不覆盖 Runner、节点、pump、池化和异常 |
+| 专项测试 | `src/AbilityKit.Flow.Tests/` | 2026-08-17 扩至 **236/236**（Runner/Session/Host/Context 作用域/全部节点与块/pump 上限/池化往返/诊断/Stages/HfsmFlowRunner/Execute 扩展），连续多轮全绿，接入 `foundation-units` 门禁 | 不覆盖 Unity player 生命周期、线程行为与 Editor 场景 |
 
-仓库已有 `AbilityKit.Flow.Tests`，但当前仅是最小枚举/值对象覆盖。涉及 `ParallelAllNode` 非 fail-fast、`FinallyNode` 状态保留、同步执行步数上限、wake pump 上限、池化清理和异常传播的变更，仍应补聚焦契约测试；业务工程中名称包含 Flow 的测试不能自动视为通用 Flow 引擎测试。
+### 2026-08-17 缺陷修复记录（236 项测试扩容时定位并修复）
+
+| 缺陷 | 修复 |
+|------|------|
+| `FlowPools.RentHost` 把 provider 放进池 onGet 闭包，Core 池只登记首次 options，**第一个 provider 被永久固化**（新 provider 永不生效） | Get 之后显式绑定当次 provider |
+| Runner 根节点 `Exit` 抛异常时收尾被跳过（onFinished 不触发、ctx/rootScope 不清理） | Exit 异常按二级通道上报，终态不变、收尾照常完成 |
+| `Step` 无重入守卫：Enter 内同步 Wake 重入 Pump→Step，对未完成 Enter 的节点树嵌套 Tick/重复 Enter（假 NRE、同步完成丢失卡 Running） | `_stepping` 守卫 + 步进结束后统一推进积压唤醒 |
+| `ParallelAllNode` 终态只看最后一轮 Tick 的局部失败标记，**早先轮次的失败被遗忘**（末子成功时整体误报 Succeeded） | 终态改为遍历全部子节点最终状态 |
+| 空 `RaceNode` 永远 Running（与空 Sequence/ParallelAll 不一致，只能靠 MaxSteps 兜底） | 空组立即 Succeeded |
+| `FlowContext` 存入的 null 对引用类型槽不可见（`is T` 对 null 恒 false；scope 内 Set(null) 不遮蔽外层） | null 视为"存在但为 null"，TryGet 命中返回 null |
+| `CreateResourceNode._created` 跨运行存留，同实例第二次运行不重写资源 | Enter 每次运行重新创建写入 |
+| `FlowSession.Started` 在 `runner.Start` 之后触发，立即完成流程的 Finished 早于 Started（时序倒置） | Started 先触发 |
+
+保留的已知语义（测试钉住、未改）：`FinallyNode` 在 try 被 Interrupt 时不执行 finally 分支（Interrupt 协议为同步 void，无法多帧推进，属设计边界）；finally 自身 Failed 状态被 tryStatus 覆盖（与 C# try/finally 语义一致）；`TimeoutNode` 用 `>`（保护 dt=0 预热步）而 `WaitSecondsNode` 用 `>=`（到点即完成）的边界差异；`FlowContext` scope 句柄 Dispose 恒弹栈顶（不绑定自己创建的 scope）；`FlowSession.Dispose` 不触发 Finished；`FlowRunner.Status` Dispose 后仍可读。
 
 ---
 
@@ -368,6 +381,6 @@ Flow 可以被业务层使用，但它本身不规定“技能阶段”或“触
 
 ---
 
-文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 源码、E1 .NET 构建、E2 Samples/Starter、最小 E3 值对象测试；核心执行契约未达到 E3，未达到 E4/E5
+文档类型：Canonical 设计 | 事实基线：2026-08-17 | 证据等级：E0 源码、E1 .NET 构建、E2 Samples/Starter、E3 契约测试（`AbilityKit.Flow.Tests` 236 项 + `foundation-units` 门禁）；未达到 E4/E5
 
-*文档版本：v3.2 | 最后更新：2026-08-16*
+*文档版本：v3.3 | 最后更新：2026-08-17*

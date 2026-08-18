@@ -6,6 +6,10 @@
 
 ## 1. 能力定位
 
+> **定位裁定（2026-08-17）**：timer 定位为**统一调度器**——逻辑层的根驱动：时间驱动的持续/周期行为统一收编到 scheduler，避免各包各自 Tick 不受管理。现已基本落地：①补 asmdef ②`TimerSchedulerModule`（host.extension）把 `IScheduler` 注册为每世界服务并由 Host PostTick 驱动（逻辑层统一时间驱动入口）③周期 duration 语义重设计（总时长截止）。消费者按需 `Resolve<IScheduler>()` 挂载，非强制迁移。
+>
+> **时间基裁定（2026-08-17，已落地）**：与其他核心战斗包一致——**对外 float 无感、内部 Fixed64 定点**。三个任务（Delay/Periodic/Continuous）内部用 `Fixed64` raw 累加（经 `DeterministicMathBridge.ToFixed/ToSingle` 单次边界换算，非 dyadic 值向零截断），公开 API（`Tick(float)`/`ElapsedTime`/`Duration`）保持 float 不变。已接线 deterministic 依赖（asmdef/package.json/csproj 三件套）。
+
 定时器框架解决的是“在 Tick 推进中按时间执行任务”的问题。
 
 它适合：
@@ -186,7 +190,7 @@ public interface IScheduler
 | API | 任务类型 | 行为 |
 |-----|----------|------|
 | `ScheduleDelay` | `DelayTask` | 累计时间达到 delay 后执行一次回调并完成 |
-| `SchedulePeriodic` | `PeriodicTask` | 每累计一个 period 执行一次；`maxExecutions` 可限制次数，当前 `duration` 实现不能视为可靠的总持续时间 |
+| `SchedulePeriodic` | `PeriodicTask` | 每累计一个 period 执行一次；`maxExecutions` 可限制次数，`duration` 为总时长截止（-1 无限） |
 | `ScheduleContinuous` | `ContinuousTask` | 每次 Tick 调用 `onTick(deltaTime)`，可由 duration 或外部 `Complete()` 结束 |
 
 接口注释中的“Tick 返回值不分配”只说明 `Tick` 没有返回集合，并不等于调度体系整体零分配：每次 Schedule 都会创建任务对象，`TaskList` 超过当前容量时还会分配两倍容量的新数组并复制。接口也没有按名称查询或枚举任务的公开 API，不能把注释中的“任务检索能力”当作已实现契约。
@@ -313,10 +317,10 @@ flowchart TB
 
 - 好处：低帧率下不会永久丢失周期次数。
 - 风险：单帧可能集中执行多次回调，回调应保持轻量，并注意玩法上是否允许补帧。
-- `periodSeconds <= 0` 没有被拒绝。无限次数配置下，while 条件可持续成立；负 period 还会在减法后增大 `_elapsed`，造成 Tick 不返回。
-- `durationSeconds` 和周期余量共用 `_elapsed`。每次回调前都会减去 period，正常小步长下 elapsed 会反复回落，正 duration 可能长期无法达到完成阈值；大 delta 又可能在第一次回调前被 duration 判断直接截断。因此当前 duration 行为存在实现缺陷，不能作为可靠的周期任务截止条件。
+- `periodSeconds <= 0` 自 2026-08-17 起在 `PeriodicTask` 构造与 `SchedulePeriodic` 入口被拒绝（`ArgumentOutOfRangeException`），不再可能进入不终止的 while 循环；该行为由 `AbilityKit.Timer.Tests` 契约测试钉住。
+- 2026-08-17 起 duration 语义已重设计：`_elapsedRaw` 只增不减（总耗时），另设 `_nextFireRaw`（下次触发绝对时刻）；触发时刻 = period 的整数倍且 ≤ duration，到 duration 后完成。旧实现"周期余量共用 `_elapsed`"导致 duration 不可靠的缺陷已消除。
 
-在该缺陷修复并有契约测试前，需要有限周期任务时优先使用正 period 和正 `maxExecutions`，或由回调持有独立累计时间并显式取消。不要只依赖 `durationSeconds` 保证终止。
+需要有限周期任务时用正 `durationSeconds`（总时长截止）或正 `maxExecutions`，两者可叠加。
 
 ---
 
@@ -423,13 +427,13 @@ sequenceDiagram
 
 ### 13.1 参数由调用方保证
 
-当前构造和 Schedule 入口不校验 callback、delay、period、duration、maxExecutions 或 `Tick(deltaTime)`。实际边界包括：
+当前构造和 Schedule 入口不校验 callback、delay、duration、maxExecutions 或 `Tick(deltaTime)`（period 除外，见下表）。实际边界包括：
 
 | 输入 | 当前结果 |
 |------|----------|
 | null callback | 任务仍可推进并完成，只是不执行回调 |
-| `delaySeconds <= 0` | 首次 Update 的 guard 已把任务视为完成，callback 不执行，随后被移除 |
-| `periodSeconds <= 0` | 可进入不终止的 while 循环 |
+| `delaySeconds <= 0` | 2026-08-17 起 `DelayTask.Update` 的守卫改为只检查“已触发完成/已取消”，零或负延迟任务会在首次 Update 触发一次 callback 后完成（此前 callback 会被吞掉） |
+| `periodSeconds <= 0` | 2026-08-17 起构造即抛 `ArgumentOutOfRangeException`，不再进入不终止的 while 循环 |
 | 负 `deltaTime` | elapsed 会倒退，没有异常或诊断 |
 | 非正 duration | 被解释为无限期，而不是立即完成 |
 | 非正 maxExecutions | 被解释为无限次数 |
@@ -469,10 +473,10 @@ scheduler 初始化时创建容量 16 的数组。Schedule 创建新的 class �
 | `.NET` 编译 | 2026-08-16 执行 `dotnet build src/AbilityKit.Timer/AbilityKit.Timer.csproj -c Release --no-restore` 为 0 错误、52 个既有可空性/XML 注释警告 | 证明 `net10.0` 编译闭合，不证明任务时序和失败语义正确 |
 | 自动 Host/World 接入 | 未发现默认模块自动 Tick scheduler | 所有权和 Tick 时机由接入方负责 |
 | 生产调用 | 当前仓库搜索未发现 `DefaultScheduler` 的生产运行时调用 | 尚不能声明为生产验证能力 |
-| 自动测试 | package 中没有 Tests 目录，仓库也没有引用 `AbilityKit.Timer` 的测试工程 | 参数、补执行、异常和终态缺少回归保护 |
+| 自动测试 | 2026-08-17 新增 `src/AbilityKit.Timer.Tests`（46 项，Delay/Periodic/Continuous/SystemTimer/DefaultScheduler 契约），已接入 `foundation-units` 门禁与 `AbilityKit.sln` | 调度语义、参数拒绝、取消/移除时机与 swap-remove 遍历安全有回归保护；回调异常传播路径仍无专项测试 |
 | 示例 | package 注释和 Samples 中有示例字符串 | 只说明预期用法，不等于可执行验收 |
 
-优先补充 `PeriodicTask` 非正 period、duration 截止、三类回调异常后的 elapsed/count/完成通知、外部 Complete/onComplete、取消移除时机、尾部覆盖顺序和扩容分配测试。周期 duration 缺陷修复前，不应把该参数用于关键玩法终止保证。
+剩余优先项：三类回调异常后的 elapsed/count/完成通知、扩容分配测试。周期 duration 语义已于 2026-08-17 重设计为总时长截止。
 
 ---
 
@@ -525,6 +529,6 @@ scheduler 初始化时创建容量 16 的数组。Schedule 创建新的 class �
 
 ---
 
-文档类型：Canonical 设计 | 事实基线：2026-08-16 | 证据等级：E0 实现、E1 .NET 构建；未发现 E2 生产消费者或 E3–E5 证据
+文档类型：Canonical 设计 | 事实基线：2026-08-17 | 定位：统一调度器（逻辑层根驱动，已落地） | 时间基：对外 float、内部 Fixed64 定点（已落地） | 证据等级：E0 实现、E1 .NET 构建、E3 契约测试（`AbilityKit.Timer.Tests` 52 项 + `AbilityKit.Host.Extension.Tests` 2 项，`foundation-units`/`core-stability` 门禁）；未发现 E2 生产消费者或 E4–E5 证据
 
-*文档版本：v3.2 | 最后更新：2026-08-16*
+*文档版本：v3.3 | 最后更新：2026-08-17*

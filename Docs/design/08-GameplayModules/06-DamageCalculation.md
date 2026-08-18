@@ -189,10 +189,10 @@ MOBA 侧还保留了一个“可逐阶段覆盖”的数值系统：
 
 这条管线的设计特征是：
 
-- 处理器之间通过 `DataflowContext` 共享状态；
+- 处理器之间通过 `DamageCalculationContext.Result` 累积领域结果，通过 typed slot 注入可选参数；
 - 计算过程可中断；
 - 每一步都可独立替换；
-- 结果对象在处理链中逐步累积。
+- 每个处理器只持有本次调用的局部结果，同一只读 Pipeline 配合隔离 Context 可并发执行。
 
 ### 4.2 上下文数据槽
 
@@ -210,6 +210,8 @@ MOBA 侧还保留了一个“可逐阶段覆盖”的数值系统：
 - `TargetShield`
 
 这说明通用管线并不依赖固定实体模型，而是通过上下文槽注入外部战斗状态。
+
+Dataflow Context 以 `(slot.Name, typeof(T))` 为键，同名不同类型槽位不会覆盖。伤害领域槽位保留在 `DamageSlots`；通用 Dataflow 包不再提供 `Damage/Heal/Common` 这类越界预定义槽位。
 
 ### 4.3 处理器职责
 
@@ -531,6 +533,7 @@ sequenceDiagram
 
 - 通用包偏向通用管线，MOBA 包偏向业务编排；
 - 通用 Damage 默认管线使用 float，MOBA 结算主链使用 Fixed64；不能把 MOBA 的确定性证据外推给通用 Dataflow；
+- 通用 Pipeline 的执行快照只隔离本轮阶段列表；共享 Context、有状态自定义 Processor 或并发修改 Pipeline 仍不具备线程安全承诺；
 - 真实伤害绕过防御，但仍可能经过护盾和应用阶段；
 - `DamagePipelineService` 当前默认只使用 `Standard` 公式；
 - 伤害结果的“计算值”和“应用值”是不同概念。
@@ -540,7 +543,7 @@ sequenceDiagram
 - **E0 实现**：通用 Damage Request/Result、计算管线和 MOBA 结算服务均有源码入口。
 - **E1 示例**：MOBA PlanAction、属性读取、护盾、事件和快照展示完整接入方式。
 - **E2 集成**：技能、投射物、Buff/Trigger、角色血量和死亡链真实消费伤害编排。
-- **E3 契约**：2026-08-16 当次 `AbilityKit.Combat.Damage.Tests` 仅 `1/1`，只固定默认 `DamageRequest` 结构；没有执行默认八阶段公式、Abort、CritRoll、护盾、负值或 Dataflow 异常矩阵。MOBA 的伤害、生命值和护盾测试属于另一个项目级结算实现。
+- **E3 契约**：2026-08-17 当次 `AbilityKit.Combat.Damage.Tests` 为 `5/5`，覆盖默认 Request、默认八阶段、无效请求首阶段 Abort、Context 完整 Clear 和同一 Pipeline 并发结果隔离；`AbilityKit.Dataflow.Tests` `20/20` 另行覆盖 Abort/Failure、执行快照、typed slot、Builder/Clone/Composite。CritRoll、护盾、负值和 Unity 场景仍未形成专项矩阵，MOBA 的伤害、生命值和护盾测试属于另一个项目级结算实现。
 - **E4 场景**：P0 Smoke/Unity artifact 只能作为其日期化覆盖战斗路径的场景证据；当前 MOBA 主工程 `279/305` 在 World 创建前阻断，不能证明当次伤害结算已重新运行。
 - **E5 门禁**：尚无统一公式兼容、数值预算、跨端重放和完整结算事务的发布门禁。
 
@@ -548,4 +551,4 @@ sequenceDiagram
 
 ---
 
-*文档类型：Canonical 设计（含 MOBA 结算示例） | 事实基线：2026-08-16 | 证据等级：通用包最小 E3 + MOBA 项目证据分层 | 文档版本：v3.0*
+*文档类型：Canonical 设计（含 MOBA 结算示例） | 事实基线：2026-08-17 | 证据等级：通用 Runtime 局部 E3 + MOBA 项目证据分层 | 文档版本：v3.1*

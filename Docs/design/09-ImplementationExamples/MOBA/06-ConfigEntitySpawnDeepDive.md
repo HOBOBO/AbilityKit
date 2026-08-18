@@ -1,7 +1,7 @@
 # MOBA 配置、实体索引与生成深潜
 
 > 文档类型：MOBA 项目应用组合深潜
-> 事实基线：2026-08-16
+> 事实基线：2026-08-17
 >
 > 本文基于当前 MOBA runtime 源码，说明配置数据如何进入统一门面、Actor 如何构造和注册，以及 `MobaActorRegistry`、`MobaEntityManager` 与 Entitas entity 之间如何维持一致性。重点覆盖失败语义和非事务性边界。
 
@@ -66,6 +66,8 @@ moba.config
 
 成功结果包含当前 `_innerDb.Version`，并标记为 full reload；当前门面不提供 changed IDs。失败结果保留当前版本与错误字符串。
 
+内部 `ConfigDatabase` 提交后先同步发布 `AbilityKit.Ability.HotReload.ConfigReloadBus` 的 `config` 结果，MOBA 门面收到正常返回后再发布 `moba.config` 包装结果。仓库还存在 `AbilityKit.Ability.Config` 命名空间下的同名 result/bus，二者并不互通。订阅者异常没有隔离：它可以在表和版本已经提交后逃逸，并阻止 MOBA 包装事件发布。因此通知只能作为缓存刷新信号，不能当作配置事务的提交确认。
+
 ### 3.3 Strict 边界
 
 DTO provider 路径明确使用 `strict`：
@@ -74,6 +76,8 @@ DTO provider 路径明确使用 `strict`：
 - strict 为 false，缺失 type 被替换为空数组。
 
 需要注意当前 `ReloadFromJsonTexts(..., strict)` 实现调用 `_innerDb.ReloadFromTexts(jsonByKey, resourcesDir)`，没有把 `strict` 参数继续传给底层。调用方不能仅凭该重载签名推断 strict 已生效，应以底层实际结果和测试为准。
+
+`ReloadFromJsonTexts(texts, basePath, strict)` 当前忽略传入的 `strict`，直接调用始终 strict 的内部 `ReloadFromTexts`。这不是可选兼容策略，而是 API 签名与实现漂移；依赖宽松加载的测试或工具必须改用语义明确的 DTO/Source 入口，或先修复并用契约测试固定该参数。
 
 ### 3.4 Bytes 边界
 
@@ -86,6 +90,10 @@ bytes deserializer == null
 ```
 
 这与 JSON 默认 deserializer 的行为不同。
+
+### 3.5 表身份、live view 与线程边界
+
+全量 reload 替换表对象；增量 reload 则将候选内容写回现有表实例以保留引用。缓存表引用的消费者会因入口不同得到不同身份语义。增量写回逐表发生，若替换逻辑意外抛错，没有跨表回滚；`All()` 返回底层字典的 live values 视图，门面和内核也没有读写同步。MOBA 宿主必须定义 reload 安全点，并在同一串行域内刷新或重建项目缓存。
 
 ## 4. Typed table 访问
 
@@ -358,15 +366,15 @@ Despawn 事件只由显式 `Unregister()` 发布，且 payload 从当时 entity 
 
 | 项目 | 当前基线 |
 |------|----------|
-| 文档版本 | v3.0 / 2026-08-16 |
+| 文档版本 | v3.1 / 2026-08-17 |
 | 审计范围 | MOBA 配置门面、Actor 构造/生成、两类索引及 Sync/Cleanup 系统 |
 | 证据来源 | 当前工作区源码、四个 .NET 聚焦工程和本地 Unity ownership 9/9 artifact |
-| 本轮实际执行 | MOBA 主工程 279/305，26 项被同一 SpawnArea strict validation 阻断；View Runtime 147/147、Host 6/6、Acceptance 8/8 通过 |
+| 本轮实际执行 | MOBA 主工程 279/305 为既有 SpawnArea strict validation 阻断基线；本轮 View Runtime `174/174` 通过，Host 6/6、Acceptance 8/8 沿用既有证据 |
 | 已确认所有权 | Summon spawn retain 失败会事务性补偿 Actor、trace、owner/source tracking 与 retain；Clear/Dispose 释放全部 retain 并结束 active spawn trace |
-| 仍有缺口 | 配置门面、通用生产 spawn、索引事件与 Sync/Cleanup 缺完整专项回归；JSON text strict 参数仍未下传；外部 callback/订阅副作用不在 Actor spawn transaction 内 |
+| 仍有缺口 | 配置门面、通用生产 spawn、索引事件与 Sync/Cleanup 缺完整专项回归；JSON text strict 参数仍未下传；reload 同步通知、增量逐表替换和外部 callback/订阅副作用不在统一 transaction 内 |
 
 Summon 的项目级 `MobaTemporaryEntitySpawnTransaction` 是对通用 Actor spawn 补偿的扩展，不表示所有 Actor 类型自动具备相同事务。框架适合提供 spawn/registry/transaction 原语；archetype、post-setup、Summon owner/source/trace 与配置门禁仍由 MOBA 项目定义。
 
 后续修改这些链路时，应先更新第 14 节中对应证据行，再根据实际测试执行结果更新本节。历史测试名称或场景存在不能替代本轮执行记录。
 
-*文档版本：v3.0 | 最后更新：2026-08-16*
+*文档版本：v3.1 | 最后更新：2026-08-17*

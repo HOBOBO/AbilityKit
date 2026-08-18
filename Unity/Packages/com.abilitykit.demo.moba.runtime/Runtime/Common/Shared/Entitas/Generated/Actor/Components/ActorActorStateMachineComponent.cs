@@ -12,19 +12,29 @@ public partial class ActorEntity {
     public bool hasActorStateMachine { get { return HasComponent(ActorComponentsLookup.ActorStateMachine); } }
 
     public void AddActorStateMachine(string newProfileId, AbilityKit.Demo.Moba.Services.StateMachine.MobaActorStateMachineRuntime newRuntime) {
+        AddActorStateMachine(newProfileId, newRuntime, AbilityKit.Demo.Moba.Components.MobaActorStateMachineOwnerKind.Unknown);
+    }
+
+    public void AddActorStateMachine(string newProfileId, AbilityKit.Demo.Moba.Services.StateMachine.MobaActorStateMachineRuntime newRuntime, AbilityKit.Demo.Moba.Components.MobaActorStateMachineOwnerKind newOwnerKind) {
         var index = ActorComponentsLookup.ActorStateMachine;
         var component = (AbilityKit.Demo.Moba.Components.ActorStateMachineComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.ActorStateMachineComponent));
         component.ProfileId = newProfileId;
         component.Runtime = newRuntime;
+        component.OwnerKind = newOwnerKind;
         AddComponent(index, component);
     }
 
     public void ReplaceActorStateMachine(string newProfileId, AbilityKit.Demo.Moba.Services.StateMachine.MobaActorStateMachineRuntime newRuntime) {
+        ReplaceActorStateMachine(newProfileId, newRuntime, AbilityKit.Demo.Moba.Components.MobaActorStateMachineOwnerKind.Unknown);
+    }
+
+    public void ReplaceActorStateMachine(string newProfileId, AbilityKit.Demo.Moba.Services.StateMachine.MobaActorStateMachineRuntime newRuntime, AbilityKit.Demo.Moba.Components.MobaActorStateMachineOwnerKind newOwnerKind) {
         var index = ActorComponentsLookup.ActorStateMachine;
         var previous = hasActorStateMachine ? actorStateMachine.Runtime : null;
         var component = (AbilityKit.Demo.Moba.Components.ActorStateMachineComponent)CreateComponent(index, typeof(AbilityKit.Demo.Moba.Components.ActorStateMachineComponent));
         component.ProfileId = newProfileId;
         component.Runtime = newRuntime;
+        component.OwnerKind = newOwnerKind;
         ReplaceComponent(index, component);
         if (!object.ReferenceEquals(previous, newRuntime)) previous?.Dispose();
     }

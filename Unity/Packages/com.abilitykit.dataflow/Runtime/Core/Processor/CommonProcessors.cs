@@ -107,27 +107,30 @@ namespace AbilityKit.Dataflow
 
         public CompositeProcessor(params IDataflowProcessor<TInput, TOutput>[] processors)
         {
-            _processors = processors ?? throw new ArgumentNullException(nameof(processors));
+            if (processors == null) throw new ArgumentNullException(nameof(processors));
+            for (var i = 0; i < processors.Length; i++)
+            {
+                if (processors[i] == null)
+                    throw new ArgumentException("Composite processors cannot contain null entries.", nameof(processors));
+            }
+
+            _processors = (IDataflowProcessor<TInput, TOutput>[])processors.Clone();
         }
 
         protected override TOutput OnProcess(TInput input, IDataflowContext context)
         {
             TOutput current = default;
-            bool first = true;
             foreach (var processor in _processors)
             {
                 if (context.IsAborted)
                 {
                     break;
                 }
-                if (first)
+
+                current = processor.Process(input, context);
+                if (current is TInput nextInput)
                 {
-                    current = processor.Process(input, context);
-                    first = false;
-                }
-                else
-                {
-                    current = processor.Process(input, context);
+                    input = nextInput;
                 }
             }
             return current;

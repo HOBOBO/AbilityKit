@@ -1,60 +1,63 @@
 [
-  {
-    "id": 10030000,
-    "name": "赵云-龙鸣-低血量免伤配置",
-    "event": "damage.attack.before_calc",
-    "scope": "owner",
-    "enabled": true,
-    "allowExternal": false,
-    "phase": "immediate",
-    "priority": 65,
-    "conditions": [
-      {
-        "type": "owner_matches_payload_target"
-      }
-    ],
-    "actions": [
-      {
-        "type": "adjust_damage_number",
-        "number_slot": 0,
-        "op": 1,
-        "value": 0.67,
-        "source_id": 10030000,
-        "reason_kind": 0,
-        "reason_param": 10030000,
-        "require_skill_runtime": false,
-        "skip_first_hit": false
-      },
-      {
-        "type": "debug_log",
-        "message": "赵云被动龙鸣：按已损生命配置免伤参数，运行时后续补充动态比例计算",
-        "dump_args": false
-      }
-    ]
-  },
-  {
-    "id": 10030001,
-    "name": "赵云-龙鸣-配置标记",
-    "event": "",
-    "enabled": true,
-    "allowExternal": true,
-    "phase": "immediate",
-    "priority": 40,
-    "conditions": [],
-    "actions": [
-      {
-        "type": "add_buff",
-        "buffIds": [
-          10030000
-        ],
-        "target_self": true
-      },
-      {
-        "type": "debug_log",
-        "message": "赵云被动龙鸣：配置声明每损失3%最大生命获得1%免伤，最高33%",
-        "dump_args": false
-      }
-    ],
-    "scope": "owner"
-  }
+    {
+        "id":  10030000,
+        "name":  "赵云-龙鸣-低血量免伤配置",
+        "event":  "damage.attack.before_calc",
+        "scope":  "owner",
+        "enabled":  true,
+        "allowExternal":  false,
+        "phase":  "immediate",
+        "priority":  65,
+        "conditions":  [
+                           {
+                               "type":  "owner_matches_payload_target"
+                           }
+                       ],
+        "actions":  [
+                        {
+                            "type":  "adjust_damage_number",
+                            "number_slot":  0,
+                            "op":  1,
+                            "value":  0,
+                            "target_missing_hp_ratio_coefficient":  -0.33,
+                            "source_id":  10030000,
+                            "reason_kind":  0,
+                            "reason_param":  0,
+                            "require_skill_runtime":  false,
+                            "skip_first_hit":  false
+                        },
+                        {
+                            "type":  "debug_log",
+                            "message":  "赵云被动龙鸣：每损失3%最大生命获得1%免伤，最高33%",
+                            "dump_args":  false
+                        }
+                    ]
+    },
+    {
+        "id":  10030002,
+        "name":  "赵云-龙鸣-配置标记",
+        "event":  "",
+        "scope":  "owner",
+        "enabled":  true,
+        "allowExternal":  true,
+        "phase":  "immediate",
+        "priority":  40,
+        "conditions":  [
+
+                       ],
+        "actions":  [
+                        {
+                            "type":  "add_buff",
+                            "buffIds":  [
+                                            10030000
+                                        ],
+                            "target_self":  true
+                        },
+                        {
+                            "type":  "debug_log",
+                            "message":  "赵云被动龙鸣：配置声明每损失3%最大生命获得1%免伤，最高33%",
+                            "dump_args":  false
+                        }
+                    ]
+    }
 ]

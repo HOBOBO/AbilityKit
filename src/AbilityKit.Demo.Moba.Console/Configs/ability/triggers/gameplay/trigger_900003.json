@@ -1,0 +1,19 @@
+{
+    "id": 900003,
+    "enabled": true,
+    "phase": "immediate",
+    "event": "unit.die",
+    "name": "Gameplay Kill Score Add",
+    "allowExternal": false,
+    "scope": "global",
+    "execution": "always",
+    "conditions": [],
+    "actions": [
+        {
+            "type": "add_gameplay_var",
+            "key_id": 1001,
+            "delta": 1
+        }
+    ],
+    "priority": 0
+}

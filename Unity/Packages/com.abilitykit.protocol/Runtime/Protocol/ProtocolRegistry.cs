@@ -6,32 +6,19 @@ using AbilityKit.Protocol.Serialization;
 namespace AbilityKit.Protocol
 {
     /// <summary>
-    /// 协议注册表
-    /// 
+    /// 协议注册表：只负责 OpCode 与类型的双向映射（纯注册表职责）。
+    ///
     /// 提供：
-    /// 1. 基于 ProtocolOpCodeAttribute 的自动类型注册
-    /// 2. 泛型编解码接口
-    /// 3. OpCode 与类型的双向映射
-    /// 
-    /// 使用方式：
-    /// <code>
-    /// // 启动时扫描程序集
-    /// ProtocolRegistry.Instance.ScanAssembly(typeof(ProtocolRegistry).Assembly);
-    /// 
-    /// // 编码
-    /// var payload = ProtocolRegistry.Encode(new MyRequest { ... });
-    /// 
-    /// // 解码
-    /// var request = ProtocolRegistry.Decode&lt;MyRequest&gt;(payload);
-    /// 
-    /// // 根据 OpCode 获取类型
-    /// var type = ProtocolRegistry.Instance.GetType(100);
-    /// </code>
+    /// 1. 基于 ProtocolOpCodeAttribute 的自动类型注册（幂等，可重复扫描）
+    /// 2. OpCode 与类型的双向映射查询
+    /// 3. 编解码便捷方法（委托给 <see cref="WireSerializer"/>，单一序列化真相源）
+    ///
+    /// 序列化器由 <see cref="WireSerializer.Current"/> 决定（单一决策点），本注册表不再持有序列化器。
     /// </summary>
     public sealed class ProtocolRegistry
     {
         private static readonly Lazy<ProtocolRegistry> _instance = new(() => new ProtocolRegistry());
-        
+
         /// <summary>
         /// 单例实例
         /// </summary>
@@ -39,25 +26,10 @@ namespace AbilityKit.Protocol
 
         private readonly Dictionary<uint, Type> _opCodeToType = new();
         private readonly Dictionary<Type, uint> _typeToOpCode = new();
-        private IWireSerializer _serializer;
         private bool _isScanned;
 
         private ProtocolRegistry()
         {
-            _serializer = CreateDefaultSerializer();
-        }
-
-        private static IWireSerializer CreateDefaultSerializer()
-        {
-            return new MemoryPackWireSerializer();
-        }
-
-        /// <summary>
-        /// 设置序列化器
-        /// </summary>
-        public void SetSerializer(IWireSerializer serializer)
-        {
-            _serializer = serializer ?? throw new ArgumentNullException(nameof(serializer));
         }
 
         /// <summary>
@@ -86,7 +58,8 @@ namespace AbilityKit.Protocol
         }
 
         /// <summary>
-        /// 注册单个类型
+        /// 注册单个类型。幂等：同一类型重复注册（如重复扫描）是 no-op；
+        /// 仅当同一 OpCode 被映射到不同类型时才抛冲突。
         /// </summary>
         public void RegisterType(Type type)
         {
@@ -95,9 +68,11 @@ namespace AbilityKit.Protocol
             var attr = type.GetCustomAttribute<ProtocolOpCodeAttribute>();
             if (attr == null) return;
 
-            if (_opCodeToType.ContainsKey(attr.OpCode))
+            if (_opCodeToType.TryGetValue(attr.OpCode, out var existingType))
             {
-                throw new InvalidOperationException($"Duplicate OpCode {attr.OpCode} for type {type.FullName}. Existing type: {_opCodeToType[attr.OpCode].FullName}");
+                if (existingType == type)
+                    return;
+                throw new InvalidOperationException($"Duplicate OpCode {attr.OpCode}: {existingType.FullName} vs {type.FullName}");
             }
 
             _opCodeToType[attr.OpCode] = type;
@@ -105,24 +80,23 @@ namespace AbilityKit.Protocol
         }
 
         /// <summary>
-        /// 泛型编码
+        /// 泛型编码（委托给 WireSerializer）
         /// </summary>
         public byte[] Encode<T>(in T value) where T : struct
         {
-            return _serializer.Serialize(value);
+            return WireSerializer.Serialize(in value);
         }
 
         /// <summary>
-        /// 非泛型编码
+        /// 非泛型编码（委托给 WireSerializer）
         /// </summary>
         public byte[] Encode(object value)
         {
-            var bytes = _serializer.Serialize(value);
-            return bytes;
+            return WireSerializer.Serialize(value);
         }
 
         /// <summary>
-        /// 泛型解码
+        /// 泛型解码（委托给 WireSerializer）
         /// </summary>
         public T Decode<T>(byte[] payload) where T : struct
         {
@@ -130,7 +104,7 @@ namespace AbilityKit.Protocol
             {
                 throw new ArgumentException("Payload cannot be null or empty", nameof(payload));
             }
-            return _serializer.Deserialize<T>(payload);
+            return WireSerializer.Deserialize<T>(payload);
         }
 
         /// <summary>
@@ -150,16 +124,18 @@ namespace AbilityKit.Protocol
         }
 
         /// <summary>
-        /// 根据 OpCode 获取类型，并解码为指定类型
+        /// 根据 OpCode 解码为指定类型：未注册或类型不匹配都会拒绝。
         /// </summary>
         public T DecodeByOpCode<T>(uint opCode, byte[] payload) where T : struct
         {
-            var expectedType = typeof(T);
             var registeredType = GetType(opCode);
-
-            if (registeredType != null && registeredType != expectedType)
+            if (registeredType == null)
             {
-                throw new InvalidOperationException($"OpCode {opCode} is registered for type {registeredType.FullName}, but trying to decode as {expectedType.FullName}");
+                throw new InvalidOperationException($"OpCode {opCode} is not registered.");
+            }
+            if (registeredType != typeof(T))
+            {
+                throw new InvalidOperationException($"OpCode {opCode} is registered for type {registeredType.FullName}, but trying to decode as {typeof(T).FullName}");
             }
 
             return Decode<T>(payload);
@@ -198,69 +174,6 @@ namespace AbilityKit.Protocol
             _opCodeToType.Clear();
             _typeToOpCode.Clear();
             _isScanned = false;
-        }
-    }
-
-    /// <summary>
-    /// MemoryPack 序列化器实现
-    /// </summary>
-    internal sealed class MemoryPackWireSerializer : IWireSerializer
-    {
-        private static readonly Type SerializerType = FindSerializerType();
-
-        private static Type? FindSerializerType()
-        {
-            try
-            {
-                var direct = Type.GetType("MemoryPack.MemoryPackSerializer", throwOnError: false);
-                if (direct != null) return direct;
-
-                var asms = AppDomain.CurrentDomain.GetAssemblies();
-                for (int i = 0; i < asms.Length; i++)
-                {
-                    var t = asms[i].GetType("MemoryPack.MemoryPackSerializer", throwOnError: false);
-                    if (t != null) return t;
-                }
-            }
-            catch
-            {
-            }
-            return null;
-        }
-
-        public byte[] Serialize<T>(in T value)
-        {
-            var t = SerializerType;
-            if (t == null) throw new InvalidOperationException("MemoryPack is not available.");
-
-            var method = t.GetMethod("Serialize", BindingFlags.Public | BindingFlags.Static);
-            if (method != null && method.IsGenericMethodDefinition)
-            {
-                method = method.MakeGenericMethod(typeof(T));
-                return (byte[])method.Invoke(null, new object[] { value })!;
-            }
-
-            throw new InvalidOperationException("MemoryPackSerializer.Serialize<T> not found.");
-        }
-
-        public T Deserialize<T>(byte[] bytes)
-        {
-            var t = SerializerType;
-            if (t == null) throw new InvalidOperationException("MemoryPack is not available.");
-
-            var method = t.GetMethod("Deserialize", BindingFlags.Public | BindingFlags.Static);
-            if (method != null && method.IsGenericMethodDefinition)
-            {
-                method = method.MakeGenericMethod(typeof(T));
-                return (T)method.Invoke(null, new object[] { bytes })!;
-            }
-
-            throw new InvalidOperationException("MemoryPackSerializer.Deserialize<T> not found.");
-        }
-
-        public T Deserialize<T>(ReadOnlySpan<byte> bytes)
-        {
-            return Deserialize<T>(bytes.ToArray());
         }
     }
 }

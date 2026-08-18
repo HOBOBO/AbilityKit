@@ -133,7 +133,8 @@ namespace AbilityKit.Demo.Shooter.View
                 tickRate,
                 assemblyOptions.Decoder,
                 gateway,
-                assemblyOptions.InterpolationConfig);
+                assemblyOptions.InterpolationConfig,
+                assemblyOptions.PredictionBufferOptions);
             var sessionOptions = new NetworkSyncSessionOptions
             {
                 ProfileCatalog = assemblyOptions.ProfileCatalog,
@@ -173,7 +174,8 @@ namespace AbilityKit.Demo.Shooter.View
                 context.Presentation,
                 context.TickRate,
                 context.Decoder,
-                context.Gateway);
+                context.Gateway,
+                context.PredictionBufferOptions);
         }
 
         private static IShooterClientSyncController CreateAuthoritativeInterpolationController(
@@ -186,7 +188,8 @@ namespace AbilityKit.Demo.Shooter.View
                 context.Decoder,
                 context.Gateway,
                 context.InterpolationConfig ?? InterpolationConfig.Default,
-                context.SyncModel);
+                context.SyncModel,
+                context.PredictionBufferOptions);
         }
 
         private static IShooterClientSyncController CreateHybridHeroPredictionController(
@@ -198,7 +201,8 @@ namespace AbilityKit.Demo.Shooter.View
                 context.TickRate,
                 context.Decoder,
                 context.Gateway,
-                context.InterpolationConfig ?? InterpolationConfig.Default);
+                context.InterpolationConfig ?? InterpolationConfig.Default,
+                context.PredictionBufferOptions);
         }
     }
 
@@ -211,7 +215,8 @@ namespace AbilityKit.Demo.Shooter.View
             int tickRate,
             ShooterGatewaySnapshotDecoder? decoder,
             IShooterRoomGatewayClient? gateway,
-            InterpolationConfig? interpolationConfig)
+            InterpolationConfig? interpolationConfig,
+            ShooterClientPredictionBufferOptions predictionBufferOptions)
         {
             SyncProfile = syncProfile;
             Runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
@@ -220,6 +225,7 @@ namespace AbilityKit.Demo.Shooter.View
             Decoder = decoder;
             Gateway = gateway;
             InterpolationConfig = interpolationConfig;
+            PredictionBufferOptions = predictionBufferOptions ?? throw new ArgumentNullException(nameof(predictionBufferOptions));
         }
 
         public NetworkSyncProfile SyncProfile { get; }
@@ -237,5 +243,7 @@ namespace AbilityKit.Demo.Shooter.View
         public IShooterRoomGatewayClient? Gateway { get; }
 
         public InterpolationConfig? InterpolationConfig { get; }
+
+        public ShooterClientPredictionBufferOptions PredictionBufferOptions { get; }
     }
 }

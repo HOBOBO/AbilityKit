@@ -28,7 +28,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             var skippedNoActionsCount = 0;
             var skippedActionCompileFailCount = 0;
             var skippedConditionCompileFailCount = 0;
+            var skippedOtherFailureCount = 0;
             var skippedExceptionCount = 0;
+            var failedTriggerIds = new List<int>();
             var actionCompileFailByType = new Dictionary<string, int>(StringComparer.Ordinal);
             var conditionCompileFailByType = new Dictionary<string, int>(StringComparer.Ordinal);
 
@@ -91,9 +93,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                             }
                             else
                             {
-                                skippedExceptionCount++;
+                                skippedOtherFailureCount++;
                             }
 
+                            AddFailedTriggerId(failedTriggerIds, tr.TriggerId);
                             continue;
                         }
 
@@ -104,6 +107,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     catch (Exception ex)
                     {
                         skippedExceptionCount++;
+                        AddFailedTriggerId(failedTriggerIds, tr.TriggerId);
                         ExportLog.Exception(ex, $"Plan export failed (exception). triggerId={tr.TriggerId} eventId='{tr.EventId}'");
                     }
                 }
@@ -115,7 +119,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 $"skippedDisabled={skippedDisabledCount}, skippedTriggerId<=0={skippedInvalidIdCount}, " +
                 $"emptyEventId={emptyEventIdCount}, skippedNoActions={skippedNoActionsCount}, " +
                 $"skippedActionCompileFail={skippedActionCompileFailCount}, skippedConditionCompileFail={skippedConditionCompileFailCount}, " +
-                $"skippedException={skippedExceptionCount}");
+                $"skippedOtherFailure={skippedOtherFailureCount}, skippedException={skippedExceptionCount}");
 
             if (actionCompileFailByType.Count > 0)
             {
@@ -131,7 +135,33 @@ namespace AbilityKit.Ability.Editor.Utilities
                 ExportLog.Warning($"Empty EventId triggers (active by TriggerId) (up to 32): {AbilityTriggerExportUtils.FormatIntList(emptyEventIdTriggerIds)}");
             }
 
+            EnsureCompleteExport(
+                skippedNoActionsCount,
+                skippedActionCompileFailCount,
+                skippedConditionCompileFailCount,
+                skippedOtherFailureCount,
+                skippedExceptionCount,
+                failedTriggerIds);
+
             return db;
+        }
+
+        internal static void EnsureCompleteExport(
+            int noActionsCount,
+            int actionCompileFailureCount,
+            int conditionCompileFailureCount,
+            int otherFailureCount,
+            int exceptionCount,
+            List<int> failedTriggerIds)
+        {
+            var failureCount = noActionsCount + actionCompileFailureCount + conditionCompileFailureCount + otherFailureCount + exceptionCount;
+            if (failureCount == 0) return;
+
+            throw new InvalidOperationException(
+                $"Trigger plan export aborted because {failureCount} enabled trigger(s) could not be exported completely. " +
+                $"noActions={noActionsCount}, actionCompileFailed={actionCompileFailureCount}, " +
+                $"conditionCompileFailed={conditionCompileFailureCount}, otherFailed={otherFailureCount}, exceptions={exceptionCount}, " +
+                $"triggerIds={AbilityTriggerExportUtils.FormatIntList(failedTriggerIds)}");
         }
 
         private static string ExtractRootActionType(TriggerEditorConfig tr)
@@ -154,6 +184,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.IsNullOrEmpty(key)) key = "<null>";
             map.TryGetValue(key, out var v);
             map[key] = v + 1;
+        }
+
+        private static void AddFailedTriggerId(List<int> triggerIds, int triggerId)
+        {
+            if (triggerIds != null && triggerIds.Count < 32)
+            {
+                triggerIds.Add(triggerId);
+            }
         }
     }
 }

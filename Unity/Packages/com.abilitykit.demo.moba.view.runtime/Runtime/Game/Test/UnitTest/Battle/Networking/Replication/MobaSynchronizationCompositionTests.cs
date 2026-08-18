@@ -102,6 +102,24 @@ namespace AbilityKit.Game.Tests
         }
 
         [Test]
+        public void RollbackProviders_UseUniqueKeys()
+        {
+            var keys = new[]
+            {
+                MobaActorTransformRollbackProvider.DefaultKey,
+                MobaActorHpRollbackProvider.DefaultKey,
+                MobaBuffTimerRollbackProvider.DefaultKey,
+                MobaSkillCooldownRollbackProvider.DefaultKey,
+                MobaActorStateMachineRollbackProvider.DefaultKey,
+                MobaBrainRollbackProvider.DefaultKey,
+                MobaShieldRollbackProvider.DefaultKey,
+            };
+
+            Assert.That(keys.Distinct().Count(), Is.EqualTo(keys.Length),
+                "Every MOBA rollback provider must own a unique registry key.");
+        }
+
+        [Test]
         public void PredictionReconciliationReporter_ReportsEachMismatchOnlyOnce()
         {
             var reporter = new MobaPredictionReconciliationReporter();

@@ -213,7 +213,9 @@ sequenceDiagram
 5. 写入 `IntKeyConfigTable<TEntry>`。
 6. 提交后递增 `Version` 并发布 `ConfigReloadResult`。
 
-`Reload` 的失败路径采用提交前构表策略：数据库在循环中先填充 `nextTables` 与 `nextDtoTables`，只有所有注册表都加载、反序列化和构表成功后才调用 `CommitTables(nextTables, nextDtoTables)`。strict 模式下任一表缺失会立即发布 `ConfigReloadResult.Fail` 并返回，此时旧 `_tables`、旧 `_dtoTables` 和旧 `Version` 都保持不变；非 strict 模式下缺失表会以空 DTO 数组补齐。
+`Reload` 的正常失败路径采用提交前构表策略：数据库在循环中先填充 `nextTables` 与 `nextDtoTables`，只有所有注册表都加载、反序列化和构表成功后才调用 `CommitTables(nextTables, nextDtoTables)`。strict 模式下任一表缺失会发布 `ConfigReloadResult.Fail` 并返回，此时旧 `_tables`、旧 `_dtoTables` 和旧 `Version` 都保持不变；非 strict 模式下缺失表会以空 DTO 数组补齐。
+
+这里的“失败结果”不能扩大成“不抛异常”。表 factory、MO 构造函数、`Add` 和其他未被当前分支捕获的异常可以在提交前直接向调用方传播，并且不会统一转换为 `ConfigReloadResult.Fail`，也不会统一发布失败事件。候选表仍保护了旧库状态，但调用方必须同时处理返回结果和异常两条失败通道。
 
 `TryLoadFromSource` 的查找顺序是 bytes、fullPath text、原始 `definition.FilePath` text。这个 fallback 让 `basePath` 和裸表名两种资源组织方式可以共存，但也意味着同一张表在多个路径同时存在时，bytes 优先级最高，随后才是带 `basePath` 的文本。
 
@@ -596,7 +598,7 @@ flowchart TB
     F --> G["发布 ConfigReloadResult.Success(fullReload=true)"]
 ```
 
-这避免了加载过程中部分表成功、部分表失败导致运行时读到半更新状态。
+这避免了正常构表失败时运行时读到半更新状态，但不是完整事务保证：候选表创建期间的外部副作用不受数据库回滚；`CommitTables` 之后的同步通知异常发生时，表集合与 `Version` 已经更新，方法却可能没有正常返回成功结果。
 
 ### 10.2 增量重载
 
@@ -608,11 +610,17 @@ flowchart TB
 - 成功后 `Version++`，发布 `fullReload=false` 和 `changedIds`。
 - 删除表暂不支持直接增量删除，需要全量重载。
 
-一次增量请求中的所有 change 会先构建候选 DTO/Entry 表并完成验证，只有整个 change batch 成功才提交替换。任一转换或验证失败时保留旧表和旧版本；“按表增量”不等于逐表立即写入。
+一次增量请求中的所有 change 会先构建候选 DTO/Entry 表并完成验证，只有整个 change batch 成功才提交替换。任一被结构化处理的转换或验证失败时保留旧表和旧版本；“按表增量”不等于逐表立即写入。
+
+增量提交会把候选内容逐张替换进现有表实例，从而尽量保留已缓存的 `IConfigTable` 引用；全量提交则替换表对象。两种模式的对象身份语义不同。增量替换也不是不可失败的原子指针交换：若某张表的替换意外抛错，前面已经替换的表没有统一回滚。`All()` 暴露的还是字典 values live view，数据库本身没有读写锁，宿主必须把 reload 与读取串行化。
 
 ### 10.3 重载事件
 
-通用库使用 `ConfigReloadBus.Publish(result)` 发布结果，MOBA 门面会将内部结果转换为 `moba.config` 的业务级结果。监听方可以根据：
+通用库使用 `AbilityKit.Ability.HotReload.ConfigReloadBus.Publish(result)` 发布结果，MOBA 门面会将内部结果转换为 `moba.config` 的业务级结果。仓库中还存在 `AbilityKit.Ability.Config` 命名空间下的同名 `ConfigReloadResult` / `ConfigReloadBus`，它们不是同一个事件通道；接入方必须确认引用的具体类型，不能只按短类名订阅。
+
+发布是同步且没有订阅者异常隔离。成功全量重载的实际顺序是“提交表与版本 -> 发布通用 `config` 成功 -> MOBA 门面发布 `moba.config` 成功”。如果通用订阅者抛错，调用方会在状态已经提交后收到异常，MOBA 包装通知也可能根本没有机会发布。因此 Reload 事件适合做失效提示，不应承担提交事务、跨缓存回滚或强一致广播。
+
+监听方可以根据：
 
 - `Succeeded`
 - `Version`
@@ -671,7 +679,7 @@ flowchart TB
 | `MobaSkillConfigurationContractTests.cs` 等 | E3：覆盖部分 MOBA 业务配置和消费者契约；不能替代其他加载源、全量 reload、事件和并发边界测试 |
 | 生产导表与 gate | 部分 E5 配置存在，是否自动触发及引用目标必须逐 gate 核对，不能由脚本存在外推为持续阻断 |
 
-当前没有独立的通用 Config 测试工程，但不能据此忽略上述寄宿测试的直接契约价值。其余已知限制包括：反射 fallback 仍可能隐藏缺失生成器；资源路径优先级可能选择到旧副本；TriggerPlan/ActionSchema 是相邻行为配置而非统一数据库；热重载后的项目缓存刷新和副作用补偿仍由消费者负责。MOBA 的强类型门面与校验器可作为高接入参考，但不会被提升为所有游戏的公共应用层。
+当前没有独立的通用 Config 测试工程，但不能据此忽略上述寄宿测试的直接契约价值。其余已知限制包括：反射 fallback 仍可能隐藏缺失生成器；资源路径优先级可能选择到旧副本；`MobaConfigDatabase.ReloadFromJsonTexts(..., strict)` 当前没有把 `strict` 下传，实际总是走内部 strict 文本重载；MOBA 成功包装结果固定为 `fullReload=true`、`changedIds=null`；TriggerPlan/ActionSchema 是相邻行为配置而非统一数据库；热重载后的项目缓存刷新和副作用补偿仍由消费者负责。MOBA 的强类型门面与校验器可作为高接入参考，但不会被提升为所有游戏的公共应用层。
 
 ---
 
@@ -683,6 +691,6 @@ flowchart TB
 
 ---
 
-文档类型：Canonical 设计 | 事实基线：2026-08-15 | 证据等级：E0 通用内核与项目实现、E2 多端消费者、E3 寄宿式 ConfigDatabase/MOBA 配置契约；独立通用测试工程与 E4/E5 未完整闭环
+文档类型：Canonical 设计 | 事实基线：2026-08-17 | 证据等级：E0 通用内核与项目实现、E2 多端消费者、E3 寄宿式 ConfigDatabase/MOBA 配置契约；独立通用测试工程与 E4/E5 未完整闭环
 
-*文档版本：v3.0 | 最后更新：2026-08-15*
+*文档版本：v3.1 | 最后更新：2026-08-17*

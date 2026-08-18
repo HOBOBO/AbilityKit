@@ -710,6 +710,8 @@ namespace AbilityKit.Game.Test.UnitTest
                 suppressAutomaticLobbyActions: true);
 
             Assert.That(request.SuppressAutomaticLobbyActions, Is.True);
+            Assert.That(FormalLobbyFeature.ShouldRunAutomaticLobbyActions(request), Is.False);
+            Assert.That(FormalLobbyFeature.ShouldRunAutomaticLobbyActions(null), Is.True);
         }
 
         [Test]

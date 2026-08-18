@@ -323,6 +323,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 return true;
             }
 
+            if (diagnosticEvent.Payload.TryGetBuffLifecycle(out var buffLifecycle) &&
+                MatchesBuffLifecycleSearch(in buffLifecycle, searchText))
+            {
+                return true;
+            }
+
             return MatchesNumber(diagnosticEvent.Sequence, searchText) ||
                    MatchesNumber(diagnosticEvent.Frame, searchText) ||
                    MatchesNumber(diagnosticEvent.SourceActorId, searchText) ||
@@ -394,6 +400,22 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    MatchesNumber(trigger.CurrentFrameCount, searchText) ||
                    MatchesNumber(trigger.CurrentRootCount, searchText) ||
                    MatchesNumber(trigger.CurrentSameTriggerCount, searchText);
+        }
+
+        private static bool MatchesBuffLifecycleSearch(
+            in BattleDiagnosticBuffLifecyclePayload buffLifecycle,
+            string searchText)
+        {
+            return buffLifecycle.Stage.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   MatchesNumber(buffLifecycle.StackCount, searchText) ||
+                   MatchesNumber(buffLifecycle.PreviousStackCount, searchText) ||
+                   MatchesNumber(buffLifecycle.DurationMilliseconds, searchText) ||
+                   MatchesNumber(buffLifecycle.RemainingMilliseconds, searchText) ||
+                   MatchesNumber(buffLifecycle.IntervalRemainingMilliseconds, searchText) ||
+                   MatchesNumber(buffLifecycle.MaxStacks, searchText) ||
+                   MatchesNumber(buffLifecycle.ModifierBindingCount, searchText) ||
+                   MatchesNumber(buffLifecycle.ModifierSourceId, searchText) ||
+                   MatchesNumber(buffLifecycle.RemoveReason, searchText);
         }
 
         private static bool MatchesNumber(long value, string searchText)

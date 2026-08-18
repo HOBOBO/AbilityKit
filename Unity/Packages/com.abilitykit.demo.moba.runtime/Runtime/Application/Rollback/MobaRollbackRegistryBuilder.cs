@@ -31,6 +31,11 @@ namespace AbilityKit.Demo.Moba.Rollback
                 registry.Register(new MobaBuffTimerRollbackProvider(actorRegistry));
                 registry.Register(new MobaSkillCooldownRollbackProvider(actorRegistry));
 
+                if (world.Services.TryResolve<MobaBrainService>(out var brainService) && brainService != null)
+                {
+                    registry.Register(new MobaBrainRollbackProvider(actorRegistry, brainService));
+                }
+
                 if (world.Services.TryResolve<MobaShieldService>(out var shieldService) &&
                     shieldService != null)
                 {

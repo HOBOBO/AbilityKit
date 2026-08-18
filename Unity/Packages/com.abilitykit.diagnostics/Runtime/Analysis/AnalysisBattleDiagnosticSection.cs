@@ -94,6 +94,16 @@ namespace AbilityKit.Diagnostics.Analysis
         public string TriggerReason { get; set; } = string.Empty;
         public int SkillFailureSlot { get; set; }
         public string SkillFailureSource { get; set; } = string.Empty;
+        public int BuffLifecycleStage { get; set; }
+        public int BuffLifecycleStackCount { get; set; }
+        public int BuffLifecyclePreviousStackCount { get; set; }
+        public int BuffLifecycleDurationMilliseconds { get; set; }
+        public int BuffLifecycleRemainingMilliseconds { get; set; }
+        public int BuffLifecycleIntervalRemainingMilliseconds { get; set; }
+        public int BuffLifecycleMaxStacks { get; set; }
+        public int BuffLifecycleModifierBindingCount { get; set; }
+        public int BuffLifecycleModifierSourceId { get; set; }
+        public int BuffLifecycleRemoveReason { get; set; }
         public string SkillFailureStage { get; set; } = string.Empty;
         public string SkillFailureCode { get; set; } = string.Empty;
         public string SkillFailureMessage { get; set; } = string.Empty;
@@ -187,6 +197,17 @@ namespace AbilityKit.Diagnostics.Analysis
         public int Priority { get; set; }
         public int SourceId { get; set; }
         public int MagnitudeType { get; set; }
+        public float DeclaredValue { get; set; }
+        public float StackedValue { get; set; }
+        public float ProjectedValue { get; set; }
+        public float CurrentValue { get; set; }
+        public bool HasCurrentValue { get; set; }
+        public float CapturedValue { get; set; }
+        public bool HasCapturedValue { get; set; }
+        public int EvaluationPolicy { get; set; }
+        public int StackCount { get; set; } = 1;
+        public string CaptureMode { get; set; } = string.Empty;
+        public string Explanation { get; set; } = string.Empty;
     }
 
     public sealed class AnalysisBattleDiagnosticBuffTrack
@@ -214,6 +235,7 @@ namespace AbilityKit.Diagnostics.Analysis
         public int ModifierBindingCount { get; set; }
         public int MaxStacks { get; set; }
         public string Name { get; set; } = string.Empty;
+        public int ModifierSourceId { get; set; }
     }
 
     public sealed class AnalysisBattleDiagnosticTagTrack

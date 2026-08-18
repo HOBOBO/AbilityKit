@@ -66,12 +66,12 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             Assert.That(profile.RoomTitle, Is.EqualTo("Shooter Room"));
             Assert.That(profile.MaxPlayers, Is.EqualTo(2));
             Assert.That(profile.RoomListLimit, Is.EqualTo(10));
-            Assert.That(profile.AutoReady, Is.False);
-            Assert.That(profile.AutoStart, Is.False);
-            Assert.That(profile.StarterSceneName, Is.EqualTo("MultiplayerStarterScene"));
+            Assert.That(profile.AutoReady, Is.True);
+            Assert.That(profile.AutoStart, Is.True);
+            Assert.That(profile.StarterSceneName, Is.EqualTo("StarterScene"));
 
             var options = profile.BuildSessionOptions();
-            Assert.That(options.SyncTemplateId, Is.EqualTo("predict-rollback-authority"));
+            Assert.That(options.SyncTemplateId, Is.EqualTo("state-sync-authority"));
             Assert.That(options.PlayerCount, Is.EqualTo(2));
             Assert.That(options.ControlledPlayerId, Is.EqualTo(1));
         }

@@ -17,6 +17,7 @@ namespace AbilityKit.Game.Editor
             Action<long> selectActor = null,
             Action<long, long> openTrace = null,
             Action<long> openEvents = null,
+            Action<BattleDiagnosticEvent> openEvent = null,
             Action openRecentFailures = null,
             Action<BattleDebugConfigReference> openConfig = null,
             Func<int, bool> seekReplayFrame = null,
@@ -33,6 +34,7 @@ namespace AbilityKit.Game.Editor
             SelectActor = selectActor;
             OpenTrace = openTrace;
             OpenEvents = openEvents;
+            OpenEvent = openEvent;
             OpenRecentFailures = openRecentFailures;
             OpenConfig = openConfig;
             SeekReplayFrame = seekReplayFrame;
@@ -50,6 +52,7 @@ namespace AbilityKit.Game.Editor
         public Action<long> SelectActor { get; }
         public Action<long, long> OpenTrace { get; }
         public Action<long> OpenEvents { get; }
+        public Action<BattleDiagnosticEvent> OpenEvent { get; }
         public Action OpenRecentFailures { get; }
         public Action<BattleDebugConfigReference> OpenConfig { get; }
         public Func<int, bool> SeekReplayFrame { get; }

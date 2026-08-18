@@ -15,8 +15,8 @@ MonoBehaviour:
   roomTitle: Shooter Room
   maxPlayers: 2
   roomListLimit: 10
-  autoReady: 0
-  autoStart: 0
+  autoReady: 1
+  autoStart: 1
   syncTemplateId: state-sync-authority
   randomSeed: 3901
   playerCount: 2
@@ -25,4 +25,4 @@ MonoBehaviour:
   enemyBudget: 512
   enableAuthorityComparison: 0
   renderBackend: 1
-  starterSceneName: MultiplayerStarterScene
+  starterSceneName: StarterScene

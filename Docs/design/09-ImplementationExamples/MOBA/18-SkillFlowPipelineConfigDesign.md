@@ -1,7 +1,7 @@
 # MOBA 技能 Flow 与 Pipeline 配置设计
 
 > 文档类型：MOBA 项目应用组合深潜
-> 事实基线：2026-08-16
+> 事实基线：2026-08-17
 >
 > 现有 MOBA 文档已经说明技能输入、技能释放和 TriggerPlan 执行，但还缺少一篇专门解释 `skills.json`、`skill_flows.json` 如何被表驱动 Pipeline 消费的文档。本文按源码补齐配置字段、Phase 类型、运行时构建、校验规则和当前配置治理点。
 
@@ -46,7 +46,7 @@ flowchart TB
 运行时链路如下：
 
 1. `MobaConfigDatabase` 加载 `skills.json` 和 `skill_flows.json`，通过 `GetSkillFlow` / `TryGetSkillFlow` 暴露 Flow。
-2. `TableDrivenMobaSkillPipelineLibrary.TryGet` 根据 skillId 取 `SkillMO`，再通过 `CastFlowId` 和可选 `PreCastFlowId` 构建 Pipeline 配置。
+2. `TableDrivenMobaSkillPipelineLibrary.TryGet` 根据 skillId 取 `SkillMO`，再通过 `CastFlowId` 和可选 `PreCastFlowId` 构建 Pipeline 配置。Library 按 skillId 缓存构建结果，但当前不记录 `MobaConfigDatabase.Version`，也不订阅 reload；热重载后必须由应用层显式 Dispose/重建，否则缓存继续持有旧 Flow DTO/MO 与复制的事件数组。
 3. `CreatePipelineConfig` 把 `SkillFlowMO.PipelineContinuousTagTemplateId` 包装进 `MobaSkillPipelineConfig`。
 4. `BuildFlowDefinitions` 遍历 `SkillFlowMO.Phases`，按 `SkillPhaseType` 转成可实例化的 phase definition。
 5. `SkillPipelineRunner` 运行 phase，并在 pipeline 启动时按 `PipelineContinuousTagTemplateId` 激活持续标签模板。
@@ -116,7 +116,9 @@ Cast Pipeline 的正式 Phase 事件会在阶段 Trace 容器下生成真实 Pha
 | `Events[].ExecuteMode` | 当前只支持 `EffectExecuteMode.InternalOnly`，非 0 会抛异常 |
 | `Events[].EventTag` | 配置可读性和诊断标签，当前 `SkillTimelinePhase` 不以它驱动逻辑 |
 
-`SkillTimelinePhase` 在 `OnEnter` 重置 `_elapsedSeconds` 和 `_nextEventIndex`，在 `OnUpdate` 中按时间推进事件。每个事件通过 `MobaEffectInvokerService.Execute(effectId, context)` 进入后续 effect/TriggerPlan 链路。
+`SkillTimelinePhase` 在 `OnEnter` 重置 Q32.32 `_elapsedRaw` 和 `_nextEventIndex`，在 `OnUpdate` 中按 raw 时间推进事件。每个事件通过 `MobaEffectInvokerService.Execute(effectId, context)` 进入后续 effect/TriggerPlan 链路。定点累计只约束 phase 内的时间加法，不会自动使 DTO 顺序、handler、Effect 副作用或跨端结果确定。
+
+事件按 `Events` 数组顺序消费，校验器没有强制 `AtMs` 升序；如果配置把较晚事件放在前面，尚未到期的前项会阻塞后项更早时间的事件。运行时也没有通用的部分 effect 回滚：只有 effect 成功后才递增 `_nextEventIndex`，effect 已产生的外部副作用仍由领域服务自行补偿。
 
 ## 5. RulePlan Phase
 
@@ -219,6 +221,8 @@ sequenceDiagram
 2. Parallel、Repeat 和 Delay 没有进入当前 `skill_flows.json`，新增配置时应补充加载、构建、推进和失败语义测试。
 3. `MobaBattleConfigReferenceValidator` 能检查引用与基础结构，但不能替代技能时序、资源提交原子性和领域效果结果的场景验收。
 
+校验器当前没有把 `ExecuteMode == InternalOnly`、`AtMs <= DurationMs`、PhaseId 唯一/稳定性和未知 phase 类型全部提升为错误；未知类型、空 Composite phase 等情况可能先作为 warning，随后在运行时 builder 抛异常。`Prewarm`/`PrewarmAll` 也不捕获 build exception，坏 Flow 会中止整批预热，返回的 failed 计数只覆盖返回 false 的情况。
+
 ### 8.1 自动测试证据
 
 | 测试 | 直接覆盖 | 未覆盖 |
@@ -257,6 +261,6 @@ sequenceDiagram
 
 权威配置源位于 `com.abilitykit.demo.moba.view.runtime/Resources`，Console 配置是宿主副本。文档、Editor 索引、导出工具和测试必须共同维护“一个权威源、多消费者”，不能恢复 Unity Assets/package 双根，也不能把 `bin` 输出当成源文件。
 
-View Runtime 147/147、Host 6/6、Acceptance 8/8 是独立工程证据；本地 Unity ownership 9/9 不覆盖 Phase 类型矩阵。Parallel、Repeat、Delay 和 PreCast 仍只有实现/校验分支，没有当前权威 JSON 场景与端到端验收。
+View Runtime `174/174`（2026-08-17）、Host 6/6、Acceptance 8/8 是独立工程证据；本地 Unity ownership 9/9 不覆盖 Phase 类型矩阵。Parallel、Repeat、Delay 和 PreCast 仍只有实现/校验分支，没有当前权威 JSON 场景与端到端验收。
 
-*文档版本：v3.0 | 最后更新：2026-08-16*
+*文档版本：v3.1 | 最后更新：2026-08-17*

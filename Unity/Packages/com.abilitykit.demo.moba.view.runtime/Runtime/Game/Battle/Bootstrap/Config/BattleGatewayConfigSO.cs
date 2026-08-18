@@ -93,7 +93,7 @@ namespace AbilityKit.Game.Flow
         public int[] DefaultSkillIds = { 10010101, 10010201, 10010301 };
 
         [LabelText("Starter Scene")]
-        public string StarterSceneName = "MultiplayerStarterScene";
+        public string StarterSceneName = "StarterScene";
 
         [Title("Network Timing")]
         [LabelText("TimeSync OpCode")]

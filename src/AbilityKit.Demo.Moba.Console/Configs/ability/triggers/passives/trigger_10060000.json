@@ -2,31 +2,75 @@
   "triggers": [
     {
       "id": 10060000,
-      "name": "嬴政-王者审判-添加剑意标记",
+      "name": "嬴政-王者审判-被动入口",
       "event": "",
+      "scope": "owner",
       "enabled": true,
       "allowExternal": false,
       "phase": "immediate",
       "priority": 50,
       "conditions": [],
-      "actions": [
+      "actions": []
+    },
+    {
+      "id": 10060002,
+      "name": "嬴政-王者审判-普攻命中计数",
+      "event": "damage.apply.after",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": false,
+      "phase": "immediate",
+      "priority": 45,
+      "conditions": [
         {
-          "type": "add_buff",
-          "buffIds": [
-            10060000
-          ],
-          "target_self": true,
-          "duration_ms": 3000,
-          "stacking_policy": 1,
-          "max_stacks": 10
+          "type": "arg_gt",
+          "arg_name": "damage_value",
+          "value": 0
         },
         {
-          "type": "debug_log",
-          "message": "嬴政被动：普攻或技能命中添加剑意标记，最多10层，每层持续期间内周期性造成法术伤害",
-          "dump_args": false
+          "type": "arg_eq",
+          "left": "payload:reason_kind",
+          "right": "2"
+        },
+        {
+          "type": "arg_neq",
+          "left": "payload:attacker_actor_id",
+          "right": "payload:target_actor_id"
         }
       ],
-      "scope": "owner"
+      "actions": [
+        {
+          "type": "advance_gameplay_counter",
+          "key_id": 10060002,
+          "scope_payload_field_id": 1993035528,
+          "threshold": 5,
+          "delta": 1,
+          "reset_value": 0,
+          "trigger_id": 10060003
+        }
+      ]
+    },
+    {
+      "id": 10060003,
+      "name": "嬴政-王者审判-第五次普攻强化",
+      "event": "",
+      "scope": "owner",
+      "enabled": true,
+      "allowExternal": true,
+      "phase": "immediate",
+      "priority": 50,
+      "conditions": [],
+      "actions": [
+        {
+          "type": "give_damage",
+          "damage_value": 180,
+          "source_attack_ratio": 0.35,
+          "damage_type": 2,
+          "reason_param": 10060003,
+          "target_mode": 2,
+          "target_max_count": 1
+        }
+      ]
     }
   ]
 }

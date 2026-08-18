@@ -1,6 +1,7 @@
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Demo.Moba.Input;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -52,8 +53,19 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (!entity.hasMoveInput) entity.AddMoveInput(dx, dz);
-            else entity.ReplaceMoveInput(dx, dz);
+            var intent = MobaActorIntent.MoveDirection(dx, dz);
+            if (!intent.IsValid())
+            {
+                result = MobaInputCommandResult.Rejected(
+                    command,
+                    MobaInputCommandFailureCode.PayloadInvalid,
+                    "PayloadInvalid(IntentNotFinite)",
+                    actorId);
+                return false;
+            }
+
+            if (!entity.hasMoveInput) entity.AddMoveInput(intent.MoveX, intent.MoveZ);
+            else entity.ReplaceMoveInput(intent.MoveX, intent.MoveZ);
 
             result = MobaInputCommandResult.Accepted(command, actorId);
             return true;

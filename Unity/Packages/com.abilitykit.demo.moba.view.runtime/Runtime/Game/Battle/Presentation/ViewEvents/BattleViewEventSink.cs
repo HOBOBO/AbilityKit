@@ -134,6 +134,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         {
             _projectileEvents?.Tick();
         }
+
+        /// <summary>
+        /// Releases all transient state owned by event handlers. Safe to call repeatedly.
+        /// </summary>
+        public void Clear()
+        {
+            _projectileEvents?.Clear();
+        }
     }
 
     /// <summary>

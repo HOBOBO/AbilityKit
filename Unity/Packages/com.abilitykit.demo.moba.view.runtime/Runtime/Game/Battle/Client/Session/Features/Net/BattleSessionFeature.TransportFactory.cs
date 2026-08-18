@@ -46,6 +46,11 @@ namespace AbilityKit.Game.Flow
                     roomId,
                     _unityDispatcher,
                     _networkIoDispatcher);
+                if (transport is NetworkTransport networkTransport)
+                {
+                    _runtime.InputSubmissionDiagnostics.Bind(networkTransport);
+                }
+
                 return _sessionRegistry.Start(opts, remoteTransport: transport);
             }
 

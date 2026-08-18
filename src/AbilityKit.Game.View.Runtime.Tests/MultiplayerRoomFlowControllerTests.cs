@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Game.Flow;
+using AbilityKit.Network.Room;
+using AbilityKit.Protocol.Room;
 using Xunit;
 
 namespace AbilityKit.Game.View.Runtime.Tests
@@ -403,7 +405,16 @@ namespace AbilityKit.Game.View.Runtime.Tests
                 Phase = MultiplayerRoomPhase.InBattle,
                 BattleId = "battle-1",
                 WorldId = 42UL,
-                LaunchGeneration = 3
+                LaunchGeneration = 3,
+                // 进战斗门要求服务端已声明同步能力。
+                SyncCapabilities = RoomGatewayNetworkSyncCapabilitiesConverter.FromWire(
+                    new WireNetworkSyncCapabilities
+                    {
+                        MetadataVersion = RoomGatewayNetworkSyncCapabilitiesConverter.CurrentMetadataVersion,
+                        ProfileName = "test-profile",
+                        MinimumSchemaVersion = 1,
+                        MaximumSchemaVersion = 1
+                    })
             };
 
             Assert.False(gate.TryAccept(MultiplayerRoomFlowState.WaitingForBattle, snapshot));

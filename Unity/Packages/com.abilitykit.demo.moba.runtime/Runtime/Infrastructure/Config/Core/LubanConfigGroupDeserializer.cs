@@ -364,7 +364,10 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 MaxStacks = obj["MaxStacks"]?.Value<int>() ?? 1,
                 TriggerIds = obj["TriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
                 ContinuousTagTemplateId = obj["ContinuousTagTemplateId"]?.Value<int>() ?? 0,
-                Modifiers = DeserializeContinuousModifiers(obj["Modifiers"])
+                Modifiers = DeserializeContinuousModifiers(obj["Modifiers"]),
+                DispelPolicy = obj["DispelPolicy"]?.Value<int>() ?? 0,
+                DispelCategory = obj["DispelCategory"]?.Value<int>() ?? 0,
+                DispelBlockedByTagNames = ReadTagNames(obj["DispelBlockedByTags"])
             };
             dto.TagNames = ReadTagNames(obj["Tags"]);
             return dto;

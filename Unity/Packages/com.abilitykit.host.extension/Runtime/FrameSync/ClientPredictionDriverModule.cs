@@ -130,6 +130,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         private readonly int _maxLocalDelayQueueDepth;
 
         private readonly bool _enableRollback;
+        private readonly ClientPredictionDriverBufferOptions _bufferOptions;
         private readonly int _rollbackHistoryFrames;
         private readonly int _rollbackCaptureEveryNFrames;
         private readonly Func<IWorld, RollbackRegistry> _buildRollbackRegistry;
@@ -202,7 +203,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             int rollbackHistoryFrames = 240,
             int rollbackCaptureEveryNFrames = 1,
             Func<IWorld, RollbackRegistry> buildRollbackRegistry = null,
-            Func<IWorld, Func<FrameIndex, WorldStateHash>> buildComputeHash = null)
+            Func<IWorld, Func<FrameIndex, WorldStateHash>> buildComputeHash = null,
+            ClientPredictionDriverBufferOptions bufferOptions = null)
         {
             _resolveRemoteInputs = resolveRemoteInputs;
             _resolveLocalInputs = resolveLocalInputs;
@@ -227,12 +229,17 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
 
             _maxLocalDelayQueueDepth = 2048;
 
-            _enableRollback = enableRollback;
             _rollbackHistoryFrames = rollbackHistoryFrames <= 0 ? 240 : rollbackHistoryFrames;
             _rollbackCaptureEveryNFrames = rollbackCaptureEveryNFrames <= 0 ? 1 : rollbackCaptureEveryNFrames;
             _buildRollbackRegistry = buildRollbackRegistry;
 
             _buildComputeHash = buildComputeHash;
+            _bufferOptions = bufferOptions ?? ClientPredictionDriverBufferOptions.CreateDefault(
+                enableRollback,
+                buildComputeHash != null,
+                _rollbackHistoryFrames);
+            _enableRollback = enableRollback
+                && _bufferOptions.Has(ClientPredictionDriverBufferFeatures.RollbackSnapshots);
 
             _onWorldCreated = OnWorldCreated;
             _onWorldDestroyed = OnWorldDestroyed;
@@ -247,6 +254,8 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         public int MinPredictionWindow => _tuningMinPredictionWindow;
 
         public float BacklogEwmaAlpha => _tuningBacklogEwmaAlpha;
+
+        public ClientPredictionDriverBufferOptions BufferOptions => _bufferOptions;
 
         public int CurrentBacklogRaw => _currentBacklogRaw;
 
@@ -559,7 +568,9 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (_enableRollback)
             {
                 var reg = _buildRollbackRegistry != null ? _buildRollbackRegistry(world) : new RollbackRegistry();
-                rollback = new RollbackCoordinator(reg, new RollbackSnapshotRingBuffer(_rollbackHistoryFrames));
+                rollback = new RollbackCoordinator(
+                    reg,
+                    new RollbackSnapshotRingBuffer(_bufferOptions.RollbackSnapshotCapacity));
                 rollback.CaptureAndStore(new FrameIndex(0));
             }
 
@@ -570,10 +581,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             if (_buildComputeHash != null)
             {
                 computeHash = _buildComputeHash(world);
-                if (computeHash != null)
+                if (computeHash != null && _bufferOptions.Has(ClientPredictionDriverBufferFeatures.PredictedStateHashHistory))
                 {
-                    predictedHashes = new WorldStateHashRingBuffer(_rollbackHistoryFrames);
-                    authoritativeHashes = new WorldStateHashRingBuffer(_rollbackHistoryFrames);
+                    predictedHashes = new WorldStateHashRingBuffer(_bufferOptions.StateHashHistoryCapacity);
+                    if (_bufferOptions.Has(ClientPredictionDriverBufferFeatures.AuthoritativeStateHashHistory))
+                    {
+                        authoritativeHashes = new WorldStateHashRingBuffer(_bufferOptions.StateHashHistoryCapacity);
+                    }
+
                     reconciler = new ClientPredictionReconciler(predictedHashes);
                     reconciler.OnRollbackRequested += frame => RequestReconcileRollback(world.Id, frame);
                 }
@@ -590,14 +605,18 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 Rollback = rollback,
                 CaptureCounter = 0,
                 LastProcessedRollbackFrame = new FrameIndex(0),
-                AppliedInputs = new InputHistoryRingBuffer(_rollbackHistoryFrames),
-                AuthoritativeInputs = new InputHistoryRingBuffer(_rollbackHistoryFrames),
+                AppliedInputs = _bufferOptions.Has(ClientPredictionDriverBufferFeatures.AppliedInputHistory)
+                    ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity)
+                    : null,
+                AuthoritativeInputs = _bufferOptions.Has(ClientPredictionDriverBufferFeatures.AuthoritativeInputHistory)
+                    ? new InputHistoryRingBuffer(_bufferOptions.InputHistoryCapacity)
+                    : null,
 
                 ComputeHash = computeHash,
                 PredictedHashes = predictedHashes,
                 AuthoritativeHashes = authoritativeHashes,
                 Reconciler = reconciler,
-                ReconcileEnabled = reconciler != null && computeHash != null,
+                ReconcileEnabled = reconciler != null && computeHash != null && rollback != null,
                 Mode = ReplayMode.Normal,
                 ReplayTo = new FrameIndex(0),
                 LastRollbackFrame = new FrameIndex(-1),
@@ -848,7 +867,14 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         var confirmsAlreadyPredictedFrame = false;
                         if (_enableRollback && ctx.Rollback != null && ctx.PredictedFrame.Value >= frame.Value)
                         {
-                            if (!ctx.AppliedInputs.TryGet(frame, out var appliedAtFrame) || appliedAtFrame == null)
+                            PlayerInputCommand[] appliedAtFrame = null;
+                            if (ctx.AppliedInputs == null)
+                            {
+                                // Without applied-input history we cannot compare or replay this
+                                // frame, so assume the predicted simulation already covered it.
+                                confirmsAlreadyPredictedFrame = true;
+                            }
+                            else if (!ctx.AppliedInputs.TryGet(frame, out appliedAtFrame) || appliedAtFrame == null)
                             {
                                 if (ctx.LastMissingAppliedHistoryFrame.Value != frame.Value)
                                 {
@@ -909,7 +935,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                 Log.Info($"[ClientPredictionDriverModule] Consuming authoritative inputs. worldId={worldId.Value}, frame={nextConfirmed}, count={consumed.Length}, firstOpCode={consumed[0].OpCode}");
                             }
 
-                            ctx.AuthoritativeInputs.Store(frame, consumed);
+                            ctx.AuthoritativeInputs?.Store(frame, consumed);
 
                             ctx.ConfirmedFrame = frame;
                             _lastConsumedConfirmedFrames = 1;
@@ -925,7 +951,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                                 AlignFrameTime(ctx.FrameTime, frame, deltaTime);
                                 ctx.InputSink.Submit(frame, consumed);
                                 _shouldRunWorldTick = true;
-                                ctx.AppliedInputs.Store(frame, consumed);
+                                ctx.AppliedInputs?.Store(frame, consumed);
 
                                 if (ctx.PredictedFrame.Value < frame.Value)
                                 {
@@ -959,7 +985,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     // 方案 A（收敛优先）：只有该帧权威输入可用时才回放。
                     // 否则退出回放并返回 Normal 预测，避免来回拉扯。
                     PlayerInputCommand[] inputs = null;
-                    if (ctx.AuthoritativeInputs.TryGet(next, out var auth) && auth != null)
+                    if (ctx.AuthoritativeInputs != null && ctx.AuthoritativeInputs.TryGet(next, out var auth) && auth != null)
                     {
                         inputs = auth;
                         if (ctx.ConfirmedFrame.Value < next.Value)
@@ -978,7 +1004,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                             Log.Info($"[ClientPredictionDriverModule] Consuming replay authoritative inputs. worldId={worldId.Value}, frame={next.Value}, count={consumed.Length}, firstOpCode={consumed[0].OpCode}");
                         }
                         inputs = consumed;
-                        ctx.AuthoritativeInputs.Store(next, consumed);
+                        ctx.AuthoritativeInputs?.Store(next, consumed);
                         if (ctx.ConfirmedFrame.Value < next.Value)
                         {
                             ctx.ConfirmedFrame = next;
@@ -1014,7 +1040,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     AlignFrameTime(ctx.FrameTime, next, deltaTime);
                     ctx.InputSink.Submit(next, inputs);
                     _shouldRunWorldTick = true;
-                    ctx.AppliedInputs.Store(next, inputs);
+                    ctx.AppliedInputs?.Store(next, inputs);
                     ctx.PredictedFrame = next;
                     _lastConsumedPredictedFrames = 1;
                     _totalPredictedFrames++;
@@ -1074,7 +1100,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                     ctx.InputSink.Submit(next, predictedInputs);
                     _shouldRunWorldTick = true;
                     ctx.PredictedFrame = next;
-                    ctx.AppliedInputs.Store(next, predictedInputs);
+                    ctx.AppliedInputs?.Store(next, predictedInputs);
                     _lastConsumedPredictedFrames = 1;
                     _totalPredictedFrames++;
                 }
