@@ -21,18 +21,42 @@ namespace AbilityKit.Core.Markers
     [Obsolete("Assembly-wide discovery does not belong to Core; migrate to an owner-controlled discovery or generated registration path before the next major version.")]
     public static class MarkerSystem
     {
+        private static readonly object _syncRoot = new object();
+        private static readonly object _scanRoot = new object();
         private static readonly List<MarkerRegistration> _registrations = new List<MarkerRegistration>();
         private static bool _initialized;
+        private static int _version;
 
         /// <summary>
         /// 已注册的扫描项数量。
         /// </summary>
-        public static int RegistrationCount => _registrations.Count;
+        public static int RegistrationCount
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _registrations.Count;
+                }
+            }
+        }
 
         /// <summary>
         /// 已扫描的类型总数。
         /// </summary>
-        public static int TotalScannedTypes => _registrations.Sum(r => r.Registry.Count);
+        public static int TotalScannedTypes
+        {
+            get
+            {
+                MarkerRegistration[] registrations;
+                lock (_syncRoot)
+                {
+                    registrations = _registrations.ToArray();
+                }
+
+                return registrations.Sum(r => r.Registry.Count);
+            }
+        }
 
         /// <summary>
         /// 注册一个标记类型及其对应的 Registry。
@@ -46,11 +70,7 @@ namespace AbilityKit.Core.Markers
             where TAttr : MarkerAttribute
             where TRegistry : IMarkerRegistry
         {
-            _registrations.Add(new MarkerRegistration(
-                typeof(TAttr),
-                registry,
-                assemblyFilter
-            ));
+            Register(typeof(TAttr), registry, assemblyFilter);
         }
 
         /// <summary>
@@ -58,12 +78,24 @@ namespace AbilityKit.Core.Markers
         /// </summary>
         public static void Register(Type attrType, IMarkerRegistry registry, Func<Assembly, bool>? assemblyFilter = null)
         {
+            if (attrType == null) throw new ArgumentNullException(nameof(attrType));
+            if (registry == null) throw new ArgumentNullException(nameof(registry));
             if (!typeof(MarkerAttribute).IsAssignableFrom(attrType))
             {
                 throw new ArgumentException($"Type {attrType.FullName} must inherit from MarkerAttribute", nameof(attrType));
             }
 
-            _registrations.Add(new MarkerRegistration(attrType, registry, assemblyFilter));
+            lock (_syncRoot)
+            {
+                for (var i = 0; i < _registrations.Count; i++)
+                {
+                    if (_registrations[i].Matches(attrType, registry, assemblyFilter)) return;
+                }
+
+                _registrations.Add(new MarkerRegistration(attrType, registry, assemblyFilter));
+                _initialized = false;
+                _version++;
+            }
         }
 
         /// <summary>
@@ -86,12 +118,30 @@ namespace AbilityKit.Core.Markers
             if (assemblies == null || assemblies.Length == 0)
                 return;
 
-            foreach (var registration in _registrations)
+            lock (_scanRoot)
             {
-                registration.Scan(assemblies);
-            }
+                MarkerRegistration[] registrations;
+                int version;
+                lock (_syncRoot)
+                {
+                    registrations = _registrations.ToArray();
+                    _initialized = false;
+                    version = ++_version;
+                }
 
-            _initialized = true;
+                foreach (var registration in registrations)
+                {
+                    registration.Scan(assemblies);
+                }
+
+                lock (_syncRoot)
+                {
+                    if (_version == version)
+                    {
+                        _initialized = true;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -99,11 +149,15 @@ namespace AbilityKit.Core.Markers
         /// </summary>
         public static TRegistry? GetRegistry<TRegistry>() where TRegistry : class, IMarkerRegistry
         {
-            foreach (var registration in _registrations)
+            lock (_syncRoot)
             {
-                if (registration.Registry is TRegistry result)
-                    return result;
+                foreach (var registration in _registrations)
+                {
+                    if (registration.Registry is TRegistry result)
+                        return result;
+                }
             }
+
             return null;
         }
 
@@ -112,19 +166,38 @@ namespace AbilityKit.Core.Markers
         /// </summary>
         public static void Reset()
         {
-            _registrations.Clear();
-            _initialized = false;
+            lock (_syncRoot)
+            {
+                _registrations.Clear();
+                _initialized = false;
+                _version++;
+            }
         }
 
         /// <summary>
         /// 检查是否已完成初始化扫描。
         /// </summary>
-        public static bool IsInitialized => _initialized;
+        public static bool IsInitialized
+        {
+            get
+            {
+                lock (_syncRoot)
+                {
+                    return _initialized;
+                }
+            }
+        }
 
         /// <summary>
         /// 获取所有注册的扫描信息。
         /// </summary>
-        public static IReadOnlyList<MarkerRegistration> GetRegistrations() => _registrations;
+        public static IReadOnlyList<MarkerRegistration> GetRegistrations()
+        {
+            lock (_syncRoot)
+            {
+                return _registrations.ToArray();
+            }
+        }
     }
 
     /// <summary>
@@ -174,24 +247,25 @@ namespace AbilityKit.Core.Markers
             _genericScanMethod?.Invoke(null, new object[] { assembliesToScan, Registry });
         }
 
+        internal bool Matches(Type attributeType, IMarkerRegistry registry, Func<Assembly, bool>? assemblyFilter)
+        {
+            return AttributeType == attributeType
+                && ReferenceEquals(Registry, registry)
+                && Equals(AssemblyFilter, assemblyFilter);
+        }
+
         private static Assembly[] FilterAssemblies(Assembly[] assemblies, Func<Assembly, bool> filter)
         {
-            var count = 0;
-            foreach (var asm in assemblies)
-            {
-                if (filter(asm))
-                    count++;
-            }
-            var result = new Assembly[count];
-            var index = 0;
+            var result = new List<Assembly>(assemblies.Length);
             foreach (var asm in assemblies)
             {
                 if (filter(asm))
                 {
-                    result[index++] = asm;
+                    result.Add(asm);
                 }
             }
-            return result;
+
+            return result.ToArray();
         }
     }
 }

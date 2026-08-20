@@ -10,13 +10,13 @@ namespace AbilityKit.Core.Configuration
         private readonly Dictionary<string, object> _persistent = new Dictionary<string, object>(StringComparer.Ordinal);
         private readonly Dictionary<string, object> _overrides = new Dictionary<string, object>(StringComparer.Ordinal);
 
-        public event Action<string> OnChanged;
+        public event Action<string?>? OnChanged;
 
         public IReadOnlyDictionary<string, object> BaseValues => _base;
         public IReadOnlyDictionary<string, object> PersistentValues => _persistent;
         public IReadOnlyDictionary<string, object> OverrideValues => _overrides;
 
-        public void ReplaceBase(FlatJsonSettings settings)
+        public void ReplaceBase(FlatJsonSettings? settings)
         {
             _base.Clear();
             if (settings != null)
@@ -30,7 +30,7 @@ namespace AbilityKit.Core.Configuration
             OnChanged?.Invoke(null);
         }
 
-        public void ReplacePersistent(FlatJsonSettings settings)
+        public void ReplacePersistent(FlatJsonSettings? settings)
         {
             _persistent.Clear();
             if (settings != null)
@@ -66,9 +66,9 @@ namespace AbilityKit.Core.Configuration
             return true;
         }
 
-        public bool TryGetRaw(string key, out object value)
+        public bool TryGetRaw(string key, out object? value)
         {
-            value = default;
+            value = null;
             if (string.IsNullOrEmpty(key)) return false;
 
             if (_overrides.TryGetValue(key, out value)) return true;

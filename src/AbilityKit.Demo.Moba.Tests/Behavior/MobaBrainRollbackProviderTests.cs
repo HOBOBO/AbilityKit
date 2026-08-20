@@ -21,7 +21,7 @@ public sealed class MobaBrainRollbackProviderTests
         actor.AddActorBrain(1, 99, 7, 8, 123L);
         actors.Register(201, actor);
 
-        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "idle"));
+        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle"));
         var profiles = new MobaActorStateMachineProfileCatalog();
         MobaActorStateMachineProfileJsonLoader.LoadJson("""
             [{
@@ -60,7 +60,7 @@ public sealed class MobaBrainRollbackProviderTests
         var actor = new ActorContext().CreateEntity();
         actor.AddActorId(301);
         actors.Register(301, actor);
-        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(2, MobaBrainDriverKind.BTree, "stateful"));
+        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(2, MobaBrainDriverKeys.BehaviorTree, "stateful"));
         var registry = new MobaBrainDecisionDriverRegistry(new[] { new SnapshotDecisionDriver() });
         var brains = new MobaBrainService(actors, catalog, null, registry);
         Assert.True(brains.ActivateBrain(actor, 2, 4, 5));
@@ -86,7 +86,7 @@ public sealed class MobaBrainRollbackProviderTests
         var actor = new ActorContext().CreateEntity();
         actor.AddActorId(401);
         actors.Register(401, actor);
-        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "idle"));
+        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle"));
         var profiles = new MobaActorStateMachineProfileCatalog();
         MobaActorStateMachineProfileJsonLoader.LoadJson("""
             [{"id":"idle","startState":"idle","states":[{"id":"idle","kind":"actionState","behaviorRoot":{"kind":"action","type":"noop"}}]}]
@@ -126,7 +126,7 @@ public sealed class MobaBrainRollbackProviderTests
 
     private sealed class SnapshotDecisionDriver : IMobaBrainDecisionDriver
     {
-        public MobaBrainDriverKind Kind => MobaBrainDriverKind.BTree;
+        public string Kind => MobaBrainDriverKeys.BehaviorTree;
 
         public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
         {

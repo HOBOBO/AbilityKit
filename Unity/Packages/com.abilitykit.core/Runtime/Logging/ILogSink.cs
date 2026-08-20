@@ -7,6 +7,6 @@ namespace AbilityKit.Core.Logging
         void Info(string message);
         void Warning(string message);
         void Error(string message);
-        void Exception(Exception exception, string message = null);
+        void Exception(Exception exception, string? message = null);
     }
 }

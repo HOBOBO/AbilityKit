@@ -6,6 +6,11 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    [BattleDebugModule(
+        BattleDebugModuleIds.FrameSyncTime,
+        "Frame Sync",
+        Sources = BattleDebugModuleSourceSupport.Live,
+        Selections = BattleDebugModuleSelectionSupport.Frame)]
     internal sealed class BattleDebugFrameSyncTimePanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "帧同步/时间";

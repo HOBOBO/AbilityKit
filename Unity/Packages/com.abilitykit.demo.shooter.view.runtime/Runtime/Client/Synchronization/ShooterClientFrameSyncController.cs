@@ -135,6 +135,8 @@ namespace AbilityKit.Demo.Shooter.View
         public bool HasRollbackSnapshotHistory => _rollback != null;
         public bool HasStateHashHistory => _frameworkStateHashHistory != null;
         public int PendingInputFrameCount => _predictionReconciliation.PendingInputFrameCount;
+        public bool PublishControlledPlayerPredictionOnly { get; set; }
+        public bool ComputeTickResultStateHash { get; set; } = true;
         public ShooterSnapshotApplyResult LastSnapshotApplyResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
         public ShooterFrameworkSnapshotPipelineDiagnostics FrameworkSnapshotPipelineDiagnostics => _snapshotApply.Diagnostics;
         public ShooterClientImportedSnapshotEvidence LastImportedSnapshotEvidence { get; private set; } = ShooterClientImportedSnapshotEvidence.None;
@@ -175,13 +177,13 @@ namespace AbilityKit.Demo.Shooter.View
 
             if (RecoveryState == ShooterClientRecoveryState.AwaitingFullSnapshot || RecoveryState == ShooterClientRecoveryState.ApplyingFullSnapshot)
             {
-                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, GetTickResultStateHash());
             }
 
             if (targetFrame <= _runtime.CurrentFrame)
             {
                 _accumulator = 0f;
-                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, GetTickResultStateHash());
             }
 
             var ticks = 0;
@@ -201,7 +203,7 @@ namespace AbilityKit.Demo.Shooter.View
                 PublishRuntimeSnapshot();
             }
 
-            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, GetTickResultStateHash());
         }
 
         public int SubmitLocalInput(in ShooterPlayerCommand command)
@@ -412,7 +414,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (RecoveryState == ShooterClientRecoveryState.AwaitingFullSnapshot || RecoveryState == ShooterClientRecoveryState.ApplyingFullSnapshot)
             {
                 _accumulator = 0f;
-                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, GetTickResultStateHash());
             }
 
             if (RecoveryState == ShooterClientRecoveryState.CatchUp)
@@ -424,7 +426,7 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 _recovery.SetState(ShooterClientRecoveryState.Normal);
                 _accumulator = 0f;
-                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, GetTickResultStateHash());
             }
 
             _accumulator += deltaTime;
@@ -445,7 +447,7 @@ namespace AbilityKit.Demo.Shooter.View
                 PublishRuntimeSnapshot();
             }
 
-            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, GetTickResultStateHash());
         }
 
         private bool StepPredictedFrame(FrameworkPlayerInputCommand[] inputs)
@@ -502,7 +504,7 @@ namespace AbilityKit.Demo.Shooter.View
             {
                 _recovery.SetState(ShooterClientRecoveryState.Recovered);
                 _accumulator = 0f;
-                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+                return new ShooterClientFrameTickResult(0, _runtime.CurrentFrame, GetTickResultStateHash());
             }
 
             var ticks = 0;
@@ -528,7 +530,7 @@ namespace AbilityKit.Demo.Shooter.View
                 _recovery.SetState(ShooterClientRecoveryState.Normal);
             }
 
-            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, _runtime.ComputeStateHash());
+            return new ShooterClientFrameTickResult(ticks, _runtime.CurrentFrame, GetTickResultStateHash());
         }
 
         private void CaptureRollbackSnapshot()
@@ -618,7 +620,18 @@ namespace AbilityKit.Demo.Shooter.View
         private void PublishRuntimeSnapshot()
         {
             var snapshot = _runtime.GetSnapshotTransient();
+            if (PublishControlledPlayerPredictionOnly)
+            {
+                _presentation.ApplyControlledPlayerPrediction(in snapshot);
+                return;
+            }
+
             _presentation.ApplyLocalPredictionSnapshot(in snapshot);
+        }
+
+        private uint GetTickResultStateHash()
+        {
+            return ComputeTickResultStateHash ? _runtime.ComputeStateHash() : 0u;
         }
 
         private void SetReconciliationHealthEvents(in ShooterClientReconciliationResult reconciliation)

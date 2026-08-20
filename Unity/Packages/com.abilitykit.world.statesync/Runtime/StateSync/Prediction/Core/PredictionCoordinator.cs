@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Ability.StateSync.Prediction
 {
@@ -30,6 +31,10 @@ public sealed class PredictionCoordinator : IPredictionCoordinator, IDisposable
     public Frame ConfirmedFrame => _confirmedFrame;
     public bool HasUnconfirmedPrediction => _currentFrame > _confirmedFrame;
     public PredictionCoordinatorBufferOptions BufferOptions => _bufferOptions;
+    public IBufferCapacityControl PredictedStateHistoryCapacityControl =>
+        _snapshotStore as IBufferCapacityControl;
+    public IBufferCapacityControl InputHistoryCapacityControl =>
+        _inputHistory as IBufferCapacityControl;
     public bool RollbackReplayEnabled =>
         _enableRollbackReplay && _snapshotStore != null && _inputHistory != null;
 

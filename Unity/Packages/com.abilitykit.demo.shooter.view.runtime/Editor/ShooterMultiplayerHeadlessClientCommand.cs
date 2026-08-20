@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using Stopwatch = System.Diagnostics.Stopwatch;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
@@ -26,8 +27,10 @@ namespace AbilityKit.Demo.Shooter.View.Editor
     {
         private static readonly TimeSpan StateWriteInterval = TimeSpan.FromMilliseconds(500);
         private const int RequiredMovementSubmissions = 18;
+        private const int RequiredAoiMovementSubmissions = 48;
         private const int RequiredSettleSnapshots = 8;
         private const int MaxSamples = 128;
+        private const int MaxRemotePlayerPureStateEvents = 64;
         private const uint FnvOffsetBasis = 2166136261u;
         private const uint FnvPrime = 16777619u;
 
@@ -43,6 +46,14 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static DateTime _deadlineUtc;
         private static DateTime _nextStateWriteUtc;
         private static double _lastEditorTime;
+        private static double _lastSnapshotTime;
+        private static double _movementProbeStartTime;
+        private static long _editorUpdateCount;
+        private static double _maxEditorUpdateGapMs;
+        private static double _maxSnapshotGapMs;
+        private static double _inputRoundTripTotalMs;
+        private static double _maxInputRoundTripMs;
+        private static double _firstMovementResponseMs = -1d;
         private static string _stage = "Starting";
         private static string _detail = string.Empty;
         private static string _roomId = string.Empty;
@@ -76,12 +87,37 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static int _lastMovementAuthoritativeFrame;
         private static int _lastActorAuthoritativeFrame;
         private static int _movementSampleCount;
+        private static bool _aoiInitialViewsCaptured;
+        private static bool _remotePlayerViewObserved;
+        private static bool _remotePlayerViewRemoved;
+        private static int _aoiInitialPlayerViewCount;
+        private static int _aoiMaxPlayerViewCount;
+        private static int _remotePlayerViewEnterFrame;
+        private static int _remotePlayerViewLeaveFrame;
+        private static int _pureStateAppliedCount;
+        private static int _pureStateFullAppliedCount;
+        private static int _pureStateDeltaAppliedCount;
+        private static int _pureStateSpawnCount;
+        private static int _pureStateUpdateCount;
+        private static int _pureStateDespawnCount;
+        private static int _pureStateLowFrequencyUpdateCount;
+        private static int _remotePlayerSpawnFrame;
+        private static int _remotePlayerDespawnFrame;
+        private static int _remotePlayerPostDespawnSpawnCount;
+        private static int _remotePlayerPostDespawnUpdateCount;
+        private static int _remotePlayerFirstReintroducedFrame;
+        private static ShooterPureStateSyncSettings _observedPureStateSettings;
         private static readonly ShooterGatewaySnapshotDecoder SnapshotDecoder = new ShooterGatewaySnapshotDecoder();
         private static readonly Dictionary<int, ShooterGatewayActorSnapshot> AuthoritativeActors =
             new Dictionary<int, ShooterGatewayActorSnapshot>();
         private static readonly List<int> SortedAuthoritativeActorIds = new List<int>();
         private static readonly List<AuthoritativeSample> Samples = new List<AuthoritativeSample>();
         private static readonly List<HashMismatchSample> HashMismatches = new List<HashMismatchSample>();
+        private static readonly List<RemotePlayerPureStateEvent> RemotePlayerPureStateEvents =
+            new List<RemotePlayerPureStateEvent>();
+        private static readonly ShooterDurationMetric EditorUpdateGapMetric = new ShooterDurationMetric();
+        private static readonly ShooterDurationMetric SnapshotGapMetric = new ShooterDurationMetric();
+        private static readonly ShooterDurationMetric InputRoundTripMetric = new ShooterDurationMetric();
 
         public static void Run()
         {
@@ -93,7 +129,10 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _options = ClientOptions.Parse(Environment.GetCommandLineArgs());
             _deadlineUtc = DateTime.UtcNow.AddSeconds(_options.TimeoutSeconds);
             _nextStateWriteUtc = DateTime.MinValue;
-            _lastEditorTime = EditorApplication.timeSinceStartup;
+            _lastEditorTime = MonotonicTimeSeconds();
+            EditorUpdateGapMetric.Reset();
+            SnapshotGapMetric.Reset();
+            InputRoundTripMetric.Reset();
             _runTask = RunAsync(_options);
             EditorApplication.update -= Update;
             EditorApplication.update += Update;
@@ -104,12 +143,23 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         {
             try
             {
-                var editorTime = EditorApplication.timeSinceStartup;
-                var deltaTime = (float)Math.Max(0d, Math.Min(0.1d, editorTime - _lastEditorTime));
+                var editorTime = MonotonicTimeSeconds();
+                var rawDeltaSeconds = Math.Max(0d, editorTime - _lastEditorTime);
+                _editorUpdateCount++;
+                _maxEditorUpdateGapMs = Math.Max(_maxEditorUpdateGapMs, rawDeltaSeconds * 1000d);
+                EditorUpdateGapMetric.RecordMilliseconds(rawDeltaSeconds * 1000d);
+                var deltaTime = (float)Math.Min(0.1d, rawDeltaSeconds);
                 _lastEditorTime = editorTime;
-                _launcher?.Tick(deltaTime);
-                _battle?.Session.Tick(deltaTime);
+                if (ShooterRemoteStateSyncPlayModeHost.IsRunning)
+                {
+                    ShooterRemoteStateSyncPlayModeHost.Tick(deltaTime);
+                }
+                else
+                {
+                    _launcher?.Tick(deltaTime);
+                }
                 CaptureMovementTrajectory();
+                CaptureAoiViewLifecycle();
 
                 if (DateTime.UtcNow >= _nextStateWriteUtc)
                 {
@@ -158,13 +208,14 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     $"Shooter headless sync model does not match template. Template={requestedTemplate.Id}, Expected={(int)requestedTemplate.SyncModel}, Actual={options.SyncModel}");
             }
 
-            _profile = CreateProfile(options.IsOwner ? 1 : 2, 2, requestedTemplate.Id);
+            _profile = CreateProfile(options.IsOwner ? 1 : 2, 2, requestedTemplate.Id, options.EnemyBudget);
             var sessionOptions = _profile.BuildSessionOptions();
             var launchSpec = _profile.BuildRoomLaunchSpec(
                 sessionOptions,
                 options.Region,
                 options.ServerId,
                 "Shooter Headless " + options.RunId);
+            launchSpec = OverrideNetworkEnvironment(in launchSpec, options.NetworkEnvironmentId);
             var roomSpec = new ShooterRoomSessionLaunchSpec(
                 login.SessionToken,
                 in launchSpec,
@@ -267,25 +318,25 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _roomClient.Dispose();
             _roomClient = null;
 
-            SetStage("ConnectingBattle", "Subscribing to authoritative Shooter state synchronization");
-            _runtimeWorld = ShooterGameplayScenarioWorldHostFactory.CreateBattleWorld(
-                $"shooter-headless-{options.Role}-{options.RunId}",
-                sessionOptions);
-            _runtime = _runtimeWorld.Runtime;
-            var presentation = new ShooterPresentationFacade();
-            var launch = await _launcher.JoinReadyStartAndSubscribeAsync(
-                new ShooterClientNetworkEndpoint(options.Host, options.Port),
-                _runtime,
-                presentation,
-                CreateStartPayload(sessionOptions),
+            SetStage("ConnectingBattle", "Restoring the active room through the formal GUI battle handoff");
+            var request = new DemoMultiplayerLaunchRequest(
+                options.Host,
+                options.Port,
+                options.Region,
+                options.ServerId,
+                login.AccountId,
                 login.SessionToken,
-                _roomId,
-                launchSpec,
-                _localPlayerId,
-                sessionOptions.TickRate,
-                TimeSpan.FromSeconds(Math.Max(90, options.TimeoutSeconds - 30)),
-                cancellationToken);
+                TimeSpan.FromSeconds(Math.Max(90, options.TimeoutSeconds - 30)));
+            var handoffOptions = ShooterFormalMultiplayerController.BuildBattleHandoffLaunchOptions(
+                _profile,
+                request,
+                _roomId);
+            ShooterRemoteStateSyncPlayModeHost.SetViewBackend(options.ViewBackend);
+            var adoptedLauncher = _launcher;
+            _launcher = null;
+            var launch = await ShooterRemoteStateSyncPlayModeHost.StartAsync(handoffOptions, adoptedLauncher);
             _battle = launch;
+            _runtime = ShooterRemoteStateSyncPlayModeHost.Runtime;
             _battleId = launch.Flow.BattleId;
             _worldId = launch.Flow.WorldId;
             if (!launch.Flow.Started || !launch.Flow.Subscribed || _worldId == 0)
@@ -294,19 +345,35 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     $"Shooter battle launch incomplete. started={launch.Flow.Started}, subscribed={launch.Flow.Subscribed}, message={launch.Flow.Message}");
             }
 
-            SetStage("BattleReady", "Waiting for both clients before the movement probe");
+            var usesPureStateAoi = UsesPureStateAoi(options.SyncTemplateId, options.SyncModel);
+            SetStage("WaitingForBattleViews", "Waiting for the baseline and visible Unity views");
             await WaitUntilAsync(
-                () => _snapshotAppliedCount >= 2,
-                "initial authoritative Shooter snapshots",
+                () => _fullSnapshotPushCount >= 1
+                    && _snapshotAppliedCount >= 1
+                    && ShooterRemoteStateSyncPlayModeHost.RenderCount > 0
+                    && (usesPureStateAoi
+                        ? IsPlayerViewActive((int)_localPlayerId) && IsRemotePlayerViewActive()
+                        : CountActiveViews("ShooterPlayer_") >= 2 && CountActiveViews("ShooterEnemy_") > 0),
+                usesPureStateAoi
+                    ? "initial AOI baseline and local/remote Unity player views"
+                    : "initial authoritative Shooter snapshot and Unity player/enemy views",
                 cancellationToken);
+            CaptureInitialAoiViews();
+            SetStage("BattleReady", usesPureStateAoi
+                ? "AOI baseline contains local and remote player views"
+                : "Authoritative baseline and Unity views are ready");
             await WaitForFileAsync(options.MovementSignalPath, "movement signal", cancellationToken);
 
-            var direction = options.IsOwner ? 1f : -1f;
+            var direction = ResolveMovementDirection(options);
+            var movementSubmissions = usesPureStateAoi ? RequiredAoiMovementSubmissions : RequiredMovementSubmissions;
             BeginMovementProbe(direction);
-            SetStage("Movement", "Submitting controlled movement to the authoritative world");
-            for (var i = 0; i < RequiredMovementSubmissions; i++)
+            SetStage("Movement", usesPureStateAoi
+                ? "Moving players apart beyond the AOI boundary"
+                : "Submitting controlled movement to the authoritative world");
+            for (var i = 0; i < movementSubmissions; i++)
             {
                 _inputAttemptCount++;
+                var inputStartTime = MonotonicTimeSeconds();
                 var submit = await launch.Battle.SubmitLocalInputToGatewayAsync(
                     direction,
                     0f,
@@ -315,6 +382,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     fire: i == RequiredMovementSubmissions / 2,
                     timeout: TimeSpan.FromSeconds(10),
                     cancellationToken: cancellationToken);
+                RecordInputRoundTrip(inputStartTime);
                 if (!submit.Remote.Success)
                 {
                     throw new InvalidOperationException(
@@ -326,10 +394,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             }
 
             _inputAttemptCount++;
+            var stopInputStartTime = MonotonicTimeSeconds();
             var stop = await launch.Battle.SubmitLocalInputToGatewayAsync(
                 0f, 0f, direction, 0f, false,
                 timeout: TimeSpan.FromSeconds(10),
                 cancellationToken: cancellationToken);
+            RecordInputRoundTrip(stopInputStartTime);
             if (!stop.Remote.Success)
             {
                 throw new InvalidOperationException("Shooter stop input was rejected: " + stop.Remote.Message);
@@ -338,20 +408,30 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _movementActive = false;
 
             var settleStartSnapshots = _snapshotAppliedCount;
-            SetStage("Settling", "Waiting for authoritative correction and remote convergence");
+            SetStage("Settling", usesPureStateAoi
+                ? "Waiting for AOI Leave, Despawn, and inactive remote Unity view"
+                : "Waiting for authoritative correction and remote convergence");
             await WaitUntilAsync(
-                () => _snapshotAppliedCount >= settleStartSnapshots + RequiredSettleSnapshots,
-                "post-input authoritative snapshots",
+                () => _snapshotAppliedCount >= settleStartSnapshots + RequiredSettleSnapshots &&
+                    (!usesPureStateAoi || (_remotePlayerViewRemoved && _remotePlayerDespawnFrame > 0)),
+                usesPureStateAoi
+                    ? "remote player AOI Despawn and inactive Unity view"
+                    : "post-input authoritative snapshots",
                 cancellationToken);
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
 
-            SetStage("AwaitFinalize", "Waiting for the coordinator to select a common authoritative frame");
+            SetStage("AwaitFinalize", usesPureStateAoi
+                ? "Waiting for the coordinator to finalize observer-specific AOI evidence"
+                : "Waiting for the coordinator to select a common authoritative frame");
             WriteState(CaptureState());
             var finalize = await WaitForFinalizeAsync(options.FinalizePath, cancellationToken);
-            await WaitUntilAsync(
-                () => FindSample(finalize.frame, finalize.authoritativeHash) != null,
-                $"authoritative sample frame {finalize.frame}",
-                cancellationToken);
+            if (!usesPureStateAoi)
+            {
+                await WaitUntilAsync(
+                    () => FindSample(finalize.frame, finalize.authoritativeHash) != null,
+                    $"authoritative sample frame {finalize.frame}",
+                    cancellationToken);
+            }
             await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
 
             SetStage("Completed", "Shooter authoritative state synchronization converged");
@@ -364,11 +444,46 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         {
             if (state.playerCount < 2) throw new InvalidOperationException("Shooter client did not observe two room members.");
             if (state.roomPushCount < 1) throw new InvalidOperationException("Shooter client received no room-state push.");
+            if (!string.Equals(
+                    state.battleHandoffMode,
+                    ShooterRemoteStateSyncLaunchMode.RestoreOnly.ToString(),
+                    StringComparison.Ordinal))
+                throw new InvalidOperationException("Shooter battle host did not use the formal RestoreOnly handoff.");
+            if (!state.hostRunning || state.hostRenderCount < 1)
+                throw new InvalidOperationException("Shooter battle host did not remain running and render a frame.");
+            var usesPureStateAoi = UsesPureStateAoi(state.syncTemplateId, state.syncModel);
+            if (!usesPureStateAoi && (state.playerViewCount < 2 || state.enemyViewCount < 1))
+                throw new InvalidOperationException(
+                    $"Shooter Unity views were incomplete. players={state.playerViewCount}, enemies={state.enemyViewCount}");
             if (state.snapshotAppliedCount < 5)
                 throw new InvalidOperationException("Shooter client did not apply enough authoritative snapshots.");
 
-            var usesActorStateSync = state.syncModel == (int)NetworkSyncModel.AuthoritativeInterpolation;
-            if (usesActorStateSync)
+            if (usesPureStateAoi)
+            {
+                if (state.pureStateAppliedCount < 5 || state.pureStateFullAppliedCount < 1 || state.pureStateDeltaAppliedCount < 1)
+                    throw new InvalidOperationException(
+                        $"Shooter AOI flow did not apply the expected pure-state full/delta snapshots. " +
+                        $"pure={state.pureStateAppliedCount}, full={state.pureStateFullAppliedCount}, delta={state.pureStateDeltaAppliedCount}");
+                if (state.aoiVisibleRadius != 24f || state.aoiBoundaryRadius != 30f ||
+                    state.nearLodIntervalFrames != 10 || state.midLodIntervalFrames != 30 || state.farLodIntervalFrames != 90)
+                    throw new InvalidOperationException(
+                        $"Shooter AOI/LOD settings were unexpected. radius={state.aoiVisibleRadius}/{state.aoiBoundaryRadius}, " +
+                        $"lod={state.nearLodIntervalFrames}/{state.midLodIntervalFrames}/{state.farLodIntervalFrames}");
+                if (!state.remotePlayerViewObserved || !state.remotePlayerViewRemoved || state.remotePlayerSpawnFrame <= 0 || state.remotePlayerDespawnFrame <= 0)
+                    throw new InvalidOperationException(
+                        $"Shooter AOI lifecycle was incomplete. observed={state.remotePlayerViewObserved}, removed={state.remotePlayerViewRemoved}, " +
+                        $"spawnFrame={state.remotePlayerSpawnFrame}, despawnFrame={state.remotePlayerDespawnFrame}");
+                if (state.remotePlayerViewActive || state.playerViewCount != 1)
+                    throw new InvalidOperationException(
+                        $"Shooter remote Unity player view remained active after Despawn. " +
+                        $"remoteActive={state.remotePlayerViewActive}, players={state.playerViewCount}, " +
+                        $"postDespawnSpawn={state.remotePlayerPostDespawnSpawnCount}, " +
+                        $"postDespawnUpdate={state.remotePlayerPostDespawnUpdateCount}, " +
+                        $"firstReintroducedFrame={state.remotePlayerFirstReintroducedFrame}");
+                if (state.pureStateLowFrequencyUpdateCount < 1)
+                    throw new InvalidOperationException("Shooter AOI flow observed no LowFrequency LOD updates.");
+            }
+            else if (state.syncModel == (int)NetworkSyncModel.AuthoritativeInterpolation)
             {
                 if (state.actorSnapshotAppliedCount < 5 || state.fullSnapshotPushCount < 1 || state.deltaSnapshotPushCount < 1)
                     throw new InvalidOperationException(
@@ -385,7 +500,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             if (state.authoritativeHashMismatchCount != 0)
                 throw new InvalidOperationException(
                     $"Shooter authoritative snapshot imports mismatched {state.authoritativeHashMismatchCount} times: {FormatHashMismatches(state.hashMismatches)}");
-            if (state.snapshotImportFailureCount != 0 || state.snapshotResyncNeededCount != 0 || state.inputResyncCount != 0)
+            if (state.snapshotImportFailureCount != 0 || state.inputResyncCount != 0 ||
+                (!usesPureStateAoi && state.snapshotResyncNeededCount != 0))
                 throw new InvalidOperationException("Shooter state synchronization requested resync or failed snapshot import.");
             if (state.needsFullSnapshotResync)
                 throw new InvalidOperationException("Shooter client ended while still requiring full snapshot resync.");
@@ -399,7 +515,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     $"maxUnexplained={state.maxUnexplainedBackwardMovement:F3}, " +
                     $"maxReconciliation={state.maxReconciliationBackwardMovement:F3}, " +
                     $"maxRaw={state.maxBackwardMovement:F3}");
-            if (FindSample(finalize.frame, finalize.authoritativeHash) == null)
+            if (!usesPureStateAoi && FindSample(finalize.frame, finalize.authoritativeHash) == null)
                 throw new InvalidOperationException("Shooter client lacks the coordinator-selected authoritative sample.");
         }
 
@@ -411,6 +527,13 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static void HandleSnapshotPush(uint opCode, ArraySegment<byte> payload, ShooterSnapshotApplyResult result)
         {
             if (opCode != RoomGatewayOpCodes.SnapshotPushed && opCode != RoomGatewayOpCodes.DeltaSnapshotPushed) return;
+            var snapshotTime = MonotonicTimeSeconds();
+            if (_lastSnapshotTime > 0d)
+            {
+                _maxSnapshotGapMs = Math.Max(_maxSnapshotGapMs, (snapshotTime - _lastSnapshotTime) * 1000d);
+                SnapshotGapMetric.RecordMilliseconds((snapshotTime - _lastSnapshotTime) * 1000d);
+            }
+            _lastSnapshotTime = snapshotTime;
             _snapshotPushCount++;
             if (opCode == RoomGatewayOpCodes.SnapshotPushed) _fullSnapshotPushCount++;
             else _deltaSnapshotPushCount++;
@@ -425,7 +548,14 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 case ShooterSnapshotApplyResult.AppliedActorSnapshot:
                     _snapshotAppliedCount++;
                     _actorSnapshotAppliedCount++;
-                    CaptureActorAuthoritativeSample(payload);
+                    if (UsesPureStateAoi(_options?.SyncTemplateId, _options?.SyncModel ?? 0))
+                    {
+                        CapturePureStateEvidence(payload);
+                    }
+                    else
+                    {
+                        CaptureActorAuthoritativeSample(payload);
+                    }
                     break;
                 case ShooterSnapshotApplyResult.IgnoredStaleSnapshot:
                     _staleSnapshotCount++;
@@ -442,7 +572,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
 
         private static void CountAuthoritativeHashMismatch()
         {
-            var session = _launcher?.GatewayConnection.CurrentSession;
+            var session = _battle?.GatewayConnection.CurrentSession;
             var evidence = session?.FrameSync.LastImportedSnapshotEvidence
                 ?? ShooterClientImportedSnapshotEvidence.None;
             if (evidence.AuthoritativeStateHash != 0u &&
@@ -503,7 +633,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
 
         private static void CapturePackedAuthoritativeSample()
         {
-            var session = _launcher?.GatewayConnection.CurrentSession;
+            var session = _battle?.GatewayConnection.CurrentSession;
             var runtime = _runtime;
             if (session == null || runtime == null) return;
             var evidence = session.FrameSync.LastImportedSnapshotEvidence;
@@ -519,6 +649,92 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             CapturePlayer(runtime, 1, out sample.p1Present, out sample.p1x, out sample.p1y);
             CapturePlayer(runtime, 2, out sample.p2Present, out sample.p2x, out sample.p2y);
             AddOrReplaceSample(sample);
+        }
+
+        private static void CapturePureStateEvidence(ArraySegment<byte> payload)
+        {
+            var snapshot = SnapshotDecoder.Decode(payload);
+            if (!snapshot.PureStateSnapshot.HasValue) return;
+
+            var pureState = snapshot.PureStateSnapshot.Value;
+            _pureStateAppliedCount++;
+            if (pureState.SnapshotKind == ShooterPureStateSnapshotKinds.FullBaseline) _pureStateFullAppliedCount++;
+            else _pureStateDeltaAppliedCount++;
+            _observedPureStateSettings = pureState.Settings;
+            _lastActorAuthoritativeFrame = Math.Max(_lastActorAuthoritativeFrame, pureState.Frame);
+
+            var remotePlayerId = ResolveRemotePlayerId();
+            var entities = pureState.Entities ?? Array.Empty<ShooterPureStateEntityDelta>();
+            var entityCount = Math.Min(pureState.EffectiveEntityCount, entities.Length);
+            for (var i = 0; i < entityCount; i++)
+            {
+                var entity = entities[i];
+                var isRemotePlayer = entity.EntityKind == ShooterPackedEntityKinds.Player &&
+                    entity.EntityId == remotePlayerId;
+                if (isRemotePlayer)
+                {
+                    CaptureRemotePlayerPureStateEvent(in pureState, in entity);
+                }
+
+                switch (entity.DeltaKind)
+                {
+                    case ShooterPureStateDeltaKinds.Spawn:
+                        _pureStateSpawnCount++;
+                        if (isRemotePlayer)
+                        {
+                            if (_remotePlayerDespawnFrame > 0 && pureState.Frame > _remotePlayerDespawnFrame)
+                            {
+                                _remotePlayerPostDespawnSpawnCount++;
+                                CaptureRemotePlayerReintroduction(pureState.Frame);
+                            }
+                            _remotePlayerSpawnFrame = pureState.Frame;
+                        }
+                        break;
+                    case ShooterPureStateDeltaKinds.Update:
+                        _pureStateUpdateCount++;
+                        if ((entity.Flags & ShooterPureStateEntityFlags.LowFrequency) != 0)
+                            _pureStateLowFrequencyUpdateCount++;
+                        if (isRemotePlayer && _remotePlayerDespawnFrame > 0 && pureState.Frame > _remotePlayerDespawnFrame)
+                        {
+                            _remotePlayerPostDespawnUpdateCount++;
+                            CaptureRemotePlayerReintroduction(pureState.Frame);
+                        }
+                        break;
+                    case ShooterPureStateDeltaKinds.Despawn:
+                        _pureStateDespawnCount++;
+                        if (isRemotePlayer)
+                            _remotePlayerDespawnFrame = pureState.Frame;
+                        break;
+                }
+            }
+        }
+
+        private static void CaptureRemotePlayerPureStateEvent(
+            in ShooterPureStateSnapshotPayload snapshot,
+            in ShooterPureStateEntityDelta entity)
+        {
+            if (RemotePlayerPureStateEvents.Count >= MaxRemotePlayerPureStateEvents)
+            {
+                RemotePlayerPureStateEvents.RemoveAt(0);
+            }
+
+            RemotePlayerPureStateEvents.Add(new RemotePlayerPureStateEvent
+            {
+                frame = snapshot.Frame,
+                snapshotKind = snapshot.SnapshotKind,
+                deltaKind = entity.DeltaKind,
+                flags = entity.Flags,
+                quantizedX = entity.QuantizedX,
+                quantizedY = entity.QuantizedY
+            });
+        }
+
+        private static void CaptureRemotePlayerReintroduction(int frame)
+        {
+            if (_remotePlayerFirstReintroducedFrame <= 0)
+            {
+                _remotePlayerFirstReintroducedFrame = frame;
+            }
         }
 
         private static void CaptureActorAuthoritativeSample(ArraySegment<byte> payload)
@@ -610,6 +826,19 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             if (Samples.Count > MaxSamples) Samples.RemoveAt(0);
         }
 
+        private static double MonotonicTimeSeconds()
+        {
+            return (double)Stopwatch.GetTimestamp() / Stopwatch.Frequency;
+        }
+
+        private static void RecordInputRoundTrip(double startTime)
+        {
+            var elapsedMs = Math.Max(0d, (MonotonicTimeSeconds() - startTime) * 1000d);
+            _inputRoundTripTotalMs += elapsedMs;
+            _maxInputRoundTripMs = Math.Max(_maxInputRoundTripMs, elapsedMs);
+            InputRoundTripMetric.RecordMilliseconds(elapsedMs);
+        }
+
         private static void BeginMovementProbe(float direction)
         {
             if (_runtime == null || _localPlayerId == 0 ||
@@ -625,6 +854,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _maxUnexplainedBackwardMovement = 0f;
             _lastMovementAuthoritativeFrame = ResolveLatestAuthoritativeFrame();
             _movementSampleCount = 0;
+            _movementProbeStartTime = MonotonicTimeSeconds();
+            _firstMovementResponseMs = -1d;
             _hasMovementBaseline = true;
             _movementActive = true;
         }
@@ -635,7 +866,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             var runtime = _runtime;
             if (!_movementActive || !_hasMovementBaseline || options == null || runtime == null || _localPlayerId == 0) return;
             if (!runtime.TryGetPlayer((int)_localPlayerId, out var player)) return;
-            var direction = options.IsOwner ? 1f : -1f;
+            var direction = ResolveMovementDirection(options);
             var progress = (player.X - _movementBaselineX) * direction;
             var backward = _lastMovementProgress - progress;
             var authoritativeFrame = ResolveLatestAuthoritativeFrame();
@@ -652,6 +883,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 }
             }
             if (progress > _maxMovementProgress) _maxMovementProgress = progress;
+            if (_firstMovementResponseMs < 0d && progress >= 0.05f)
+            {
+                _firstMovementResponseMs = Math.Max(
+                    0d,
+                    (MonotonicTimeSeconds() - _movementProbeStartTime) * 1000d);
+            }
             _lastMovementProgress = progress;
             _lastMovementAuthoritativeFrame = authoritativeFrame;
             _movementSampleCount++;
@@ -659,9 +896,97 @@ namespace AbilityKit.Demo.Shooter.View.Editor
 
         private static int ResolveLatestAuthoritativeFrame()
         {
-            var packedFrame = _launcher?.GatewayConnection.CurrentSession
+            var packedFrame = _battle?.GatewayConnection.CurrentSession
                 ?.FrameSync.LastImportedSnapshotEvidence.Frame ?? 0;
             return Math.Max(packedFrame, _lastActorAuthoritativeFrame);
+        }
+
+        private static void CaptureInitialAoiViews()
+        {
+            if (!UsesPureStateAoi(_options?.SyncTemplateId, _options?.SyncModel ?? 0)) return;
+            _aoiInitialPlayerViewCount = CountActiveViews("ShooterPlayer_");
+            _aoiMaxPlayerViewCount = Math.Max(_aoiMaxPlayerViewCount, _aoiInitialPlayerViewCount);
+            _aoiInitialViewsCaptured = true;
+            CaptureAoiViewLifecycle();
+        }
+
+        private static void CaptureAoiViewLifecycle()
+        {
+            if (!UsesPureStateAoi(_options?.SyncTemplateId, _options?.SyncModel ?? 0) || _localPlayerId == 0) return;
+            var playerViewCount = CountActiveViews("ShooterPlayer_");
+            _aoiMaxPlayerViewCount = Math.Max(_aoiMaxPlayerViewCount, playerViewCount);
+            var remoteActive = IsRemotePlayerViewActive();
+            if (remoteActive && !_remotePlayerViewObserved)
+            {
+                _remotePlayerViewObserved = true;
+                _remotePlayerViewEnterFrame = ResolveLatestAuthoritativeFrame();
+            }
+            else if (_aoiInitialViewsCaptured && _remotePlayerViewObserved && !remoteActive && !_remotePlayerViewRemoved)
+            {
+                _remotePlayerViewRemoved = true;
+                _remotePlayerViewLeaveFrame = ResolveLatestAuthoritativeFrame();
+            }
+        }
+
+        private static int ResolveRemotePlayerId() => _localPlayerId == 1 ? 2 : 1;
+
+        private static bool IsRemotePlayerViewActive() => IsPlayerViewActive(ResolveRemotePlayerId());
+
+        private static bool IsPlayerViewActive(int playerId)
+        {
+            if (playerId <= 0) return false;
+            var diagnostics = ShooterRemoteStateSyncPlayModeHost.ViewRenderDiagnostics;
+            if (diagnostics.Backend == ShooterUnityViewRenderBackend.GpuInstancedDotsReady)
+            {
+                if (playerId == _localPlayerId)
+                {
+                    return diagnostics.HasControlledPlayer;
+                }
+
+                var controlledPlayerCount = diagnostics.HasControlledPlayer ? 1 : 0;
+                return diagnostics.PlayerCount > controlledPlayerCount;
+            }
+
+            var expectedName = "ShooterPlayer_" + playerId.ToString(CultureInfo.InvariantCulture);
+            var objects = Resources.FindObjectsOfTypeAll<GameObject>();
+            for (var i = 0; i < objects.Length; i++)
+            {
+                if (objects[i].activeInHierarchy && string.Equals(objects[i].name, expectedName, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        private static float ResolveMovementDirection(ClientOptions options)
+        {
+            return UsesPureStateAoi(options.SyncTemplateId, options.SyncModel)
+                ? (options.IsOwner ? -1f : 1f)
+                : (options.IsOwner ? 1f : -1f);
+        }
+
+        private static bool UsesPureStateAoi(string? syncTemplateId, int syncModel)
+        {
+            return syncModel == (int)NetworkSyncModel.MassBattleLodSync ||
+                string.Equals(syncTemplateId, ShooterSyncTemplateIds.MassBattleLodAoi, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static int CountActiveViews(string namePrefix)
+        {
+            var diagnostics = ShooterRemoteStateSyncPlayModeHost.ViewRenderDiagnostics;
+            if (diagnostics.Backend == ShooterUnityViewRenderBackend.GpuInstancedDotsReady)
+            {
+                if (string.Equals(namePrefix, "ShooterPlayer_", StringComparison.Ordinal)) return diagnostics.PlayerCount;
+                if (string.Equals(namePrefix, "ShooterBullet_", StringComparison.Ordinal)) return diagnostics.BulletCount;
+                if (string.Equals(namePrefix, "ShooterEnemy_", StringComparison.Ordinal)) return diagnostics.EnemyCount;
+            }
+
+            var count = 0;
+            var objects = Resources.FindObjectsOfTypeAll<GameObject>();
+            for (var i = 0; i < objects.Length; i++)
+            {
+                var view = objects[i];
+                if (view.activeInHierarchy && view.name.StartsWith(namePrefix, StringComparison.Ordinal)) count++;
+            }
+            return count;
         }
 
         private static void CaptureRoomState()
@@ -680,12 +1005,20 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static ClientState CaptureState()
         {
             CaptureRoomState();
+            var editorUpdateGap = EditorUpdateGapMetric.Capture();
+            var snapshotGap = SnapshotGapMetric.Capture();
+            var inputRoundTrip = InputRoundTripMetric.Capture();
+            var hostPerformance = ShooterRemoteStateSyncPlayModeHost.PerformanceDiagnostics;
+            var dataPlane = ShooterRemoteStateSyncPlayModeHost.BattleDataPlaneDiagnostics;
+            var viewRender = ShooterRemoteStateSyncPlayModeHost.ViewRenderDiagnostics;
             var state = new ClientState
             {
                 role = _options?.Role ?? string.Empty,
                 account = _options?.Account ?? string.Empty,
                 syncTemplateId = _options?.SyncTemplateId ?? string.Empty,
                 syncModel = _options?.SyncModel ?? 0,
+                networkEnvironmentId = _options?.NetworkEnvironmentId ?? string.Empty,
+                enemyBudget = _options?.EnemyBudget ?? 0,
                 stage = _stage,
                 detail = _detail,
                 roomId = _roomId,
@@ -709,11 +1042,90 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 inputAttemptCount = _inputAttemptCount,
                 inputSuccessCount = _inputSuccessCount,
                 inputResyncCount = _inputResyncCount,
+                averageInputRoundTripMs = _inputSuccessCount > 0
+                    ? _inputRoundTripTotalMs / _inputSuccessCount
+                    : 0d,
+                maxInputRoundTripMs = _maxInputRoundTripMs,
+                firstMovementResponseMs = _firstMovementResponseMs,
+                editorUpdateCount = _editorUpdateCount,
+                maxEditorUpdateGapMs = _maxEditorUpdateGapMs,
+                maxSnapshotGapMs = _maxSnapshotGapMs,
+                p95EditorUpdateGapMs = editorUpdateGap.P95Milliseconds,
+                p99EditorUpdateGapMs = editorUpdateGap.P99Milliseconds,
+                p95SnapshotGapMs = snapshotGap.P95Milliseconds,
+                p99SnapshotGapMs = snapshotGap.P99Milliseconds,
+                p50InputRoundTripMs = inputRoundTrip.P50Milliseconds,
+                p95InputRoundTripMs = inputRoundTrip.P95Milliseconds,
+                p99InputRoundTripMs = inputRoundTrip.P99Milliseconds,
+                syncFrameCount = hostPerformance.FrameCount,
+                syncHitchCount = hostPerformance.HitchCount,
+                p50SyncFrameMs = hostPerformance.Frame.P50Milliseconds,
+                p95SyncFrameMs = hostPerformance.Frame.P95Milliseconds,
+                p99SyncFrameMs = hostPerformance.Frame.P99Milliseconds,
+                p95LauncherMs = hostPerformance.Launcher.P95Milliseconds,
+                p95SessionTickMs = hostPerformance.SessionTick.P95Milliseconds,
+                p95PresentationBuildMs = hostPerformance.PresentationBuild.P95Milliseconds,
+                p95ViewRenderMs = hostPerformance.ViewRender.P95Milliseconds,
+                averageGcBytesPerFrame = hostPerformance.AverageAllocatedBytes,
+                maxGcBytesPerFrame = hostPerformance.MaxAllocatedBytes,
+                battlePushQueueDepth = dataPlane.QueueDepth,
+                battlePushPeakQueueDepth = dataPlane.PeakQueueDepth,
+                battlePushOldestQueueMs = dataPlane.OldestQueuedMilliseconds,
+                p95BattlePushQueueWaitMs = dataPlane.QueueWait.P95Milliseconds,
+                p99BattlePushQueueWaitMs = dataPlane.QueueWait.P99Milliseconds,
+                p95BattlePushApplyMs = dataPlane.PushProcess.P95Milliseconds,
+                p99BattlePushApplyMs = dataPlane.PushProcess.P99Milliseconds,
+                p95SnapshotArrivalGapMs = dataPlane.SnapshotArrivalGap.P95Milliseconds,
+                p99SnapshotArrivalGapMs = dataPlane.SnapshotArrivalGap.P99Milliseconds,
+                p95SnapshotSourceAgeMs = dataPlane.SnapshotSourceAge.P95Milliseconds,
+                p99SnapshotSourceAgeMs = dataPlane.SnapshotSourceAge.P99Milliseconds,
+                battlePushPayloadBytes = dataPlane.ReceivedPayloadBytes,
+                battlePushMaxPayloadBytes = dataPlane.MaxPayloadBytes,
                 movementSampleCount = _movementSampleCount,
                 maxMovementProgress = _maxMovementProgress,
                 maxBackwardMovement = _maxBackwardMovement,
                 maxReconciliationBackwardMovement = _maxReconciliationBackwardMovement,
                 maxUnexplainedBackwardMovement = _maxUnexplainedBackwardMovement,
+                battleHandoffMode = ShooterRemoteStateSyncPlayModeHost.LastConnectionResult?.RequestedMode.ToString() ?? string.Empty,
+                hostRunning = ShooterRemoteStateSyncPlayModeHost.IsRunning,
+                hostRenderCount = ShooterRemoteStateSyncPlayModeHost.RenderCount,
+                viewBackend = viewRender.Backend.ToString(),
+                viewUsesIndirectRendering = viewRender.UsesIndirectRendering,
+                viewFullRebuildCount = viewRender.FullRebuildCount,
+                viewIncrementalBatchCount = viewRender.IncrementalBatchCount,
+                viewIndirectUploadPassCount = viewRender.IndirectUploadPassCount,
+                viewMatrixUploadCallCount = viewRender.MatrixUploadCallCount,
+                viewUploadedMatrixCount = viewRender.UploadedMatrixCount,
+                viewFullBufferUploadCount = viewRender.FullBufferUploadCount,
+                viewPartialUploadRangeCount = viewRender.PartialUploadRangeCount,
+                viewHasControlledPlayer = viewRender.HasControlledPlayer,
+                playerViewCount = CountActiveViews("ShooterPlayer_"),
+                enemyViewCount = CountActiveViews("ShooterEnemy_"),
+                aoiInitialPlayerViewCount = _aoiInitialPlayerViewCount,
+                aoiMaxPlayerViewCount = _aoiMaxPlayerViewCount,
+                remotePlayerViewObserved = _remotePlayerViewObserved,
+                remotePlayerViewRemoved = _remotePlayerViewRemoved,
+                remotePlayerViewActive = IsRemotePlayerViewActive(),
+                remotePlayerViewEnterFrame = _remotePlayerViewEnterFrame,
+                remotePlayerViewLeaveFrame = _remotePlayerViewLeaveFrame,
+                pureStateAppliedCount = _pureStateAppliedCount,
+                pureStateFullAppliedCount = _pureStateFullAppliedCount,
+                pureStateDeltaAppliedCount = _pureStateDeltaAppliedCount,
+                pureStateSpawnCount = _pureStateSpawnCount,
+                pureStateUpdateCount = _pureStateUpdateCount,
+                pureStateDespawnCount = _pureStateDespawnCount,
+                pureStateLowFrequencyUpdateCount = _pureStateLowFrequencyUpdateCount,
+                remotePlayerSpawnFrame = _remotePlayerSpawnFrame,
+                remotePlayerDespawnFrame = _remotePlayerDespawnFrame,
+                remotePlayerPostDespawnSpawnCount = _remotePlayerPostDespawnSpawnCount,
+                remotePlayerPostDespawnUpdateCount = _remotePlayerPostDespawnUpdateCount,
+                remotePlayerFirstReintroducedFrame = _remotePlayerFirstReintroducedFrame,
+                remotePlayerPureStateEvents = new List<RemotePlayerPureStateEvent>(RemotePlayerPureStateEvents),
+                aoiVisibleRadius = 24f,
+                aoiBoundaryRadius = 30f,
+                nearLodIntervalFrames = _observedPureStateSettings.NearLodIntervalFrames,
+                midLodIntervalFrames = _observedPureStateSettings.MidLodIntervalFrames,
+                farLodIntervalFrames = _observedPureStateSettings.FarLodIntervalFrames,
                 frame = _battle?.Session.CurrentFrame ?? _runtime?.CurrentFrame ?? 0,
                 stateHash = _runtime == null ? "0x00000000" : FormatHash(_runtime.ComputeStateHash()),
                 samples = new List<AuthoritativeSample>(Samples)
@@ -727,6 +1139,9 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 state.pipelinePacketCount = diagnostics.PacketCount;
                 state.pipelineDispatchedCount = diagnostics.DispatchedSnapshotCount;
                 state.pipelineLastFrame = diagnostics.LastFrame;
+                state.snapshotFrameAge = diagnostics.LastFrame > 0
+                    ? Math.Max(0, session.CurrentFrame - diagnostics.LastFrame)
+                    : 0;
                 state.recoveryState = session.RecoveryState.ToString();
                 state.needsFullSnapshotResync = session.NeedsFullSnapshotResync;
                 state.lastResyncReason = session.LastResyncReason.ToString();
@@ -815,16 +1230,57 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             return null;
         }
 
-        private static ShooterMultiplayerProfileSO CreateProfile(int playerId, int playerCount, string syncTemplateId)
+        private static ShooterMultiplayerProfileSO CreateProfile(
+            int playerId,
+            int playerCount,
+            string syncTemplateId,
+            int enemyBudget)
         {
             var profile = ScriptableObject.CreateInstance<ShooterMultiplayerProfileSO>();
             SetProfileField(profile, "syncTemplateId", syncTemplateId);
             SetProfileField(profile, "controlledPlayerId", playerId);
             SetProfileField(profile, "playerCount", playerCount);
             SetProfileField(profile, "maxPlayers", playerCount);
+            SetProfileField(profile, "enemyBudget", Math.Max(1, enemyBudget));
             SetProfileField(profile, "autoReady", false);
             SetProfileField(profile, "autoStart", false);
             return profile;
+        }
+
+        private static ShooterRoomLaunchSpec OverrideNetworkEnvironment(
+            in ShooterRoomLaunchSpec source,
+            string networkEnvironmentId)
+        {
+            if (string.IsNullOrWhiteSpace(networkEnvironmentId) ||
+                string.Equals(source.NetworkEnvironmentId, networkEnvironmentId, StringComparison.OrdinalIgnoreCase))
+            {
+                return source;
+            }
+
+            var normalized = networkEnvironmentId.Trim();
+            var tags = new Dictionary<string, string>(source.Tags, StringComparer.Ordinal)
+            {
+                [ShooterRoomLaunchTagKeys.NetworkEnvironmentId] = normalized
+            };
+            return new ShooterRoomLaunchSpec(
+                source.Region,
+                source.ServerId,
+                source.RoomTitle,
+                source.MaxPlayers,
+                source.GameplayId,
+                source.RuleSetId,
+                source.ConfigVersion,
+                source.ProtocolVersion,
+                source.WorldType,
+                source.ClientId,
+                tags,
+                source.SyncTemplateId,
+                source.SyncModel,
+                normalized,
+                source.CarrierName,
+                source.EnableAuthoritativeWorld,
+                source.InterpolationEnabled,
+                source.InputDelayFrames);
         }
 
         private static void SetProfileField(ShooterMultiplayerProfileSO profile, string name, object value)
@@ -880,6 +1336,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             try { _roomController?.Dispose(); } catch { }
             try { _roomClient?.Dispose(); } catch { }
             try { _launcher?.Dispose(); } catch { }
+            try { ShooterRemoteStateSyncPlayModeHost.Stop(); } catch { }
             try { _runtimeWorld?.Dispose(); } catch { }
             if (_profile != null) UnityEngine.Object.DestroyImmediate(_profile);
             EditorApplication.Exit(success ? 0 : 1);
@@ -904,7 +1361,10 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public string ServerId = "local";
             public string SyncTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
             public int SyncModel = ShooterRoomLaunchSpec.DefaultSyncModel;
+            public string NetworkEnvironmentId = string.Empty;
+            public int EnemyBudget = ShooterPlayModeSessionOptions.PlayModeDefaultEnemyBudget;
             public int TimeoutSeconds = 240;
+            public ShooterUnityViewRenderBackend ViewBackend = ShooterUnityViewRenderBackend.GameObject;
             public bool IsOwner => string.Equals(Role, "owner", StringComparison.OrdinalIgnoreCase);
 
             public static ClientOptions Parse(string[] args)
@@ -925,8 +1385,28 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     ServerId = Value(args, "-gatewayServerId") ?? "local",
                     SyncTemplateId = Value(args, "-shooterHeadlessSyncTemplate") ?? ShooterSyncTemplateIds.StateSyncAuthority,
                     SyncModel = IntValue(args, "-shooterHeadlessSyncModel", ShooterRoomLaunchSpec.DefaultSyncModel),
-                    TimeoutSeconds = IntValue(args, "-shooterHeadlessTimeoutSeconds", 240)
+                    NetworkEnvironmentId = Value(args, "-shooterHeadlessNetworkEnvironment") ?? string.Empty,
+                    EnemyBudget = IntValue(args, "-shooterHeadlessEnemyBudget", ShooterPlayModeSessionOptions.PlayModeDefaultEnemyBudget),
+                    TimeoutSeconds = IntValue(args, "-shooterHeadlessTimeoutSeconds", 240),
+                    ViewBackend = ParseViewBackend(Value(args, "-shooterHeadlessViewBackend"))
                 };
+            }
+
+            private static ShooterUnityViewRenderBackend ParseViewBackend(string? value)
+            {
+                if (string.IsNullOrWhiteSpace(value) || string.Equals(value, "gameobject", StringComparison.OrdinalIgnoreCase))
+                {
+                    return ShooterUnityViewRenderBackend.GameObject;
+                }
+
+                if (string.Equals(value, "gpu", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(value, "gpuinstanced", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(value, nameof(ShooterUnityViewRenderBackend.GpuInstancedDotsReady), StringComparison.OrdinalIgnoreCase))
+                {
+                    return ShooterUnityViewRenderBackend.GpuInstancedDotsReady;
+                }
+
+                throw new ArgumentException("Unsupported Shooter view backend: " + value);
             }
 
             private static string Require(string[] args, string name) => Value(args, name)
@@ -967,6 +1447,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public string account = string.Empty;
             public string syncTemplateId = string.Empty;
             public int syncModel;
+            public string networkEnvironmentId = string.Empty;
+            public int enemyBudget;
             public string stage = string.Empty;
             public string detail = string.Empty;
             public string roomId = string.Empty;
@@ -990,16 +1472,94 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public int inputAttemptCount;
             public int inputSuccessCount;
             public int inputResyncCount;
+            public double averageInputRoundTripMs;
+            public double maxInputRoundTripMs;
+            public double firstMovementResponseMs;
+            public long editorUpdateCount;
+            public double maxEditorUpdateGapMs;
+            public double maxSnapshotGapMs;
+            public double p95EditorUpdateGapMs;
+            public double p99EditorUpdateGapMs;
+            public double p95SnapshotGapMs;
+            public double p99SnapshotGapMs;
+            public double p50InputRoundTripMs;
+            public double p95InputRoundTripMs;
+            public double p99InputRoundTripMs;
+            public long syncFrameCount;
+            public long syncHitchCount;
+            public double p50SyncFrameMs;
+            public double p95SyncFrameMs;
+            public double p99SyncFrameMs;
+            public double p95LauncherMs;
+            public double p95SessionTickMs;
+            public double p95PresentationBuildMs;
+            public double p95ViewRenderMs;
+            public double averageGcBytesPerFrame;
+            public long maxGcBytesPerFrame;
+            public int battlePushQueueDepth;
+            public int battlePushPeakQueueDepth;
+            public double battlePushOldestQueueMs;
+            public double p95BattlePushQueueWaitMs;
+            public double p99BattlePushQueueWaitMs;
+            public double p95BattlePushApplyMs;
+            public double p99BattlePushApplyMs;
+            public double p95SnapshotArrivalGapMs;
+            public double p99SnapshotArrivalGapMs;
+            public double p95SnapshotSourceAgeMs;
+            public double p99SnapshotSourceAgeMs;
+            public long battlePushPayloadBytes;
+            public int battlePushMaxPayloadBytes;
             public int movementSampleCount;
             public float maxMovementProgress;
             public float maxBackwardMovement;
             public float maxReconciliationBackwardMovement;
             public float maxUnexplainedBackwardMovement;
+            public string battleHandoffMode = string.Empty;
+            public bool hostRunning;
+            public long hostRenderCount;
+            public string viewBackend = string.Empty;
+            public bool viewUsesIndirectRendering;
+            public long viewFullRebuildCount;
+            public long viewIncrementalBatchCount;
+            public long viewIndirectUploadPassCount;
+            public long viewMatrixUploadCallCount;
+            public long viewUploadedMatrixCount;
+            public long viewFullBufferUploadCount;
+            public long viewPartialUploadRangeCount;
+            public bool viewHasControlledPlayer;
+            public int playerViewCount;
+            public int enemyViewCount;
+            public int aoiInitialPlayerViewCount;
+            public int aoiMaxPlayerViewCount;
+            public bool remotePlayerViewObserved;
+            public bool remotePlayerViewRemoved;
+            public bool remotePlayerViewActive;
+            public int remotePlayerViewEnterFrame;
+            public int remotePlayerViewLeaveFrame;
+            public int pureStateAppliedCount;
+            public int pureStateFullAppliedCount;
+            public int pureStateDeltaAppliedCount;
+            public int pureStateSpawnCount;
+            public int pureStateUpdateCount;
+            public int pureStateDespawnCount;
+            public int pureStateLowFrequencyUpdateCount;
+            public int remotePlayerSpawnFrame;
+            public int remotePlayerDespawnFrame;
+            public int remotePlayerPostDespawnSpawnCount;
+            public int remotePlayerPostDespawnUpdateCount;
+            public int remotePlayerFirstReintroducedFrame;
+            public List<RemotePlayerPureStateEvent> remotePlayerPureStateEvents = new List<RemotePlayerPureStateEvent>();
+            public float aoiVisibleRadius;
+            public float aoiBoundaryRadius;
+            public int nearLodIntervalFrames;
+            public int midLodIntervalFrames;
+            public int farLodIntervalFrames;
             public int frame;
             public string stateHash = string.Empty;
             public int pipelinePacketCount;
             public int pipelineDispatchedCount;
             public int pipelineLastFrame;
+            public int snapshotFrameAge;
             public string recoveryState = string.Empty;
             public bool needsFullSnapshotResync;
             public string lastResyncReason = string.Empty;
@@ -1016,6 +1576,17 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public float p2x;
             public float p2y;
             public List<AuthoritativeSample> samples = new List<AuthoritativeSample>();
+        }
+
+        [Serializable]
+        private sealed class RemotePlayerPureStateEvent
+        {
+            public int frame;
+            public int snapshotKind;
+            public int deltaKind;
+            public byte flags;
+            public int quantizedX;
+            public int quantizedY;
         }
 
         [Serializable]

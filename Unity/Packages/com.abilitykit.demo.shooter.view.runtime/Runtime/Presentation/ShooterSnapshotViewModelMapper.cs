@@ -111,6 +111,37 @@ namespace AbilityKit.Demo.Shooter.View
                 source);
         }
 
+        public ShooterSnapshotViewBatch MapControlledPlayerPrediction(
+            in ShooterStateSnapshotPayload snapshot,
+            int controlledPlayerId)
+        {
+            BeginSnapshot();
+
+            var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+            EnsureMappingCapacity(1, 1, 1, 1, 0, 0, 0);
+            for (var i = 0; i < players.Length; i++)
+            {
+                var player = players[i];
+                if (player.PlayerId != controlledPlayerId)
+                {
+                    continue;
+                }
+
+                var key = new ShooterViewEntityKey(ShooterViewEntityKind.Player, player.PlayerId);
+                AddEntity(key, 0, player.Alive);
+                AddTransform(key, player.X, player.Y, player.AimX, player.AimY, 0f, 0f);
+                AddHealth(key, player.Hp);
+                AddScore(key, player.Score);
+                break;
+            }
+
+            return CompleteSnapshot(
+                0UL,
+                snapshot.Frame,
+                ShooterViewSnapshotKind.Delta,
+                ShooterViewBatchSource.LocalPrediction);
+        }
+
         public ShooterSnapshotViewBatch Map(in ShooterGatewaySnapshot snapshot)
         {
             return Map(in snapshot, controlledPlayerId: -1);
@@ -233,9 +264,14 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
+            if (entity.DeltaKind == ShooterPureStateDeltaKinds.Despawn)
+            {
+                RemoveEntity(key.Value);
+                return;
+            }
+
             var alive = (entity.Flags & ShooterPureStateEntityFlags.Alive) != 0 &&
-                (entity.Flags & ShooterPureStateEntityFlags.Visible) != 0 &&
-                entity.DeltaKind != ShooterPureStateDeltaKinds.Despawn;
+                (entity.Flags & ShooterPureStateEntityFlags.Visible) != 0;
             AddEntity(key.Value, entity.OwnerId, alive);
             var deliveryHints = MapDeliveryHints(entity.Flags);
             var isLocallyControlled = key.Value.Kind == ShooterViewEntityKind.Player &&
@@ -640,6 +676,26 @@ namespace AbilityKit.Demo.Shooter.View
         internal static void ReleasePooledList(List<ShooterViewProjectileLifetimeComponentChange> values) => ProjectileLifetimeChangePool.Release(values);
 
         internal static void ReleasePooledList(List<ShooterEventSnapshot> values) => EventPool.Release(values);
+
+        internal static List<ShooterViewEntityChange> RentPooledEntityChanges(int capacity) =>
+            RentPooledList(EntityChangePool, capacity);
+
+        internal static List<ShooterViewEntityKey> RentPooledRemovedEntities(int capacity) =>
+            RentPooledList(RemovedEntityPool, capacity);
+
+        internal static List<ShooterViewTransformComponentChange> RentPooledTransformChanges(int capacity) =>
+            RentPooledList(TransformChangePool, capacity);
+
+        private static List<T> RentPooledList<T>(ObjectPool<List<T>> pool, int capacity)
+        {
+            var values = pool.Get();
+            if (values.Capacity < capacity)
+            {
+                values.Capacity = capacity;
+            }
+
+            return values;
+        }
 
         private static ShooterViewEntityKey? CreateViewEntityKey(int entityKind, int entityId)
         {

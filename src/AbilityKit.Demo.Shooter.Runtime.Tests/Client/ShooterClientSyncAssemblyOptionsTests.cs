@@ -10,6 +10,27 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 
 public sealed class ShooterClientSyncAssemblyOptionsTests
 {
+    [Theory]
+    [InlineData(NetworkSyncModel.AuthoritativeInterpolation)]
+    [InlineData(NetworkSyncModel.BatchStateSync)]
+    [InlineData(NetworkSyncModel.MassBattleLodSync)]
+    public void AuthoritativeProfilesDefaultToLightweightPredictionBuffers(NetworkSyncModel syncModel)
+    {
+        var options = ShooterClientSyncAssemblyOptions.ForModel(syncModel);
+
+        Assert.Same(ShooterClientPredictionBufferOptions.Disabled, options.PredictionBufferOptions);
+    }
+
+    [Theory]
+    [InlineData(NetworkSyncModel.PredictRollback)]
+    [InlineData(NetworkSyncModel.HybridHeroPrediction)]
+    public void PredictiveProfilesRetainFullPredictionBuffers(NetworkSyncModel syncModel)
+    {
+        var options = ShooterClientSyncAssemblyOptions.ForModel(syncModel);
+
+        Assert.Same(ShooterClientPredictionBufferOptions.Default, options.PredictionBufferOptions);
+    }
+
     [Fact]
     public void DerivedOptionsPreserveReliableEventCheckpointStore()
     {

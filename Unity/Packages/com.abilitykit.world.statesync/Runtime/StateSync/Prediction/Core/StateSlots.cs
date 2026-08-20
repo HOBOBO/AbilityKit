@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Ability.StateSync.Prediction
 {
@@ -282,53 +283,45 @@ public interface ISnapshotStore
 }
 
 /// <summary>
-/// 基于字典的快照存储
+/// 默认使用稀疏帧索引的快照存储，也可注入环形帧后端。
 /// </summary>
-public sealed class DictionarySnapshotStore : ISnapshotStore
+public sealed class DictionarySnapshotStore : ISnapshotStore, IBufferCapacityControl
 {
-    private readonly Dictionary<Frame, StateSlots> _snapshots = new Dictionary<Frame, StateSlots>();
-    private readonly int _maxFrames;
+    private readonly IFrameIndexedBuffer<StateSlots> _snapshots;
 
     public DictionarySnapshotStore(int maxFrames)
+        : this(new SparseFrameIndexedBuffer<StateSlots>(maxFrames))
     {
-        if (maxFrames <= 0) throw new ArgumentOutOfRangeException(nameof(maxFrames));
-        _maxFrames = maxFrames;
     }
+
+    /// <summary>Creates snapshot history over an explicitly selected frame storage backend.</summary>
+    public DictionarySnapshotStore(IFrameIndexedBuffer<StateSlots> storage)
+    {
+        _snapshots = storage ?? throw new ArgumentNullException(nameof(storage));
+    }
+
+    public int Capacity => _snapshots.Capacity;
 
     public void Record(Frame frame, StateSlots state)
     {
         if (state == null) throw new ArgumentNullException(nameof(state));
-        _snapshots[frame] = state.Clone();
-        if (_snapshots.Count > _maxFrames)
-        {
-            Frame oldest = Frame.Zero;
-            bool hasOldest = false;
-            foreach (var k in _snapshots.Keys)
-            {
-                if (!hasOldest || k < oldest)
-                {
-                    oldest = k;
-                    hasOldest = true;
-                }
-            }
-            if (hasOldest)
-                _snapshots.Remove(oldest);
-        }
+        _snapshots.Store(frame.Value, state.Clone());
+    }
+
+    public bool TrySetCapacity(int capacity)
+    {
+        return _snapshots.TrySetCapacity(capacity);
     }
 
     public StateSlots Get(Frame frame)
     {
         StateSlots result;
-        return _snapshots.TryGetValue(frame, out result) ? result.Clone() : null;
+        return _snapshots.TryGet(frame.Value, out result) ? result.Clone() : null;
     }
 
     public void PruneBefore(Frame frame)
     {
-        var keys = new List<Frame>();
-        foreach (var k in _snapshots.Keys)
-            if (k < frame) keys.Add(k);
-        foreach (var k in keys)
-            _snapshots.Remove(k);
+        _snapshots.RemoveBefore(frame.Value);
     }
 
     public void Clear()
@@ -352,41 +345,39 @@ public interface IInputHistory
 }
 
 /// <summary>
-/// In-memory input history bounded by prediction frames.
+/// In-memory input history bounded by prediction frames with an injectable storage backend.
 /// </summary>
-public sealed class InputHistory : IInputHistory
+public sealed class InputHistory : IInputHistory, IBufferCapacityControl
 {
-    private readonly Dictionary<Frame, List<IInputCommand>> _inputs = new Dictionary<Frame, List<IInputCommand>>();
-    private readonly int _maxFrames;
+    private readonly IFrameIndexedBuffer<List<IInputCommand>> _inputs;
 
     public InputHistory(int maxFrames)
+        : this(new SparseFrameIndexedBuffer<List<IInputCommand>>(maxFrames))
     {
-        if (maxFrames <= 0) throw new ArgumentOutOfRangeException(nameof(maxFrames));
-        _maxFrames = maxFrames;
     }
+
+    /// <summary>Creates input history over an explicitly selected frame storage backend.</summary>
+    public InputHistory(IFrameIndexedBuffer<List<IInputCommand>> storage)
+    {
+        _inputs = storage ?? throw new ArgumentNullException(nameof(storage));
+    }
+
+    public int Capacity => _inputs.Capacity;
 
     public void Record(Frame frame, IInputCommand input)
     {
         if (input == null) throw new ArgumentNullException(nameof(input));
-        if (!_inputs.ContainsKey(frame))
-            _inputs[frame] = new List<IInputCommand>();
-        _inputs[frame].Add(input);
-
-        if (_inputs.Count > _maxFrames)
+        if (!_inputs.TryGet(frame.Value, out var inputs))
         {
-            Frame oldest = Frame.Zero;
-            bool hasOldest = false;
-            foreach (var k in _inputs.Keys)
-            {
-                if (!hasOldest || k < oldest)
-                {
-                    oldest = k;
-                    hasOldest = true;
-                }
-            }
-            if (hasOldest)
-                _inputs.Remove(oldest);
+            inputs = new List<IInputCommand>();
+            _inputs.Store(frame.Value, inputs);
         }
+        inputs.Add(input);
+    }
+
+    public bool TrySetCapacity(int capacity)
+    {
+        return _inputs.TrySetCapacity(capacity);
     }
 
     /// <summary>
@@ -399,7 +390,7 @@ public sealed class InputHistory : IInputHistory
         while (frame <= to)
         {
             IInputCommand[] snapshot;
-            if (_inputs.TryGetValue(frame, out var inputs))
+            if (_inputs.TryGet(frame.Value, out var inputs))
                 snapshot = inputs.ToArray();
             else
                 snapshot = Array.Empty<IInputCommand>();

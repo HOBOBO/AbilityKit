@@ -20,7 +20,7 @@ MonoBehaviour:
   serverId: dev
   roomId: 
   timeoutSeconds: 10
-  syncTemplateId: state-sync-authority
+  syncTemplateId: mass-battle-lod-aoi
   randomSeed: 3901
   playerCount: 2
   controlledPlayerId: 1

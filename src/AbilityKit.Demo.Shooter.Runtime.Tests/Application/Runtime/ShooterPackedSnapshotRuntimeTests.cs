@@ -3,11 +3,19 @@ using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Protocol.Room;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 
 public sealed class ShooterPackedSnapshotRuntimeTests
 {
+    private readonly ITestOutputHelper _output;
+
+    public ShooterPackedSnapshotRuntimeTests(ITestOutputHelper output)
+    {
+        _output = output;
+    }
+
     [Theory]
     [InlineData(0x3F0570A4, 5213)]
     [InlineData(0x3FFFEDFB, 19995)]
@@ -545,6 +553,79 @@ public sealed class ShooterPackedSnapshotRuntimeTests
         }
     }
 
+    [Theory]
+    [InlineData(512)]
+    [InlineData(2048)]
+    public void PackedSnapshotSizeDiagnosticsQuantifyThirtyHertzBandwidth(int enemyCount)
+    {
+        const int observerBytesPerSecond = 16 * 1024;
+        const int snapshotRate = 30;
+        var container = new WorldContainerBuilder()
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var entities = container.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            $"packed-size-{enemyCount}",
+            snapshotRate,
+            4400 + enemyCount,
+            new[] { new ShooterStartPlayer(1, "P1", 0f, 0f) });
+        Assert.True(runtime.StartGame(in start));
+
+        entities.BeginStructuralChanges();
+        try
+        {
+            for (var index = 0; index < enemyCount; index++)
+            {
+                var angle = index * 0.013f;
+                var transform = new ShooterSveltoTransformComponent
+                {
+                    X = MathF.Cos(angle) * 20f,
+                    Y = MathF.Sin(angle) * 20f,
+                    DirectionX = -MathF.Cos(angle),
+                    DirectionY = -MathF.Sin(angle)
+                };
+                var health = new ShooterSveltoHealthComponent { Current = 3, Max = 3, Alive = 1 };
+                var navigation = new ShooterSveltoNavigationComponent
+                {
+                    VelocityX = index % 2 == 0 ? 1f : -1f,
+                    VelocityY = index % 3 == 0 ? 0.5f : -0.5f
+                };
+                entities.AddEnemy(1000 + index, in transform, in health, in navigation);
+            }
+        }
+        finally
+        {
+            entities.EndStructuralChanges();
+        }
+
+        var full = runtime.ExportPackedSnapshot(4400ul, isFullSnapshot: true, authorityOverride: true);
+        var fullBytes = ShooterPackedSnapshotCodec.Serialize(in full);
+        var fullWireBytes = SerializeWireSnapshot(in full, fullBytes, isFullSnapshot: true);
+        var delta = runtime.ExportPackedSnapshot(4400ul, isFullSnapshot: false, authorityOverride: true);
+        var deltaBytes = ShooterPackedSnapshotCodec.Serialize(in delta);
+        var deltaWireBytes = SerializeWireSnapshot(in delta, deltaBytes, isFullSnapshot: false);
+
+        Assert.Equal(enemyCount + 1, full.EntityCount);
+        Assert.Equal(enemyCount + 1, delta.EntityCount);
+        Assert.True(fullBytes.Length >= deltaBytes.Length);
+        Assert.NotEmpty(deltaBytes);
+
+        _output.WriteLine(
+            "enemies={0}; full={1:N0} B ({2:N1} KiB/s at 30 Hz); delta={3:N0} B ({4:N1} KiB/s at 30 Hz); " +
+            "wireFull={5:N0} B ({6:N1} KiB/s); wireDelta={7:N0} B ({8:N1} KiB/s); observerBudget={9:N1} KiB/s",
+            enemyCount,
+            fullBytes.Length,
+            fullBytes.Length * snapshotRate / 1024d,
+            deltaBytes.Length,
+            deltaBytes.Length * snapshotRate / 1024d,
+            fullWireBytes.Count,
+            fullWireBytes.Count * snapshotRate / 1024d,
+            deltaWireBytes.Count,
+            deltaWireBytes.Count * snapshotRate / 1024d,
+            observerBytesPerSecond / 1024d);
+    }
+
     [Fact]
     public void DeltaSnapshotImportPreservesEntityCountAfterMultipleDeltas()
     {
@@ -581,6 +662,24 @@ public sealed class ShooterPackedSnapshotRuntimeTests
 
         Assert.Equal(baselineEntityCount, target.ExportPackedSnapshot(98ul).EntityCount);
         Assert.Equal(source.CurrentFrame, target.CurrentFrame);
+    }
+
+    private static ArraySegment<byte> SerializeWireSnapshot(
+        in ShooterPackedSnapshotPayload snapshot,
+        byte[] payload,
+        bool isFullSnapshot)
+    {
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = snapshot.WorldId,
+            Frame = snapshot.Frame,
+            Timestamp = snapshot.ServerTick,
+            IsFullSnapshot = isFullSnapshot,
+            Actors = null,
+            PayloadOpCode = ShooterOpCodes.Snapshot.PackedState,
+            Payload = payload
+        };
+        return WireRoomGatewayBinary.Serialize(in wire);
     }
 
     private static ShooterPackedSnapshotPayload WithoutEnemyNavigation(in ShooterPackedSnapshotPayload snapshot)

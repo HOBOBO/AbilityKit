@@ -105,7 +105,7 @@ namespace AbilityKit.Core.Markers
                 var asm = assemblies[a];
                 if (asm == null) continue;
 
-                Type[] types;
+                Type?[] types;
                 try
                 {
                     types = asm.GetTypes();

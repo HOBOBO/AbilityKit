@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var lastPushResult = launch.GatewayConnection.LastPushResult;
 
             return new ShooterHostPresentationFrame(
-                presentation.ViewModel.Current,
+                presentation.RenderBatch,
                 ShooterSnapshotViewBatch.Empty,
                 false,
                 controlledPlayerId,

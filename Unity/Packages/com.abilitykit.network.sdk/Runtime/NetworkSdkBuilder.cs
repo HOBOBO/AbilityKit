@@ -6,6 +6,9 @@ using AbilityKit.Network.Runtime;
 
 namespace AbilityKit.Network.Sdk
 {
+    /// <summary>Creates the request/response component owned by an SDK client.</summary>
+    public delegate IRequestClient NetworkRequestClientFactory(IConnection connection);
+
     /// <summary>
     /// Composes the transport-independent network SDK client.
     /// </summary>
@@ -14,6 +17,7 @@ namespace AbilityKit.Network.Sdk
         private Func<IConnection>? _connectionFactory;
         private Func<ITransport>? _transportFactory;
         private Action<ConnectionOptions>? _configureConnection;
+        private NetworkRequestClientFactory? _requestClientFactory;
         private IDispatcher? _callbackDispatcher;
         private IDispatcher? _ioDispatcher;
 
@@ -48,6 +52,16 @@ namespace AbilityKit.Network.Sdk
             return this;
         }
 
+        /// <summary>
+        /// Configures the request/response implementation. Each built SDK client invokes the
+        /// factory once and owns the returned request client for its complete lifetime.
+        /// </summary>
+        public NetworkSdkBuilder UseRequestClientFactory(NetworkRequestClientFactory factory)
+        {
+            _requestClientFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+            return this;
+        }
+
         public NetworkSdkBuilder UseDispatchers(
             IDispatcher callbackDispatcher,
             IDispatcher? ioDispatcher = null)
@@ -68,7 +82,7 @@ namespace AbilityKit.Network.Sdk
 
             try
             {
-                return new NetworkSdkClient(connection);
+                return new NetworkSdkClient(connection, _requestClientFactory);
             }
             catch
             {

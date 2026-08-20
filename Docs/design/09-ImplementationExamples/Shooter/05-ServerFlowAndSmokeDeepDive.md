@@ -1,7 +1,7 @@
 # Shooter 服务端适配与 Smoke 证据深潜
 
 > 文档类型：Shooter 服务端应用适配与验收证据深潜
-> 事实基线：2026-08-16
+> 事实基线：2026-08-19
 > 本文聚焦 Shooter 在 Orleans 服务端中的玩法特化边界：Room 如何生成稳定的战斗身份，Battle runtime adapter 如何托管权威世界与同步 payload，以及 Smoke 如何把协议、恢复、投影、玩法终局和 replay 变成可检查证据。通用 Gateway/Room/Battle 主链路见 [Gateway、Room 与 Battle 服务端链路](../../12-ServerArchitecture/02-GatewayRoomBattleFlow.md)，端到端接入概览见 [Shooter Gateway、Orleans 与 Smoke](03-GatewayOrleansSmoke.md)。
 
 ## 1. 边界与结论
@@ -93,7 +93,7 @@ flowchart TD
 | `state-sync-authority` | packed；每帧 push、每 30 帧 full | Shooter 默认，不再默认 predict rollback，也不是每帧 full |
 | `predict-rollback-authority` | packed；每帧 full | 预测客户端需要可直接导入的权威基线，仍是显式可选模板 |
 | `batch-state-low-frequency` | pure-state；60/300 帧 | 10k entity、active budget 1024 |
-| `mass-battle-lod-aoi` | pure-state；90/450 帧 | 20k entity、active budget 2048、observer AOI 24/30 |
+| `mass-battle-lod-aoi` | pure-state；3/450 帧 | 20k entity、active budget 2048、observer AOI 24/30、LOD 3/9/30、插值延迟 3 帧 |
 
 `RoomNetworkSyncCapabilityResolver` 把默认 state sync、authoritative interpolation、runtime interpolation 和 pure-state authority 都声明为 AuthoritativeInterpolation profile；batch、mass battle、hybrid 和 predict rollback 分别映射到独立 profile。模板控制服务端 payload/cadence，capability metadata 控制客户端兼容协商，两者不能只比较字符串。
 
@@ -330,6 +330,6 @@ PureState 的合法推进可以是后续 delta、baseline resync 或重复 full 
 
 ---
 
-> 文档版本：v3.1
-> 更新日期：2026-08-16
+> 文档版本：v3.2
+> 更新日期：2026-08-19
 > 更新责任：Room commit、Shooter adapter、sync template、Smoke 断言与 artifact gate 变化时同步复核。

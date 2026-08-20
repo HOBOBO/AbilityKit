@@ -107,7 +107,7 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         Assert.Contains("RequiresInitialFullStateSync => EntryKind == ShooterRoomGatewayEntryKind.LateJoin", connectionFlow);
         Assert.Contains("SnapshotPushDispatched += OnSnapshotPushDispatched", initialFullStateSync);
         Assert.Contains("while (!snapshotApplied)", initialFullStateSync);
-        Assert.Contains("snapshot.IsFullSnapshot && IsApplied(result, session)", initialFullStateSync);
+        Assert.Contains("IsFullSnapshotPush(opCode) && IsApplied(result, session)", initialFullStateSync);
         Assert.Contains("IsApplied(result, session)", initialFullStateSync);
         Assert.Contains("LastInitialFullStateSyncApplyResult", playModeHost);
 

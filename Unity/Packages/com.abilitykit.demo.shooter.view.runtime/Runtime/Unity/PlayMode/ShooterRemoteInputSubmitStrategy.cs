@@ -3,6 +3,7 @@
 using System;
 using AbilityKit.Ability.Host.Extensions.Client.StateSync;
 using AbilityKit.Demo.Shooter.View.Hosting;
+using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
@@ -34,7 +35,30 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 new RemoteClientInputSubmitQueue<ShooterClientInputSubmitResult, ShooterClientGatewayInputSubmitResult>(
                     (local, requestTimeout) => battle.SubmitAcceptedInputToGatewayAsync(local, requestTimeout),
                     timeout,
-                    result => result.Remote.ShouldResync));
+                    result => result.Remote.ShouldResync,
+                    MergeQueuedInput,
+                    maxInFlight: 4));
+        }
+
+        internal static ShooterClientInputSubmitResult MergeQueuedInput(
+            ShooterClientInputSubmitResult queued,
+            ShooterClientInputSubmitResult latest)
+        {
+            if (!queued.Packet.Command.Fire || latest.Packet.Command.Fire)
+            {
+                return latest;
+            }
+
+            var command = latest.Packet.Command;
+            command.Fire = true;
+            command.AttackSlot = queued.Packet.Command.AttackSlot;
+            var payload = ShooterInputCodec.Serialize(new[] { command });
+            var packet = new ShooterInputPacket(latest.Packet.OpCode, payload, in command);
+            return new ShooterClientInputSubmitResult(
+                latest.AcceptedInputs,
+                latest.RequestedFrame,
+                in packet,
+                latest.SubmissionId);
         }
 
         public void SubmitOrQueue(in ShooterClientInputSubmitResult local)

@@ -4,12 +4,13 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
     /// <summary>
-    /// 从网关快照采集的远端权威 actor 样本，用于 <see cref="NetworkSyncModel.AuthoritativeInterpolation"/> 播放。
-    /// 只保存 actor 变换，以及缓冲和插值所需的世界、帧与服务器 tick 元数据。
+    /// 从网关快照采集的远端权威样本，用于 <see cref="NetworkSyncModel.AuthoritativeInterpolation"/> 播放。
+    /// 保存 actor 变换、packed 生命周期与组件负载，以及缓冲和插值所需的世界、帧与服务器 tick 元数据。
     /// <see cref="TimelineTicks"/> 对应快照的权威 <c>ServerTicks</c>。
     /// </summary>
     public sealed class ShooterRemoteSnapshotSample : IRemoteSnapshotSample, IReadOnlyList<ShooterGatewayActorSnapshot>
@@ -22,11 +23,13 @@ namespace AbilityKit.Demo.Shooter.View
             int frame,
             long serverTicks,
             IReadOnlyList<ShooterGatewayActorSnapshot> actors,
+            ShooterPackedSnapshotPayload? packedSnapshot = null,
             int excludedActorId = -1)
         {
             WorldId = worldId;
             Frame = frame;
             ServerTicks = serverTicks;
+            PackedSnapshot = packedSnapshot;
             _actors = actors ?? Array.Empty<ShooterGatewayActorSnapshot>();
             _excludedActorIndex = FindActorIndex(_actors, excludedActorId);
         }
@@ -36,6 +39,8 @@ namespace AbilityKit.Demo.Shooter.View
         public int Frame { get; }
 
         public long ServerTicks { get; }
+
+        public ShooterPackedSnapshotPayload? PackedSnapshot { get; }
 
         public IReadOnlyList<ShooterGatewayActorSnapshot> Actors => this;
 
@@ -154,15 +159,25 @@ namespace AbilityKit.Demo.Shooter.View
 
         private static ShooterGatewaySnapshot BuildSnapshot(ShooterRemoteSnapshotSample meta, IReadOnlyList<ShooterGatewayActorSnapshot> actors)
         {
+            var packed = meta.PackedSnapshot;
+            var isFullSnapshot = packed.HasValue
+                ? (packed.Value.SnapshotFlags & ShooterPackedSnapshotFlags.Full) != 0
+                : true;
+            var payloadOpCode = packed.HasValue
+                ? ((packed.Value.SnapshotFlags & ShooterPackedSnapshotFlags.Delta) != 0
+                    ? ShooterOpCodes.Snapshot.PackedStateDelta
+                    : ShooterOpCodes.Snapshot.PackedState)
+                : 0;
+
             return new ShooterGatewaySnapshot(
                 meta.WorldId,
                 meta.Frame,
                 0d,
                 meta.ServerTicks,
-                isFullSnapshot: true,
+                isFullSnapshot,
                 actors,
-                payloadOpCode: 0,
-                packedSnapshot: null);
+                payloadOpCode,
+                packedSnapshot: packed);
         }
 
         private void EnsureActorIndexMapping(ShooterRemoteSnapshotSample from, ShooterRemoteSnapshotSample to)

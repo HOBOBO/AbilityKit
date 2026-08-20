@@ -5,6 +5,7 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Network.Battle.Config
@@ -55,6 +56,7 @@ namespace AbilityKit.Network.Battle.Config
         public NetworkBattleConfig WithTcpTransport()
         {
             _o.TransportFactory = () => new TcpTransport();
+            ClearConnectionAndSdkClientSources();
             return this;
         }
 
@@ -62,6 +64,7 @@ namespace AbilityKit.Network.Battle.Config
         public NetworkBattleConfig WithTransportFactory(Func<ITransport> factory)
         {
             _o.TransportFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+            ClearConnectionAndSdkClientSources();
             return this;
         }
 
@@ -69,6 +72,46 @@ namespace AbilityKit.Network.Battle.Config
         public NetworkBattleConfig WithInjectedConnection(Func<IConnection> factory)
         {
             _o.ConnectionFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+            _o.TransportFactory = null;
+            ClearSdkClientSources();
+            return this;
+        }
+
+        /// <summary>Uses a prebuilt SDK client with explicit ownership.</summary>
+        public NetworkBattleConfig WithSdkClient(
+            NetworkSdkClient client,
+            NetworkSdkClientOwnership ownership = NetworkSdkClientOwnership.Borrowed)
+        {
+            _o.SdkClient = client ?? throw new ArgumentNullException(nameof(client));
+            _o.SdkClientFactory = null;
+            _o.SdkClientOwnership = ownership;
+            _o.ConnectionFactory = null;
+            _o.TransportFactory = null;
+            return this;
+        }
+
+        /// <summary>Uses an SDK client factory whose returned client is owned by the battle transport.</summary>
+        public NetworkBattleConfig WithSdkClientFactory(Func<NetworkSdkClient> factory)
+        {
+            _o.SdkClientFactory = factory ?? throw new ArgumentNullException(nameof(factory));
+            _o.SdkClient = null;
+            _o.SdkClientOwnership = NetworkSdkClientOwnership.Borrowed;
+            _o.ConnectionFactory = null;
+            _o.TransportFactory = null;
+            return this;
+        }
+
+        /// <summary>Replaces the complete connection-runtime configuration applied by NetworkTransport.</summary>
+        public NetworkBattleConfig WithConnectionConfiguration(Action<ConnectionOptions> configure)
+        {
+            _o.ConfigureConnection = configure ?? throw new ArgumentNullException(nameof(configure));
+            return this;
+        }
+
+        /// <summary>Uses unmodified SDK connection defaults instead of the Battle reconnect preset.</summary>
+        public NetworkBattleConfig UseSdkConnectionDefaults()
+        {
+            _o.ConfigureConnection = null;
             return this;
         }
 
@@ -292,8 +335,8 @@ namespace AbilityKit.Network.Battle.Config
         /// <summary>Validates required fields and returns the assembled <see cref="NetworkTransportOptions"/>.</summary>
         public NetworkTransportOptions Build()
         {
-            if (_o.ConnectionFactory == null && _o.TransportFactory == null)
-                throw new InvalidOperationException("Set a transport (WithTcpTransport/WithTransportFactory) or injected connection (WithInjectedConnection).");
+            if (!_o.HasSdkClientSource && _o.ConnectionFactory == null && _o.TransportFactory == null)
+                throw new InvalidOperationException("Set an SDK client, transport, or injected connection.");
             if (string.IsNullOrWhiteSpace(_o.SessionToken))
                 throw new InvalidOperationException("Set session identity (WithSession).");
             if (!_protocolPresetApplied)
@@ -302,6 +345,18 @@ namespace AbilityKit.Network.Battle.Config
                 throw new InvalidOperationException("Set input serializer (WithInputSerializer).");
             return _o;
         }
+
+        private void ClearConnectionAndSdkClientSources()
+        {
+            _o.ConnectionFactory = null;
+            ClearSdkClientSources();
+        }
+
+        private void ClearSdkClientSources()
+        {
+            _o.SdkClient = null;
+            _o.SdkClientFactory = null;
+            _o.SdkClientOwnership = NetworkSdkClientOwnership.Borrowed;
+        }
     }
 }
-

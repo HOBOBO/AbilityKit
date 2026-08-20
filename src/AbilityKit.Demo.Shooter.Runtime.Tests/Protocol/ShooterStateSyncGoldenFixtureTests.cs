@@ -70,6 +70,11 @@ public sealed class ShooterStateSyncGoldenFixtureTests
         Assert.Single(pureState.Entities);
         Assert.Single(pureState.VisibilityHints);
         Assert.Empty(pureState.AcknowledgedCommands);
+
+        var bufferedPureState = new ShooterPureStateSyncDecodeBuffer().Decode(wire.Payload!);
+        Assert.Equal(pureState.WorldId, bufferedPureState.WorldId);
+        Assert.Single(bufferedPureState.Entities);
+        Assert.Empty(bufferedPureState.AcknowledgedCommands);
     }
 
     internal static byte[] CreateGatewayPushBytes(ShooterStateSyncPayloadKind payloadKind)

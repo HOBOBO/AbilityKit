@@ -1,6 +1,8 @@
 #nullable enable
 
 using System;
+using AbilityKit.Core.Buffers;
+using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -35,14 +37,29 @@ namespace AbilityKit.Network.Runtime
         }
 
         public RemoteInterpolationPlayback(InterpolationConfig config)
+            : this(config, new RemoteSnapshotBuffer<TSample>(config.BufferCapacity))
         {
-            _buffer = new RemoteSnapshotBuffer<TSample>(config.BufferCapacity);
+        }
+
+        /// <summary>
+        /// Creates playback with an explicitly assembled snapshot buffer.
+        /// The injected buffer's capacity is authoritative over <see cref="InterpolationConfig.BufferCapacity"/>.
+        /// </summary>
+        public RemoteInterpolationPlayback(
+            InterpolationConfig config,
+            RemoteSnapshotBuffer<TSample> snapshotBuffer)
+        {
+            _buffer = snapshotBuffer ?? throw new ArgumentNullException(nameof(snapshotBuffer));
             _timeline = new InterpolationTimeline(config.TicksPerSecond, config.InterpolationDelayTicks, config.CatchUpRate);
             _maxExtrapolationTicks = config.MaxExtrapolationTicks;
         }
 
         /// <summary>当前为插值缓冲的远端权威快照数量。</summary>
         public int BufferedSampleCount => _buffer.Count;
+
+        public IBufferCapacityControl SnapshotCapacityControl => _buffer;
+
+        public ITimelineDelayControl TimelineDelayControl => _timeline;
 
         /// <summary>当前延迟后的远端播放时间，单位为时间线 tick。</summary>
         public long PlaybackTicks => _timeline.PlaybackTicks;

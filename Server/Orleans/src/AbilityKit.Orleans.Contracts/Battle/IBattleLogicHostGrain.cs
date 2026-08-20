@@ -115,6 +115,7 @@ public class BattleInitParams
     [Id(15)] public int DurationFrames { get; set; }
     [Id(16)] public int VictoryTargetDefeats { get; set; }
     [Id(17)] public bool ContinueAfterAllPlayersDefeated { get; set; }
+    [Id(18)] public int EnemyBudget { get; set; }
 }
 
 /// <summary>

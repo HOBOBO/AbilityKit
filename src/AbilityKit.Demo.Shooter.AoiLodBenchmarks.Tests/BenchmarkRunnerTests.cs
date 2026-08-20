@@ -22,6 +22,10 @@ public sealed class BenchmarkRunnerTests
         Assert.True(report.Passed);
         Assert.Equal(32, report.ProjectedEntities);
         Assert.True(report.PayloadBytes > 0);
+        Assert.Equal(2d, report.MeanChangedEntities);
+        Assert.Equal(2d, report.MeanEntityDeltas);
+        Assert.True(report.UnchangedSuppressionRatio > 0.9d);
+        Assert.True(report.PayloadBytesPerEntityDelta > 0d);
         Assert.Equal(
             new[] { "decode", "encode", "export", "map", "projection", "release" },
             report.Phases.Keys.OrderBy(name => name));
@@ -29,15 +33,61 @@ public sealed class BenchmarkRunnerTests
     }
 
     [Fact]
+    public void SyncPipelineDeltaBoundsUnchangedEntityRefreshAge()
+    {
+        var report = ShooterSyncPipelineBenchmarkRunner.Run(new SyncPipelineBenchmarkOptions
+        {
+            Entities = 32,
+            WarmupIterations = 1,
+            MeasurementIterations = 7,
+            FullBaseline = false,
+            ChangedEntityFraction = 0d,
+            RefreshIntervalFrames = 3,
+            MaxP99Milliseconds = 10_000,
+            MaxAllocatedBytesPerIteration = 10_000_000
+        });
+
+        Assert.True(report.Passed);
+        Assert.Equal(0d, report.MeanChangedEntities);
+        Assert.InRange(report.ObservedMaxEntityAgeFrames, 1, 3);
+        Assert.InRange(report.UnchangedSuppressionRatio, 0.5d, 1d);
+    }
+
+    [Theory]
+    [InlineData(0d, 10_000)]
+    [InlineData(0.05d, 10_000)]
+    [InlineData(0d, 3)]
+    public void SyncPipelineDeltaStagesHaveZeroSteadyStateAllocation(
+        double changedEntityFraction,
+        int refreshIntervalFrames)
+    {
+        var report = ShooterSyncPipelineBenchmarkRunner.Run(new SyncPipelineBenchmarkOptions
+        {
+            Entities = 32,
+            WarmupIterations = 4,
+            MeasurementIterations = 8,
+            FullBaseline = false,
+            ChangedEntityFraction = changedEntityFraction,
+            RefreshIntervalFrames = refreshIntervalFrames,
+            MaxP99Milliseconds = 10_000,
+            MaxAllocatedBytesPerIteration = 0
+        });
+
+        Assert.True(report.Passed, string.Join(Environment.NewLine, report.Failures));
+        Assert.Equal(0, report.Total.AllocatedBytesPerIteration);
+        Assert.All(report.Phases, phase => Assert.Equal(0, phase.Value.AllocatedBytesPerIteration));
+    }
+
+    [Fact]
     public void FullMatrix_ExpandsAllEntityObserverScenarioCombinations()
     {
         var cases = BenchmarkOptions.ExpandFullMatrix();
 
-        Assert.Equal(18, cases.Count);
-        Assert.Equal(new[] { 100, 1000, 10000 }, cases.Select(item => item.Entities).Distinct().Order().ToArray());
+        Assert.Equal(24, cases.Count);
+        Assert.Equal(new[] { 100, 1000, 2000, 10000 }, cases.Select(item => item.Entities).Distinct().Order().ToArray());
         Assert.Equal(new[] { 1, 16, 64 }, cases.Select(item => item.Observers).Distinct().Order().ToArray());
         Assert.All(
-            from entities in new[] { 100, 1000, 10000 }
+            from entities in new[] { 100, 1000, 2000, 10000 }
             from observers in new[] { 1, 16, 64 }
             select (entities, observers),
             pair => Assert.Equal(2, cases.Count(item => item.Entities == pair.entities && item.Observers == pair.observers)));
@@ -60,6 +110,25 @@ public sealed class BenchmarkRunnerTests
         Assert.Equal(first.StarvedEntitiesAtEnd, second.StarvedEntitiesAtEnd);
         Assert.Equal(first.MaxUnsentTicks, second.MaxUnsentTicks);
         Assert.Equal(first.DeterminismDigest, second.DeterminismDigest);
+    }
+
+    [Theory]
+    [InlineData(BenchmarkScenario.Steady)]
+    [InlineData(BenchmarkScenario.Churn)]
+    public void SpatialGridPath_ProducesDeterministicFunctionalMetrics(BenchmarkScenario scenario)
+    {
+        var benchmarkCase = new BenchmarkCase(512, 4, scenario);
+        var options = FastOptions();
+
+        var first = ShooterAoiLodBenchmarkRunner.RunCase(benchmarkCase, options);
+        var second = ShooterAoiLodBenchmarkRunner.RunCase(benchmarkCase, options);
+
+        Assert.Equal(first.PayloadBytesPerTick, second.PayloadBytesPerTick);
+        Assert.Equal(first.EnterCount, second.EnterCount);
+        Assert.Equal(first.LeaveCount, second.LeaveCount);
+        Assert.Equal(first.StarvedEntitiesAtEnd, second.StarvedEntitiesAtEnd);
+        Assert.Equal(first.DeterminismDigest, second.DeterminismDigest);
+        Assert.True(first.ThreadAllocatedBytesPerTick >= 0);
     }
 
     [Fact]

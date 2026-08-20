@@ -202,6 +202,26 @@ public sealed class SnapshotSendQueueTests
     }
 
     [Fact]
+    public void TryDequeue_OversizedItemRepaysFullDebtAcrossMultipleRefills()
+    {
+        var policy = new SnapshotSendQueuePolicy(
+            bytesPerSecond: 1_000,
+            burstBytes: 500,
+            maxQueueLength: 4,
+            maxQueueAge: TimeSpan.FromSeconds(5));
+        var queue = new SnapshotSendQueue<int>(policy, nowTicks: 1);
+        Enqueue(queue, 1, 1, 1_000, SnapshotDeliveryPriority.FullBaseline, replaceable: false, nowTicks: 1);
+        Enqueue(queue, 2, 2, 100, SnapshotDeliveryPriority.Critical, replaceable: false, nowTicks: 1);
+
+        Assert.True(queue.TryDequeue(1, out var oversized));
+        Assert.Equal(1, oversized.Value);
+        Assert.False(queue.TryDequeue(TimeSpan.FromMilliseconds(500).Ticks + 1, out _));
+        Assert.False(queue.TryDequeue(TimeSpan.FromMilliseconds(599).Ticks + 1, out _));
+        Assert.True(queue.TryDequeue(TimeSpan.FromMilliseconds(600).Ticks + 1, out var next));
+        Assert.Equal(2, next.Value);
+    }
+
+    [Fact]
     public void CreateMetrics_UsesOldestQueuedItemAcrossPriorityOrder()
     {
         var queue = CreateUnlimitedQueue(maxQueueLength: 4);

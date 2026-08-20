@@ -17,7 +17,7 @@ namespace AbilityKit.Demo.Shooter.PlayMode.Tests
         }
 
         [UnityTest]
-        public IEnumerator DefaultLaunchSpecAndUnifiedRequestUseStateSyncInPlayMode()
+        public IEnumerator DefaultLaunchSpecAndUnifiedRequestUseMassBattleSyncInPlayMode()
         {
             yield return null;
 
@@ -32,8 +32,8 @@ namespace AbilityKit.Demo.Shooter.PlayMode.Tests
             Assert.AreEqual(DemoLaunchMode.Multiplayer, consumedRequest.Mode);
 
             ShooterRoomLaunchSpec spec = ShooterRoomLaunchSpec.CreateDefault("unity-playmode-smoke");
-            Assert.AreEqual(ShooterSyncTemplateIds.StateSyncAuthority, spec.SyncTemplateId);
-            Assert.AreEqual((int)NetworkSyncModel.AuthoritativeInterpolation, spec.SyncModel);
+            Assert.AreEqual(ShooterSyncTemplateIds.MassBattleLodAoi, spec.SyncTemplateId);
+            Assert.AreEqual((int)NetworkSyncModel.MassBattleLodSync, spec.SyncModel);
         }
     }
 }

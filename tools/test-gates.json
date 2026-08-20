@@ -648,19 +648,20 @@
       "name": "moba-content-contracts",
       "level": "P1",
       "owner": "MOBA Content Pipeline",
-      "description": "Run MOBA content contracts for package resource ownership, business ID governance, trigger aggregate drift, configured presentation resources, and effective timing validation.",
+      "description": "Run MOBA content contracts for package resource ownership, business ID governance, cross-table dependency integrity, trigger aggregate drift, configured presentation resources, and effective timing validation.",
       "scope": [
         "unity-editmode",
         "moba-content-pipeline",
         "resource-ownership",
         "business-id-governance",
+        "dependency-graph",
         "config-validation"
       ],
       "requiredBefore": [
         "publish-moba-content",
         "merge-moba-config-or-resource-changes"
       ],
-      "failurePolicy": "Block MOBA content publication until resource ownership, business ID governance, aggregate drift, configured resources, and effective timing contracts pass.",
+      "failurePolicy": "Block MOBA content publication until resource ownership, business ID governance, static dependency integrity, aggregate drift, configured resources, and effective timing contracts pass.",
       "ciPolicy": {
         "runOnPullRequest": false,
         "runOnPush": false,
@@ -685,6 +686,50 @@
           "arguments": [
             "-Mode",
             "Validate"
+          ]
+        },
+        {
+          "name": "MOBA content dependency report tests",
+          "kind": "powershell-script",
+          "script": "tools/build_moba_content_report.tests.ps1"
+        },
+        {
+          "name": "MOBA content dependency report",
+          "kind": "powershell-script",
+          "script": "tools/build_moba_content_report.ps1",
+          "arguments": [
+            "-OutputPath",
+            "{GateOutputDirectory}/moba-content-dependency-report.json",
+            "-Validate"
+          ],
+          "timeoutSeconds": 60
+        },
+        {
+          "name": "MOBA portable content analysis data",
+          "kind": "powershell-script",
+          "script": "tools/export_moba_content_ir.ps1",
+          "arguments": [
+            "-ReportPath",
+            "{GateOutputDirectory}/moba-content-dependency-report.json",
+            "-GraphOutputPath",
+            "{GateOutputDirectory}/moba-content-graph.json",
+            "-DiagnosticsOutputPath",
+            "{GateOutputDirectory}/moba-content-diagnostics.json"
+          ]
+        },
+        {
+          "name": "MOBA content dependency graph",
+          "kind": "powershell-script",
+          "script": "tools/build_moba_content_graph.ps1",
+          "arguments": [
+            "-GraphPath",
+            "{GateOutputDirectory}/moba-content-graph.json",
+            "-DiagnosticsPath",
+            "{GateOutputDirectory}/moba-content-diagnostics.json",
+            "-HtmlOutputPath",
+            "{GateOutputDirectory}/moba-content-dependency-graph.html",
+            "-DotOutputPath",
+            "{GateOutputDirectory}/moba-content-dependency-graph.dot"
           ]
         },
         {

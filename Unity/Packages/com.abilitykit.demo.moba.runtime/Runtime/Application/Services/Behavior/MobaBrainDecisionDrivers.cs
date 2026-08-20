@@ -50,9 +50,20 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     /// </summary>
     public interface IMobaBrainDecisionDriver
     {
-        MobaBrainDriverKind Kind { get; }
+        string Kind { get; }
 
         bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision);
+    }
+
+    /// <summary>
+    /// Optional driver-owned validation for algorithm-specific resources and definitions.
+    /// Adding a new driver does not require a central validation branch.
+    /// </summary>
+    public interface IMobaBrainDecisionDriverValidator
+    {
+        void ValidateDefinition(
+            in MobaActorBrainDefinition definition,
+            ICollection<string> errors);
     }
 
     /// <summary>
@@ -60,7 +71,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     /// </summary>
     public sealed class MobaBrainDecisionDriverRegistry
     {
-        private readonly Dictionary<MobaBrainDriverKind, IMobaBrainDecisionDriver> _drivers = new();
+        private readonly Dictionary<string, IMobaBrainDecisionDriver> _drivers =
+            new(StringComparer.Ordinal);
 
         public MobaBrainDecisionDriverRegistry(IEnumerable<IMobaBrainDecisionDriver> drivers = null)
         {
@@ -83,12 +95,21 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         public void Register(IMobaBrainDecisionDriver driver)
         {
             if (driver == null) throw new ArgumentNullException(nameof(driver));
-            _drivers[driver.Kind] = driver;
+            var kind = driver.Kind;
+            if (string.IsNullOrWhiteSpace(kind))
+                throw new ArgumentException("A brain driver key is required.", nameof(driver));
+            _drivers[kind] = driver;
         }
 
-        public bool Contains(MobaBrainDriverKind kind)
+        public bool Contains(string kind)
         {
-            return _drivers.ContainsKey(kind);
+            return !string.IsNullOrWhiteSpace(kind) && _drivers.ContainsKey(kind);
+        }
+
+        public bool TryGetDriver(string kind, out IMobaBrainDecisionDriver driver)
+        {
+            driver = null;
+            return !string.IsNullOrWhiteSpace(kind) && _drivers.TryGetValue(kind, out driver);
         }
 
         public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
@@ -103,7 +124,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     /// <summary>
     /// BTCore 决策驱动器。定义键对应导出的行为树资源名。
     /// </summary>
-    public sealed class MobaBTreeBrainDecisionDriver : IMobaBrainDecisionDriver
+    public sealed class MobaBTreeBrainDecisionDriver :
+        IMobaBrainDecisionDriver,
+        IMobaBrainDecisionDriverValidator
     {
         private readonly ITextAssetLoader _textAssetLoader;
 
@@ -112,7 +135,30 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             _textAssetLoader = textAssetLoader;
         }
 
-        public MobaBrainDriverKind Kind => MobaBrainDriverKind.BTree;
+        public string Kind => MobaBrainDriverKeys.BehaviorTree;
+
+        public void ValidateDefinition(
+            in MobaActorBrainDefinition definition,
+            ICollection<string> errors)
+        {
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+            if (!MobaBTreeAssetLoader.TryLoad(_textAssetLoader, definition.DecisionName, out var json))
+            {
+                errors.Add(
+                    $"Brain '{definition.BrainId}' references missing BTree resource '{definition.DecisionName}'.");
+                return;
+            }
+
+            try
+            {
+                MobaBTreeDecision.ValidateConfiguration(json);
+            }
+            catch (Exception ex)
+            {
+                errors.Add(
+                    $"Brain '{definition.BrainId}' BTree '{definition.DecisionName}' is invalid: {ex.Message}");
+            }
+        }
 
         public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
         {
@@ -150,11 +196,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     /// <summary>
     /// HFSM 驱动器。通过定义键选择已注册的状态机工厂，使状态机实现不依赖 Brain 服务。
     /// </summary>
-    public sealed class MobaHfsmBrainDecisionDriver : IMobaBrainDecisionDriver
+    public sealed class MobaHfsmBrainDecisionDriver :
+        IMobaBrainDecisionDriver,
+        IMobaBrainDecisionDriverValidator
     {
         private readonly Dictionary<string, MobaHfsmDecisionFactory> _factories = new(StringComparer.Ordinal);
 
-        public MobaBrainDriverKind Kind => MobaBrainDriverKind.Hfsm;
+        public string Kind => MobaBrainDriverKeys.Hfsm;
 
         public void Register(string definitionName, MobaHfsmDecisionFactory factory)
         {
@@ -171,6 +219,18 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             return !string.IsNullOrWhiteSpace(context.Definition.DecisionName)
                 && _factories.TryGetValue(context.Definition.DecisionName, out var factory)
                 && (decision = factory(in context)) != null;
+        }
+
+        public void ValidateDefinition(
+            in MobaActorBrainDefinition definition,
+            ICollection<string> errors)
+        {
+            if (errors == null) throw new ArgumentNullException(nameof(errors));
+            if (!_factories.ContainsKey(definition.DecisionName))
+            {
+                errors.Add(
+                    $"Brain '{definition.BrainId}' references missing HFSM decision '{definition.DecisionName}'.");
+            }
         }
     }
 

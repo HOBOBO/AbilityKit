@@ -1,11 +1,17 @@
 using System;
 using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Game.Flow;
 using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    [BattleDebugModule(
+        BattleDebugModuleIds.FrameSyncPrediction,
+        "Frame Sync",
+        Sources = BattleDebugModuleSourceSupport.All,
+        Selections = BattleDebugModuleSelectionSupport.Frame)]
     internal sealed class BattleDebugFrameSyncPredictionPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         private bool _tuningUiInitialized;
@@ -49,14 +55,24 @@ namespace AbilityKit.Game.Editor
 
         public bool IsVisible(in BattleDebugContext ctx)
         {
-            return !ctx.IsOffline && EditorApplication.isPlaying && BattleFlowDebugProvider.Current != null;
+            return BattleDebugFrameMetricHistory.IsAvailable(
+                       in ctx,
+                       BattleDiagnosticMetricCategory.Prediction) ||
+                   !ctx.IsOffline &&
+                   EditorApplication.isPlaying &&
+                   BattleFlowDebugProvider.Current != null;
         }
 
         public void Draw(in BattleDebugContext ctx)
         {
-            var flowCtx = BattleFlowDebugProvider.Current;
+            var hasHistory = BattleDebugFrameMetricHistory.Draw(
+                in ctx,
+                BattleDiagnosticMetricCategory.Prediction,
+                "Prediction History");
+            var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
+                if (hasHistory) return;
                 EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
                 return;
             }

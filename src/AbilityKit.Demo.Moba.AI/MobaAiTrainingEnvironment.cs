@@ -2,6 +2,7 @@ using AbilityKit.AI.Abstractions;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.Services.Behavior.AI;
 
 namespace AbilityKit.Demo.Moba.AI;
 
@@ -282,16 +283,14 @@ public sealed class MobaAiTrainingEnvironment : IAiEnvironment, IDisposable
 /// </summary>
 public sealed class MobaAiObservationBuilder
 {
-    private const int EntityValueCount = 10;
-    private const int GlobalValueCount = 4;
-    private readonly MobaAiEnvironmentOptions _options;
+    private readonly MobaBrainObservationEncoder _encoder;
 
     /// <summary>
     /// 创建观测构建器。
     /// </summary>
     public MobaAiObservationBuilder(MobaAiEnvironmentOptions options)
     {
-        _options = options;
+        _encoder = new MobaBrainObservationEncoder(ToRuntimeOptions(options));
     }
 
     /// <summary>
@@ -299,7 +298,8 @@ public sealed class MobaAiObservationBuilder
     /// </summary>
     public static AiObservationSpec CreateSpec(MobaAiEnvironmentOptions options)
     {
-        return new AiObservationSpec("moba.runtime-state.v1", options.MaxObservedEntities * EntityValueCount + GlobalValueCount);
+        var runtimeOptions = ToRuntimeOptions(options);
+        return MobaBrainObservationEncoder.CreateSpec(in runtimeOptions);
     }
 
     /// <summary>
@@ -311,53 +311,22 @@ public sealed class MobaAiObservationBuilder
         if (bootstrapper == null) throw new ArgumentNullException(nameof(bootstrapper));
         if (buffer == null) throw new ArgumentNullException(nameof(buffer));
 
-        buffer.Clear();
-        var local = FindLocal(states, localActorId);
-        var index = 0;
-        var written = 0;
-        for (var i = 0; i < states.Count && written < _options.MaxObservedEntities; i++)
-        {
-            var state = states[i];
-            buffer[index++] = NormalizeDelta(state.X - local.X, _options.PositionExtent);
-            buffer[index++] = NormalizeDelta(state.Y - local.Y, _options.PositionExtent);
-            buffer[index++] = NormalizeDelta(state.Z - local.Z, _options.PositionExtent);
-            buffer[index++] = NormalizePositive(state.Hp, state.HpMax > 0f ? state.HpMax : _options.HitPointScale);
-            buffer[index++] = NormalizePositive(state.HpMax, _options.HitPointScale);
-            buffer[index++] = state.TeamId == local.TeamId && state.TeamId != 0 ? 1f : -1f;
-            buffer[index++] = state.IsDead ? 0f : 1f;
-            buffer[index++] = state.HasSkillLoadout ? 1f : 0f;
-            buffer[index++] = NormalizePositive(state.ActiveSkillCount, 8f);
-            buffer[index++] = state.EntityId == localActorId ? 1f : 0f;
-            written++;
-        }
-
-        index += (_options.MaxObservedEntities - written) * EntityValueCount;
-        buffer[index++] = NormalizePositive(bootstrapper.Context.LastFrame, 36000f);
-        buffer[index++] = NormalizePositive(states.Count, _options.MaxObservedEntities);
-        buffer[index++] = bootstrapper.RuntimeInputPortReady ? 1f : 0f;
-        buffer[index] = bootstrapper.Flow.CurrentPhase == "InMatch" ? 1f : 0f;
+        _encoder.Write(
+            states,
+            localActorId,
+            bootstrapper.Context.LastFrame,
+            bootstrapper.RuntimeInputPortReady,
+            bootstrapper.Flow.CurrentPhase == "InMatch",
+            buffer);
     }
 
-    private static LogicWorldEntityState FindLocal(IReadOnlyList<LogicWorldEntityState> states, int localActorId)
+    private static MobaBrainObservationOptions ToRuntimeOptions(MobaAiEnvironmentOptions options)
     {
-        for (var i = 0; i < states.Count; i++)
-        {
-            if (states[i].EntityId == localActorId)
-            {
-                return states[i];
-            }
-        }
-
-        return states.Count > 0 ? states[0] : LogicWorldEntityState.Empty(localActorId);
+        return new MobaBrainObservationOptions(
+            options.MaxObservedEntities,
+            options.PositionExtent,
+            options.HitPointScale);
     }
-
-    private static float NormalizeDelta(float value, float extent) => ClampUnit(value / extent);
-
-    private static float NormalizePositive(float value, float max) => max <= 0f ? 0f : Clamp01(value / max);
-
-    private static float ClampUnit(float value) => value < -1f ? -1f : value > 1f ? 1f : value;
-
-    private static float Clamp01(float value) => value < 0f ? 0f : value > 1f ? 1f : value;
 }
 
 /// <summary>
@@ -368,7 +337,7 @@ public sealed class MobaAiActionMapper
     /// <summary>
     /// 连续分支表示 X/Z 移动；离散分支表示技能槽位，0 表示不释放技能。
     /// </summary>
-    public static AiActionSpec ActionSpec { get; } = new("moba.input.v1", continuousLength: 2, discreteLength: 1);
+    public static AiActionSpec ActionSpec => MobaBrainActionCodec.ActionSpec;
 
     /// <summary>
     /// 将动作应用到 Console 战斗上下文，供下一帧 tick 使用。
@@ -378,12 +347,7 @@ public sealed class MobaAiActionMapper
         if (action == null) throw new ArgumentNullException(nameof(action));
         if (bootstrapper == null) throw new ArgumentNullException(nameof(bootstrapper));
 
-        var moveX = action.Continuous.Length > 0 ? action.Continuous[0] : 0f;
-        var moveZ = action.Continuous.Length > 1 ? action.Continuous[1] : 0f;
-        var intent = global::AbilityKit.Demo.Moba.Input.MobaActorIntent.MoveDirection(moveX, moveZ);
-        var slot = action.Discrete.Length > 0 ? action.Discrete[0] : 0;
-        slot = slot < 0 ? 0 : slot > 3 ? 3 : slot;
-        if (slot > 0) intent = intent.WithCast(slot);
+        var intent = MobaBrainActionCodec.Decode(action);
         bootstrapper.InputFeature.ApplyIntent(in intent);
     }
 }

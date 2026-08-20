@@ -16,12 +16,15 @@ using AbilityKit.Effect;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Services.Observability;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(MobaSummonService))]
-    public sealed class MobaSummonService : IService
+    public sealed class MobaSummonService :
+        IMobaRuntimeObjectBootstrapContributor,
+        IService
     {
         [WorldInject] private ActorIdAllocator _actorIds = null;
         [WorldInject] private MobaActorRegistry _registry = null;
@@ -37,6 +40,10 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
+
+        private bool _objectBootstrapRegistered;
 
         private enum SummonOverflowPolicy
         {
@@ -77,6 +84,7 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (casterActorId <= 0) return false;
             if (summonId <= 0) return false;
+            EnsureObjectBootstrapRegistered();
             if (_actorIds == null || _registry == null || _entities == null) return false;
             if (_config == null) return false;
 
@@ -165,10 +173,18 @@ namespace AbilityKit.Demo.Moba.Services
                     throw new InvalidOperationException($"Summon failed to retain parent skill runtime. summonId={summonId} actorId={actorId} runtime={spawnSourceContext.SkillRuntimeHandle}");
                 }
                 _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
-                CollectSummonSpawned(actorId, summonId, in spawnSourceContext);
 
                 PublishSummonEvent(MobaSummonTriggering.Events.Spawned, rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
                 PublishSummonEvent(MobaSummonTriggering.Events.SpawnedByOwner(rootOwner), rootOwner, casterActorId, actorId, summonId, (int)SummonDespawnReason.None, in spawnSourceContext);
+
+                PublishSummonObjectLifecycle(
+                    MobaRuntimeObjectLifecycleStage.Created,
+                    actorId,
+                    summonId,
+                    casterActorId,
+                    rootOwner,
+                    in spawnSourceContext);
+                CollectSummonSpawned(actorId, summonId, in spawnSourceContext);
 
                 return true;
             }
@@ -282,6 +298,14 @@ namespace AbilityKit.Demo.Moba.Services
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
             if (reason == SummonDespawnReason.ReplacedByLimit) _lifecycle?.RecordReplaced(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
             CollectSummonEnded(summonActorId, summonId, (int)reason, in sourceContext);
+            PublishSummonObjectLifecycle(
+                MobaRuntimeObjectLifecycleStage.Destroyed,
+                summonActorId,
+                summonId,
+                owner,
+                rootOwner,
+                in sourceContext,
+                (int)reason);
 
             if (reason == SummonDespawnReason.Killed)
             {
@@ -302,6 +326,99 @@ namespace AbilityKit.Demo.Moba.Services
             catch (Exception ex) { Log.Exception(ex, $"[MobaSummonService] destroy summon entity failed (summonActorId={summonActorId}, summonId={summonId})"); }
 
             return true;
+        }
+
+        private void PublishSummonObjectLifecycle(
+            MobaRuntimeObjectLifecycleStage stage,
+            int summonActorId,
+            int summonId,
+            int ownerActorId,
+            int rootOwnerActorId,
+            in SummonSourceContext sourceContext,
+            int endReason = 0)
+        {
+            EnsureObjectBootstrapRegistered();
+            var hook = _objectLifecycle;
+            if (hook == null || !hook.IsEnabled || summonActorId <= 0) return;
+            PublishSummonObjectLifecycleTo(
+                hook,
+                stage,
+                summonActorId,
+                summonId,
+                ownerActorId,
+                rootOwnerActorId,
+                in sourceContext,
+                CurrentFrame,
+                endReason);
+        }
+
+        void IMobaRuntimeObjectBootstrapContributor.CaptureActiveRuntimeObjects(
+            IMobaRuntimeObjectLifecycleHook hook,
+            int frame)
+        {
+            foreach (var pair in _sourceBySummonActorId)
+            {
+                var summonActorId = pair.Key;
+                var sourceContext = pair.Value;
+                var ownerActorId = sourceContext.SourceActorId;
+                var rootOwnerActorId = ownerActorId;
+                if (_registry != null &&
+                    _registry.TryGet(summonActorId, out var entity) &&
+                    entity != null && entity.hasOwnerLink && entity.ownerLink != null)
+                {
+                    ownerActorId = entity.ownerLink.OwnerActorId;
+                    rootOwnerActorId = entity.ownerLink.RootOwnerActorId;
+                }
+
+                PublishSummonObjectLifecycleTo(
+                    hook,
+                    MobaRuntimeObjectLifecycleStage.Created,
+                    summonActorId,
+                    sourceContext.SummonConfigId,
+                    ownerActorId,
+                    rootOwnerActorId,
+                    in sourceContext,
+                    frame);
+            }
+        }
+
+        private static void PublishSummonObjectLifecycleTo(
+            IMobaRuntimeObjectLifecycleHook hook,
+            MobaRuntimeObjectLifecycleStage stage,
+            int summonActorId,
+            int summonId,
+            int ownerActorId,
+            int rootOwnerActorId,
+            in SummonSourceContext sourceContext,
+            int frame,
+            int endReason = 0)
+        {
+            if (hook == null || !hook.IsEnabled || summonActorId <= 0) return;
+            var observation = new MobaRuntimeObjectLifecycleObservation(
+                stage,
+                MobaRuntimeObjectKind.Summon,
+                summonActorId,
+                frame,
+                MobaRuntimeObjectDefinitionKind.Summon,
+                summonId,
+                relatedActorId: summonActorId,
+                ownerActorId: rootOwnerActorId > 0 ? rootOwnerActorId : ownerActorId,
+                sourceActorId: sourceContext.SourceActorId > 0
+                    ? sourceContext.SourceActorId
+                    : ownerActorId,
+                targetActorId: summonActorId,
+                rootContextId: sourceContext.RootContextId,
+                contextId: sourceContext.SourceContextId,
+                endReason: endReason);
+            hook.TryObserve(in observation);
+        }
+
+        private void EnsureObjectBootstrapRegistered()
+        {
+            if (_objectBootstrapRegistered) return;
+            var registry = _objectBootstrap;
+            if (registry != null && registry.Register(this))
+                _objectBootstrapRegistered = true;
         }
 
         public int GetAliveCount(int rootOwnerActorId, int summonId = 0)
@@ -814,7 +931,10 @@ namespace AbilityKit.Demo.Moba.Services
                 rootContextId,
                 contextId,
                 runtime,
-                summary: summary);
+                summary: summary,
+                subjectObject: BattleDiagnosticRuntimeObjectReference.Create(
+                    BattleDiagnosticRuntimeObjectKind.Summon,
+                    summonActorId));
         }
 
         internal static MobaBattleDiagnosticEventDraft CreateSummonEndedDraft(
@@ -846,7 +966,10 @@ namespace AbilityKit.Demo.Moba.Services
                 rootContextId,
                 contextId,
                 runtime,
-                summary: summary);
+                summary: summary,
+                subjectObject: BattleDiagnosticRuntimeObjectReference.Create(
+                    BattleDiagnosticRuntimeObjectKind.Summon,
+                    summonActorId));
         }
 
         private void CollectSummonSpawned(
@@ -913,6 +1036,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void Dispose()
         {
+            if (_objectBootstrapRegistered)
+            {
+                _objectBootstrap?.Unregister(this);
+                _objectBootstrapRegistered = false;
+            }
             Clear();
         }
     }

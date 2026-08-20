@@ -19,7 +19,8 @@ namespace AbilityKit.Demo.Shooter.View
             int pureStateSnapshotCount,
             int lastFrame,
             int lastPayloadOpCode,
-            string lastWorldId)
+            string lastWorldId,
+            long lastServerTicks)
         {
             PacketCount = packetCount;
             DispatchedSnapshotCount = dispatchedSnapshotCount;
@@ -28,6 +29,7 @@ namespace AbilityKit.Demo.Shooter.View
             LastFrame = lastFrame;
             LastPayloadOpCode = lastPayloadOpCode;
             LastWorldId = lastWorldId ?? string.Empty;
+            LastServerTicks = lastServerTicks;
         }
 
         public int PacketCount { get; }
@@ -37,6 +39,7 @@ namespace AbilityKit.Demo.Shooter.View
         public int LastFrame { get; }
         public int LastPayloadOpCode { get; }
         public string LastWorldId { get; }
+        public long LastServerTicks { get; }
     }
 
     public sealed class ShooterFrameworkSnapshotPipeline : IDisposable
@@ -56,6 +59,7 @@ namespace AbilityKit.Demo.Shooter.View
         private int _lastFrame;
         private int _lastPayloadOpCode;
         private string _lastWorldId = string.Empty;
+        private long _lastServerTicks;
 
         public ShooterFrameworkSnapshotPipeline()
             : this(null, null)
@@ -95,7 +99,8 @@ namespace AbilityKit.Demo.Shooter.View
             _pureStateSnapshotCount,
             _lastFrame,
             _lastPayloadOpCode,
-            _lastWorldId);
+            _lastWorldId,
+            _lastServerTicks);
 
         public int LastAppliedFrame => _applyContext?.LastAppliedFrame ?? 0;
         public uint LastAppliedStateHash => _applyContext?.LastAppliedStateHash ?? 0u;
@@ -109,6 +114,7 @@ namespace AbilityKit.Demo.Shooter.View
             _lastFrame = packet.Frame.Value;
             _lastPayloadOpCode = snapshot.PayloadOpCode;
             _lastWorldId = packet.WorldId.Value ?? string.Empty;
+            _lastServerTicks = snapshot.ServerTicks;
             _aggregator.AddPacket(packet);
             _dispatcher.Feed(packet);
             return packet;
@@ -147,6 +153,7 @@ namespace AbilityKit.Demo.Shooter.View
             _lastFrame = 0;
             _lastPayloadOpCode = 0;
             _lastWorldId = string.Empty;
+            _lastServerTicks = 0L;
             _applyContext?.Clear();
         }
 

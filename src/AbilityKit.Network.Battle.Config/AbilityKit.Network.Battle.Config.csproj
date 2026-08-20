@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Network.Battle/AbilityKit.Network.Battle.csproj" />
     <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Sdk/AbilityKit.Network.Sdk.csproj" />
     <ProjectReference Include="../AbilityKit.Protocol.Room/AbilityKit.Protocol.Room.csproj" />
   </ItemGroup>
 </Project>

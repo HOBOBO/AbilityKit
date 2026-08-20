@@ -151,6 +151,13 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
         }
 
         var syncOptions = RoomBattleSyncOptionsMapper.Resolve(summary, request);
+        var requestedEnemyBudget = ReadIntTag(
+            summary,
+            ShooterRoomTagKeys.EnemyBudget,
+            ShooterServerProtocol.DefaultEnemyBudget);
+        var enemyBudget = Math.Min(
+            Math.Max(1, requestedEnemyBudget),
+            ShooterServerProtocol.MaxEnemyBudget);
         return new BattleInitParams
         {
             WorldId = CreateNumericWorldId(summary.RoomId),
@@ -159,6 +166,7 @@ internal sealed class ShooterRoomGameplayAdapter : IRoomGameplayAdapter
             RandomSeed = ReadIntTag(summary, ShooterRoomTagKeys.RandomSeed, Environment.TickCount),
             InputDelayFrames = syncOptions.InputDelayFrames,
             DurationFrames = ReadIntTag(summary, ShooterRoomTagKeys.DurationFrames, 0),
+            EnemyBudget = enemyBudget,
             VictoryTargetDefeats = ReadIntTag(summary, ShooterRoomTagKeys.VictoryTargetDefeats, 0),
             ContinueAfterAllPlayersDefeated = ReadBoolTag(summary, ShooterRoomTagKeys.ContinueAfterAllPlayersDefeated, false),
             Players = players,

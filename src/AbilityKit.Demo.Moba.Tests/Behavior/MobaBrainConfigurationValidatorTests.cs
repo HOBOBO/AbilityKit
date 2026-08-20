@@ -30,8 +30,8 @@ public sealed class MobaBrainConfigurationValidatorTests
         var profiles = new MobaActorStateMachineProfileCatalog();
         MobaActorStateMachineProfileJsonLoader.LoadJson(profileJson, profiles);
         var brains = new MobaActorBrainCatalog();
-        var missingHfsm = new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "missing-profile");
-        var missingBtree = new MobaActorBrainDefinition(2, MobaBrainDriverKind.BTree, "missing-tree");
+        var missingHfsm = new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "missing-profile");
+        var missingBtree = new MobaActorBrainDefinition(2, MobaBrainDriverKeys.BehaviorTree, "missing-tree");
         brains.Register(in missingHfsm);
         brains.Register(in missingBtree);
 
@@ -44,7 +44,7 @@ public sealed class MobaBrainConfigurationValidatorTests
         Assert.Contains("start state 'missing' does not exist", error.Message);
         Assert.Contains("action 'unregistered' is not registered", error.Message);
         Assert.Contains("missing HFSM profile 'missing-profile'", error.Message);
-        Assert.Contains("unregistered BTree driver", error.Message);
+        Assert.Contains("unregistered driver 'behaviorTree'", error.Message);
     }
 
     [Fact]

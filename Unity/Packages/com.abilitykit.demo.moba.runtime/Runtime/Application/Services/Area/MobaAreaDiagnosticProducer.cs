@@ -25,7 +25,10 @@ namespace AbilityKit.Demo.Moba.Services
                 info.TemplateId,
                 rootContextId,
                 contextId,
-                summary: summary);
+                summary: summary,
+                subjectObject: BattleDiagnosticRuntimeObjectReference.Create(
+                    BattleDiagnosticRuntimeObjectKind.Area,
+                    info.AreaId));
         }
 
         public static MobaBattleDiagnosticEventDraft CreateAreaEndedDraft(in MobaAreaRuntimeInfo info)
@@ -43,7 +46,10 @@ namespace AbilityKit.Demo.Moba.Services
                 info.TemplateId,
                 rootContextId,
                 contextId,
-                summary: summary);
+                summary: summary,
+                subjectObject: BattleDiagnosticRuntimeObjectReference.Create(
+                    BattleDiagnosticRuntimeObjectKind.Area,
+                    info.AreaId));
         }
     }
 }

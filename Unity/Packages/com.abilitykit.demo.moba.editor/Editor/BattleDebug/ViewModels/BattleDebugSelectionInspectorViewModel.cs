@@ -12,6 +12,7 @@ namespace AbilityKit.Game.Editor
         private BattleDiagnosticSelection _selection;
         private BattleDiagnosticSessionScope _sessionScope;
         private long _storeRevision = -1;
+        private long _runtimeObjectRevision = -1;
         private long _requestId;
         private bool _hasCachedResult;
 
@@ -24,6 +25,9 @@ namespace AbilityKit.Game.Editor
         public BattleDiagnosticActorSummary? Actor { get; private set; }
         public BattleDiagnosticEvent? Event { get; private set; }
         public BattleDiagnosticTraceNodeSummary? TraceNode { get; private set; }
+        public BattleDiagnosticRuntimeObject? SourceActorObject { get; private set; }
+        public BattleDiagnosticRuntimeObject? TargetActorObject { get; private set; }
+        public BattleDiagnosticRuntimeObject? SubjectObject { get; private set; }
         public BattleDebugConfigReference ConfigReference => _configReference;
         public BattleDebugConfigSourceLocation? ConfigLocation { get; private set; }
         public bool HasConfigSelection => _hasConfigSelection;
@@ -37,6 +41,7 @@ namespace AbilityKit.Game.Editor
             _selection = default;
             _sessionScope = default;
             _storeRevision = -1;
+            _runtimeObjectRevision = -1;
             _hasCachedResult = false;
             _hasCachedConfig = false;
             ClearProjection();
@@ -129,10 +134,14 @@ namespace AbilityKit.Game.Editor
 
             var sessionScope = session.SessionInfo.Scope;
             var revision = ResolveStoreRevision(session, selection.Kind);
+            var runtimeObjectRevision = session is IBattleDiagnosticRuntimeObjectSession objectSession
+                ? objectSession.RuntimeObjectStoreRevision
+                : -1L;
             if (_hasCachedResult &&
                 _selection.Equals(selection) &&
                 _sessionScope.Equals(sessionScope) &&
-                _storeRevision == revision)
+                _storeRevision == revision &&
+                _runtimeObjectRevision == runtimeObjectRevision)
             {
                 return;
             }
@@ -140,6 +149,7 @@ namespace AbilityKit.Game.Editor
             _selection = selection;
             _sessionScope = sessionScope;
             _storeRevision = revision;
+            _runtimeObjectRevision = runtimeObjectRevision;
             _hasCachedResult = true;
             ClearProjection();
 
@@ -217,7 +227,9 @@ namespace AbilityKit.Game.Editor
                 for (var i = 0; i < result.Items.Count; i++)
                 {
                     if (result.Items[i].Sequence != selection.Id) continue;
-                    Event = result.Items[i];
+                    var diagnosticEvent = result.Items[i];
+                    Event = diagnosticEvent;
+                    RefreshEventObjects(session, in diagnosticEvent);
                     return;
                 }
 
@@ -262,9 +274,47 @@ namespace AbilityKit.Game.Editor
             Actor = null;
             Event = null;
             TraceNode = null;
+            SourceActorObject = null;
+            TargetActorObject = null;
+            SubjectObject = null;
             QueryStatus = default;
             StatusMessage = string.Empty;
             EventPagesScanned = 0;
+        }
+
+        private void RefreshEventObjects(
+            IBattleDiagnosticReadOnlySession session,
+            in BattleDiagnosticEvent diagnosticEvent)
+        {
+            if (!(session is IBattleDiagnosticRuntimeObjectSession objectSession)) return;
+
+            var sourceActor = diagnosticEvent.SourceActor;
+            var targetActor = diagnosticEvent.TargetActor;
+            var subjectObject = diagnosticEvent.SubjectObject;
+            SourceActorObject = ResolveRuntimeObject(
+                objectSession,
+                in sourceActor,
+                diagnosticEvent.Frame);
+            TargetActorObject = ResolveRuntimeObject(
+                objectSession,
+                in targetActor,
+                diagnosticEvent.Frame);
+            SubjectObject = ResolveRuntimeObject(
+                objectSession,
+                in subjectObject,
+                diagnosticEvent.Frame);
+        }
+
+        private BattleDiagnosticRuntimeObject? ResolveRuntimeObject(
+            IBattleDiagnosticRuntimeObjectSession session,
+            in BattleDiagnosticRuntimeObjectReference reference,
+            int frame)
+        {
+            if (!reference.HasRuntimeId) return null;
+            var result = session.QueryRuntimeObject(NextRequestId(), in reference, frame);
+            return result.Items.Count > 0
+                ? result.Items[0]
+                : (BattleDiagnosticRuntimeObject?)null;
         }
 
         private long NextRequestId()

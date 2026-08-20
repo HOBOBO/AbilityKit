@@ -181,7 +181,8 @@ namespace AbilityKit.Demo.Shooter.View
                 snapshot.WorldId,
                 snapshot.Frame,
                 snapshot.ServerTicks,
-                snapshot.Actors);
+                snapshot.Actors,
+                snapshot.PackedSnapshot);
 
             return _playback.Observe(sample)
                 ? ShooterSnapshotApplyResult.AppliedActorSnapshot

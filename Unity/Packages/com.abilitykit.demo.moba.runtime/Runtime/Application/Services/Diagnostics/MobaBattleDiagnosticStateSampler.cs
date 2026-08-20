@@ -29,6 +29,13 @@ namespace AbilityKit.Demo.Moba.Services
         private long _sampleFailureCount;
         private int _lastSuccessfulSampleFrame = BattleDiagnosticFrames.Invalid;
         private string _lastSampleError = string.Empty;
+        private readonly List<BattleDiagnosticActorSummary> _actors = new List<BattleDiagnosticActorSummary>();
+        private readonly List<long> _actorIds = new List<long>();
+        private readonly List<BattleDiagnosticActorAttribute> _attributes = new List<BattleDiagnosticActorAttribute>();
+        private readonly List<BattleDiagnosticActorAttributeModifier> _modifiers = new List<BattleDiagnosticActorAttributeModifier>();
+        private readonly List<BattleDiagnosticActorBuff> _buffs = new List<BattleDiagnosticActorBuff>();
+        private readonly List<BattleDiagnosticActorTag> _tags = new List<BattleDiagnosticActorTag>();
+        private readonly List<BattleDiagnosticActorEffect> _effects = new List<BattleDiagnosticActorEffect>();
 
         [WorldInject(required: false)]
         private IFrameTime _frameTime = null;
@@ -107,25 +114,33 @@ namespace AbilityKit.Demo.Moba.Services
                 var frame = ResolveFrame();
                 var timestamp = _timestampProvider();
                 var scope = _stateStore.Scope;
-                var actors = new List<BattleDiagnosticActorSummary>();
+                _actors.Clear();
+                _actorIds.Clear();
+                _attributes.Clear();
+                _modifiers.Clear();
+                _buffs.Clear();
+                _tags.Clear();
+                _effects.Clear();
+
+                var actors = _actors;
                 var actorIds = _attributeStore != null || _buffStore != null ||
                                _tagStore != null || _effectStore != null
-                    ? new List<long>()
+                    ? _actorIds
                     : null;
                 var attributes = _attributeStore != null
-                    ? new List<BattleDiagnosticActorAttribute>()
+                    ? _attributes
                     : null;
                 var modifiers = _attributeStore != null
-                    ? new List<BattleDiagnosticActorAttributeModifier>()
+                    ? _modifiers
                     : null;
                 var buffs = _buffStore != null
-                    ? new List<BattleDiagnosticActorBuff>()
+                    ? _buffs
                     : null;
                 var tags = _tagStore != null
-                    ? new List<BattleDiagnosticActorTag>()
+                    ? _tags
                     : null;
                 var effects = _effectStore != null
-                    ? new List<BattleDiagnosticActorEffect>()
+                    ? _effects
                     : null;
 
                 if (_registry != null)

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -10,7 +11,7 @@ namespace AbilityKit.Network.Runtime
         FillDefault = 1,
     }
 
-    public sealed class FrameJitterBuffer<T> : IConsumableRemoteFrameSource<T>, IRemoteFrameSink<T>
+    public sealed class FrameJitterBuffer<T> : IConsumableRemoteFrameSource<T>, IRemoteFrameSink<T>, IFrameDelayControl
     {
         private readonly Dictionary<int, T> _byFrame;
         private int _maxReceivedFrame;
@@ -54,6 +55,13 @@ namespace AbilityKit.Network.Runtime
         }
 
         public int DelayFrames { get; set; }
+
+        public bool TrySetDelayFrames(int delayFrames)
+        {
+            if (delayFrames < 0) return false;
+            DelayFrames = delayFrames;
+            return true;
+        }
 
         public int MaxReceivedFrame => _maxReceivedFrame;
 

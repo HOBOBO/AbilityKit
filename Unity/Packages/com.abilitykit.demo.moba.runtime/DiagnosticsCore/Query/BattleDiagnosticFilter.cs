@@ -13,13 +13,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         DamageAndHeal = 1 << 4,
         Sync = 1 << 5,
         WarningAndException = 1 << 6,
+        Trigger = 1 << 7,
         All = Skill |
               Effect |
               Buff |
               TemporaryEntity |
               DamageAndHeal |
               Sync |
-              WarningAndException
+              WarningAndException |
+              Trigger
     }
 
     public enum BattleDiagnosticActorRelation

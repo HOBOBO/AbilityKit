@@ -16,27 +16,70 @@ namespace AbilityKit.Network.Sdk
     {
         private readonly IConnection _connection;
         private readonly IReconnectableConnection? _reconnectableConnection;
-        private readonly RequestClient _requestClient;
+        private readonly IRequestClient _requestClient;
         private Action<uint, uint, ArraySegment<byte>>? _packetReceived;
         private bool _disposed;
 
-        internal NetworkSdkClient(IConnection connection)
+        internal NetworkSdkClient(
+            IConnection connection,
+            NetworkRequestClientFactory? requestClientFactory = null)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
             _reconnectableConnection = connection as IReconnectableConnection;
-            _requestClient = new RequestClient(_connection);
-
-            _connection.Connected += HandleConnected;
-            _connection.Disconnected += HandleDisconnected;
-            _connection.Error += HandleError;
-            _connection.ServerPushReceived += HandleServerPushReceived;
-            _connection.Kicked += HandleKicked;
-
-            if (_reconnectableConnection != null)
+            _requestClient = requestClientFactory != null
+                ? requestClientFactory.Invoke(_connection)
+                : new RequestClient(_connection);
+            if (_requestClient == null)
             {
-                _reconnectableConnection.ReconnectScheduled += HandleReconnectScheduled;
-                _reconnectableConnection.ReconnectAttemptStarted += HandleReconnectAttemptStarted;
-                _reconnectableConnection.ReconnectExhausted += HandleReconnectExhausted;
+                throw new InvalidOperationException("Request client factory returned null.");
+            }
+
+            var connectedSubscribed = false;
+            var disconnectedSubscribed = false;
+            var errorSubscribed = false;
+            var serverPushSubscribed = false;
+            var kickedSubscribed = false;
+            var reconnectScheduledSubscribed = false;
+            var reconnectAttemptStartedSubscribed = false;
+            var reconnectExhaustedSubscribed = false;
+            try
+            {
+                _connection.Connected += HandleConnected;
+                connectedSubscribed = true;
+                _connection.Disconnected += HandleDisconnected;
+                disconnectedSubscribed = true;
+                _connection.Error += HandleError;
+                errorSubscribed = true;
+                _connection.ServerPushReceived += HandleServerPushReceived;
+                serverPushSubscribed = true;
+                _connection.Kicked += HandleKicked;
+                kickedSubscribed = true;
+
+                if (_reconnectableConnection != null)
+                {
+                    _reconnectableConnection.ReconnectScheduled += HandleReconnectScheduled;
+                    reconnectScheduledSubscribed = true;
+                    _reconnectableConnection.ReconnectAttemptStarted += HandleReconnectAttemptStarted;
+                    reconnectAttemptStartedSubscribed = true;
+                    _reconnectableConnection.ReconnectExhausted += HandleReconnectExhausted;
+                    reconnectExhaustedSubscribed = true;
+                }
+            }
+            catch
+            {
+                if (reconnectExhaustedSubscribed)
+                    _reconnectableConnection!.ReconnectExhausted -= HandleReconnectExhausted;
+                if (reconnectAttemptStartedSubscribed)
+                    _reconnectableConnection!.ReconnectAttemptStarted -= HandleReconnectAttemptStarted;
+                if (reconnectScheduledSubscribed)
+                    _reconnectableConnection!.ReconnectScheduled -= HandleReconnectScheduled;
+                if (kickedSubscribed) _connection.Kicked -= HandleKicked;
+                if (serverPushSubscribed) _connection.ServerPushReceived -= HandleServerPushReceived;
+                if (errorSubscribed) _connection.Error -= HandleError;
+                if (disconnectedSubscribed) _connection.Disconnected -= HandleDisconnected;
+                if (connectedSubscribed) _connection.Connected -= HandleConnected;
+                _requestClient.Dispose();
+                throw;
             }
         }
 

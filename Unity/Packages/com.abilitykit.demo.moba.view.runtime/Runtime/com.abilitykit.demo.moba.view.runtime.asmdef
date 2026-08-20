@@ -6,7 +6,6 @@
         "AbilityKit.ActionSchema",
         "AbilityKit.Attributes",
         "AbilityKit.Core",
-        "AbilityKit.Core.Unity",
         "AbilityKit.Flow",
         "AbilityKit.Game.Flow.Core",
         "AbilityKit.Game.View.Runtime",

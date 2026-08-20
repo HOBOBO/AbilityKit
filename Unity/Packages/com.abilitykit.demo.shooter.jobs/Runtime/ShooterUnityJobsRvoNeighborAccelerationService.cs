@@ -16,7 +16,14 @@ namespace AbilityKit.Demo.Shooter.Jobs
         public const int DefaultMinimumAgentCount = 64;
         public const int DefaultInnerLoopBatchCount = 32;
 
-        // Leaves enough integer headroom for the fixed 3x3 cell query.
+        private const int DefaultGridCellDivisor = 4;
+        private const int MediumDensityGridCellDivisor = 8;
+        private const int HighDensityGridCellDivisor = 16;
+        private const int HighDensityAgentCount = 1024;
+        private const int MediumDensityTargetNeighborMultiplier = 2;
+        private const int HighDensityTargetNeighborMultiplier = 8;
+
+        // Leaves enough integer headroom for the fixed grid-neighborhood query.
         private const float MaximumCellCoordinateMagnitude = 2147483000f;
 
         private readonly int _minimumAgentCount;
@@ -67,7 +74,9 @@ namespace AbilityKit.Demo.Shooter.Jobs
                 return true;
             }
 
-            var inverseCellSize = 1f / batch.NeighborDistance;
+            var gridCellDivisor = DetermineGridCellDivisor(in batch);
+            var cellSize = batch.NeighborDistance / gridCellDivisor;
+            var inverseCellSize = 1f / cellSize;
             var rangeSquared = batch.NeighborDistance * batch.NeighborDistance;
             if (!ValidateDerivedGridValues(in batch, inverseCellSize, rangeSquared))
             {
@@ -94,6 +103,8 @@ namespace AbilityKit.Demo.Shooter.Jobs
                 pendingHandle = new CollectNeighborsJob
                 {
                     MaxNeighbors = batch.MaxNeighbors,
+                    GridSearchRadius = gridCellDivisor + 1,
+                    CellSize = cellSize,
                     InverseCellSize = inverseCellSize,
                     RangeSquared = rangeSquared,
                     EntityIds = _entityIds,
@@ -218,6 +229,42 @@ namespace AbilityKit.Demo.Shooter.Jobs
             return true;
         }
 
+        private static int DetermineGridCellDivisor(in ShooterRvoNeighborBatch batch)
+        {
+            if (batch.Count < HighDensityAgentCount)
+            {
+                return DefaultGridCellDivisor;
+            }
+
+            var minimumX = batch.PositionX[0];
+            var maximumX = minimumX;
+            var minimumY = batch.PositionY[0];
+            var maximumY = minimumY;
+            for (var index = 1; index < batch.Count; index++)
+            {
+                minimumX = Math.Min(minimumX, batch.PositionX[index]);
+                maximumX = Math.Max(maximumX, batch.PositionX[index]);
+                minimumY = Math.Min(minimumY, batch.PositionY[index]);
+                maximumY = Math.Max(maximumY, batch.PositionY[index]);
+            }
+
+            var width = Math.Max(batch.NeighborDistance, maximumX - minimumX);
+            var height = Math.Max(batch.NeighborDistance, maximumY - minimumY);
+            var defaultCellSize = batch.NeighborDistance / DefaultGridCellDivisor;
+            var estimatedAgentsPerDefaultCell =
+                batch.Count * defaultCellSize * defaultCellSize / (width * height);
+            if (estimatedAgentsPerDefaultCell >=
+                batch.MaxNeighbors * HighDensityTargetNeighborMultiplier)
+            {
+                return HighDensityGridCellDivisor;
+            }
+
+            return estimatedAgentsPerDefaultCell >=
+                batch.MaxNeighbors * MediumDensityTargetNeighborMultiplier
+                ? MediumDensityGridCellDivisor
+                : DefaultGridCellDivisor;
+        }
+
         private void CopyInputs(in ShooterRvoNeighborBatch batch)
         {
             NativeArray<uint>.Copy(batch.EntityIds, _entityIds, batch.Count);
@@ -307,6 +354,8 @@ namespace AbilityKit.Demo.Shooter.Jobs
         private struct CollectNeighborsJob : IJobParallelFor
         {
             public int MaxNeighbors;
+            public int GridSearchRadius;
+            public float CellSize;
             public float InverseCellSize;
             public float RangeSquared;
 
@@ -327,16 +376,71 @@ namespace AbilityKit.Demo.Shooter.Jobs
                 var originX = FloorToInt(selfX * InverseCellSize);
                 var originY = FloorToInt(selfY * InverseCellSize);
 
-                for (var y = originY - 1; y <= originY + 1; y++)
+                CollectCell(
+                    agentIndex,
+                    selfX,
+                    selfY,
+                    rowOffset,
+                    originX,
+                    originY,
+                    ref count);
+
+                // The center cell normally fills the bounded nearest-neighbor set in dense
+                // crowds. Visit the remaining cells in expanding rings so their AABB distance
+                // can reject whole buckets once they cannot improve the current result.
+                for (var ring = 1; ring <= GridSearchRadius; ring++)
                 {
-                    for (var x = originX - 1; x <= originX + 1; x++)
+                    if (count == MaxNeighbors && RingMinimumDistanceSquared(
+                            selfX,
+                            selfY,
+                            originX,
+                            originY,
+                            ring) > NeighborDistanceSquared[rowOffset + MaxNeighbors - 1])
+                    {
+                        break;
+                    }
+
+                    var minimumX = originX - ring;
+                    var maximumX = originX + ring;
+                    var minimumY = originY - ring;
+                    var maximumY = originY + ring;
+                    for (var x = minimumX; x <= maximumX; x++)
                     {
                         CollectCell(
                             agentIndex,
                             selfX,
                             selfY,
                             rowOffset,
-                            CombineCellKey(x, y),
+                            x,
+                            minimumY,
+                            ref count);
+                        CollectCell(
+                            agentIndex,
+                            selfX,
+                            selfY,
+                            rowOffset,
+                            x,
+                            maximumY,
+                            ref count);
+                    }
+
+                    for (var y = minimumY + 1; y < maximumY; y++)
+                    {
+                        CollectCell(
+                            agentIndex,
+                            selfX,
+                            selfY,
+                            rowOffset,
+                            minimumX,
+                            y,
+                            ref count);
+                        CollectCell(
+                            agentIndex,
+                            selfX,
+                            selfY,
+                            rowOffset,
+                            maximumX,
+                            y,
                             ref count);
                     }
                 }
@@ -349,10 +453,20 @@ namespace AbilityKit.Demo.Shooter.Jobs
                 float selfX,
                 float selfY,
                 int rowOffset,
-                long cellKey,
+                int cellX,
+                int cellY,
                 ref int count)
             {
-                if (!SpatialGrid.TryGetFirstValue(cellKey, out var candidateIndex, out var iterator))
+                if (count == MaxNeighbors && CellMinimumDistanceSquared(selfX, selfY, cellX, cellY) >
+                    NeighborDistanceSquared[rowOffset + MaxNeighbors - 1])
+                {
+                    return;
+                }
+
+                if (!SpatialGrid.TryGetFirstValue(
+                        CombineCellKey(cellX, cellY),
+                        out var candidateIndex,
+                        out var iterator))
                 {
                     return;
                 }
@@ -385,6 +499,15 @@ namespace AbilityKit.Demo.Shooter.Jobs
                 float distanceSquared,
                 ref int count)
             {
+                if (count == MaxNeighbors && !IsBefore(
+                        candidateIndex,
+                        distanceSquared,
+                        NeighborIndices[rowOffset + MaxNeighbors - 1],
+                        NeighborDistanceSquared[rowOffset + MaxNeighbors - 1]))
+                {
+                    return;
+                }
+
                 var insertionIndex = count;
                 while (insertionIndex > 0 && IsBefore(
                     candidateIndex,
@@ -433,6 +556,37 @@ namespace AbilityKit.Demo.Shooter.Jobs
                 var existingEntityId = EntityIds[existingIndex];
                 return candidateEntityId < existingEntityId ||
                     (candidateEntityId == existingEntityId && candidateIndex < existingIndex);
+            }
+
+            private float CellMinimumDistanceSquared(float x, float y, int cellX, int cellY)
+            {
+                const float boundaryPadding = 0.00001f;
+                var minimumX = cellX * CellSize - boundaryPadding;
+                var minimumY = cellY * CellSize - boundaryPadding;
+                var maximumX = minimumX + CellSize + boundaryPadding * 2f;
+                var maximumY = minimumY + CellSize + boundaryPadding * 2f;
+                var deltaX = x < minimumX ? minimumX - x : x > maximumX ? x - maximumX : 0f;
+                var deltaY = y < minimumY ? minimumY - y : y > maximumY ? y - maximumY : 0f;
+                return deltaX * deltaX + deltaY * deltaY;
+            }
+
+            private float RingMinimumDistanceSquared(
+                float x,
+                float y,
+                int originX,
+                int originY,
+                int ring)
+            {
+                var minimumDistance = CellMinimumDistanceSquared(x, y, originX - ring, originY);
+                minimumDistance = Math.Min(
+                    minimumDistance,
+                    CellMinimumDistanceSquared(x, y, originX + ring, originY));
+                minimumDistance = Math.Min(
+                    minimumDistance,
+                    CellMinimumDistanceSquared(x, y, originX, originY - ring));
+                return Math.Min(
+                    minimumDistance,
+                    CellMinimumDistanceSquared(x, y, originX, originY + ring));
             }
         }
 

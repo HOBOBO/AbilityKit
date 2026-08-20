@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         private const float Width = 440f;
         private const float TextFieldWidth = 180f;
-        private const string DefaultTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
+        private const string DefaultTemplateId = ShooterRoomLaunchSpec.DefaultSyncTemplateId;
         private static readonly string[] EnemyBudgetLabels =
         {
             "Playable 512",
@@ -573,7 +573,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 [ShooterRoomLaunchTagKeys.InterpolationEnabled] = template.ExpectsInterpolationDiagnostics.ToString(),
                 [ShooterRoomLaunchTagKeys.InputDelayFrames] = "0",
                 [ShooterRoomLaunchTagKeys.RandomSeed] = sessionOptions.RandomSeed.ToString(),
-                [ShooterRoomLaunchTagKeys.DurationFrames] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString()
+                [ShooterRoomLaunchTagKeys.DurationFrames] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString(),
+                [ShooterRoomLaunchTagKeys.EnemyBudget] = sessionOptions.GameplayScenario.BattleFlow.MaxActiveEnemies.ToString()
             };
 
             return new ShooterRoomLaunchSpec(

@@ -34,6 +34,7 @@ internal static class RoomBattleInitSpecHasher
         AppendField(builder, "RandomSeed", initParams.RandomSeed);
         AppendField(builder, "InputDelayFrames", initParams.InputDelayFrames);
         AppendField(builder, "DurationFrames", initParams.DurationFrames);
+        AppendField(builder, "EnemyBudget", initParams.EnemyBudget);
         AppendField(builder, "VictoryTargetDefeats", initParams.VictoryTargetDefeats);
         AppendField(builder, "ContinueAfterAllPlayersDefeated", initParams.ContinueAfterAllPlayersDefeated ? 1 : 0);
         AppendField(builder, "WorldType", initParams.WorldType ?? string.Empty);

@@ -2,6 +2,22 @@ using System;
 
 namespace AbilityKit.Network.Runtime.Sync
 {
+    /// <summary>Stateful reconnect cadence driven by its owning connection runtime.</summary>
+    public interface IReconnectAttemptScheduler
+    {
+        bool IsPending { get; }
+        bool IsExhausted { get; }
+        int AttemptsStarted { get; }
+        int MaxAttempts { get; }
+        int NextAttemptNumber { get; }
+        float NextDelaySeconds { get; }
+        float RemainingDelaySeconds { get; }
+
+        bool Request();
+        bool TryTakeAttempt(float deltaTime, out int attemptNumber);
+        void Reset();
+    }
+
     /// <summary>
     /// 断线重连的退避策略（纯函数，无会话依赖）。
     /// 指数退避：1s、2s、4s、8s……封顶 15s。
@@ -28,7 +44,7 @@ namespace AbilityKit.Network.Runtime.Sync
     /// Stateful retry cadence for reconnect and session-recovery workflows.
     /// The scheduler owns no transport or callback and is advanced by its host tick.
     /// </summary>
-    public sealed class ReconnectAttemptScheduler
+    public sealed class ReconnectAttemptScheduler : IReconnectAttemptScheduler
     {
         private readonly int _maxAttempts;
         private readonly Func<int, float> _resolveDelay;

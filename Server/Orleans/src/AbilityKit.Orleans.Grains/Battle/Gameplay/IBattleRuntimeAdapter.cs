@@ -1,4 +1,5 @@
 using AbilityKit.Orleans.Contracts.Battle;
+using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Orleans.Grains.Battle.Gameplay;
 
@@ -12,7 +13,10 @@ internal interface IBattleRuntimeAdapter
 internal readonly record struct BattleStateSyncObserverContext(
     string ObserverKey,
     string AccountId,
-    string RoomId);
+    string RoomId)
+{
+    public ShooterCommandAcknowledgement[]? AcknowledgedCommands { get; init; }
+}
 
 internal interface IBattleRuntimeSession : IDisposable
 {

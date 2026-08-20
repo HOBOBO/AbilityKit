@@ -27,6 +27,12 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IBattleDiagnosticEffectSnapshotSource _effects;
         private readonly Func<long> _timestampProvider;
 
+        [WorldInject(required: false)]
+        private IBattleDiagnosticObjectCatalogSnapshotSource _objects = null;
+
+        [WorldInject(required: false)]
+        private IBattleDiagnosticMetricSnapshotSource _frameMetrics = null;
+
         public MobaBattleDiagnosticSnapshotCapture(
             IBattleDiagnosticReadOnlySession session,
             IBattleDiagnosticEventSnapshotSource events,
@@ -91,6 +97,15 @@ namespace AbilityKit.Demo.Moba.Services
             var tags = _tags.CaptureTagSnapshot();
             var effects = _effects.CaptureEffectSnapshot();
             var sessionInfo = _session.SessionInfo;
+            var objects = _objects != null
+                ? _objects.CaptureObjectCatalogSnapshot()
+                : BattleDiagnosticObjectCatalogSnapshot.Empty(sessionInfo.Scope);
+            EnsureScope(sessionInfo.Scope, objects.Scope, nameof(_objects));
+            var frameMetrics = _frameMetrics != null
+                ? _frameMetrics.CaptureMetricSnapshot()
+                : BattleDiagnosticMetricTrackSnapshot.Empty;
+            if (_frameMetrics != null)
+                EnsureScope(sessionInfo.Scope, _frameMetrics.Scope, nameof(_frameMetrics));
 
             return new BattleDiagnosticSessionSnapshot(
                 in sessionInfo,
@@ -101,7 +116,9 @@ namespace AbilityKit.Demo.Moba.Services
                 attributes,
                 buffs,
                 tags,
-                effects);
+                effects,
+                objects,
+                frameMetrics);
         }
 
         public void Dispose()

@@ -55,13 +55,14 @@ public sealed class ShooterClientSessionTests
     }
 
     [Fact]
-    public void ClientSessionReportsPredictRollbackSyncModel()
+    public void ClientSessionDefaultsToAuthoritativeInterpolationSyncModel()
     {
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
         var session = new ShooterClientSession(runtime, presentation, tickRate: 30);
 
-        Assert.Equal(NetworkSyncModel.PredictRollback, session.SyncModel);
+        // Shooter 正式默认同步模型为服务器权威插值；PredictRollback 需显式指定。
+        Assert.Equal(NetworkSyncModel.AuthoritativeInterpolation, session.SyncModel);
     }
 
     [Fact]
@@ -206,7 +207,13 @@ public sealed class ShooterClientSessionTests
     {
         var runtime = new ShooterBattleRuntimePort();
         var presentation = new ShooterPresentationFacade();
-        var session = new ShooterClientSession(runtime, presentation, tickRate: 30);
+        var session = new ShooterClientSession(
+            runtime,
+            ShooterPresentationSessionContext.CreateFromFacade(presentation),
+            tickRate: 30,
+            decoder: null,
+            gateway: null,
+            syncModel: NetworkSyncModel.PredictRollback);
 
         Assert.False(session.TryGetInterpolationDiagnostics(out var diagnostics));
         Assert.Equal(default, diagnostics);

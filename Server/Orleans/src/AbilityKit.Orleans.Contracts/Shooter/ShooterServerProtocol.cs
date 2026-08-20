@@ -3,6 +3,8 @@ namespace AbilityKit.Orleans.Contracts.Shooter;
 public static class ShooterServerProtocol
 {
     public const string RoomType = "shooter";
+    public const int DefaultEnemyBudget = 512;
+    public const int MaxEnemyBudget = 8192;
     public const string DefaultRegion = "dev";
     public const string DefaultServerId = "default";
     public const string DefaultSandboxId = DefaultServerId;
@@ -45,6 +47,7 @@ public static class ShooterRoomTagKeys
     public const string MapId = "mapId";
     public const string RandomSeed = "randomSeed";
     public const string DurationFrames = "durationFrames";
+    public const string EnemyBudget = "enemyBudget";
     public const string VictoryTargetDefeats = "victoryTargetDefeats";
     public const string ContinueAfterAllPlayersDefeated = "continueAfterAllPlayersDefeated";
     public const string SyncTemplateId = "syncTemplateId";

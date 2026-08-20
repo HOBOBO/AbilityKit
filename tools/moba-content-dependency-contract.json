@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "contract": "moba-content-dependency",
+  "roots": [
+    {
+      "kind": "hero",
+      "manifestPath": "tools/moba-hero-manifest.json",
+      "collectionProperty": "heroes",
+      "idProperty": "characterId",
+      "nameProperty": "heroName",
+      "targetTable": "characters"
+    }
+  ],
+  "tables": [
+    {
+      "name": "characters",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/characters.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "ModelId", "targetTable": "models" },
+        { "path": "AttributeTemplateId", "targetTable": "attribute_templates" },
+        { "path": "SkillIds", "targetTable": "skills" },
+        { "path": "PassiveSkillIds", "targetTable": "passive_skills" }
+      ]
+    },
+    {
+      "name": "models",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/models.json",
+      "idProperty": "Id"
+    },
+    {
+      "name": "attribute_templates",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/attribute_templates.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "BasicAttackSkillId", "targetTable": "skills" },
+        { "path": "ActiveSkills", "targetTable": "skills" },
+        { "path": "PassiveSkills", "targetTable": "passive_skills" }
+      ]
+    },
+    {
+      "name": "skills",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skills.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "SkillButtonTemplateId", "targetTable": "skill_button_templates" },
+        { "path": "LevelTableId", "targetTable": "skill_level_tables", "optionalZero": true },
+        { "path": "PreCastFlowId", "targetTable": "skill_flows", "optionalZero": true },
+        { "path": "CastFlowId", "targetTable": "skill_flows" },
+        { "path": "RequiredTargetQueryId", "targetTable": "search_query_templates", "optionalZero": true }
+      ]
+    },
+    {
+      "name": "passive_skills",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/passive_skills.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "TriggerIds", "targetTable": "trigger_plans" },
+        { "path": "ContinuousProcessIds", "targetTable": "continuous_processes" }
+      ]
+    },
+    {
+      "name": "skill_flows",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_flows.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "Phases.**.EffectId", "targetTable": "trigger_plans" },
+        { "path": "Phases.**.TriggerIds", "targetTable": "trigger_plans" },
+        { "path": "PipelineContinuousTagTemplateId", "targetTable": "continuous_tag_templates", "optionalZero": true }
+      ]
+    },
+    {
+      "name": "effects",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/effects.json",
+      "idProperty": "Id"
+    },
+    {
+      "name": "skill_button_templates",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_button_templates.json",
+      "idProperty": "Id"
+    },
+    {
+      "name": "skill_level_tables",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/skill_level_tables.json",
+      "idProperty": "Id"
+    },
+    {
+      "name": "search_query_templates",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/search_query_templates.json",
+      "idProperty": "Id"
+    },
+    {
+      "name": "ongoing_effects",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/ongoing_effects.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "OnApplyEffectId", "targetTable": "trigger_plans", "optionalZero": true, "severity": "warning" },
+        { "path": "OnTickEffectId", "targetTable": "trigger_plans", "optionalZero": true, "severity": "warning" },
+        { "path": "OnRemoveEffectId", "targetTable": "trigger_plans", "optionalZero": true, "severity": "warning" }
+      ]
+    },
+    {
+      "name": "buffs",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/buffs.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "OngoingEffectId", "targetTable": "ongoing_effects", "optionalZero": true },
+        { "path": "OnAddEffects", "targetTable": "trigger_plans" },
+        { "path": "OnRemoveEffects", "targetTable": "trigger_plans" },
+        { "path": "OnIntervalEffects", "targetTable": "trigger_plans" },
+        { "path": "TriggerIds", "targetTable": "trigger_plans" },
+        { "path": "PresentationTemplateId", "targetTable": "presentation_templates", "optionalZero": true }
+      ]
+    },
+    {
+      "name": "presentation_templates",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/presentation_templates.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "AssetId", "targetTable": "vfx", "optionalZero": true }
+      ]
+    },
+    {
+      "name": "projectiles",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/projectiles.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "OnHitEffectId", "targetTable": "trigger_plans", "optionalZero": true },
+        { "path": "OnSpawnTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "OnHitTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "OnTickTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "OnExitTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "VfxId", "targetTable": "vfx", "optionalZero": true },
+        { "path": "OnSpawnVfxId", "targetTable": "vfx", "optionalZero": true },
+        { "path": "OnHitVfxId", "targetTable": "vfx", "optionalZero": true },
+        { "path": "OnExpireVfxId", "targetTable": "vfx", "optionalZero": true }
+      ]
+    },
+    {
+      "name": "aoes",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/aoes.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "ModelId", "targetTable": "models", "optionalZero": true },
+        { "path": "VfxId", "targetTable": "vfx", "optionalZero": true },
+        { "path": "OnDelayTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "OnEnterTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "OnExitTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "OnIntervalTriggerIds", "targetTable": "trigger_plans" }
+      ]
+    },
+    {
+      "name": "summons",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/summons.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "ModelId", "targetTable": "models" },
+        { "path": "AttributeTemplateId", "targetTable": "attribute_templates" },
+        { "path": "SkillIds", "targetTable": "skills" },
+        { "path": "PassiveSkillIds", "targetTable": "passive_skills" }
+      ]
+    },
+    {
+      "name": "continuous_processes",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/continuous_processes.json",
+      "idProperty": "Id",
+      "references": [
+        { "path": "IntervalTriggerIds", "targetTable": "trigger_plans" },
+        { "path": "TriggerIds", "targetTable": "trigger_plans" },
+        { "path": "ContinuousTagTemplateId", "targetTable": "continuous_tag_templates", "optionalZero": true }
+      ]
+    },
+    {
+      "name": "continuous_tag_templates",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/continuous_tag_templates.json",
+      "idProperty": "Id"
+    },
+    {
+      "name": "projectile_launchers",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/projectile_launchers.json",
+      "idProperty": "Id"
+    },
+    {
+      "name": "trigger_plans",
+      "idProperty": "TriggerId",
+      "sources": [
+        {
+          "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/ability_trigger_plans.json",
+          "recordsPath": "Triggers"
+        },
+        {
+          "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/rules/release/skill_release_default.json",
+          "idProperty": "id"
+        },
+        {
+          "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/rules/commit/skill_commit_default.json",
+          "idProperty": "id"
+        }
+      ],
+      "references": [
+        { "path": "Actions.**.Args.area_id.ConstValue", "targetTable": "aoes" },
+        { "path": "Actions.**.Args.buff_id.ConstValue", "targetTable": "buffs" },
+        { "path": "Actions.**.Args.buffIds.ConstValue", "targetTable": "buffs", "severity": "warning" },
+        { "path": "Actions.**.Args.projectile_id.ConstValue", "targetTable": "projectiles" },
+        { "path": "Actions.**.Args.target_query_id.ConstValue", "targetTable": "search_query_templates" },
+        { "path": "Actions.**.Args.hit_trigger_plan_id.ConstValue", "targetTable": "trigger_plans" },
+        { "path": "Actions.**.Args.landing_trigger_ids.ConstValue", "targetTable": "trigger_plans" },
+        { "path": "Actions.**.Args.trigger_id.ConstValue", "targetTable": "trigger_plans" },
+        { "path": "Actions.**.Args.skill_id.ConstValue", "targetTable": "skills" },
+        { "path": "Actions.**.Args.continuous_tag_template_id.ConstValue", "targetTable": "continuous_tag_templates" },
+        { "path": "Actions.**.Args.launcher_id.ConstValue", "targetTable": "projectile_launchers" }
+      ]
+    },
+    {
+      "name": "vfx",
+      "path": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/vfx/vfx.json",
+      "idProperty": "Id"
+    }
+  ],
+  "resourceRules": [
+    {
+      "table": "models",
+      "path": "PrefabPath",
+      "required": true,
+      "placeholderPatterns": [
+        "(^|[\\/])placeholders?([\\/]|$)"
+      ],
+      "placeholderAllowlist": [
+        {
+          "id": 90000101,
+          "owner": "MOBA Presentation",
+          "reason": "Existing shared circular AOE preview mesh; replace with production-owned area presentation."
+        },
+        {
+          "id": 90000102,
+          "owner": "MOBA Presentation",
+          "reason": "Existing shared sector AOE preview mesh; replace with production-owned area presentation."
+        }
+      ],
+      "resourceRoot": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources",
+      "extensions": [".prefab"],
+      "severity": "warning",
+      "productionReachableSeverity": "error"
+    },
+    {
+      "table": "vfx",
+      "path": "Resource",
+      "required": true,
+      "placeholderPatterns": [
+        "(^|[\\/])placeholders?([\\/]|$)"
+      ],
+      "resourceRoot": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources",
+      "extensions": [".prefab"],
+      "severity": "warning",
+      "productionReachableSeverity": "error"
+    }
+  ],
+  "externalReferences": [
+    {
+      "sourceTable": "trigger_plans",
+      "paths": [
+        "Actions.**.Args.emitterId.ConstValue",
+        "Actions.**.Args.shield_id.ConstValue",
+        "Actions.**.Args.reason_id.ConstValue",
+        "Actions.**.Args.reason_param.ConstValue"
+      ],
+      "authority": "runtime-action-semantics",
+      "reason": "These action arguments are contextual or use runtime registries whose table semantics are not yet represented by the content contract."
+    }
+  ]
+}

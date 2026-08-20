@@ -424,4 +424,134 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    value.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
+
+    /// <summary>Bounded frame-metric history used by live and exported diagnostic sessions.</summary>
+    public sealed class BattleDiagnosticMetricRingStore :
+        IBattleDiagnosticMetricReadStore,
+        IBattleDiagnosticMetricSnapshotSource
+    {
+        public const int DefaultCapacity = 4096;
+
+        private readonly int _capacity;
+        private BattleDiagnosticMetricSample[] _buffer;
+        private int _head;
+        private int _count;
+        private long _revision;
+        private long _lastSequence;
+        private long _acceptedCount;
+        private long _evictedCount;
+        private long _rejectedCount;
+        private bool _isFrozen;
+
+        public BattleDiagnosticMetricRingStore(
+            BattleDiagnosticSessionScope scope,
+            int capacity = DefaultCapacity)
+        {
+            if (!scope.IsValid) throw new ArgumentException("A valid session scope is required.", nameof(scope));
+            if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
+            Scope = scope;
+            _capacity = capacity;
+        }
+
+        public BattleDiagnosticSessionScope Scope { get; }
+        public int Capacity => _capacity;
+        public int Count => _count;
+        public long Revision => _revision;
+        public bool IsFrozen => _isFrozen;
+        public long LastSequence => _lastSequence;
+
+        public BattleDiagnosticStoreMetrics Metrics => new BattleDiagnosticStoreMetrics(
+            Capacity,
+            _count,
+            _revision,
+            _acceptedCount,
+            _evictedCount,
+            _rejectedCount,
+            _isFrozen);
+
+        public bool TryAppend(in BattleDiagnosticMetricSample sample)
+        {
+            if (_isFrozen || sample.Scope != Scope || sample.Sequence <= _lastSequence)
+            {
+                _rejectedCount++;
+                return false;
+            }
+
+            if (_buffer == null)
+                _buffer = new BattleDiagnosticMetricSample[_capacity];
+
+            if (_count == Capacity)
+            {
+                _buffer[_head] = sample;
+                _head = (_head + 1) % Capacity;
+                _evictedCount++;
+            }
+            else
+            {
+                _buffer[(_head + _count) % Capacity] = sample;
+                _count++;
+            }
+
+            _lastSequence = sample.Sequence;
+            _acceptedCount++;
+            _revision++;
+            return true;
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticMetricSample> QueryMetrics(
+            BattleDiagnosticMetricQuery query)
+        {
+            if (query.Page.StoreRevision > 0L && query.Page.StoreRevision != _revision)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticMetricSample>.Unavailable(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    BattleDiagnosticDataAvailability.Evicted,
+                    "The requested metric store revision is no longer retained.");
+            }
+
+            var result = new List<BattleDiagnosticMetricSample>(Math.Min(query.Page.Limit, _count));
+            var skipped = 0;
+            var hasMore = false;
+            for (var i = 0; i < _count; i++)
+            {
+                var item = _buffer[(_head + i) % Capacity];
+                if (!query.Matches(in item)) continue;
+                if (skipped++ < query.Page.Offset) continue;
+                if (result.Count == query.Page.Limit)
+                {
+                    hasMore = true;
+                    break;
+                }
+                result.Add(item);
+            }
+
+            return BattleDiagnosticQueryResult<BattleDiagnosticMetricSample>.FromItems(
+                query.RequestId,
+                _revision,
+                result,
+                hasMore);
+        }
+
+        public BattleDiagnosticMetricTrackSnapshot CaptureMetricSnapshot()
+        {
+            var samples = new List<BattleDiagnosticMetricSample>(_count);
+            for (var i = 0; i < _count; i++)
+                samples.Add(_buffer[(_head + i) % Capacity]);
+            var metrics = Metrics;
+            return new BattleDiagnosticMetricTrackSnapshot(_revision, in metrics, samples);
+        }
+
+        public void Freeze() => _isFrozen = true;
+        public void Resume() => _isFrozen = false;
+
+        public void Clear()
+        {
+            if (_buffer != null) Array.Clear(_buffer, 0, _buffer.Length);
+            _head = 0;
+            _count = 0;
+            _lastSequence = 0L;
+            _revision++;
+        }
+    }
 }

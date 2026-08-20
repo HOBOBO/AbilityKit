@@ -3,10 +3,13 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Core.Pooling
 {
+    /// <summary>Provides convenience access to pools in the process-wide global scope.</summary>
     public static class Pools
     {
+        /// <summary>Gets the process-wide global pooling scope.</summary>
         public static PoolScope GlobalScope => PoolRegistry.Global;
 
+        /// <summary>Gets or creates a named pooling scope.</summary>
         public static PoolScope GetOrCreateScope(string name, bool destroyOnDispose = true)
         {
             return PoolRegistry.GetOrCreateScope(name, destroyOnDispose);
@@ -54,11 +57,13 @@ namespace AbilityKit.Core.Pooling
             return PoolRegistry.RegisterConfigModule(configure, defaultScopeName, moduleName, source, priority);
         }
 
+        /// <summary>Unregisters a configuration provider by identity.</summary>
         public static bool UnregisterConfigProvider(IPoolConfigProvider provider)
         {
             return PoolRegistry.UnregisterConfigProvider(provider);
         }
 
+        /// <summary>Removes all registered configuration providers.</summary>
         public static void ClearConfigProviders()
         {
             PoolRegistry.ClearConfigProviders();
@@ -95,132 +100,158 @@ namespace AbilityKit.Core.Pooling
             return PoolRegistry.GetConfigProviderInfos();
         }
 
+        /// <summary>Attempts to get an active named scope.</summary>
         public static bool TryGetScope(string name, out PoolScope scope)
         {
             return PoolRegistry.TryGetScope(name, out scope);
         }
 
+        /// <summary>Destroys a named scope, or clears the reserved global scope.</summary>
         public static bool DestroyScope(string name, bool destroy = true)
         {
             return PoolRegistry.DestroyScope(name, destroy);
         }
 
+        /// <summary>Gets or creates the default keyed global pool using explicit fallback settings.</summary>
         public static ObjectPool<T> GetPool<T>(Func<T> createFunc, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, PoolTrimPolicy trimPolicy = default) where T : class
         {
             return GetPool(PoolKey.Default, createFunc, onGet, onRelease, onDestroy, defaultCapacity, maxSize, collectionCheck, trimPolicy);
         }
 
+        /// <summary>Gets or creates a keyed global pool using explicit fallback settings.</summary>
         public static ObjectPool<T> GetPool<T>(PoolKey key, Func<T> createFunc, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, PoolTrimPolicy trimPolicy = default) where T : class
         {
             return PoolRegistry.Global.GetPool(key, createFunc, onGet, onRelease, onDestroy, defaultCapacity, maxSize, collectionCheck, trimPolicy);
         }
 
+        /// <summary>Gets or creates the default keyed global pool from options.</summary>
         public static ObjectPool<T> GetPool<T>(ObjectPoolOptions<T> options) where T : class
         {
             return PoolRegistry.Global.GetPool(options);
         }
 
+        /// <summary>Gets or creates a keyed global pool from options.</summary>
         public static ObjectPool<T> GetPool<T>(PoolKey key, ObjectPoolOptions<T> options) where T : class
         {
             return PoolRegistry.Global.GetPool(key, options);
         }
 
+        /// <summary>Gets or creates a keyed global pool using a fallback configuration value.</summary>
         public static ObjectPool<T> GetPool<T>(PoolKey key, Func<T> createFunc, PoolItemConfig fallbackConfig, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null) where T : class
         {
             return PoolRegistry.Global.GetPool(key, createFunc, fallbackConfig, onGet, onRelease, onDestroy);
         }
 
+        /// <summary>Acquires an element from the default keyed global pool.</summary>
         public static T Get<T>(Func<T> createFunc, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, PoolTrimPolicy trimPolicy = default) where T : class
         {
             return Get(PoolKey.Default, createFunc, onGet, onRelease, onDestroy, defaultCapacity, maxSize, collectionCheck, trimPolicy);
         }
 
+        /// <summary>Acquires an element from a keyed global pool using explicit fallback settings.</summary>
         public static T Get<T>(PoolKey key, Func<T> createFunc, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, PoolTrimPolicy trimPolicy = default) where T : class
         {
             return GetPool(key, createFunc, onGet, onRelease, onDestroy, defaultCapacity, maxSize, collectionCheck, trimPolicy).Get();
         }
 
+        /// <summary>Acquires an element from a keyed global pool using a fallback configuration value.</summary>
         public static T Get<T>(PoolKey key, Func<T> createFunc, PoolItemConfig fallbackConfig, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null) where T : class
         {
             return GetPool(key, createFunc, fallbackConfig, onGet, onRelease, onDestroy).Get();
         }
 
+        /// <summary>Acquires a disposable return handle from the default keyed global pool.</summary>
         public static PooledObject<T> GetPooled<T>(Func<T> createFunc, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, PoolTrimPolicy trimPolicy = default) where T : class
         {
             return GetPooled(PoolKey.Default, createFunc, onGet, onRelease, onDestroy, defaultCapacity, maxSize, collectionCheck, trimPolicy);
         }
 
+        /// <summary>Acquires a disposable return handle from a keyed global pool using explicit fallback settings.</summary>
         public static PooledObject<T> GetPooled<T>(PoolKey key, Func<T> createFunc, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null, int defaultCapacity = 0, int maxSize = 1024, bool collectionCheck = true, PoolTrimPolicy trimPolicy = default) where T : class
         {
             return GetPool(key, createFunc, onGet, onRelease, onDestroy, defaultCapacity, maxSize, collectionCheck, trimPolicy).GetPooled();
         }
 
+        /// <summary>Acquires a disposable return handle from a keyed global pool using a fallback configuration value.</summary>
         public static PooledObject<T> GetPooled<T>(PoolKey key, Func<T> createFunc, PoolItemConfig fallbackConfig, Action<T>? onGet = null, Action<T>? onRelease = null, Action<T>? onDestroy = null) where T : class
         {
             return GetPool(key, createFunc, fallbackConfig, onGet, onRelease, onDestroy).GetPooled();
         }
 
+        /// <summary>Returns an element to the default keyed global pool.</summary>
         public static void Release<T>(T element) where T : class
         {
             Release(PoolKey.Default, element);
         }
 
+        /// <summary>Returns an element to a keyed global pool.</summary>
         public static void Release<T>(PoolKey key, T element) where T : class
         {
             PoolRegistry.Global.Release(key, element);
         }
 
+        /// <summary>Attempts to return an element to the default keyed global pool.</summary>
         public static bool TryRelease<T>(T element) where T : class
         {
             return TryRelease(PoolKey.Default, element);
         }
 
+        /// <summary>Attempts to return an element to a keyed global pool.</summary>
         public static bool TryRelease<T>(PoolKey key, T element) where T : class
         {
             return PoolRegistry.Global.TryRelease(key, element);
         }
 
+        /// <summary>Returns an instance to the global pool that most recently acquired it.</summary>
         public static void Release(object element)
         {
             PoolRegistry.Global.Release(element);
         }
 
+        /// <summary>Attempts to return an instance to the global pool that most recently acquired it.</summary>
         public static bool TryRelease(object element)
         {
             return PoolRegistry.Global.TryRelease(element);
         }
 
+        /// <summary>Destroys the default keyed global pool for an element type.</summary>
         public static bool DestroyPool<T>(bool destroy = true) where T : class
         {
             return DestroyPool<T>(PoolKey.Default, destroy);
         }
 
+        /// <summary>Destroys a keyed global pool for an element type.</summary>
         public static bool DestroyPool<T>(PoolKey key, bool destroy = true) where T : class
         {
             return PoolRegistry.Global.DestroyPool<T>(key, destroy);
         }
 
+        /// <summary>Trims all global pools using their configured policies.</summary>
         public static int TrimAll()
         {
             return PoolRegistry.Global.TrimAll();
         }
 
+        /// <summary>Trims all global pools using the specified policy.</summary>
         public static int TrimAll(PoolTrimPolicy policy)
         {
             return PoolRegistry.Global.TrimAll(policy);
         }
 
+        /// <summary>Force-trims all global pools using the specified policy.</summary>
         public static int ForceTrimAll(PoolTrimPolicy policy)
         {
             return PoolRegistry.Global.ForceTrimAll(policy);
         }
 
+        /// <summary>Unregisters every global pool and clears its inactive elements.</summary>
         public static void ClearAll(bool destroy = false)
         {
             PoolRegistry.Global.Clear(destroy);
         }
 
 #if UNITY_EDITOR
+        /// <summary>Gets editor-only diagnostic snapshots for all global pools.</summary>
         public static IReadOnlyList<PoolDebugSnapshot> GetDebugSnapshots()
         {
             return PoolRegistry.Global.GetDebugSnapshots();

@@ -154,6 +154,43 @@ public sealed class StateSyncObserverDrainPolicyTests
         Assert.Equal(0, queue.CreateMetrics(nowTicks: 20).ResyncCount);
     }
 
+    [Fact]
+    public void OversizedSnapshot_DoesNotCreateDebtBeyondBurstBudget()
+    {
+        const int bytesPerSecond = 16 * 1024;
+        const int burstBytes = 32 * 1024;
+        var queue = new SnapshotSendQueue<int>(
+            new SnapshotSendQueuePolicy(
+                bytesPerSecond,
+                burstBytes,
+                maxQueueLength: 4,
+                maxQueueAge: TimeSpan.FromSeconds(10)),
+            nowTicks: 1);
+        var oversized = new SnapshotSendQueueItem<int>(
+            value: 1,
+            frame: 1,
+            byteCount: 100 * 1024,
+            SnapshotDeliveryPriority.FullBaseline,
+            replaceable: false,
+            producedAtTicks: 1);
+        var next = new SnapshotSendQueueItem<int>(
+            value: 2,
+            frame: 2,
+            byteCount: burstBytes,
+            SnapshotDeliveryPriority.FullBaseline,
+            replaceable: false,
+            producedAtTicks: 2);
+
+        queue.Enqueue(in oversized, nowTicks: 1);
+        Assert.True(queue.TryDequeue(nowTicks: 1, out var first));
+        Assert.Equal(1, first.Value);
+        queue.Enqueue(in next, nowTicks: 2);
+
+        Assert.False(queue.TryDequeue(nowTicks: TimeSpan.TicksPerSecond, out _));
+        Assert.True(queue.TryDequeue(nowTicks: 2 * TimeSpan.TicksPerSecond + 1, out var second));
+        Assert.Equal(2, second.Value);
+    }
+
     private static SnapshotSendQueue<int> CreateQueue(TimeSpan maxQueueAge)
     {
         return new SnapshotSendQueue<int>(

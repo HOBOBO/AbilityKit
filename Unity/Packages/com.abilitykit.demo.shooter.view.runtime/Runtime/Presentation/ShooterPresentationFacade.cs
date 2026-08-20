@@ -11,6 +11,8 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterReconciliationDiagnosticsStream _diagnosticsStream;
         private readonly ShooterPureStateSnapshotSyncController _pureStateSync;
         private int _controlledPlayerId;
+        private ShooterSnapshotViewBatch _renderBatch;
+        private bool _hasRenderBatch;
 
         public ShooterPresentationFacade()
             : this(
@@ -45,6 +47,8 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterSnapshotViewModel ViewModel => _adapter.ViewModel;
 
         public ShooterSnapshotStream Snapshots => _stream;
+
+        public ShooterSnapshotViewBatch RenderBatch => _hasRenderBatch ? _renderBatch : _adapter.ViewModel.Current;
 
         public ShooterReconciliationDiagnosticsStream ReconciliationDiagnostics => _diagnosticsStream;
 
@@ -95,13 +99,13 @@ namespace AbilityKit.Demo.Shooter.View
         public void ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
         {
             var batch = _adapter.ApplyGatewaySnapshot(in snapshot);
-            _stream.Publish(in batch);
+            Publish(in batch);
         }
 
         public void ApplyInterpolatedGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
         {
             var batch = _adapter.ApplyGatewaySnapshot(in snapshot, _controlledPlayerId);
-            _stream.Publish(in batch);
+            Publish(in batch);
         }
 
         public ShooterPureStateSnapshotApplyResult ApplyPureStateGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
@@ -113,13 +117,13 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _stream.InterpolationDelayFrames = Math.Max(0, snapshot.Settings.InterpolationDelayFrames);
             var batch = _adapter.ApplyPureStateSnapshot(in snapshot, _controlledPlayerId);
-            _stream.Publish(in batch);
+            Publish(in batch);
         }
 
         public void ApplyShooterPayload(byte[] payload)
         {
             var batch = _adapter.ApplyPayload(payload);
-            _stream.Publish(in batch);
+            Publish(in batch);
         }
 
         public void ApplyShooterSnapshot(in ShooterStateSnapshotPayload snapshot)
@@ -130,18 +134,37 @@ namespace AbilityKit.Demo.Shooter.View
         public void ApplyLocalPredictionSnapshot(in ShooterStateSnapshotPayload snapshot)
         {
             var batch = _adapter.ApplySnapshot(in snapshot, ShooterViewBatchSource.LocalPrediction);
-            _stream.Publish(in batch);
+            Publish(in batch);
+        }
+
+        public void ApplyControlledPlayerPrediction(in ShooterStateSnapshotPayload snapshot)
+        {
+            var batch = _adapter.ApplyControlledPlayerPrediction(in snapshot, _controlledPlayerId);
+            Publish(in batch);
         }
 
         public void ApplyLocalAuthoritativeSnapshot(in ShooterStateSnapshotPayload snapshot)
         {
             var batch = _adapter.ApplySnapshot(in snapshot, ShooterViewBatchSource.LocalAuthoritative);
-            _stream.Publish(in batch);
+            Publish(in batch);
         }
 
         public void Clear()
         {
             var batch = _adapter.Clear();
+            Publish(in batch);
+        }
+
+        internal void SetRenderBatch(in ShooterSnapshotViewBatch batch)
+        {
+            _renderBatch = batch;
+            _hasRenderBatch = true;
+        }
+
+        private void Publish(in ShooterSnapshotViewBatch batch)
+        {
+            _renderBatch = batch;
+            _hasRenderBatch = true;
             _stream.Publish(in batch);
         }
     }

@@ -5,6 +5,11 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    [BattleDebugModule(
+        BattleDebugModuleIds.FrameSyncOverview,
+        "Frame Sync",
+        Sources = BattleDebugModuleSourceSupport.Live,
+        Selections = BattleDebugModuleSelectionSupport.None)]
     internal sealed class BattleDebugFrameSyncPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "帧同步/总览";

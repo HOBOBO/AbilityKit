@@ -1,40 +1,49 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Collections;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Ability.StateSync.Buffer
 {
+
+public interface IInputBuffer<TInput> where TInput : class, IInputCommand
+{
+    int LocalPlayerId { get; }
+    int Count { get; }
+    void Store(int frame, TInput input);
+    bool TryGet(int frame, out TInput input);
+    void Clear();
+}
 
 /// <summary>
 /// 输入缓冲
 /// 泛型版本，业务层提供具体的 IInputCommand 实现
 /// </summary>
-public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
+public sealed class InputBuffer<TInput> : IInputBuffer<TInput>, IBufferCapacityControl where TInput : class, IInputCommand
 {
-    private readonly Dictionary<int, TInput> _inputs = new();
-    private readonly SortedIntSet _frames;
-    private readonly int _maxBufferSize;
+    private readonly IFrameIndexedBuffer<TInput> _storage;
     private readonly int _localPlayerId;
     private readonly object _lock = new();
 
     public int LocalPlayerId => _localPlayerId;
-    public int Count => _frames.Count;
+    public int Count => _storage.Count;
+    public int Capacity => _storage.Capacity;
 
     public InputBuffer(int localPlayerId, int maxBufferSize = 128)
+        : this(localPlayerId, new SparseFrameIndexedBuffer<TInput>(maxBufferSize))
     {
-        if (maxBufferSize <= 0) throw new ArgumentOutOfRangeException(nameof(maxBufferSize));
+    }
+
+    public InputBuffer(int localPlayerId, IFrameIndexedBuffer<TInput> storage)
+    {
         _localPlayerId = localPlayerId;
-        _maxBufferSize = maxBufferSize;
-        _frames = new SortedIntSet(maxBufferSize);
+        _storage = storage ?? throw new ArgumentNullException(nameof(storage));
     }
 
     public void Store(int frame, TInput input)
     {
         lock (_lock)
         {
-            _inputs[frame] = input;
-            _frames.Add(frame);
-            TrimBuffer();
+            _storage.Store(frame, input);
         }
     }
 
@@ -42,7 +51,7 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
     {
         lock (_lock)
         {
-            return _inputs.TryGetValue(frame, out input);
+            return _storage.TryGet(frame, out input);
         }
     }
 
@@ -59,10 +68,10 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
     {
         lock (_lock)
         {
-            for (int i = _frames.Count - 1; i >= 0; i--)
+            for (int i = _storage.Count - 1; i >= 0; i--)
             {
-                int f = _frames[i];
-                if (f <= frame && _inputs.TryGetValue(f, out var cmd) && isLocal(cmd))
+                int f = _storage.GetFrameAt(i);
+                if (f <= frame && _storage.TryGet(f, out var cmd) && isLocal(cmd))
                 {
                     return true;
                 }
@@ -75,7 +84,7 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
     {
         lock (_lock)
         {
-            return _inputs.ContainsKey(frame);
+            return _storage.Contains(frame);
         }
     }
 
@@ -84,11 +93,11 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
         lock (_lock)
         {
             var result = new List<TInput>();
-            for (var index = _frames.LowerBound(startFrame); index < _frames.Count; index++)
+            for (var index = _storage.LowerBound(startFrame); index < _storage.Count; index++)
             {
-                var frame = _frames[index];
+                var frame = _storage.GetFrameAt(index);
                 if (frame > endFrame) break;
-                if (frame >= startFrame && frame <= endFrame && _inputs.TryGetValue(frame, out var input))
+                if (_storage.TryGet(frame, out var input))
                 {
                     result.Add(input);
                 }
@@ -101,41 +110,33 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
     {
         lock (_lock)
         {
-            _inputs.Clear();
-            _frames.Clear();
+            _storage.Clear();
+        }
+    }
+
+    public bool TrySetCapacity(int capacity)
+    {
+        if (capacity <= 0) return false;
+
+        lock (_lock)
+        {
+            return _storage.TrySetCapacity(capacity);
         }
     }
 
     public void RemoveBefore(int frame)
     {
-            lock (_lock)
-            {
-                var removeCount = _frames.LowerBound(frame);
-                for (var index = 0; index < removeCount; index++)
-                {
-                    _inputs.Remove(_frames[index]);
-                }
-
-                if (removeCount > 0) _frames.RemoveRange(0, removeCount);
-            }
-    }
-
-    private void TrimBuffer()
-    {
-        var removeCount = _frames.Count - _maxBufferSize;
-        for (var index = 0; index < removeCount; index++)
+        lock (_lock)
         {
-            _inputs.Remove(_frames[index]);
+            _storage.RemoveBefore(frame);
         }
-
-        if (removeCount > 0) _frames.RemoveRange(0, removeCount);
     }
 
     public int GetInputCount()
     {
         lock (_lock)
         {
-            return _frames.Count;
+            return _storage.Count;
         }
     }
 
@@ -143,7 +144,7 @@ public sealed class InputBuffer<TInput> where TInput : class, IInputCommand
     {
         lock (_lock)
         {
-            return _frames.Count > 0 ? _frames[_frames.Count - 1] : -1;
+            return _storage.Count > 0 ? _storage.GetFrameAt(_storage.Count - 1) : -1;
         }
     }
 }

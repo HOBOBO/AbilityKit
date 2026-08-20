@@ -33,6 +33,17 @@ public sealed class RoomBattleInitSpecHasherTests
     }
 
     [Fact]
+    public void Compute_ReturnsDifferentHash_WhenEnemyBudgetChanges()
+    {
+        var a = CreateParams();
+        var b = CreateParams();
+        a.EnemyBudget = 512;
+        b.EnemyBudget = 2048;
+
+        Assert.NotEqual(RoomBattleInitSpecHasher.Compute(a), RoomBattleInitSpecHasher.Compute(b));
+    }
+
+    [Fact]
     public void Compute_ReturnsDifferentHash_WhenContinueAfterAllPlayersDefeatedChanges()
     {
         var a = CreateParams();

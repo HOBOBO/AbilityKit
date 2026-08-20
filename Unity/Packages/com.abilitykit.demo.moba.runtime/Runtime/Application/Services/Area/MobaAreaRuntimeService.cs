@@ -8,17 +8,24 @@ using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Protocol.Moba.StateSync;
 using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Services.Observability;
 
 namespace AbilityKit.Demo.Moba.Services.Area
 {
     [WorldService(typeof(MobaAreaRuntimeService))]
-    public sealed class MobaAreaRuntimeService : IService
+    public sealed class MobaAreaRuntimeService :
+        IMobaRuntimeObjectBootstrapContributor,
+        IService
     {
         [WorldInject(required: false)] private IProjectileService _projectiles = null;
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
         [WorldInject(required: false)] private MobaSkillCastRuntimeService _skillRuntimes = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
+
+        private bool _objectBootstrapRegistered;
 
         private readonly Dictionary<int, MobaAreaRuntimeInfo> _areas = new Dictionary<int, MobaAreaRuntimeInfo>();
         private readonly Dictionary<int, MobaSkillRuntimeRetainHandle> _skillRuntimeRetainsByAreaId = new Dictionary<int, MobaSkillRuntimeRetainHandle>();
@@ -46,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
         {
             if (areaId.Value <= 0) return;
+            EnsureObjectBootstrapRegistered();
 
             if (ownerActorId <= 0 || sourceContextId == 0L)
             {
@@ -69,6 +77,11 @@ namespace AbilityKit.Demo.Moba.Services.Area
 
             if (_areas.TryGetValue(areaId.Value, out var oldInfo))
             {
+                PublishAreaLifecycle(
+                    MobaRuntimeObjectLifecycleStage.Destroyed,
+                    in oldInfo,
+                    frame,
+                    (int)TraceLifecycleReason.Replaced);
                 Unindex(oldInfo);
                 EndAreaTrace(in oldInfo, TraceLifecycleReason.Replaced);
                 ReleaseSkillRuntime(areaId.Value);
@@ -81,6 +94,7 @@ namespace AbilityKit.Demo.Moba.Services.Area
             Index(_areasByTemplate, templateId, areaId.Value);
             _presentationEvents.Add(new MobaAreaEventSnapshotEntry((int)AreaEventKind.Spawn, areaId.Value, ownerActorId, templateId, center.X, center.Y, center.Z, radius));
             _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Area, ActiveCount, frame);
+            PublishAreaLifecycle(MobaRuntimeObjectLifecycleStage.Created, in info, frame);
         }
 
         public bool Unregister(AreaId areaId)
@@ -95,6 +109,11 @@ namespace AbilityKit.Demo.Moba.Services.Area
             EndAreaTrace(in info, TraceLifecycleReason.Completed);
             ReleaseSkillRuntime(areaId.Value);
             _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Area, ActiveCount, CurrentFrame);
+            PublishAreaLifecycle(
+                MobaRuntimeObjectLifecycleStage.Destroyed,
+                in info,
+                CurrentFrame,
+                (int)TraceLifecycleReason.Completed);
             return true;
         }
 
@@ -120,6 +139,12 @@ namespace AbilityKit.Demo.Moba.Services.Area
             transaction.Enlist("area-indexes", () => Unindex(info));
             transaction.Enlist("area-delay-index", () => _delayTriggeredAreas.Remove(areaId.Value));
             transaction.Enlist("area-runtime", () => _areas.Remove(areaId.Value));
+            transaction.Enlist("area-object-catalog", () =>
+                PublishAreaLifecycle(
+                    MobaRuntimeObjectLifecycleStage.Destroyed,
+                    in info,
+                    CurrentFrame,
+                    (int)TraceLifecycleReason.Failed));
             transaction.Rollback();
 
             return true;
@@ -207,9 +232,20 @@ namespace AbilityKit.Demo.Moba.Services.Area
 
         public void Dispose()
         {
+            if (_objectBootstrapRegistered)
+            {
+                _objectBootstrap?.Unregister(this);
+                _objectBootstrapRegistered = false;
+            }
+            var diagnosticFrame = _frameTime != null ? _frameTime.Frame.Value : -1;
             foreach (var pair in _areas)
             {
                 var info = pair.Value;
+                PublishAreaLifecycle(
+                    MobaRuntimeObjectLifecycleStage.Destroyed,
+                    in info,
+                    diagnosticFrame,
+                    (int)TraceLifecycleReason.Cancelled);
                 EndAreaTrace(in info, TraceLifecycleReason.Cancelled);
             }
 
@@ -221,6 +257,63 @@ namespace AbilityKit.Demo.Moba.Services.Area
             _delayTriggeredAreas.Clear();
             _presentationEvents.ClearAndTrim();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Area, 0, CurrentFrame);
+        }
+
+        private void PublishAreaLifecycle(
+            MobaRuntimeObjectLifecycleStage stage,
+            in MobaAreaRuntimeInfo info,
+            int frame,
+            int endReason = 0)
+        {
+            EnsureObjectBootstrapRegistered();
+            var hook = _objectLifecycle;
+            if (hook == null || !hook.IsEnabled || info.AreaId <= 0) return;
+            PublishAreaLifecycleTo(hook, stage, in info, frame, endReason);
+        }
+
+        void IMobaRuntimeObjectBootstrapContributor.CaptureActiveRuntimeObjects(
+            IMobaRuntimeObjectLifecycleHook hook,
+            int frame)
+        {
+            foreach (var info in _areas.Values)
+            {
+                PublishAreaLifecycleTo(
+                    hook,
+                    MobaRuntimeObjectLifecycleStage.Created,
+                    in info,
+                    frame);
+            }
+        }
+
+        private static void PublishAreaLifecycleTo(
+            IMobaRuntimeObjectLifecycleHook hook,
+            MobaRuntimeObjectLifecycleStage stage,
+            in MobaAreaRuntimeInfo info,
+            int frame,
+            int endReason = 0)
+        {
+            if (hook == null || !hook.IsEnabled || info.AreaId <= 0) return;
+            var observation = new MobaRuntimeObjectLifecycleObservation(
+                stage,
+                MobaRuntimeObjectKind.Area,
+                info.AreaId,
+                frame,
+                MobaRuntimeObjectDefinitionKind.Area,
+                info.TemplateId,
+                ownerActorId: info.OwnerActorId,
+                sourceActorId: info.OwnerActorId,
+                rootContextId: info.RootContextId,
+                contextId: info.SourceContextId,
+                endReason: endReason);
+            hook.TryObserve(in observation);
+        }
+
+        private void EnsureObjectBootstrapRegistered()
+        {
+            if (_objectBootstrapRegistered) return;
+            var registry = _objectBootstrap;
+            if (registry != null && registry.Register(this))
+                _objectBootstrapRegistered = true;
         }
 
         private int CurrentFrame

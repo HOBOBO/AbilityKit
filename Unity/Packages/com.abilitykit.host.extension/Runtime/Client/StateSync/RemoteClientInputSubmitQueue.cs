@@ -7,17 +7,22 @@ namespace AbilityKit.Ability.Host.Extensions.Client.StateSync
 {
     /// <summary>
     /// Client-side host extension primitive for submitting locally accepted inputs to a remote authority.
-    /// It keeps at most one remote request in flight and one latest local result queued for the next submit.
+    /// It keeps a bounded number of remote requests in flight and one latest local result queued for backpressure.
     /// </summary>
     public sealed class RemoteClientInputSubmitQueue<TLocalSubmitResult, TRemoteSubmitResult>
     {
         private readonly Func<TLocalSubmitResult, TimeSpan, Task<TRemoteSubmitResult>> _submitAsync;
         private readonly Func<TRemoteSubmitResult, bool>? _shouldRequestResync;
+        private readonly Func<TLocalSubmitResult, TLocalSubmitResult, TLocalSubmitResult>? _mergeQueued;
         private readonly TimeSpan _timeout;
-        private Task<TRemoteSubmitResult>? _pending;
-        private TLocalSubmitResult _queuedInput;
+        private readonly Task<TRemoteSubmitResult>?[] _pending;
+        private readonly long[] _pendingSequences;
+        private TLocalSubmitResult _queuedInput = default!;
         private bool _hasQueuedInput;
-        private TRemoteSubmitResult _lastResult;
+        private int _pendingCount;
+        private long _nextSequence;
+        private long _lastOutcomeSequence;
+        private TRemoteSubmitResult _lastResult = default!;
         private Exception? _lastError;
         private long _submittedCount;
         private long _queuedCount;
@@ -29,14 +34,22 @@ namespace AbilityKit.Ability.Host.Extensions.Client.StateSync
         public RemoteClientInputSubmitQueue(
             Func<TLocalSubmitResult, TimeSpan, Task<TRemoteSubmitResult>> submitAsync,
             TimeSpan timeout,
-            Func<TRemoteSubmitResult, bool>? shouldRequestResync = null)
+            Func<TRemoteSubmitResult, bool>? shouldRequestResync = null,
+            Func<TLocalSubmitResult, TLocalSubmitResult, TLocalSubmitResult>? mergeQueued = null,
+            int maxInFlight = 1)
         {
+            if (maxInFlight <= 0) throw new ArgumentOutOfRangeException(nameof(maxInFlight));
             _submitAsync = submitAsync ?? throw new ArgumentNullException(nameof(submitAsync));
             _timeout = timeout;
             _shouldRequestResync = shouldRequestResync;
+            _mergeQueued = mergeQueued;
+            _pending = new Task<TRemoteSubmitResult>?[maxInFlight];
+            _pendingSequences = new long[maxInFlight];
         }
 
-        public bool HasPending => _pending != null;
+        public bool HasPending => _pendingCount > 0;
+        public int PendingCount => _pendingCount;
+        public int MaxInFlight => _pending.Length;
         public bool HasQueued => _hasQueuedInput;
         public TRemoteSubmitResult LastResult => _lastResult;
         public Exception? LastError => _lastError;
@@ -50,7 +63,7 @@ namespace AbilityKit.Ability.Host.Extensions.Client.StateSync
         public bool SubmitOrQueue(TLocalSubmitResult local)
         {
             CompleteIfFinished();
-            if (_pending == null)
+            if (_pendingCount < _pending.Length)
             {
                 Start(local);
                 return true;
@@ -59,6 +72,9 @@ namespace AbilityKit.Ability.Host.Extensions.Client.StateSync
             if (_hasQueuedInput)
             {
                 _replacedCount++;
+                local = _mergeQueued == null
+                    ? local
+                    : _mergeQueued(_queuedInput, local);
             }
             else
             {
@@ -72,44 +88,71 @@ namespace AbilityKit.Ability.Host.Extensions.Client.StateSync
 
         public void CompleteIfFinished()
         {
-            var pending = _pending;
-            if (pending == null || !pending.IsCompleted)
+            var madeProgress = true;
+            while (madeProgress)
             {
-                return;
-            }
-
-            _pending = null;
-            try
-            {
-                _lastResult = pending.GetAwaiter().GetResult();
-                _lastError = null;
-                _completedCount++;
-                if (_shouldRequestResync != null && _shouldRequestResync(_lastResult))
+                madeProgress = false;
+                for (var i = 0; i < _pending.Length; i++)
                 {
-                    _resyncRequestedCount++;
-                }
-            }
-            catch (Exception ex)
-            {
-                _lastError = ex;
-                _failedCount++;
-            }
+                    var pending = _pending[i];
+                    if (pending == null || !pending.IsCompleted)
+                    {
+                        continue;
+                    }
 
-            if (_hasQueuedInput)
-            {
-                var next = _queuedInput;
-                _queuedInput = default;
-                _hasQueuedInput = false;
-                Start(next);
+                    var sequence = _pendingSequences[i];
+                    _pending[i] = null;
+                    _pendingSequences[i] = 0L;
+                    _pendingCount--;
+                    madeProgress = true;
+                    try
+                    {
+                        var result = pending.GetAwaiter().GetResult();
+                        _completedCount++;
+                        if (sequence >= _lastOutcomeSequence)
+                        {
+                            _lastResult = result;
+                            _lastError = null;
+                            _lastOutcomeSequence = sequence;
+                        }
+
+                        if (_shouldRequestResync != null && _shouldRequestResync(result))
+                        {
+                            _resyncRequestedCount++;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _failedCount++;
+                        if (sequence >= _lastOutcomeSequence)
+                        {
+                            _lastError = ex;
+                            _lastOutcomeSequence = sequence;
+                        }
+                    }
+                }
+
+                if (_hasQueuedInput && _pendingCount < _pending.Length)
+                {
+                    var next = _queuedInput;
+                    _queuedInput = default!;
+                    _hasQueuedInput = false;
+                    Start(next);
+                    madeProgress = true;
+                }
             }
         }
 
         public void Reset()
         {
-            _pending = null;
-            _queuedInput = default;
+            Array.Clear(_pending, 0, _pending.Length);
+            Array.Clear(_pendingSequences, 0, _pendingSequences.Length);
+            _queuedInput = default!;
             _hasQueuedInput = false;
-            _lastResult = default;
+            _pendingCount = 0;
+            _nextSequence = 0L;
+            _lastOutcomeSequence = 0L;
+            _lastResult = default!;
             _lastError = null;
             _submittedCount = 0;
             _queuedCount = 0;
@@ -121,21 +164,45 @@ namespace AbilityKit.Ability.Host.Extensions.Client.StateSync
 
         private void Start(TLocalSubmitResult local)
         {
+            var slot = FindAvailableSlot();
+            if (slot < 0)
+            {
+                throw new InvalidOperationException("Remote input submit window is full.");
+            }
+
             _lastError = null;
+            var sequence = ++_nextSequence;
             try
             {
-                _pending = _submitAsync(local, _timeout);
+                _pending[slot] = _submitAsync(local, _timeout);
+                _pendingSequences[slot] = sequence;
+                _pendingCount++;
                 _submittedCount++;
             }
             catch (Exception ex)
             {
-                _pending = null;
-                _lastError = ex;
+                _pending[slot] = null;
+                _pendingSequences[slot] = 0L;
+                if (sequence >= _lastOutcomeSequence)
+                {
+                    _lastError = ex;
+                    _lastOutcomeSequence = sequence;
+                }
                 _failedCount++;
-                return;
+            }
+        }
+
+        private int FindAvailableSlot()
+        {
+            for (var i = 0; i < _pending.Length; i++)
+            {
+                if (_pending[i] == null)
+                {
+                    return i;
+                }
             }
 
-            CompleteIfFinished();
+            return -1;
         }
     }
 }

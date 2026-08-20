@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Game.Editor.Diagnostics;
 using UnityEditor;
@@ -5,10 +6,20 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    [BattleDebugModule(
+        BattleDebugModuleIds.DiagnosticTrace,
+        "Investigation",
+        RequiredCapabilities = BattleDiagnosticCapabilities.Trace,
+        Selections = BattleDebugModuleSelectionSupport.Frame |
+                     BattleDebugModuleSelectionSupport.Actor |
+                     BattleDebugModuleSelectionSupport.Event |
+                     BattleDebugModuleSelectionSupport.Trace |
+                     BattleDebugModuleSelectionSupport.Config)]
     internal sealed class BattleDebugDiagnosticTracePanel :
         IBattleDebugPanel,
         IBattleDebugPanelLayout,
-        IBattleDebugTraceTarget
+        IBattleDebugTraceTarget,
+        IBattleDebugWidgetProvider
     {
         public string Name => "Trace";
         public int Order => 405;
@@ -21,7 +32,34 @@ namespace AbilityKit.Game.Editor
         private long _pendingRootContextId;
         private long _pendingContextId;
         private Vector2 _treeScroll;
+        private Vector2 _waterfallScroll;
         private const float TraceRowHeight = 21f;
+        private readonly IBattleDebugWidget[] _widgets;
+        private readonly List<BattleDebugWaterfallItem> _waterfallItems =
+            new List<BattleDebugWaterfallItem>(256);
+        private readonly List<BattleDebugTimelineOverviewItem> _overviewItems =
+            new List<BattleDebugTimelineOverviewItem>(256);
+        private readonly BattleDebugTimelineOverviewBuffer _overviewBuffer =
+            new BattleDebugTimelineOverviewBuffer();
+        private readonly BattleDebugLegendItem[] _waterfallLegend =
+        {
+            new BattleDebugLegendItem("Active", new Color(0.65f, 0.9f, 1f)),
+            new BattleDebugLegendItem("Failed", new Color(1f, 0.55f, 0.55f)),
+            new BattleDebugLegendItem("Force Ended", new Color(1f, 0.8f, 0.45f)),
+            new BattleDebugLegendItem("Ended / Truncated", Color.white)
+        };
+
+        public BattleDebugDiagnosticTracePanel()
+        {
+            _widgets = new IBattleDebugWidget[]
+            {
+                new TraceWidget(this, TraceWidgetKind.Tree),
+                new TraceWidget(this, TraceWidgetKind.Waterfall),
+                new TraceWidget(this, TraceWidgetKind.Details)
+            };
+        }
+
+        public IReadOnlyList<IBattleDebugWidget> Widgets => _widgets;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
 
@@ -91,6 +129,101 @@ namespace AbilityKit.Game.Editor
 
             DrawTree(in ctx);
             DrawSelectionDetails(in ctx);
+        }
+
+        private void DrawTreeWidget(in BattleDebugContext ctx)
+        {
+            if (!TryPrepareWidget(in ctx, drawToolbar: true)) return;
+            DrawTree(in ctx);
+        }
+
+        private void DrawWaterfallWidget(in BattleDebugContext ctx)
+        {
+            if (!TryPrepareWidget(in ctx, drawToolbar: true)) return;
+            DrawWaterfall(in ctx);
+        }
+
+        private void DrawDetailsWidget(in BattleDebugContext ctx)
+        {
+            if (!TryPrepareWidget(in ctx, drawToolbar: false)) return;
+            if (_viewModel.SelectedPath.Count == 0)
+            {
+                EditorGUILayout.HelpBox("Select a node from Trace Tree or Waterfall.", MessageType.Info);
+                return;
+            }
+
+            DrawSelectionDetails(in ctx);
+        }
+
+        private bool TryPrepareWidget(in BattleDebugContext ctx, bool drawToolbar)
+        {
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
+            {
+                EditorGUILayout.HelpBox(
+                    "Battle Diagnostics session is unavailable.",
+                    MessageType.Info);
+                return false;
+            }
+
+            if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.Trace))
+            {
+                var unsupported = BattleDiagnosticQueryStatus.Unavailable(
+                    0,
+                    session.TraceStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported);
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    in unsupported,
+                    subject: "Trace"));
+                return false;
+            }
+
+            if (_pendingRootContextId > 0)
+            {
+                _viewModel.InvalidateCache();
+                _viewModel.RefreshIfNeeded(session, _pendingRootContextId);
+                _pendingRootContextId = 0;
+            }
+
+            if (drawToolbar)
+            {
+                DrawToolbar(in ctx, session);
+            }
+            if (_viewModel.RootContextId == 0)
+            {
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    default,
+                    requiresSelection: true,
+                    hasSelection: false,
+                    subject: "Trace root",
+                    selectionSubject: "Root Context"));
+                return false;
+            }
+
+            _viewModel.RefreshIfNeeded(session, _viewModel.RootContextId);
+            if (_pendingContextId > 0 && _viewModel.SelectContext(_pendingContextId))
+            {
+                _pendingContextId = 0;
+                ScrollToSelection();
+            }
+            EditorGUILayout.LabelField(
+                $"TraceStoreRevision={_viewModel.StoreRevision}  " +
+                $"Nodes={_viewModel.Rows.Count}  Visible={_viewModel.VisibleRows.Count}",
+                EditorStyles.miniLabel);
+
+            if (_viewModel.Rows.Count == 0)
+            {
+                DrawEmptyState(BattleDebugEmptyStateProjector.Project(
+                    _viewModel.QueryStatus,
+                    hasActiveFilter: !string.IsNullOrEmpty(_viewModel.SearchText),
+                    subject: "Trace nodes"));
+                return false;
+            }
+            if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
+            {
+                EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.Warning);
+            }
+
+            return true;
         }
 
         private void DrawToolbar(
@@ -236,6 +369,188 @@ namespace AbilityKit.Game.Editor
             }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawWaterfall(in BattleDebugContext ctx)
+        {
+            EditorGUILayout.LabelField("Trace Frame Waterfall", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(
+                "Bars represent frame spans, not CPU duration.",
+                EditorStyles.miniLabel);
+
+            var rows = _viewModel.Rows;
+            if (rows.Count == 0) return;
+
+            var cursorFrame = ctx.WorkspaceState?.FrameCursor.Frame ?? BattleDiagnosticFrames.Invalid;
+            var automaticRange = ResolveTraceRange(rows, cursorFrame);
+            var visibleRange = ctx.WorkspaceState != null
+                ? ctx.WorkspaceState.TimeRange.Resolve(automaticRange)
+                : automaticRange;
+            _waterfallItems.Clear();
+            _overviewItems.Clear();
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+                var node = row.Node;
+                var effectiveEnd = node.EndFrame >= 0
+                    ? node.EndFrame
+                    : BattleDiagnosticFrames.IsValid(cursorFrame)
+                        ? Mathf.Max(cursorFrame, node.StartFrame)
+                        : node.StartFrame;
+                _waterfallItems.Add(new BattleDebugWaterfallItem(
+                    node.ContextId,
+                    $"{node.Kind} #{node.ContextId}",
+                    $"Actor={node.ActorId}, Config={node.ConfigId}, State={node.State}\n" +
+                    $"F{node.StartFrame} -> " +
+                    (node.EndFrame >= 0 ? $"F{node.EndFrame}" : "active"),
+                    node.StartFrame,
+                    effectiveEnd,
+                    row.Depth,
+                    node.ContextId == _viewModel.SelectedContextId,
+                    GetStateColor(node.State)));
+                _overviewItems.Add(new BattleDebugTimelineOverviewItem(
+                    node.StartFrame,
+                    effectiveEnd));
+            }
+
+            var overviewInteraction = BattleDebugTimelineOverview.Draw(
+                _overviewItems,
+                automaticRange,
+                visibleRange,
+                cursorFrame,
+                _overviewBuffer);
+            ApplyTimelineInteraction(in ctx, overviewInteraction);
+
+            var waterfallResult = BattleDebugWaterfall.Draw(
+                _waterfallItems,
+                visibleRange,
+                cursorFrame,
+                ref _waterfallScroll);
+            BattleDebugLegend.Draw(_waterfallLegend);
+            ApplyTimelineInteraction(in ctx, waterfallResult.TimelineInteraction);
+
+            var clickedId = waterfallResult.SelectedId;
+            if (clickedId == 0L) return;
+
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var node = rows[i].Node;
+                if (node.ContextId != clickedId) continue;
+
+                _viewModel.SelectContext(node.ContextId);
+                var kind = node.ContextId == node.RootContextId
+                    ? BattleDiagnosticSelectionKind.TraceRoot
+                    : BattleDiagnosticSelectionKind.TraceNode;
+                ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
+                    node.Scope,
+                    kind,
+                    node.ContextId,
+                    node.StartFrame,
+                    node.RootContextId));
+                ctx.RequestRepaint?.Invoke();
+                break;
+            }
+        }
+
+        private static void ApplyTimelineInteraction(
+            in BattleDebugContext ctx,
+            BattleDebugTimelineInteractionResult interaction)
+        {
+            var changed = BattleDebugTimelineInteraction.Apply(ctx.WorkspaceState, interaction);
+            if (interaction.Kind == BattleDebugTimelineInteractionKind.SelectFrame &&
+                BattleDiagnosticFrames.IsValid(interaction.Frame))
+            {
+                ctx.SeekReplayFrame?.Invoke(interaction.Frame);
+            }
+            if (changed)
+            {
+                ctx.RequestRepaint?.Invoke();
+            }
+        }
+
+        private static BattleDiagnosticFrameRange ResolveTraceRange(
+            IReadOnlyList<BattleDebugDiagnosticTraceRow> rows,
+            int cursorFrame)
+        {
+            if (rows == null || rows.Count == 0)
+            {
+                return new BattleDiagnosticFrameRange(
+                    BattleDiagnosticFrames.Invalid,
+                    BattleDiagnosticFrames.Invalid);
+            }
+
+            var minFrame = rows[0].Node.StartFrame;
+            var maxFrame = ResolveEffectiveEnd(rows[0].Node, cursorFrame);
+            for (var i = 1; i < rows.Count; i++)
+            {
+                minFrame = Mathf.Min(minFrame, rows[i].Node.StartFrame);
+                maxFrame = Mathf.Max(maxFrame, ResolveEffectiveEnd(rows[i].Node, cursorFrame));
+            }
+            return new BattleDiagnosticFrameRange(minFrame, maxFrame);
+        }
+
+        private static int ResolveEffectiveEnd(
+            BattleDiagnosticTraceNodeSummary node,
+            int cursorFrame)
+        {
+            if (node.EndFrame >= 0) return node.EndFrame;
+            return BattleDiagnosticFrames.IsValid(cursorFrame)
+                ? Mathf.Max(cursorFrame, node.StartFrame)
+                : node.StartFrame;
+        }
+
+        private enum TraceWidgetKind
+        {
+            Tree = 0,
+            Waterfall = 1,
+            Details = 2
+        }
+
+        private sealed class TraceWidget : IBattleDebugWidget
+        {
+            private readonly BattleDebugDiagnosticTracePanel _owner;
+            private readonly TraceWidgetKind _kind;
+
+            public TraceWidget(BattleDebugDiagnosticTracePanel owner, TraceWidgetKind kind)
+            {
+                _owner = owner;
+                _kind = kind;
+                Descriptor = BattleDebugModuleCatalog.Describe(owner);
+            }
+
+            public BattleDebugModuleDescriptor Descriptor { get; }
+            public string StableId => _kind == TraceWidgetKind.Tree
+                ? BattleDebugWidgetIds.TraceTree
+                : _kind == TraceWidgetKind.Waterfall
+                    ? BattleDebugWidgetIds.TraceWaterfall
+                    : BattleDebugWidgetIds.TraceDetails;
+            public string DisplayName => _kind == TraceWidgetKind.Tree
+                ? "Trace Tree"
+                : _kind == TraceWidgetKind.Waterfall
+                    ? "Frame Waterfall"
+                    : "Trace Details";
+            public bool OwnsScrollView => _kind != TraceWidgetKind.Details;
+
+            public bool IsAvailable(in BattleDebugContext context)
+            {
+                return _owner.IsVisible(in context);
+            }
+
+            public void Draw(in BattleDebugContext context)
+            {
+                switch (_kind)
+                {
+                    case TraceWidgetKind.Tree:
+                        _owner.DrawTreeWidget(in context);
+                        break;
+                    case TraceWidgetKind.Waterfall:
+                        _owner.DrawWaterfallWidget(in context);
+                        break;
+                    default:
+                        _owner.DrawDetailsWidget(in context);
+                        break;
+                }
+            }
         }
 
         private static void DrawEmptyState(in BattleDebugEmptyStateProjection projection)

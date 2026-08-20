@@ -12,9 +12,11 @@ namespace AbilityKit.Demo.Shooter.View.Tests
         {
             var spec = ShooterRoomLaunchSpec.CreateDefault("unity-test");
 
-            Assert.AreEqual(ShooterSyncTemplateIds.StateSyncAuthority, ShooterRoomLaunchSpec.DefaultSyncTemplateId);
-            Assert.AreEqual(ShooterSyncTemplateIds.StateSyncAuthority, spec.SyncTemplateId);
-            Assert.AreEqual((int)NetworkSyncModel.AuthoritativeInterpolation, spec.SyncModel);
+            Assert.AreEqual(ShooterSyncTemplateIds.MassBattleLodAoi, ShooterRoomLaunchSpec.DefaultSyncTemplateId);
+            Assert.AreEqual(ShooterSyncTemplateIds.MassBattleLodAoi, spec.SyncTemplateId);
+            Assert.AreEqual((int)NetworkSyncModel.MassBattleLodSync, spec.SyncModel);
+            Assert.AreEqual("limitedbw", spec.NetworkEnvironmentId);
+            Assert.AreEqual(ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName, spec.CarrierName);
             Assert.AreEqual("2", spec.Tags[ShooterRoomLaunchTagKeys.MinPlayers]);
             Assert.AreEqual(2, spec.MaxPlayers);
         }

@@ -2,12 +2,12 @@ using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Components;
-using AbilityKit.Demo.Moba.Diagnostics;
 
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
 using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
+using AbilityKit.Demo.Moba.Services.Observability;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
     /// <summary>
@@ -20,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
         private readonly BuffStageEffectExecutor _stageEffects;
         private readonly MobaBuffPresentationCueReporter _presentationCues;
         private readonly BuffContextRegistry _contextRegistry;
-        private readonly IMobaBattleDiagnosticEventSink _diagnostics;
+        private readonly IMobaBuffLifecycleHook _observationHook;
  
         public BuffContinuousIntervalHandler(
             MobaConfigDatabase configs,
@@ -28,14 +28,14 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             BuffStageEffectExecutor stageEffects,
             MobaBuffPresentationCueReporter presentationCues,
             BuffContextRegistry contextRegistry,
-            IMobaBattleDiagnosticEventSink diagnostics = null)
+            IMobaBuffLifecycleHook observationHook = null)
         {
             _configs = configs;
             _events = events;
             _stageEffects = stageEffects;
             _presentationCues = presentationCues;
             _contextRegistry = contextRegistry;
-            _diagnostics = diagnostics;
+            _observationHook = observationHook;
         }
 
         public bool CanHandle(IContinuous continuous)
@@ -60,12 +60,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             var sourceContextId = executionContext.ParentContextId != 0 ? executionContext.ParentContextId : runtime.SourceContextId;
             _contextRegistry?.BindRuntimeContext(runtime, targetActorId, MobaRuntimeContextLifecycleState.Interval);
             _events?.PublishInterval(buff, sourceActorId, targetActorId, runtime);
-            CollectDiagnostic(buff, buffContinuous, sourceActorId, targetActorId, sourceContextId, executionContext.RootContextId, runtime);
+            PublishObservation(buff, buffContinuous, sourceActorId, targetActorId, sourceContextId, executionContext.RootContextId, runtime);
             _presentationCues?.Ticked(buff, sourceActorId, targetActorId, runtime);
             _stageEffects?.Execute(periodicConfig.IntervalEffectIds, buff.Id, sourceActorId, targetActorId, sourceContextId, MobaBuffTriggering.Stages.Interval, runtime);
         }
 
-        private void CollectDiagnostic(
+        private void PublishObservation(
             BuffMO buff,
             BuffContinuousRuntime continuous,
             int sourceActorId,
@@ -74,45 +74,35 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             long rootContextId,
             BuffRuntime runtime)
         {
-            if (_diagnostics == null || buff == null || continuous == null || runtime == null) return;
+            if (buff == null || continuous == null || runtime == null ||
+                _observationHook == null || !_observationHook.IsEnabled) return;
 
             try
             {
-                var payload = new BattleDiagnosticBuffLifecyclePayload(
-                    BattleDiagnosticBuffLifecycleStage.Interval,
-                    runtime.StackCount < 0 ? 0 : runtime.StackCount,
-                    runtime.StackCount < 0 ? 0 : runtime.StackCount,
-                    0,
-                    ToMilliseconds(runtime.Remaining),
-                    ToMilliseconds(runtime.IntervalRemainingSeconds),
-                    buff.MaxStacks < 0 ? 0 : buff.MaxStacks,
-                    runtime.ModifierBindings?.Count ?? 0,
-                    continuous.ModifierSourceId,
-                    0);
                 var handle = runtime.SkillRuntimeHandle;
-                var skillRuntime = handle.IsValid
-                    ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
-                    : default;
                 if (rootContextId == 0) rootContextId = runtime.ContextSource.RootContextId;
                 if (rootContextId == 0) rootContextId = runtime.Origin.EffectiveRootContextId;
                 if (rootContextId == 0) rootContextId = sourceContextId;
                 var contextId = runtime.RuntimeContextId != 0
                     ? runtime.RuntimeContextId
                     : sourceContextId;
-                var draft = new MobaBattleDiagnosticEventDraft(
-                    BattleDiagnosticEventKind.BuffAdded,
-                    BattleDiagnosticEventChannel.Buff,
-                    BattleDiagnosticEventOutcome.Succeeded,
+                var observation = new MobaBuffLifecycleObservation(
+                    MobaBuffLifecycleStage.Interval,
+                    buff.Id,
                     sourceActorId,
                     targetActorId,
-                    buff.Id,
                     rootContextId,
                     contextId,
-                    skillRuntime,
-                    payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
-                    summary: $"buffId={buff.Id}, stage=Interval, stack={runtime.StackCount}",
-                    payload: BattleDiagnosticEventPayload.FromBuffLifecycle(in payload));
-                _diagnostics.TryCollect(in draft);
+                    in handle,
+                    runtime.StackCount,
+                    runtime.StackCount,
+                    0f,
+                    runtime.Remaining,
+                    runtime.IntervalRemainingSeconds,
+                    buff.MaxStacks,
+                    runtime.ModifierBindings?.Count ?? 0,
+                    continuous.ModifierSourceId);
+                _observationHook.OnObserved(in observation);
             }
             catch
             {
@@ -120,12 +110,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Runtime {
             }
         }
 
-        private static int ToMilliseconds(float seconds)
-        {
-            if (float.IsNaN(seconds) || float.IsInfinity(seconds) || seconds <= 0f) return 0;
-            var milliseconds = seconds * 1000f;
-            return milliseconds >= int.MaxValue ? int.MaxValue : (int)(milliseconds + 0.5f);
-        }
     }
 }
 

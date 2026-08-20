@@ -14,7 +14,7 @@ namespace AbilityKit.Core.Debugging
         }
 
         public bool Equals(DebugDrawMask other) => Value == other.Value;
-        public override bool Equals(object obj) => obj is DebugDrawMask other && Equals(other);
+        public override bool Equals(object? obj) => obj is DebugDrawMask other && Equals(other);
         public override int GetHashCode() => Value;
         public override string ToString() => Value.ToString();
 

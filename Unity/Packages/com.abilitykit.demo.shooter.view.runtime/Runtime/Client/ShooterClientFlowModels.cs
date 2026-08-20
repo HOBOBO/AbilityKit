@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Shooter.View
         public const string InputDelayFrames = "inputDelayFrames";
         public const string RandomSeed = "randomSeed";
         public const string DurationFrames = "durationFrames";
+        public const string EnemyBudget = "enemyBudget";
         public const string VictoryTargetDefeats = "victoryTargetDefeats";
         public const string ContinueAfterAllPlayersDefeated = "continueAfterAllPlayersDefeated";
     }
@@ -25,10 +26,10 @@ namespace AbilityKit.Demo.Shooter.View
     public readonly struct ShooterRoomLaunchSpec
     {
         public const int DefaultOfflineTimeoutSeconds = 30 * 60;
-        public const string DefaultSyncTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
-        public const int DefaultSyncModel = (int)NetworkSyncModel.AuthoritativeInterpolation;
-        public const string DefaultNetworkEnvironmentId = "ideal";
-        public const string DefaultCarrierName = "server";
+        public const string DefaultSyncTemplateId = ShooterSyncTemplateIds.MassBattleLodAoi;
+        public const int DefaultSyncModel = (int)NetworkSyncModel.MassBattleLodSync;
+        public const string DefaultNetworkEnvironmentId = "limitedbw";
+        public const string DefaultCarrierName = ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName;
 
         public readonly string Region;
         public readonly string ServerId;

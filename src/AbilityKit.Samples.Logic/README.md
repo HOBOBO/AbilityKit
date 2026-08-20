@@ -254,7 +254,7 @@ Web 导出会在文档根节点写入 `outputSchemaVersion`，并在每条日志
 - `Flow/FlowBasics.cs`：`AbilityKit.Flow` 的 `FlowRunner / FlowContext / SequenceNode / WaitSecondsNode / ActionNode`。
 - `Tags/*`：`AbilityKit.GameplayTags`。
 - `Pipeline/*` 和 `Demo/ProgressiveSkill_Phase4.cs`：`AbilityKit.Pipeline`。
-- `Modifiers/*` 与 `Continuous/*`：`AbilityKit.Modifiers` / `AbilityKit.Core.Continuous`。
+- `Modifiers/*` 与 `Continuous/*`：`AbilityKit.Modifiers` / `AbilityKit.Continuous`。
 - `World/*`：`AbilityKit.Host` / `AbilityKit.World.DI`。
 - `Sync/*`：`AbilityKit.World.FrameSync` / `AbilityKit.World.NetworkFragments` / `AbilityKit.World.Snapshot` / `AbilityKit.World.StateSync`。
 - `Targeting/TargetingBasics.cs`：`AbilityKit.Combat.Targeting`。

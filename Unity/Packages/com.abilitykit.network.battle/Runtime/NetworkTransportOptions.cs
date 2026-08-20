@@ -1,8 +1,18 @@
 using System;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Network.Battle
 {
+    /// <summary>Controls whether a prebuilt SDK client is borrowed or disposed with the battle transport.</summary>
+    public enum NetworkSdkClientOwnership
+    {
+        Borrowed = 0,
+        Owned = 1
+    }
+
     public sealed class NetworkTransportOptions
     {
         public string Host = "127.0.0.1";
@@ -25,7 +35,28 @@ namespace AbilityKit.Network.Battle
         /// </summary>
         public Func<IConnection> ConnectionFactory;
 
+        /// <summary>
+        /// Optional prebuilt SDK client. When set, connection and transport factories are ignored.
+        /// The default ownership is <see cref="NetworkSdkClientOwnership.Borrowed"/>.
+        /// </summary>
+        public NetworkSdkClient SdkClient;
+
+        /// <summary>
+        /// Optional SDK client factory. Its returned client is owned by the battle transport.
+        /// It cannot be combined with <see cref="SdkClient"/>.
+        /// </summary>
+        public Func<NetworkSdkClient> SdkClientFactory;
+
+        /// <summary>Ownership applied only to <see cref="SdkClient"/>.</summary>
+        public NetworkSdkClientOwnership SdkClientOwnership;
+
         public IFrameCodec FrameCodec;
+
+        /// <summary>
+        /// Configures the complete connection runtime when the battle transport builds its own SDK client.
+        /// Set to null to use SDK defaults. The initial value preserves the historical Battle reconnect preset.
+        /// </summary>
+        public Action<ConnectionOptions> ConfigureConnection = ApplyBattleConnectionDefaults;
 
         public uint OpCreateWorld;
         public uint OpJoin;
@@ -56,6 +87,20 @@ namespace AbilityKit.Network.Battle
         public Func<string, int, ArraySegment<byte>> SerializeRequestFullStateSync;
         public Func<ArraySegment<byte>, bool> DeserializeRequestFullStateSyncResponse;
         public Action<int> OnSubmitInputAck;
+
+        public bool HasSdkClientSource => SdkClient != null || SdkClientFactory != null;
+
+        /// <summary>Applies the legacy Battle reconnect cadence without coupling it to NetworkTransport.</summary>
+        public static void ApplyBattleConnectionDefaults(ConnectionOptions options)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+
+            options.EnableReconnect = true;
+            options.ReconnectInitialDelay = TimeSpan.FromSeconds(ReconnectBackoffPolicy.BaseDelaySeconds);
+            options.ReconnectMaxDelay = TimeSpan.FromSeconds(ReconnectBackoffPolicy.MaxDelaySeconds);
+            options.ReconnectBackoffMultiplier = 2d;
+            options.ReconnectMaxAttempts = ReconnectBackoffPolicy.MaxAttempts;
+        }
     }
 
     public readonly struct NetworkSubmitInputResponse

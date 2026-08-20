@@ -60,6 +60,8 @@ public static class Program
             WarmupIterations = arguments.GetInt("warmup", 5),
             MeasurementIterations = arguments.GetInt("measurement", 64),
             FullBaseline = !string.Equals(arguments.Get("snapshot"), "delta", StringComparison.OrdinalIgnoreCase),
+            ChangedEntityFraction = arguments.GetDouble("changed-fraction", 0.05),
+            RefreshIntervalFrames = arguments.GetInt("refresh-frames", 60),
             MaxP99Milliseconds = arguments.GetDouble("max-p99-ms", 16.7),
             MaxAllocatedBytesPerIteration = arguments.GetLong("max-alloc-bytes", 4 * 1024 * 1024)
         };
@@ -71,7 +73,10 @@ public static class Program
             $"Shooter sync pipeline: {(report.Passed ? "PASS" : "FAIL")} entities={options.Entities} " +
             $"snapshot={(options.FullBaseline ? "full" : "delta")} mean={report.Total.MeanMilliseconds:F3}ms " +
             $"p95={report.Total.P95Milliseconds:F3}ms p99={report.Total.P99Milliseconds:F3}ms " +
-            $"alloc={report.Total.AllocatedBytesPerIteration}B payload={report.PayloadBytes}B output={Path.GetFullPath(output)}");
+            $"alloc={report.Total.AllocatedBytesPerIteration}B payload={report.PayloadBytes}B " +
+            $"entityDeltas={report.MeanEntityDeltas:F1} changed={report.MeanChangedEntities:F1} " +
+            $"suppression={report.UnchangedSuppressionRatio:P1} maxAge={report.ObservedMaxEntityAgeFrames}f " +
+            $"output={Path.GetFullPath(output)}");
         foreach (var phase in report.Phases)
         {
             Console.WriteLine(

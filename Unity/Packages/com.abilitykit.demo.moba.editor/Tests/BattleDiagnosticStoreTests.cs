@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -565,12 +566,76 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(diagnosticEvent.Summary, Is.EqualTo("legacy"));
         }
 
+        [Test]
+        public void MetricRingStore_EvictsOldestAndQueriesStableRevisionPages()
+        {
+            var store = new BattleDiagnosticMetricRingStore(_scope, capacity: 3);
+            Assert.That(store.TryAppend(Metric(1, 10, BattleDiagnosticMetricCategory.Prediction, "prediction.backlog", 2)), Is.True);
+            Assert.That(store.TryAppend(Metric(2, 11, BattleDiagnosticMetricCategory.Network, "network.buffered", 3)), Is.True);
+            Assert.That(store.TryAppend(Metric(3, 12, BattleDiagnosticMetricCategory.Prediction, "prediction.backlog", 4)), Is.True);
+            Assert.That(store.TryAppend(Metric(4, 13, BattleDiagnosticMetricCategory.Prediction, "prediction.backlog", 5)), Is.True);
+
+            var firstPage = store.QueryMetrics(new BattleDiagnosticMetricQuery(
+                1,
+                new BattleDiagnosticFrameRange(10, 13),
+                new BattleDiagnosticPageRequest(0, 0, 1),
+                BattleDiagnosticMetricCategory.Prediction,
+                "prediction.backlog"));
+
+            Assert.That(store.Count, Is.EqualTo(3));
+            Assert.That(store.Metrics.EvictedCount, Is.EqualTo(1));
+            Assert.That(firstPage.Status.HasMore, Is.True);
+            Assert.That(firstPage.Items.Count, Is.EqualTo(1));
+            Assert.That(firstPage.Items[0].Frame, Is.EqualTo(12));
+
+            var secondPage = store.QueryMetrics(new BattleDiagnosticMetricQuery(
+                2,
+                new BattleDiagnosticFrameRange(10, 13),
+                new BattleDiagnosticPageRequest(firstPage.Status.StoreRevision, 1, 1),
+                BattleDiagnosticMetricCategory.Prediction,
+                "prediction.backlog"));
+            Assert.That(secondPage.Items.Single().Frame, Is.EqualTo(13));
+            Assert.That(secondPage.Status.HasMore, Is.False);
+        }
+
+        [Test]
+        public void MetricRingStore_SnapshotPreservesRetainedOrderAndMetrics()
+        {
+            var store = new BattleDiagnosticMetricRingStore(_scope, capacity: 2);
+            store.TryAppend(Metric(1, 20, BattleDiagnosticMetricCategory.Rollback, "rollback.total", 1));
+            store.TryAppend(Metric(2, 21, BattleDiagnosticMetricCategory.Rollback, "rollback.total", 2));
+
+            var snapshot = store.CaptureMetricSnapshot();
+
+            Assert.That(snapshot.Revision, Is.EqualTo(store.Revision));
+            Assert.That(snapshot.Metrics, Is.EqualTo(store.Metrics));
+            Assert.That(snapshot.Samples.Select(item => item.Sequence), Is.EqualTo(new long[] { 1, 2 }));
+        }
+
         private BattleDiagnosticEventQuery Query(long requestId, int offset, int limit)
         {
             return new BattleDiagnosticEventQuery(
                 requestId,
                 BattleDiagnosticFilter.Default,
                 new BattleDiagnosticPageRequest(0, offset, limit));
+        }
+
+        private BattleDiagnosticMetricSample Metric(
+            long sequence,
+            int frame,
+            BattleDiagnosticMetricCategory category,
+            string metric,
+            double value)
+        {
+            return new BattleDiagnosticMetricSample(
+                _scope,
+                sequence,
+                frame,
+                frame * 100L,
+                category,
+                BattleDiagnosticMetricValueKind.Gauge,
+                metric,
+                value);
         }
 
         private static BattleDiagnosticEvent TriggerEvent(

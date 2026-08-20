@@ -1,6 +1,9 @@
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
+using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using Xunit;
 
 namespace AbilityKit.Network.Battle.Tests;
@@ -50,6 +53,140 @@ public sealed class NetworkTransportOwnershipTests
         client.Dispose();
 
         AssertReleasedOnce(transport);
+    }
+
+    [Fact]
+    public void NetworkTransport_PreconstructedBorrowedSdkClient_RemainsAliveAfterDispose()
+    {
+        var connection = new ObservableConnection();
+        var sdkClient = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+        var transport = new NetworkTransport(new NetworkTransportOptions
+        {
+            SdkClient = sdkClient
+        });
+
+        transport.Dispose();
+
+        Assert.Equal(0, connection.DisposeCount);
+
+        sdkClient.Dispose();
+        Assert.Equal(1, connection.DisposeCount);
+    }
+
+    [Fact]
+    public void NetworkTransport_PreconstructedOwnedSdkClient_IsDisposedOnce()
+    {
+        var connection = new ObservableConnection();
+        var sdkClient = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+        var transport = new NetworkTransport(new NetworkTransportOptions
+        {
+            SdkClient = sdkClient,
+            SdkClientOwnership = NetworkSdkClientOwnership.Owned
+        });
+
+        transport.Dispose();
+        transport.Dispose();
+        sdkClient.Dispose();
+
+        Assert.Equal(1, connection.DisposeCount);
+    }
+
+    [Fact]
+    public void NetworkTransport_SdkClientFactory_ReturnedClientIsOwned()
+    {
+        var connection = new ObservableConnection();
+        var sdkClient = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+        var factoryCalls = 0;
+        var transport = new NetworkTransport(new NetworkTransportOptions
+        {
+            SdkClientFactory = () =>
+            {
+                factoryCalls++;
+                return sdkClient;
+            }
+        });
+
+        transport.Dispose();
+
+        Assert.Equal(1, factoryCalls);
+        Assert.Equal(1, connection.DisposeCount);
+    }
+
+    [Fact]
+    public void NetworkTransport_CompleteConnectionConfiguration_ReachesRuntimeFactories()
+    {
+        var transport = new ObservableTransport();
+        var schedulerMaxAttempts = 0;
+        var heartbeatFactoryCalls = 0;
+        IFrameCodec? configuredCodec = null;
+        var options = new NetworkTransportOptions
+        {
+            Host = "battle.example",
+            Port = 17003,
+            TransportFactory = () => transport,
+            FrameCodec = LengthPrefixedFrameCodec.Instance,
+            ConfigureConnection = connectionOptions =>
+            {
+                configuredCodec = connectionOptions.FrameCodec;
+                connectionOptions.ReconnectMaxAttempts = 4;
+                connectionOptions.ReconnectSchedulerFactory = context =>
+                {
+                    schedulerMaxAttempts = context.MaxAttempts;
+                    return new ReconnectAttemptScheduler(context.MaxAttempts, context.ResolveDelay);
+                };
+                connectionOptions.HeartbeatFactory = opCode =>
+                {
+                    heartbeatFactoryCalls++;
+                    return new HeartbeatMiddleware(opCode);
+                };
+            }
+        };
+
+        using var client = new NetworkTransport(options);
+        client.Connect();
+
+        Assert.Same(LengthPrefixedFrameCodec.Instance, configuredCodec);
+        Assert.Equal(4, schedulerMaxAttempts);
+        Assert.Equal(1, heartbeatFactoryCalls);
+    }
+
+    [Fact]
+    public void NetworkTransportOptions_DefaultConnectionConfiguration_PreservesBattleCadence()
+    {
+        var options = new NetworkTransportOptions();
+        var connectionOptions = new ConnectionOptions();
+
+        options.ConfigureConnection(connectionOptions);
+
+        Assert.True(connectionOptions.EnableReconnect);
+        Assert.Equal(TimeSpan.FromSeconds(ReconnectBackoffPolicy.BaseDelaySeconds), connectionOptions.ReconnectInitialDelay);
+        Assert.Equal(TimeSpan.FromSeconds(ReconnectBackoffPolicy.MaxDelaySeconds), connectionOptions.ReconnectMaxDelay);
+        Assert.Equal(2d, connectionOptions.ReconnectBackoffMultiplier);
+        Assert.Equal(ReconnectBackoffPolicy.MaxAttempts, connectionOptions.ReconnectMaxAttempts);
+    }
+
+    [Fact]
+    public void NetworkTransport_MultipleSdkClientSources_AreRejected()
+    {
+        var connection = new ObservableConnection();
+        using var sdkClient = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => connection)
+            .Build();
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            new NetworkTransport(new NetworkTransportOptions
+            {
+                SdkClient = sdkClient,
+                SdkClientFactory = () => sdkClient
+            }));
+
+        Assert.Contains("either SdkClient or SdkClientFactory", exception.Message);
     }
 
     private static void AssertSingleSubscriptionChain(ObservableTransport transport)
@@ -129,6 +266,31 @@ public sealed class NetworkTransportOwnershipTests
         {
             DisposeCount++;
             IsConnected = false;
+        }
+    }
+
+    private sealed class ObservableConnection : IConnection
+    {
+        public ConnectionState State { get; private set; } = ConnectionState.Disconnected;
+        public bool IsConnected => State == ConnectionState.Connected;
+        public int DisposeCount { get; private set; }
+
+        public event Action? Connected;
+        public event Action? Disconnected;
+        public event Action<Exception>? Error;
+        public event Action<uint, uint, ArraySegment<byte>>? PacketReceived;
+        public event Action<uint, ArraySegment<byte>>? ServerPushReceived;
+        public event Action<string, string>? Kicked;
+
+        public void Open(string host, int port) => State = ConnectionState.Connected;
+        public void Close() => State = ConnectionState.Disconnected;
+        public void Tick(float deltaTime) { }
+        public void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0) { }
+
+        public void Dispose()
+        {
+            DisposeCount++;
+            State = ConnectionState.Disconnected;
         }
     }
 }

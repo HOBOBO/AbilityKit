@@ -39,7 +39,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 rootContextId,
                 contextId,
                 runtime,
-                summary: summary);
+                summary: summary,
+                subjectObject: BattleDiagnosticRuntimeObjectReference.Create(
+                    BattleDiagnosticRuntimeObjectKind.Projectile,
+                    hit.Projectile.Value));
         }
     }
 }

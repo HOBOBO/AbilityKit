@@ -48,6 +48,75 @@ public sealed class ShooterRoomGatewayConnectionTests
     }
 
     [Fact]
+    public void BattleDataPlaneFullBaselineSupersedesQueuedSnapshotsWithoutReorderingOtherPushes()
+    {
+        var connection = new FakeGatewayConnection();
+        using var battleTransport = CreateBattleTransport(connection);
+        var options = new ShooterBattleDataPlaneOptions(
+            maxPushesPerDrain: 8,
+            maxDrainDuration: TimeSpan.FromSeconds(1));
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport, options);
+        var received = new List<uint>();
+        battleDataPlane.ServerPushReceived += (opCode, _) => received.Add(opCode);
+
+        connection.Push(RoomGatewayOpCodes.SnapshotPushed, Array.Empty<byte>());
+        connection.Push(RoomGatewayOpCodes.DeltaSnapshotPushed, Array.Empty<byte>());
+        connection.Push(RoomGatewayOpCodes.ReliableBattleEventsPushed, Array.Empty<byte>());
+        connection.Push(RoomGatewayOpCodes.RoomStateChanged, Array.Empty<byte>());
+        connection.Push(RoomGatewayOpCodes.SnapshotPushed, Array.Empty<byte>());
+        connection.Push(RoomGatewayOpCodes.DeltaSnapshotPushed, Array.Empty<byte>());
+
+        var queued = battleDataPlane.Diagnostics;
+        Assert.Equal(4, queued.QueueDepth);
+        Assert.Equal(2, queued.CoalescedSnapshotCount);
+        Assert.Equal(6, queued.EnqueuedPushCount);
+
+        Assert.Equal(4, battleDataPlane.Drain());
+        Assert.Equal(
+            new[]
+            {
+                RoomGatewayOpCodes.ReliableBattleEventsPushed,
+                RoomGatewayOpCodes.RoomStateChanged,
+                RoomGatewayOpCodes.SnapshotPushed,
+                RoomGatewayOpCodes.DeltaSnapshotPushed
+            },
+            received);
+        Assert.Equal(0, battleDataPlane.Diagnostics.QueueDepth);
+        Assert.Equal(4, battleDataPlane.Diagnostics.ProcessedPushCount);
+    }
+
+    [Fact]
+    public void BattleDataPlaneReportsArrivalQueueApplyAndPayloadMetrics()
+    {
+        var connection = new FakeGatewayConnection();
+        using var battleTransport = CreateBattleTransport(connection);
+        var options = new ShooterBattleDataPlaneOptions(
+            maxPushesPerDrain: 8,
+            maxDrainDuration: TimeSpan.FromSeconds(1));
+        using var battleDataPlane = new ShooterBattleDataPlane(battleTransport, options);
+        battleDataPlane.ServerPushReceived += (_, _) => Thread.Sleep(2);
+
+        connection.Push(RoomGatewayOpCodes.DeltaSnapshotPushed, new byte[16]);
+        Thread.Sleep(2);
+        connection.Push(RoomGatewayOpCodes.DeltaSnapshotPushed, new byte[32]);
+        Thread.Sleep(2);
+
+        var queued = battleDataPlane.Diagnostics;
+        Assert.Equal(2, queued.QueueDepth);
+        Assert.Equal(48, queued.ReceivedPayloadBytes);
+        Assert.Equal(32, queued.MaxPayloadBytes);
+        Assert.True(queued.OldestQueuedMilliseconds > 0d);
+        Assert.Equal(1, queued.SnapshotArrivalGap.SampleCount);
+
+        Assert.Equal(2, battleDataPlane.Drain());
+        var applied = battleDataPlane.Diagnostics;
+        Assert.Equal(2, applied.QueueWait.SampleCount);
+        Assert.Equal(2, applied.PushProcess.SampleCount);
+        Assert.True(applied.QueueWait.MaxMilliseconds > 0d);
+        Assert.True(applied.PushProcess.MaxMilliseconds >= 1d);
+    }
+
+    [Fact]
     public void RoomStatePushUpdatesShooterRoomSnapshotFeedWithoutBattleSession()
     {
         var connection = new FakeGatewayConnection();
@@ -175,11 +244,11 @@ public sealed class ShooterRoomGatewayConnectionTests
         battleDataPlane.Drain();
 
         Assert.Equal(1, dispatchedCount);
-        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, dispatchedResult);
-        Assert.Equal(ShooterSnapshotApplyResult.AppliedPackedSnapshot, battleDataPlane.LastPushResult);
-        Assert.Equal(authority.CurrentFrame, session.CurrentFrame);
-        Assert.Equal(authority.ComputeStateHash(), runtime.ComputeStateHash());
-        Assert.Equal(authority.CurrentFrame, presentation.ViewModel.Frame);
+        // 默认同步模型（AuthoritativeInterpolation）下，packed 快照被解码为逐 actor 应用；
+        // 帧不随应用直接跳变——CurrentFrame 由插值播放推进，这里尚未 Tick 播放。
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, dispatchedResult);
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, battleDataPlane.LastPushResult);
+        Assert.Equal(0, session.CurrentFrame);
         Assert.Contains(presentation.ViewModel.Current.EntityChanges, change => change.Key.Equals(new ShooterViewEntityKey(ShooterViewEntityKind.Player, 21)));
         Assert.Contains(presentation.ViewModel.Current.EntityChanges, change => change.Key.Equals(new ShooterViewEntityKey(ShooterViewEntityKind.Player, 22)));
     }

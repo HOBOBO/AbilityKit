@@ -9,12 +9,16 @@ using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Services.Observability;
 using StableStringId = AbilityKit.Triggering.Eventing.StableStringId;
 
 namespace AbilityKit.Demo.Moba.Services.EntityManager
 {
     [WorldService(typeof(MobaEntityManager))]
-    public sealed class MobaEntityManager : IService
+    public sealed class MobaEntityManager :
+        IMobaRuntimeObjectBootstrapContributor,
+        IService
     {
         private static readonly ObjectPool<List<int>> s_actorIdListPool = Pools.GetPool(
             createFunc: () => new List<int>(256),
@@ -26,6 +30,12 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
         private readonly Dictionary<int, global::ActorEntity> _byActorId = new Dictionary<int, global::ActorEntity>();
 
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
+
+        private bool _objectBootstrapRegistered;
 
         public readonly BattleEntityManager<int> Index;
 
@@ -107,6 +117,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
             if (entity == null) throw new ArgumentNullException(nameof(entity));
+            EnsureObjectBootstrapRegistered();
 
             var indexContains = Index.Registry.Contains(actorId);
             var dictionaryContains = _byActorId.TryGetValue(actorId, out var existingEntity);
@@ -135,6 +146,10 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
                 ByMainType.SetKey(actorId, mainType);
                 ByUnitSubType.SetKey(actorId, unitSubType);
                 ByOwnerPlayer.SetKey(actorId, ownerPlayer);
+                if (isNew)
+                {
+                    PublishObjectLifecycle(entity, MobaRuntimeObjectLifecycleStage.Created);
+                }
                 return isNew;
             }
             catch
@@ -186,6 +201,68 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             PublishEntityEvent(entity, MobaUnitTriggering.Events.Despawn, MobaTraceKind.UnitDespawn);
         }
 
+        private void PublishObjectLifecycle(
+            global::ActorEntity entity,
+            MobaRuntimeObjectLifecycleStage stage)
+        {
+            EnsureObjectBootstrapRegistered();
+            var hook = _objectLifecycle;
+            if (hook == null || !hook.IsEnabled || entity == null || !entity.hasActorId) return;
+            PublishObjectLifecycleTo(
+                hook,
+                entity,
+                stage,
+                _frameTime != null ? _frameTime.Frame.Value : -1);
+        }
+
+        void IMobaRuntimeObjectBootstrapContributor.CaptureActiveRuntimeObjects(
+            IMobaRuntimeObjectLifecycleHook hook,
+            int frame)
+        {
+            foreach (var entity in _byActorId.Values)
+            {
+                PublishObjectLifecycleTo(
+                    hook,
+                    entity,
+                    MobaRuntimeObjectLifecycleStage.Created,
+                    frame);
+            }
+        }
+
+        private static void PublishObjectLifecycleTo(
+            IMobaRuntimeObjectLifecycleHook hook,
+            global::ActorEntity entity,
+            MobaRuntimeObjectLifecycleStage stage,
+            int frame)
+        {
+            if (hook == null || !hook.IsEnabled || entity == null || !entity.hasActorId) return;
+            var actorId = entity.actorId.Value;
+            if (actorId <= 0) return;
+
+            var ownerActorId = entity.hasOwnerLink && entity.ownerLink != null
+                ? entity.ownerLink.OwnerActorId
+                : 0;
+            var definitionId = entity.hasModelId ? entity.modelId.Value : 0;
+            var observation = new MobaRuntimeObjectLifecycleObservation(
+                stage,
+                MobaRuntimeObjectKind.Actor,
+                actorId,
+                frame,
+                MobaRuntimeObjectDefinitionKind.Actor,
+                definitionId,
+                relatedActorId: actorId,
+                ownerActorId: ownerActorId);
+            hook.TryObserve(in observation);
+        }
+
+        private void EnsureObjectBootstrapRegistered()
+        {
+            if (_objectBootstrapRegistered) return;
+            var registry = _objectBootstrap;
+            if (registry != null && registry.Register(this))
+                _objectBootstrapRegistered = true;
+        }
+
         internal bool UnregisterSilently(int actorId, out global::ActorEntity entity)
         {
             entity = null;
@@ -207,6 +284,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
             {
                 Index.Remove(actorId);
                 _byActorId.Remove(actorId);
+                PublishObjectLifecycle(entity, MobaRuntimeObjectLifecycleStage.Destroyed);
                 return true;
             }
             catch
@@ -294,6 +372,11 @@ namespace AbilityKit.Demo.Moba.Services.EntityManager
 
         public void Dispose()
         {
+            if (_objectBootstrapRegistered)
+            {
+                _objectBootstrap?.Unregister(this);
+                _objectBootstrapRegistered = false;
+            }
             Clear();
         }
     }

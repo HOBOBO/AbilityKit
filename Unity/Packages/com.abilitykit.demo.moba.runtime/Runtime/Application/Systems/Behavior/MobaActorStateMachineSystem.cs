@@ -162,7 +162,10 @@ namespace AbilityKit.Demo.Moba.Systems
 
             var brainId = actor.actorBrain.BrainId;
             if (!_brains.TryGet(brainId, out var definition)
-                || definition.DriverKind != MobaBrainDriverKind.Hfsm)
+                || !string.Equals(
+                    definition.DriverKind,
+                    MobaBrainDriverKeys.Hfsm,
+                    StringComparison.Ordinal))
             {
                 return false;
             }
@@ -170,7 +173,7 @@ namespace AbilityKit.Demo.Moba.Systems
             // A registered HFSM decision driver owns a BehaviorRuntime controller. Only the
             // compatibility path without such a driver attaches the logic state-machine runtime.
             if (_brainService != null
-                && _brainService.DecisionDrivers.Contains(MobaBrainDriverKind.Hfsm))
+                && _brainService.DecisionDrivers.Contains(MobaBrainDriverKeys.Hfsm))
             {
                 return false;
             }

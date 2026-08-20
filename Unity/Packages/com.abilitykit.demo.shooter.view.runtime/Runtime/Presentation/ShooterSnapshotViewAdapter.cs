@@ -42,6 +42,15 @@ namespace AbilityKit.Demo.Shooter.View
             return batch;
         }
 
+        public ShooterSnapshotViewBatch ApplyControlledPlayerPrediction(
+            in ShooterStateSnapshotPayload snapshot,
+            int controlledPlayerId)
+        {
+            var batch = _mapper.MapControlledPlayerPrediction(in snapshot, controlledPlayerId);
+            _viewModel.Apply(in batch);
+            return batch;
+        }
+
         public ShooterSnapshotViewBatch ApplyPureStateSnapshot(in ShooterPureStateSnapshotPayload snapshot, int controlledPlayerId = -1)
         {
             var batch = _mapper.Map(in snapshot, controlledPlayerId);

@@ -21,7 +21,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private float timeoutSeconds = 10f;
 
         [Header("Session")]
-        [SerializeField] private string syncTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
+        [SerializeField] private string syncTemplateId = ShooterRoomLaunchSpec.DefaultSyncTemplateId;
         [SerializeField] private int randomSeed = 3901;
         [SerializeField] private int playerCount = 2;
         [SerializeField] private int controlledPlayerId = 1;
@@ -35,7 +35,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public string ServerId => string.IsNullOrWhiteSpace(serverId) ? ShooterRemoteStateSyncDefaults.DefaultServerId : serverId;
         public string RoomId => roomId ?? string.Empty;
         public TimeSpan Timeout => TimeSpan.FromSeconds(Math.Max(1f, timeoutSeconds));
-        public string SyncTemplateId => string.IsNullOrWhiteSpace(syncTemplateId) ? ShooterSyncTemplateIds.StateSyncAuthority : syncTemplateId;
+        public string SyncTemplateId => string.IsNullOrWhiteSpace(syncTemplateId) ? ShooterRoomLaunchSpec.DefaultSyncTemplateId : syncTemplateId;
         public int RandomSeed => randomSeed;
         public int PlayerCount => Math.Max(1, playerCount);
         public int ControlledPlayerId => Math.Max(1, controlledPlayerId);

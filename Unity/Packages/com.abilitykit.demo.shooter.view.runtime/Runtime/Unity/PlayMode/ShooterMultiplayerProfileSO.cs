@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         [SerializeField] private bool autoStart = true;
 
         [Header("Battle Template")]
-        [SerializeField] private string syncTemplateId = ShooterSyncTemplateIds.StateSyncAuthority;
+        [SerializeField] private string syncTemplateId = ShooterRoomLaunchSpec.DefaultSyncTemplateId;
         [SerializeField] private int randomSeed = 3901;
         [SerializeField] private int playerCount = 2;
         [SerializeField] private int controlledPlayerId = 1;
@@ -51,7 +51,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var normalizedControlledPlayer = Math.Min(Math.Max(1, controlledPlayerId), normalizedPlayers);
             var template = ShooterAcceptanceCatalog.GetSyncTemplate(
                 string.IsNullOrWhiteSpace(syncTemplateId)
-                    ? ShooterSyncTemplateIds.StateSyncAuthority
+                    ? ShooterRoomLaunchSpec.DefaultSyncTemplateId
                     : syncTemplateId.Trim());
             var templateOptions = ShooterPlayModeSessionOptions.FromTemplate(
                 template,
@@ -95,7 +95,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 [ShooterRoomLaunchTagKeys.InterpolationEnabled] = template.ExpectsInterpolationDiagnostics.ToString(),
                 [ShooterRoomLaunchTagKeys.InputDelayFrames] = "0",
                 [ShooterRoomLaunchTagKeys.RandomSeed] = sessionOptions.RandomSeed.ToString(),
-                [ShooterRoomLaunchTagKeys.DurationFrames] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString()
+                [ShooterRoomLaunchTagKeys.DurationFrames] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString(),
+                [ShooterRoomLaunchTagKeys.EnemyBudget] = sessionOptions.GameplayScenario.BattleFlow.MaxActiveEnemies.ToString()
             };
 
             return new ShooterRoomLaunchSpec(

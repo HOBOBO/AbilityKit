@@ -148,6 +148,19 @@ namespace AbilityKit.AI.Abstractions
         void Decide(in AiObservationBuffer observation, AiActionBuffer action);
     }
 
+    /// <summary>
+    /// Optional policy-owned state used by recurrent models and rollback-capable runtimes.
+    /// Stateless policies do not need to implement this contract.
+    /// </summary>
+    public interface IAiPolicyRuntimeSnapshot
+    {
+        string SnapshotType { get; }
+
+        byte[] CaptureSnapshot();
+
+        void RestoreSnapshot(byte[] payload);
+    }
+
     public interface IAiEnvironment
     {
         AiObservationSpec ObservationSpec { get; }

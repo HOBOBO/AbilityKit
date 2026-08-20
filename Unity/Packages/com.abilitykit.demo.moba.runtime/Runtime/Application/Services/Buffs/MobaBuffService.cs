@@ -49,7 +49,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         [WorldInject(required: false)] private IMobaEffectiveTagQueryService _tags = null;
         [WorldInject(required: false)] private IMobaContinuousTagTemplateRegistry _tagTemplates = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
-        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         [WorldInject(required: false)] private IMobaBattleExceptionPolicy _exceptions = null;
         private BuffLifecycleExecutor _lifecycle;
         private long _nextCommandSeq;
@@ -634,38 +633,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 contextId,
                 skillRuntime: default,
                 summary: summary);
-        }
-
-        private void CollectBuffAdded(in BuffApplyRequest request)
-        {
-            try
-            {
-                var collector = _eventCollector;
-                if (collector == null) return;
-
-                var draft = CreateBuffAddedDraft(in request);
-                collector.TryCollect(in draft);
-            }
-            catch
-            {
-                // 诊断采集异常不得影响 Buff 主流程。
-            }
-        }
-
-        private void CollectBuffRemoved(in BuffRemoveRequest request)
-        {
-            try
-            {
-                var collector = _eventCollector;
-                if (collector == null) return;
-
-                var draft = CreateBuffRemovedDraft(in request);
-                collector.TryCollect(in draft);
-            }
-            catch
-            {
-                // 诊断采集异常不得影响 Buff 主流程。
-            }
         }
 
         private void ReportRejected(string key, Func<string> messageFactory, int targetActorId, int buffId, int sourceActorId)

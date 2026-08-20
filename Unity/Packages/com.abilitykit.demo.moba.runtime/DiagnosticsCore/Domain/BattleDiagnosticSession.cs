@@ -20,6 +20,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         ActorBuffs = 1L << 11,
         ActorTags = 1L << 12,
         ActorEffects = 1L << 13,
+        RuntimeObjects = 1L << 14,
+        FrameMetrics = 1L << 15,
         AllLocal = WorldState |
                    ActorState |
                    Events |
@@ -29,6 +31,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    ActorBuffs |
                    ActorTags |
                    ActorEffects |
+                   RuntimeObjects |
+                   FrameMetrics |
                    FreezeCapture |
                    Clear |
                    PinTrace |

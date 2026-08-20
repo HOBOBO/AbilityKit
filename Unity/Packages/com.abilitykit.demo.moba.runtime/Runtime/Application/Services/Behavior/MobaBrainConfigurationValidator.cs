@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
-using AbilityKit.Demo.Moba.Services.Behavior.BTree;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using UnityHFSM.Extension;
 
@@ -32,24 +31,28 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             for (var i = 0; i < definitions.Count; i++)
             {
                 var definition = definitions[i];
-                switch (definition.DriverKind)
+                if (decisionDrivers.TryGetDriver(definition.DriverKind, out var driver))
                 {
-                    case MobaBrainDriverKind.BTree:
-                        ValidateBTreeBrain(in definition, decisionDrivers, textAssetLoader, errors);
-                        break;
-                    case MobaBrainDriverKind.Hfsm:
-                        if (!decisionDrivers.Contains(MobaBrainDriverKind.Hfsm)
-                            && !profiles.TryGet(definition.DecisionName, out _))
-                        {
-                            errors.Add(
-                                $"Brain '{definition.BrainId}' references missing HFSM profile '{definition.DecisionName}'.");
-                        }
-                        break;
-                    default:
-                        errors.Add(
-                            $"Brain '{definition.BrainId}' uses unsupported driver '{definition.DriverKind}'.");
-                        break;
+                    if (driver is IMobaBrainDecisionDriverValidator validator)
+                        validator.ValidateDefinition(in definition, errors);
+                    continue;
                 }
+
+                if (string.Equals(
+                        definition.DriverKind,
+                        MobaBrainDriverKeys.Hfsm,
+                        StringComparison.Ordinal))
+                {
+                    if (!profiles.TryGet(definition.DecisionName, out _))
+                    {
+                        errors.Add(
+                            $"Brain '{definition.BrainId}' references missing HFSM profile '{definition.DecisionName}'.");
+                    }
+                    continue;
+                }
+
+                errors.Add(
+                    $"Brain '{definition.BrainId}' requires unregistered driver '{definition.DriverKind}'.");
             }
 
             if (errors.Count > 0)
@@ -57,36 +60,6 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 throw new InvalidOperationException(
                     "MOBA brain configuration validation failed:" + Environment.NewLine
                     + string.Join(Environment.NewLine, errors.ConvertAll(error => "- " + error)));
-            }
-        }
-
-        private static void ValidateBTreeBrain(
-            in MobaActorBrainDefinition definition,
-            MobaBrainDecisionDriverRegistry decisionDrivers,
-            ITextAssetLoader textAssetLoader,
-            List<string> errors)
-        {
-            if (!decisionDrivers.Contains(MobaBrainDriverKind.BTree))
-            {
-                errors.Add($"Brain '{definition.BrainId}' requires an unregistered BTree driver.");
-                return;
-            }
-
-            if (!MobaBTreeAssetLoader.TryLoad(textAssetLoader, definition.DecisionName, out var json))
-            {
-                errors.Add(
-                    $"Brain '{definition.BrainId}' references missing BTree resource '{definition.DecisionName}'.");
-                return;
-            }
-
-            try
-            {
-                MobaBTreeDecision.ValidateConfiguration(json);
-            }
-            catch (Exception ex)
-            {
-                errors.Add(
-                    $"Brain '{definition.BrainId}' BTree '{definition.DecisionName}' is invalid: {ex.Message}");
             }
         }
 

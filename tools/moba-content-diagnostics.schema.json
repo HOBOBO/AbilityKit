@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://abilitykit.local/schema/moba-content-diagnostics.schema.json",
+  "title": "AbilityKit MOBA content diagnostics",
+  "type": "object",
+  "required": ["schemaVersion", "diagnostics", "graphSchemaVersion", "status", "items", "summary"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "diagnostics": { "const": "moba-content-diagnostics" },
+    "graphSchemaVersion": { "const": 1 },
+    "status": { "enum": ["passed", "failed"] },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "code", "message", "nodeId", "edgeId", "propertyPath", "sourcePaths", "rootIds", "owner", "reason", "suggestedAction", "details"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "severity": { "enum": ["error", "warning"] },
+          "code": { "type": "string", "minLength": 1 },
+          "message": { "type": "string" },
+          "nodeId": { "type": ["string", "null"] },
+          "edgeId": { "type": ["string", "null"] },
+          "propertyPath": { "type": "string" },
+          "sourcePaths": { "type": "array", "items": { "type": "string" } },
+          "rootIds": { "type": "array", "items": { "type": "string" } },
+          "owner": { "type": "string" },
+          "reason": { "type": "string" },
+          "suggestedAction": { "type": "string", "minLength": 1 },
+          "details": { "type": "object" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["errors", "warnings", "total"],
+      "properties": {
+        "errors": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

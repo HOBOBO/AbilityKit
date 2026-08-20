@@ -138,6 +138,38 @@ public sealed class ShooterBattleRuntimeAdapterTests
     }
 
     [Fact]
+    public void SessionStart_WhenEnemyBudgetProvided_SpawnsRequestedEnemyCount()
+    {
+        const int enemyBudget = ShooterServerProtocol.DefaultEnemyBudget;
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        using var session = adapter.CreateSession("shooter-default-enemy-budget-test");
+        var initParams = CreateInitParams();
+        initParams.EnemyBudget = enemyBudget;
+
+        var start = session.Start(initParams);
+
+        Assert.True(start.Succeeded, start.Error);
+        var initialSnapshot = session.GetSnapshot(0);
+        Assert.NotNull(initialSnapshot);
+        Assert.Equal(enemyBudget, initialSnapshot!.VictoryTargetDefeats);
+        for (var frame = 1; frame <= 64; frame++)
+        {
+            Assert.True(session.Tick(frame, initParams.TickRate, 1f / initParams.TickRate));
+        }
+
+        var push = session.CreateStateSyncPush(initParams.WorldId, frame: 64, isFullSnapshot: true);
+        var packed = ShooterPackedSnapshotCodec.Deserialize(push.Payload!);
+        var enemyLifecycleChunk = FindPackedChunk(
+            packed,
+            ShooterPackedComponentKinds.EntityLifecycle,
+            ShooterPackedEntityKinds.Enemy);
+
+        Assert.NotNull(enemyLifecycleChunk);
+        Assert.Equal(enemyBudget, enemyLifecycleChunk.Value.Count);
+    }
+
+    [Fact]
     public void SessionTick_WhenSoakLongevityOverridesProvided_AdvancesBeyondFrame5401()
     {
         using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
@@ -468,7 +500,10 @@ public sealed class ShooterBattleRuntimeAdapterTests
             Assert.True(session.Tick(frame: 1, tickRate: 30, deltaTime: 1f / 30f));
 
             var observerSession = Assert.IsAssignableFrom<IObserverAwareBattleRuntimeSession>(session);
-            var observer = new BattleStateSyncObserverContext("observer-1", "account-1", "room-1");
+            var observer = new BattleStateSyncObserverContext("observer-1", "account-1", "room-1")
+            {
+                AcknowledgedCommands = new[] { new ShooterCommandAcknowledgement(1, 77ul) }
+            };
             var push = observerSession.CreateStateSyncPush(
                 initParams.WorldId,
                 frame: 1,
@@ -480,12 +515,73 @@ public sealed class ShooterBattleRuntimeAdapterTests
             Assert.Equal(20000, payload.Settings.MaxEntityCount);
             Assert.Equal(2048, payload.Settings.ActiveSyncBudget);
             Assert.Equal(450, payload.Settings.BaselineIntervalFrames);
-            Assert.Equal(90, payload.Settings.DeltaIntervalFrames);
+            Assert.Equal(3, payload.Settings.DeltaIntervalFrames);
+            Assert.Equal(3, payload.Settings.InterpolationDelayFrames);
+            Assert.Equal(3, payload.Settings.NearLodIntervalFrames);
+            Assert.Equal(9, payload.Settings.MidLodIntervalFrames);
+            Assert.Equal(30, payload.Settings.FarLodIntervalFrames);
+            var acknowledgement = Assert.Single(payload.AcknowledgedCommands);
+            Assert.Equal(1, acknowledgement.PlayerId);
+            Assert.Equal(77ul, acknowledgement.CommandSequence);
         }
         finally
         {
             Environment.SetEnvironmentVariable(ShooterStateSyncPushOptions.PayloadModeEnvironmentVariable, previous);
         }
+    }
+
+    [Fact]
+    public void MassBattleAoi_WhenObserverIsResolved_ExcludesPlayerOutsideBoundaryFromFullBaseline()
+    {
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        using var session = adapter.CreateSession("shooter-mass-template-aoi-scope-test");
+        var initParams = CreateMassBattleAoiInitParams();
+        initParams.Players![1].PosX = 40f;
+
+        var start = session.Start(initParams);
+        Assert.True(start.Succeeded, start.Error);
+        var observerSession = Assert.IsAssignableFrom<IObserverAwareBattleRuntimeSession>(session);
+        var observer = new BattleStateSyncObserverContext("observer-1", "account-1", "room-1");
+
+        var push = observerSession.CreateStateSyncPush(
+            initParams.WorldId,
+            frame: 0,
+            isFullSnapshot: true,
+            in observer);
+        var payload = ShooterPureStateSyncCodec.Deserialize(push.Payload!);
+
+        Assert.Contains(payload.Entities.Take(payload.EffectiveEntityCount), entity =>
+            entity.EntityKind == ShooterPackedEntityKinds.Player && entity.EntityId == 1);
+        Assert.DoesNotContain(payload.Entities.Take(payload.EffectiveEntityCount), entity =>
+            entity.EntityKind == ShooterPackedEntityKinds.Player && entity.EntityId == 2);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("unknown-account")]
+    public void MassBattleAoi_WhenObserverScopeCannotBeResolved_FailsClosed(string? accountId)
+    {
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(worldManager);
+        using var session = adapter.CreateSession("shooter-mass-template-aoi-fail-closed-test");
+        var initParams = CreateMassBattleAoiInitParams();
+        var start = session.Start(initParams);
+        Assert.True(start.Succeeded, start.Error);
+        var observerSession = Assert.IsAssignableFrom<IObserverAwareBattleRuntimeSession>(session);
+        var observer = new BattleStateSyncObserverContext("observer-unresolved", accountId ?? string.Empty, "room-1");
+
+        var push = observerSession.CreateStateSyncPush(
+            initParams.WorldId,
+            frame: 0,
+            isFullSnapshot: true,
+            in observer);
+        var payload = ShooterPureStateSyncCodec.Deserialize(push.Payload!);
+
+        Assert.Equal(initParams.WorldId, payload.WorldId);
+        Assert.Equal(ShooterPureStateSnapshotKinds.FullBaseline, payload.SnapshotKind);
+        Assert.Equal(0, payload.EffectiveEntityCount);
+        Assert.Equal(0, payload.EffectiveVisibilityHintCount);
     }
 
     private static void AssertPackedEnemiesVisible(in ShooterPackedSnapshotPayload packed)
@@ -571,6 +667,20 @@ public sealed class ShooterBattleRuntimeAdapterTests
             Payload = ShooterInputCodec.Serialize(commands)
         };
 
+    private static BattleInitParams CreateMassBattleAoiInitParams()
+    {
+        var initParams = CreateInitParams();
+        initParams.SyncOptions = new BattleSyncStartOptions(
+            ShooterServerProtocol.MassBattleLodAoiTemplate,
+            SyncModel: 0,
+            NetworkEnvironmentId: "limitedbw",
+            CarrierName: null,
+            EnableAuthoritativeWorld: false,
+            InterpolationEnabled: true,
+            InputDelayFrames: 0);
+        return initParams;
+    }
+
     private static BattleInitParams CreateInitParams()
     {
         return new BattleInitParams
@@ -588,14 +698,16 @@ public sealed class ShooterBattleRuntimeAdapterTests
                     PlayerId = 1,
                     PosX = 0f,
                     PosZ = 0f,
-                    TeamId = 1
+                    TeamId = 1,
+                    AccountId = "account-1"
                 },
                 new PlayerInitInfo
                 {
                     PlayerId = 2,
                     PosX = 3f,
                     PosZ = 0f,
-                    TeamId = 2
+                    TeamId = 2,
+                    AccountId = "account-2"
                 }
             }
         };

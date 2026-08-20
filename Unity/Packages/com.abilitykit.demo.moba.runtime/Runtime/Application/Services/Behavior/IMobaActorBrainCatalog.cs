@@ -12,21 +12,43 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         public const int Summon = 2;
     }
 
+    public static class MobaBrainDriverKeys
+    {
+        public const string BehaviorTree = "behaviorTree";
+        public const string Hfsm = "hfsm";
+        public const string MachineLearning = "machineLearning";
+
+        public static string FromLegacy(MobaBrainDriverKind kind)
+        {
+            return kind switch
+            {
+                MobaBrainDriverKind.BTree => BehaviorTree,
+                MobaBrainDriverKind.Hfsm => Hfsm,
+                MobaBrainDriverKind.MachineLearning => MachineLearning,
+                _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported legacy brain driver kind."),
+            };
+        }
+    }
+
+    [Obsolete("Use MobaBrainDriverKeys string identifiers instead.")]
     public enum MobaBrainDriverKind
     {
         BTree = 0,
         Hfsm = 1,
+        MachineLearning = 2,
     }
 
     public readonly struct MobaActorBrainDefinition
     {
         public MobaActorBrainDefinition(
             int brainId,
-            MobaBrainDriverKind driverKind,
+            string driverKind,
             string decisionName,
             MobaBrainSkillSelectionPolicy skillSelectionPolicy = MobaBrainSkillSelectionPolicy.FirstReady)
         {
             if (brainId <= 0) throw new ArgumentOutOfRangeException(nameof(brainId));
+            if (string.IsNullOrWhiteSpace(driverKind))
+                throw new ArgumentException("A brain driver key is required.", nameof(driverKind));
             if (string.IsNullOrWhiteSpace(decisionName))
                 throw new ArgumentException("A brain decision name is required.", nameof(decisionName));
  
@@ -35,10 +57,20 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             DecisionName = decisionName;
             SkillSelectionPolicy = skillSelectionPolicy;
         }
+
+        [Obsolete("Use the constructor accepting a MobaBrainDriverKeys string identifier.")]
+        public MobaActorBrainDefinition(
+            int brainId,
+            MobaBrainDriverKind driverKind,
+            string decisionName,
+            MobaBrainSkillSelectionPolicy skillSelectionPolicy = MobaBrainSkillSelectionPolicy.FirstReady)
+            : this(brainId, MobaBrainDriverKeys.FromLegacy(driverKind), decisionName, skillSelectionPolicy)
+        {
+        }
  
         public int BrainId { get; }
  
-        public MobaBrainDriverKind DriverKind { get; }
+        public string DriverKind { get; }
  
         public string DecisionName { get; }
  
@@ -119,23 +151,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                     ?? throw new InvalidOperationException($"MOBA brain definition at index {i} is null.");
                 var definition = new MobaActorBrainDefinition(
                     source.BrainId,
-                    ParseDriverKind(source.DriverKind),
+                    source.DriverKind,
                     source.DecisionName,
                     ParseSkillSelectionPolicy(source.SkillSelectionPolicy));
                 catalog.Register(in definition);
             }
 
             return definitions.Count;
-        }
-
-        private static MobaBrainDriverKind ParseDriverKind(string driverKind)
-        {
-            return driverKind switch
-            {
-                "behaviorTree" => MobaBrainDriverKind.BTree,
-                "hfsm" => MobaBrainDriverKind.Hfsm,
-                _ => throw new InvalidOperationException($"Unsupported MOBA brain driver kind '{driverKind}'."),
-            };
         }
 
         private static MobaBrainSkillSelectionPolicy ParseSkillSelectionPolicy(string policy)

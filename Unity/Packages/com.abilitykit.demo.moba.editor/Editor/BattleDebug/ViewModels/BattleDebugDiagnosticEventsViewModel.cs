@@ -14,7 +14,8 @@ namespace AbilityKit.Game.Editor
         Buffs = 4,
         TemporaryEntities = 5,
         Warnings = 6,
-        All = 7
+        Triggers = 7,
+        All = 8
     }
 
     /// <summary>
@@ -294,7 +295,7 @@ namespace AbilityKit.Game.Editor
         public void FocusTriggerBlocks()
         {
             FocusRecentFailures();
-            EventScope = BattleDebugDiagnosticEventScope.Effects;
+            EventScope = BattleDebugDiagnosticEventScope.Triggers;
             TriggerStage = BattleDiagnosticTriggerAnalysisStage.Budget;
             TriggerResult = BattleDiagnosticTriggerAnalysisResult.Blocked;
             InvalidateCache();
@@ -303,7 +304,7 @@ namespace AbilityKit.Game.Editor
         public void FocusConditionFailures()
         {
             FocusRecentFailures();
-            EventScope = BattleDebugDiagnosticEventScope.Effects;
+            EventScope = BattleDebugDiagnosticEventScope.Triggers;
             TriggerStage = BattleDiagnosticTriggerAnalysisStage.Conditions;
             TriggerResult = BattleDiagnosticTriggerAnalysisResult.Failed;
             InvalidateCache();
@@ -829,6 +830,8 @@ namespace AbilityKit.Game.Editor
                     return BattleDiagnosticEventChannel.TemporaryEntity;
                 case BattleDebugDiagnosticEventScope.Warnings:
                     return BattleDiagnosticEventChannel.WarningAndException;
+                case BattleDebugDiagnosticEventScope.Triggers:
+                    return BattleDiagnosticEventChannel.Trigger;
                 default:
                     return BattleDiagnosticEventChannel.All;
             }

@@ -6,6 +6,26 @@ using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
+    public readonly struct ShooterEnemyBudgetOverride
+    {
+        public ShooterEnemyBudgetOverride(int enemyBudget)
+        {
+            EnemyBudget = Math.Max(1, enemyBudget);
+        }
+
+        public int EnemyBudget { get; }
+    }
+
+    public readonly struct ShooterEnemySimulationOverride
+    {
+        public ShooterEnemySimulationOverride(bool enabled)
+        {
+            Enabled = enabled;
+        }
+
+        public bool Enabled { get; }
+    }
+
     public readonly struct ShooterBattleFlowOverrides
     {
         public ShooterBattleFlowOverrides(int durationFrames, int victoryTargetDefeats)
@@ -42,7 +62,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
             options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
             var scenario = ResolveScenario(options);
             var battleFlow = CreateBattleFlow(scenario.BattleFlow, options);
-            var enemyWaveOptions = new ShooterEnemyWaveOptions(true, battleFlow);
+            var enemySimulationEnabled = !options.Extensions.TryGetValue(
+                    typeof(ShooterEnemySimulationOverride),
+                    out var enemySimulationValue)
+                || enemySimulationValue is not ShooterEnemySimulationOverride enemySimulationOverride
+                || enemySimulationOverride.Enabled;
+            var enemyWaveOptions = new ShooterEnemyWaveOptions(enemySimulationEnabled, battleFlow);
             var arenaOptions = ShooterArenaGameplayOptions.CreateCircular(scenario.ArenaRadius);
             var matchStateOptions = CreateMatchStateOptions(options);
             options.ServiceBuilder.Register<ShooterEnemyWaveOptions>(WorldLifetime.Singleton, _ => enemyWaveOptions);
@@ -62,10 +87,64 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private static ShooterSveltoGameplayScenarioConfig ResolveScenario(WorldCreateOptions options)
         {
-            return options.Extensions.TryGetValue(typeof(ShooterSveltoGameplayScenarioConfig), out var value) &&
-                   value is ShooterSveltoGameplayScenarioConfig scenario
-                ? scenario
+            var scenario = options.Extensions.TryGetValue(typeof(ShooterSveltoGameplayScenarioConfig), out var value) &&
+                           value is ShooterSveltoGameplayScenarioConfig configuredScenario
+                ? configuredScenario
                 : ShooterSveltoGameplayScenarioCatalog.WaveSurvival;
+            if (!options.Extensions.TryGetValue(typeof(ShooterEnemyBudgetOverride), out var budgetValue) ||
+                budgetValue is not ShooterEnemyBudgetOverride budgetOverride)
+            {
+                return scenario;
+            }
+
+            return WithEnemyBudget(in scenario, budgetOverride.EnemyBudget);
+        }
+
+        private static ShooterSveltoGameplayScenarioConfig WithEnemyBudget(
+            in ShooterSveltoGameplayScenarioConfig scenario,
+            int enemyBudget)
+        {
+            const int enemiesPerWave = 64;
+            var battleFlow = scenario.BattleFlow;
+            var normalizedBudget = Math.Max(1, enemyBudget);
+            var waveCount = (normalizedBudget - 1) / enemiesPerWave + 1;
+            var waves = new ShooterSveltoGameplayWaveConfig[waveCount];
+            var remainingEnemies = normalizedBudget;
+            for (var i = 0; i < waves.Length; i++)
+            {
+                var enemiesInWave = Math.Min(enemiesPerWave, remainingEnemies);
+                waves[i] = new ShooterSveltoGameplayWaveConfig(
+                    waveId: i + 1,
+                    startFrame: 0,
+                    spawnFrameInterval: 1,
+                    enemyCount: enemiesInWave,
+                    enemyHp: 2,
+                    spawnRadius: (18f + i % 16) * 2f);
+                remainingEnemies -= enemiesInWave;
+            }
+
+            var scaledFlow = new ShooterSveltoGameplayBattleFlowConfig(
+                battleFlow.DurationFrames,
+                victoryTargetDefeats: normalizedBudget,
+                maxActiveEnemies: normalizedBudget,
+                waves,
+                battleFlow.EnemyLoadoutId,
+                battleFlow.EnemyAttackIntervalFrames,
+                battleFlow.EnemyAttackDamage,
+                battleFlow.EnemyProjectileSpeedScale,
+                battleFlow.EnemyProjectilesPerShot,
+                battleFlow.EnemySpreadDegrees);
+            return new ShooterSveltoGameplayScenarioConfig(
+                scenario.Id,
+                scenario.DisplayName,
+                scenario.Description,
+                scenario.ShooterCount,
+                scenario.TargetCount,
+                scenario.TickCount,
+                scenario.TickDeltaTime,
+                scenario.ArenaRadius,
+                scenario.Loadout,
+                scaledFlow);
         }
 
         private static ShooterSveltoGameplayBattleFlowConfig CreateBattleFlow(

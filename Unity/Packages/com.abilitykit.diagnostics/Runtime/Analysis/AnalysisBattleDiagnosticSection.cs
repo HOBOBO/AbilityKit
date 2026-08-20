@@ -19,6 +19,8 @@ namespace AbilityKit.Diagnostics.Analysis
         public AnalysisBattleDiagnosticBuffTrack Buffs { get; set; } = new AnalysisBattleDiagnosticBuffTrack();
         public AnalysisBattleDiagnosticTagTrack Tags { get; set; } = new AnalysisBattleDiagnosticTagTrack();
         public AnalysisBattleDiagnosticEffectTrack Effects { get; set; } = new AnalysisBattleDiagnosticEffectTrack();
+        public AnalysisBattleDiagnosticObjectTrack Objects { get; set; } = new AnalysisBattleDiagnosticObjectTrack();
+        public AnalysisBattleDiagnosticMetricTrack FrameMetrics { get; set; } = new AnalysisBattleDiagnosticMetricTrack();
     }
 
     public sealed class AnalysisBattleDiagnosticSession
@@ -63,7 +65,13 @@ namespace AbilityKit.Diagnostics.Analysis
         public int Outcome { get; set; }
         public long SourceActorId { get; set; }
         public long TargetActorId { get; set; }
+        public int SourceActorGeneration { get; set; }
+        public int TargetActorGeneration { get; set; }
+        public int SubjectObjectKind { get; set; }
+        public long SubjectRuntimeId { get; set; }
+        public int SubjectGeneration { get; set; }
         public int ConfigId { get; set; }
+        public int DefinitionKind { get; set; }
         public long RootContextId { get; set; }
         public long ContextId { get; set; }
         public long SkillRuntimeId { get; set; }
@@ -276,5 +284,90 @@ namespace AbilityKit.Diagnostics.Analysis
         public float PeriodSeconds { get; set; }
         public int ComponentCount { get; set; }
         public bool ExecutePeriodicOnApply { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticMetricTrack
+    {
+        public long Revision { get; set; }
+        public AnalysisBattleDiagnosticStoreMetrics Metrics { get; set; } = new AnalysisBattleDiagnosticStoreMetrics();
+        public List<AnalysisBattleDiagnosticMetricSample> Items { get; set; } = new List<AnalysisBattleDiagnosticMetricSample>();
+    }
+
+    public sealed class AnalysisBattleDiagnosticMetricSample
+    {
+        public long Sequence { get; set; }
+        public int Frame { get; set; }
+        public long MonotonicTimestamp { get; set; }
+        public int Category { get; set; }
+        public int ValueKind { get; set; }
+        public string Metric { get; set; } = string.Empty;
+        public double Value { get; set; }
+        public string Dimension { get; set; } = string.Empty;
+    }
+
+    public sealed class AnalysisBattleDiagnosticObjectTrack
+    {
+        public long Revision { get; set; }
+        public bool Truncated { get; set; }
+        public int Completeness { get; set; }
+        public long BackfillAttemptCount { get; set; }
+        public long BackfillFailureCount { get; set; }
+        public int LastBackfillFrame { get; set; } = -1;
+        public AnalysisBattleDiagnosticObjectSummary Summary { get; set; } =
+            new AnalysisBattleDiagnosticObjectSummary();
+        public AnalysisBattleDiagnosticObjectEventCoverage EventCoverage { get; set; } =
+            new AnalysisBattleDiagnosticObjectEventCoverage();
+        public List<AnalysisBattleDiagnosticRuntimeObject> Items { get; set; } = new List<AnalysisBattleDiagnosticRuntimeObject>();
+    }
+
+    public sealed class AnalysisBattleDiagnosticObjectSummary
+    {
+        public int TotalCount { get; set; }
+        public int CompleteCount { get; set; }
+        public int PartialCount { get; set; }
+        public int UnreliableCount { get; set; }
+        public int ActiveCount { get; set; }
+        public int EndedCount { get; set; }
+        public int Completeness { get; set; }
+        public bool Truncated { get; set; }
+        public long BackfillAttemptCount { get; set; }
+        public long BackfillFailureCount { get; set; }
+        public int LastBackfillFrame { get; set; } = -1;
+    }
+
+    public sealed class AnalysisBattleDiagnosticObjectEventCoverage
+    {
+        public int EventCount { get; set; }
+        public int ReferencedEventCount { get; set; }
+        public int CompleteEventCount { get; set; }
+        public int PartialEventCount { get; set; }
+        public int UnreliableEventCount { get; set; }
+        public int TotalReferenceCount { get; set; }
+        public int ResolvedReferenceCount { get; set; }
+        public int UnresolvedReferenceCount { get; set; }
+        public float ResolvedReferenceRatio { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticRuntimeObject
+    {
+        public int Kind { get; set; }
+        public long RuntimeId { get; set; }
+        public int Generation { get; set; }
+        public int DefinitionKind { get; set; }
+        public int DefinitionId { get; set; }
+        public long RelatedActorId { get; set; }
+        public long OwnerActorId { get; set; }
+        public long SourceActorId { get; set; }
+        public long TargetActorId { get; set; }
+        public int CreatedFrame { get; set; } = -1;
+        public int DestroyedFrame { get; set; } = -1;
+        public long RootContextId { get; set; }
+        public long ContextId { get; set; }
+        public int State { get; set; }
+        public int EndReason { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public int DiscoveryKind { get; set; }
+        public int BackfilledFrame { get; set; } = -1;
+        public int Completeness { get; set; }
     }
 }

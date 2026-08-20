@@ -1,11 +1,12 @@
 #nullable enable
 
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Battle;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Demo.Shooter.View
 {
@@ -36,19 +37,35 @@ namespace AbilityKit.Demo.Shooter.View
             int peakQueueDepth,
             long enqueuedPushCount,
             long processedPushCount,
+            long coalescedSnapshotCount,
             long drainCount,
             long budgetLimitedDrainCount,
             int lastDrainProcessedCount,
-            double lastDrainMilliseconds)
+            double lastDrainMilliseconds,
+            long receivedPayloadBytes,
+            int maxPayloadBytes,
+            double oldestQueuedMilliseconds,
+            in ShooterDurationMetricSnapshot snapshotArrivalGap,
+            in ShooterDurationMetricSnapshot queueWait,
+            in ShooterDurationMetricSnapshot pushProcess,
+            in ShooterDurationMetricSnapshot snapshotSourceAge)
         {
             QueueDepth = queueDepth;
             PeakQueueDepth = peakQueueDepth;
             EnqueuedPushCount = enqueuedPushCount;
             ProcessedPushCount = processedPushCount;
+            CoalescedSnapshotCount = coalescedSnapshotCount;
             DrainCount = drainCount;
             BudgetLimitedDrainCount = budgetLimitedDrainCount;
             LastDrainProcessedCount = lastDrainProcessedCount;
             LastDrainMilliseconds = lastDrainMilliseconds;
+            ReceivedPayloadBytes = receivedPayloadBytes;
+            MaxPayloadBytes = maxPayloadBytes;
+            OldestQueuedMilliseconds = oldestQueuedMilliseconds;
+            SnapshotArrivalGap = snapshotArrivalGap;
+            QueueWait = queueWait;
+            PushProcess = pushProcess;
+            SnapshotSourceAge = snapshotSourceAge;
         }
 
         public int QueueDepth { get; }
@@ -59,6 +76,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public long ProcessedPushCount { get; }
 
+        public long CoalescedSnapshotCount { get; }
+
         public long DrainCount { get; }
 
         public long BudgetLimitedDrainCount { get; }
@@ -66,6 +85,20 @@ namespace AbilityKit.Demo.Shooter.View
         public int LastDrainProcessedCount { get; }
 
         public double LastDrainMilliseconds { get; }
+
+        public long ReceivedPayloadBytes { get; }
+
+        public int MaxPayloadBytes { get; }
+
+        public double OldestQueuedMilliseconds { get; }
+
+        public ShooterDurationMetricSnapshot SnapshotArrivalGap { get; }
+
+        public ShooterDurationMetricSnapshot QueueWait { get; }
+
+        public ShooterDurationMetricSnapshot PushProcess { get; }
+
+        public ShooterDurationMetricSnapshot SnapshotSourceAge { get; }
     }
 
     /// <summary>
@@ -88,7 +121,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         private readonly NetworkTransport _transport;
         private readonly ShooterBattleDataPlaneOptions _options;
-        private readonly ConcurrentQueue<(uint OpCode, ArraySegment<byte> Payload)> _pushQueue = new();
+        private readonly object _pushQueueGate = new();
+        private readonly LinkedList<PushItem> _pushQueue = new();
         private ShooterClientSession? _session;
         private ShooterClientBattleHandle? _battle;
         private long _lastReliableEventAckRequested;
@@ -96,10 +130,19 @@ namespace AbilityKit.Demo.Shooter.View
         private int _peakQueueDepth;
         private long _enqueuedPushCount;
         private long _processedPushCount;
+        private long _coalescedSnapshotCount;
         private long _drainCount;
         private long _budgetLimitedDrainCount;
         private int _lastDrainProcessedCount;
         private long _lastDrainElapsedTimestampTicks;
+        private long _lastSnapshotArrivalTimestamp;
+        private long _lastSnapshotSourceServerTicks;
+        private long _receivedPayloadBytes;
+        private int _maxPayloadBytes;
+        private readonly ShooterDurationMetric _snapshotArrivalGap = new();
+        private readonly ShooterDurationMetric _queueWait = new();
+        private readonly ShooterDurationMetric _pushProcess = new();
+        private readonly ShooterDurationMetric _snapshotSourceAge = new();
         private bool _disposed;
 
         public event Action<uint, ArraySegment<byte>, ShooterSnapshotApplyResult>? SnapshotPushDispatched;
@@ -108,15 +151,41 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterSnapshotApplyResult LastPushResult { get; private set; } = ShooterSnapshotApplyResult.Ignored;
 
-        public ShooterBattleDataPlaneDiagnostics Diagnostics => new ShooterBattleDataPlaneDiagnostics(
-            Volatile.Read(ref _queueDepth),
-            Volatile.Read(ref _peakQueueDepth),
-            Interlocked.Read(ref _enqueuedPushCount),
-            Interlocked.Read(ref _processedPushCount),
-            Interlocked.Read(ref _drainCount),
-            Interlocked.Read(ref _budgetLimitedDrainCount),
-            Volatile.Read(ref _lastDrainProcessedCount),
-            Volatile.Read(ref _lastDrainElapsedTimestampTicks) * 1000d / Stopwatch.Frequency);
+        public ShooterBattleDataPlaneDiagnostics Diagnostics
+        {
+            get
+            {
+                double oldestQueuedMilliseconds;
+                lock (_pushQueueGate)
+                {
+                    oldestQueuedMilliseconds = _pushQueue.First == null
+                        ? 0d
+                        : Math.Max(0L, Stopwatch.GetTimestamp() - _pushQueue.First.Value.ReceivedTimestamp) * 1000d / Stopwatch.Frequency;
+                }
+
+                var arrivalGap = _snapshotArrivalGap.Capture();
+                var queueWait = _queueWait.Capture();
+                var pushProcess = _pushProcess.Capture();
+                var snapshotSourceAge = _snapshotSourceAge.Capture();
+                return new ShooterBattleDataPlaneDiagnostics(
+                    Volatile.Read(ref _queueDepth),
+                    Volatile.Read(ref _peakQueueDepth),
+                    Interlocked.Read(ref _enqueuedPushCount),
+                    Interlocked.Read(ref _processedPushCount),
+                    Interlocked.Read(ref _coalescedSnapshotCount),
+                    Interlocked.Read(ref _drainCount),
+                    Interlocked.Read(ref _budgetLimitedDrainCount),
+                    Volatile.Read(ref _lastDrainProcessedCount),
+                    Volatile.Read(ref _lastDrainElapsedTimestampTicks) * 1000d / Stopwatch.Frequency,
+                    Interlocked.Read(ref _receivedPayloadBytes),
+                    Volatile.Read(ref _maxPayloadBytes),
+                    oldestQueuedMilliseconds,
+                    in arrivalGap,
+                    in queueWait,
+                    in pushProcess,
+                    in snapshotSourceAge);
+            }
+        }
 
         public ShooterBattleDataPlane(NetworkTransport transport)
             : this(transport, ShooterBattleDataPlaneOptions.Default)
@@ -146,14 +215,48 @@ namespace AbilityKit.Demo.Shooter.View
         /// </summary>
         private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
         {
-            if (_disposed)
+            var receivedTimestamp = Stopwatch.GetTimestamp();
+            lock (_pushQueueGate)
             {
-                return;
-            }
+                if (_disposed)
+                {
+                    return;
+                }
 
-            _pushQueue.Enqueue((opCode, payload));
-            Interlocked.Increment(ref _enqueuedPushCount);
-            UpdatePeakQueueDepth(Interlocked.Increment(ref _queueDepth));
+                if (opCode == RoomGatewayOpCodes.SnapshotPushed)
+                {
+                    var node = _pushQueue.First;
+                    while (node != null)
+                    {
+                        var next = node.Next;
+                        if (IsStateSnapshot(node.Value.OpCode))
+                        {
+                            _pushQueue.Remove(node);
+                            _queueDepth--;
+                            _coalescedSnapshotCount++;
+                        }
+
+                        node = next;
+                    }
+                }
+
+                if (IsStateSnapshot(opCode))
+                {
+                    if (_lastSnapshotArrivalTimestamp > 0L)
+                    {
+                        _snapshotArrivalGap.RecordElapsedTicks(receivedTimestamp - _lastSnapshotArrivalTimestamp);
+                    }
+
+                    _lastSnapshotArrivalTimestamp = receivedTimestamp;
+                }
+
+                _pushQueue.AddLast(new PushItem(opCode, payload, receivedTimestamp));
+                _enqueuedPushCount++;
+                _receivedPayloadBytes += payload.Count;
+                _queueDepth++;
+                UpdateMaxPayloadBytes(payload.Count);
+                UpdatePeakQueueDepth(_queueDepth);
+            }
         }
 
         /// <summary>Drains queued battle pushes on the caller's (main) thread. Call from the host tick loop.</summary>
@@ -164,10 +267,13 @@ namespace AbilityKit.Demo.Shooter.View
             var processed = 0;
             while (processed < _options.MaxPushesPerDrain &&
                    (processed == 0 || Stopwatch.GetTimestamp() - startedAt < maxElapsedTicks) &&
-                   _pushQueue.TryDequeue(out var item))
+                   TryDequeue(out var item))
             {
-                Interlocked.Decrement(ref _queueDepth);
+                var processStartedAt = Stopwatch.GetTimestamp();
+                _queueWait.RecordElapsedTicks(processStartedAt - item.ReceivedTimestamp);
                 ProcessPush(item.OpCode, item.Payload);
+                _pushProcess.RecordElapsedTicks(Stopwatch.GetTimestamp() - processStartedAt);
+                RecordSnapshotSourceAge(item.OpCode);
                 processed++;
             }
 
@@ -185,6 +291,29 @@ namespace AbilityKit.Demo.Shooter.View
             return processed;
         }
 
+        private bool TryDequeue(out PushItem item)
+        {
+            lock (_pushQueueGate)
+            {
+                if (_pushQueue.First == null)
+                {
+                    item = default;
+                    return false;
+                }
+
+                item = _pushQueue.First.Value;
+                _pushQueue.RemoveFirst();
+                _queueDepth--;
+                return true;
+            }
+        }
+
+        private static bool IsStateSnapshot(uint opCode)
+        {
+            return opCode == RoomGatewayOpCodes.SnapshotPushed ||
+                   opCode == RoomGatewayOpCodes.DeltaSnapshotPushed;
+        }
+
         private void UpdatePeakQueueDepth(int depth)
         {
             var observed = Volatile.Read(ref _peakQueueDepth);
@@ -197,6 +326,37 @@ namespace AbilityKit.Demo.Shooter.View
                 }
 
                 observed = previous;
+            }
+        }
+
+        private void UpdateMaxPayloadBytes(int bytes)
+        {
+            var observed = Volatile.Read(ref _maxPayloadBytes);
+            while (bytes > observed)
+            {
+                var previous = Interlocked.CompareExchange(ref _maxPayloadBytes, bytes, observed);
+                if (previous == observed)
+                {
+                    return;
+                }
+
+                observed = previous;
+            }
+        }
+
+        private void RecordSnapshotSourceAge(uint opCode)
+        {
+            if (!IsStateSnapshot(opCode) || _session == null)
+            {
+                return;
+            }
+
+            var serverTicks = _session.FrameworkSnapshotPipelineDiagnostics.LastServerTicks;
+            var ageTicks = DateTime.UtcNow.Ticks - serverTicks;
+            if (serverTicks > 0L && serverTicks != _lastSnapshotSourceServerTicks && ageTicks >= 0L)
+            {
+                _lastSnapshotSourceServerTicks = serverTicks;
+                _snapshotSourceAge.RecordMilliseconds(ageTicks / (double)TimeSpan.TicksPerMillisecond);
             }
         }
 
@@ -297,18 +457,36 @@ namespace AbilityKit.Demo.Shooter.View
 
         public void Dispose()
         {
-            if (_disposed)
+            lock (_pushQueueGate)
             {
-                return;
+                if (_disposed)
+                {
+                    return;
+                }
+
+                _disposed = true;
+                _pushQueue.Clear();
+                _queueDepth = 0;
             }
 
-            _disposed = true;
             _transport.RawServerPushReceived -= OnServerPushReceived;
             _transport.ConnectionEstablished -= OnConnectionEstablished;
-            while (_pushQueue.TryDequeue(out _))
+        }
+
+        private readonly struct PushItem
+        {
+            public PushItem(uint opCode, ArraySegment<byte> payload, long receivedTimestamp)
             {
-                Interlocked.Decrement(ref _queueDepth);
+                OpCode = opCode;
+                Payload = payload;
+                ReceivedTimestamp = receivedTimestamp;
             }
+
+            public uint OpCode { get; }
+
+            public ArraySegment<byte> Payload { get; }
+
+            public long ReceivedTimestamp { get; }
         }
     }
 }

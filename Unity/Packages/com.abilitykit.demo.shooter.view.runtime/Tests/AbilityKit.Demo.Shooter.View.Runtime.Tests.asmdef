@@ -3,13 +3,15 @@
   "rootNamespace": "AbilityKit.Demo.Shooter.View.Tests",
   "references": [
     "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Shooter.Runtime",
     "AbilityKit.Demo.Shooter.View.Runtime",
     "AbilityKit.Game.View.Runtime",
     "AbilityKit.Network.Runtime",
     "AbilityKit.Network.Room",
     "AbilityKit.Host",
     "AbilityKit.Protocol.Shooter",
-    "AbilityKit.World.NetworkFragments"
+    "AbilityKit.World.NetworkFragments",
+    "AbilityKit.World.Svelto"
   ],
   "includePlatforms": [
     "Editor"

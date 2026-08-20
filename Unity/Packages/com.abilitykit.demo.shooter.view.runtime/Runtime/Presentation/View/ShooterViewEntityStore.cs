@@ -55,6 +55,32 @@ namespace AbilityKit.Demo.Shooter.View
             EnsureDenseCapacity(capacity);
         }
 
+        public void EnsureCapacityForEntityChanges(IReadOnlyList<ShooterViewEntityChange> changes)
+        {
+            if (changes == null || changes.Count == 0)
+            {
+                return;
+            }
+
+            var upperBound = checked(_entities.Count + changes.Count);
+            if (upperBound <= _entities.EnsureCapacity(0))
+            {
+                return;
+            }
+
+            var additions = 0;
+            for (var i = 0; i < changes.Count; i++)
+            {
+                var change = changes[i];
+                if (change.Alive && !_entities.ContainsKey(change.Key))
+                {
+                    additions++;
+                }
+            }
+
+            EnsureCapacity(checked(_entities.Count + additions));
+        }
+
         public void Clear()
         {
             _entities.Clear();
@@ -79,6 +105,13 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var existed = _entities.TryGetValue(change.Key, out var existing);
+            if (existed &&
+                existing.OwnerEntityId == change.OwnerEntityId &&
+                existing.Alive == change.Alive)
+            {
+                return true;
+            }
+
             var denseIndex = existed ? existing.DenseIndex : _denseCount++;
             if (!existed)
             {
@@ -130,6 +163,45 @@ namespace AbilityKit.Demo.Shooter.View
                 return false;
             }
 
+            return UpsertTransform(in change, in entity);
+        }
+
+        internal bool UpsertEntityAndTransform(
+            in ShooterViewEntityChange entityChange,
+            in ShooterViewTransformComponentChange transformChange,
+            out bool transformApplied)
+        {
+            if (!entityChange.Key.Equals(transformChange.Key) || !entityChange.Alive)
+            {
+                throw new ArgumentException("Fused entity/transform updates require the same live entity key.");
+            }
+
+            var existed = _entities.TryGetValue(entityChange.Key, out var entity);
+            if (!existed)
+            {
+                var denseIndex = _denseCount++;
+                EnsureDenseCapacity(_denseCount);
+                IncrementKindCount(entityChange.Kind);
+                entity = new ShooterViewEntityState(entityChange.Key, entityChange.OwnerEntityId, alive: true, denseIndex);
+                _entities.Add(entityChange.Key, entity);
+                _denseEntities[denseIndex] = entity;
+            }
+            else if (entity.OwnerEntityId != entityChange.OwnerEntityId || entity.Alive != entityChange.Alive)
+            {
+                entity = new ShooterViewEntityState(entityChange.Key, entityChange.OwnerEntityId, entityChange.Alive, entity.DenseIndex);
+                _entities[entityChange.Key] = entity;
+                _denseEntities[entity.DenseIndex] = entity;
+            }
+
+            transformApplied = UpsertTransform(in transformChange, in entity);
+            return existed;
+        }
+
+        private bool UpsertTransform(
+            in ShooterViewTransformComponentChange change,
+            in ShooterViewEntityState entity)
+        {
+
             var transform = new ShooterViewTransformState(
                 change.Key,
                 change.X,
@@ -138,6 +210,11 @@ namespace AbilityKit.Demo.Shooter.View
                 change.FacingY,
                 change.VelocityX,
                 change.VelocityY);
+            if (_denseHasTransform[entity.DenseIndex] && TransformEquals(_denseTransforms[entity.DenseIndex], transform))
+            {
+                return true;
+            }
+
             _transforms[change.Key] = transform;
             _denseTransforms[entity.DenseIndex] = transform;
             _denseHasTransform[entity.DenseIndex] = true;
@@ -151,6 +228,11 @@ namespace AbilityKit.Demo.Shooter.View
                 return false;
             }
 
+            if (_health.TryGetValue(change.Key, out var existing) && existing.Hp == change.Hp)
+            {
+                return true;
+            }
+
             _health[change.Key] = new ShooterViewHealthState(change.Key, change.Hp);
             return true;
         }
@@ -162,6 +244,11 @@ namespace AbilityKit.Demo.Shooter.View
                 return false;
             }
 
+            if (_scores.TryGetValue(change.Key, out var existing) && existing.Score == change.Score)
+            {
+                return true;
+            }
+
             _scores[change.Key] = new ShooterViewScoreState(change.Key, change.Score);
             return true;
         }
@@ -171,6 +258,12 @@ namespace AbilityKit.Demo.Shooter.View
             if (!_entities.ContainsKey(change.Key))
             {
                 return false;
+            }
+
+            if (_projectileLifetimes.TryGetValue(change.Key, out var existing) &&
+                existing.RemainingFrames == change.RemainingFrames)
+            {
+                return true;
             }
 
             _projectileLifetimes[change.Key] = new ShooterViewProjectileLifetimeState(change.Key, change.RemainingFrames);
@@ -246,6 +339,16 @@ namespace AbilityKit.Demo.Shooter.View
             Array.Resize(ref _denseEntities, newCapacity);
             Array.Resize(ref _denseTransforms, newCapacity);
             Array.Resize(ref _denseHasTransform, newCapacity);
+        }
+
+        private static bool TransformEquals(in ShooterViewTransformState left, in ShooterViewTransformState right)
+        {
+            return left.X.Equals(right.X) &&
+                left.Y.Equals(right.Y) &&
+                left.FacingX.Equals(right.FacingX) &&
+                left.FacingY.Equals(right.FacingY) &&
+                left.VelocityX.Equals(right.VelocityX) &&
+                left.VelocityY.Equals(right.VelocityY);
         }
 
         private void IncrementKindCount(ShooterViewEntityKind kind)

@@ -239,7 +239,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var endFlow = new BuffEndFlow(
                 configs,
                 null,
-                new BuffLifecycleNotifier(null, null, null, recorder),
+                new BuffLifecycleNotifier(
+                    null,
+                    null,
+                    null,
+                    new MobaBattleObservationRecorderAdapter(recorder)),
                 bindings);
 
             var ended = endFlow.EndRuntime(
@@ -284,7 +288,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var endFlow = new BuffEndFlow(
                 configs,
                 null,
-                new BuffLifecycleNotifier(null, null, null, recorder),
+                new BuffLifecycleNotifier(
+                    null,
+                    null,
+                    null,
+                    new MobaBattleObservationRecorderAdapter(recorder)),
                 bindings);
 
             var error = Assert.Throws<InvalidOperationException>(() =>
@@ -467,7 +475,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             runtime.StackCount = 1;
             runtime.ModifierBindings.Add(new AbilityKit.Demo.Moba.Components.BuffModifierBinding());
             var recorder = new DiagnosticDraftRecorder();
-            var notifier = new BuffLifecycleNotifier(null, null, null, recorder);
+            var notifier = new BuffLifecycleNotifier(
+                null,
+                null,
+                null,
+                new MobaBattleObservationRecorderAdapter(recorder));
 
             notifier.AppliedNew(buff, SourceActorId, ActorId, 10f, runtime);
             notifier.AppliedExisting(buff, SourceActorId, ActorId, 9f, runtime, 1, true);
@@ -625,7 +637,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 null,
                 null,
                 null,
-                recorder);
+                new MobaBattleObservationRecorderAdapter(recorder));
             var executionContext = default(MobaCombatExecutionContext);
 
             handler.OnInterval(continuous, periodicConfig, in executionContext);

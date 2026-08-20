@@ -16,8 +16,8 @@ namespace AbilityKit.Network.Runtime
         private readonly IDispatcher _ioDispatcher;
 
         private ITransport _transport;
-        private NetworkSession _session;
-        private HeartbeatMiddleware _heartbeat;
+        private INetworkRuntimeSession _session;
+        private INetworkHeartbeatMiddleware _heartbeat;
 
         private string _host;
         private int _port;
@@ -27,7 +27,7 @@ namespace AbilityKit.Network.Runtime
 
         private bool _openRequested;
 
-        private readonly ReconnectAttemptScheduler _reconnectScheduler;
+        private readonly IReconnectAttemptScheduler _reconnectScheduler;
 
         public ConnectionManager(Func<ITransport> transportFactory, ConnectionOptions options = null, IDispatcher dispatcher = null)
         {
@@ -195,25 +195,71 @@ namespace AbilityKit.Network.Runtime
             StopInternal(keepState: true);
 
             State = connectState;
+            try
+            {
+                _transport = _transportFactory.Invoke()
+                    ?? throw new InvalidOperationException("Network transport factory returned null.");
+                var sessionContext = new NetworkRuntimeSessionFactoryContext(
+                    _transport,
+                    _dispatcher,
+                    _ioDispatcher,
+                    _options.FrameCodec);
+                _session = _options.SessionFactory != null
+                    ? _options.SessionFactory.Invoke(sessionContext)
+                    : new NetworkSession(_transport, _dispatcher, _ioDispatcher, _options.FrameCodec);
+                if (_session == null)
+                {
+                    throw new InvalidOperationException("Network session factory returned null.");
+                }
 
-            _transport = _transportFactory.Invoke();
-            _session = new NetworkSession(_transport, _dispatcher, _ioDispatcher, _options.FrameCodec);
+                if (_session.Pipeline == null)
+                {
+                    throw new InvalidOperationException("Network session factory returned a session without a pipeline.");
+                }
 
-            _session.Start();
-            _session.PacketReceived += OnSessionPacketReceived;
-            _session.ServerPushReceived += OnSessionServerPushReceived;
-            _session.Connected += OnSessionConnected;
-            _session.Disconnected += OnSessionDisconnected;
-            _session.Error += OnSessionError;
+                _session.Start();
+                _session.PacketReceived += OnSessionPacketReceived;
+                _session.ServerPushReceived += OnSessionServerPushReceived;
+                _session.Connected += OnSessionConnected;
+                _session.Disconnected += OnSessionDisconnected;
+                _session.Error += OnSessionError;
 
-            _heartbeat = new HeartbeatMiddleware(_options.HeartbeatOpCode);
-            _heartbeat.HeartbeatReceived += OnHeartbeatReceived;
-            _session.Pipeline.Add(_heartbeat);
-            PipelineCreated?.Invoke(_session.Pipeline);
+                _heartbeat = _options.HeartbeatFactory != null
+                    ? _options.HeartbeatFactory.Invoke(_options.HeartbeatOpCode)
+                    : new HeartbeatMiddleware(_options.HeartbeatOpCode);
+                if (_heartbeat == null)
+                {
+                    throw new InvalidOperationException("Heartbeat middleware factory returned null.");
+                }
 
-            _transport.BytesReceived += OnTransportBytesReceived;
+                _heartbeat.HeartbeatReceived += OnHeartbeatReceived;
+                _session.Pipeline.Add(_heartbeat);
+                PipelineCreated?.Invoke(_session.Pipeline);
 
-            _transport.Connect(_host, _port);
+                _transport.BytesReceived += OnTransportBytesReceived;
+                _transport.Connect(_host, _port);
+            }
+            catch
+            {
+                if (_session == null && _transport != null)
+                {
+                    try
+                    {
+                        _transport.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, "[ConnectionManager] StartConnect: transport dispose failed");
+                    }
+
+                    _transport = null;
+                }
+
+                StopInternal(
+                    keepState: connectState == ConnectionState.Reconnecting,
+                    resetReconnect: false);
+                throw;
+            }
         }
 
         private void StopInternal(bool keepState = false, bool resetReconnect = true)
@@ -460,15 +506,22 @@ namespace AbilityKit.Network.Runtime
             _dispatcher.Post(() => ReconnectExhausted?.Invoke(attempts));
         }
 
-        private static ReconnectAttemptScheduler CreateReconnectScheduler(
+        private static IReconnectAttemptScheduler CreateReconnectScheduler(
             ConnectionOptions options)
         {
             var maxAttempts = options.ReconnectMaxAttempts > 0
                 ? options.ReconnectMaxAttempts
                 : int.MaxValue;
-            return new ReconnectAttemptScheduler(
-                maxAttempts,
-                attemptIndex => ResolveReconnectDelay(options, attemptIndex));
+            Func<int, float> resolveDelay =
+                attemptIndex => ResolveReconnectDelay(options, attemptIndex);
+            if (options.ReconnectSchedulerFactory == null)
+            {
+                return new ReconnectAttemptScheduler(maxAttempts, resolveDelay);
+            }
+
+            var context = new ReconnectAttemptSchedulerFactoryContext(maxAttempts, resolveDelay);
+            return options.ReconnectSchedulerFactory.Invoke(context)
+                ?? throw new InvalidOperationException("Reconnect scheduler factory returned null.");
         }
 
         private static float ResolveReconnectDelay(

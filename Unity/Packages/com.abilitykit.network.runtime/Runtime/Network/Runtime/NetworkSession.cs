@@ -4,7 +4,17 @@ using AbilityKit.Network.Protocol;
 
 namespace AbilityKit.Network.Runtime
 {
-    public sealed class NetworkSession : ISession
+    /// <summary>
+    /// A transport session that exposes the middleware pipeline used by the connection runtime.
+    /// Implementations returned by a connection session factory are owned and disposed by the
+    /// connection manager, and therefore own the transport supplied to that factory.
+    /// </summary>
+    public interface INetworkRuntimeSession : ISession
+    {
+        NetworkPipeline Pipeline { get; }
+    }
+
+    public sealed class NetworkSession : INetworkRuntimeSession
     {
         private readonly ITransport _transport;
         private readonly IDispatcher _dispatcher;

@@ -10,6 +10,8 @@ namespace AbilityKit.Core.Eventing
 
         public EventKey(string id)
         {
+            if (id == null) throw new ArgumentNullException(nameof(id));
+
             _kind = 1;
             StringId = id;
             IntId = default;
@@ -18,7 +20,7 @@ namespace AbilityKit.Core.Eventing
         public EventKey(int id)
         {
             _kind = 2;
-            StringId = null;
+            StringId = string.Empty;
             IntId = id;
         }
 
@@ -29,7 +31,7 @@ namespace AbilityKit.Core.Eventing
             return string.Equals(StringId, other.StringId, StringComparison.Ordinal);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is EventKey<TArgs> other && Equals(other);
         }

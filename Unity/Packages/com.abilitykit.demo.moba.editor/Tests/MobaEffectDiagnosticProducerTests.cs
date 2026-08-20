@@ -153,7 +153,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 reason: "Missing mana for trigger.");
 
             Assert.That(draft.Kind, Is.EqualTo(BattleDiagnosticEventKind.TriggerAnalysis));
-            Assert.That(draft.Channel, Is.EqualTo(BattleDiagnosticEventChannel.Effect));
+            Assert.That(draft.Channel, Is.EqualTo(BattleDiagnosticEventChannel.Trigger));
             Assert.That(draft.Outcome, Is.EqualTo(BattleDiagnosticEventOutcome.Failed));
             Assert.That(draft.ConfigId, Is.EqualTo(701));
             Assert.That(draft.RootContextId, Is.EqualTo(500));

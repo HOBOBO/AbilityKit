@@ -1,9 +1,15 @@
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Game.Flow;
 using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    [BattleDebugModule(
+        BattleDebugModuleIds.FrameSyncNetwork,
+        "Frame Sync",
+        Sources = BattleDebugModuleSourceSupport.All,
+        Selections = BattleDebugModuleSelectionSupport.Frame)]
     internal sealed class BattleDebugFrameSyncNetworkPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
         public string Name => "帧同步/网络";
@@ -13,14 +19,24 @@ namespace AbilityKit.Game.Editor
 
         public bool IsVisible(in BattleDebugContext ctx)
         {
-            return !ctx.IsOffline && EditorApplication.isPlaying && BattleFlowDebugProvider.Current != null;
+            return BattleDebugFrameMetricHistory.IsAvailable(
+                       in ctx,
+                       BattleDiagnosticMetricCategory.Network) ||
+                   !ctx.IsOffline &&
+                   EditorApplication.isPlaying &&
+                   BattleFlowDebugProvider.Current != null;
         }
 
         public void Draw(in BattleDebugContext ctx)
         {
-            var flowCtx = BattleFlowDebugProvider.Current;
+            var hasHistory = BattleDebugFrameMetricHistory.Draw(
+                in ctx,
+                BattleDiagnosticMetricCategory.Network,
+                "Network Buffer History");
+            var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
+                if (hasHistory) return;
                 EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
                 return;
             }

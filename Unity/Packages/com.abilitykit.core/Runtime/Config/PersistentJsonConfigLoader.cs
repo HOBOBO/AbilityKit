@@ -19,26 +19,26 @@ namespace AbilityKit.Core.Configuration
             }
 
             public bool Equals(CacheKey other) => string.Equals(Path, other.Path) && Type == other.Type;
-            public override bool Equals(object obj) => obj is CacheKey other && Equals(other);
+            public override bool Equals(object? obj) => obj is CacheKey other && Equals(other);
             public override int GetHashCode() => HashCode.Combine(Path, Type);
         }
 
         private sealed class CacheEntry
         {
             public DateTime LastWriteTimeUtc;
-            public object Value;
+            public object? Value;
         }
 
         private static readonly object s_gate = new object();
         private static readonly Dictionary<CacheKey, CacheEntry> s_cache = new Dictionary<CacheKey, CacheEntry>(16);
 
-        public static T LoadOrDefault<T>(string filePath, Func<string, T> deserialize) where T : class, new()
+        public static T LoadOrDefault<T>(string filePath, Func<string, T?>? deserialize) where T : class, new()
         {
             var v = TryLoad<T>(filePath, deserialize);
             return v ?? new T();
         }
 
-        public static T TryLoad<T>(string filePath, Func<string, T> deserialize) where T : class
+        public static T? TryLoad<T>(string filePath, Func<string, T?>? deserialize) where T : class
         {
             try
             {

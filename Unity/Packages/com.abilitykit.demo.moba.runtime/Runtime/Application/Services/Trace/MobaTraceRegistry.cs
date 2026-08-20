@@ -175,7 +175,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void OnRegistryEvent(TraceRegistryEvent evt)
         {
-            if (_eventCollector == null) return;
+            if (!_eventCollector.IsEnabled(BattleDiagnosticEventChannel.Skill)) return;
             if (evt.Kind != TraceRegistryEventKind.RootCreated
                 && evt.Kind != TraceRegistryEventKind.ChildCreated
                 && evt.Kind != TraceRegistryEventKind.NodeEnded)
@@ -260,7 +260,8 @@ namespace AbilityKit.Demo.Moba.Services
                 configId,
                 resolvedRoot,
                 contextId,
-                summary: summary);
+                summary: summary,
+                definitionKind: ResolveDefinitionKind(traceKind));
         }
 
         internal static MobaBattleDiagnosticEventDraft CreateTraceNodeEndedDraft(
@@ -285,7 +286,40 @@ namespace AbilityKit.Demo.Moba.Services
                 configId,
                 resolvedRoot,
                 contextId,
-                summary: summary);
+                summary: summary,
+                definitionKind: ResolveDefinitionKind(traceKind));
+        }
+
+        private static BattleDiagnosticDefinitionKind ResolveDefinitionKind(int traceKind)
+        {
+            switch ((MobaTraceKind)traceKind)
+            {
+                case MobaTraceKind.SkillCast:
+                case MobaTraceKind.SkillEffect:
+                case MobaTraceKind.SkillPhase:
+                    return BattleDiagnosticDefinitionKind.Skill;
+                case MobaTraceKind.EffectExecution:
+                case MobaTraceKind.EffectAction:
+                    return BattleDiagnosticDefinitionKind.Effect;
+                case MobaTraceKind.BuffApply:
+                case MobaTraceKind.BuffTick:
+                case MobaTraceKind.BuffRemove:
+                    return BattleDiagnosticDefinitionKind.Buff;
+                case MobaTraceKind.ProjectileLaunch:
+                case MobaTraceKind.ProjectileHit:
+                    return BattleDiagnosticDefinitionKind.Projectile;
+                case MobaTraceKind.AreaSpawn:
+                case MobaTraceKind.AreaEnter:
+                case MobaTraceKind.AreaExit:
+                case MobaTraceKind.AreaExpire:
+                case MobaTraceKind.AreaStay:
+                    return BattleDiagnosticDefinitionKind.Area;
+                case MobaTraceKind.SummonSpawn:
+                case MobaTraceKind.SummonDeath:
+                    return BattleDiagnosticDefinitionKind.Summon;
+                default:
+                    return BattleDiagnosticDefinitionKind.Unknown;
+            }
         }
     }
 

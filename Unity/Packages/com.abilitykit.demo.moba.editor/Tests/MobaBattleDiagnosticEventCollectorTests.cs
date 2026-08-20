@@ -185,6 +185,41 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void FrameMetricHistory_IsRecordedOnlyInFullCaptureMode()
+        {
+            var collector = new MobaBattleDiagnosticEventCollector(
+                _scope,
+                new BattleDiagnosticCaptureOptions(
+                    BattleDiagnosticCaptureMode.Metrics,
+                    BattleDiagnosticEventChannel.None,
+                    metricCapacity: 4));
+            var sink = (IBattleDiagnosticMetricSink)new MobaBattleDiagnosticCollectorPorts(collector);
+
+            Assert.That(sink.IsEnabled, Is.False);
+            Assert.That(sink.TryRecordMetric(
+                12,
+                99L,
+                BattleDiagnosticMetricCategory.Prediction,
+                BattleDiagnosticMetricValueKind.Gauge,
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                3d), Is.False);
+            Assert.That(collector.MetricStore.Count, Is.Zero);
+
+            collector.CaptureMode = BattleDiagnosticCaptureMode.Full;
+
+            Assert.That(sink.IsEnabled, Is.True);
+            Assert.That(sink.TryRecordMetric(
+                13,
+                100L,
+                BattleDiagnosticMetricCategory.Prediction,
+                BattleDiagnosticMetricValueKind.Gauge,
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                2d), Is.True);
+            Assert.That(collector.MetricStore.Count, Is.EqualTo(1));
+            Assert.That(collector.MetricStore.LastSequence, Is.EqualTo(1));
+        }
+
+        [Test]
         public void DamageProducer_MapsOriginCorrelation()
         {
             var runtime = new MobaSkillCastRuntimeHandle(55, 3, 700);

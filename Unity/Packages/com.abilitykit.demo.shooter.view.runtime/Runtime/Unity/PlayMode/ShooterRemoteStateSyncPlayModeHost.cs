@@ -12,6 +12,8 @@ using AbilityKit.Protocol.Shooter;
 using UnityEngine;
 using UnityEngine.LowLevel;
 using UnityEngine.PlayerLoop;
+using Unity.Profiling;
+using Stopwatch = System.Diagnostics.Stopwatch;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
@@ -28,6 +30,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static readonly UnityShooterSwitchableViewSink ViewSink = new();
         private static readonly ShooterRemoteInputPump InputPump = new(InputSource);
         private static readonly ReconnectAttemptScheduler SessionReconnectScheduler = new();
+        private static readonly ShooterSyncFramePerformanceCollector PerformanceCollector = new();
+        private static readonly ProfilerMarker LauncherTickMarker = new ProfilerMarker("AbilityKit.Shooter.Sync.LauncherTick");
+        private static readonly ProfilerMarker SessionTickMarker = new ProfilerMarker("AbilityKit.Shooter.Sync.SessionTick");
+        private static readonly ProfilerMarker PresentationBuildMarker = new ProfilerMarker("AbilityKit.Shooter.Sync.PresentationBuild");
+        private static readonly ProfilerMarker ViewRenderMarker = new ProfilerMarker("AbilityKit.Shooter.Sync.ViewRender");
         private static ShooterRemoteStateSyncRuntimeState? _state;
         private static ShooterRemoteInputSubmitStrategy? _inputSubmitStrategy;
         private static ShooterRemoteStateSyncLaunchOptions _options;
@@ -63,6 +70,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static ShooterSnapshotApplyResult LastInitialFullStateSyncApplyResult => _lastInitialFullStateSyncApplyResult;
         public static Exception? LastError => _lastError;
         public static ShooterClientNetworkLaunchResult? Launch => _state?.Launch;
+        internal static ShooterBattleRuntimePort? Runtime => _state?.RuntimeWorld.Runtime;
         public static ShooterRemoteStateSyncConnectionResult? LastConnectionResult => _lastConnectionResult;
         public static ShooterClientSession? Session => _state?.Launch.Session;
         public static ShooterClientBattleHandle? Battle => _state?.Launch.Battle;
@@ -84,9 +92,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static long StepCount => _stepCount;
         public static long RenderCount => _renderCount;
         public static ShooterUnityViewRenderBackend ViewBackend => ViewSink.Backend;
+        public static ShooterUnityViewRenderDiagnostics ViewRenderDiagnostics => ViewSink.Diagnostics;
         public static SyncTimeAnchor LastLocalTimeAnchor => _timeAnchors?.LastLocalAnchor ?? default;
         public static SyncTimeAnchor LastRemoteTimeAnchor => _lastRemoteTimeAnchor;
         public static ShooterRemoteLatencyCompensationDiagnostics LastRemoteLatencyCompensationDiagnostics => _lastRemoteLatencyCompensationDiagnostics;
+        public static ShooterSyncFramePerformanceDiagnostics PerformanceDiagnostics => PerformanceCollector.Diagnostics;
+        public static ShooterBattleDataPlaneDiagnostics BattleDataPlaneDiagnostics =>
+            _state?.Launcher.BattleData?.Diagnostics ?? default;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStatics()
@@ -404,7 +416,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 return;
             }
 
-            state.Launcher.Tick(deltaSeconds);
+            var frameStartedAt = Stopwatch.GetTimestamp();
+            var allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
+            var stageStartedAt = frameStartedAt;
+            using (LauncherTickMarker.Auto())
+            {
+                state.Launcher.Tick(deltaSeconds);
+            }
+            var launcherElapsedTicks = Stopwatch.GetTimestamp() - stageStartedAt;
             if (TryBeginAutoReconnectAfterSocketLoss(state))
             {
                 return;
@@ -422,19 +441,42 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastSubmitResult = inputResult.SubmitResult;
             _stepCount++;
 
-            _lastTickResult = state.Launch.Session.Tick(deltaSeconds);
+            stageStartedAt = Stopwatch.GetTimestamp();
+            using (SessionTickMarker.Auto())
+            {
+                _lastTickResult = state.Launch.Session.Tick(deltaSeconds);
+            }
+            var sessionTickElapsedTicks = Stopwatch.GetTimestamp() - stageStartedAt;
             _inputSubmitStrategy?.CompleteIfFinished();
             _lastRemoteLatencyCompensationDiagnostics = CreateRemoteLatencyCompensationDiagnostics();
 
-            var frame = ShooterRemotePresentationFrameBuilder.Build(
-                state.Launch,
-                _options.SessionOptions,
-                ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId),
-                _lastRemoteTimeAnchor,
-                localTimeAnchor,
-                _lastRemoteLatencyCompensationDiagnostics);
-            ViewSink.Render(in frame);
+            stageStartedAt = Stopwatch.GetTimestamp();
+            ShooterHostPresentationFrame frame;
+            using (PresentationBuildMarker.Auto())
+            {
+                frame = ShooterRemotePresentationFrameBuilder.Build(
+                    state.Launch,
+                    _options.SessionOptions,
+                    ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId),
+                    _lastRemoteTimeAnchor,
+                    localTimeAnchor,
+                    _lastRemoteLatencyCompensationDiagnostics);
+            }
+            var presentationBuildElapsedTicks = Stopwatch.GetTimestamp() - stageStartedAt;
+            stageStartedAt = Stopwatch.GetTimestamp();
+            using (ViewRenderMarker.Auto())
+            {
+                ViewSink.Render(in frame);
+            }
+            var viewRenderElapsedTicks = Stopwatch.GetTimestamp() - stageStartedAt;
             _renderCount++;
+            PerformanceCollector.RecordFrame(
+                Stopwatch.GetTimestamp() - frameStartedAt,
+                launcherElapsedTicks,
+                sessionTickElapsedTicks,
+                presentationBuildElapsedTicks,
+                viewRenderElapsedTicks,
+                GC.GetAllocatedBytesForCurrentThread() - allocatedBefore);
         }
 
         private static ShooterRemoteLatencyCompensationDiagnostics CreateRemoteLatencyCompensationDiagnostics()
@@ -494,6 +536,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _timeAnchors = null;
             _lastRemoteTimeAnchor = default;
             _lastRemoteLatencyCompensationDiagnostics = default;
+            PerformanceCollector.Reset();
             _isStarting = false;
             _isPaused = false;
             _isAutoReconnecting = false;
@@ -620,6 +663,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 launchOptions.SessionOptions.TickRate);
             _lastRemoteTimeAnchor = state.Launch.Flow.RemoteTimeAnchorProjection.TimeAnchor;
             _lastRemoteLatencyCompensationDiagnostics = default;
+            PerformanceCollector.Reset();
             _lastError = null;
         }
 

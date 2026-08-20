@@ -32,7 +32,7 @@ namespace AbilityKit.Core.Pooling
         /// <param name="source">配置来源。</param>
         /// <param name="priority">配置优先级。</param>
         /// <param name="registrationOrder">注册顺序。</param>
-        public PoolConfigProviderInfo(string name, string source, int priority, int registrationOrder)
+        public PoolConfigProviderInfo(string name, string? source, int priority, int registrationOrder)
         {
             Name = string.IsNullOrEmpty(name) ? "Unnamed" : name;
             Source = source ?? string.Empty;

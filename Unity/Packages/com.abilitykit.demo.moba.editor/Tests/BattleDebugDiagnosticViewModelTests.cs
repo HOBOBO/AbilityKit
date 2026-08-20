@@ -508,13 +508,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             viewModel.FocusConditionFailures();
             viewModel.RefreshIfNeeded(session, 10, true);
-            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Effect));
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Trigger));
             Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Conditions));
             Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
 
             viewModel.FocusTriggerBlocks();
             viewModel.RefreshIfNeeded(session, 10, true);
-            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Effect));
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Trigger));
             Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Budget));
             Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Blocked));
         }
@@ -1886,6 +1886,284 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(projection.HasValue, Is.False);
         }
 
+        [Test]
+        public void RuntimeObjects_OldSessionAdapter_IsReportedAsUnsupported()
+        {
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+
+            var items = viewModel.RefreshIfNeeded(new RecordingSession());
+
+            Assert.That(items, Is.Empty);
+            Assert.That(viewModel.QueryStatus.Phase, Is.EqualTo(BattleDiagnosticQueryPhase.Unavailable));
+            Assert.That(
+                viewModel.QueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.Unsupported));
+            StringAssert.Contains("Unsupported", viewModel.StatusMessage);
+        }
+
+        [Test]
+        public void RuntimeObjects_RefreshCachesSummaryAndPageByRevisionAndFilter()
+        {
+            var session = new RuntimeObjectCatalogSession
+            {
+                RuntimeObjectStoreRevision = 7,
+                RuntimeObjects = new[]
+                {
+                    RuntimeObject(1),
+                    RuntimeObject(
+                        2,
+                        BattleDiagnosticRuntimeObjectDiscoveryKind.LifecycleEndedOnly,
+                        BattleDiagnosticRuntimeObjectState.Ended)
+                }
+            };
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+
+            viewModel.RefreshIfNeeded(session);
+            viewModel.RefreshIfNeeded(session);
+
+            Assert.That(session.ObjectQueryCount, Is.EqualTo(1));
+            Assert.That(session.SummaryQueryCount, Is.EqualTo(1));
+            Assert.That(viewModel.Items.Count, Is.EqualTo(2));
+            Assert.That(viewModel.Summary.HasValue, Is.True);
+            Assert.That(viewModel.Summary.Value.UnreliableCount, Is.EqualTo(1));
+
+            viewModel.Completeness = BattleDiagnosticDataCompleteness.Unreliable;
+            viewModel.RefreshIfNeeded(session);
+            Assert.That(session.ObjectQueryCount, Is.EqualTo(2));
+            Assert.That(
+                session.LastObjectQuery.Filter.Completeness,
+                Is.EqualTo(BattleDiagnosticDataCompleteness.Unreliable));
+            Assert.That(viewModel.Items.Count, Is.EqualTo(1));
+
+            session.RuntimeObjectStoreRevision++;
+            viewModel.RefreshIfNeeded(session);
+            Assert.That(session.ObjectQueryCount, Is.EqualTo(3));
+            Assert.That(session.SummaryQueryCount, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void RuntimeObjects_LoadMoreUsesFixedRevisionAndRefreshesWhenRevisionChanges()
+        {
+            var objects = new List<BattleDiagnosticRuntimeObject>();
+            for (var i = 1; i <= BattleDebugRuntimeObjectsViewModel.PageSize * 2 + 1; i++)
+                objects.Add(RuntimeObject(i));
+            var session = new RuntimeObjectCatalogSession
+            {
+                RuntimeObjectStoreRevision = 9,
+                RuntimeObjects = objects
+            };
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+
+            viewModel.RefreshIfNeeded(session);
+            Assert.That(viewModel.HasMore, Is.True);
+            Assert.That(viewModel.LoadMore(session), Is.True);
+            Assert.That(
+                viewModel.Items.Count,
+                Is.EqualTo(BattleDebugRuntimeObjectsViewModel.PageSize * 2));
+            Assert.That(viewModel.HasMore, Is.True);
+            Assert.That(session.LastObjectQuery.Page.StoreRevision, Is.EqualTo(9));
+            Assert.That(
+                session.LastObjectQuery.Page.Offset,
+                Is.EqualTo(BattleDebugRuntimeObjectsViewModel.PageSize));
+
+            session.RuntimeObjectStoreRevision = 10;
+            session.RuntimeObjects = new[] { RuntimeObject(999) };
+            Assert.That(viewModel.LoadMore(session), Is.False);
+            Assert.That(viewModel.Items.Count, Is.EqualTo(1));
+            Assert.That(viewModel.Items[0].RuntimeId, Is.EqualTo(999));
+        }
+
+        [Test]
+        public void RuntimeObjects_SelectionNavigationMovesWithinLoadedWorkset()
+        {
+            var session = new RuntimeObjectCatalogSession
+            {
+                RuntimeObjectStoreRevision = 11,
+                RuntimeObjects = new[]
+                {
+                    RuntimeObject(1),
+                    RuntimeObject(2),
+                    RuntimeObject(3)
+                }
+            };
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+            viewModel.RefreshIfNeeded(session);
+
+            Assert.That(viewModel.SelectAdjacent(1), Is.True);
+            Assert.That(viewModel.SelectedIndex, Is.EqualTo(0));
+            Assert.That(viewModel.SelectAdjacent(1), Is.True);
+            Assert.That(viewModel.Selected.Value.RuntimeId, Is.EqualTo(2));
+            Assert.That(viewModel.SelectAdjacent(-1), Is.True);
+            Assert.That(viewModel.SelectedIndex, Is.EqualTo(0));
+            Assert.That(viewModel.SelectAdjacent(-1), Is.False);
+            Assert.That(viewModel.SelectedIndex, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void RuntimeObjects_RelatedEventFindsNewestSubjectMatch()
+        {
+            var runtimeObject = RuntimeObject(42, kind: BattleDiagnosticRuntimeObjectKind.Projectile);
+            var session = new RuntimeObjectCatalogSession
+            {
+                EventStoreRevision = 12,
+                Events = new[]
+                {
+                    RuntimeObjectEvent(20, 2, runtimeObject, subjectGeneration: runtimeObject.Generation),
+                    RuntimeObjectEvent(30, 3, runtimeObject, subjectGeneration: runtimeObject.Generation),
+                    RuntimeObjectEvent(10, 1, RuntimeObject(99), subjectGeneration: 99)
+                },
+                PageEventResults = true
+            };
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+
+            var found = viewModel.TryFindRelatedEvent(session, in runtimeObject, out var result);
+
+            Assert.That(found, Is.True);
+            Assert.That(result.Frame, Is.EqualTo(30));
+            Assert.That(session.LastEventQuery.Page.StoreRevision, Is.EqualTo(12));
+            Assert.That(session.LastEventQuery.NewestFirst, Is.True);
+        }
+
+        [Test]
+        public void RuntimeObjects_RelatedEventMatchesActorSourceAndTargetReferences()
+        {
+            var runtimeObject = RuntimeObject(42, kind: BattleDiagnosticRuntimeObjectKind.Actor);
+            var session = new RuntimeObjectCatalogSession
+            {
+                EventStoreRevision = 12,
+                Events = new[]
+                {
+                    new BattleDiagnosticEvent(
+                        RecordingSession.Scope,
+                        20,
+                        2,
+                        2,
+                        BattleDiagnosticEventKind.Damage,
+                        BattleDiagnosticEventChannel.DamageAndHeal,
+                        BattleDiagnosticEventOutcome.Succeeded,
+                        sourceActorId: runtimeObject.RuntimeId,
+                        sourceActorGeneration: runtimeObject.Generation),
+                    new BattleDiagnosticEvent(
+                        RecordingSession.Scope,
+                        30,
+                        3,
+                        3,
+                        BattleDiagnosticEventKind.Damage,
+                        BattleDiagnosticEventChannel.DamageAndHeal,
+                        BattleDiagnosticEventOutcome.Succeeded,
+                        targetActorId: runtimeObject.RuntimeId,
+                        targetActorGeneration: runtimeObject.Generation)
+                },
+                PageEventResults = true
+            };
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+
+            var found = viewModel.TryFindRelatedEvent(session, in runtimeObject, out var result);
+
+            Assert.That(found, Is.True);
+            Assert.That(result.Frame, Is.EqualTo(30));
+        }
+
+        [Test]
+        public void RuntimeObjects_RelatedEventRequiresExactGenerationUnlessReferenceIsLegacy()
+        {
+            var runtimeObject = RuntimeObject(42, kind: BattleDiagnosticRuntimeObjectKind.Projectile);
+            var wrongGeneration = RuntimeObjectEvent(
+                30,
+                3,
+                runtimeObject,
+                subjectGeneration: runtimeObject.Generation + 1);
+            var legacy = RuntimeObjectEvent(20, 2, runtimeObject, subjectGeneration: 0);
+            var session = new RuntimeObjectCatalogSession
+            {
+                EventStoreRevision = 13,
+                Events = new[] { wrongGeneration, legacy },
+                PageEventResults = true
+            };
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+
+            var found = viewModel.TryFindRelatedEvent(session, in runtimeObject, out var result);
+
+            Assert.That(found, Is.True);
+            Assert.That(result.Frame, Is.EqualTo(20));
+        }
+
+        [Test]
+        public void RuntimeObjects_RelatedEventScanIsBoundedToFiveThousandEvents()
+        {
+            var events = new List<BattleDiagnosticEvent>();
+            for (var i = 1; i <= 5500; i++)
+            {
+                events.Add(RuntimeObjectEvent(
+                    i,
+                    i,
+                    RuntimeObject(i + 10000),
+                    subjectGeneration: i + 10000));
+            }
+            var session = new RuntimeObjectCatalogSession
+            {
+                EventStoreRevision = 14,
+                Events = events,
+                PageEventResults = true
+            };
+            var viewModel = new BattleDebugRuntimeObjectsViewModel();
+            var runtimeObject = RuntimeObject(42, kind: BattleDiagnosticRuntimeObjectKind.Projectile);
+
+            var found = viewModel.TryFindRelatedEvent(session, in runtimeObject, out _);
+
+            Assert.That(found, Is.False);
+            Assert.That(
+                session.EventQueryCount,
+                Is.EqualTo(BattleDebugRuntimeObjectsViewModel.RelatedEventScanPageLimit));
+            StringAssert.Contains("5000", viewModel.RelatedEventStatusMessage);
+        }
+
+        private static BattleDiagnosticRuntimeObject RuntimeObject(
+            long runtimeId,
+            BattleDiagnosticRuntimeObjectDiscoveryKind discoveryKind =
+                BattleDiagnosticRuntimeObjectDiscoveryKind.LifecycleCreated,
+            BattleDiagnosticRuntimeObjectState state = BattleDiagnosticRuntimeObjectState.Active,
+            BattleDiagnosticRuntimeObjectKind kind = BattleDiagnosticRuntimeObjectKind.Projectile)
+        {
+            return new BattleDiagnosticRuntimeObject(
+                kind,
+                runtimeId,
+                generation: checked((int)runtimeId),
+                BattleDiagnosticDefinitionKind.Projectile,
+                definitionId: checked(100 + (int)runtimeId),
+                relatedActorId: 1,
+                ownerActorId: 2,
+                sourceActorId: 3,
+                targetActorId: 4,
+                createdFrame: 1,
+                destroyedFrame: state == BattleDiagnosticRuntimeObjectState.Ended ? 10 : -1,
+                rootContextId: 1000 + runtimeId,
+                contextId: 2000 + runtimeId,
+                state,
+                endReason: 0,
+                displayName: "object-" + runtimeId,
+                discoveryKind);
+        }
+
+        private static BattleDiagnosticEvent RuntimeObjectEvent(
+            int frame,
+            long sequence,
+            in BattleDiagnosticRuntimeObject runtimeObject,
+            int subjectGeneration)
+        {
+            return new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                frame,
+                sequence,
+                sequence,
+                BattleDiagnosticEventKind.ProjectileHit,
+                BattleDiagnosticEventChannel.TemporaryEntity,
+                BattleDiagnosticEventOutcome.Succeeded,
+                subjectObjectKind: runtimeObject.Kind,
+                subjectRuntimeId: runtimeObject.RuntimeId,
+                subjectGeneration: subjectGeneration);
+        }
+
         private static BattleDiagnosticEvent TriggerEvent(
             int frame,
             long sequence,
@@ -1923,7 +2201,86 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 kind: kind);
         }
 
-        private sealed class RecordingSession : IBattleDiagnosticReadOnlySession
+        private sealed class RuntimeObjectCatalogSession :
+            RecordingSession,
+            IBattleDiagnosticRuntimeObjectCatalogSession
+        {
+            public long RuntimeObjectStoreRevision { get; set; }
+            public IReadOnlyList<BattleDiagnosticRuntimeObject> RuntimeObjects { get; set; }
+            public int ObjectQueryCount { get; private set; }
+            public int SummaryQueryCount { get; private set; }
+            public BattleDiagnosticRuntimeObjectQuery LastObjectQuery { get; private set; }
+
+            public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObject(
+                long requestId,
+                in BattleDiagnosticRuntimeObjectReference reference,
+                int frame)
+            {
+                var source = RuntimeObjects ?? Array.Empty<BattleDiagnosticRuntimeObject>();
+                for (var i = 0; i < source.Count; i++)
+                {
+                    var item = source[i];
+                    if (item.Kind == reference.Kind &&
+                        item.RuntimeId == reference.RuntimeId &&
+                        (reference.Generation == 0 || item.Generation == reference.Generation))
+                    {
+                        return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.FromItems(
+                            requestId,
+                            RuntimeObjectStoreRevision,
+                            new[] { item },
+                            false);
+                    }
+                }
+
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.Unavailable(
+                    requestId,
+                    RuntimeObjectStoreRevision,
+                    BattleDiagnosticDataAvailability.NotCaptured);
+            }
+
+            public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObjects(
+                BattleDiagnosticRuntimeObjectQuery query)
+            {
+                ObjectQueryCount++;
+                LastObjectQuery = query;
+                var source = RuntimeObjects ?? Array.Empty<BattleDiagnosticRuntimeObject>();
+                var filtered = new List<BattleDiagnosticRuntimeObject>();
+                for (var i = 0; i < source.Count; i++)
+                {
+                    var item = source[i];
+                    if (query.Filter.Matches(in item)) filtered.Add(item);
+                }
+
+                var page = new List<BattleDiagnosticRuntimeObject>();
+                var end = Math.Min(filtered.Count, query.Page.Offset + query.Page.Limit);
+                for (var i = query.Page.Offset; i < end; i++) page.Add(filtered[i]);
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.FromItems(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    page,
+                    end < filtered.Count);
+            }
+
+            public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>
+                QueryRuntimeObjectSummary(long requestId)
+            {
+                SummaryQueryCount++;
+                var source = RuntimeObjects ?? Array.Empty<BattleDiagnosticRuntimeObject>();
+                var summary = BattleDiagnosticRuntimeObjectCatalogSummary.Create(
+                    source,
+                    truncated: false,
+                    backfillAttemptCount: 0,
+                    backfillFailureCount: 0,
+                    lastBackfillFrame: -1);
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>.FromItems(
+                    requestId,
+                    RuntimeObjectStoreRevision,
+                    new[] { summary },
+                    false);
+            }
+        }
+
+        private class RecordingSession : IBattleDiagnosticReadOnlySession
         {
             internal static readonly BattleDiagnosticSessionScope Scope =
                 new BattleDiagnosticSessionScope("test", "world", 1);

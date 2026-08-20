@@ -29,7 +29,7 @@ namespace AbilityKit.Core.Lifetime
 
         private sealed class CallbackRegistration : IDisposable
         {
-            private Action _release;
+            private Action? _release;
 
             public CallbackRegistration(Action release)
             {
@@ -45,7 +45,7 @@ namespace AbilityKit.Core.Lifetime
         private sealed class StateRegistration<TState> : IDisposable
         {
             private TState _state;
-            private Action<TState> _release;
+            private Action<TState>? _release;
 
             public StateRegistration(TState state, Action<TState> release)
             {
@@ -59,7 +59,7 @@ namespace AbilityKit.Core.Lifetime
                 if (release == null) return;
 
                 var state = _state;
-                _state = default;
+                _state = default!;
                 release(state);
             }
         }

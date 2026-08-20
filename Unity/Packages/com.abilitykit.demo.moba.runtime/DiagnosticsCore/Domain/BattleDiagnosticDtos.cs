@@ -41,6 +41,53 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         SkillFailure = 22
     }
 
+    public enum BattleDiagnosticDefinitionKind
+    {
+        Unknown = 0,
+        Skill = 1,
+        Trigger = 2,
+        Effect = 3,
+        Buff = 4,
+        Projectile = 5,
+        Area = 6,
+        Summon = 7,
+        Actor = 8
+    }
+
+    public static class BattleDiagnosticDefinitionKinds
+    {
+        public static BattleDiagnosticDefinitionKind FromEventKind(BattleDiagnosticEventKind kind)
+        {
+            switch (kind)
+            {
+                case BattleDiagnosticEventKind.SkillRuntimeStarted:
+                case BattleDiagnosticEventKind.SkillRuntimeEnded:
+                case BattleDiagnosticEventKind.SkillFailure:
+                    return BattleDiagnosticDefinitionKind.Skill;
+                case BattleDiagnosticEventKind.TriggerAnalysis:
+                    return BattleDiagnosticDefinitionKind.Trigger;
+                case BattleDiagnosticEventKind.EffectStarted:
+                case BattleDiagnosticEventKind.EffectEnded:
+                    return BattleDiagnosticDefinitionKind.Effect;
+                case BattleDiagnosticEventKind.BuffAdded:
+                case BattleDiagnosticEventKind.BuffRemoved:
+                    return BattleDiagnosticDefinitionKind.Buff;
+                case BattleDiagnosticEventKind.ProjectileSpawned:
+                case BattleDiagnosticEventKind.ProjectileEnded:
+                case BattleDiagnosticEventKind.ProjectileHit:
+                    return BattleDiagnosticDefinitionKind.Projectile;
+                case BattleDiagnosticEventKind.AreaSpawned:
+                case BattleDiagnosticEventKind.AreaEnded:
+                    return BattleDiagnosticDefinitionKind.Area;
+                case BattleDiagnosticEventKind.SummonSpawned:
+                case BattleDiagnosticEventKind.SummonEnded:
+                    return BattleDiagnosticDefinitionKind.Summon;
+                default:
+                    return BattleDiagnosticDefinitionKind.Unknown;
+            }
+        }
+    }
+
     public enum BattleDiagnosticEventOutcome
     {
         None = 0,
@@ -678,12 +725,23 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             long attackId = 0,
             int payloadVersion = 1,
             string summary = "",
-            BattleDiagnosticEventPayload payload = default)
+            BattleDiagnosticEventPayload payload = default,
+            BattleDiagnosticDefinitionKind definitionKind = BattleDiagnosticDefinitionKind.Unknown,
+            int sourceActorGeneration = 0,
+            int targetActorGeneration = 0,
+            BattleDiagnosticRuntimeObjectKind subjectObjectKind = BattleDiagnosticRuntimeObjectKind.Unknown,
+            long subjectRuntimeId = 0L,
+            int subjectGeneration = 0)
         {
             if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
             if (sequence <= 0) throw new ArgumentOutOfRangeException(nameof(sequence));
             if (monotonicTimestamp < 0) throw new ArgumentOutOfRangeException(nameof(monotonicTimestamp));
             if (payloadVersion < 1) throw new ArgumentOutOfRangeException(nameof(payloadVersion));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticDefinitionKind), definitionKind))
+                throw new ArgumentOutOfRangeException(nameof(definitionKind));
+            if (sourceActorGeneration < 0) throw new ArgumentOutOfRangeException(nameof(sourceActorGeneration));
+            if (targetActorGeneration < 0) throw new ArgumentOutOfRangeException(nameof(targetActorGeneration));
+            if (subjectGeneration < 0) throw new ArgumentOutOfRangeException(nameof(subjectGeneration));
             if (payload.HasValue && payloadVersion != payload.SchemaVersion)
             {
                 throw new ArgumentException(
@@ -733,7 +791,22 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             Outcome = outcome;
             SourceActorId = sourceActorId;
             TargetActorId = targetActorId;
+            SourceActor = BattleDiagnosticRuntimeObjectReference.Create(
+                BattleDiagnosticRuntimeObjectKind.Actor,
+                sourceActorId,
+                sourceActorGeneration);
+            TargetActor = BattleDiagnosticRuntimeObjectReference.Create(
+                BattleDiagnosticRuntimeObjectKind.Actor,
+                targetActorId,
+                targetActorGeneration);
+            SubjectObject = BattleDiagnosticRuntimeObjectReference.Create(
+                subjectObjectKind,
+                subjectRuntimeId,
+                subjectGeneration);
             ConfigId = configId;
+            DefinitionKind = definitionKind == BattleDiagnosticDefinitionKind.Unknown
+                ? BattleDiagnosticDefinitionKinds.FromEventKind(kind)
+                : definitionKind;
             RootContextId = rootContextId;
             ContextId = contextId;
             SkillRuntime = skillRuntime;
@@ -752,7 +825,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticEventOutcome Outcome { get; }
         public long SourceActorId { get; }
         public long TargetActorId { get; }
+        public BattleDiagnosticRuntimeObjectReference SourceActor { get; }
+        public BattleDiagnosticRuntimeObjectReference TargetActor { get; }
+        public BattleDiagnosticRuntimeObjectReference SubjectObject { get; }
         public int ConfigId { get; }
+        public BattleDiagnosticDefinitionKind DefinitionKind { get; }
         public long RootContextId { get; }
         public long ContextId { get; }
         public BattleDiagnosticRuntimeHandle SkillRuntime { get; }
@@ -769,7 +846,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    MonotonicTimestamp == other.MonotonicTimestamp && Kind == other.Kind &&
                    Channel == other.Channel && Outcome == other.Outcome &&
                    SourceActorId == other.SourceActorId && TargetActorId == other.TargetActorId &&
-                   ConfigId == other.ConfigId && RootContextId == other.RootContextId &&
+                   SourceActor.Equals(other.SourceActor) && TargetActor.Equals(other.TargetActor) &&
+                   SubjectObject.Equals(other.SubjectObject) &&
+                   ConfigId == other.ConfigId && DefinitionKind == other.DefinitionKind &&
+                   RootContextId == other.RootContextId &&
                    ContextId == other.ContextId && SkillRuntime.Equals(other.SkillRuntime) &&
                    AttackId == other.AttackId && PayloadVersion == other.PayloadVersion &&
                    string.Equals(Summary, other.Summary, StringComparison.Ordinal) &&
@@ -791,7 +871,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ (int)Outcome;
                 hashCode = (hashCode * 397) ^ SourceActorId.GetHashCode();
                 hashCode = (hashCode * 397) ^ TargetActorId.GetHashCode();
+                hashCode = (hashCode * 397) ^ SourceActor.GetHashCode();
+                hashCode = (hashCode * 397) ^ TargetActor.GetHashCode();
+                hashCode = (hashCode * 397) ^ SubjectObject.GetHashCode();
                 hashCode = (hashCode * 397) ^ ConfigId;
+                hashCode = (hashCode * 397) ^ (int)DefinitionKind;
                 hashCode = (hashCode * 397) ^ RootContextId.GetHashCode();
                 hashCode = (hashCode * 397) ^ ContextId.GetHashCode();
                 hashCode = (hashCode * 397) ^ SkillRuntime.GetHashCode();
@@ -892,6 +976,118 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ SkillId;
                 hashCode = (hashCode * 397) ^ CastFlowId;
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(PhaseId ?? string.Empty);
+                return hashCode;
+            }
+        }
+    }
+
+    public enum BattleDiagnosticMetricCategory
+    {
+        Unknown = 0,
+        Prediction = 1,
+        Network = 2,
+        Rollback = 3,
+        TimeSync = 4,
+        Reconciliation = 5
+    }
+
+    public enum BattleDiagnosticMetricValueKind
+    {
+        Gauge = 0,
+        Counter = 1,
+        Flag = 2
+    }
+
+    public static class BattleDiagnosticFrameMetricKeys
+    {
+        public const string PredictionConfirmedFrame = "prediction.confirmed_frame";
+        public const string PredictionPredictedFrame = "prediction.predicted_frame";
+        public const string PredictionAheadFrames = "prediction.ahead_frames";
+        public const string PredictionBacklog = "prediction.backlog";
+        public const string PredictionWindow = "prediction.window";
+        public const string PredictionStalled = "prediction.stalled";
+        public const string NetworkDelayFrames = "network.delay_frames";
+        public const string NetworkBufferedCount = "network.buffered_count";
+        public const string NetworkTargetGap = "network.target_gap";
+        public const string NetworkDuplicateTotal = "network.duplicate_total";
+        public const string NetworkLateTotal = "network.late_total";
+        public const string RollbackActive = "rollback.active";
+        public const string RollbackReplayToFrame = "rollback.replay_to_frame";
+        public const string RollbackLastFrame = "rollback.last_frame";
+        public const string RollbackTotal = "rollback.total";
+        public const string RollbackRestoreFailedTotal = "rollback.restore_failed_total";
+    }
+
+    /// <summary>A compact, frame-addressable value produced by a runtime diagnostics hook.</summary>
+    public readonly struct BattleDiagnosticMetricSample : IEquatable<BattleDiagnosticMetricSample>
+    {
+        public BattleDiagnosticMetricSample(
+            BattleDiagnosticSessionScope scope,
+            long sequence,
+            int frame,
+            long monotonicTimestamp,
+            BattleDiagnosticMetricCategory category,
+            BattleDiagnosticMetricValueKind valueKind,
+            string metric,
+            double value,
+            string dimension = "")
+        {
+            if (!scope.IsValid) throw new ArgumentException("A valid session scope is required.", nameof(scope));
+            if (sequence <= 0L) throw new ArgumentOutOfRangeException(nameof(sequence));
+            if (!BattleDiagnosticFrames.IsValid(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
+            if (monotonicTimestamp < 0L) throw new ArgumentOutOfRangeException(nameof(monotonicTimestamp));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricCategory), category) ||
+                category == BattleDiagnosticMetricCategory.Unknown)
+                throw new ArgumentOutOfRangeException(nameof(category));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricValueKind), valueKind))
+                throw new ArgumentOutOfRangeException(nameof(valueKind));
+            if (string.IsNullOrWhiteSpace(metric)) throw new ArgumentException("A stable metric key is required.", nameof(metric));
+            if (double.IsNaN(value) || double.IsInfinity(value)) throw new ArgumentOutOfRangeException(nameof(value));
+
+            Scope = scope;
+            Sequence = sequence;
+            Frame = frame;
+            MonotonicTimestamp = monotonicTimestamp;
+            Category = category;
+            ValueKind = valueKind;
+            Metric = metric;
+            Value = value;
+            Dimension = dimension ?? string.Empty;
+        }
+
+        public BattleDiagnosticSessionScope Scope { get; }
+        public long Sequence { get; }
+        public int Frame { get; }
+        public long MonotonicTimestamp { get; }
+        public BattleDiagnosticMetricCategory Category { get; }
+        public BattleDiagnosticMetricValueKind ValueKind { get; }
+        public string Metric { get; }
+        public double Value { get; }
+        public string Dimension { get; }
+
+        public bool Equals(BattleDiagnosticMetricSample other)
+        {
+            return Scope.Equals(other.Scope) && Sequence == other.Sequence && Frame == other.Frame &&
+                   MonotonicTimestamp == other.MonotonicTimestamp && Category == other.Category &&
+                   ValueKind == other.ValueKind && string.Equals(Metric, other.Metric, StringComparison.Ordinal) &&
+                   Value.Equals(other.Value) && string.Equals(Dimension, other.Dimension, StringComparison.Ordinal);
+        }
+
+        public override bool Equals(object obj) => obj is BattleDiagnosticMetricSample other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = Scope.GetHashCode();
+                hashCode = (hashCode * 397) ^ Sequence.GetHashCode();
+                hashCode = (hashCode * 397) ^ Frame;
+                hashCode = (hashCode * 397) ^ MonotonicTimestamp.GetHashCode();
+                hashCode = (hashCode * 397) ^ (int)Category;
+                hashCode = (hashCode * 397) ^ (int)ValueKind;
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Metric ?? string.Empty);
+                hashCode = (hashCode * 397) ^ Value.GetHashCode();
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Dimension ?? string.Empty);
                 return hashCode;
             }
         }

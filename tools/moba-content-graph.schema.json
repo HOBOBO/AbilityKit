@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://abilitykit.local/schema/moba-content-graph.schema.json",
+  "title": "AbilityKit MOBA content graph",
+  "type": "object",
+  "required": ["schemaVersion", "graph", "status", "nodes", "edges", "roots", "resources", "summary"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "graph": { "const": "moba-content-graph" },
+    "status": { "enum": ["passed", "failed"] },
+    "nodes": { "type": "array", "items": { "$ref": "#/definitions/node" } },
+    "edges": { "type": "array", "items": { "$ref": "#/definitions/edge" } },
+    "roots": { "type": "array", "items": { "$ref": "#/definitions/root" } },
+    "resources": { "type": "array", "items": { "$ref": "#/definitions/resource" } },
+    "summary": {
+      "type": "object",
+      "required": ["tables", "records", "nodes", "edges", "resolvedEdges", "missingEdges", "roots", "authorities", "resources"],
+      "properties": {
+        "tables": { "type": "integer", "minimum": 0 },
+        "records": { "type": "integer", "minimum": 0 },
+        "nodes": { "type": "integer", "minimum": 0 },
+        "edges": { "type": "integer", "minimum": 0 },
+        "resolvedEdges": { "type": "integer", "minimum": 0 },
+        "missingEdges": { "type": "integer", "minimum": 0 },
+        "roots": { "type": "integer", "minimum": 0 },
+        "authorities": { "type": "integer", "minimum": 0 },
+        "resources": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "definitions": {
+    "node": {
+      "type": "object",
+      "required": ["id", "kind"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["table", "record", "missing-record", "authority"] },
+        "table": { "type": "string" },
+        "recordId": { "type": "integer" },
+        "recordCount": { "type": "integer", "minimum": 0 },
+        "exists": { "type": "boolean" },
+        "unreferenced": { "type": "boolean" },
+        "duplicate": { "type": "boolean" },
+        "authority": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "edge": {
+      "type": "object",
+      "required": ["id", "kind", "source", "target", "status"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["reference", "authority-reference"] },
+        "source": { "type": "string", "minLength": 1 },
+        "target": { "type": "string", "minLength": 1 },
+        "propertyPath": { "type": "string" },
+        "status": { "enum": ["resolved", "missing", "external"] },
+        "referenceCount": { "type": "integer", "minimum": 0 },
+        "uniqueIds": { "type": "array", "items": { "type": "integer" } }
+      },
+      "additionalProperties": false
+    },
+    "root": {
+      "type": "object",
+      "required": ["id", "kind", "name", "nodeId", "reachableNodeIds"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "nodeId": { "type": "string" },
+        "reachableNodeIds": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "resource": {
+      "type": "object",
+      "required": ["id", "nodeId", "propertyPath", "value", "status", "quality", "required", "productionReachable", "candidateResourcePaths", "owner", "reason"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "nodeId": { "type": "string" },
+        "propertyPath": { "type": "string" },
+        "value": { "type": "string" },
+        "status": { "enum": ["resolved", "missing-value", "missing-file", "invalid-path"] },
+        "quality": { "enum": ["production", "placeholder", "allowlisted-placeholder"] },
+        "required": { "type": "boolean" },
+        "productionReachable": { "type": "boolean" },
+        "candidateResourcePaths": { "type": "array", "items": { "type": "string" } },
+        "owner": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

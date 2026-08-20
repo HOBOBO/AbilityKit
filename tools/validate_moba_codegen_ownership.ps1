@@ -26,10 +26,11 @@ function Test-Contract {
     $failures.Add("${Name}: $Failure")
 }
 
+# NOTE: com.abilitykit.codegen (framework source generator) was removed in a9e5e0b2.
+# Only the analyzer remains on the framework side; collect existing roots dynamically.
 $frameworkSourceRoots = @(
-    'Unity/Packages/com.abilitykit.codegen/DotNet~/AbilityKit.SourceGenerator',
     'Unity/Packages/com.abilitykit.analyzer/DotNet~/AbilityKit.Analyzer'
-)
+) | Where-Object { Test-Path (Resolve-RepoPath $_) }
 $frameworkSources = @($frameworkSourceRoots | ForEach-Object {
     Get-ChildItem -LiteralPath (Resolve-RepoPath $_) -Recurse -File -Filter '*.cs' |
         Where-Object { $_.FullName -notmatch '[\\/](bin|obj)[\\/]' }

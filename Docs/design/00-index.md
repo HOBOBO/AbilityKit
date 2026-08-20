@@ -225,6 +225,7 @@ flowchart TB
 | [00-玩法能力地图](08-GameplayModules/00-GameplayCapabilityMap.md) | 玩法地图 | Triggering、Ability、Combat、Record 的能力总览，以及稳定原语、项目应用层和示例策略的下沉判定 |
 | [01-技能系统架构](08-GameplayModules/01-SkillSystemArchitecture.md) | MOBA 应用层参考 | Pipeline/Trigger/Effect/Combat 原语与 MOBA 施法编排边界；阶段对象复用、cleanup 异常处理、Shutdown 非中断语义及分层证据 |
 | [02-触发器系统](08-GameplayModules/02-TriggeringSystem.md) | 触发器架构 | TriggerPlan/Runner/Registry 公共契约，Observer Enter/Exit 异常边界、无业务事务保证，以及 MOBA RulePlan 参考 |
+| [03-触发器编辑器生产链设计](08-GameplayModules/03-TriggerEditorAuthoringDesign.md) | 编辑器生产链 | 已确认 Authoring/Source/Runtime 三层模型、Source JSON 双向反写与冲突检测、Local/Global/Payload/Context 值引用、模板引用展开，以及不兼容 Legacy JSON 的新链路 |
 | [03-Buff 系统](08-GameplayModules/03-BuffSystem.md) | MOBA 应用层参考 | 公共 Effect/Continuous/Trigger/Attribute/Tag 原语与 MOBA Buff 编排；候选构建补偿、提交后不回滚和逐项恢复边界 |
 | [04-投射物系统](08-GameplayModules/04-ProjectileSystem.md) | 投射物运行时 | ProjectileWorld/Service、确定性运动与事件；内建 rollback 仅覆盖 active projectile 和 ID，外围状态由项目负责 |
 | [05-属性系统](08-GameplayModules/05-AttributeSystem.md) | 属性与修饰器 | Attribute/Modifier 计算内核、注册顺序生成的进程内 AttributeId、自定义 registry 责任和 MOBA ECS 门面 |
@@ -283,6 +284,7 @@ flowchart TB
 | [04.13-Shooter 逻辑层流程与单机/多人模式](09-ImplementationExamples/Shooter/12-LogicLayerFlowSingleAndMultiplayer.md) | 逻辑层流程 | 单机/客户端预测/服务端权威共享 runtime，三类停止 owner、双连接、表现与恢复组合及 remote teardown 缺口 |
 | [04.14-Shooter 战斗玩法内核深潜](09-ImplementationExamples/Shooter/13-BattleGameplayKernelDeepDive.md) | 战斗内核 | 显式 step order、float 玩法、空间索引分配边界、Bot 统一输入及局部 replay/hash 证据 |
 | [04.15-Shooter 多进程故障矩阵与收敛证据](09-ImplementationExamples/Shooter/14-MultiprocessFaultMatrixAndConvergenceEvidence.md) | 故障矩阵 | 历史 E4 artifact、五类双连接故障、45 秒恢复与 1 分钟 Room 宽限关系、收敛/进程清理及 gate 触发矩阵 |
+| [04.16-Shooter 千单位状态同步与渲染优化](09-ImplementationExamples/Shooter/15-ThousandEntitySynchronizationAndRenderingOptimization.md) | 千单位性能 | AOI 变化抑制、零分配 codec/Mapper/Projection、GPU stable slot 与局部上传、端到端指标、2K allocation/headless 门禁和证据边界 |
 
 ### 10 工程质量与测试
 
@@ -479,6 +481,7 @@ flowchart TB
 | 2026-08-17 | 2.85 | StateSync 预测历史与快照所有权修复：通用 Coordinator 支持同帧命令批次并按原 Frame 重演，保留空输入帧；store Record/Get 隔离、引用槽位显式克隆、覆盖失败事务化，Reset/Dispose 清理完整时间线；删除分裂式旧预测接口并补齐帧级预测事件，StateSync `20/20` 通过，不外推为 Host/表现/跨端 E4 |
 | 2026-08-17 | 2.86 | HotReload 运行时所有权与失败收敛：Apply 按候选 Install/Initialize、旧版本 Uninstall/TearDown、最终提交分阶段执行；world 状态改为实例弱键，补显式与 world TearDown 自动释放、跨 world 单飞与重入拒绝门禁；删除无效 Static Attribute 与未消费 proxy helper，新增 HotReload 专项测试 `13/13`，Editor/Unity/程序集卸载仍保持 E1/未验证边界 |
 | 2026-08-17 | 2.87 | Dataflow 与 Damage 运行时语义收敛：修复末阶段 Abort、保留中止/失败部分输出与失败阶段身份，执行期采用 Processor 快照，批量追加与 Builder 改为原子校验/结构快照；Context 使用 `(name,type)` 槽位键并统一 Clear/Reset，Composite 恢复兼容回灌；移除越界通用领域槽位与 Damage Processor 共享 `_result`，新增 Dataflow `20/20`、Damage `5/5` 契约测试；仅证明 Runtime 局部 E3，Unity/Smoke/性能与集合并发仍未验证 |
+| 2026-08-19 | 2.88 | Shooter 千单位性能专题：记录 AOI 未变化抑制与周期刷新、插值/输入背压、codec/Mapper/Projection 稳态零分配、GPU stable slot/局部上传、端到端指标、2K allocation gate、历史 AOI 扇出结果和真实双客户端 GPU E4 缺口 |
 
 ---
 

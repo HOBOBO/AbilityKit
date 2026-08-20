@@ -465,7 +465,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         private ShooterBattleServiceContext CreateServiceContext(ShooterEnemyWaveOptions enemyWaveOptions)
         {
-            var rvoWorkspace = new ShooterRvoWorldWorkspace(128, _rvoOptions.MaxNeighbors);
+            const int defaultRvoCapacity = 128;
+            const int maximumPreallocatedRvoCapacity = 8192;
+            var configuredEnemyCapacity = enemyWaveOptions.Enabled
+                ? enemyWaveOptions.MaxActiveEnemies
+                : defaultRvoCapacity;
+            var initialRvoCapacity = Math.Min(
+                Math.Max(defaultRvoCapacity, configuredEnemyCapacity),
+                maximumPreallocatedRvoCapacity);
+            var rvoWorkspace = new ShooterRvoWorldWorkspace(initialRvoCapacity, _rvoOptions.MaxNeighbors);
             IShooterRvoSolver rvoSolver = new ShooterManagedRvoSolver(_rvoNeighborAcceleration);
             return new ShooterBattleServiceContext(_entities.SveltoContext)
                 .Add(_state)

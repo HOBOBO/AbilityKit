@@ -33,12 +33,15 @@ namespace AbilityKit.Game.Editor
         private string _selectionStatus;
         private Vector2 _entityScroll;
         private Vector2 _detailScroll;
+        private Vector2 _secondaryDetailScroll;
 
         private readonly List<BattleDebugEntityId> _visibleEntities =
             new List<BattleDebugEntityId>(256);
         private readonly List<BattleDebugEntityId> _entityRefreshBuffer =
             new List<BattleDebugEntityId>(256);
         private readonly List<IBattleDebugPanel> _visiblePanels = new List<IBattleDebugPanel>(16);
+        private readonly Dictionary<IBattleDebugPanel, BattleDebugPanelWidgetAdapter> _widgetAdapters =
+            new Dictionary<IBattleDebugPanel, BattleDebugPanelWidgetAdapter>();
         private int _selectedActorId;
         private int _totalEntityCount;
         private double _nextRefreshAt;
@@ -46,6 +49,7 @@ namespace AbilityKit.Game.Editor
         private float _inspectorPaneWidth = 320f;
         private bool _resizingEntityPane;
         private bool _resizingInspectorPane;
+        private bool _resizingDiagnosticSplit;
         private bool _autoRefresh = true;
         private float _refreshIntervalSeconds = DefaultRefreshIntervalSeconds;
         private bool _renderReplayPresentation = true;
@@ -63,6 +67,14 @@ namespace AbilityKit.Game.Editor
         private BattleDebugWorkspace _workspace;
         private int _selectedActorPanelIndex;
         private int _selectedDiagnosticsPanelIndex;
+        private int _selectedSecondaryDiagnosticsPanelIndex = 1;
+        private bool _showSecondaryDiagnostics;
+        private float _diagnosticSplitRatio = 0.58f;
+        private string _primaryDiagnosticModuleId = string.Empty;
+        private string _secondaryDiagnosticModuleId = string.Empty;
+        private string _primaryDiagnosticWidgetId = string.Empty;
+        private string _secondaryDiagnosticWidgetId = string.Empty;
+        private string _activeWorkspacePresetId = string.Empty;
 
         [MenuItem("Tools/AbilityKit/Demos/Moba/Battle/战斗调试")]
         private static void Open()
@@ -90,6 +102,31 @@ namespace AbilityKit.Game.Editor
             _selectedDiagnosticsPanelIndex = Mathf.Max(
                 0,
                 EditorPrefs.GetInt(PreferencesPrefix + "DiagnosticsPanelIndex", 0));
+            _selectedSecondaryDiagnosticsPanelIndex = Mathf.Max(
+                0,
+                EditorPrefs.GetInt(PreferencesPrefix + "SecondaryDiagnosticsPanelIndex", 1));
+            _showSecondaryDiagnostics = EditorPrefs.GetBool(
+                PreferencesPrefix + "ShowSecondaryDiagnostics",
+                false);
+            _diagnosticSplitRatio = Mathf.Clamp(
+                EditorPrefs.GetFloat(PreferencesPrefix + "DiagnosticSplitRatio", 0.58f),
+                0.3f,
+                0.7f);
+            _primaryDiagnosticModuleId = EditorPrefs.GetString(
+                PreferencesPrefix + "PrimaryDiagnosticModuleId",
+                string.Empty);
+            _secondaryDiagnosticModuleId = EditorPrefs.GetString(
+                PreferencesPrefix + "SecondaryDiagnosticModuleId",
+                string.Empty);
+            _primaryDiagnosticWidgetId = EditorPrefs.GetString(
+                PreferencesPrefix + "PrimaryDiagnosticWidgetId",
+                string.Empty);
+            _secondaryDiagnosticWidgetId = EditorPrefs.GetString(
+                PreferencesPrefix + "SecondaryDiagnosticWidgetId",
+                string.Empty);
+            _activeWorkspacePresetId = EditorPrefs.GetString(
+                PreferencesPrefix + "WorkspacePresetId",
+                string.Empty);
             _renderReplayPresentation = EditorPrefs.GetBool(PreferencesPrefix + "RenderReplayPresentation", true);
             _refreshIntervalSeconds = Mathf.Clamp(
                 EditorPrefs.GetFloat(PreferencesPrefix + "RefreshIntervalSeconds", DefaultRefreshIntervalSeconds),
@@ -111,6 +148,26 @@ namespace AbilityKit.Game.Editor
             EditorPrefs.SetInt(PreferencesPrefix + "Workspace", (int)_workspace);
             EditorPrefs.SetInt(PreferencesPrefix + "ActorPanelIndex", _selectedActorPanelIndex);
             EditorPrefs.SetInt(PreferencesPrefix + "DiagnosticsPanelIndex", _selectedDiagnosticsPanelIndex);
+            EditorPrefs.SetInt(
+                PreferencesPrefix + "SecondaryDiagnosticsPanelIndex",
+                _selectedSecondaryDiagnosticsPanelIndex);
+            EditorPrefs.SetBool(PreferencesPrefix + "ShowSecondaryDiagnostics", _showSecondaryDiagnostics);
+            EditorPrefs.SetFloat(PreferencesPrefix + "DiagnosticSplitRatio", _diagnosticSplitRatio);
+            EditorPrefs.SetString(
+                PreferencesPrefix + "PrimaryDiagnosticModuleId",
+                _primaryDiagnosticModuleId ?? string.Empty);
+            EditorPrefs.SetString(
+                PreferencesPrefix + "SecondaryDiagnosticModuleId",
+                _secondaryDiagnosticModuleId ?? string.Empty);
+            EditorPrefs.SetString(
+                PreferencesPrefix + "PrimaryDiagnosticWidgetId",
+                _primaryDiagnosticWidgetId ?? string.Empty);
+            EditorPrefs.SetString(
+                PreferencesPrefix + "SecondaryDiagnosticWidgetId",
+                _secondaryDiagnosticWidgetId ?? string.Empty);
+            EditorPrefs.SetString(
+                PreferencesPrefix + "WorkspacePresetId",
+                _activeWorkspacePresetId ?? string.Empty);
             EditorPrefs.SetBool(PreferencesPrefix + "RenderReplayPresentation", _renderReplayPresentation);
             EditorPrefs.SetBool(PreferencesPrefix + "ShowEntityPane", _showEntityPane);
             EditorPrefs.SetBool(PreferencesPrefix + "ShowStatusArea", _showStatusArea);
@@ -169,7 +226,8 @@ namespace AbilityKit.Game.Editor
                 skillRuntimeService: diagnosticResolution.SkillRuntimeService,
                 diagnosticResolution: diagnosticResolution,
                 isOffline: isOffline,
-                workspaceState: _diagnosticWorkspaceState);
+                workspaceState: _diagnosticWorkspaceState,
+                availableContentWidth: ResolveAvailableContentWidth());
 
             DrawToolbar(in ctx);
             DrawFrameCursor(in ctx);
@@ -200,10 +258,20 @@ namespace AbilityKit.Game.Editor
 
         private void DrawToolbar(in BattleDebugContext ctx)
         {
+            DrawViewToolbar(in ctx);
+            DrawDataToolbar(in ctx);
+        }
+
+        private void DrawViewToolbar(in BattleDebugContext ctx)
+        {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
 
             GUILayout.Label("过滤", GUILayout.Width(35));
-            var newFilter = GUILayout.TextField(_filter ?? string.Empty, GUI.skin.textField, GUILayout.MinWidth(100));
+            var newFilter = GUILayout.TextField(
+                _filter ?? string.Empty,
+                EditorStyles.toolbarSearchField,
+                GUILayout.MinWidth(100),
+                GUILayout.MaxWidth(260));
             if (!string.Equals(newFilter, _filter, StringComparison.Ordinal))
             {
                 _filter = newFilter;
@@ -253,6 +321,25 @@ namespace AbilityKit.Game.Editor
 
             GUILayout.FlexibleSpace();
 
+            if (GUILayout.Button(
+                    new GUIContent("↻", "立即刷新实体和当前面板"),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(26)))
+            {
+                _nextRefreshAt = EditorApplication.timeSinceStartup + _refreshIntervalSeconds;
+                RefreshEntities();
+                Repaint();
+            }
+
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawDataToolbar(in BattleDebugContext ctx)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+
+            GUILayout.Label(new GUIContent("数据", "诊断数据源、回放和导入导出操作"), GUILayout.Width(28));
+
             _renderReplayPresentation = GUILayout.Toggle(
                 _renderReplayPresentation,
                 new GUIContent("渲染表现", "关闭后 Replay 仅运行逻辑世界，不创建或驱动 View、HUD、VFX 和相机"),
@@ -299,18 +386,13 @@ namespace AbilityKit.Game.Editor
                 EditorGUI.EndDisabledGroup();
             }
 
+            GUILayout.FlexibleSpace();
             _autoRefresh = GUILayout.Toggle(
                 _autoRefresh,
                 new GUIContent("自动刷新", "仅控制此窗口的周期轮询，不影响底层诊断采集"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(70));
             DrawRefreshIntervalControl();
-            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(50)))
-            {
-                _nextRefreshAt = EditorApplication.timeSinceStartup + _refreshIntervalSeconds;
-                RefreshEntities();
-                Repaint();
-            }
 
             EditorGUILayout.EndHorizontal();
         }
@@ -826,6 +908,16 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndVertical();
         }
 
+        private float ResolveAvailableContentWidth()
+        {
+            var width = position.width;
+            if (_showEntityPane)
+                width -= _entityPaneWidth + SplitterWidth;
+            if (_showSelectionInspector && position.width >= InspectorColumnThreshold)
+                width -= _inspectorPaneWidth + SplitterWidth;
+            return Mathf.Max(260f, width - 8f);
+        }
+
         private void DrawInspectorPaneSplitter()
         {
             var splitterRect = GUILayoutUtility.GetRect(
@@ -892,27 +984,18 @@ namespace AbilityKit.Game.Editor
                 names[i] = _visiblePanels[i].Name;
             }
 
-            int nextIndex;
-            if (_workspace == BattleDebugWorkspace.Actor)
+            if (_workspace == BattleDebugWorkspace.Diagnostics)
             {
-                nextIndex = GUILayout.Toolbar(
-                    selectedIndex,
-                    names,
-                    EditorStyles.toolbarButton,
-                    GUILayout.Height(22));
+                DrawDiagnosticsWorkspace(in ctx, names);
+                EditorGUILayout.EndVertical();
+                return;
             }
-            else
-            {
-                EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-                GUILayout.Label("面板", GUILayout.Width(30));
-                nextIndex = EditorGUILayout.Popup(
-                    selectedIndex,
-                    names,
-                    EditorStyles.toolbarPopup,
-                    GUILayout.MinWidth(140));
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.EndHorizontal();
-            }
+
+            var nextIndex = GUILayout.Toolbar(
+                selectedIndex,
+                names,
+                EditorStyles.toolbarButton,
+                GUILayout.Height(22));
             if (nextIndex != selectedIndex)
             {
                 _detailScroll = Vector2.zero;
@@ -935,6 +1018,577 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndVertical();
         }
 
+        private void DrawDiagnosticsWorkspace(in BattleDebugContext ctx, string[] names)
+        {
+            RestoreDiagnosticModuleSelections();
+            DrawDiagnosticsWorkspaceControls(in ctx, names);
+
+            var primaryIndex = Mathf.Clamp(
+                _selectedDiagnosticsPanelIndex,
+                0,
+                _visiblePanels.Count - 1);
+            var secondaryIndex = Mathf.Clamp(
+                _selectedSecondaryDiagnosticsPanelIndex,
+                0,
+                _visiblePanels.Count - 1);
+            var showSecondary = _showSecondaryDiagnostics &&
+                                HasDistinctDiagnosticSlots(
+                                    _visiblePanels[primaryIndex],
+                                    _primaryDiagnosticWidgetId,
+                                    _visiblePanels[secondaryIndex],
+                                    _secondaryDiagnosticWidgetId);
+            var availableWidth = Mathf.Max(260f, ctx.AvailableContentWidth);
+
+            if (!showSecondary)
+            {
+                DrawDiagnosticSlot(
+                    in ctx,
+                    _visiblePanels[primaryIndex],
+                    BattleDebugWidgetSlot.Primary,
+                    availableWidth,
+                    ref _detailScroll,
+                    ref _primaryDiagnosticWidgetId);
+                return;
+            }
+
+            if (availableWidth >= 760f)
+            {
+                var contentWidth = Mathf.Max(520f, availableWidth - SplitterWidth);
+                var primaryWidth = Mathf.Clamp(
+                    contentWidth * _diagnosticSplitRatio,
+                    260f,
+                    contentWidth - 260f);
+                var secondaryWidth = Mathf.Max(260f, contentWidth - primaryWidth);
+
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.BeginVertical(GUILayout.Width(primaryWidth));
+                DrawDiagnosticSlot(
+                    in ctx,
+                    _visiblePanels[primaryIndex],
+                    BattleDebugWidgetSlot.Primary,
+                    primaryWidth,
+                    ref _detailScroll,
+                    ref _primaryDiagnosticWidgetId);
+                EditorGUILayout.EndVertical();
+                DrawDiagnosticWorkspaceSplitter(contentWidth);
+                EditorGUILayout.BeginVertical(GUILayout.Width(secondaryWidth));
+                DrawDiagnosticSlot(
+                    in ctx,
+                    _visiblePanels[secondaryIndex],
+                    BattleDebugWidgetSlot.Secondary,
+                    secondaryWidth,
+                    ref _secondaryDetailScroll,
+                    ref _secondaryDiagnosticWidgetId);
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.EndHorizontal();
+                return;
+            }
+
+            DrawDiagnosticSlot(
+                in ctx,
+                _visiblePanels[primaryIndex],
+                BattleDebugWidgetSlot.Primary,
+                availableWidth,
+                ref _detailScroll,
+                ref _primaryDiagnosticWidgetId);
+            EditorGUILayout.Space(4f);
+            DrawDiagnosticSlot(
+                in ctx,
+                _visiblePanels[secondaryIndex],
+                BattleDebugWidgetSlot.Secondary,
+                availableWidth,
+                ref _secondaryDetailScroll,
+                ref _secondaryDiagnosticWidgetId);
+        }
+
+        private void DrawDiagnosticsWorkspaceControls(
+            in BattleDebugContext ctx,
+            string[] names)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+
+            var presets = BattleDebugWorkspacePresets.All;
+            var presetNames = new string[presets.Count + 1];
+            presetNames[0] = "自定义";
+            var presetIndex = 0;
+            for (var i = 0; i < presets.Count; i++)
+            {
+                presetNames[i + 1] = presets[i].DisplayName;
+                if (string.Equals(
+                        presets[i].StableId,
+                        _activeWorkspacePresetId,
+                        StringComparison.Ordinal))
+                {
+                    presetIndex = i + 1;
+                }
+            }
+
+            GUILayout.Label("布局", GUILayout.Width(28));
+            var nextPresetIndex = EditorGUILayout.Popup(
+                presetIndex,
+                presetNames,
+                EditorStyles.toolbarPopup,
+                GUILayout.Width(100));
+            if (nextPresetIndex != presetIndex)
+            {
+                if (nextPresetIndex == 0)
+                {
+                    _activeWorkspacePresetId = string.Empty;
+                }
+                else
+                {
+                    ApplyWorkspacePreset(presets[nextPresetIndex - 1]);
+                }
+            }
+
+            GUILayout.Label("主", GUILayout.Width(16));
+            var primaryIndex = Mathf.Clamp(
+                _selectedDiagnosticsPanelIndex,
+                0,
+                _visiblePanels.Count - 1);
+            var nextPrimaryIndex = EditorGUILayout.Popup(
+                primaryIndex,
+                names,
+                EditorStyles.toolbarPopup,
+                GUILayout.MinWidth(100),
+                GUILayout.MaxWidth(190));
+            if (nextPrimaryIndex != primaryIndex)
+            {
+                SelectPrimaryDiagnosticPanel(nextPrimaryIndex, true);
+            }
+
+            var nextShowSecondary = GUILayout.Toggle(
+                _showSecondaryDiagnostics,
+                new GUIContent("辅", "并排或上下显示第二个分析模块"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(34));
+            if (nextShowSecondary != _showSecondaryDiagnostics)
+            {
+                _showSecondaryDiagnostics = nextShowSecondary;
+                _activeWorkspacePresetId = string.Empty;
+                EnsureDistinctSecondarySelection();
+            }
+
+            EditorGUI.BeginDisabledGroup(!_showSecondaryDiagnostics);
+            var secondaryIndex = Mathf.Clamp(
+                _selectedSecondaryDiagnosticsPanelIndex,
+                0,
+                _visiblePanels.Count - 1);
+            var nextSecondaryIndex = EditorGUILayout.Popup(
+                secondaryIndex,
+                names,
+                EditorStyles.toolbarPopup,
+                GUILayout.MinWidth(100),
+                GUILayout.MaxWidth(190));
+            if (nextSecondaryIndex != secondaryIndex)
+            {
+                _selectedSecondaryDiagnosticsPanelIndex = nextSecondaryIndex;
+                _secondaryDiagnosticModuleId = GetVisibleModuleId(nextSecondaryIndex);
+                _secondaryDiagnosticWidgetId = string.Empty;
+                _secondaryDetailScroll = Vector2.zero;
+                _activeWorkspacePresetId = string.Empty;
+                EnsureDistinctSecondarySelection();
+            }
+            EditorGUI.EndDisabledGroup();
+
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            var selectedIndex = Mathf.Clamp(
+                _selectedDiagnosticsPanelIndex,
+                0,
+                _visiblePanels.Count - 1);
+
+            EditorGUI.BeginDisabledGroup(selectedIndex <= 0);
+            if (GUILayout.Button(
+                    new GUIContent("<", "上一个诊断面板"),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(26)))
+            {
+                SelectPrimaryDiagnosticPanel(selectedIndex - 1, true);
+                selectedIndex = _selectedDiagnosticsPanelIndex;
+            }
+            EditorGUI.EndDisabledGroup();
+
+            EditorGUI.BeginDisabledGroup(selectedIndex >= names.Length - 1);
+            if (GUILayout.Button(
+                    new GUIContent(">", "下一个诊断面板"),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(26)))
+            {
+                SelectPrimaryDiagnosticPanel(selectedIndex + 1, true);
+                selectedIndex = _selectedDiagnosticsPanelIndex;
+            }
+            EditorGUI.EndDisabledGroup();
+            GUILayout.Label(
+                $"{selectedIndex + 1}/{names.Length}",
+                EditorStyles.miniLabel,
+                GUILayout.Width(42));
+
+            GUILayout.FlexibleSpace();
+            if (EditorGUIUtility.currentViewWidth >= 760f)
+            {
+                selectedIndex = DrawDiagnosticsShortcut<IBattleDebugEventsTarget>(
+                    selectedIndex,
+                    "Events",
+                    "打开诊断事件");
+                selectedIndex = DrawDiagnosticsShortcut<IBattleDebugTraceTarget>(
+                    selectedIndex,
+                    "Trace",
+                    "打开 Trace 调查");
+                selectedIndex = DrawDiagnosticsShortcut<BattleDebugRuntimeObjectsPanel>(
+                    selectedIndex,
+                    "Objects",
+                    "打开运行时对象目录");
+            }
+
+            EditorGUILayout.EndHorizontal();
+            if (selectedIndex != _selectedDiagnosticsPanelIndex)
+            {
+                SelectPrimaryDiagnosticPanel(selectedIndex, true);
+            }
+
+            BattleDebugTimeRangeSelector.Draw(
+                ctx.WorkspaceState,
+                ctx.AvailableContentWidth,
+                ctx.RequestRepaint);
+        }
+
+        private void DrawDiagnosticSlot(
+            in BattleDebugContext ctx,
+            IBattleDebugPanel panel,
+            BattleDebugWidgetSlot slot,
+            float availableWidth,
+            ref Vector2 scroll,
+            ref string selectedWidgetId)
+        {
+            var widget = ResolveWidget(panel, selectedWidgetId, out var widgets, out var widgetIndex);
+            selectedWidgetId = widget.StableId;
+            var descriptor = widget.Descriptor;
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label(
+                slot == BattleDebugWidgetSlot.Primary ? "主视图" : "辅视图",
+                EditorStyles.miniBoldLabel,
+                GUILayout.Width(46));
+            GUILayout.Label(descriptor.DisplayName, EditorStyles.boldLabel, GUILayout.MaxWidth(140f));
+            if (widgets != null && widgets.Count > 1)
+            {
+                var names = new string[widgets.Count];
+                for (var i = 0; i < widgets.Count; i++)
+                {
+                    names[i] = widgets[i].DisplayName;
+                }
+                var nextWidgetIndex = EditorGUILayout.Popup(
+                    widgetIndex,
+                    names,
+                    EditorStyles.toolbarPopup,
+                    GUILayout.MinWidth(100f),
+                    GUILayout.MaxWidth(180f));
+                if (nextWidgetIndex != widgetIndex)
+                {
+                    widget = widgets[nextWidgetIndex];
+                    selectedWidgetId = widget.StableId;
+                    scroll = Vector2.zero;
+                    _activeWorkspacePresetId = string.Empty;
+                }
+            }
+            else if (!string.Equals(widget.DisplayName, descriptor.DisplayName, StringComparison.Ordinal))
+            {
+                GUILayout.Label(widget.DisplayName, EditorStyles.miniLabel);
+            }
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(descriptor.Category, EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            var slotContext = ctx.WithAvailableContentWidth(Mathf.Max(260f, availableWidth - 4f));
+            if (widget.OwnsScrollView)
+            {
+                widget.Draw(in slotContext);
+                return;
+            }
+
+            scroll = EditorGUILayout.BeginScrollView(scroll);
+            widget.Draw(in slotContext);
+            EditorGUILayout.EndScrollView();
+        }
+
+        private IBattleDebugWidget ResolveWidget(
+            IBattleDebugPanel panel,
+            string stableId,
+            out IReadOnlyList<IBattleDebugWidget> widgets,
+            out int selectedIndex)
+        {
+            widgets = (panel as IBattleDebugWidgetProvider)?.Widgets;
+            if (widgets == null || widgets.Count == 0)
+            {
+                selectedIndex = 0;
+                return GetWidget(panel);
+            }
+
+            for (var i = 0; i < widgets.Count; i++)
+            {
+                if (widgets[i] != null &&
+                    string.Equals(widgets[i].StableId, stableId, StringComparison.Ordinal))
+                {
+                    selectedIndex = i;
+                    return widgets[i];
+                }
+            }
+
+            selectedIndex = 0;
+            return widgets[0];
+        }
+
+        private bool HasDistinctDiagnosticSlots(
+            IBattleDebugPanel primaryPanel,
+            string primaryWidgetId,
+            IBattleDebugPanel secondaryPanel,
+            string secondaryWidgetId)
+        {
+            var primary = ResolveWidget(primaryPanel, primaryWidgetId, out _, out _);
+            var secondary = ResolveWidget(secondaryPanel, secondaryWidgetId, out _, out _);
+            return !ReferenceEquals(primaryPanel, secondaryPanel) ||
+                   !string.Equals(primary.StableId, secondary.StableId, StringComparison.Ordinal);
+        }
+
+        private BattleDebugPanelWidgetAdapter GetWidget(IBattleDebugPanel panel)
+        {
+            if (!_widgetAdapters.TryGetValue(panel, out var widget))
+            {
+                widget = new BattleDebugPanelWidgetAdapter(panel);
+                _widgetAdapters.Add(panel, widget);
+            }
+
+            return widget;
+        }
+
+        private void DrawDiagnosticWorkspaceSplitter(float contentWidth)
+        {
+            var splitterRect = GUILayoutUtility.GetRect(
+                SplitterWidth,
+                SplitterWidth,
+                GUILayout.ExpandHeight(true));
+            EditorGUIUtility.AddCursorRect(splitterRect, MouseCursor.ResizeHorizontal);
+            EditorGUI.DrawRect(splitterRect, new Color(0f, 0f, 0f, 0.18f));
+
+            var currentEvent = Event.current;
+            if (currentEvent.type == EventType.MouseDown &&
+                currentEvent.button == 0 &&
+                splitterRect.Contains(currentEvent.mousePosition))
+            {
+                _resizingDiagnosticSplit = true;
+                currentEvent.Use();
+            }
+            else if (_resizingDiagnosticSplit && currentEvent.type == EventType.MouseDrag)
+            {
+                _diagnosticSplitRatio = Mathf.Clamp(
+                    _diagnosticSplitRatio + currentEvent.delta.x / Mathf.Max(1f, contentWidth),
+                    0.3f,
+                    0.7f);
+                Repaint();
+                currentEvent.Use();
+            }
+            else if (_resizingDiagnosticSplit &&
+                     (currentEvent.type == EventType.MouseUp || currentEvent.rawType == EventType.MouseUp))
+            {
+                _resizingDiagnosticSplit = false;
+                EditorPrefs.SetFloat(PreferencesPrefix + "DiagnosticSplitRatio", _diagnosticSplitRatio);
+                currentEvent.Use();
+            }
+        }
+
+        private int DrawDiagnosticsShortcut<TPanel>(
+            int selectedIndex,
+            string label,
+            string tooltip)
+        {
+            var targetIndex = FindVisiblePanelIndex<TPanel>();
+            if (targetIndex < 0) return selectedIndex;
+
+            var active = selectedIndex == targetIndex;
+            if (GUILayout.Button(
+                    new GUIContent(label, tooltip),
+                    active ? EditorStyles.toolbarButton : EditorStyles.miniButton,
+                    GUILayout.Width(label == "Objects" ? 58f : 48f),
+                    GUILayout.Height(18f)))
+            {
+                return targetIndex;
+            }
+
+            return selectedIndex;
+        }
+
+        private int FindVisiblePanelIndex<TPanel>()
+        {
+            for (var i = 0; i < _visiblePanels.Count; i++)
+            {
+                if (_visiblePanels[i] is TPanel) return i;
+            }
+
+            return -1;
+        }
+
+        private int FindVisiblePanelIndex(string stableId)
+        {
+            if (string.IsNullOrEmpty(stableId)) return -1;
+
+            for (var i = 0; i < _visiblePanels.Count; i++)
+            {
+                if (string.Equals(
+                        BattleDebugModuleCatalog.GetStableId(_visiblePanels[i]),
+                        stableId,
+                        StringComparison.Ordinal))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private string GetVisibleModuleId(int index)
+        {
+            if (index < 0 || index >= _visiblePanels.Count) return string.Empty;
+            return BattleDebugModuleCatalog.GetStableId(_visiblePanels[index]);
+        }
+
+        private void RestoreDiagnosticModuleSelections()
+        {
+            var primaryById = FindVisiblePanelIndex(_primaryDiagnosticModuleId);
+            if (primaryById >= 0)
+            {
+                _selectedDiagnosticsPanelIndex = primaryById;
+            }
+            else
+            {
+                if (!string.IsNullOrEmpty(_activeWorkspacePresetId))
+                {
+                    _activeWorkspacePresetId = string.Empty;
+                }
+                _selectedDiagnosticsPanelIndex = Mathf.Clamp(
+                    _selectedDiagnosticsPanelIndex,
+                    0,
+                    _visiblePanels.Count - 1);
+                _primaryDiagnosticModuleId = GetVisibleModuleId(_selectedDiagnosticsPanelIndex);
+            }
+
+            var secondaryById = FindVisiblePanelIndex(_secondaryDiagnosticModuleId);
+            if (secondaryById >= 0)
+            {
+                _selectedSecondaryDiagnosticsPanelIndex = secondaryById;
+            }
+            else
+            {
+                _selectedSecondaryDiagnosticsPanelIndex = Mathf.Clamp(
+                    _selectedSecondaryDiagnosticsPanelIndex,
+                    0,
+                    _visiblePanels.Count - 1);
+                _secondaryDiagnosticModuleId = GetVisibleModuleId(_selectedSecondaryDiagnosticsPanelIndex);
+            }
+
+            EnsureDistinctSecondarySelection();
+        }
+
+        private void EnsureDistinctSecondarySelection()
+        {
+            if (_visiblePanels.Count == 0)
+            {
+                _showSecondaryDiagnostics = false;
+                return;
+            }
+
+            _selectedDiagnosticsPanelIndex = Mathf.Clamp(
+                _selectedDiagnosticsPanelIndex,
+                0,
+                _visiblePanels.Count - 1);
+            _selectedSecondaryDiagnosticsPanelIndex = Mathf.Clamp(
+                _selectedSecondaryDiagnosticsPanelIndex,
+                0,
+                _visiblePanels.Count - 1);
+
+            var primaryPanel = _visiblePanels[_selectedDiagnosticsPanelIndex];
+            var secondaryPanel = _visiblePanels[_selectedSecondaryDiagnosticsPanelIndex];
+            if (HasDistinctDiagnosticSlots(
+                    primaryPanel,
+                    _primaryDiagnosticWidgetId,
+                    secondaryPanel,
+                    _secondaryDiagnosticWidgetId))
+            {
+                _secondaryDiagnosticModuleId = GetVisibleModuleId(_selectedSecondaryDiagnosticsPanelIndex);
+                return;
+            }
+
+            var primaryWidget = ResolveWidget(
+                primaryPanel,
+                _primaryDiagnosticWidgetId,
+                out var primaryWidgets,
+                out var primaryWidgetIndex);
+            _primaryDiagnosticWidgetId = primaryWidget.StableId;
+            if (primaryWidgets != null && primaryWidgets.Count > 1)
+            {
+                var nextWidgetIndex = (primaryWidgetIndex + 1) % primaryWidgets.Count;
+                _selectedSecondaryDiagnosticsPanelIndex = _selectedDiagnosticsPanelIndex;
+                _secondaryDiagnosticModuleId = _primaryDiagnosticModuleId;
+                _secondaryDiagnosticWidgetId = primaryWidgets[nextWidgetIndex].StableId;
+                return;
+            }
+
+            if (_visiblePanels.Count > 1)
+            {
+                _selectedSecondaryDiagnosticsPanelIndex =
+                    (_selectedDiagnosticsPanelIndex + 1) % _visiblePanels.Count;
+                _secondaryDiagnosticModuleId = GetVisibleModuleId(_selectedSecondaryDiagnosticsPanelIndex);
+                _secondaryDiagnosticWidgetId = string.Empty;
+                return;
+            }
+
+            _showSecondaryDiagnostics = false;
+        }
+
+        private void ApplyWorkspacePreset(BattleDebugWorkspacePreset preset)
+        {
+            _activeWorkspacePresetId = preset.StableId;
+            _primaryDiagnosticModuleId = preset.PrimaryModuleId;
+            _primaryDiagnosticWidgetId = preset.PrimaryWidgetId;
+            _secondaryDiagnosticModuleId = preset.SecondaryModuleId;
+            _secondaryDiagnosticWidgetId = preset.SecondaryWidgetId;
+            _showSecondaryDiagnostics = preset.ShowsSecondary;
+
+            var primary = FindVisiblePanelIndex(_primaryDiagnosticModuleId);
+            if (primary >= 0)
+            {
+                _selectedDiagnosticsPanelIndex = primary;
+            }
+
+            var secondary = FindVisiblePanelIndex(_secondaryDiagnosticModuleId);
+            if (secondary >= 0)
+            {
+                _selectedSecondaryDiagnosticsPanelIndex = secondary;
+            }
+
+            EnsureDistinctSecondarySelection();
+            _detailScroll = Vector2.zero;
+            _secondaryDetailScroll = Vector2.zero;
+        }
+
+        private void SelectPrimaryDiagnosticPanel(int index, bool markCustom)
+        {
+            if (_visiblePanels.Count == 0) return;
+
+            index = Mathf.Clamp(index, 0, _visiblePanels.Count - 1);
+            _selectedDiagnosticsPanelIndex = index;
+            _primaryDiagnosticModuleId = GetVisibleModuleId(index);
+            _primaryDiagnosticWidgetId = string.Empty;
+            if (markCustom)
+            {
+                _activeWorkspacePresetId = string.Empty;
+            }
+
+            _detailScroll = Vector2.zero;
+            EnsureDistinctSecondarySelection();
+        }
+
         private void CollectVisiblePanels(in BattleDebugContext ctx)
         {
             _visiblePanels.Clear();
@@ -944,7 +1598,9 @@ namespace AbilityKit.Game.Editor
             for (var i = 0; i < panels.Count; i++)
             {
                 var panel = panels[i];
-                if (panel == null || !panel.IsVisible(in ctx)) continue;
+                if (panel == null) continue;
+                var widget = GetWidget(panel);
+                if (!widget.IsAvailable(in ctx)) continue;
                 var workspace = panel is IBattleDebugPanelLayout layout
                     ? layout.Workspace
                     : BattleDebugWorkspace.Actor;
@@ -1329,6 +1985,9 @@ namespace AbilityKit.Game.Editor
                 {
                     open(target);
                     _selectedDiagnosticsPanelIndex = CountDiagnosticsPanelsBefore(panels, i);
+                    _primaryDiagnosticModuleId = BattleDebugModuleCatalog.GetStableId(panel);
+                    _primaryDiagnosticWidgetId = BattleDebugWidgetIds.EventsList;
+                    _activeWorkspacePresetId = string.Empty;
                     _detailScroll = Vector2.zero;
                     Repaint();
                     return;
@@ -1509,6 +2168,9 @@ namespace AbilityKit.Game.Editor
                     target.OpenTrace(rootContextId, contextId);
                     _workspace = BattleDebugWorkspace.Diagnostics;
                     _selectedDiagnosticsPanelIndex = diagnosticsIndex;
+                    _primaryDiagnosticModuleId = BattleDebugModuleCatalog.GetStableId(panel);
+                    _primaryDiagnosticWidgetId = BattleDebugWidgetIds.TraceTree;
+                    _activeWorkspacePresetId = string.Empty;
                     _detailScroll = Vector2.zero;
                     Repaint();
                     return;
@@ -1599,6 +2261,13 @@ namespace AbilityKit.Game.Editor
 
                 _workspace = BattleDebugWorkspace.Diagnostics;
                 _selectedDiagnosticsPanelIndex = CountDiagnosticsPanelsBefore(panels, i);
+                _primaryDiagnosticModuleId = BattleDebugModuleCatalog.GetStableId(panels[i]);
+                _primaryDiagnosticWidgetId = panels[i] is BattleDebugDiagnosticEventsPanel
+                    ? BattleDebugWidgetIds.EventsList
+                    : panels[i] is BattleDebugDiagnosticTracePanel
+                        ? BattleDebugWidgetIds.TraceTree
+                        : string.Empty;
+                _activeWorkspacePresetId = string.Empty;
                 _detailScroll = Vector2.zero;
                 return;
             }

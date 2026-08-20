@@ -18,7 +18,10 @@
 | `validate_moba_codegen_ownership.ps1` | MOBA 代码生成归属校验 |
 | `validate_moba_hero_manifest.ps1` | MOBA 英雄清单校验 |
 | `validate_moba_hero_acceptance_coverage.ps1` | MOBA 英雄验收覆盖校验 |
-| `audit_core_boundaries.ps1` | 审计 Core 平台/API 边界、命名空间所有权，并阻止旧 Continuous、Config、Reflection 消费回流 |
+| `build_moba_content_report.ps1` | 生成并校验 MOBA 跨表依赖、英雄可达性和资源完整度 JSON 报告（含 `.tests.ps1`） |
+| `export_moba_content_ir.ps1` | 从离线报告导出可供 Unity、Web、DOT 和 CI 共同消费的稳定 graph/diagnostics JSON |
+| `build_moba_content_graph.ps1` | 从通用 graph/diagnostics JSON 生成可筛选的自包含 HTML 依赖图与 Graphviz DOT |
+| `audit_core_boundaries.ps1` | 审计 Core 平台/API 边界与命名空间所有权，并在 Unity Packages、`src`、`Server` 生产源码中阻止旧 Continuous、Config、Reflection、Marker bootstrap、DebugDraw 和 Dispose 消费回流；无 `rg` 时递归剪枝构建目录，以单次包/托管源码扫描复用预加载文本缓存，并复用预编译边界正则 |
 
 ## 构建 / 项目设置（build & setup）
 
@@ -37,6 +40,8 @@
 | `sync_moba_json_configs.ps1` | 同步 MOBA JSON 配置 |
 | `moba_business_id.ps1` | MOBA 业务 ID 生成/校验（含 `.tests.ps1`） |
 | `new_moba_hero_manifest.ps1` | 新建 MOBA 英雄清单 |
+| `moba-content-dependency-contract.json` | 声明 MOBA 配置表、静态引用、外部引用 authority 与资源质量规则 |
+| `moba-content-graph.schema.json` / `moba-content-diagnostics.schema.json` | 通用分析数据的 JSON Schema；查看器和 Unity DTO 以此为边界 |
 
 ## 文档 / 导出（docs & export）
 

@@ -15,7 +15,7 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
     public void Hfsm_activation_and_deactivation_report_truthfully_and_remove_owned_runtime()
     {
         var brains = new MutableBrainCatalog();
-        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "idle"));
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle"));
         var profiles = CreateProfiles("idle");
         var runtimeRegistry = new MobaActorStateMachineRuntimeRegistry();
         var factory = new MobaActorStateMachineFactory(null, profiles, runtimeRegistry);
@@ -48,8 +48,8 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
     public void Hfsm_to_btree_switch_removes_stale_state_machine()
     {
         var brains = new MutableBrainCatalog();
-        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "idle"));
-        brains.Set(new MobaActorBrainDefinition(2, MobaBrainDriverKind.BTree, "tree"));
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle"));
+        brains.Set(new MobaActorBrainDefinition(2, MobaBrainDriverKeys.BehaviorTree, "tree"));
         var fixture = CreateSystemFixture(brains, CreateProfiles("idle"));
         var actor = CreateActor(fixture.Contexts.actor, 102);
         actor.AddActorBrain(1, 102, 1, 10, 0L);
@@ -70,8 +70,8 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
     public void Hfsm_profile_switch_replaces_runtime_and_binding_change_does_not_reuse_it()
     {
         var brains = new MutableBrainCatalog();
-        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "idle-a"));
-        brains.Set(new MobaActorBrainDefinition(2, MobaBrainDriverKind.Hfsm, "idle-b"));
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle-a"));
+        brains.Set(new MobaActorBrainDefinition(2, MobaBrainDriverKeys.Hfsm, "idle-b"));
         var fixture = CreateSystemFixture(brains, CreateProfiles("idle-a", "idle-b"));
         var actor = CreateActor(fixture.Contexts.actor, 103);
         actor.AddActorBrain(1, 103, 2, 20, 0L);
@@ -99,7 +99,7 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
     public void Failed_creation_is_suppressed_until_configuration_identity_changes()
     {
         var brains = new MutableBrainCatalog();
-        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "missing"));
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "missing"));
         var fixture = CreateSystemFixture(brains, CreateProfiles("available"));
         var actor = CreateActor(fixture.Contexts.actor, 104);
         actor.AddActorBrain(1, 104, 3, 30, 0L);
@@ -110,7 +110,7 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
         fixture.System.Execute();
         Assert.False(actor.hasActorStateMachine);
 
-        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "available"));
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "available"));
         fixture.System.Execute();
 
         Assert.NotNull(actor.actorStateMachine.Runtime);
@@ -122,8 +122,8 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
     public void Failed_btree_switch_preserves_previous_hfsm_binding()
     {
         var brains = new MutableBrainCatalog();
-        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.Hfsm, "idle"));
-        brains.Set(new MobaActorBrainDefinition(2, MobaBrainDriverKind.BTree, "asset-that-does-not-exist"));
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle"));
+        brains.Set(new MobaActorBrainDefinition(2, MobaBrainDriverKeys.BehaviorTree, "asset-that-does-not-exist"));
         var profiles = CreateProfiles("idle");
         var factory = new MobaActorStateMachineFactory(
             null,
@@ -151,7 +151,7 @@ public sealed class MobaActorStateMachineSystemLifecycleTests
     public void Brain_system_does_not_reconcile_projectile_owned_state_machine()
     {
         var brains = new MutableBrainCatalog();
-        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKind.BTree, "tree"));
+        brains.Set(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.BehaviorTree, "tree"));
         var profiles = CreateProfiles("projectile");
         var fixture = CreateSystemFixture(brains, profiles);
         var actor = CreateActor(fixture.Contexts.actor, 106);

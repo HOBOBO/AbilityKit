@@ -35,6 +35,7 @@ public sealed class AoiInterestSetAllocationTests
         Assert.Same(firstChanges, second.Changes);
         Assert.Equal(Samples.Length, second.VisibleCount);
         Assert.All(second.Changes, change => Assert.Equal(AoiInterestTransition.Stay, change.Transition));
+        Assert.Equal(new[] { 0, 1, 2 }, second.Changes.Select(change => change.SourceIndex));
     }
 
     [Fact]
@@ -89,5 +90,6 @@ public sealed class AoiInterestSetAllocationTests
             change => Assert.Equal(new AoiEntityKey(1, 9), change.Key),
             change => Assert.Equal(new AoiEntityKey(2, 8), change.Key));
         Assert.All(leaves.Changes, change => Assert.Equal(AoiInterestTransition.Leave, change.Transition));
+        Assert.All(leaves.Changes, change => Assert.Equal(-1, change.SourceIndex));
     }
 }

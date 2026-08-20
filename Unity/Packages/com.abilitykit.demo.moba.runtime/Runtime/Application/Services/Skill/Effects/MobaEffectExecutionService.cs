@@ -18,7 +18,7 @@ using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Pipeline;
 using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Services.Triggering;
-using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services.Observability;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -37,7 +37,8 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private MobaTriggerPayloadResolverRegistry _payloadResolvers = null;
         [WorldInject(required: false)] private MobaTriggerConditionRegistry _triggerConditions = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
-        [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
+        [WorldInject(required: false)] private IMobaTriggerAnalysisHook _triggerAnalysisHook = null;
+        [WorldInject(required: false)] private IMobaEffectLifecycleHook _effectLifecycleHook = null;
 
         private readonly MobaTriggerExecutionBudget _executionBudget = new MobaTriggerExecutionBudget();
         private MobaTriggerPlanExecutor _planExecutor;
@@ -153,20 +154,39 @@ namespace AbilityKit.Demo.Moba.Services
 
             var actionContextId = scope.CurrentActionContextId;
             ResetCurrentAction(scope);
-            if (actionContextId != 0L)
+            try
             {
-                Trace.End(
-                    actionContextId,
-                    (int)(succeeded
-                        ? TraceLifecycleReason.Completed
-                        : TraceLifecycleReason.Failed));
+                if (actionContextId != 0L)
+                {
+                    Trace.End(
+                        actionContextId,
+                        (int)(succeeded
+                            ? TraceLifecycleReason.Completed
+                            : TraceLifecycleReason.Failed));
+                }
             }
-
-            CompleteActionDiagnostics(scope, succeeded);
+            finally
+            {
+                CompleteActionDiagnostics(scope, succeeded);
+            }
         }
 
         private void BeginActionDiagnostics(EffectExecutionTraceScope scope)
         {
+            if (MobaPerformanceProfiling.TryBegin(
+                    _diagnostics,
+                    MobaBattleDiagnosticChannel.TriggerHook,
+                    MobaBattleDiagnosticMetric.EffectActionScope,
+                    out var actionPerformanceScope))
+            {
+                if (scope.PerformanceScopes == null)
+                {
+                    scope.PerformanceScopes = new EffectExecutionPerformanceScopes();
+                }
+
+                scope.PerformanceScopes.Action = actionPerformanceScope;
+            }
+
             if (_diagnostics == null) return;
 
             _diagnostics.Counter(MobaBattleDiagnosticMetric.EffectActionInvoked);
@@ -184,6 +204,12 @@ namespace AbilityKit.Demo.Moba.Services
             EffectExecutionTraceScope scope,
             bool succeeded)
         {
+            if (scope.PerformanceScopes != null)
+            {
+                scope.PerformanceScopes.Action.Dispose();
+                scope.PerformanceScopes.Action = default;
+            }
+
             if (_diagnostics == null) return;
 
             _diagnostics.Counter(
@@ -255,38 +281,63 @@ namespace AbilityKit.Demo.Moba.Services
                 TargetActorId = lineageInput.TargetActorId,
             };
 
-            if (parentContextId != 0)
+            if (MobaPerformanceProfiling.TryBegin(
+                    _diagnostics,
+                    MobaBattleDiagnosticChannel.TriggerHook,
+                    MobaBattleDiagnosticMetric.EffectExecuteScope,
+                    out var effectPerformanceScope))
             {
-                scope.EffectContextId = Trace.CreateChildContext(
-                    parentContextId,
-                    MobaTraceKind.EffectExecution,
-                    configId,
-                    lineageInput.SourceActorId,
-                    lineageInput.TargetActorId,
-                    TraceEndpoint.Config(MobaRuntimeKindNames.Effect, configId),
-                    TraceEndpoint.Actor(lineageInput.TargetActorId));
-                scope.IsRoot = false;
-            }
-            else
-            {
-                var rootScope = Trace.CreateEffectRoot(
-                    effectConfigId: configId,
-                    triggerPlanId: triggerId,
-                    sourceActorId: lineageInput.SourceActorId,
-                    targetActorId: lineageInput.TargetActorId,
-                    contextKind: lineageInput.ContextKind);
-
-                scope.EffectContextId = rootScope.RootId;
-                scope.IsRoot = true;
+                scope.PerformanceScopes = new EffectExecutionPerformanceScopes
+                {
+                    Effect = effectPerformanceScope,
+                };
             }
 
-            if (scope.EffectContextId == 0)
+            try
             {
-                throw new InvalidOperationException($"[MobaEffectExecutionService] Failed to create formal effect trace scope. effectConfigId={effectConfigId}, triggerId={triggerId}, sourceActorId={lineageInput.SourceActorId}, targetActorId={lineageInput.TargetActorId}, parentContextId={lineageInput.ParentContextId}, rootContextId={lineageInput.RootContextId}");
-            }
+                if (parentContextId != 0)
+                {
+                    scope.EffectContextId = Trace.CreateChildContext(
+                        parentContextId,
+                        MobaTraceKind.EffectExecution,
+                        configId,
+                        lineageInput.SourceActorId,
+                        lineageInput.TargetActorId,
+                        TraceEndpoint.Config(MobaRuntimeKindNames.Effect, configId),
+                        TraceEndpoint.Actor(lineageInput.TargetActorId));
+                    scope.IsRoot = false;
+                }
+                else
+                {
+                    var rootScope = Trace.CreateEffectRoot(
+                        effectConfigId: configId,
+                        triggerPlanId: triggerId,
+                        sourceActorId: lineageInput.SourceActorId,
+                        targetActorId: lineageInput.TargetActorId,
+                        contextKind: lineageInput.ContextKind);
 
-            _traceScopes.Push(scope);
-            return scope;
+                    scope.EffectContextId = rootScope.RootId;
+                    scope.IsRoot = true;
+                }
+
+                if (scope.EffectContextId == 0)
+                {
+                    throw new InvalidOperationException($"[MobaEffectExecutionService] Failed to create formal effect trace scope. effectConfigId={effectConfigId}, triggerId={triggerId}, sourceActorId={lineageInput.SourceActorId}, targetActorId={lineageInput.TargetActorId}, parentContextId={lineageInput.ParentContextId}, rootContextId={lineageInput.RootContextId}");
+                }
+
+                _traceScopes.Push(scope);
+                return scope;
+            }
+            catch
+            {
+                if (scope.PerformanceScopes != null)
+                {
+                    scope.PerformanceScopes.Effect.Dispose();
+                    scope.PerformanceScopes.Effect = default;
+                }
+
+                throw;
+            }
         }
 
         /// <summary>
@@ -297,24 +348,41 @@ namespace AbilityKit.Demo.Moba.Services
             if (Trace == null || _traceScopes.Count == 0) return;
 
             var scope = _traceScopes.Pop();
-            if (scope.CurrentActionContextId != 0L)
+            try
             {
-                Trace.End(scope.CurrentActionContextId, reason);
+                if (scope.CurrentActionContextId != 0L)
+                {
+                    try
+                    {
+                        Trace.End(scope.CurrentActionContextId, reason);
+                    }
+                    finally
+                    {
+                        ResetCurrentAction(scope);
+                        CompleteActionDiagnostics(
+                            scope,
+                            reason == (int)TraceLifecycleReason.Completed);
+                    }
+                }
+                scope.ActionContextIds.Clear();
                 ResetCurrentAction(scope);
-                CompleteActionDiagnostics(
-                    scope,
-                    reason == (int)TraceLifecycleReason.Completed);
-            }
-            scope.ActionContextIds.Clear();
-            ResetCurrentAction(scope);
 
-            if (scope.IsRoot)
-            {
-                Trace.EndRoot(scope.EffectContextId, reason);
+                if (scope.IsRoot)
+                {
+                    Trace.EndRoot(scope.EffectContextId, reason);
+                }
+                else
+                {
+                    Trace.End(scope.EffectContextId, reason);
+                }
             }
-            else
+            finally
             {
-                Trace.End(scope.EffectContextId, reason);
+                if (scope.PerformanceScopes != null)
+                {
+                    scope.PerformanceScopes.Effect.Dispose();
+                    scope.PerformanceScopes.Effect = default;
+                }
             }
         }
 
@@ -852,11 +920,13 @@ namespace AbilityKit.Demo.Moba.Services
             in MobaTriggerConditionContext conditionContext,
             in MobaTriggerExecutionBlock block)
         {
+            if (_triggerAnalysisHook == null || !_triggerAnalysisHook.IsEnabled) return;
+
             CollectTriggerAnalysis(
                 triggerId,
                 in conditionContext,
-                BattleDiagnosticTriggerAnalysisStage.Budget,
-                BattleDiagnosticTriggerAnalysisResult.Blocked,
+                MobaTriggerAnalysisStage.Budget,
+                MobaTriggerAnalysisResult.Blocked,
                 (int)block.Reason,
                 block.CurrentDepth,
                 block.CurrentFrameCount,
@@ -871,13 +941,15 @@ namespace AbilityKit.Demo.Moba.Services
             in MobaTriggerConditionContext conditionContext,
             in MobaTriggerConditionCheckResult result)
         {
+            if (_triggerAnalysisHook == null || !_triggerAnalysisHook.IsEnabled) return;
+
             CollectTriggerAnalysis(
                 triggerId,
                 in conditionContext,
-                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                MobaTriggerAnalysisStage.Conditions,
                 result.Passed
-                    ? BattleDiagnosticTriggerAnalysisResult.Passed
-                    : BattleDiagnosticTriggerAnalysisResult.Failed,
+                    ? MobaTriggerAnalysisResult.Passed
+                    : MobaTriggerAnalysisResult.Failed,
                 0,
                 failureKey: result.FailureKey,
                 reason: result.Reason);
@@ -889,13 +961,15 @@ namespace AbilityKit.Demo.Moba.Services
             bool executed,
             int detailCode)
         {
+            if (_triggerAnalysisHook == null || !_triggerAnalysisHook.IsEnabled) return;
+
             CollectTriggerAnalysis(
                 triggerId,
                 in conditionContext,
-                BattleDiagnosticTriggerAnalysisStage.Plan,
+                MobaTriggerAnalysisStage.Plan,
                 executed
-                    ? BattleDiagnosticTriggerAnalysisResult.Passed
-                    : BattleDiagnosticTriggerAnalysisResult.Failed,
+                    ? MobaTriggerAnalysisResult.Passed
+                    : MobaTriggerAnalysisResult.Failed,
                 detailCode,
                 failureKey: executed ? string.Empty : "planReturnedFalse",
                 reason: executed ? string.Empty : "Trigger plan executor returned false.");
@@ -907,13 +981,15 @@ namespace AbilityKit.Demo.Moba.Services
             bool executed,
             int detailCode)
         {
+            if (_triggerAnalysisHook == null || !_triggerAnalysisHook.IsEnabled) return;
+
             CollectTriggerAnalysis(
                 triggerId,
                 in conditionContext,
-                BattleDiagnosticTriggerAnalysisStage.Execution,
+                MobaTriggerAnalysisStage.Execution,
                 executed
-                    ? BattleDiagnosticTriggerAnalysisResult.Passed
-                    : BattleDiagnosticTriggerAnalysisResult.Failed,
+                    ? MobaTriggerAnalysisResult.Passed
+                    : MobaTriggerAnalysisResult.Failed,
                 detailCode,
                 failureKey: executed ? string.Empty : "executionFailed",
                 reason: executed ? string.Empty : "Trigger execution failed.");
@@ -922,8 +998,8 @@ namespace AbilityKit.Demo.Moba.Services
         private void CollectTriggerAnalysis(
             int triggerId,
             in MobaTriggerConditionContext conditionContext,
-            BattleDiagnosticTriggerAnalysisStage stage,
-            BattleDiagnosticTriggerAnalysisResult result,
+            MobaTriggerAnalysisStage stage,
+            MobaTriggerAnalysisResult result,
             int detailCode,
             int currentDepth = 0,
             int currentFrameCount = 0,
@@ -932,11 +1008,11 @@ namespace AbilityKit.Demo.Moba.Services
             string failureKey = "",
             string reason = "")
         {
-            if (_eventCollector == null) return;
+            if (_triggerAnalysisHook == null || !_triggerAnalysisHook.IsEnabled) return;
 
             try
             {
-                var draft = MobaEffectDiagnosticProducer.CreateTriggerAnalysisDraft(
+                var observation = new MobaTriggerAnalysisObservation(
                     triggerId,
                     (int)conditionContext.ContextKind,
                     (int)conditionContext.OriginKind,
@@ -953,7 +1029,7 @@ namespace AbilityKit.Demo.Moba.Services
                     currentSameTriggerCount,
                     failureKey,
                     reason);
-                _eventCollector.TryCollect(in draft);
+                _triggerAnalysisHook.OnObserved(in observation);
             }
             catch (Exception)
             {
@@ -963,18 +1039,19 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void CollectEffectStarted(EffectExecutionTraceScope traceScope, in MobaEffectLineageInput lineageInput)
         {
-            if (_eventCollector == null || traceScope == null) return;
+            if (traceScope == null || _effectLifecycleHook == null || !_effectLifecycleHook.IsEnabled) return;
 
             try
             {
-                var draft = MobaEffectDiagnosticProducer.CreateEffectStartedDraft(
+                var observation = new MobaEffectLifecycleObservation(
+                    MobaEffectLifecycleStage.Started,
                     traceScope.EffectConfigId,
                     traceScope.TriggerId,
                     traceScope.SourceActorId,
                     traceScope.TargetActorId,
                     traceScope.EffectContextId,
                     lineageInput.EffectiveRootContextId);
-                _eventCollector.TryCollect(in draft);
+                _effectLifecycleHook.OnObserved(in observation);
             }
             catch (Exception)
             {
@@ -984,11 +1061,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void CollectEffectEnded(EffectExecutionTraceScope traceScope, in MobaEffectLineageInput lineageInput, bool executed)
         {
-            if (_eventCollector == null || traceScope == null) return;
+            if (traceScope == null || _effectLifecycleHook == null || !_effectLifecycleHook.IsEnabled) return;
 
             try
             {
-                var draft = MobaEffectDiagnosticProducer.CreateEffectEndedDraft(
+                var observation = new MobaEffectLifecycleObservation(
+                    MobaEffectLifecycleStage.Ended,
                     traceScope.EffectConfigId,
                     traceScope.TriggerId,
                     traceScope.SourceActorId,
@@ -996,7 +1074,7 @@ namespace AbilityKit.Demo.Moba.Services
                     traceScope.EffectContextId,
                     lineageInput.EffectiveRootContextId,
                     executed);
-                _eventCollector.TryCollect(in draft);
+                _effectLifecycleHook.OnObserved(in observation);
             }
             catch (Exception)
             {

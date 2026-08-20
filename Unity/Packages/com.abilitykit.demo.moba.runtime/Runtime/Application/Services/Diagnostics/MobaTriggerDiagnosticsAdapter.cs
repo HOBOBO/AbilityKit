@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Eventing;
+using AbilityKit.Diagnostics;
 using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -9,6 +11,9 @@ namespace AbilityKit.Demo.Moba.Services
     public sealed class MobaTriggerDiagnosticsAdapter : ITriggerLifecycle<IWorldResolver>, ITriggerTracer<IWorldResolver>
     {
         private readonly IWorldResolver _services;
+        private Stack<DispatchPerformanceScope> _dispatchScopes;
+        private Stack<ProbeScope> _evaluateScopes;
+        private Stack<ProbeScope> _executeScopes;
         private long _nextScopeId = 1L;
 
         public MobaTriggerDiagnosticsAdapter(IWorldResolver services)
@@ -46,10 +51,14 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void OnBeforeEvaluate<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
         {
+            BeginNestedPerformanceScope(
+                ref _evaluateScopes,
+                MobaBattleDiagnosticMetric.TriggerEvaluateScope);
         }
 
         public void OnAfterEvaluate<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, bool result)
         {
+            MobaPerformanceProfiling.End(_evaluateScopes);
         }
 
         public void OnBeforeExecute<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order)
@@ -80,10 +89,14 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void OnActionExecuting<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions)
         {
+            BeginNestedPerformanceScope(
+                ref _executeScopes,
+                MobaBattleDiagnosticMetric.TriggerExecuteScope);
         }
 
         public void OnActionExecuted<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, bool wasInterrupted)
         {
+            MobaPerformanceProfiling.End(_executeScopes);
             if (wasInterrupted)
             {
                 var diagnostics = Diagnostics;
@@ -93,6 +106,15 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void OnActionFailed<TArgs>(EventKey<TArgs> key, in TArgs args, int phase, int priority, long order, int actionId, string actionName, int actionIndex, int totalActions, string errorMessage)
         {
+            if (string.Equals(actionName, "Evaluate", StringComparison.Ordinal))
+            {
+                MobaPerformanceProfiling.End(_evaluateScopes);
+            }
+            else
+            {
+                MobaPerformanceProfiling.End(_executeScopes);
+            }
+
             var diagnostics = Diagnostics;
             if (diagnostics == null) return;
 
@@ -104,6 +126,23 @@ namespace AbilityKit.Demo.Moba.Services
 
         public TraceScope BeginTrace<TArgs>(EventKey<TArgs> key, in TArgs args)
         {
+            var hasOuterDispatch = _dispatchScopes != null && _dispatchScopes.Count > 0;
+            var started = TryBeginPerformanceScope(
+                MobaBattleDiagnosticMetric.TriggerDispatchScope,
+                out var scope);
+            if (started || hasOuterDispatch)
+            {
+                if (_dispatchScopes == null)
+                {
+                    _dispatchScopes = new Stack<DispatchPerformanceScope>();
+                }
+
+                _dispatchScopes.Push(new DispatchPerformanceScope(
+                    scope,
+                    _evaluateScopes?.Count ?? 0,
+                    _executeScopes?.Count ?? 0));
+            }
+
             return new TraceScope(_nextScopeId++, Stopwatch.GetTimestamp(), GetEventName(key), key.GetHashCode());
         }
 
@@ -131,8 +170,78 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void EndTrace(TraceScope scope)
         {
-            var diagnostics = Diagnostics;
-            if (ShouldSampleHook(diagnostics)) RecordElapsedSample(diagnostics, MobaBattleDiagnosticMetric.TriggerDispatchDuration, Stopwatch.GetTimestamp() - scope.StartTimestamp);
+            try
+            {
+                var diagnostics = Diagnostics;
+                if (ShouldSampleHook(diagnostics)) RecordElapsedSample(diagnostics, MobaBattleDiagnosticMetric.TriggerDispatchDuration, Stopwatch.GetTimestamp() - scope.StartTimestamp);
+            }
+            finally
+            {
+                EndDispatchPerformanceScope();
+            }
+        }
+
+        private void BeginNestedPerformanceScope(
+            ref Stack<ProbeScope> scopes,
+            string marker)
+        {
+            var hasOuterScope = scopes != null && scopes.Count > 0;
+            var started = TryBeginPerformanceScope(marker, out var scope);
+            if (!started && !hasOuterScope) return;
+
+            if (scopes == null)
+            {
+                scopes = new Stack<ProbeScope>();
+            }
+
+            // A default sentinel preserves stack pairing if profiling is toggled during reentrant dispatch.
+            scopes.Push(scope);
+        }
+
+        private bool TryBeginPerformanceScope(string marker, out ProbeScope scope)
+        {
+            scope = default;
+            if (!ProfilerHub.IsEnabled) return false;
+
+            return MobaPerformanceProfiling.TryBegin(
+                Diagnostics,
+                MobaBattleDiagnosticChannel.TriggerHook,
+                marker,
+                out scope);
+        }
+
+        private void EndDispatchPerformanceScope()
+        {
+            if (_dispatchScopes == null || _dispatchScopes.Count == 0) return;
+
+            var dispatch = _dispatchScopes.Pop();
+            EndToDepth(_evaluateScopes, dispatch.EvaluateDepth);
+            EndToDepth(_executeScopes, dispatch.ExecuteDepth);
+            dispatch.Scope.Dispose();
+        }
+
+        private static void EndToDepth(Stack<ProbeScope> scopes, int depth)
+        {
+            if (scopes == null) return;
+
+            while (scopes.Count > depth)
+            {
+                scopes.Pop().Dispose();
+            }
+        }
+
+        private readonly struct DispatchPerformanceScope
+        {
+            public DispatchPerformanceScope(ProbeScope scope, int evaluateDepth, int executeDepth)
+            {
+                Scope = scope;
+                EvaluateDepth = evaluateDepth;
+                ExecuteDepth = executeDepth;
+            }
+
+            public ProbeScope Scope { get; }
+            public int EvaluateDepth { get; }
+            public int ExecuteDepth { get; }
         }
 
         private IMobaBattleDiagnosticsService Diagnostics

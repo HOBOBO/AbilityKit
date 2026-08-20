@@ -22,7 +22,6 @@ namespace AbilityKit.Demo.Shooter.View
         private const int MaxReplayFrames = 120;
         private const float PositionQuantizationScale = 1000f;
         private const float SmallErrorTolerance = 0.05f;
-        private const float SnapErrorThreshold = 0.5f;
         private const float MaxCorrectionPerSnapshot = 0.25f;
 
         private readonly IShooterBattleRuntimePort _runtime;
@@ -30,12 +29,29 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterPresentationFacade _presentation;
         private readonly ShooterGatewaySnapshotDecoder _decoder;
         private readonly RemoteInterpolationPlayback<ShooterRemoteSnapshotSample> _playback;
+        private readonly ShooterSnapshotStream _pureStatePlayback = new ShooterSnapshotStream(32);
         private readonly ShooterRemoteSnapshotProjector _projector = new ShooterRemoteSnapshotProjector();
         private readonly NetworkSyncModel _syncModel;
         private readonly float _fixedDeltaTime;
         private readonly object _pendingInputLock = new object();
         private readonly List<PendingLocalInput> _pendingInputs = new List<PendingLocalInput>(MaxPendingInputs);
+        private readonly ShooterPlayerCommand[] _replayCommands = new ShooterPlayerCommand[MaxPendingInputs];
+        private readonly int[] _replayFrames = new int[MaxPendingInputs];
+        private readonly CompositeReadOnlyList<ShooterViewEntityChange> _compositeEntities = new CompositeReadOnlyList<ShooterViewEntityChange>();
+        private readonly CompositeReadOnlyList<ShooterViewEntityKey> _compositeRemoved = new CompositeReadOnlyList<ShooterViewEntityKey>();
+        private readonly CompositeReadOnlyList<ShooterViewTransformComponentChange> _compositeTransforms = new CompositeReadOnlyList<ShooterViewTransformComponentChange>();
+        private readonly CompositeReadOnlyList<ShooterViewHealthComponentChange> _compositeHealth = new CompositeReadOnlyList<ShooterViewHealthComponentChange>();
+        private readonly CompositeReadOnlyList<ShooterViewScoreComponentChange> _compositeScore = new CompositeReadOnlyList<ShooterViewScoreComponentChange>();
+        private readonly CompositeReadOnlyList<ShooterViewProjectileLifetimeComponentChange> _compositeProjectileLifetime = new CompositeReadOnlyList<ShooterViewProjectileLifetimeComponentChange>();
+        private readonly CompositeReadOnlyList<ShooterEventSnapshot> _compositeEvents = new CompositeReadOnlyList<ShooterEventSnapshot>();
+        private readonly HashSet<ShooterViewEntityKey> _suppressedPureStateTransforms = new HashSet<ShooterViewEntityKey>();
+        private readonly ReusableFilteredTransformList _filteredPureStateTransforms = new ReusableFilteredTransformList();
+        private readonly PureStateDiscreteBatchAccumulator _pureStateDiscreteA = new PureStateDiscreteBatchAccumulator();
+        private readonly PureStateDiscreteBatchAccumulator _pureStateDiscreteB = new PureStateDiscreteBatchAccumulator();
         private ShooterPlayerCommand _lastPredictedCommand;
+        private bool _usesPureStatePresentation;
+        private PureStateDiscreteBatchAccumulator? _pendingPureStateDiscrete;
+        private PureStateDiscreteBatchAccumulator? _publishedPureStateDiscrete;
         private ShooterStateSyncPredictionState _predictionState = ShooterStateSyncPredictionState.Empty;
         private SyncReconciliationReport _localReconciliationReport = SyncReconciliationReport.None;
         private ulong _authorityWorldId;
@@ -76,11 +92,21 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
             _presentation = presentation ?? throw new ArgumentNullException(nameof(presentation));
-            _core = new ShooterClientSyncCore(_runtime, presentation, tickRate, decoder, gateway, predictionBufferOptions);
+            _core = new ShooterClientSyncCore(
+                _runtime,
+                presentation,
+                tickRate,
+                decoder,
+                gateway,
+                predictionBufferOptions ?? ShooterClientPredictionBufferOptions.Disabled);
+            _core.FrameSync.ComputeTickResultStateHash =
+                predictionBufferOptions != null
+                    && !ReferenceEquals(predictionBufferOptions, ShooterClientPredictionBufferOptions.Disabled);
             _decoder = decoder ?? new ShooterGatewaySnapshotDecoder();
             _playback = new RemoteInterpolationPlayback<ShooterRemoteSnapshotSample>(config);
             _syncModel = syncModel;
             _fixedDeltaTime = 1f / Math.Max(1, tickRate);
+            _pureStatePlayback.PlaybackFramesPerSecond = Math.Max(1, tickRate);
         }
 
         public NetworkSyncModel SyncModel => _syncModel;
@@ -140,6 +166,17 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterStateSyncPredictionState PredictionState => _predictionState;
 
+        public int PendingGatewayInputCount
+        {
+            get
+            {
+                lock (_pendingInputLock)
+                {
+                    return _pendingInputs.Count;
+                }
+            }
+        }
+
         public bool StartGame(in ShooterStartGamePayload startGame)
         {
             ResetAuthoritativeState();
@@ -148,7 +185,9 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterClientInputSubmitResult SubmitLocalInput(int playerId, float moveX, float moveY, float aimX, float aimY, bool fire)
         {
-            var command = new ShooterPlayerCommand(playerId, moveX, moveY, aimX, aimY, fire);
+            // 与 PredictRollback 控制器一致：经 InputBuilder.CreateCommand 做归一化，
+            // 避免同一输入因同步模型不同产生不同的命令（原始向量未归一）。
+            var command = ShooterClientInputBuilder.CreateCommand(playerId, moveX, moveY, aimX, aimY, fire);
             return SubmitLocalInput(in command);
         }
 
@@ -158,7 +197,6 @@ namespace AbilityKit.Demo.Shooter.View
             if (command.PlayerId > 0 && result.AcceptedInputs > 0)
             {
                 _lastPredictedCommand = command;
-                RecordPendingInput(in result);
                 RefreshPredictedPose(command.PlayerId, CurrentFrame, EstimatedServerTicks);
             }
 
@@ -183,9 +221,17 @@ namespace AbilityKit.Demo.Shooter.View
         {
             RecordPendingInput(in local);
             MarkGatewayStarted(in local);
-            var result = await _core.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken).ConfigureAwait(false);
-            BindGatewayResult(in result.Local, in result.Remote);
-            return result;
+            try
+            {
+                var result = await _core.SubmitAcceptedInputToGatewayAsync(context, local, timeout, cancellationToken).ConfigureAwait(false);
+                BindGatewayResult(in result.Local, in result.Remote);
+                return result;
+            }
+            catch
+            {
+                RemovePendingInput(in local);
+                throw;
+            }
         }
 
         public ShooterClientFrameTickResult Tick(float deltaTime)
@@ -194,6 +240,7 @@ namespace AbilityKit.Demo.Shooter.View
             RefreshPredictedPose(_lastPredictedCommand.PlayerId, result.Frame, EstimatedServerTicks);
             _playback.Advance(deltaTime);
             PublishInterpolatedRemoteFrame();
+            PublishPureStatePresentationFrame(deltaTime);
             return result;
         }
 
@@ -218,19 +265,6 @@ namespace AbilityKit.Demo.Shooter.View
             }
 
             var snapshot = _decoder.Decode(payload);
-            if (snapshot.PureStateSnapshot.HasValue)
-            {
-                var pureStateResult = _presentation.ApplyPureStateGatewaySnapshot(in snapshot);
-                if (pureStateResult == ShooterPureStateSnapshotApplyResult.AppliedFullBaseline
-                    || pureStateResult == ShooterPureStateSnapshotApplyResult.AppliedDelta)
-                {
-                    ObserveGatewaySnapshotFrame(snapshot.Frame);
-                    ReconcileControlledPlayer(in snapshot, forceAuthorityReset: false);
-                }
-
-                return ShooterSnapshotApplyResults.FromPureStateResult(pureStateResult);
-            }
-
             return BufferRemoteSnapshot(in snapshot);
         }
 
@@ -239,6 +273,26 @@ namespace AbilityKit.Demo.Shooter.View
         /// </summary>
         public ShooterSnapshotApplyResult BufferRemoteSnapshot(in ShooterGatewaySnapshot snapshot)
         {
+            if (snapshot.PureStateSnapshot.HasValue)
+            {
+                var pureStateResult = _presentation.ApplyPureStateGatewaySnapshot(in snapshot);
+                if (pureStateResult == ShooterPureStateSnapshotApplyResult.AppliedFullBaseline
+                    || pureStateResult == ShooterPureStateSnapshotApplyResult.AppliedDelta)
+                {
+                    _usesPureStatePresentation = true;
+                    _core.FrameSync.PublishControlledPlayerPredictionOnly = true;
+                    _playback.Reset();
+                    var pureState = snapshot.PureStateSnapshot!.Value;
+                    var presentationBatch = _presentation.ViewModel.Current;
+                    var pureStateSettings = pureState.Settings;
+                    ObservePureStatePresentationBatch(in presentationBatch, in pureStateSettings);
+                    ObserveGatewaySnapshotFrame(snapshot.Frame);
+                    ReconcileControlledPlayer(in snapshot, forceAuthorityReset: false);
+                }
+
+                return ShooterSnapshotApplyResults.FromPureStateResult(pureStateResult);
+            }
+
             var worldChanged = snapshot.WorldId != 0
                 && _authorityWorldId != 0
                 && snapshot.WorldId != _authorityWorldId;
@@ -252,13 +306,18 @@ namespace AbilityKit.Demo.Shooter.View
                 snapshot.Frame,
                 snapshot.ServerTicks,
                 snapshot.Actors,
-                _presentation.ControlledPlayerId);
+                snapshot.PackedSnapshot,
+                excludedActorId: _presentation.ControlledPlayerId);
 
             if (!_playback.Observe(sample))
             {
                 return ShooterSnapshotApplyResult.IgnoredStaleSnapshot;
             }
 
+            _usesPureStatePresentation = false;
+            _core.FrameSync.PublishControlledPlayerPredictionOnly = false;
+            _pureStatePlayback.Reset();
+            ResetPureStateDiscreteBatches();
             ObserveGatewaySnapshotFrame(snapshot.Frame);
             ReconcileControlledPlayer(in snapshot, worldChanged);
             ObserveAuthoritativeProjectileActions(in snapshot);
@@ -293,7 +352,147 @@ namespace AbilityKit.Demo.Shooter.View
             _localReconciliationReport = SyncReconciliationReport.None;
             _predictionState = ShooterStateSyncPredictionState.Empty;
             _lastPredictedCommand = default;
+            _usesPureStatePresentation = false;
+            _core.FrameSync.PublishControlledPlayerPredictionOnly = false;
             _playback.Reset();
+            _pureStatePlayback.Reset();
+            ResetPureStateDiscreteBatches();
+        }
+
+        private void ObservePureStatePresentationBatch(
+            in ShooterSnapshotViewBatch batch,
+            in ShooterPureStateSyncSettings settings)
+        {
+            if (batch.IsFullSnapshot)
+            {
+                _suppressedPureStateTransforms.Clear();
+            }
+
+            for (var i = 0; i < batch.EntityChanges.Count; i++)
+            {
+                var entity = batch.EntityChanges[i];
+                if (entity.Alive)
+                {
+                    _suppressedPureStateTransforms.Remove(entity.Key);
+                }
+            }
+
+            for (var i = 0; i < batch.RemovedEntities.Count; i++)
+            {
+                _suppressedPureStateTransforms.Add(batch.RemovedEntities[i]);
+            }
+
+            if (_pendingPureStateDiscrete == null)
+            {
+                _pendingPureStateDiscrete = ReferenceEquals(_publishedPureStateDiscrete, _pureStateDiscreteA)
+                    ? _pureStateDiscreteB
+                    : _pureStateDiscreteA;
+                _pendingPureStateDiscrete.Reset(in batch);
+            }
+            else
+            {
+                _pendingPureStateDiscrete.Append(in batch);
+            }
+
+            _pureStatePlayback.InterpolationDelayFrames = Math.Max(
+                1f,
+                Math.Min(
+                    Math.Max(1, settings.InterpolationDelayFrames),
+                    Math.Max(1, settings.DeltaIntervalFrames)));
+
+            var removed = ShooterSnapshotViewModelMapper.RentPooledRemovedEntities(batch.RemovedEntities.Count);
+            for (var i = 0; i < batch.RemovedEntities.Count; i++)
+            {
+                removed.Add(batch.RemovedEntities[i]);
+            }
+
+            var transforms = ShooterSnapshotViewModelMapper.RentPooledTransformChanges(batch.TransformChanges.Count);
+            for (var i = 0; i < batch.TransformChanges.Count; i++)
+            {
+                var transform = batch.TransformChanges[i];
+                if (!transform.IsPredictedLocal)
+                {
+                    transforms.Add(transform);
+                }
+            }
+
+            var playbackBatch = new ShooterSnapshotViewBatch(
+                batch.WorldId,
+                batch.Frame,
+                batch.Sequence,
+                batch.SnapshotKind,
+                batch.Source,
+                Array.Empty<ShooterViewEntityChange>(),
+                removed,
+                transforms,
+                Array.Empty<ShooterViewHealthComponentChange>(),
+                Array.Empty<ShooterViewScoreComponentChange>(),
+                Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+                Array.Empty<ShooterEventSnapshot>());
+            _pureStatePlayback.Publish(in playbackBatch);
+        }
+
+        private void PublishPureStatePresentationFrame(float deltaTime)
+        {
+            if (!_usesPureStatePresentation ||
+                !_pureStatePlayback.TryAdvancePlaybackTransient(deltaTime, out var remotePlayback))
+            {
+                return;
+            }
+
+            var local = _presentation.ViewModel.Current;
+            var pendingDiscrete = _pendingPureStateDiscrete;
+            var remoteDiscrete = pendingDiscrete != null
+                ? pendingDiscrete.CreateBatch()
+                : ShooterSnapshotViewBatch.Empty;
+            var remoteTransforms = remotePlayback.TransformChanges;
+            if (_suppressedPureStateTransforms.Count > 0)
+            {
+                _filteredPureStateTransforms.Reset(remoteTransforms, _suppressedPureStateTransforms);
+                remoteTransforms = _filteredPureStateTransforms;
+            }
+
+            _compositeEntities.Reset(remoteDiscrete.EntityChanges, local.EntityChanges);
+            _compositeRemoved.Reset(remoteDiscrete.RemovedEntities, local.RemovedEntities);
+            _compositeTransforms.Reset(remoteTransforms, local.TransformChanges);
+            _compositeHealth.Reset(remoteDiscrete.HealthChanges, local.HealthChanges);
+            _compositeScore.Reset(remoteDiscrete.ScoreChanges, local.ScoreChanges);
+            _compositeProjectileLifetime.Reset(
+                remoteDiscrete.ProjectileLifetimeChanges,
+                local.ProjectileLifetimeChanges);
+            _compositeEvents.Reset(remoteDiscrete.Events, local.Events);
+
+            var hasDiscrete = pendingDiscrete != null;
+            var composed = new ShooterSnapshotViewBatch(
+                hasDiscrete ? remoteDiscrete.WorldId : remotePlayback.WorldId,
+                Math.Max(remotePlayback.Frame, local.Frame),
+                Math.Max(remotePlayback.Sequence, local.Sequence),
+                hasDiscrete ? remoteDiscrete.SnapshotKind : ShooterViewSnapshotKind.Delta,
+                hasDiscrete ? remoteDiscrete.Source : ShooterViewBatchSource.LocalPrediction,
+                _compositeEntities,
+                _compositeRemoved,
+                _compositeTransforms,
+                _compositeHealth,
+                _compositeScore,
+                _compositeProjectileLifetime,
+                _compositeEvents,
+                remotePlayback.SampleFrame);
+            _presentation.SetRenderBatch(in composed);
+            if (pendingDiscrete != null)
+            {
+                _publishedPureStateDiscrete = pendingDiscrete;
+                _pendingPureStateDiscrete = null;
+            }
+        }
+
+        private void ResetPureStateDiscreteBatches()
+        {
+            _pureStateDiscreteA.Clear();
+            _pureStateDiscreteB.Clear();
+            _suppressedPureStateTransforms.Clear();
+            _filteredPureStateTransforms.Clear();
+            _pendingPureStateDiscrete = null;
+            _publishedPureStateDiscrete = null;
         }
 
         private void ObserveGatewaySnapshotFrame(int frame)
@@ -371,6 +570,25 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
+        private void RemovePendingInput(in ShooterClientInputSubmitResult local)
+        {
+            lock (_pendingInputLock)
+            {
+                for (var i = _pendingInputs.Count - 1; i >= 0; i--)
+                {
+                    var pending = _pendingInputs[i];
+                    if ((local.SubmissionId > 0 && pending.SubmissionId == local.SubmissionId)
+                        || (local.SubmissionId <= 0
+                            && pending.Command.PlayerId == local.Packet.Command.PlayerId
+                            && pending.RequestedFrame == local.RequestedFrame))
+                    {
+                        _pendingInputs.RemoveAt(i);
+                        return;
+                    }
+                }
+            }
+        }
+
         private void ReconcileControlledPlayer(
             in ShooterGatewaySnapshot snapshot,
             bool forceAuthorityReset)
@@ -400,6 +618,7 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
+            var firstAuthority = _lastAuthorityFrame < 0;
             _authorityWorldId = snapshot.WorldId != 0 ? snapshot.WorldId : _authorityWorldId;
             _lastAuthorityFrame = snapshot.Frame;
             var acknowledgedSequence = ResolveAcknowledgedSequence(in snapshot, playerId);
@@ -412,9 +631,8 @@ namespace AbilityKit.Demo.Shooter.View
             var deltaX = target.X - current.X;
             var deltaY = target.Y - current.Y;
             var error = (float)Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
-            var forceSnap = worldChanged
-                || snapshot.IsFullSnapshot
-                || error >= SnapErrorThreshold
+            var forceSnap = firstAuthority
+                || worldChanged
                 || (snapshot.PackedSnapshot?.SnapshotFlags & ShooterPackedSnapshotFlags.AuthorityOverride) != 0;
             if (!forceSnap && error <= SmallErrorTolerance)
             {
@@ -469,8 +687,8 @@ namespace AbilityKit.Demo.Shooter.View
                     }
                 }
 
-                var replayed = 0;
-                for (var i = 0; i < _pendingInputs.Count && replayed < MaxReplayFrames; i++)
+                var uniqueCount = 0;
+                for (var i = 0; i < _pendingInputs.Count; i++)
                 {
                     var pending = _pendingInputs[i];
                     if (pending.Command.PlayerId != playerId)
@@ -478,9 +696,45 @@ namespace AbilityKit.Demo.Shooter.View
                         continue;
                     }
 
-                    var command = pending.Command;
+                    var effectiveFrame = pending.GatewayCompleted
+                        ? pending.AcceptedFrame
+                        : pending.RequestedFrame;
+                    var insertIndex = 0;
+                    while (insertIndex < uniqueCount && _replayFrames[insertIndex] < effectiveFrame)
+                    {
+                        insertIndex++;
+                    }
+
+                    if (insertIndex < uniqueCount && _replayFrames[insertIndex] == effectiveFrame)
+                    {
+                        // Multiple render samples can target one simulation frame. The server
+                        // consumes the latest command state once for that frame, so reconciliation
+                        // must replace rather than replay every sample as a separate simulation tick.
+                        _replayCommands[insertIndex] = pending.Command;
+                        continue;
+                    }
+
+                    if (uniqueCount >= MaxPendingInputs)
+                    {
+                        continue;
+                    }
+
+                    for (var shift = uniqueCount; shift > insertIndex; shift--)
+                    {
+                        _replayFrames[shift] = _replayFrames[shift - 1];
+                        _replayCommands[shift] = _replayCommands[shift - 1];
+                    }
+
+                    _replayFrames[insertIndex] = effectiveFrame;
+                    _replayCommands[insertIndex] = pending.Command;
+                    uniqueCount++;
+                }
+
+                var replayed = Math.Min(uniqueCount, MaxReplayFrames);
+                for (var i = 0; i < replayed; i++)
+                {
+                    var command = _replayCommands[i];
                     ApplyPredictedPoseInput(ref player, in command);
-                    replayed++;
                 }
 
                 return replayed;
@@ -767,6 +1021,13 @@ namespace AbilityKit.Demo.Shooter.View
 
         private void PublishInterpolatedRemoteFrame()
         {
+            // Pure-state snapshots already carry observer-specific AOI and LOD decisions. Once that
+            // source is active, an older actor sample must not repopulate entities it despawned.
+            if (_usesPureStatePresentation)
+            {
+                return;
+            }
+
             // 框架播放层负责缓冲、时间线以及外推/饥饿策略；
             // Shooter 控制器只提供“投影 + 应用到表现层”这一半循环。
             if (!_playback.TrySample(out var interpolation))
@@ -784,6 +1045,228 @@ namespace AbilityKit.Demo.Shooter.View
         public InterpolationDiagnostics GetInterpolationDiagnostics()
         {
             return _playback.GetDiagnostics();
+        }
+
+        private sealed class PureStateDiscreteBatchAccumulator
+        {
+            private readonly List<ShooterViewEntityChange> _entities = new List<ShooterViewEntityChange>(256);
+            private readonly List<ShooterViewEntityKey> _removed = new List<ShooterViewEntityKey>(64);
+            private readonly Dictionary<ShooterViewEntityKey, int> _entityIndices = new Dictionary<ShooterViewEntityKey, int>(256);
+            private readonly HashSet<ShooterViewEntityKey> _removedKeys = new HashSet<ShooterViewEntityKey>();
+            private readonly List<ShooterViewHealthComponentChange> _health = new List<ShooterViewHealthComponentChange>(256);
+            private readonly List<ShooterViewScoreComponentChange> _score = new List<ShooterViewScoreComponentChange>(16);
+            private readonly List<ShooterViewProjectileLifetimeComponentChange> _projectileLifetime = new List<ShooterViewProjectileLifetimeComponentChange>(128);
+            private readonly List<ShooterEventSnapshot> _events = new List<ShooterEventSnapshot>(32);
+            private ulong _worldId;
+            private int _frame;
+            private ulong _sequence;
+            private ShooterViewSnapshotKind _snapshotKind;
+            private ShooterViewBatchSource _source;
+
+            public void Reset(in ShooterSnapshotViewBatch batch)
+            {
+                Clear();
+                Append(in batch);
+            }
+
+            public void Append(in ShooterSnapshotViewBatch batch)
+            {
+                // A later full baseline supersedes all earlier deltas received before this render tick.
+                if (batch.IsFullSnapshot && _sequence != 0UL)
+                {
+                    Clear();
+                }
+
+                _worldId = batch.WorldId;
+                _frame = Math.Max(_frame, batch.Frame);
+                _sequence = Math.Max(_sequence, batch.Sequence);
+                if (batch.IsFullSnapshot || _snapshotKind == 0)
+                {
+                    _snapshotKind = batch.SnapshotKind;
+                    _source = batch.Source;
+                }
+
+                for (var i = 0; i < batch.EntityChanges.Count; i++)
+                {
+                    var entity = batch.EntityChanges[i];
+                    if (entity.Alive && _removedKeys.Remove(entity.Key))
+                    {
+                        _removed.Remove(entity.Key);
+                    }
+
+                    if (_entityIndices.TryGetValue(entity.Key, out var existingIndex))
+                    {
+                        _entities[existingIndex] = entity;
+                    }
+                    else
+                    {
+                        _entityIndices.Add(entity.Key, _entities.Count);
+                        _entities.Add(entity);
+                    }
+                }
+
+                for (var i = 0; i < batch.RemovedEntities.Count; i++)
+                {
+                    var key = batch.RemovedEntities[i];
+                    if (_removedKeys.Add(key))
+                    {
+                        _removed.Add(key);
+                    }
+
+                    // Component groups are applied after removals. Marking an earlier spawn dead
+                    // prevents a full+delta burst from re-adding an entity that was just despawned.
+                    if (_entityIndices.TryGetValue(key, out var existingIndex))
+                    {
+                        var entity = _entities[existingIndex];
+                        _entities[existingIndex] = new ShooterViewEntityChange(
+                            entity.Key,
+                            entity.OwnerEntityId,
+                            alive: false);
+                    }
+                }
+
+                AddRange(_health, batch.HealthChanges);
+                AddRange(_score, batch.ScoreChanges);
+                AddRange(_projectileLifetime, batch.ProjectileLifetimeChanges);
+                AddRange(_events, batch.Events);
+            }
+
+            public ShooterSnapshotViewBatch CreateBatch()
+            {
+                return new ShooterSnapshotViewBatch(
+                    _worldId,
+                    _frame,
+                    _sequence,
+                    _snapshotKind,
+                    _source,
+                    _entities,
+                    _removed,
+                    Array.Empty<ShooterViewTransformComponentChange>(),
+                    _health,
+                    _score,
+                    _projectileLifetime,
+                    _events);
+            }
+
+            public void Clear()
+            {
+                _entities.Clear();
+                _removed.Clear();
+                _entityIndices.Clear();
+                _removedKeys.Clear();
+                _health.Clear();
+                _score.Clear();
+                _projectileLifetime.Clear();
+                _events.Clear();
+                _worldId = 0UL;
+                _frame = 0;
+                _sequence = 0UL;
+                _snapshotKind = 0;
+                _source = 0;
+            }
+
+            private static void AddRange<T>(List<T> destination, IReadOnlyList<T> source)
+            {
+                if (destination.Capacity < destination.Count + source.Count)
+                {
+                    destination.Capacity = destination.Count + source.Count;
+                }
+
+                for (var i = 0; i < source.Count; i++)
+                {
+                    destination.Add(source[i]);
+                }
+            }
+        }
+
+        private sealed class CompositeReadOnlyList<T> : IReadOnlyList<T>
+        {
+            private IReadOnlyList<T> _first = Array.Empty<T>();
+            private IReadOnlyList<T> _second = Array.Empty<T>();
+
+            public int Count => _first.Count + _second.Count;
+
+            public T this[int index]
+            {
+                get
+                {
+                    if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
+                    return index < _first.Count ? _first[index] : _second[index - _first.Count];
+                }
+            }
+
+            public void Reset(IReadOnlyList<T> first, IReadOnlyList<T> second)
+            {
+                _first = first ?? Array.Empty<T>();
+                _second = second ?? Array.Empty<T>();
+            }
+
+            public IEnumerator<T> GetEnumerator()
+            {
+                for (var i = 0; i < Count; i++)
+                {
+                    yield return this[i];
+                }
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+        }
+
+        private sealed class ReusableFilteredTransformList : IReadOnlyList<ShooterViewTransformComponentChange>
+        {
+            private ShooterViewTransformComponentChange[] _items = Array.Empty<ShooterViewTransformComponentChange>();
+
+            public int Count { get; private set; }
+
+            public ShooterViewTransformComponentChange this[int index]
+            {
+                get
+                {
+                    if ((uint)index >= (uint)Count) throw new ArgumentOutOfRangeException(nameof(index));
+                    return _items[index];
+                }
+            }
+
+            public void Reset(
+                IReadOnlyList<ShooterViewTransformComponentChange> source,
+                HashSet<ShooterViewEntityKey> suppressed)
+            {
+                if (_items.Length < source.Count)
+                {
+                    _items = new ShooterViewTransformComponentChange[Math.Max(source.Count, Math.Max(16, _items.Length * 2))];
+                }
+
+                Count = 0;
+                for (var i = 0; i < source.Count; i++)
+                {
+                    var transform = source[i];
+                    if (!suppressed.Contains(transform.Key))
+                    {
+                        _items[Count++] = transform;
+                    }
+                }
+            }
+
+            public void Clear()
+            {
+                Count = 0;
+            }
+
+            public IEnumerator<ShooterViewTransformComponentChange> GetEnumerator()
+            {
+                for (var i = 0; i < Count; i++)
+                {
+                    yield return _items[i];
+                }
+            }
+
+            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
         }
 
         // --- IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample> ---

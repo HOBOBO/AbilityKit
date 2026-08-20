@@ -49,6 +49,36 @@ public sealed class ShooterPureStateSyncCodecTests
     }
 
     [Fact]
+    public void ReusableDeserializeReusesCapacityAcrossVaryingEntityCounts()
+    {
+        var populated = CreateSnapshot();
+        var empty = CreateSnapshot();
+        empty.SetTransientCounts(0, 0);
+        var populatedPayload = ShooterPureStateSyncCodec.Serialize(in populated);
+        var emptyPayload = ShooterPureStateSyncCodec.Serialize(in empty);
+        var buffer = new ShooterPureStateSyncDecodeBuffer();
+        var first = buffer.Decode(populatedPayload);
+        var capacity = first.Entities;
+        buffer.Decode(emptyPayload);
+        buffer.Decode(populatedPayload);
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 64; i++)
+        {
+            buffer.Decode((i & 1) == 0 ? emptyPayload : populatedPayload);
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var decodedEmpty = buffer.Decode(emptyPayload);
+        Assert.Same(capacity, decodedEmpty.Entities);
+        Assert.Equal(0, decodedEmpty.EffectiveEntityCount);
+        var decodedPopulated = buffer.Decode(populatedPayload);
+        Assert.Same(capacity, decodedPopulated.Entities);
+        Assert.Equal(1, decodedPopulated.EffectiveEntityCount);
+        Assert.True(allocated < 256, $"Expected allocation-free varying-count decode, actual={allocated} bytes.");
+    }
+
+    [Fact]
     public void TransientSerializationReusesExactLengthOutputBuffer()
     {
         var snapshot = CreateSnapshot();
@@ -187,6 +217,16 @@ public sealed class ShooterPureStateSyncCodecTests
     [Fact]
     public void RoundTripPreservesPureStateSnapshotEnvelope()
     {
+        var settings = new ShooterPureStateSyncSettings(
+            1000,
+            100,
+            120,
+            10,
+            90,
+            3,
+            10,
+            30,
+            90);
         var snapshot = new ShooterPureStateSnapshotPayload(
             ShooterPureStateSyncCodec.CurrentVersion,
             99ul,
@@ -196,7 +236,7 @@ public sealed class ShooterPureStateSyncCodecTests
             10,
             111u,
             222u,
-            ShooterPureStateSyncSettings.Default,
+            settings,
             new[]
             {
                 new ShooterPureStateEntityDelta(
@@ -232,9 +272,43 @@ public sealed class ShooterPureStateSyncCodecTests
         Assert.Equal(snapshot.SnapshotKind, restored.SnapshotKind);
         Assert.Equal(snapshot.BaselineFrame, restored.BaselineFrame);
         Assert.Equal(snapshot.Settings.MaxEntityCount, restored.Settings.MaxEntityCount);
+        Assert.Equal(10, restored.Settings.NearLodIntervalFrames);
+        Assert.Equal(30, restored.Settings.MidLodIntervalFrames);
+        Assert.Equal(90, restored.Settings.FarLodIntervalFrames);
         Assert.Single(restored.Entities);
         Assert.Single(restored.VisibilityHints);
         Assert.Equal(ShooterPureStateDeltaKinds.Update, restored.Entities[0].DeltaKind);
+    }
+
+    [Fact]
+    public void LegacyPayloadWithoutAcknowledgementsDecodesThroughBothApis()
+    {
+        var snapshot = CreateSnapshot();
+        var legacy = new LegacyPureStateSnapshotPayload(
+            snapshot.Version,
+            snapshot.WorldId,
+            snapshot.Frame,
+            snapshot.ServerTick,
+            snapshot.SnapshotKind,
+            snapshot.BaselineFrame,
+            snapshot.BaselineHash,
+            snapshot.StateHash,
+            snapshot.Settings,
+            snapshot.Entities,
+            snapshot.VisibilityHints);
+        var payload = MemoryPackSerializer.Serialize(legacy);
+
+        var buffered = new ShooterPureStateSyncDecodeBuffer().Decode(payload);
+        var owned = ShooterPureStateSyncCodec.Deserialize(payload);
+
+        Assert.Equal(snapshot.WorldId, buffered.WorldId);
+        Assert.Equal(snapshot.Frame, buffered.Frame);
+        Assert.Single(buffered.Entities);
+        Assert.Empty(buffered.AcknowledgedCommands);
+        Assert.Equal(snapshot.WorldId, owned.WorldId);
+        Assert.Equal(snapshot.Frame, owned.Frame);
+        Assert.Single(owned.Entities);
+        Assert.Empty(owned.AcknowledgedCommands);
     }
 
     [Fact]
@@ -287,5 +361,47 @@ public sealed class ShooterPureStateSyncCodecTests
                     ShooterPureStateEntityFlags.Visible,
                     100)
             });
+    }
+}
+
+[MemoryPackable]
+internal partial struct LegacyPureStateSnapshotPayload
+{
+    [MemoryPackOrder(0)] public int Version;
+    [MemoryPackOrder(1)] public ulong WorldId;
+    [MemoryPackOrder(2)] public int Frame;
+    [MemoryPackOrder(3)] public long ServerTick;
+    [MemoryPackOrder(4)] public int SnapshotKind;
+    [MemoryPackOrder(5)] public int BaselineFrame;
+    [MemoryPackOrder(6)] public uint BaselineHash;
+    [MemoryPackOrder(7)] public uint StateHash;
+    [MemoryPackOrder(8)] public ShooterPureStateSyncSettings Settings;
+    [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities;
+    [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
+
+    public LegacyPureStateSnapshotPayload(
+        int version,
+        ulong worldId,
+        int frame,
+        long serverTick,
+        int snapshotKind,
+        int baselineFrame,
+        uint baselineHash,
+        uint stateHash,
+        ShooterPureStateSyncSettings settings,
+        ShooterPureStateEntityDelta[] entities,
+        ShooterPureStateVisibilityHint[] visibilityHints)
+    {
+        Version = version;
+        WorldId = worldId;
+        Frame = frame;
+        ServerTick = serverTick;
+        SnapshotKind = snapshotKind;
+        BaselineFrame = baselineFrame;
+        BaselineHash = baselineHash;
+        StateHash = stateHash;
+        Settings = settings;
+        Entities = entities;
+        VisibilityHints = visibilityHints;
     }
 }

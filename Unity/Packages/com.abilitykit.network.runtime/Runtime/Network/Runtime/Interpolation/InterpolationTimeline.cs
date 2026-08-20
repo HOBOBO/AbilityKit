@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -16,7 +17,7 @@ namespace AbilityKit.Network.Runtime
     /// 简单且完全确定；正数追赶速率则会让估计值在若干帧内以有界速率收敛到权威目标，
     /// 从而平滑吸收本地帧时钟与服务器 tick 流之间的时钟漂移，避免可见跳变。
     /// </summary>
-    public sealed class InterpolationTimeline
+    public sealed class InterpolationTimeline : ITimelineDelayControl
     {
         // 权威目标时间：由帧增量推进，并通过观测到的服务器 tick 仅向前校正。
         // 软追赶模式下估计值会落后于该目标；吸附模式下二者相等。
@@ -24,6 +25,9 @@ namespace AbilityKit.Network.Runtime
         private double _estimatedTicks;
         private bool _hasServerTime;
         private readonly double _maxCatchUpRate;
+        private long _interpolationDelayTicks;
+        private long _targetInterpolationDelayTicks;
+        private double _delayConvergenceBudget;
 
         public InterpolationTimeline(long ticksPerSecond, long interpolationDelayTicks)
             : this(ticksPerSecond, interpolationDelayTicks, 0d)
@@ -45,7 +49,8 @@ namespace AbilityKit.Network.Runtime
             }
 
             TicksPerSecond = ticksPerSecond;
-            InterpolationDelayTicks = interpolationDelayTicks < 0L ? 0L : interpolationDelayTicks;
+            _interpolationDelayTicks = interpolationDelayTicks < 0L ? 0L : interpolationDelayTicks;
+            _targetInterpolationDelayTicks = _interpolationDelayTicks;
             _maxCatchUpRate = maxCatchUpRate < 0d ? 0d : (maxCatchUpRate > 1d ? 1d : maxCatchUpRate);
         }
 
@@ -53,7 +58,20 @@ namespace AbilityKit.Network.Runtime
         public long TicksPerSecond { get; }
 
         /// <summary>播放时间落后最新权威时间的距离，单位为 tick。</summary>
-        public long InterpolationDelayTicks { get; }
+        public long InterpolationDelayTicks => _interpolationDelayTicks;
+
+        public long TargetInterpolationDelayTicks => _targetInterpolationDelayTicks;
+
+        long ITimelineDelayControl.DelayTicks => _interpolationDelayTicks;
+
+        long ITimelineDelayControl.TargetDelayTicks => _targetInterpolationDelayTicks;
+
+        public bool TrySetDelayTicks(long delayTicks)
+        {
+            if (delayTicks < 0L) return false;
+            _targetInterpolationDelayTicks = delayTicks;
+            return true;
+        }
 
         /// <summary>
         /// 有界软追赶速率。零表示估计值吸附到权威目标；正数表示估计值会平滑收敛到目标。
@@ -121,12 +139,14 @@ namespace AbilityKit.Network.Runtime
                 return;
             }
 
+            var estimatedBefore = _estimatedTicks;
             double advance = deltaSeconds * TicksPerSecond;
             _targetTicks += advance;
 
             if (_maxCatchUpRate <= 0d)
             {
                 _estimatedTicks = _targetTicks;
+                ConvergeInterpolationDelay(_estimatedTicks - estimatedBefore);
                 return;
             }
 
@@ -143,6 +163,39 @@ namespace AbilityKit.Network.Runtime
             }
 
             _estimatedTicks += advance + correction;
+            ConvergeInterpolationDelay(_estimatedTicks - estimatedBefore);
+        }
+
+        private void ConvergeInterpolationDelay(double estimatedAdvance)
+        {
+            if (_interpolationDelayTicks == _targetInterpolationDelayTicks || estimatedAdvance <= 0d)
+            {
+                return;
+            }
+
+            _delayConvergenceBudget += estimatedAdvance;
+            var maxStep = (long)Math.Floor(_delayConvergenceBudget);
+            if (maxStep <= 0L) return;
+
+            long appliedStep;
+            if (_interpolationDelayTicks < _targetInterpolationDelayTicks)
+            {
+                appliedStep = Math.Min(
+                    maxStep,
+                    _targetInterpolationDelayTicks - _interpolationDelayTicks);
+                _interpolationDelayTicks += appliedStep;
+            }
+            else
+            {
+                appliedStep = Math.Min(
+                    maxStep,
+                    _interpolationDelayTicks - _targetInterpolationDelayTicks);
+                _interpolationDelayTicks -= appliedStep;
+            }
+
+            _delayConvergenceBudget -= appliedStep;
+            if (_interpolationDelayTicks == _targetInterpolationDelayTicks)
+                _delayConvergenceBudget = 0d;
         }
 
         public void Reset()
@@ -150,6 +203,8 @@ namespace AbilityKit.Network.Runtime
             _targetTicks = 0d;
             _estimatedTicks = 0d;
             _hasServerTime = false;
+            _interpolationDelayTicks = _targetInterpolationDelayTicks;
+            _delayConvergenceBudget = 0d;
         }
     }
 }

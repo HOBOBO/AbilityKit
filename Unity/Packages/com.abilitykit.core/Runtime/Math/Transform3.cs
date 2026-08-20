@@ -83,7 +83,7 @@ namespace AbilityKit.Core.Mathematics
         }
 
         public bool Equals(Transform3 other) => Position.Equals(other.Position) && Rotation.Equals(other.Rotation) && Scale.Equals(other.Scale);
-        public override bool Equals(object obj) => obj is Transform3 other && Equals(other);
+        public override bool Equals(object? obj) => obj is Transform3 other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(Position, Rotation, Scale);
         public override string ToString() => $"Pos={Position}, Rot={Rotation}, Scale={Scale}";
     }

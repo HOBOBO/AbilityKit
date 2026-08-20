@@ -57,11 +57,12 @@ namespace AbilityKit.Core.Markers
     /// <summary>
     /// KeyedMarkerRegistry 的引导器基类。
     /// </summary>
-    /// <typeparam name="TKey">键类型</typeparam>
+    /// <typeparam name="TKey">非空键类型</typeparam>
     /// <typeparam name="TAttr">MarkerAttribute 子类</typeparam>
     /// <typeparam name="TRegistry">对应的 Registry 类型</typeparam>
     [Obsolete("Global marker bootstrapping does not belong to Core; use owner-controlled discovery or generated registration before the next major version.")]
     public abstract class KeyedMarkerBootstrapper<TKey, TAttr, TRegistry>
+        where TKey : notnull
         where TAttr : MarkerAttribute
         where TRegistry : KeyedMarkerRegistry<TKey, TAttr>
     {

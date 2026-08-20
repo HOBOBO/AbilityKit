@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Threading.Channels;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Gateway.Abstractions;
+using AbilityKit.Protocol.Room;
 using Microsoft.Extensions.Logging;
 using Orleans;
 
@@ -149,7 +150,9 @@ public sealed class GatewayStateSyncPushSubscriptionManager
         private readonly long _connectionId;
         private readonly IGatewaySessionRegistry _sessionRegistry;
         private readonly ILogger _logger;
-        private readonly Channel<PushItem> _queue;
+        private readonly object _queueGate = new();
+        private readonly LinkedList<PushItem> _queue = new();
+        private readonly Channel<bool> _queueSignal;
         private readonly CancellationTokenSource _lifetime = new();
         private readonly Task _worker;
 
@@ -161,22 +164,54 @@ public sealed class GatewayStateSyncPushSubscriptionManager
             _connectionId = connectionId;
             _sessionRegistry = sessionRegistry;
             _logger = logger;
-            _queue = Channel.CreateUnbounded<PushItem>(new UnboundedChannelOptions
+            _queueSignal = Channel.CreateBounded<bool>(new BoundedChannelOptions(1)
             {
                 SingleReader = true,
-                SingleWriter = false
+                SingleWriter = false,
+                FullMode = BoundedChannelFullMode.DropWrite
             });
             _worker = Task.Run(ProcessAsync);
         }
 
         public bool TryEnqueue(uint opCode, byte[] payload)
         {
-            return payload != null && _queue.Writer.TryWrite(new PushItem(opCode, payload));
+            if (payload == null)
+            {
+                return false;
+            }
+
+            lock (_queueGate)
+            {
+                if (_lifetime.IsCancellationRequested)
+                {
+                    return false;
+                }
+
+                if (opCode == RoomGatewayOpCodes.SnapshotPushed)
+                {
+                    var node = _queue.First;
+                    while (node != null)
+                    {
+                        var next = node.Next;
+                        if (IsStateSnapshot(node.Value.OpCode))
+                        {
+                            _queue.Remove(node);
+                        }
+
+                        node = next;
+                    }
+                }
+
+                _queue.AddLast(new PushItem(opCode, payload));
+            }
+
+            _queueSignal.Writer.TryWrite(true);
+            return true;
         }
 
         public async ValueTask DisposeAsync()
         {
-            _queue.Writer.TryComplete();
+            _queueSignal.Writer.TryComplete();
             _lifetime.Cancel();
             try
             {
@@ -193,35 +228,60 @@ public sealed class GatewayStateSyncPushSubscriptionManager
 
         private async Task ProcessAsync()
         {
-            await foreach (var item in _queue.Reader.ReadAllAsync(_lifetime.Token))
+            await foreach (var _ in _queueSignal.Reader.ReadAllAsync(_lifetime.Token))
             {
-                if (!_sessionRegistry.TryGetSession(_connectionId, out var session)
-                    || session == null
-                    || !session.IsConnected)
+                while (TryDequeue(out var item))
                 {
-                    continue;
-                }
+                    if (!_sessionRegistry.TryGetSession(_connectionId, out var session)
+                        || session == null
+                        || !session.IsConnected)
+                    {
+                        continue;
+                    }
 
-                try
-                {
-                    await session.SendServerPushAsync(
-                        item.OpCode,
-                        item.Payload,
-                        _lifetime.Token).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
-                {
-                    return;
-                }
-                catch (Exception exception)
-                {
-                    _logger.LogWarning(
-                        exception,
-                        "Failed to send state sync push. ConnectionId={ConnectionId} OpCode={OpCode}",
-                        _connectionId,
-                        item.OpCode);
+                    try
+                    {
+                        await session.SendServerPushAsync(
+                            item.OpCode,
+                            item.Payload,
+                            _lifetime.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                    catch (Exception exception)
+                    {
+                        _logger.LogWarning(
+                            exception,
+                            "Failed to send state sync push. ConnectionId={ConnectionId} OpCode={OpCode}",
+                            _connectionId,
+                            item.OpCode);
+                    }
                 }
             }
+        }
+
+        private bool TryDequeue(out PushItem item)
+        {
+            lock (_queueGate)
+            {
+                if (_queue.First == null)
+                {
+                    item = default;
+                    return false;
+                }
+
+                item = _queue.First.Value;
+                _queue.RemoveFirst();
+                return true;
+            }
+        }
+
+        private static bool IsStateSnapshot(uint opCode)
+        {
+            return opCode == RoomGatewayOpCodes.SnapshotPushed ||
+                   opCode == RoomGatewayOpCodes.DeltaSnapshotPushed;
         }
 
         private readonly record struct PushItem(uint OpCode, byte[] Payload);

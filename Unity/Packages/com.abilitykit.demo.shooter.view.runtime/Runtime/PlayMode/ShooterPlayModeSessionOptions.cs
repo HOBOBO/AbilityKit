@@ -19,7 +19,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public const int PlayModeHighDensityEnemyBudget = 8192;
 
         public static ShooterPlayModeSessionOptions Default => FromTemplate(
-            ShooterAcceptanceCatalog.GetSyncTemplate(ShooterSyncTemplateIds.StateSyncAuthority));
+            ShooterAcceptanceCatalog.GetSyncTemplate(ShooterRoomLaunchSpec.DefaultSyncTemplateId));
 
         public static ShooterPlayModeSessionOptions FromTemplate(in ShooterSyncTemplate template)
         {

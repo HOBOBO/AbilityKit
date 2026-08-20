@@ -66,7 +66,12 @@ namespace AbilityKit.Game.Editor
 
             if (_viewModel.Event.HasValue)
             {
-                DrawEvent(in ctx, _viewModel.Event.Value);
+                DrawEvent(
+                    in ctx,
+                    _viewModel.Event.Value,
+                    _viewModel.SourceActorObject,
+                    _viewModel.TargetActorObject,
+                    _viewModel.SubjectObject);
                 return;
             }
 
@@ -129,13 +134,28 @@ namespace AbilityKit.Game.Editor
 
         private static void DrawEvent(
             in BattleDebugContext ctx,
-            in BattleDiagnosticEvent diagnosticEvent)
+            in BattleDiagnosticEvent diagnosticEvent,
+            BattleDiagnosticRuntimeObject? sourceActor,
+            BattleDiagnosticRuntimeObject? targetActor,
+            BattleDiagnosticRuntimeObject? subjectObject)
         {
             EditorGUILayout.LabelField("序列 / 帧", $"{diagnosticEvent.Sequence} / {diagnosticEvent.Frame}");
             EditorGUILayout.LabelField(
                 "类型 / 通道 / 结果",
                 $"{diagnosticEvent.Kind} / {diagnosticEvent.Channel} / {diagnosticEvent.Outcome}");
             EditorGUILayout.LabelField("Actor", $"{diagnosticEvent.SourceActorId} -> {diagnosticEvent.TargetActorId}");
+            EditorGUILayout.LabelField(
+                "Source object",
+                FormatRuntimeObject(diagnosticEvent.SourceActor, sourceActor));
+            EditorGUILayout.LabelField(
+                "Target object",
+                FormatRuntimeObject(diagnosticEvent.TargetActor, targetActor));
+            if (diagnosticEvent.SubjectObject.HasRuntimeId)
+            {
+                EditorGUILayout.LabelField(
+                    "Subject object",
+                    FormatRuntimeObject(diagnosticEvent.SubjectObject, subjectObject));
+            }
             EditorGUILayout.LabelField("Root / Context", $"{diagnosticEvent.RootContextId} / {diagnosticEvent.ContextId}");
             EditorGUILayout.LabelField("Config / Attack", $"{diagnosticEvent.ConfigId} / {diagnosticEvent.AttackId}");
             EditorGUILayout.LabelField("Skill Runtime", diagnosticEvent.SkillRuntime.ToString());
@@ -168,6 +188,33 @@ namespace AbilityKit.Game.Editor
                     BattleDebugDiagnosticEventsPanel.BuildClipboardText(in diagnosticEvent);
             }
             EditorGUILayout.EndHorizontal();
+        }
+
+        private static string FormatRuntimeObject(
+            in BattleDiagnosticRuntimeObjectReference reference,
+            BattleDiagnosticRuntimeObject? runtimeObject)
+        {
+            if (!reference.HasRuntimeId) return "-";
+            if (!runtimeObject.HasValue) return reference.ToString();
+
+            var value = runtimeObject.Value;
+            var label = string.IsNullOrEmpty(value.DisplayName)
+                ? value.DefinitionKind + " " + value.DefinitionId
+                : value.DisplayName;
+            var provenance = string.Empty;
+            if (value.DiscoveryKind == BattleDiagnosticRuntimeObjectDiscoveryKind.ActiveBackfill)
+            {
+                provenance = " [backfilled @ " + value.BackfilledFrame + "; earlier lifetime unknown]";
+            }
+            else if (value.DiscoveryKind == BattleDiagnosticRuntimeObjectDiscoveryKind.LifecycleEndedOnly)
+            {
+                provenance = " [end observed; earlier lifetime unknown]";
+            }
+            if (value.Completeness != BattleDiagnosticDataCompleteness.Complete)
+            {
+                provenance += " [" + value.Completeness + "]";
+            }
+            return label + " (" + reference + ")" + provenance;
         }
 
         private static void DrawTraceNode(

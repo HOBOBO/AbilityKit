@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace AbilityKit.Core.Markers
 {
@@ -8,9 +9,11 @@ namespace AbilityKit.Core.Markers
     /// 适合 "string actionType → Type" 这类需要通过 Key 查找实现的场景。
     /// MarkerAttribute 子类负责从自己的数据中提取 Key。
     /// </summary>
-    /// <typeparam name="TKey">注册键的类型，通常是 string 或 int</typeparam>
+    /// <typeparam name="TKey">非空注册键的类型，通常是 string 或 int</typeparam>
     /// <typeparam name="TAttr">自定义的 MarkerAttribute 子类</typeparam>
-    public class KeyedMarkerRegistry<TKey, TAttr> : IMarkerRegistry where TAttr : MarkerAttribute
+    public class KeyedMarkerRegistry<TKey, TAttr> : IMarkerRegistry
+        where TKey : notnull
+        where TAttr : MarkerAttribute
     {
         private readonly Dictionary<TKey, Type> _map = new Dictionary<TKey, Type>();
         private readonly List<Type> _types = new List<Type>();
@@ -20,7 +23,7 @@ namespace AbilityKit.Core.Markers
         /// <summary>
         /// 通过 Key 查找已注册的类型。
         /// </summary>
-        public bool TryGet(TKey key, out Type type) => _map.TryGetValue(key, out type);
+        public bool TryGet(TKey key, [MaybeNullWhen(false)] out Type type) => _map.TryGetValue(key, out type);
 
         /// <summary>
         /// 通过 Key 获取类型，未找到时抛出异常。
@@ -48,7 +51,8 @@ namespace AbilityKit.Core.Markers
             if (implType.IsAbstract) return;
             if (implType.IsInterface) return;
 
-            _types.Add(implType);
+            if (!_types.Contains(implType))
+                _types.Add(implType);
         }
 
         /// <summary>

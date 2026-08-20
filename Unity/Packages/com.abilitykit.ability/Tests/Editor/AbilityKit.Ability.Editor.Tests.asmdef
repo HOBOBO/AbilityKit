@@ -2,6 +2,7 @@
     "name": "AbilityKit.Ability.Editor.Tests",
     "rootNamespace": "AbilityKit.Ability.Editor.Tests",
     "references": [
+        "AbilityKit.Ability",
         "AbilityKit.Ability.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
@@ -13,7 +14,8 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "nunit.framework.dll"
+        "nunit.framework.dll",
+        "Sirenix.Serialization.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

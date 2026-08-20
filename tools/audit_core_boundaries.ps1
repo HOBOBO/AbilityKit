@@ -32,6 +32,39 @@ function Assert-Contract {
     }
 }
 
+function Get-PrunedFiles {
+    param(
+        [string[]]$Roots,
+        [string]$Pattern,
+        [string[]]$ExcludedDirectoryNames = @()
+    )
+
+    $excludedNames = New-Object 'System.Collections.Generic.HashSet[string]' ([StringComparer]::OrdinalIgnoreCase)
+    foreach ($name in $ExcludedDirectoryNames) {
+        $null = $excludedNames.Add($name)
+    }
+
+    $pendingDirectories = New-Object 'System.Collections.Generic.Stack[string]'
+    foreach ($root in $Roots) {
+        if ([System.IO.Directory]::Exists($root)) {
+            $pendingDirectories.Push([System.IO.Path]::GetFullPath($root))
+        }
+    }
+
+    while ($pendingDirectories.Count -gt 0) {
+        $directory = $pendingDirectories.Pop()
+        foreach ($file in [System.IO.Directory]::EnumerateFiles($directory, $Pattern, [System.IO.SearchOption]::TopDirectoryOnly)) {
+            [System.IO.FileInfo]::new($file)
+        }
+
+        foreach ($childDirectory in [System.IO.Directory]::EnumerateDirectories($directory)) {
+            if (-not $excludedNames.Contains([System.IO.Path]::GetFileName($childDirectory))) {
+                $pendingDirectories.Push($childDirectory)
+            }
+        }
+    }
+}
+
 $foundationAsmdef = Get-Content -LiteralPath $foundationAsmdefPath -Raw | ConvertFrom-Json
 Assert-Contract ($foundationAsmdef.name -eq 'AbilityKit.Core') 'Foundation asmdef name must remain AbilityKit.Core.'
 Assert-Contract ($foundationAsmdef.noEngineReferences -eq $true) 'AbilityKit.Core must keep noEngineReferences enabled.'
@@ -74,6 +107,30 @@ Assert-Contract (@($mobaEditorAsmdef.references) -contains 'AbilityKit.Diagnosti
 Assert-Contract (-not (@($mobaEditorAsmdef.references) -contains 'AbilityKit.Core.Editor')) 'MOBA Editor must not retain the legacy Core Editor debug-draw dependency.'
 $mobaEditorPackage = Get-Content -LiteralPath (Join-Path $mobaEditorPackageRoot 'package.json') -Raw | ConvertFrom-Json
 Assert-Contract ($mobaEditorPackage.dependencies.'com.abilitykit.diagnostics' -eq '0.1.0') 'MOBA Editor must declare its direct Diagnostics dependency.'
+$legacyCoreUnityConsumers = New-Object System.Collections.Generic.List[string]
+$packageAsmdefs = Get-PrunedFiles @($packagesRoot) '*.asmdef'
+foreach ($asmdefPath in $packageAsmdefs) {
+    if ($asmdefPath.FullName -eq $unityAsmdefPath) {
+        continue
+    }
+
+    $asmdef = Get-Content -LiteralPath $asmdefPath.FullName -Raw | ConvertFrom-Json
+    if (@($asmdef.references) -contains 'AbilityKit.Core.Unity') {
+        $relativePath = $asmdefPath.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
+        $legacyCoreUnityConsumers.Add("$relativePath references deprecated AbilityKit.Core.Unity; use an owner-local Unity adapter.")
+    }
+}
+Assert-Contract ($legacyCoreUnityConsumers.Count -eq 0) ("Core.Unity consumer violations:`n" + ($legacyCoreUnityConsumers -join "`n"))
+
+$packageRoots = @(
+    Get-ChildItem -LiteralPath $packagesRoot -Directory -Filter 'com.abilitykit.*' |
+        ForEach-Object { $_.FullName }
+)
+$packageSources = @(Get-PrunedFiles $packageRoots '*.cs')
+$packageSourceTexts = @{}
+foreach ($source in $packageSources) {
+    $packageSourceTexts[$source.FullName] = [System.IO.File]::ReadAllText($source.FullName)
+}
 
 $forbiddenPatterns = @(
     '(?m)^\s*using\s+UnityEngine(?:\s*;|\.)',
@@ -85,12 +142,28 @@ $forbiddenPatterns = @(
     '\bglobal::Unity\.Jobs\.',
     '\bglobal::Unity\.Burst\.'
 )
+$auditRegexOptions = [System.Text.RegularExpressions.RegexOptions]::IgnoreCase -bor
+    [System.Text.RegularExpressions.RegexOptions]::Compiled
+$coreNamespaceRegex = [regex]::new('(?m)^\s*namespace\s+(AbilityKit\.Core(?:\.[A-Za-z0-9_.]+)?)', $auditRegexOptions)
+$continuousNamespaceRegex = [regex]::new('(?m)^\s*namespace\s+AbilityKit\.Continuous(?:\.[A-Za-z0-9_.]+)?', $auditRegexOptions)
+$legacyContinuousRegex = [regex]::new('AbilityKit\.Core\.Continuous', $auditRegexOptions)
+$legacyConfigurationRegex = [regex]::new('AbilityKit\.Core\.(Configuration|Reflection)', $auditRegexOptions)
+$mobaNamespaceRegex = [regex]::new('(?m)^\s*namespace\s+(AbilityKit\.Demo\.Moba\.(?:View\.Settings|Bootstrap))(?:\s|$)', $auditRegexOptions)
+$migratedInfrastructureUsingRegex = [regex]::new('(?m)^\s*using\s+(?:(?:static\s+)?AbilityKit\.Core\.(?:Debugging|Utilities)(?:\.|\s*;)|[A-Za-z_]\w*\s*=\s*AbilityKit\.Core\.(?:Debugging|Utilities)\s*;)', $auditRegexOptions)
+$qualifiedMigratedInfrastructureRegex = [regex]::new('AbilityKit\.Core\.(?:Debugging|Utilities)\.', $auditRegexOptions)
+$coreMarkersUsingRegex = [regex]::new('(?m)^\s*using\s+(?:AbilityKit\.Core\.Markers\s*;|[A-Za-z_]\w*\s*=\s*AbilityKit\.Core\.Markers\s*;)', $auditRegexOptions)
+$frozenMarkerSymbolRegex = [regex]::new('\b(?:MarkerSystem|MarkerBootstrapper\s*<|KeyedMarkerBootstrapper\s*<|StaticMarkerBootstrapper\s*<)', $auditRegexOptions)
+$qualifiedFrozenMarkerSymbolRegex = [regex]::new('AbilityKit\.Core\.Markers\.(?:MarkerSystem|MarkerBootstrapper|KeyedMarkerBootstrapper|StaticMarkerBootstrapper)', $auditRegexOptions)
+$debugDrawNamespaceRegex = [regex]::new('(?m)^\s*namespace\s+AbilityKit\.Diagnostics\.DebugDraw(?:\s|\{|$)', $auditRegexOptions)
 $violations = New-Object System.Collections.Generic.List[string]
-$foundationSources = Get-ChildItem -LiteralPath $runtimeRoot -Recurse -Filter '*.cs' |
-    Where-Object { $_.FullName -notlike ((Join-Path $runtimeRoot 'Unity') + '\*') }
+$foundationSources = $packageSources |
+    Where-Object {
+        $_.FullName.StartsWith($runtimeRoot + '\', [StringComparison]::OrdinalIgnoreCase) -and
+        -not $_.FullName.StartsWith((Join-Path $runtimeRoot 'Unity') + '\', [StringComparison]::OrdinalIgnoreCase)
+    }
 
 foreach ($source in $foundationSources) {
-    $text = Get-Content -LiteralPath $source.FullName -Raw
+    $text = $packageSourceTexts[$source.FullName]
     foreach ($pattern in $forbiddenPatterns) {
         if ($text -match $pattern) {
             $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
@@ -146,8 +219,79 @@ foreach ($rule in $legacyNamespaceRules) {
 }
 
 $namespaceDeclarations = New-Object System.Collections.Generic.List[object]
+$continuousOwnershipViolations = New-Object System.Collections.Generic.List[string]
+$configurationOwnershipViolations = New-Object System.Collections.Generic.List[string]
+$extractedInfrastructureViolations = New-Object System.Collections.Generic.List[string]
 $ripgrep = Get-Command 'rg' -ErrorAction SilentlyContinue
-if ($null -ne $ripgrep) {
+$corePackageRoot = Join-Path $packagesRoot 'com.abilitykit.core'
+
+if ($null -eq $ripgrep) {
+    foreach ($source in $packageSources) {
+        $text = $packageSourceTexts[$source.FullName]
+        if ([string]::IsNullOrEmpty($text)) {
+            continue
+        }
+
+        $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
+        $coreNamespaceMatch = $coreNamespaceRegex.Match($text)
+        if ($coreNamespaceMatch.Success) {
+            $namespaceDeclarations.Add([pscustomobject]@{
+                Path = $source.FullName
+                Namespace = $coreNamespaceMatch.Groups[1].Value
+            })
+        }
+
+        if ($continuousNamespaceRegex.IsMatch($text) -and
+            -not $source.FullName.StartsWith($continuousPackageRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+            $continuousOwnershipViolations.Add("$relativePath declares a namespace owned by com.abilitykit.continuous.")
+        }
+
+        if ($legacyContinuousRegex.IsMatch($text) -and
+            -not $source.FullName.StartsWith($runtimeRoot + '\Continuous\', [StringComparison]::OrdinalIgnoreCase)) {
+            $continuousOwnershipViolations.Add("$relativePath consumes deprecated AbilityKit.Core.Continuous; use AbilityKit.Continuous.")
+        }
+
+        if ($legacyConfigurationRegex.IsMatch($text) -and
+            -not $source.FullName.StartsWith($runtimeRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+            $configurationOwnershipViolations.Add(
+                "$relativePath consumes deprecated Core configuration/reflection infrastructure; use an owner-package API.")
+        }
+
+        $mobaNamespaceMatch = $mobaNamespaceRegex.Match($text)
+        if ($mobaNamespaceMatch.Success) {
+            $mobaNamespace = $mobaNamespaceMatch.Groups[1].Value
+            $mobaOwnerRoot = if ($mobaNamespace -eq 'AbilityKit.Demo.Moba.View.Settings') {
+                $mobaViewRuntimePackageRoot
+            }
+            else {
+                $mobaRuntimePackageRoot
+            }
+
+            if (-not $source.FullName.StartsWith($mobaOwnerRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+                $configurationOwnershipViolations.Add("$relativePath declares '$mobaNamespace' outside its owner package.")
+            }
+        }
+
+        $insideCore = $source.FullName.StartsWith($corePackageRoot + '\', [StringComparison]::OrdinalIgnoreCase)
+        $insideDiagnostics = $source.FullName.StartsWith($diagnosticsPackageRoot + '\', [StringComparison]::OrdinalIgnoreCase)
+        $usesMigratedInfrastructure = $migratedInfrastructureUsingRegex.IsMatch($text)
+        if (-not $insideCore -and $usesMigratedInfrastructure) {
+            $extractedInfrastructureViolations.Add("$relativePath consumes migrated Core debug-draw/disposal infrastructure.")
+        }
+
+        $usesCoreMarkers = $coreMarkersUsingRegex.IsMatch($text)
+        $usesFrozenMarkerSymbol = $frozenMarkerSymbolRegex.IsMatch($text)
+        $usesQualifiedFrozenMarkerSymbol = $qualifiedFrozenMarkerSymbolRegex.IsMatch($text)
+        if (-not $insideCore -and (($usesCoreMarkers -and $usesFrozenMarkerSymbol) -or $usesQualifiedFrozenMarkerSymbol)) {
+            $extractedInfrastructureViolations.Add("$relativePath consumes a frozen global Marker entry point.")
+        }
+
+        if (-not $insideDiagnostics -and $debugDrawNamespaceRegex.IsMatch($text)) {
+            $extractedInfrastructureViolations.Add("$relativePath declares DebugDraw contracts outside com.abilitykit.diagnostics.")
+        }
+    }
+}
+else {
     $matches = @(& $ripgrep.Source -n --glob '*.cs' '^\s*namespace\s+AbilityKit\.Core(?:\.[A-Za-z0-9_.]+)?' $packagesRoot)
     if ($LASTEXITCODE -gt 1) {
         throw "rg failed while auditing namespace ownership with exit code $LASTEXITCODE."
@@ -165,24 +309,6 @@ if ($null -ne $ripgrep) {
             Path = [System.IO.Path]::GetFullPath($match.Groups['path'].Value)
             Namespace = $match.Groups['namespace'].Value
         })
-    }
-}
-else {
-    $sources = Get-ChildItem -LiteralPath $packagesRoot -Directory -Filter 'com.abilitykit.*' |
-        ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Recurse -Filter '*.cs' }
-    foreach ($source in $sources) {
-        $text = Get-Content -LiteralPath $source.FullName -Raw
-        if ([string]::IsNullOrEmpty($text)) {
-            continue
-        }
-
-        $match = [regex]::Match($text, '(?m)^\s*namespace\s+(AbilityKit\.Core(?:\.[A-Za-z0-9_.]+)?)')
-        if ($match.Success) {
-            $namespaceDeclarations.Add([pscustomobject]@{
-                Path = $source.FullName
-                Namespace = $match.Groups[1].Value
-            })
-        }
     }
 }
 
@@ -229,7 +355,6 @@ foreach ($rule in $legacyNamespaceRules) {
 
 Assert-Contract ($namespaceViolations.Count -eq 0) ("Core namespace ownership violations:`n" + ($namespaceViolations -join "`n"))
 
-$continuousOwnershipViolations = New-Object System.Collections.Generic.List[string]
 if ($null -ne $ripgrep) {
     $continuousDeclarations = @(& $ripgrep.Source -n --glob '*.cs' '^\s*namespace\s+AbilityKit\.Continuous(?:\.[A-Za-z0-9_.]+)?' $packagesRoot)
     if ($LASTEXITCODE -gt 1) {
@@ -259,28 +384,7 @@ if ($null -ne $ripgrep) {
         }
     }
 }
-else {
-    $packageSources = Get-ChildItem -LiteralPath $packagesRoot -Directory -Filter 'com.abilitykit.*' |
-        ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Recurse -Filter '*.cs' }
-    foreach ($source in $packageSources) {
-        $text = Get-Content -LiteralPath $source.FullName -Raw
-        if ($text -match '(?m)^\s*namespace\s+AbilityKit\.Continuous(?:\.[A-Za-z0-9_.]+)?' -and
-            -not $source.FullName.StartsWith($continuousPackageRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
-            $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
-            $continuousOwnershipViolations.Add("$relativePath declares a namespace owned by com.abilitykit.continuous.")
-        }
 
-        if ($text -match 'AbilityKit\.Core\.Continuous' -and
-            -not $source.FullName.StartsWith($runtimeRoot + '\Continuous\', [StringComparison]::OrdinalIgnoreCase)) {
-            $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
-            $continuousOwnershipViolations.Add("$relativePath consumes deprecated AbilityKit.Core.Continuous; use AbilityKit.Continuous.")
-        }
-    }
-}
-
-Assert-Contract ($continuousOwnershipViolations.Count -eq 0) ("Continuous ownership violations:`n" + ($continuousOwnershipViolations -join "`n"))
-
-$configurationOwnershipViolations = New-Object System.Collections.Generic.List[string]
 if ($null -ne $ripgrep) {
     $legacyInfrastructureUsages = @(& $ripgrep.Source -n --glob '*.cs' 'AbilityKit\.Core\.(Configuration|Reflection)' $packagesRoot)
     if ($LASTEXITCODE -gt 1) {
@@ -341,48 +445,13 @@ if ($null -ne $ripgrep) {
     }
 }
 else {
-    $packageSources = Get-ChildItem -LiteralPath $packagesRoot -Directory -Filter 'com.abilitykit.*' |
-        ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Recurse -Filter '*.cs' }
-    foreach ($source in $packageSources) {
-        $text = Get-Content -LiteralPath $source.FullName -Raw
-        if ([string]::IsNullOrEmpty($text)) {
-            continue
-        }
-
-        if ($text -match 'AbilityKit\.Core\.(Configuration|Reflection)' -and
-            -not $source.FullName.StartsWith($runtimeRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
-            $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
-            $configurationOwnershipViolations.Add(
-                "$relativePath consumes deprecated Core configuration/reflection infrastructure; use an owner-package API.")
-        }
-
-        $namespaceMatch = [regex]::Match(
-            $text,
-            '(?m)^\s*namespace\s+(AbilityKit\.Demo\.Moba\.(?:View\.Settings|Bootstrap))(?:\s|$)')
-        if ($namespaceMatch.Success) {
-            $namespace = $namespaceMatch.Groups[1].Value
-            $ownerRoot = if ($namespace -eq 'AbilityKit.Demo.Moba.View.Settings') {
-                $mobaViewRuntimePackageRoot
-            }
-            else {
-                $mobaRuntimePackageRoot
-            }
-
-            if (-not $source.FullName.StartsWith($ownerRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
-                $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
-                $configurationOwnershipViolations.Add("$relativePath declares '$namespace' outside its owner package.")
-            }
-        }
-    }
-
-    $projects = Get-ChildItem -LiteralPath $repoRoot -Recurse -Filter '*.csproj' |
-        Where-Object { $_.FullName -notmatch '[\\/](?:obj|bin|\.kilo|\.git)[\\/]' }
+    $projects = Get-PrunedFiles @($repoRoot) '*.csproj' @('obj', 'bin', '.kilo', '.git')
     foreach ($project in $projects) {
         if ($project.FullName -eq $coreProjectPath -or $project.FullName -eq $unityCoreProjectPath) {
             continue
         }
 
-        $text = Get-Content -LiteralPath $project.FullName -Raw
+        $text = [System.IO.File]::ReadAllText($project.FullName)
         if ($text -match 'com\.abilitykit\.core[/\\]Runtime[/\\](Config|Reflection)') {
             $relativePath = $project.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
             $configurationOwnershipViolations.Add(
@@ -391,27 +460,89 @@ else {
     }
 }
 
+$managedProductionSources = New-Object 'System.Collections.Generic.List[System.IO.FileInfo]'
+$managedProductionSourceTexts = @{}
+$managedSourceRoots = @(
+    (Join-Path $repoRoot 'src'),
+    (Join-Path $repoRoot 'Server')
+)
+$managedCompatibilityAllowRoots = @(
+    (Join-Path $repoRoot 'src\AbilityKit.Core'),
+    (Join-Path $repoRoot 'src\AbilityKit.Core.Tests')
+)
+
+$managedSources = Get-PrunedFiles $managedSourceRoots '*.cs' @('obj', 'bin')
+foreach ($source in $managedSources) {
+    $isAllowed = $false
+    foreach ($allowRoot in $managedCompatibilityAllowRoots) {
+        if ($source.FullName.StartsWith($allowRoot + '\', [StringComparison]::OrdinalIgnoreCase)) {
+            $isAllowed = $true
+            break
+        }
+    }
+    if ($isAllowed) {
+        continue
+    }
+
+    $managedProductionSources.Add($source)
+    $text = [System.IO.File]::ReadAllText($source.FullName)
+    $managedProductionSourceTexts[$source.FullName] = $text
+    if ($legacyContinuousRegex.IsMatch($text)) {
+        $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
+        $continuousOwnershipViolations.Add(
+            "$relativePath consumes deprecated AbilityKit.Core.Continuous; use AbilityKit.Continuous.")
+    }
+    if ($legacyConfigurationRegex.IsMatch($text)) {
+        $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
+        $configurationOwnershipViolations.Add(
+            "$relativePath consumes deprecated Core configuration/reflection infrastructure; use an owner-package API.")
+    }
+}
+
+Assert-Contract ($continuousOwnershipViolations.Count -eq 0) ("Continuous ownership violations:`n" + ($continuousOwnershipViolations -join "`n"))
 Assert-Contract ($configurationOwnershipViolations.Count -eq 0) ("Configuration/reflection ownership violations:`n" + ($configurationOwnershipViolations -join "`n"))
 
-$extractedInfrastructureViolations = New-Object System.Collections.Generic.List[string]
-$packageSources = Get-ChildItem -LiteralPath $packagesRoot -Directory -Filter 'com.abilitykit.*' |
-    ForEach-Object { Get-ChildItem -LiteralPath $_.FullName -Recurse -Filter '*.cs' }
-foreach ($source in $packageSources) {
-    $text = Get-Content -LiteralPath $source.FullName -Raw
-    $insideCore = $source.FullName.StartsWith((Join-Path $packagesRoot 'com.abilitykit.core') + '\', [StringComparison]::OrdinalIgnoreCase)
-    $insideDiagnostics = $source.FullName.StartsWith($diagnosticsPackageRoot + '\', [StringComparison]::OrdinalIgnoreCase)
+if ($null -ne $ripgrep) {
+    foreach ($source in $packageSources) {
+        $text = $packageSourceTexts[$source.FullName]
+        $insideCore = $source.FullName.StartsWith($corePackageRoot + '\', [StringComparison]::OrdinalIgnoreCase)
+        $insideDiagnostics = $source.FullName.StartsWith($diagnosticsPackageRoot + '\', [StringComparison]::OrdinalIgnoreCase)
+        $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
+
+        $usesMigratedInfrastructure = $migratedInfrastructureUsingRegex.IsMatch($text)
+        if (-not $insideCore -and $usesMigratedInfrastructure) {
+            $extractedInfrastructureViolations.Add("$relativePath consumes migrated Core debug-draw/disposal infrastructure.")
+        }
+
+        $usesCoreMarkers = $coreMarkersUsingRegex.IsMatch($text)
+        $usesFrozenMarkerSymbol = $frozenMarkerSymbolRegex.IsMatch($text)
+        $usesQualifiedFrozenMarkerSymbol = $qualifiedFrozenMarkerSymbolRegex.IsMatch($text)
+        if (-not $insideCore -and (($usesCoreMarkers -and $usesFrozenMarkerSymbol) -or $usesQualifiedFrozenMarkerSymbol)) {
+            $extractedInfrastructureViolations.Add("$relativePath consumes a frozen global Marker entry point.")
+        }
+
+        if (-not $insideDiagnostics -and $debugDrawNamespaceRegex.IsMatch($text)) {
+            $extractedInfrastructureViolations.Add("$relativePath declares DebugDraw contracts outside com.abilitykit.diagnostics.")
+        }
+    }
+}
+
+foreach ($source in $managedProductionSources) {
+    $text = $managedProductionSourceTexts[$source.FullName]
     $relativePath = $source.FullName.Substring($repoRoot.Length).TrimStart('\', '/')
 
-    if (-not $insideCore -and $text -match '(?m)^\s*using\s+AbilityKit\.Core\.(?:Debugging|Utilities)\s*;') {
+    $usesMigratedInfrastructure =
+        $migratedInfrastructureUsingRegex.IsMatch($text) -or
+        $qualifiedMigratedInfrastructureRegex.IsMatch($text)
+    if ($usesMigratedInfrastructure) {
         $extractedInfrastructureViolations.Add("$relativePath consumes migrated Core debug-draw/disposal infrastructure.")
     }
 
-    if (-not $insideCore -and $text -match '\b(?:MarkerSystem|MarkerBootstrapper\s*<|KeyedMarkerBootstrapper\s*<|StaticMarkerBootstrapper\s*<)') {
+    $usesCoreMarkers = $coreMarkersUsingRegex.IsMatch($text)
+    $usesFrozenMarkerSymbol = $frozenMarkerSymbolRegex.IsMatch($text)
+    $usesQualifiedFrozenMarkerSymbol = $qualifiedFrozenMarkerSymbolRegex.IsMatch($text)
+    if (($usesCoreMarkers -and $usesFrozenMarkerSymbol) -or $usesQualifiedFrozenMarkerSymbol) {
         $extractedInfrastructureViolations.Add("$relativePath consumes a frozen global Marker entry point.")
-    }
-
-    if (-not $insideDiagnostics -and $text -match '(?m)^\s*namespace\s+AbilityKit\.Diagnostics\.DebugDraw(?:\s|\{|$)') {
-        $extractedInfrastructureViolations.Add("$relativePath declares DebugDraw contracts outside com.abilitykit.diagnostics.")
     }
 }
 
@@ -431,4 +562,4 @@ Assert-Contract ((Get-Item -LiteralPath $shippedApiPath).Length -gt 100) 'Core s
 Assert-Contract (Test-Path -LiteralPath $unshippedApiPath -PathType Leaf) 'Core unshipped Public API baseline is missing.'
 
 $legacyNamespaceFileCount = ($legacyNamespaceCounts.Values | Measure-Object -Sum).Sum
-Write-Output ("Core boundary audit passed: {0} foundation source files checked; {1} legacy namespace files capped; Continuous, Diagnostics, Marker, and application infrastructure extraction enforced." -f @($foundationSources).Count, $legacyNamespaceFileCount)
+Write-Output ("Core boundary audit passed: {0} foundation source files checked; {1} managed production source files checked; {2} legacy namespace files capped; Continuous, Diagnostics, Marker, and application infrastructure extraction enforced." -f @($foundationSources).Count, @($managedProductionSources).Count, $legacyNamespaceFileCount)

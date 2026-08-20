@@ -51,7 +51,7 @@ public sealed class MobaActorBrainChaseSmokeTests
 
             // BrainId=1 is selected by the summon template and resolved exclusively by the brain catalog.
             Assert.True(catalog.TryGet(1, out var definition));
-            Assert.Equal(MobaBrainDriverKind.BTree, definition.DriverKind);
+            Assert.Equal(MobaBrainDriverKeys.BehaviorTree, definition.DriverKind);
             Assert.Equal("summon_warden_bt", definition.DecisionName);
 
             // 找两个不同队伍的 actor 作为 caster 和参照敌人

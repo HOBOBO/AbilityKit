@@ -99,7 +99,7 @@ namespace AbilityKit.Demo.Shooter.View
             ReliableEventCheckpointStore = reliableEventCheckpointStore;
             ReliableEventCheckpointLifecycleOptions = reliableEventCheckpointLifecycleOptions;
             SessionRecoveryOptions = sessionRecoveryOptions;
-            PredictionBufferOptions = predictionBufferOptions ?? ShooterClientPredictionBufferOptions.Default;
+            PredictionBufferOptions = predictionBufferOptions ?? ResolveDefaultPredictionBufferOptions(syncProfile.CompatibilityModel);
         }
 
         public static ShooterClientSyncAssemblyOptions Default => ForModel(ShooterClientSyncControllerFactory.DefaultSyncModel);
@@ -139,6 +139,15 @@ namespace AbilityKit.Demo.Shooter.View
 
         /// <summary>本地预测链路按需创建的历史缓冲与容量配置。</summary>
         public ShooterClientPredictionBufferOptions PredictionBufferOptions { get; }
+
+        private static ShooterClientPredictionBufferOptions ResolveDefaultPredictionBufferOptions(NetworkSyncModel syncModel)
+        {
+            return syncModel == NetworkSyncModel.AuthoritativeInterpolation
+                || syncModel == NetworkSyncModel.BatchStateSync
+                || syncModel == NetworkSyncModel.MassBattleLodSync
+                ? ShooterClientPredictionBufferOptions.Disabled
+                : ShooterClientPredictionBufferOptions.Default;
+        }
 
         /// <summary>Shooter 客户端实际提供的同步能力。</summary>
         public NetworkSyncCapabilities AvailableCapabilities { get; }

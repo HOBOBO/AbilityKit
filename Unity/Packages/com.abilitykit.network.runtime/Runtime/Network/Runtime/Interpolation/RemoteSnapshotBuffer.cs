@@ -1,7 +1,7 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -15,12 +15,12 @@ namespace AbilityKit.Network.Runtime
     /// </summary>
     /// <typeparam name="TSnapshot">远端快照载荷类型。</typeparam>
     public sealed class RemoteSnapshotBuffer<TSnapshot>
+        : IBufferCapacityControl
         where TSnapshot : IRemoteSnapshotSample
     {
         public const int DefaultCapacity = 32;
 
-        private readonly List<TSnapshot> _samples;
-        private readonly int _capacity;
+        private readonly ISequentialBuffer<TSnapshot> _samples;
 
         public RemoteSnapshotBuffer()
             : this(DefaultCapacity)
@@ -28,19 +28,27 @@ namespace AbilityKit.Network.Runtime
         }
 
         public RemoteSnapshotBuffer(int capacity)
+            : this(CreateDefaultStorage(capacity))
         {
-            if (capacity < 2)
+        }
+
+        public RemoteSnapshotBuffer(ISequentialBuffer<TSnapshot> storage)
+        {
+            _samples = storage ?? throw new ArgumentNullException(nameof(storage));
+            if (_samples.Capacity < 2)
             {
-                throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "Capacity must be at least 2 to interpolate between two samples.");
+                throw new ArgumentOutOfRangeException(nameof(storage), _samples.Capacity, "Storage capacity must be at least 2 to interpolate between two samples.");
             }
 
-            _capacity = capacity;
-            _samples = new List<TSnapshot>(capacity);
+            if (_samples.Count != 0)
+            {
+                throw new ArgumentException("Injected storage must be empty.", nameof(storage));
+            }
         }
 
         public int Count => _samples.Count;
 
-        public int Capacity => _capacity;
+        public int Capacity => _samples.Capacity;
 
         public bool IsEmpty => _samples.Count == 0;
 
@@ -66,8 +74,7 @@ namespace AbilityKit.Network.Runtime
                 return false;
             }
 
-            _samples.Add(snapshot);
-            TrimToCapacity();
+            _samples.AddLast(snapshot);
             return true;
         }
 
@@ -132,13 +139,20 @@ namespace AbilityKit.Network.Runtime
             _samples.Clear();
         }
 
-        private void TrimToCapacity()
+        public bool TrySetCapacity(int capacity)
         {
-            int overflow = _samples.Count - _capacity;
-            if (overflow > 0)
+            if (capacity < 2) return false;
+            return _samples.TrySetCapacity(capacity);
+        }
+
+        private static ISequentialBuffer<TSnapshot> CreateDefaultStorage(int capacity)
+        {
+            if (capacity < 2)
             {
-                _samples.RemoveRange(0, overflow);
+                throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "Capacity must be at least 2 to interpolate between two samples.");
             }
+
+            return new RingSequentialBuffer<TSnapshot>(capacity);
         }
 
         private static float Clamp01(float value)

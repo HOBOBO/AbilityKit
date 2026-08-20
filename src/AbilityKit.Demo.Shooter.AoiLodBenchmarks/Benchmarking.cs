@@ -34,8 +34,8 @@ public sealed record BenchmarkOptions
 
     public static IReadOnlyList<BenchmarkCase> ExpandFullMatrix()
     {
-        var result = new List<BenchmarkCase>(18);
-        foreach (var entities in new[] { 100, 1000, 10000 })
+            var result = new List<BenchmarkCase>(24);
+            foreach (var entities in new[] { 100, 1000, 2000, 10000 })
         foreach (var observers in new[] { 1, 16, 64 })
         foreach (var scenario in Enum.GetValues<BenchmarkScenario>())
             result.Add(new BenchmarkCase(entities, observers, scenario));

@@ -282,8 +282,11 @@ namespace AbilityKit.Demo.Moba.Services
 
         private bool IsLogicHfsm(in MobaActorBrainDefinition definition)
         {
-            return definition.DriverKind == MobaBrainDriverKind.Hfsm
-                && !_decisionDrivers.Contains(MobaBrainDriverKind.Hfsm);
+            return string.Equals(
+                    definition.DriverKind,
+                    MobaBrainDriverKeys.Hfsm,
+                    StringComparison.Ordinal)
+                && !_decisionDrivers.Contains(MobaBrainDriverKeys.Hfsm);
         }
 
         private bool TryCreateBehaviorRuntime(
@@ -383,7 +386,7 @@ namespace AbilityKit.Demo.Moba.Services
                 OwnerActorId = ownerActorId;
                 SourceKind = sourceKind;
                 SourceId = sourceId;
-                DriverKind = (MobaBrainDriverKind)(-1);
+                DriverKind = string.Empty;
                 DecisionName = string.Empty;
             }
 
@@ -391,7 +394,7 @@ namespace AbilityKit.Demo.Moba.Services
             public int OwnerActorId { get; }
             public int SourceKind { get; }
             public int SourceId { get; }
-            public MobaBrainDriverKind DriverKind { get; }
+            public string DriverKind { get; }
             public string DecisionName { get; }
 
             public static BrainCreationIdentity Missing(
@@ -410,7 +413,7 @@ namespace AbilityKit.Demo.Moba.Services
                     && OwnerActorId == other.OwnerActorId
                     && SourceKind == other.SourceKind
                     && SourceId == other.SourceId
-                    && DriverKind == other.DriverKind
+                    && string.Equals(DriverKind, other.DriverKind, StringComparison.Ordinal)
                     && string.Equals(DecisionName, other.DecisionName, StringComparison.Ordinal);
             }
         }

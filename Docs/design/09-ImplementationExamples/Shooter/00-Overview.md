@@ -1,7 +1,7 @@
 # Shooter Demo 专题总览
 
 > 文档类型：项目级综合示例导航与能力边界
-> 事实基线：2026-08-16
+> 事实基线：2026-08-19
 > Shooter 示例从单篇概览拆成多个专题。它展示 AbilityKit 机制如何被项目应用层组合为网络同步、服务端权威、Svelto 模拟、快照、Gateway/Orleans 与 Smoke 闭环；其业务编排是参考实现，不是框架默认应用套件。
 
 ## 1. 拆分理由
@@ -20,6 +20,7 @@ Shooter 示例包含多个独立设计点，并已进一步拆成客户端同步
 | 逻辑层流程 | 输入、逻辑处理、输出、单机本地闭环、项目会话/服务端权威闭环 | [12-逻辑层流程与单机/多人模式](12-LogicLayerFlowSingleAndMultiplayer.md) |
 | 战斗玩法内核 | 一帧管线、敌人波次、projectile 命中、空间索引、Bot AI、胜负状态 | [13-战斗玩法内核深潜](13-BattleGameplayKernelDeepDive.md) |
 | 多进程故障矩阵 | recoverable retry、Gateway offline、slow consumer、周期断线、manifest、reliable/diff/replay 收敛 | [14-多进程故障矩阵与收敛证据](14-MultiprocessFaultMatrixAndConvergenceEvidence.md) |
+| 千单位同步与渲染优化 | AOI 变化抑制、零分配 codec/Mapper/Projection、GPU 增量上传、端到端指标与 2K 门禁 | [15-千单位状态同步与渲染优化](15-ThousandEntitySynchronizationAndRenderingOptimization.md) |
 | 工业化流程 | runtime/acceptance/sync 测试、Orleans smoke、replay artifact、DSL/配置环境测试 | [工程质量：MOBA 与 Shooter 示例工业化流程](../../10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) |
 | Gateway/Orleans/Smoke | room flow、RoomGrain、BattleRuntimeAdapter、FrameSyncGrain、SmokeRunner | [05-服务端流程与 Smoke 深潜](05-ServerFlowAndSmokeDeepDive.md) |
 
@@ -167,6 +168,7 @@ Shooter 示例适合作为以下能力的参考实现：
 - 一帧战斗玩法管线、敌人波次、projectile 命中、空间索引、Bot AI 输入源和胜负状态裁决；
 - recoverable retry、Gateway offline、slow consumer 与三轮周期断线的真实多进程故障恢复；
 - 版本化 manifest、可靠事件 cursor、authoritative FrameRecord diff、完整/minimized replay、进程与端口组成的收敛证据链；
+- 千单位 AOI 变化抑制、稳态零分配同步流水线、Projection 融合、GPU Instanced 增量上传和端到端性能定位；
 - runtime/acceptance/sync 测试、Orleans smoke、replay artifact 与 DSL/配置环境测试组成的工业化验收链路。
 
 这里的“参考实现”有明确边界：Runtime Port、snapshot pipeline、Gateway transport、Grain commit 和 adapter 契约可作为工具机制复用；房间加载编排、玩家槽位、敌人波次、同步模板选择、表现会话组合与 Smoke 场景都由 Shooter 项目持有。新游戏应复用机制并重写应用策略，而不是把 Shooter 应用层继续上提为框架默认。
@@ -195,7 +197,11 @@ Shooter 示例适合作为以下能力的参考实现：
 | Session Context | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/ShooterPresentationSessionContext.cs` |
 | Snapshot Stream | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/Snapshot/ShooterSnapshotStream.cs` |
 | View Projection | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/ShooterSnapshotViewProjection.cs` |
+| View Entity Store | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/ShooterViewEntityStore.cs` |
+| View Model Mapper | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/ShooterSnapshotViewModelMapper.cs` |
 | View Binder | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Presentation/View/ShooterSnapshotViewBinder.cs` |
+| Battle Data Plane | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/ShooterBattleDataPlane.cs` |
+| Unity View Backends | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Unity/PlayMode/UnityShooterViewBackends.cs` |
 | Fast Reconnect Driver | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFastReconnectDriver.cs` |
 | Snapshot Apply Coordinator | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterClientSnapshotApplyCoordinator.cs` |
 | Framework Snapshot Pipeline | `Unity/Packages/com.abilitykit.demo.shooter.view.runtime/Runtime/Client/Synchronization/ShooterFrameworkSnapshotPipeline.cs` |
@@ -211,6 +217,9 @@ Shooter 示例适合作为以下能力的参考实现：
 | Smoke Runner | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeRunner.cs` |
 | Multiprocess Client Runner | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke/Runner/ShooterSmokeClientProcessRunner.cs` |
 | Multiprocess Matrix | `Server/Orleans/tools/run_shooter_multiprocess_smoke.ps1` |
+| Unity Multiplayer Performance Runner | `tools/run_shooter_unity_headless_multiplayer.ps1` |
+| Sync Performance Matrix | `tools/run_shooter_sync_performance_matrix.ps1` |
+| Sync Allocation Gate | `tools/run_shooter_sync_allocation_gate.ps1` |
 | Multiprocess Script Contracts | `Server/Orleans/src/AbilityKit.Orleans.ShooterSmoke.Tests/ShooterMultiprocessSmokeScriptContractTests.cs` |
 | Shooter Runtime Tests | `src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Runtime.Tests.csproj`、`src/AbilityKit.Demo.Shooter.Runtime.Tests/Client/ShooterAcceptanceSpecRunnerTests.cs` |
 | Shooter Smoke Script | `Server/Orleans/tools/run_shooter_smoke.ps1` |
@@ -219,7 +228,7 @@ Shooter 示例适合作为以下能力的参考实现：
 
 Shooter PlayMode 默认战局已调整为至少 10 分钟，并将“同屏敌人预算”和“整场敌人总量”拆开：默认同屏预算为 512，整场敌人总量为同屏预算的 5 倍，每 60 秒投入一组增援。胜利目标使用实际生成的整场敌人总量，低密度自定义配置不会再因固定胜利目标而无法结束。
 
-当前提供三档受支持的表现密度配置：
+当前提供三档受支持的表现密度配置。千单位同步的分层瓶颈、已实施优化、测试命令与实测结果见 [15-千单位状态同步与渲染优化](15-ThousandEntitySynchronizationAndRenderingOptimization.md)：
 
 | 档位 | 同屏敌人预算 | 定位 |
 |------|--------------|------|
@@ -240,10 +249,10 @@ Shooter PlayMode 默认战局已调整为至少 10 分钟，并将“同屏敌�
 | E4 | 当次 Smoke 的日志、Replay、manifest、diagnostic | 只证明该 profile、拓扑和日期的运行事实 |
 | E5 | CI 明确触发并阻断的命令和 artifact gate | 只有进入 gate 的预算与场景才具备持续发布保证 |
 
-本批仅进行源码与文档复核，没有重新运行 E4 Smoke；不得用 runner 源码、测试类名或历史 artifact 推导 2026-08-16 的新 E4 通过记录。尤其不能用单进程 runner 内的双玩家本地 payload 推导“两名 Room 成员均已 ready”。
+千单位优化批次已经形成 Runtime、Core、AOI benchmark、Projection 定向测试、Debug allocation gate 和 Unity generated project 编译证据，但真实双客户端 GPU headless 因工程被 Unity Editor 占用而未运行。不得用 runner 源码、生成工程编译、headless pipeline 或历史 artifact 推导 2026-08-19 的新 GPU E4 通过记录。尤其不能用单进程 runner 内的双玩家本地 payload 推导“两名 Room 成员均已 ready”。
 
 ---
 
-> 文档版本：v3.1
-> 更新日期：2026-08-16
+> 文档版本：v3.2
+> 更新日期：2026-08-19
 > 更新责任：Shooter 应用编排、同步模板、服务端 adapter 或验收 gate 变化时同步复核。

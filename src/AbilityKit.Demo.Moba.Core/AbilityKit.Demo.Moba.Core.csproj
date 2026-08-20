@@ -33,6 +33,7 @@
 
   <!-- 引用 AbilityKit packages -->
   <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.AI.Abstractions\AbilityKit.AI.Abstractions.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Share\AbilityKit.Demo.Moba.Share.csproj" />
     <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Continuous\AbilityKit.Continuous.csproj" />

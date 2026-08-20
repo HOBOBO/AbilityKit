@@ -12,7 +12,11 @@ namespace AbilityKit.Demo.Moba.Services
     /// 本地、远端与离线适配器共享同一查询契约。
     /// </summary>
     [WorldService(typeof(IBattleDiagnosticReadOnlySession), WorldLifetime.Scoped)]
-    public sealed class MobaBattleDiagnosticLocalSession : IBattleDiagnosticReadOnlySession, IService
+    public sealed class MobaBattleDiagnosticLocalSession :
+        IBattleDiagnosticReadOnlySession,
+        IBattleDiagnosticRuntimeObjectCatalogSession,
+        IBattleDiagnosticMetricSession,
+        IService
     {
         private readonly IBattleDiagnosticEventReadStore _eventStore;
         private readonly IBattleDiagnosticStateReadStore _stateStore;
@@ -21,6 +25,8 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IBattleDiagnosticActorBuffReadStore _buffStore;
         private readonly IBattleDiagnosticActorTagReadStore _tagStore;
         private readonly IBattleDiagnosticActorEffectReadStore _effectStore;
+        private readonly IBattleDiagnosticRuntimeObjectReadStore _runtimeObjectStore;
+        private readonly IBattleDiagnosticMetricReadStore _metricStore;
         private readonly BattleDiagnosticSessionInfo _sessionInfo;
 
         public MobaBattleDiagnosticLocalSession(
@@ -76,6 +82,27 @@ namespace AbilityKit.Demo.Moba.Services
             IBattleDiagnosticActorBuffReadStore buffStore,
             IBattleDiagnosticActorTagReadStore tagStore,
             IBattleDiagnosticActorEffectReadStore effectStore)
+            : this(
+                eventStore,
+                stateStore,
+                traceStore,
+                attributeStore,
+                buffStore,
+                tagStore,
+                effectStore,
+                null)
+        {
+        }
+
+        public MobaBattleDiagnosticLocalSession(
+            IBattleDiagnosticEventReadStore eventStore,
+            IBattleDiagnosticStateReadStore stateStore,
+            IBattleDiagnosticTraceReadStore traceStore,
+            IBattleDiagnosticActorAttributeReadStore attributeStore,
+            IBattleDiagnosticActorBuffReadStore buffStore,
+            IBattleDiagnosticActorTagReadStore tagStore,
+            IBattleDiagnosticActorEffectReadStore effectStore,
+            IBattleDiagnosticRuntimeObjectReadStore runtimeObjectStore)
         {
             _eventStore = eventStore ?? throw new ArgumentNullException(nameof(eventStore));
             _stateStore = stateStore ?? throw new ArgumentNullException(nameof(stateStore));
@@ -84,6 +111,8 @@ namespace AbilityKit.Demo.Moba.Services
             _buffStore = buffStore;
             _tagStore = tagStore;
             _effectStore = effectStore;
+            _runtimeObjectStore = runtimeObjectStore;
+            _metricStore = eventStore as IBattleDiagnosticMetricReadStore;
             if (eventStore.Scope != stateStore.Scope)
             {
                 throw new ArgumentException("Event and state stores must use the same session scope.");
@@ -107,6 +136,10 @@ namespace AbilityKit.Demo.Moba.Services
             if (effectStore != null && eventStore.Scope != effectStore.Scope)
             {
                 throw new ArgumentException("Event, state, and actor effect stores must use the same session scope.");
+            }
+            if (runtimeObjectStore != null && eventStore.Scope != runtimeObjectStore.Scope)
+            {
+                throw new ArgumentException("Event, state, and runtime object stores must use the same session scope.");
             }
 
             var scope = eventStore.Scope;
@@ -132,6 +165,14 @@ namespace AbilityKit.Demo.Moba.Services
             if (effectStore != null)
             {
                 capabilities |= BattleDiagnosticCapabilities.ActorEffects;
+            }
+            if (runtimeObjectStore != null)
+            {
+                capabilities |= BattleDiagnosticCapabilities.RuntimeObjects;
+            }
+            if (_metricStore != null)
+            {
+                capabilities |= BattleDiagnosticCapabilities.FrameMetrics;
             }
 
             _sessionInfo = new BattleDiagnosticSessionInfo(
@@ -159,7 +200,35 @@ namespace AbilityKit.Demo.Moba.Services
         public long ActorBuffStoreRevision => _buffStore?.Revision ?? 0L;
         public long ActorTagStoreRevision => _tagStore?.Revision ?? 0L;
         public long ActorEffectStoreRevision => _effectStore?.Revision ?? 0L;
+        public long RuntimeObjectStoreRevision => _runtimeObjectStore?.Revision ?? 0L;
+        public long MetricStoreRevision => _metricStore?.Revision ?? 0L;
         public long StoreRevision => EventStoreRevision;
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticMetricSample> QueryMetrics(
+            BattleDiagnosticMetricQuery query)
+        {
+            if (_metricStore == null)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticMetricSample>.Unavailable(
+                    query.RequestId,
+                    0L,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This session does not provide frame metric history.");
+            }
+
+            try
+            {
+                return _metricStore.QueryMetrics(query);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticMetricSample>.Failed(
+                    query.RequestId,
+                    MetricStoreRevision,
+                    "QueryMetrics.Exception",
+                    ex.Message);
+            }
+        }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticWorldSummary> QueryWorld(
             long requestId,
@@ -245,6 +314,91 @@ namespace AbilityKit.Demo.Moba.Services
                     query.RequestId,
                     _eventStore.Revision,
                     "QueryEvents.Exception",
+                    ex.Message);
+            }
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObject(
+            long requestId,
+            in BattleDiagnosticRuntimeObjectReference reference,
+            int frame)
+        {
+            if (requestId <= 0L) throw new ArgumentOutOfRangeException(nameof(requestId));
+            if (!reference.HasRuntimeId) throw new ArgumentException(
+                "A runtime object reference with an ID is required.",
+                nameof(reference));
+            if (_runtimeObjectStore == null)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.Unavailable(
+                    requestId,
+                    0L,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "The local session does not provide a runtime object catalog.");
+            }
+
+            try
+            {
+                return _runtimeObjectStore.QueryRuntimeObject(requestId, in reference, frame);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.Failed(
+                    requestId,
+                    RuntimeObjectStoreRevision,
+                    "QueryRuntimeObject.Exception",
+                    ex.Message);
+            }
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObjects(
+            BattleDiagnosticRuntimeObjectQuery query)
+        {
+            if (!(_runtimeObjectStore is IBattleDiagnosticRuntimeObjectCatalogReadStore store))
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.Unavailable(
+                    query.RequestId,
+                    RuntimeObjectStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "The local session does not provide runtime object catalog queries.");
+            }
+
+            try
+            {
+                return store.QueryRuntimeObjects(query);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.Failed(
+                    query.RequestId,
+                    RuntimeObjectStoreRevision,
+                    "QueryRuntimeObjects.Exception",
+                    ex.Message);
+            }
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>
+            QueryRuntimeObjectSummary(long requestId)
+        {
+            if (requestId <= 0L) throw new ArgumentOutOfRangeException(nameof(requestId));
+            if (!(_runtimeObjectStore is IBattleDiagnosticRuntimeObjectCatalogReadStore store))
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>.Unavailable(
+                    requestId,
+                    RuntimeObjectStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "The local session does not provide a runtime object catalog summary.");
+            }
+
+            try
+            {
+                return store.QueryRuntimeObjectSummary(requestId);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>.Failed(
+                    requestId,
+                    RuntimeObjectStoreRevision,
+                    "QueryRuntimeObjectSummary.Exception",
                     ex.Message);
             }
         }

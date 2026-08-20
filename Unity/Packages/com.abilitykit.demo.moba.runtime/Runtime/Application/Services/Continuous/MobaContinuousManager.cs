@@ -11,6 +11,7 @@ using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
+using AbilityKit.Demo.Moba.Services.Observability;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -40,7 +41,7 @@ namespace AbilityKit.Demo.Moba.Services
             services.TryResolve(out IFrameTime frameTime);
             services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
             services.TryResolve(out MobaRuntimeContextService runtimeContexts);
-            services.TryResolve(out IMobaBattleDiagnosticEventSink diagnostics);
+            services.TryResolve(out IMobaBuffLifecycleHook observationHook);
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerPlanSubscriptionService triggerSubscriptions);
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaOwnerBoundTriggerGateService ownerBoundTriggerGates);
             services.TryResolve(out MobaTriggerExecutionGateway triggerGateway);
@@ -67,7 +68,7 @@ namespace AbilityKit.Demo.Moba.Services
                 stageEffects,
                 presentationCues,
                 buffContextRegistry,
-                diagnostics);
+                observationHook);
             _intervalHandlers.Add(_buffIntervalHandler);
             _triggerIntervalHandler = new MobaTriggerIntervalContinuousHandler(triggerGateway, combatActivity);
             _intervalHandlers.Add(_triggerIntervalHandler);

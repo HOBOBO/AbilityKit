@@ -125,6 +125,9 @@ namespace AbilityKit.Game.Flow
             {
                 var projection = _tickLoop.CreateProjection();
                 SessionContextBinder.BindTickProjection(_ctx, in projection);
+                if (_ctx.TryGetRuntimeWorld(out var runtimeWorld))
+                    _runtime.Diagnostics.TryBindMetricSink(runtimeWorld);
+                _runtime.Diagnostics.RecordFrameMetrics(_ctx);
             }
 
             _subFeatureHost?.Tick(new FeatureModuleContext<BattleSessionFeature>(ctx, this), deltaTime);

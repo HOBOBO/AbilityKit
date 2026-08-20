@@ -357,7 +357,7 @@ public sealed class ShooterPlaySessionRunnerTests
         Assert.InRange(
             view.MaxEnemyCount,
             1,
-            ShooterPureStateSyncSettings.Default.ActiveSyncBudget);
+            options.GameplayScenario.BattleFlow.MaxActiveEnemies);
     }
 
     [Fact]
@@ -370,21 +370,31 @@ public sealed class ShooterPlaySessionRunnerTests
             ShooterPlayModeSessionOptions.CreatePlayModeScenario(ShooterPlayModeSessionOptions.PlayModeHighDensityEnemyBudget));
         runner.Start(options);
 
-        for (var tick = 0; tick < 3; tick++)
+        var publishInterval = runner.PresentationSnapshotIntervalTicks;
+        var publishedBatches = new List<ShooterSnapshotViewBatch>();
+        var observedPublishCount = runner.PresentationPublishCount;
+        for (var tick = 0; tick < publishInterval * 2; tick++)
         {
             runner.Tick(1f / runner.Options.TickRate);
+            if (runner.PresentationPublishCount == observedPublishCount)
+            {
+                continue;
+            }
+
+            observedPublishCount = runner.PresentationPublishCount;
+            publishedBatches.Add(view.Frames[^1].ClientBatch);
         }
 
-        Assert.True(view.Frames.Count >= 3);
-        Assert.Equal(ShooterViewSnapshotKind.Full, view.Frames[0].ClientBatch.SnapshotKind);
-        Assert.Equal(ShooterViewSnapshotKind.Delta, view.Frames[1].ClientBatch.SnapshotKind);
-        Assert.Equal(ShooterViewSnapshotKind.Delta, view.Frames[2].ClientBatch.SnapshotKind);
+        Assert.Equal(3, publishedBatches.Count);
+        Assert.Equal(ShooterViewSnapshotKind.Full, publishedBatches[0].SnapshotKind);
+        Assert.Equal(ShooterViewSnapshotKind.Delta, publishedBatches[1].SnapshotKind);
+        Assert.Equal(ShooterViewSnapshotKind.Delta, publishedBatches[2].SnapshotKind);
         Assert.True(
-            view.Frames[1].ClientBatch.EntityChanges.Count <= ShooterPureStateSyncSettings.Default.ActiveSyncBudget,
-            $"Expected high-density pure-state presentation deltas to stay within the active budget, but got {view.Frames[1].ClientBatch.EntityChanges.Count} entities.");
+            publishedBatches[1].EntityChanges.Count <= ShooterPureStateSyncSettings.Default.ActiveSyncBudget,
+            $"Expected high-density pure-state presentation deltas to stay within the active budget, but got {publishedBatches[1].EntityChanges.Count} entities.");
         Assert.True(
-            view.Frames[2].ClientBatch.EntityChanges.Count <= ShooterPureStateSyncSettings.Default.ActiveSyncBudget,
-            $"Expected high-density pure-state presentation deltas to stay within the active budget, but got {view.Frames[2].ClientBatch.EntityChanges.Count} entities.");
+            publishedBatches[2].EntityChanges.Count <= ShooterPureStateSyncSettings.Default.ActiveSyncBudget,
+            $"Expected high-density pure-state presentation deltas to stay within the active budget, but got {publishedBatches[2].EntityChanges.Count} entities.");
     }
 
     [Fact]

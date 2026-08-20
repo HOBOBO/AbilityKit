@@ -52,12 +52,18 @@ public sealed class ShooterServerSyncTemplateCatalogTests
         Assert.Equal(1024, batchOptions.ResolvePureStateSettings().ActiveSyncBudget);
         Assert.False(batchOptions.UseObserverAoi);
 
-        Assert.Equal(90, mass.SnapshotIntervalFrames);
+        Assert.Equal(3, mass.SnapshotIntervalFrames);
         Assert.Equal(450, mass.FullSnapshotIntervalFrames);
         Assert.Equal(ShooterStateSyncPushPayloadMode.PureState, massOptions.PayloadMode);
         Assert.Equal(NetworkConditionProfile.LimitedBandwidth.BandwidthKbps, massOptions.NetworkCondition.BandwidthKbps);
-        Assert.Equal(2048, massOptions.ResolvePureStateSettings().ActiveSyncBudget);
-        Assert.Equal(20000, massOptions.ResolvePureStateSettings().MaxEntityCount);
+        var massSettings = massOptions.ResolvePureStateSettings();
+        Assert.Equal(2048, massSettings.ActiveSyncBudget);
+        Assert.Equal(20000, massSettings.MaxEntityCount);
+        Assert.Equal(3, massSettings.DeltaIntervalFrames);
+        Assert.Equal(3, massSettings.InterpolationDelayFrames);
+        Assert.Equal(3, massSettings.NearLodIntervalFrames);
+        Assert.Equal(9, massSettings.MidLodIntervalFrames);
+        Assert.Equal(30, massSettings.FarLodIntervalFrames);
         Assert.Equal(24f, massOptions.AoiVisibleRadius);
         Assert.Equal(30f, massOptions.AoiBoundaryRadius);
         Assert.True(massOptions.UseObserverAoi);
@@ -72,7 +78,7 @@ public sealed class ShooterServerSyncTemplateCatalogTests
 
         Assert.Equal(60, batch.SnapshotIntervalFrames);
         Assert.Equal(300, batch.FullSnapshotIntervalFrames);
-        Assert.Equal(90, mass.SnapshotIntervalFrames);
+        Assert.Equal(3, mass.SnapshotIntervalFrames);
         Assert.Equal(450, mass.FullSnapshotIntervalFrames);
     }
 }

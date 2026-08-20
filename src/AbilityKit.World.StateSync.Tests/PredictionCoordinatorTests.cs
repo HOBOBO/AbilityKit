@@ -250,6 +250,19 @@ public sealed class PredictionCoordinatorTests
     }
 
     [Fact]
+    public void RingBackedOptions_AssembleResizablePredictionHistories()
+    {
+        var coordinator = new PredictionCoordinator(
+            7,
+            bufferOptions: PredictionCoordinatorBufferOptions.CreateRingBacked(11, 13));
+
+        Assert.Equal(11, coordinator.PredictedStateHistoryCapacityControl!.Capacity);
+        Assert.Equal(13, coordinator.InputHistoryCapacityControl!.Capacity);
+        Assert.True(coordinator.PredictedStateHistoryCapacityControl.TrySetCapacity(7));
+        Assert.True(coordinator.InputHistoryCapacityControl.TrySetCapacity(9));
+    }
+
+    [Fact]
     public void InputFrameBatch_AllowsExternalHistoriesAndDefensivelyCopiesCommands()
     {
         var first = new MoveCommand(1);

@@ -99,7 +99,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             return new MobaBattleDiagnosticEventDraft(
                 BattleDiagnosticEventKind.TriggerAnalysis,
-                BattleDiagnosticEventChannel.Effect,
+                BattleDiagnosticEventChannel.Trigger,
                 outcome,
                 sourceActorId,
                 targetActorId,

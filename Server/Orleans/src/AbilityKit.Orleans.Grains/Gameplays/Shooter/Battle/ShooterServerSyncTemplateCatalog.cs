@@ -92,9 +92,12 @@ internal static class ShooterServerSyncTemplateCatalog
         maxEntityCount: 20000,
         activeSyncBudget: 2048,
         baselineIntervalFrames: 450,
-        deltaIntervalFrames: 90,
-        lowFrequencyIntervalFrames: 90,
-        interpolationDelayFrames: 90);
+        deltaIntervalFrames: 3,
+        lowFrequencyIntervalFrames: 30,
+        interpolationDelayFrames: 3,
+        nearLodIntervalFrames: 3,
+        midLodIntervalFrames: 9,
+        farLodIntervalFrames: 30);
 
     private static readonly IReadOnlyList<ShooterServerSyncTemplatePolicy> Policies = new[]
     {
@@ -103,7 +106,7 @@ internal static class ShooterServerSyncTemplateCatalog
         Packed(ShooterServerProtocol.PredictRollbackAuthorityTemplate, 1, 1, NetworkConditionProfile.Ideal),
         Packed(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate, 1, 60, NetworkConditionProfile.Lan),
         PureState(ShooterServerProtocol.BatchStateLowFrequencyTemplate, 60, 300, NetworkConditionProfile.Mobile4G, BatchStateSettings),
-        PureState(ShooterServerProtocol.MassBattleLodAoiTemplate, 90, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true),
+        PureState(ShooterServerProtocol.MassBattleLodAoiTemplate, 3, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true),
         Packed(ShooterServerProtocol.HybridHeroPredictionTemplate, 1, 30, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate, 1, 60, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.StateSyncAuthorityTemplate, 1, 30, NetworkConditionProfile.Ideal),

@@ -1,4 +1,103 @@
 #nullable enable
+*REMOVED*override AbilityKit.Core.Debugging.DebugDrawMask.Equals(object! obj) -> bool
+override AbilityKit.Core.Debugging.DebugDrawMask.Equals(object? obj) -> bool
+*REMOVED*override AbilityKit.Core.Eventing.EventKey.Equals(object! obj) -> bool
+override AbilityKit.Core.Eventing.EventKey.Equals(object? obj) -> bool
+*REMOVED*override AbilityKit.Core.Mathematics.Quat.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Quat.Equals(object? obj) -> bool
+*REMOVED*override AbilityKit.Core.Mathematics.Transform3.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Transform3.Equals(object? obj) -> bool
+*REMOVED*override AbilityKit.Core.Mathematics.Vec2.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Vec2.Equals(object? obj) -> bool
+*REMOVED*override AbilityKit.Core.Mathematics.Vec3.Equals(object! obj) -> bool
+override AbilityKit.Core.Mathematics.Vec3.Equals(object? obj) -> bool
+*REMOVED*override AbilityKit.Core.Pooling.PoolConfigRequest.Equals(object! obj) -> bool
+override AbilityKit.Core.Pooling.PoolConfigRequest.Equals(object? obj) -> bool
+*REMOVED*static AbilityKit.Core.Reflection.ReflectionInvokeUtils.FindType(string! typeNameOrAssemblyQualified) -> System.Type!
+static AbilityKit.Core.Reflection.ReflectionInvokeUtils.FindType(string! typeNameOrAssemblyQualified) -> System.Type?
+*REMOVED*AbilityKit.Core.Pooling.PoolConfigProviderInfo.PoolConfigProviderInfo(string! name, string! source, int priority, int registrationOrder) -> void
+AbilityKit.Core.Pooling.PoolConfigProviderInfo.PoolConfigProviderInfo(string! name, string? source, int priority, int registrationOrder) -> void
+*REMOVED*AbilityKit.Core.Configuration.LayeredJsonSettingsStore.OnChanged -> System.Action<string!>!
+*REMOVED*AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ReplaceBase(AbilityKit.Core.Configuration.FlatJsonSettings! settings) -> void
+*REMOVED*AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ReplacePersistent(AbilityKit.Core.Configuration.FlatJsonSettings! settings) -> void
+*REMOVED*AbilityKit.Core.Configuration.LayeredJsonSettingsStore.TryGetRaw(string! key, out object! value) -> bool
+*REMOVED*AbilityKit.Core.Configuration.ModuleInstallerConfigSet.FindModule(string! moduleKey) -> AbilityKit.Core.Configuration.ModuleInstallerConfig!
+*REMOVED*static AbilityKit.Core.Configuration.PersistentJsonConfigLoader.LoadOrDefault<T>(string! filePath, System.Func<string!, T!>! deserialize) -> T!
+*REMOVED*static AbilityKit.Core.Configuration.PersistentJsonConfigLoader.TryLoad<T>(string! filePath, System.Func<string!, T!>! deserialize) -> T!
+*REMOVED*override AbilityKit.Core.Eventing.EventKey<TArgs>.Equals(object! obj) -> bool
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.OnChanged -> System.Action<string?>?
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ReplaceBase(AbilityKit.Core.Configuration.FlatJsonSettings? settings) -> void
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.ReplacePersistent(AbilityKit.Core.Configuration.FlatJsonSettings? settings) -> void
+AbilityKit.Core.Configuration.LayeredJsonSettingsStore.TryGetRaw(string! key, out object? value) -> bool
+AbilityKit.Core.Configuration.ModuleInstallerConfigSet.FindModule(string! moduleKey) -> AbilityKit.Core.Configuration.ModuleInstallerConfig?
+static AbilityKit.Core.Configuration.PersistentJsonConfigLoader.LoadOrDefault<T>(string! filePath, System.Func<string!, T?>? deserialize) -> T!
+static AbilityKit.Core.Configuration.PersistentJsonConfigLoader.TryLoad<T>(string! filePath, System.Func<string!, T?>? deserialize) -> T?
+override AbilityKit.Core.Eventing.EventKey<TArgs>.Equals(object? obj) -> bool
+*REMOVED*AbilityKit.Core.Configuration.FlatJsonSettings.FlatJsonSettings(System.Collections.Generic.Dictionary<string!, object!>! values) -> void
+AbilityKit.Core.Configuration.FlatJsonSettings.FlatJsonSettings(System.Collections.Generic.Dictionary<string!, object!>? values) -> void
+*REMOVED*AbilityKit.Core.Logging.ILogSink.Exception(System.Exception! exception, string! message = null) -> void
+AbilityKit.Core.Logging.ILogSink.Exception(System.Exception! exception, string? message = null) -> void
+*REMOVED*AbilityKit.Core.Logging.NullLogSink.Exception(System.Exception! exception, string! message = null) -> void
+AbilityKit.Core.Logging.NullLogSink.Exception(System.Exception! exception, string? message = null) -> void
+*REMOVED*static AbilityKit.Core.Logging.Log.Exception(System.Exception! exception, string! message = null) -> void
+static AbilityKit.Core.Logging.Log.Exception(System.Exception! exception, string? message = null) -> void
+*REMOVED*static AbilityKit.Core.Reflection.ReflectionInvokeUtils.TryInvokeStaticMethod(string! typeNameOrAssemblyQualified, string! methodName, out System.Exception! exception) -> bool
+static AbilityKit.Core.Reflection.ReflectionInvokeUtils.TryInvokeStaticMethod(string! typeNameOrAssemblyQualified, string! methodName, out System.Exception? exception) -> bool
+*REMOVED*static AbilityKit.Core.Utilities.DisposeUtils.TryDispose(ref System.IDisposable! disposable) -> void
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose(ref System.IDisposable? disposable) -> void
+*REMOVED*static AbilityKit.Core.Utilities.DisposeUtils.TryDispose(ref System.IDisposable! disposable, System.Action<System.Exception!>! onException) -> void
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose(ref System.IDisposable? disposable, System.Action<System.Exception!>! onException) -> void
+*REMOVED*static AbilityKit.Core.Utilities.DisposeUtils.TryDispose<T>(ref T! disposable) -> void
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose<T>(ref T? disposable) -> void
+*REMOVED*static AbilityKit.Core.Utilities.DisposeUtils.TryDispose<T>(ref T! disposable, System.Action<System.Exception!>! onException) -> void
+static AbilityKit.Core.Utilities.DisposeUtils.TryDispose<T>(ref T? disposable, System.Action<System.Exception!>! onException) -> void
+*REMOVED*AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnDestroy -> System.Action<T!>!
+*REMOVED*AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnGet -> System.Action<T!>!
+*REMOVED*AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnRelease -> System.Action<T!>!
+*REMOVED*override AbilityKit.Core.Pooling.PoolKey.Equals(object! obj) -> bool
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnDestroy -> System.Action<T!>?
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnGet -> System.Action<T!>?
+AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnRelease -> System.Action<T!>?
+override AbilityKit.Core.Pooling.PoolKey.Equals(object? obj) -> bool
+AbilityKit.Core.Eventing.EventDispatcher.Clear() -> void
+static AbilityKit.Core.Eventing.GlobalEventDispatcher.Clear() -> void
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>.BufferCapacityController(AbilityKit.Core.Buffers.IBufferCapacityControl! capacityControl, AbilityKit.Core.Buffers.IBufferCapacityPolicy<TSample>! policy, int minCapacity = 1, int maxCapacity = 2147483647) -> void
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>.CurrentCapacity.get -> int
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>.LastTargetCapacity.get -> int
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>.MaxCapacity.get -> int
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>.MinCapacity.get -> int
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>.TrySetTargetCapacity(int capacity) -> bool
+AbilityKit.Core.Buffers.BufferCapacityController<TSample>.Update(TSample sample) -> bool
+AbilityKit.Core.Buffers.IBufferCapacityControl
+AbilityKit.Core.Buffers.IBufferCapacityControl.Capacity.get -> int
+AbilityKit.Core.Buffers.IBufferCapacityControl.TrySetCapacity(int capacity) -> bool
+AbilityKit.Core.Buffers.IBufferCapacityPolicy<TSample>
+AbilityKit.Core.Buffers.IBufferCapacityPolicy<TSample>.GetTargetCapacity(TSample sample, int currentCapacity) -> int
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.Clear() -> void
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.Contains(int frame) -> bool
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.Count.get -> int
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.GetFrameAt(int orderedIndex) -> int
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.LowerBound(int frame) -> int
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.Remove(int frame) -> bool
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.RemoveAfter(int frame) -> void
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.RemoveBefore(int frame) -> void
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.Store(int frame, T value) -> void
+AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.TryGet(int frame, out T value) -> bool
+AbilityKit.Core.Buffers.ISequentialBuffer<T>
+AbilityKit.Core.Buffers.ISequentialBuffer<T>.AddLast(T item) -> void
+AbilityKit.Core.Buffers.ISequentialBuffer<T>.Clear() -> void
+AbilityKit.Core.Buffers.ISequentialBuffer<T>.Count.get -> int
+AbilityKit.Core.Buffers.ISequentialBuffer<T>.this[int orderedIndex].get -> T
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>.AddLast(T item) -> void
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>.Capacity.get -> int
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>.Clear() -> void
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>.Count.get -> int
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>.ListSequentialBuffer(int capacity) -> void
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>.this[int orderedIndex].get -> T
+AbilityKit.Core.Buffers.ListSequentialBuffer<T>.TrySetCapacity(int capacity) -> bool
 AbilityKit.Core.Buffers.PooledBufferClearMode
 AbilityKit.Core.Buffers.PooledBufferClearMode.None = 0 -> AbilityKit.Core.Buffers.PooledBufferClearMode
 AbilityKit.Core.Buffers.PooledBufferClearMode.OnRent = 1 -> AbilityKit.Core.Buffers.PooledBufferClearMode
@@ -12,6 +111,42 @@ AbilityKit.Core.Buffers.PooledBufferOwner<T>.Segment.get -> System.ArraySegment<
 AbilityKit.Core.Buffers.PooledBufferOwner<T>.Span.get -> System.Span<T>
 static AbilityKit.Core.Buffers.PooledBufferOwner<T>.Rent(int length, AbilityKit.Core.Buffers.PooledBufferClearMode clearMode = AbilityKit.Core.Buffers.PooledBufferClearMode.None) -> AbilityKit.Core.Buffers.PooledBufferOwner<T>!
 static AbilityKit.Core.Buffers.PooledBufferOwner<T>.Rent(int length, System.Buffers.ArrayPool<T>! pool, AbilityKit.Core.Buffers.PooledBufferClearMode clearMode = AbilityKit.Core.Buffers.PooledBufferClearMode.None) -> AbilityKit.Core.Buffers.PooledBufferOwner<T>!
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.Capacity.get -> int
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.Clear() -> void
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.Contains(int frame) -> bool
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.Count.get -> int
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.GetFrameAt(int orderedIndex) -> int
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.LowerBound(int frame) -> int
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.Remove(int frame) -> bool
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.RemoveAfter(int frame) -> void
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.RemoveBefore(int frame) -> void
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.RingFrameIndexedBuffer(int capacity) -> void
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.Store(int frame, T value) -> void
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.TryGet(int frame, out T value) -> bool
+AbilityKit.Core.Buffers.RingFrameIndexedBuffer<T>.TrySetCapacity(int capacity) -> bool
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>.AddLast(T item) -> void
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>.Capacity.get -> int
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>.Clear() -> void
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>.Count.get -> int
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>.RingSequentialBuffer(int capacity) -> void
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>.this[int orderedIndex].get -> T
+AbilityKit.Core.Buffers.RingSequentialBuffer<T>.TrySetCapacity(int capacity) -> bool
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.Capacity.get -> int
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.Clear() -> void
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.Contains(int frame) -> bool
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.Count.get -> int
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.GetFrameAt(int orderedIndex) -> int
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.LowerBound(int frame) -> int
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.Remove(int frame) -> bool
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.RemoveAfter(int frame) -> void
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.RemoveBefore(int frame) -> void
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.SparseFrameIndexedBuffer(int capacity) -> void
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.Store(int frame, T value) -> void
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.TryGet(int frame, out T value) -> bool
+AbilityKit.Core.Buffers.SparseFrameIndexedBuffer<T>.TrySetCapacity(int capacity) -> bool
 AbilityKit.Core.Collections.SortedIntSet
 AbilityKit.Core.Collections.SortedIntSet.Add(int value) -> bool
 AbilityKit.Core.Collections.SortedIntSet.Clear() -> void
@@ -57,3 +192,44 @@ static AbilityKit.Core.Mathematics.DeterministicMathBridge.Cos(float radians) ->
 static AbilityKit.Core.Mathematics.DeterministicMathBridge.Sin(float radians) -> float
 static AbilityKit.Core.Mathematics.DeterministicMathBridge.Tan(float radians) -> float
 static AbilityKit.Core.Mathematics.DeterministicMathBridge.Atan2(float y, float x) -> float
+AbilityKit.Core.Observability.IObservationSink<TEvent>
+AbilityKit.Core.Observability.IObservationSink<TEvent>.IsEnabled.get -> bool
+AbilityKit.Core.Observability.IObservationSink<TEvent>.TryWrite(in TEvent value) -> bool
+AbilityKit.Core.Observability.NullObservationSink<TEvent>
+static AbilityKit.Core.Observability.NullObservationSink<TEvent>.Instance.get -> AbilityKit.Core.Observability.NullObservationSink<TEvent>!
+AbilityKit.Core.Observability.NullObservationSink<TEvent>.IsEnabled.get -> bool
+AbilityKit.Core.Observability.NullObservationSink<TEvent>.TryWrite(in TEvent value) -> bool
+AbilityKit.Core.Observability.ObservationDefinitionRef
+AbilityKit.Core.Observability.ObservationDefinitionRef.ObservationDefinitionRef() -> void
+AbilityKit.Core.Observability.ObservationDefinitionRef.ObservationDefinitionRef(int kind, long id) -> void
+AbilityKit.Core.Observability.ObservationDefinitionRef.Kind.get -> int
+AbilityKit.Core.Observability.ObservationDefinitionRef.Id.get -> long
+AbilityKit.Core.Observability.ObservationDefinitionRef.IsValid.get -> bool
+AbilityKit.Core.Observability.ObservationDefinitionRef.Equals(AbilityKit.Core.Observability.ObservationDefinitionRef other) -> bool
+override AbilityKit.Core.Observability.ObservationDefinitionRef.Equals(object? obj) -> bool
+override AbilityKit.Core.Observability.ObservationDefinitionRef.GetHashCode() -> int
+static AbilityKit.Core.Observability.ObservationDefinitionRef.operator ==(AbilityKit.Core.Observability.ObservationDefinitionRef left, AbilityKit.Core.Observability.ObservationDefinitionRef right) -> bool
+static AbilityKit.Core.Observability.ObservationDefinitionRef.operator !=(AbilityKit.Core.Observability.ObservationDefinitionRef left, AbilityKit.Core.Observability.ObservationDefinitionRef right) -> bool
+AbilityKit.Core.Observability.ObservationTraceRef
+AbilityKit.Core.Observability.ObservationTraceRef.ObservationTraceRef() -> void
+AbilityKit.Core.Observability.ObservationTraceRef.ObservationTraceRef(long rootId, long contextId, long parentId = 0) -> void
+AbilityKit.Core.Observability.ObservationTraceRef.RootId.get -> long
+AbilityKit.Core.Observability.ObservationTraceRef.ContextId.get -> long
+AbilityKit.Core.Observability.ObservationTraceRef.ParentId.get -> long
+AbilityKit.Core.Observability.ObservationTraceRef.IsValid.get -> bool
+AbilityKit.Core.Observability.ObservationTraceRef.Equals(AbilityKit.Core.Observability.ObservationTraceRef other) -> bool
+override AbilityKit.Core.Observability.ObservationTraceRef.Equals(object? obj) -> bool
+override AbilityKit.Core.Observability.ObservationTraceRef.GetHashCode() -> int
+static AbilityKit.Core.Observability.ObservationTraceRef.operator ==(AbilityKit.Core.Observability.ObservationTraceRef left, AbilityKit.Core.Observability.ObservationTraceRef right) -> bool
+static AbilityKit.Core.Observability.ObservationTraceRef.operator !=(AbilityKit.Core.Observability.ObservationTraceRef left, AbilityKit.Core.Observability.ObservationTraceRef right) -> bool
+AbilityKit.Core.Observability.RuntimeObjectKey
+AbilityKit.Core.Observability.RuntimeObjectKey.RuntimeObjectKey() -> void
+AbilityKit.Core.Observability.RuntimeObjectKey.RuntimeObjectKey(long runtimeId, int generation = 0) -> void
+AbilityKit.Core.Observability.RuntimeObjectKey.RuntimeId.get -> long
+AbilityKit.Core.Observability.RuntimeObjectKey.Generation.get -> int
+AbilityKit.Core.Observability.RuntimeObjectKey.IsValid.get -> bool
+AbilityKit.Core.Observability.RuntimeObjectKey.Equals(AbilityKit.Core.Observability.RuntimeObjectKey other) -> bool
+override AbilityKit.Core.Observability.RuntimeObjectKey.Equals(object? obj) -> bool
+override AbilityKit.Core.Observability.RuntimeObjectKey.GetHashCode() -> int
+static AbilityKit.Core.Observability.RuntimeObjectKey.operator ==(AbilityKit.Core.Observability.RuntimeObjectKey left, AbilityKit.Core.Observability.RuntimeObjectKey right) -> bool
+static AbilityKit.Core.Observability.RuntimeObjectKey.operator !=(AbilityKit.Core.Observability.RuntimeObjectKey left, AbilityKit.Core.Observability.RuntimeObjectKey right) -> bool

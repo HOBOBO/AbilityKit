@@ -3,7 +3,11 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Diagnostics
 {
-    public sealed class BattleDiagnosticOfflineSession : IBattleDiagnosticReadOnlySession, IDisposable
+    public sealed class BattleDiagnosticOfflineSession :
+        IBattleDiagnosticReadOnlySession,
+        IBattleDiagnosticRuntimeObjectCatalogSession,
+        IBattleDiagnosticMetricSession,
+        IDisposable
     {
         private readonly BattleDiagnosticSessionSnapshot _snapshot;
         private readonly HashSet<long> _stateActorIds;
@@ -35,7 +39,47 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public long ActorBuffStoreRevision => _snapshot.Buffs.Revision;
         public long ActorTagStoreRevision => _snapshot.Tags.Revision;
         public long ActorEffectStoreRevision => _snapshot.Effects.Revision;
+        public long RuntimeObjectStoreRevision => _snapshot.Objects.Revision;
+        public long MetricStoreRevision => _snapshot.FrameMetrics.Revision;
         public long StoreRevision => EventStoreRevision;
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticMetricSample> QueryMetrics(
+            BattleDiagnosticMetricQuery query)
+        {
+            if (!SessionInfo.Supports(BattleDiagnosticCapabilities.FrameMetrics))
+                return Unsupported<BattleDiagnosticMetricSample>(
+                    query.RequestId,
+                    MetricStoreRevision,
+                    "frame metric history");
+            if (query.Page.StoreRevision > 0L && query.Page.StoreRevision != MetricStoreRevision)
+                return Unavailable<BattleDiagnosticMetricSample>(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    BattleDiagnosticDataAvailability.Evicted,
+                    "The requested metric store revision is not present in this offline artifact.");
+
+            var result = new List<BattleDiagnosticMetricSample>(
+                Math.Min(query.Page.Limit, _snapshot.FrameMetrics.Samples.Count));
+            var skipped = 0;
+            var hasMore = false;
+            for (var i = 0; i < _snapshot.FrameMetrics.Samples.Count; i++)
+            {
+                var item = _snapshot.FrameMetrics.Samples[i];
+                if (!query.Matches(in item)) continue;
+                if (skipped++ < query.Page.Offset) continue;
+                if (result.Count == query.Page.Limit)
+                {
+                    hasMore = true;
+                    break;
+                }
+                result.Add(item);
+            }
+            return BattleDiagnosticQueryResult<BattleDiagnosticMetricSample>.FromItems(
+                query.RequestId,
+                MetricStoreRevision,
+                result,
+                hasMore);
+        }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticWorldSummary> QueryWorld(long requestId, int frame)
         {
@@ -79,6 +123,91 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 matches.Add(item);
             }
             return BattleDiagnosticQueryResult<BattleDiagnosticEvent>.FromItems(query.RequestId, EventStoreRevision, matches, hasMore);
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObject(
+            long requestId,
+            in BattleDiagnosticRuntimeObjectReference reference,
+            int frame)
+        {
+            ValidateRequest(requestId);
+            if (!reference.HasRuntimeId) throw new ArgumentException(
+                "A runtime object reference with an ID is required.",
+                nameof(reference));
+            if (!SessionInfo.Supports(BattleDiagnosticCapabilities.RuntimeObjects))
+                return Unavailable<BattleDiagnosticRuntimeObject>(
+                    requestId,
+                    RuntimeObjectStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This artifact does not provide a runtime object catalog.");
+            if (_snapshot.Objects.TryResolve(in reference, frame, out var runtimeObject))
+                return Ready(requestId, RuntimeObjectStoreRevision, new[] { runtimeObject });
+
+            return Unavailable<BattleDiagnosticRuntimeObject>(
+                requestId,
+                RuntimeObjectStoreRevision,
+                _snapshot.Objects.Truncated
+                    ? BattleDiagnosticDataAvailability.Truncated
+                    : BattleDiagnosticDataAvailability.NotCaptured,
+                _snapshot.Objects.Truncated
+                    ? "The runtime object may have been evicted from the bounded catalog."
+                    : "The runtime object was not captured.");
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObjects(
+            BattleDiagnosticRuntimeObjectQuery query)
+        {
+            if (!SessionInfo.Supports(BattleDiagnosticCapabilities.RuntimeObjects))
+                return Unavailable<BattleDiagnosticRuntimeObject>(
+                    query.RequestId,
+                    RuntimeObjectStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This artifact does not provide a runtime object catalog.");
+            if (query.Page.StoreRevision > 0L &&
+                query.Page.StoreRevision != RuntimeObjectStoreRevision)
+                return Unavailable<BattleDiagnosticRuntimeObject>(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    BattleDiagnosticDataAvailability.Evicted,
+                    "The requested runtime object catalog revision is not present in this artifact.");
+
+            var results = new List<BattleDiagnosticRuntimeObject>(query.Page.Limit);
+            var skipped = 0;
+            var hasMore = false;
+            for (var i = 0; i < _snapshot.Objects.Items.Count; i++)
+            {
+                var item = _snapshot.Objects.Items[i];
+                if (!query.Filter.Matches(in item)) continue;
+                if (skipped++ < query.Page.Offset) continue;
+                if (results.Count == query.Page.Limit)
+                {
+                    hasMore = true;
+                    break;
+                }
+                results.Add(item);
+            }
+
+            return BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject>.FromItems(
+                query.RequestId,
+                RuntimeObjectStoreRevision,
+                results,
+                hasMore);
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>
+            QueryRuntimeObjectSummary(long requestId)
+        {
+            ValidateRequest(requestId);
+            if (!SessionInfo.Supports(BattleDiagnosticCapabilities.RuntimeObjects))
+                return Unavailable<BattleDiagnosticRuntimeObjectCatalogSummary>(
+                    requestId,
+                    RuntimeObjectStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This artifact does not provide a runtime object catalog.");
+            return Ready(
+                requestId,
+                RuntimeObjectStoreRevision,
+                new[] { _snapshot.Objects.Summary });
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticTraceNodeSummary> QueryTrace(long requestId, long rootContextId)

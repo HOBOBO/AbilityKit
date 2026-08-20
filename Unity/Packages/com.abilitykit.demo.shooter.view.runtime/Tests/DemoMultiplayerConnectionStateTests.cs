@@ -71,9 +71,52 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             Assert.That(profile.StarterSceneName, Is.EqualTo("StarterScene"));
 
             var options = profile.BuildSessionOptions();
-            Assert.That(options.SyncTemplateId, Is.EqualTo("state-sync-authority"));
+            Assert.That(options.SyncTemplateId, Is.EqualTo("mass-battle-lod-aoi"));
             Assert.That(options.PlayerCount, Is.EqualTo(2));
             Assert.That(options.ControlledPlayerId, Is.EqualTo(1));
+            Assert.That(options.GameplayScenario.BattleFlow.MaxActiveEnemies, Is.EqualTo(512));
+
+            var roomLaunchSpec = profile.BuildRoomLaunchSpec(options, "local", "server-a");
+            Assert.That(roomLaunchSpec.Tags[ShooterRoomLaunchTagKeys.EnemyBudget], Is.EqualTo("512"));
+        }
+
+        [Test]
+        public void FormalBattleHandoffRestoresJoinedRoomInsteadOfJoiningTwice()
+        {
+            var profile = AssetDatabase.LoadAssetAtPath<ShooterMultiplayerProfileSO>(FormalProfilePath);
+            var request = new DemoMultiplayerLaunchRequest(
+                "127.0.0.1",
+                4000,
+                "dev",
+                "local",
+                "account-1",
+                "session-1",
+                System.TimeSpan.FromSeconds(5));
+
+            var options = ShooterFormalMultiplayerController.BuildBattleHandoffLaunchOptions(
+                profile,
+                request,
+                "room-1");
+
+            Assert.That(options.LaunchMode, Is.EqualTo(ShooterRemoteStateSyncLaunchMode.RestoreOnly));
+            Assert.That(options.RoomId, Is.EqualTo("room-1"));
+            Assert.That(options.SessionToken, Is.EqualTo("session-1"));
+            Assert.That(options.SessionOptions.SyncTemplateId, Is.EqualTo("mass-battle-lod-aoi"));
+            Assert.That(options.RoomLaunchSpec, Is.Not.Null);
+            Assert.That(
+                options.RoomLaunchSpec!.Value.Tags[ShooterRoomLaunchTagKeys.EnemyBudget],
+                Is.EqualTo("512"));
+        }
+
+        [Test]
+        public void InitialFullStateSyncUsesSnapshotOpcodeWithoutDecodingDispatchedPayloadAgain()
+        {
+            Assert.That(
+                ShooterInitialFullStateSyncCoordinator.IsFullSnapshotPush(9002u),
+                Is.True);
+            Assert.That(
+                ShooterInitialFullStateSyncCoordinator.IsFullSnapshotPush(9003u),
+                Is.False);
         }
 
         [Test]

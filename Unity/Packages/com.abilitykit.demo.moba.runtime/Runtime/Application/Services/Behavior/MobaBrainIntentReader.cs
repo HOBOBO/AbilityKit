@@ -3,11 +3,23 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Behavior;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Input;
+using AbilityKit.Demo.Moba.Services.Behavior.AI;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior
 {
     public static class MobaBrainIntentReader
     {
+        public static MobaActorIntent Read(BehaviorRuntime behavior)
+        {
+            if (behavior?.Decision is IMobaActorIntentDecision intentDecision)
+            {
+                var intent = intentDecision.CurrentIntent;
+                return intent.IsValid() ? intent : MobaActorIntent.Hold;
+            }
+
+            return Read(behavior?.Output);
+        }
+
         public static MobaActorIntent Read(IBehaviorOutput output)
         {
             var intent = MobaActorIntent.Hold;

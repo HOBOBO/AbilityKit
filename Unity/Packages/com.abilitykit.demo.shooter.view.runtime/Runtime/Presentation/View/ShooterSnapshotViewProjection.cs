@@ -35,7 +35,7 @@ namespace AbilityKit.Demo.Shooter.View
  
         public ShooterViewProjectionApplyResult Apply(in ShooterSnapshotViewBatch batch)
         {
-            _store.EnsureCapacity(checked(_store.EntityCount + batch.EntityChangeCount));
+            _store.EnsureCapacityForEntityChanges(batch.EntityChanges);
             var missingEntityRemovals = 0;
             if (ShouldReplaceMissingEntities(in batch))
             {
@@ -43,10 +43,11 @@ namespace AbilityKit.Demo.Shooter.View
             }
  
             var explicitEntityRemovals = ApplyRemovedEntities(in batch);
-            var entityChangeResult = ApplyEntityChanges(in batch);
+            var entityChangeResult = ApplyEntityChanges(in batch, out var fusedTransformUpdates);
             var recoveredPlayerEntities = RecoverMissingPlayerEntitiesFromComponents(in batch);
             var componentUpdates =
-                ApplyTransformChanges(in batch) +
+                fusedTransformUpdates +
+                ApplyUnfusedTransformChanges(in batch) +
                 ApplyHealthChanges(in batch) +
                 ApplyScoreChanges(in batch) +
                 ApplyProjectileLifetimeChanges(in batch);
@@ -140,16 +141,33 @@ namespace AbilityKit.Demo.Shooter.View
             return removedCount;
         }
  
-        private EntityChangeApplyResult ApplyEntityChanges(in ShooterSnapshotViewBatch batch)
+        private EntityChangeApplyResult ApplyEntityChanges(
+            in ShooterSnapshotViewBatch batch,
+            out int fusedTransformUpdates)
         {
             var added = 0;
             var updated = 0;
             var deadRemovals = 0;
+            fusedTransformUpdates = 0;
             var changes = batch.EntityChanges;
+            var transforms = batch.TransformChanges;
             for (int i = 0; i < changes.Count; i++)
             {
                 var change = changes[i];
-                var existed = _store.UpsertEntity(change);
+                bool existed;
+                if (change.Alive && i < transforms.Count && change.Key.Equals(transforms[i].Key))
+                {
+                    existed = _store.UpsertEntityAndTransform(change, transforms[i], out var transformApplied);
+                    if (transformApplied)
+                    {
+                        fusedTransformUpdates++;
+                    }
+                }
+                else
+                {
+                    existed = _store.UpsertEntity(change);
+                }
+
                 if (!change.Alive)
                 {
                     if (existed)
@@ -218,12 +236,18 @@ namespace AbilityKit.Demo.Shooter.View
             return !_store.UpsertEntity(new ShooterViewEntityChange(key, ownerEntityId: 0, alive: true));
         }
 
-        private int ApplyTransformChanges(in ShooterSnapshotViewBatch batch)
+        private int ApplyUnfusedTransformChanges(in ShooterSnapshotViewBatch batch)
         {
             var applied = 0;
             var changes = batch.TransformChanges;
+            var entities = batch.EntityChanges;
             for (int i = 0; i < changes.Count; i++)
             {
+                if (i < entities.Count && entities[i].Alive && entities[i].Key.Equals(changes[i].Key))
+                {
+                    continue;
+                }
+
                 if (_store.UpsertTransform(changes[i])) applied++;
             }
 

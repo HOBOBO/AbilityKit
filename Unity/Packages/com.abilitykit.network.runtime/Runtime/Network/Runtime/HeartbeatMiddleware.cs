@@ -4,7 +4,13 @@ using AbilityKit.Network.Protocol;
 
 namespace AbilityKit.Network.Runtime
 {
-    public sealed class HeartbeatMiddleware : INetworkMiddleware
+    /// <summary>Middleware contract used by the connection runtime to observe heartbeat traffic.</summary>
+    public interface INetworkHeartbeatMiddleware : INetworkMiddleware
+    {
+        event Action HeartbeatReceived;
+    }
+
+    public sealed class HeartbeatMiddleware : INetworkHeartbeatMiddleware
     {
         private readonly uint _heartbeatOpCode;
 

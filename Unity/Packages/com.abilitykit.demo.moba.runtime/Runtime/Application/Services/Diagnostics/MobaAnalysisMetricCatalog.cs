@@ -29,6 +29,9 @@ namespace AbilityKit.Demo.Moba.Services
 
             Add(catalog, MobaBattleDiagnosticMetric.TriggerRegistered, "moba.trigger", "counter", "count", "Registered trigger listener count.", "stable", "always", "triggering", "triggerKind", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.TriggerUnregistered, "moba.trigger", "counter", "count", "Unregistered trigger listener count.", "stable", "always", "triggering", "triggerKind", "actor", "skill");
+            Add(catalog, MobaBattleDiagnosticMetric.TriggerDispatchScope, "moba.trigger", "duration", "ms", "Nested profiler scope for a complete trigger dispatch.", "stable", "profiled", "triggering", "frame");
+            Add(catalog, MobaBattleDiagnosticMetric.TriggerEvaluateScope, "moba.trigger", "duration", "ms", "Nested profiler scope for trigger condition evaluation.", "stable", "profiled", "triggering", "frame");
+            Add(catalog, MobaBattleDiagnosticMetric.TriggerExecuteScope, "moba.trigger", "duration", "ms", "Nested profiler scope for trigger execution.", "stable", "profiled", "triggering", "frame");
             Add(catalog, MobaBattleDiagnosticMetric.TriggerDispatchStarted, "moba.trigger", "counter", "count", "Trigger dispatch start count.", "stable", "always", "triggering", "triggerKind", "frame");
             Add(catalog, MobaBattleDiagnosticMetric.TriggerDispatchCompleted, "moba.trigger", "counter", "count", "Trigger dispatch completion count.", "stable", "always", "triggering", "triggerKind", "frame");
             Add(catalog, MobaBattleDiagnosticMetric.TriggerDispatchDuration, "moba.trigger", "duration", "ms", "Trigger dispatch duration.", "stable", "sampled", "triggering", "triggerKind", "frame");
@@ -43,6 +46,8 @@ namespace AbilityKit.Demo.Moba.Services
             Add(catalog, MobaBattleDiagnosticMetric.TriggerShortCircuit, "moba.trigger", "counter", "count", "Trigger action short-circuit count.", "stable", "always", "triggering", "triggerKind", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.TriggerActionInterrupted, "moba.trigger", "counter", "count", "Interrupted trigger action count.", "stable", "always", "triggering", "triggerKind", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.TriggerActionFailed, "moba.trigger", "counter", "count", "Failed trigger action count.", "stable", "always", "triggering", "triggerKind", "actor", "skill");
+            Add(catalog, MobaBattleDiagnosticMetric.EffectExecuteScope, "moba.effect", "duration", "ms", "Nested profiler scope for a complete effect execution.", "stable", "profiled", "effect", "frame");
+            Add(catalog, MobaBattleDiagnosticMetric.EffectActionScope, "moba.effect", "duration", "ms", "Nested profiler scope for one formal effect action.", "stable", "profiled", "effect", "action", "frame");
             Add(catalog, MobaBattleDiagnosticMetric.EffectActionInvoked, "moba.effect", "counter", "count", "Formal effect action invocation count.", "stable", "always", "effect", "action", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.EffectActionSucceeded, "moba.effect", "counter", "count", "Successfully completed formal effect action count.", "stable", "always", "effect", "action", "actor", "skill");
             Add(catalog, MobaBattleDiagnosticMetric.EffectActionFailed, "moba.effect", "counter", "count", "Failed formal effect action count.", "stable", "always", "effect", "action", "actor", "skill");

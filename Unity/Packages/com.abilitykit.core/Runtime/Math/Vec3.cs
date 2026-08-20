@@ -75,7 +75,7 @@ namespace AbilityKit.Core.Mathematics
         public static Vec3 FromNumerics(in System.Numerics.Vector3 v) => new Vec3(v.X, v.Y, v.Z);
 
         public bool Equals(Vec3 other) => X.Equals(other.X) && Y.Equals(other.Y) && Z.Equals(other.Z);
-        public override bool Equals(object obj) => obj is Vec3 other && Equals(other);
+        public override bool Equals(object? obj) => obj is Vec3 other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(X, Y, Z);
         public override string ToString() => $"({X}, {Y}, {Z})";
     }

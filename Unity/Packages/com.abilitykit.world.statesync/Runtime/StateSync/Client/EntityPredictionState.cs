@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.Core.Collections;
+using AbilityKit.Ability.StateSync.Prediction;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Ability.StateSync.Client
 {
@@ -14,8 +15,8 @@ namespace AbilityKit.Ability.StateSync.Client
         private readonly bool _isLocalPlayer;
         private readonly IPredictableEntity _entity;
         private readonly List<IClientPredictionHandler> _handlers = new List<IClientPredictionHandler>();
-        private readonly Dictionary<int, AbilityKit.Ability.StateSync.Prediction.StateSlots> _snapshots = new Dictionary<int, AbilityKit.Ability.StateSync.Prediction.StateSlots>();
-        private readonly SortedIntSet _snapshotFrames = new SortedIntSet(32);
+        private readonly ISnapshotStore _snapshotStore;
+        private readonly bool _enableRollback;
         private readonly List<StateChangeEvent> _pendingChanges = new List<StateChangeEvent>();
         private readonly Dictionary<string, object> _previousValues = new Dictionary<string, object>();
 
@@ -29,25 +30,71 @@ namespace AbilityKit.Ability.StateSync.Client
         public AbilityKit.Ability.StateSync.Prediction.StateSlots CurrentSlots => _currentSlots;
         public bool IsPredicted => _isPredicted;
         public int CurrentFrame => _currentFrame;
+        public bool SnapshotHistoryEnabled => _snapshotStore != null;
+        public bool RollbackEnabled => _enableRollback && _snapshotStore != null;
+        public IBufferCapacityControl SnapshotCapacityControl =>
+            _snapshotStore as IBufferCapacityControl;
 
         public event Action<string, object, object> OnSlotChanged;
         public event Action<int, int> OnRollback;
 
         public EntityPredictionState(int entityId, bool isLocalPlayer)
+            : this(
+                entityId,
+                isLocalPlayer,
+                entity: null,
+                snapshotStore: new DictionarySnapshotStore(30),
+                enableRollback: true)
+        {
+        }
+
+        public EntityPredictionState(
+            int entityId,
+            bool isLocalPlayer,
+            ISnapshotStore snapshotStore,
+            bool enableRollback = true)
+            : this(
+                entityId,
+                isLocalPlayer,
+                entity: null,
+                snapshotStore: snapshotStore,
+                enableRollback: enableRollback)
+        {
+        }
+
+        private EntityPredictionState(
+            int entityId,
+            bool isLocalPlayer,
+            IPredictableEntity entity,
+            ISnapshotStore snapshotStore,
+            bool enableRollback)
         {
             _entityId = entityId;
             _isLocalPlayer = isLocalPlayer;
+            _entity = entity;
+            _snapshotStore = snapshotStore;
+            _enableRollback = enableRollback;
             _currentSlots = new AbilityKit.Ability.StateSync.Prediction.StateSlots();
             _confirmedFrame = -1;
             _currentFrame = 0;
         }
 
         public EntityPredictionState(IPredictableEntity entity)
+            : this(entity, new DictionarySnapshotStore(30), enableRollback: true)
+        {
+        }
+
+        public EntityPredictionState(
+            IPredictableEntity entity,
+            ISnapshotStore snapshotStore,
+            bool enableRollback = true)
             : this(
                 entity != null ? entity.EntityId : throw new ArgumentNullException(nameof(entity)),
-                entity.IsLocalPlayer)
+                entity.IsLocalPlayer,
+                entity,
+                snapshotStore,
+                enableRollback)
         {
-            _entity = entity;
             var initialSlots = entity.GetStateSlots();
             if (initialSlots != null)
             {
@@ -99,11 +146,7 @@ namespace AbilityKit.Ability.StateSync.Client
             if (snapshot.EntityId != _entityId)
                 throw new ArgumentException("Snapshot entity does not match this prediction state.", nameof(snapshot));
 
-            var wasRollback = serverFrame < _currentFrame;
-            if (wasRollback)
-            {
-                RollbackTo(serverFrame);
-            }
+            var wasRollback = TryRollbackTo(serverFrame);
 
             if (_entity == null)
                 throw new InvalidOperationException("A prediction state created without an entity cannot apply authoritative snapshots.");
@@ -130,45 +173,36 @@ namespace AbilityKit.Ability.StateSync.Client
 
         public void RollbackTo(int frame)
         {
-            if (frame >= _currentFrame)
-                return;
+            TryRollbackTo(frame);
+        }
 
-            // 获取目标帧的快照
-            if (_snapshots.TryGetValue(frame, out var snapshot))
-            {
-                // 记录回滚前的状态
-                var oldFrame = _currentFrame;
+        private bool TryRollbackTo(int frame)
+        {
+            if (!RollbackEnabled || frame >= _currentFrame)
+                return false;
 
-                // 恢复快照
-                _currentSlots.OverwriteFrom(snapshot);
+            var snapshot = _snapshotStore.Get(new Frame(frame));
+            if (snapshot == null)
+                return false;
 
-                // 收集回滚产生的变化
-                CollectStateChanges(frame, isRollback: true);
-
-                _currentFrame = frame;
-                _isPredicted = false;
-
-                OnRollback?.Invoke(oldFrame, frame);
-            }
+            var oldFrame = _currentFrame;
+            _currentSlots.OverwriteFrom(snapshot);
+            CollectStateChanges(frame, isRollback: true);
+            _currentFrame = frame;
+            _isPredicted = false;
+            OnRollback?.Invoke(oldFrame, frame);
+            return true;
         }
 
         public void CaptureSnapshot(int frame)
         {
-            // 清理旧快照
-            PruneOldSnapshots(frame);
-
-            // 保存当前状态的克隆
-            _snapshots[frame] = _currentSlots.Clone();
-            _snapshotFrames.Add(frame);
+            if (_snapshotStore == null) return;
+            _snapshotStore.Record(new Frame(frame), _currentSlots);
         }
 
         public AbilityKit.Ability.StateSync.Prediction.StateSlots GetSnapshot(int frame)
         {
-            if (_snapshots.TryGetValue(frame, out var snapshot))
-            {
-                return snapshot.Clone();
-            }
-            return null;
+            return _snapshotStore?.Get(new Frame(frame));
         }
 
         public void AdvanceFrame()
@@ -264,18 +298,6 @@ namespace AbilityKit.Ability.StateSync.Client
             {
                 _previousValues[slotName] = GetSlotValue(slotName);
             }
-        }
-
-        private void PruneOldSnapshots(int currentFrame)
-        {
-            // 保留最近 30 帧的快照
-            var removeCount = _snapshotFrames.LowerBound(currentFrame - 30);
-            for (var index = 0; index < removeCount; index++)
-            {
-                _snapshots.Remove(_snapshotFrames[index]);
-            }
-
-            if (removeCount > 0) _snapshotFrames.RemoveRange(0, removeCount);
         }
 
         private static bool ValuesEqual(object a, object b)

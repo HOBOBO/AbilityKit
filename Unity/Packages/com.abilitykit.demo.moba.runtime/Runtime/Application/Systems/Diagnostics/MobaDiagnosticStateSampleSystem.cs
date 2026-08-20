@@ -1,3 +1,4 @@
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Services;
@@ -15,6 +16,8 @@ namespace AbilityKit.Demo.Moba.Systems.Diagnostics
     public sealed class MobaDiagnosticStateSampleSystem : WorldSystemBase
     {
         private MobaBattleDiagnosticStateSampler _sampler;
+        private IMobaBattleDiagnosticCapturePolicy _capturePolicy;
+        private IFrameTime _frameTime;
 
         public MobaDiagnosticStateSampleSystem(global::Entitas.IContexts contexts, IWorldResolver services)
             : base(contexts, services)
@@ -25,11 +28,18 @@ namespace AbilityKit.Demo.Moba.Systems.Diagnostics
         {
             // 采样器是可选依赖：诊断未启用或 Scope 未建立时跳过。
             Services.TryResolve(out _sampler);
+            Services.TryResolve(out _capturePolicy);
+            Services.TryResolve(out _frameTime);
         }
 
         protected override void OnExecute()
         {
             if (_sampler == null) return;
+            if (_capturePolicy != null)
+            {
+                var frame = _frameTime != null ? _frameTime.Frame.Value : 0;
+                if (!_capturePolicy.ShouldSampleState(frame)) return;
+            }
 
             try
             {

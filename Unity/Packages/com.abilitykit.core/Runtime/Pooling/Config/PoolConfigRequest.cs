@@ -25,7 +25,7 @@ namespace AbilityKit.Core.Pooling
                    && Key.Equals(other.Key);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is PoolConfigRequest other && Equals(other);
         }

@@ -7,7 +7,6 @@ using AbilityKit.Game.Battle.Requests;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
-using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Network.Battle
@@ -26,6 +25,7 @@ namespace AbilityKit.Network.Battle
         public NetworkTransportOptions Options => _options;
 
         private readonly NetworkSdkClient _sdkClient;
+        private readonly bool _ownsSdkClient;
 
         public NetworkTransport(NetworkTransportOptions options, IDispatcher dispatcher = null)
             : this(options, dispatcher, dispatcher)
@@ -35,51 +35,24 @@ namespace AbilityKit.Network.Battle
         public NetworkTransport(NetworkTransportOptions options, IDispatcher callbackDispatcher, IDispatcher ioDispatcher)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
-            if (_options.ConnectionFactory == null && _options.TransportFactory == null) throw new ArgumentException("TransportFactory or ConnectionFactory is required.", nameof(options));
-            if (_options.ConnectionFactory == null && _options.Port <= 0) throw new ArgumentException("Port must be set when using TransportFactory.", nameof(options));
-
-            var connOptions = new ConnectionOptions
-            {
-                FrameCodec = _options.FrameCodec,
-                EnableReconnect = true,
-                ReconnectInitialDelay = TimeSpan.FromSeconds(
-                    ReconnectBackoffPolicy.BaseDelaySeconds),
-                ReconnectMaxDelay = TimeSpan.FromSeconds(
-                    ReconnectBackoffPolicy.MaxDelaySeconds),
-                ReconnectBackoffMultiplier = 2d,
-                ReconnectMaxAttempts = ReconnectBackoffPolicy.MaxAttempts
-            };
+            ValidateClientSource(_options);
             var effectiveCallbackDispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
             var effectiveIoDispatcher = ioDispatcher ?? effectiveCallbackDispatcher;
-
-            var builder = new NetworkSdkBuilder();
-            if (_options.ConnectionFactory != null)
+            _sdkClient = CreateSdkClient(
+                _options,
+                effectiveCallbackDispatcher,
+                effectiveIoDispatcher,
+                out _ownsSdkClient);
+            try
             {
-                builder.UseConnectionFactory(_options.ConnectionFactory);
+                AttachSdkClient();
             }
-            else
+            catch
             {
-                builder.UseTransportFactory(_options.TransportFactory);
+                DetachSdkClient();
+                if (_ownsSdkClient) _sdkClient.Dispose();
+                throw;
             }
-
-            _sdkClient = builder
-                .ConfigureConnection(options =>
-                {
-                    options.FrameCodec = connOptions.FrameCodec;
-                    options.EnableReconnect = connOptions.EnableReconnect;
-                    options.ReconnectInitialDelay = connOptions.ReconnectInitialDelay;
-                    options.ReconnectMaxDelay = connOptions.ReconnectMaxDelay;
-                    options.ReconnectBackoffMultiplier = connOptions.ReconnectBackoffMultiplier;
-                    options.ReconnectMaxAttempts = connOptions.ReconnectMaxAttempts;
-                })
-                .UseDispatchers(effectiveCallbackDispatcher, effectiveIoDispatcher)
-                .Build();
-            _sdkClient.PacketReceived += OnPacketReceived;
-            _sdkClient.ServerPushReceived += OnServerPushReceived;
-
-            _sdkClient.Connected += OnConnected;
-            _sdkClient.Disconnected += OnDisconnected;
-            _sdkClient.Error += OnError;
         }
 
         public event Action<FramePacket> FramePushed;
@@ -350,14 +323,107 @@ namespace AbilityKit.Network.Battle
             _disposed = true;
             FailAuthenticationGeneration(new ObjectDisposedException(nameof(NetworkTransport)));
 
+            DetachSdkClient();
+
+            if (_ownsSdkClient)
+            {
+                _sdkClient.Dispose();
+            }
+        }
+
+        private void AttachSdkClient()
+        {
+            _sdkClient.PacketReceived += OnPacketReceived;
+            _sdkClient.ServerPushReceived += OnServerPushReceived;
+            _sdkClient.Connected += OnConnected;
+            _sdkClient.Disconnected += OnDisconnected;
+            _sdkClient.Error += OnError;
+        }
+
+        private void DetachSdkClient()
+        {
             _sdkClient.PacketReceived -= OnPacketReceived;
             _sdkClient.ServerPushReceived -= OnServerPushReceived;
-
             _sdkClient.Connected -= OnConnected;
             _sdkClient.Disconnected -= OnDisconnected;
             _sdkClient.Error -= OnError;
+        }
 
-            _sdkClient.Dispose();
+        private static void ValidateClientSource(NetworkTransportOptions options)
+        {
+            if (options.SdkClient != null && options.SdkClientFactory != null)
+            {
+                throw new ArgumentException(
+                    "Configure either SdkClient or SdkClientFactory, not both.",
+                    nameof(options));
+            }
+
+            if (options.SdkClientOwnership != NetworkSdkClientOwnership.Borrowed &&
+                options.SdkClientOwnership != NetworkSdkClientOwnership.Owned)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "SdkClientOwnership is invalid.");
+            }
+
+            if (!options.HasSdkClientSource &&
+                options.ConnectionFactory == null &&
+                options.TransportFactory == null)
+            {
+                throw new ArgumentException(
+                    "SdkClient, SdkClientFactory, TransportFactory, or ConnectionFactory is required.",
+                    nameof(options));
+            }
+
+            if (!options.HasSdkClientSource &&
+                options.ConnectionFactory == null &&
+                options.Port <= 0)
+            {
+                throw new ArgumentException(
+                    "Port must be set when using TransportFactory.",
+                    nameof(options));
+            }
+        }
+
+        private static NetworkSdkClient CreateSdkClient(
+            NetworkTransportOptions options,
+            IDispatcher callbackDispatcher,
+            IDispatcher ioDispatcher,
+            out bool ownsSdkClient)
+        {
+            if (options.SdkClient != null)
+            {
+                ownsSdkClient = options.SdkClientOwnership == NetworkSdkClientOwnership.Owned;
+                return options.SdkClient;
+            }
+
+            if (options.SdkClientFactory != null)
+            {
+                ownsSdkClient = true;
+                return options.SdkClientFactory.Invoke()
+                    ?? throw new InvalidOperationException("SDK client factory returned null.");
+            }
+
+            var builder = new NetworkSdkBuilder();
+            if (options.ConnectionFactory != null)
+            {
+                builder.UseConnectionFactory(options.ConnectionFactory);
+            }
+            else
+            {
+                builder.UseTransportFactory(options.TransportFactory);
+            }
+
+            builder.ConfigureConnection(connectionOptions =>
+            {
+                connectionOptions.FrameCodec = options.FrameCodec;
+                options.ConfigureConnection?.Invoke(connectionOptions);
+            });
+
+            ownsSdkClient = true;
+            return builder
+                .UseDispatchers(callbackDispatcher, ioDispatcher)
+                .Build();
         }
 
         private void OnConnected()

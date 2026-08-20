@@ -9,7 +9,17 @@ using AbilityKit.Network.Runtime.TcpGateway;
 
 namespace AbilityKit.Network.Runtime
 {
-    public sealed class RequestClient : IDisposable
+    /// <summary>Correlates request packets with their asynchronous responses.</summary>
+    public interface IRequestClient : IDisposable
+    {
+        Task<ArraySegment<byte>> SendRequestAsync(
+            uint opCode,
+            ArraySegment<byte> payload,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+    }
+
+    public sealed class RequestClient : IRequestClient
     {
         private readonly IConnection _connection;
         private readonly ConcurrentDictionary<uint, TaskCompletionSource<ArraySegment<byte>>> _pending = new();

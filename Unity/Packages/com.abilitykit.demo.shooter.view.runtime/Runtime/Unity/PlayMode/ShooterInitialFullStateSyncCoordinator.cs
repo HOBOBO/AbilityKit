@@ -36,7 +36,6 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var launch = connectionResult.Launch;
             var gatewayConnection = launch.GatewayConnection;
             var session = launch.Session;
-            var snapshotDecoder = new ShooterGatewaySnapshotDecoder();
             var snapshotApplied = false;
             var lastApplyResult = default(ShooterSnapshotApplyResult);
 
@@ -44,8 +43,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             {
                 lastApplyResult = result;
                 _setLastApplyResult(result);
-                var snapshot = snapshotDecoder.Decode(payload);
-                if (snapshot.IsFullSnapshot && IsApplied(result, session))
+                if (IsFullSnapshotPush(opCode) && IsApplied(result, session))
                 {
                     snapshotApplied = true;
                 }
@@ -88,6 +86,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _setWaiting(false);
                 _notifyStateChanged();
             }
+        }
+
+        internal static bool IsFullSnapshotPush(uint opCode)
+        {
+            return opCode == AbilityKit.Protocol.Room.RoomGatewayOpCodes.SnapshotPushed;
         }
 
         private static bool IsApplied(ShooterSnapshotApplyResult result, ShooterClientSession session)

@@ -4,6 +4,10 @@ param(
     [int]$Entities = 1000,
     [int]$Warmup = 5,
     [int]$Measurement = 64,
+    [ValidateRange(0.0, 1.0)]
+    [double]$ChangedEntityFraction = 0.05,
+    [ValidateRange(1, 10000)]
+    [int]$RefreshIntervalFrames = 60,
     [double]$MaxP99Milliseconds = 16.7,
     [long]$MaxAllocatedBytes = 4194304,
     [string]$OutputPath = 'artifacts\test-gates\shooter-sync-pipeline.json',
@@ -29,6 +33,8 @@ $arguments = @(
     '--entities', $Entities,
     '--warmup', $Warmup,
     '--measurement', $Measurement,
+    '--changed-fraction', $ChangedEntityFraction.ToString([System.Globalization.CultureInfo]::InvariantCulture),
+    '--refresh-frames', $RefreshIntervalFrames,
     '--max-p99-ms', $MaxP99Milliseconds.ToString([System.Globalization.CultureInfo]::InvariantCulture),
     '--max-alloc-bytes', $MaxAllocatedBytes,
     '--output', $resolvedOutputPath

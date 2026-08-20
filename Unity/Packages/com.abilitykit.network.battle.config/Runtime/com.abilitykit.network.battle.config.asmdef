@@ -4,6 +4,7 @@
     "references": [
         "AbilityKit.Network.Battle",
         "AbilityKit.Network.Runtime",
+        "AbilityKit.Network.Sdk",
         "AbilityKit.Protocol.Room",
         "AbilityKit.Game.Battle.Runtime",
         "AbilityKit.World.NetworkFragments",

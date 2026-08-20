@@ -188,17 +188,17 @@ namespace AbilityKit.Demo.Shooter.View
             interpolationDelayFrames: 60);
 
         public static ShooterSyncTemplateSendPolicy MassBattleLod { get; } = new ShooterSyncTemplateSendPolicy(
-            snapshotIntervalFrames: 90,
-            batchWindowFrames: 90,
+            snapshotIntervalFrames: 3,
+            batchWindowFrames: 3,
             keyFrameIntervalFrames: 450,
             maxEntityCount: 20000,
             activeEntityBudget: 2048,
             aoiRadius: 24f,
             aoiBoundaryRadius: 30f,
-            nearLodIntervalFrames: 10,
-            midLodIntervalFrames: 30,
-            farLodIntervalFrames: 90,
-            interpolationDelayFrames: 90);
+            nearLodIntervalFrames: 3,
+            midLodIntervalFrames: 9,
+            farLodIntervalFrames: 30,
+            interpolationDelayFrames: 3);
     }
 
     public readonly struct ShooterSyncAcceptanceCriterion
@@ -394,7 +394,7 @@ namespace AbilityKit.Demo.Shooter.View
             new ShooterSyncTemplate(
                 ShooterSyncTemplateIds.StateSyncAuthority,
                 "State Sync / Server Authority",
-                "服务器权威状态快照驱动客户端插值播放，作为 Shooter 正式默认同步模板。",
+                "服务器权威 packed 状态快照驱动客户端插值播放，用于协议验证和小规模显式配置。",
                 NetworkSyncModel.AuthoritativeInterpolation,
                 "ideal",
                 ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
@@ -444,7 +444,7 @@ namespace AbilityKit.Demo.Shooter.View
             new ShooterSyncTemplate(
                 ShooterSyncTemplateIds.MassBattleLodAoi,
                 "Mass Battle LOD / AOI Budget Playback",
-                "面向上万单位的距离 AOI、优先级预算与 LOD 频率同步模板，复用纯状态低频导出参数。",
+                "Shooter 正式多人默认模板，使用距离 AOI、优先级预算与 LOD 频率同步大规模单位。",
                 NetworkSyncModel.MassBattleLodSync,
                 "limitedbw",
                 ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,

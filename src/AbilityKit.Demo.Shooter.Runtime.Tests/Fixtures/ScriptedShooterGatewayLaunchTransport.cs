@@ -159,15 +159,16 @@ internal sealed class ScriptedShooterGatewayLaunchTransport : IShooterRoomGatewa
         return new WireNetworkSyncCapabilities
         {
             MetadataVersion = 1,
-            ProfileName = nameof(NetworkSyncModel.PredictRollback),
+            ProfileName = nameof(NetworkSyncModel.AuthoritativeInterpolation),
             MinimumSchemaVersion = ShooterStateSyncCompatibilityPolicy.MinimumPureStateVersion,
             MaximumSchemaVersion = ShooterPureStateSyncCodec.CurrentVersion,
-            ClientPlayback = (int)ClientPlaybackCapabilities.PredictRollback,
-            Input = (int)(InputPolicy.ImmediateSubmit | InputPolicy.ServerRemapAcceptedFrame),
+            ClientPlayback = (int)ClientPlaybackCapabilities.AuthoritativeInterpolation,
+            Input = (int)InputPolicy.NoClientInput,
             Snapshot = (int)(SnapshotPolicy.FullSnapshot | SnapshotPolicy.AuthorityOverride |
-                SnapshotPolicy.EventStream),
+                SnapshotPolicy.FixedRateStateStream | SnapshotPolicy.EventStream),
             Interest = (int)InterestPolicy.AllEntities,
-            Recovery = (int)(RecoveryPolicy.CatchUpToServerFrame | RecoveryPolicy.RequestFullSnapshot),
+            Recovery = (int)(RecoveryPolicy.CatchUpToServerFrame | RecoveryPolicy.RequestFullSnapshot |
+                RecoveryPolicy.RequestKeyFrame),
             ServerValidation = (int)ServerValidationPolicy.AuthoritativeOnly,
             ReliableEvent = (int)(ReliableEventCapabilities.OrderedDelivery |
                 ReliableEventCapabilities.ExternalAcknowledgement |

@@ -8,7 +8,7 @@ namespace AbilityKit.Core.Configuration
     {
         private readonly Dictionary<string, object> _values;
 
-        public FlatJsonSettings(Dictionary<string, object> values)
+        public FlatJsonSettings(Dictionary<string, object>? values)
         {
             _values = values != null
                 ? new Dictionary<string, object>(values, StringComparer.Ordinal)
@@ -161,7 +161,7 @@ namespace AbilityKit.Core.Configuration
 
         public bool TryGetString(string key, out string value)
         {
-            value = default;
+            value = string.Empty;
             if (string.IsNullOrEmpty(key)) return false;
             if (!_values.TryGetValue(key, out var raw) || raw == null) return false;
 
@@ -171,8 +171,10 @@ namespace AbilityKit.Core.Configuration
                 return true;
             }
 
-            value = raw.ToString();
-            return !string.IsNullOrEmpty(value);
+            var text = raw.ToString();
+            if (string.IsNullOrEmpty(text)) return false;
+            value = text;
+            return true;
         }
 
         public static FlatJsonSettings Empty() => new FlatJsonSettings(null);

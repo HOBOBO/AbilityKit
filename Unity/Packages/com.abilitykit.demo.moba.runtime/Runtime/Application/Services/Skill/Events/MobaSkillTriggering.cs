@@ -127,6 +127,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (services == null ||
                     !services.TryResolve<IMobaBattleDiagnosticEventSink>(out var collector) ||
                     collector == null ||
+                    !collector.IsEnabled(BattleDiagnosticEventChannel.Skill) ||
                     !TryCreateDiagnosticDraft(eventId, ctx, out var draft))
                 {
                     return;

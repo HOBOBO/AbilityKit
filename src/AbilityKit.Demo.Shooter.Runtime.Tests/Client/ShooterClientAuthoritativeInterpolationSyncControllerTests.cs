@@ -1,4 +1,6 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Demo.Shooter.View;
 using AbilityKit.Network.Runtime;
@@ -194,13 +196,76 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
             pureStateSnapshot: pureState);
     }
 
+    private static ShooterGatewaySnapshot PureStateRemotePlayerSnapshot(
+        int frame,
+        float x,
+        bool isFull,
+        int baselineFrame = 0,
+        uint baselineHash = 0u,
+        uint stateHash = 123u,
+        int entityId = 2,
+        int? deltaKind = null)
+    {
+        var settings = new ShooterPureStateSyncSettings(
+            maxEntityCount: 20,
+            activeSyncBudget: 20,
+            baselineIntervalFrames: 450,
+            deltaIntervalFrames: 10,
+            lowFrequencyIntervalFrames: 90,
+            interpolationDelayFrames: 20,
+            nearLodIntervalFrames: 10,
+            midLodIntervalFrames: 30,
+            farLodIntervalFrames: 90);
+        var pureState = new ShooterPureStateSnapshotPayload(
+            ShooterPureStateSyncCodec.CurrentVersion,
+            9001ul,
+            frame,
+            frame * 100L,
+            isFull ? ShooterPureStateSnapshotKinds.FullBaseline : ShooterPureStateSnapshotKinds.Delta,
+            isFull ? 0 : baselineFrame,
+            isFull ? 0u : baselineHash,
+            stateHash,
+            settings,
+            new[]
+            {
+                new ShooterPureStateEntityDelta(
+                    entityId,
+                    ShooterPackedEntityKinds.Player,
+                    ShooterPureStateEntityLayers.KeyInteraction,
+                    deltaKind ?? (isFull ? ShooterPureStateDeltaKinds.Spawn : ShooterPureStateDeltaKinds.Update),
+                    entityId,
+                    (int)(x * 1000f),
+                    0,
+                    1000,
+                    0,
+                    100,
+                    0,
+                    0,
+                    deltaKind == ShooterPureStateDeltaKinds.Despawn
+                        ? (byte)0
+                        : (byte)(ShooterPureStateEntityFlags.Alive |
+                            ShooterPureStateEntityFlags.Visible |
+                            ShooterPureStateEntityFlags.LowFrequency))
+            },
+            Array.Empty<ShooterPureStateVisibilityHint>());
+        return new ShooterGatewaySnapshot(
+            9001ul,
+            frame,
+            0d,
+            frame * 100L,
+            isFull,
+            Array.Empty<ShooterGatewayActorSnapshot>(),
+            pureStateSnapshot: pureState);
+    }
+
     private static ShooterClientAuthoritativeInterpolationSyncController StartedController(
         ShooterBattleRuntimePort runtime,
-        ShooterPresentationFacade presentation)
+        ShooterPresentationFacade presentation,
+        IShooterRoomGatewayClient? gateway = null)
     {
         presentation.ControlledPlayerId = 1;
         var controller = new ShooterClientAuthoritativeInterpolationSyncController(
-            runtime, presentation, tickRate: 30, decoder: null, gateway: null);
+            runtime, presentation, tickRate: 30, decoder: null, gateway: gateway);
         var start = SinglePlayerStart();
         Assert.True(controller.StartGame(in start));
         return controller;
@@ -422,6 +487,7 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
     {
         var runtime = new ShooterBattleRuntimePort();
         var controller = StartedController(runtime, new ShooterPresentationFacade());
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 0, x: 0f));
 
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(
             frame: 1,
@@ -441,22 +507,23 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
     }
 
     [Fact]
-    public void LocalMediumErrorUsesBoundedCorrectionAndLargeErrorSnaps()
+    public void LocalPositionErrorAlwaysUsesBoundedCorrectionAfterInitialAuthority()
     {
         var runtime = new ShooterBattleRuntimePort();
         var controller = StartedController(runtime, new ShooterPresentationFacade());
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 0, x: 0f));
 
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 0.4f, isFull: false));
         Assert.True(runtime.TryGetPlayer(1, out var bounded));
         Assert.Equal(0.25f, bounded.X, 3);
 
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 2, x: 1f, isFull: false));
-        Assert.True(runtime.TryGetPlayer(1, out var snapped));
-        Assert.Equal(1f, snapped.X, 3);
+        Assert.True(runtime.TryGetPlayer(1, out var stillBounded));
+        Assert.Equal(0.5f, stillBounded.X, 3);
     }
 
     [Fact]
-    public void LocalReconciliationReplaysUnacknowledgedInputWithoutTickingWorld()
+    public void LocalInputDoesNotEnterAuthorityReplayBeforeGatewaySubmissionStarts()
     {
         var runtime = new ShooterBattleRuntimePort();
         var controller = StartedController(runtime, new ShooterPresentationFacade());
@@ -465,11 +532,78 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 0f));
 
         Assert.True(runtime.TryGetPlayer(1, out var player));
-        Assert.Equal(ShooterBattleTuning.PlayerSpeed / 30f, player.X, 3);
+        Assert.Equal(0f, player.X, 3);
+        Assert.Equal(0, controller.PendingGatewayInputCount);
+    }
+
+    [Fact]
+    public async Task LocalReconciliationReplaysOnlyLatestCommandForOneSimulationFrame()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var gateway = new SequencedGateway();
+        var controller = StartedController(runtime, new ShooterPresentationFacade(), gateway);
+        var context = new ShooterGatewayBattleInputContext("session", "battle", 9001ul, 10, 1u);
+
+        var first = controller.SubmitLocalInput(1, moveX: 1f, moveY: 0f, aimX: 1f, aimY: 0f, fire: false)
+            .WithRequestedFrame(context.Frame);
+        await controller.SubmitAcceptedInputToGatewayAsync(context, first);
+        var latest = controller.SubmitLocalInput(1, moveX: -1f, moveY: 0f, aimX: -1f, aimY: 0f, fire: false)
+            .WithRequestedFrame(context.Frame);
+        await controller.SubmitAcceptedInputToGatewayAsync(context, latest);
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 0f));
+
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        Assert.Equal(-ShooterBattleTuning.PlayerSpeed / 30f, player.X, 3);
+        Assert.Equal(-1f, player.AimX, 3);
+        Assert.Equal(2, controller.PendingGatewayInputCount);
         IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample> strategy = controller;
-        var report = strategy.GetReconciliationReport();
-        Assert.Equal(SyncReconciliationReason.LocalAuthorityCorrection, report.Reason);
-        Assert.Equal(1, report.ReplayTicks);
+        Assert.Equal(1, strategy.GetReconciliationReport().ReplayTicks);
+    }
+
+    [Fact]
+    public async Task FailedGatewaySubmissionDoesNotLeakPendingReplayInput()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade(), new FailingGateway());
+        var context = new ShooterGatewayBattleInputContext("session", "battle", 9001ul, 10, 1u);
+        var local = controller.SubmitLocalInput(1, 1f, 0f, 1f, 0f, false)
+            .WithRequestedFrame(context.Frame);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => controller.SubmitAcceptedInputToGatewayAsync(context, local));
+
+        Assert.Equal(0, controller.PendingGatewayInputCount);
+    }
+
+    [Fact]
+    public void PeriodicFullBaselineUsesBoundedCorrectionInsteadOfHardSnap()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 0, x: 0f));
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 2f, isFull: true));
+
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        Assert.Equal(0.25f, player.X, 3);
+    }
+
+    [Fact]
+    public void AuthorityOverrideStillHardSnapsControlledPlayer()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 0, x: 0f));
+
+        controller.BufferRemoteSnapshot(PackedPlayerSnapshot(
+            frame: 1,
+            x: 2f,
+            isFull: false,
+            flags: ShooterPackedSnapshotFlags.AuthorityOverride));
+
+        Assert.True(runtime.TryGetPlayer(1, out var player));
+        Assert.Equal(2f, player.X, 3);
     }
 
     [Fact]
@@ -484,6 +618,297 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         Assert.Equal(ShooterSnapshotApplyResult.IgnoredStaleSnapshot, result);
         Assert.True(runtime.TryGetPlayer(1, out var player));
         Assert.Equal(2f, player.X, 3);
+    }
+
+    [Fact]
+    public void PureStateSnapshotStopsBufferedActorFromRepopulatingAoiViews()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade { ControlledPlayerId = 1 };
+        var config = new InterpolationConfig(1000L, 0L, 16, 0d);
+        var controller = new ShooterClientAuthoritativeInterpolationSyncController(
+            runtime, presentation, tickRate: 30, decoder: null, gateway: null, config);
+        var publishedBatches = 0;
+        var projection = new ShooterSnapshotViewProjection();
+        presentation.Snapshots.SnapshotApplied += batch =>
+        {
+            publishedBatches++;
+            projection.Apply(in batch);
+        };
+
+        controller.BufferRemoteSnapshot(RemoteSnapshot(1, 1000L, Actor(7, 7f)));
+        controller.Tick(0f);
+        Assert.Equal(1, publishedBatches);
+        Assert.Equal(1, controller.BufferedRemoteSnapshotCount);
+
+        var result = controller.BufferRemoteSnapshot(PureStatePlayerSnapshot(frame: 2, x: 0f));
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, result);
+        Assert.Equal(2, publishedBatches);
+        Assert.Equal(0, controller.BufferedRemoteSnapshotCount);
+        var remotePlayer = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 7);
+        Assert.False(projection.Store.ContainsEntity(remotePlayer));
+
+        controller.Tick(0.1f);
+
+        Assert.Equal(2, publishedBatches);
+        Assert.False(controller.HasPublishedRemoteFrame);
+        Assert.False(projection.Store.ContainsEntity(remotePlayer));
+    }
+
+    [Fact]
+    public void PureStateRenderBatchCombinesRemoteStateWithImmediateControlledPrediction()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(runtime, presentation);
+        controller.SubmitLocalInput(1, 1f, 0f, 1f, 0f, false);
+
+        var result = controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 10,
+            x: 4f,
+            isFull: true));
+        controller.Tick(1f / 30f);
+
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, result);
+        var render = presentation.RenderBatch;
+        var localKey = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 1);
+        var remoteKey = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 2);
+        Assert.Contains(render.EntityChanges, change => change.Key.Equals(remoteKey));
+        Assert.Contains(render.TransformChanges, change => change.Key.Equals(remoteKey));
+        Assert.Contains(render.TransformChanges, change => change.Key.Equals(localKey));
+    }
+
+    [Fact]
+    public void PureStateRenderBatchInterpolatesSparseRemoteTransformsEveryRenderTick()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(runtime, presentation);
+        var remoteKey = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 2);
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 10,
+            x: 0f,
+            isFull: true,
+            stateHash: 123u));
+        controller.Tick(0f);
+        var deltaResult = controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 20,
+            x: 10f,
+            isFull: false,
+            baselineFrame: 0,
+            baselineHash: 0u,
+            stateHash: 124u));
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, deltaResult);
+
+        controller.Tick(5f / 30f);
+
+        var interpolatedX = TransformX(presentation.RenderBatch, remoteKey);
+        Assert.Equal(5f, interpolatedX, 2);
+    }
+
+    [Fact]
+    public void PureStateRenderBatchPreservesMultipleLifecycleDeltasReceivedBeforeTick()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(runtime, presentation);
+        var player2 = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 2);
+        var player3 = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 3);
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 10,
+            x: 0f,
+            isFull: true,
+            stateHash: 123u));
+        controller.Tick(0f);
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 20,
+            x: 0f,
+            isFull: false,
+            baselineFrame: 0,
+            baselineHash: 0u,
+            stateHash: 124u,
+            entityId: 2,
+            deltaKind: ShooterPureStateDeltaKinds.Despawn));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 30,
+            x: 3f,
+            isFull: false,
+            baselineFrame: 0,
+            baselineHash: 0u,
+            stateHash: 125u,
+            entityId: 3,
+            deltaKind: ShooterPureStateDeltaKinds.Spawn));
+
+        controller.Tick(1f / 30f);
+
+        var render = presentation.RenderBatch;
+        Assert.Contains(player2, render.RemovedEntities);
+        Assert.Contains(render.EntityChanges, change => change.Key.Equals(player3) && change.Alive);
+    }
+
+    [Fact]
+    public void PureStateLifecycleAccumulatorKeepsLaterSpawnAsFinalState()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(runtime, presentation);
+        var remote = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 2);
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 10,
+            x: 0f,
+            isFull: true,
+            stateHash: 123u));
+        controller.Tick(0f);
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 20,
+            x: 0f,
+            isFull: false,
+            stateHash: 124u,
+            deltaKind: ShooterPureStateDeltaKinds.Despawn));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 30,
+            x: 3f,
+            isFull: false,
+            stateHash: 125u,
+            deltaKind: ShooterPureStateDeltaKinds.Spawn));
+
+        controller.Tick(1f / 30f);
+
+        var render = presentation.RenderBatch;
+        Assert.DoesNotContain(remote, render.RemovedEntities);
+        Assert.Contains(render.EntityChanges, change => change.Key.Equals(remote) && change.Alive);
+    }
+
+    [Fact]
+    public void PureStateLifecycleAccumulatorKeepsLaterDespawnAsFinalState()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(runtime, presentation);
+        var remote = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 2);
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 10,
+            x: 0f,
+            isFull: true,
+            stateHash: 123u));
+        controller.Tick(0f);
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 20,
+            x: 3f,
+            isFull: false,
+            stateHash: 124u,
+            deltaKind: ShooterPureStateDeltaKinds.Spawn));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 30,
+            x: 3f,
+            isFull: false,
+            stateHash: 125u,
+            deltaKind: ShooterPureStateDeltaKinds.Despawn));
+
+        controller.Tick(1f / 30f);
+
+        var render = presentation.RenderBatch;
+        Assert.Contains(remote, render.RemovedEntities);
+        Assert.DoesNotContain(render.EntityChanges, change => change.Key.Equals(remote) && change.Alive);
+        Assert.DoesNotContain(render.TransformChanges, change => change.Key.Equals(remote));
+    }
+
+    [Fact]
+    public void PureStateDelayedPlaybackCannotRecreateAoiDespawnFromOldTransform()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(runtime, presentation);
+        var projection = new ShooterSnapshotViewProjection();
+        var remote = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 2);
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 10,
+            x: 2f,
+            isFull: true,
+            stateHash: 123u));
+        controller.Tick(0f);
+        projection.Apply(presentation.RenderBatch);
+        Assert.True(projection.Store.ContainsEntity(remote));
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 20,
+            x: 2f,
+            isFull: false,
+            baselineFrame: 0,
+            baselineHash: 0u,
+            stateHash: 124u,
+            entityId: 2,
+            deltaKind: ShooterPureStateDeltaKinds.Despawn));
+        controller.Tick(1f / 30f);
+        projection.Apply(presentation.RenderBatch);
+
+        Assert.False(projection.Store.ContainsEntity(remote));
+        Assert.DoesNotContain(
+            presentation.RenderBatch.TransformChanges,
+            change => change.Key.Equals(remote));
+    }
+
+    [Fact]
+    public void PureStatePlaybackTickKeepsSteadyStateAllocationBoundedAfterWarmup()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(runtime, presentation);
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 10,
+            x: 0f,
+            isFull: true,
+            stateHash: 123u));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 20,
+            x: 10f,
+            isFull: false,
+            baselineFrame: 0,
+            baselineHash: 0u,
+            stateHash: 124u));
+        for (var i = 0; i < 128; i++)
+        {
+            controller.Tick(1f / 60f);
+        }
+
+        var checksum = 0f;
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 64; i++)
+        {
+            // Zero simulation delta isolates render-frame playback/composition from fixed-step
+            // world snapshot export, whose allocation budget is covered by runtime tests.
+            controller.Tick(0f);
+            checksum += presentation.RenderBatch.SampleFrame;
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.True(checksum > 0f);
+        Assert.True(allocated < 4_096L, $"PureState playback allocated {allocated} bytes after warmup.");
+    }
+
+    [Fact]
+    public void AuthoritativeControllerSkipsWholeWorldPredictionHistoriesAndTickHashesByDefault()
+    {
+        var runtime = new ShooterBattleRuntimePort();
+        var controller = StartedController(runtime, new ShooterPresentationFacade());
+
+        for (var i = 0; i < 32; i++)
+        {
+            var result = controller.Tick(1f / 30f);
+            Assert.Equal(0u, result.StateHash);
+        }
+
+        Assert.False(controller.FrameSync.HasFrameworkInputHistory);
+        Assert.False(controller.FrameSync.HasRollbackSnapshotHistory);
+        Assert.False(controller.FrameSync.HasStateHashHistory);
+        Assert.False(controller.FrameSync.ComputeTickResultStateHash);
+        Assert.Equal(0L, runtime.StateHashCacheDiagnostics.ComputationCount);
     }
 
     [Fact]
@@ -556,5 +981,41 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         }
 
         throw new Xunit.Sdk.XunitException($"Transform change for {key.Kind}:{key.EntityId} not found in batch.");
+    }
+
+    private sealed class SequencedGateway : IShooterRoomGatewayClient
+    {
+        private ulong _sequence;
+
+        public Task<ShooterGatewayBattleInputResult> SubmitBattleInputAsync(
+            ShooterGatewayBattleInputContext context,
+            ShooterInputPacket packet,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            _sequence++;
+            return Task.FromResult(new ShooterGatewayBattleInputResult(
+                success: true,
+                acceptedFrame: context.Frame,
+                message: string.Empty,
+                currentFrame: context.Frame,
+                status: string.Empty,
+                shouldResync: false,
+                serverTicks: 0L,
+                commandSequence: _sequence));
+        }
+    }
+
+    private sealed class FailingGateway : IShooterRoomGatewayClient
+    {
+        public Task<ShooterGatewayBattleInputResult> SubmitBattleInputAsync(
+            ShooterGatewayBattleInputContext context,
+            ShooterInputPacket packet,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromException<ShooterGatewayBattleInputResult>(
+                new InvalidOperationException("simulated gateway failure"));
+        }
     }
 }

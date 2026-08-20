@@ -25,7 +25,8 @@ namespace AbilityKit.Game.Editor
             MobaSkillCastRuntimeService skillRuntimeService = null,
             BattleDebugDiagnosticSessionResolution diagnosticResolution = default,
             bool isOffline = false,
-            BattleDiagnosticWorkspaceState workspaceState = null)
+            BattleDiagnosticWorkspaceState workspaceState = null,
+            float availableContentWidth = 0f)
         {
             Facade = facade;
             SelectedId = selectedId;
@@ -43,6 +44,7 @@ namespace AbilityKit.Game.Editor
             DiagnosticResolution = diagnosticResolution;
             IsOffline = isOffline;
             WorkspaceState = workspaceState;
+            AvailableContentWidth = availableContentWidth;
         }
 
         public IBattleDebugFacade Facade { get; }
@@ -61,8 +63,31 @@ namespace AbilityKit.Game.Editor
         public BattleDebugDiagnosticSessionResolution DiagnosticResolution { get; }
         public bool IsOffline { get; }
         public BattleDiagnosticWorkspaceState WorkspaceState { get; }
+        public float AvailableContentWidth { get; }
 
         public bool HasSelection => SelectedId.IsValid;
         public bool HasRuntimeSelection => SelectedId.IsValid && SelectedUnit != null;
+
+        public BattleDebugContext WithAvailableContentWidth(float availableContentWidth)
+        {
+            return new BattleDebugContext(
+                Facade,
+                SelectedId,
+                SelectedUnit,
+                RequestRepaint,
+                SelectActor,
+                OpenTrace,
+                OpenEvents,
+                OpenEvent,
+                OpenRecentFailures,
+                OpenConfig,
+                SeekReplayFrame,
+                DiagnosticSession,
+                SkillRuntimeService,
+                DiagnosticResolution,
+                IsOffline,
+                WorkspaceState,
+                availableContentWidth);
+        }
     }
 }

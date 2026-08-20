@@ -12,10 +12,20 @@ namespace AbilityKit.Game.Editor
     /// 查询并展示伤害、治疗、效果和其他运行事件，支持时间窗口、Actor 关系和文本检索。
     /// 只消费已定义的诊断查询契约，不建立旁路数据源。
     /// </summary>
+    [BattleDebugModule(
+        BattleDebugModuleIds.DiagnosticEvents,
+        "Investigation",
+        RequiredCapabilities = BattleDiagnosticCapabilities.Events,
+        Selections = BattleDebugModuleSelectionSupport.Frame |
+                     BattleDebugModuleSelectionSupport.Actor |
+                     BattleDebugModuleSelectionSupport.Event |
+                     BattleDebugModuleSelectionSupport.Trace |
+                     BattleDebugModuleSelectionSupport.Config)]
     internal sealed class BattleDebugDiagnosticEventsPanel :
         IBattleDebugPanel,
         IBattleDebugPanelLayout,
-        IBattleDebugEventsTarget
+        IBattleDebugEventsTarget,
+        IBattleDebugWidgetProvider
     {
         public string Name => "诊断事件";
         public int Order => 400;
@@ -30,6 +40,40 @@ namespace AbilityKit.Game.Editor
         private BattleDebugInvestigationConfidenceFilter _investigationConfidenceFilter;
         private BattleDebugInvestigationCauseFilter _investigationCauseFilter;
         private string _actionStatus = string.Empty;
+        private readonly IBattleDebugWidget[] _widgets;
+        private readonly List<BattleDebugHistogramSample> _histogramSamples =
+            new List<BattleDebugHistogramSample>(256);
+        private readonly List<BattleDiagnosticEvent> _timeRangeItems =
+            new List<BattleDiagnosticEvent>(256);
+        private readonly List<BattleDebugTimelineOverviewItem> _overviewItems =
+            new List<BattleDebugTimelineOverviewItem>(256);
+        private readonly BattleDebugTimelineOverviewBuffer _overviewBuffer =
+            new BattleDebugTimelineOverviewBuffer();
+        private readonly BattleDebugHistogramSeries[] _histogramSeries =
+        {
+            new BattleDebugHistogramSeries("Succeeded", new Color(0.3f, 0.72f, 0.42f, 0.9f)),
+            new BattleDebugHistogramSeries("Other", new Color(0.48f, 0.62f, 0.78f, 0.9f)),
+            new BattleDebugHistogramSeries("Problems", new Color(0.9f, 0.38f, 0.32f, 0.95f))
+        };
+        private readonly BattleDebugLegendItem[] _histogramLegend =
+        {
+            new BattleDebugLegendItem("Succeeded", new Color(0.3f, 0.72f, 0.42f, 0.9f)),
+            new BattleDebugLegendItem("Other", new Color(0.48f, 0.62f, 0.78f, 0.9f)),
+            new BattleDebugLegendItem("Failed / Cancelled / Interrupted", new Color(0.9f, 0.38f, 0.32f, 0.95f))
+        };
+        private bool _showWidgetAdvancedFilters;
+
+        public BattleDebugDiagnosticEventsPanel()
+        {
+            _widgets = new IBattleDebugWidget[]
+            {
+                new EventsWidget(this, EventsWidgetKind.Overview),
+                new EventsWidget(this, EventsWidgetKind.List),
+                new EventsWidget(this, EventsWidgetKind.Details)
+            };
+        }
+
+        public IReadOnlyList<IBattleDebugWidget> Widgets => _widgets;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
 
@@ -91,7 +135,7 @@ namespace AbilityKit.Game.Editor
                 in workspaceFilter);
             RestoreWorkspaceEventSelection(in ctx, items);
             DrawWorksetControls(in ctx, session, selectedActorId);
-            items = _viewModel.Items;
+            items = ApplySharedTimeRange(in ctx, _viewModel.Items);
             DrawInvestigations(in ctx, items);
             DrawIssueGroups();
             var useSplitLayout = (_selectedEvent.HasValue || _selectedInvestigation.HasValue) &&
@@ -112,6 +156,240 @@ namespace AbilityKit.Game.Editor
                 DrawEventList(in ctx, items, expandHeight: false);
                 DrawSelectionDetails(in ctx, items);
             }
+        }
+
+        private void DrawOverviewWidget(in BattleDebugContext ctx)
+        {
+            if (!TryRefresh(in ctx, out _, out var items)) return;
+
+            DrawFrameHistogram(in ctx, _viewModel.Items, items);
+            DrawInvestigations(in ctx, items);
+            DrawIssueGroups();
+        }
+
+        private void DrawListWidget(in BattleDebugContext ctx)
+        {
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
+            {
+                DrawSessionUnavailable();
+                return;
+            }
+
+            if (ctx.AvailableContentWidth >= 980f)
+            {
+                DrawFilterBar(ctx, session);
+            }
+            else
+            {
+                DrawCompactWidgetFilterBar(in ctx);
+            }
+            EditorGUILayout.Space(3f);
+            if (!TryRefresh(in ctx, session, out var items)) return;
+
+            var selectedActorId = ctx.HasSelection ? ctx.SelectedId.ActorId : 0;
+            DrawWorksetControls(in ctx, session, selectedActorId);
+            DrawEventList(in ctx, items, expandHeight: true);
+        }
+
+        private void DrawCompactWidgetFilterBar(in BattleDebugContext ctx)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            var nextScope = (BattleDebugDiagnosticEventScope)EditorGUILayout.EnumPopup(
+                _viewModel.EventScope,
+                EditorStyles.toolbarPopup,
+                GUILayout.Width(92f));
+            if (nextScope != _viewModel.EventScope)
+            {
+                _viewModel.EventScope = nextScope;
+                _viewModel.InvalidateCache();
+            }
+
+            var nextRecentFrames = Mathf.Max(0, EditorGUILayout.IntField(
+                _viewModel.RecentFrameCount,
+                EditorStyles.toolbarTextField,
+                GUILayout.Width(48f)));
+            if (nextRecentFrames != _viewModel.RecentFrameCount)
+            {
+                _viewModel.RecentFrameCount = nextRecentFrames;
+                _viewModel.InvalidateCache();
+            }
+
+            var nextActor = GUILayout.Toggle(
+                _viewModel.FilterBySelectedActor,
+                new GUIContent("Actor", "Filter by the selected actor"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(48f));
+            if (nextActor != _viewModel.FilterBySelectedActor)
+            {
+                _viewModel.FilterBySelectedActor = nextActor;
+                _viewModel.InvalidateCache();
+            }
+
+            var nextFailures = GUILayout.Toggle(
+                _viewModel.FailuresOnly,
+                new GUIContent("失败", "Only show failed, cancelled, or interrupted events"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(42f));
+            if (nextFailures != _viewModel.FailuresOnly)
+            {
+                _viewModel.FailuresOnly = nextFailures;
+                _viewModel.InvalidateCache();
+            }
+
+            GUILayout.FlexibleSpace();
+            _showWidgetAdvancedFilters = GUILayout.Toggle(
+                _showWidgetAdvancedFilters,
+                new GUIContent("高级", "Show config and trigger analysis filters"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(42f));
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(42f)))
+            {
+                _viewModel.InvalidateCache();
+                ctx.RequestRepaint?.Invoke();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label("搜索", GUILayout.Width(30f));
+            var nextSearch = GUILayout.TextField(
+                _viewModel.SearchText ?? string.Empty,
+                EditorStyles.toolbarSearchField,
+                GUILayout.MinWidth(80f));
+            if (!string.Equals(nextSearch, _viewModel.SearchText, System.StringComparison.Ordinal))
+            {
+                _viewModel.SearchText = nextSearch;
+                _viewModel.InvalidateCache();
+            }
+            EditorGUI.BeginDisabledGroup(string.IsNullOrEmpty(_viewModel.SearchText));
+            if (GUILayout.Button("x", EditorStyles.toolbarButton, GUILayout.Width(22f)))
+            {
+                _viewModel.SearchText = string.Empty;
+                _viewModel.InvalidateCache();
+                GUI.FocusControl(null);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+
+            if (!_showWidgetAdvancedFilters) return;
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label("Cfg", GUILayout.Width(24f));
+            var nextConfigId = Mathf.Max(0, EditorGUILayout.IntField(
+                _viewModel.ConfigId,
+                EditorStyles.toolbarTextField,
+                GUILayout.Width(52f)));
+            if (nextConfigId != _viewModel.ConfigId)
+            {
+                _viewModel.ConfigId = nextConfigId;
+                _viewModel.InvalidateCache();
+            }
+
+            var nextStage = (BattleDiagnosticTriggerAnalysisStage)EditorGUILayout.EnumPopup(
+                _viewModel.TriggerStage,
+                EditorStyles.toolbarPopup,
+                GUILayout.MinWidth(70f));
+            if (nextStage != _viewModel.TriggerStage)
+            {
+                _viewModel.TriggerStage = nextStage;
+                _viewModel.InvalidateCache();
+            }
+
+            var nextResult = (BattleDiagnosticTriggerAnalysisResult)EditorGUILayout.EnumPopup(
+                _viewModel.TriggerResult,
+                EditorStyles.toolbarPopup,
+                GUILayout.MinWidth(70f));
+            if (nextResult != _viewModel.TriggerResult)
+            {
+                _viewModel.TriggerResult = nextResult;
+                _viewModel.InvalidateCache();
+            }
+
+            EditorGUI.BeginDisabledGroup(!_viewModel.HasActiveFilter);
+            if (GUILayout.Button("清除", EditorStyles.toolbarButton, GUILayout.Width(42f)))
+            {
+                _viewModel.ClearLocalFilters();
+                GUI.FocusControl(null);
+            }
+            EditorGUI.EndDisabledGroup();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawDetailsWidget(in BattleDebugContext ctx)
+        {
+            if (!TryRefresh(in ctx, out _, out var items)) return;
+            if (!_selectedEvent.HasValue && !_selectedInvestigation.HasValue)
+            {
+                EditorGUILayout.HelpBox("从事件列表或调查结果中选择一项以查看详情。", MessageType.Info);
+                return;
+            }
+
+            if (_selectedInvestigation.HasValue)
+            {
+                DrawInvestigations(in ctx, items);
+            }
+            DrawSelectionDetails(in ctx, items);
+        }
+
+        private bool TryRefresh(
+            in BattleDebugContext ctx,
+            out IBattleDiagnosticReadOnlySession session,
+            out IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out session))
+            {
+                items = System.Array.Empty<BattleDiagnosticEvent>();
+                DrawSessionUnavailable();
+                return false;
+            }
+
+            return TryRefresh(in ctx, session, out items);
+        }
+
+        private bool TryRefresh(
+            in BattleDebugContext ctx,
+            IBattleDiagnosticReadOnlySession session,
+            out IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            var selectedActorId = ctx.HasSelection ? ctx.SelectedId.ActorId : 0;
+            var workspaceFilter = ctx.WorkspaceState?.Filter ?? BattleDiagnosticFilter.Default;
+            items = _viewModel.RefreshIfNeeded(
+                session,
+                selectedActorId,
+                ctx.HasSelection,
+                in workspaceFilter);
+            RestoreWorkspaceEventSelection(in ctx, items);
+            items = ApplySharedTimeRange(in ctx, items);
+            return true;
+        }
+
+        private IReadOnlyList<BattleDiagnosticEvent> ApplySharedTimeRange(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            var timeRange = ctx.WorkspaceState?.TimeRange ??
+                            BattleDiagnosticTimeRange.Auto();
+            if (!timeRange.IsFixed || items == null || items.Count == 0)
+            {
+                return items ?? System.Array.Empty<BattleDiagnosticEvent>();
+            }
+
+            _timeRangeItems.Clear();
+            var range = timeRange.Range;
+            for (var i = 0; i < items.Count; i++)
+            {
+                if (range.Contains(items[i].Frame))
+                {
+                    _timeRangeItems.Add(items[i]);
+                }
+            }
+            return _timeRangeItems;
+        }
+
+        private static void DrawSessionUnavailable()
+        {
+            EditorGUILayout.HelpBox(
+                "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                MessageType.Info);
         }
 
         private void DrawFilterBar(in BattleDebugContext ctx, IBattleDiagnosticReadOnlySession session)
@@ -663,8 +941,8 @@ namespace AbilityKit.Game.Editor
 
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("问题聚合", EditorStyles.miniBoldLabel, GUILayout.Width(58));
-            GUILayout.Label("按调查工作集归并失败原因；点击可收敛到同类事件。", EditorStyles.miniLabel);
+            GUILayout.Label("问题聚合（已加载）", EditorStyles.miniBoldLabel, GUILayout.Width(108));
+            GUILayout.Label("按完整已加载调查工作集归并，不受共享时间窗口影响；点击可收敛到同类事件。", EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             GUILayout.Label($"{groups.Count} 个簇", EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
@@ -1210,6 +1488,172 @@ namespace AbilityKit.Game.Editor
                    diagnosticEvent.ContextId != 0 ||
                    diagnosticEvent.SkillRuntime.RuntimeId != 0 ||
                    diagnosticEvent.AttackId != 0;
+        }
+
+        private void DrawFrameHistogram(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDiagnosticEvent> loadedItems,
+            IReadOnlyList<BattleDiagnosticEvent> visibleItems)
+        {
+            EditorGUILayout.LabelField("Frame Event Distribution", EditorStyles.boldLabel);
+            var automaticRange = ResolveEventRange(loadedItems);
+            var visibleRange = ctx.WorkspaceState != null
+                ? ctx.WorkspaceState.TimeRange.Resolve(automaticRange)
+                : automaticRange;
+            if (!visibleRange.IsValid)
+            {
+                EditorGUILayout.HelpBox(
+                    "The current query has no events to aggregate.",
+                    MessageType.Info);
+                return;
+            }
+
+            _overviewItems.Clear();
+            if (loadedItems != null)
+            {
+                for (var i = 0; i < loadedItems.Count; i++)
+                {
+                    _overviewItems.Add(new BattleDebugTimelineOverviewItem(
+                        loadedItems[i].Frame,
+                        loadedItems[i].Frame));
+                }
+            }
+
+            var cursorFrame = ctx.WorkspaceState?.FrameCursor.Frame ??
+                              BattleDiagnosticFrames.Invalid;
+            var overviewInteraction = BattleDebugTimelineOverview.Draw(
+                _overviewItems,
+                automaticRange,
+                visibleRange,
+                cursorFrame,
+                _overviewBuffer);
+            ApplyTimelineInteraction(in ctx, overviewInteraction);
+
+            _histogramSamples.Clear();
+            if (visibleItems != null)
+            {
+                for (var i = 0; i < visibleItems.Count; i++)
+                {
+                    var item = visibleItems[i];
+                    if (!visibleRange.Contains(item.Frame)) continue;
+                    _histogramSamples.Add(new BattleDebugHistogramSample(
+                        item.Frame,
+                        GetHistogramSeriesIndex(item.Outcome)));
+                }
+            }
+
+            var interaction = BattleDebugHistogram.Draw(
+                _histogramSamples,
+                visibleRange,
+                _histogramSeries,
+                cursorFrame);
+            BattleDebugLegend.Draw(_histogramLegend);
+            ApplyTimelineInteraction(in ctx, interaction);
+        }
+
+        private static void ApplyTimelineInteraction(
+            in BattleDebugContext ctx,
+            BattleDebugTimelineInteractionResult interaction)
+        {
+            var changed = BattleDebugTimelineInteraction.Apply(ctx.WorkspaceState, interaction);
+            if (interaction.Kind == BattleDebugTimelineInteractionKind.SelectFrame &&
+                BattleDiagnosticFrames.IsValid(interaction.Frame))
+            {
+                ctx.SeekReplayFrame?.Invoke(interaction.Frame);
+            }
+            if (changed)
+            {
+                ctx.RequestRepaint?.Invoke();
+            }
+        }
+
+        private static BattleDiagnosticFrameRange ResolveEventRange(
+            IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return new BattleDiagnosticFrameRange(
+                    BattleDiagnosticFrames.Invalid,
+                    BattleDiagnosticFrames.Invalid);
+            }
+
+            var minFrame = items[0].Frame;
+            var maxFrame = items[0].Frame;
+            for (var i = 1; i < items.Count; i++)
+            {
+                minFrame = Mathf.Min(minFrame, items[i].Frame);
+                maxFrame = Mathf.Max(maxFrame, items[i].Frame);
+            }
+            return new BattleDiagnosticFrameRange(minFrame, maxFrame);
+        }
+
+        private static int GetHistogramSeriesIndex(BattleDiagnosticEventOutcome outcome)
+        {
+            switch (outcome)
+            {
+                case BattleDiagnosticEventOutcome.Succeeded:
+                    return 0;
+                case BattleDiagnosticEventOutcome.Failed:
+                case BattleDiagnosticEventOutcome.Cancelled:
+                case BattleDiagnosticEventOutcome.Interrupted:
+                    return 2;
+                default:
+                    return 1;
+            }
+        }
+
+        private enum EventsWidgetKind
+        {
+            Overview = 0,
+            List = 1,
+            Details = 2
+        }
+
+        private sealed class EventsWidget : IBattleDebugWidget
+        {
+            private readonly BattleDebugDiagnosticEventsPanel _owner;
+            private readonly EventsWidgetKind _kind;
+
+            public EventsWidget(BattleDebugDiagnosticEventsPanel owner, EventsWidgetKind kind)
+            {
+                _owner = owner;
+                _kind = kind;
+                Descriptor = BattleDebugModuleCatalog.Describe(owner);
+            }
+
+            public BattleDebugModuleDescriptor Descriptor { get; }
+            public string StableId => _kind == EventsWidgetKind.Overview
+                ? BattleDebugWidgetIds.EventsOverview
+                : _kind == EventsWidgetKind.List
+                    ? BattleDebugWidgetIds.EventsList
+                    : BattleDebugWidgetIds.EventsDetails;
+            public string DisplayName => _kind == EventsWidgetKind.Overview
+                ? "事件概览"
+                : _kind == EventsWidgetKind.List
+                    ? "事件列表"
+                    : "事件详情";
+            public bool OwnsScrollView => _kind == EventsWidgetKind.List;
+
+            public bool IsAvailable(in BattleDebugContext context)
+            {
+                return _owner.IsVisible(in context);
+            }
+
+            public void Draw(in BattleDebugContext context)
+            {
+                switch (_kind)
+                {
+                    case EventsWidgetKind.Overview:
+                        _owner.DrawOverviewWidget(in context);
+                        break;
+                    case EventsWidgetKind.List:
+                        _owner.DrawListWidget(in context);
+                        break;
+                    default:
+                        _owner.DrawDetailsWidget(in context);
+                        break;
+                }
+            }
         }
 
         private static Color GetOutcomeColor(BattleDiagnosticEventOutcome outcome)

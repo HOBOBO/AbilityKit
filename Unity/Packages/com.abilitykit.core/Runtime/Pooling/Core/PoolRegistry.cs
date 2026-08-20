@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.ExceptionServices;
 
 namespace AbilityKit.Core.Pooling
 {
@@ -8,6 +9,7 @@ namespace AbilityKit.Core.Pooling
     /// </summary>
     public static class PoolRegistry
     {
+        /// <summary>Gets the reserved name of the process-wide pooling scope.</summary>
         public const string GlobalScopeName = "Global";
 
         private static readonly object SyncRoot = new object();
@@ -19,6 +21,7 @@ namespace AbilityKit.Core.Pooling
             Scopes[GlobalScopeName] = GlobalScopeInstance;
         }
 
+        /// <summary>Gets the process-wide pooling scope.</summary>
         public static PoolScope Global => GlobalScopeInstance;
 
         /// <summary>
@@ -69,11 +72,13 @@ namespace AbilityKit.Core.Pooling
             return module;
         }
 
+        /// <summary>Unregisters a configuration provider by identity.</summary>
         public static bool UnregisterConfigProvider(IPoolConfigProvider provider)
         {
             return PoolConfigCenter.UnregisterProvider(provider);
         }
 
+        /// <summary>Removes all registered configuration providers.</summary>
         public static void ClearConfigProviders()
         {
             PoolConfigCenter.ClearProviders();
@@ -121,11 +126,14 @@ namespace AbilityKit.Core.Pooling
             return PoolConfigCenter.GetProviderInfos();
         }
 
+        /// <summary>Returns the resolved configuration or the supplied fallback when no provider matches.</summary>
         public static PoolItemConfig GetConfigOrDefault(PoolConfigRequest request, PoolItemConfig fallback = default)
         {
             return PoolConfigCenter.GetConfigOrDefault(request, fallback);
         }
 
+        /// <summary>Gets an active named scope or creates and registers it atomically.</summary>
+        /// <remarks>The first creator determines the scope's disposal behavior until that scope is destroyed.</remarks>
         public static PoolScope GetOrCreateScope(string name, bool destroyOnDispose = true)
         {
             name = NormalizeName(name);
@@ -146,22 +154,25 @@ namespace AbilityKit.Core.Pooling
             }
         }
 
+        /// <summary>Attempts to get an active named scope.</summary>
+        /// <remarks>The failure output is unspecified for compatibility with the published non-null signature.</remarks>
         public static bool TryGetScope(string name, out PoolScope scope)
         {
             name = NormalizeName(name);
 
             lock (SyncRoot)
             {
-                if (Scopes.TryGetValue(name, out scope) && scope != null && !scope.IsDisposed)
+                if (Scopes.TryGetValue(name, out scope!) && !scope.IsDisposed)
                 {
                     return true;
                 }
 
-                scope = null;
+                scope = null!;
                 return false;
             }
         }
 
+        /// <summary>Removes and disposes a named scope, or clears the reserved global scope.</summary>
         public static bool DestroyScope(string name, bool destroy = true)
         {
             name = NormalizeName(name);
@@ -174,7 +185,7 @@ namespace AbilityKit.Core.Pooling
             PoolScope scope;
             lock (SyncRoot)
             {
-                if (!Scopes.TryGetValue(name, out scope)) return false;
+                if (!Scopes.TryGetValue(name, out scope!)) return false;
                 Scopes.Remove(name);
             }
 
@@ -182,6 +193,8 @@ namespace AbilityKit.Core.Pooling
             return true;
         }
 
+        /// <summary>Clears every active registered scope from a snapshot.</summary>
+        /// <remarks>All scopes are attempted. One callback failure is rethrown unchanged; multiple failures are aggregated.</remarks>
         public static void ClearAll(bool destroy = false, bool includeGlobal = true)
         {
             List<PoolScope> scopes;
@@ -194,15 +207,34 @@ namespace AbilityKit.Core.Pooling
                 }
             }
 
+            List<Exception>? exceptions = null;
             for (var i = 0; i < scopes.Count; i++)
             {
                 var scope = scopes[i];
                 if (scope == null || scope.IsDisposed) continue;
-                scope.Clear(destroy);
+                try
+                {
+                    scope.Clear(destroy);
+                }
+                catch (Exception exception)
+                {
+                    if (exceptions == null) exceptions = new List<Exception>();
+                    exceptions.Add(exception);
+                }
             }
+
+            if (exceptions == null || exceptions.Count == 0) return;
+            if (exceptions.Count == 1)
+            {
+                ExceptionDispatchInfo.Capture(exceptions[0]).Throw();
+                return;
+            }
+
+            throw new AggregateException(exceptions);
         }
 
 #if UNITY_EDITOR
+        /// <summary>Gets editor-only diagnostic snapshots from one scope or every active scope.</summary>
         public static IReadOnlyList<PoolDebugSnapshot> GetDebugSnapshots(string scopeName = null)
         {
             if (!string.IsNullOrEmpty(scopeName))

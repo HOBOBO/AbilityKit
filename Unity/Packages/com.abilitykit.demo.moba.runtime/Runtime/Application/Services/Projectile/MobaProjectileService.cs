@@ -172,7 +172,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     });
                 }
 
-                CollectProjectileSpawned(casterActorId, projectileActorId, projectileCode, in sourceContext);
+                CollectProjectileSpawned(
+                    casterActorId,
+                    projectileActorId,
+                    projectileCode,
+                    in sourceContext,
+                    pid.Value);
                 transaction.Commit();
                 return true;
             }
@@ -811,7 +816,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             int casterActorId,
             int projectileActorId,
             int projectileConfigId,
-            in ProjectileSourceContext sourceContext)
+            in ProjectileSourceContext sourceContext,
+            long projectileRuntimeId = 0L)
         {
             sourceContext.TryGetOrigin(out var resolvedOrigin);
             var handle = sourceContext.SkillRuntimeHandle;
@@ -836,20 +842,29 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 rootContextId,
                 contextId,
                 runtime,
-                summary: summary);
+                summary: summary,
+                subjectObject: BattleDiagnosticRuntimeObjectReference.Create(
+                    BattleDiagnosticRuntimeObjectKind.Projectile,
+                    projectileRuntimeId));
         }
 
         private void CollectProjectileSpawned(
             int casterActorId,
             int projectileActorId,
             int projectileConfigId,
-            in ProjectileSourceContext sourceContext)
+            in ProjectileSourceContext sourceContext,
+            long projectileRuntimeId)
         {
             if (_eventCollector == null) return;
 
             try
             {
-                var draft = CreateProjectileSpawnedDraft(casterActorId, projectileActorId, projectileConfigId, in sourceContext);
+                var draft = CreateProjectileSpawnedDraft(
+                    casterActorId,
+                    projectileActorId,
+                    projectileConfigId,
+                    in sourceContext,
+                    projectileRuntimeId);
                 _eventCollector.TryCollect(in draft);
             }
             catch (Exception ex)

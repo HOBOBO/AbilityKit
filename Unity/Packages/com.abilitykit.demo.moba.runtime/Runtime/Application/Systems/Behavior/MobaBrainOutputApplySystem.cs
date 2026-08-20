@@ -71,7 +71,7 @@ namespace AbilityKit.Demo.Moba.Systems
                     continue;
                 }
 
-                var intent = MobaBrainIntentReader.Read(behavior.Output);
+                var intent = MobaBrainIntentReader.Read(behavior);
                 var wroteMovement = false;
                 var canMove = intent.IsValid()
                     && (_combatRules == null || _combatRules.CanMove(e.actorId.Value));

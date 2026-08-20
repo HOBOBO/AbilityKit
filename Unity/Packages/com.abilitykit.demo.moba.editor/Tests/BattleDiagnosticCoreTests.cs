@@ -190,6 +190,138 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TimeRange_Fixed_NormalizesBoundsAndResolvesIndependentlyOfAutomaticRange()
+        {
+            var timeRange = BattleDiagnosticTimeRange.Fixed(80, 20);
+
+            Assert.That(timeRange.IsFixed, Is.True);
+            Assert.That(timeRange.FirstFrame, Is.EqualTo(20));
+            Assert.That(timeRange.LastFrame, Is.EqualTo(80));
+            Assert.That(
+                timeRange.Resolve(new BattleDiagnosticFrameRange(40, 60)),
+                Is.EqualTo(new BattleDiagnosticFrameRange(20, 80)));
+        }
+
+        [Test]
+        public void FrameRange_Intersect_ClipsOverlapAndRejectsDisjointRanges()
+        {
+            var range = new BattleDiagnosticFrameRange(20, 80);
+
+            Assert.That(
+                range.Intersect(new BattleDiagnosticFrameRange(60, 100)),
+                Is.EqualTo(new BattleDiagnosticFrameRange(60, 80)));
+            Assert.That(
+                range.Intersect(new BattleDiagnosticFrameRange(90, 100)).IsValid,
+                Is.False);
+        }
+
+        [Test]
+        public void Workspace_FixedTimeRange_SurvivesCursorMovementAndResetsForNewSession()
+        {
+            var firstScope = new BattleDiagnosticSessionScope("session-a", "world", 1);
+            var secondScope = new BattleDiagnosticSessionScope("session-b", "world", 2);
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(firstScope, 100);
+            workspace.SetTimeRange(20, 80);
+
+            workspace.SetFrame(50);
+
+            Assert.That(workspace.TimeRange.Range, Is.EqualTo(new BattleDiagnosticFrameRange(20, 80)));
+            workspace.AttachSession(secondScope, 120);
+            Assert.That(workspace.TimeRange.IsAuto, Is.True);
+            Assert.That(
+                workspace.TimeRange.ChangeReason,
+                Is.EqualTo(BattleDiagnosticTimeRangeChangeReason.SessionChanged));
+        }
+
+        [Test]
+        public void Workspace_ConstrainToRetainedRange_ClampsCursorAndFixedTimeRangeTogether()
+        {
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(
+                new BattleDiagnosticSessionScope("session", "world", 1),
+                100);
+            workspace.SetTimeRange(10, 90);
+            workspace.SetFrame(15);
+
+            workspace.ConstrainToRetainedRange(new BattleDiagnosticFrameRange(40, 75));
+
+            Assert.That(workspace.FrameCursor.Frame, Is.EqualTo(40));
+            Assert.That(workspace.TimeRange.Range, Is.EqualTo(new BattleDiagnosticFrameRange(40, 75)));
+            Assert.That(
+                workspace.TimeRange.ChangeReason,
+                Is.EqualTo(BattleDiagnosticTimeRangeChangeReason.RetainedRangeClamped));
+        }
+
+        [Test]
+        public void TimeRange_Zoom_PreservesAnchorAndUsesInclusiveFrameCount()
+        {
+            var range = BattleDiagnosticTimeRange.Fixed(100, 199);
+
+            var zoomedIn = range.Zoom(150, 0.5d);
+            var zoomedOut = range.Zoom(150, 2d);
+
+            Assert.That(zoomedIn.Range, Is.EqualTo(new BattleDiagnosticFrameRange(125, 174)));
+            Assert.That(zoomedIn.ChangeReason, Is.EqualTo(BattleDiagnosticTimeRangeChangeReason.Zoomed));
+            Assert.That(zoomedOut.Range, Is.EqualTo(new BattleDiagnosticFrameRange(49, 248)));
+        }
+
+        [Test]
+        public void TimeRange_Pan_PreservesWidthAndClampsToNonNegativeFrames()
+        {
+            var range = BattleDiagnosticTimeRange.Fixed(100, 199);
+
+            var panned = range.Pan(-150);
+
+            Assert.That(panned.Range, Is.EqualTo(new BattleDiagnosticFrameRange(0, 99)));
+            Assert.That(panned.ChangeReason, Is.EqualTo(BattleDiagnosticTimeRangeChangeReason.Panned));
+        }
+
+        [Test]
+        public void Workspace_TimeRangeHistory_BackForwardAndNewBranchAreBoundedToSession()
+        {
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(
+                new BattleDiagnosticSessionScope("session", "world", 1),
+                100);
+            workspace.SetTimeRange(10, 20);
+            workspace.SetTimeRange(30, 40);
+
+            Assert.That(workspace.GoBackTimeRange(), Is.True);
+            Assert.That(workspace.TimeRange.Range, Is.EqualTo(new BattleDiagnosticFrameRange(10, 20)));
+            Assert.That(
+                workspace.TimeRange.ChangeReason,
+                Is.EqualTo(BattleDiagnosticTimeRangeChangeReason.HistoryNavigation));
+            Assert.That(workspace.GoBackTimeRange(), Is.True);
+            Assert.That(workspace.TimeRange.IsAuto, Is.True);
+            Assert.That(workspace.GoForwardTimeRange(), Is.True);
+
+            workspace.SetTimeRange(50, 60);
+
+            Assert.That(workspace.CanGoForwardTimeRange, Is.False);
+            Assert.That(workspace.TimeRangeHistoryCount, Is.EqualTo(3));
+            Assert.That(workspace.TimeRange.Range, Is.EqualTo(new BattleDiagnosticFrameRange(50, 60)));
+        }
+
+        [Test]
+        public void Workspace_TimeRangeHistory_DoesNotRecordSameBoundsTwice()
+        {
+            var workspace = new BattleDiagnosticWorkspaceState();
+            workspace.AttachSession(
+                new BattleDiagnosticSessionScope("session", "world", 1),
+                100);
+            workspace.SetTimeRange(10, 20);
+
+            var changed = workspace.SetTimeRange(
+                10,
+                20,
+                BattleDiagnosticTimeRangeChangeReason.Zoomed);
+
+            Assert.That(changed, Is.False);
+            Assert.That(workspace.TimeRangeHistoryCount, Is.EqualTo(2));
+        }
+
+        [Test]
         public void Filter_Default_IsUnboundedAndHasNoActiveDimensions()
         {
             var filter = BattleDiagnosticFilter.Default;

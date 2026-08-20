@@ -22,7 +22,8 @@ namespace AbilityKit.Core.Markers
             if (implType.IsAbstract) return;
             if (implType.IsInterface) return;
 
-            _types.Add(implType);
+            if (!_types.Contains(implType))
+                _types.Add(implType);
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 #nullable enable
 
+using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Shooter.View.Hosting;
 using Unity.Profiling;
@@ -12,6 +13,53 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         GameObject = 0,
         GpuInstancedDotsReady = 1,
         EntitiesGraphics = 2
+    }
+
+    public readonly struct ShooterUnityViewRenderDiagnostics
+    {
+        public ShooterUnityViewRenderDiagnostics(
+            ShooterUnityViewRenderBackend backend,
+            bool usesIndirectRendering,
+            long fullRebuildCount,
+            long incrementalBatchCount,
+            long indirectUploadPassCount,
+            long matrixUploadCallCount,
+            long uploadedMatrixCount,
+            long fullBufferUploadCount,
+            long partialUploadRangeCount,
+            int playerCount,
+            int bulletCount,
+            int enemyCount,
+            bool hasControlledPlayer)
+        {
+            Backend = backend;
+            UsesIndirectRendering = usesIndirectRendering;
+            FullRebuildCount = fullRebuildCount;
+            IncrementalBatchCount = incrementalBatchCount;
+            IndirectUploadPassCount = indirectUploadPassCount;
+            MatrixUploadCallCount = matrixUploadCallCount;
+            UploadedMatrixCount = uploadedMatrixCount;
+            FullBufferUploadCount = fullBufferUploadCount;
+            PartialUploadRangeCount = partialUploadRangeCount;
+            PlayerCount = playerCount;
+            BulletCount = bulletCount;
+            EnemyCount = enemyCount;
+            HasControlledPlayer = hasControlledPlayer;
+        }
+
+        public ShooterUnityViewRenderBackend Backend { get; }
+        public bool UsesIndirectRendering { get; }
+        public long FullRebuildCount { get; }
+        public long IncrementalBatchCount { get; }
+        public long IndirectUploadPassCount { get; }
+        public long MatrixUploadCallCount { get; }
+        public long UploadedMatrixCount { get; }
+        public long FullBufferUploadCount { get; }
+        public long PartialUploadRangeCount { get; }
+        public int PlayerCount { get; }
+        public int BulletCount { get; }
+        public int EnemyCount { get; }
+        public bool HasControlledPlayer { get; }
     }
 
     public readonly struct ShooterUnityViewRenderBackendDescriptor
@@ -146,6 +194,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     {
         ShooterUnityViewRenderBackend Backend { get; }
 
+        ShooterUnityViewRenderDiagnostics Diagnostics { get; }
+
         void RebuildAll();
     }
 
@@ -164,6 +214,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         }
 
         public ShooterUnityViewRenderBackend Backend => _inner.Backend;
+
+        public ShooterUnityViewRenderDiagnostics Diagnostics => _inner.Diagnostics;
 
         public void SetBackend(ShooterUnityViewRenderBackend backend)
         {
@@ -205,6 +257,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
     internal sealed class UnityShooterGpuInstancedViewSink : IUnityShooterViewSink
     {
         private static readonly ProfilerMarker RebuildInstanceBufferMarker = new ProfilerMarker("AbilityKit.Shooter.View.GpuInstanced.RebuildInstanceBuffer");
+        private static readonly ProfilerMarker ApplyInstanceDeltaMarker = new ProfilerMarker("AbilityKit.Shooter.View.GpuInstanced.ApplyInstanceDelta");
         private static readonly ProfilerMarker UploadIndirectBufferMarker = new ProfilerMarker("AbilityKit.Shooter.View.GpuInstanced.UploadIndirectBuffer");
         private static readonly ProfilerMarker DrawBufferMarker = new ProfilerMarker("AbilityKit.Shooter.View.GpuInstanced.DrawBuffer");
 
@@ -256,6 +309,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private bool _hasAuthorityProjection;
         private ShooterViewProjectionApplyResult _lastClientApplyResult = ShooterViewProjectionApplyResult.Empty;
         private ShooterCrossLayerDiagnostics _lastCrossLayerDiagnostics;
+        private ulong _lastClientWorldId;
+        private ulong _lastAuthorityWorldId;
         private ulong _lastClientSequence;
         private ulong _lastAuthoritySequence;
         private int _lastClientFrame;
@@ -271,8 +326,30 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private bool _clientInstancesDirty = true;
         private bool _authorityInstancesDirty = true;
         private bool _useIndirectRendering;
+        private long _fullRebuildCount;
+        private long _incrementalBatchCount;
+        private long _indirectUploadPassCount;
+        private long _matrixUploadCallCount;
+        private long _uploadedMatrixCount;
+        private long _fullBufferUploadCount;
+        private long _partialUploadRangeCount;
 
         public ShooterUnityViewRenderBackend Backend => ShooterUnityViewRenderBackend.GpuInstancedDotsReady;
+
+        public ShooterUnityViewRenderDiagnostics Diagnostics => new ShooterUnityViewRenderDiagnostics(
+            Backend,
+            _useIndirectRendering,
+            _fullRebuildCount,
+            _incrementalBatchCount,
+            _indirectUploadPassCount,
+            _matrixUploadCallCount,
+            _uploadedMatrixCount,
+            _fullBufferUploadCount,
+            _partialUploadRangeCount,
+            _clientInstances.PlayerCount,
+            _clientInstances.BulletCount,
+            _clientInstances.EnemyCount,
+            _clientInstances.HasControlledPlayer);
 
         public void Render(in ShooterHostPresentationFrame frame)
         {
@@ -285,7 +362,15 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             {
                 _lastClientApplyResult = _clientProjection.Apply(in clientBatch);
                 CaptureClientBatchKey(in clientBatch);
-                _clientInstancesDirty = true;
+                if (_clientInstancesDirty || viewKeyChanged || clientBatch.ShouldReplaceMissingEntities)
+                {
+                    _clientInstancesDirty = true;
+                }
+                else
+                {
+                    ApplyInstanceDelta(_clientProjection.Store, in clientBatch, _clientInstances, frame.ControlledPlayerId, frame.WorldScale, isAuthority: false);
+                    UploadIndirectBuffers(_clientInstances, _clientIndirectBuffers);
+                }
             }
 
             if (_clientInstancesDirty || viewKeyChanged)
@@ -305,10 +390,18 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 {
                     _authorityProjection.Apply(in authorityBatch);
                     CaptureAuthorityBatchKey(in authorityBatch);
-                    _authorityInstancesDirty = true;
+                    if (DrawAuthorityOverlay && (_authorityInstancesDirty || viewKeyChanged || authorityBatch.ShouldReplaceMissingEntities))
+                    {
+                        _authorityInstancesDirty = true;
+                    }
+                    else if (DrawAuthorityOverlay)
+                    {
+                        ApplyInstanceDelta(_authorityProjection.Store, in authorityBatch, _authorityInstances, frame.ControlledPlayerId, frame.WorldScale, isAuthority: true);
+                        UploadIndirectBuffers(_authorityInstances, _authorityIndirectBuffers);
+                    }
                 }
 
-                if (_authorityInstancesDirty || viewKeyChanged)
+                if (DrawAuthorityOverlay && (_authorityInstancesDirty || viewKeyChanged))
                 {
                     RebuildInstanceBuffer(_authorityProjection.Store, _authorityInstances, frame.ControlledPlayerId, frame.WorldScale, isAuthority: true);
                     UploadIndirectBuffers(_authorityInstances, _authorityIndirectBuffers);
@@ -334,6 +427,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private bool IsSameClientBatch(in ShooterSnapshotViewBatch batch)
         {
             return _hasAppliedClientBatch &&
+                batch.WorldId == _lastClientWorldId &&
                 batch.Sequence == _lastClientSequence &&
                 batch.Frame == _lastClientFrame &&
                 batch.SampleFrame.Equals(_lastClientSampleFrame) &&
@@ -344,6 +438,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private bool IsSameAuthorityBatch(in ShooterSnapshotViewBatch batch)
         {
             return _hasAppliedAuthorityBatch &&
+                batch.WorldId == _lastAuthorityWorldId &&
                 batch.Sequence == _lastAuthoritySequence &&
                 batch.Frame == _lastAuthorityFrame &&
                 batch.SampleFrame.Equals(_lastAuthoritySampleFrame) &&
@@ -353,6 +448,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void CaptureClientBatchKey(in ShooterSnapshotViewBatch batch)
         {
+            _lastClientWorldId = batch.WorldId;
             _lastClientSequence = batch.Sequence;
             _lastClientFrame = batch.Frame;
             _lastClientSampleFrame = batch.SampleFrame;
@@ -363,6 +459,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void CaptureAuthorityBatchKey(in ShooterSnapshotViewBatch batch)
         {
+            _lastAuthorityWorldId = batch.WorldId;
             _lastAuthoritySequence = batch.Sequence;
             _lastAuthorityFrame = batch.Frame;
             _lastAuthoritySampleFrame = batch.SampleFrame;
@@ -384,6 +481,8 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _hudDirty = false;
             _lastClientSequence = 0UL;
             _lastAuthoritySequence = 0UL;
+            _lastClientWorldId = 0UL;
+            _lastAuthorityWorldId = 0UL;
             _lastClientFrame = 0;
             _lastAuthorityFrame = 0;
             _lastClientSampleFrame = 0f;
@@ -415,6 +514,13 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _lastClientApplyResult = ShooterViewProjectionApplyResult.Empty;
             _lastCrossLayerDiagnostics = default;
             _useIndirectRendering = false;
+            _fullRebuildCount = 0L;
+            _incrementalBatchCount = 0L;
+            _indirectUploadPassCount = 0L;
+            _matrixUploadCallCount = 0L;
+            _uploadedMatrixCount = 0L;
+            _fullBufferUploadCount = 0L;
+            _partialUploadRangeCount = 0L;
 
             if (_viewRoot != null)
             {
@@ -461,16 +567,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private void RebuildInstanceBuffer(ShooterViewEntityStore store, InstanceBuffer buffer, int controlledPlayerId, float worldScale, bool isAuthority)
         {
             using var rebuildSample = RebuildInstanceBufferMarker.Auto();
+            _fullRebuildCount++;
             buffer.Clear();
             buffer.EnsureCapacity(store.PlayerCount, store.BulletCount, store.EnemyCount);
             for (var i = 0; i < store.DenseCount; i++)
             {
                 if (!store.TryGetDenseEntityAndTransform(i, out var entity, out var transform))
                 {
-                    if (!isAuthority && entity.Kind == ShooterViewEntityKind.Player)
-                    {
-                        buffer.SkippedPlayerWithoutTransformCount++;
-                    }
+                    buffer.MarkMissingTransform(entity.Key, controlledPlayerId, isAuthority);
 
                     continue;
                 }
@@ -491,33 +595,99 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 var rotation = CreateFacingRotation(transform.FacingX, transform.FacingY);
                 var matrix = Matrix4x4.TRS(position, rotation, ScaleFor(kind, isAuthority));
 
-                AddCachedMatrix(kind, in matrix, buffer);
+                buffer.Upsert(entity.Key, in matrix, controlledPlayerId, isAuthority);
+            }
 
-                if (!isAuthority && kind == ShooterViewEntityKind.Player && entity.EntityId == controlledPlayerId)
+            buffer.RequireFullUpload();
+        }
+
+        private void ApplyInstanceDelta(
+            ShooterViewEntityStore store,
+            in ShooterSnapshotViewBatch batch,
+            InstanceBuffer buffer,
+            int controlledPlayerId,
+            float worldScale,
+            bool isAuthority)
+        {
+            using var deltaSample = ApplyInstanceDeltaMarker.Auto();
+            _incrementalBatchCount++;
+            buffer.BeginUpdate();
+
+            var removed = batch.RemovedEntities;
+            for (var i = 0; i < removed.Count; i++)
+            {
+                buffer.Remove(removed[i], controlledPlayerId, isAuthority);
+            }
+
+            var entities = batch.EntityChanges;
+            for (var i = 0; i < entities.Count; i++)
+            {
+                if (!entities[i].Alive)
                 {
-                    buffer.ControlledPlayerMatrix = matrix;
-                    buffer.HasControlledPlayer = true;
+                    buffer.Remove(entities[i].Key, controlledPlayerId, isAuthority);
+                }
+            }
+
+            var transforms = batch.TransformChanges;
+            for (var i = 0; i < transforms.Count; i++)
+            {
+                SyncInstance(store, transforms[i].Key, buffer, controlledPlayerId, worldScale, isAuthority);
+            }
+
+            // Entity and player recovery changes can introduce a tracked entity without a transform delta.
+            for (var i = 0; i < entities.Count; i++)
+            {
+                var change = entities[i];
+                if (change.Alive && !buffer.IsTracked(change.Key))
+                {
+                    SyncInstance(store, change.Key, buffer, controlledPlayerId, worldScale, isAuthority);
+                }
+            }
+
+            var health = batch.HealthChanges;
+            for (var i = 0; i < health.Count; i++)
+            {
+                if (!buffer.IsTracked(health[i].Key))
+                {
+                    SyncInstance(store, health[i].Key, buffer, controlledPlayerId, worldScale, isAuthority);
+                }
+            }
+
+            var scores = batch.ScoreChanges;
+            for (var i = 0; i < scores.Count; i++)
+            {
+                if (!buffer.IsTracked(scores[i].Key))
+                {
+                    SyncInstance(store, scores[i].Key, buffer, controlledPlayerId, worldScale, isAuthority);
                 }
             }
         }
 
-        private static void AddCachedMatrix(ShooterViewEntityKind kind, in Matrix4x4 matrix, InstanceBuffer buffer)
+        private static void SyncInstance(
+            ShooterViewEntityStore store,
+            ShooterViewEntityKey key,
+            InstanceBuffer buffer,
+            int controlledPlayerId,
+            float worldScale,
+            bool isAuthority)
         {
-            switch (kind)
+            if (!store.TryGetEntity(key, out var entity) || !entity.Alive)
             {
-                case ShooterViewEntityKind.Player:
-                    buffer.Players.Add(matrix);
-                    buffer.PlayerCount++;
-                    break;
-                case ShooterViewEntityKind.Bullet:
-                    buffer.Bullets.Add(matrix);
-                    buffer.BulletCount++;
-                    break;
-                case ShooterViewEntityKind.Enemy:
-                    buffer.Enemies.Add(matrix);
-                    buffer.EnemyCount++;
-                    break;
+                buffer.Remove(key, controlledPlayerId, isAuthority);
+                return;
             }
+
+            if (!store.TryGetTransform(key, out var transform))
+            {
+                buffer.MarkMissingTransform(key, controlledPlayerId, isAuthority);
+                return;
+            }
+
+            var y = isAuthority ? 0.15f : 0f;
+            var position = new Vector3(transform.X * worldScale, y, transform.Y * worldScale);
+            var rotation = CreateFacingRotation(transform.FacingX, transform.FacingY);
+            var matrix = Matrix4x4.TRS(position, rotation, ScaleFor(entity.Kind, isAuthority));
+            buffer.Upsert(key, in matrix, controlledPlayerId, isAuthority);
         }
 
         private void UploadIndirectBuffers(InstanceBuffer buffer, IndirectBufferSet indirectBuffers)
@@ -528,15 +698,21 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             using var uploadSample = UploadIndirectBufferMarker.Auto();
-            indirectBuffers.Upload(
+            var result = indirectBuffers.Upload(
                 MeshFor(ShooterViewEntityKind.Player),
-                buffer.Players,
+                buffer.PlayerSlots,
                 MeshFor(ShooterViewEntityKind.Bullet),
-                buffer.Bullets,
+                buffer.BulletSlots,
                 MeshFor(ShooterViewEntityKind.Enemy),
-                buffer.Enemies,
+                buffer.EnemySlots,
                 buffer.HasControlledPlayer,
-                in buffer.ControlledPlayerMatrix);
+                in buffer.ControlledPlayerMatrix,
+                buffer.ControlledPlayerDirty);
+            _indirectUploadPassCount++;
+            _matrixUploadCallCount += result.UploadCallCount;
+            _uploadedMatrixCount += result.UploadedMatrixCount;
+            _fullBufferUploadCount += result.FullBufferUploadCount;
+            _partialUploadRangeCount += result.PartialUploadRangeCount;
         }
 
         private DrawCounts DrawBuffer(InstanceBuffer buffer, IndirectBufferSet indirectBuffers, bool isAuthority)
@@ -855,45 +1031,180 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private sealed class InstanceBuffer
         {
-            public readonly List<Matrix4x4> Players = new();
-            public readonly List<Matrix4x4> Bullets = new();
-            public readonly List<Matrix4x4> Enemies = new();
+            private readonly ShooterStableSlotBuffer<Matrix4x4> _players = new();
+            private readonly ShooterStableSlotBuffer<Matrix4x4> _bullets = new();
+            private readonly ShooterStableSlotBuffer<Matrix4x4> _enemies = new();
+            private readonly HashSet<ShooterViewEntityKey> _missingTransforms = new();
+            private int _missingPlayerTransformCount;
 
             public bool HasControlledPlayer;
             public Matrix4x4 ControlledPlayerMatrix = Matrix4x4.identity;
-            public int PlayerCount;
-            public int BulletCount;
-            public int EnemyCount;
+            public bool ControlledPlayerDirty;
             public int SkippedDeadPlayerCount;
-            public int SkippedPlayerWithoutTransformCount;
+
+            public List<Matrix4x4> Players => _players.Values;
+
+            public List<Matrix4x4> Bullets => _bullets.Values;
+
+            public List<Matrix4x4> Enemies => _enemies.Values;
+
+            public ShooterStableSlotBuffer<Matrix4x4> PlayerSlots => _players;
+
+            public ShooterStableSlotBuffer<Matrix4x4> BulletSlots => _bullets;
+
+            public ShooterStableSlotBuffer<Matrix4x4> EnemySlots => _enemies;
+
+            public int PlayerCount => _players.Count;
+
+            public int BulletCount => _bullets.Count;
+
+            public int EnemyCount => _enemies.Count;
+
+            public int SkippedPlayerWithoutTransformCount => _missingPlayerTransformCount;
 
             public void EnsureCapacity(int playerCount, int bulletCount, int enemyCount)
             {
-                EnsureCapacity(Players, playerCount);
-                EnsureCapacity(Bullets, bulletCount);
-                EnsureCapacity(Enemies, enemyCount);
+                _players.EnsureCapacity(playerCount);
+                _bullets.EnsureCapacity(bulletCount);
+                _enemies.EnsureCapacity(enemyCount);
+                _missingTransforms.EnsureCapacity(playerCount + bulletCount + enemyCount);
+            }
+
+            public void BeginUpdate()
+            {
+                _players.BeginUpdate();
+                _bullets.BeginUpdate();
+                _enemies.BeginUpdate();
+                ControlledPlayerDirty = false;
+                SkippedDeadPlayerCount = 0;
+            }
+
+            public void RequireFullUpload()
+            {
+                _players.RequireFullUpload();
+                _bullets.RequireFullUpload();
+                _enemies.RequireFullUpload();
+                ControlledPlayerDirty = true;
+            }
+
+            public bool IsTracked(ShooterViewEntityKey key)
+            {
+                return BufferFor(key.Kind).Contains(key) || _missingTransforms.Contains(key);
+            }
+
+            public void Upsert(ShooterViewEntityKey key, in Matrix4x4 matrix, int controlledPlayerId, bool isAuthority)
+            {
+                if (_missingTransforms.Remove(key) && key.Kind == ShooterViewEntityKind.Player)
+                {
+                    _missingPlayerTransformCount--;
+                }
+
+                BufferFor(key.Kind).Upsert(key, in matrix);
+                if (!isAuthority && key.Kind == ShooterViewEntityKind.Player && key.EntityId == controlledPlayerId)
+                {
+                    ControlledPlayerMatrix = matrix;
+                    HasControlledPlayer = true;
+                    ControlledPlayerDirty = true;
+                }
+            }
+
+            public void MarkMissingTransform(ShooterViewEntityKey key, int controlledPlayerId, bool isAuthority)
+            {
+                BufferFor(key.Kind).Remove(key);
+                if (_missingTransforms.Add(key) && key.Kind == ShooterViewEntityKind.Player)
+                {
+                    _missingPlayerTransformCount++;
+                }
+
+                if (!isAuthority && key.Kind == ShooterViewEntityKind.Player && key.EntityId == controlledPlayerId)
+                {
+                    HasControlledPlayer = false;
+                    ControlledPlayerMatrix = Matrix4x4.identity;
+                    ControlledPlayerDirty = true;
+                }
+            }
+
+            public void Remove(ShooterViewEntityKey key, int controlledPlayerId, bool isAuthority)
+            {
+                BufferFor(key.Kind).Remove(key);
+                if (_missingTransforms.Remove(key) && key.Kind == ShooterViewEntityKind.Player)
+                {
+                    _missingPlayerTransformCount--;
+                }
+
+                if (!isAuthority && key.Kind == ShooterViewEntityKind.Player && key.EntityId == controlledPlayerId)
+                {
+                    HasControlledPlayer = false;
+                    ControlledPlayerMatrix = Matrix4x4.identity;
+                    ControlledPlayerDirty = true;
+                }
             }
 
             public void Clear()
             {
-                Players.Clear();
-                Bullets.Clear();
-                Enemies.Clear();
+                _players.Clear();
+                _bullets.Clear();
+                _enemies.Clear();
+                _missingTransforms.Clear();
+                _missingPlayerTransformCount = 0;
                 HasControlledPlayer = false;
                 ControlledPlayerMatrix = Matrix4x4.identity;
-                PlayerCount = 0;
-                BulletCount = 0;
-                EnemyCount = 0;
+                ControlledPlayerDirty = true;
                 SkippedDeadPlayerCount = 0;
-                SkippedPlayerWithoutTransformCount = 0;
             }
 
-            private static void EnsureCapacity(List<Matrix4x4> matrices, int capacity)
+            private ShooterStableSlotBuffer<Matrix4x4> BufferFor(ShooterViewEntityKind kind)
             {
-                if (capacity > matrices.Capacity)
+                switch (kind)
                 {
-                    matrices.Capacity = capacity;
+                    case ShooterViewEntityKind.Player:
+                        return _players;
+                    case ShooterViewEntityKind.Bullet:
+                        return _bullets;
+                    case ShooterViewEntityKind.Enemy:
+                        return _enemies;
+                    default:
+                        throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported shooter view entity kind.");
                 }
+            }
+        }
+
+        private readonly struct IndirectUploadResult
+        {
+            private IndirectUploadResult(
+                int uploadCallCount,
+                int uploadedMatrixCount,
+                int fullBufferUploadCount,
+                int partialUploadRangeCount)
+            {
+                UploadCallCount = uploadCallCount;
+                UploadedMatrixCount = uploadedMatrixCount;
+                FullBufferUploadCount = fullBufferUploadCount;
+                PartialUploadRangeCount = partialUploadRangeCount;
+            }
+
+            public int UploadCallCount { get; }
+            public int UploadedMatrixCount { get; }
+            public int FullBufferUploadCount { get; }
+            public int PartialUploadRangeCount { get; }
+
+            public static IndirectUploadResult Full(int matrixCount)
+            {
+                return new IndirectUploadResult(1, matrixCount, 1, 0);
+            }
+
+            public static IndirectUploadResult Partial(int rangeCount, int matrixCount)
+            {
+                return new IndirectUploadResult(rangeCount, matrixCount, 0, rangeCount);
+            }
+
+            public IndirectUploadResult Add(in IndirectUploadResult other)
+            {
+                return new IndirectUploadResult(
+                    UploadCallCount + other.UploadCallCount,
+                    UploadedMatrixCount + other.UploadedMatrixCount,
+                    FullBufferUploadCount + other.FullBufferUploadCount,
+                    PartialUploadRangeCount + other.PartialUploadRangeCount);
             }
         }
 
@@ -905,28 +1216,31 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             private readonly IndirectKindBuffer _controlledPlayer = new();
             private readonly Matrix4x4[] _controlledMatrix = new Matrix4x4[1];
 
-            public void Upload(
+            public IndirectUploadResult Upload(
                 Mesh? playerMesh,
-                List<Matrix4x4> players,
+                ShooterStableSlotBuffer<Matrix4x4> players,
                 Mesh? bulletMesh,
-                List<Matrix4x4> bullets,
+                ShooterStableSlotBuffer<Matrix4x4> bullets,
                 Mesh? enemyMesh,
-                List<Matrix4x4> enemies,
+                ShooterStableSlotBuffer<Matrix4x4> enemies,
                 bool hasControlledPlayer,
-                in Matrix4x4 controlledPlayerMatrix)
+                in Matrix4x4 controlledPlayerMatrix,
+                bool controlledPlayerDirty)
             {
-                _players.Upload(playerMesh, players);
-                _bullets.Upload(bulletMesh, bullets);
-                _enemies.Upload(enemyMesh, enemies);
-                if (hasControlledPlayer)
+                var result = _players.Upload(playerMesh, players)
+                    .Add(_bullets.Upload(bulletMesh, bullets))
+                    .Add(_enemies.Upload(enemyMesh, enemies));
+                if (controlledPlayerDirty && hasControlledPlayer)
                 {
                     _controlledMatrix[0] = controlledPlayerMatrix;
-                    _controlledPlayer.Upload(playerMesh, _controlledMatrix, 1);
+                    result = result.Add(_controlledPlayer.Upload(playerMesh, _controlledMatrix, 1));
                 }
-                else
+                else if (!hasControlledPlayer)
                 {
                     _controlledPlayer.ClearCount();
                 }
+
+                return result;
             }
 
             public void Draw(ShooterViewEntityKind kind, Material? material)
@@ -961,6 +1275,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private sealed class IndirectKindBuffer : System.IDisposable
         {
+            private const int MaxPartialUploadRanges = 16;
             private static readonly int MatricesProperty = Shader.PropertyToID("_ShooterMatrices");
             private static readonly Bounds DrawBounds = new Bounds(Vector3.zero, Vector3.one * 10000f);
             private readonly uint[] _arguments = new uint[5];
@@ -971,32 +1286,49 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             private int _count;
             private Mesh? _mesh;
 
-            public void Upload(Mesh? mesh, List<Matrix4x4> matrices)
+            public IndirectUploadResult Upload(Mesh? mesh, ShooterStableSlotBuffer<Matrix4x4> slots)
             {
+                var matrices = slots.Values;
                 if (mesh == null || matrices.Count == 0)
                 {
                     _mesh = mesh;
                     ClearCount();
-                    return;
+                    return default;
                 }
 
-                EnsureCapacity(matrices.Count);
-                _matrices!.SetData(matrices);
-                UpdateArguments(mesh, matrices.Count);
+                var recreated = EnsureCapacity(matrices.Count);
+                IndirectUploadResult result;
+                if (recreated || slots.RequiresFullUpload)
+                {
+                    _matrices!.SetData(matrices);
+                    result = IndirectUploadResult.Full(matrices.Count);
+                }
+                else
+                {
+                    result = UploadDirtyRanges(matrices, slots.DirtySlots);
+                }
+
+                if (recreated || slots.CountChanged || _mesh != mesh || _count != matrices.Count)
+                {
+                    UpdateArguments(mesh, matrices.Count);
+                }
+
+                return result;
             }
 
-            public void Upload(Mesh? mesh, Matrix4x4[] matrices, int count)
+            public IndirectUploadResult Upload(Mesh? mesh, Matrix4x4[] matrices, int count)
             {
                 if (mesh == null || count <= 0)
                 {
                     _mesh = mesh;
                     ClearCount();
-                    return;
+                    return default;
                 }
 
                 EnsureCapacity(count);
                 _matrices!.SetData(matrices, 0, 0, count);
                 UpdateArguments(mesh, count);
+                return IndirectUploadResult.Full(count);
             }
 
             public void ClearCount()
@@ -1035,11 +1367,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 _mesh = null;
             }
 
-            private void EnsureCapacity(int count)
+            private bool EnsureCapacity(int count)
             {
                 if (_capacity >= count && _matrices != null && _args != null)
                 {
-                    return;
+                    return false;
                 }
 
                 var capacity = _capacity == 0 ? 16 : _capacity;
@@ -1056,6 +1388,94 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 }
 
                 _capacity = capacity;
+                return true;
+            }
+
+            private IndirectUploadResult UploadDirtyRanges(List<Matrix4x4> matrices, List<int> dirtySlots)
+            {
+                if (dirtySlots.Count == 0)
+                {
+                    return default;
+                }
+
+                dirtySlots.Sort();
+                var rangeCount = CountDirtyRanges(dirtySlots, matrices.Count);
+                if (rangeCount > MaxPartialUploadRanges)
+                {
+                    _matrices!.SetData(matrices);
+                    return IndirectUploadResult.Full(matrices.Count);
+                }
+
+                var start = -1;
+                var end = -1;
+                var uploadedMatrixCount = 0;
+                var uploadCallCount = 0;
+                for (var i = 0; i < dirtySlots.Count; i++)
+                {
+                    var slot = dirtySlots[i];
+                    if ((uint)slot >= (uint)matrices.Count)
+                    {
+                        continue;
+                    }
+
+                    if (start < 0)
+                    {
+                        start = slot;
+                        end = slot + 1;
+                        continue;
+                    }
+
+                    if (slot < end)
+                    {
+                        continue;
+                    }
+
+                    if (slot == end)
+                    {
+                        end++;
+                        continue;
+                    }
+
+                    var count = end - start;
+                    _matrices!.SetData(matrices, start, start, count);
+                    uploadedMatrixCount += count;
+                    uploadCallCount++;
+                    start = slot;
+                    end = slot + 1;
+                }
+
+                if (start >= 0)
+                {
+                    var count = end - start;
+                    _matrices!.SetData(matrices, start, start, count);
+                    uploadedMatrixCount += count;
+                    uploadCallCount++;
+                }
+
+                return IndirectUploadResult.Partial(uploadCallCount, uploadedMatrixCount);
+            }
+
+            private static int CountDirtyRanges(List<int> dirtySlots, int matrixCount)
+            {
+                var ranges = 0;
+                var previous = -2;
+                for (var i = 0; i < dirtySlots.Count; i++)
+                {
+                    var slot = dirtySlots[i];
+                    if ((uint)slot >= (uint)matrixCount || slot == previous)
+                    {
+                        continue;
+                    }
+
+                    if (slot != previous + 1)
+                    {
+                        ranges++;
+                    }
+
+                    previous = slot;
+                }
+
+                return ranges;
             }
 
             private void UpdateArguments(Mesh mesh, int count)

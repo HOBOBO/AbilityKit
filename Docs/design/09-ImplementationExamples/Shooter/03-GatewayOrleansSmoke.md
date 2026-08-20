@@ -1,7 +1,7 @@
 # Shooter Gateway、Orleans 与 Smoke 验收
 
 > 文档类型：Shooter 服务端接入流程与验收概览
-> 事实基线：2026-08-16
+> 事实基线：2026-08-19
 > 本文说明 Shooter 项目如何通过 Gateway 和 Orleans 把 staged loading、战斗运行时、状态同步推送和 Smoke 串成服务端权威闭环；应用编排仅供接入参考。
 
 ## 1. 设计目标
@@ -191,7 +191,7 @@ pure-state 模式则会根据配置导出 full baseline 或 delta，并交由 Ga
 | `state-sync-authority`（默认） | Packed | `1/30` | Room 声明 `AuthoritativeInterpolation` |
 | `predict-rollback-authority` | Packed | `1/1` | 每个权威 snapshot 都是 full，供预测重演导入 |
 | `batch-state-low-frequency` | PureState | `60/300` | active budget 1024 |
-| `mass-battle-lod-aoi` | PureState | `90/450` | active budget 2048，observer AOI `24/30` |
+| `mass-battle-lod-aoi` | PureState | `3/450` | active budget 2048，observer AOI `24/30`，LOD `3/9/30`，插值延迟 3 帧 |
 
 interval 是服务端发送政策；full interval 不能被简写成“Shooter 每帧 full”，AOI 也不能继续沿用旧的 `48/60` 数值。
 
@@ -265,6 +265,6 @@ Shooter smoke 不只是探活，它覆盖同步协议中最容易出问题的点
 
 ---
 
-> 文档版本：v3.1
-> 更新日期：2026-08-16
+> 文档版本：v3.2
+> 更新日期：2026-08-19
 > 更新责任：ShooterRoomGatewayFlow、Room commit、input validation、payload 或 Smoke 断言变化时同步复核。

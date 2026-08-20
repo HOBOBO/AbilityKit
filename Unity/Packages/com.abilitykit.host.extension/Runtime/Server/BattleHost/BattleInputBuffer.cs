@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Ability.Host.Extensions.Server.BattleHost
 {
@@ -31,17 +32,28 @@ namespace AbilityKit.Ability.Host.Extensions.Server.BattleHost
         void Clear();
     }
 
-    public sealed class BattleInputBuffer<TInput> : IBattleInputBuffer<TInput>
+    public sealed class BattleInputBuffer<TInput> : IBattleInputBuffer<TInput>, IBufferCapacityControl
     {
         private readonly Dictionary<int, List<TInput>> _inputsByFrame = new Dictionary<int, List<TInput>>();
         private readonly int _initialFrameCapacity;
+        private int _maxPendingFrames;
 
-        public BattleInputBuffer(int initialFrameCapacity = 8)
+        public BattleInputBuffer(int initialFrameCapacity = 8, int maxPendingFrames = 0)
         {
+            if (maxPendingFrames < 0)
+            {
+                throw new System.ArgumentOutOfRangeException(nameof(maxPendingFrames));
+            }
+
             _initialFrameCapacity = initialFrameCapacity > 0 ? initialFrameCapacity : 8;
+            _maxPendingFrames = maxPendingFrames == 0 ? int.MaxValue : maxPendingFrames;
         }
 
         public int PendingFrameCount => _inputsByFrame.Count;
+
+        public int Capacity => _maxPendingFrames;
+
+        public bool IsCapacityBounded => _maxPendingFrames != int.MaxValue;
 
         public bool Enqueue(int frame, TInput input)
         {
@@ -52,6 +64,11 @@ namespace AbilityKit.Ability.Host.Extensions.Server.BattleHost
 
             if (!_inputsByFrame.TryGetValue(frame, out var list))
             {
+                if (_inputsByFrame.Count >= _maxPendingFrames)
+                {
+                    return false;
+                }
+
                 list = new List<TInput>(_initialFrameCapacity);
                 _inputsByFrame[frame] = list;
             }
@@ -102,6 +119,22 @@ namespace AbilityKit.Ability.Host.Extensions.Server.BattleHost
         public void Clear()
         {
             _inputsByFrame.Clear();
+        }
+
+        public bool TrySetCapacity(int capacity)
+        {
+            if (capacity <= 0 || capacity < _inputsByFrame.Count)
+            {
+                return false;
+            }
+
+            _maxPendingFrames = capacity;
+            return true;
+        }
+
+        public void RemoveCapacityLimit()
+        {
+            _maxPendingFrames = int.MaxValue;
         }
     }
 }

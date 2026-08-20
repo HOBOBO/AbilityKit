@@ -357,7 +357,7 @@ Cue 快照中只传稳定、确定的数据，如 VFX ID、目标 actor、位置
 ### 13.3 P2：提升生产效率和可视化能力
 
 - 提供英雄 scaffold：按 manifest 自动生成 Character、Skill、SkillLevel、SkillFlow、SkillButton、Trigger、Buff、AOE、Projectile 和 acceptance 骨架。
-- 生成跨表依赖图与资源完整度报告，按英雄聚合展示缺失引用、未消费字段、placeholder 和无测试配置。
+- 继续扩展跨表依赖与资源完整度报告：补齐尚未建模的 action 参数语义、未消费字段和无测试配置；当前已覆盖静态 JSON 外键、TriggerPlan aggregate、VFX resolver、英雄可达性、Resources 文件和 placeholder 债务。
 - 建立技能场景预览工具，在同一视图显示逻辑范围、HUD 指示器、AOE Range、模型包围盒和 VFX 尺寸，并自动报告偏差。
 - 增加网络表现回放样本：录制输入和快照后，在预测/确认两种 View 上比较对象数量、位置、生命周期与 Cue key。
 - 将英雄 acceptance 覆盖率、资源完整率和配置严格校验结果接入持续集成趋势报告。
@@ -372,10 +372,14 @@ Cue 快照中只传稳定、确定的数据，如 VFX ID、目标 actor、位置
 - P1：预测与 Confirmed View 共用 Area Pool object factory；廉颇、墨子 fixture 已改用公共 `MobaSkillConfigTestHarness.TickUntilSkillStops`。
 - P1：Cue Refresh 仅在 duration override 为正数时重启已有 VFX lifetime，零或负数不改变当前生命周期，并有直接回归测试。
 - P2：已提供 `tools/moba-hero-manifest.json`、`validate_moba_hero_manifest.ps1` 和带 `SupportsShouldProcess` 的 `new_moba_hero_manifest.ps1`。清单校验生产 Character、资源路径、验收覆盖和 fixture 源码，目前覆盖 6 名英雄。
+- P2：已提供数据驱动的 `moba-content-dependency-contract.json` 与 `build_moba_content_report.ps1`。报告确定性输出表记录、静态引用边、重复/缺失 ID、未引用记录、按英雄可达节点和资源问题；尚未建模的 runtime authority 以 `externalReferences` 显式列出，避免错误猜测外键。fixture 自测和真实报告已接入 `moba-content-contracts`，生产英雄可达 placeholder 会升级为阻断错误。
+- P2：内容依赖已接入运行时实际使用的 `ability_trigger_plans.json`、默认 Release/Commit rule source 与 `vfx/vfx.json`，并解析 Trigger action 到 AOE、Buff、Projectile、Query、Skill、ContinuousTag 和 Launcher 的确定参数边。`Resources/<path>.prefab` 可在不启动 Unity 的情况下校验；两个既有 AOE preview placeholder 通过带 owner/reason 的精确 ID allowlist 保留为可见债务，新增生产可达 placeholder 仍会阻断。
+- P2：`build_moba_content_graph.ps1` 基于同一 JSON 报告确定性生成自包含 HTML 与 Graphviz DOT。HTML 支持按英雄、表名和外部 authority 筛选，节点详情展示入边、出边、缺失引用、未引用记录和问题数；三种产物均进入 `moba-content-contracts` artifact。
+- P2：分析数据层已与查看器解耦。`export_moba_content_ir.ps1` 确定性导出 `moba-content-graph.json` 和 `moba-content-diagnostics.json`：前者保存稳定的记录节点、引用边、英雄根、资源事实和外部 authority，后者通过 node/edge ID 关联错误、源码路径、owner 和建议动作。Unity Editor、Web、Graphviz 与 CI 都只需实现薄适配器；Runtime 和发布包不加载分析数据。
 
 本轮验证：`powershell -NoProfile -ExecutionPolicy Bypass -File tools/validate_moba_hero_manifest.ps1` 通过；`new_moba_hero_manifest.ps1 -WhatIf` 仅输出创建预览；Unity 2022.3.62f1 定向 EditMode 结果为 75/75 通过，NUnit XML 显示 `total=75`、`failed=0`。
 
-未完成的后续项仍包括 Summon/Character 生命周期表现配置、HUD 几何对象统一、DTO 字段贯通生成式契约、跨表依赖图、场景预览和 CI 趋势报告。
+未完成的后续项仍包括 Summon/Character 生命周期表现配置、HUD 几何对象统一、DTO 字段贯通生成式契约、剩余 runtime action 参数 authority、场景预览和 CI 趋势报告。
 
 ## 14. 当前阶段验证基线
 

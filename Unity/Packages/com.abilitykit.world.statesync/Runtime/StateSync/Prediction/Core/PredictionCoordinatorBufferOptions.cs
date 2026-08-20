@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using AbilityKit.Core.Buffers;
 
 namespace AbilityKit.Ability.StateSync.Prediction
 {
@@ -74,6 +76,24 @@ namespace AbilityKit.Ability.StateSync.Prediction
                 PredictionCoordinatorBufferFeatures.None,
                 predictedStateHistoryCapacity: 0,
                 inputHistoryCapacity: 0);
+
+        /// <summary>
+        /// Creates both prediction histories with resizable circular storage.
+        /// Custom factories remain available for mixed or application-specific backends.
+        /// </summary>
+        public static PredictionCoordinatorBufferOptions CreateRingBacked(
+            int predictedStateHistoryCapacity = DefaultCapacity,
+            int inputHistoryCapacity = DefaultCapacity)
+        {
+            return new PredictionCoordinatorBufferOptions(
+                PredictionCoordinatorBufferFeatures.All,
+                predictedStateHistoryCapacity,
+                inputHistoryCapacity,
+                capacity => new DictionarySnapshotStore(
+                    new RingFrameIndexedBuffer<StateSlots>(capacity)),
+                capacity => new InputHistory(
+                    new RingFrameIndexedBuffer<List<IInputCommand>>(capacity)));
+        }
 
         public PredictionCoordinatorBufferFeatures Features { get; }
 

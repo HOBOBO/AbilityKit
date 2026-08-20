@@ -91,6 +91,7 @@ namespace AbilityKit.Demo.Moba.Services
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
             var info = snapshot.SessionInfo;
             var metrics = snapshot.Events.Metrics;
+            var frameMetricStoreMetrics = snapshot.FrameMetrics.Metrics;
             var section = new AnalysisBattleDiagnosticSection
             {
                 CapturedAtTimestamp = snapshot.CapturedAtTimestamp,
@@ -126,7 +127,32 @@ namespace AbilityKit.Demo.Moba.Services
                 Attributes = new AnalysisBattleDiagnosticAttributeTrack { Revision = snapshot.Attributes.Revision, Frame = snapshot.Attributes.Frame },
                 Buffs = new AnalysisBattleDiagnosticBuffTrack { Revision = snapshot.Buffs.Revision, Frame = snapshot.Buffs.Frame },
                 Tags = new AnalysisBattleDiagnosticTagTrack { Revision = snapshot.Tags.Revision, Frame = snapshot.Tags.Frame },
-                Effects = new AnalysisBattleDiagnosticEffectTrack { Revision = snapshot.Effects.Revision, Frame = snapshot.Effects.Frame }
+                Effects = new AnalysisBattleDiagnosticEffectTrack { Revision = snapshot.Effects.Revision, Frame = snapshot.Effects.Frame },
+                Objects = new AnalysisBattleDiagnosticObjectTrack
+                {
+                    Revision = snapshot.Objects.Revision,
+                    Truncated = snapshot.Objects.Truncated,
+                    Completeness = (int)snapshot.Objects.Completeness,
+                    BackfillAttemptCount = snapshot.Objects.BackfillAttemptCount,
+                    BackfillFailureCount = snapshot.Objects.BackfillFailureCount,
+                    LastBackfillFrame = snapshot.Objects.LastBackfillFrame,
+                    Summary = ToDto(snapshot.Objects.Summary),
+                    EventCoverage = ToDto(snapshot.RuntimeObjectEventCoverage)
+                },
+                FrameMetrics = new AnalysisBattleDiagnosticMetricTrack
+                {
+                    Revision = snapshot.FrameMetrics.Revision,
+                    Metrics = new AnalysisBattleDiagnosticStoreMetrics
+                    {
+                        Capacity = frameMetricStoreMetrics.Capacity,
+                        Count = frameMetricStoreMetrics.Count,
+                        Revision = frameMetricStoreMetrics.Revision,
+                        AcceptedCount = frameMetricStoreMetrics.AcceptedCount,
+                        EvictedCount = frameMetricStoreMetrics.EvictedCount,
+                        RejectedCount = frameMetricStoreMetrics.RejectedCount,
+                        IsFrozen = frameMetricStoreMetrics.IsFrozen
+                    }
+                }
             };
 
             if (snapshot.State.World.HasValue) section.State.World = ToDto(snapshot.State.World.Value);
@@ -138,6 +164,8 @@ namespace AbilityKit.Demo.Moba.Services
             Copy(snapshot.Buffs.Items, section.Buffs.Items, ToDto);
             Copy(snapshot.Tags.Items, section.Tags.Items, ToDto);
             Copy(snapshot.Effects.Items, section.Effects.Items, ToDto);
+            Copy(snapshot.Objects.Items, section.Objects.Items, ToDto);
+            Copy(snapshot.FrameMetrics.Samples, section.FrameMetrics.Items, ToDto);
             return section;
         }
 
@@ -163,6 +191,17 @@ namespace AbilityKit.Demo.Moba.Services
                 var buffs = Convert(section.Buffs.Items, item => FromDto(item, scope));
                 var tags = Convert(section.Tags.Items, item => FromDto(item, scope));
                 var effects = Convert(section.Effects.Items, item => FromDto(item, scope));
+                var objects = Convert(section.Objects.Items, FromDto);
+                var frameMetricSamples = Convert(section.FrameMetrics.Items, item => FromDto(item, scope));
+                var frameMetricDto = section.FrameMetrics.Metrics;
+                var frameMetricMetrics = new BattleDiagnosticStoreMetrics(
+                    frameMetricDto.Capacity,
+                    frameMetricDto.Count,
+                    frameMetricDto.Revision,
+                    frameMetricDto.AcceptedCount,
+                    frameMetricDto.EvictedCount,
+                    frameMetricDto.RejectedCount,
+                    frameMetricDto.IsFrozen);
                 BattleDiagnosticWorldSummary? world = section.State.World == null ? (BattleDiagnosticWorldSummary?)null : FromDto(section.State.World, scope);
                 ValidateConsistency(section, scope, events, actors);
                 return new BattleDiagnosticSessionSnapshot(
@@ -174,7 +213,19 @@ namespace AbilityKit.Demo.Moba.Services
                     new BattleDiagnosticAttributeTrackSnapshot(section.Attributes.Revision, section.Attributes.Frame, attributes, modifiers),
                     new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff>(section.Buffs.Revision, section.Buffs.Frame, buffs),
                     new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorTag>(section.Tags.Revision, section.Tags.Frame, tags),
-                    new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect>(section.Effects.Revision, section.Effects.Frame, effects));
+                    new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect>(section.Effects.Revision, section.Effects.Frame, effects),
+                    new BattleDiagnosticObjectCatalogSnapshot(
+                        scope,
+                        section.Objects.Revision,
+                        section.Objects.Truncated,
+                        objects,
+                        section.Objects.BackfillAttemptCount,
+                        section.Objects.BackfillFailureCount,
+                        section.Objects.LastBackfillFrame),
+                    new BattleDiagnosticMetricTrackSnapshot(
+                        section.FrameMetrics.Revision,
+                        in frameMetricMetrics,
+                        frameMetricSamples));
             }
             catch (MobaBattleDiagnosticArtifactException) { throw; }
             catch (Exception ex)
@@ -204,6 +255,17 @@ namespace AbilityKit.Demo.Moba.Services
             section.Buffs.Items = section.Buffs.Items ?? new List<AnalysisBattleDiagnosticBuff>();
             section.Tags.Items = section.Tags.Items ?? new List<AnalysisBattleDiagnosticTag>();
             section.Effects.Items = section.Effects.Items ?? new List<AnalysisBattleDiagnosticEffect>();
+            section.Objects = section.Objects ?? new AnalysisBattleDiagnosticObjectTrack();
+            section.Objects.Summary = section.Objects.Summary ??
+                                      new AnalysisBattleDiagnosticObjectSummary();
+            section.Objects.EventCoverage = section.Objects.EventCoverage ??
+                                            new AnalysisBattleDiagnosticObjectEventCoverage();
+            section.Objects.Items = section.Objects.Items ?? new List<AnalysisBattleDiagnosticRuntimeObject>();
+            section.FrameMetrics = section.FrameMetrics ?? new AnalysisBattleDiagnosticMetricTrack();
+            section.FrameMetrics.Metrics = section.FrameMetrics.Metrics ??
+                                           new AnalysisBattleDiagnosticStoreMetrics();
+            section.FrameMetrics.Items = section.FrameMetrics.Items ??
+                                         new List<AnalysisBattleDiagnosticMetricSample>();
         }
 
         private static void ValidateConsistency(AnalysisBattleDiagnosticSection section, BattleDiagnosticSessionScope scope, List<BattleDiagnosticEvent> events, List<BattleDiagnosticActorSummary> actors)
@@ -216,11 +278,16 @@ namespace AbilityKit.Demo.Moba.Services
                 if (events[i].Sequence <= events[i - 1].Sequence) throw new MobaBattleDiagnosticArtifactException("BattleDiagnostics.EventSequence", "Event sequences must be strictly increasing.");
             if (section.State.World != null && section.State.World.ActorCount != actors.Count)
                 throw new MobaBattleDiagnosticArtifactException("BattleDiagnostics.ActorCount", "World actor count does not match the actor list.");
+            if (section.FrameMetrics.Revision != section.FrameMetrics.Metrics.Revision ||
+                section.FrameMetrics.Metrics.Count != section.FrameMetrics.Items.Count)
+                throw new MobaBattleDiagnosticArtifactException(
+                    "BattleDiagnostics.FrameMetricMetrics",
+                    "Frame metric track revision/count does not match its metrics.");
         }
 
         private static AnalysisBattleDiagnosticEvent ToDto(BattleDiagnosticEvent item)
         {
-            var result = new AnalysisBattleDiagnosticEvent { Frame = item.Frame, Sequence = item.Sequence, MonotonicTimestamp = item.MonotonicTimestamp, Kind = (int)item.Kind, Channel = (int)item.Channel, Outcome = (int)item.Outcome, SourceActorId = item.SourceActorId, TargetActorId = item.TargetActorId, ConfigId = item.ConfigId, RootContextId = item.RootContextId, ContextId = item.ContextId, SkillRuntimeId = item.SkillRuntime.RuntimeId, SkillRuntimeGeneration = item.SkillRuntime.Generation, AttackId = item.AttackId, PayloadVersion = item.PayloadVersion, Summary = item.Summary };
+            var result = new AnalysisBattleDiagnosticEvent { Frame = item.Frame, Sequence = item.Sequence, MonotonicTimestamp = item.MonotonicTimestamp, Kind = (int)item.Kind, Channel = (int)item.Channel, Outcome = (int)item.Outcome, SourceActorId = item.SourceActorId, TargetActorId = item.TargetActorId, SourceActorGeneration = item.SourceActor.Generation, TargetActorGeneration = item.TargetActor.Generation, SubjectObjectKind = (int)item.SubjectObject.Kind, SubjectRuntimeId = item.SubjectObject.RuntimeId, SubjectGeneration = item.SubjectObject.Generation, ConfigId = item.ConfigId, DefinitionKind = (int)item.DefinitionKind, RootContextId = item.RootContextId, ContextId = item.ContextId, SkillRuntimeId = item.SkillRuntime.RuntimeId, SkillRuntimeGeneration = item.SkillRuntime.Generation, AttackId = item.AttackId, PayloadVersion = item.PayloadVersion, Summary = item.Summary };
             if (item.Payload.TryGetSyncSnapshotReceived(out var payload)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, AuthoritativeFrame = payload.AuthoritativeFrame, StateHash = payload.StateHash };
             else if (item.Payload.TryGetTriggerAnalysis(out var trigger)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, TriggerId = trigger.TriggerId, TriggerContextKind = trigger.ContextKind, TriggerOriginKind = trigger.OriginKind, TriggerStage = (int)trigger.Stage, TriggerResult = (int)trigger.Result, TriggerDetailCode = trigger.DetailCode, TriggerCurrentDepth = trigger.CurrentDepth, TriggerCurrentFrameCount = trigger.CurrentFrameCount, TriggerCurrentRootCount = trigger.CurrentRootCount, TriggerCurrentSameTriggerCount = trigger.CurrentSameTriggerCount, TriggerFailureKey = trigger.FailureKey, TriggerReason = trigger.Reason };
             else if (item.Payload.TryGetSkillFailure(out var failure)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, SkillFailureSlot = failure.Slot, SkillFailureSource = failure.Source, SkillFailureStage = failure.Stage, SkillFailureCode = failure.Code, SkillFailureMessage = failure.Message };
@@ -285,7 +352,7 @@ namespace AbilityKit.Demo.Moba.Services
                     throw new MobaBattleDiagnosticArtifactException("BattleDiagnostics.Payload", "Unsupported battle diagnostic event payload.");
                 }
             }
-            return new BattleDiagnosticEvent(scope, item.Frame, item.Sequence, item.MonotonicTimestamp, (BattleDiagnosticEventKind)item.Kind, (BattleDiagnosticEventChannel)item.Channel, (BattleDiagnosticEventOutcome)item.Outcome, item.SourceActorId, item.TargetActorId, item.ConfigId, item.RootContextId, item.ContextId, new BattleDiagnosticRuntimeHandle(item.SkillRuntimeId, item.SkillRuntimeGeneration), item.AttackId, item.PayloadVersion, item.Summary, payload);
+            return new BattleDiagnosticEvent(scope, item.Frame, item.Sequence, item.MonotonicTimestamp, (BattleDiagnosticEventKind)item.Kind, (BattleDiagnosticEventChannel)item.Channel, (BattleDiagnosticEventOutcome)item.Outcome, item.SourceActorId, item.TargetActorId, item.ConfigId, item.RootContextId, item.ContextId, new BattleDiagnosticRuntimeHandle(item.SkillRuntimeId, item.SkillRuntimeGeneration), item.AttackId, item.PayloadVersion, item.Summary, payload, (BattleDiagnosticDefinitionKind)item.DefinitionKind, item.SourceActorGeneration, item.TargetActorGeneration, (BattleDiagnosticRuntimeObjectKind)item.SubjectObjectKind, item.SubjectRuntimeId, item.SubjectGeneration);
         }
 
         private static AnalysisBattleDiagnosticWorld ToDto(BattleDiagnosticWorldSummary x) => new AnalysisBattleDiagnosticWorld { Frame = x.Frame, MonotonicTimestamp = x.MonotonicTimestamp, ActorCount = x.ActorCount, ActiveSkillRuntimeCount = x.ActiveSkillRuntimeCount, ActiveTraceRootCount = x.ActiveTraceRootCount, StateHash = x.StateHash };
@@ -304,6 +371,12 @@ namespace AbilityKit.Demo.Moba.Services
         private static BattleDiagnosticActorTag FromDto(AnalysisBattleDiagnosticTag x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorTag(s, x.Frame, x.ActorId, x.TagId, x.Name);
         private static AnalysisBattleDiagnosticEffect ToDto(BattleDiagnosticActorEffect x) => new AnalysisBattleDiagnosticEffect { Frame = x.Frame, ActorId = x.ActorId, InstanceId = x.InstanceId, DurationPolicy = (int)x.DurationPolicy, StackCount = x.StackCount, ElapsedSeconds = x.ElapsedSeconds, RemainingSeconds = x.RemainingSeconds, HasRemainingTime = x.HasRemainingTime, NextTickInSeconds = x.NextTickInSeconds, HasPeriodicTick = x.HasPeriodicTick, DurationSeconds = x.DurationSeconds, PeriodSeconds = x.PeriodSeconds, ComponentCount = x.ComponentCount, ExecutePeriodicOnApply = x.ExecutePeriodicOnApply };
         private static BattleDiagnosticActorEffect FromDto(AnalysisBattleDiagnosticEffect x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorEffect(s, x.Frame, x.ActorId, x.InstanceId, (BattleDiagnosticEffectDurationPolicy)x.DurationPolicy, x.StackCount, x.ElapsedSeconds, x.RemainingSeconds, x.HasRemainingTime, x.NextTickInSeconds, x.HasPeriodicTick, x.DurationSeconds, x.PeriodSeconds, x.ComponentCount, x.ExecutePeriodicOnApply);
+        private static AnalysisBattleDiagnosticMetricSample ToDto(BattleDiagnosticMetricSample x) => new AnalysisBattleDiagnosticMetricSample { Sequence = x.Sequence, Frame = x.Frame, MonotonicTimestamp = x.MonotonicTimestamp, Category = (int)x.Category, ValueKind = (int)x.ValueKind, Metric = x.Metric, Value = x.Value, Dimension = x.Dimension };
+        private static BattleDiagnosticMetricSample FromDto(AnalysisBattleDiagnosticMetricSample x, BattleDiagnosticSessionScope s) => new BattleDiagnosticMetricSample(s, x.Sequence, x.Frame, x.MonotonicTimestamp, (BattleDiagnosticMetricCategory)x.Category, (BattleDiagnosticMetricValueKind)x.ValueKind, x.Metric, x.Value, x.Dimension);
+        private static AnalysisBattleDiagnosticRuntimeObject ToDto(BattleDiagnosticRuntimeObject x) => new AnalysisBattleDiagnosticRuntimeObject { Kind = (int)x.Kind, RuntimeId = x.RuntimeId, Generation = x.Generation, DefinitionKind = (int)x.DefinitionKind, DefinitionId = x.DefinitionId, RelatedActorId = x.RelatedActorId, OwnerActorId = x.OwnerActorId, SourceActorId = x.SourceActorId, TargetActorId = x.TargetActorId, CreatedFrame = x.CreatedFrame, DestroyedFrame = x.DestroyedFrame, RootContextId = x.RootContextId, ContextId = x.ContextId, State = (int)x.State, EndReason = x.EndReason, DisplayName = x.DisplayName, DiscoveryKind = (int)x.DiscoveryKind, BackfilledFrame = x.BackfilledFrame, Completeness = (int)x.Completeness };
+        private static AnalysisBattleDiagnosticObjectSummary ToDto(BattleDiagnosticRuntimeObjectCatalogSummary x) => new AnalysisBattleDiagnosticObjectSummary { TotalCount = x.TotalCount, CompleteCount = x.CompleteCount, PartialCount = x.PartialCount, UnreliableCount = x.UnreliableCount, ActiveCount = x.ActiveCount, EndedCount = x.EndedCount, Completeness = (int)x.Completeness, Truncated = x.Truncated, BackfillAttemptCount = x.BackfillAttemptCount, BackfillFailureCount = x.BackfillFailureCount, LastBackfillFrame = x.LastBackfillFrame };
+        private static AnalysisBattleDiagnosticObjectEventCoverage ToDto(BattleDiagnosticRuntimeObjectEventCoverageSummary x) => new AnalysisBattleDiagnosticObjectEventCoverage { EventCount = x.EventCount, ReferencedEventCount = x.ReferencedEventCount, CompleteEventCount = x.CompleteEventCount, PartialEventCount = x.PartialEventCount, UnreliableEventCount = x.UnreliableEventCount, TotalReferenceCount = x.TotalReferenceCount, ResolvedReferenceCount = x.ResolvedReferenceCount, UnresolvedReferenceCount = x.UnresolvedReferenceCount, ResolvedReferenceRatio = x.ResolvedReferenceRatio };
+        private static BattleDiagnosticRuntimeObject FromDto(AnalysisBattleDiagnosticRuntimeObject x) => new BattleDiagnosticRuntimeObject((BattleDiagnosticRuntimeObjectKind)x.Kind, x.RuntimeId, x.Generation, (BattleDiagnosticDefinitionKind)x.DefinitionKind, x.DefinitionId, x.RelatedActorId, x.OwnerActorId, x.SourceActorId, x.TargetActorId, x.CreatedFrame, x.DestroyedFrame, x.RootContextId, x.ContextId, (BattleDiagnosticRuntimeObjectState)x.State, x.EndReason, x.DisplayName, (BattleDiagnosticRuntimeObjectDiscoveryKind)x.DiscoveryKind, x.BackfilledFrame);
 
         private static void Copy<TSource, TTarget>(IReadOnlyList<TSource> source, List<TTarget> target, Func<TSource, TTarget> convert)
         {

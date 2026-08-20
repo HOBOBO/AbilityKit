@@ -6,11 +6,16 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Services.Observability;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
     [WorldService(typeof(MobaProjectileLinkService))]
-    public sealed class MobaProjectileLinkService : IService
+    public sealed class MobaProjectileLinkService :
+        IMobaRuntimeObjectBootstrapContributor,
+        IService
     {
         private readonly Dictionary<int, ProjectileId> _projectileByActorId = new Dictionary<int, ProjectileId>();
         private readonly Dictionary<ProjectileId, int> _actorIdByProjectile = new Dictionary<ProjectileId, int>();
@@ -21,15 +26,26 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
         [WorldInject(required: false)] private IMobaTemporaryEntityLifecycleService _lifecycle = null;
         [WorldInject(required: false)] private IMobaBattleDiagnosticEventSink _eventCollector = null;
         [WorldInject] private MobaSkillCastRuntimeService _skillRuntimes = null;
+        [WorldInject(required: false)] private IFrameTime _frameTime = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectLifecycleHook _objectLifecycle = null;
+        [WorldInject(required: false)] private IMobaRuntimeObjectBootstrapRegistry _objectBootstrap = null;
+
+        private bool _objectBootstrapRegistered;
 
         public int ActiveCount => _actorIdByProjectile.Count;
 
         public void Link(ProjectileId projectileId, int actorId)
         {
             if (actorId <= 0) throw new ArgumentOutOfRangeException(nameof(actorId));
+            EnsureObjectBootstrapRegistered();
             _projectileByActorId[actorId] = projectileId;
             _actorIdByProjectile[projectileId] = actorId;
             _lifecycle?.RecordSpawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+            PublishProjectileLifecycle(
+                MobaRuntimeObjectLifecycleStage.Created,
+                projectileId,
+                actorId,
+                default);
         }
 
         public void BindSource(ProjectileId projectileId, in ProjectileSourceContext source)
@@ -41,6 +57,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             }
 
             _sourceByProjectile[projectileId] = source;
+            _actorIdByProjectile.TryGetValue(projectileId, out var actorId);
+            PublishProjectileLifecycle(
+                MobaRuntimeObjectLifecycleStage.Created,
+                projectileId,
+                actorId,
+                in source);
         }
 
         public void BindRetain(ProjectileId projectileId, in MobaSkillRuntimeRetainHandle retainHandle)
@@ -185,6 +207,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 _sourceByProjectile.Remove(pid);
                 ConsumeAndReleaseRetain(pid);
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+                PublishProjectileLifecycle(
+                    MobaRuntimeObjectLifecycleStage.Destroyed,
+                    pid,
+                    actorId,
+                    in capturedSource);
                 CollectProjectileEnded(actorId, pid.Value, in capturedSource);
             }
         }
@@ -207,6 +234,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (removed)
             {
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+                PublishProjectileLifecycle(
+                    MobaRuntimeObjectLifecycleStage.Destroyed,
+                    projectileId,
+                    capturedActorId,
+                    in capturedSource);
                 CollectProjectileEnded(capturedActorId, projectileId.Value, in capturedSource);
             }
         }
@@ -228,6 +260,12 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             if (wasActive)
             {
                 _lifecycle?.RecordDespawn(MobaTemporaryEntityKind.Projectile, ActiveCount);
+                PublishProjectileLifecycle(
+                    MobaRuntimeObjectLifecycleStage.Destroyed,
+                    projectileId,
+                    actorId,
+                    default,
+                    (int)TraceLifecycleReason.Failed);
             }
         }
 
@@ -240,12 +278,97 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public void Clear()
         {
+            if (_objectLifecycle != null && _objectLifecycle.IsEnabled)
+            {
+                foreach (var pair in _actorIdByProjectile)
+                {
+                    _sourceByProjectile.TryGetValue(pair.Key, out var source);
+                    PublishProjectileLifecycle(
+                        MobaRuntimeObjectLifecycleStage.Destroyed,
+                        pair.Key,
+                        pair.Value,
+                        in source,
+                        (int)TraceLifecycleReason.Cancelled);
+                }
+            }
             ReleaseAllRetains();
             _projectileByActorId.Clear();
             _actorIdByProjectile.Clear();
             _sourceByProjectile.Clear();
             _launcherByActorId.Clear();
             _lifecycle?.SetActive(MobaTemporaryEntityKind.Projectile, 0);
+        }
+
+        private void PublishProjectileLifecycle(
+            MobaRuntimeObjectLifecycleStage stage,
+            ProjectileId projectileId,
+            int actorId,
+            in ProjectileSourceContext source,
+            int endReason = 0)
+        {
+            EnsureObjectBootstrapRegistered();
+            var hook = _objectLifecycle;
+            if (hook == null || !hook.IsEnabled || projectileId.Value == 0) return;
+            PublishProjectileLifecycleTo(
+                hook,
+                stage,
+                projectileId,
+                actorId,
+                in source,
+                _frameTime != null ? _frameTime.Frame.Value : -1,
+                endReason);
+        }
+
+        void IMobaRuntimeObjectBootstrapContributor.CaptureActiveRuntimeObjects(
+            IMobaRuntimeObjectLifecycleHook hook,
+            int frame)
+        {
+            foreach (var pair in _actorIdByProjectile)
+            {
+                _sourceByProjectile.TryGetValue(pair.Key, out var source);
+                PublishProjectileLifecycleTo(
+                    hook,
+                    MobaRuntimeObjectLifecycleStage.Created,
+                    pair.Key,
+                    pair.Value,
+                    in source,
+                    frame);
+            }
+        }
+
+        private static void PublishProjectileLifecycleTo(
+            IMobaRuntimeObjectLifecycleHook hook,
+            MobaRuntimeObjectLifecycleStage stage,
+            ProjectileId projectileId,
+            int actorId,
+            in ProjectileSourceContext source,
+            int frame,
+            int endReason = 0)
+        {
+            if (hook == null || !hook.IsEnabled || projectileId.Value == 0) return;
+            var observation = new MobaRuntimeObjectLifecycleObservation(
+                stage,
+                MobaRuntimeObjectKind.Projectile,
+                projectileId.Value,
+                frame,
+                MobaRuntimeObjectDefinitionKind.Projectile,
+                source.ProjectileConfigId,
+                relatedActorId: actorId,
+                ownerActorId: source.SourceActorId,
+                sourceActorId: source.SourceActorId,
+                targetActorId: source.InitialTargetActorId,
+                rootContextId: source.RootContextId,
+                contextId: source.SourceContextId,
+                endReason: endReason);
+            hook.TryObserve(in observation);
+        }
+
+        private void EnsureObjectBootstrapRegistered()
+        {
+            if (_objectBootstrapRegistered) return;
+            var registry = _objectBootstrap;
+            if (registry != null && registry.Register(this))
+                _objectBootstrapRegistered = true;
         }
 
         private bool ConsumeAndReleaseRetain(ProjectileId projectileId)
@@ -318,7 +441,10 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                 rootContextId,
                 contextId,
                 runtime,
-                summary: summary);
+                summary: summary,
+                subjectObject: BattleDiagnosticRuntimeObjectReference.Create(
+                    BattleDiagnosticRuntimeObjectKind.Projectile,
+                    projectileIdValue));
         }
 
         private void CollectProjectileEnded(
@@ -342,6 +468,11 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public void Dispose()
         {
+            if (_objectBootstrapRegistered)
+            {
+                _objectBootstrap?.Unregister(this);
+                _objectBootstrapRegistered = false;
+            }
             Clear();
         }
 

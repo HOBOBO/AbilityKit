@@ -119,6 +119,32 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public bool IsStable { get; }
     }
 
+    public sealed class BattleDiagnosticMetricTrackSnapshot
+    {
+        public BattleDiagnosticMetricTrackSnapshot(
+            long revision,
+            in BattleDiagnosticStoreMetrics metrics,
+            IList<BattleDiagnosticMetricSample> samples)
+        {
+            Revision = revision;
+            Metrics = metrics;
+            Samples = new ReadOnlyCollection<BattleDiagnosticMetricSample>(
+                samples == null
+                    ? new List<BattleDiagnosticMetricSample>()
+                    : new List<BattleDiagnosticMetricSample>(samples));
+        }
+
+        public long Revision { get; }
+        public BattleDiagnosticStoreMetrics Metrics { get; }
+        public IReadOnlyList<BattleDiagnosticMetricSample> Samples { get; }
+
+        public static BattleDiagnosticMetricTrackSnapshot Empty =>
+            new BattleDiagnosticMetricTrackSnapshot(
+                0L,
+                new BattleDiagnosticStoreMetrics(0, 0, 0L, 0L, 0L, 0L, true),
+                Array.Empty<BattleDiagnosticMetricSample>());
+    }
+
     public sealed class BattleDiagnosticSessionSnapshot
     {
         public BattleDiagnosticSessionSnapshot(
@@ -130,7 +156,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             BattleDiagnosticAttributeTrackSnapshot attributes,
             BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff> buffs,
             BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorTag> tags,
-            BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect> effects)
+            BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect> effects,
+            BattleDiagnosticObjectCatalogSnapshot objects = null,
+            BattleDiagnosticMetricTrackSnapshot frameMetrics = null)
         {
             SessionInfo = sessionInfo;
             CapturedAtTimestamp = capturedAtTimestamp;
@@ -141,6 +169,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             Buffs = buffs ?? throw new ArgumentNullException(nameof(buffs));
             Tags = tags ?? throw new ArgumentNullException(nameof(tags));
             Effects = effects ?? throw new ArgumentNullException(nameof(effects));
+            Objects = objects ?? BattleDiagnosticObjectCatalogSnapshot.Empty(sessionInfo.Scope);
+            FrameMetrics = frameMetrics ?? BattleDiagnosticMetricTrackSnapshot.Empty;
+            RuntimeObjectEventCoverage =
+                BattleDiagnosticRuntimeObjectEventCoverageSummary.Create(
+                    Events.Events,
+                    Objects);
         }
 
         public BattleDiagnosticSessionInfo SessionInfo { get; }
@@ -152,6 +186,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff> Buffs { get; }
         public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorTag> Tags { get; }
         public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect> Effects { get; }
+        public BattleDiagnosticObjectCatalogSnapshot Objects { get; }
+        public BattleDiagnosticMetricTrackSnapshot FrameMetrics { get; }
+        public BattleDiagnosticRuntimeObjectEventCoverageSummary RuntimeObjectEventCoverage { get; }
 
         public bool LatestStateFramesAligned
         {

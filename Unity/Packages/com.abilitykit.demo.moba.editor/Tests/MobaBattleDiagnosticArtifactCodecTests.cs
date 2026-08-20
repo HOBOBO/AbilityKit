@@ -37,6 +37,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.Events.Revision, Is.EqualTo(EventRevision));
             Assert.That(restored.Events.Metrics, Is.EqualTo(source.Events.Metrics));
             Assert.That(restored.Events.Events, Is.EqualTo(source.Events.Events));
+            Assert.That(restored.Events.Events[2].DefinitionKind, Is.EqualTo(BattleDiagnosticDefinitionKind.Trigger));
+            StringAssert.Contains("\"definitionKind\": 2", json);
             Assert.That(restored.State.World, Is.EqualTo(source.State.World));
             Assert.That(restored.State.Actors, Is.EqualTo(source.State.Actors));
             Assert.That(restored.Trace.Nodes, Is.EqualTo(source.Trace.Nodes));
@@ -50,6 +52,19 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             StringAssert.Contains("\"modifierSourceId\": 77", json);
             Assert.That(restored.Tags.Items, Is.EqualTo(source.Tags.Items));
             Assert.That(restored.Effects.Items, Is.EqualTo(source.Effects.Items));
+            Assert.That(restored.FrameMetrics.Metrics, Is.EqualTo(source.FrameMetrics.Metrics));
+            Assert.That(restored.FrameMetrics.Samples, Is.EqualTo(source.FrameMetrics.Samples));
+            StringAssert.Contains("\"frameMetrics\"", json);
+            StringAssert.Contains("\"metric\": \"prediction.backlog\"", json);
+
+            var metricSession = new BattleDiagnosticOfflineSession(restored);
+            var metricResult = metricSession.QueryMetrics(new BattleDiagnosticMetricQuery(
+                1,
+                new BattleDiagnosticFrameRange(Frame - 2, Frame),
+                new BattleDiagnosticPageRequest(0, 0, 10),
+                BattleDiagnosticMetricCategory.Prediction));
+            Assert.That(metricResult.Status.CanDisplayResults, Is.True);
+            Assert.That(metricResult.Items.Single().Value, Is.EqualTo(3d));
 
             Assert.That(restored.Events.Events[1].Payload.TryGetSyncSnapshotReceived(out var payload), Is.True);
             Assert.That(payload.AuthoritativeFrame, Is.EqualTo(Frame - 1));
@@ -94,6 +109,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             StringAssert.Contains("\"schemaVersion\": \"abilitykit-analysis.v1\"", json);
             StringAssert.Contains("\"battleDiagnostics\"", json);
             Assert.That(MobaBattleDiagnosticArtifactCodec.ImportSnapshot(json).State.Actors.Count, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void FromSection_MissingFrameMetrics_RemainsBackwardCompatible()
+        {
+            var section = MobaBattleDiagnosticArtifactCodec.ToSection(CreateSnapshot());
+            section.Session.Capabilities &= ~(long)BattleDiagnosticCapabilities.FrameMetrics;
+            section.FrameMetrics = null;
+
+            var restored = MobaBattleDiagnosticArtifactCodec.FromSection(section);
+            var offline = new BattleDiagnosticOfflineSession(restored);
+            var result = offline.QueryMetrics(new BattleDiagnosticMetricQuery(
+                1,
+                new BattleDiagnosticFrameRange(0, Frame),
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(restored.FrameMetrics.Samples, Is.Empty);
+            Assert.That(result.Status.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Unsupported));
         }
 
         [Test]
@@ -381,6 +414,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 BattleDiagnosticCapabilities.ActorBuffs |
                 BattleDiagnosticCapabilities.ActorTags |
                 BattleDiagnosticCapabilities.ActorEffects |
+                BattleDiagnosticCapabilities.FrameMetrics |
                 BattleDiagnosticCapabilities.Export,
                 BattleDiagnosticConnectionState.Connected,
                 BattleDiagnosticCaptureState.Capturing);
@@ -456,7 +490,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     3,
                     1020,
                     BattleDiagnosticEventKind.TriggerAnalysis,
-                    BattleDiagnosticEventChannel.Effect,
+                    BattleDiagnosticEventChannel.Trigger,
                     BattleDiagnosticEventOutcome.Failed,
                     sourceActorId: 1,
                     targetActorId: 2,
@@ -553,6 +587,27 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 new BattleDiagnosticActorEffect(_scope, Frame, 1, 501, BattleDiagnosticEffectDurationPolicy.Duration, 1, 1f, 4f, true, 0.5f, true, 5f, 1f, 2, true)
             };
             var world = new BattleDiagnosticWorldSummary(_scope, Frame, 1020, actors.Length, 1, 1, "state-hash");
+            var frameMetricSamples = new[]
+            {
+                new BattleDiagnosticMetricSample(
+                    _scope,
+                    1,
+                    Frame,
+                    1025,
+                    BattleDiagnosticMetricCategory.Prediction,
+                    BattleDiagnosticMetricValueKind.Gauge,
+                    "prediction.backlog",
+                    3d,
+                    "local")
+            };
+            var frameMetricStoreMetrics = new BattleDiagnosticStoreMetrics(
+                64,
+                frameMetricSamples.Length,
+                18,
+                1,
+                0,
+                0,
+                true);
 
             return new BattleDiagnosticSessionSnapshot(
                 in info,
@@ -563,7 +618,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 new BattleDiagnosticAttributeTrackSnapshot(14, Frame, attributes, modifiers),
                 new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff>(15, Frame, buffs),
                 new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorTag>(16, Frame, tags),
-                new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect>(17, Frame, effects));
+                new BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect>(17, Frame, effects),
+                frameMetrics: new BattleDiagnosticMetricTrackSnapshot(
+                    18,
+                    in frameMetricStoreMetrics,
+                    frameMetricSamples));
         }
     }
 }

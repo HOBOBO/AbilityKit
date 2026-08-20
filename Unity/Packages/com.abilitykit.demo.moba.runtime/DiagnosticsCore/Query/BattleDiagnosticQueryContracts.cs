@@ -166,6 +166,175 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             long rootContextId);
     }
 
+    public readonly struct BattleDiagnosticMetricQuery
+    {
+        public BattleDiagnosticMetricQuery(
+            long requestId,
+            BattleDiagnosticFrameRange frames,
+            BattleDiagnosticPageRequest page,
+            BattleDiagnosticMetricCategory category = BattleDiagnosticMetricCategory.Unknown,
+            string metric = "",
+            string dimension = "")
+        {
+            if (requestId <= 0L) throw new ArgumentOutOfRangeException(nameof(requestId));
+            if (!frames.IsValid) throw new ArgumentException("A valid frame range is required.", nameof(frames));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricCategory), category))
+                throw new ArgumentOutOfRangeException(nameof(category));
+            RequestId = requestId;
+            Frames = frames;
+            Page = page;
+            Category = category;
+            Metric = metric ?? string.Empty;
+            Dimension = dimension ?? string.Empty;
+        }
+
+        public long RequestId { get; }
+        public BattleDiagnosticFrameRange Frames { get; }
+        public BattleDiagnosticPageRequest Page { get; }
+        public BattleDiagnosticMetricCategory Category { get; }
+        public string Metric { get; }
+        public string Dimension { get; }
+
+        public bool Matches(in BattleDiagnosticMetricSample sample)
+        {
+            return Frames.Contains(sample.Frame) &&
+                   (Category == BattleDiagnosticMetricCategory.Unknown || sample.Category == Category) &&
+                   (string.IsNullOrEmpty(Metric) || string.Equals(sample.Metric, Metric, StringComparison.Ordinal)) &&
+                   (string.IsNullOrEmpty(Dimension) || string.Equals(sample.Dimension, Dimension, StringComparison.Ordinal));
+        }
+    }
+
+    public interface IBattleDiagnosticMetricReadStore
+    {
+        BattleDiagnosticSessionScope Scope { get; }
+        long Revision { get; }
+        BattleDiagnosticQueryResult<BattleDiagnosticMetricSample> QueryMetrics(BattleDiagnosticMetricQuery query);
+    }
+
+    public interface IBattleDiagnosticMetricSink
+    {
+        bool IsEnabled { get; }
+
+        bool TryRecordMetric(
+            int frame,
+            long monotonicTimestamp,
+            BattleDiagnosticMetricCategory category,
+            BattleDiagnosticMetricValueKind valueKind,
+            string metric,
+            double value,
+            string dimension = "");
+    }
+
+    public interface IBattleDiagnosticMetricSession
+    {
+        long MetricStoreRevision { get; }
+        BattleDiagnosticQueryResult<BattleDiagnosticMetricSample> QueryMetrics(BattleDiagnosticMetricQuery query);
+    }
+
+    public interface IBattleDiagnosticRuntimeObjectReadStore
+    {
+        BattleDiagnosticSessionScope Scope { get; }
+        long Revision { get; }
+
+        BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObject(
+            long requestId,
+            in BattleDiagnosticRuntimeObjectReference reference,
+            int frame);
+    }
+
+    public readonly struct BattleDiagnosticRuntimeObjectFilter : IEquatable<BattleDiagnosticRuntimeObjectFilter>
+    {
+        public BattleDiagnosticRuntimeObjectFilter(
+            BattleDiagnosticRuntimeObjectKind kind = BattleDiagnosticRuntimeObjectKind.Unknown,
+            BattleDiagnosticRuntimeObjectState state = BattleDiagnosticRuntimeObjectState.Unknown,
+            BattleDiagnosticDataCompleteness completeness = BattleDiagnosticDataCompleteness.Unknown)
+        {
+            if (!Enum.IsDefined(typeof(BattleDiagnosticRuntimeObjectKind), kind))
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticRuntimeObjectState), state))
+                throw new ArgumentOutOfRangeException(nameof(state));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticDataCompleteness), completeness))
+                throw new ArgumentOutOfRangeException(nameof(completeness));
+            Kind = kind;
+            State = state;
+            Completeness = completeness;
+        }
+
+        public BattleDiagnosticRuntimeObjectKind Kind { get; }
+        public BattleDiagnosticRuntimeObjectState State { get; }
+        public BattleDiagnosticDataCompleteness Completeness { get; }
+
+        public bool Matches(in BattleDiagnosticRuntimeObject item)
+        {
+            return (Kind == BattleDiagnosticRuntimeObjectKind.Unknown || item.Kind == Kind) &&
+                   (State == BattleDiagnosticRuntimeObjectState.Unknown || item.State == State) &&
+                   (Completeness == BattleDiagnosticDataCompleteness.Unknown ||
+                    item.Completeness == Completeness);
+        }
+
+        public bool Equals(BattleDiagnosticRuntimeObjectFilter other)
+        {
+            return Kind == other.Kind && State == other.State && Completeness == other.Completeness;
+        }
+
+        public override bool Equals(object obj) =>
+            obj is BattleDiagnosticRuntimeObjectFilter other && Equals(other);
+
+        public override int GetHashCode() =>
+            (((int)Kind * 397) ^ (int)State) * 397 ^ (int)Completeness;
+    }
+
+    public readonly struct BattleDiagnosticRuntimeObjectQuery
+    {
+        public BattleDiagnosticRuntimeObjectQuery(
+            long requestId,
+            BattleDiagnosticRuntimeObjectFilter filter,
+            BattleDiagnosticPageRequest page)
+        {
+            if (requestId <= 0L) throw new ArgumentOutOfRangeException(nameof(requestId));
+            if (page.Limit <= 0) throw new ArgumentException(
+                "A valid page request is required.",
+                nameof(page));
+            RequestId = requestId;
+            Filter = filter;
+            Page = page;
+        }
+
+        public long RequestId { get; }
+        public BattleDiagnosticRuntimeObjectFilter Filter { get; }
+        public BattleDiagnosticPageRequest Page { get; }
+    }
+
+    public interface IBattleDiagnosticRuntimeObjectCatalogReadStore :
+        IBattleDiagnosticRuntimeObjectReadStore
+    {
+        BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObjects(
+            BattleDiagnosticRuntimeObjectQuery query);
+
+        BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>
+            QueryRuntimeObjectSummary(long requestId);
+    }
+
+    public interface IBattleDiagnosticRuntimeObjectSession
+    {
+        long RuntimeObjectStoreRevision { get; }
+
+        BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObject(
+            long requestId,
+            in BattleDiagnosticRuntimeObjectReference reference,
+            int frame);
+    }
+
+    public interface IBattleDiagnosticRuntimeObjectCatalogSession :
+        IBattleDiagnosticRuntimeObjectSession
+    {
+        BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObjects(
+            BattleDiagnosticRuntimeObjectQuery query);
+
+        BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObjectCatalogSummary>
+            QueryRuntimeObjectSummary(long requestId);
+    }
+
     public interface IBattleDiagnosticReadOnlySession
     {
         BattleDiagnosticSessionInfo SessionInfo { get; }

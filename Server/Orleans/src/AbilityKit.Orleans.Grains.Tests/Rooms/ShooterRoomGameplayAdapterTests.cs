@@ -68,6 +68,7 @@ public sealed class ShooterRoomGameplayAdapterTests
             [ShooterRoomTagKeys.MapId] = "3",
             [ShooterRoomTagKeys.RandomSeed] = "1234",
             [ShooterRoomTagKeys.DurationFrames] = "3600",
+            [ShooterRoomTagKeys.EnemyBudget] = "2048",
             [ShooterRoomTagKeys.VictoryTargetDefeats] = "100000",
             [ShooterRoomTagKeys.ContinueAfterAllPlayersDefeated] = "true"
         });
@@ -105,6 +106,7 @@ public sealed class ShooterRoomGameplayAdapterTests
         Assert.Equal(3, initParams.MapId);
         Assert.Equal(1234, initParams.RandomSeed);
         Assert.Equal(3600, initParams.DurationFrames);
+        Assert.Equal(2048, initParams.EnemyBudget);
         Assert.Equal(100000, initParams.VictoryTargetDefeats);
         Assert.True(initParams.ContinueAfterAllPlayersDefeated);
         Assert.Equal(7, initParams.RuleSetId);
@@ -135,6 +137,28 @@ public sealed class ShooterRoomGameplayAdapterTests
                 Assert.Equal("player-b", second.AccountId);
                 Assert.Equal(2f, second.PosX);
             });
+    }
+
+    [Theory]
+    [InlineData(null, ShooterServerProtocol.DefaultEnemyBudget)]
+    [InlineData("0", 1)]
+    [InlineData("8192", ShooterServerProtocol.MaxEnemyBudget)]
+    [InlineData("9000", ShooterServerProtocol.MaxEnemyBudget)]
+    public void BuildBattleInitParams_NormalizesEnemyBudget(string? configuredBudget, int expectedBudget)
+    {
+        Dictionary<string, string>? tags = configuredBudget == null
+            ? null
+            : new Dictionary<string, string>
+            {
+                [ShooterRoomTagKeys.EnemyBudget] = configuredBudget
+            };
+        var adapter = new ShooterRoomGameplayAdapter();
+        var summary = CreateSummary(tags);
+        var state = adapter.CreateState(summary);
+
+        var initParams = adapter.BuildBattleInitParams(state, summary, CreateStartRequest());
+
+        Assert.Equal(expectedBudget, initParams.EnemyBudget);
     }
 
     [Fact]

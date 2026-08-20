@@ -138,7 +138,7 @@ namespace AbilityKit.Core.Mathematics
         public static Quat FromNumerics(in System.Numerics.Quaternion q) => new Quat(q.X, q.Y, q.Z, q.W);
 
         public bool Equals(Quat other) => X.Equals(other.X) && Y.Equals(other.Y) && Z.Equals(other.Z) && W.Equals(other.W);
-        public override bool Equals(object obj) => obj is Quat other && Equals(other);
+        public override bool Equals(object? obj) => obj is Quat other && Equals(other);
         public override int GetHashCode() => HashCode.Combine(X, Y, Z, W);
         public override string ToString() => $"({X}, {Y}, {Z}, {W})";
     }

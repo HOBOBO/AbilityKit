@@ -423,14 +423,24 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             await ConnectBattleAsync(roomId, launcher);
         }
 
+        internal static ShooterRemoteStateSyncLaunchOptions BuildBattleHandoffLaunchOptions(
+            ShooterMultiplayerProfileSO selectedProfile,
+            DemoMultiplayerLaunchRequest request,
+            string roomId)
+        {
+            // The formal room flow has already joined and started this room. The battle host must
+            // restore that active membership and attach the data plane instead of joining twice.
+            return selectedProfile.BuildLaunchOptions(
+                request,
+                ShooterRemoteStateSyncLaunchMode.RestoreOnly,
+                roomId);
+        }
+
         private async Task ConnectBattleAsync(string roomId, ShooterClientNetworkLauncher launcher)
         {
             try
             {
-                var options = RequireProfile().BuildLaunchOptions(
-                    _request,
-                    ShooterRemoteStateSyncLaunchMode.JoinRoom,
-                    roomId);
+                var options = BuildBattleHandoffLaunchOptions(RequireProfile(), _request, roomId);
                 await ShooterRemoteStateSyncPlayModeHost.StartAsync(options, launcher);
                 _pendingBattleRoomId = string.Empty;
                 _status = "In battle";

@@ -41,4 +41,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         BattleDiagnosticSessionScope Scope { get; }
         BattleDiagnosticTraceTrackSnapshot CaptureTraceSnapshot();
     }
+
+    public interface IBattleDiagnosticMetricSnapshotSource
+    {
+        BattleDiagnosticSessionScope Scope { get; }
+        BattleDiagnosticMetricTrackSnapshot CaptureMetricSnapshot();
+    }
 }

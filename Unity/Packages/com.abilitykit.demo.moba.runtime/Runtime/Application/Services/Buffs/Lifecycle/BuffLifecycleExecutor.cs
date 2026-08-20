@@ -15,6 +15,7 @@ using AbilityKit.Demo.Moba.Services.Buffs.Core;
 using AbilityKit.Demo.Moba.Services.Buffs.Runtime;
 using AbilityKit.Demo.Moba.Services.Buffs.Presentation;
 using AbilityKit.Demo.Moba.Services.Buffs.Tagging;
+using AbilityKit.Demo.Moba.Services.Observability;
 
 namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
     /// <summary>
@@ -178,7 +179,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             services.TryResolve(out MobaSkillCastRuntimeService skillRuntimes);
             services.TryResolve(out MobaPresentationCueSnapshotService cueSnapshots);
             services.TryResolve(out MobaRuntimeContextService runtimeContexts);
-            services.TryResolve(out IMobaBattleDiagnosticEventSink diagnostics);
+            services.TryResolve(out IMobaBuffLifecycleHook observationHook);
   
             services.TryResolve(out AbilityKit.Demo.Moba.Services.Triggering.MobaTriggerPlanSubscriptionService triggerSubscriptions);
             services.TryResolve(out AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering.MobaTriggerExecutionGateway triggerGateway);
@@ -191,7 +192,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             var stacking = new BuffStackingPolicyApplier();
             var presentationCues = new MobaBuffPresentationCueReporter(configs, cueSnapshots);
             var continuousBindings = new BuffContinuousBindingService(continuous, tags);
-            var notifier = new BuffLifecycleNotifier(events, stageEffects, presentationCues, diagnostics);
+            var notifier = new BuffLifecycleNotifier(events, stageEffects, presentationCues, observationHook);
 
             var lifecycleHooks = MobaRuntimeLifecycleHookFactory.CreateDefault(trace);
             var bindings = new BuffRuntimeBindingCoordinator(lifecycleHooks, continuousBindings, skillRuntimes);

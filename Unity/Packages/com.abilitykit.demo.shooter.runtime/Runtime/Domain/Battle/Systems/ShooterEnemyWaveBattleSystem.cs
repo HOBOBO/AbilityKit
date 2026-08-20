@@ -67,7 +67,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
             if (_phase == ShooterEnemyWavePhase.Spawn)
             {
-                TickSpawnPhase();
+                TickSpawnPhase(deltaTime);
             }
             else
             {
@@ -75,7 +75,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             }
         }
 
-        private void TickSpawnPhase()
+        private void TickSpawnPhase(float deltaTime)
         {
             if (_state.CurrentFrame <= 1)
             {
@@ -86,7 +86,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 SynchronizeImportedWaveState();
             }
 
-            _spawnDirector.Tick(_state);
+            _spawnDirector.Tick(_state, deltaTime);
         }
 
         private void ResetWaveState()

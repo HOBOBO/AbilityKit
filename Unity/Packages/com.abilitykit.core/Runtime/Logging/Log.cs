@@ -33,7 +33,7 @@ namespace AbilityKit.Core.Logging
             try { _sink.Error(message); } catch { }
         }
 
-        public static void Exception(Exception exception, string message = null)
+        public static void Exception(Exception exception, string? message = null)
         {
             try { _sink.Exception(exception, message); } catch { }
         }

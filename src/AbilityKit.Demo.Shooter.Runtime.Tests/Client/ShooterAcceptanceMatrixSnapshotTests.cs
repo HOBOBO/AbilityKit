@@ -21,15 +21,16 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
 
         // === Golden baseline ===
-        // Catalog: 5 runnable modes × 6 network environments = 30 scenarios.
+        // Catalog: 6 runnable templates × 6 network environments = 36 scenarios.
+        // AuthoritativeInterpolation: 12 Completed（StateSyncAuthority + AuthoritativeInterpolationPresentation
+        // 两个模板都走 ShooterInterpolationDemoHarnessCarrier）。
         // PredictRollback: 6 Completed (ShooterDemoHarnessCarrier supports it).
-        // AuthoritativeInterpolation: 6 Completed (ShooterInterpolationDemoHarnessCarrier supports it).
         // BatchStateSync: 6 Completed through the low-frequency interpolation-compatible carrier.
         // MassBattleLodSync: 6 Completed through the LOD/batch interpolation-compatible carrier.
         // HybridHeroPrediction: 6 Completed (ShooterHybridDemoHarnessCarrier requires the dedicated Hybrid controller).
 
-        Assert.Equal(30, batch.ScenarioCount);
-        Assert.Equal(30, batch.CompletedCount);
+        Assert.Equal(36, batch.ScenarioCount);
+        Assert.Equal(36, batch.CompletedCount);
         Assert.Equal(0, batch.DegradedCount);
         Assert.Equal(0, batch.UnsupportedCount);
         Assert.Equal(0, batch.FailedCount);
@@ -41,7 +42,7 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
     {
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
 
-        // PredictRollback × 6 Completed + AuthoritativeInterpolation × 6 Completed
+        // PredictRollback × 6 Completed + AuthoritativeInterpolation × 12 Completed（双模板）
         // + BatchStateSync × 6 Completed + MassBattleLodSync × 6 Completed
         // + HybridHeroPrediction × 6 Completed = 5 summary rows.
         Assert.Equal(5, batch.Summary.Rows.Count);
@@ -52,8 +53,8 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
             NetworkSyncModel.PredictRollback,
             DemoHarnessRunStatus.Completed));
 
-        // AuthoritativeInterpolation: 6 Completed.
-        Assert.Equal(6, batch.Summary.CountFor(
+        // AuthoritativeInterpolation: 12 Completed（StateSyncAuthority + Presentation 两个模板）。
+        Assert.Equal(12, batch.Summary.CountFor(
             ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.AuthoritativeInterpolation,
             DemoHarnessRunStatus.Completed));

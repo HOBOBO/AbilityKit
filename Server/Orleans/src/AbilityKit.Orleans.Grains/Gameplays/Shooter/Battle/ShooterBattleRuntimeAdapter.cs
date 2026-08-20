@@ -134,6 +134,12 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             AbilityKit.Ability.World.Abstractions.WorldCreateOptions options,
             BattleInitParams initParams)
         {
+            if (initParams.EnemyBudget > 0)
+            {
+                options.Extensions[typeof(ShooterEnemyBudgetOverride)] =
+                    new ShooterEnemyBudgetOverride(initParams.EnemyBudget);
+            }
+
             if (initParams.DurationFrames > 0 ||
                 initParams.VictoryTargetDefeats > 0 ||
                 initParams.ContinueAfterAllPlayersDefeated)
@@ -531,16 +537,26 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
 
         public StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot)
         {
+            return CreateStateSyncPushCore(worldId, frame, isFullSnapshot, Array.Empty<ShooterCommandAcknowledgement>());
+        }
+
+        private StateSyncPush CreateStateSyncPushCore(
+            ulong worldId,
+            int frame,
+            bool isFullSnapshot,
+            ShooterCommandAcknowledgement[] acknowledgements)
+        {
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
             if (_stateSyncPushOptions.PayloadMode == ShooterStateSyncPushPayloadMode.PureState)
             {
-                return CreatePureStateSyncPush(resolvedWorldId, frame, isFullSnapshot);
+                return CreatePureStateSyncPush(resolvedWorldId, frame, isFullSnapshot, acknowledgements);
             }
 
             // Packed 路径：Actors 列表直接从 Packed 玩家 chunk 构建，
             // 不再调用 GetSnapshot() 做全量 StateSnapshot 导出
             // （高单位量优化：消除每 push 3 个大数组 + 事件数组的重复分配）。
             var packed = _runtime?.ExportPackedSnapshot(resolvedWorldId, isFullSnapshot, authorityOverride: isFullSnapshot) ?? default;
+            packed.AcknowledgedCommands = acknowledgements;
             return new StateSyncPush
             {
                 WorldId = resolvedWorldId,
@@ -558,23 +574,40 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             if (_stateSyncPushOptions.PayloadMode != ShooterStateSyncPushPayloadMode.PureState
                 || !_stateSyncPushOptions.UseObserverAoi)
             {
-                return CreateStateSyncPush(worldId, frame, isFullSnapshot);
+                return CreateStateSyncPushCore(
+                    worldId,
+                    frame,
+                    isFullSnapshot,
+                    observerContext.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
             }
 
             var resolvedWorldId = worldId == 0 ? _worldId : worldId;
+            var observerKey = ResolveObserverKey(in observerContext);
+            var syncState = GetObserverPureStateSyncState(observerKey);
             if (!TryCreateObserverInterestScope(in observerContext, out var interestScope))
             {
-                return CreatePureStateSyncPush(resolvedWorldId, frame, isFullSnapshot);
+                return CreateFailClosedPureStateSyncPush(
+                    resolvedWorldId,
+                    frame,
+                    syncState,
+                    observerContext.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
             }
 
-            var observerKey = string.IsNullOrWhiteSpace(observerContext.ObserverKey)
-                ? $"player:{interestScope.ObserverPlayerId}"
-                : observerContext.ObserverKey;
-            var syncState = GetObserverPureStateSyncState(observerKey);
-            return CreatePureStateSyncPush(resolvedWorldId, frame, isFullSnapshot, interestScope, syncState);
+            var requiresFullSnapshot = isFullSnapshot || syncState.RequiresFullSnapshot;
+            return CreatePureStateSyncPush(
+                resolvedWorldId,
+                frame,
+                requiresFullSnapshot,
+                interestScope,
+                syncState,
+                observerContext.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
         }
 
-        private StateSyncPush CreatePureStateSyncPush(ulong worldId, int fallbackFrame, bool isFullSnapshot)
+        private StateSyncPush CreatePureStateSyncPush(
+            ulong worldId,
+            int fallbackFrame,
+            bool isFullSnapshot,
+            ShooterCommandAcknowledgement[] acknowledgements)
         {
             var settings = _stateSyncPushOptions.ResolvePureStateSettings();
             var pureState = _runtime?.ExportPureStateSnapshotTransient(
@@ -590,7 +623,38 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 _lastPureStateBaselineHash = pureState.StateHash;
             }
 
-            return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState);
+            return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState, acknowledgements);
+        }
+
+        private StateSyncPush CreateFailClosedPureStateSyncPush(
+            ulong worldId,
+            int frame,
+            ShooterObserverPureStateSyncState syncState,
+            ShooterCommandAcknowledgement[] acknowledgements)
+        {
+            syncState.AoiInterestSet.Clear();
+            syncState.BaselineFrame = 0;
+            syncState.BaselineHash = 0u;
+            syncState.RequiresFullSnapshot = true;
+
+            var settings = _stateSyncPushOptions.ResolvePureStateSettings();
+            var pureState = new ShooterPureStateSnapshotPayload(
+                ShooterPureStateSyncCodec.CurrentVersion,
+                worldId,
+                frame,
+                frame,
+                ShooterPureStateSnapshotKinds.FullBaseline,
+                frame,
+                0u,
+                0u,
+                settings,
+                Array.Empty<ShooterPureStateEntityDelta>(),
+                Array.Empty<ShooterPureStateVisibilityHint>());
+            return CreatePureStateSyncPush(
+                worldId,
+                isFullSnapshot: true,
+                in pureState,
+                acknowledgements);
         }
 
         private StateSyncPush CreatePureStateSyncPush(
@@ -598,7 +662,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             int fallbackFrame,
             bool isFullSnapshot,
             ShooterPureStateInterestScope interestScope,
-            ShooterObserverPureStateSyncState syncState)
+            ShooterObserverPureStateSyncState syncState,
+            ShooterCommandAcknowledgement[] acknowledgements)
         {
             var settings = _stateSyncPushOptions.ResolvePureStateSettings();
             var pureState = _runtime?.ExportPureStateSnapshotTransient(
@@ -614,16 +679,24 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             {
                 syncState.BaselineFrame = pureState.Frame;
                 syncState.BaselineHash = pureState.StateHash;
+                syncState.RequiresFullSnapshot = false;
             }
 
-            return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState);
+            return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState, acknowledgements);
         }
 
         private static StateSyncPush CreatePureStateSyncPush(
             ulong worldId,
             bool isFullSnapshot,
-            in ShooterPureStateSnapshotPayload pureState)
+            in ShooterPureStateSnapshotPayload pureState,
+            ShooterCommandAcknowledgement[] acknowledgements)
         {
+            var snapshot = pureState;
+            snapshot.AcknowledgedCommands = acknowledgements;
+            snapshot.SetTransientCounts(
+                snapshot.EffectiveEntityCount,
+                snapshot.EffectiveVisibilityHintCount,
+                acknowledgements.Length);
             return new StateSyncPush
             {
                 WorldId = worldId,
@@ -632,8 +705,20 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 Actors = new List<ActorSnapshot>(),
                 IsFullSnapshot = isFullSnapshot,
                 PayloadOpCode = isFullSnapshot ? ShooterOpCodes.Snapshot.PureState : ShooterOpCodes.Snapshot.PureStateDelta,
-                Payload = ShooterPureStateSyncCodec.Serialize(in pureState)
+                Payload = ShooterPureStateSyncCodec.Serialize(in snapshot)
             };
+        }
+
+        private static string ResolveObserverKey(in BattleStateSyncObserverContext observerContext)
+        {
+            if (!string.IsNullOrWhiteSpace(observerContext.ObserverKey))
+            {
+                return observerContext.ObserverKey;
+            }
+
+            return !string.IsNullOrWhiteSpace(observerContext.AccountId)
+                ? $"account:{observerContext.AccountId}"
+                : "unresolved-observer";
         }
 
         private ShooterObserverPureStateSyncState GetObserverPureStateSyncState(string observerKey)
@@ -843,6 +928,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             public readonly AoiInterestSet AoiInterestSet = new();
             public int BaselineFrame;
             public uint BaselineHash;
+            public bool RequiresFullSnapshot;
         }
     }
 }
