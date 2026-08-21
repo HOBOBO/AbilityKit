@@ -1,0 +1,38 @@
+{
+  "Id": 10040101,
+  "Name": "墨子-和平漫步-下次普攻炮击",
+  "DurationMs": 5000,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [],
+  "IntervalMs": 0,
+  "PresentationTemplateId": 90004001,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 1,
+  "MaxStacks": 1,
+  "TriggerIds": [],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": [
+    {
+      "TargetKind": 4,
+      "TargetId": 6,
+      "AttrTypeId": 0,
+      "Op": 2,
+      "Value": 10040112.0,
+      "Priority": 20,
+      "MagnitudeSourceType": 0,
+      "MagnitudeBaseValue": 0.0,
+      "MagnitudeCoefficient": 0.0,
+      "MagnitudeDuration": 0.0,
+      "MagnitudeDecayType": 0,
+      "MagnitudeAttributeTypeId": 0,
+      "MagnitudeContextKey": null,
+      "MagnitudeCurve": null,
+      "EvaluationPolicy": 0
+    }
+  ],
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

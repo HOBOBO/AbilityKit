@@ -533,6 +533,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hasMore);
         }
 
+        public BattleDiagnosticQueryResult<BattleDiagnosticMetricAggregate> QueryMetricAggregates(
+            BattleDiagnosticMetricAggregateQuery query)
+        {
+            if (query.Page.StoreRevision > 0L && query.Page.StoreRevision != _revision)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticMetricAggregate>.Unavailable(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    BattleDiagnosticDataAvailability.Evicted,
+                    "The requested metric store revision is no longer retained.");
+            }
+
+            var samples = new List<BattleDiagnosticMetricSample>(_count);
+            for (var i = 0; i < _count; i++)
+                samples.Add(_buffer[(_head + i) % Capacity]);
+            return BattleDiagnosticMetricAggregator.Query(samples, _revision, query);
+        }
+
         public BattleDiagnosticMetricTrackSnapshot CaptureMetricSnapshot()
         {
             var samples = new List<BattleDiagnosticMetricSample>(_count);

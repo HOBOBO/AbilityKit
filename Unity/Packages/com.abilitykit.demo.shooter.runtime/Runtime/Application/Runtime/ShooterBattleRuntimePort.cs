@@ -37,7 +37,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     [WorldService(typeof(IShooterStateHashProvider), WorldLifetime.Singleton)]
     [WorldService(typeof(IShooterPackedSnapshotPort), WorldLifetime.Singleton)]
     [WorldService(typeof(IShooterPureStateSnapshotPort), WorldLifetime.Singleton)]
-    public sealed class ShooterBattleRuntimePort : IShooterBattleRuntimePort
+    public sealed class ShooterBattleRuntimePort : IShooterBattleRuntimePort, IShooterBattlePerformancePort
     {
         private readonly ShooterBattleState _state;
         private readonly IShooterBattleSimulation _simulation;
@@ -228,6 +228,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public int CurrentFrame => _state.CurrentFrame;
 
+        public Action<string, double>? StageTimingSink
+        {
+            get => _battleStepEngine.StageTimingSink;
+            set => _battleStepEngine.StageTimingSink = value;
+        }
+
         public ShooterStartGamePayload StartSpec => _state.StartSpec;
 
         public ShooterStateHashCacheDiagnostics StateHashCacheDiagnostics => new ShooterStateHashCacheDiagnostics(
@@ -403,6 +409,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
             bool computeStateHash = true)
         {
             return _pureStateSnapshotExporter.ExportTransient(worldId, isFullBaseline, settings, baselineFrame, baselineHash, interestScope, aoiInterestSet, computeStateHash);
+        }
+
+        public ShooterPureStateTransformSample[] ExportPureStateTransformSamplesTransient(out int count)
+        {
+            return _pureStateSnapshotExporter.ExportTransformSamplesTransient(out count);
         }
 
         public bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player)

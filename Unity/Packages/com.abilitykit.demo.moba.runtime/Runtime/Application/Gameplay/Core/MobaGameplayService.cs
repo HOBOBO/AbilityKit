@@ -6,14 +6,28 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Demo.Moba.Gameplay
 {
+    public interface IMobaGameplayStartTransaction : IService
+    {
+        MobaGameplayPhase Phase { get; }
+        bool IsRunning { get; }
+        int CurrentGameplayId { get; }
+        string LastStartFailureReason { get; }
+        bool TryPrepareStart(int gameplayId, out string error);
+        bool CommitPreparedStart();
+        void CancelPreparedStart();
+        void Reset();
+    }
+
+    [WorldService(typeof(IMobaGameplayStartTransaction), WorldLifetime.Scoped)]
     [WorldService(typeof(MobaGameplayService), WorldLifetime.Scoped)]
-    public sealed class MobaGameplayService : IService
+    public sealed class MobaGameplayService : IService, IMobaGameplayStartTransaction
     {
         [WorldInject(required: false)] private IFrameTime _frameTime = null;
         [WorldInject(required: false)] private IEventBus _eventBus = null;
@@ -157,7 +171,17 @@ namespace AbilityKit.Demo.Moba.Gameplay
                 Log.Exception(ex, $"[MobaGameplayService] gameplay started notification failed. gameplayId={gameplay.Id}, frame={frame}");
             }
 
-            Log.Info($"[MobaGameplayService] gameplay started. gameplayId={gameplay.Id}, frame={frame}");
+            if (MobaRuntimeLog.IsEnabled(
+                    MobaRuntimeLogLevel.Info,
+                    MobaRuntimeLogPurpose.Lifecycle))
+            {
+                MobaRuntimeLog.Info(
+                    MobaRuntimeLogModule.Gameplay,
+                    MobaRuntimeLogPurpose.Lifecycle,
+                    nameof(MobaGameplayService),
+                    $"Gameplay started. gameplayId={gameplay.Id}, frame={frame}");
+            }
+
             return true;
         }
 
@@ -199,7 +223,17 @@ namespace AbilityKit.Demo.Moba.Gameplay
 
             _triggerBindings?.Unbind();
             _phase = MobaGameplayPhase.Ended;
-            Log.Info($"[MobaGameplayService] gameplay ended. gameplayId={_currentGameplayId}, reason={result.Reason}, winTeamId={result.WinTeamId}, frame={result.EndFrame}, elapsed={result.ElapsedSeconds:F3}");
+            if (MobaRuntimeLog.IsEnabled(
+                    MobaRuntimeLogLevel.Info,
+                    MobaRuntimeLogPurpose.Lifecycle))
+            {
+                MobaRuntimeLog.Info(
+                    MobaRuntimeLogModule.Gameplay,
+                    MobaRuntimeLogPurpose.Lifecycle,
+                    nameof(MobaGameplayService),
+                    $"Gameplay ended. gameplayId={_currentGameplayId}, reason={result.Reason}, winTeamId={result.WinTeamId}, frame={result.EndFrame}, elapsed={result.ElapsedSeconds:F3}");
+            }
+
             return true;
         }
 

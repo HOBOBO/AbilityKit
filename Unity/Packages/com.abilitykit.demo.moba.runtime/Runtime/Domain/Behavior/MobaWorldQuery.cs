@@ -115,28 +115,30 @@ namespace AbilityKit.Moba.Behavior
             _allowMutations = allowMutations;
         }
         
-        public Vec3 GetPosition(BehaviorEntityId id) => 
-            _entityManager.Exists(id.Value) 
-                ? _entityManager.GetPosition(id.Value) 
-                : Vec3.Zero;
+        public Vec3 GetPosition(BehaviorEntityId id)
+        {
+            EnsureEntityExists(id);
+            return _entityManager.GetPosition(id.Value);
+        }
         
         public void SetPosition(BehaviorEntityId id, Vec3 position)
         {
             EnsureMutationsAllowed();
-            if (_entityManager.Exists(id.Value))
-                _entityManager.SetPosition(id.Value, position);
+            EnsureEntityExists(id);
+            _entityManager.SetPosition(id.Value, position);
         }
         
-        public Vec3 GetForward(BehaviorEntityId id) => 
-            _entityManager.Exists(id.Value) 
-                ? _entityManager.GetForward(id.Value) 
-                : Vec3.Forward;
+        public Vec3 GetForward(BehaviorEntityId id)
+        {
+            EnsureEntityExists(id);
+            return _entityManager.GetForward(id.Value);
+        }
         
         public void SetForward(BehaviorEntityId id, Vec3 forward)
         {
             EnsureMutationsAllowed();
-            if (_entityManager.Exists(id.Value))
-                _entityManager.SetForward(id.Value, forward);
+            EnsureEntityExists(id);
+            _entityManager.SetForward(id.Value, forward);
         }
         
         public float GetDistance(BehaviorEntityId a, BehaviorEntityId b)
@@ -156,20 +158,71 @@ namespace AbilityKit.Moba.Behavior
         
         public bool EntityExists(BehaviorEntityId id) => _entityManager.Exists(id.Value);
         
-        public T GetData<T>(BehaviorEntityId id, string key, T defaultValue = default) => defaultValue;
+        public T GetData<T>(BehaviorEntityId id, string key, T defaultValue = default)
+        {
+            EnsureEntityExists(id);
+            switch (key)
+            {
+                case MobaBehaviorContracts.WorldDataKey.Alive:
+                    return CastData<T>(key, _attributeSystem.IsAlive(id.Value));
+                case MobaBehaviorContracts.WorldDataKey.HitPoints:
+                    return CastData<T>(key, _attributeSystem.GetAttribute(
+                        id.Value,
+                        MobaBehaviorContracts.WorldDataKey.HitPoints));
+                case MobaBehaviorContracts.WorldDataKey.Team:
+                    return CastData<T>(key, _attributeSystem.GetTeam(id.Value));
+                case MobaBehaviorContracts.WorldDataKey.MoveSpeed:
+                    return CastData<T>(key, _attributeSystem.GetAttribute(
+                        id.Value,
+                        MobaBehaviorContracts.WorldDataKey.MoveSpeed));
+                case MobaBehaviorContracts.WorldDataKey.Buffs:
+                case MobaBehaviorContracts.WorldDataKey.Tags:
+                    throw new NotSupportedException(
+                        $"World data key '{key}' is exposed through the dedicated query methods and has no collection snapshot contract.");
+                default:
+                    throw new ArgumentException($"Unknown MOBA world data key '{key ?? "<null>"}'.", nameof(key));
+            }
+        }
         
         public void SetData<T>(BehaviorEntityId id, string key, T value)
         {
             EnsureMutationsAllowed();
+            EnsureEntityExists(id);
+            throw new NotSupportedException(
+                $"MOBA world data key '{key ?? "<null>"}' cannot be mutated through the generic behavior query.");
         }
         
-        public bool HasData(BehaviorEntityId id, string key) => false;
+        public bool HasData(BehaviorEntityId id, string key)
+        {
+            if (!EntityExists(id)) return false;
+            switch (key)
+            {
+                case MobaBehaviorContracts.WorldDataKey.Alive:
+                case MobaBehaviorContracts.WorldDataKey.HitPoints:
+                case MobaBehaviorContracts.WorldDataKey.Team:
+                case MobaBehaviorContracts.WorldDataKey.MoveSpeed:
+                    return true;
+                case MobaBehaviorContracts.WorldDataKey.Buffs:
+                case MobaBehaviorContracts.WorldDataKey.Tags:
+                    return false;
+                default:
+                    throw new ArgumentException($"Unknown MOBA world data key '{key ?? "<null>"}'.", nameof(key));
+            }
+        }
         
         // ==================== MOBA 业务扩展 ====================
         
-        public bool IsAlive(BehaviorEntityId id) => _attributeSystem.IsAlive(id.Value);
+        public bool IsAlive(BehaviorEntityId id)
+        {
+            EnsureEntityExists(id);
+            return _attributeSystem.IsAlive(id.Value);
+        }
         
-        public int GetTeam(BehaviorEntityId id) => _attributeSystem.GetTeam(id.Value);
+        public int GetTeam(BehaviorEntityId id)
+        {
+            EnsureEntityExists(id);
+            return _attributeSystem.GetTeam(id.Value);
+        }
         
         public bool IsEnemy(BehaviorEntityId a, BehaviorEntityId b)
         {
@@ -180,12 +233,38 @@ namespace AbilityKit.Moba.Behavior
         
         public bool IsAlly(BehaviorEntityId a, BehaviorEntityId b) => GetTeam(a) == GetTeam(b);
         
-        public bool HasBuff(BehaviorEntityId id, string buffId) => _buffManager.HasBuff(id.Value, buffId);
+        public bool HasBuff(BehaviorEntityId id, string buffId)
+        {
+            EnsureEntityExists(id);
+            return _buffManager.HasBuff(id.Value, buffId);
+        }
         
-        public bool HasTag(BehaviorEntityId id, string tag) => _buffManager.HasTag(id.Value, tag);
+        public bool HasTag(BehaviorEntityId id, string tag)
+        {
+            EnsureEntityExists(id);
+            return _buffManager.HasTag(id.Value, tag);
+        }
         
-        public float GetMoveSpeed(BehaviorEntityId id, float defaultValue = 5f) =>
-            _attributeSystem.GetAttribute(id.Value, MobaBehaviorContracts.WorldDataKey.MoveSpeed);
+        public float GetMoveSpeed(BehaviorEntityId id, float defaultValue = 5f)
+        {
+            EnsureEntityExists(id);
+            return _attributeSystem.GetAttribute(id.Value, MobaBehaviorContracts.WorldDataKey.MoveSpeed);
+        }
+
+        private static T CastData<T>(string key, object value)
+        {
+            if (value is T typed) return typed;
+            throw new InvalidCastException(
+                $"World data key '{key}' contains {value.GetType().Name}, not {typeof(T).Name}.");
+        }
+
+        private void EnsureEntityExists(BehaviorEntityId id)
+        {
+            if (!_entityManager.Exists(id.Value))
+            {
+                throw new InvalidOperationException($"Behavior entity {id.Value} does not exist.");
+            }
+        }
 
         private void EnsureMutationsAllowed()
         {

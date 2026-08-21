@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
 using Svelto.ECS;
@@ -61,13 +62,45 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public IReadOnlyList<IShooterBattleSystem> Systems => _systems;
 
+        private Action<string, double>? _stageTimingSink;
+
+        public Action<string, double>? StageTimingSink
+        {
+            get => _stageTimingSink;
+            set
+            {
+                // Delegate installation happens during battle setup. Ignore repeated
+                // assignments so callers cannot turn a diagnostics refresh into churn.
+                if (!ReferenceEquals(_stageTimingSink, value))
+                {
+                    _stageTimingSink = value;
+                }
+            }
+        }
+
         public IEnumerable<IEngine> engines => _engines;
 
         public void Step(in float deltaTime)
         {
             for (int i = 0; i < _systems.Count; i++)
             {
-                _systems[i].Step(in deltaTime);
+                var system = _systems[i];
+                var sink = StageTimingSink;
+                if (sink == null)
+                {
+                    system.Step(in deltaTime);
+                    continue;
+                }
+
+                var startedAt = Stopwatch.GetTimestamp();
+                try
+                {
+                    system.Step(in deltaTime);
+                }
+                finally
+                {
+                    sink(system.name, (Stopwatch.GetTimestamp() - startedAt) * 1000d / Stopwatch.Frequency);
+                }
             }
         }
     }

@@ -27,7 +27,8 @@ namespace AbilityKit.Game.Flow
         private FormalLobbyCommandCoordinator _commands;
         private GatewayMultiplayerRoomSession _session;
         private LobbyBattleEntrySelection _selection;
-        private IMultiplayerGatewayRuntime _gatewayRuntime;
+        private IMultiplayerGatewayDiagnostics _gatewayDiagnostics;
+        private IMultiplayerGatewayRecoveryControl _gatewayRecoveryControl;
         private IDemoRoomDirectoryClient _roomDirectory;
         private ClientRoomPushSynchronizer _pushSynchronizer;
         private BattleGatewayConfigSO _gatewayConfig;
@@ -70,7 +71,8 @@ namespace AbilityKit.Game.Flow
             _commands = null;
             _session = null;
             _selection = null;
-            _gatewayRuntime = null;
+            _gatewayDiagnostics = null;
+            _gatewayRecoveryControl = null;
             _roomDirectory = null;
             _pushSynchronizer = null;
             _launchRequest = null;
@@ -84,7 +86,9 @@ namespace AbilityKit.Game.Flow
                 ctx.Entry.TryGet(out _gatewayConfig);
                 ctx.Entry.TryGet(out _session);
                 ctx.Entry.TryGet(out _selection);
-                ctx.Entry.TryGet(out _gatewayRuntime);
+                ctx.Entry.TryGet(out _gatewayDiagnostics);
+                ctx.Entry.TryGet(out _gatewayRecoveryControl);
+                ctx.Entry.TryGet(out _roomDirectory);
                 ctx.Entry.TryGet(out _launchRequest);
                 ctx.Entry.TryGet(out _pushSynchronizer);
                 if (ctx.Entry.TryGet(out ClientRoomStore roomStore))
@@ -94,10 +98,6 @@ namespace AbilityKit.Game.Flow
                         HandleSnapshotChanged,
                         HandleMembershipChanged,
                         HandlePlayerStateChanged);
-                }
-                if (ctx.Entry.TryGet(out IGatewayRoomClient roomClient))
-                {
-                    _roomDirectory = roomClient as IDemoRoomDirectoryClient;
                 }
             }
 
@@ -142,7 +142,7 @@ namespace AbilityKit.Game.Flow
             {
                 if (string.IsNullOrEmpty(_configurationError) &&
                     !_runtime.InitializationStarted &&
-                    _gatewayRuntime?.ConnectionState == ConnectionState.Connected)
+                    _gatewayDiagnostics?.ConnectionState == ConnectionState.Connected)
                 {
                     if (_runtime.TryBeginInitialization())
                     {
@@ -405,7 +405,7 @@ namespace AbilityKit.Game.Flow
             var nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if (_pushSynchronizer == null ||
                 _controller?.CurrentState != MultiplayerRoomFlowState.InLobby ||
-                _gatewayRuntime?.ConnectionState != ConnectionState.Connected ||
+                _gatewayDiagnostics?.ConnectionState != ConnectionState.Connected ||
                 IsOperationBusy ||
                 nowUnixMs < _nextRoomSnapshotRecoveryUnixMs)
             {
@@ -425,7 +425,7 @@ namespace AbilityKit.Game.Flow
             var nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             if (!LobbyAutomationPolicy.ShouldRefreshDirectory(
                     _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
-                    _gatewayRuntime?.ConnectionState == ConnectionState.Connected,
+                    _gatewayDiagnostics?.ConnectionState == ConnectionState.Connected,
                     IsOperationBusy,
                     _directoryRuntime.IsBusy,
                     _directoryRuntime.LastRefreshUnixMs,
@@ -443,7 +443,7 @@ namespace AbilityKit.Game.Flow
             if (!LobbyAutomationPolicy.ShouldCreateRoom(
                     _gatewayConfig?.AutoCreateWhenEmpty == true,
                     _controller?.CurrentState ?? MultiplayerRoomFlowState.Idle,
-                    _gatewayRuntime?.ConnectionState == ConnectionState.Connected,
+                    _gatewayDiagnostics?.ConnectionState == ConnectionState.Connected,
                     IsOperationBusy,
                     _directoryRuntime.IsLoaded,
                     _directoryRuntime.Rooms.Count,
@@ -541,10 +541,10 @@ namespace AbilityKit.Game.Flow
             var nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var controller = _controller;
             var roomSnapshot = controller?.CurrentSnapshot;
-            var recoveryState = _gatewayRuntime?.RecoveryState ?? MultiplayerRecoveryState.None;
+            var recoveryState = _gatewayDiagnostics?.RecoveryState ?? MultiplayerRecoveryState.None;
             var input = new FormalLobbyScreenInput(
                 _configurationError,
-                _gatewayRuntime?.ConnectionState ?? ConnectionState.Disconnected,
+                _gatewayDiagnostics?.ConnectionState ?? ConnectionState.Disconnected,
                 recoveryState == MultiplayerRecoveryState.ReconnectExhausted,
                 recoveryState != MultiplayerRecoveryState.None &&
                 recoveryState != MultiplayerRecoveryState.Recovered &&
@@ -594,7 +594,7 @@ namespace AbilityKit.Game.Flow
                 _controller.IsLocalRoomOwner,
                 configuredMaxPlayers,
                 configuredMinPlayers,
-                _gatewayRuntime?.ConnectionState ?? ConnectionState.Disconnected,
+                _gatewayDiagnostics?.ConnectionState ?? ConnectionState.Disconnected,
                 _roomSubscription.IsStale,
                 _lastSnapshotReceivedAtUnixMs,
                 nowUnixMs);
@@ -624,7 +624,7 @@ namespace AbilityKit.Game.Flow
 
         private void ResetReconnect()
         {
-            _gatewayRuntime?.ResetReconnect();
+            _gatewayRecoveryControl?.ResetReconnect();
         }
 
         private void CreateRoom()

@@ -15,9 +15,15 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class BattleSessionState
     {
+        private readonly SessionLifecycleDiagnosticsRecorder _lifecycleDiagnostics =
+            new SessionLifecycleDiagnosticsRecorder();
+
         public BattleSessionLifecycleState Lifecycle { get; private set; } = BattleSessionLifecycleState.Created;
         public Exception LastLifecycleFailure { get; private set; }
         public int Generation { get; private set; }
+        internal SessionLifecycleDiagnosticsRecorder LifecycleDiagnostics => _lifecycleDiagnostics;
+        internal SessionLifecycleDiagnosticsSnapshot LifecycleDiagnosticsSnapshot =>
+            _lifecycleDiagnostics.Snapshot;
 
         public void BeginStart()
         {
@@ -29,6 +35,9 @@ namespace AbilityKit.Game.Flow
             Generation++;
             LastLifecycleFailure = null;
             Lifecycle = BattleSessionLifecycleState.Starting;
+            _lifecycleDiagnostics.BeginGeneration(
+                Generation,
+                SessionLifecycleDiagnosticState.Starting);
         }
 
         public void CompleteStart()
@@ -39,6 +48,7 @@ namespace AbilityKit.Game.Flow
             }
 
             Lifecycle = BattleSessionLifecycleState.Running;
+            _lifecycleDiagnostics.Transition(SessionLifecycleDiagnosticState.Running);
         }
 
         public void BeginStop()
@@ -46,6 +56,7 @@ namespace AbilityKit.Game.Flow
             if (Lifecycle != BattleSessionLifecycleState.Stopping)
             {
                 Lifecycle = BattleSessionLifecycleState.Stopping;
+                _lifecycleDiagnostics.Transition(SessionLifecycleDiagnosticState.Stopping);
             }
         }
 
@@ -53,17 +64,25 @@ namespace AbilityKit.Game.Flow
         {
             LastLifecycleFailure = null;
             Lifecycle = BattleSessionLifecycleState.Stopped;
+            _lifecycleDiagnostics.Transition(SessionLifecycleDiagnosticState.Stopped);
         }
 
         public void Fault(Exception exception)
         {
             LastLifecycleFailure = exception ?? throw new ArgumentNullException(nameof(exception));
             Lifecycle = BattleSessionLifecycleState.Faulted;
+            _lifecycleDiagnostics.RecordFailure(exception);
+            _lifecycleDiagnostics.Transition(SessionLifecycleDiagnosticState.Faulted);
         }
         internal sealed class TickState
         {
             public int LastFrame;
             public float TickAcc;
+            public int LastUpdateSteps;
+            public int BacklogSteps;
+            public long OverBudgetUpdateCount;
+            public double DroppedTimeSeconds;
+            public long InvalidDeltaCount;
             public bool WorldReady;
             public bool FirstFrameReceived;
 
@@ -71,6 +90,11 @@ namespace AbilityKit.Game.Flow
             {
                 LastFrame = 0;
                 TickAcc = 0f;
+                LastUpdateSteps = 0;
+                BacklogSteps = 0;
+                OverBudgetUpdateCount = 0L;
+                DroppedTimeSeconds = 0d;
+                InvalidDeltaCount = 0L;
                 WorldReady = false;
                 FirstFrameReceived = false;
             }

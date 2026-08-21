@@ -117,6 +117,8 @@ namespace AbilityKit.Game.Flow
             _preparation.Start(
                 _connection,
                 _client,
+                _client,
+                _client,
                 plan,
                 planPublished,
                 clockSamplePublished,
@@ -136,6 +138,30 @@ namespace AbilityKit.Game.Flow
             DisposeConnection();
         }
 
+        internal async System.Threading.Tasks.Task CompletePreparationAsync()
+        {
+            try
+            {
+                await _preparation.StopWorkAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                DisposeConnection();
+            }
+        }
+
+        internal async System.Threading.Tasks.Task StopAsync()
+        {
+            try
+            {
+                await _preparation.StopWorkAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                DisposeConnection();
+            }
+        }
+
         public void Dispose()
         {
             _preparation.Dispose();
@@ -144,6 +170,11 @@ namespace AbilityKit.Game.Flow
 
         private void DisposeConnection()
         {
+            var client = _client;
+            var connection = _connection;
+            _client = null;
+            _connection = null;
+
             var ownsPublishedConnection = ReferenceEquals(
                 _handles.GatewayRoom.ConnectionOwner,
                 _ownershipToken);
@@ -152,31 +183,38 @@ namespace AbilityKit.Game.Flow
             {
                 _networkCondition.Detach();
 
-                if (ReferenceEquals(_handles.GatewayRoom.Client, _client))
+                if (ReferenceEquals(_handles.GatewayRoom.Client, client))
                 {
                     _handles.GatewayRoom.Client = null;
                 }
-
-                if (_connection != null &&
-                    _connectionRegistry.TryGet(
-                        AbilityKitConnectionRole.GatewayReliable,
-                        out var current) &&
-                    ReferenceEquals(current, _connection))
-                {
-                    _connectionRegistry.Remove(
-                        AbilityKitConnectionRole.GatewayReliable);
-                }
-
-                if (ReferenceEquals(_handles.GatewayRoom.Conn, _connection))
-                {
-                    _handles.GatewayRoom.Conn = null;
-                }
-
-                _handles.GatewayRoom.ConnectionOwner = null;
             }
 
-            _client = null;
-            _connection = null;
+            try
+            {
+                client?.Dispose();
+            }
+            finally
+            {
+                if (ownsPublishedConnection)
+                {
+                    if (connection != null &&
+                        _connectionRegistry.TryGet(
+                            AbilityKitConnectionRole.GatewayReliable,
+                            out var current) &&
+                        ReferenceEquals(current, connection))
+                    {
+                        _connectionRegistry.Remove(
+                            AbilityKitConnectionRole.GatewayReliable);
+                    }
+
+                    if (ReferenceEquals(_handles.GatewayRoom.Conn, connection))
+                    {
+                        _handles.GatewayRoom.Conn = null;
+                    }
+
+                    _handles.GatewayRoom.ConnectionOwner = null;
+                }
+            }
         }
     }
 }

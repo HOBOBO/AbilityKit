@@ -2,13 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
 using AbilityKit.Ability.Config.Authoring;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
 using UnityEditor;
 using UnityEngine;
 
@@ -72,12 +67,6 @@ namespace AbilityKit.Ability.Editor.Utilities
 
     internal static class TriggerAuthoringSourceCodec
     {
-        private static readonly UTF8Encoding Utf8WithoutBom = new UTF8Encoding(false);
-
-        private static readonly JsonSerializerSettings WriteSettings = CreateSettings(Formatting.Indented);
-        private static readonly JsonSerializerSettings CanonicalSettings = CreateSettings(Formatting.None);
-        private static readonly JsonSerializerSettings ReadSettings = CreateSettings(Formatting.None, true);
-
         public static TriggerAuthoringSourceDocument CreateDocument(TriggerAuthoringModuleAsset asset)
         {
             if (asset == null) throw new ArgumentNullException(nameof(asset));
@@ -92,102 +81,40 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static string Serialize(TriggerAuthoringSourceDocument document)
         {
-            ValidateDocumentHeader(document);
-            return JsonConvert.SerializeObject(document, WriteSettings) + Environment.NewLine;
+            return TriggerSourceCodecs.ModuleDefault.Serialize(document);
         }
 
         public static TriggerAuthoringSourceDocument Deserialize(string json)
         {
-            if (string.IsNullOrWhiteSpace(json))
-                throw new InvalidDataException("Trigger authoring Source JSON is empty.");
-
-            TriggerAuthoringSourceDocument document;
-            try
-            {
-                var root = JObject.Parse(json);
-                RequireProperty(root, "schema");
-                RequireProperty(root, "version");
-                RequireProperty(root, "module");
-                document = JsonConvert.DeserializeObject<TriggerAuthoringSourceDocument>(json, ReadSettings);
-            }
-            catch (JsonException ex)
-            {
-                throw new InvalidDataException("Trigger authoring Source JSON is invalid: " + ex.Message, ex);
-            }
-
-            ValidateDocumentHeader(document);
-            return document;
-        }
-
-        private static void RequireProperty(JObject root, string propertyName)
-        {
-            if (root.Property(propertyName, StringComparison.Ordinal) == null)
-                throw new InvalidDataException($"Trigger authoring Source JSON requires property '{propertyName}'.");
+            return TriggerSourceCodecs.ModuleDefault.Deserialize(json);
         }
 
         public static TriggerAuthoringSourceDocument ReadFile(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
-            return Deserialize(File.ReadAllText(path, Encoding.UTF8));
+            return ResolveCodec(path).Deserialize(File.ReadAllText(path, Encoding.UTF8));
         }
 
         public static string ComputeContentHash(TriggerAuthoringSourceDocument document)
         {
-            ValidateDocumentHeader(document);
-            var canonicalJson = JsonConvert.SerializeObject(document, CanonicalSettings);
-            using (var sha = SHA256.Create())
-            {
-                var bytes = sha.ComputeHash(Utf8WithoutBom.GetBytes(canonicalJson));
-                var builder = new StringBuilder(bytes.Length * 2);
-                for (var i = 0; i < bytes.Length; i++) builder.Append(bytes[i].ToString("x2"));
-                return builder.ToString();
-            }
+            TriggerSourceDocumentRules.ValidateModuleHeader(document);
+            return TriggerSourceCanonical.ComputeContentHash(document);
         }
 
         public static void WriteFileAtomic(string path, TriggerAuthoringSourceDocument document)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
-            var fullPath = Path.GetFullPath(path);
-            var directory = Path.GetDirectoryName(fullPath);
-            if (string.IsNullOrEmpty(directory)) throw new InvalidOperationException("Source directory could not be resolved.");
-            Directory.CreateDirectory(directory);
-
-            var temporaryPath = Path.Combine(directory, "." + Path.GetFileName(fullPath) + "." + Guid.NewGuid().ToString("N") + ".tmp");
-            try
-            {
-                File.WriteAllText(temporaryPath, Serialize(document), Utf8WithoutBom);
-                if (File.Exists(fullPath))
-                    File.Replace(temporaryPath, fullPath, null);
-                else
-                    File.Move(temporaryPath, fullPath);
-            }
-            finally
-            {
-                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-            }
+            TriggerSourceCanonical.WriteTextAtomic(path, ResolveCodec(path).Serialize(document));
         }
 
-        private static JsonSerializerSettings CreateSettings(Formatting formatting, bool strict = false)
+        private static ITriggerSourceCodec<TriggerAuthoringSourceDocument> ResolveCodec(string path)
         {
-            var settings = new JsonSerializerSettings
-            {
-                Formatting = formatting,
-                NullValueHandling = NullValueHandling.Ignore,
-                MissingMemberHandling = strict ? MissingMemberHandling.Error : MissingMemberHandling.Ignore,
-                ContractResolver = new CamelCasePropertyNamesContractResolver()
-            };
-            settings.Converters.Add(new StringEnumConverter());
-            return settings;
-        }
-
-        private static void ValidateDocumentHeader(TriggerAuthoringSourceDocument document)
-        {
-            if (document == null) throw new InvalidDataException("Trigger authoring Source document is null.");
-            if (!string.Equals(document.Schema, TriggerAuthoringSchema.Id, StringComparison.Ordinal))
-                throw new InvalidDataException($"Unsupported trigger authoring schema: '{document.Schema ?? string.Empty}'.");
-            if (!string.Equals(document.Version, TriggerAuthoringSchema.Version, StringComparison.Ordinal))
-                throw new InvalidDataException($"Unsupported trigger authoring version: '{document.Version ?? string.Empty}'.");
-            if (document.Module == null) throw new InvalidDataException("Trigger authoring Source document has no module.");
+            if (!TriggerSourceCodecs.TryResolveModule(path, out var codec))
+                throw new InvalidDataException(
+                    "No Trigger Source codec is registered for extension '" +
+                    (Path.GetExtension(path) ?? string.Empty) +
+                    "'. Supported: " + TriggerSourceCodecs.DescribeModuleExtensions() + ".");
+            return codec;
         }
     }
 
@@ -253,7 +180,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.IsNullOrWhiteSpace(sourcePath))
                 return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.Untracked, "Source JSON path is required.");
 
-            var diagnostics = TriggerAuthoringValidator.Validate(asset.Module);
+            var diagnostics = TriggerAuthoringValidator.Validate(
+                asset.Module,
+                TriggerAuthoringValidationContext.Create(asset));
             if (TriggerAuthoringValidator.HasErrors(diagnostics))
                 return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.AssetChanged, BuildValidationMessage(diagnostics));
 
@@ -303,7 +232,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                     $"Module identity mismatch. Asset='{currentModuleId}', Source='{incomingModuleId ?? string.Empty}'.");
             }
 
-            var diagnostics = TriggerAuthoringValidator.Validate(document.Module);
+            var diagnostics = TriggerAuthoringValidator.Validate(
+                document.Module,
+                TriggerAuthoringValidationContext.Create(asset));
             if (TriggerAuthoringValidator.HasErrors(diagnostics))
                 return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.InvalidSource, BuildValidationMessage(diagnostics));
 
@@ -327,6 +258,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             return module != null &&
                    (!string.IsNullOrWhiteSpace(module.ModuleId) ||
                     (module.Blackboard != null && module.Blackboard.Count > 0) ||
+                    (module.ConditionGroups != null && module.ConditionGroups.Count > 0) ||
+                    (module.ActionGroups != null && module.ActionGroups.Count > 0) ||
                     (module.Triggers != null && module.Triggers.Count > 0));
         }
 

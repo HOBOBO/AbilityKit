@@ -14,11 +14,6 @@ namespace AbilityKit.Game.Flow
 
         private void DisposeSnapshotRoutingIfAny()
         {
-            DisposeSnapshotRouting();
-        }
-
-        private void DisposeSnapshotRouting()
-        {
             _runtime.SnapshotRouting.Dispose();
         }
 

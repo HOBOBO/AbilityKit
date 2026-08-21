@@ -10,6 +10,12 @@ namespace AbilityKit.Pipeline
         where TCtx : IAbilityPipelineContext
     {
         private readonly List<int> _activePhases = new List<int>(8);
+        private int _debugExecutingPhaseIndex = -1;
+
+        internal bool DebugIsChildActive(int index)
+        {
+            return index == _debugExecutingPhaseIndex || _activePhases.Contains(index);
+        }
 
         /// <summary>
         /// 使用指定阶段 ID 创建并行阶段。
@@ -28,7 +34,15 @@ namespace AbilityKit.Pipeline
             {
                 if (_subPhases[i].ShouldExecute(context))
                 {
-                    _subPhases[i].Execute(context);
+                    try
+                    {
+                        _debugExecutingPhaseIndex = i;
+                        _subPhases[i].Execute(context);
+                    }
+                    finally
+                    {
+                        _debugExecutingPhaseIndex = -1;
+                    }
                     
                     if (!_subPhases[i].IsComplete)
                     {
@@ -81,6 +95,7 @@ namespace AbilityKit.Pipeline
         {
             base.Reset();
             _activePhases.Clear();
+            _debugExecutingPhaseIndex = -1;
         }
     }
 }

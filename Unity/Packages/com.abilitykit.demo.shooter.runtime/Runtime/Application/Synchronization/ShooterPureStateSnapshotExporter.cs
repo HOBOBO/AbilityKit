@@ -56,6 +56,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private AoiEntitySample[] _aoiSampleBuffer = Array.Empty<AoiEntitySample>();
         private ShooterPureStateEntityDelta[] _transientEntities = Array.Empty<ShooterPureStateEntityDelta>();
         private ShooterPureStateVisibilityHint[] _transientVisibilityHints = Array.Empty<ShooterPureStateVisibilityHint>();
+        private ShooterPureStateTransformSample[] _transientTransformSamples = Array.Empty<ShooterPureStateTransformSample>();
         private ulong _unscopedReplicationWorldId;
         private bool _hasUnscopedReplicationWorld;
         private int _cachedWorldFrame = -1;
@@ -138,6 +139,38 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 aoiInterestSet,
                 computeStateHash,
                 useTransientBuffers: true);
+        }
+
+        public ShooterPureStateTransformSample[] ExportTransformSamplesTransient(out int count)
+        {
+            if (_context != null)
+            {
+                count = GetWorldSamples(_context);
+            }
+            else
+            {
+                var snapshot = _snapshotReadPort.GetSnapshot();
+                var players = snapshot.Players ?? Array.Empty<ShooterPlayerSnapshot>();
+                var bullets = snapshot.Bullets ?? Array.Empty<ShooterBulletSnapshot>();
+                var frame = snapshot.Frame <= 0 ? _state.CurrentFrame : snapshot.Frame;
+                count = GetWorldSamples(players, bullets, frame);
+            }
+
+            _transientTransformSamples = EnsureCapacity(_transientTransformSamples, count);
+            for (var i = 0; i < count; i++)
+            {
+                var entity = _worldSampleBuffer[i].Entity;
+                _transientTransformSamples[i] = new ShooterPureStateTransformSample(
+                    entity.EntityId,
+                    entity.EntityKind,
+                    entity.QuantizedX,
+                    entity.QuantizedY,
+                    entity.QuantizedVelocityX,
+                    entity.QuantizedVelocityY,
+                    entity.Flags);
+            }
+
+            return _transientTransformSamples;
         }
 
         private ShooterPureStateSnapshotPayload ExportCore(

@@ -1,0 +1,22 @@
+{
+  "Id": 10050301,
+  "Name": "妲己-女王崇拜-狐火状态",
+  "DurationMs": 1600,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [],
+  "IntervalMs": 0,
+  "PresentationTemplateId": 90005003,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 1,
+  "MaxStacks": 1,
+  "TriggerIds": [
+    10050314
+  ],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": [],
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

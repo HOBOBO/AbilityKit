@@ -11,18 +11,110 @@ using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
 {
+    public readonly struct ShooterPureStatePlaybackDiagnostics
+    {
+        public ShooterPureStatePlaybackDiagnostics(
+            long renderTickCount,
+            long publishedSnapshotCount,
+            long starvedRenderTickCount,
+            long heldPlaybackRenderTickCount,
+            int bufferedSnapshotCount,
+            float bufferedFrameSpan,
+            float availablePlaybackLeadFrames,
+            float playbackFrame,
+            float currentDelayFrames,
+            float targetDelayFrames,
+            int baseDelayFrames,
+            int maxDelayFrames,
+            bool isStarved,
+            long receivedSampleBlockCount,
+            long receivedFrameSampleCount,
+            long rejectedFrameSampleCount,
+            long staleFrameSampleCount,
+            long invalidFrameSampleCount,
+            long receivedTransformSampleCount,
+            int maxTransformSampleCountPerBlock,
+            long receivedAuthoritativeTransformCount)
+        {
+            RenderTickCount = renderTickCount;
+            PublishedSnapshotCount = publishedSnapshotCount;
+            StarvedRenderTickCount = starvedRenderTickCount;
+            HeldPlaybackRenderTickCount = heldPlaybackRenderTickCount;
+            BufferedSnapshotCount = bufferedSnapshotCount;
+            BufferedFrameSpan = bufferedFrameSpan;
+            AvailablePlaybackLeadFrames = availablePlaybackLeadFrames;
+            PlaybackFrame = playbackFrame;
+            CurrentDelayFrames = currentDelayFrames;
+            TargetDelayFrames = targetDelayFrames;
+            BaseDelayFrames = baseDelayFrames;
+            MaxDelayFrames = maxDelayFrames;
+            IsStarved = isStarved;
+            ReceivedSampleBlockCount = receivedSampleBlockCount;
+            ReceivedFrameSampleCount = receivedFrameSampleCount;
+            RejectedFrameSampleCount = rejectedFrameSampleCount;
+            StaleFrameSampleCount = staleFrameSampleCount;
+            InvalidFrameSampleCount = invalidFrameSampleCount;
+            ReceivedTransformSampleCount = receivedTransformSampleCount;
+            MaxTransformSampleCountPerBlock = maxTransformSampleCountPerBlock;
+            ReceivedAuthoritativeTransformCount = receivedAuthoritativeTransformCount;
+        }
+
+        public long RenderTickCount { get; }
+        public long PublishedSnapshotCount { get; }
+        public long StarvedRenderTickCount { get; }
+        public long HeldPlaybackRenderTickCount { get; }
+        public int BufferedSnapshotCount { get; }
+        public float BufferedFrameSpan { get; }
+        public float AvailablePlaybackLeadFrames { get; }
+        public float PlaybackFrame { get; }
+        public float CurrentDelayFrames { get; }
+        public float TargetDelayFrames { get; }
+        public int BaseDelayFrames { get; }
+        public int MaxDelayFrames { get; }
+        public bool IsStarved { get; }
+        public long ReceivedSampleBlockCount { get; }
+        public long ReceivedFrameSampleCount { get; }
+        public long RejectedFrameSampleCount { get; }
+        public long StaleFrameSampleCount { get; }
+        public long InvalidFrameSampleCount { get; }
+        public long ReceivedTransformSampleCount { get; }
+        public int MaxTransformSampleCountPerBlock { get; }
+        public long ReceivedAuthoritativeTransformCount { get; }
+        public double AverageFrameSamplesPerBlock => ReceivedSampleBlockCount > 0L
+            ? ReceivedFrameSampleCount / (double)ReceivedSampleBlockCount
+            : 0d;
+        public double AverageTransformSamplesPerFrame => ReceivedFrameSampleCount > 0L
+            ? ReceivedTransformSampleCount / (double)ReceivedFrameSampleCount
+            : 0d;
+        public double HistoricalTransformAmplificationRatio => ReceivedAuthoritativeTransformCount > 0L
+            ? ReceivedTransformSampleCount / (double)ReceivedAuthoritativeTransformCount
+            : 0d;
+        public double StarvationRatio => RenderTickCount > 0L
+            ? StarvedRenderTickCount / (double)RenderTickCount
+            : 0d;
+        public double HeldPlaybackRatio => RenderTickCount > 0L
+            ? HeldPlaybackRenderTickCount / (double)RenderTickCount
+            : 0d;
+    }
+
+    public interface IShooterPureStatePlaybackDiagnosticsProvider
+    {
+        ShooterPureStatePlaybackDiagnostics GetPureStatePlaybackDiagnostics();
+    }
+
     /// <summary>
     /// <see cref="NetworkSyncModel.AuthoritativeInterpolation"/> 客户端控制器。
     /// 本地玩家使用权威 pose、输入确认和有界未确认输入重放；远端 actor 只进入服务器时间线插值，
     /// 不导入本地模拟，也不触发整世界回滚。
     /// </summary>
-    public sealed class ShooterClientAuthoritativeInterpolationSyncController : IShooterClientSyncController, IShooterClientFrameSyncCapability, IShooterClientInputCapability, IInterpolationDiagnosticsProvider
+    public sealed class ShooterClientAuthoritativeInterpolationSyncController : IShooterClientSyncController, IShooterClientFrameSyncCapability, IShooterClientInputCapability, IInterpolationDiagnosticsProvider, IShooterPureStatePlaybackDiagnosticsProvider
     {
         private const int MaxPendingInputs = 128;
         private const int MaxReplayFrames = 120;
         private const float PositionQuantizationScale = 1000f;
         private const float SmallErrorTolerance = 0.05f;
-        private const float MaxCorrectionPerSnapshot = 0.25f;
+        private const float MaxCorrectionPerClientFrame = 0.25f;
+        private const float PureStateStableRecoverySeconds = 2f;
 
         private readonly IShooterBattleRuntimePort _runtime;
         private readonly ShooterClientSyncCore _core;
@@ -57,7 +149,27 @@ namespace AbilityKit.Demo.Shooter.View
         private ulong _authorityWorldId;
         private int _lastAuthorityFrame = -1;
         private int _lastGatewaySnapshotFrame = -1;
+        private int _controlledCorrectionRuntimeFrame = -1;
+        private float _controlledCorrectionAppliedDistance;
         private long _nextSyntheticSubmissionId;
+        private int _pureStateDeltaIntervalFrames = 1;
+        private int _pureStateBaseDelayFrames = 2;
+        private int _pureStateMaxDelayFrames = 3;
+        private float _pureStateStablePlaybackSeconds;
+        private long _pureStateRenderTickCount;
+        private long _pureStatePublishedSnapshotCount;
+        private long _pureStateStarvedRenderTickCount;
+        private long _pureStateHeldPlaybackRenderTickCount;
+        private long _pureStateReceivedSampleBlockCount;
+        private long _pureStateReceivedFrameSampleCount;
+        private long _pureStateRejectedFrameSampleCount;
+        private long _pureStateStaleFrameSampleCount;
+        private long _pureStateInvalidFrameSampleCount;
+        private long _pureStateReceivedTransformSampleCount;
+        private int _pureStateMaxTransformSampleCountPerBlock;
+        private long _pureStateReceivedAuthoritativeTransformCount;
+        private int _lastPureStatePublishedFrame = -1;
+        private ulong _pureStatePlaybackWorldId;
 
         public ShooterClientAuthoritativeInterpolationSyncController(
             IShooterBattleRuntimePort runtime,
@@ -164,6 +276,9 @@ namespace AbilityKit.Demo.Shooter.View
         /// </summary>
         public bool IsRemotePlaybackStarved => _playback.IsStarved;
 
+        public ShooterPureStatePlaybackDiagnostics PureStatePlaybackDiagnostics =>
+            GetPureStatePlaybackDiagnostics();
+
         public ShooterStateSyncPredictionState PredictionState => _predictionState;
 
         public int PendingGatewayInputCount
@@ -268,6 +383,11 @@ namespace AbilityKit.Demo.Shooter.View
             return BufferRemoteSnapshot(in snapshot);
         }
 
+        public ShooterSnapshotApplyResult ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
+        {
+            return BufferRemoteSnapshot(in snapshot);
+        }
+
         /// <summary>
         /// 为延迟插值缓冲一个已经解码的网关快照。
         /// </summary>
@@ -279,15 +399,30 @@ namespace AbilityKit.Demo.Shooter.View
                 if (pureStateResult == ShooterPureStateSnapshotApplyResult.AppliedFullBaseline
                     || pureStateResult == ShooterPureStateSnapshotApplyResult.AppliedDelta)
                 {
+                    var pureState = snapshot.PureStateSnapshot!.Value;
+                    var pureStateWorldChanged = pureState.WorldId != 0UL &&
+                        _pureStatePlaybackWorldId != 0UL &&
+                        pureState.WorldId != _pureStatePlaybackWorldId;
+                    if (pureStateWorldChanged)
+                    {
+                        _pureStatePlayback.Reset();
+                        ResetPureStateDiscreteBatches();
+                        ResetPureStatePlaybackAdaptation();
+                    }
+
+                    if (pureState.WorldId != 0UL)
+                    {
+                        _pureStatePlaybackWorldId = pureState.WorldId;
+                    }
+
                     _usesPureStatePresentation = true;
                     _core.FrameSync.PublishControlledPlayerPredictionOnly = true;
                     _playback.Reset();
-                    var pureState = snapshot.PureStateSnapshot!.Value;
                     var presentationBatch = _presentation.ViewModel.Current;
                     var pureStateSettings = pureState.Settings;
-                    ObservePureStatePresentationBatch(in presentationBatch, in pureStateSettings);
+                    ObservePureStatePresentationBatch(in presentationBatch, in pureStateSettings, in pureState);
                     ObserveGatewaySnapshotFrame(snapshot.Frame);
-                    ReconcileControlledPlayer(in snapshot, forceAuthorityReset: false);
+                    ReconcileControlledPlayer(in snapshot, forceAuthorityReset: pureStateWorldChanged);
                 }
 
                 return ShooterSnapshotApplyResults.FromPureStateResult(pureStateResult);
@@ -318,6 +453,7 @@ namespace AbilityKit.Demo.Shooter.View
             _core.FrameSync.PublishControlledPlayerPredictionOnly = false;
             _pureStatePlayback.Reset();
             ResetPureStateDiscreteBatches();
+            ResetPureStatePlaybackAdaptation();
             ObserveGatewaySnapshotFrame(snapshot.Frame);
             ReconcileControlledPlayer(in snapshot, worldChanged);
             ObserveAuthoritativeProjectileActions(in snapshot);
@@ -349,6 +485,7 @@ namespace AbilityKit.Demo.Shooter.View
             _authorityWorldId = 0;
             _lastAuthorityFrame = -1;
             _lastGatewaySnapshotFrame = -1;
+            ResetControlledCorrectionBudget();
             _localReconciliationReport = SyncReconciliationReport.None;
             _predictionState = ShooterStateSyncPredictionState.Empty;
             _lastPredictedCommand = default;
@@ -357,11 +494,13 @@ namespace AbilityKit.Demo.Shooter.View
             _playback.Reset();
             _pureStatePlayback.Reset();
             ResetPureStateDiscreteBatches();
+            ResetPureStatePlaybackAdaptation();
         }
 
         private void ObservePureStatePresentationBatch(
             in ShooterSnapshotViewBatch batch,
-            in ShooterPureStateSyncSettings settings)
+            in ShooterPureStateSyncSettings settings,
+            in ShooterPureStateSnapshotPayload pureState)
         {
             if (batch.IsFullSnapshot)
             {
@@ -394,11 +533,139 @@ namespace AbilityKit.Demo.Shooter.View
                 _pendingPureStateDiscrete.Append(in batch);
             }
 
-            _pureStatePlayback.InterpolationDelayFrames = Math.Max(
-                1f,
-                Math.Min(
-                    Math.Max(1, settings.InterpolationDelayFrames),
-                    Math.Max(1, settings.DeltaIntervalFrames)));
+            ConfigurePureStatePlaybackDelay(in settings);
+
+            ObservePureStateFrameSamples(in pureState);
+            PublishPureStateTransformBatch(in batch);
+        }
+
+        private void ObservePureStateFrameSamples(in ShooterPureStateSnapshotPayload pureState)
+        {
+            var frameCount = pureState.EffectiveFrameSampleCount;
+            if (frameCount <= 0)
+            {
+                return;
+            }
+
+            _pureStateReceivedSampleBlockCount++;
+            var frames = pureState.FrameSamples;
+            var transforms = pureState.TransformSamples;
+            var transformCount = pureState.EffectiveTransformSampleCount;
+            _pureStateMaxTransformSampleCountPerBlock = Math.Max(
+                _pureStateMaxTransformSampleCountPerBlock,
+                transformCount);
+            for (var frameIndex = 0; frameIndex < frameCount; frameIndex++)
+            {
+                var frameSample = frames[frameIndex];
+                if (frameSample.Frame <= _lastPureStatePublishedFrame)
+                {
+                    _pureStateRejectedFrameSampleCount++;
+                    _pureStateStaleFrameSampleCount++;
+                    continue;
+                }
+
+                if (frameSample.Frame >= pureState.Frame ||
+                    frameSample.TransformOffset < 0 ||
+                    frameSample.TransformCount < 0 ||
+                    frameSample.TransformOffset > transformCount - frameSample.TransformCount)
+                {
+                    _pureStateRejectedFrameSampleCount++;
+                    _pureStateInvalidFrameSampleCount++;
+                    continue;
+                }
+
+                var sampleTransforms = ShooterSnapshotViewModelMapper.RentPooledTransformChanges(frameSample.TransformCount);
+                _pureStateReceivedTransformSampleCount += frameSample.TransformCount;
+                var end = frameSample.TransformOffset + frameSample.TransformCount;
+                for (var transformIndex = frameSample.TransformOffset; transformIndex < end; transformIndex++)
+                {
+                    var sample = transforms[transformIndex];
+                    if (!TryCreateSampleTransform(in sample, out var transform) ||
+                        (transform.Key.EntityId == _presentation.ControlledPlayerId &&
+                         transform.Key.Kind == ShooterViewEntityKind.Player) ||
+                        _suppressedPureStateTransforms.Contains(transform.Key))
+                    {
+                        continue;
+                    }
+
+                    sampleTransforms.Add(transform);
+                }
+
+                var playbackBatch = new ShooterSnapshotViewBatch(
+                    pureState.WorldId,
+                    frameSample.Frame,
+                    (ulong)(uint)frameSample.Frame,
+                    ShooterViewSnapshotKind.Delta,
+                    ShooterViewBatchSource.AuthoritativeCorrection,
+                    Array.Empty<ShooterViewEntityChange>(),
+                    Array.Empty<ShooterViewEntityKey>(),
+                    sampleTransforms,
+                    Array.Empty<ShooterViewHealthComponentChange>(),
+                    Array.Empty<ShooterViewScoreComponentChange>(),
+                    Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+                    Array.Empty<ShooterEventSnapshot>());
+                _pureStatePlayback.Publish(in playbackBatch);
+                _lastPureStatePublishedFrame = frameSample.Frame;
+                _pureStatePublishedSnapshotCount++;
+                _pureStateReceivedFrameSampleCount++;
+            }
+        }
+
+        private static bool TryCreateSampleTransform(
+            in ShooterPureStateTransformSample sample,
+            out ShooterViewTransformComponentChange transform)
+        {
+            ShooterViewEntityKind kind;
+            switch (sample.EntityKind)
+            {
+                case ShooterPackedEntityKinds.Player:
+                    kind = ShooterViewEntityKind.Player;
+                    break;
+                case ShooterPackedEntityKinds.Projectile:
+                    kind = ShooterViewEntityKind.Bullet;
+                    break;
+                case ShooterPackedEntityKinds.Enemy:
+                    kind = ShooterViewEntityKind.Enemy;
+                    break;
+                default:
+                    transform = default;
+                    return false;
+            }
+
+            const byte visibleAndAlive = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
+            if ((sample.Flags & visibleAndAlive) != visibleAndAlive)
+            {
+                transform = default;
+                return false;
+            }
+
+            var velocityX = sample.QuantizedVelocityX / 1000f;
+            var velocityY = sample.QuantizedVelocityY / 1000f;
+            var hints = (sample.Flags & ShooterPureStateEntityFlags.LowFrequency) != 0
+                ? SnapshotDeliveryHints.SparseUpdate
+                : SnapshotDeliveryHints.None;
+            transform = new ShooterViewTransformComponentChange(
+                new ShooterViewEntityKey(kind, sample.EntityId),
+                sample.QuantizedX / 1000f,
+                sample.QuantizedY / 1000f,
+                velocityX == 0f && velocityY == 0f ? 0f : velocityX,
+                velocityX == 0f && velocityY == 0f ? 1f : velocityY,
+                velocityX,
+                velocityY,
+                hints);
+            return true;
+        }
+
+        private void PublishPureStateTransformBatch(in ShooterSnapshotViewBatch batch)
+        {
+            if (batch.Frame <= _lastPureStatePublishedFrame)
+            {
+                _pureStateRejectedFrameSampleCount++;
+                _pureStateStaleFrameSampleCount++;
+                return;
+            }
+
+            _pureStateReceivedAuthoritativeTransformCount += batch.TransformChanges.Count;
 
             var removed = ShooterSnapshotViewModelMapper.RentPooledRemovedEntities(batch.RemovedEntities.Count);
             for (var i = 0; i < batch.RemovedEntities.Count; i++)
@@ -430,12 +697,34 @@ namespace AbilityKit.Demo.Shooter.View
                 Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
                 Array.Empty<ShooterEventSnapshot>());
             _pureStatePlayback.Publish(in playbackBatch);
+            _lastPureStatePublishedFrame = batch.Frame;
+            _pureStatePublishedSnapshotCount++;
         }
 
         private void PublishPureStatePresentationFrame(float deltaTime)
         {
-            if (!_usesPureStatePresentation ||
-                !_pureStatePlayback.TryAdvancePlaybackTransient(deltaTime, out var remotePlayback))
+            if (!_usesPureStatePresentation)
+            {
+                return;
+            }
+
+            _pureStateRenderTickCount++;
+            var playbackBefore = _pureStatePlayback.PlaybackFrame;
+            var hasPlayback = _pureStatePlayback.TryAdvancePlaybackTransient(deltaTime, out var remotePlayback);
+            var playbackAfter = _pureStatePlayback.PlaybackFrame;
+            var isStarved = _pureStatePlayback.IsPlaybackStarved;
+            if (isStarved)
+            {
+                _pureStateStarvedRenderTickCount++;
+            }
+
+            if (deltaTime > 0f && playbackAfter <= playbackBefore)
+            {
+                _pureStateHeldPlaybackRenderTickCount++;
+            }
+
+            UpdatePureStatePlaybackDelay(deltaTime, isStarved);
+            if (!hasPlayback)
             {
                 return;
             }
@@ -493,6 +782,84 @@ namespace AbilityKit.Demo.Shooter.View
             _filteredPureStateTransforms.Clear();
             _pendingPureStateDiscrete = null;
             _publishedPureStateDiscrete = null;
+        }
+
+        private void ConfigurePureStatePlaybackDelay(in ShooterPureStateSyncSettings settings)
+        {
+            var deltaIntervalFrames = Math.Max(1, settings.DeltaIntervalFrames);
+            var baseDelayFrames = Math.Max(
+                Math.Max(1, settings.InterpolationDelayFrames),
+                SaturatingMultiplyFrames(deltaIntervalFrames, 2));
+            var maxDelayFrames = Math.Max(
+                baseDelayFrames,
+                SaturatingMultiplyFrames(deltaIntervalFrames, 3));
+            if (_pureStateDeltaIntervalFrames == deltaIntervalFrames
+                && _pureStateBaseDelayFrames == baseDelayFrames
+                && _pureStateMaxDelayFrames == maxDelayFrames)
+            {
+                return;
+            }
+
+            _pureStateDeltaIntervalFrames = deltaIntervalFrames;
+            _pureStateBaseDelayFrames = baseDelayFrames;
+            _pureStateMaxDelayFrames = maxDelayFrames;
+            _pureStateStablePlaybackSeconds = 0f;
+            _pureStatePlayback.TrySetTargetInterpolationDelayFrames(baseDelayFrames);
+        }
+
+        private void UpdatePureStatePlaybackDelay(float deltaTime, bool isStarved)
+        {
+            if (isStarved)
+            {
+                _pureStateStablePlaybackSeconds = 0f;
+                _pureStatePlayback.TrySetTargetInterpolationDelayFrames(_pureStateMaxDelayFrames);
+                return;
+            }
+
+            if (_pureStatePlayback.TargetInterpolationDelayFrames <= _pureStateBaseDelayFrames)
+            {
+                _pureStateStablePlaybackSeconds = 0f;
+                return;
+            }
+
+            _pureStateStablePlaybackSeconds += Math.Max(0f, deltaTime);
+            if (_pureStateStablePlaybackSeconds < PureStateStableRecoverySeconds)
+            {
+                return;
+            }
+
+            _pureStateStablePlaybackSeconds = 0f;
+            _pureStatePlayback.TrySetTargetInterpolationDelayFrames(_pureStateBaseDelayFrames);
+        }
+
+        private static int SaturatingMultiplyFrames(int frames, int multiplier)
+        {
+            return frames > int.MaxValue / multiplier
+                ? int.MaxValue
+                : frames * multiplier;
+        }
+
+        private void ResetPureStatePlaybackAdaptation()
+        {
+            _pureStateDeltaIntervalFrames = 1;
+            _pureStateBaseDelayFrames = 2;
+            _pureStateMaxDelayFrames = 3;
+            _pureStateStablePlaybackSeconds = 0f;
+            _pureStateRenderTickCount = 0L;
+            _pureStatePublishedSnapshotCount = 0L;
+            _pureStateStarvedRenderTickCount = 0L;
+            _pureStateHeldPlaybackRenderTickCount = 0L;
+            _pureStateReceivedSampleBlockCount = 0L;
+            _pureStateReceivedFrameSampleCount = 0L;
+            _pureStateRejectedFrameSampleCount = 0L;
+            _pureStateStaleFrameSampleCount = 0L;
+            _pureStateInvalidFrameSampleCount = 0L;
+            _pureStateReceivedTransformSampleCount = 0L;
+            _pureStateMaxTransformSampleCountPerBlock = 0;
+            _pureStateReceivedAuthoritativeTransformCount = 0L;
+            _lastPureStatePublishedFrame = -1;
+            _pureStatePlaybackWorldId = 0UL;
+            _pureStatePlayback.TrySetTargetInterpolationDelayFrames(_pureStateBaseDelayFrames);
         }
 
         private void ObserveGatewaySnapshotFrame(int frame)
@@ -599,6 +966,18 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
+            if (forceAuthorityReset)
+            {
+                lock (_pendingInputLock)
+                {
+                    _pendingInputs.Clear();
+                }
+
+                _authorityWorldId = 0;
+                _lastAuthorityFrame = -1;
+                ResetControlledCorrectionBudget();
+            }
+
             var worldChanged = forceAuthorityReset
                 || (snapshot.WorldId != 0
                     && _authorityWorldId != 0
@@ -618,7 +997,6 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
-            var firstAuthority = _lastAuthorityFrame < 0;
             _authorityWorldId = snapshot.WorldId != 0 ? snapshot.WorldId : _authorityWorldId;
             _lastAuthorityFrame = snapshot.Frame;
             var acknowledgedSequence = ResolveAcknowledgedSequence(in snapshot, playerId);
@@ -628,22 +1006,44 @@ namespace AbilityKit.Demo.Shooter.View
                 snapshot.Frame,
                 acknowledgedSequence);
 
-            var deltaX = target.X - current.X;
-            var deltaY = target.Y - current.Y;
-            var error = (float)Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
-            var forceSnap = firstAuthority
-                || worldChanged
-                || (snapshot.PackedSnapshot?.SnapshotFlags & ShooterPackedSnapshotFlags.AuthorityOverride) != 0;
-            if (!forceSnap && error <= SmallErrorTolerance)
+            // Full baselines and authority-override snapshots are normal recovery traffic in the
+            // same world. Snapping their replayed pose can place the player outside gameplay
+            // constraints and causes the following simulation tick to clamp it back visibly.
+            // Only a world transition invalidates the current prediction outright.
+            var forceSnap = worldChanged;
+            if (_controlledCorrectionRuntimeFrame != CurrentFrame)
             {
-                target.X = current.X;
-                target.Y = current.Y;
+                _controlledCorrectionRuntimeFrame = CurrentFrame;
+                _controlledCorrectionAppliedDistance = 0f;
             }
-            else if (!forceSnap)
+
+            var remainingCorrectionBudget = Math.Max(
+                0f,
+                MaxCorrectionPerClientFrame - _controlledCorrectionAppliedDistance);
+            var appliedCorrection = ResolveControlledPlayerPosition(
+                current.X,
+                current.Y,
+                target.X,
+                target.Y,
+                CurrentFrame,
+                snapshot.Frame,
+                replayCount,
+                _fixedDeltaTime,
+                remainingCorrectionBudget,
+                forceSnap,
+                out var resolvedX,
+                out var resolvedY);
+            target.X = resolvedX;
+            target.Y = resolvedY;
+            if (forceSnap)
             {
-                var scale = Math.Min(1f, MaxCorrectionPerSnapshot / error);
-                target.X = current.X + deltaX * scale;
-                target.Y = current.Y + deltaY * scale;
+                _controlledCorrectionAppliedDistance = MaxCorrectionPerClientFrame;
+            }
+            else
+            {
+                _controlledCorrectionAppliedDistance = Math.Min(
+                    MaxCorrectionPerClientFrame,
+                    _controlledCorrectionAppliedDistance + appliedCorrection);
             }
 
             if (PlayersEqual(in current, in target))
@@ -662,6 +1062,61 @@ namespace AbilityKit.Demo.Shooter.View
                 clientStateHash: 0u,
                 authoritativeStateHash: ResolveAuthoritativeStateHash(in snapshot),
                 replayTicks: replayCount);
+        }
+
+        internal static float ResolveControlledPlayerPosition(
+            float currentX,
+            float currentY,
+            float replayedAuthorityX,
+            float replayedAuthorityY,
+            int currentFrame,
+            int authorityFrame,
+            int replayedFrames,
+            float fixedDeltaTime,
+            float correctionBudget,
+            bool forceSnap,
+            out float resolvedX,
+            out float resolvedY)
+        {
+            var deltaX = replayedAuthorityX - currentX;
+            var deltaY = replayedAuthorityY - currentY;
+            var error = (float)Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
+            if (forceSnap)
+            {
+                resolvedX = replayedAuthorityX;
+                resolvedY = replayedAuthorityY;
+                return error;
+            }
+
+            // The authority pose belongs to an older simulation frame. Movement inside the
+            // maximum distance reachable during that frame age is valid local prediction, not
+            // positional drift. Pending inputs already replayed onto the pose reduce that age.
+            var frameDistance = Math.Abs((long)currentFrame - authorityFrame);
+            var predictionLeadFrames = (int)Math.Max(
+                0L,
+                Math.Min(MaxReplayFrames, frameDistance - Math.Max(0, replayedFrames)));
+            var reachablePredictionDistance = ShooterBattleTuning.PlayerSpeed
+                * Math.Max(0f, fixedDeltaTime)
+                * predictionLeadFrames;
+            var excessError = error - reachablePredictionDistance;
+            if (excessError <= SmallErrorTolerance || error <= 0f || correctionBudget <= 0f)
+            {
+                resolvedX = currentX;
+                resolvedY = currentY;
+                return 0f;
+            }
+
+            var correction = Math.Min(excessError, correctionBudget);
+            var scale = correction / error;
+            resolvedX = currentX + deltaX * scale;
+            resolvedY = currentY + deltaY * scale;
+            return correction;
+        }
+
+        private void ResetControlledCorrectionBudget()
+        {
+            _controlledCorrectionRuntimeFrame = -1;
+            _controlledCorrectionAppliedDistance = 0f;
         }
 
         private int ReplayPendingInputs(
@@ -1045,6 +1500,32 @@ namespace AbilityKit.Demo.Shooter.View
         public InterpolationDiagnostics GetInterpolationDiagnostics()
         {
             return _playback.GetDiagnostics();
+        }
+
+        public ShooterPureStatePlaybackDiagnostics GetPureStatePlaybackDiagnostics()
+        {
+            return new ShooterPureStatePlaybackDiagnostics(
+                _pureStateRenderTickCount,
+                _pureStatePublishedSnapshotCount,
+                _pureStateStarvedRenderTickCount,
+                _pureStateHeldPlaybackRenderTickCount,
+                _pureStatePlayback.BufferedSnapshotCount,
+                _pureStatePlayback.BufferedFrameSpan,
+                _pureStatePlayback.AvailablePlaybackLeadFrames,
+                _pureStatePlayback.PlaybackFrame,
+                _pureStatePlayback.InterpolationDelayFrames,
+                _pureStatePlayback.TargetInterpolationDelayFrames,
+                _pureStateBaseDelayFrames,
+                _pureStateMaxDelayFrames,
+                _pureStatePlayback.IsPlaybackStarved,
+                _pureStateReceivedSampleBlockCount,
+                _pureStateReceivedFrameSampleCount,
+                _pureStateRejectedFrameSampleCount,
+                _pureStateStaleFrameSampleCount,
+                _pureStateInvalidFrameSampleCount,
+                _pureStateReceivedTransformSampleCount,
+                _pureStateMaxTransformSampleCountPerBlock,
+                _pureStateReceivedAuthoritativeTransformCount);
         }
 
         private sealed class PureStateDiscreteBatchAccumulator

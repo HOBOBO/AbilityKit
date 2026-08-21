@@ -2,7 +2,8 @@
   "name": "AbilityKit.Network.Sdk",
   "rootNamespace": "AbilityKit.Network.Sdk",
   "references": [
-    "AbilityKit.Network.Runtime"
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Protocol"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

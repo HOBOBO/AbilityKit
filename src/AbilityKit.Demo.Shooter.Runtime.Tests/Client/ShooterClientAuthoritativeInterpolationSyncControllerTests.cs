@@ -204,15 +204,19 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         uint baselineHash = 0u,
         uint stateHash = 123u,
         int entityId = 2,
-        int? deltaKind = null)
+        int? deltaKind = null,
+        int deltaIntervalFrames = 10,
+        int interpolationDelayFrames = 20,
+        ShooterPureStateFrameSample[]? frameSamples = null,
+        ShooterPureStateTransformSample[]? transformSamples = null)
     {
         var settings = new ShooterPureStateSyncSettings(
             maxEntityCount: 20,
             activeSyncBudget: 20,
             baselineIntervalFrames: 450,
-            deltaIntervalFrames: 10,
+            deltaIntervalFrames,
             lowFrequencyIntervalFrames: 90,
-            interpolationDelayFrames: 20,
+            interpolationDelayFrames,
             nearLodIntervalFrames: 10,
             midLodIntervalFrames: 30,
             farLodIntervalFrames: 90);
@@ -247,7 +251,10 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
                             ShooterPureStateEntityFlags.Visible |
                             ShooterPureStateEntityFlags.LowFrequency))
             },
-            Array.Empty<ShooterPureStateVisibilityHint>());
+            Array.Empty<ShooterPureStateVisibilityHint>(),
+            acknowledgedCommands: null,
+            frameSamples,
+            transformSamples);
         return new ShooterGatewaySnapshot(
             9001ul,
             frame,
@@ -700,11 +707,277 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
             baselineHash: 0u,
             stateHash: 124u));
         Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, deltaResult);
+        var nextDeltaResult = controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 30,
+            x: 20f,
+            isFull: false,
+            baselineFrame: 0,
+            baselineHash: 0u,
+            stateHash: 125u));
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, nextDeltaResult);
 
         controller.Tick(5f / 30f);
 
         var interpolatedX = TransformX(presentation.RenderBatch, remoteKey);
         Assert.Equal(5f, interpolatedX, 2);
+    }
+
+    [Fact]
+    public void PureStateSampleBlockPlaysIntermediateFramesAcrossRenderTicks()
+    {
+        var presentation = new ShooterPresentationFacade();
+        var controller = StartedController(new ShooterBattleRuntimePort(), presentation);
+        var remoteKey = new ShooterViewEntityKey(ShooterViewEntityKind.Player, 2);
+        const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
+        var frames = new[]
+        {
+            new ShooterPureStateFrameSample(1, 100L, 0, 1),
+            new ShooterPureStateFrameSample(2, 200L, 1, 1)
+        };
+        var transforms = new[]
+        {
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 1000, 0, 1000, 0, flags),
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 1000, 0, flags)
+        };
+
+        var result = controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 3,
+            x: 3f,
+            isFull: true,
+            deltaIntervalFrames: 1,
+            interpolationDelayFrames: 1,
+            frameSamples: frames,
+            transformSamples: transforms));
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, result);
+
+        controller.Tick(0f);
+        Assert.Equal(1f, TransformX(presentation.RenderBatch, remoteKey), 2);
+        controller.Tick(1f / 30f);
+        Assert.Equal(2f, TransformX(presentation.RenderBatch, remoteKey), 2);
+
+        var diagnostics = controller.PureStatePlaybackDiagnostics;
+        Assert.Equal(1, diagnostics.ReceivedSampleBlockCount);
+        Assert.Equal(2, diagnostics.ReceivedFrameSampleCount);
+        Assert.Equal(2, diagnostics.MaxTransformSampleCountPerBlock);
+        Assert.Equal(2, diagnostics.ReceivedTransformSampleCount);
+        Assert.Equal(1, diagnostics.ReceivedAuthoritativeTransformCount);
+        Assert.Equal(1d, diagnostics.AverageTransformSamplesPerFrame);
+        Assert.Equal(2d, diagnostics.HistoricalTransformAmplificationRatio);
+        Assert.Equal(3, diagnostics.PublishedSnapshotCount);
+        Assert.Equal(2f, diagnostics.BufferedFrameSpan);
+    }
+
+    [Fact]
+    public void PureStateSampleBlockRejectsDuplicateHistoricalFramesWithoutRewinding()
+    {
+        var controller = StartedController(new ShooterBattleRuntimePort(), new ShooterPresentationFacade());
+        const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
+        var frames = new[] { new ShooterPureStateFrameSample(2, 200L, 0, 1) };
+        var transforms = new[]
+        {
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 1000, 0, flags)
+        };
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 3,
+            x: 3f,
+            isFull: true,
+            deltaIntervalFrames: 1,
+            interpolationDelayFrames: 1,
+            frameSamples: frames,
+            transformSamples: transforms));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 4,
+            x: 4f,
+            isFull: false,
+            stateHash: 124u,
+            deltaIntervalFrames: 1,
+            interpolationDelayFrames: 1,
+            frameSamples: frames,
+            transformSamples: transforms));
+
+        var diagnostics = controller.PureStatePlaybackDiagnostics;
+        Assert.Equal(2, diagnostics.ReceivedSampleBlockCount);
+        Assert.Equal(1, diagnostics.ReceivedFrameSampleCount);
+        Assert.Equal(1, diagnostics.RejectedFrameSampleCount);
+        Assert.Equal(1, diagnostics.StaleFrameSampleCount);
+        Assert.Equal(0, diagnostics.InvalidFrameSampleCount);
+        Assert.Equal(3, diagnostics.PublishedSnapshotCount);
+    }
+
+    [Fact]
+    public void PureStateSampleBlockClassifiesFutureHistoricalFrameAsInvalid()
+    {
+        var controller = StartedController(new ShooterBattleRuntimePort(), new ShooterPresentationFacade());
+        const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
+        var frames = new[] { new ShooterPureStateFrameSample(4, 400L, 0, 1) };
+        var transforms = new[]
+        {
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 4000, 0, 1000, 0, flags)
+        };
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 4,
+            x: 4f,
+            isFull: true,
+            deltaIntervalFrames: 1,
+            interpolationDelayFrames: 1,
+            frameSamples: frames,
+            transformSamples: transforms));
+
+        var diagnostics = controller.PureStatePlaybackDiagnostics;
+        Assert.Equal(1, diagnostics.RejectedFrameSampleCount);
+        Assert.Equal(0, diagnostics.StaleFrameSampleCount);
+        Assert.Equal(1, diagnostics.InvalidFrameSampleCount);
+    }
+
+    [Fact]
+    public void PureStatePlaybackUsesAtLeastTwoDeltaBlocksOfDelay()
+    {
+        var controller = StartedController(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade());
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 0,
+            x: 0f,
+            isFull: true,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+
+        var diagnostics = controller.PureStatePlaybackDiagnostics;
+        Assert.Equal(6, diagnostics.BaseDelayFrames);
+        Assert.Equal(9, diagnostics.MaxDelayFrames);
+        Assert.Equal(6f, diagnostics.CurrentDelayFrames);
+        Assert.Equal(6f, diagnostics.TargetDelayFrames);
+        Assert.Equal(1, diagnostics.PublishedSnapshotCount);
+    }
+
+    [Fact]
+    public void PureStatePlaybackRaisesTargetToThreeBlocksAfterStarvation()
+    {
+        var controller = StartedController(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade());
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 0,
+            x: 0f,
+            isFull: true,
+            stateHash: 100u,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 3,
+            x: 3f,
+            isFull: false,
+            stateHash: 101u,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 6,
+            x: 6f,
+            isFull: false,
+            stateHash: 102u,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        controller.Tick(0f);
+
+        controller.Tick(7f / 30f);
+
+        var diagnostics = controller.PureStatePlaybackDiagnostics;
+        Assert.True(diagnostics.IsStarved);
+        Assert.Equal(9f, diagnostics.TargetDelayFrames);
+        Assert.Equal(1, diagnostics.StarvedRenderTickCount);
+        Assert.Equal(2, diagnostics.RenderTickCount);
+    }
+
+    [Fact]
+    public void PureStatePlaybackRecoversDelayGraduallyWithoutMovingBackwards()
+    {
+        var controller = StartedController(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade());
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 0,
+            x: 0f,
+            isFull: true,
+            stateHash: 100u,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 3,
+            x: 3f,
+            isFull: false,
+            stateHash: 101u,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 6,
+            x: 6f,
+            isFull: false,
+            stateHash: 102u,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        controller.Tick(0f);
+        controller.Tick(7f / 30f);
+        Assert.Equal(9f, controller.PureStatePlaybackDiagnostics.TargetDelayFrames);
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 100,
+            x: 100f,
+            isFull: true,
+            stateHash: 103u,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        var previousPlaybackFrame = controller.PureStatePlaybackDiagnostics.PlaybackFrame;
+        for (var i = 0; i < 60; i++)
+        {
+            controller.Tick(1f / 30f);
+            var current = controller.PureStatePlaybackDiagnostics.PlaybackFrame;
+            Assert.True(current >= previousPlaybackFrame);
+            previousPlaybackFrame = current;
+        }
+
+        Assert.Equal(9f, controller.PureStatePlaybackDiagnostics.TargetDelayFrames);
+        controller.Tick(1f / 30f);
+        var recoveryStarted = controller.PureStatePlaybackDiagnostics;
+        Assert.Equal(6f, recoveryStarted.TargetDelayFrames);
+        Assert.Equal(9f, recoveryStarted.CurrentDelayFrames, 3);
+
+        for (var i = 0; i < 24; i++)
+        {
+            controller.Tick(1f / 30f);
+            var current = controller.PureStatePlaybackDiagnostics.PlaybackFrame;
+            Assert.True(current >= previousPlaybackFrame);
+            previousPlaybackFrame = current;
+        }
+
+        Assert.Equal(6f, controller.PureStatePlaybackDiagnostics.CurrentDelayFrames, 3);
+    }
+
+    [Fact]
+    public void PureStatePlaybackDiagnosticsResetWhenLeavingPureStateMode()
+    {
+        var controller = StartedController(
+            new ShooterBattleRuntimePort(),
+            new ShooterPresentationFacade());
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 0,
+            x: 0f,
+            isFull: true,
+            deltaIntervalFrames: 3,
+            interpolationDelayFrames: 3));
+        controller.Tick(0f);
+        Assert.True(controller.PureStatePlaybackDiagnostics.RenderTickCount > 0);
+
+        controller.BufferRemoteSnapshot(RemoteSnapshot(1, 1000L, actorX: 0f));
+
+        var diagnostics = controller.PureStatePlaybackDiagnostics;
+        Assert.Equal(0, diagnostics.RenderTickCount);
+        Assert.Equal(0, diagnostics.PublishedSnapshotCount);
+        Assert.Equal(2, diagnostics.BaseDelayFrames);
+        Assert.Equal(3, diagnostics.MaxDelayFrames);
+        Assert.Equal(0, diagnostics.BufferedSnapshotCount);
     }
 
     [Fact]

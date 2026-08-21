@@ -1,0 +1,19 @@
+{
+    "name": "AbilityKit.BehaviorTree.Editor",
+    "rootNamespace": "AbilityKit.BehaviorTree.Editor",
+    "references": [
+        "AbilityKit.BehaviorTree",
+        "AbilityKit.Deterministic"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

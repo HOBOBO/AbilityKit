@@ -26,6 +26,7 @@
   - `void Import(FrameIndex frame, byte[] payload)`：恢复该模块在指定帧的状态。
 
 - **`RollbackCoordinator`**
+  - Restore 会先执行可选 `IRollbackStatePreflightProvider.ValidateImport`；全部 preflight 通过后才调用 provider 的 `Import`，避免单个 provider 失败造成部分恢复。
   - 将 registry 中各 provider 的导出结果聚合为一个 `WorldRollbackSnapshot`。
   - 通过 `RollbackSnapshotRingBuffer` 管理历史快照。
   - 关键方法：

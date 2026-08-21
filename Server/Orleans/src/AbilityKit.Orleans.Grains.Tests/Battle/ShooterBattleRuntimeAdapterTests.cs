@@ -291,6 +291,7 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.True(full.IsFullSnapshot);
         Assert.Empty(full.Actors);
         Assert.Equal(ShooterPureStateSnapshotKinds.FullBaseline, fullPayload.SnapshotKind);
+        Assert.Equal(0, fullPayload.EffectiveFrameSampleCount);
         Assert.Equal(initParams.WorldId, fullPayload.WorldId);
         Assert.Equal(full.Frame, fullPayload.Frame);
         Assert.Equal(ShooterPureStateSyncSettings.Default.ActiveSyncBudget, fullPayload.Settings.ActiveSyncBudget);
@@ -320,6 +321,38 @@ public sealed class ShooterBattleRuntimeAdapterTests
         Assert.Equal(ShooterPureStateSnapshotKinds.Delta, deltaPayload.SnapshotKind);
         Assert.Equal(fullPayload.Frame, deltaPayload.BaselineFrame);
         Assert.Equal(fullPayload.StateHash, deltaPayload.BaselineHash);
+        Assert.Equal(0, deltaPayload.EffectiveFrameSampleCount);
+    }
+
+    [Fact]
+    public void CreateStateSyncPush_WhenSampleBlockEnabled_CarriesIntermediateTickTransforms()
+    {
+        using var worldManager = new ServerBattleWorldManager(NullLogger.Instance);
+        var adapter = new ShooterBattleRuntimeAdapter(
+            worldManager,
+            ShooterStateSyncPushOptions.PureState(
+                NetworkConditionProfile.Lan,
+                useObserverAoi: false,
+                playbackPayloadMode: ShooterPureStatePlaybackPayloadMode.MultiSampleBlock,
+                sampleBlockFrameCount: 3));
+        using var session = adapter.CreateSession("shooter-pure-state-sample-block-test");
+        var initParams = CreateInitParams();
+        var start = session.Start(initParams);
+        Assert.True(start.Succeeded, start.Error);
+        Assert.True(session.Tick(frame: 1, tickRate: 30, deltaTime: 1f / 30f));
+        Assert.True(session.Tick(frame: 2, tickRate: 30, deltaTime: 1f / 30f));
+        Assert.True(session.Tick(frame: 3, tickRate: 30, deltaTime: 1f / 30f));
+
+        var push = session.CreateStateSyncPush(initParams.WorldId, frame: 3, isFullSnapshot: true);
+        var payload = ShooterPureStateSyncCodec.Deserialize(push.Payload!);
+
+        Assert.Equal(3, payload.Frame);
+        Assert.Equal(2, payload.EffectiveFrameSampleCount);
+        Assert.Equal(1, payload.FrameSamples[0].Frame);
+        Assert.Equal(2, payload.FrameSamples[1].Frame);
+        Assert.True(payload.EffectiveTransformSampleCount >= 2);
+        Assert.All(payload.FrameSamples.Take(payload.EffectiveFrameSampleCount), sample =>
+            Assert.True(sample.TransformCount > 0));
     }
 
     [Theory]

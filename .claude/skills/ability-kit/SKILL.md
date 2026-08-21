@@ -28,7 +28,7 @@ description: AbilityKit MOBA 技能框架速查与实现约束。涵盖两套触
 
 ### 3. Pipeline 已独立成单独的包
 
-`com.abilitykit.pipeline/` 是独立 UPM 包（不再在 `Runtime/Ability/Share/Pipeline/` 下）。Pipeline 的接口全部泛型化 `<TCtx>`；调试基础设施改名：旧 `AbilityPipelineLiveRegistry` → `EditorPipelineRegistry`；旧 `PipelineGraphAsset`（ScriptableObject）不存在了，现在是 `PipelineGraph` 静态工厂类。详见 [pipeline/README.md](pipeline/README.md)。
+`com.abilitykit.pipeline/` 是独立 UPM 包（不再在 `Runtime/Ability/Share/Pipeline/` 下）。Pipeline 的接口全部泛型化 `<TCtx>`；Editor 通过 `PipelineDebugHooks` 旁路观察运行时，`EditorPipelineRegistry` 保存活跃实例与历史，`PipelineRuntimeDebuggerWindow` 提供状态、阶段树、Trace、Context 和运行控制。旧 `PipelineGraphAsset`（ScriptableObject）不存在，现在是 `PipelineGraph` 静态组合工厂。详见 [pipeline/README.md](pipeline/README.md)。
 
 ### 4. Host 装配拆分到 4 个包
 
@@ -50,7 +50,7 @@ description: AbilityKit MOBA 技能框架速查与实现约束。涵盖两套触
 | `MobaBuffApplySystem/MobaBuffTickSystem/MobaBuffRemoveSystem` | **已删除**，入口改为 `MobaBuffService.ApplyBuffImmediate/RemoveBuffImmediate` + `BuffLifecycleExecutor` + `BuffEventPublisher` |
 | `TriggerDef.AllowExternal` | `AllowExternal` 已下移到配置/DTO 层（`TriggerSourceConfig`、`TriggerPlanJsonDatabase`、`ExecutableDto`） |
 | `PipelineGraphAsset/PipelineGraphDto` | **不存在**，现为 `PipelineGraph` 静态类 |
-| `AbilityPipelineRunDebuggerWindow`（EditorWindow） | **不存在**；调试通过 `EditorPipelineRegistry` + `EditorPipelineTraceRecorder` API |
+| `AbilityPipelineRunDebuggerWindow`（旧 EditorWindow） | 已替换为 `PipelineRuntimeDebuggerWindow`，菜单为 `Window/AbilityKit/Pipeline Runtime Debugger` |
 | `EffectSourceRegistry/EffectSourceSnapshot/...` | **全部删除** |
 | `EntitasContextsFactory` | 实际接口名是 `IEntitasContextsFactory`（实现：`MobaEntitasContextsFactory`） |
 | `LogicWorldServer` | 仅示例类 `LogicWorldServerExample` |

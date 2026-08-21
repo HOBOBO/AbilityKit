@@ -61,7 +61,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private static ClientRoomPushSynchronizer? _pushSynchronizer;
         private static BattleGatewayConfigSO? _gatewayConfig;
         private static GameFlowDomain? _flow;
-        private static IMultiplayerGatewayRuntime? _gatewayRuntime;
+        private static IMultiplayerGatewayDiagnostics? _gatewayDiagnostics;
         private static Task? _operation;
         private static Task? _starterOperation;
         private static StarterController? _starterController;
@@ -211,8 +211,8 @@ namespace AbilityKit.Game.Test.UnitTest
             _pushSynchronizer ??= entry.Get<ClientRoomPushSynchronizer>();
             _gatewayConfig ??= entry.Get<BattleGatewayConfigSO>();
             _flow ??= entry.Get<GameFlowDomain>();
-            _gatewayRuntime ??= entry.Get<IMultiplayerGatewayRuntime>();
-            var gateway = _gatewayRuntime;
+            _gatewayDiagnostics ??= entry.Get<IMultiplayerGatewayDiagnostics>();
+            var gateway = _gatewayDiagnostics;
 
             if (_movementStartedUtc != default && entry.TryGet(out BattleContext trajectoryContext))
             {
@@ -1080,7 +1080,7 @@ namespace AbilityKit.Game.Test.UnitTest
                 CaptureSyncCapabilities(snapshot.SyncCapabilities, state, storeSnapshot: false);
             }
             state.soloLobbyVerified = _soloLobbyVerified;
-            state.gatewayConnectionState = _gatewayRuntime?.ConnectionState.ToString() ?? "Unavailable";
+            state.gatewayConnectionState = _gatewayDiagnostics?.ConnectionState.ToString() ?? "Unavailable";
             state.roomOperationActive = _operation != null;
             state.roomOperationStatus = _operation == null
                 ? "None"
@@ -1282,7 +1282,7 @@ namespace AbilityKit.Game.Test.UnitTest
             var snapshot = _controller?.CurrentSnapshot;
             var context = BattleFlowDebugProvider.Current;
             return $"role={_options?.Role.ToString() ?? "n/a"},stage={_stage},detail={_stageDetail}," +
-                   $"gateway={_gatewayRuntime?.ConnectionState.ToString() ?? "n/a"},operation={_operation?.Status.ToString() ?? "none"}," +
+                   $"gateway={_gatewayDiagnostics?.ConnectionState.ToString() ?? "n/a"},operation={_operation?.Status.ToString() ?? "none"}," +
                    $"roomState={_controller?.CurrentState.ToString() ?? "n/a"},roomId={snapshot?.RoomId ?? "n/a"}," +
                    $"roomRevision={snapshot?.RoomRevision ?? 0L},eventSequence={_roomStore?.Current?.LastEventSequence ?? 0L}," +
                    $"storeStale={_roomStore?.IsStale == true},pushes={_pushSynchronizer?.HandledPushCount ?? 0L}," +
@@ -1358,7 +1358,7 @@ namespace AbilityKit.Game.Test.UnitTest
             _pushSynchronizer = null;
             _gatewayConfig = null;
             _flow = null;
-            _gatewayRuntime = null;
+            _gatewayDiagnostics = null;
             _operation = null;
             _starterOperation = null;
             _starterController = null;

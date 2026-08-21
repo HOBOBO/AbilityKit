@@ -10,7 +10,14 @@ namespace AbilityKit.Pipeline
         where TCtx : IAbilityPipelineContext
     {
         private readonly List<AbilityConditionalBranch<TCtx>> _branches = new List<AbilityConditionalBranch<TCtx>>(4);
+        private readonly List<EPipelineDebugConditionResult> _branchResults = new List<EPipelineDebugConditionResult>(4);
         private AbilityConditionalBranch<TCtx>? _currentBranch;
+        private int _currentBranchIndex = -1;
+
+        public IReadOnlyList<AbilityConditionalBranch<TCtx>> Branches => _branches;
+
+        internal int DebugCurrentBranchIndex => _currentBranchIndex;
+        internal IReadOnlyList<EPipelineDebugConditionResult> DebugBranchResults => _branchResults;
         
         /// <summary>
         /// 阶段持续时间；条件阶段通常由子阶段完成时机决定，因此默认返回 -1。
@@ -41,7 +48,10 @@ namespace AbilityKit.Pipeline
         /// </summary>
         public void AddBranch(IAbilityConditionNode condition, IAbilityPipelinePhase<TCtx> phase)
         {
-            _branches.Add(new AbilityConditionalBranch<TCtx>(condition, phase));
+            var branch = new AbilityConditionalBranch<TCtx>(condition, phase);
+            _branches.Add(branch);
+            _subPhases.Add(phase);
+            _branchResults.Add(EPipelineDebugConditionResult.Unknown);
         }
 
         /// <inheritdoc />
@@ -49,6 +59,8 @@ namespace AbilityKit.Pipeline
         {
             IsComplete = false;
             _currentBranch = null;
+            _currentBranchIndex = -1;
+            ResetBranchResults();
             
             if (!EvaluateAndSelectBranch(context))
             {
@@ -74,7 +86,7 @@ namespace AbilityKit.Pipeline
 
             if (_currentBranch.Condition.CheckStrategy == EConditionCheckStrategy.Continuous)
             {
-                if (!_currentBranch.Condition.Evaluate(context))
+                if (!EvaluateBranch(_currentBranchIndex, context))
                 {
                     if (!TrySwitchToNewBranch(context))
                     {
@@ -96,9 +108,9 @@ namespace AbilityKit.Pipeline
             for (int i = 0; i < _branches.Count; i++)
             {
                 var branch = _branches[i];
-                if (branch.Condition.Evaluate(context))
+                if (EvaluateBranch(i, context))
                 {
-                    ExecuteBranch(branch, context);
+                    ExecuteBranch(i, branch, context);
                     return true;
                 }
             }
@@ -110,19 +122,29 @@ namespace AbilityKit.Pipeline
             for (int i = 0; i < _branches.Count; i++)
             {
                 var branch = _branches[i];
-                if (branch != _currentBranch && branch.Condition.Evaluate(context))
+                if (branch != _currentBranch && EvaluateBranch(i, context))
                 {
                     InterruptCurrentBranch(context);
-                    ExecuteBranch(branch, context);
+                    ExecuteBranch(i, branch, context);
                     return true;
                 }
             }
             return false;
         }
 
-        private void ExecuteBranch(AbilityConditionalBranch<TCtx> branch, TCtx context)
+        private bool EvaluateBranch(int index, TCtx context)
+        {
+            bool matched = _branches[index].Condition.Evaluate(context);
+            _branchResults[index] = matched
+                ? EPipelineDebugConditionResult.Matched
+                : EPipelineDebugConditionResult.Rejected;
+            return matched;
+        }
+
+        private void ExecuteBranch(int index, AbilityConditionalBranch<TCtx> branch, TCtx context)
         {
             _currentBranch = branch;
+            _currentBranchIndex = index;
             branch.Phase.Execute(context);
         }
 
@@ -178,9 +200,15 @@ namespace AbilityKit.Pipeline
         {
             base.Reset();
             _currentBranch = null;
-            for (int i = 0; i < _branches.Count; i++)
+            _currentBranchIndex = -1;
+            ResetBranchResults();
+        }
+
+        private void ResetBranchResults()
+        {
+            for (int i = 0; i < _branchResults.Count; i++)
             {
-                _branches[i].Phase.Reset();
+                _branchResults[i] = EPipelineDebugConditionResult.Unknown;
             }
         }
     }

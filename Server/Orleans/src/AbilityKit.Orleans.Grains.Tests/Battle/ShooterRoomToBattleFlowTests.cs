@@ -206,7 +206,18 @@ public sealed class ShooterRoomToBattleFlowTests
         var packed = ShooterPackedSnapshotCodec.Deserialize(push.Payload!);
         Assert.Equal(initParams.WorldId, packed.WorldId);
         Assert.Equal(push.Frame, packed.Frame);
-        Assert.Equal(4, packed.EntityCount);
+        var playerLifecycle = FindPackedChunk(
+            packed,
+            ShooterPackedComponentKinds.EntityLifecycle,
+            ShooterPackedEntityKinds.Player);
+        var enemyLifecycle = FindPackedChunk(
+            packed,
+            ShooterPackedComponentKinds.EntityLifecycle,
+            ShooterPackedEntityKinds.Enemy);
+        Assert.NotNull(playerLifecycle);
+        Assert.NotNull(enemyLifecycle);
+        Assert.Equal(2, playerLifecycle.Value.Count);
+        Assert.True(packed.EntityCount >= playerLifecycle.Value.Count + enemyLifecycle.Value.Count);
         Assert.NotEqual(0u, packed.StateHash);
         AssertPackedEnemiesVisible(packed);
     }

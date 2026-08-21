@@ -7,6 +7,7 @@
     "AbilityKit.Demo.Shooter.Jobs",
     "AbilityKit.Demo.Shooter.Runtime",
     "AbilityKit.Demo.Shooter.Share",
+    "AbilityKit.Protocol",
     "AbilityKit.Protocol.Room",
     "AbilityKit.Protocol.Shooter",
     "AbilityKit.Network.Runtime",

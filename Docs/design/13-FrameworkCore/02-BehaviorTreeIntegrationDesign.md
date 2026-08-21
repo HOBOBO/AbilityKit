@@ -2,8 +2,10 @@
 
 > 文档类型：FrameworkCore canonical
 > 事实基线：2026-08-16
-> 文档版本：v3.2
+> 文档版本：v3.3（已归档）
 >
+**归档说明（2026-08-20）**：BTCore（`com.abilitykit.thirdparty.behaviortreeeditor`）已随自研行为树包 [`07-BehaviorTreePackageDesign.md`](07-BehaviorTreePackageDesign.md) 的 P4 退役整体删除；MOBA Brain 已切换到 `com.abilitykit.behaviortree` 运行时。本文保留为 BTCore 时代的集成决策记录，"当前实现"描述不再对应仓库现状，现行架构以 07 文档为准。文中关于 BehaviorManager 生命周期、Tick 重入边界、暂停语义的风险描述仍适用于 `com.abilitykit.behavior` 本身，尚未全部关闭。
+
 本文说明 AbilityKit 当前行为运行时、BTCore 树执行器与 MOBA 领域接入之间的关系。文中的“当前实现”以仓库中的代码和测试为准；未接入业务链路的适配器、尚未关闭的生命周期风险和后续优化分别说明，不作为已经交付的统一方案。
 
 ## 一、系统定位

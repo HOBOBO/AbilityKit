@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
 using System.Threading;
 using AbilityKit.Ability.Host.Extensions.Server.BattleHost;
 using AbilityKit.Orleans.Contracts.Battle;
@@ -33,6 +35,10 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private readonly BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush> _snapshotPublisher;
     private readonly Dictionary<IStateSyncObserverGrain, SnapshotDeliveryInFlight> _snapshotDeliveries = new();
     private readonly Dictionary<uint, ulong> _consumedCommandSequences = new();
+    private readonly BattleServerPerformanceDiagnostics _performanceDiagnostics = new();
+    // Cache the method-group once. Installing the stage sink is a lifecycle operation;
+    // recreating it from every tick would add avoidable delegate churn to the hot path.
+    private readonly Action<string, double> _shooterStageTimingSink;
     private ShooterCommandAcknowledgement[] _cachedCommandAcknowledgements = Array.Empty<ShooterCommandAcknowledgement>();
     private long _consumedCommandSequenceVersion;
     private long _cachedCommandAcknowledgementVersion = -1;
@@ -45,10 +51,13 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     private string _battleId = string.Empty;
     private bool _initialized;
     private TimeSpan _tickInterval;
+    private long _tickIntervalTimestampTicks;
+    private long _tickDeadlineTimestamp;
     private WorldStartAnchor? _worldStartAnchor;
     private int _inputDelayFrames;
     private ServerBattleSyncProfile? _syncProfile;
     private string _syncTemplateId = string.Empty;
+    private string _networkEnvironmentId = string.Empty;
     private string? _initSpecHash;
     private bool _externalTickMode;
 
@@ -64,6 +73,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _runtimeRegistry = new BattleRuntimeRegistry(
             _gameplayModules.CreateBattleRuntimeAdapters(worldManager),
             _gameplayModules.GameplayCatalog);
+        _shooterStageTimingSink = _performanceDiagnostics.RecordShooterStageMilliseconds;
         _tickDriver = new BattleTickDriver<BattleInputItem>(SubmitRuntimeInputs, TickBattleWorld);
         _snapshotPublisher = new BattleSnapshotPublisher<IStateSyncObserverGrain, StateSyncPush>(
             BuildStateSyncPush,
@@ -147,6 +157,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
         var syncOptions = initParams.SyncOptions;
         _syncTemplateId = syncTemplate.TemplateId;
+        _networkEnvironmentId = syncOptions?.NetworkEnvironmentId ?? string.Empty;
         _snapshotSyncPolicy = new BattleSnapshotSyncPolicy(
             syncTemplate.SnapshotIntervalFrames,
             syncTemplate.FullSnapshotIntervalFrames);
@@ -192,6 +203,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             StopBattleRuntime();
             return BattleInitResult.FromError(startResult.Error ?? "BattleInitializationFailed");
         }
+
+        ConfigureRuntimeDiagnostics();
 
         _initSpecHash = initSpecHash;
         _initialized = true;
@@ -587,6 +600,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return Task.FromResult(new BattleTickFrameResult(frame, false, 0));
         }
 
+        var tickStartedAt = Stopwatch.GetTimestamp();
+        _performanceDiagnostics.BeginTick(frame, tickStartedAt);
         try
         {
             // 1. 将帧同步输入转换为 BattleInputItem 并提交给运行时
@@ -605,7 +620,12 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
                 }
             }
 
+            var inputStartedAt = Stopwatch.GetTimestamp();
             var submittedInputCount = _runtimeSession.SubmitInputs(frame, battleInputs);
+            _performanceDiagnostics.RecordStage(
+                BattleServerStage.InputSubmit,
+                inputStartedAt,
+                Stopwatch.GetTimestamp());
             if (battleInputs.Length > 0 && submittedInputCount != battleInputs.Length)
             {
                 var diagnostic = (_runtimeSession as IBattleRuntimeInputDiagnostics)?.LastInputSubmitDiagnostic;
@@ -619,7 +639,12 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             }
 
             // 2. Tick 世界
+            var worldTickStartedAt = Stopwatch.GetTimestamp();
             var worldTicked = _runtimeSession.Tick(frame, _tickRate, deltaTime);
+            _performanceDiagnostics.RecordStage(
+                BattleServerStage.WorldTick,
+                worldTickStartedAt,
+                Stopwatch.GetTimestamp());
 
             // 3. 推进帧计数器
             _battleHostState.AdvanceFrame();
@@ -640,9 +665,12 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             // 6. 刷新快照投递（fire-and-forget）
             _ = FlushSnapshotDeliveriesAsync();
 
-            // 7. 获取状态 hash（从诊断接口读取，若无则从 BattleHostState 计算近似值）
-            var diagnostics = _runtimeSession.GetWorldDiagnostics(_worldId, frame);
-            var stateHash = diagnostics?.StateHash ?? (uint)_battleHostState.Frame;
+            // 7. 获取状态 hash。不要在每个 tick 构造完整 WorldDiagnostics；
+            // Shooter 的完整实体诊断包含字典、组件列表和格式化字符串，应该只
+            // 在显式诊断请求时执行，而不是成为同步时钟的一部分。
+            var stateHash = _runtimeSession is IBattleRuntimeStateHashProvider hashProvider
+                ? hashProvider.ComputeStateHash()
+                : _runtimeSession.GetWorldDiagnostics(_worldId, frame)?.StateHash ?? (uint)_battleHostState.Frame;
 
             return Task.FromResult(new BattleTickFrameResult(frame, worldTicked, stateHash));
         }
@@ -650,6 +678,10 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         {
             _logger.LogError(ex, "[BattleLogicHost] Error in TickFrameAsync. Frame: {Frame}", frame);
             return Task.FromResult(new BattleTickFrameResult(frame, false, 0));
+        }
+        finally
+        {
+            CompletePerformanceTick(Stopwatch.GetTimestamp());
         }
     }
 
@@ -661,6 +693,9 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return;
         }
 
+        var frame = _battleHostState.Frame;
+        var tickStartedAt = Stopwatch.GetTimestamp();
+        _performanceDiagnostics.BeginTick(frame, tickStartedAt);
         try
         {
             var tickResult = _tickDriver.Tick(_battleHostState, _inputBuffer);
@@ -692,6 +727,10 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         {
             _logger.LogError(ex, "[BattleLogicHost] Error in OnTickAsync");
         }
+        finally
+        {
+            CompletePerformanceTick(Stopwatch.GetTimestamp());
+        }
 
         await Task.CompletedTask;
     }
@@ -703,29 +742,48 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return;
         }
 
-        var sourceEvents = producer.CaptureReliableEvents(frame);
-        if (sourceEvents.Count == 0)
+        var startedAt = Stopwatch.GetTimestamp();
+        try
         {
-            return;
-        }
+            var sourceEvents = producer.CaptureReliableEvents(frame);
+            if (sourceEvents.Count == 0)
+            {
+                return;
+            }
 
-        var appended = new List<ReliableBattleEventEnvelope>(sourceEvents.Count);
-        foreach (var source in sourceEvents)
-        {
-            appended.Add(_reliableEvents.Append(source.SourceFrame, source.EventType, source.Payload));
-        }
+            var appended = new List<ReliableBattleEventEnvelope>(sourceEvents.Count);
+            foreach (var source in sourceEvents)
+            {
+                appended.Add(_reliableEvents.Append(source.SourceFrame, source.EventType, source.Payload));
+            }
 
-        var batch = new ReliableBattleEventBatch
+            var batch = new ReliableBattleEventBatch
+            {
+                BattleId = _reliableEvents.BattleId,
+                Epoch = _reliableEvents.Epoch,
+                FirstAvailableSequence = _reliableEvents.FirstAvailableSequence,
+                Watermark = _reliableEvents.Watermark,
+                Events = appended
+            };
+            foreach (var observer in _observerRegistry.Snapshot())
+            {
+                _ = ObserveReliableEventDeliveryAsync(observer, batch);
+            }
+        }
+        finally
         {
-            BattleId = _reliableEvents.BattleId,
-            Epoch = _reliableEvents.Epoch,
-            FirstAvailableSequence = _reliableEvents.FirstAvailableSequence,
-            Watermark = _reliableEvents.Watermark,
-            Events = appended
-        };
-        foreach (var observer in _observerRegistry.Snapshot())
+            _performanceDiagnostics.RecordStage(
+                BattleServerStage.ReliableEvents,
+                startedAt,
+                Stopwatch.GetTimestamp());
+        }
+    }
+
+    private void ConfigureRuntimeDiagnostics()
+    {
+        if (_runtimeSession is IBattleRuntimeStageDiagnostics stageDiagnostics)
         {
-            _ = ObserveReliableEventDeliveryAsync(observer, batch);
+            stageDiagnostics.SetStageTimingSink(_shooterStageTimingSink);
         }
     }
 
@@ -736,34 +794,56 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
             return 0;
         }
 
-        var submitted = _runtimeSession.SubmitInputs(frame, inputs);
-        if (submitted < inputs.Count)
+        var startedAt = Stopwatch.GetTimestamp();
+        try
         {
+            var submitted = _runtimeSession.SubmitInputs(frame, inputs);
+            if (submitted < inputs.Count)
+            {
+                return submitted;
+            }
+
+            for (var i = 0; i < inputs.Count; i++)
+            {
+                var input = inputs[i];
+                if (input.PlayerId == 0 || input.CommandSequence == 0)
+                {
+                    continue;
+                }
+
+                if (!_consumedCommandSequences.TryGetValue(input.PlayerId, out var current)
+                    || input.CommandSequence > current)
+                {
+                    _consumedCommandSequences[input.PlayerId] = input.CommandSequence;
+                    _consumedCommandSequenceVersion++;
+                }
+            }
+
             return submitted;
         }
-
-        for (var i = 0; i < inputs.Count; i++)
+        finally
         {
-            var input = inputs[i];
-            if (input.PlayerId == 0 || input.CommandSequence == 0)
-            {
-                continue;
-            }
-
-            if (!_consumedCommandSequences.TryGetValue(input.PlayerId, out var current)
-                || input.CommandSequence > current)
-            {
-                _consumedCommandSequences[input.PlayerId] = input.CommandSequence;
-                _consumedCommandSequenceVersion++;
-            }
+            _performanceDiagnostics.RecordStage(
+                BattleServerStage.InputSubmit,
+                startedAt,
+                Stopwatch.GetTimestamp());
         }
-
-        return submitted;
     }
 
     private bool TickBattleWorld(int frame, int tickRate, float deltaTime)
     {
-        return _runtimeSession?.Tick(frame, tickRate, deltaTime) == true;
+        var startedAt = Stopwatch.GetTimestamp();
+        try
+        {
+            return _runtimeSession?.Tick(frame, tickRate, deltaTime) == true;
+        }
+        finally
+        {
+            _performanceDiagnostics.RecordStage(
+                BattleServerStage.WorldTick,
+                startedAt,
+                Stopwatch.GetTimestamp());
+        }
     }
 
     private void PublishInitialSnapshot()
@@ -776,7 +856,49 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private void StartBattleTimer()
     {
-        _timer = RegisterTimer(_ => OnTickAsync(), state: null, dueTime: _tickInterval, period: _tickInterval);
+        _tickIntervalTimestampTicks = Math.Max(
+            1L,
+            (long)Math.Round(_tickInterval.TotalSeconds * Stopwatch.Frequency));
+        _tickDeadlineTimestamp = Stopwatch.GetTimestamp() + _tickIntervalTimestampTicks;
+        RegisterBattleTimer(_tickInterval);
+    }
+
+    private async Task OnBattleTimerAsync()
+    {
+        var completedTimer = _timer;
+        _timer = null;
+        completedTimer?.Dispose();
+
+        if (!_initialized || _externalTickMode)
+        {
+            return;
+        }
+
+        await OnTickAsync();
+        if (!_initialized || _externalTickMode)
+        {
+            return;
+        }
+
+        var completedAt = Stopwatch.GetTimestamp();
+        var schedule = BattleTickDeadlineScheduler.ScheduleAfterTick(
+            _tickDeadlineTimestamp,
+            completedAt,
+            _tickIntervalTimestampTicks);
+        _tickDeadlineTimestamp = schedule.NextDeadlineTimestamp;
+
+        var dueTime = TimeSpan.FromSeconds(
+            schedule.DelayTimestampTicks / (double)Stopwatch.Frequency);
+        RegisterBattleTimer(dueTime);
+    }
+
+    private void RegisterBattleTimer(TimeSpan dueTime)
+    {
+        _timer = RegisterTimer(
+            _ => OnBattleTimerAsync(),
+            state: null,
+            dueTime,
+            Timeout.InfiniteTimeSpan);
     }
 
     private void PushSnapshot(bool isFullSnapshot)
@@ -795,24 +917,35 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private void PushSnapshot(int frame, bool isFullSnapshot)
     {
-        var syncTemplate = _syncProfile?.ResolveTemplate(_syncTemplateId);
-        if (syncTemplate?.SupportsStateSyncPush == false)
+        var startedAt = Stopwatch.GetTimestamp();
+        try
         {
-            _logger.LogTrace(
-                "[BattleLogicHost] Skipping state-sync publish for frame-sync template. BattleId: {BattleId}, SyncTemplate: {SyncTemplate}",
-                _battleId,
-                _syncTemplateId);
-            return;
-        }
+            var syncTemplate = _syncProfile?.ResolveTemplate(_syncTemplateId);
+            if (syncTemplate?.SupportsStateSyncPush == false)
+            {
+                _logger.LogTrace(
+                    "[BattleLogicHost] Skipping state-sync publish for frame-sync template. BattleId: {BattleId}, SyncTemplate: {SyncTemplate}",
+                    _battleId,
+                    _syncTemplateId);
+                return;
+            }
 
-        var observers = _observerRegistry.Snapshot();
-        if (_runtimeSession is IObserverAwareBattleRuntimeSession)
+            var observers = _observerRegistry.Snapshot();
+            if (_runtimeSession is IObserverAwareBattleRuntimeSession)
+            {
+                _snapshotPublisher.PublishPerObserver(observers, frame, isFullSnapshot, BuildStateSyncPush);
+                return;
+            }
+
+            _snapshotPublisher.Publish(observers, frame, isFullSnapshot);
+        }
+        finally
         {
-            _snapshotPublisher.PublishPerObserver(observers, frame, isFullSnapshot, BuildStateSyncPush);
-            return;
+            _performanceDiagnostics.RecordStage(
+                BattleServerStage.SnapshotBuild,
+                startedAt,
+                Stopwatch.GetTimestamp());
         }
-
-        _snapshotPublisher.Publish(observers, frame, isFullSnapshot);
     }
 
     private StateSyncPush BuildStateSyncPush(IStateSyncObserverGrain observer, int frame, bool isFullSnapshot)
@@ -867,6 +1000,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         push.ServerTicks = serverTicks;
         push.EventWatermark = _reliableEvents?.Watermark ?? 0;
         push.EventEpoch = _reliableEvents?.Epoch ?? string.Empty;
+        push.NetworkEnvironmentId = _networkEnvironmentId;
         if (push.Timestamp <= 0d)
         {
             push.Timestamp = serverTicks;
@@ -939,6 +1073,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     {
         if (_snapshotDeliveries.TryGetValue(observer, out var inFlight))
         {
+            _performanceDiagnostics.RecordSnapshotQueuedBehindInFlight();
             inFlight.Pending = CoalescePendingSnapshot(inFlight.Pending, push);
             return;
         }
@@ -962,6 +1097,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
 
     private async Task ObserveSnapshotDeliveryAsync(IStateSyncObserverGrain observer, StateSyncPush push)
     {
+        var startedAt = Stopwatch.GetTimestamp();
         try
         {
             var result = await observer.OnSnapshotPushedAsync(push);
@@ -970,6 +1106,13 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         catch (Exception exception)
         {
             HandleSnapshotPublishError(observer, exception);
+        }
+        finally
+        {
+            _performanceDiagnostics.RecordStage(
+                BattleServerStage.SnapshotDelivery,
+                startedAt,
+                Stopwatch.GetTimestamp());
         }
     }
 
@@ -998,6 +1141,52 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         }
 
         return Task.CompletedTask;
+    }
+
+    private void CompletePerformanceTick(long completedAt)
+    {
+        if (!_performanceDiagnostics.CompleteTick(completedAt, _tickRate, out var snapshot))
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "[BattleLogicHost] ServerPerformance BattleId={BattleId} SyncTemplate={SyncTemplate} Frames={FirstFrame}-{LastFrame} Ticks={TickCount} TargetHz={TargetTickRate} AchievedHz={AchievedTickRate:F2} Observers={ObserverCount} TickInterval={TickInterval} TickTotal={TickTotal} InputSubmit={InputSubmit} WorldTick={WorldTick} ReliableEvents={ReliableEvents} SnapshotBuildSerialize={SnapshotBuild} SnapshotDelivery={SnapshotDelivery} SnapshotQueuedBehindInFlight={SnapshotQueuedBehindInFlight}",
+            _battleId,
+            _syncTemplateId,
+            snapshot.FirstFrame,
+            snapshot.LastFrame,
+            snapshot.TickCount,
+            snapshot.TargetTickRate,
+            snapshot.AchievedTickRate,
+            _observerRegistry.Count,
+            FormatTiming(snapshot.TickInterval),
+            FormatTiming(snapshot.TickTotal),
+            FormatTiming(snapshot.InputSubmit),
+            FormatTiming(snapshot.WorldTick),
+            FormatTiming(snapshot.ReliableEvents),
+            FormatTiming(snapshot.SnapshotBuild),
+            FormatTiming(snapshot.SnapshotDelivery),
+            snapshot.SnapshotQueuedBehindInFlightCount);
+
+        if (snapshot.ShooterStages is { Count: > 0 })
+        {
+            foreach (var stage in snapshot.ShooterStages)
+            {
+                _logger.LogInformation(
+                    "[BattleLogicHost] ServerPerformance ShooterStage BattleId={BattleId} Stage={Stage} Timing={Timing}",
+                    _battleId,
+                    stage.Key,
+                    FormatTiming(stage.Value));
+            }
+        }
+    }
+
+    private static string FormatTiming(BattleStageTimingSummary timing)
+    {
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"n={timing.Count},mean={timing.MeanMilliseconds:0.###}ms,p50<={timing.P50Milliseconds:0.###}ms,p95<={timing.P95Milliseconds:0.###}ms,p99<={timing.P99Milliseconds:0.###}ms,max={timing.MaxMilliseconds:0.###}ms");
     }
 
     internal static bool ShouldBroadcastFullSnapshotAfterPlayerJoin(BattlePlayerJoinResult result)
@@ -1052,6 +1241,8 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _reliableEvents = null;
         _timer?.Dispose();
         _timer = null;
+        _tickIntervalTimestampTicks = 0;
+        _tickDeadlineTimestamp = 0;
         _runtimeSession?.Dispose();
         _runtimeSession = null;
         _observerContexts.Clear();
@@ -1062,6 +1253,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _worldStartAnchor = null;
         _syncProfile = null;
         _syncTemplateId = string.Empty;
+        _networkEnvironmentId = string.Empty;
         _snapshotSyncPolicy = new BattleSnapshotSyncPolicy();
         _initSpecHash = null;
         _inputBuffer.Clear();
@@ -1070,6 +1262,7 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         _cachedCommandAcknowledgements = Array.Empty<ShooterCommandAcknowledgement>();
         _consumedCommandSequenceVersion = 0;
         _cachedCommandAcknowledgementVersion = -1;
+        _performanceDiagnostics.Clear();
         _battleHostState.Reset();
     }
 

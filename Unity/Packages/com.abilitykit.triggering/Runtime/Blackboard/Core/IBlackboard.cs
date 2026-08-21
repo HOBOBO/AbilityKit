@@ -1,5 +1,24 @@
 namespace AbilityKit.Triggering.Blackboard
 {
+    public readonly struct BlackboardKeySchema
+    {
+        public readonly BlackboardKeyType Type;
+        public readonly bool CanRead;
+        public readonly bool CanWrite;
+
+        public BlackboardKeySchema(BlackboardKeyType type, bool canRead, bool canWrite)
+        {
+            Type = type;
+            CanRead = canRead;
+            CanWrite = canWrite;
+        }
+    }
+
+    public interface IBlackboardSchema
+    {
+        bool TryGetKeySchema(int keyId, out BlackboardKeySchema schema);
+    }
+
     public interface IBlackboard
     {
         bool TryGetInt(int keyId, out int value);

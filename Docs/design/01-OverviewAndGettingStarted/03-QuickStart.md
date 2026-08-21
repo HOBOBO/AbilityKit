@@ -207,7 +207,7 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 |------|---------------------|----------|
 | `AbilityKit.Continuous.Tests` | `2/2` | 默认 Manager 的 owner 索引与基本生命周期；不代表 MOBA 五类 runtime 完整闭环 |
 | `AbilityKit.Context.Tests` | `5/5` | Registry 事件异常隔离、Clear/Destroy 与 enum 默认值；尚未覆盖 Snapshot/Resolver |
-| `AbilityKit.BTCore.Tests` | `3/3` | Rebuild 与重复 Enable 生命周期；不证明随机节点确定性 |
+| `AbilityKit.BehaviorTree.Tests` | `69/69` | 执行语义、快照/确定性、校验负向集、JSON golden、注册中心与调试注册中心（BTCore 已退役，见 13/07 设计文档） |
 | `BehaviorManagerLifecycleTests` | `2/2` | 外部完成/中断后的 Decision 单次释放；构建仍有既有依赖和可空性警告 |
 | `AbilityKit.Demo.Moba.Tests` | `279/305` | 279 项通过；26 项共同被同一个严格配置错误阻断，不能写成 Console 完整 World 当前可运行 |
 

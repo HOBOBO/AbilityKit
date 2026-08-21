@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
@@ -111,7 +112,18 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             TriggerPlanJsonDatabase.TriggerPlanDto dto,
             TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
         {
-            return new TriggerPlanExecutionNodeConverter(this).ConvertExecutionRoot(dto, databaseDto);
+            if (dto == null) return null;
+
+            var previousBindings = _templateBindings;
+            _templateBindings = BuildTemplateBindings(dto.Template);
+            try
+            {
+                return new TriggerPlanExecutionNodeConverter(this).ConvertExecutionRoot(dto, databaseDto);
+            }
+            finally
+            {
+                _templateBindings = previousBindings;
+            }
         }
 
         internal ActionCallPlan ConvertAction(TriggerPlanJsonDatabase.ActionCallPlanDto dto)
@@ -145,7 +157,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 var namedArgs = new System.Collections.Generic.Dictionary<string, ActionArgValue>(dto.Args.Count, StringComparer.OrdinalIgnoreCase);
                 foreach (var kv in dto.Args)
                 {
-                    namedArgs[kv.Key] = new ActionArgValue(ConvertNumericValueRef(kv.Value), kv.Key);
+                    namedArgs[kv.Key] = ConvertActionArg(kv.Value, kv.Key);
                 }
 
                 var arity = dto.Arity;
@@ -197,6 +209,27 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 retryMaxRetries,
                 dto.RetryDelayMs,
                 in cueDescriptor);
+        }
+
+        private ActionArgValue ConvertActionArg(TriggerPlanJsonDatabase.NumericValueRefDto dto, string name)
+        {
+            if (dto != null && string.Equals(dto.Kind, "BlackboardTarget", StringComparison.OrdinalIgnoreCase))
+            {
+                if (dto.BoardId == 0 || dto.KeyId == 0)
+                    throw new InvalidOperationException($"Blackboard target requires non-zero BoardId and KeyId. argument={name}");
+                if (dto.KeyType == BlackboardKeyType.Unknown)
+                    throw new InvalidOperationException($"Blackboard target requires KeyType. argument={name}");
+
+                var target = new BlackboardWriteTarget(dto.BoardId, dto.KeyId, dto.KeyType, dto.Scope);
+                return ActionArgValue.OfBlackboardTarget(in target, name);
+            }
+
+            if (dto != null && string.Equals(dto.Kind, "Bool", StringComparison.OrdinalIgnoreCase))
+                return ActionArgValue.OfBool(dto.BoolValue, name);
+            if (dto != null && string.Equals(dto.Kind, "String", StringComparison.OrdinalIgnoreCase))
+                return ActionArgValue.OfString(dto.StringValue, name);
+
+            return new ActionArgValue(ConvertNumericValueRef(dto), name);
         }
 
         private static TriggerCueDescriptor BuildActionCueDescriptor(TriggerPlanJsonDatabase.ActionCallPlanDto dto)

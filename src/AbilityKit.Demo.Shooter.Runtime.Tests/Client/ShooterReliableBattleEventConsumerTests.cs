@@ -33,6 +33,59 @@ public sealed class ShooterReliableBattleEventConsumerTests
     }
 
     [Fact]
+    public void ConsumeAndDispatchDoesNotMaterializeCommittedEventList()
+    {
+        var consumer = new ShooterReliableBattleEventConsumer();
+        var delivered = new List<long>();
+        var push = CreatePush(2L, Event(1L), Event(2L));
+
+        var result = consumer.ConsumeAndDispatch(in push, item => delivered.Add(item.Sequence));
+
+        Assert.Equal(new[] { 1L, 2L }, delivered);
+        Assert.Empty(result.CommittedEvents);
+        Assert.Equal(2L, result.AcknowledgedSequence);
+        Assert.False(result.RequiresResync);
+        Assert.True(result.HasCommittedEvents);
+        Assert.True(result.ShouldAcknowledge);
+    }
+
+    [Fact]
+    public void GatewaySnapshotMapperPreservesEventWatermark()
+    {
+        var wire = new WireStateSyncSnapshotPush
+        {
+            WorldId = 7UL,
+            Frame = 42,
+            Timestamp = 1.5d,
+            ServerTicks = 123L,
+            EventWatermark = 19L,
+            IsFullSnapshot = true,
+            Actors = new List<WireStateSyncActorSnapshot>()
+        };
+
+        var snapshot = ShooterGatewaySnapshotMapper.ToGatewaySnapshot(in wire);
+
+        Assert.Equal(19L, snapshot.EventWatermark);
+        Assert.True(snapshot.IsFullSnapshot);
+    }
+
+    [Fact]
+    public void ReliableEventPushDecodeBufferPreservesEnvelopeAndEvents()
+    {
+        var wire = CreatePush(2L, Event(1L), Event(2L));
+        var payload = WireRoomGatewayBinary.Serialize(in wire);
+        var decoder = new WireReliableBattleEventPushDecodeBuffer();
+
+        var decoded = decoder.Decode(payload);
+
+        Assert.Equal(BattleId, decoded.BattleId);
+        Assert.Equal(Epoch, decoded.Epoch);
+        Assert.Equal(2L, decoded.Watermark);
+        Assert.NotNull(decoded.Events);
+        Assert.Equal(new[] { 1L, 2L }, decoded.Events!.Select(item => item.Sequence));
+    }
+
+    [Fact]
     public void NegotiatedSessionPersistsCheckpointAfterCommittedEvents()
     {
         var clientSession = new ShooterClientSession(

@@ -4,6 +4,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Core.Timing;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
+using AbilityKit.Network.Runtime.Observability;
 using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Network.Runtime
@@ -26,6 +27,8 @@ namespace AbilityKit.Network.Runtime
         private float _timeSinceLastHeartbeatSend;
 
         private bool _openRequested;
+        private readonly string _connectionId;
+        private int _connectionGeneration;
 
         private readonly IReconnectAttemptScheduler _reconnectScheduler;
 
@@ -33,9 +36,11 @@ namespace AbilityKit.Network.Runtime
         {
             _transportFactory = transportFactory ?? throw new ArgumentNullException(nameof(transportFactory));
             _options = options ?? new ConnectionOptions();
+            _options.TrafficCapture?.Validate();
             _dispatcher = dispatcher ?? InlineDispatcher.Instance;
             _ioDispatcher = _dispatcher;
             _reconnectScheduler = CreateReconnectScheduler(_options);
+            _connectionId = ResolveConnectionId(_options);
 
             State = ConnectionState.Disconnected;
         }
@@ -44,9 +49,11 @@ namespace AbilityKit.Network.Runtime
         {
             _transportFactory = transportFactory ?? throw new ArgumentNullException(nameof(transportFactory));
             _options = options ?? new ConnectionOptions();
+            _options.TrafficCapture?.Validate();
             _dispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
             _ioDispatcher = ioDispatcher ?? InlineDispatcher.Instance;
             _reconnectScheduler = CreateReconnectScheduler(_options);
+            _connectionId = ResolveConnectionId(_options);
 
             State = ConnectionState.Disconnected;
         }
@@ -199,14 +206,15 @@ namespace AbilityKit.Network.Runtime
             {
                 _transport = _transportFactory.Invoke()
                     ?? throw new InvalidOperationException("Network transport factory returned null.");
+                var frameCodec = _options.FrameCodec ?? LengthPrefixedFrameCodec.Instance;
                 var sessionContext = new NetworkRuntimeSessionFactoryContext(
                     _transport,
                     _dispatcher,
                     _ioDispatcher,
-                    _options.FrameCodec);
+                    frameCodec);
                 _session = _options.SessionFactory != null
                     ? _options.SessionFactory.Invoke(sessionContext)
-                    : new NetworkSession(_transport, _dispatcher, _ioDispatcher, _options.FrameCodec);
+                    : new NetworkSession(_transport, _dispatcher, _ioDispatcher, frameCodec);
                 if (_session == null)
                 {
                     throw new InvalidOperationException("Network session factory returned null.");
@@ -233,6 +241,7 @@ namespace AbilityKit.Network.Runtime
                 }
 
                 _heartbeat.HeartbeatReceived += OnHeartbeatReceived;
+                InstallTrafficProbe(_session.Pipeline, _transport);
                 _session.Pipeline.Add(_heartbeat);
                 PipelineCreated?.Invoke(_session.Pipeline);
 
@@ -522,6 +531,41 @@ namespace AbilityKit.Network.Runtime
             var context = new ReconnectAttemptSchedulerFactoryContext(maxAttempts, resolveDelay);
             return options.ReconnectSchedulerFactory.Invoke(context)
                 ?? throw new InvalidOperationException("Reconnect scheduler factory returned null.");
+        }
+
+        private void InstallTrafficProbe(NetworkPipeline pipeline, ITransport transport)
+        {
+            var capture = _options.TrafficCapture;
+            if (capture == null) return;
+
+            capture.Validate();
+            var generation = checked(++_connectionGeneration);
+            var context = new NetworkTrafficConnectionContext(
+                _connectionId,
+                generation,
+                capture.Role,
+                capture.CatalogId,
+                $"{_host}:{_port}",
+                string.IsNullOrWhiteSpace(capture.TransportName)
+                    ? transport.GetType().Name
+                    : capture.TransportName);
+            var observer = capture.ObserverFactory.Invoke(context)
+                ?? throw new InvalidOperationException("Traffic observer factory returned null.");
+            pipeline.AddFirst(new NetworkTrafficProbeMiddleware(
+                context,
+                observer,
+                capture.MaximumPayloadPreviewBytes,
+                capture.Filter,
+                capture.UtcNowProvider,
+                capture.ObserverErrorHandler));
+        }
+
+        private static string ResolveConnectionId(ConnectionOptions options)
+        {
+            var configured = options.TrafficCapture?.ConnectionId;
+            return string.IsNullOrWhiteSpace(configured)
+                ? Guid.NewGuid().ToString("N")
+                : configured;
         }
 
         private static float ResolveReconnectDelay(

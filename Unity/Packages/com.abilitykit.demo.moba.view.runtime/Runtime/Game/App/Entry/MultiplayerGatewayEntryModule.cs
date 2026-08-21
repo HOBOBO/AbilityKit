@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Core.Logging;
@@ -12,19 +13,31 @@ using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
+using AbilityKit.Network.Sdk.Observability;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Game
 {
-    public interface IMultiplayerGatewayRuntime
+    public interface IMultiplayerGatewayDiagnostics
     {
         bool IsRemoteActive { get; }
         ConnectionState ConnectionState { get; }
         MultiplayerRecoveryState RecoveryState { get; }
         NetworkSessionRecoveryDecision RecoveryDecision { get; }
         NetworkSessionRecoveryDiagnostics RecoveryDiagnostics { get; }
+        SessionLifecycleDiagnosticsSnapshot LifecycleDiagnostics { get; }
+    }
+
+    public interface IMultiplayerGatewayRecoveryControl
+    {
         void ResetReconnect();
+    }
+
+    public interface IMultiplayerGatewayRuntime :
+        IMultiplayerGatewayDiagnostics,
+        IMultiplayerGatewayRecoveryControl
+    {
     }
 
     public enum MultiplayerRecoveryState
@@ -50,17 +63,21 @@ namespace AbilityKit.Game
         private readonly Func<string> _correlationContext;
         private readonly Action<Exception> _failure;
         private readonly NetworkSessionRecoveryRuntime<bool> _runtime;
+        private readonly SessionLifecycleDiagnosticsRecorder _lifecycleDiagnostics;
         private string _lastCorrelationContext = string.Empty;
+        private int _retryCount;
 
         internal MultiplayerGatewayRecoveryRuntime(
             Func<CancellationToken, Task<MultiplayerRoomRestoreResult>> restoreRoom,
             Func<string> correlationContext = null,
             Action<Exception> failure = null,
-            NetworkSessionRecoveryOptions options = null)
+            NetworkSessionRecoveryOptions options = null,
+            SessionLifecycleDiagnosticsRecorder lifecycleDiagnostics = null)
         {
             _restoreRoom = restoreRoom ?? throw new ArgumentNullException(nameof(restoreRoom));
             _correlationContext = correlationContext ?? (() => string.Empty);
             _failure = failure;
+            _lifecycleDiagnostics = lifecycleDiagnostics;
             var actions = new NetworkSessionRecoveryActionRouter<bool>(
                     new NetworkSessionRecoveryActionRouterOptions<bool>
                     {
@@ -101,6 +118,11 @@ namespace AbilityKit.Game
             {
                 _lastCorrelationContext = signal.CorrelationContext;
             }
+            if (signal.Kind == NetworkSessionRecoverySignalKind.ReconnectAttemptStarted)
+            {
+                _retryCount++;
+                _lifecycleDiagnostics?.SetRetryCount(_retryCount);
+            }
             return true;
         }
 
@@ -124,7 +146,9 @@ namespace AbilityKit.Game
         {
             _runtime.Reset();
             _lastCorrelationContext = string.Empty;
-            State = MultiplayerRecoveryState.None;
+            _retryCount = 0;
+            _lifecycleDiagnostics?.SetRetryCount(0);
+            SetState(MultiplayerRecoveryState.None);
         }
 
         private static NetworkSessionRecoveryOptions CreateDefaultOptions()
@@ -148,7 +172,7 @@ namespace AbilityKit.Game
             CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            State = execution.Decision.Signal.Kind switch
+            SetState(execution.Decision.Signal.Kind switch
             {
                 NetworkSessionRecoverySignalKind.ReconnectAttemptStarted =>
                     MultiplayerRecoveryState.ReconnectAttempt,
@@ -157,7 +181,7 @@ namespace AbilityKit.Game
                 NetworkSessionRecoverySignalKind.ConnectionError =>
                     MultiplayerRecoveryState.ReconnectScheduled,
                 _ => State
-            };
+            });
             return Task.FromResult(true);
         }
 
@@ -168,7 +192,7 @@ namespace AbilityKit.Game
             var signal = execution.Decision.Signal;
             if (signal.Kind == NetworkSessionRecoverySignalKind.ReconnectExhausted)
             {
-                State = MultiplayerRecoveryState.ReconnectExhausted;
+                SetState(MultiplayerRecoveryState.ReconnectExhausted);
                 return false;
             }
 
@@ -177,7 +201,7 @@ namespace AbilityKit.Game
                 return false;
             }
 
-            State = MultiplayerRecoveryState.RestoringRoom;
+            SetState(MultiplayerRecoveryState.RestoringRoom);
             try
             {
                 var result = await _restoreRoom(cancellationToken);
@@ -195,7 +219,7 @@ namespace AbilityKit.Game
                 {
                     case MultiplayerRoomPhase.Loading:
                     case MultiplayerRoomPhase.Starting:
-                        State = MultiplayerRecoveryState.RestoringLoadingBarrier;
+                        SetState(MultiplayerRecoveryState.RestoringLoadingBarrier);
                         break;
                     case MultiplayerRoomPhase.InBattle:
                         CompleteRecovery(
@@ -226,11 +250,28 @@ namespace AbilityKit.Game
 
         private void CompleteRecovery(MultiplayerRecoveryState state, string detail)
         {
-            State = state;
+            SetState(state);
             // 完成信号会推进框架代次并取消旧动作，避免 Room Flow 与请求返回顺序不同造成状态覆盖。
             _runtime.CompleteRecovery(
                 ResolveCorrelationContext(),
                 detail);
+        }
+
+        private void SetState(MultiplayerRecoveryState state)
+        {
+            State = state;
+            if (_lifecycleDiagnostics == null ||
+                _lifecycleDiagnostics.Snapshot.State == SessionLifecycleDiagnosticState.Stopping)
+            {
+                return;
+            }
+            _lifecycleDiagnostics.Transition(state switch
+            {
+                MultiplayerRecoveryState.None => SessionLifecycleDiagnosticState.Running,
+                MultiplayerRecoveryState.Recovered => SessionLifecycleDiagnosticState.Running,
+                MultiplayerRecoveryState.ReconnectExhausted => SessionLifecycleDiagnosticState.Faulted,
+                _ => SessionLifecycleDiagnosticState.Recovering,
+            });
         }
 
         private void ReportRestoreFailure(Exception exception)
@@ -268,6 +309,8 @@ namespace AbilityKit.Game
             new GatewayPushOperationRuntime();
         private readonly MultiplayerGatewayEntryRuntime _entryRuntime =
             new MultiplayerGatewayEntryRuntime();
+        private readonly SessionLifecycleDiagnosticsRecorder _lifecycleDiagnostics =
+            new SessionLifecycleDiagnosticsRecorder();
         private MultiplayerGatewayEntryResources _resources;
 
         public bool IsRemoteActive => _resources?.Selection?.IsRemoteSelected == true;
@@ -281,6 +324,8 @@ namespace AbilityKit.Game
             _resources?.Recovery?.Decision ?? default;
         public NetworkSessionRecoveryDiagnostics RecoveryDiagnostics =>
             _resources?.Recovery?.Diagnostics ?? default;
+        public SessionLifecycleDiagnosticsSnapshot LifecycleDiagnostics =>
+            _lifecycleDiagnostics.Snapshot;
 
         public MultiplayerGatewayEntryModule(
             BattleGatewayConfigSO config,
@@ -305,6 +350,9 @@ namespace AbilityKit.Game
             {
                 var resources = new MultiplayerGatewayEntryResources();
                 _resources = resources;
+                _lifecycleDiagnostics.BeginGeneration(
+                    _entryRuntime.AttachmentGeneration,
+                    SessionLifecycleDiagnosticState.Starting);
                 attachment.Register(() =>
                 {
                     if (ReferenceEquals(_resources, resources)) _resources = null;
@@ -314,7 +362,7 @@ namespace AbilityKit.Game
                     new DedicatedThreadDispatcher("LobbyGatewayNetworkThread");
                 attachment.Register(resources.IoDispatcher.Dispose);
                 var callbackDispatcher = UnityMainThreadDispatcher.CaptureCurrent();
-                resources.SdkClient = new NetworkSdkBuilder()
+                var sdkBuilder = new NetworkSdkBuilder()
                     .UseTransportFactory(() => new TcpTransport())
                     .ConfigureConnection(options =>
                     {
@@ -328,8 +376,21 @@ namespace AbilityKit.Game
                         options.ReconnectMaxAttempts =
                             AbilityKit.Network.Runtime.Sync.ReconnectBackoffPolicy.MaxAttempts;
                     })
-                    .UseDispatchers(callbackDispatcher, resources.IoDispatcher)
-                    .Build();
+                    .UseDispatchers(callbackDispatcher, resources.IoDispatcher);
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                RoomProtocolDecoderModule.Register(NetworkTrafficMonitor.Default.Decoders);
+                AbilityKit.Protocol.Moba.MobaProtocolDecoderModule.Register(
+                    NetworkTrafficMonitor.Default.Decoders);
+                sdkBuilder.ObserveTraffic(NetworkTrafficMonitor.Default, options =>
+                {
+                    options.ConnectionId = "moba-room-primary";
+                    options.Role = "room";
+                    options.CatalogId = "abilitykit.room";
+                    options.TransportName = "tcp";
+                    options.MaximumPayloadPreviewBytes = 65536;
+                });
+#endif
+                resources.SdkClient = sdkBuilder.Build();
                 attachment.Register(resources.SdkClient.Dispose);
                 resources.Store = new ClientRoomStore();
                 resources.Client = new GatewayRoomClient(
@@ -380,7 +441,8 @@ namespace AbilityKit.Game
                     () => resources.Controller.CurrentRoomId ?? string.Empty,
                     exception => Log.Exception(
                         exception,
-                        "[MultiplayerGatewayEntryModule] Room recovery action failed."));
+                        "[MultiplayerGatewayEntryModule] Room recovery action failed."),
+                    lifecycleDiagnostics: _lifecycleDiagnostics);
                 attachment.Register(async () =>
                 {
                     var pendingRecovery = resources.Recovery.PendingExecution;
@@ -429,18 +491,22 @@ namespace AbilityKit.Game
                     _launchRequest,
                     resources.Store,
                     resources.Client,
+                    resources.Client,
+                    resources.Client,
                     resources.Session,
                     resources.Session,
                     resources.SnapshotProvider,
                     resources.Controller,
                     resources.PushSynchronizer,
                     resources.AssetLoader,
+                    this,
                     this);
                 resources.RootServices.Publish(root);
                 attachment.Register(resources.RootServices.Withdraw);
                 attachment.Register(() =>
                     SetRecoverySignalsEnabled(enabled: false, reset: true));
                 ApplyEntrySelection();
+                _lifecycleDiagnostics.Transition(SessionLifecycleDiagnosticState.Running);
             });
         }
 
@@ -451,17 +517,41 @@ namespace AbilityKit.Game
 
         public void OnDetach(in GameEntryModuleContext ctx)
         {
+            _lifecycleDiagnostics.Transition(SessionLifecycleDiagnosticState.Stopping);
+            var diagnosticGeneration =
+                _lifecycleDiagnostics.BeginPendingOperation("gateway-entry-detach");
+            var stopwatch = Stopwatch.StartNew();
             var teardown = _entryRuntime.Detach();
-            if (!teardown.IsCompletedSuccessfully)
+            _ = ObserveTeardownAsync(teardown, diagnosticGeneration, stopwatch);
+        }
+
+        private async Task ObserveTeardownAsync(
+            Task teardown,
+            int diagnosticGeneration,
+            Stopwatch stopwatch)
+        {
+            Exception failure = null;
+            try
             {
-                _ = teardown.ContinueWith(
-                    failed => Log.Exception(
-                        failed.Exception,
-                        "[MultiplayerGatewayEntryModule] Gateway teardown failed."),
-                    CancellationToken.None,
-                    TaskContinuationOptions.OnlyOnFaulted |
-                    TaskContinuationOptions.ExecuteSynchronously,
-                    TaskScheduler.Default);
+                await teardown.ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+                Log.Exception(
+                    exception,
+                    "[MultiplayerGatewayEntryModule] Gateway teardown failed.");
+            }
+            finally
+            {
+                stopwatch.Stop();
+                _lifecycleDiagnostics.CompletePendingOperation(
+                    diagnosticGeneration,
+                    stopwatch.Elapsed,
+                    failure,
+                    failure == null
+                        ? SessionLifecycleDiagnosticState.Stopped
+                        : SessionLifecycleDiagnosticState.Faulted);
             }
         }
 

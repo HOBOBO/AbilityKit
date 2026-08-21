@@ -7,11 +7,25 @@ using AbilityKit.Demo.Common.Rooms;
 
 namespace AbilityKit.Game.Flow
 {
-    public interface IGatewayRoomClient
+    public interface IGatewayAuthenticationCapability
     {
-        Task<GatewayTimeSyncResult> TimeSyncAsync(uint timeSyncOpCode, long clientSendTicks, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
-        Task<string> GuestLoginAsync(uint guestLoginOpCode, TimeSpan? timeout = null, CancellationToken cancellationToken = default);
+        Task<string> GuestLoginAsync(
+            uint guestLoginOpCode,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+    }
 
+    public interface IGatewayClockCapability
+    {
+        Task<GatewayTimeSyncResult> TimeSyncAsync(
+            uint timeSyncOpCode,
+            long clientSendTicks,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default);
+    }
+
+    public interface IGatewayRoomCommandCapability
+    {
         Task<GatewayCreateRoomResult> CreateRoomAsync(
             string sessionToken,
             string region,
@@ -52,11 +66,6 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
-        // ===== 阶段 5：资源加载屏障 / 状态查询 / 恢复 =====
-
-        /// <summary>
-        /// Owner 发起资源加载阶段（Lobby -> Loading）。
-        /// </summary>
         Task<GatewayRoomOperationResult> BeginLoadingAsync(
             string sessionToken,
             string roomId,
@@ -65,9 +74,6 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// 成员上报资源加载完成。
-        /// </summary>
         Task<GatewayRoomOperationResult> ReportAssetsLoadedAsync(
             string sessionToken,
             string roomId,
@@ -96,9 +102,6 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Owner 取消加载阶段，回到 Lobby。
-        /// </summary>
         Task<GatewayRoomOperationResult> CancelLoadingAsync(
             string sessionToken,
             string roomId,
@@ -106,35 +109,38 @@ namespace AbilityKit.Game.Flow
             string commandId,
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
+    }
 
-        /// <summary>
-        /// 查询 Room 当前快照。
-        /// </summary>
+    public interface IGatewayRoomRecoveryQueryCapability
+    {
         Task<GatewayGetSnapshotResult> GetSnapshotAsync(
             string sessionToken,
             string roomId,
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// 恢复 Room 会话（断线重连）。
-        /// </summary>
         Task<GatewayRestoreRoomResult> RestoreRoomAsync(
             string sessionToken,
             string region,
             string serverId,
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default);
+    }
 
-        /// <summary>
-        /// 反序列化 Room 状态变更推送为客户端快照。
-        /// </summary>
+    public interface IGatewayRoomPushDecodingCapability
+    {
         ClientRoomSnapshot DeserializeRoomStateChangedPush(ArraySegment<byte> payload);
-
-        /// <summary>
-        /// 判断 opcode 是否为 Room 状态变更推送。
-        /// </summary>
         bool IsRoomStateChangedPush(uint opCode);
+    }
+
+    public interface IGatewayRoomClient :
+        IGatewayAuthenticationCapability,
+        IGatewayClockCapability,
+        IGatewayRoomCommandCapability,
+        IGatewayRoomRecoveryQueryCapability,
+        IGatewayRoomPushDecodingCapability,
+        IDisposable
+    {
     }
 
 

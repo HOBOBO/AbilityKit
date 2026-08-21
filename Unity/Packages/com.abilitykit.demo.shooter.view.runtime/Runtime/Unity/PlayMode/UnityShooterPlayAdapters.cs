@@ -9,8 +9,17 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 {
     internal sealed class UnityShooterPlayInputSource : IShooterHostInputSource
     {
+        private System.Func<int, ShooterHostFrameInput>? _inputOverride;
+
+        internal void SetInputOverride(System.Func<int, ShooterHostFrameInput>? inputOverride)
+        {
+            _inputOverride = inputOverride;
+        }
+
         public ShooterHostFrameInput ReadInput(int controlledPlayerId)
         {
+            if (_inputOverride != null) return _inputOverride(controlledPlayerId);
+
             var moveX = Input.GetAxisRaw("Horizontal");
             var moveY = Input.GetAxisRaw("Vertical");
 

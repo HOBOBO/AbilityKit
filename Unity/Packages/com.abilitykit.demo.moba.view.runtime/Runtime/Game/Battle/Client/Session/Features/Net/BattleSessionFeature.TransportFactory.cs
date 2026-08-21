@@ -48,7 +48,9 @@ namespace AbilityKit.Game.Flow
                     _networkIoDispatcher);
                 if (transport is NetworkTransport networkTransport)
                 {
-                    _runtime.InputSubmissionDiagnostics.Bind(networkTransport);
+                    _runtime.InputSubmissionDiagnostics.Bind(
+                        networkTransport,
+                        _plan.World.WorldId);
                 }
 
                 return _sessionRegistry.Start(opts, remoteTransport: transport);
@@ -69,15 +71,6 @@ namespace AbilityKit.Game.Flow
                 _ctx,
                 _plan.Authority.EnableClientPrediction,
                 deltaTime);
-        }
-
-        private void DisposeRemoteInterpolation()
-        {
-            _runtime.DisposeReplication();
-            if (_ctx != null)
-            {
-                _ctx.CanSubmitGameplayInput = true;
-            }
         }
     }
 }

@@ -15,6 +15,7 @@ namespace AbilityKit.Game.Flow
         private readonly object _gate = new object();
         private CancellationTokenSource _cancellation;
         private Task _task;
+        private Task _pendingStop = System.Threading.Tasks.Task.CompletedTask;
         private int _generation;
         private GatewayTimeSyncEwma _estimate;
 
@@ -34,22 +35,29 @@ namespace AbilityKit.Game.Flow
             }
         }
 
-        internal void Start(
-            IGatewayRoomClient client,
+        internal int Start(
+            IGatewayClockCapability client,
             in BattleStartPlanTimeSyncOptions options,
             Action<GatewayTimeSyncEwma, GatewayTimeSyncRuntimeOptions> samplePublished,
             Action<Exception> failurePublished)
         {
             if (client == null) throw new ArgumentNullException(nameof(client));
 
-            CancellationTokenSource previous;
+            CancellationTokenSource previousCancellation;
+            Task previousTask;
+            Task precedingStop;
+            TaskCompletionSource<bool> stopCompletion;
             int generation;
             CancellationToken token;
             var runtimeOptions = GatewayTimeSyncHelper.ResolveRuntimeOptions(options);
 
             lock (_gate)
             {
-                previous = _cancellation;
+                previousCancellation = _cancellation;
+                previousTask = _task;
+                precedingStop = _pendingStop;
+                stopCompletion = CreateStopCompletion();
+                _pendingStop = stopCompletion.Task;
                 _generation++;
                 generation = _generation;
                 _estimate = default;
@@ -66,12 +74,17 @@ namespace AbilityKit.Game.Flow
                     token);
             }
 
-            CancelAndDispose(previous);
+            BeginDrain(
+                precedingStop,
+                previousTask,
+                previousCancellation,
+                stopCompletion);
+            return generation;
         }
 
         private async Task RunAsync(
             int generation,
-            IGatewayRoomClient client,
+            IGatewayClockCapability client,
             GatewayTimeSyncRuntimeOptions options,
             Action<GatewayTimeSyncEwma, GatewayTimeSyncRuntimeOptions> samplePublished,
             Action<Exception> failurePublished,
@@ -158,16 +171,46 @@ namespace AbilityKit.Game.Flow
 
         internal void StopWork()
         {
+            _ = StopWorkAsync();
+        }
+
+        internal Task StopWorkAsync()
+        {
+            return StopWorkAsync(expectedGeneration: null);
+        }
+
+        internal Task StopWorkAsync(int expectedGeneration)
+        {
+            return StopWorkAsync((int?)expectedGeneration);
+        }
+
+        private Task StopWorkAsync(int? expectedGeneration)
+        {
             CancellationTokenSource cancellation;
+            Task task;
+            Task precedingStop;
+            TaskCompletionSource<bool> stopCompletion;
+
             lock (_gate)
             {
+                if (expectedGeneration.HasValue &&
+                    expectedGeneration.Value != _generation)
+                {
+                    return System.Threading.Tasks.Task.CompletedTask;
+                }
+
                 _generation++;
                 cancellation = _cancellation;
+                task = _task;
                 _cancellation = null;
                 _task = null;
+                precedingStop = _pendingStop;
+                stopCompletion = CreateStopCompletion();
+                _pendingStop = stopCompletion.Task;
             }
 
-            CancelAndDispose(cancellation);
+            BeginDrain(precedingStop, task, cancellation, stopCompletion);
+            return stopCompletion.Task;
         }
 
         internal void ClearEstimate()
@@ -181,16 +224,71 @@ namespace AbilityKit.Game.Flow
             ClearEstimate();
         }
 
-        private static void CancelAndDispose(CancellationTokenSource cancellation)
+        private static TaskCompletionSource<bool> CreateStopCompletion()
         {
-            if (cancellation == null) return;
+            return new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private static void BeginDrain(
+            Task precedingStop,
+            Task task,
+            CancellationTokenSource cancellation,
+            TaskCompletionSource<bool> completion)
+        {
+            Cancel(cancellation);
+            _ = CompleteDrainAsync(
+                precedingStop,
+                task,
+                cancellation,
+                completion);
+        }
+
+        private static async Task CompleteDrainAsync(
+            Task precedingStop,
+            Task task,
+            CancellationTokenSource cancellation,
+            TaskCompletionSource<bool> completion)
+        {
             try
             {
-                if (!cancellation.IsCancellationRequested) cancellation.Cancel();
+                await System.Threading.Tasks.Task.WhenAll(
+                        precedingStop ?? System.Threading.Tasks.Task.CompletedTask,
+                        AwaitOwnedTaskAsync(task, cancellation))
+                    .ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
             }
             finally
             {
-                cancellation.Dispose();
+                cancellation?.Dispose();
+            }
+        }
+
+        private static async Task AwaitOwnedTaskAsync(
+            Task task,
+            CancellationTokenSource cancellation)
+        {
+            if (task == null) return;
+
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (
+                cancellation != null && cancellation.IsCancellationRequested)
+            {
+            }
+        }
+
+        private static void Cancel(CancellationTokenSource cancellation)
+        {
+            if (cancellation != null && !cancellation.IsCancellationRequested)
+            {
+                cancellation.Cancel();
             }
         }
     }

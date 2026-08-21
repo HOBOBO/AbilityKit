@@ -59,8 +59,15 @@ namespace AbilityKit.Game.Editor
 
         public void Open(string json, string filePath)
         {
-            var snapshot = MobaBattleDiagnosticArtifactCodec.ImportSnapshot(json);
-            var session = new BattleDiagnosticOfflineSession(snapshot);
+            var artifact = MobaBattleDiagnosticArtifactCodec.ImportArtifact(json);
+            if (artifact.BattleDiagnostics == null)
+                throw new MobaBattleDiagnosticArtifactException(
+                    "BattleDiagnostics.Missing",
+                    "Analysis artifact does not contain a battleDiagnostics section.");
+            var snapshot = MobaBattleDiagnosticArtifactCodec.FromSection(artifact.BattleDiagnostics);
+            var metricProfile = MobaBattleDiagnosticArtifactCodec.FromMetricProfile(
+                artifact.BattleDiagnostics.FrameMetricProfile);
+            var session = new BattleDiagnosticOfflineSession(snapshot, metricProfile);
 
             var previous = _offlineSession;
             _offlineSnapshot = snapshot;

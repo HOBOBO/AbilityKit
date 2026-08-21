@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.Editor.Utilities;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Registry;
 using Newtonsoft.Json;
@@ -289,7 +290,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 FieldId = dto.FieldId,
                 DomainId = dto.DomainId,
                 Key = dto.Key,
-                ExprText = dto.ExprText
+                ExprText = dto.ExprText,
+                KeyType = dto.KeyType,
+                Scope = dto.Scope,
+                BoolValue = dto.BoolValue,
+                StringValue = dto.StringValue
             };
         }
 
@@ -341,6 +346,19 @@ namespace AbilityKit.Ability.Editor.Utilities
 
                 case "Board":
                     return new { Kind = "Board", BoardId = dto.BoardId, KeyId = dto.KeyId };
+                case "BlackboardTarget":
+                    return new
+                    {
+                        Kind = "BlackboardTarget",
+                        BoardId = dto.BoardId,
+                        KeyId = dto.KeyId,
+                        KeyType = dto.KeyType,
+                        Scope = dto.Scope
+                    };
+                case "Bool":
+                    return new { Kind = "Bool", BoolValue = dto.BoolValue };
+                case "String":
+                    return new { Kind = "String", StringValue = dto.StringValue ?? string.Empty };
                 case "Field":
                     return new { Kind = "Field", FieldId = dto.FieldId, KeyId = dto.KeyId };
                 case "Domain":
@@ -432,7 +450,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 FieldId = readable.FieldId,
                 DomainId = readable.DomainId,
                 Key = readable.Key,
-                ExprText = readable.ExprText
+                ExprText = readable.ExprText,
+                KeyType = readable.KeyType,
+                Scope = readable.Scope,
+                BoolValue = readable.BoolValue,
+                StringValue = readable.StringValue
             };
         }
 
@@ -482,7 +504,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                         FieldId = jo["FieldId"]?.Value<int>() ?? 0,
                         DomainId = jo["DomainId"]?.ToString(),
                         Key = jo["Key"]?.ToString(),
-                        ExprText = jo["ExprText"]?.ToString()
+                        ExprText = jo["ExprText"]?.ToString(),
+                        KeyType = jo["KeyType"]?.ToObject<BlackboardKeyType>() ?? BlackboardKeyType.Unknown,
+                        Scope = jo["Scope"]?.ToString(),
+                        BoolValue = jo["BoolValue"]?.Value<bool>() ?? false,
+                        StringValue = jo["StringValue"]?.ToString()
                     };
                 }
                 else
@@ -549,7 +575,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                     FieldId = obj["FieldId"]?.Value<int>() ?? 0,
                     DomainId = obj["DomainId"]?.ToString(),
                     Key = obj["Key"]?.ToString(),
-                    ExprText = obj["ExprText"]?.ToString()
+                    ExprText = obj["ExprText"]?.ToString(),
+                    KeyType = obj["KeyType"]?.ToObject<BlackboardKeyType>() ?? BlackboardKeyType.Unknown,
+                    Scope = obj["Scope"]?.ToString(),
+                    BoolValue = obj["BoolValue"]?.Value<bool>() ?? false,
+                    StringValue = obj["StringValue"]?.ToString()
                 };
             }
 
@@ -582,6 +612,39 @@ namespace AbilityKit.Ability.Editor.Utilities
                     writer.WriteValue(value.BoardId);
                     writer.WritePropertyName("KeyId");
                     writer.WriteValue(value.KeyId);
+                    writer.WriteEndObject();
+                    break;
+
+                case "BlackboardTarget":
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("Kind");
+                    writer.WriteValue("BlackboardTarget");
+                    writer.WritePropertyName("BoardId");
+                    writer.WriteValue(value.BoardId);
+                    writer.WritePropertyName("KeyId");
+                    writer.WriteValue(value.KeyId);
+                    writer.WritePropertyName("KeyType");
+                    writer.WriteValue(value.KeyType.ToString());
+                    writer.WritePropertyName("Scope");
+                    writer.WriteValue(value.Scope);
+                    writer.WriteEndObject();
+                    break;
+
+                case "Bool":
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("Kind");
+                    writer.WriteValue("Bool");
+                    writer.WritePropertyName("BoolValue");
+                    writer.WriteValue(value.BoolValue);
+                    writer.WriteEndObject();
+                    break;
+
+                case "String":
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("Kind");
+                    writer.WriteValue("String");
+                    writer.WritePropertyName("StringValue");
+                    writer.WriteValue(value.StringValue ?? string.Empty);
                     writer.WriteEndObject();
                     break;
 

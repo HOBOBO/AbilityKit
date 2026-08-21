@@ -13,6 +13,7 @@
   "author": { "name": "AbilityKit" },
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
-    "com.abilitykit.deterministic": "0.1.0"
+    "com.abilitykit.deterministic": "0.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
   }
 }

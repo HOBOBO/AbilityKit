@@ -5,6 +5,7 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Observability;
 using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 
@@ -112,6 +113,19 @@ namespace AbilityKit.Network.Battle.Config
         public NetworkBattleConfig UseSdkConnectionDefaults()
         {
             _o.ConfigureConnection = null;
+            return this;
+        }
+
+        /// <summary>
+        /// Installs transport-level packet observation when this config owns a transport factory.
+        /// Injected connections and prebuilt SDK clients must install observation before injection.
+        /// </summary>
+        public NetworkBattleConfig ObserveTraffic(
+            INetworkTrafficObserver observer,
+            Action<NetworkTrafficCaptureOptions> configure = null)
+        {
+            _o.TrafficObserver = observer ?? throw new ArgumentNullException(nameof(observer));
+            _o.ConfigureTrafficCapture = configure;
             return this;
         }
 

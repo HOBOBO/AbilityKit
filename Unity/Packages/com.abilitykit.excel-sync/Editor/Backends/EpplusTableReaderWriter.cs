@@ -5,6 +5,24 @@ using OfficeOpenXml;
 
 namespace AbilityKit.ExcelSync.Editor
 {
+    /// <summary>
+    /// EPPlus 4 的 Worksheets[int] 按 PositionID 是 1 起始索引，Worksheets[0] 恒抛
+    /// IndexOutOfRangeException（"Worksheet position out of range"）——历史上具名 sheet 的调用
+    /// 恰好绕开了这个坑。取首表一律走本助手的枚举方式，不依赖位置索引语义。
+    /// </summary>
+    internal static class ExcelSheetLookup
+    {
+        public static ExcelWorksheet FirstSheet(ExcelPackage package)
+        {
+            foreach (var ws in package.Workbook.Worksheets)
+            {
+                return ws;
+            }
+
+            return null;
+        }
+    }
+
     internal sealed class EpplusTableReader : ITableReader
     {
         private readonly ExcelPackage package;
@@ -19,14 +37,14 @@ namespace AbilityKit.ExcelSync.Editor
             #endif
             package = new ExcelPackage(new FileInfo(filePath));
             sheet = string.IsNullOrEmpty(options.SheetName)
-                ? package.Workbook.Worksheets[0]
-                : (package.Workbook.Worksheets[options.SheetName] ?? package.Workbook.Worksheets[0]);
+                ? ExcelSheetLookup.FirstSheet(package)
+                : (package.Workbook.Worksheets[options.SheetName] ?? ExcelSheetLookup.FirstSheet(package));
         }
 
         public IReadOnlyList<string> GetHeaders()
         {
             var headers = new List<string>();
-            if (sheet.Dimension == null)
+            if (sheet == null || sheet.Dimension == null)
             {
                 return headers;
             }
@@ -49,7 +67,7 @@ namespace AbilityKit.ExcelSync.Editor
 
         public IEnumerable<IReadOnlyList<object>> ReadRows(int startRowIndex)
         {
-            if (sheet.Dimension == null)
+            if (sheet == null || sheet.Dimension == null)
             {
                 yield break;
             }
@@ -114,9 +132,8 @@ namespace AbilityKit.ExcelSync.Editor
             package = new ExcelPackage(fileInfo);
             if (string.IsNullOrEmpty(options.SheetName))
             {
-                sheet = package.Workbook.Worksheets.Count > 0
-                    ? package.Workbook.Worksheets[0]
-                    : package.Workbook.Worksheets.Add("Sheet1");
+                var firstSheet = ExcelSheetLookup.FirstSheet(package);
+                sheet = firstSheet ?? package.Workbook.Worksheets.Add("Sheet1");
             }
             else
             {

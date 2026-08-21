@@ -43,9 +43,6 @@ namespace AbilityKit.Demo.Shooter.View
         {
             Validate(in context);
 
-            // timeout/cancellationToken are not surfaced by NetworkTransport.SendInputAsync (the engine
-            // uses a fixed authoritative-submit timeout); kept on the signature for interface parity.
-
             var request = new SubmitInputRequest(
                 _worldIdFromUlong(context.WorldId),
                 new PlayerInputCommand(
@@ -54,7 +51,7 @@ namespace AbilityKit.Demo.Shooter.View
                     packet.OpCode,
                     packet.Payload ?? Array.Empty<byte>()));
 
-            var resp = await _transport.SendInputAsync(request).ConfigureAwait(false);
+            var resp = await _transport.SendInputAsync(request, timeout, cancellationToken).ConfigureAwait(false);
 
             // Map the engine response back to shooter's result shape.
             // ServerFrame ↔ CurrentFrame; engine retry is disabled (factory sets RetryAtAuthoritativeFrame=false),

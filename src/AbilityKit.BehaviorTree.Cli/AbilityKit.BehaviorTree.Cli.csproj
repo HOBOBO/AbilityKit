@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>AbilityKit.BehaviorTree.Cli</AssemblyName>
+    <RootNamespace>AbilityKit.BehaviorTree.Cli</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.BehaviorTree\AbilityKit.BehaviorTree.csproj" />
+    <!-- 引用 MOBA 投影以让 moba.* 节点类型进入 AppDomain 被扫描（仓库本地工具，非发布包） -->
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
+  </ItemGroup>
+
+</Project>

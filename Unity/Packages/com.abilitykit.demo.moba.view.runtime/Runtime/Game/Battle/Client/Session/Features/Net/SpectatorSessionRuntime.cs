@@ -25,6 +25,7 @@ namespace AbilityKit.Game.Flow
             internal bool IsSubscribed;
             internal bool IsCancellationRequested;
             internal bool IsCancellationDisposed;
+            internal Task StartTask;
         }
 
         private readonly Func<SpectatorWorldDriver> _driverFactory;
@@ -66,7 +67,8 @@ namespace AbilityKit.Game.Flow
             client.OnServerPush += operation.PushHandler;
             operation.IsSubscribed = true;
 
-            return StartCoreAsync(operation, roomId, worldFactory);
+            operation.StartTask = StartCoreAsync(operation, roomId, worldFactory);
+            return operation.StartTask;
         }
 
         internal void Tick(int stepsBudget)
@@ -82,27 +84,45 @@ namespace AbilityKit.Game.Flow
 
         internal void Stop()
         {
+            StopAsync().GetAwaiter().GetResult();
+        }
+
+        internal async Task StopAsync()
+        {
             var operation = _operation;
             if (operation == null) return;
 
             _generation++;
+            var failures = new List<Exception>();
             var cancellationFailure = CancelOperation(operation);
-            var failures = CleanupOperation(operation);
-            if (cancellationFailure != null)
+            if (cancellationFailure != null) failures.Add(cancellationFailure);
+
+            try
             {
-                failures = failures == null
-                    ? cancellationFailure
-                    : new AggregateException(
-                        "Failed to cancel and stop spectator session resources.",
-                        cancellationFailure,
-                        failures);
+                await (operation.StartTask ?? Task.CompletedTask).ConfigureAwait(false);
             }
-            if (failures == null && ReferenceEquals(_operation, operation))
+            catch (OperationCanceledException) when (operation.IsCancellationRequested)
+            {
+            }
+            catch (Exception exception)
+            {
+                failures.Add(exception);
+            }
+
+            var cleanupFailure = CleanupOperation(operation);
+            if (cleanupFailure != null) failures.Add(cleanupFailure);
+            if (failures.Count == 0 && ReferenceEquals(_operation, operation))
             {
                 _operation = null;
             }
 
-            if (failures != null) throw failures;
+            if (failures.Count == 1) throw failures[0];
+            if (failures.Count > 1)
+            {
+                throw new AggregateException(
+                    "Failed to cancel and stop spectator session resources.",
+                    failures);
+            }
         }
 
         public void Dispose()

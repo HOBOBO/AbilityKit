@@ -1,19 +1,59 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.World.DI;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Registry;
 
 namespace AbilityKit.Triggering.Runtime.Plan
 {
+    public enum ActionArgKind
+    {
+        NumericValue = 0,
+        BlackboardTarget = 1,
+        BooleanValue = 2,
+        StringValue = 3
+    }
+
+    public readonly struct BlackboardWriteTarget : IEquatable<BlackboardWriteTarget>
+    {
+        public readonly int BoardId;
+        public readonly int KeyId;
+        public readonly BlackboardKeyType KeyType;
+        public readonly string Scope;
+
+        public BlackboardWriteTarget(int boardId, int keyId, BlackboardKeyType keyType, string scope)
+        {
+            BoardId = boardId;
+            KeyId = keyId;
+            KeyType = keyType;
+            Scope = scope ?? string.Empty;
+        }
+
+        public bool Equals(BlackboardWriteTarget other) =>
+            BoardId == other.BoardId && KeyId == other.KeyId && KeyType == other.KeyType && Scope == other.Scope;
+
+        public override bool Equals(object obj) => obj is BlackboardWriteTarget other && Equals(other);
+        public override int GetHashCode() => unchecked(
+            (((((BoardId * 397) ^ KeyId) * 397) ^ (int)KeyType) * 397) ^
+            (Scope != null ? Scope.GetHashCode() : 0));
+        public override string ToString() => $"board={BoardId}, key={KeyId}, type={KeyType}, scope={Scope}";
+    }
+
     /// <summary>
     /// Action 调用中的单个具名参数值
     /// </summary>
     public readonly struct ActionArgValue : IEquatable<ActionArgValue>
     {
+        public readonly ActionArgKind Kind;
+
         /// <summary>
         /// 参数的值引用（常量、黑板、Payload 等）
         /// </summary>
         public readonly NumericValueRef Ref;
+
+        public readonly BlackboardWriteTarget BlackboardTarget;
+        public readonly bool BooleanValue;
+        public readonly string StringValue;
 
         /// <summary>
         /// 参数名（用于调试信息和 Schema 匹配）
@@ -22,7 +62,41 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public ActionArgValue(NumericValueRef @ref, string name)
         {
+            Kind = ActionArgKind.NumericValue;
             Ref = @ref;
+            BlackboardTarget = default;
+            BooleanValue = false;
+            StringValue = null;
+            Name = name ?? string.Empty;
+        }
+
+        private ActionArgValue(in BlackboardWriteTarget target, string name)
+        {
+            Kind = ActionArgKind.BlackboardTarget;
+            Ref = default;
+            BlackboardTarget = target;
+            BooleanValue = false;
+            StringValue = null;
+            Name = name ?? string.Empty;
+        }
+
+        private ActionArgValue(bool value, string name)
+        {
+            Kind = ActionArgKind.BooleanValue;
+            Ref = default;
+            BlackboardTarget = default;
+            BooleanValue = value;
+            StringValue = null;
+            Name = name ?? string.Empty;
+        }
+
+        private ActionArgValue(string value, string name)
+        {
+            Kind = ActionArgKind.StringValue;
+            Ref = default;
+            BlackboardTarget = default;
+            BooleanValue = false;
+            StringValue = value ?? string.Empty;
             Name = name ?? string.Empty;
         }
 
@@ -32,10 +106,38 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public static ActionArgValue OfConst(double value, string name)
             => new ActionArgValue(NumericValueRef.Const(value), name);
 
-        public bool Equals(ActionArgValue other) => Ref.Equals(other.Ref) && Name == other.Name;
+        public static ActionArgValue OfBlackboardTarget(in BlackboardWriteTarget target, string name)
+            => new ActionArgValue(in target, name);
+
+        public static ActionArgValue OfBool(bool value, string name)
+            => new ActionArgValue(value, name);
+
+        public static ActionArgValue OfString(string value, string name)
+            => new ActionArgValue(value, name);
+
+        public bool Equals(ActionArgValue other) =>
+            Kind == other.Kind && Ref.Equals(other.Ref) && BlackboardTarget.Equals(other.BlackboardTarget) &&
+            BooleanValue == other.BooleanValue && StringValue == other.StringValue && Name == other.Name;
         public override bool Equals(object obj) => obj is ActionArgValue other && Equals(other);
-        public override int GetHashCode() => unchecked((Ref.GetHashCode() * 397) ^ (Name != null ? Name.GetHashCode() : 0));
-        public override string ToString() => $"[{Name}]={Ref}";
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hash = (int)Kind;
+                hash = (hash * 397) ^ Ref.GetHashCode();
+                hash = (hash * 397) ^ BlackboardTarget.GetHashCode();
+                hash = (hash * 397) ^ (BooleanValue ? 1 : 0);
+                hash = (hash * 397) ^ (StringValue != null ? StringValue.GetHashCode() : 0);
+                return (hash * 397) ^ (Name != null ? Name.GetHashCode() : 0);
+            }
+        }
+        public override string ToString() => Kind == ActionArgKind.BlackboardTarget
+            ? $"[{Name}]=>{BlackboardTarget}"
+            : Kind == ActionArgKind.BooleanValue
+                ? $"[{Name}]={BooleanValue}"
+                : Kind == ActionArgKind.StringValue
+                    ? $"[{Name}]='{StringValue}'"
+                    : $"[{Name}]={Ref}";
     }
 
     /// <summary>

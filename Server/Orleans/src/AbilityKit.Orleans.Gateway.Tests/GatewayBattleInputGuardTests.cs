@@ -70,6 +70,31 @@ public sealed class GatewayBattleInputGuardTests
     }
 
     [Fact]
+    public void Check_FrameInputRateLimitDoesNotConsumeBattleCommandCapacity()
+    {
+        var guard = new GatewayBattleInputGuard(new BattleInputSecurityOptions
+        {
+            InputsPerSecond = 1,
+            BurstInputs = 2
+        });
+
+        Assert.Equal(
+            GatewayBattleInputGuardResult.AcceptedLegacy,
+            guard.Check(SessionToken, BattleId, PlayerId, 0, 0, GatewayBattleInputLane.FrameInput));
+        Assert.Equal(
+            GatewayBattleInputGuardResult.AcceptedLegacy,
+            guard.Check(SessionToken, BattleId, PlayerId, 0, 0, GatewayBattleInputLane.FrameInput));
+        Assert.Equal(
+            GatewayBattleInputGuardResult.RateLimited,
+            guard.Check(SessionToken, BattleId, PlayerId, 0, 0, GatewayBattleInputLane.FrameInput));
+
+        Assert.Equal(
+            GatewayBattleInputGuardResult.Accepted,
+            guard.Check(SessionToken, BattleId, PlayerId, 1, 0));
+        Assert.Equal(2, guard.TrackedKeyCount);
+    }
+
+    [Fact]
     public void Check_DuplicateDoesNotConsumeRateLimitToken()
     {
         var guard = new GatewayBattleInputGuard();

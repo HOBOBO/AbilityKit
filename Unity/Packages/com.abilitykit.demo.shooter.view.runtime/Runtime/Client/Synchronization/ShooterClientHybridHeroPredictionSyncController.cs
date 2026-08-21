@@ -174,6 +174,18 @@ namespace AbilityKit.Demo.Shooter.View
             return rollbackResult == ShooterSnapshotApplyResult.Ignored ? interpolationResult : rollbackResult;
         }
 
+        public ShooterSnapshotApplyResult ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
+        {
+            var rollbackResult = _rollback.ApplyGatewaySnapshot(in snapshot);
+            if (snapshot.PureStateSnapshot.HasValue)
+            {
+                return rollbackResult;
+            }
+
+            var interpolationResult = BufferRemoteSnapshot(in snapshot);
+            return rollbackResult == ShooterSnapshotApplyResult.Ignored ? interpolationResult : rollbackResult;
+        }
+
         /// <summary>为延迟插值缓冲一个已经解码的远端权威快照。</summary>
         public ShooterSnapshotApplyResult BufferRemoteSnapshot(in ShooterGatewaySnapshot snapshot)
         {

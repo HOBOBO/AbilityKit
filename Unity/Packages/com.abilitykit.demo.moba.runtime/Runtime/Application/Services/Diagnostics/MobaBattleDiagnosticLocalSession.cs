@@ -230,6 +230,32 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        public BattleDiagnosticQueryResult<BattleDiagnosticMetricAggregate> QueryMetricAggregates(
+            BattleDiagnosticMetricAggregateQuery query)
+        {
+            if (_metricStore == null)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticMetricAggregate>.Unavailable(
+                    query.RequestId,
+                    0L,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This session does not provide frame metric history.");
+            }
+
+            try
+            {
+                return _metricStore.QueryMetricAggregates(query);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticMetricAggregate>.Failed(
+                    query.RequestId,
+                    MetricStoreRevision,
+                    "QueryMetricAggregates.Exception",
+                    ex.Message);
+            }
+        }
+
         public BattleDiagnosticQueryResult<BattleDiagnosticWorldSummary> QueryWorld(
             long requestId,
             int frame)

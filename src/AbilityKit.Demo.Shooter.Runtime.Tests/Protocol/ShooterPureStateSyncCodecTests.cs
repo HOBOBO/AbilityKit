@@ -112,7 +112,7 @@ public sealed class ShooterPureStateSyncCodecTests
     }
 
     [Fact]
-    public void CapacityBackedSnapshotSerializesOnlyEffectivePrefixesInV1Layout()
+    public void CapacityBackedSnapshotSerializesOnlyEffectivePrefixesInCurrentLayout()
     {
         var exact = CreateSnapshot();
         var entities = new ShooterPureStateEntityDelta[8];
@@ -281,6 +281,108 @@ public sealed class ShooterPureStateSyncCodecTests
     }
 
     [Fact]
+    public void FrameSampleBlockRoundTripsThroughOwnedAndReusableDecoders()
+    {
+        var snapshot = CreateSnapshot();
+        snapshot.Frame = 12;
+        snapshot.FrameSamples = new[]
+        {
+            new ShooterPureStateFrameSample(10, 1000L, 0, 1),
+            new ShooterPureStateFrameSample(11, 1100L, 1, 1)
+        };
+        snapshot.TransformSamples = new[]
+        {
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1000, 2000, 10, 20, 3),
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1100, 2200, 10, 20, 3)
+        };
+        snapshot.SetTransientCounts(1, 1, 0, 2, 2);
+
+        var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var owned = ShooterPureStateSyncCodec.Deserialize(payload);
+        var reusable = new ShooterPureStateSyncDecodeBuffer().Decode(payload);
+
+        Assert.Equal(2, owned.EffectiveFrameSampleCount);
+        Assert.Equal(2, owned.EffectiveTransformSampleCount);
+        Assert.Equal(10, owned.FrameSamples[0].Frame);
+        Assert.Equal(2200, owned.TransformSamples[1].QuantizedY);
+        Assert.Equal(2, reusable.EffectiveFrameSampleCount);
+        Assert.Equal(2, reusable.EffectiveTransformSampleCount);
+        Assert.Equal(11, reusable.FrameSamples[1].Frame);
+    }
+
+    [Fact]
+    public void ReusableDecoderKeepsFrameSampleArraysStableAfterWarmup()
+    {
+        var snapshot = CreateSnapshot();
+        snapshot.FrameSamples = new[] { new ShooterPureStateFrameSample(19, 19L, 0, 1) };
+        snapshot.TransformSamples = new[]
+        {
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1, 2, 3, 4, 3)
+        };
+        snapshot.SetTransientCounts(1, 1, 0, 1, 1);
+        var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var buffer = new ShooterPureStateSyncDecodeBuffer();
+        var warmup = buffer.Decode(payload);
+        var frameSamples = warmup.FrameSamples;
+        var transformSamples = warmup.TransformSamples;
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 64; i++)
+        {
+            buffer.Decode(payload);
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var decoded = buffer.Decode(payload);
+        Assert.Same(frameSamples, decoded.FrameSamples);
+        Assert.Same(transformSamples, decoded.TransformSamples);
+        Assert.True(allocated < 256, $"Expected allocation-free frame sample decode, actual={allocated} bytes.");
+    }
+
+    [Fact]
+    public void VersionOneAcknowledgedPayloadStillDecodesWithoutFrameSamples()
+    {
+        var snapshot = CreateSnapshot();
+        var legacy = new VersionOnePureStateSnapshotPayload(
+            1,
+            snapshot.WorldId,
+            snapshot.Frame,
+            snapshot.ServerTick,
+            snapshot.SnapshotKind,
+            snapshot.BaselineFrame,
+            snapshot.BaselineHash,
+            snapshot.StateHash,
+            snapshot.Settings,
+            snapshot.Entities,
+            snapshot.VisibilityHints,
+            Array.Empty<ShooterCommandAcknowledgement>());
+        var payload = MemoryPackSerializer.Serialize(legacy);
+
+        var decoded = new ShooterPureStateSyncDecodeBuffer().Decode(payload);
+
+        Assert.Equal(1, decoded.Version);
+        Assert.Equal(1, decoded.EffectiveEntityCount);
+        Assert.Equal(0, decoded.EffectiveFrameSampleCount);
+        Assert.Equal(0, decoded.EffectiveTransformSampleCount);
+    }
+
+    [Fact]
+    public void InvalidVersionTwoFrameLayoutIsRejectedInsteadOfFallingBackToLegacy()
+    {
+        var snapshot = CreateSnapshot();
+        snapshot.FrameSamples = new[] { new ShooterPureStateFrameSample(snapshot.Frame + 1, 1L, 0, 1) };
+        snapshot.TransformSamples = new[]
+        {
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1, 2, 3, 4, 3)
+        };
+        snapshot.SetTransientCounts(1, 1, 0, 1, 1);
+        var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+
+        Assert.Throws<MemoryPackSerializationException>(() => ShooterPureStateSyncCodec.Deserialize(payload));
+        Assert.Throws<MemoryPackSerializationException>(() => new ShooterPureStateSyncDecodeBuffer().Decode(payload));
+    }
+
+    [Fact]
     public void LegacyPayloadWithoutAcknowledgementsDecodesThroughBothApis()
     {
         var snapshot = CreateSnapshot();
@@ -361,6 +463,51 @@ public sealed class ShooterPureStateSyncCodecTests
                     ShooterPureStateEntityFlags.Visible,
                     100)
             });
+    }
+}
+
+[MemoryPackable]
+internal partial struct VersionOnePureStateSnapshotPayload
+{
+    [MemoryPackOrder(0)] public int Version;
+    [MemoryPackOrder(1)] public ulong WorldId;
+    [MemoryPackOrder(2)] public int Frame;
+    [MemoryPackOrder(3)] public long ServerTick;
+    [MemoryPackOrder(4)] public int SnapshotKind;
+    [MemoryPackOrder(5)] public int BaselineFrame;
+    [MemoryPackOrder(6)] public uint BaselineHash;
+    [MemoryPackOrder(7)] public uint StateHash;
+    [MemoryPackOrder(8)] public ShooterPureStateSyncSettings Settings;
+    [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities;
+    [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
+    [MemoryPackOrder(11)] public ShooterCommandAcknowledgement[] AcknowledgedCommands;
+
+    public VersionOnePureStateSnapshotPayload(
+        int version,
+        ulong worldId,
+        int frame,
+        long serverTick,
+        int snapshotKind,
+        int baselineFrame,
+        uint baselineHash,
+        uint stateHash,
+        ShooterPureStateSyncSettings settings,
+        ShooterPureStateEntityDelta[] entities,
+        ShooterPureStateVisibilityHint[] visibilityHints,
+        ShooterCommandAcknowledgement[] acknowledgedCommands)
+    {
+        Version = version;
+        WorldId = worldId;
+        Frame = frame;
+        ServerTick = serverTick;
+        SnapshotKind = snapshotKind;
+        BaselineFrame = baselineFrame;
+        BaselineHash = baselineHash;
+        StateHash = stateHash;
+        Settings = settings;
+        Entities = entities;
+        VisibilityHints = visibilityHints;
+        AcknowledgedCommands = acknowledgedCommands;
     }
 }
 

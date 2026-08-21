@@ -44,6 +44,7 @@
     <ProjectReference Include="..\AbilityKit.Trace\AbilityKit.Trace.csproj" />
     <ProjectReference Include="..\AbilityKit.Attributes\AbilityKit.Attributes.csproj" />
     <ProjectReference Include="..\AbilityKit.Behavior\AbilityKit.Behavior.csproj" />
+    <ProjectReference Include="..\AbilityKit.BehaviorTree\AbilityKit.BehaviorTree.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.Projectile\AbilityKit.Combat.Projectile.csproj" />
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.Motion\AbilityKit.Combat.Motion.csproj" />

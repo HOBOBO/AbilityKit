@@ -2,8 +2,7 @@
     "name": "AbilityKit.Pipeline.Editor",
     "rootNamespace": "AbilityKit.Pipeline.Editor",
     "references": [
-        "AbilityKit.Pipeline",
-        "AbilityKit.Ability"
+        "AbilityKit.Pipeline"
     ],
     "includePlatforms": [
         "Editor"

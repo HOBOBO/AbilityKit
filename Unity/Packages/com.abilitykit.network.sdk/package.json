@@ -15,6 +15,7 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.network.runtime": "0.1.0"
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.protocol": "0.1.0"
   }
 }

@@ -90,6 +90,11 @@ public sealed class ShooterAcceptanceLabTests
                 && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation
                 && template.Status == ShooterSyncTemplateStatus.Experimental);
         Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
+            template => template.Id == "mass-battle-lod-aoi-sample-block"
+                && template.ExpectedCarrierName == ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName
+                && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation
+                && template.Status == ShooterSyncTemplateStatus.Experimental);
+        Assert.Contains(ShooterAcceptanceCatalog.SyncTemplates,
             template => template.Id == "hybrid-hero-prediction"
                 && template.ExpectedCarrierName == ShooterHybridDemoHarnessCarrier.DefaultCarrierName
                 && template.ConvergenceKind == ShooterSyncTemplateConvergenceKind.RuntimeSnapshotWithRemoteInterpolation
@@ -364,7 +369,7 @@ public sealed class ShooterAcceptanceLabTests
             ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.BatchStateSync,
             DemoHarnessRunStatus.Completed));
-        Assert.Equal(netCount, batch.Summary.CountFor(
+        Assert.Equal(netCount * 2, batch.Summary.CountFor(
             ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.MassBattleLodSync,
             DemoHarnessRunStatus.Completed));

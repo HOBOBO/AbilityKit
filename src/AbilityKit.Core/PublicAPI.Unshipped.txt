@@ -61,19 +61,9 @@ AbilityKit.Core.Pooling.ObjectPoolOptions<T>.OnRelease -> System.Action<T!>?
 override AbilityKit.Core.Pooling.PoolKey.Equals(object? obj) -> bool
 AbilityKit.Core.Eventing.EventDispatcher.Clear() -> void
 static AbilityKit.Core.Eventing.GlobalEventDispatcher.Clear() -> void
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>.BufferCapacityController(AbilityKit.Core.Buffers.IBufferCapacityControl! capacityControl, AbilityKit.Core.Buffers.IBufferCapacityPolicy<TSample>! policy, int minCapacity = 1, int maxCapacity = 2147483647) -> void
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>.CurrentCapacity.get -> int
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>.LastTargetCapacity.get -> int
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>.MaxCapacity.get -> int
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>.MinCapacity.get -> int
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>.TrySetTargetCapacity(int capacity) -> bool
-AbilityKit.Core.Buffers.BufferCapacityController<TSample>.Update(TSample sample) -> bool
 AbilityKit.Core.Buffers.IBufferCapacityControl
 AbilityKit.Core.Buffers.IBufferCapacityControl.Capacity.get -> int
 AbilityKit.Core.Buffers.IBufferCapacityControl.TrySetCapacity(int capacity) -> bool
-AbilityKit.Core.Buffers.IBufferCapacityPolicy<TSample>
-AbilityKit.Core.Buffers.IBufferCapacityPolicy<TSample>.GetTargetCapacity(TSample sample, int currentCapacity) -> int
 AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>
 AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.Clear() -> void
 AbilityKit.Core.Buffers.IFrameIndexedBuffer<T>.Contains(int frame) -> bool

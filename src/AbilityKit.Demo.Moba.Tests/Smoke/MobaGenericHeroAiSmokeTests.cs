@@ -160,10 +160,10 @@ public sealed class MobaGenericHeroAiSmokeTests
                 $"move=({caster.moveInput.Dx},{caster.moveInput.Dz}) movement={behavior.Output.Movement.HasValue}");
             Assert.True(caster.hasMoveInput);
             var btreeDecision = Assert.IsType<MobaBTreeDecision>(behavior.Decision);
-            Assert.True(btreeDecision.Blackboard.GetValue<bool>(MobaBTreeKeys.SkillValid));
+            Assert.True(btreeDecision.Blackboard.GetBool(MobaBTreeKeys.SkillValid));
             Assert.Equal(DajiFirstSkillId,
-                btreeDecision.Blackboard.GetValue<int>(MobaBTreeKeys.SkillId));
-            Assert.True(btreeDecision.Blackboard.GetValue<int>(MobaBTreeKeys.TargetId) > 0);
+                btreeDecision.Blackboard.GetInt64(MobaBTreeKeys.SkillId));
+            Assert.True(btreeDecision.Blackboard.GetInt64(MobaBTreeKeys.TargetId) > 0);
 
             var nearEnemyPosition = new Vec3(chasePosition.X, chasePosition.Y, chasePosition.Z + 5f);
             enemy.ReplaceTransform(new Transform3(nearEnemyPosition, enemy.transform.Value.Rotation, enemy.transform.Value.Scale));
@@ -240,8 +240,8 @@ public sealed class MobaGenericHeroAiSmokeTests
                     $"{trigger.TriggerId}:{trigger.Stage}:{trigger.Result}:{trigger.FailureKey}:{trigger.Reason}"));
             Assert.True(firstSkill.CooldownEndTimeMs > 0L,
                 $"AI did not cast the first ready skill in range. state={behavior.Decision.CurrentState} " +
-                $"skillValid={btreeDecision.Blackboard.GetValue<bool>(MobaBTreeKeys.SkillValid)} " +
-                $"target={btreeDecision.Blackboard.GetValue<int>(MobaBTreeKeys.TargetId)} " +
+                $"skillValid={btreeDecision.Blackboard.GetBool(MobaBTreeKeys.SkillValid)} " +
+                $"target={btreeDecision.Blackboard.GetInt64(MobaBTreeKeys.TargetId)} " +
                 $"distance={targetDistance:0.###} mana={currentMana:0.###} " +
                 $"cooldown={firstSkill.CooldownEndTimeMs} clockDt={worldClock.DeltaTime:0.####} " +
                 $"clockTime={worldClock.Time:0.###}.{runningDetail}{failureDetail}{exceptionDetail} " +

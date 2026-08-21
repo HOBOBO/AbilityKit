@@ -1,0 +1,38 @@
+{
+  "Id": 10050000,
+  "Name": "妲己-失心-降低法术防御",
+  "DurationMs": 3000,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [],
+  "IntervalMs": 0,
+  "PresentationTemplateId": 0,
+  "StackingPolicy": 3,
+  "RefreshPolicy": 2,
+  "MaxStacks": 3,
+  "TriggerIds": [],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": [
+    {
+      "TargetKind": 1,
+      "TargetId": 9,
+      "AttrTypeId": 9,
+      "Op": 0,
+      "Value": -30.0,
+      "Priority": 20,
+      "MagnitudeSourceType": 0,
+      "MagnitudeBaseValue": 0.0,
+      "MagnitudeCoefficient": 0.0,
+      "MagnitudeDuration": 0.0,
+      "MagnitudeDecayType": 0,
+      "MagnitudeAttributeTypeId": 0,
+      "MagnitudeContextKey": null,
+      "MagnitudeCurve": null,
+      "EvaluationPolicy": 0
+    }
+  ],
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

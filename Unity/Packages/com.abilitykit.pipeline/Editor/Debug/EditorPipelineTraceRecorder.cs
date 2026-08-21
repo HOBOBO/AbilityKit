@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
 
+#nullable enable
+
 using System;
 using System.Collections.Generic;
 
@@ -98,7 +100,7 @@ namespace AbilityKit.Pipeline.Editor
 
         public void AddTrace(PipelineTraceData data)
         {
-            var evt = new PipelineTraceEvent(data.Sequence, data.Type, data.PhaseId, data.State, data.Message);
+            var evt = new PipelineTraceEvent(data.Sequence, data.Type, data.PhaseId, data.State, data.Message, data.UtcTime);
             _buffer[_head] = evt;
             _head = (_head + 1) % _buffer.Length;
             if (_count < _buffer.Length) _count++;
@@ -128,6 +130,13 @@ namespace AbilityKit.Pipeline.Editor
             {
                 dst.Add(snapshot[i]);
             }
+        }
+
+        public void Clear()
+        {
+            Array.Clear(_buffer, 0, _buffer.Length);
+            _count = 0;
+            _head = 0;
         }
     }
 }

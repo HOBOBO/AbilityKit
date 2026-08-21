@@ -64,17 +64,20 @@ public sealed class ShooterStateSyncGoldenFixtureTests
 
         Assert.Equal(ShooterOpCodes.Snapshot.PureState, wire.PayloadOpCode);
         var pureState = ShooterPureStateSyncCodec.Deserialize(wire.Payload!);
-        Assert.Equal(ShooterPureStateSyncCodec.CurrentVersion, pureState.Version);
+        Assert.Equal(1, pureState.Version);
         Assert.Equal(ShooterPureStateSnapshotKinds.FullBaseline, pureState.SnapshotKind);
         Assert.Equal(0xB1C2_D3E4u, pureState.StateHash);
         Assert.Single(pureState.Entities);
         Assert.Single(pureState.VisibilityHints);
         Assert.Empty(pureState.AcknowledgedCommands);
+        Assert.Empty(pureState.FrameSamples);
+        Assert.Empty(pureState.TransformSamples);
 
         var bufferedPureState = new ShooterPureStateSyncDecodeBuffer().Decode(wire.Payload!);
         Assert.Equal(pureState.WorldId, bufferedPureState.WorldId);
-        Assert.Single(bufferedPureState.Entities);
+        Assert.Equal(1, bufferedPureState.EffectiveEntityCount);
         Assert.Empty(bufferedPureState.AcknowledgedCommands);
+        Assert.Equal(0, bufferedPureState.EffectiveFrameSampleCount);
     }
 
     internal static byte[] CreateGatewayPushBytes(ShooterStateSyncPayloadKind payloadKind)

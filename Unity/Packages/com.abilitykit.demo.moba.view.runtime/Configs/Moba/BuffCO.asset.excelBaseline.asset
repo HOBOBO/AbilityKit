@@ -1,0 +1,579 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: BuffCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\buffs.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - ContinuousTagTemplateId
+  - DispelBlockedByTagNames
+  - DispelCategory
+  - DispelPolicy
+  - DurationMs
+  - Id
+  - IntervalMs
+  - MaxStacks
+  - Modifiers
+  - Name
+  - OnAddEffects
+  - OnIntervalEffects
+  - OnRemoveEffects
+  - PresentationTemplateId
+  - RefreshPolicy
+  - StackingPolicy
+  - TagNames
+  - TriggerIds
+  Rows:
+  - Key: 1
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 3000
+    - 1
+    - 0
+    - 0
+    - 
+    - buff1
+    - 
+    - 
+    - 
+    - 0
+    - 0
+    - 0
+    - 
+    - 
+  - Key: 101
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 5000
+    - 101
+    - 1000
+    - 1
+    - '[{"TargetKind":4,"TargetId":3,"AttrTypeId":0,"Op":0,"Value":2.0,"Priority":10,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0},{"TargetKind":4,"TargetId":5,"AttrTypeId":0,"Op":0,"Value":1000.0,"Priority":10,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u6301\u7EED\u6389\u8840buff"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10010000
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 1500
+    - 10010000
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":23,"AttrTypeId":23,"Op":0,"Value":1.0,"Priority":30,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u5EC9\u9887-\u52C7\u58EB\u4E4B\u9B42-\u6280\u80FD\u9738\u4F53\u6218\u610F"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10010212
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 1500
+    - 10010212
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":-0.3,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u5EC9\u9887-\u7194\u5CA9\u91CD\u51FB-\u547D\u4E2D\u51CF\u901F"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10020001
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 2000
+    - 10020001
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":0,"AttrTypeId":17,"Op":0,"Value":2.0,"Priority":10,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u5C0F\u4E54-\u6CBB\u6108\u5FAE\u7B11-\u77ED\u6682\u52A0\u901F"
+    - 
+    - 
+    - 
+    - 0
+    - 2
+    - 4
+    - 
+    - 
+  - Key: 10020301
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 5000
+    - 10020301
+    - 1000
+    - 1
+    - '[]'
+    - "\u5C0F\u4E54-\u661F\u534E\u7F2D\u4E71-\u6301\u7EED\u843D\u661F\u72B6\u6001"
+    - 
+    - 10020311
+    - 
+    - 90002003
+    - 1
+    - 0
+    - 
+    - 10020312
+  - Key: 10030000
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 10030000
+    - 0
+    - 1
+    - '[]'
+    - "\u8D75\u4E91-\u9F99\u9E23-\u88AB\u52A8\u514D\u4F24\u53C2\u6570"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10030001
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 600
+    - 10030001
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":15,"AttrTypeId":15,"Op":3,"Value":0.25,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0},{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":0,"Value":0.5,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u8D75\u4E91-\u9F99\u9E23-\u4E8C\u6863(\u7834\u4E91)"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10030002
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 600
+    - 10030002
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":15,"AttrTypeId":15,"Op":3,"Value":0.35,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0},{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":0,"Value":0.8,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0},{"TargetKind":1,"TargetId":8,"AttrTypeId":8,"Op":3,"Value":0.15,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0},{"TargetKind":1,"TargetId":9,"AttrTypeId":9,"Op":3,"Value":0.15,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u8D75\u4E91-\u9F99\u9E23-\u4E09\u6863(\u5929\u7FD4)"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10030003
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 3000
+    - 10030003
+    - 0
+    - 1
+    - '[]'
+    - "\u8D75\u4E91-\u9F99\u9E23-\u4E09\u6863\u62A4\u76FE\u6807\u8BB0"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10030101
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 5000
+    - 10030101
+    - 0
+    - 1
+    - '[]'
+    - "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u4E0B\u6B21\u666E\u653B\u5F3A\u5316"
+    - 
+    - 
+    - 
+    - 90003001
+    - 1
+    - 0
+    - 
+    - 10030111
+  - Key: 10030102
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 2000
+    - 10030102
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":-0.25,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u547D\u4E2D\u51CF\u901F"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10030104
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 3000
+    - 10030104
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":0.3,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u77ED\u6682\u52A0\u901F"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10030301
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 5000
+    - 10030301
+    - 0
+    - 1
+    - '[]'
+    - "\u8D75\u4E91-\u5929\u7FD4\u4E4B\u9F99-\u611F\u7535\u6807\u8BB0"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10040000
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 3000
+    - 10040000
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":8,"AttrTypeId":8,"Op":3,"Value":0.2,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0},{"TargetKind":1,"TargetId":9,"AttrTypeId":9,"Op":3,"Value":0.2,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u58A8\u5B50-\u673A\u5173\u672F-\u6280\u80FD\u62A4\u76FE"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10040001
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 1000
+    - 10040001
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":-1.0,"Priority":30,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE-\u7729\u6655"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10040002
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 500
+    - 10040002
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":-1.0,"Priority":30,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u58A8\u5B50-\u58A8\u5B88\u6210\u89C4-\u6301\u7EED\u7729\u6655"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10040003
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 3500
+    - 10040003
+    - 500
+    - 1
+    - '[{"TargetKind":1,"TargetId":8,"AttrTypeId":8,"Op":3,"Value":0.3,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0},{"TargetKind":1,"TargetId":9,"AttrTypeId":9,"Op":3,"Value":0.3,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u58A8\u5B50-\u58A8\u5B88\u6210\u89C4-\u673A\u5173\u5C4F\u969C\u72B6\u6001"
+    - 
+    - 10040311
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10040101
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 5000
+    - 10040101
+    - 0
+    - 1
+    - '[{"TargetKind":4,"TargetId":6,"AttrTypeId":0,"Op":2,"Value":10040112.0,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65-\u4E0B\u6B21\u666E\u653B\u70AE\u51FB"
+    - 
+    - 
+    - 
+    - 90004001
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10050000
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 3000
+    - 10050000
+    - 0
+    - 3
+    - '[{"TargetKind":1,"TargetId":9,"AttrTypeId":9,"Op":0,"Value":-30.0,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u59B2\u5DF1-\u5931\u5FC3-\u964D\u4F4E\u6CD5\u672F\u9632\u5FA1"
+    - 
+    - 
+    - 
+    - 0
+    - 2
+    - 3
+    - 
+    - 
+  - Key: 10050201
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 1500
+    - 10050201
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":-1.0,"Priority":30,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B-\u7729\u6655\u63A7\u5236"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10050301
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 1600
+    - 10050301
+    - 0
+    - 1
+    - '[]'
+    - "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC-\u72D0\u706B\u72B6\u6001"
+    - 
+    - 
+    - 
+    - 90005003
+    - 1
+    - 0
+    - 
+    - 10050314
+  - Key: 10060000
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 10060000
+    - 0
+    - 1
+    - '[]'
+    - "\u5B34\u653F-\u738B\u8005\u5BA1\u5224-\u666E\u653B\u7A7F\u900F\u6807\u8BB0"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10060101
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 1000
+    - 10060101
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":-0.35,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u5B34\u653F-\u738B\u8005\u60E9\u6212-\u51CF\u901F"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10060201
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 3000
+    - 10060201
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":0.25,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u5B34\u653F-\u738B\u8005\u5B88\u5FA1-\u62A4\u76FE\u52A0\u901F"
+    - 
+    - 
+    - 
+    - 90006002
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10060211
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 1000
+    - 10060211
+    - 0
+    - 1
+    - '[{"TargetKind":1,"TargetId":17,"AttrTypeId":17,"Op":3,"Value":-0.25,"Priority":20,"MagnitudeSourceType":0,"MagnitudeBaseValue":0.0,"MagnitudeCoefficient":0.0,"MagnitudeDuration":0.0,"MagnitudeDecayType":0,"MagnitudeAttributeTypeId":0,"MagnitudeContextKey":null,"MagnitudeCurve":null,"EvaluationPolicy":0}]'
+    - "\u5B34\u653F-\u738B\u8005\u5B88\u5FA1-\u51CF\u901F"
+    - 
+    - 
+    - 
+    - 0
+    - 1
+    - 0
+    - 
+    - 
+  - Key: 10060301
+    Values:
+    - 0
+    - 
+    - 0
+    - 0
+    - 2500
+    - 10060301
+    - 0
+    - 1
+    - '[]'
+    - "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743-\u6301\u7EED\u98DE\u5251\u72B6\u6001"
+    - 
+    - 
+    - 
+    - 90006003
+    - 1
+    - 0
+    - 
+    - 

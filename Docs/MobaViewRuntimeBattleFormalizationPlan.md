@@ -714,3 +714,62 @@ P4-P5 已按 13.8 的顺序完成。实现过程中保持既有 public port、�
 - `BattlePresentationCueViewEventHandler(BattleContext ...)`、ViewEvents 中长期持有 concrete context 的共享 handler 残留均为 0；scoped `git diff --check` 通过。generated Runtime 项目已包含本轮新增 source link，保留其 BOM，未产生额外手工 generated 文件差异。
 
 本轮 P0-P4 的代码、测试/source link、metadata、依赖方向与 scoped diff 门禁均已完成；后续仅需按更大范围继续削减 Unity Feature 生命周期上下文和整理物理 partial 文件，不作为本轮完成条件。
+
+### 13.16 表现层 Session 与网络会话边界复审
+
+本节基于 Gateway、battle transport、replication/recovery、simulation、tick、diagnostics 和 Entry teardown 的反向 ownership 追踪，补充 13.15 之后的下一阶段方向。结论不是继续增加一层统一网络 facade：当前代码已经存在 transport adapter、wire protocol client、room wire session、response mapper、connection registry 和 battle transport capability。主要差距集中在资源 ownership contract 与异步生命周期闭包。
+
+#### 13.16.1 当前边界判断
+
+| 范围 | 当前判断 | 正式项目差距 |
+|---|---|---|
+| Entry Gateway | 长生命周期大厅/房间控制面，组合 SDK client、room session、push、恢复与资源加载；恢复已有 pending execution、cancel/reset/await teardown | root publication 仍偏宽，但异步恢复 owner 可作为 Battle 侧参照 |
+| Battle Gateway preparation | 战斗启动前短生命周期控制面，负责连接、登录、建房/入房、时钟采样和 start anchor | client disposal 未进入接口和 owner contract；preparation/clock 取消后不可等待 |
+| Battle frame/snapshot transport | factory 创建，`BattleLogicSession` 接管，registry stop 最终释放 client、transport、runtime 和 streams | ownership 基本闭合，不应与大厅 Gateway 强行合并成统一业务接口 |
+| Replication/recovery | replication、reliable cursor/checkpoint、full-state recovery 已有独立 owner 和窄 transport operations | recovery observation 使用 `async void`，generation 结束无法等待 pending action |
+| Simulation/presentation | remote/confirmed world、view resources、启动失败回滚和逆序清理已进入 owner | projection producer 与 snapshot provider 仍在 tick/catch-up 路径解析 world service；应在 world bind 时缓存 capability |
+| Feature facade | mutable state 和主要资源已下沉到 `BattleSessionRuntime` | Feature 仍实现多组 runtime/host ports，orchestrator/tick host 最终回调 Feature 私有方法，属于迁移中的 composition adapter |
+| Tick loop | 主 session fixed-step、辅助 world 与 interpolation 顺序明确 | 主 fixed-step 使用无预算 `while`，大 delta 或暂停恢复可形成单帧追帧尖峰 |
+| Diagnostics/debug | 有 per-session diagnostics owner、reference-equality 清理和采样间隔 | 多个 static `Current` 发布面仍是单活 Session 语义，不支持并行 viewport/session 的确定性选择 |
+
+13.15 中“callback/tick 热路径使用缓存端口”的结论需要限定到已治理的 ViewEvents 和 remote interpolation consumer。更大 Session 范围内，`BattleSimulationRuntime.TickRemoteDriven` 仍逐 tick 解析 `IActorProjectionProducer`，`SessionWorldCatchUpController` 仍在 catch-up 调用中解析 snapshot provider；`BattleSessionDiagnostics.TryBindMetricSink` 虽会在成功后缓存，但仍由 Feature tick 反复尝试。它们不是当前 P0 correctness 缺陷，但应在 world/runtime generation 建立时一次绑定并在 generation teardown 时解除。
+
+#### 13.16.2 P0：先闭合 correctness 与 teardown
+
+1. **Gateway room client ownership。** 让 Battle Gateway factory 返回的 client 具备明确释放契约，可采用 `IGatewayRoomClient : IDisposable`，或由 `GatewaySessionRuntime` 持有独立 `IDisposable` lease。Dispose 顺序应先停止并等待 preparation/clock，再释放 client 的 request subscriptions/pending requests，最后 detach condition 并从 registry 移除 connection。stale owner 只能释放自己创建的 client，不能影响替代 generation。
+2. **可等待的 Gateway 停止。** 为 preparation 和 clock 建立 `StopAsync`/`DisposeAsync` 或等价 pending-operation drain contract。停止时先提升 generation、取消 token，再 await 原 task，最后 Dispose CTS 并清引用；不能先把 task 置空。同步 Unity detach 可以启动并观察统一 teardown task，但纯 C# owner 必须暴露可等待完成面。
+3. **Authoritative recovery pending owner。** 移除 `async void` observation，保存当前 recovery execution，按 generation/correlation 隔离 completion，并在 reset/dispose 时 cancel/reset 后 await。行为可复用 Entry `NetworkSessionRecoveryRuntime.PendingExecution` 的模式，不复制新的恢复状态机。
+4. **异步 teardown transaction。** 将当前只接收 `Action` 的 `SessionTeardownPolicy` 扩展为可组合同步和异步 step 的 transaction，保留“后续步骤继续执行 + 聚合失败”的语义。Session detach 的完成定义必须包含 Gateway、recovery 及其他 pending operation 已退出，而不只是状态引用已清空。
+
+P0 验收至少覆盖：owner-created Gateway client 恰好释放一次；build failure 回收 candidate client；stale owner 不释放 active client；stop 后 pending task 可在超时内完成；late completion 不提交；多个 teardown step 失败时仍执行后续步骤并返回聚合失败。现有测试只验证 connection registry/remove/dispose，不足以证明 client subscription 和 pending request 已闭合。
+
+#### 13.16.3 P1：迁移行为 owner 与运行预算
+
+1. **Session composition 去倒挂。** 不新建第二套 Session 状态机。将 `ISessionLogicPort`、`ISessionRuntimeResourcesPort` 和 tick host 的实现逐组迁到 `BattleSessionRuntime` 内的明确 coordinator/resource owner；`BattleSessionFeature` 最终只保留 phase attach/detach、公共 facade、Unity log/editor hook 和 composition。
+2. **Fixed-step budget。** 为主 session loop 增加每次 update 最大步数、accumulator 上限与 over-budget telemetry。策略需明确选择保留 backlog、clamp 或触发恢复，不能静默无限追帧；remote/confirmed/spectator 的既有预算应纳入同一 tick budget snapshot，但保持各 world 的 drive policy 独立。
+3. **World capability binding。** 在 remote/confirmed world generation 建立时解析并缓存 projection producer、snapshot provider、metric sink、state importer 和 authority-frame capability；tick/recovery 只消费窄 port。world 替换或 teardown 时按 generation 清理缓存，禁止旧 world unbind 新 capability。
+4. **Gateway capability narrowing。** 宽泛 `IGatewayRoomClient` 可按调用方拆为 auth/time、room commands、room recovery/query、push decoding、battle state-sync/input 等 capability。拆分目标是限制依赖和测试面，不改变 wire protocol，也不把 Entry 与 Battle 两类会话合成巨型 network session。
+5. **统一 lifecycle diagnostics。** Entry Gateway 与 Battle transport 保持各自重连/恢复策略，但共享 connection/session generation、state transition、retry、stop latency、pending operation 和 teardown failure 的诊断 schema，便于正式环境关联一次玩家会话中的控制面与数据面问题。
+
+#### 13.16.4 P2：多会话与公开服务治理
+
+1. 将 `BattleFlowDebugProvider`、`InputSubmissionStatsProvider`、replay control 和 debug facade 的 static `Current` 明确标记为 development single-active compatibility surface。正式读取面改为按 session id、world id 或 viewport scope 注册/query；reference equality 只作为兼容清理保护，不作为多会话选择策略。
+2. 收窄 Entry root services，优先发布 room query/command/recovery capability bundle，避免任意下游获取 concrete Gateway client、raw transport 或完整 runtime。需要低层诊断的调用方通过只读 diagnostics port 获取状态。
+3. 为错误隔离增加 fault domain：协议 decode/request failure、connection failure、room recovery failure、battle state recovery failure、world import failure 和 presentation failure 分别具有稳定 code、correlation context 和升级策略，避免所有异常最终只进入 SessionFailed。
+4. 在 ownership 稳定后再删除单行 partial、合并物理文件和拆分大型测试 fixture。文件数量不是完成标准；多 Session 并行测试、资源单次释放、可等待 teardown 和受预算 tick 才是正式化门禁。
+
+#### 13.16.5 推荐实施顺序与非目标
+
+推荐顺序为：Gateway client disposal contract -> Gateway preparation/clock awaitable stop -> authoritative recovery pending owner -> async Session teardown -> fixed-step budget -> world capability binding -> Session facade port 迁移 -> capability narrowing 与多会话 diagnostics。
+
+本批明确不做三件事：不创建覆盖大厅与战斗的统一巨型 `INetworkSession`；不把 transport reconnect、room restore 和 authoritative world recovery 合并成一个状态机；不为了减少 partial 数量先重写已闭合的 simulation、replication 或 battle transport owner。三类恢复发生在不同通道和业务层级，正式项目需要统一观测、取消和停止语义，而不是统一业务协议。
+
+#### 13.16.6 P0-P2 实施与验证结果
+
+本轮已按 13.16.5 的推荐顺序完成 P0-P2，且没有创建跨大厅与战斗的统一巨型 Session，也没有合并 transport reconnect、room restore 与 authoritative world recovery 三套业务状态机。
+
+- **P0 correctness 与 teardown 已闭合。** Gateway room client 具备明确 disposal contract，candidate build failure 和 stale generation 按 owner 隔离；preparation/clock 暴露可等待 stop/drain；authoritative recovery 使用可取消、按 generation 隔离的 pending owner，移除 `async void` observation；Session teardown 改为同步/异步 step 均可参与且继续执行后续步骤、最终聚合失败的 transaction。
+- **P1 owner、预算与 capability 已迁移。** 主 Session fixed-step loop 具有最大步数、accumulator 上限、backlog policy 和 over-budget telemetry；remote/confirmed world generation 建立时缓存 projection、snapshot、metric、state import 和 authority-frame 等窄能力，并以 reference-safe generation teardown 清理；Session host/runtime port 行为已逐组移入 runtime owner；Gateway 已拆分 room command、recovery query、directory、push/state-sync 等调用面，并统一 lifecycle diagnostics schema。
+- **P2 多会话公开面已治理。** `BattleFlowDebugProvider`、`InputSubmissionStatsProvider`、replay control 与 debug facade 均提供按 world/scope 的 publish/query/withdraw；static `Current` 仅保留 development single-active compatibility surface。`BattleDebugPublicationOwner` 在 late Context discovery、Context replacement 和 scope change 时执行完整 scoped rebind，stale owner 依靠 reference equality 不能撤销 replacement。Entry root 仅发布 room command、recovery query、directory、只读 diagnostics 和 recovery control 等窄 capability，不发布 `IGatewayRoomClient` 或完整 `IMultiplayerGatewayRuntime`。
+- **自动化验证。** generated `AbilityKit.Game.UnitTests.csproj` 编译通过（162 warnings、0 errors），P2 受影响文件的 scoped `git diff --check` 通过。新增测试覆盖 scoped provider 隔离、replacement protection、publication owner late discovery/scope rebind，以及 Entry root 窄 capability 的 publish/withdraw 和 aggregate non-publication。
+- **Unity 与 metadata 门禁。** package 范围 GUID 扫描未发现重复。本轮没有新增、删除或修改 Unity `.meta`；工作树中现存的未跟踪 `.meta`（包括既有 `MobaRuntimeDependencyAndWorldQueryTests.cs.meta` 与 Buff 配置产物）保持原状。尝试运行 `AbilityKit.Game.UnitTests` EditMode 测试时，Unity Bee 全工程脚本编译以 exit code 3 终止并报告 `Scripts have compiler errors`，日志未给出可定位的 C# error diagnostic，且未生成 NUnit XML；因此本轮不能声明 Unity Test Runner 通过，测试行为仍以 generated project 编译为证据，Unity lifecycle 执行门禁保留为后续阻断项。

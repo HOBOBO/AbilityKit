@@ -29,7 +29,44 @@ namespace AbilityKit.Game.Flow.Battle.Replay
 
     public static class BattleReplayControlProvider
     {
+        private static readonly object Gate = new object();
+        private static readonly Dictionary<string, IBattleReplayControl> ByScope =
+            new Dictionary<string, IBattleReplayControl>(StringComparer.Ordinal);
+
+        /// <summary>仅用于 development single-active 兼容；正式调用方应按 scope 查询。</summary>
         public static IBattleReplayControl Current { get; internal set; }
+
+        public static bool TryGet(string scope, out IBattleReplayControl control)
+        {
+            control = null;
+            if (string.IsNullOrWhiteSpace(scope)) return false;
+            lock (Gate)
+            {
+                return ByScope.TryGetValue(scope, out control);
+            }
+        }
+
+        internal static void Publish(string scope, IBattleReplayControl control)
+        {
+            if (string.IsNullOrWhiteSpace(scope) || control == null) return;
+            lock (Gate)
+            {
+                ByScope[scope] = control;
+            }
+        }
+
+        internal static void Withdraw(string scope, IBattleReplayControl owner)
+        {
+            if (string.IsNullOrWhiteSpace(scope) || owner == null) return;
+            lock (Gate)
+            {
+                if (ByScope.TryGetValue(scope, out var current) &&
+                    ReferenceEquals(current, owner))
+                {
+                    ByScope.Remove(scope);
+                }
+            }
+        }
     }
 
     public sealed class FrameReplayDriver

@@ -20,12 +20,17 @@ namespace AbilityKit.Game.Flow
         IRoomGatewaySnapshotFeed,
         IDisposable
     {
-        private readonly IGatewayRoomClient _client;
+        private readonly IGatewayRoomCommandCapability _commands;
+        private readonly IGatewayRoomRecoveryQueryCapability _recoveryQuery;
         private readonly ClientRoomStore _store;
 
-        public MobaRoomGatewaySessionClient(IGatewayRoomClient client, ClientRoomStore store)
+        public MobaRoomGatewaySessionClient(
+            IGatewayRoomCommandCapability commands,
+            IGatewayRoomRecoveryQueryCapability recoveryQuery,
+            ClientRoomStore store)
         {
-            _client = client ?? throw new ArgumentNullException(nameof(client));
+            _commands = commands ?? throw new ArgumentNullException(nameof(commands));
+            _recoveryQuery = recoveryQuery ?? throw new ArgumentNullException(nameof(recoveryQuery));
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _store.OnSnapshotChanged += HandleSnapshotChanged;
         }
@@ -45,7 +50,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.CreateRoomAsync(
+            var result = await _commands.CreateRoomAsync(
                 request.SessionToken,
                 request.Region,
                 request.ServerId,
@@ -65,7 +70,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.JoinRoomAsync(
+            var result = await _commands.JoinRoomAsync(
                 request.SessionToken,
                 request.Region,
                 request.ServerId,
@@ -91,7 +96,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            await _client.SetReadyAsync(request.SessionToken, request.RoomId, request.Ready, timeout, cancellationToken).ConfigureAwait(false);
+            await _commands.SetReadyAsync(request.SessionToken, request.RoomId, request.Ready, timeout, cancellationToken).ConfigureAwait(false);
             return new RoomGatewayReadyResult(true, string.Empty, false, string.Empty);
         }
 
@@ -100,7 +105,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.LeaveRoomAsync(
+            var result = await _commands.LeaveRoomAsync(
                 request.SessionToken,
                 request.RoomId,
                 request.ExpectedRevision,
@@ -121,7 +126,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.RestoreRoomAsync(
+            var result = await _recoveryQuery.RestoreRoomAsync(
                 request.SessionToken,
                 request.Region,
                 request.ServerId,
@@ -151,7 +156,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.PickHeroAsync(
+            var result = await _commands.PickHeroAsync(
                 request.SessionToken,
                 request.RoomId,
                 request.HeroId,
@@ -178,7 +183,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.BeginLoadingAsync(
+            var result = await _commands.BeginLoadingAsync(
                 request.SessionToken,
                 request.RoomId,
                 request.ExpectedRevision,
@@ -199,7 +204,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.ReportAssetsLoadedAsync(
+            var result = await _commands.ReportAssetsLoadedAsync(
                 request.SessionToken,
                 request.RoomId,
                 request.LaunchGeneration,
@@ -222,7 +227,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.ReportLoadingProgressAsync(
+            var result = await _commands.ReportLoadingProgressAsync(
                 request.SessionToken,
                 request.RoomId,
                 request.LaunchGeneration,
@@ -245,7 +250,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.CancelLoadingAsync(
+            var result = await _commands.CancelLoadingAsync(
                 request.SessionToken,
                 request.RoomId,
                 request.ExpectedRevision,
@@ -266,7 +271,7 @@ namespace AbilityKit.Game.Flow
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
-            var result = await _client.GetSnapshotAsync(
+            var result = await _recoveryQuery.GetSnapshotAsync(
                 request.SessionToken,
                 request.RoomId,
                 timeout,

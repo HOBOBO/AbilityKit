@@ -1,6 +1,8 @@
 # 5.6 HFSM 分层状态机
 
 > 本文基于 `Unity/Packages/com.abilitykit.hfsm` 源码说明 AbilityKit 的 HFSM 能力。HFSM 来自 UnityHFSM 风格的分层有限状态机，并在包内扩展了 Unity Graph Asset、编辑器、导出器、运行时可视化和 ActionBehavior 体系。Core HFSM 已进入 Shooter Bot AI 与 MOBA View Flow；Graph 到 runtime 的自动构建链路仍不完整，不能把两者视为相同成熟度。
+>
+> 2026-08-21 起包内进入双运行时迁移期：`UnityHFSM` 命名空间是现有消费者的兼容实现；`AbilityKit.HFSM` 是新的确定性 Definition/Runtime 内核。新项目能力应面向后者建设，迁移规范见 [`08-HfsmDeterministicRuntimeEvolution.md`](../13-FrameworkCore/08-HfsmDeterministicRuntimeEvolution.md)。
 
 ---
 

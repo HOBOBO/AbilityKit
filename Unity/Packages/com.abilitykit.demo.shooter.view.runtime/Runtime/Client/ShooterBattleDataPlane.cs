@@ -48,6 +48,10 @@ namespace AbilityKit.Demo.Shooter.View
             in ShooterDurationMetricSnapshot snapshotArrivalGap,
             in ShooterDurationMetricSnapshot queueWait,
             in ShooterDurationMetricSnapshot pushProcess,
+            in ShooterDurationMetricSnapshot fullSnapshotProcess,
+            in ShooterDurationMetricSnapshot deltaSnapshotProcess,
+            in ShooterDurationMetricSnapshot reliableEventProcess,
+            in ShooterDurationMetricSnapshot otherPushProcess,
             in ShooterDurationMetricSnapshot snapshotSourceAge)
         {
             QueueDepth = queueDepth;
@@ -65,6 +69,10 @@ namespace AbilityKit.Demo.Shooter.View
             SnapshotArrivalGap = snapshotArrivalGap;
             QueueWait = queueWait;
             PushProcess = pushProcess;
+            FullSnapshotProcess = fullSnapshotProcess;
+            DeltaSnapshotProcess = deltaSnapshotProcess;
+            ReliableEventProcess = reliableEventProcess;
+            OtherPushProcess = otherPushProcess;
             SnapshotSourceAge = snapshotSourceAge;
         }
 
@@ -97,6 +105,14 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterDurationMetricSnapshot QueueWait { get; }
 
         public ShooterDurationMetricSnapshot PushProcess { get; }
+
+        public ShooterDurationMetricSnapshot FullSnapshotProcess { get; }
+
+        public ShooterDurationMetricSnapshot DeltaSnapshotProcess { get; }
+
+        public ShooterDurationMetricSnapshot ReliableEventProcess { get; }
+
+        public ShooterDurationMetricSnapshot OtherPushProcess { get; }
 
         public ShooterDurationMetricSnapshot SnapshotSourceAge { get; }
     }
@@ -142,6 +158,10 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly ShooterDurationMetric _snapshotArrivalGap = new();
         private readonly ShooterDurationMetric _queueWait = new();
         private readonly ShooterDurationMetric _pushProcess = new();
+        private readonly ShooterDurationMetric _fullSnapshotProcess = new();
+        private readonly ShooterDurationMetric _deltaSnapshotProcess = new();
+        private readonly ShooterDurationMetric _reliableEventProcess = new();
+        private readonly ShooterDurationMetric _otherPushProcess = new();
         private readonly ShooterDurationMetric _snapshotSourceAge = new();
         private bool _disposed;
 
@@ -166,6 +186,10 @@ namespace AbilityKit.Demo.Shooter.View
                 var arrivalGap = _snapshotArrivalGap.Capture();
                 var queueWait = _queueWait.Capture();
                 var pushProcess = _pushProcess.Capture();
+                var fullSnapshotProcess = _fullSnapshotProcess.Capture();
+                var deltaSnapshotProcess = _deltaSnapshotProcess.Capture();
+                var reliableEventProcess = _reliableEventProcess.Capture();
+                var otherPushProcess = _otherPushProcess.Capture();
                 var snapshotSourceAge = _snapshotSourceAge.Capture();
                 return new ShooterBattleDataPlaneDiagnostics(
                     Volatile.Read(ref _queueDepth),
@@ -183,6 +207,10 @@ namespace AbilityKit.Demo.Shooter.View
                     in arrivalGap,
                     in queueWait,
                     in pushProcess,
+                    in fullSnapshotProcess,
+                    in deltaSnapshotProcess,
+                    in reliableEventProcess,
+                    in otherPushProcess,
                     in snapshotSourceAge);
             }
         }
@@ -272,7 +300,9 @@ namespace AbilityKit.Demo.Shooter.View
                 var processStartedAt = Stopwatch.GetTimestamp();
                 _queueWait.RecordElapsedTicks(processStartedAt - item.ReceivedTimestamp);
                 ProcessPush(item.OpCode, item.Payload);
-                _pushProcess.RecordElapsedTicks(Stopwatch.GetTimestamp() - processStartedAt);
+                var processElapsedTicks = Stopwatch.GetTimestamp() - processStartedAt;
+                _pushProcess.RecordElapsedTicks(processElapsedTicks);
+                RecordPushProcess(item.OpCode, processElapsedTicks);
                 RecordSnapshotSourceAge(item.OpCode);
                 processed++;
             }
@@ -312,6 +342,29 @@ namespace AbilityKit.Demo.Shooter.View
         {
             return opCode == RoomGatewayOpCodes.SnapshotPushed ||
                    opCode == RoomGatewayOpCodes.DeltaSnapshotPushed;
+        }
+
+        private void RecordPushProcess(uint opCode, long elapsedTicks)
+        {
+            if (opCode == RoomGatewayOpCodes.SnapshotPushed)
+            {
+                _fullSnapshotProcess.RecordElapsedTicks(elapsedTicks);
+                return;
+            }
+
+            if (opCode == RoomGatewayOpCodes.DeltaSnapshotPushed)
+            {
+                _deltaSnapshotProcess.RecordElapsedTicks(elapsedTicks);
+                return;
+            }
+
+            if (opCode == RoomGatewayOpCodes.ReliableBattleEventsPushed)
+            {
+                _reliableEventProcess.RecordElapsedTicks(elapsedTicks);
+                return;
+            }
+
+            _otherPushProcess.RecordElapsedTicks(elapsedTicks);
         }
 
         private void UpdatePeakQueueDepth(int depth)

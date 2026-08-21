@@ -75,6 +75,22 @@ var sdk = new NetworkSdkBuilder()
 
 `NetworkSdkClient` 持有且只持有一条 connection 和一个 `RequestClient`。房间能力通过 `CreateRoomClient()` 复用这条请求链，不应再创建第二套 request tracker。
 
+### 多项目 Host 的 Client Hub
+
+多项目宿主可使用 `NetworkSdkClientHub` 管理可复用的 SDK 客户端。键由 `projectId`、`role`、`instanceId` 组成；同键复用同一个 `NetworkSdkClient`，不同 role 永远不会合并。
+
+```csharp
+using var hub = new NetworkSdkClientHub();
+using var room = hub.Acquire(
+    new NetworkSdkClientKey("abilitykit.moba", "room", "primary"),
+    roomBuilder);
+using var battle = hub.Acquire(
+    new NetworkSdkClientKey("abilitykit.moba", "battle", "primary"),
+    battleBuilder);
+```
+
+lease 释放只减少使用计数，不会自动关闭连接；Hub 通过 `Remove` 或 `Dispose` 统一释放 owner。这样可以让多个 feature/session 复用 Room 客户端，同时保留 Room/Battle 独立连接、独立重连和独立协议边界。
+
 ```text
 Build
   → Open / OpenIfDisconnected

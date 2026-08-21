@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly int Frame;
         public readonly double Timestamp;
         public readonly long ServerTicks;
+        public readonly long EventWatermark;
         public readonly bool IsFullSnapshot;
         public readonly IReadOnlyList<ShooterGatewayActorSnapshot> Actors;
         public readonly int PayloadOpCode;
@@ -21,16 +22,22 @@ namespace AbilityKit.Demo.Shooter.View
         public readonly ShooterPureStateSnapshotPayload? PureStateSnapshot;
 
         public ShooterGatewaySnapshot(ulong worldId, int frame, double timestamp, bool isFullSnapshot, IReadOnlyList<ShooterGatewayActorSnapshot> actors, int payloadOpCode = 0, ShooterPackedSnapshotPayload? packedSnapshot = null)
-            : this(worldId, frame, timestamp, 0L, isFullSnapshot, actors, payloadOpCode, packedSnapshot, null)
+            : this(worldId, frame, timestamp, 0L, 0L, isFullSnapshot, actors, payloadOpCode, packedSnapshot, null)
         {
         }
 
         public ShooterGatewaySnapshot(ulong worldId, int frame, double timestamp, long serverTicks, bool isFullSnapshot, IReadOnlyList<ShooterGatewayActorSnapshot> actors, int payloadOpCode = 0, ShooterPackedSnapshotPayload? packedSnapshot = null, ShooterPureStateSnapshotPayload? pureStateSnapshot = null, byte[]? payloadBytes = null)
+            : this(worldId, frame, timestamp, serverTicks, 0L, isFullSnapshot, actors, payloadOpCode, packedSnapshot, pureStateSnapshot, payloadBytes)
+        {
+        }
+
+        public ShooterGatewaySnapshot(ulong worldId, int frame, double timestamp, long serverTicks, long eventWatermark, bool isFullSnapshot, IReadOnlyList<ShooterGatewayActorSnapshot> actors, int payloadOpCode = 0, ShooterPackedSnapshotPayload? packedSnapshot = null, ShooterPureStateSnapshotPayload? pureStateSnapshot = null, byte[]? payloadBytes = null)
         {
             WorldId = worldId;
             Frame = frame;
             Timestamp = timestamp;
             ServerTicks = serverTicks;
+            EventWatermark = eventWatermark;
             IsFullSnapshot = isFullSnapshot;
             Actors = actors ?? Array.Empty<ShooterGatewayActorSnapshot>();
             PayloadOpCode = payloadOpCode;
@@ -90,6 +97,7 @@ namespace AbilityKit.Demo.Shooter.View
                     push.Frame,
                     push.Timestamp,
                     push.ServerTicks,
+                    push.EventWatermark,
                     push.IsFullSnapshot,
                     Array.Empty<ShooterGatewayActorSnapshot>(),
                     push.PayloadOpCode,
@@ -119,6 +127,7 @@ namespace AbilityKit.Demo.Shooter.View
                 push.Frame,
                 push.Timestamp,
                 push.ServerTicks,
+                push.EventWatermark,
                 push.IsFullSnapshot,
                 actors,
                 push.PayloadOpCode,

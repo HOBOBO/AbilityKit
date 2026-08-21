@@ -58,6 +58,7 @@ namespace AbilityKit.Game.Flow
             var nextTickedFrame = options.WorldCatchUp.CatchUpAndFeedSnapshots(
                 runtime: handles.Runtime,
                 world: handles.World,
+                snapshotProvider: handles.Capabilities.SnapshotProvider,
                 lastTickedFrame: lastTickedFrame,
                 driveTargetFrame: frameState.DriveTargetFrame,
                 fixedDelta: options.FixedDeltaSeconds,

@@ -12,6 +12,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Trace;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Rollback;
 
 namespace AbilityKit.Demo.Moba.Services.Passive
 {
@@ -19,7 +20,7 @@ namespace AbilityKit.Demo.Moba.Services.Passive
     /// 被动技能生命周期服务：集中维护被动技能的运行时 listener、source context 和常驻触发器计划。
     /// </summary>
     [WorldService(typeof(MobaPassiveSkillLifecycleService))]
-    public sealed class MobaPassiveSkillLifecycleService : IService, IMobaOwnerBoundTriggerGate, IMobaOwnerBoundTriggerExecutionSourceProvider
+    public sealed class MobaPassiveSkillLifecycleService : IService, IMobaOwnerBoundTriggerGate, IMobaOwnerBoundTriggerExecutionSourceProvider, IMobaOwnerKeySource
     {
         private static readonly ObjectPool<HashSet<long>> s_ownerKeySetPool = Pools.GetPool(
             createFunc: () => new HashSet<long>(),
@@ -134,6 +135,18 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         public bool IsPassiveOwnerKey(long ownerKey)
         {
             return ownerKey != 0 && _passiveByOwnerKey.ContainsKey(ownerKey);
+        }
+
+        public string Name => "passive";
+
+        public void CopyActiveOwnerKeys(List<long> destination)
+        {
+            if (destination == null) return;
+            destination.Clear();
+            foreach (var ownerKey in _passiveByOwnerKey.Keys)
+            {
+                if (ownerKey != 0) destination.Add(ownerKey);
+            }
         }
 
         public bool IsMatch(long ownerKey, int triggerId)

@@ -352,7 +352,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 FieldId = dto.FieldId,
                 DomainId = dto.DomainId,
                 Key = dto.Key,
-                ExprText = dto.ExprText
+                ExprText = dto.ExprText,
+                KeyType = dto.KeyType,
+                Scope = dto.Scope
             };
         }
 
@@ -388,6 +390,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                     return dto.ConstValue;
                 case "Board":
                     return new { Kind = "Board", BoardId = dto.BoardId, KeyId = dto.KeyId };
+                case "BlackboardTarget":
+                    return new
+                    {
+                        Kind = "BlackboardTarget",
+                        BoardId = dto.BoardId,
+                        KeyId = dto.KeyId,
+                        KeyType = dto.KeyType,
+                        Scope = dto.Scope
+                    };
+                case "Bool":
+                    return new { Kind = "Bool", BoolValue = dto.BoolValue };
+                case "String":
+                    return new { Kind = "String", StringValue = dto.StringValue ?? string.Empty };
                 case "Field":
                     return new { Kind = "Field", FieldId = dto.FieldId, KeyId = dto.KeyId };
                 case "Domain":

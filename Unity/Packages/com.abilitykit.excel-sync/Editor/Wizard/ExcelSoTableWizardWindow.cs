@@ -307,10 +307,10 @@ namespace AbilityKit.ExcelSync.Editor
             }
 
             var sheet = string.IsNullOrEmpty(options.SheetName)
-                ? package.Workbook.Worksheets[0]
-                : (package.Workbook.Worksheets[options.SheetName] ?? package.Workbook.Worksheets[0]);
+                ? ExcelSheetLookup.FirstSheet(package)
+                : (package.Workbook.Worksheets[options.SheetName] ?? ExcelSheetLookup.FirstSheet(package));
 
-            if (sheet.Dimension == null)
+            if (sheet == null || sheet.Dimension == null)
             {
                 return (new List<string>(), new List<string>(), new List<string>());
             }

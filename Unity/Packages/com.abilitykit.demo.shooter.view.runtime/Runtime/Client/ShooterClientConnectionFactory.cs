@@ -5,6 +5,9 @@ using System.Threading;
 using AbilityKit.GameFramework.Network;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Observability;
+using AbilityKit.Network.Sdk.Observability;
+using AbilityKit.Protocol.Room;
 using GameFramework.Network;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -86,7 +89,20 @@ namespace AbilityKit.Demo.Shooter.View
 
         public static ConnectionOptions CreateDefaultOptions()
         {
-            return new ConnectionOptions();
+            var options = new ConnectionOptions();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            RoomProtocolDecoderModule.Register(NetworkTrafficMonitor.Default.Decoders);
+            options.TrafficCapture = new NetworkTrafficCaptureOptions
+            {
+                ConnectionId = "shooter-room-primary",
+                Role = "room",
+                CatalogId = "abilitykit.room",
+                TransportName = "tcp",
+                MaximumPayloadPreviewBytes = 65536,
+                ObserverFactory = _ => NetworkTrafficMonitor.Default
+            };
+#endif
+            return options;
         }
 
         internal sealed class SynchronizationContextDispatcher : IDispatcher

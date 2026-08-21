@@ -1,0 +1,17 @@
+{
+    "name": "AbilityKit.BehaviorTree",
+    "rootNamespace": "AbilityKit.BehaviorTree",
+    "references": [
+        "AbilityKit.Core",
+        "AbilityKit.Deterministic"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}

@@ -1,0 +1,57 @@
+{
+  "Id": 10040003,
+  "Name": "墨子-墨守成规-机关屏障状态",
+  "DurationMs": 3500,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [
+    10040311
+  ],
+  "IntervalMs": 500,
+  "PresentationTemplateId": 0,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 1,
+  "MaxStacks": 1,
+  "TriggerIds": [],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": [
+    {
+      "TargetKind": 1,
+      "TargetId": 8,
+      "AttrTypeId": 8,
+      "Op": 3,
+      "Value": 0.3,
+      "Priority": 20,
+      "MagnitudeSourceType": 0,
+      "MagnitudeBaseValue": 0.0,
+      "MagnitudeCoefficient": 0.0,
+      "MagnitudeDuration": 0.0,
+      "MagnitudeDecayType": 0,
+      "MagnitudeAttributeTypeId": 0,
+      "MagnitudeContextKey": null,
+      "MagnitudeCurve": null,
+      "EvaluationPolicy": 0
+    },
+    {
+      "TargetKind": 1,
+      "TargetId": 9,
+      "AttrTypeId": 9,
+      "Op": 3,
+      "Value": 0.3,
+      "Priority": 20,
+      "MagnitudeSourceType": 0,
+      "MagnitudeBaseValue": 0.0,
+      "MagnitudeCoefficient": 0.0,
+      "MagnitudeDuration": 0.0,
+      "MagnitudeDecayType": 0,
+      "MagnitudeAttributeTypeId": 0,
+      "MagnitudeContextKey": null,
+      "MagnitudeCurve": null,
+      "EvaluationPolicy": 0
+    }
+  ],
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

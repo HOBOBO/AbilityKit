@@ -1,0 +1,20 @@
+{
+  "Id": 1,
+  "Name": "buff1",
+  "DurationMs": 3000,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [],
+  "IntervalMs": 0,
+  "PresentationTemplateId": 0,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 0,
+  "MaxStacks": 0,
+  "TriggerIds": [],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": null,
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

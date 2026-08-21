@@ -15,8 +15,7 @@ namespace AbilityKit.Game.Flow
         Battle.Replay.IBattleReplayControl,
         IBattleAssetLoadSessionPort,
         ISessionLogicPort,
-        ISessionPipelinePort,
-        ISessionRuntimeResourcesPort
+        ISessionPipelinePort
     {
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         public static bool DebugForceClientHashMismatch
@@ -40,6 +39,7 @@ namespace AbilityKit.Game.Flow
         private BattleSessionHandles _handles => _runtime.Handles;
         private SessionOrchestrator _orchestrator => _runtime.Orchestrator;
 
+        private readonly SessionRuntimeResourcesPort _runtimeResourcesPort;
         private readonly SessionLifecycleHost _lifecycleHost;
         private readonly TickLoopHost _tickLoopHost;
         private readonly SessionNetAdapterContextHost _netAdapterContextHost;
@@ -92,7 +92,20 @@ namespace AbilityKit.Game.Flow
                 _gatewayConnectionFactory,
                 _gatewayRoomClientFactory,
                 NetworkCondition);
-            _lifecycleHost = new SessionLifecycleHost(_handles, this, this, this);
+            _runtimeResourcesPort = new SessionRuntimeResourcesPort(
+                _runtime,
+                () => _plan,
+                () => _ctx,
+                () => _flow,
+                () => _session != null,
+                GetFixedDeltaSeconds,
+                ResolveIdealFrameLimit,
+                DestroyEntityTree);
+            _lifecycleHost = new SessionLifecycleHost(
+                _handles,
+                this,
+                this,
+                _runtimeResourcesPort);
             _runtime.ConfigureOrchestrator(_lifecycleHost);
             _dispatchers = new SessionDispatchersController();
             _net = new SessionNetAdapterController();

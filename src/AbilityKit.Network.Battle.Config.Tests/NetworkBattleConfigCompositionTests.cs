@@ -2,6 +2,7 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Battle;
 using AbilityKit.Network.Battle.Config;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Observability;
 using AbilityKit.Network.Sdk;
 using Xunit;
 
@@ -65,6 +66,25 @@ public sealed class NetworkBattleConfigCompositionTests
         Assert.Null(sdkDefaults.ConfigureConnection);
     }
 
+    [Fact]
+    public void ObserveTraffic_PreservesObserverAndCapturePolicy()
+    {
+        var observer = new RecordingObserver();
+        Action<NetworkTrafficCaptureOptions> configure = options =>
+        {
+            options.Role = "battle";
+            options.CatalogId = "project.battle";
+        };
+
+        var options = CreateConfiguredBuilder()
+            .WithTcpTransport()
+            .ObserveTraffic(observer, configure)
+            .Build();
+
+        Assert.Same(observer, options.TrafficObserver);
+        Assert.Same(configure, options.ConfigureTrafficCapture);
+    }
+
     private static NetworkBattleConfig CreateConfiguredBuilder()
     {
         return new NetworkBattleConfig()
@@ -93,5 +113,10 @@ public sealed class NetworkBattleConfigCompositionTests
         public void Tick(float deltaTime) { }
         public void Send(uint opCode, ArraySegment<byte> payload, ushort flags = 0, uint seq = 0) { }
         public void Dispose() => State = ConnectionState.Disconnected;
+    }
+
+    private sealed class RecordingObserver : INetworkTrafficObserver
+    {
+        public void OnTraffic(NetworkTrafficEvent trafficEvent) { }
     }
 }

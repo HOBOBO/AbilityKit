@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Triggering.Blackboard
 {
-    public sealed class DictionaryBlackboardResolver : IBlackboardResolver
+    public sealed class DictionaryBlackboardResolver : IMutableBlackboardResolver
     {
         private readonly Dictionary<int, IBlackboard> _map;
 

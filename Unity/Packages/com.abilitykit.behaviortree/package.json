@@ -1,0 +1,21 @@
+{
+  "name": "com.abilitykit.behaviortree",
+  "version": "0.1.0",
+  "displayName": "AbilityKit BehaviorTree",
+  "unity": "2022.3",
+  "description": "Deterministic behavior tree runtime and authoring toolkit: runtime IR separated from authoring assets, descriptor-based node registry, and a pull-based debug registry for editor observation.",
+  "keywords": [
+    "abilitykit",
+    "behavior-tree",
+    "ai",
+    "deterministic",
+    "runtime"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.deterministic": "0.1.0"
+  }
+}

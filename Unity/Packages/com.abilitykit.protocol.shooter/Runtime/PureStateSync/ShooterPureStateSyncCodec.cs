@@ -158,6 +158,53 @@ namespace AbilityKit.Protocol.Shooter
     }
 
     [MemoryPackable]
+    public partial struct ShooterPureStateFrameSample
+    {
+        [MemoryPackOrder(0)] public int Frame;
+        [MemoryPackOrder(1)] public long ServerTick;
+        [MemoryPackOrder(2)] public int TransformOffset;
+        [MemoryPackOrder(3)] public int TransformCount;
+
+        public ShooterPureStateFrameSample(int frame, long serverTick, int transformOffset, int transformCount)
+        {
+            Frame = frame;
+            ServerTick = serverTick;
+            TransformOffset = transformOffset;
+            TransformCount = transformCount;
+        }
+    }
+
+    [MemoryPackable]
+    public partial struct ShooterPureStateTransformSample
+    {
+        [MemoryPackOrder(0)] public int EntityId;
+        [MemoryPackOrder(1)] public int EntityKind;
+        [MemoryPackOrder(2)] public int QuantizedX;
+        [MemoryPackOrder(3)] public int QuantizedY;
+        [MemoryPackOrder(4)] public int QuantizedVelocityX;
+        [MemoryPackOrder(5)] public int QuantizedVelocityY;
+        [MemoryPackOrder(6)] public byte Flags;
+
+        public ShooterPureStateTransformSample(
+            int entityId,
+            int entityKind,
+            int quantizedX,
+            int quantizedY,
+            int quantizedVelocityX,
+            int quantizedVelocityY,
+            byte flags)
+        {
+            EntityId = entityId;
+            EntityKind = entityKind;
+            QuantizedX = quantizedX;
+            QuantizedY = quantizedY;
+            QuantizedVelocityX = quantizedVelocityX;
+            QuantizedVelocityY = quantizedVelocityY;
+            Flags = flags;
+        }
+    }
+
+    [MemoryPackable]
     public partial struct ShooterPureStateSnapshotPayload
     {
         [MemoryPackOrder(0)] public int Version;
@@ -172,9 +219,13 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities;
         [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
         [MemoryPackOrder(11)] public ShooterCommandAcknowledgement[] AcknowledgedCommands;
+        [MemoryPackOrder(12)] public ShooterPureStateFrameSample[] FrameSamples;
+        [MemoryPackOrder(13)] public ShooterPureStateTransformSample[] TransformSamples;
         [MemoryPackIgnore] private int _entityCount;
         [MemoryPackIgnore] private int _visibilityHintCount;
         [MemoryPackIgnore] private int _acknowledgedCommandCount;
+        [MemoryPackIgnore] private int _frameSampleCount;
+        [MemoryPackIgnore] private int _transformSampleCount;
 
         [MemoryPackConstructor]
         public ShooterPureStateSnapshotPayload(
@@ -189,7 +240,9 @@ namespace AbilityKit.Protocol.Shooter
             ShooterPureStateSyncSettings settings,
             ShooterPureStateEntityDelta[] entities,
             ShooterPureStateVisibilityHint[] visibilityHints,
-            ShooterCommandAcknowledgement[]? acknowledgedCommands = null)
+            ShooterCommandAcknowledgement[]? acknowledgedCommands = null,
+            ShooterPureStateFrameSample[]? frameSamples = null,
+            ShooterPureStateTransformSample[]? transformSamples = null)
         {
             Version = version;
             WorldId = worldId;
@@ -203,9 +256,13 @@ namespace AbilityKit.Protocol.Shooter
             Entities = entities ?? Array.Empty<ShooterPureStateEntityDelta>();
             VisibilityHints = visibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>();
             AcknowledgedCommands = acknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>();
+            FrameSamples = frameSamples ?? Array.Empty<ShooterPureStateFrameSample>();
+            TransformSamples = transformSamples ?? Array.Empty<ShooterPureStateTransformSample>();
             _entityCount = Entities.Length;
             _visibilityHintCount = VisibilityHints.Length;
             _acknowledgedCommandCount = AcknowledgedCommands.Length;
+            _frameSampleCount = FrameSamples.Length;
+            _transformSampleCount = TransformSamples.Length;
         }
 
         [MemoryPackIgnore]
@@ -217,14 +274,31 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackIgnore]
         public int EffectiveAcknowledgedCommandCount => ClampCount(_acknowledgedCommandCount, AcknowledgedCommands);
 
+        [MemoryPackIgnore]
+        public int EffectiveFrameSampleCount => ClampCount(_frameSampleCount, FrameSamples);
+
+        [MemoryPackIgnore]
+        public int EffectiveTransformSampleCount => ClampCount(_transformSampleCount, TransformSamples);
+
         /// <summary>Sets the valid prefixes for capacity-backed transient arrays.</summary>
-        public void SetTransientCounts(int entityCount, int visibilityHintCount, int acknowledgedCommandCount = -1)
+        public void SetTransientCounts(
+            int entityCount,
+            int visibilityHintCount,
+            int acknowledgedCommandCount = -1,
+            int frameSampleCount = -1,
+            int transformSampleCount = -1)
         {
             _entityCount = ClampCount(entityCount, Entities);
             _visibilityHintCount = ClampCount(visibilityHintCount, VisibilityHints);
             _acknowledgedCommandCount = acknowledgedCommandCount < 0
                 ? (AcknowledgedCommands?.Length ?? 0)
                 : ClampCount(acknowledgedCommandCount, AcknowledgedCommands);
+            _frameSampleCount = frameSampleCount < 0
+                ? (FrameSamples?.Length ?? 0)
+                : ClampCount(frameSampleCount, FrameSamples);
+            _transformSampleCount = transformSampleCount < 0
+                ? (TransformSamples?.Length ?? 0)
+                : ClampCount(transformSampleCount, TransformSamples);
         }
 
         private static int ClampCount<T>(int count, T[]? values)
@@ -324,6 +398,8 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities = Array.Empty<ShooterPureStateEntityDelta>();
         [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints = Array.Empty<ShooterPureStateVisibilityHint>();
         [MemoryPackOrder(11)] public ShooterCommandAcknowledgement[] AcknowledgedCommands = Array.Empty<ShooterCommandAcknowledgement>();
+        [MemoryPackOrder(12)] public ShooterPureStateFrameSample[] FrameSamples = Array.Empty<ShooterPureStateFrameSample>();
+        [MemoryPackOrder(13)] public ShooterPureStateTransformSample[] TransformSamples = Array.Empty<ShooterPureStateTransformSample>();
     }
 
     public sealed class ShooterPureStateSyncDecodeBuffer
@@ -331,6 +407,8 @@ namespace AbilityKit.Protocol.Shooter
         private ShooterPureStateEntityDelta[] _entities = Array.Empty<ShooterPureStateEntityDelta>();
         private ShooterPureStateVisibilityHint[] _visibilityHints = Array.Empty<ShooterPureStateVisibilityHint>();
         private ShooterCommandAcknowledgement[] _acknowledgedCommands = Array.Empty<ShooterCommandAcknowledgement>();
+        private ShooterPureStateFrameSample[] _frameSamples = Array.Empty<ShooterPureStateFrameSample>();
+        private ShooterPureStateTransformSample[] _transformSamples = Array.Empty<ShooterPureStateTransformSample>();
 
         public ShooterPureStateSnapshotPayload Decode(ReadOnlySpan<byte> payload)
         {
@@ -339,14 +417,30 @@ namespace AbilityKit.Protocol.Shooter
                 return ShooterPureStateSnapshotPayload.Empty();
             }
 
-            try
+            var memberCount = ShooterPureStateSyncCodec.ReadObjectMemberCount(payload);
+            if (memberCount == 14)
             {
                 return DecodeCurrent(payload);
             }
-            catch (Exception exception) when (IsLegacyPayloadCandidate(exception))
+
+            if (memberCount == 12)
+            {
+                try
+                {
+                    return DecodeCurrent(payload);
+                }
+                catch (Exception exception) when (IsLegacyPayloadCandidate(exception))
+                {
+                    return DecodeLegacy(payload);
+                }
+            }
+
+            if (memberCount == 11)
             {
                 return DecodeLegacy(payload);
             }
+
+            throw new MemoryPackSerializationException("Unexpected pure-state snapshot member count.");
         }
 
         private ShooterPureStateSnapshotPayload DecodeCurrent(ReadOnlySpan<byte> payload)
@@ -355,7 +449,7 @@ namespace AbilityKit.Protocol.Shooter
             var reader = new MemoryPackReader(payload, state);
             try
             {
-                if (!reader.TryReadObjectHeader(out var memberCount) || memberCount != 12)
+                if (!reader.TryReadObjectHeader(out var memberCount) || (memberCount != 12 && memberCount != 14))
                 {
                     throw new EndOfStreamException("Unexpected pure-state snapshot member count.");
                 }
@@ -373,6 +467,14 @@ namespace AbilityKit.Protocol.Shooter
                 ReadUnmanagedPrefix(ref reader, ref _entities, out var entityCount);
                 ReadUnmanagedPrefix(ref reader, ref _visibilityHints, out var visibilityHintCount);
                 ReadUnmanagedPrefix(ref reader, ref _acknowledgedCommands, out var acknowledgedCommandCount);
+                var frameSampleCount = 0;
+                var transformSampleCount = 0;
+                if (memberCount == 14)
+                {
+                    ReadUnmanagedPrefix(ref reader, ref _frameSamples, out frameSampleCount);
+                    ReadUnmanagedPrefix(ref reader, ref _transformSamples, out transformSampleCount);
+                    ValidateFrameSamples(_frameSamples, frameSampleCount, transformSampleCount, frame);
+                }
                 if (reader.Remaining != 0)
                 {
                     throw new EndOfStreamException("Unexpected trailing pure-state snapshot data.");
@@ -390,8 +492,15 @@ namespace AbilityKit.Protocol.Shooter
                     settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : settings,
                     _entities,
                     _visibilityHints,
-                    _acknowledgedCommands);
-                value.SetTransientCounts(entityCount, visibilityHintCount, acknowledgedCommandCount);
+                    _acknowledgedCommands,
+                    _frameSamples,
+                    _transformSamples);
+                value.SetTransientCounts(
+                    entityCount,
+                    visibilityHintCount,
+                    acknowledgedCommandCount,
+                    frameSampleCount,
+                    transformSampleCount);
                 return value;
             }
             finally
@@ -412,9 +521,14 @@ namespace AbilityKit.Protocol.Shooter
                 return;
             }
 
+            var byteCount = checked(count * Unsafe.SizeOf<T>());
+            if (byteCount > reader.Remaining)
+            {
+                throw new EndOfStreamException("Unmanaged collection exceeds the remaining payload.");
+            }
+
             EnsureCapacity(ref buffer, count);
             var destination = MemoryMarshal.AsBytes(buffer.AsSpan(0, count));
-            var byteCount = checked(count * Unsafe.SizeOf<T>());
             var source = MemoryMarshal.CreateReadOnlySpan(ref reader.GetSpanReference(byteCount), byteCount);
             source.CopyTo(destination);
             reader.Advance(byteCount);
@@ -430,6 +544,29 @@ namespace AbilityKit.Protocol.Shooter
             }
 
             buffer = new T[capacity];
+        }
+
+        internal static void ValidateFrameSamples(
+            ShooterPureStateFrameSample[] samples,
+            int sampleCount,
+            int transformCount,
+            int authoritativeFrame)
+        {
+            var previousFrame = int.MinValue;
+            var previousEnd = 0;
+            for (var i = 0; i < sampleCount; i++)
+            {
+                ref readonly var sample = ref samples[i];
+                if (sample.Frame <= previousFrame || sample.Frame > authoritativeFrame ||
+                    sample.TransformOffset < previousEnd || sample.TransformCount < 0 ||
+                    sample.TransformOffset > transformCount - sample.TransformCount)
+                {
+                    throw new MemoryPackSerializationException("Invalid pure-state frame sample layout.");
+                }
+
+                previousFrame = sample.Frame;
+                previousEnd = sample.TransformOffset + sample.TransformCount;
+            }
         }
 
         private static ShooterPureStateSnapshotPayload DecodeLegacy(ReadOnlySpan<byte> payload)
@@ -478,7 +615,7 @@ namespace AbilityKit.Protocol.Shooter
 
     public static class ShooterPureStateSyncCodec
     {
-        public const int CurrentVersion = 1;
+        public const int CurrentVersion = 2;
 
         public static byte[] Serialize(in ShooterPureStateSnapshotPayload snapshot)
         {
@@ -540,7 +677,9 @@ namespace AbilityKit.Protocol.Shooter
                 snapshot.Settings,
                 CopyPrefix(snapshot.Entities, snapshot.EffectiveEntityCount),
                 CopyPrefix(snapshot.VisibilityHints, snapshot.EffectiveVisibilityHintCount),
-                CopyPrefix(snapshot.AcknowledgedCommands, snapshot.EffectiveAcknowledgedCommandCount));
+                CopyPrefix(snapshot.AcknowledgedCommands, snapshot.EffectiveAcknowledgedCommandCount),
+                CopyPrefix(snapshot.FrameSamples, snapshot.EffectiveFrameSampleCount),
+                CopyPrefix(snapshot.TransformSamples, snapshot.EffectiveTransformSampleCount));
         }
 
         private static T[] CopyPrefix<T>(T[]? values, int count)
@@ -569,15 +708,47 @@ namespace AbilityKit.Protocol.Shooter
                 return ShooterPureStateSnapshotPayload.Empty();
             }
 
-            try
+            var memberCount = ReadObjectMemberCount(payload);
+            if (memberCount == 14)
             {
                 var value = MemoryPackSerializer.Deserialize<ShooterPureStateSnapshotPayload>(payload);
                 NormalizeDeserializedPayload(ref value);
                 return value;
             }
-            catch (Exception exception) when (IsLegacyPayloadCandidate(exception))
+
+            if (memberCount == 12)
+            {
+                try
+                {
+                    var value = MemoryPackSerializer.Deserialize<ShooterPureStateSnapshotPayload>(payload);
+                    NormalizeDeserializedPayload(ref value);
+                    return value;
+                }
+                catch (Exception exception) when (IsLegacyPayloadCandidate(exception))
+                {
+                    return DeserializeLegacy(payload);
+                }
+            }
+
+            if (memberCount == 11)
             {
                 return DeserializeLegacy(payload);
+            }
+
+            throw new MemoryPackSerializationException("Unexpected pure-state snapshot member count.");
+        }
+
+        internal static int ReadObjectMemberCount(ReadOnlySpan<byte> payload)
+        {
+            using var state = MemoryPackReaderOptionalStatePool.Rent(MemoryPackSerializerOptions.Default);
+            var reader = new MemoryPackReader(payload, state);
+            try
+            {
+                return reader.TryReadObjectHeader(out var memberCount) ? memberCount : -1;
+            }
+            finally
+            {
+                reader.Dispose();
             }
         }
 
@@ -639,10 +810,19 @@ namespace AbilityKit.Protocol.Shooter
             value.Entities ??= Array.Empty<ShooterPureStateEntityDelta>();
             value.VisibilityHints ??= Array.Empty<ShooterPureStateVisibilityHint>();
             value.AcknowledgedCommands ??= Array.Empty<ShooterCommandAcknowledgement>();
+            value.FrameSamples ??= Array.Empty<ShooterPureStateFrameSample>();
+            value.TransformSamples ??= Array.Empty<ShooterPureStateTransformSample>();
             value.SetTransientCounts(
                 value.Entities.Length,
                 value.VisibilityHints.Length,
-                value.AcknowledgedCommands.Length);
+                value.AcknowledgedCommands.Length,
+                value.FrameSamples.Length,
+                value.TransformSamples.Length);
+            ShooterPureStateSyncDecodeBuffer.ValidateFrameSamples(
+                value.FrameSamples,
+                value.FrameSamples.Length,
+                value.TransformSamples.Length,
+                value.Frame);
         }
     }
 
@@ -671,7 +851,7 @@ namespace AbilityKit.Protocol.Shooter
         {
             ref readonly var snapshot = ref value._snapshot;
             writer.WriteUnmanagedWithObjectHeader(
-                12,
+                14,
                 snapshot.Version,
                 snapshot.WorldId,
                 snapshot.Frame,
@@ -684,6 +864,8 @@ namespace AbilityKit.Protocol.Shooter
             writer.WriteUnmanagedSpan((snapshot.Entities ?? Array.Empty<ShooterPureStateEntityDelta>()).AsSpan(0, snapshot.EffectiveEntityCount));
             writer.WriteUnmanagedSpan((snapshot.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>()).AsSpan(0, snapshot.EffectiveVisibilityHintCount));
             writer.WriteUnmanagedSpan((snapshot.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>()).AsSpan(0, snapshot.EffectiveAcknowledgedCommandCount));
+            writer.WriteUnmanagedSpan((snapshot.FrameSamples ?? Array.Empty<ShooterPureStateFrameSample>()).AsSpan(0, snapshot.EffectiveFrameSampleCount));
+            writer.WriteUnmanagedSpan((snapshot.TransformSamples ?? Array.Empty<ShooterPureStateTransformSample>()).AsSpan(0, snapshot.EffectiveTransformSampleCount));
         }
 
         static void IMemoryPackable<ShooterPureStateSnapshotTransient>.Deserialize(

@@ -2607,6 +2607,10 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public bool IsRoomStateChangedPush(uint opCode)
                 => false;
+
+            public void Dispose()
+            {
+            }
         }
  
         private sealed class TestAbilityKitConnectionRegistry : IAbilityKitConnectionRegistry

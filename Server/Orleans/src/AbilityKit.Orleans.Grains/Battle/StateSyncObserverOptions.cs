@@ -61,4 +61,25 @@ public static class StateSyncObserverOptionsMapper
                 TimeSpan.FromMilliseconds(options.MaxQueueAgeMs)),
             TimeSpan.FromMilliseconds(options.DrainIntervalMs));
     }
+
+    internal static SnapshotSendQueuePolicy ResolveQueuePolicy(
+        SnapshotSendQueuePolicy configured,
+        string? networkEnvironmentId)
+    {
+        if (string.IsNullOrWhiteSpace(networkEnvironmentId)
+            || string.Equals(networkEnvironmentId, "limitedbw", StringComparison.OrdinalIgnoreCase))
+        {
+            return configured;
+        }
+
+        // Bandwidth conditioning is applied by the selected transport profile.
+        // Do not apply the legacy 128 Kbps observer default a second time on
+        // ideal/latency-only profiles, otherwise pure-state deltas are dropped
+        // before they can reach the client's multi-frame playback buffer.
+        return new SnapshotSendQueuePolicy(
+            bytesPerSecond: 0,
+            burstBytes: Math.Max(configured.BurstBytes, 256 * 1024),
+            maxQueueLength: configured.MaxQueueLength,
+            maxQueueAge: configured.MaxQueueAge);
+    }
 }

@@ -147,10 +147,10 @@ namespace AbilityKit.Game.Test.UnitTest
                     return;
 
                 case HeadlessStage.WaitingForGateway:
-                    var gatewayRuntime = entry.Get<IMultiplayerGatewayRuntime>();
-                    if (gatewayRuntime.ConnectionState != ConnectionState.Connected)
+                    var gatewayDiagnostics = entry.Get<IMultiplayerGatewayDiagnostics>();
+                    if (gatewayDiagnostics.ConnectionState != ConnectionState.Connected)
                     {
-                        Stage("waitingForGateway." + gatewayRuntime.ConnectionState);
+                        Stage("waitingForGateway." + gatewayDiagnostics.ConnectionState);
                         return;
                     }
 

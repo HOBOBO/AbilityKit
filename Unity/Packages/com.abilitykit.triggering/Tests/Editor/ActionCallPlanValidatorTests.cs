@@ -130,6 +130,15 @@ namespace AbilityKit.Triggering.Tests.Editor
             Assert.That(exprRef.Kind.ToString(), Does.Contain("Expr"));
         }
 
+        [Test]
+        public void ActionArgValue_GetHashCode_SupportsAllValueKinds()
+        {
+            Assert.DoesNotThrow(() => default(ActionArgValue).GetHashCode());
+            Assert.DoesNotThrow(() => ActionArgValue.OfConst(7, "amount").GetHashCode());
+            Assert.DoesNotThrow(() => ActionArgValue.OfBool(true, "enabled").GetHashCode());
+            Assert.DoesNotThrow(() => ActionArgValue.OfString("armed", "state").GetHashCode());
+        }
+
         private static void AssertSemanticProjectionMatchesRawFields(ActionCallPlan call)
         {
             Assert.That(call.Id, Is.Not.EqualTo(default(ActionId)));

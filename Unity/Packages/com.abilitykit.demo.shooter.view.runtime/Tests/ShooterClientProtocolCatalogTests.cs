@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             AssertTemplate(ShooterSyncTemplateIds.AuthoritativeInterpolationPresentation, NetworkSyncModel.AuthoritativeInterpolation);
             AssertTemplate(ShooterSyncTemplateIds.BatchStateLowFrequency, NetworkSyncModel.BatchStateSync);
             AssertTemplate(ShooterSyncTemplateIds.MassBattleLodAoi, NetworkSyncModel.MassBattleLodSync);
+            AssertTemplate(ShooterSyncTemplateIds.MassBattleLodAoiSampleBlock, NetworkSyncModel.MassBattleLodSync);
             AssertTemplate(ShooterSyncTemplateIds.HybridHeroPrediction, NetworkSyncModel.HybridHeroPrediction);
             AssertTemplate(ShooterSyncTemplateIds.FastReconnectResume, NetworkSyncModel.FastReconnect);
         }

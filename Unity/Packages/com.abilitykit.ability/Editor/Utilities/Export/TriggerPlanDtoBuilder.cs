@@ -96,6 +96,31 @@ namespace AbilityKit.Ability.Editor.Utilities
                     dto.Args = new Dictionary<string, NumericValueRefDto>(a.Args.Count);
                     foreach (var kv in a.Args)
                     {
+                        if (kv.Value.Kind == ActionArgKind.BlackboardTarget)
+                        {
+                            var target = kv.Value.BlackboardTarget;
+                            dto.Args[kv.Key] = new NumericValueRefDto
+                            {
+                                Kind = "BlackboardTarget",
+                                BoardId = target.BoardId,
+                                KeyId = target.KeyId,
+                                KeyType = target.KeyType,
+                                Scope = target.Scope
+                            };
+                            continue;
+                        }
+
+                        if (kv.Value.Kind == ActionArgKind.BooleanValue || kv.Value.Kind == ActionArgKind.StringValue)
+                        {
+                            dto.Args[kv.Key] = new NumericValueRefDto
+                            {
+                                Kind = kv.Value.Kind == ActionArgKind.BooleanValue ? "Bool" : "String",
+                                BoolValue = kv.Value.BooleanValue,
+                                StringValue = kv.Value.StringValue
+                            };
+                            continue;
+                        }
+
                         dto.Args[kv.Key] = new NumericValueRefDto
                         {
                             Kind = kv.Value.Ref.Kind.ToString(),

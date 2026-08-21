@@ -155,9 +155,19 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 return false;
             }
 
-            return ctx.Blackboards.TryResolve(valueRef.BoardId, out var board)
-                && board != null
-                && board.TryGetDouble(valueRef.KeyId, out value);
+            if (!ctx.Blackboards.TryResolve(valueRef.BoardId, out var board) || board == null)
+            {
+                return false;
+            }
+
+            if (board is IBlackboardSchema schema &&
+                schema.TryGetKeySchema(valueRef.KeyId, out var keySchema) &&
+                !keySchema.CanRead)
+            {
+                return false;
+            }
+
+            return board.TryGetDouble(valueRef.KeyId, out value);
         }
 
         private static bool TryResolvePayloadField<TArgs, TCtx>(in NumericValueRef valueRef, in TArgs args, in ExecCtx<TCtx> ctx, out double value)

@@ -24,7 +24,6 @@
     <ProjectReference Include="..\AbilityKit.Flow\AbilityKit.Flow.csproj" />
     <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
     <ProjectReference Include="..\AbilityKit.HFSM.Core\AbilityKit.HFSM.Core.csproj" />
-    <ProjectReference Include="..\AbilityKit.BTCore\AbilityKit.BTCore.csproj" />
     <ProjectReference Include="..\AbilityKit.Behavior\AbilityKit.Behavior.csproj" />
     <ProjectReference Include="..\AbilityKit.Host\AbilityKit.Host.csproj" />
     <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />

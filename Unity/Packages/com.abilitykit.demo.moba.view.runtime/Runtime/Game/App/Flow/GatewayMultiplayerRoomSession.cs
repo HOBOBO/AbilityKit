@@ -79,7 +79,10 @@ namespace AbilityKit.Game.Flow
             }
             else
             {
-                var compatibilityClient = new MobaRoomGatewaySessionClient(_client, _store);
+                var compatibilityClient = new MobaRoomGatewaySessionClient(
+                    _client,
+                    _client,
+                    _store);
                 sessionClient = compatibilityClient;
                 _sessionClient = compatibilityClient;
             }

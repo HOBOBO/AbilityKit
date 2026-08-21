@@ -14,12 +14,11 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.behavior/Runtime/**/*.cs" />
   </ItemGroup>
 
-  <!-- Reference Core, Pipeline and BTCore -->
+  <!-- Reference Core and Pipeline -->
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Core\AbilityKit.Core.csproj" />
     <ProjectReference Include="..\AbilityKit.Deterministic\AbilityKit.Deterministic.csproj" />
     <ProjectReference Include="..\AbilityKit.Continuous\AbilityKit.Continuous.csproj" />
     <ProjectReference Include="..\AbilityKit.Pipeline\AbilityKit.Pipeline.csproj" />
-    <ProjectReference Include="..\AbilityKit.BTCore\AbilityKit.BTCore.csproj" />
   </ItemGroup>
 </Project>

@@ -87,7 +87,8 @@ public sealed partial class SubmitFrameInputHandler : GatewayRequestHandlerBase
                 battleKey,
                 wireRequest.PlayerId,
                 sequence: 0,
-                nowTicks: DateTime.UtcNow.Ticks);
+                nowTicks: DateTime.UtcNow.Ticks,
+                lane: GatewayBattleInputLane.FrameInput);
             if (guard == GatewayBattleInputGuardResult.RateLimited)
             {
                 return CreateInputResponse(

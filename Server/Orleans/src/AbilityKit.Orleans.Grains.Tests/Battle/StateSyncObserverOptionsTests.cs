@@ -113,6 +113,34 @@ public sealed class StateSyncObserverOptionsTests
         Assert.Equal(1, queue.Count);
     }
 
+    [Theory]
+    [InlineData("ideal")]
+    [InlineData("lan")]
+    [InlineData("mobile4g")]
+    [InlineData("crossregion")]
+    [InlineData("poorwifi")]
+    public void ResolveQueuePolicy_DoesNotDoubleThrottleNonBandwidthProfiles(string environmentId)
+    {
+        var configured = StateSyncObserverOptionsMapper.Map(new StateSyncObserverOptions()).QueuePolicy;
+
+        var resolved = StateSyncObserverOptionsMapper.ResolveQueuePolicy(configured, environmentId);
+
+        Assert.Equal(0, resolved.BytesPerSecond);
+        Assert.True(resolved.BurstBytes >= configured.BurstBytes);
+        Assert.Equal(configured.MaxQueueLength, resolved.MaxQueueLength);
+    }
+
+    [Fact]
+    public void ResolveQueuePolicy_PreservesLimitedBandwidthBudget()
+    {
+        var configured = StateSyncObserverOptionsMapper.Map(new StateSyncObserverOptions()).QueuePolicy;
+
+        var resolved = StateSyncObserverOptionsMapper.ResolveQueuePolicy(configured, "limitedbw");
+
+        Assert.Equal(configured.BytesPerSecond, resolved.BytesPerSecond);
+        Assert.Equal(configured.BurstBytes, resolved.BurstBytes);
+    }
+
     private static ServiceProvider BuildProvider(IReadOnlyDictionary<string, string?> values)
     {
         var configuration = new ConfigurationBuilder()

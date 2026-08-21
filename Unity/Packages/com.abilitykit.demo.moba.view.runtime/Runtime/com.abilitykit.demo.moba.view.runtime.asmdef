@@ -40,6 +40,7 @@
         "AbilityKit.Network.Runtime",
         "AbilityKit.Network.Room",
         "AbilityKit.Network.Sdk",
+        "AbilityKit.Protocol",
         "AbilityKit.Protocol.Moba",
         "AbilityKit.Protocol.Room"
     ],

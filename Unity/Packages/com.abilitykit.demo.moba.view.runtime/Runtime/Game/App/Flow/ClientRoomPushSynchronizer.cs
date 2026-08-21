@@ -11,7 +11,7 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     public sealed class ClientRoomPushSynchronizer
     {
-        private readonly IGatewayRoomClient _client;
+        private readonly IGatewayRoomPushDecodingCapability _pushDecoder;
         private readonly ClientRoomStore _store;
         private readonly Func<CancellationToken, Task> _refreshSnapshotAsync;
         private long _handledPushCount;
@@ -36,11 +36,11 @@ namespace AbilityKit.Game.Flow
         }
 
         public ClientRoomPushSynchronizer(
-            IGatewayRoomClient client,
+            IGatewayRoomPushDecodingCapability pushDecoder,
             ClientRoomStore store,
             Func<CancellationToken, Task> refreshSnapshotAsync)
         {
-            _client = client ?? throw new ArgumentNullException(nameof(client));
+            _pushDecoder = pushDecoder ?? throw new ArgumentNullException(nameof(pushDecoder));
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _refreshSnapshotAsync = refreshSnapshotAsync ??
                 throw new ArgumentNullException(nameof(refreshSnapshotAsync));
@@ -83,14 +83,14 @@ namespace AbilityKit.Game.Flow
             ArraySegment<byte> payload,
             CancellationToken cancellationToken = default)
         {
-            if (!_client.IsRoomStateChangedPush(opCode))
+            if (!_pushDecoder.IsRoomStateChangedPush(opCode))
             {
                 return Task.FromResult(false);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
 
-            var snapshot = _client.DeserializeRoomStateChangedPush(payload);
+            var snapshot = _pushDecoder.DeserializeRoomStateChangedPush(payload);
             Interlocked.Increment(ref _handledPushCount);
             Interlocked.Exchange(ref _lastPushRevision, snapshot.RoomRevision);
             var nowTicks = DateTime.UtcNow.Ticks;

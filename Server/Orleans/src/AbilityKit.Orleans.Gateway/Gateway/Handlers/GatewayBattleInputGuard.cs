@@ -44,11 +44,12 @@ public sealed class GatewayBattleInputGuard
         string battleId,
         uint playerId,
         ulong sequence,
-        long nowTicks)
+        long nowTicks,
+        GatewayBattleInputLane lane = GatewayBattleInputLane.BattleCommand)
     {
         lock (_sync)
         {
-            var key = new InputKey(sessionToken, battleId, playerId);
+            var key = new InputKey(sessionToken, battleId, playerId, lane);
             if (!_states.TryGetValue(key, out var state))
             {
                 if (_states.Count >= _options.MaxGatewayTrackedKeys)
@@ -97,7 +98,9 @@ public sealed class GatewayBattleInputGuard
 
         lock (_sync)
         {
-            if (!_states.TryGetValue(new InputKey(sessionToken, battleId, playerId), out var state)) return;
+            if (!_states.TryGetValue(
+                    new InputKey(sessionToken, battleId, playerId, GatewayBattleInputLane.BattleCommand),
+                    out var state)) return;
 
             state.Sequences.Add(sequence);
             if (sequence > state.HighestSequence)
@@ -116,7 +119,9 @@ public sealed class GatewayBattleInputGuard
     {
         lock (_sync)
         {
-            return _states.TryGetValue(new InputKey(sessionToken, battleId, playerId), out var state)
+            return _states.TryGetValue(
+                    new InputKey(sessionToken, battleId, playerId, GatewayBattleInputLane.BattleCommand),
+                    out var state)
                 ? state.Sequences.Count
                 : 0;
         }
@@ -150,7 +155,11 @@ public sealed class GatewayBattleInputGuard
         return true;
     }
 
-    private readonly record struct InputKey(string SessionToken, string BattleId, uint PlayerId);
+    private readonly record struct InputKey(
+        string SessionToken,
+        string BattleId,
+        uint PlayerId,
+        GatewayBattleInputLane Lane);
 
     private sealed class InputState
     {
@@ -167,6 +176,12 @@ public sealed class GatewayBattleInputGuard
         public long LastRefillTicks { get; set; }
         public long LastSeenTicks { get; set; }
     }
+}
+
+internal enum GatewayBattleInputLane
+{
+    BattleCommand,
+    FrameInput
 }
 
 internal enum GatewayBattleInputGuardResult

@@ -15,25 +15,24 @@
 - **Run-centric**：管线本身是配置与阶段容器；真正“执行中的实例”由 run 表示。
 - **外部驱动**：通过 `IAbilityPipelineRun<TCtx>.Tick(deltaTime)` 外部驱动推进（便于接入 ECS/回放/确定性驱动）。
 - **统一阶段模型**：所有阶段都有 `IsComplete`；瞬时阶段在 `Execute` 内完成，持续阶段由 `OnUpdate` 推进完成。
-- **可调试性**：编辑器下可写入 LiveRegistry + Trace，实现运行中观测与回放线索。
+- **可调试性**：Runtime 只暴露纯 C# 诊断协议和安全 Hook；Editor 负责实时注册、历史、图形化与离线快照。
 
 
 ## Runtime 目录结构索引（去哪找什么）
 
 > 目的：让第一次接手的人能快速定位关键文件。
 
-- `Runtime/Ability/Share/Pipeline`
+- `Runtime/Core/Pipeline`
   - 核心 pipeline 抽象与默认实现（`AbilityPipeline<TCtx>`）
   - 接口：`Interface/`（`IAbilityPipeline<TCtx>`、`IAbilityPipelineRun<TCtx>`、`IAbilityPipelinePhase<TCtx>`、`IAbilityPipelineContext` 等）
   - 阶段：`Phase/`（基类、复合阶段、并行/条件/序列等实现）
-  - Debug：`Debug/`（`AbilityPipelineLiveRegistry`、Trace）
+  - Debug：`Debug/`（安全观测钩子、运行诊断数据、Trace）
 
 - `Runtime/Graph`
-  - 图资产：`PipelineGraphAsset`
-  - DTO：`Graph/Dtos/`（用于序列化/导入导出）
+  - `PipelineGraph`：Sequence/Parallel/Conditional 等阶段组合 DSL
 
 - `Runtime/Ids`
-  - 图相关 ID 类型：`PipelineNodeId`、`PipelinePortId` 等
+  - `AbilityPipelinePhaseId` 与内部 run id 生成器
 
 
 ## 关键类型与职责
@@ -226,45 +225,46 @@ sealed class MyDurationalPhase<TCtx> : AbilityDurationalPhaseBase<TCtx>
 - 运行时的执行策略：
   - `AbilityPipeline<TCtx>` 在执行复合阶段时，会进入专门的 composite 处理逻辑（例如 `HandleCompositePhase` / `OnCompositeUpdate`），以统一驱动子结构。
 
-> 具体 composite 类型（例如 sequence/parallel/conditional）会被图同步工具识别，并展开成非线性图。
+> `AbilityPipeline<TCtx>` 会把 composite 展开为只读诊断图，供 Editor 窗口展示；这份图只描述实际执行结构，不参与调度。
 
 
-## IDs 与 Graph（运行时数据结构）
+## Phase ID、NodeKey 与诊断图
 
-本包包含一套图结构用于可视化与同步：
+`PipelineGraph` 是构建阶段组合的静态 DSL，不是可序列化 Graph Asset。`AbilityPipelinePhaseId` 用于运行时查询和 Trace，建议保持语义稳定；诊断图不会把它当作唯一节点标识。
 
-- `PipelineGraphAsset`
-  - 保存 nodes/ports/edges 及节点位置
-  - 节点通过 `RuntimeKey` 与运行时相绑定
+`AbilityPipeline<TCtx>` 实现 `IPipelineDebugGraphProvider`，捕获以下只读 DTO：
 
-- ID 类型（示例）：
-  - `PipelineNodeId`
-  - `PipelinePortId`
+- `PipelinePhaseDebugNode`：`NodeKey`、Phase ID、类型、节点语义、摘要和子节点。
+- `PipelinePhaseDebugEdge`：Flow、Sequence、Parallel、Condition 或 Child 关系及可选标签。
+- `PipelineDebugGraphSnapshot`：根节点、边和 `StructureId`。
 
-重要约定：
+`NodeKey` 是按执行结构生成的稳定路径，例如 `0/1/0`。它允许不同节点复用同一 Phase ID，并统一关联节点状态、条件结果、边和 authored 坐标。`StructureId` 对节点和边的结构内容计算，用于拒绝陈旧布局。
 
-- 对于 pipeline phases，通常使用 `PhaseId.ToString()` 作为图节点 `RuntimeKey`。
+运行实例可实现 `IPipelineDebugStateProvider`，返回 `PipelineDebugRunState`。每个 `PipelinePhaseDebugState` 记录 Pending、Active、Completed、Skipped、Failed，以及 Conditional 的选择分支和各条件结果。终态必须在阶段实例归还对象池前缓存，Editor 不应在池释放后读取可变阶段对象。
+
+Pipeline 或 Config 可实现 `IPipelineDebugGraphLayoutProvider`。该接口只返回逻辑坐标 DTO，不引用 Unity API；ScriptableObject 只是常见承载方式，不是协议要求。Editor 仅在布局与运行图的 `StructureId` 精确匹配时使用坐标，否则自动布局并报告 mismatch。运行图始终拥有结构所有权，布局资产无权增加、删除或重连节点。
 
 
 ## Debug/Editor 边界
 
-### `AbilityPipelineLiveRegistry`（仅编辑器）
+### `EditorPipelineRegistry`（仅编辑器）
 
-- 编译条件：`#if UNITY_EDITOR`
-- 目的：
-  - 在 Play Mode 下收集活跃 run 的快照与 trace
-  - 为调试窗口提供数据源
+- Editor 通过 `PipelineDebugHooks` 观察 run，不替换 Runtime 的 `IPipelineRegistry` 或 `IPipelineTraceRecorder`。
+- 使用弱引用保存 owner、pipeline、config、run 和 context。
+- run 结束前捕获最终 Context 文本快照，并保留有上限的历史与 Trace。
+- `PipelineRuntimeDebuggerWindow` 提供筛选、只读 Graph/Tree、Trace、Context 和运行控制。
 
-- 关键能力：
-  - `RegisterRun(pipeline, config, run)`：注册并创建 trace
-  - `TouchRun(run)`：刷新 snapshot + 记录 Tick
-  - `UnregisterRun(run)`：注销
-  - `SelectedRun`：全局焦点；当失效时会自愈回退
+### Editor 状态与诊断资产
+
+- `PipelineDebuggerUserState : ScriptableSingleton<T>` 保存每用户的窗口布局、筛选和采集参数，写入 `UserSettings`，不进入 Pipeline Runtime，也不承担团队配置职责。
+- `PipelineDebugSessionAsset : ScriptableObject` 只由用户显式导出。格式 v3 保存一个 run 的图节点、边、执行/条件状态、可选 authored 坐标、Trace 和 Context DTO，用于离线检查和问题归档。
+- 两者都不得序列化 `IPipelineRunControl`、Context、owner、pipeline 或 config 的实时引用。
+- 实时对象只由 `EditorPipelineRegistry` 以弱引用保存；会话资产不是运行控制面，也不负责重新连接 run。
 
 ### Trace
 
-- `PipelineRunTrace` 是 ring buffer，容量有限。
-- 事件类型 `PipelineTraceEventType` 用于调试 UI 过滤与定位。
+- `EditorPipelineRunTrace` 是 ring buffer，容量有限。
+- 事件类型 `EPipelineTraceEventType` 用于调试 UI 过滤与定位。
 
 
 ## 扩展指南
@@ -283,42 +283,39 @@ sealed class MyDurationalPhase<TCtx> : AbilityDurationalPhaseBase<TCtx>
 
 - 实现 `IsComposite == true` 与 `SubPhases`
 - 明确子阶段的驱动策略（并行、条件分支、序列等）
-- 若需要可视化展开：
-  - 需要 `PipelineGraphSyncUtility` 支持该 composite 的反射/识别
+- 只要通过 `SubPhases` 暴露子结构，默认 `AbilityPipeline<TCtx>` 诊断图即可展开显示
+- 新的复合语义若需要特殊边类型或额外状态，应扩展通用诊断 DTO/provider，而不是让 Editor 反射识别业务类型
 
 ### 扩展调试信息
 
 - 新增 trace 类型：扩展 `PipelineTraceEventType` 并在 run 的关键点写入。
-- 扩展 snapshot：在 `AbilityPipelineLiveRegistry.CaptureSnapshot` 中捕获额外字段（保持轻量、可选）。
+- 扩展 snapshot：优先在领域 Context 上提供低开销公开属性，或扩展独立的诊断数据契约。
 
 
 ## 常见扩展场景与最佳实践
 
 ### 场景 1：新增一个带“分支”的复合阶段（Composite）
 
-目标：实现类似 `if/else` 或多分支选择的阶段，并能被调试器展开为非线性图。
+目标：实现类似 `if/else` 或多分支选择的阶段，并能被调试器展开为阶段树。
 
 建议：
 
 - 运行时层面：
   - 复合阶段需要 `IsComposite == true`。
-  - 需要通过 `SubPhases`（或内部结构可被反射读取）暴露子阶段信息，以便图同步工具识别。
+  - 需要通过 `SubPhases` 暴露子阶段信息，以便诊断结构捕获。
   - 需要明确“当前活跃分支”的推进规则：分支切换时如何更新 `Context.CurrentPhaseId`、如何结束自身。
 
-- 图同步层面：
-  - 若 `PipelineGraphSyncUtility` 已支持该 composite 类型（例如 conditional/parallel/sequence），只要字段/结构符合约定即可自动展开。
-  - 若是新 composite：需要在 `PipelineGraphSyncUtility` 中新增识别与展开规则（生成 ports/edges），并为 edge 生成可区分的 `FromPortId`（例如 `branch[...]`）。
+- Editor 展示层只读取图和状态 DTO，不反射识别具体 composite 类型。
 
-### 场景 2：让一个“容器阶段”在图里保持可读
+### 场景 2：让一个“容器阶段”在调试树里保持可读
 
 目标：像 `Sequence/Parallel` 这种容器阶段，既能在运行时复用，又能在图里清晰。
 
 建议：
 
-- `PhaseId` 要稳定（避免每次启动生成随机 id），否则 `RuntimeKey` 对不上，节点位置无法复用。
+- `PhaseId` 要稳定，便于 Trace、当前阶段与结构节点匹配。
 - 子阶段的 `PhaseId` 同样建议稳定。
-- 如果容器阶段只是逻辑聚合，不希望在图里显示为独立节点：
-  - 可以在图同步工具里选择“只展开子阶段，不画容器节点”（取决于当前同步策略）。
+- 如果容器阶段只是逻辑聚合，仍建议保留语义化 ID；当前窗口会同时显示容器和子阶段。
 
 ### 场景 3：扩展 Trace（推荐）
 
@@ -348,12 +345,12 @@ sealed class MyDurationalPhase<TCtx> : AbilityDurationalPhaseBase<TCtx>
 ### 常见坑
 
 - **Phase 未重置导致跨 run 污染**：如果 phase 内部有缓存状态，请在 `Reset()` 清理。
-- **PhaseId 不稳定**：会导致 graph 的 `RuntimeKey` 映射失效，节点位置无法保留。
+- **PhaseId 不稳定或重复**：会让 Trace 与阶段树定位含糊。
 - **持续阶段忘记完成条件**：持续阶段应在 `OnUpdate/OnTick` 里调用 `Complete/ForceComplete` 或配置 `Duration`。
-- **调试与运行时耦合过重**：调试逻辑应包在 `#if UNITY_EDITOR`，避免运行时开销与依赖污染。
+- **调试与运行时耦合过重**：Runtime 只保留通用观测协议；Context 反射、历史和 GUI 必须留在 Editor 程序集。
 
 
 ## 相关文档
 
-- Debugger/Graph 使用说明：
-  - `Documentation~/PipelineRuntimeDebugger.md`
+- Runtime Debugger 使用说明：
+  - `Document/PipelineRuntimeDebugger.md`

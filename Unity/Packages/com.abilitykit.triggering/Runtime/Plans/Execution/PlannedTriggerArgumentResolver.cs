@@ -24,6 +24,18 @@ namespace AbilityKit.Triggering.Runtime.Plan
             foreach (var pair in arguments.NamedArgs)
             {
                 var argument = pair.Value;
+                if (argument.Kind == ActionArgKind.BlackboardTarget)
+                {
+                    resolvedArgs[pair.Key] = argument;
+                    continue;
+                }
+
+                if (argument.Kind == ActionArgKind.BooleanValue || argument.Kind == ActionArgKind.StringValue)
+                {
+                    resolvedArgs[pair.Key] = argument;
+                    continue;
+                }
+
                 var numericRef = argument.Ref;
                 var value = ResolveNumeric(in args, in numericRef, in ctx);
                 resolvedArgs[pair.Key] = ActionArgValue.OfConst(value, argument.Name);

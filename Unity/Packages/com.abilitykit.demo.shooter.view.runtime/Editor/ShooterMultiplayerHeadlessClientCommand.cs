@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Demo.Common.Rooms;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Demo.Shooter.View.Hosting;
 using AbilityKit.Demo.Shooter.View.PlayMode;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Protocol.Room;
@@ -27,7 +28,6 @@ namespace AbilityKit.Demo.Shooter.View.Editor
     {
         private static readonly TimeSpan StateWriteInterval = TimeSpan.FromMilliseconds(500);
         private const int RequiredMovementSubmissions = 18;
-        private const int RequiredAoiMovementSubmissions = 48;
         private const int RequiredSettleSnapshots = 8;
         private const int MaxSamples = 128;
         private const int MaxRemotePlayerPureStateEvents = 64;
@@ -49,6 +49,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static double _lastSnapshotTime;
         private static double _movementProbeStartTime;
         private static long _editorUpdateCount;
+        private static double _lastEditorUpdateGapMs;
         private static double _maxEditorUpdateGapMs;
         private static double _maxSnapshotGapMs;
         private static double _inputRoundTripTotalMs;
@@ -103,6 +104,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static int _pureStateLowFrequencyUpdateCount;
         private static int _remotePlayerSpawnFrame;
         private static int _remotePlayerDespawnFrame;
+        private static int _remotePlayerFullBaselineRemovalFrame;
         private static int _remotePlayerPostDespawnSpawnCount;
         private static int _remotePlayerPostDespawnUpdateCount;
         private static int _remotePlayerFirstReintroducedFrame;
@@ -115,6 +117,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
         private static readonly List<HashMismatchSample> HashMismatches = new List<HashMismatchSample>();
         private static readonly List<RemotePlayerPureStateEvent> RemotePlayerPureStateEvents =
             new List<RemotePlayerPureStateEvent>();
+        private static readonly List<MovementBackwardEvent> MovementBackwardEvents =
+            new List<MovementBackwardEvent>();
         private static readonly ShooterDurationMetric EditorUpdateGapMetric = new ShooterDurationMetric();
         private static readonly ShooterDurationMetric SnapshotGapMetric = new ShooterDurationMetric();
         private static readonly ShooterDurationMetric InputRoundTripMetric = new ShooterDurationMetric();
@@ -146,7 +150,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 var editorTime = MonotonicTimeSeconds();
                 var rawDeltaSeconds = Math.Max(0d, editorTime - _lastEditorTime);
                 _editorUpdateCount++;
-                _maxEditorUpdateGapMs = Math.Max(_maxEditorUpdateGapMs, rawDeltaSeconds * 1000d);
+                _lastEditorUpdateGapMs = rawDeltaSeconds * 1000d;
+                _maxEditorUpdateGapMs = Math.Max(_maxEditorUpdateGapMs, _lastEditorUpdateGapMs);
                 EditorUpdateGapMetric.RecordMilliseconds(rawDeltaSeconds * 1000d);
                 var deltaTime = (float)Math.Min(0.1d, rawDeltaSeconds);
                 _lastEditorTime = editorTime;
@@ -365,7 +370,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             await WaitForFileAsync(options.MovementSignalPath, "movement signal", cancellationToken);
 
             var direction = ResolveMovementDirection(options);
-            var movementSubmissions = usesPureStateAoi ? RequiredAoiMovementSubmissions : RequiredMovementSubmissions;
+            var movementSubmissions = RequiredMovementSubmissions;
+            if (usesPureStateAoi)
+            {
+                ShooterRemoteStateSyncPlayModeHost.SetInputOverride(
+                    _ => new ShooterHostFrameInput(direction, 0f, direction, 0f, false));
+            }
             BeginMovementProbe(direction);
             SetStage("Movement", usesPureStateAoi
                 ? "Moving players apart beyond the AOI boundary"
@@ -393,29 +403,46 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 await Task.Delay(100, cancellationToken);
             }
 
-            _inputAttemptCount++;
-            var stopInputStartTime = MonotonicTimeSeconds();
-            var stop = await launch.Battle.SubmitLocalInputToGatewayAsync(
-                0f, 0f, direction, 0f, false,
-                timeout: TimeSpan.FromSeconds(10),
-                cancellationToken: cancellationToken);
-            RecordInputRoundTrip(stopInputStartTime);
-            if (!stop.Remote.Success)
+            if (usesPureStateAoi)
             {
-                throw new InvalidOperationException("Shooter stop input was rejected: " + stop.Remote.Message);
+                SetStage("Movement", "Holding continuous frame input until the remote player leaves AOI");
+                await WaitUntilAsync(
+                    () => _remotePlayerViewRemoved,
+                    "remote player to leave AOI while continuous frame input remains active",
+                    cancellationToken);
             }
-            _inputSuccessCount++;
+
+            if (usesPureStateAoi)
+            {
+                ShooterRemoteStateSyncPlayModeHost.SetInputOverride(_ => default);
+                await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+            }
+            else
+            {
+                _inputAttemptCount++;
+                var stopInputStartTime = MonotonicTimeSeconds();
+                var stop = await launch.Battle.SubmitLocalInputToGatewayAsync(
+                    0f, 0f, direction, 0f, false,
+                    timeout: TimeSpan.FromSeconds(10),
+                    cancellationToken: cancellationToken);
+                RecordInputRoundTrip(stopInputStartTime);
+                if (!stop.Remote.Success)
+                {
+                    throw new InvalidOperationException("Shooter stop input was rejected: " + stop.Remote.Message);
+                }
+                _inputSuccessCount++;
+            }
             _movementActive = false;
 
             var settleStartSnapshots = _snapshotAppliedCount;
             SetStage("Settling", usesPureStateAoi
-                ? "Waiting for AOI Leave, Despawn, and inactive remote Unity view"
+                ? "Waiting for authoritative AOI removal and inactive remote Unity view"
                 : "Waiting for authoritative correction and remote convergence");
             await WaitUntilAsync(
                 () => _snapshotAppliedCount >= settleStartSnapshots + RequiredSettleSnapshots &&
-                    (!usesPureStateAoi || (_remotePlayerViewRemoved && _remotePlayerDespawnFrame > 0)),
+                    (!usesPureStateAoi || (_remotePlayerViewRemoved && HasRemotePlayerProtocolRemoval())),
                 usesPureStateAoi
-                    ? "remote player AOI Despawn and inactive Unity view"
+                    ? "remote player authoritative AOI removal and inactive Unity view"
                     : "post-input authoritative snapshots",
                 cancellationToken);
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
@@ -465,17 +492,20 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                         $"Shooter AOI flow did not apply the expected pure-state full/delta snapshots. " +
                         $"pure={state.pureStateAppliedCount}, full={state.pureStateFullAppliedCount}, delta={state.pureStateDeltaAppliedCount}");
                 if (state.aoiVisibleRadius != 24f || state.aoiBoundaryRadius != 30f ||
-                    state.nearLodIntervalFrames != 10 || state.midLodIntervalFrames != 30 || state.farLodIntervalFrames != 90)
+                    state.nearLodIntervalFrames != 3 || state.midLodIntervalFrames != 9 || state.farLodIntervalFrames != 30)
                     throw new InvalidOperationException(
                         $"Shooter AOI/LOD settings were unexpected. radius={state.aoiVisibleRadius}/{state.aoiBoundaryRadius}, " +
                         $"lod={state.nearLodIntervalFrames}/{state.midLodIntervalFrames}/{state.farLodIntervalFrames}");
-                if (!state.remotePlayerViewObserved || !state.remotePlayerViewRemoved || state.remotePlayerSpawnFrame <= 0 || state.remotePlayerDespawnFrame <= 0)
+                if (!state.remotePlayerViewObserved || !state.remotePlayerViewRemoved ||
+                    state.remotePlayerSpawnFrame <= 0 || state.remotePlayerRemovalFrame <= state.remotePlayerSpawnFrame)
                     throw new InvalidOperationException(
                         $"Shooter AOI lifecycle was incomplete. observed={state.remotePlayerViewObserved}, removed={state.remotePlayerViewRemoved}, " +
-                        $"spawnFrame={state.remotePlayerSpawnFrame}, despawnFrame={state.remotePlayerDespawnFrame}");
+                        $"spawnFrame={state.remotePlayerSpawnFrame}, removalFrame={state.remotePlayerRemovalFrame}, " +
+                        $"removalKind={state.remotePlayerRemovalKind}, despawnFrame={state.remotePlayerDespawnFrame}, " +
+                        $"fullBaselineRemovalFrame={state.remotePlayerFullBaselineRemovalFrame}");
                 if (state.remotePlayerViewActive || state.playerViewCount != 1)
                     throw new InvalidOperationException(
-                        $"Shooter remote Unity player view remained active after Despawn. " +
+                        $"Shooter remote Unity player view remained active after authoritative AOI removal. " +
                         $"remoteActive={state.remotePlayerViewActive}, players={state.playerViewCount}, " +
                         $"postDespawnSpawn={state.remotePlayerPostDespawnSpawnCount}, " +
                         $"postDespawnUpdate={state.remotePlayerPostDespawnUpdateCount}, " +
@@ -666,6 +696,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             var remotePlayerId = ResolveRemotePlayerId();
             var entities = pureState.Entities ?? Array.Empty<ShooterPureStateEntityDelta>();
             var entityCount = Math.Min(pureState.EffectiveEntityCount, entities.Length);
+            var remotePlayerPresentInFullBaseline = false;
             for (var i = 0; i < entityCount; i++)
             {
                 var entity = entities[i];
@@ -673,6 +704,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     entity.EntityId == remotePlayerId;
                 if (isRemotePlayer)
                 {
+                    remotePlayerPresentInFullBaseline = entity.DeltaKind != ShooterPureStateDeltaKinds.Despawn;
                     CaptureRemotePlayerPureStateEvent(in pureState, in entity);
                 }
 
@@ -682,7 +714,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                         _pureStateSpawnCount++;
                         if (isRemotePlayer)
                         {
-                            if (_remotePlayerDespawnFrame > 0 && pureState.Frame > _remotePlayerDespawnFrame)
+                            var removalFrame = ResolveRemotePlayerRemovalFrame();
+                            if (removalFrame > 0 && pureState.Frame > removalFrame)
                             {
                                 _remotePlayerPostDespawnSpawnCount++;
                                 CaptureRemotePlayerReintroduction(pureState.Frame);
@@ -694,7 +727,8 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                         _pureStateUpdateCount++;
                         if ((entity.Flags & ShooterPureStateEntityFlags.LowFrequency) != 0)
                             _pureStateLowFrequencyUpdateCount++;
-                        if (isRemotePlayer && _remotePlayerDespawnFrame > 0 && pureState.Frame > _remotePlayerDespawnFrame)
+                        var remoteRemovalFrame = ResolveRemotePlayerRemovalFrame();
+                        if (isRemotePlayer && remoteRemovalFrame > 0 && pureState.Frame > remoteRemovalFrame)
                         {
                             _remotePlayerPostDespawnUpdateCount++;
                             CaptureRemotePlayerReintroduction(pureState.Frame);
@@ -707,6 +741,29 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                         break;
                 }
             }
+
+            if (pureState.SnapshotKind == ShooterPureStateSnapshotKinds.FullBaseline &&
+                _remotePlayerSpawnFrame > 0 && !remotePlayerPresentInFullBaseline &&
+                _remotePlayerFullBaselineRemovalFrame == 0)
+            {
+                _remotePlayerFullBaselineRemovalFrame = pureState.Frame;
+            }
+        }
+
+        private static bool HasRemotePlayerProtocolRemoval() => ResolveRemotePlayerRemovalFrame() > 0;
+
+        private static int ResolveRemotePlayerRemovalFrame()
+        {
+            if (_remotePlayerDespawnFrame <= 0) return _remotePlayerFullBaselineRemovalFrame;
+            if (_remotePlayerFullBaselineRemovalFrame <= 0) return _remotePlayerDespawnFrame;
+            return Math.Min(_remotePlayerDespawnFrame, _remotePlayerFullBaselineRemovalFrame);
+        }
+
+        private static string ResolveRemotePlayerRemovalKind()
+        {
+            var removalFrame = ResolveRemotePlayerRemovalFrame();
+            if (removalFrame <= 0) return string.Empty;
+            return removalFrame == _remotePlayerDespawnFrame ? "Despawn" : "FullBaselineOmission";
         }
 
         private static void CaptureRemotePlayerPureStateEvent(
@@ -854,6 +911,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _maxUnexplainedBackwardMovement = 0f;
             _lastMovementAuthoritativeFrame = ResolveLatestAuthoritativeFrame();
             _movementSampleCount = 0;
+            MovementBackwardEvents.Clear();
             _movementProbeStartTime = MonotonicTimeSeconds();
             _firstMovementResponseMs = -1d;
             _hasMovementBaseline = true;
@@ -881,6 +939,13 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 {
                     _maxUnexplainedBackwardMovement = backward;
                 }
+
+                RecordMovementBackwardEvent(
+                    backward,
+                    _lastMovementProgress,
+                    progress,
+                    _lastMovementAuthoritativeFrame,
+                    authoritativeFrame);
             }
             if (progress > _maxMovementProgress) _maxMovementProgress = progress;
             if (_firstMovementResponseMs < 0d && progress >= 0.05f)
@@ -892,6 +957,58 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             _lastMovementProgress = progress;
             _lastMovementAuthoritativeFrame = authoritativeFrame;
             _movementSampleCount++;
+        }
+
+        private static void RecordMovementBackwardEvent(
+            float backward,
+            float previousProgress,
+            float currentProgress,
+            int previousAuthoritativeFrame,
+            int authoritativeFrame)
+        {
+            const float meaningfulBackwardThreshold = 0.05f;
+            const int maxEvents = 32;
+            if (backward < meaningfulBackwardThreshold)
+            {
+                return;
+            }
+
+            var dataPlane = ShooterRemoteStateSyncPlayModeHost.BattleDataPlaneDiagnostics;
+            var item = new MovementBackwardEvent
+            {
+                backward = backward,
+                previousProgress = previousProgress,
+                currentProgress = currentProgress,
+                previousAuthoritativeFrame = previousAuthoritativeFrame,
+                authoritativeFrame = authoritativeFrame,
+                authorityAdvanced = authoritativeFrame != previousAuthoritativeFrame,
+                runtimeFrame = _battle?.Session.CurrentFrame ?? _runtime?.CurrentFrame ?? 0,
+                snapshotAppliedCount = _snapshotAppliedCount,
+                snapshotResyncNeededCount = _snapshotResyncNeededCount,
+                queueDepth = dataPlane.QueueDepth,
+                peakQueueDepth = dataPlane.PeakQueueDepth,
+                lastDrainMilliseconds = dataPlane.LastDrainMilliseconds,
+                editorUpdateGapMilliseconds = _lastEditorUpdateGapMs
+            };
+            if (MovementBackwardEvents.Count < maxEvents)
+            {
+                MovementBackwardEvents.Add(item);
+                return;
+            }
+
+            var smallestIndex = 0;
+            for (var i = 1; i < MovementBackwardEvents.Count; i++)
+            {
+                if (MovementBackwardEvents[i].backward < MovementBackwardEvents[smallestIndex].backward)
+                {
+                    smallestIndex = i;
+                }
+            }
+
+            if (backward > MovementBackwardEvents[smallestIndex].backward)
+            {
+                MovementBackwardEvents[smallestIndex] = item;
+            }
         }
 
         private static int ResolveLatestAuthoritativeFrame()
@@ -1009,6 +1126,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             var snapshotGap = SnapshotGapMetric.Capture();
             var inputRoundTrip = InputRoundTripMetric.Capture();
             var hostPerformance = ShooterRemoteStateSyncPlayModeHost.PerformanceDiagnostics;
+            var pureStatePlayback = ShooterRemoteStateSyncPlayModeHost.PureStatePlaybackDiagnostics;
             var dataPlane = ShooterRemoteStateSyncPlayModeHost.BattleDataPlaneDiagnostics;
             var viewRender = ShooterRemoteStateSyncPlayModeHost.ViewRenderDiagnostics;
             var state = new ClientState
@@ -1037,6 +1155,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 staleSnapshotCount = _staleSnapshotCount,
                 snapshotImportFailureCount = _snapshotImportFailureCount,
                 snapshotResyncNeededCount = _snapshotResyncNeededCount,
+                automaticFullStateSyncCoalescedRequestCount = ShooterRemoteStateSyncPlayModeHost.Battle?.AutomaticFullStateSyncCoalescedRequestCount ?? 0L,
                 authoritativeHashMismatchCount = _authoritativeHashMismatchCount,
                 hashMismatches = new List<HashMismatchSample>(HashMismatches),
                 inputAttemptCount = _inputAttemptCount,
@@ -1068,24 +1187,75 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 p95ViewRenderMs = hostPerformance.ViewRender.P95Milliseconds,
                 averageGcBytesPerFrame = hostPerformance.AverageAllocatedBytes,
                 maxGcBytesPerFrame = hostPerformance.MaxAllocatedBytes,
+                pureStatePlaybackRenderTickCount = pureStatePlayback.RenderTickCount,
+                pureStatePlaybackPublishedSnapshotCount = pureStatePlayback.PublishedSnapshotCount,
+                pureStatePlaybackStarvedRenderTickCount = pureStatePlayback.StarvedRenderTickCount,
+                pureStatePlaybackHeldRenderTickCount = pureStatePlayback.HeldPlaybackRenderTickCount,
+                pureStatePlaybackStarvationRatio = pureStatePlayback.StarvationRatio,
+                pureStatePlaybackHeldRatio = pureStatePlayback.HeldPlaybackRatio,
+                pureStatePlaybackBufferedSnapshotCount = pureStatePlayback.BufferedSnapshotCount,
+                pureStatePlaybackBufferedFrameSpan = pureStatePlayback.BufferedFrameSpan,
+                pureStatePlaybackLeadFrames = pureStatePlayback.AvailablePlaybackLeadFrames,
+                pureStatePlaybackFrame = pureStatePlayback.PlaybackFrame,
+                pureStatePlaybackCurrentDelayFrames = pureStatePlayback.CurrentDelayFrames,
+                pureStatePlaybackTargetDelayFrames = pureStatePlayback.TargetDelayFrames,
+                pureStatePlaybackBaseDelayFrames = pureStatePlayback.BaseDelayFrames,
+                pureStatePlaybackMaxDelayFrames = pureStatePlayback.MaxDelayFrames,
+                pureStatePlaybackIsStarved = pureStatePlayback.IsStarved,
+                pureStatePlaybackReceivedSampleBlockCount = pureStatePlayback.ReceivedSampleBlockCount,
+                pureStatePlaybackReceivedFrameSampleCount = pureStatePlayback.ReceivedFrameSampleCount,
+                pureStatePlaybackRejectedFrameSampleCount = pureStatePlayback.RejectedFrameSampleCount,
+                pureStatePlaybackStaleFrameSampleCount = pureStatePlayback.StaleFrameSampleCount,
+                pureStatePlaybackInvalidFrameSampleCount = pureStatePlayback.InvalidFrameSampleCount,
+                pureStatePlaybackAverageFrameSamplesPerBlock = pureStatePlayback.AverageFrameSamplesPerBlock,
+                pureStatePlaybackReceivedTransformSampleCount = pureStatePlayback.ReceivedTransformSampleCount,
+                pureStatePlaybackMaxTransformSampleCountPerBlock = pureStatePlayback.MaxTransformSampleCountPerBlock,
+                pureStatePlaybackReceivedAuthoritativeTransformCount = pureStatePlayback.ReceivedAuthoritativeTransformCount,
+                pureStatePlaybackAverageTransformSamplesPerFrame = pureStatePlayback.AverageTransformSamplesPerFrame,
+                pureStatePlaybackHistoricalTransformAmplificationRatio = pureStatePlayback.HistoricalTransformAmplificationRatio,
                 battlePushQueueDepth = dataPlane.QueueDepth,
                 battlePushPeakQueueDepth = dataPlane.PeakQueueDepth,
+                battlePushEnqueuedCount = dataPlane.EnqueuedPushCount,
+                battlePushProcessedCount = dataPlane.ProcessedPushCount,
+                battlePushCoalescedSnapshotCount = dataPlane.CoalescedSnapshotCount,
+                battlePushDrainCount = dataPlane.DrainCount,
+                battlePushBudgetLimitedDrainCount = dataPlane.BudgetLimitedDrainCount,
+                battlePushLastDrainProcessedCount = dataPlane.LastDrainProcessedCount,
+                battlePushLastDrainMs = dataPlane.LastDrainMilliseconds,
                 battlePushOldestQueueMs = dataPlane.OldestQueuedMilliseconds,
                 p95BattlePushQueueWaitMs = dataPlane.QueueWait.P95Milliseconds,
                 p99BattlePushQueueWaitMs = dataPlane.QueueWait.P99Milliseconds,
                 p95BattlePushApplyMs = dataPlane.PushProcess.P95Milliseconds,
                 p99BattlePushApplyMs = dataPlane.PushProcess.P99Milliseconds,
+                battlePushFullSnapshotProcessCount = dataPlane.FullSnapshotProcess.SampleCount,
+                battlePushFullSnapshotApplyMaxMs = dataPlane.FullSnapshotProcess.MaxMilliseconds,
+                battlePushDeltaSnapshotProcessCount = dataPlane.DeltaSnapshotProcess.SampleCount,
+                battlePushDeltaSnapshotApplyP95Ms = dataPlane.DeltaSnapshotProcess.P95Milliseconds,
+                battlePushDeltaSnapshotApplyP99Ms = dataPlane.DeltaSnapshotProcess.P99Milliseconds,
+                battlePushDeltaSnapshotApplyMaxMs = dataPlane.DeltaSnapshotProcess.MaxMilliseconds,
+                battlePushReliableEventProcessCount = dataPlane.ReliableEventProcess.SampleCount,
+                battlePushReliableEventApplyP50Ms = dataPlane.ReliableEventProcess.P50Milliseconds,
+                battlePushReliableEventApplyP95Ms = dataPlane.ReliableEventProcess.P95Milliseconds,
+                battlePushReliableEventApplyP99Ms = dataPlane.ReliableEventProcess.P99Milliseconds,
+                battlePushReliableEventApplyMaxMs = dataPlane.ReliableEventProcess.MaxMilliseconds,
+                battlePushOtherProcessCount = dataPlane.OtherPushProcess.SampleCount,
+                battlePushOtherApplyMaxMs = dataPlane.OtherPushProcess.MaxMilliseconds,
                 p95SnapshotArrivalGapMs = dataPlane.SnapshotArrivalGap.P95Milliseconds,
                 p99SnapshotArrivalGapMs = dataPlane.SnapshotArrivalGap.P99Milliseconds,
                 p95SnapshotSourceAgeMs = dataPlane.SnapshotSourceAge.P95Milliseconds,
                 p99SnapshotSourceAgeMs = dataPlane.SnapshotSourceAge.P99Milliseconds,
                 battlePushPayloadBytes = dataPlane.ReceivedPayloadBytes,
                 battlePushMaxPayloadBytes = dataPlane.MaxPayloadBytes,
+                battlePushReceivedCount = dataPlane.EnqueuedPushCount,
+                battlePushAveragePayloadBytes = dataPlane.EnqueuedPushCount > 0L
+                    ? dataPlane.ReceivedPayloadBytes / (double)dataPlane.EnqueuedPushCount
+                    : 0d,
                 movementSampleCount = _movementSampleCount,
                 maxMovementProgress = _maxMovementProgress,
                 maxBackwardMovement = _maxBackwardMovement,
                 maxReconciliationBackwardMovement = _maxReconciliationBackwardMovement,
                 maxUnexplainedBackwardMovement = _maxUnexplainedBackwardMovement,
+                movementBackwardEvents = new List<MovementBackwardEvent>(MovementBackwardEvents),
                 battleHandoffMode = ShooterRemoteStateSyncPlayModeHost.LastConnectionResult?.RequestedMode.ToString() ?? string.Empty,
                 hostRunning = ShooterRemoteStateSyncPlayModeHost.IsRunning,
                 hostRenderCount = ShooterRemoteStateSyncPlayModeHost.RenderCount,
@@ -1117,6 +1287,9 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 pureStateLowFrequencyUpdateCount = _pureStateLowFrequencyUpdateCount,
                 remotePlayerSpawnFrame = _remotePlayerSpawnFrame,
                 remotePlayerDespawnFrame = _remotePlayerDespawnFrame,
+                remotePlayerFullBaselineRemovalFrame = _remotePlayerFullBaselineRemovalFrame,
+                remotePlayerRemovalFrame = ResolveRemotePlayerRemovalFrame(),
+                remotePlayerRemovalKind = ResolveRemotePlayerRemovalKind(),
                 remotePlayerPostDespawnSpawnCount = _remotePlayerPostDespawnSpawnCount,
                 remotePlayerPostDespawnUpdateCount = _remotePlayerPostDespawnUpdateCount,
                 remotePlayerFirstReintroducedFrame = _remotePlayerFirstReintroducedFrame,
@@ -1467,6 +1640,7 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public int staleSnapshotCount;
             public int snapshotImportFailureCount;
             public int snapshotResyncNeededCount;
+            public long automaticFullStateSyncCoalescedRequestCount;
             public int authoritativeHashMismatchCount;
             public List<HashMismatchSample> hashMismatches = new List<HashMismatchSample>();
             public int inputAttemptCount;
@@ -1496,24 +1670,73 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public double p95ViewRenderMs;
             public double averageGcBytesPerFrame;
             public long maxGcBytesPerFrame;
+            public long pureStatePlaybackRenderTickCount;
+            public long pureStatePlaybackPublishedSnapshotCount;
+            public long pureStatePlaybackStarvedRenderTickCount;
+            public long pureStatePlaybackHeldRenderTickCount;
+            public double pureStatePlaybackStarvationRatio;
+            public double pureStatePlaybackHeldRatio;
+            public int pureStatePlaybackBufferedSnapshotCount;
+            public float pureStatePlaybackBufferedFrameSpan;
+            public float pureStatePlaybackLeadFrames;
+            public float pureStatePlaybackFrame;
+            public float pureStatePlaybackCurrentDelayFrames;
+            public float pureStatePlaybackTargetDelayFrames;
+            public int pureStatePlaybackBaseDelayFrames;
+            public int pureStatePlaybackMaxDelayFrames;
+            public bool pureStatePlaybackIsStarved;
+            public long pureStatePlaybackReceivedSampleBlockCount;
+            public long pureStatePlaybackReceivedFrameSampleCount;
+            public long pureStatePlaybackRejectedFrameSampleCount;
+            public long pureStatePlaybackStaleFrameSampleCount;
+            public long pureStatePlaybackInvalidFrameSampleCount;
+            public double pureStatePlaybackAverageFrameSamplesPerBlock;
+            public long pureStatePlaybackReceivedTransformSampleCount;
+            public int pureStatePlaybackMaxTransformSampleCountPerBlock;
+            public long pureStatePlaybackReceivedAuthoritativeTransformCount;
+            public double pureStatePlaybackAverageTransformSamplesPerFrame;
+            public double pureStatePlaybackHistoricalTransformAmplificationRatio;
             public int battlePushQueueDepth;
             public int battlePushPeakQueueDepth;
+            public long battlePushEnqueuedCount;
+            public long battlePushProcessedCount;
+            public long battlePushCoalescedSnapshotCount;
+            public long battlePushDrainCount;
+            public long battlePushBudgetLimitedDrainCount;
+            public int battlePushLastDrainProcessedCount;
+            public double battlePushLastDrainMs;
             public double battlePushOldestQueueMs;
             public double p95BattlePushQueueWaitMs;
             public double p99BattlePushQueueWaitMs;
             public double p95BattlePushApplyMs;
             public double p99BattlePushApplyMs;
+            public long battlePushFullSnapshotProcessCount;
+            public double battlePushFullSnapshotApplyMaxMs;
+            public long battlePushDeltaSnapshotProcessCount;
+            public double battlePushDeltaSnapshotApplyP95Ms;
+            public double battlePushDeltaSnapshotApplyP99Ms;
+            public double battlePushDeltaSnapshotApplyMaxMs;
+            public long battlePushReliableEventProcessCount;
+            public double battlePushReliableEventApplyP50Ms;
+            public double battlePushReliableEventApplyP95Ms;
+            public double battlePushReliableEventApplyP99Ms;
+            public double battlePushReliableEventApplyMaxMs;
+            public long battlePushOtherProcessCount;
+            public double battlePushOtherApplyMaxMs;
             public double p95SnapshotArrivalGapMs;
             public double p99SnapshotArrivalGapMs;
             public double p95SnapshotSourceAgeMs;
             public double p99SnapshotSourceAgeMs;
             public long battlePushPayloadBytes;
             public int battlePushMaxPayloadBytes;
+            public long battlePushReceivedCount;
+            public double battlePushAveragePayloadBytes;
             public int movementSampleCount;
             public float maxMovementProgress;
             public float maxBackwardMovement;
             public float maxReconciliationBackwardMovement;
             public float maxUnexplainedBackwardMovement;
+            public List<MovementBackwardEvent> movementBackwardEvents = new List<MovementBackwardEvent>();
             public string battleHandoffMode = string.Empty;
             public bool hostRunning;
             public long hostRenderCount;
@@ -1545,6 +1768,9 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public int pureStateLowFrequencyUpdateCount;
             public int remotePlayerSpawnFrame;
             public int remotePlayerDespawnFrame;
+            public int remotePlayerFullBaselineRemovalFrame;
+            public int remotePlayerRemovalFrame;
+            public string remotePlayerRemovalKind = string.Empty;
             public int remotePlayerPostDespawnSpawnCount;
             public int remotePlayerPostDespawnUpdateCount;
             public int remotePlayerFirstReintroducedFrame;
@@ -1587,6 +1813,24 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public byte flags;
             public int quantizedX;
             public int quantizedY;
+        }
+
+        [Serializable]
+        private sealed class MovementBackwardEvent
+        {
+            public float backward;
+            public float previousProgress;
+            public float currentProgress;
+            public int previousAuthoritativeFrame;
+            public int authoritativeFrame;
+            public bool authorityAdvanced;
+            public int runtimeFrame;
+            public int snapshotAppliedCount;
+            public int snapshotResyncNeededCount;
+            public int queueDepth;
+            public int peakQueueDepth;
+            public double lastDrainMilliseconds;
+            public double editorUpdateGapMilliseconds;
         }
 
         [Serializable]

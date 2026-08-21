@@ -3,6 +3,7 @@
 using System;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Observability;
 
 namespace AbilityKit.Network.Sdk
 {
@@ -18,6 +19,8 @@ namespace AbilityKit.Network.Sdk
         private Func<ITransport>? _transportFactory;
         private Action<ConnectionOptions>? _configureConnection;
         private NetworkRequestClientFactory? _requestClientFactory;
+        private NetworkTrafficObserverFactory? _trafficObserverFactory;
+        private Action<NetworkTrafficCaptureOptions>? _configureTrafficCapture;
         private IDispatcher? _callbackDispatcher;
         private IDispatcher? _ioDispatcher;
 
@@ -49,6 +52,33 @@ namespace AbilityKit.Network.Sdk
         {
             if (configure == null) throw new ArgumentNullException(nameof(configure));
             _configureConnection += configure;
+            return this;
+        }
+
+        /// <summary>
+        /// Observes traffic from connections created through <see cref="UseTransportFactory"/>.
+        /// The observer may be shared by multiple SDK clients; event connection metadata keeps
+        /// their logical connections and physical reconnect generations distinct.
+        /// </summary>
+        public NetworkSdkBuilder ObserveTraffic(
+            INetworkTrafficObserver observer,
+            Action<NetworkTrafficCaptureOptions>? configure = null)
+        {
+            if (observer == null) throw new ArgumentNullException(nameof(observer));
+            return ConfigureTrafficCapture(_ => observer, configure);
+        }
+
+        /// <summary>
+        /// Configures a per-physical-session observer factory. This is the extension point for
+        /// connection-scoped exporters, decoders, tracing bridges, and visualization streams.
+        /// </summary>
+        public NetworkSdkBuilder ConfigureTrafficCapture(
+            NetworkTrafficObserverFactory observerFactory,
+            Action<NetworkTrafficCaptureOptions>? configure = null)
+        {
+            _trafficObserverFactory = observerFactory
+                ?? throw new ArgumentNullException(nameof(observerFactory));
+            _configureTrafficCapture = configure;
             return this;
         }
 
@@ -95,6 +125,13 @@ namespace AbilityKit.Network.Sdk
         {
             if (_connectionFactory != null)
             {
+                if (_trafficObserverFactory != null)
+                {
+                    throw new InvalidOperationException(
+                        "Traffic capture cannot be installed on an externally created connection. " +
+                        "Use a transport factory or install a probe in that connection's pipeline.");
+                }
+
                 return _connectionFactory.Invoke();
             }
 
@@ -106,6 +143,13 @@ namespace AbilityKit.Network.Sdk
 
             var options = new ConnectionOptions();
             _configureConnection?.Invoke(options);
+            if (_trafficObserverFactory != null)
+            {
+                var capture = new NetworkTrafficCaptureOptions();
+                _configureTrafficCapture?.Invoke(capture);
+                capture.ObserverFactory = _trafficObserverFactory;
+                options.TrafficCapture = capture;
+            }
             return new ConnectionManager(
                 _transportFactory,
                 options,

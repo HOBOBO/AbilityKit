@@ -23,6 +23,7 @@ namespace AbilityKit.Game.Flow
 
         private CancellationTokenSource _cancellation;
         private Task _task;
+        private Task _pendingStop = System.Threading.Tasks.Task.CompletedTask;
         private int _generation;
 
         internal GatewayPreparationRuntime(GatewayClockSynchronizer clock)
@@ -52,46 +53,74 @@ namespace AbilityKit.Game.Flow
 
         internal void Start(
             IConnection connection,
-            IGatewayRoomClient client,
+            IGatewayAuthenticationCapability authentication,
+            IGatewayRoomCommandCapability commands,
+            IGatewayClockCapability clock,
             BattleStartPlan plan,
             Action<BattleStartPlan> planPublished,
             Action<GatewayTimeSyncEwma, GatewayTimeSyncRuntimeOptions> clockSamplePublished,
             Action<Exception> clockFailurePublished)
         {
             if (connection == null) throw new ArgumentNullException(nameof(connection));
-            if (client == null) throw new ArgumentNullException(nameof(client));
+            if (authentication == null) throw new ArgumentNullException(nameof(authentication));
+            if (commands == null) throw new ArgumentNullException(nameof(commands));
+            if (clock == null) throw new ArgumentNullException(nameof(clock));
 
-            CancellationTokenSource previous;
+            CancellationTokenSource previousCancellation;
+            Task previousTask;
+            Task precedingStop;
+            TaskCompletionSource<bool> stopCompletion;
             int generation;
             CancellationToken token;
 
             lock (_gate)
             {
-                previous = _cancellation;
+                previousCancellation = _cancellation;
+                previousTask = _task;
+                precedingStop = _pendingStop;
+                stopCompletion = CreateStopCompletion();
+                _pendingStop = stopCompletion.Task;
                 _generation++;
                 generation = _generation;
                 _worldStartAnchors.Clear();
-                _clock.Dispose();
                 _cancellation = new CancellationTokenSource();
                 token = _cancellation.Token;
+                _task = null;
+            }
+
+            var previousClockStop = _clock.StopWorkAsync();
+            _clock.ClearEstimate();
+            BeginDrain(
+                precedingStop,
+                previousTask,
+                previousClockStop,
+                previousCancellation,
+                stopCompletion);
+
+            lock (_gate)
+            {
+                if (!IsCurrentGeneration(generation, token)) return;
+
                 _task = RunAsync(
                     generation,
                     connection,
-                    client,
+                    authentication,
+                    commands,
+                    clock,
                     plan,
                     planPublished,
                     clockSamplePublished,
                     clockFailurePublished,
                     token);
             }
-
-            CancelAndDispose(previous);
         }
 
         private async Task RunAsync(
             int generation,
             IConnection connection,
-            IGatewayRoomClient client,
+            IGatewayAuthenticationCapability authentication,
+            IGatewayRoomCommandCapability commands,
+            IGatewayClockCapability clock,
             BattleStartPlan plan,
             Action<BattleStartPlan> planPublished,
             Action<GatewayTimeSyncEwma, GatewayTimeSyncRuntimeOptions> clockSamplePublished,
@@ -101,7 +130,7 @@ namespace AbilityKit.Game.Flow
             await WaitForConnectionAsync(connection, token);
             ThrowIfStale(generation, token);
 
-            var preparedPlan = await EnsureSessionTokenAsync(client, plan, token);
+            var preparedPlan = await EnsureSessionTokenAsync(authentication, plan, token);
             ThrowIfStale(generation, token);
 
             GatewayWorldStartAnchor anchor = default;
@@ -111,7 +140,7 @@ namespace AbilityKit.Game.Flow
 
             if (gateway.AutoCreateRoom)
             {
-                var result = await client.CreateRoomAsync(
+                var result = await commands.CreateRoomAsync(
                     gateway.SessionToken,
                     gateway.Region,
                     gateway.ServerId,
@@ -126,7 +155,7 @@ namespace AbilityKit.Game.Flow
                 var worldId = GatewayRoomPreparationHelper.ResolveCreatedRoomWorldId(in result);
                 preparedPlan = preparedPlan.WithGatewayRoom(worldId, result.NumericRoomId);
                 gateway = preparedPlan.Gateway;
-                var joinResult = await client.JoinRoomAsync(
+                var joinResult = await commands.JoinRoomAsync(
                     gateway.SessionToken,
                     gateway.Region,
                     gateway.ServerId,
@@ -143,7 +172,7 @@ namespace AbilityKit.Game.Flow
             else if (gateway.AutoJoinRoom)
             {
                 var joinRoomId = GatewayRoomPreparationHelper.ResolveJoinRoomId(preparedPlan);
-                var result = await client.JoinRoomAsync(
+                var result = await commands.JoinRoomAsync(
                     gateway.SessionToken,
                     gateway.Region,
                     gateway.ServerId,
@@ -168,24 +197,30 @@ namespace AbilityKit.Game.Flow
             }
 
             PublishPlanIfCurrent(generation, token, planPublished, preparedPlan);
+            lock (_gate) ThrowIfStale(generation, token);
+
+            var clockGeneration = _clock.Start(
+                clock,
+                preparedPlan.TimeSync,
+                (estimate, options) => PublishClockSampleIfCurrent(
+                    generation,
+                    token,
+                    clockSamplePublished,
+                    estimate,
+                    options),
+                exception => PublishClockFailureIfCurrent(
+                    generation,
+                    token,
+                    clockFailurePublished,
+                    exception));
+
             lock (_gate)
             {
-                ThrowIfStale(generation, token);
-                _clock.Start(
-                    client,
-                    preparedPlan.TimeSync,
-                    (estimate, options) => PublishClockSampleIfCurrent(
-                        generation,
-                        token,
-                        clockSamplePublished,
-                        estimate,
-                        options),
-                    exception => PublishClockFailureIfCurrent(
-                        generation,
-                        token,
-                        clockFailurePublished,
-                        exception));
+                if (IsCurrentGeneration(generation, token)) return;
             }
+
+            await _clock.StopWorkAsync(clockGeneration).ConfigureAwait(false);
+            throw new OperationCanceledException(token);
         }
 
         private static async Task WaitForConnectionAsync(
@@ -209,13 +244,13 @@ namespace AbilityKit.Game.Flow
         }
 
         private static async Task<BattleStartPlan> EnsureSessionTokenAsync(
-            IGatewayRoomClient client,
+            IGatewayAuthenticationCapability authentication,
             BattleStartPlan plan,
             CancellationToken token)
         {
             if (!string.IsNullOrWhiteSpace(plan.Gateway.SessionToken)) return plan;
 
-            var sessionToken = await client.GuestLoginAsync(
+            var sessionToken = await authentication.GuestLoginAsync(
                 GuestLoginOpCode,
                 cancellationToken: token);
             token.ThrowIfCancellationRequested();
@@ -289,17 +324,36 @@ namespace AbilityKit.Game.Flow
 
         internal void StopWork()
         {
+            _ = StopWorkAsync();
+        }
+
+        internal Task StopWorkAsync()
+        {
             CancellationTokenSource cancellation;
+            Task task;
+            Task precedingStop;
+            TaskCompletionSource<bool> stopCompletion;
+
             lock (_gate)
             {
                 _generation++;
                 cancellation = _cancellation;
+                task = _task;
                 _cancellation = null;
                 _task = null;
-                _clock.StopWork();
+                precedingStop = _pendingStop;
+                stopCompletion = CreateStopCompletion();
+                _pendingStop = stopCompletion.Task;
             }
 
-            CancelAndDispose(cancellation);
+            var clockStop = _clock.StopWorkAsync();
+            BeginDrain(
+                precedingStop,
+                task,
+                clockStop,
+                cancellation,
+                stopCompletion);
+            return stopCompletion.Task;
         }
 
         internal bool TryGetWorldStartAnchor(
@@ -327,16 +381,75 @@ namespace AbilityKit.Game.Flow
             ClearSessionData();
         }
 
-        private static void CancelAndDispose(CancellationTokenSource cancellation)
+        private static TaskCompletionSource<bool> CreateStopCompletion()
         {
-            if (cancellation == null) return;
+            return new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+
+        private static void BeginDrain(
+            Task precedingStop,
+            Task task,
+            Task clockStop,
+            CancellationTokenSource cancellation,
+            TaskCompletionSource<bool> completion)
+        {
+            Cancel(cancellation);
+            _ = CompleteDrainAsync(
+                precedingStop,
+                task,
+                clockStop,
+                cancellation,
+                completion);
+        }
+
+        private static async Task CompleteDrainAsync(
+            Task precedingStop,
+            Task task,
+            Task clockStop,
+            CancellationTokenSource cancellation,
+            TaskCompletionSource<bool> completion)
+        {
             try
             {
-                if (!cancellation.IsCancellationRequested) cancellation.Cancel();
+                await System.Threading.Tasks.Task.WhenAll(
+                        precedingStop ?? System.Threading.Tasks.Task.CompletedTask,
+                        AwaitOwnedTaskAsync(task, cancellation),
+                        clockStop ?? System.Threading.Tasks.Task.CompletedTask)
+                    .ConfigureAwait(false);
+                completion.TrySetResult(true);
+            }
+            catch (Exception exception)
+            {
+                completion.TrySetException(exception);
             }
             finally
             {
-                cancellation.Dispose();
+                cancellation?.Dispose();
+            }
+        }
+
+        private static async Task AwaitOwnedTaskAsync(
+            Task task,
+            CancellationTokenSource cancellation)
+        {
+            if (task == null) return;
+
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (
+                cancellation != null && cancellation.IsCancellationRequested)
+            {
+            }
+        }
+
+        private static void Cancel(CancellationTokenSource cancellation)
+        {
+            if (cancellation != null && !cancellation.IsCancellationRequested)
+            {
+                cancellation.Cancel();
             }
         }
     }

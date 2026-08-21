@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Shooter.View
         private ReliableEventCheckpoint? _latestCheckpoint;
         private Action<WireReliableBattleEvent>? _activeSink;
         private List<WireReliableBattleEvent>? _deliveredInCurrentBatch;
+        private int _deliveredCountInCurrentBatch;
         private string _baselineBattleId = string.Empty;
         private string _baselineEpoch = string.Empty;
 
@@ -143,7 +144,19 @@ namespace AbilityKit.Demo.Shooter.View
 
         public ShooterReliableBattleEventConsumeResult Consume(in WireReliableBattleEventPush push)
         {
-            return Consume(in push, null);
+            return Consume(in push, null, collectCommittedEvents: true);
+        }
+
+        /// <summary>
+        /// Delivers a batch without materializing the committed-event list. The normal Consume
+        /// contract remains available for callers that need to inspect committed events (tests,
+        /// replay and tooling), while the live gateway path can avoid one list allocation per push.
+        /// </summary>
+        public ShooterReliableBattleEventConsumeResult ConsumeAndDispatch(
+            in WireReliableBattleEventPush push,
+            Action<WireReliableBattleEvent>? eventSink)
+        {
+            return Consume(in push, eventSink, collectCommittedEvents: false);
         }
 
         /// <summary>
@@ -153,6 +166,14 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterReliableBattleEventConsumeResult Consume(
             in WireReliableBattleEventPush push,
             Action<WireReliableBattleEvent>? eventSink)
+        {
+            return Consume(in push, eventSink, collectCommittedEvents: true);
+        }
+
+        private ShooterReliableBattleEventConsumeResult Consume(
+            in WireReliableBattleEventPush push,
+            Action<WireReliableBattleEvent>? eventSink,
+            bool collectCommittedEvents)
         {
             var pushBattleId = push.BattleId ?? string.Empty;
             var pushEpoch = push.Epoch ?? string.Empty;
@@ -187,22 +208,26 @@ namespace AbilityKit.Demo.Shooter.View
             _baselineBattleId = pushBattleId;
             _baselineEpoch = pushEpoch;
             _activeSink = eventSink;
-            _deliveredInCurrentBatch = new List<WireReliableBattleEvent>();
+            _deliveredInCurrentBatch = collectCommittedEvents
+                ? new List<WireReliableBattleEvent>()
+                : null;
             try
             {
                 _session!.Handle(in batch);
-                var committed = RequiresResync
+                var committed = RequiresResync || !collectCommittedEvents
                     ? (IReadOnlyList<WireReliableBattleEvent>)Array.Empty<WireReliableBattleEvent>()
-                    : _deliveredInCurrentBatch;
+                    : _deliveredInCurrentBatch ?? (IReadOnlyList<WireReliableBattleEvent>)Array.Empty<WireReliableBattleEvent>();
                 return new ShooterReliableBattleEventConsumeResult(
                     committed,
                     LastAcknowledgedSequence,
-                    RequiresResync);
+                    RequiresResync,
+                    !RequiresResync && _deliveredCountInCurrentBatch > 0);
             }
             finally
             {
                 _activeSink = null;
                 _deliveredInCurrentBatch = null;
+                _deliveredCountInCurrentBatch = 0;
                 if (!RequiresResync)
                 {
                     _baselineBattleId = string.Empty;
@@ -288,6 +313,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _activeSink?.Invoke(item);
             _deliveredInCurrentBatch?.Add(item);
+            _deliveredCountInCurrentBatch++;
         }
 
         private ShooterReliableBattleEventConsumeResult MarkGap(string? baselineBattleId = null, string? baselineEpoch = null)
@@ -308,7 +334,8 @@ namespace AbilityKit.Demo.Shooter.View
             return new ShooterReliableBattleEventConsumeResult(
                 Array.Empty<WireReliableBattleEvent>(),
                 LastAcknowledgedSequence,
-                requiresResync: true);
+                requiresResync: true,
+                hasCommittedEvents: false);
         }
     }
 
@@ -317,11 +344,13 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterReliableBattleEventConsumeResult(
             IReadOnlyList<WireReliableBattleEvent> committedEvents,
             long acknowledgedSequence,
-            bool requiresResync)
+            bool requiresResync,
+            bool hasCommittedEvents = false)
         {
             CommittedEvents = committedEvents ?? Array.Empty<WireReliableBattleEvent>();
             AcknowledgedSequence = acknowledgedSequence;
             RequiresResync = requiresResync;
+            HasCommittedEvents = hasCommittedEvents || CommittedEvents.Count > 0;
         }
 
         public IReadOnlyList<WireReliableBattleEvent> CommittedEvents { get; }
@@ -330,6 +359,8 @@ namespace AbilityKit.Demo.Shooter.View
 
         public bool RequiresResync { get; }
 
-        public bool ShouldAcknowledge => !RequiresResync && CommittedEvents.Count > 0;
+        public bool HasCommittedEvents { get; }
+
+        public bool ShouldAcknowledge => !RequiresResync && HasCommittedEvents;
     }
 }

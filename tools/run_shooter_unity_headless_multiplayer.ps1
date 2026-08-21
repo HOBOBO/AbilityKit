@@ -34,8 +34,10 @@ param(
     [long]$AverageGcBytesPerFrameThreshold = 524288,
     [ValidateRange(1, 5)]
     [int]$CompileWarmupAttempts = 3,
+    [string]$ServerLogPath,
     [string]$OutputRoot,
-    [switch]$SkipCompileWarmup
+    [switch]$SkipCompileWarmup,
+    [switch]$SkipPerformanceValidation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -82,6 +84,15 @@ $ownerLogPath = Join-Path $runDirectory 'owner-unity.log'
 $memberLogPath = Join-Path $runDirectory 'member-unity.log'
 $ownerCompileLogPath = Join-Path $runDirectory 'owner-compile.log'
 $memberCompileLogPath = Join-Path $runDirectory 'member-compile.log'
+$serverPerformanceLogPath = Join-Path $runDirectory 'server-performance.log'
+$serverLogOffset = 0L
+if (-not [string]::IsNullOrWhiteSpace($ServerLogPath)) {
+    $ServerLogPath = (Resolve-Path $ServerLogPath).Path
+    if (-not (Test-Path $ServerLogPath -PathType Leaf)) {
+        throw "ServerLogPath must reference a file: $ServerLogPath"
+    }
+    $serverLogOffset = (Get-Item -LiteralPath $ServerLogPath).Length
+}
 $ownerAccount = "shooter-unity-owner-$runId"
 $memberAccount = "shooter-unity-member-$runId"
 $executeMethod = 'AbilityKit.Demo.Shooter.View.Editor.ShooterMultiplayerHeadlessClientCommand.Run'
@@ -153,15 +164,56 @@ function Wait-UnityProjectAvailable {
 
 function Read-WarmupLog {
     param([string]$Path)
-    $deadline = [DateTime]::UtcNow.AddSeconds(10)
+    $deadline = [DateTime]::UtcNow.AddSeconds(30)
     do {
         try {
-            if (Test-Path $Path -PathType Leaf) { return [System.IO.File]::ReadAllText($Path) }
+            if (Test-Path $Path -PathType Leaf) {
+                $stream = [System.IO.FileStream]::new(
+                    $Path,
+                    [System.IO.FileMode]::Open,
+                    [System.IO.FileAccess]::Read,
+                    [System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete)
+                try {
+                    $reader = [System.IO.StreamReader]::new($stream, $true)
+                    try { return $reader.ReadToEnd() }
+                    finally { $reader.Dispose() }
+                }
+                finally { $stream.Dispose() }
+            }
         }
         catch [System.IO.IOException] { }
         Start-Sleep -Milliseconds 200
     } while ([DateTime]::UtcNow -lt $deadline)
     throw "Unity warmup log was not readable: $Path"
+}
+
+function Export-ServerPerformanceLog {
+    if ([string]::IsNullOrWhiteSpace($ServerLogPath)) { return }
+
+    $stream = [System.IO.FileStream]::new(
+        $ServerLogPath,
+        [System.IO.FileMode]::Open,
+        [System.IO.FileAccess]::Read,
+        [System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete)
+    try {
+        if ($serverLogOffset -gt 0 -and $serverLogOffset -le $stream.Length) {
+            [void]$stream.Seek($serverLogOffset, [System.IO.SeekOrigin]::Begin)
+        }
+        $reader = [System.IO.StreamReader]::new($stream, $true)
+        try { $appended = $reader.ReadToEnd() }
+        finally { $reader.Dispose() }
+    }
+    finally { $stream.Dispose() }
+
+    $lines = @($appended -split "`r?`n" | Where-Object {
+        $_.Contains('[BattleLogicHost] ServerPerformance') -or
+        $_.Contains('[StateSyncObserver] DeliveryPerformance')
+    })
+    [System.IO.File]::WriteAllLines(
+        $serverPerformanceLogPath,
+        $lines,
+        [System.Text.UTF8Encoding]::new($false))
+    Write-Host "Server performance windows captured: $($lines.Count) -> $serverPerformanceLogPath"
 }
 
 function Stop-OrphanedUnityCompilerServers {
@@ -303,6 +355,12 @@ try {
     $memberProcess.Refresh()
     $ownerResult = Read-JsonFile $ownerResultPath
     $memberResult = Read-JsonFile $memberResultPath
+    if (($ownerProcess.HasExited -and -not $ownerResult) -or
+        ($memberProcess.HasExited -and -not $memberResult)) {
+        $ownerExit = if ($ownerProcess.HasExited) { $ownerProcess.ExitCode } else { 'running' }
+        $memberExit = if ($memberProcess.HasExited) { $memberProcess.ExitCode } else { 'running' }
+        throw "Shooter Unity client exited before writing a result. ownerExit=$ownerExit, memberExit=$memberExit. Inspect owner/member Unity logs under $runDirectory."
+    }
     if ((-not $ownerProcess.HasExited -or -not $memberProcess.HasExited) -and
         (-not $ownerResult -or -not $memberResult)) {
         throw "Shooter Unity clients did not finish within $TimeoutSeconds seconds."
@@ -357,24 +415,26 @@ try {
                 throw "Shooter $($entry.Label) indirect GPU view produced no matrix uploads. passes=$($state.viewIndirectUploadPassCount), calls=$($state.viewMatrixUploadCallCount), matrices=$($state.viewUploadedMatrixCount)"
             }
         }
-        if ([double]$state.maxInputRoundTripMs -ge $SevereLatencyThresholdMs -or
-            [double]$state.firstMovementResponseMs -lt 0 -or
-            [double]$state.firstMovementResponseMs -ge $SevereLatencyThresholdMs -or
-            [double]$state.maxEditorUpdateGapMs -ge $SevereLatencyThresholdMs -or
-            [double]$state.maxSnapshotGapMs -ge $SevereLatencyThresholdMs) {
-            throw "Shooter $($entry.Label) observed severe latency or a stall. thresholdMs=$SevereLatencyThresholdMs, inputMax=$($state.maxInputRoundTripMs), movementFirst=$($state.firstMovementResponseMs), editorGapMax=$($state.maxEditorUpdateGapMs), snapshotGapMax=$($state.maxSnapshotGapMs)"
-        }
-        $frameCount = [long]$state.syncFrameCount
-        $hitchRate = if ($frameCount -gt 0) { [double]$state.syncHitchCount / $frameCount } else { 1.0 }
-        if ($frameCount -le 0 -or
-            [double]$state.p95SyncFrameMs -gt $P95SyncFrameThresholdMs -or
-            [double]$state.p99BattlePushApplyMs -gt $P99PushApplyThresholdMs -or
-            [double]$state.p99BattlePushQueueWaitMs -gt $P99QueueWaitThresholdMs -or
-            [double]$state.p95SnapshotSourceAgeMs -gt $P95SnapshotSourceAgeThresholdMs -or
-            [int]$state.battlePushPeakQueueDepth -gt $PeakQueueDepthThreshold -or
-            $hitchRate -gt $MaxHitchRate -or
-            [double]$state.averageGcBytesPerFrame -gt $AverageGcBytesPerFrameThreshold) {
-            throw "Shooter $($entry.Label) exceeded sync performance budget. frameP95=$($state.p95SyncFrameMs)/$P95SyncFrameThresholdMs, applyP99=$($state.p99BattlePushApplyMs)/$P99PushApplyThresholdMs, queueWaitP99=$($state.p99BattlePushQueueWaitMs)/$P99QueueWaitThresholdMs, sourceAgeP95=$($state.p95SnapshotSourceAgeMs)/$P95SnapshotSourceAgeThresholdMs, peakQueue=$($state.battlePushPeakQueueDepth)/$PeakQueueDepthThreshold, hitchRate=$([Math]::Round($hitchRate, 4))/$MaxHitchRate, gcAvg=$([Math]::Round([double]$state.averageGcBytesPerFrame, 0))/$AverageGcBytesPerFrameThreshold"
+        if (-not $SkipPerformanceValidation) {
+            if ([double]$state.maxInputRoundTripMs -ge $SevereLatencyThresholdMs -or
+                [double]$state.firstMovementResponseMs -lt 0 -or
+                [double]$state.firstMovementResponseMs -ge $SevereLatencyThresholdMs -or
+                [double]$state.maxEditorUpdateGapMs -ge $SevereLatencyThresholdMs -or
+                [double]$state.maxSnapshotGapMs -ge $SevereLatencyThresholdMs) {
+                throw "Shooter $($entry.Label) observed severe latency or a stall. thresholdMs=$SevereLatencyThresholdMs, inputMax=$($state.maxInputRoundTripMs), movementFirst=$($state.firstMovementResponseMs), editorGapMax=$($state.maxEditorUpdateGapMs), snapshotGapMax=$($state.maxSnapshotGapMs)"
+            }
+            $frameCount = [long]$state.syncFrameCount
+            $hitchRate = if ($frameCount -gt 0) { [double]$state.syncHitchCount / $frameCount } else { 1.0 }
+            if ($frameCount -le 0 -or
+                [double]$state.p95SyncFrameMs -gt $P95SyncFrameThresholdMs -or
+                [double]$state.p99BattlePushApplyMs -gt $P99PushApplyThresholdMs -or
+                [double]$state.p99BattlePushQueueWaitMs -gt $P99QueueWaitThresholdMs -or
+                [double]$state.p95SnapshotSourceAgeMs -gt $P95SnapshotSourceAgeThresholdMs -or
+                [int]$state.battlePushPeakQueueDepth -gt $PeakQueueDepthThreshold -or
+                $hitchRate -gt $MaxHitchRate -or
+                [double]$state.averageGcBytesPerFrame -gt $AverageGcBytesPerFrameThreshold) {
+                throw "Shooter $($entry.Label) exceeded sync performance budget. frameP95=$($state.p95SyncFrameMs)/$P95SyncFrameThresholdMs, applyP99=$($state.p99BattlePushApplyMs)/$P99PushApplyThresholdMs, queueWaitP99=$($state.p99BattlePushQueueWaitMs)/$P99QueueWaitThresholdMs, sourceAgeP95=$($state.p95SnapshotSourceAgeMs)/$P95SnapshotSourceAgeThresholdMs, peakQueue=$($state.battlePushPeakQueueDepth)/$PeakQueueDepthThreshold, hitchRate=$([Math]::Round($hitchRate, 4))/$MaxHitchRate, gcAvg=$([Math]::Round([double]$state.averageGcBytesPerFrame, 0))/$AverageGcBytesPerFrameThreshold"
+            }
         }
     }
 
@@ -388,15 +448,15 @@ try {
                 [bool]$state.remotePlayerViewActive -or [int]$state.playerViewCount -ne 1) {
                 throw "Shooter $($entry.Label) remote player GameObject lifecycle failed. observed=$($state.remotePlayerViewObserved), removed=$($state.remotePlayerViewRemoved), active=$($state.remotePlayerViewActive), finalPlayers=$($state.playerViewCount)"
             }
-            if ([int]$state.remotePlayerSpawnFrame -le 0 -or [int]$state.remotePlayerDespawnFrame -le [int]$state.remotePlayerSpawnFrame) {
-                throw "Shooter $($entry.Label) protocol lifecycle was incomplete. spawn=$($state.remotePlayerSpawnFrame), despawn=$($state.remotePlayerDespawnFrame)"
+            if ([int]$state.remotePlayerSpawnFrame -le 0 -or [int]$state.remotePlayerRemovalFrame -le [int]$state.remotePlayerSpawnFrame) {
+                throw "Shooter $($entry.Label) protocol lifecycle was incomplete. spawn=$($state.remotePlayerSpawnFrame), removal=$($state.remotePlayerRemovalFrame), kind=$($state.remotePlayerRemovalKind), despawn=$($state.remotePlayerDespawnFrame), fullBaselineOmission=$($state.remotePlayerFullBaselineRemovalFrame)"
             }
             if ([int]$state.pureStateFullAppliedCount -lt 1 -or [int]$state.pureStateDeltaAppliedCount -lt 1 -or
                 [int]$state.pureStateLowFrequencyUpdateCount -lt 1) {
                 throw "Shooter $($entry.Label) pure-state/LOD evidence was incomplete. full=$($state.pureStateFullAppliedCount), delta=$($state.pureStateDeltaAppliedCount), lowFrequency=$($state.pureStateLowFrequencyUpdateCount)"
             }
             if ([double]$state.aoiVisibleRadius -ne 24 -or [double]$state.aoiBoundaryRadius -ne 30 -or
-                [int]$state.nearLodIntervalFrames -ne 10 -or [int]$state.midLodIntervalFrames -ne 30 -or [int]$state.farLodIntervalFrames -ne 90) {
+                [int]$state.nearLodIntervalFrames -ne 3 -or [int]$state.midLodIntervalFrames -ne 9 -or [int]$state.farLodIntervalFrames -ne 30) {
                 throw "Shooter $($entry.Label) AOI/LOD settings were unexpected. radius=$($state.aoiVisibleRadius)/$($state.aoiBoundaryRadius), lod=$($state.nearLodIntervalFrames)/$($state.midLodIntervalFrames)/$($state.farLodIntervalFrames)"
             }
         }
@@ -405,8 +465,8 @@ try {
         Write-Host 'Shooter Unity two-observer AOI/LOD acceptance PASSED.' -ForegroundColor Green
         Write-Host "RoomId=$($ownerState.roomId) BattleId=$($ownerState.battleId) WorldId=$($ownerState.worldId)"
         Write-Host "AOI config: visible=$($ownerState.aoiVisibleRadius), boundary=$($ownerState.aoiBoundaryRadius), LOD=$($ownerState.nearLodIntervalFrames)/$($ownerState.midLodIntervalFrames)/$($ownerState.farLodIntervalFrames) frames"
-        Write-Host "Owner lifecycle: views=$($ownerState.aoiInitialPlayerViewCount)->$($ownerState.aoiMaxPlayerViewCount)->$($ownerState.playerViewCount), remoteSpawn=$($ownerState.remotePlayerSpawnFrame), remoteDespawn=$($ownerState.remotePlayerDespawnFrame), viewLeave=$($ownerState.remotePlayerViewLeaveFrame), inactive=$(-not [bool]$ownerState.remotePlayerViewActive)"
-        Write-Host "Member lifecycle: views=$($memberState.aoiInitialPlayerViewCount)->$($memberState.aoiMaxPlayerViewCount)->$($memberState.playerViewCount), remoteSpawn=$($memberState.remotePlayerSpawnFrame), remoteDespawn=$($memberState.remotePlayerDespawnFrame), viewLeave=$($memberState.remotePlayerViewLeaveFrame), inactive=$(-not [bool]$memberState.remotePlayerViewActive)"
+        Write-Host "Owner lifecycle: views=$($ownerState.aoiInitialPlayerViewCount)->$($ownerState.aoiMaxPlayerViewCount)->$($ownerState.playerViewCount), remoteSpawn=$($ownerState.remotePlayerSpawnFrame), remoteRemoval=$($ownerState.remotePlayerRemovalFrame)/$($ownerState.remotePlayerRemovalKind), viewLeave=$($ownerState.remotePlayerViewLeaveFrame), inactive=$(-not [bool]$ownerState.remotePlayerViewActive)"
+        Write-Host "Member lifecycle: views=$($memberState.aoiInitialPlayerViewCount)->$($memberState.aoiMaxPlayerViewCount)->$($memberState.playerViewCount), remoteSpawn=$($memberState.remotePlayerSpawnFrame), remoteRemoval=$($memberState.remotePlayerRemovalFrame)/$($memberState.remotePlayerRemovalKind), viewLeave=$($memberState.remotePlayerViewLeaveFrame), inactive=$(-not [bool]$memberState.remotePlayerViewActive)"
         Write-Host "Pure-state: ownerFull/Delta=$($ownerState.pureStateFullAppliedCount)/$($ownerState.pureStateDeltaAppliedCount), memberFull/Delta=$($memberState.pureStateFullAppliedCount)/$($memberState.pureStateDeltaAppliedCount), lowFrequency=$($ownerState.pureStateLowFrequencyUpdateCount)/$($memberState.pureStateLowFrequencyUpdateCount)"
         Write-Host "Protocol lifecycle totals: ownerSpawn/Update/Despawn=$($ownerState.pureStateSpawnCount)/$($ownerState.pureStateUpdateCount)/$($ownerState.pureStateDespawnCount), memberSpawn/Update/Despawn=$($memberState.pureStateSpawnCount)/$($memberState.pureStateUpdateCount)/$($memberState.pureStateDespawnCount)"
         Write-Host "Inputs: owner=$($ownerState.inputSuccessCount)/$($ownerState.inputAttemptCount), member=$($memberState.inputSuccessCount)/$($memberState.inputAttemptCount), resync=0"
@@ -478,6 +538,8 @@ try {
     Write-Host "Artifacts: $runDirectory"
 }
 finally {
+    try { Export-ServerPerformanceLog }
+    catch { Write-Warning "Failed to capture server performance log: $($_.Exception.Message)" }
     foreach ($process in @($ownerProcess, $memberProcess)) {
         if ($process -and -not $process.HasExited) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue

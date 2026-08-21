@@ -80,8 +80,72 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             return false;
         }
 
+        protected static bool TryReadBlackboardTarget(
+            Dictionary<string, ActionArgValue> namedArgs,
+            out BlackboardWriteTarget target,
+            params string[] aliases)
+        {
+            target = default;
+            if (namedArgs == null || aliases == null || aliases.Length == 0) return false;
+            foreach (var pair in namedArgs)
+            {
+                if (!IsAlias(pair.Key, aliases)) continue;
+                if (pair.Value.Kind != ActionArgKind.BlackboardTarget) return false;
+                target = pair.Value.BlackboardTarget;
+                return true;
+            }
+            return false;
+        }
+
+        protected bool RequireBlackboardTarget(
+            ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args,
+            string displayName,
+            out string error,
+            params string[] aliases)
+        {
+            foreach (var pair in args)
+            {
+                if (!IsAlias(pair.Key, aliases)) continue;
+                if (pair.Value.Kind == ActionArgKind.BlackboardTarget)
+                {
+                    error = null;
+                    return true;
+                }
+                error = $"{ActionName} parameter '{displayName}' must be a BlackboardTarget";
+                return false;
+            }
+            error = $"{ActionName} is missing required parameter '{displayName}'";
+            return false;
+        }
+
+        protected bool RequireNumericValue(
+            ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args,
+            string displayName,
+            out string error,
+            params string[] aliases)
+        {
+            foreach (var pair in args)
+            {
+                if (!IsAlias(pair.Key, aliases)) continue;
+                if (pair.Value.Kind == ActionArgKind.NumericValue)
+                {
+                    error = null;
+                    return true;
+                }
+                error = $"{ActionName} parameter '{displayName}' must be numeric";
+                return false;
+            }
+            error = $"{ActionName} is missing required parameter '{displayName}'";
+            return false;
+        }
+
         private static bool TryResolveNumber(ActionArgValue arg, ExecCtx<IWorldResolver> ctx, out double value)
         {
+            if (arg.Kind != ActionArgKind.NumericValue)
+            {
+                value = default;
+                return false;
+            }
             if (arg.Ref.Kind == ENumericValueRefKind.Const)
             {
                 value = arg.Ref.ConstValue;
@@ -142,6 +206,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         private static double ResolveNumber(ActionArgValue arg, ExecCtx<IWorldResolver> ctx)
         {
+            if (arg.Kind != ActionArgKind.NumericValue)
+                throw new InvalidOperationException($"Action argument '{arg.Name}' is not numeric.");
             if (arg.Ref.Kind == ENumericValueRefKind.Const)
             {
                 return arg.Ref.ConstValue;

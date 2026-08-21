@@ -18,5 +18,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol/AbilityKit.Protocol.csproj" />
   </ItemGroup>
 </Project>

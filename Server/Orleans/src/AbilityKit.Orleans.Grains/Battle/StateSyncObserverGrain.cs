@@ -22,6 +22,8 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
     private readonly StateSyncGatewayPushBinding _gatewayPushBinding = new();
     private readonly Queue<OutboundReliableEvents> _reliableEventQueue = new();
     private SnapshotSendQueue<OutboundSnapshot>? _sendQueue;
+    private string _queueNetworkEnvironmentId = string.Empty;
+    private long _nextDeliveryPerformanceLogUtcTicks;
     private IDisposable? _drainTimer;
     private string _observerKey = string.Empty;
     private string _activationToken = string.Empty;
@@ -43,7 +45,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
         _observerKey = key;
         _activationToken = Guid.NewGuid().ToString("N");
         _activatedAtUtcTicks = DateTime.UtcNow.Ticks;
-        _sendQueue = CreateSendQueue(_activatedAtUtcTicks);
+        _sendQueue = CreateSendQueue(_activatedAtUtcTicks, networkEnvironmentId: null);
         _drainTimer = RegisterTimer(
             _ => DrainQueueAsync(),
             state: null,
@@ -154,7 +156,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
                 priority,
                 replaceable: !push.IsFullSnapshot,
                 producedAtTicks: nowTicks);
-            var result = GetSendQueue(nowTicks).Enqueue(in item, nowTicks);
+            var result = GetSendQueue(nowTicks, push.NetworkEnvironmentId).Enqueue(in item, nowTicks);
             if (result.BaselineInvalidated)
             {
                 _baselineRefresh.Request();
@@ -262,6 +264,7 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
 
     private async Task DrainQueueAsync()
     {
+        LogDeliveryPerformanceIfDue(DateTime.UtcNow.Ticks);
         if (TryPeekReliableEvent(_reliableEventQueue, out var reliable))
         {
             try
@@ -553,12 +556,53 @@ public sealed class StateSyncObserverGrain : Grain, IStateSyncObserverGrain, ISt
 
     private SnapshotSendQueue<OutboundSnapshot> GetSendQueue(long nowTicks)
     {
-        return _sendQueue ??= CreateSendQueue(nowTicks);
+        return GetSendQueue(nowTicks, networkEnvironmentId: null);
     }
 
-    private SnapshotSendQueue<OutboundSnapshot> CreateSendQueue(long nowTicks)
+    private SnapshotSendQueue<OutboundSnapshot> GetSendQueue(long nowTicks, string? networkEnvironmentId)
     {
-        return new SnapshotSendQueue<OutboundSnapshot>(_runtimeSettings.QueuePolicy, nowTicks);
+        var normalizedEnvironment = networkEnvironmentId?.Trim() ?? string.Empty;
+        if (_sendQueue == null
+            || (normalizedEnvironment.Length > 0
+                && !string.Equals(_queueNetworkEnvironmentId, normalizedEnvironment, StringComparison.OrdinalIgnoreCase)))
+        {
+            _queueNetworkEnvironmentId = normalizedEnvironment;
+            _sendQueue = CreateSendQueue(nowTicks, normalizedEnvironment);
+        }
+
+        return _sendQueue;
+    }
+
+    private SnapshotSendQueue<OutboundSnapshot> CreateSendQueue(long nowTicks, string? networkEnvironmentId)
+    {
+        var policy = StateSyncObserverOptionsMapper.ResolveQueuePolicy(
+            _runtimeSettings.QueuePolicy,
+            networkEnvironmentId);
+        return new SnapshotSendQueue<OutboundSnapshot>(policy, nowTicks);
+    }
+
+    private void LogDeliveryPerformanceIfDue(long nowTicks)
+    {
+        if (nowTicks < _nextDeliveryPerformanceLogUtcTicks)
+        {
+            return;
+        }
+
+        _nextDeliveryPerformanceLogUtcTicks = nowTicks + TimeSpan.TicksPerSecond * 5;
+        var metrics = GetSendQueue(nowTicks).CreateMetrics(nowTicks);
+        _logger.LogInformation(
+            "[StateSyncObserver] DeliveryPerformance Observer={ObserverKey} Account={AccountId} Environment={Environment} ProducedBytes={ProducedBytes} SentBytes={SentBytes} DroppedBytes={DroppedBytes} MergedBytes={MergedBytes} QueueLength={QueueLength} QueueAgeMs={QueueAgeMs:F1} BaselineAgeMs={BaselineAgeMs:F1} ResyncCount={ResyncCount}",
+            _observerKey,
+            _accountId,
+            string.IsNullOrWhiteSpace(_queueNetworkEnvironmentId) ? "default" : _queueNetworkEnvironmentId,
+            metrics.ProducedBytes,
+            metrics.SentBytes,
+            metrics.DroppedBytes,
+            metrics.MergedBytes,
+            metrics.QueueLength,
+            TimeSpan.FromTicks(metrics.QueueAgeTicks).TotalMilliseconds,
+            TimeSpan.FromTicks(metrics.BaselineAgeTicks).TotalMilliseconds,
+            metrics.ResyncCount);
     }
 
     private void ResetDeliveryState()

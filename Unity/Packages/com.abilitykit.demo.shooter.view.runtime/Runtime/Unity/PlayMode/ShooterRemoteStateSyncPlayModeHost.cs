@@ -97,6 +97,16 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public static SyncTimeAnchor LastRemoteTimeAnchor => _lastRemoteTimeAnchor;
         public static ShooterRemoteLatencyCompensationDiagnostics LastRemoteLatencyCompensationDiagnostics => _lastRemoteLatencyCompensationDiagnostics;
         public static ShooterSyncFramePerformanceDiagnostics PerformanceDiagnostics => PerformanceCollector.Diagnostics;
+        public static ShooterPureStatePlaybackDiagnostics PureStatePlaybackDiagnostics
+        {
+            get
+            {
+                var session = _state?.Launch.Battle.Session;
+                return session != null && session.TryGetPureStatePlaybackDiagnostics(out var diagnostics)
+                    ? diagnostics
+                    : default;
+            }
+        }
         public static ShooterBattleDataPlaneDiagnostics BattleDataPlaneDiagnostics =>
             _state?.Launcher.BattleData?.Diagnostics ?? default;
 
@@ -277,6 +287,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         public static void Stop()
         {
+            InputSource.SetInputOverride(null);
             StopRunningSession();
             _lastConnectionResult = null;
             _lastError = null;
@@ -286,6 +297,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         public static void Uninstall()
         {
+            InputSource.SetInputOverride(null);
             StopRunningSession();
             UninstallPlayerLoop();
             Application.quitting -= OnApplicationQuitting;
@@ -322,6 +334,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             {
                 ViewSink.RebuildAll();
             }
+        }
+
+        internal static void SetInputOverride(Func<int, ShooterHostFrameInput>? inputOverride)
+        {
+            InputSource.SetInputOverride(inputOverride);
         }
 
         private static void Install()

@@ -105,4 +105,4 @@ Runtime/
 4. Pause、Duration 与外部时钟之间的明确协议；
 5. 对持续输出重复发布、完成/中断幂等性和高频 Tick 的验收样例。
 
-本设计文档是包内运行语义的 canonical 入口；更高层的行为树分层、BTCore 和 MOBA 集成见 `Docs/design/13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md`。
+本设计文档是包内运行语义的 canonical 入口；更高层的行为树分层与 MOBA 集成见 `Docs/design/13-FrameworkCore/07-BehaviorTreePackageDesign.md`（02 为 BTCore 时代归档记录）。

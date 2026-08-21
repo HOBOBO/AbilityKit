@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -73,6 +74,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public Dictionary<string, ExecutionNodeDto> Nodes;
 
             public Dictionary<int, string> Strings;
+
+            public List<BlackboardInitializationPlan> Blackboards;
         }
 
         [Serializable]
@@ -262,6 +265,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public double Offset;
             public string Label;
             public string Scope;
+            public BlackboardKeyType KeyType;
+            public bool BoolValue;
+            public string StringValue;
         }
 #pragma warning restore 0649
         public readonly struct Record
@@ -289,9 +295,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
         private Dictionary<int, TriggerPlan<object>> _byTriggerId = new Dictionary<int, TriggerPlan<object>>();
         private Dictionary<int, ITriggerPlanExecutable> _executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
         private Dictionary<int, string> _strings = new Dictionary<int, string>();
+        private List<BlackboardInitializationPlan> _blackboards = new List<BlackboardInitializationPlan>();
         private ICueFactory _cueFactory = DefaultCueFactory.Instance;
 
         public IReadOnlyList<Record> Records => _records;
+        public IReadOnlyList<BlackboardInitializationPlan> Blackboards => _blackboards;
 
         public ICueFactory CueFactory
         {
@@ -396,6 +404,36 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                     AddRecord(source._records[i], replaceExisting);
                 }
             }
+
+            if (source._blackboards != null)
+            {
+                for (int i = 0; i < source._blackboards.Count; i++)
+                {
+                    AddBlackboardInitialization(source._blackboards[i], replaceExisting);
+                }
+            }
+        }
+
+        public void InitializeBlackboards(IBlackboardResolver resolver, bool replaceExisting = true)
+        {
+            if (resolver == null) throw new ArgumentNullException(nameof(resolver));
+            if (!(resolver is IMutableBlackboardResolver mutable))
+            {
+                throw new InvalidOperationException(
+                    $"Blackboard resolver must implement {nameof(IMutableBlackboardResolver)} to apply Runtime Plan initialization.");
+            }
+
+            BlackboardInitialization.Apply(
+                _blackboards,
+                mutable,
+                BlackboardInitializationScopes.Global,
+                replaceExisting);
+        }
+
+        public void ConfigureOwnerBlackboards(IOwnerBlackboardStore store, bool releaseExisting = true)
+        {
+            if (store == null) throw new ArgumentNullException(nameof(store));
+            store.Configure(_blackboards, releaseExisting);
         }
 
         public void Load(ITextLoader loader, string id)
@@ -468,6 +506,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             var byTriggerId = new Dictionary<int, TriggerPlan<object>>();
             var executionRootsByTriggerId = new Dictionary<int, ITriggerPlanExecutable>();
             var strings = dto?.Strings != null ? new Dictionary<int, string>(dto.Strings) : new Dictionary<int, string>();
+            var blackboards = dto?.Blackboards != null
+                ? new List<BlackboardInitializationPlan>(dto.Blackboards)
+                : new List<BlackboardInitializationPlan>();
             if (dto?.Triggers != null)
             {
                 for (int i = 0; i < dto.Triggers.Count; i++)
@@ -499,6 +540,22 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             _byTriggerId = byTriggerId;
             _executionRootsByTriggerId = executionRootsByTriggerId;
             _strings = strings;
+            _blackboards = blackboards;
+        }
+
+        private void AddBlackboardInitialization(BlackboardInitializationPlan plan, bool replaceExisting)
+        {
+            if (plan == null || plan.BoardId == 0) return;
+            if (_blackboards == null) _blackboards = new List<BlackboardInitializationPlan>();
+
+            for (var i = 0; i < _blackboards.Count; i++)
+            {
+                if (_blackboards[i] == null || _blackboards[i].BoardId != plan.BoardId) continue;
+                if (replaceExisting) _blackboards[i] = plan;
+                return;
+            }
+
+            _blackboards.Add(plan);
         }
 
         private static TriggerCueDescriptor BuildCueDescriptor(TriggerPlanDto dto)

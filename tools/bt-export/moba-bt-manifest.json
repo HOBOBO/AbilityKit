@@ -1,0 +1,11 @@
+{
+  "sourceDirectory": "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/bt",
+  "exportTargets": [
+    "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/bt",
+    "src/AbilityKit.Demo.Moba.Console/Configs/moba/bt"
+  ],
+  "trees": [
+    "generic_hero_combat_bt",
+    "summon_warden_bt"
+  ]
+}

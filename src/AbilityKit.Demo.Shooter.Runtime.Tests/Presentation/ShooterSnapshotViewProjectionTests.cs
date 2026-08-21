@@ -1179,6 +1179,64 @@ public sealed class ShooterSnapshotViewProjectionTests
     }
 
     [Fact]
+    public void SnapshotStreamPrebuffersConfiguredDelayBeforeContinuousPlayback()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 8)
+        {
+            PlaybackFramesPerSecond = 30f,
+            InterpolationDelayFrames = 6f
+        };
+        var first = CreateBatch(frame: 0, sequence: 1ul, x: 0f);
+        var second = CreateBatch(frame: 3, sequence: 2ul, x: 3f);
+        var third = CreateBatch(frame: 6, sequence: 3ul, x: 6f);
+
+        stream.Publish(in first);
+        Assert.True(stream.TryAdvancePlayback(0f, out var initial));
+        Assert.Equal(0f, initial.SampleFrame);
+        Assert.False(stream.IsPlaybackStarved);
+
+        stream.Publish(in second);
+        Assert.False(stream.TryAdvancePlayback(1f / 30f, out _));
+        Assert.Equal(0f, stream.PlaybackFrame);
+        Assert.False(stream.IsPlaybackStarved);
+
+        stream.Publish(in third);
+        Assert.True(stream.TryAdvancePlayback(1f / 30f, out var playing));
+        Assert.Equal(1f, playing.SampleFrame, 3);
+        Assert.Equal(5f, stream.AvailablePlaybackLeadFrames, 3);
+    }
+
+    [Fact]
+    public void SnapshotStreamConvergesDelayWithoutMovingPlaybackBackwards()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 8)
+        {
+            PlaybackFramesPerSecond = 30f,
+            InterpolationDelayFrames = 6f,
+            DelayConvergenceRate = 0.125f
+        };
+        var first = CreateBatch(frame: 0, sequence: 1ul, x: 0f);
+        var latest = CreateBatch(frame: 30, sequence: 2ul, x: 30f);
+        stream.Publish(in first);
+        stream.Publish(in latest);
+        Assert.True(stream.TryAdvancePlayback(0f, out _));
+        Assert.Equal(24f, stream.PlaybackFrame, 3);
+
+        Assert.True(stream.TrySetTargetInterpolationDelayFrames(9f));
+        var previous = stream.PlaybackFrame;
+        for (var i = 0; i < 24; i++)
+        {
+            stream.TryAdvancePlayback(1f / 30f, out _);
+            Assert.True(stream.PlaybackFrame >= previous);
+            previous = stream.PlaybackFrame;
+        }
+
+        Assert.Equal(9f, stream.InterpolationDelayFrames, 3);
+        Assert.Equal(30f, stream.PlaybackFrame, 3);
+        Assert.True(stream.IsPlaybackStarved);
+    }
+
+    [Fact]
     public void SnapshotStreamAdvancesBatchesWithSameSequenceButDifferentFrames()
     {
         var stream = new ShooterSnapshotStream(bufferCapacity: 4)

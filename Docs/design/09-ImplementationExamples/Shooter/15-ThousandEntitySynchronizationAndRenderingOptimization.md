@@ -372,13 +372,144 @@ Release allocation gate 尚未形成有效结果：构建在 Shooter benchmark �
 
 1. 在目标机器运行 2K 双客户端 GPU PlayMode soak，采集四个 GPU marker、Frame P95/P99、GC/frame、上传范围、画面正确性、重连和退出清理。
 2. 若 `PushApply P99` 主导，评估在后台线程预解码 wire/payload，只在主线程提交不可并行状态变更；必须先定义 buffer 所有权和取消语义。
-3. 若 `SnapshotArrivalGap P99` 主导，在服务端增加 Tick/build/serialize/delivery histogram，区分模拟、观察者构建、序列化和投递。
+3. 若 `SnapshotArrivalGap P99` 主导，采集服务端 `ServerPerformance` 窗口中的 achieved tick rate 与 Tick/build+serialize/delivery histogram，区分模拟、观察者构建、序列化和投递。固定内存统计与结构化日志已于 2026-08-21 落地，仍需在新服务进程上完成 1K/2K 实测。
 4. observer 数继续增长时，缓存观察者间可共享的分层快照或候选结果，减少重复扫描；不能共享带观察者私有 baseline 的最终 Delta。
 5. 插值延迟根据 arrival jitter 自适应维持约 2 至 3 个快照样本，避免再次使用固定的大帧数掩盖抖动。
 6. 为 RVO 建立 64/128/512/2048 agent 的正式性能曲线，分别记录 Managed、Jobs 邻居收集、完整 Solve、GC 和主线程同步点。
 
+## 2026-08-21 follow-up: 1,000-unit E4 evidence and hot-path fixes
+
+The authoritative tick no longer calls the full `GetWorldDiagnostics()` path to
+produce its per-frame state hash. Shooter sessions implement a small
+`ComputeStateHash()` fast path; the diagnostic dictionary/entity lists remain
+available only through the explicit diagnostics API. This keeps inspection
+objects and formatted strings out of the 30 Hz hot path.
+
+Shooter stage timing is installed once after runtime startup. The cached delegate
+and idempotent sink setter avoid per-tick delegate churn. The server window reports
+`WorldTick`, `EnemyMovementIntent`, `RvoSolve`, snapshot build/delivery, and the
+fixed 150-tick percentile summaries. A focused test verifies named stage mapping
+and the zero-allocation recording gate.
+
+Two fresh ideal-network, 1,000-enemy observer runs are recorded below:
+
+```text
+artifacts/shooter-worldtick-hash-stage-e4-1000-ideal/20260821-074940-426
+artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-repeat/20260821-080113-258
+```
+
+The first run is a failed acceptance artifact: member input was delayed during
+cold startup and the member left before the requested frame was accepted. It is
+useful failure evidence, not a performance pass. The repeat passed the structural
+AOI/LOD acceptance. Its stable server window reached `28.77 Hz` (the other
+window reached `29.52 Hz`), with `RvoSolve` about `2.21-3.00 ms` and
+`EnemyMovementIntent` about `1.62-1.87 ms`. Both clients reported `0 B/frame`
+GC, zero unexplained backward movement, and no resync request. P95/P99 snapshot
+gaps were approximately `220-245/374 ms`; playback starvation remained about
+`23-25%`. This validates bounded correction and continuity, but does not claim a
+stable 30 Hz authority or solved starvation.
+
+The transport adapter now forwards caller timeout/cancellation to
+`NetworkTransport.SendInputAsync`. Non-cancellation failures return a typed
+`TransportError` result with the exception message instead of an indistinguishable
+empty response. This makes cold-start authentication and disconnected-input cases
+visible in headless artifacts and avoids treating them as authoritative rejections.
+
+The next gate is a repeated pre-warmed run, followed by sample-block playback
+tuning. Compare starvation against arrival-gap and server-window fields; do not
+increase interpolation delay solely to make a single run pass.
+
+Additional repeats exposed the difference between structural acceptance and a
+strict client performance gate:
+
+```text
+artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-r3/20260821-082518-175
+artifacts/shooter-worldtick-hash-stage-e4-1000-ideal-r3-tuned/20260821-082737-192
+```
+
+Both completed the AOI lifecycle and accepted all 18/18 inputs. The first had
+`0.24-0.55%` playback starvation but a single `39.5 ms` P99 apply spike. The
+second had `0.73-1.30%` starvation, up to `49 ms` P99 apply, and a queue peak
+of `18`; it failed
+the default peak-depth gate while still reporting `0 B/frame` GC and no resync.
+Those are intermittent client scheduling/queue outliers, not evidence that the
+multi-sample stream is continuously starving. Keep the default gates strict and
+report these artifacts as diagnostic failures until repeated runs establish the
+cause.
+
+## 2026-08-21 follow-up: push decode and reliable-event allocation path
+
+The live client push path now decodes a state snapshot exactly once. `ShooterClientSession`
+maps the wire envelope to `ShooterGatewaySnapshot`, including `EventWatermark`, then passes
+the decoded value to the selected synchronization controller. The controller retains its
+payload-based API for compatibility, but the session no longer deserializes the same full or
+delta snapshot once for recovery metadata and again for state application. The payload bytes
+are retained only for diagnostics that need to reproduce an import mismatch.
+
+Reliable-event delivery has a matching fast path. The production session uses
+`ConsumeAndDispatch`, which invokes the event sink without allocating a
+`CommittedEvents` list for every push. The existing `Consume` API still collects and returns
+the committed list for tests, replay, and tooling, so the observable contract for those
+callers is unchanged. Headless artifacts now expose reliable-event apply `P50/P95/P99/max`
+alongside the existing count, allowing a one-off JIT or scheduling spike to be distinguished
+from a persistent per-batch cost.
+
+Focused regression coverage verifies event dispatch without list materialization and preserves
+the snapshot event watermark. The next 1,000-unit run should compare the new reliable-event
+percentiles with `FullBaseline` and `Delta` apply histograms; a lower aggregate P99 with
+unchanged delta P99 indicates that the removed duplicate decode/allocation was the source of
+the discrete client spikes.
+
+The first post-change 1,000-unit ideal-network run completed the AOI lifecycle and accepted
+all inputs:
+
+```text
+artifacts/shooter-push-kind-diagnostics-e5-single-decode/20260821-093120-978
+```
+
+Both observers remained at `0 B/frame` GC and reported no unexplained backward movement or
+resync at completion. Continuous delta apply remained low (`P95=3.5 ms`, `P99=5.0-7.0 ms`,
+max `6.8-7.7 ms`), while the aggregate apply P99 was `50.5-55.5 ms` because of discrete
+full-baseline/reliable-event samples and queue wait (`P99=148.0-251.5 ms`). The new reliable
+event histogram was `P50=1.0-1.5 ms`, `P95/P99=50.5-55.5 ms`, max `50.2-55.0 ms`; this
+shows that removing the per-batch committed-list allocation is correct but does not eliminate
+the remaining cold-start/event decode scheduling spike. Server window `150-299` achieved
+`29.60 Hz`; `WorldTick` averaged `3.93 ms` and `RvoSolve` `1.88 ms` (max `4.47 ms`).
+The next investigation is therefore the reliable-event decode/dispatch sample itself and the
+main-thread queue wait, rather than the steady-state delta decoder.
+
+After adding the reusable reliable-event envelope decoder, the repeat artifact was:
+
+```text
+artifacts/shooter-push-kind-diagnostics-e6-reusable-event-decode/20260821-093722-787
+```
+
+The run passed the same two-observer AOI lifecycle with `0 B/frame` GC and no resync. Owner
+aggregate apply P99/max improved to `34.5/34.1 ms` and reliable-event P95/P99 to
+`31.5/34.5 ms`; member measured `50.5/50.1 ms`, so the member-side scheduling outlier is
+still present. Delta remained bounded (`P95/P99=2.5/4.0 ms` owner and `4.0/7.5 ms` member),
+confirming that ordinary state delta decode is not the source of the spike. The server stayed
+near target in both windows (`29.79 Hz` and `29.75 Hz`, second-window `WorldTick` mean
+`4.07 ms`). Keep the reusable decoder and continue profiling the remaining reliable-event
+payload decode plus client queue wait separately.
+
+The final post-ordering-fix verification artifact is:
+
+```text
+artifacts/shooter-push-kind-diagnostics-e7-final/20260821-094541-304
+```
+
+It again passed AOI lifecycle, `18/18` inputs per observer, zero resync, and `0 B/frame` GC.
+Owner reliable-event P50/P95/P99 was `1.0/34.0/34.0 ms` with aggregate apply P99 `34.0 ms`;
+member ordinary Delta P99 was only `4.5 ms`, but a member-side reliable-event scheduling
+sample reached `96.0 ms` (aggregate apply P99 `44.0 ms`, queue-wait P99 `212.0 ms`). The
+service windows remained close to 30 Hz (`29.14` and `29.67 Hz`) with second-window
+`WorldTick` mean `4.01 ms`. This confirms the hot path changes are stable and narrows the
+remaining intermittent hitch to client-side reliable-event/push scheduling, not the 1,000-unit
+state delta decoder or server RVO cost.
+
 ---
 
 > 文档版本：v1.0
-> 更新日期：2026-08-19
+> 更新日期：2026-08-21
 > 更新责任：Shooter AOI/PureState 策略、输入/插值策略、Projection、Unity View 后端、RVO 或性能 gate 变化时同步复核。

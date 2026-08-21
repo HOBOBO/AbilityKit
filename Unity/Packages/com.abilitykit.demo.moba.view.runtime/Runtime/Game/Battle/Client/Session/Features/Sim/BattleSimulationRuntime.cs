@@ -94,6 +94,9 @@ namespace AbilityKit.Game.Flow
                     resolveIdealFrameLimit,
                     shouldForceHashMismatch,
                     () => RemoteDrivenLastTickedFrame = 0));
+                _diagnostics.BindMetricSink(
+                    RemoteDriven.World,
+                    RemoteDriven.Capabilities.MetricSink);
             }
             catch (Exception startFailure) when (!wasStarted)
             {
@@ -123,6 +126,9 @@ namespace AbilityKit.Game.Flow
                     fixedDeltaSeconds,
                     resolveIdealFrameLimit,
                     () => ConfirmedLastTickedFrame = 0));
+                _diagnostics.BindMetricSink(
+                    Confirmed.World,
+                    Confirmed.Capabilities.MetricSink);
 
                 _presentation.EnsureConfirmedViewInstalled(
                     context,
@@ -157,9 +163,8 @@ namespace AbilityKit.Game.Flow
 
             if (!plan.Authority.EnableClientPrediction || context == null) return;
 
-            var world = RemoteDriven.World;
-            if (world?.Services == null) return;
-            if (!world.Services.TryResolve<IActorProjectionProducer>(out var producer) || producer == null) return;
+            var producer = RemoteDriven.Capabilities.ProjectionProducer;
+            if (producer == null) return;
 
             _predictionViewBridge ??= new PredictionViewBridge(context.EntityWorld, context.EntityLookup);
             _predictionViewBridge.SyncLocalPlayer(producer, context.LocalActorId);
@@ -198,6 +203,7 @@ namespace AbilityKit.Game.Flow
 
         internal void DisposeRemoteDrivenWorld()
         {
+            var ownerWorld = RemoteDriven.World;
             try
             {
                 SessionSimRuntimeDisposer.DisposeRemoteDrivenWorld(
@@ -206,17 +212,26 @@ namespace AbilityKit.Game.Flow
             }
             finally
             {
+                _diagnostics.ClearMetricSink(ownerWorld);
                 _predictionViewBridge = null;
             }
         }
 
         internal void DisposeConfirmedWorld(BattleContext context)
         {
-            SessionSimRuntimeDisposer.DisposeConfirmedWorld(
-                context,
-                Confirmed,
-                _diagnostics,
-                () => ConfirmedLastTickedFrame = 0);
+            var ownerWorld = Confirmed.World;
+            try
+            {
+                SessionSimRuntimeDisposer.DisposeConfirmedWorld(
+                    context,
+                    Confirmed,
+                    _diagnostics,
+                    () => ConfirmedLastTickedFrame = 0);
+            }
+            finally
+            {
+                _diagnostics.ClearMetricSink(ownerWorld);
+            }
         }
 
         private void RollbackRemoteDrivenStart(BattleStartPlan plan, Exception startFailure)

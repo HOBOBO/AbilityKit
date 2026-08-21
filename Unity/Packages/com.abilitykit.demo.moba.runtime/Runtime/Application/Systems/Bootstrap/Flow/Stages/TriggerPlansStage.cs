@@ -7,6 +7,7 @@ using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Triggering;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Demo.Moba.Systems.Bootstrap;
 using AbilityKit.Demo.Moba.Systems.Bootstrap.Flow;
 
@@ -78,6 +79,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             var profile = resolver.Resolve<MobaTriggerPlanLoadProfile>() ?? MobaTriggerPlanLoadProfile.Default;
 
             LoadEntries(db, fsAdapter, directoryLoader, profile.Entries, db.CueFactory, profile.FailFastOnDirectoryLoad);
+            db.InitializeBlackboards(resolver.Resolve<IBlackboardResolver>(), replaceExisting: true);
+            db.ConfigureOwnerBlackboards(resolver.Resolve<IOwnerBlackboardStore>(), releaseExisting: true);
             return db;
         }
 

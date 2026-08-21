@@ -11,6 +11,9 @@ namespace AbilityKit.Ability.Editor
         menuName = "AbilityKit/Trigger Authoring Module")]
     public sealed class TriggerAuthoringModuleAsset : SerializedScriptableObject
     {
+        [SerializeField]
+        private TriggerAuthoringProjectAsset _project;
+
         [OdinSerialize, NonSerialized]
         public TriggerAuthoringSourceMetadata Metadata = new TriggerAuthoringSourceMetadata();
 
@@ -25,6 +28,12 @@ namespace AbilityKit.Ability.Editor
 
         public string SourceJsonPath => _sourceJsonPath;
         public string LastSynchronizedHash => _lastSynchronizedHash;
+        public TriggerAuthoringProjectAsset Project => _project;
+
+        internal void SetProject(TriggerAuthoringProjectAsset project)
+        {
+            _project = project;
+        }
 
         internal void MarkSynchronized(string sourceJsonPath, string contentHash)
         {

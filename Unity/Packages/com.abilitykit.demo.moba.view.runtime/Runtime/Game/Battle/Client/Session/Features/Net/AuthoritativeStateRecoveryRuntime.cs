@@ -72,9 +72,8 @@ namespace AbilityKit.Game.Flow
                 _shouldForceHashMismatch);
 
             var world = _handles.RemoteDriven.World;
-            if (world?.Services == null ||
-                !world.Services.TryResolve<MobaLogicWorldStateImporter>(out var importer) ||
-                importer == null)
+            var importer = _handles.RemoteDriven.Capabilities.StateImporter;
+            if (world == null || importer == null)
             {
                 Log.Warning(
                     "[BattleAuthoritativeWorldRecoveryPort] Remote-driven importer is unavailable.");
@@ -108,10 +107,8 @@ namespace AbilityKit.Game.Flow
 
         public bool TryApplyAuthoritativeState(in GatewayStateSyncSnapshot snapshot)
         {
-            var world = _handles.RemoteDriven.World;
-            if (world?.Services == null ||
-                !world.Services.TryResolve<MobaLogicWorldStateImporter>(out var importer) ||
-                importer == null)
+            var importer = _handles.RemoteDriven.Capabilities.StateImporter;
+            if (importer == null)
             {
                 Log.Warning(
                     $"[BattleAuthoritativeWorldRecoveryPort] Authoritative state apply skipped. " +
@@ -179,11 +176,14 @@ namespace AbilityKit.Game.Flow
         INetworkSessionRecoverySignalSink
     {
         private const string RecoveryCorrelationPrefix = "moba-recovery-generation:";
+        private readonly object _recoveryGate = new object();
         private readonly BattleReplicationRuntime _replication;
         private readonly ReliableBattleEventDeliveryRuntime _reliableEvents;
         private readonly IBattleAuthoritativeWorldRecoveryPort _worldRecovery;
         private readonly NetworkSessionRecoveryCoordinator _sessionRecovery;
         private readonly NetworkSessionRecoveryActionRouter<bool> _recoveryActions;
+        private System.Threading.CancellationTokenSource _recoveryCancellation;
+        private Task _pendingExecution = Task.CompletedTask;
         private int _generation;
         private IBattleRecoveryTransportOperations _transport;
         private BattleContext _context;
@@ -224,6 +224,13 @@ namespace AbilityKit.Game.Flow
         }
 
         internal bool PendingStateImport => _replication.PendingStateImport;
+        internal Task PendingExecution
+        {
+            get
+            {
+                lock (_recoveryGate) return _pendingExecution;
+            }
+        }
         internal NetworkSessionRecoveryDecision RecoveryDecision =>
             _sessionRecovery.CurrentDecision;
         internal NetworkSessionRecoveryDiagnostics RecoveryDiagnostics =>
@@ -259,6 +266,11 @@ namespace AbilityKit.Game.Flow
                 throw new InvalidOperationException("Replication runtime must be built before recovery.");
 
             EndGeneration();
+            lock (_recoveryGate)
+            {
+                _recoveryCancellation = new System.Threading.CancellationTokenSource();
+            }
+
             try
             {
                 _transport = transport;
@@ -445,6 +457,11 @@ namespace AbilityKit.Game.Flow
             EndGeneration();
         }
 
+        internal Task StopAsync()
+        {
+            return EndGenerationAsync();
+        }
+
         private void HandleReliableTimelineInvalidated(string reason)
         {
             ReportAndExecute(
@@ -533,7 +550,20 @@ namespace AbilityKit.Game.Flow
                 CreateRecoveryCorrelationContext(_generation),
                 detail: detail);
             if (!_sessionRecovery.TryReport(in signal, out var decision)) return;
-            ObserveRecoveryExecution(_recoveryActions.ExecuteAsync(decision));
+
+            TaskCompletionSource<bool> reservation;
+            System.Threading.CancellationToken token;
+            lock (_recoveryGate)
+            {
+                if (_recoveryCancellation == null) return;
+
+                token = _recoveryCancellation.Token;
+                reservation = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                _pendingExecution = Task.WhenAll(_pendingExecution, reservation.Task);
+            }
+
+            _ = ExecuteAndCompleteReservationAsync(decision, token, reservation);
         }
 
         private static string CreateRecoveryCorrelationContext(int generation)
@@ -558,12 +588,17 @@ namespace AbilityKit.Game.Flow
                 StringComparison.Ordinal);
         }
 
-        private async void ObserveRecoveryExecution(
-            Task<NetworkSessionRecoveryExecutionResult<bool>> execution)
+        private async Task ExecuteAndCompleteReservationAsync(
+            NetworkSessionRecoveryDecision decision,
+            System.Threading.CancellationToken token,
+            TaskCompletionSource<bool> reservation)
         {
             try
             {
-                var result = await execution;
+                var result = await _recoveryActions.ExecuteAsync(
+                        decision,
+                        cancellationToken: token)
+                    .ConfigureAwait(false);
                 if (result.Status == NetworkSessionRecoveryExecutionStatus.Unhandled)
                 {
                     Log.Warning(
@@ -579,17 +614,39 @@ namespace AbilityKit.Game.Flow
                         $"action={result.Decision.Action} signal={result.Decision.Signal.Kind}");
                 }
             }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+            }
             catch (Exception exception)
             {
                 Log.Exception(
                     exception,
                     "[AuthoritativeStateRecoveryRuntime] Failed to observe recovery action.");
             }
+            finally
+            {
+                reservation.TrySetResult(true);
+            }
         }
 
         private void EndGeneration()
         {
-            _generation++;
+            _ = EndGenerationAsync();
+        }
+
+        private Task EndGenerationAsync()
+        {
+            System.Threading.CancellationTokenSource cancellation;
+            Task pendingExecution;
+            lock (_recoveryGate)
+            {
+                _generation++;
+                cancellation = _recoveryCancellation;
+                _recoveryCancellation = null;
+                pendingExecution = _pendingExecution;
+                _pendingExecution = Task.CompletedTask;
+            }
+
             var context = _context;
             var remoteInterpolationGeneration = _remoteInterpolationGeneration;
             _transport = null;
@@ -623,7 +680,48 @@ namespace AbilityKit.Game.Flow
                     : new AggregateException(cleanupFailure, exception);
             }
 
+            Cancel(cancellation);
+            return CompleteEndGenerationAsync(
+                pendingExecution,
+                cancellation,
+                cleanupFailure);
+        }
+
+        private static async Task CompleteEndGenerationAsync(
+            Task pendingExecution,
+            System.Threading.CancellationTokenSource cancellation,
+            Exception cleanupFailure)
+        {
+            Exception pendingFailure = null;
+            try
+            {
+                await (pendingExecution ?? Task.CompletedTask).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                pendingFailure = exception;
+            }
+            finally
+            {
+                cancellation?.Dispose();
+            }
+
+            if (cleanupFailure != null && pendingFailure != null)
+            {
+                throw new AggregateException(cleanupFailure, pendingFailure);
+            }
+
             if (cleanupFailure != null) throw cleanupFailure;
+            if (pendingFailure != null) throw pendingFailure;
+        }
+
+        private static void Cancel(
+            System.Threading.CancellationTokenSource cancellation)
+        {
+            if (cancellation != null && !cancellation.IsCancellationRequested)
+            {
+                cancellation.Cancel();
+            }
         }
     }
 }

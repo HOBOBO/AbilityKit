@@ -8,9 +8,13 @@
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Network.Sdk/AbilityKit.Network.Sdk.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol.Room/AbilityKit.Protocol.Room.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol.Moba/AbilityKit.Protocol.Moba.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol.Shooter/AbilityKit.Protocol.Shooter.csproj" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="MemoryPack" Version="1.21.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">

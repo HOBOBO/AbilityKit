@@ -29,6 +29,8 @@ namespace AbilityKit.Pipeline
         /// </summary>
         protected int _currentSubPhaseIndex = 0;
 
+        internal int DebugCurrentSubPhaseIndex => _currentSubPhaseIndex;
+
         /// <summary>
         /// 子阶段列表。
         /// </summary>

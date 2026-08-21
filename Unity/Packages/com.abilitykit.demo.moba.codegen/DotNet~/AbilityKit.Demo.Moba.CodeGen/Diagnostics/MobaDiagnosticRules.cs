@@ -196,22 +196,6 @@ namespace AbilityKit.Demo.Moba.CodeGen
             defaultSeverity: DiagnosticSeverity.Error,
             isEnabledByDefault: true);
 
-        public static readonly DiagnosticDescriptor InvalidBTreeNodeRule = new DiagnosticDescriptor(
-            id: MobaDiagnosticIds.InvalidBTreeNodeRuleId,
-            title: "Invalid MOBA behavior-tree node",
-            messageFormat: "MOBA behavior-tree node '{0}' is invalid: {1}",
-            category: "AbilityKit.Moba",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
-
-        public static readonly DiagnosticDescriptor DuplicateBTreeNodeNameRule = new DiagnosticDescriptor(
-            id: MobaDiagnosticIds.DuplicateBTreeNodeNameRuleId,
-            title: "Duplicate MOBA behavior-tree node name",
-            messageFormat: "MOBA behavior-tree node name '{0}' is declared by both '{1}' and '{2}'",
-            category: "AbilityKit.Moba",
-            defaultSeverity: DiagnosticSeverity.Error,
-            isEnabledByDefault: true);
-
         public static readonly DiagnosticDescriptor InvalidSnapshotEmitterRule = new DiagnosticDescriptor(
             id: MobaDiagnosticIds.InvalidSnapshotEmitterRuleId,
             title: "Invalid MOBA snapshot emitter",

@@ -26,6 +26,27 @@ public sealed class DeterministicRandom
         Sequence = 0;
     }
 
+    /// <summary>
+    /// Captures the full generator state so a stream can be resumed exactly (rollback/snapshot).
+    /// </summary>
+    public void CaptureState(out ulong s0, out ulong s1, out ulong sequence)
+    {
+        s0 = _s0;
+        s1 = _s1;
+        sequence = Sequence;
+    }
+
+    /// <summary>
+    /// Restores a state previously captured with <see cref="CaptureState"/>, resuming the stream
+    /// exactly where it left off.
+    /// </summary>
+    public void RestoreState(ulong s0, ulong s1, ulong sequence)
+    {
+        _s0 = s0;
+        _s1 = s1;
+        Sequence = sequence;
+    }
+
     public ulong NextUInt64()
     {
         Sequence++;

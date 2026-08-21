@@ -1,36 +1,63 @@
 #if UNITY_EDITOR
 
-using System;
+using UnityEditor;
 using UnityEngine;
-using AbilityKit.Pipeline;
 
 namespace AbilityKit.Pipeline.Editor
 {
     /// <summary>
-    /// Editor 端管线系统初始化
-    /// 替换 Runtime 的基础实现为 Editor 调试版本
+    /// Editor 端管线诊断初始化。仅订阅运行时观测钩子，不替换业务 Registry 或 TraceRecorder。
     /// </summary>
     [UnityEditor.InitializeOnLoad]
     public static class PipelineEditorInitializer
     {
+        private static bool _installed;
+
         static PipelineEditorInitializer()
         {
-            ReplaceWithEditorImplementation();
+            Install();
+            AssemblyReloadEvents.beforeAssemblyReload -= Uninstall;
+            AssemblyReloadEvents.beforeAssemblyReload += Uninstall;
+            EditorApplication.playModeStateChanged -= OnPlayModeStateChanged;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void EditorInitialize()
         {
-            ReplaceWithEditorImplementation();
+            Install();
         }
 
-        private static void ReplaceWithEditorImplementation()
+        private static void Install()
         {
-            // 替换注册表为 Editor 版本
-            Pipeline.SetRegistry(EditorPipelineRegistry.Instance);
-            
-            // 替换追踪记录器为 Editor 版本
-            Pipeline.SetTraceRecorder(EditorPipelineTraceRecorder.Instance);
+            if (_installed) return;
+            var registry = EditorPipelineRegistry.Instance;
+            var state = PipelineDebuggerUserState.instance;
+            registry.IsCaptureEnabled = state.CaptureEnabled;
+            registry.ConfigureStorage(state.HistoryCapacity, state.TraceCapacity);
+            registry.Initialize();
+            PipelineDebugHooks.OnRunStartedDetailed += registry.CaptureRunStarted;
+            PipelineDebugHooks.OnTrace += registry.CaptureTrace;
+            PipelineDebugHooks.OnRunEnded += registry.CaptureRunEnded;
+            _installed = true;
+        }
+
+        private static void Uninstall()
+        {
+            if (!_installed) return;
+            var registry = EditorPipelineRegistry.Instance;
+            PipelineDebugHooks.OnRunStartedDetailed -= registry.CaptureRunStarted;
+            PipelineDebugHooks.OnTrace -= registry.CaptureTrace;
+            PipelineDebugHooks.OnRunEnded -= registry.CaptureRunEnded;
+            _installed = false;
+        }
+
+        private static void OnPlayModeStateChanged(PlayModeStateChange change)
+        {
+            if (change == PlayModeStateChange.ExitingPlayMode)
+            {
+                EditorPipelineRegistry.Instance.MarkActiveRunsEnded();
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Game.Editor.Diagnostics;
 using UnityEditor;
@@ -1203,6 +1204,13 @@ namespace AbilityKit.Game.Editor
         private const int MaximumSeries = 6;
         private static readonly BattleDebugTimelineOverviewBuffer OverviewBuffer =
             new BattleDebugTimelineOverviewBuffer();
+        private static readonly Dictionary<BattleDiagnosticMetricCategory, MetricHistoryCacheEntry> Cache =
+            new Dictionary<BattleDiagnosticMetricCategory, MetricHistoryCacheEntry>();
+        private static long _nextRequestId;
+        private static bool _showProfileDifferences;
+        private static long _comparedRegistryRevision = -1L;
+        private static BattleDiagnosticResolvedMetricProfile _comparedCapturedProfile;
+        private static BattleDiagnosticMetricProfileComparison _profileComparison;
 
         public static bool IsAvailable(
             in BattleDebugContext ctx,
@@ -1232,115 +1240,543 @@ namespace AbilityKit.Game.Editor
                 return true;
             }
 
-            var result = metricSession.QueryMetrics(new BattleDiagnosticMetricQuery(
-                1,
-                visibleRange,
-                new BattleDiagnosticPageRequest(0L, 0, BattleDiagnosticPageRequest.MaximumPageSize),
-                category));
-            if (!result.Status.CanDisplayResults)
+            var cache = GetOrRefresh(session, metricSession, category, visibleRange);
+            if (!cache.Status.CanDisplayResults)
             {
-                EditorGUILayout.HelpBox(result.Status.Message, MessageType.Info);
+                EditorGUILayout.HelpBox(cache.Status.Message, MessageType.Info);
                 return true;
             }
 
             EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
-            if (result.Items.Count == 0)
+            DrawProfileSummary(in ctx, session, cache.Profile);
+            if (cache.AggregateCount == 0)
             {
                 EditorGUILayout.HelpBox("No metric samples intersect the shared frame range.", MessageType.Info);
                 return true;
             }
 
-            var overviewItems = new List<BattleDebugTimelineOverviewItem>(result.Items.Count);
-            for (var i = 0; i < result.Items.Count; i++)
-                overviewItems.Add(new BattleDebugTimelineOverviewItem(result.Items[i].Frame, result.Items[i].Frame));
+            DrawAssessmentSummary(cache.CompoundAssessments, cache.Assessments);
+
             ApplyInteraction(
                 in ctx,
                 BattleDebugTimelineOverview.Draw(
-                    overviewItems,
+                    cache.OverviewItems,
                     visibleRange,
                     visibleRange,
                     ctx.WorkspaceState?.FrameCursor.Frame ?? BattleDiagnosticFrames.Invalid,
                     OverviewBuffer));
 
-            var series = BuildSeries(result.Items);
-            var drawn = 0;
-            foreach (var pair in series)
+            var seriesCount = Math.Min(MaximumSeries, cache.Series.Count);
+            for (var i = 0; i < seriesCount; i++)
             {
-                if (drawn == MaximumSeries) break;
-                DrawSeries(in ctx, pair.Key, pair.Value, visibleRange, drawn++);
+                DrawSeries(in ctx, cache.Series[i], visibleRange, i);
             }
-            if (series.Count > MaximumSeries)
-                EditorGUILayout.LabelField($"Showing {MaximumSeries} of {series.Count} metric series.", EditorStyles.miniLabel);
-            if (result.Status.HasMore)
-                EditorGUILayout.HelpBox(
-                    $"History view is limited to the first {BattleDiagnosticPageRequest.MaximumPageSize} samples in this range.",
-                    MessageType.Info);
+            if (cache.Series.Count > MaximumSeries)
+                EditorGUILayout.LabelField($"Showing {MaximumSeries} of {cache.Series.Count} metric series.", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField(
+                $"{cache.SampleCount} samples  |  {cache.AggregateCount} visible buckets",
+                EditorStyles.miniLabel);
             EditorGUILayout.Space(4f);
             return true;
         }
 
-        private static Dictionary<string, List<BattleDiagnosticMetricSample>> BuildSeries(
-            IReadOnlyList<BattleDiagnosticMetricSample> items)
+        private static void DrawProfileSummary(
+            in BattleDebugContext ctx,
+            IBattleDiagnosticReadOnlySession session,
+            BattleDiagnosticResolvedMetricProfile effectiveProfile)
         {
-            var result = new Dictionary<string, List<BattleDiagnosticMetricSample>>(StringComparer.Ordinal);
-            for (var i = 0; i < items.Count; i++)
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Threshold Profile", effectiveProfile.Name);
+            var settings = EditorGUIUtility.IconContent(
+                "d_SettingsIcon",
+                "Open the active BattleDebug metric profile asset");
+            if (GUILayout.Button(settings, EditorStyles.iconButton, GUILayout.Width(22f), GUILayout.Height(18f)))
+                BattleDiagnosticMetricProfileAssetSync.OpenOrCreateAsset();
+            EditorGUILayout.EndHorizontal();
+
+            var capturedProfile = (session as IBattleDiagnosticMetricProfileSession)?.MetricProfile;
+            if (capturedProfile == null)
             {
-                var item = items[i];
-                var key = string.IsNullOrEmpty(item.Dimension)
-                    ? item.Metric
-                    : item.Metric + " [" + item.Dimension + "]";
-                if (!result.TryGetValue(key, out var values))
-                {
-                    values = new List<BattleDiagnosticMetricSample>();
-                    result.Add(key, values);
-                }
-                values.Add(item);
+                if (ctx.IsOffline)
+                    EditorGUILayout.HelpBox(
+                        "This artifact predates captured metric profiles. Findings use the current project profile.",
+                        MessageType.Info);
+                return;
             }
-            return result;
+
+            var registryRevision = BattleDiagnosticMetricProfileRegistry.Revision;
+            if (!ReferenceEquals(_comparedCapturedProfile, capturedProfile) ||
+                _comparedRegistryRevision != registryRevision)
+            {
+                var currentProfile = BattleDiagnosticMetricProfileRegistry.Resolve();
+                _profileComparison = BattleDiagnosticMetricProfileComparer.Compare(
+                    capturedProfile,
+                    currentProfile);
+                _comparedCapturedProfile = capturedProfile;
+                _comparedRegistryRevision = registryRevision;
+            }
+
+            if (_profileComparison == null) return;
+            if (!_profileComparison.HasDifferences)
+            {
+                EditorGUILayout.LabelField(
+                    "Current Project Profile",
+                    _profileComparison.Current.Name + "  (matches capture)",
+                    EditorStyles.miniLabel);
+                return;
+            }
+
+            var contextDifference = _profileComparison.ContextMatches ? 0 : 1;
+            EditorGUILayout.HelpBox(
+                "Capture uses '" + capturedProfile.Name + "'; current project resolves '" +
+                _profileComparison.Current.Name + "'. " +
+                (_profileComparison.ThresholdDifferences.Count + contextDifference) +
+                " profile difference(s) detected. Historical findings still use the captured profile.",
+                MessageType.Warning);
+            _showProfileDifferences = EditorGUILayout.Foldout(
+                _showProfileDifferences,
+                "Profile Differences",
+                true);
+            if (!_showProfileDifferences) return;
+
+            EditorGUI.indentLevel++;
+            if (!_profileComparison.ContextMatches)
+            {
+                EditorGUILayout.LabelField(
+                    "Context",
+                    FormatContext(capturedProfile.Context) + "  ->  " +
+                    FormatContext(_profileComparison.Current.Context),
+                    EditorStyles.miniLabel);
+            }
+            for (var i = 0; i < _profileComparison.ThresholdDifferences.Count; i++)
+            {
+                var difference = _profileComparison.ThresholdDifferences[i];
+                EditorGUILayout.LabelField(
+                    difference.DisplayName,
+                    FormatDifference(in difference),
+                    EditorStyles.miniLabel);
+            }
+            EditorGUI.indentLevel--;
+        }
+
+        private static string FormatContext(in BattleDiagnosticMetricProfileContext context)
+        {
+            return ValueOrWildcard(context.Project) + " / " +
+                   ValueOrWildcard(context.GameMode) + " / " +
+                   ValueOrWildcard(context.NetworkMode) + " / " +
+                   ValueOrWildcard(context.DeviceTier);
+        }
+
+        private static string ValueOrWildcard(string value) =>
+            string.IsNullOrEmpty(value) ? "*" : value;
+
+        private static string FormatDifference(in BattleDiagnosticMetricProfileDifference difference)
+        {
+            var builder = new StringBuilder();
+            if (difference.WarningChanged)
+                AppendDifference(
+                    builder,
+                    "W",
+                    difference.CapturedWarningThreshold,
+                    difference.CurrentWarningThreshold,
+                    difference.Unit);
+            if (difference.CriticalChanged)
+                AppendDifference(
+                    builder,
+                    "C",
+                    difference.CapturedCriticalThreshold,
+                    difference.CurrentCriticalThreshold,
+                    difference.Unit);
+            if (difference.SuggestedRangeChanged)
+            {
+                if (builder.Length > 0) builder.Append("  |  ");
+                builder.Append("Range ")
+                    .Append(FormatRange(
+                        difference.CapturedSuggestedMinimum,
+                        difference.CapturedSuggestedMaximum,
+                        difference.Unit))
+                    .Append(" -> ")
+                    .Append(FormatRange(
+                        difference.CurrentSuggestedMinimum,
+                        difference.CurrentSuggestedMaximum,
+                        difference.Unit));
+            }
+            return builder.ToString();
+        }
+
+        private static void AppendDifference(
+            StringBuilder builder,
+            string label,
+            double captured,
+            double current,
+            string unit)
+        {
+            if (builder.Length > 0) builder.Append("  |  ");
+            builder.Append(label).Append(' ')
+                .Append(FormatValue(captured, unit))
+                .Append(" -> ")
+                .Append(FormatValue(current, unit));
+        }
+
+        private static string FormatRange(double minimum, double maximum, string unit)
+        {
+            if (double.IsNaN(minimum) || double.IsNaN(maximum)) return "none";
+            return FormatValue(minimum, unit) + "-" + FormatValue(maximum, unit);
+        }
+
+        private static MetricHistoryCacheEntry GetOrRefresh(
+            IBattleDiagnosticReadOnlySession session,
+            IBattleDiagnosticMetricSession metricSession,
+            BattleDiagnosticMetricCategory category,
+            BattleDiagnosticFrameRange range)
+        {
+            var revision = metricSession.MetricStoreRevision;
+            var embeddedProfile = (session as IBattleDiagnosticMetricProfileSession)?.MetricProfile;
+            var profileRevision = embeddedProfile == null
+                ? BattleDiagnosticMetricProfileRegistry.Revision
+                : -1L;
+            if (Cache.TryGetValue(category, out var cached) &&
+                cached.Matches(session, revision, profileRevision, embeddedProfile, in range))
+            {
+                return cached;
+            }
+
+            var profile = embeddedProfile ?? BattleDiagnosticMetricProfileRegistry.Resolve();
+
+            var aggregates = new List<BattleDiagnosticMetricAggregate>();
+            BattleDiagnosticQueryStatus status = default;
+            var storeRevision = 0L;
+            var offset = 0;
+            do
+            {
+                var result = metricSession.QueryMetricAggregates(new BattleDiagnosticMetricAggregateQuery(
+                    NextRequestId(),
+                    range,
+                    new BattleDiagnosticPageRequest(
+                        storeRevision,
+                        offset,
+                        BattleDiagnosticPageRequest.MaximumPageSize),
+                    category));
+                status = result.Status;
+                if (!status.CanDisplayResults)
+                {
+                    aggregates.Clear();
+                    break;
+                }
+
+                for (var i = 0; i < result.Items.Count; i++) aggregates.Add(result.Items[i]);
+                if (!status.HasMore || result.Items.Count == 0) break;
+                storeRevision = status.StoreRevision;
+                offset += result.Items.Count;
+            } while (true);
+
+            var refreshed = new MetricHistoryCacheEntry(
+                session,
+                status.StoreRevision,
+                profileRevision,
+                profile,
+                in range,
+                in status,
+                aggregates);
+            Cache[category] = refreshed;
+            return refreshed;
         }
 
         private static void DrawSeries(
             in BattleDebugContext ctx,
-            string label,
-            IReadOnlyList<BattleDiagnosticMetricSample> samples,
+            MetricSeriesView series,
             BattleDiagnosticFrameRange range,
             int colorIndex)
         {
-            if (samples.Count == 0) return;
-            var min = samples[0].Value;
-            var max = min;
-            for (var i = 1; i < samples.Count; i++)
-            {
-                min = Math.Min(min, samples[i].Value);
-                max = Math.Max(max, samples[i].Value);
-            }
+            if (series.Aggregates.Count == 0) return;
 
             var rect = EditorGUILayout.GetControlRect(false, 42f);
             EditorGUI.DrawRect(rect, new Color(0f, 0f, 0f, 0.12f));
+            if (series.Severity != BattleDiagnosticMetricSeverity.Normal)
+            {
+                EditorGUI.DrawRect(
+                    new Rect(rect.x, rect.y, 3f, rect.height),
+                    SeverityColor(series.Severity));
+            }
             GUI.Label(
                 new Rect(rect.x + 4f, rect.y + 2f, rect.width - 8f, 16f),
-                $"{label}  {samples[samples.Count - 1].Value:0.###}  [{min:0.###}, {max:0.###}]",
+                $"{series.Label}  {FormatValue(series.LatestValue, series.Unit)}  " +
+                $"[{FormatValue(series.MinimumValue, series.Unit)}, {FormatValue(series.MaximumValue, series.Unit)}]",
                 EditorStyles.miniLabel);
             var plot = new Rect(rect.x + 2f, rect.y + 18f, rect.width - 4f, 22f);
             if (Event.current.type == EventType.Repaint)
             {
-                var points = new Vector3[samples.Count];
                 var frameSpan = Math.Max(1L, (long)range.LastFrame - range.FirstFrame);
-                var valueSpan = Math.Max(0.000001d, max - min);
-                for (var i = 0; i < samples.Count; i++)
+                var valueSpan = Math.Max(0.000001d, series.ScaleMaximum - series.ScaleMinimum);
+                for (var i = 0; i < series.Aggregates.Count; i++)
                 {
-                    var x = plot.x + plot.width * (((long)samples[i].Frame - range.FirstFrame) / (float)frameSpan);
-                    var y = plot.yMax - plot.height * (float)((samples[i].Value - min) / valueSpan);
-                    points[i] = new Vector3(x, y, 0f);
+                    var aggregate = series.Aggregates[i];
+                    var x = plot.x + plot.width * (((long)aggregate.LastFrame - range.FirstFrame) / (float)frameSpan);
+                    var y = plot.yMax - plot.height *
+                        (float)((aggregate.LastValue - series.ScaleMinimum) / valueSpan);
+                    series.Points[i] = new Vector3(x, y, 0f);
                 }
                 Handles.BeginGUI();
-                Handles.color = SeriesColor(colorIndex);
-                if (points.Length == 1) Handles.DrawSolidDisc(points[0], Vector3.forward, 2f);
-                else Handles.DrawAAPolyLine(2f, points);
+                var color = series.Severity == BattleDiagnosticMetricSeverity.Normal
+                    ? SeriesColor(colorIndex)
+                    : SeverityColor(series.Severity);
+                Handles.color = new Color(color.r, color.g, color.b, 0.35f);
+                for (var i = 0; i < series.Aggregates.Count; i++)
+                {
+                    var aggregate = series.Aggregates[i];
+                    if (aggregate.MinimumValue.Equals(aggregate.MaximumValue)) continue;
+                    var x = series.Points[i].x;
+                    var minY = plot.yMax - plot.height *
+                        (float)((aggregate.MinimumValue - series.ScaleMinimum) / valueSpan);
+                    var maxY = plot.yMax - plot.height *
+                        (float)((aggregate.MaximumValue - series.ScaleMinimum) / valueSpan);
+                    Handles.DrawLine(new Vector3(x, minY, 0f), new Vector3(x, maxY, 0f));
+                }
+                Handles.color = color;
+                if (series.Points.Length == 1) Handles.DrawSolidDisc(series.Points[0], Vector3.forward, 2f);
+                else Handles.DrawAAPolyLine(2f, series.Points);
                 Handles.EndGUI();
             }
 
             ApplyInteraction(in ctx, BattleDebugTimelineInteraction.Handle(plot, range));
+        }
+
+        private static void DrawAssessmentSummary(
+            IReadOnlyList<BattleDiagnosticCompoundMetricAssessment> compounds,
+            IReadOnlyList<BattleDiagnosticMetricAssessment> assessments)
+        {
+            var compoundCount = compounds?.Count ?? 0;
+            var assessmentCount = assessments?.Count ?? 0;
+            if (compoundCount == 0 && assessmentCount == 0) return;
+            var builder = new StringBuilder();
+            var severity = BattleDiagnosticMetricSeverity.Warning;
+            var displayed = 0;
+            var covered = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < compoundCount; i++)
+            {
+                var compound = compounds[i];
+                covered.Add(compound.Primary.Descriptor.Metric + "\n" + compound.Dimension);
+                covered.Add(compound.Secondary.Descriptor.Metric + "\n" + compound.Dimension);
+            }
+            var totalFindings = compoundCount;
+            for (var i = 0; i < assessmentCount; i++)
+            {
+                var assessment = assessments[i];
+                if (!covered.Contains(assessment.Descriptor.Metric + "\n" + assessment.Dimension))
+                    totalFindings++;
+            }
+            for (var i = 0; i < compoundCount && displayed < 3; i++)
+            {
+                var compound = compounds[i];
+                if (displayed++ > 0) builder.AppendLine();
+                if (compound.Severity > severity) severity = compound.Severity;
+                builder.Append(compound.Rule.DisplayName);
+                if (!string.IsNullOrEmpty(compound.Dimension))
+                    builder.Append(" [").Append(compound.Dimension).Append(']');
+                builder.Append(" (F").Append(compound.FirstFrame)
+                    .Append("-F").Append(compound.LastFrame).Append(')');
+            }
+            for (var i = 0; i < assessmentCount && displayed < 3; i++)
+            {
+                var assessment = assessments[i];
+                if (covered.Contains(assessment.Descriptor.Metric + "\n" + assessment.Dimension)) continue;
+                if (displayed++ > 0) builder.AppendLine();
+                if (assessment.Severity > severity) severity = assessment.Severity;
+                builder.Append(assessment.Descriptor.DisplayName);
+                if (!string.IsNullOrEmpty(assessment.Dimension))
+                    builder.Append(" [").Append(assessment.Dimension).Append(']');
+                builder.Append(assessment.Descriptor.AssessmentMode == BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh
+                    ? " increased by "
+                    : assessment.Descriptor.AssessmentMode == BattleDiagnosticMetricAssessmentMode.LatestHigh
+                        ? " is "
+                        : " peaked at ");
+                builder.Append(FormatValue(assessment.ActualValue, assessment.Descriptor.Unit));
+                builder.Append(" (threshold ")
+                    .Append(FormatValue(assessment.ActiveThreshold, assessment.Descriptor.Unit))
+                    .Append(", F").Append(assessment.FirstFrame)
+                    .Append("-F").Append(assessment.LastFrame).Append(')');
+            }
+            var remaining = totalFindings - displayed;
+            if (remaining > 0)
+                builder.AppendLine().Append('+').Append(remaining).Append(" additional findings");
+            EditorGUILayout.HelpBox(
+                builder.ToString(),
+                severity == BattleDiagnosticMetricSeverity.Critical ? MessageType.Error : MessageType.Warning);
+        }
+
+        private static string FormatValue(double value, string unit)
+        {
+            if (string.Equals(unit, "flag", StringComparison.Ordinal)) return value >= 0.5d ? "active" : "inactive";
+            return string.IsNullOrEmpty(unit) ? $"{value:0.###}" : $"{value:0.###} {unit}";
+        }
+
+        private static long NextRequestId()
+        {
+            if (_nextRequestId == long.MaxValue) _nextRequestId = 0L;
+            return ++_nextRequestId;
+        }
+
+        private sealed class MetricHistoryCacheEntry
+        {
+            public MetricHistoryCacheEntry(
+                IBattleDiagnosticReadOnlySession session,
+                long revision,
+                long profileRevision,
+                BattleDiagnosticResolvedMetricProfile profile,
+                in BattleDiagnosticFrameRange range,
+                in BattleDiagnosticQueryStatus status,
+                IReadOnlyList<BattleDiagnosticMetricAggregate> aggregates)
+            {
+                Session = session;
+                Revision = revision;
+                ProfileRevision = profileRevision;
+                EmbeddedProfile = (session as IBattleDiagnosticMetricProfileSession)?.MetricProfile;
+                Profile = profile;
+                Range = range;
+                Status = status;
+                AggregateCount = aggregates?.Count ?? 0;
+                OverviewItems = new List<BattleDebugTimelineOverviewItem>(AggregateCount);
+                Assessments = BattleDiagnosticFrameMetricCatalog.Evaluate(aggregates, profile);
+                CompoundAssessments = BattleDiagnosticFrameMetricCatalog.EvaluateCompounds(Assessments);
+                Series = BuildSeries(aggregates, Assessments, profile, OverviewItems, out var sampleCount);
+                SampleCount = sampleCount;
+            }
+
+            private IBattleDiagnosticReadOnlySession Session { get; }
+            private long Revision { get; }
+            private long ProfileRevision { get; }
+            private BattleDiagnosticResolvedMetricProfile EmbeddedProfile { get; }
+            private BattleDiagnosticFrameRange Range { get; }
+            public BattleDiagnosticQueryStatus Status { get; }
+            public BattleDiagnosticResolvedMetricProfile Profile { get; }
+            public int AggregateCount { get; }
+            public int SampleCount { get; }
+            public List<BattleDebugTimelineOverviewItem> OverviewItems { get; }
+            public IReadOnlyList<BattleDiagnosticMetricAssessment> Assessments { get; }
+            public IReadOnlyList<BattleDiagnosticCompoundMetricAssessment> CompoundAssessments { get; }
+            public List<MetricSeriesView> Series { get; }
+
+            public bool Matches(
+                IBattleDiagnosticReadOnlySession session,
+                long revision,
+                long profileRevision,
+                BattleDiagnosticResolvedMetricProfile embeddedProfile,
+                in BattleDiagnosticFrameRange range)
+            {
+                return ReferenceEquals(Session, session) && Revision == revision && ProfileRevision == profileRevision &&
+                       ReferenceEquals(EmbeddedProfile, embeddedProfile) &&
+                       Range.FirstFrame == range.FirstFrame && Range.LastFrame == range.LastFrame;
+            }
+
+            private static List<MetricSeriesView> BuildSeries(
+                IReadOnlyList<BattleDiagnosticMetricAggregate> aggregates,
+                IReadOnlyList<BattleDiagnosticMetricAssessment> assessments,
+                BattleDiagnosticResolvedMetricProfile profile,
+                List<BattleDebugTimelineOverviewItem> overviewItems,
+                out int sampleCount)
+            {
+                var map = new Dictionary<string, List<BattleDiagnosticMetricAggregate>>(StringComparer.Ordinal);
+                sampleCount = 0;
+                if (aggregates != null)
+                {
+                    for (var i = 0; i < aggregates.Count; i++)
+                    {
+                        var aggregate = aggregates[i];
+                        sampleCount += aggregate.SampleCount;
+                        overviewItems.Add(new BattleDebugTimelineOverviewItem(
+                            aggregate.FirstFrame,
+                            aggregate.LastFrame));
+                        var key = string.IsNullOrEmpty(aggregate.Dimension)
+                            ? aggregate.Metric
+                            : aggregate.Metric + " [" + aggregate.Dimension + "]";
+                        if (!map.TryGetValue(key, out var values))
+                        {
+                            values = new List<BattleDiagnosticMetricAggregate>();
+                            map.Add(key, values);
+                        }
+                        values.Add(aggregate);
+                    }
+                }
+
+                var result = new List<MetricSeriesView>(map.Count);
+                foreach (var pair in map)
+                {
+                    var severity = BattleDiagnosticMetricSeverity.Normal;
+                    var first = pair.Value[0];
+                    for (var i = 0; i < assessments.Count; i++)
+                    {
+                        var assessment = assessments[i];
+                        if (!string.Equals(assessment.Descriptor.Metric, first.Metric, StringComparison.Ordinal) ||
+                            !string.Equals(assessment.Dimension, first.Dimension, StringComparison.Ordinal)) continue;
+                        severity = assessment.Severity;
+                        break;
+                    }
+                    result.Add(new MetricSeriesView(pair.Key, pair.Value, severity, profile));
+                }
+                result.Sort((left, right) =>
+                {
+                    var comparison = left.Order.CompareTo(right.Order);
+                    return comparison != 0
+                        ? comparison
+                        : string.Compare(left.Label, right.Label, StringComparison.Ordinal);
+                });
+                return result;
+            }
+        }
+
+        private sealed class MetricSeriesView
+        {
+            public MetricSeriesView(
+                string fallbackLabel,
+                List<BattleDiagnosticMetricAggregate> aggregates,
+                BattleDiagnosticMetricSeverity severity,
+                BattleDiagnosticResolvedMetricProfile profile)
+            {
+                Aggregates = aggregates;
+                Points = new Vector3[aggregates.Count];
+                var first = aggregates[0];
+                if (BattleDiagnosticFrameMetricCatalog.TryGet(first.Metric, profile, out var descriptor))
+                {
+                    Label = string.IsNullOrEmpty(first.Dimension)
+                        ? descriptor.DisplayName
+                        : descriptor.DisplayName + " [" + first.Dimension + "]";
+                    Unit = descriptor.Unit;
+                    Order = descriptor.Order;
+                }
+                else
+                {
+                    Label = fallbackLabel;
+                    Unit = string.Empty;
+                    Order = int.MaxValue;
+                }
+                Severity = severity;
+                MinimumValue = first.MinimumValue;
+                MaximumValue = first.MaximumValue;
+                for (var i = 1; i < aggregates.Count; i++)
+                {
+                    MinimumValue = Math.Min(MinimumValue, aggregates[i].MinimumValue);
+                    MaximumValue = Math.Max(MaximumValue, aggregates[i].MaximumValue);
+                }
+                LatestValue = aggregates[aggregates.Count - 1].LastValue;
+                ScaleMinimum = descriptor.HasSuggestedRange
+                    ? Math.Min(MinimumValue, descriptor.SuggestedMinimum)
+                    : MinimumValue;
+                ScaleMaximum = descriptor.HasSuggestedRange
+                    ? Math.Max(MaximumValue, descriptor.SuggestedMaximum)
+                    : MaximumValue;
+            }
+
+            public string Label { get; }
+            public string Unit { get; }
+            public int Order { get; }
+            public BattleDiagnosticMetricSeverity Severity { get; }
+            public List<BattleDiagnosticMetricAggregate> Aggregates { get; }
+            public Vector3[] Points { get; }
+            public double MinimumValue { get; }
+            public double MaximumValue { get; }
+            public double LatestValue { get; }
+            public double ScaleMinimum { get; }
+            public double ScaleMaximum { get; }
         }
 
         private static BattleDiagnosticFrameRange ResolveRange(in BattleDebugContext ctx)
@@ -1376,6 +1812,13 @@ namespace AbilityKit.Game.Editor
                 case 4: return new Color(0.66f, 0.52f, 0.92f, 1f);
                 default: return new Color(0.35f, 0.82f, 0.82f, 1f);
             }
+        }
+
+        private static Color SeverityColor(BattleDiagnosticMetricSeverity severity)
+        {
+            return severity == BattleDiagnosticMetricSeverity.Critical
+                ? new Color(0.92f, 0.32f, 0.34f, 1f)
+                : new Color(0.95f, 0.65f, 0.2f, 1f);
         }
     }
 }

@@ -6,6 +6,9 @@ using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Ability.World.Management;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Snapshots.Routing;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateImport;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow.Battle;
@@ -15,8 +18,11 @@ using AbilityKit.Game.Flow.Battle.ViewEvents.Snapshot;
 using AbilityKit.Game.Flow.Battle.ViewEvents.Triggering;
 using AbilityKit.Game.Flow.Modules;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+
+using HostWorldStateSnapshotProvider = AbilityKit.Ability.Host.IWorldStateSnapshotProvider;
 
 namespace AbilityKit.Game.Flow
 {
@@ -118,12 +124,74 @@ namespace AbilityKit.Game.Flow
         }
     }
 
+    internal sealed class BattleSessionWorldCapabilities
+    {
+        internal IWorld OwnerWorld { get; private set; }
+        internal IActorProjectionProducer ProjectionProducer { get; private set; }
+        internal HostWorldStateSnapshotProvider SnapshotProvider { get; private set; }
+        internal IBattleDiagnosticMetricSink MetricSink { get; private set; }
+        internal MobaLogicWorldStateImporter StateImporter { get; private set; }
+        internal MobaAuthorityFrameService AuthorityFrames { get; private set; }
+
+        internal void Bind(IWorld world)
+        {
+            if (ReferenceEquals(OwnerWorld, world)) return;
+
+            Clear();
+            OwnerWorld = world;
+            var services = world?.Services;
+            if (services == null) return;
+
+            ProjectionProducer = Resolve<IActorProjectionProducer>(services);
+            SnapshotProvider = Resolve<HostWorldStateSnapshotProvider>(services);
+            MetricSink = Resolve<IBattleDiagnosticMetricSink>(services);
+            StateImporter = Resolve<MobaLogicWorldStateImporter>(services);
+            AuthorityFrames = Resolve<MobaAuthorityFrameService>(services);
+        }
+
+        internal bool Clear(IWorld ownerWorld)
+        {
+            if (!ReferenceEquals(OwnerWorld, ownerWorld)) return false;
+
+            Clear();
+            return true;
+        }
+
+        internal void Clear()
+        {
+            OwnerWorld = null;
+            ProjectionProducer = null;
+            SnapshotProvider = null;
+            MetricSink = null;
+            StateImporter = null;
+            AuthorityFrames = null;
+        }
+
+        private static T Resolve<T>(AbilityKit.Ability.World.DI.IWorldResolver services)
+            where T : class
+        {
+            try
+            {
+                services.TryResolve(out T capability);
+                return capability;
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(
+                    exception,
+                    $"[BattleSessionWorldCapabilities] Failed to resolve {typeof(T).FullName}.");
+                return null;
+            }
+        }
+    }
+
     internal sealed class BattleSessionConfirmedWorldRuntime
     {
         internal ConfirmedAuthorityWorldRuntime WorldRuntime;
         internal IWorldManager Worlds;
         internal HostRuntime Runtime;
         internal IWorld World;
+        internal readonly BattleSessionWorldCapabilities Capabilities = new BattleSessionWorldCapabilities();
         internal ConfirmedAuthorityInputRuntime InputRuntime;
         internal IRemoteFrameSource<PlayerInputCommand[]> InputSource;
         internal IConsumableRemoteFrameSource<PlayerInputCommand[]> Consumable;
@@ -140,6 +208,7 @@ namespace AbilityKit.Game.Flow
             Worlds = runtime != null ? runtime.Worlds : null;
             Runtime = runtime != null ? runtime.Runtime : null;
             World = runtime != null ? runtime.World : null;
+            Capabilities.Bind(World);
         }
 
         internal void BindInputRuntime(ConfirmedAuthorityInputRuntime runtime)
@@ -172,10 +241,19 @@ namespace AbilityKit.Game.Flow
 
         internal void ClearWorldRuntime()
         {
+            ClearWorldRuntime(World);
+        }
+
+        internal bool ClearWorldRuntime(IWorld ownerWorld)
+        {
+            if (!ReferenceEquals(World, ownerWorld)) return false;
+
+            Capabilities.Clear(ownerWorld);
             Worlds = null;
             Runtime = null;
             World = null;
             WorldRuntime = null;
+            return true;
         }
 
         internal void DisposeInput()
@@ -231,6 +309,7 @@ namespace AbilityKit.Game.Flow
         internal IWorldManager Worlds;
         internal HostRuntime Runtime;
         internal IWorld World;
+        internal readonly BattleSessionWorldCapabilities Capabilities = new BattleSessionWorldCapabilities();
         internal RemoteDrivenInputRuntime InputRuntime;
         internal IRemoteFrameSource<PlayerInputCommand[]> InputSource;
         internal IConsumableRemoteFrameSource<PlayerInputCommand[]> Consumable;
@@ -242,6 +321,7 @@ namespace AbilityKit.Game.Flow
             Worlds = runtime != null ? runtime.Worlds : null;
             Runtime = runtime != null ? runtime.Runtime : null;
             World = runtime != null ? runtime.World : null;
+            Capabilities.Bind(World);
         }
 
         internal void BindInputRuntime(RemoteDrivenInputRuntime runtime)
@@ -265,10 +345,19 @@ namespace AbilityKit.Game.Flow
 
         internal void ClearWorldRuntime()
         {
+            ClearWorldRuntime(World);
+        }
+
+        internal bool ClearWorldRuntime(IWorld ownerWorld)
+        {
+            if (!ReferenceEquals(World, ownerWorld)) return false;
+
+            Capabilities.Clear(ownerWorld);
             WorldRuntime = null;
             Worlds = null;
             Runtime = null;
             World = null;
+            return true;
         }
 
         internal void DisposeInput()

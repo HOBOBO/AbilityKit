@@ -15,6 +15,7 @@ param(
     [ValidateSet('ideal', 'lan', 'mobile4g', 'crossregion', 'poorwifi', 'limitedbw')]
     [string[]]$NetworkEnvironments = @('ideal', 'mobile4g', 'poorwifi', 'limitedbw'),
     [int]$TimeoutSeconds = 300,
+    [string]$ServerLogPath,
     [string]$OutputRoot,
     [switch]$SkipCompileWarmup
 )
@@ -53,6 +54,7 @@ foreach ($enemyBudget in $EnemyBudgets) {
                 OutputRoot = $caseRoot
                 SkipCompileWarmup = $SkipCompileWarmup.IsPresent -or $caseIndex -gt 1
             }
+            if (-not [string]::IsNullOrWhiteSpace($ServerLogPath)) { $arguments.ServerLogPath = $ServerLogPath }
             if (-not [string]::IsNullOrWhiteSpace($OwnerProject)) { $arguments.OwnerProject = $OwnerProject }
             if (-not [string]::IsNullOrWhiteSpace($MemberProject)) { $arguments.MemberProject = $MemberProject }
             & $runner @arguments

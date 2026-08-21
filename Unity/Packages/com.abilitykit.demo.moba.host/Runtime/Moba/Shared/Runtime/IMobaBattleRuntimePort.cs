@@ -22,6 +22,7 @@ namespace AbilityKit.Ability.Host.Extensions.Moba.Runtime
         MissingGameplayService = 10,
         InvalidGameplayId = 11,
         GameplayStartFailed = 12,
+        GameStartCommitFailed = 13,
     }
 
     public readonly struct MobaGameStartResult

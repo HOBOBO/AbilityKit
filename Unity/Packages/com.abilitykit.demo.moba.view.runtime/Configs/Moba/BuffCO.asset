@@ -13,14 +13,864 @@ MonoBehaviour:
   m_Name: BuffCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 100001
-    Name: 
-    DurationMs: 10000
+  - Id: 1
+    Name: buff1
+    DurationMs: 3000
     OnAddEffects: 
     OnRemoveEffects: 
-    OnIntervalEffects: 244e0000
-    IntervalMs: 2000
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
     StackingPolicy: 0
     RefreshPolicy: 0
     MaxStacks: 0
-    Tags: 00000000
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 101
+    Name: "\u6301\u7EED\u6389\u8840buff"
+    DurationMs: 5000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 1000
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 4
+      TargetId: 3
+      AttrTypeId: 0
+      Op: 0
+      Value: 2
+      Priority: 10
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    - TargetKind: 4
+      TargetId: 5
+      AttrTypeId: 0
+      Op: 0
+      Value: 1000
+      Priority: 10
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10010000
+    Name: "\u5EC9\u9887-\u52C7\u58EB\u4E4B\u9B42-\u6280\u80FD\u9738\u4F53\u6218\u610F"
+    DurationMs: 1500
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 23
+      AttrTypeId: 23
+      Op: 0
+      Value: 1
+      Priority: 30
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10010212
+    Name: "\u5EC9\u9887-\u7194\u5CA9\u91CD\u51FB-\u547D\u4E2D\u51CF\u901F"
+    DurationMs: 1500
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: -0.3
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10020001
+    Name: "\u5C0F\u4E54-\u6CBB\u6108\u5FAE\u7B11-\u77ED\u6682\u52A0\u901F"
+    DurationMs: 2000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 4
+    RefreshPolicy: 2
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 0
+      AttrTypeId: 17
+      Op: 0
+      Value: 2
+      Priority: 10
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10020301
+    Name: "\u5C0F\u4E54-\u661F\u534E\u7F2D\u4E71-\u6301\u7EED\u843D\u661F\u72B6\u6001"
+    DurationMs: 5000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: d7e59800
+    IntervalMs: 1000
+    PresentationTemplateId: 90002003
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: d8e59800
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030000
+    Name: "\u8D75\u4E91-\u9F99\u9E23-\u88AB\u52A8\u514D\u4F24\u53C2\u6570"
+    DurationMs: 0
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030001
+    Name: "\u8D75\u4E91-\u9F99\u9E23-\u4E8C\u6863(\u7834\u4E91)"
+    DurationMs: 600
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 15
+      AttrTypeId: 15
+      Op: 3
+      Value: 0.25
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 0
+      Value: 0.5
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030002
+    Name: "\u8D75\u4E91-\u9F99\u9E23-\u4E09\u6863(\u5929\u7FD4)"
+    DurationMs: 600
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 15
+      AttrTypeId: 15
+      Op: 3
+      Value: 0.35
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 0
+      Value: 0.8
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    - TargetKind: 1
+      TargetId: 8
+      AttrTypeId: 8
+      Op: 3
+      Value: 0.15
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    - TargetKind: 1
+      TargetId: 9
+      AttrTypeId: 9
+      Op: 3
+      Value: 0.15
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030003
+    Name: "\u8D75\u4E91-\u9F99\u9E23-\u4E09\u6863\u62A4\u76FE\u6807\u8BB0"
+    DurationMs: 3000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030101
+    Name: "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u4E0B\u6B21\u666E\u653B\u5F3A\u5316"
+    DurationMs: 5000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 90003001
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 1f0c9900
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030102
+    Name: "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u547D\u4E2D\u51CF\u901F"
+    DurationMs: 2000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: -0.25
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030104
+    Name: "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u77ED\u6682\u52A0\u901F"
+    DurationMs: 3000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: 0.3
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10030301
+    Name: "\u8D75\u4E91-\u5929\u7FD4\u4E4B\u9F99-\u611F\u7535\u6807\u8BB0"
+    DurationMs: 5000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10040000
+    Name: "\u58A8\u5B50-\u673A\u5173\u672F-\u6280\u80FD\u62A4\u76FE"
+    DurationMs: 3000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 8
+      AttrTypeId: 8
+      Op: 3
+      Value: 0.2
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    - TargetKind: 1
+      TargetId: 9
+      AttrTypeId: 9
+      Op: 3
+      Value: 0.2
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10040001
+    Name: "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE-\u7729\u6655"
+    DurationMs: 1000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: -1
+      Priority: 30
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10040002
+    Name: "\u58A8\u5B50-\u58A8\u5B88\u6210\u89C4-\u6301\u7EED\u7729\u6655"
+    DurationMs: 500
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: -1
+      Priority: 30
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10040003
+    Name: "\u58A8\u5B50-\u58A8\u5B88\u6210\u89C4-\u673A\u5173\u5C4F\u969C\u72B6\u6001"
+    DurationMs: 3500
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: f7339900
+    IntervalMs: 500
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 8
+      AttrTypeId: 8
+      Op: 3
+      Value: 0.3
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    - TargetKind: 1
+      TargetId: 9
+      AttrTypeId: 9
+      Op: 3
+      Value: 0.3
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10040101
+    Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65-\u4E0B\u6B21\u666E\u653B\u70AE\u51FB"
+    DurationMs: 5000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 90004001
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 4
+      TargetId: 6
+      AttrTypeId: 0
+      Op: 2
+      Value: 10040112
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10050000
+    Name: "\u59B2\u5DF1-\u5931\u5FC3-\u964D\u4F4E\u6CD5\u672F\u9632\u5FA1"
+    DurationMs: 3000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 3
+    RefreshPolicy: 2
+    MaxStacks: 3
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 9
+      AttrTypeId: 9
+      Op: 0
+      Value: -30
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10050201
+    Name: "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B-\u7729\u6655\u63A7\u5236"
+    DurationMs: 1500
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: -1
+      Priority: 30
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10050301
+    Name: "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC-\u72D0\u706B\u72B6\u6001"
+    DurationMs: 1600
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 90005003
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 0a5b9900
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10060000
+    Name: "\u5B34\u653F-\u738B\u8005\u5BA1\u5224-\u666E\u653B\u7A7F\u900F\u6807\u8BB0"
+    DurationMs: 0
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10060101
+    Name: "\u5B34\u653F-\u738B\u8005\u60E9\u6212-\u51CF\u901F"
+    DurationMs: 1000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: -0.35
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10060201
+    Name: "\u5B34\u653F-\u738B\u8005\u5B88\u5FA1-\u62A4\u76FE\u52A0\u901F"
+    DurationMs: 3000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 90006002
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: 0.25
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10060211
+    Name: "\u5B34\u653F-\u738B\u8005\u5B88\u5FA1-\u51CF\u901F"
+    DurationMs: 1000
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 0
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers:
+    - TargetKind: 1
+      TargetId: 17
+      AttrTypeId: 17
+      Op: 3
+      Value: -0.25
+      Priority: 20
+      MagnitudeSourceType: 0
+      MagnitudeBaseValue: 0
+      MagnitudeCoefficient: 0
+      MagnitudeDuration: 0
+      MagnitudeDecayType: 0
+      MagnitudeAttributeTypeId: 0
+      MagnitudeContextKey: 
+      MagnitudeCurve: []
+      EvaluationPolicy: 0
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []
+  - Id: 10060301
+    Name: "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743-\u6301\u7EED\u98DE\u5251\u72B6\u6001"
+    DurationMs: 2500
+    OnAddEffects: 
+    OnRemoveEffects: 
+    OnIntervalEffects: 
+    IntervalMs: 0
+    PresentationTemplateId: 90006003
+    StackingPolicy: 0
+    RefreshPolicy: 1
+    MaxStacks: 1
+    TriggerIds: 
+    ContinuousTagTemplateId: 0
+    TagNames: []
+    Modifiers: []
+    DispelPolicy: 0
+    DispelCategory: 0
+    DispelBlockedByTagNames: []

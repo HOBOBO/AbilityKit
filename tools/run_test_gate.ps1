@@ -40,7 +40,7 @@ if (-not (Test-Path $resolvedConfigPath)) {
     throw "Test gate config not found: $resolvedConfigPath"
 }
 
-$config = Get-Content -Path $resolvedConfigPath -Raw | ConvertFrom-Json
+$config = Get-Content -Path $resolvedConfigPath -Raw -Encoding utf8 | ConvertFrom-Json
 $gatesByName = @{}
 foreach ($gateDef in $config.gates) {
     $gatesByName[[string]$gateDef.name] = $gateDef

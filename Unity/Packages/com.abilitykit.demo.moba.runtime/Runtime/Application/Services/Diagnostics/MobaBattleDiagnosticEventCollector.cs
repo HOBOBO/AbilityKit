@@ -538,6 +538,12 @@ namespace AbilityKit.Demo.Moba.Services
             return _collector.MetricStore.QueryMetrics(query);
         }
 
+        public BattleDiagnosticQueryResult<BattleDiagnosticMetricAggregate> QueryMetricAggregates(
+            BattleDiagnosticMetricAggregateQuery query)
+        {
+            return _collector.MetricStore.QueryMetricAggregates(query);
+        }
+
         public bool TryRecordMetric(
             int frame,
             long monotonicTimestamp,

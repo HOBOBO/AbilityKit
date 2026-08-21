@@ -1,9 +1,20 @@
+using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.StateSync.Aoi;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
+    /// <summary>
+    /// Optional server-side timing hook. The callback is invoked once per
+    /// battle system after a frame completes and is never installed by the
+    /// normal Unity client path.
+    /// </summary>
+    public interface IShooterBattlePerformancePort
+    {
+        Action<string, double>? StageTimingSink { get; set; }
+    }
+
     public interface IShooterGameStartPort
     {
         bool IsStarted { get; }

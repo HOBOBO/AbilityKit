@@ -1,0 +1,20 @@
+{
+  "Id": 10060301,
+  "Name": "嬴政-至尊王权-持续飞剑状态",
+  "DurationMs": 2500,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [],
+  "IntervalMs": 0,
+  "PresentationTemplateId": 90006003,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 1,
+  "MaxStacks": 1,
+  "TriggerIds": [],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": [],
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

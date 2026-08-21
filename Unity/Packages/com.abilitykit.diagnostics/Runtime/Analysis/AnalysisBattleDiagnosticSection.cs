@@ -21,6 +21,27 @@ namespace AbilityKit.Diagnostics.Analysis
         public AnalysisBattleDiagnosticEffectTrack Effects { get; set; } = new AnalysisBattleDiagnosticEffectTrack();
         public AnalysisBattleDiagnosticObjectTrack Objects { get; set; } = new AnalysisBattleDiagnosticObjectTrack();
         public AnalysisBattleDiagnosticMetricTrack FrameMetrics { get; set; } = new AnalysisBattleDiagnosticMetricTrack();
+        public AnalysisBattleDiagnosticMetricProfile FrameMetricProfile { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticMetricProfile
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Project { get; set; } = string.Empty;
+        public string GameMode { get; set; } = string.Empty;
+        public string NetworkMode { get; set; } = string.Empty;
+        public string DeviceTier { get; set; } = string.Empty;
+        public List<AnalysisBattleDiagnosticMetricThreshold> Thresholds { get; set; } =
+            new List<AnalysisBattleDiagnosticMetricThreshold>();
+    }
+
+    public sealed class AnalysisBattleDiagnosticMetricThreshold
+    {
+        public string Metric { get; set; } = string.Empty;
+        public double? WarningThreshold { get; set; }
+        public double? CriticalThreshold { get; set; }
+        public double? SuggestedMinimum { get; set; }
+        public double? SuggestedMaximum { get; set; }
     }
 
     public sealed class AnalysisBattleDiagnosticSession

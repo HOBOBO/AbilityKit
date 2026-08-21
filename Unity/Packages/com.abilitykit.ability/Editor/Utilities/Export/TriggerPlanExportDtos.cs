@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Blackboard;
 
 namespace AbilityKit.Ability.Editor.Utilities
 {
@@ -99,6 +100,10 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string DomainId;
         public string Key;
         public string ExprText;
+        public BlackboardKeyType KeyType;
+        public string Scope;
+        public bool BoolValue;
+        public string StringValue;
     }
 }
 #endif

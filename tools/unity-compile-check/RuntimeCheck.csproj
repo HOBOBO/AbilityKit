@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 镜像 asmdef: AbilityKit.BehaviorTree（Runtime，noEngineReferences） -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS8632;CS8981</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <UnityManaged>C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Data\Managed</UnityManaged>
+    <RepoRoot>C:\Workspace\gitProject\AbilityKit</RepoRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)\Unity\Packages\com.abilitykit.behaviortree\Runtime\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="DeterministicCheck.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="AbilityKit.Core">
+      <HintPath>$(RepoRoot)\Unity\Library\ScriptAssemblies\AbilityKit.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Newtonsoft.Json">
+      <HintPath>$(RepoRoot)\Unity\Library\PackageCache\com.unity.nuget.newtonsoft-json@3.2.1\Runtime\Newtonsoft.Json.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

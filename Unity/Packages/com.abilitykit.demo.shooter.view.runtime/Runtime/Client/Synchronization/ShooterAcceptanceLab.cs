@@ -357,6 +357,7 @@ namespace AbilityKit.Demo.Shooter.View
         public const string AuthoritativeInterpolationPresentation = "authoritative-interpolation-presentation";
         public const string BatchStateLowFrequency = "batch-state-low-frequency";
         public const string MassBattleLodAoi = "mass-battle-lod-aoi";
+        public const string MassBattleLodAoiSampleBlock = "mass-battle-lod-aoi-sample-block";
         public const string HybridHeroPrediction = "hybrid-hero-prediction";
         public const string FastReconnectResume = "fast-reconnect-resume";
     }
@@ -445,6 +446,20 @@ namespace AbilityKit.Demo.Shooter.View
                 ShooterSyncTemplateIds.MassBattleLodAoi,
                 "Mass Battle LOD / AOI Budget Playback",
                 "Shooter 正式多人默认模板，使用距离 AOI、优先级预算与 LOD 频率同步大规模单位。",
+                NetworkSyncModel.MassBattleLodSync,
+                "limitedbw",
+                ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
+                recommendedPlayerCount: 16,
+                enableAuthoritativeWorld: false,
+                expectsInterpolationDiagnostics: true,
+                ShooterSyncTemplateConvergenceKind.MassBattleLodPresentation,
+                InterpolationConfig.Default,
+                ShooterSyncTemplateSendPolicy.MassBattleLod,
+                ShooterSyncTemplateStatus.Experimental),
+            new ShooterSyncTemplate(
+                ShooterSyncTemplateIds.MassBattleLodAoiSampleBlock,
+                "Mass Battle LOD / AOI Sample Block",
+                "Mass-battle AOI/LOD authority with density-limited historical transform samples for presentation A/B validation.",
                 NetworkSyncModel.MassBattleLodSync,
                 "limitedbw",
                 ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,

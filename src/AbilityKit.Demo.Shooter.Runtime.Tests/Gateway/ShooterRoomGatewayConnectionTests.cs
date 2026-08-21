@@ -16,6 +16,38 @@ namespace AbilityKit.Demo.Shooter.Runtime.Tests;
 public sealed class ShooterRoomGatewayConnectionTests
 {
     [Fact]
+    public async Task BattleTransportInputTimeoutReturnsTypedFailure()
+    {
+        var connection = new FakeGatewayConnection();
+        using var transport = CreateInputTransport(connection);
+        var failureCount = 0;
+        transport.SubmitInputFailed += _ => Interlocked.Increment(ref failureCount);
+        transport.Connect();
+
+        var result = await transport.SendInputAsync(
+            default,
+            TimeSpan.FromMilliseconds(25));
+
+        Assert.False(result.Accepted);
+        Assert.Equal("TransportTimeout", result.Status);
+        Assert.Contains("timeout", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(1, failureCount);
+    }
+
+    [Fact]
+    public async Task BattleTransportInputCallerCancellationRemainsCancellable()
+    {
+        var connection = new FakeGatewayConnection();
+        using var transport = CreateInputTransport(connection);
+        using var cancellation = new CancellationTokenSource();
+        transport.Connect();
+        cancellation.CancelAfter(TimeSpan.FromMilliseconds(25));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            transport.SendInputAsync(default, TimeSpan.FromSeconds(1), cancellation.Token));
+    }
+
+    [Fact]
     public void BattleDataPlaneDrainHonorsPushBudgetAndReportsBacklogWithoutReordering()
     {
         var connection = new FakeGatewayConnection();
@@ -82,7 +114,12 @@ public sealed class ShooterRoomGatewayConnectionTests
             },
             received);
         Assert.Equal(0, battleDataPlane.Diagnostics.QueueDepth);
-        Assert.Equal(4, battleDataPlane.Diagnostics.ProcessedPushCount);
+        var diagnostics = battleDataPlane.Diagnostics;
+        Assert.Equal(4, diagnostics.ProcessedPushCount);
+        Assert.Equal(1, diagnostics.FullSnapshotProcess.SampleCount);
+        Assert.Equal(1, diagnostics.DeltaSnapshotProcess.SampleCount);
+        Assert.Equal(1, diagnostics.ReliableEventProcess.SampleCount);
+        Assert.Equal(1, diagnostics.OtherPushProcess.SampleCount);
     }
 
     [Fact]
@@ -112,6 +149,10 @@ public sealed class ShooterRoomGatewayConnectionTests
         var applied = battleDataPlane.Diagnostics;
         Assert.Equal(2, applied.QueueWait.SampleCount);
         Assert.Equal(2, applied.PushProcess.SampleCount);
+        Assert.Equal(0, applied.FullSnapshotProcess.SampleCount);
+        Assert.Equal(2, applied.DeltaSnapshotProcess.SampleCount);
+        Assert.Equal(0, applied.ReliableEventProcess.SampleCount);
+        Assert.Equal(0, applied.OtherPushProcess.SampleCount);
         Assert.True(applied.QueueWait.MaxMilliseconds > 0d);
         Assert.True(applied.PushProcess.MaxMilliseconds >= 1d);
     }
@@ -511,6 +552,23 @@ public sealed class ShooterRoomGatewayConnectionTests
                 OpSnapshotPushed = RoomGatewayOpCodes.SnapshotPushed,
                 OpDeltaSnapshotPushed = RoomGatewayOpCodes.DeltaSnapshotPushed,
                 OpReliableEventsPushed = RoomGatewayOpCodes.ReliableBattleEventsPushed
+            },
+            InlineDispatcher.Instance);
+    }
+
+    private static NetworkTransport CreateInputTransport(FakeGatewayConnection connection)
+    {
+        return new NetworkTransport(
+            new NetworkTransportOptions
+            {
+                ConnectionFactory = () => connection,
+                OpSubmitInput = 901u,
+                SerializeSubmitInput = _ => default,
+                DeserializeSubmitInputResponse = _ => new NetworkSubmitInputResponse(
+                    accepted: true,
+                    serverFrame: 1,
+                    reasonCode: 0,
+                    retryAtAuthoritativeFrame: false)
             },
             InlineDispatcher.Instance);
     }

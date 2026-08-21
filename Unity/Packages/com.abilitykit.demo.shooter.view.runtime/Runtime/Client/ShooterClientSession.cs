@@ -16,6 +16,8 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private readonly ShooterPresentationSessionContext _presentationSession;
         private readonly ShooterPresentationFacade _presentation;
+        private readonly ShooterGatewaySnapshotDecoder _snapshotDecoder;
+        private readonly WireReliableBattleEventPushDecodeBuffer _reliableEventPushDecoder = new WireReliableBattleEventPushDecodeBuffer();
         private readonly IShooterClientSyncController _syncController;
         private readonly NetworkSyncSessionDescriptor _syncSession;
         private readonly ShooterReliableBattleEventConsumer _reliableEvents;
@@ -88,6 +90,7 @@ namespace AbilityKit.Demo.Shooter.View
         {
             _presentationSession = presentationSession ?? throw new ArgumentNullException(nameof(presentationSession));
             _presentation = _presentationSession.Presentation;
+            _snapshotDecoder = assemblyOptions.Decoder ?? new ShooterGatewaySnapshotDecoder();
             var syncSession = ShooterClientSyncControllerFactory.CreateSession(
                 in assemblyOptions,
                 runtime,
@@ -271,6 +274,18 @@ namespace AbilityKit.Demo.Shooter.View
             return false;
         }
 
+        public bool TryGetPureStatePlaybackDiagnostics(out ShooterPureStatePlaybackDiagnostics diagnostics)
+        {
+            if (_syncController is IShooterPureStatePlaybackDiagnosticsProvider provider)
+            {
+                diagnostics = provider.GetPureStatePlaybackDiagnostics();
+                return true;
+            }
+
+            diagnostics = default;
+            return false;
+        }
+
         public bool StartGame(in ShooterStartGamePayload startGame)
         {
             var started = _syncController.StartGame(in startGame);
@@ -353,32 +368,36 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (opCode != RoomGatewayOpCodes.ReliableBattleEventsPushed)
             {
-                WireStateSyncSnapshotPush snapshot = default;
                 var isSnapshotPush = opCode == RoomGatewayOpCodes.SnapshotPushed
                     || opCode == RoomGatewayOpCodes.DeltaSnapshotPushed;
                 if (isSnapshotPush)
                 {
-                    snapshot = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(payload);
+                    // Decode once here. The decoded snapshot carries the event watermark needed
+                    // by reliable-event recovery, so controllers do not deserialize the same wire
+                    // payload a second time on the hot path.
+                    var snapshot = _snapshotDecoder.Decode(payload);
+                    var snapshotApplyResult = _syncController.ApplyGatewaySnapshot(in snapshot);
+                    if (snapshot.IsFullSnapshot && IsReliableEventBaseline(snapshotApplyResult))
+                    {
+                        _reliableEvents.TryApplyFullSnapshotBaseline(snapshot.EventWatermark);
+                    }
+
+                    EvaluateRecoverySignals(publishRecovered: snapshot.IsFullSnapshot);
+                    return snapshotApplyResult;
                 }
 
                 var applyResult = _syncController.ApplyGatewayPush(opCode, payload);
-                if (isSnapshotPush
-                    && snapshot.IsFullSnapshot
-                    && IsReliableEventBaseline(applyResult))
-                {
-                    _reliableEvents.TryApplyFullSnapshotBaseline(snapshot.EventWatermark);
-                }
 
                 EvaluateRecoverySignals(
-                    publishRecovered: isSnapshotPush && snapshot.IsFullSnapshot);
+                    publishRecovered: false);
 
                 return applyResult;
             }
 
             try
             {
-                var push = WireRoomGatewayBinary.Deserialize<WireReliableBattleEventPush>(payload);
-                _reliableEvents.Consume(in push, envelope =>
+                var push = _reliableEventPushDecoder.Decode(payload);
+                _reliableEvents.ConsumeAndDispatch(in push, envelope =>
                 {
                     var eventPayload = envelope.Payload ?? Array.Empty<byte>();
                     var battleEvent = ShooterStateSnapshotCodec.DeserializeEvent(eventPayload);

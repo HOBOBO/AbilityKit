@@ -138,7 +138,7 @@ flowchart TB
 | Motion | Source 合成、约束求解、固定步长辅助、局部快照 | Collision world、命中副作用去重、source 进度与领域 token 的完整回滚 |
 | Continuous | Owner 索引、准入、状态操作、Binder | Tick/到期、Clear 前终止、批量关闭异常汇总、领域 Buff/周期/投影语义 |
 | GameplayTags | 名称层级、Container/Query/Stack | 稳定目录版本、受检反序列化、Owner 来源租约快照和 Reset 句柄隔离 |
-| Behavior | Decision/Executor、Manager、BTCore 适配 | 重入调度、Paused/全量 Shutdown、Pipeline Phase 的 Decision/Runtime 释放 |
+| Behavior | Decision/Executor、Manager（BTCore 适配已随第三方包退役删除） | 重入调度、Paused/全量 Shutdown、Pipeline Phase 的 Decision/Runtime 释放 |
 
 这张表解释了为什么“工具集可以低成本组合复杂战斗”与“不提供统一应用套件”并不矛盾：框架减少的是算法、数据结构和生命周期原语的重复实现；项目仍拥有跨原语的提交顺序、失败补偿、稳定身份和关闭协议。只有这些语义在第二类非同构游戏中也保持一致时，才适合继续下沉。
 

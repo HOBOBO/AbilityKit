@@ -256,6 +256,30 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(fixture.World.ResetCount, Is.Zero);
         }
 
+        [Test]
+        public async Task StopAsync_WaitsForGenerationOwnedRecoveryExecution()
+        {
+            using var fixture = new Fixture();
+            var completion = fixture.Transport.EnqueuePendingFullStateRequest();
+            fixture.World.ImportSucceeds = false;
+            fixture.BeginGeneration();
+
+            fixture.Runtime.HandleSnapshot(FullSnapshot(frame: 50));
+            var pendingExecution = fixture.Runtime.PendingExecution;
+            var stopTask = fixture.Runtime.StopAsync();
+
+            Assert.That(fixture.Transport.FullStateRequests, Has.Count.EqualTo(1));
+            Assert.That(pendingExecution.IsCompleted, Is.False);
+            Assert.That(stopTask.IsCompleted, Is.False);
+
+            completion.SetResult(false);
+            await stopTask;
+
+            Assert.That(pendingExecution.IsCompleted, Is.True);
+            Assert.That(fixture.Runtime.PendingExecution.IsCompleted, Is.True);
+            LogAssert.NoUnexpectedReceived();
+        }
+
         private static GatewayStateSyncSnapshot FullSnapshot(
             int frame,
             long eventWatermark = 0L,

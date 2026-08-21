@@ -35,7 +35,12 @@ namespace AbilityKit.Demo.Moba.Services
             BattleDiagnosticSessionSnapshot snapshot)
         {
             if (artifact == null) throw new ArgumentNullException(nameof(artifact));
-            artifact.BattleDiagnostics = ToSection(snapshot ?? throw new ArgumentNullException(nameof(snapshot)));
+            var profile = BattleDiagnosticMetricProfileRegistry.Resolve();
+            artifact.BattleDiagnostics = ToSection(
+                snapshot ?? throw new ArgumentNullException(nameof(snapshot)),
+                profile);
+            MobaAnalysisMetricCatalog.AppendFrameMetricsTo(artifact.Dictionaries?.MetricCatalog, profile);
+            MobaAnalysisMetricCatalog.AppendFrameThresholdsTo(artifact.ThresholdProfile, profile);
             return artifact;
         }
 
@@ -86,9 +91,12 @@ namespace AbilityKit.Demo.Moba.Services
             return FromSection(artifact.BattleDiagnostics);
         }
 
-        public static AnalysisBattleDiagnosticSection ToSection(BattleDiagnosticSessionSnapshot snapshot)
+        public static AnalysisBattleDiagnosticSection ToSection(
+            BattleDiagnosticSessionSnapshot snapshot,
+            BattleDiagnosticResolvedMetricProfile profile = null)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            profile = profile ?? BattleDiagnosticMetricProfileRegistry.Resolve();
             var info = snapshot.SessionInfo;
             var metrics = snapshot.Events.Metrics;
             var frameMetricStoreMetrics = snapshot.FrameMetrics.Metrics;
@@ -152,7 +160,8 @@ namespace AbilityKit.Demo.Moba.Services
                         RejectedCount = frameMetricStoreMetrics.RejectedCount,
                         IsFrozen = frameMetricStoreMetrics.IsFrozen
                     }
-                }
+                },
+                FrameMetricProfile = ToDto(profile)
             };
 
             if (snapshot.State.World.HasValue) section.State.World = ToDto(snapshot.State.World.Value);
@@ -234,6 +243,35 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        public static BattleDiagnosticResolvedMetricProfile FromMetricProfile(
+            AnalysisBattleDiagnosticMetricProfile profile)
+        {
+            if (profile == null) return null;
+            var context = new BattleDiagnosticMetricProfileContext(
+                profile.Project,
+                profile.GameMode,
+                profile.NetworkMode,
+                profile.DeviceTier);
+            var overrides = new List<BattleDiagnosticMetricThresholdOverride>();
+            var thresholds = profile.Thresholds ?? new List<AnalysisBattleDiagnosticMetricThreshold>();
+            for (var i = 0; i < thresholds.Count; i++)
+            {
+                var item = thresholds[i];
+                if (item == null || !item.WarningThreshold.HasValue || !item.CriticalThreshold.HasValue)
+                    continue;
+                overrides.Add(new BattleDiagnosticMetricThresholdOverride(
+                    item.Metric,
+                    item.WarningThreshold.Value,
+                    item.CriticalThreshold.Value,
+                    item.SuggestedMinimum ?? double.NaN,
+                    item.SuggestedMaximum ?? double.NaN));
+            }
+            return BattleDiagnosticMetricProfileResolver.Restore(
+                in context,
+                profile.Name,
+                overrides);
+        }
+
         private static void ValidateSection(AnalysisBattleDiagnosticSection section)
         {
             if (!string.Equals(section.SchemaVersion, AnalysisBattleDiagnosticSchema.Version, StringComparison.Ordinal))
@@ -266,6 +304,9 @@ namespace AbilityKit.Demo.Moba.Services
                                            new AnalysisBattleDiagnosticStoreMetrics();
             section.FrameMetrics.Items = section.FrameMetrics.Items ??
                                          new List<AnalysisBattleDiagnosticMetricSample>();
+            if (section.FrameMetricProfile != null)
+                section.FrameMetricProfile.Thresholds = section.FrameMetricProfile.Thresholds ??
+                                                        new List<AnalysisBattleDiagnosticMetricThreshold>();
         }
 
         private static void ValidateConsistency(AnalysisBattleDiagnosticSection section, BattleDiagnosticSessionScope scope, List<BattleDiagnosticEvent> events, List<BattleDiagnosticActorSummary> actors)
@@ -371,6 +412,37 @@ namespace AbilityKit.Demo.Moba.Services
         private static BattleDiagnosticActorTag FromDto(AnalysisBattleDiagnosticTag x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorTag(s, x.Frame, x.ActorId, x.TagId, x.Name);
         private static AnalysisBattleDiagnosticEffect ToDto(BattleDiagnosticActorEffect x) => new AnalysisBattleDiagnosticEffect { Frame = x.Frame, ActorId = x.ActorId, InstanceId = x.InstanceId, DurationPolicy = (int)x.DurationPolicy, StackCount = x.StackCount, ElapsedSeconds = x.ElapsedSeconds, RemainingSeconds = x.RemainingSeconds, HasRemainingTime = x.HasRemainingTime, NextTickInSeconds = x.NextTickInSeconds, HasPeriodicTick = x.HasPeriodicTick, DurationSeconds = x.DurationSeconds, PeriodSeconds = x.PeriodSeconds, ComponentCount = x.ComponentCount, ExecutePeriodicOnApply = x.ExecutePeriodicOnApply };
         private static BattleDiagnosticActorEffect FromDto(AnalysisBattleDiagnosticEffect x, BattleDiagnosticSessionScope s) => new BattleDiagnosticActorEffect(s, x.Frame, x.ActorId, x.InstanceId, (BattleDiagnosticEffectDurationPolicy)x.DurationPolicy, x.StackCount, x.ElapsedSeconds, x.RemainingSeconds, x.HasRemainingTime, x.NextTickInSeconds, x.HasPeriodicTick, x.DurationSeconds, x.PeriodSeconds, x.ComponentCount, x.ExecutePeriodicOnApply);
+        private static AnalysisBattleDiagnosticMetricProfile ToDto(
+            BattleDiagnosticResolvedMetricProfile profile)
+        {
+            if (profile == null) return null;
+            var result = new AnalysisBattleDiagnosticMetricProfile
+            {
+                Name = profile.Name,
+                Project = profile.Context.Project,
+                GameMode = profile.Context.GameMode,
+                NetworkMode = profile.Context.NetworkMode,
+                DeviceTier = profile.Context.DeviceTier
+            };
+            for (var i = 0; i < profile.Descriptors.Count; i++)
+            {
+                var descriptor = profile.Descriptors[i];
+                if (!descriptor.HasAssessment) continue;
+                result.Thresholds.Add(new AnalysisBattleDiagnosticMetricThreshold
+                {
+                    Metric = descriptor.Metric,
+                    WarningThreshold = descriptor.WarningThreshold,
+                    CriticalThreshold = descriptor.CriticalThreshold,
+                    SuggestedMinimum = descriptor.HasSuggestedRange
+                        ? descriptor.SuggestedMinimum
+                        : (double?)null,
+                    SuggestedMaximum = descriptor.HasSuggestedRange
+                        ? descriptor.SuggestedMaximum
+                        : (double?)null
+                });
+            }
+            return result;
+        }
         private static AnalysisBattleDiagnosticMetricSample ToDto(BattleDiagnosticMetricSample x) => new AnalysisBattleDiagnosticMetricSample { Sequence = x.Sequence, Frame = x.Frame, MonotonicTimestamp = x.MonotonicTimestamp, Category = (int)x.Category, ValueKind = (int)x.ValueKind, Metric = x.Metric, Value = x.Value, Dimension = x.Dimension };
         private static BattleDiagnosticMetricSample FromDto(AnalysisBattleDiagnosticMetricSample x, BattleDiagnosticSessionScope s) => new BattleDiagnosticMetricSample(s, x.Sequence, x.Frame, x.MonotonicTimestamp, (BattleDiagnosticMetricCategory)x.Category, (BattleDiagnosticMetricValueKind)x.ValueKind, x.Metric, x.Value, x.Dimension);
         private static AnalysisBattleDiagnosticRuntimeObject ToDto(BattleDiagnosticRuntimeObject x) => new AnalysisBattleDiagnosticRuntimeObject { Kind = (int)x.Kind, RuntimeId = x.RuntimeId, Generation = x.Generation, DefinitionKind = (int)x.DefinitionKind, DefinitionId = x.DefinitionId, RelatedActorId = x.RelatedActorId, OwnerActorId = x.OwnerActorId, SourceActorId = x.SourceActorId, TargetActorId = x.TargetActorId, CreatedFrame = x.CreatedFrame, DestroyedFrame = x.DestroyedFrame, RootContextId = x.RootContextId, ContextId = x.ContextId, State = (int)x.State, EndReason = x.EndReason, DisplayName = x.DisplayName, DiscoveryKind = (int)x.DiscoveryKind, BackfilledFrame = x.BackfilledFrame, Completeness = (int)x.Completeness };

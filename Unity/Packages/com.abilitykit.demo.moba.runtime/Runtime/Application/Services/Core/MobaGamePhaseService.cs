@@ -3,8 +3,14 @@ using AbilityKit.Ability.World.Services.Attributes;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    public interface IMobaBattleRunGateCommitter : IService
+    {
+        void SetInGame(string reason = null);
+    }
+
+    [WorldService(typeof(IMobaBattleRunGateCommitter))]
     [WorldService(typeof(MobaLogicWorldRunGateService))]
-    public sealed class MobaLogicWorldRunGateService : IService
+    public sealed class MobaLogicWorldRunGateService : IService, IMobaBattleRunGateCommitter
     {
         public bool InGame { get; private set; }
         public string LastChangeReason { get; private set; }
@@ -17,11 +23,16 @@ namespace AbilityKit.Demo.Moba.Services
             InGame = true;
             LastChangeReason = reason ?? "logic world battle loop enabled";
             ChangeCount++;
-            MobaRuntimeLog.Info(
-                MobaRuntimeLogModule.Session,
-                MobaRuntimeLogPurpose.Lifecycle,
-                nameof(MobaLogicWorldRunGateService),
-                $"Logic world battle loop enabled. reason={LastChangeReason}, changes={ChangeCount}");
+            if (MobaRuntimeLog.IsEnabled(
+                    MobaRuntimeLogLevel.Info,
+                    MobaRuntimeLogPurpose.Lifecycle))
+            {
+                MobaRuntimeLog.Info(
+                    MobaRuntimeLogModule.Session,
+                    MobaRuntimeLogPurpose.Lifecycle,
+                    nameof(MobaLogicWorldRunGateService),
+                    $"Logic world battle loop enabled. reason={LastChangeReason}, changes={ChangeCount}");
+            }
         }
 
         public void Reset()

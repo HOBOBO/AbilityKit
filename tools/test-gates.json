@@ -488,6 +488,22 @@
           "project": "src/AbilityKit.Modifiers.Tests/AbilityKit.Modifiers.Tests.csproj"
         },
         {
+          "name": "BehaviorTree runtime and node library tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.BehaviorTree.Tests/AbilityKit.BehaviorTree.Tests.csproj"
+        },
+        {
+          "name": "BehaviorTree Unity compile check (asmdef boundary mirror; skips if Unity absent)",
+          "kind": "powershell-script",
+          "script": "tools/run-unity-compile-check.ps1",
+          "timeoutSeconds": 300
+        },
+        {
+          "name": "HFSM deterministic runtime contract tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.HFSM.Core.Tests/AbilityKit.HFSM.Core.Tests.csproj"
+        },
+        {
           "name": "Attributes correctness and allocation tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Attributes.Tests/AbilityKit.Attributes.Tests.csproj"
@@ -999,6 +1015,38 @@
           "projectPath": "Unity",
           "testPlatform": "EditMode",
           "testFilter": "AbilityKit.Game.Test.UnitTest.YingZhengSkillAcceptanceTests"
+        }
+      ]
+    },
+    {
+      "name": "moba-config-sync",
+      "level": "P1",
+      "owner": "MOBA Runtime/Config Tooling",
+      "description": "Excel⇄SO⇄JSON 配置链的三方合并、删除传播与数组列编解码 EditMode 验证（Buff 表垂直切片，含 headless 流程所依赖的 excel-sync 核心）。",
+      "scope": [
+        "moba-config-sync",
+        "excel-sync",
+        "config-tooling"
+      ],
+      "requiredBefore": [
+        "change-excel-sync-core-or-codecs",
+        "change-moba-config-folder-sync",
+        "change-moba-config-headless-sync"
+      ],
+      "failurePolicy": "Block config tooling changes until the Buff Excel/SO/JSON round-trip, deletion propagation, and conflict abort tests pass.",
+      "ciPolicy": {
+        "runOnPullRequest": false,
+        "runOnPush": false,
+        "runOnSchedule": true,
+        "artifactRequired": true
+      },
+      "steps": [
+        {
+          "name": "Config sync Excel round-trip (Buff slice)",
+          "kind": "unity-editmode-test",
+          "projectPath": "Unity",
+          "testPlatform": "EditMode",
+          "testFilter": "AbilityKit.Demo.Moba.ConfigSync.Tests.BuffExcelRoundTripTests"
         }
       ]
     },

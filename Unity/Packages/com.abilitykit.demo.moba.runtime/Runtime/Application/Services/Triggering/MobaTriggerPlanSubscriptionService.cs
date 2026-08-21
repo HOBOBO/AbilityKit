@@ -12,11 +12,13 @@ using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Config.Plans;
+using AbilityKit.Triggering.Blackboard;
+using AbilityKit.Demo.Moba.Rollback;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering
 {
     [WorldService(typeof(MobaTriggerPlanSubscriptionService))]
-    public sealed class MobaTriggerPlanSubscriptionService : IWorldInitializable, IWorldDeinitializable
+    public sealed class MobaTriggerPlanSubscriptionService : IWorldInitializable, IWorldDeinitializable, IMobaOwnerKeySource
     {
         private static readonly MethodInfo s_registerTypedAsMethod = typeof(MobaTriggerPlanSubscriptionService)
             .GetMethod(nameof(RegisterTypedAs), BindingFlags.Instance | BindingFlags.NonPublic);
@@ -27,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         [WorldInject(required: false)] private MobaEventSubscriptionRegistry _eventRegistry = null;
         [WorldInject(required: false)] private MobaOwnerBoundTriggerGateService _ownerBoundGates = null;
         [WorldInject(required: false)] private MobaEffectExecutionService _effects = null;
+        [WorldInject] private IOwnerBlackboardStore _ownerBlackboards = null;
 
         private readonly Dictionary<int, TriggerPlanJsonDatabase.Record> _byTriggerId = new Dictionary<int, TriggerPlanJsonDatabase.Record>();
         private readonly Dictionary<int, Type> _argsTypeByTriggerId = new Dictionary<int, Type>();
@@ -126,6 +129,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             if (_db == null || _runner == null) return;
 
+            var ownerBlackboards = _ownerBlackboards.GetOrCreate(ownerKey);
+
             if (!_regsByOwnerKey.TryGetValue(ownerKey, out var regs) || regs == null)
             {
                 regs = new Dictionary<int, IDisposable>(triggerIds.Count);
@@ -136,7 +141,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             {
                 var triggerId = triggerIds[i];
                 if (triggerId <= 0 || regs.ContainsKey(triggerId)) continue;
-                if (!TryRegister(ownerKey, triggerId, out var registration)) continue;
+                if (!TryRegister(ownerKey, triggerId, ownerBlackboards, out var registration)) continue;
 
                 regs[triggerId] = registration;
             }
@@ -145,6 +150,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             if (regs.Count == 0)
             {
                 _regsByOwnerKey.Remove(ownerKey);
+                _ownerBlackboards.Release(ownerKey);
             }
         }
 
@@ -171,7 +177,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
         }
 
-        private bool TryRegister(long ownerKey, int triggerId, out IDisposable registration)
+        private bool TryRegister(
+            long ownerKey,
+            int triggerId,
+            IBlackboardResolver ownerBlackboards,
+            out IDisposable registration)
         {
             registration = null;
             if (!_byTriggerId.TryGetValue(triggerId, out var record))
@@ -194,7 +204,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             try
             {
-                registration = RegisterTyped(ownerKey, record);
+                registration = RegisterTyped(ownerKey, record, ownerBlackboards);
                 return registration != null;
             }
             catch (Exception ex)
@@ -204,7 +214,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
         }
 
-        private IDisposable RegisterTyped(long ownerKey, in TriggerPlanJsonDatabase.Record record)
+        private IDisposable RegisterTyped(
+            long ownerKey,
+            in TriggerPlanJsonDatabase.Record record,
+            IBlackboardResolver ownerBlackboards)
         {
             if (!_argsTypeByTriggerId.TryGetValue(record.TriggerId, out var argsType) || argsType == null)
             {
@@ -219,7 +232,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             try
             {
                 var method = s_registerTypedAsMethod.MakeGenericMethod(argsType);
-                var registration = (IDisposable)method.Invoke(this, new object[] { ownerKey, record.EventId, record.Plan });
+                var registration = (IDisposable)method.Invoke(
+                    this,
+                    new object[] { ownerKey, record.EventId, record.Plan, ownerBlackboards });
                 if (registration == null)
                 {
                     throw new InvalidOperationException($"Owner-bound trigger typed registration returned null. triggerId={record.TriggerId} eventName={record.EventName} eid={record.EventId}");
@@ -233,7 +248,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
         }
 
-        private IDisposable RegisterTypedAs<TArgs>(long ownerKey, int eventId, TriggerPlan<object> plan)
+        private IDisposable RegisterTypedAs<TArgs>(
+            long ownerKey,
+            int eventId,
+            TriggerPlan<object> plan,
+            IBlackboardResolver ownerBlackboards)
             where TArgs : class
         {
             if (_ownerBoundGates == null)
@@ -248,7 +267,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
             var typedPlan = plan.AsArgs<TArgs>();
             var inner = new PlannedTrigger<TArgs, IWorldResolver>(typedPlan);
-            var trigger = new GatedOwnerBoundTrigger<TArgs>(ownerKey, inner, _ownerBoundGates, _effects, RecordEvaluation);
+            var trigger = new GatedOwnerBoundTrigger<TArgs>(
+                ownerKey,
+                inner,
+                _ownerBoundGates,
+                _effects,
+                ownerBlackboards,
+                RecordEvaluation);
 
             var key = new EventKey<TArgs>(eventId);
             return _runner.Register(key, trigger, typedPlan.Phase, typedPlan.Priority);
@@ -257,11 +282,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
         public void Stop(long ownerKey)
         {
             if (ownerKey == 0) return;
-            if (!_regsByOwnerKey.TryGetValue(ownerKey, out var regs) || regs == null) return;
-
+            _regsByOwnerKey.TryGetValue(ownerKey, out var regs);
             _regsByOwnerKey.Remove(ownerKey);
             _evaluationsByOwnerKey.Remove(ownerKey);
-            DisposeRegistrations(ownerKey, regs);
+            if (regs != null) DisposeRegistrations(ownerKey, regs);
+            _ownerBlackboards?.Release(ownerKey);
         }
 
         private void RecordEvaluation(long ownerKey, int triggerId, bool gatePassed, bool sourceResolved, bool planPassed)
@@ -346,15 +371,23 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             private readonly ITrigger<TArgs, IWorldResolver> _inner;
             private readonly MobaOwnerBoundTriggerGateService _gates;
             private readonly MobaEffectExecutionService _effects;
+            private readonly IBlackboardResolver _ownerBlackboards;
             private readonly Action<long, int, bool, bool, bool> _recordEvaluation;
             private readonly int _triggerId;
 
-            public GatedOwnerBoundTrigger(long ownerKey, ITrigger<TArgs, IWorldResolver> inner, MobaOwnerBoundTriggerGateService gates, MobaEffectExecutionService effects, Action<long, int, bool, bool, bool> recordEvaluation)
+            public GatedOwnerBoundTrigger(
+                long ownerKey,
+                ITrigger<TArgs, IWorldResolver> inner,
+                MobaOwnerBoundTriggerGateService gates,
+                MobaEffectExecutionService effects,
+                IBlackboardResolver ownerBlackboards,
+                Action<long, int, bool, bool, bool> recordEvaluation)
             {
                 _ownerKey = ownerKey;
                 _inner = inner ?? throw new ArgumentNullException(nameof(inner));
                 _gates = gates ?? throw new ArgumentNullException(nameof(gates));
                 _effects = effects ?? throw new ArgumentNullException(nameof(effects));
+                _ownerBlackboards = ownerBlackboards ?? throw new ArgumentNullException(nameof(ownerBlackboards));
                 _recordEvaluation = recordEvaluation;
                 _triggerId = inner is ITriggerWithId withId ? withId.TriggerId : 0;
             }
@@ -380,7 +413,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
 
                 using (_gates.BeginEvaluationScope(in source))
                 {
-                    var planPassed = _inner.Evaluate(in args, in ctx);
+                    var ownerCtx = WithBlackboards(in ctx, _ownerBlackboards);
+                    var planPassed = _inner.Evaluate(in args, in ownerCtx);
                     _recordEvaluation?.Invoke(_ownerKey, _triggerId, true, true, planPassed);
                     return planPassed;
                 }
@@ -391,19 +425,43 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                 if (!_gates.CanExecute(_ownerKey, _triggerId)) return;
                 if (!_gates.TryGetExecutionSource(_ownerKey, _triggerId, out var source)) return;
 
-                if (_effects.ExecuteOwnerBoundTriggerActions(_triggerId, args, in ctx, in source, _inner))
+                var ownerCtx = WithBlackboards(in ctx, _ownerBlackboards);
+                if (_effects.ExecuteOwnerBoundTriggerActions(_triggerId, args, in ownerCtx, in source, _inner))
                 {
                     _gates.Complete(_ownerKey, _triggerId);
                 }
+            }
+
+            private static ExecCtx<IWorldResolver> WithBlackboards(
+                in ExecCtx<IWorldResolver> ctx,
+                IBlackboardResolver blackboards)
+            {
+                return new ExecCtx<IWorldResolver>(
+                    ctx.Context,
+                    ctx.EventBus,
+                    ctx.Functions,
+                    ctx.Actions,
+                    blackboards,
+                    ctx.Payloads,
+                    ctx.StronglyTypedPayloads,
+                    ctx.IdNames,
+                    ctx.NumericDomains,
+                    ctx.NumericFunctions,
+                    ctx.Policy,
+                    ctx.Control,
+                    ctx.ActionSchedulerManager);
             }
         }
 
         public void Dispose()
         {
+            var keys = new List<long>(_regsByOwnerKey.Keys);
+            for (var i = 0; i < keys.Count; i++) Stop(keys[i]);
             _byTriggerId.Clear();
             _argsTypeByTriggerId.Clear();
-            _regsByOwnerKey.Clear();
             _evaluationsByOwnerKey.Clear();
         }
+
+        public string Name => "trigger-subscription";
     }
 }

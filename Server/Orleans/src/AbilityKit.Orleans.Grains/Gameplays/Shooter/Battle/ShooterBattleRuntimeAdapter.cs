@@ -39,7 +39,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         return snapshot;
     }
 
-    private sealed class ShooterBattleRuntimeSession : IBattleRuntimeSession, IObserverAwareBattleRuntimeSession, IReliableBattleEventProducer
+    private sealed class ShooterBattleRuntimeSession : IBattleRuntimeSession, IBattleRuntimeStateHashProvider, IBattleRuntimeStageDiagnostics, IObserverAwareBattleRuntimeSession, IReliableBattleEventProducer
     {
         private readonly string _battleId;
         private readonly ServerBattleWorldManager _worldManager;
@@ -53,6 +53,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
         private uint _lastPureStateBaselineHash;
         private readonly Dictionary<string, ShooterObserverPureStateSyncState> _observerPureStateSyncStates = new(StringComparer.Ordinal);
         private readonly Dictionary<string, int> _playerIdsByAccountId = new(StringComparer.Ordinal);
+        private readonly ShooterPureStateFrameSampleRing _pureStateFrameSamples = new();
 
         public ShooterBattleRuntimeSession(
             string battleId,
@@ -72,6 +73,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             _stateSyncPushOptions = ResolveStateSyncPushOptions(initParams);
+            _pureStateFrameSamples.Clear();
 
             _worldId = initParams.WorldId;
             _battleWorld = _worldManager.CreateBattleWorld(
@@ -284,7 +286,34 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             _driverHost.AdvanceFrame(deltaTime);
+            CapturePureStateFrameSample();
             return _driverHost.CurrentFrame >= frame;
+        }
+
+        public uint ComputeStateHash()
+        {
+            return _runtime?.ComputeStateHash() ?? 0u;
+        }
+
+        public void SetStageTimingSink(Action<string, double>? sink)
+        {
+            if (_runtime is IShooterBattlePerformancePort performance)
+            {
+                performance.StageTimingSink = sink;
+            }
+        }
+
+        private void CapturePureStateFrameSample()
+        {
+            if (_runtime == null ||
+                _stateSyncPushOptions.PayloadMode != ShooterStateSyncPushPayloadMode.PureState ||
+                _stateSyncPushOptions.PlaybackPayloadMode != ShooterPureStatePlaybackPayloadMode.MultiSampleBlock)
+            {
+                return;
+            }
+
+            var transforms = _runtime.ExportPureStateTransformSamplesTransient(out var count);
+            _pureStateFrameSamples.Capture(_runtime.CurrentFrame, _runtime.CurrentFrame, transforms, count);
         }
 
         public IReadOnlyList<ReliableBattleEventSource> CaptureReliableEvents(int frame)
@@ -623,6 +652,8 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 _lastPureStateBaselineHash = pureState.StateHash;
             }
 
+            AttachPureStateFrameSamples(ref pureState, interestScope: null);
+
             return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState, acknowledgements);
         }
 
@@ -682,7 +713,28 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 syncState.RequiresFullSnapshot = false;
             }
 
+            AttachPureStateFrameSamples(ref pureState, interestScope);
+
             return CreatePureStateSyncPush(worldId, isFullSnapshot, in pureState, acknowledgements);
+        }
+
+        private void AttachPureStateFrameSamples(
+            ref ShooterPureStateSnapshotPayload pureState,
+            ShooterPureStateInterestScope? interestScope)
+        {
+            if (_stateSyncPushOptions.PlaybackPayloadMode != ShooterPureStatePlaybackPayloadMode.MultiSampleBlock)
+            {
+                return;
+            }
+
+            var settings = _stateSyncPushOptions.ResolvePureStateSettings();
+            _pureStateFrameSamples.AttachTo(
+                ref pureState,
+                _stateSyncPushOptions.SampleBlockFrameCount,
+                settings.ActiveSyncBudget,
+                interestScope,
+                _stateSyncPushOptions.SampleDensityPolicy,
+                out _);
         }
 
         private static StateSyncPush CreatePureStateSyncPush(
@@ -696,7 +748,9 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             snapshot.SetTransientCounts(
                 snapshot.EffectiveEntityCount,
                 snapshot.EffectiveVisibilityHintCount,
-                acknowledgements.Length);
+                acknowledgements.Length,
+                snapshot.EffectiveFrameSampleCount,
+                snapshot.EffectiveTransformSampleCount);
             return new StateSyncPush
             {
                 WorldId = worldId,
@@ -801,6 +855,7 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             _runtime = null;
             _observerPureStateSyncStates.Clear();
             _playerIdsByAccountId.Clear();
+            _pureStateFrameSamples.Clear();
         }
 
         private static ShooterStartPlayer[] BuildStartPlayers(IReadOnlyList<PlayerInitInfo>? players)

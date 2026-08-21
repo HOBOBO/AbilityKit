@@ -28,6 +28,9 @@ namespace UnityHFSM.Graph
         private bool _isGhostState;
 
         [SerializeField]
+        private string _nextBehaviorKey;
+
+        [SerializeField]
         private List<string> _entryActionMethodNames = new List<string>();
 
         [SerializeField]
@@ -59,6 +62,13 @@ namespace UnityHFSM.Graph
         {
             get => _isGhostState;
             set => _isGhostState = value;
+        }
+
+        /// <summary>Stable AbilityKit.HFSM state binding key used by Next Definition export.</summary>
+        public string NextBehaviorKey
+        {
+            get => _nextBehaviorKey;
+            set => _nextBehaviorKey = value ?? string.Empty;
         }
 
         public IReadOnlyList<string> EntryActionMethodNames => _entryActionMethodNames;
@@ -276,6 +286,7 @@ namespace UnityHFSM.Graph
             clone._size = _size;
             clone._needsExitTime = _needsExitTime;
             clone._isGhostState = _isGhostState;
+            clone._nextBehaviorKey = _nextBehaviorKey;
             clone._entryActionMethodNames = new List<string>(_entryActionMethodNames);
             clone._logicActionMethodNames = new List<string>(_logicActionMethodNames);
             clone._exitActionMethodNames = new List<string>(_exitActionMethodNames);

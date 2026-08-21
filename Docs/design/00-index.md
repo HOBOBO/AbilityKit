@@ -331,11 +331,13 @@ flowchart TB
 |------|------|------|
 | [01-碰撞系统设计](13-FrameworkCore/01-CollisionSystemDesign.md) | 碰撞查询基础设施 | Naive/Grid 世界、几何查询与层协议，候选截断、负坐标 Cell Key、32/64 层冲突、Dynamic Tree 未接入及 E3/E5 边界 |
 | [Behavior 行为执行模块](../../Unity/Packages/com.abilitykit.behavior/Document/Behavior行为执行模块开发设计文档.md) | 包内 canonical | Decision/Executor、帧级 Output、生命周期、Manager 所有权、异常边界与 E0-E2 采用证据 |
-| [02-行为树集成设计](13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md) | 跨模块集成 | Behavior、BTCore 与 MOBA Brain 的决策、结果事件、黑板同步、外部节点工厂和集成边界 |
+| [02-行为树集成设计](13-FrameworkCore/02-BehaviorTreeIntegrationDesign.md) | 跨模块集成（已归档） | BTCore 时代集成决策记录；现行行为树架构见 07，BTCore 已随 P4 退役删除 |
 | [03-Trace 生命周期与导出协议](13-FrameworkCore/03-TraceLifecycleAndExportProtocol.md) | 可观测生命周期 | 通用弱约束树、scope/retain/release、MOBA runtime ownership、领域结构校验、导出协议与寄宿式 E3 证据 |
 | [04-Context 流程实体、快照与 Trace 桥接](13-FrameworkCore/04-ContextFlowSnapshotAndTraceBridge.md) | 上下文传递 | 通用 Context/Flow/Snapshot 与 MOBA combat context 分层、canonical provenance 桥接、identity/ownership 边界 |
 | [05-确定性网格导航](13-FrameworkCore/05-DeterministicGridNavigation.md) | 整数网格导航内核 | 固定邻居与 heap tie-break、clamp/投影/Partial 协议、未生效半径、分配/非线程安全边界和局部 E3 |
 | [06-Shooter RVO 与 Jobs 加速](13-FrameworkCore/06-ShooterRvoAndJobsAcceleration.md) | Shooter 项目避障 | Managed RVO 语义基线、Jobs 仅邻居收集、同步回退、Native 生命周期、速度同步、Runtime E3/E5 与 Jobs/性能证据缺口 |
+| [07-行为树包设计](13-FrameworkCore/07-BehaviorTreePackageDesign.md) | 自研行为树包 | 运行时 IR/编辑配置分离、节点描述符注册与编辑器拉取、确定性执行与快照、调试注册中心、内置节点库与 BTCore 退役路线 |
+| [08-HFSM 确定性内核与渐进迁移](13-FrameworkCore/08-HfsmDeterministicRuntimeEvolution.md) | HFSM canonical 演进 | 自研 Definition/Runtime、定点 Tick、层级语义、快照协议、UnityHFSM 兼容边界与分阶段迁移路线 |
 
 ---
 

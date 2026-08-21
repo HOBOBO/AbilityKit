@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- 镜像 demo.moba.runtime asmdef 中的 BTree 文件子集（引用集按其 asmdef） -->
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS8632;CS8981;CS0436</NoWarn>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <UnityManaged>C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Data\Managed</UnityManaged>
+    <RepoRoot>C:\Workspace\gitProject\AbilityKit</RepoRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)\Unity\Packages\com.abilitykit.demo.moba.runtime\Runtime\Application\Services\Behavior\BTree\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="RuntimeCheck.csproj" />
+    <ProjectReference Include="DeterministicCheck.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(UnityManaged)\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AbilityKit.Core">
+      <HintPath>$(RepoRoot)\Unity\Library\ScriptAssemblies\AbilityKit.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AbilityKit.Demo.Moba.Runtime">
+      <HintPath>$(RepoRoot)\Unity\Library\ScriptAssemblies\AbilityKit.Demo.Moba.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AbilityKit.Demo.Moba.Share">
+      <HintPath>$(RepoRoot)\Unity\Library\ScriptAssemblies\AbilityKit.Demo.Moba.Share.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AbilityKit.Ability.Behavior">
+      <HintPath>$(RepoRoot)\Unity\Library\ScriptAssemblies\AbilityKit.Ability.Behavior.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AbilityKit.Ability">
+      <HintPath>$(RepoRoot)\Unity\Library\ScriptAssemblies\AbilityKit.Ability.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Entitas">
+      <HintPath>$(RepoRoot)\Unity\Packages\com.abilitykit.thirdparty.entitas\Entitas\Entitas.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

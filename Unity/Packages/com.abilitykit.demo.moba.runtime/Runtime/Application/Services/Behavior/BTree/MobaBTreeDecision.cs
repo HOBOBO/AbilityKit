@@ -1,42 +1,36 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
 using AbilityKit.Ability.Behavior;
+using AbilityKit.BehaviorTree;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Moba.Behavior;
-using BTCore.Runtime;
-using BTCore.Runtime.Blackboards;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 {
     /// <summary>
-    /// Adapts a BTCore tree to the shared behavior runtime. MOBA trees are expected to be reactive:
-    /// frame facts are refreshed before Update, and intent nodes must publish their request each tick.
-    /// Persistent state belongs under memory.* rather than in transient fact or intent keys.
+    /// Adapts a deterministic AbilityKit behavior tree to the shared behavior runtime. MOBA trees
+    /// are expected to be reactive: frame facts are refreshed before Update, and intent nodes must
+    /// publish their request each tick. Persistent state belongs under memory.* rather than in
+    /// transient fact or intent keys.
     /// </summary>
     internal sealed class MobaBTreeDecision : IBehaviorDecision, IBehaviorRuntimeSnapshot, IDisposable
     {
-        private static readonly Lazy<IReadOnlyDictionary<string, Type>> s_nodeTypes =
-            new Lazy<IReadOnlyDictionary<string, Type>>(DiscoverNodeTypes, LazyThreadSafetyMode.ExecutionAndPublication);
-
-        private readonly global::BTCore.Runtime.BTree _tree;
+        private readonly BtTreeRuntime _tree;
         private readonly MobaBTreeRuntimeContext _runtimeContext;
         private bool _reportedRunningRoot;
         private bool _disposed;
 
         public string DecisionType => "MobaBTree";
-        public string SnapshotType => "MobaBTree.Runtime.v1";
+        public string SnapshotType => "MobaBTree.Runtime.v2";
         public string CurrentState { get; private set; } = "Running";
-        internal Blackboard Blackboard => _tree.Blackboard;
+        internal BtBlackboard Blackboard => _tree.Blackboard;
 
         private MobaBTreeDecision(
-            global::BTCore.Runtime.BTree tree,
+            BtTreeRuntime tree,
             MobaBTreeRuntimeContext runtimeContext)
         {
             _tree = tree;
@@ -49,14 +43,16 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             MobaConfigDatabase config = null,
             SearchTargetService searchTargets = null,
             Func<long> currentTimeMsProvider = null,
-            MobaBrainSkillSelectionPolicy skillSelectionPolicy = MobaBrainSkillSelectionPolicy.FirstReady)
+            MobaBrainSkillSelectionPolicy skillSelectionPolicy = MobaBrainSkillSelectionPolicy.FirstReady,
+            string debugName = null,
+            string debugOwnerLabel = null)
         {
             if (string.IsNullOrEmpty(json)) return null;
 
-            global::BTCore.Runtime.BTree tree;
+            BtTreeDefinition definition;
             try
             {
-                tree = DeserializeAndValidate(json);
+                definition = DeserializeAndValidate(json);
             }
             catch (Exception ex)
             {
@@ -70,13 +66,17 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 searchTargets,
                 currentTimeMsProvider,
                 skillSelectionPolicy);
-            foreach (var node in tree.BTData.Nodes)
-            {
-                if (node is IMobaBTreeContextNode contextNode) contextNode.Bind(runtimeContext);
-            }
+            var services = new BtServiceResolver().Add(runtimeContext);
 
-            tree.RebuildTree();
-            tree.Enable();
+            // DebugName 非空才登记进 BtDebugRegistry，编辑器观察窗口按需拉取；
+            // Dispose 时自动注销
+            var options = new BtTreeRunOptions
+            {
+                DebugName = string.IsNullOrEmpty(debugName) ? null : debugName,
+                DebugOwnerLabel = debugOwnerLabel,
+            };
+            var tree = BtTreeRuntime.Create(definition, MobaBTreeCatalog.Registry, services, options);
+            tree.Enable(0, Fixed64.Zero);
             return new MobaBTreeDecision(tree, runtimeContext);
         }
 
@@ -85,113 +85,39 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             DeserializeAndValidate(json);
         }
 
-        private static global::BTCore.Runtime.BTree DeserializeAndValidate(string json)
+        private static BtTreeDefinition DeserializeAndValidate(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
                 throw new ArgumentException("MOBA behavior-tree JSON is required.", nameof(json));
 
-            var normalized = NormalizeSerializedTypes(json);
-            var tree = JsonConvert.DeserializeObject<global::BTCore.Runtime.BTree>(
-                normalized,
-                BTDef.SerializerSettingsAuto)
-                ?? throw new InvalidOperationException("MOBA behavior-tree JSON produced a null tree.");
-
-            ValidateTreeStructure(tree);
-            MobaBTreeBlackboard.Initialize(tree.Blackboard);
-            return tree;
-        }
-
-        private static void ValidateTreeStructure(global::BTCore.Runtime.BTree tree)
-        {
-            if (tree.BTData == null)
-                throw new InvalidOperationException("MOBA behavior tree requires BTData.");
-            if (tree.Blackboard == null)
-                throw new InvalidOperationException("MOBA behavior tree requires a blackboard.");
-            if (tree.BTData.Nodes == null || tree.BTData.Nodes.Count == 0)
-                throw new InvalidOperationException("MOBA behavior tree requires a non-empty node list.");
-
-            var nodesByGuid = new Dictionary<string, BTNode>(StringComparer.Ordinal);
-            EntryNode entry = null;
-            for (var i = 0; i < tree.BTData.Nodes.Count; i++)
+            var definition = BtTreeJson.Load(json);
+            MobaBTreeBlackboard.EnsureStandardSchema(definition);
+            var errors = BtTreeValidator.Validate(definition, MobaBTreeCatalog.Registry);
+            if (errors.Count > 0)
             {
-                var node = tree.BTData.Nodes[i]
-                    ?? throw new InvalidOperationException($"MOBA behavior-tree node at index {i} is null.");
-                if (string.IsNullOrWhiteSpace(node.Guid))
-                    throw new InvalidOperationException($"MOBA behavior-tree node at index {i} has an empty GUID.");
-                if (!nodesByGuid.TryAdd(node.Guid, node))
-                    throw new InvalidOperationException($"MOBA behavior-tree node GUID '{node.Guid}' is duplicated.");
-                if (node is EntryNode currentEntry)
-                {
-                    if (entry != null)
-                        throw new InvalidOperationException("MOBA behavior tree must contain exactly one entry node.");
-                    entry = currentEntry;
-                }
+                throw new InvalidOperationException(
+                    "MOBA behavior tree is invalid: " + string.Join("; ", errors));
             }
-
-            if (entry == null)
-                throw new InvalidOperationException("MOBA behavior tree requires an entry node.");
-            if (string.IsNullOrWhiteSpace(entry.ChildGuid) || !nodesByGuid.ContainsKey(entry.ChildGuid))
-                throw new InvalidOperationException($"MOBA behavior-tree entry references missing child '{entry.ChildGuid}'.");
-
-            foreach (var pair in nodesByGuid)
-            {
-                var children = pair.Value.GetChildrenGuids();
-                if (children == null) continue;
-                foreach (var childGuid in children)
-                {
-                    if (string.IsNullOrWhiteSpace(childGuid) || !nodesByGuid.ContainsKey(childGuid))
-                    {
-                        throw new InvalidOperationException(
-                            $"MOBA behavior-tree node '{pair.Key}' references missing child '{childGuid}'.");
-                    }
-                }
-            }
-        }
-
-        private static string NormalizeSerializedTypes(string json)
-        {
-            var root = JObject.Parse(json);
-            var nodeTypes = s_nodeTypes.Value;
-            var btAssemblyName = typeof(global::BTCore.Runtime.BTree).Assembly.GetName().Name;
-
-            foreach (var obj in new[] { root }.Concat(root.Descendants().OfType<JObject>()))
-            {
-                if (obj["$type"]?.Type != JTokenType.String) continue;
-                var serializedType = obj["$type"].Value<string>();
-                if (serializedType.StartsWith("BTEXT:", StringComparison.Ordinal))
-                {
-                    var nodeName = serializedType.Substring("BTEXT:".Length);
-                    if (!nodeTypes.TryGetValue(nodeName, out var nodeType))
-                        throw new JsonSerializationException($"Unknown MOBA behavior-tree node: {nodeName}");
-                    serializedType = nodeType.AssemblyQualifiedName;
-                }
-                else
-                {
-                    serializedType = serializedType.Replace(", BTRuntime", ", " + btAssemblyName);
-                }
-
-                obj["$type"] = serializedType;
-            }
-
-            return root.ToString(Formatting.None);
+            return definition;
         }
 
         public DecisionResult Decide(IBehaviorContext context, IWorldQuery world)
         {
-            if (_disposed || _tree == null || context == null || world == null)
+            if (_disposed || context == null || world == null)
                 return DecisionResult.Continue(CurrentState);
 
             var bb = _tree.Blackboard;
             _runtimeContext.BeginEvaluation(context, world);
             SyncFrameFacts(bb, context, world);
-            _tree.Update();
+            var nowMs = _runtimeContext.GetCurrentTimeMs();
+            _tree.Update((int)context.CurrentFrame, Fixed64.FromRatio(nowMs, 1000L));
 
-            var rootState = _tree.BTData.EntryNode?.GetChild()?.State ?? _tree.TreeState;
-            if (rootState == NodeState.Success || rootState == NodeState.Failure)
+            var rootState = _tree.RootNodeState;
+            if (rootState == BtNodeState.Success || rootState == BtNodeState.Failure)
             {
                 _tree.Restart();
             }
-            else if (rootState == NodeState.Running && !_reportedRunningRoot)
+            else if (rootState == BtNodeState.Running && !_reportedRunningRoot)
             {
                 _reportedRunningRoot = true;
                 Log.Warning("[MobaBTreeDecision] root is Running. A running MOBA node must refresh " +
@@ -199,30 +125,30 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             }
 
             var parameters = new Dictionary<string, object>();
-            var outputKind = (MobaBTreeIntentKind)bb.GetValue<int>(MobaBTreeKeys.OutputKind);
-            if (outputKind == MobaBTreeIntentKind.Move && bb.GetValue<bool>(MobaBTreeKeys.HasMove))
+            var outputKind = (MobaBTreeIntentKind)bb.GetInt64(MobaBTreeKeys.OutputKind);
+            if (outputKind == MobaBTreeIntentKind.Move && bb.GetBool(MobaBTreeKeys.HasMove))
             {
                 parameters["MoveTarget"] = new Vec3(
-                    bb.GetValue<float>(MobaBTreeKeys.MoveX),
-                    bb.GetValue<float>(MobaBTreeKeys.MoveY),
-                    bb.GetValue<float>(MobaBTreeKeys.MoveZ));
+                    bb.GetFixed64(MobaBTreeKeys.MoveX).ToSingle(),
+                    bb.GetFixed64(MobaBTreeKeys.MoveY).ToSingle(),
+                    bb.GetFixed64(MobaBTreeKeys.MoveZ).ToSingle());
                 parameters["MoveSpeed"] = world.GetMoveSpeed(context.OwnerId, 5f);
                 CurrentState = "Chasing";
             }
-            else if (outputKind == MobaBTreeIntentKind.Cast && bb.GetValue<bool>(MobaBTreeKeys.HasCast))
+            else if (outputKind == MobaBTreeIntentKind.Cast && bb.GetBool(MobaBTreeKeys.HasCast))
             {
-                parameters[MobaBrainExecutor.SkillIdParam] = bb.GetValue<int>(MobaBTreeKeys.CastSkillId);
-                parameters[MobaBrainExecutor.SkillSlotParam] = bb.GetValue<int>(MobaBTreeKeys.CastSkillSlot);
+                parameters[MobaBrainExecutor.SkillIdParam] = (int)bb.GetInt64(MobaBTreeKeys.CastSkillId);
+                parameters[MobaBrainExecutor.SkillSlotParam] = (int)bb.GetInt64(MobaBTreeKeys.CastSkillSlot);
                 parameters[MobaBrainExecutor.TargetActorIdParam] =
-                    bb.GetValue<int>(MobaBTreeKeys.CastTargetActorId);
+                    (int)bb.GetInt64(MobaBTreeKeys.CastTargetActorId);
                 parameters[MobaBrainExecutor.AimPositionParam] = new Vec3(
-                    bb.GetValue<float>(MobaBTreeKeys.CastAimX),
-                    bb.GetValue<float>(MobaBTreeKeys.CastAimY),
-                    bb.GetValue<float>(MobaBTreeKeys.CastAimZ));
+                    bb.GetFixed64(MobaBTreeKeys.CastAimX).ToSingle(),
+                    bb.GetFixed64(MobaBTreeKeys.CastAimY).ToSingle(),
+                    bb.GetFixed64(MobaBTreeKeys.CastAimZ).ToSingle());
                 parameters[MobaBrainExecutor.AimDirectionParam] = new Vec3(
-                    bb.GetValue<float>(MobaBTreeKeys.CastDirectionX),
-                    bb.GetValue<float>(MobaBTreeKeys.CastDirectionY),
-                    bb.GetValue<float>(MobaBTreeKeys.CastDirectionZ));
+                    bb.GetFixed64(MobaBTreeKeys.CastDirectionX).ToSingle(),
+                    bb.GetFixed64(MobaBTreeKeys.CastDirectionY).ToSingle(),
+                    bb.GetFixed64(MobaBTreeKeys.CastDirectionZ).ToSingle());
                 CurrentState = "Casting";
             }
             else
@@ -238,62 +164,36 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             if (_disposed) return;
             _disposed = true;
             _runtimeContext.EndEvaluation();
+            _tree.Dispose();
             CurrentState = "Disposed";
         }
 
         public byte[] CaptureSnapshot()
         {
             if (_disposed) return Array.Empty<byte>();
-            var snapshot = _tree.CaptureRuntimeSnapshot();
             return System.Text.Encoding.UTF8.GetBytes(
-                JsonConvert.SerializeObject(snapshot, BTDef.SerializerSettingsAuto));
+                BtTreeJson.SaveSnapshot(_tree.CaptureState()));
         }
 
         public void RestoreSnapshot(byte[] payload)
         {
             if (_disposed || payload == null || payload.Length == 0) return;
             var json = System.Text.Encoding.UTF8.GetString(payload);
-            var snapshot = JsonConvert.DeserializeObject<global::BTCore.Runtime.BTreeRuntimeSnapshot>(
-                json, BTDef.SerializerSettingsAuto);
-            _tree.RestoreRuntimeSnapshot(snapshot);
+            _tree.RestoreState(BtTreeJson.LoadSnapshot(json));
             _reportedRunningRoot = false;
         }
 
-        private static IReadOnlyDictionary<string, Type> DiscoverNodeTypes()
-        {
-            var generated = MobaGeneratedBTreeNodeManifest.CreateNodeTypes();
-            if (generated.Count > 0)
-            {
-                return generated;
-            }
-
-            if (AppContext.TryGetSwitch(
-                    "AbilityKit.Moba.DisableBTreeNodeReflectionFallback",
-                    out var reflectionFallbackDisabled) && reflectionFallbackDisabled)
-            {
-                throw new InvalidOperationException(
-                    "The generated MOBA behavior-tree node manifest is empty and reflection fallback is disabled.");
-            }
-
-            return typeof(MobaBTreeDecision).Assembly
-                .GetTypes()
-                .Where(type => !type.IsAbstract
-                               && typeof(BTNode).IsAssignableFrom(type)
-                               && type.Namespace == typeof(MobaBTreeDecision).Namespace)
-                .ToDictionary(type => type.Name, StringComparer.Ordinal);
-        }
-
-        private static void SyncFrameFacts(Blackboard bb, IBehaviorContext context, IWorldQuery world)
+        private static void SyncFrameFacts(BtBlackboard bb, IBehaviorContext context, IWorldQuery world)
         {
             var ownerPosition = world.GetPosition(context.OwnerId);
-            bb.SetValue(MobaBTreeKeys.OwnerId, context.OwnerId.Value);
-            bb.SetValue(MobaBTreeKeys.OwnerX, ownerPosition.X);
-            bb.SetValue(MobaBTreeKeys.OwnerY, ownerPosition.Y);
-            bb.SetValue(MobaBTreeKeys.OwnerZ, ownerPosition.Z);
-            bb.SetValue(MobaBTreeKeys.OwnerSpeed, world.GetMoveSpeed(context.OwnerId, 5f));
-            bb.SetValue(MobaBTreeKeys.OwnerCanMove, world.CanMove(context.OwnerId));
-            bb.SetValue(MobaBTreeKeys.OwnerCanCast, world.CanCast(context.OwnerId));
-            bb.SetValue(MobaBTreeKeys.EvaluationFrame, context.CurrentFrame);
+            bb.SetInt64(MobaBTreeKeys.OwnerId, context.OwnerId.Value);
+            bb.SetFixed64(MobaBTreeKeys.OwnerX, Fixed64.FromSingle(ownerPosition.X));
+            bb.SetFixed64(MobaBTreeKeys.OwnerY, Fixed64.FromSingle(ownerPosition.Y));
+            bb.SetFixed64(MobaBTreeKeys.OwnerZ, Fixed64.FromSingle(ownerPosition.Z));
+            bb.SetFixed64(MobaBTreeKeys.OwnerSpeed, Fixed64.FromSingle(world.GetMoveSpeed(context.OwnerId, 5f)));
+            bb.SetBool(MobaBTreeKeys.OwnerCanMove, world.CanMove(context.OwnerId));
+            bb.SetBool(MobaBTreeKeys.OwnerCanCast, world.CanCast(context.OwnerId));
+            bb.SetInt64(MobaBTreeKeys.EvaluationFrame, context.CurrentFrame);
             MobaBTreeBlackboard.ClearTransientIntents(bb);
         }
     }

@@ -26,6 +26,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
         /// </summary>
         ShooterPlayerSnapshot[] GetPlayerSnapshotsTransient();
 
+        /// <summary>
+        /// Returns transform-only presentation samples in a runtime-owned reusable array.
+        /// Consume the valid prefix before the next transient snapshot export.
+        /// </summary>
+        ShooterPureStateTransformSample[] ExportPureStateTransformSamplesTransient(out int count);
+
         bool TryGetPlayer(int playerId, out ShooterSveltoPlayerComponent player);
 
         void SetPlayer(in ShooterSveltoPlayerComponent player);

@@ -1,3 +1,4 @@
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -225,10 +226,65 @@ namespace UnityHFSM.Editor
 
             ToolbarButton exportButton = _root.Q<ToolbarButton>("ExportButton");
             if (exportButton != null)
-                exportButton.clickable = new Clickable(() => ExportToJson());
+                exportButton.clickable = new Clickable(ShowExportMenu);
         }
 
-        private void ExportToJson()
+        private void ShowExportMenu()
+        {
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Next Runtime Definition"), false, ExportNextDefinition);
+            menu.AddItem(new GUIContent("Legacy Archive JSON"), false, ExportLegacyArchive);
+            menu.ShowAsContext();
+        }
+
+        private void ExportNextDefinition()
+        {
+            if (_context.GraphAsset == null)
+            {
+                EditorUtility.DisplayDialog("Export", "No graph loaded to export.", "OK");
+                return;
+            }
+
+            HfsmNextDefinitionExportResult result;
+            try
+            {
+                var configuredCatalog = HfsmEditorBindingCatalog.ConfiguredAsset;
+                result = configuredCatalog == null
+                    ? HfsmNextDefinitionExporter.Export(_context.GraphAsset)
+                    : HfsmNextDefinitionExporter.ExportUsingCatalogAsset(_context.GraphAsset, configuredCatalog);
+            }
+            catch (System.Exception exception)
+            {
+                EditorUtility.DisplayDialog("Next Export Failed", exception.Message, "OK");
+                return;
+            }
+
+            if (!result.IsSuccess)
+            {
+                var details = string.Join("\n", result.Issues.Select(issue => issue.ToString()));
+                EditorUtility.DisplayDialog(
+                    "Next Export Blocked",
+                    string.IsNullOrEmpty(details) ? "The graph could not be converted." : details,
+                    "OK");
+                return;
+            }
+
+            var path = EditorUtility.SaveFilePanelInProject(
+                "Export HFSM Next Runtime Definition",
+                _context.GraphAsset.GraphName + ".hfsm",
+                "json",
+                "Choose where to save the validated runtime definition");
+            if (string.IsNullOrEmpty(path)) return;
+
+            System.IO.File.WriteAllText(path, result.Json, new System.Text.UTF8Encoding(false));
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog(
+                "Next Export Successful",
+                $"Validated runtime definition exported to:\n{path}\n\nDefinition hash: {result.Definition.ComputeDefinitionHash()}",
+                "OK");
+        }
+
+        private void ExportLegacyArchive()
         {
             if (_context.GraphAsset == null)
             {

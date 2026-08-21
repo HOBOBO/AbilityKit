@@ -24,6 +24,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int DebugLog = 0;
         public const int SetGameplayVar = 0;
         public const int AddGameplayVar = 0;
+        public const int SetNumericBlackboard = 0;
+        public const int AddNumericBlackboard = 0;
+        public const int SetBlackboardVariable = 0;
         public const int AdvanceGameplayCounter = 0;
         public const int EndGame = 0;
 

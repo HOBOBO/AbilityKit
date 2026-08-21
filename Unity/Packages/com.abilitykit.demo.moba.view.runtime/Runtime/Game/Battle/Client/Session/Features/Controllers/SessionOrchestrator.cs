@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
@@ -15,9 +17,11 @@ namespace AbilityKit.Game.Flow
         private readonly BattleSessionState _state;
         private readonly BattleSessionHandles _handles;
         private readonly ISessionOrchestratorHost _host;
+        private readonly object _stopGate = new object();
         private CleanupStep _completedCleanupSteps;
         private bool _cleanupRequired;
         private bool _sessionStartingPipelineEntered;
+        private Task _pendingStopTask = Task.CompletedTask;
 
         [Flags]
         private enum CleanupStep
@@ -26,15 +30,16 @@ namespace AbilityKit.Game.Flow
             RecordWriter = 1 << 0,
             BattleContext = 1 << 1,
             StoppingPipeline = 1 << 2,
-            SnapshotRouting = 1 << 3,
-            ConfirmedView = 1 << 4,
-            BattleWorlds = 1 << 5,
-            ConfirmedWorld = 1 << 6,
-            RemoteDrivenWorld = 1 << 7,
-            RemoteInterpolation = 1 << 8,
-            FrameSubscription = 1 << 9,
-            LogicSession = 1 << 10,
-            SessionHandles = 1 << 11,
+            Recovery = 1 << 3,
+            SnapshotRouting = 1 << 4,
+            ConfirmedView = 1 << 5,
+            BattleWorlds = 1 << 6,
+            ConfirmedWorld = 1 << 7,
+            RemoteDrivenWorld = 1 << 8,
+            RemoteInterpolation = 1 << 9,
+            FrameSubscription = 1 << 10,
+            LogicSession = 1 << 11,
+            SessionHandles = 1 << 12,
         }
 
         public SessionOrchestrator(BattleSessionState state, BattleSessionHandles handles, ISessionOrchestratorHost host)
@@ -93,29 +98,60 @@ namespace AbilityKit.Game.Flow
 
         public void StopSession()
         {
-            if (_state.Lifecycle == BattleSessionLifecycleState.Stopping) return;
-            if (!_cleanupRequired &&
-                (_state.Lifecycle == BattleSessionLifecycleState.Created ||
-                 _state.Lifecycle == BattleSessionLifecycleState.Stopped))
-            {
-                if (_state.Lifecycle == BattleSessionLifecycleState.Created)
-                {
-                    _state.BeginStop();
-                    _state.CompleteStop();
-                }
-                return;
-            }
+            StopSessionAsync().GetAwaiter().GetResult();
+        }
 
-            _state.BeginStop();
+        internal Task StopSessionAsync()
+        {
+            lock (_stopGate)
+            {
+                if (!_pendingStopTask.IsCompleted)
+                {
+                    return _pendingStopTask;
+                }
+
+                _pendingStopTask = StopSessionCoreAsync();
+                return _pendingStopTask;
+            }
+        }
+
+        private async Task StopSessionCoreAsync()
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var diagnosticGeneration =
+                _state.LifecycleDiagnostics.BeginPendingOperation("battle-session-stop");
+            Exception teardownFailure = null;
             try
             {
-                DisposeSessionResources();
+                if (!_cleanupRequired &&
+                    (_state.Lifecycle == BattleSessionLifecycleState.Created ||
+                     _state.Lifecycle == BattleSessionLifecycleState.Stopped))
+                {
+                    if (_state.Lifecycle == BattleSessionLifecycleState.Created)
+                    {
+                        _state.BeginStop();
+                        _state.CompleteStop();
+                    }
+                    return;
+                }
+
+                _state.BeginStop();
+                await DisposeSessionResourcesAsync().ConfigureAwait(false);
                 _state.CompleteStop();
             }
             catch (Exception ex)
             {
+                teardownFailure = ex;
                 _state.Fault(ex);
                 throw;
+            }
+            finally
+            {
+                stopwatch.Stop();
+                _state.LifecycleDiagnostics.CompletePendingOperation(
+                    diagnosticGeneration,
+                    stopwatch.Elapsed,
+                    teardownFailure);
             }
         }
 
@@ -189,17 +225,22 @@ namespace AbilityKit.Game.Flow
 
         private void DisposeSessionResources()
         {
+            DisposeSessionResourcesAsync().GetAwaiter().GetResult();
+        }
+
+        private async Task DisposeSessionResourcesAsync()
+        {
             if (!_cleanupRequired) return;
 
             var failures = new List<Exception>();
 
-            void DisposeStep(CleanupStep step, Action action, string name)
+            async Task DisposeStepAsync(CleanupStep step, Func<Task> action, string name)
             {
                 if ((_completedCleanupSteps & step) != 0) return;
 
                 try
                 {
-                    action?.Invoke();
+                    await (action?.Invoke() ?? Task.CompletedTask).ConfigureAwait(false);
                     _completedCleanupSteps |= step;
                 }
                 catch (Exception ex)
@@ -211,32 +252,43 @@ namespace AbilityKit.Game.Flow
                 }
             }
 
+            Task DisposeSyncStepAsync(CleanupStep step, Action action, string name) =>
+                DisposeStepAsync(
+                    step,
+                    () =>
+                    {
+                        action?.Invoke();
+                        return Task.CompletedTask;
+                    },
+                    name);
+
             // Reverse startup order. Each successful step is remembered so a later Stop can
             // resume only the failed work without repeating already-completed teardown.
-            DisposeStep(CleanupStep.RecordWriter, _host.DisposeReplayRecordWriter, "input record writer");
-            DisposeStep(CleanupStep.BattleContext, ClearBattleContext, "battle context");
+            await DisposeSyncStepAsync(CleanupStep.RecordWriter, _host.DisposeReplayRecordWriter, "input record writer").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.BattleContext, ClearBattleContext, "battle context").ConfigureAwait(false);
 
             if (_sessionStartingPipelineEntered)
             {
-                DisposeStep(CleanupStep.StoppingPipeline, _host.InvokeSessionStoppingPipeline, "session stopping pipeline");
+                await DisposeSyncStepAsync(CleanupStep.StoppingPipeline, _host.InvokeSessionStoppingPipeline, "session stopping pipeline").ConfigureAwait(false);
             }
             else
             {
                 _completedCleanupSteps |= CleanupStep.StoppingPipeline;
             }
 
-            DisposeStep(CleanupStep.SnapshotRouting, _host.DisposeSnapshotRouting, "snapshot routing");
-            DisposeStep(CleanupStep.ConfirmedView, _host.DisposeConfirmedView, "confirmed view");
-            DisposeStep(CleanupStep.BattleWorlds, _host.TryDestroyBattleWorlds, "battle worlds");
-            DisposeStep(CleanupStep.ConfirmedWorld, _host.DisposeConfirmedWorld, "confirmed world");
-            DisposeStep(CleanupStep.RemoteDrivenWorld, _host.DisposeRemoteDrivenWorld, "remote-driven world");
-            DisposeStep(CleanupStep.RemoteInterpolation, _host.DisposeRemoteInterpolation, "remote interpolation");
-            DisposeStep(CleanupStep.FrameSubscription, _host.UnsubscribeFrameReceived, "unsubscribe frame receiver");
-            DisposeStep(CleanupStep.LogicSession, _host.StopBattleLogicSession, "battle logic session");
+            await DisposeStepAsync(CleanupStep.Recovery, _host.StopRecoveryAsync, "authoritative recovery").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.SnapshotRouting, _host.DisposeSnapshotRouting, "snapshot routing").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.ConfirmedView, _host.DisposeConfirmedView, "confirmed view").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.BattleWorlds, _host.TryDestroyBattleWorlds, "battle worlds").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.ConfirmedWorld, _host.DisposeConfirmedWorld, "confirmed world").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.RemoteDrivenWorld, _host.DisposeRemoteDrivenWorld, "remote-driven world").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.RemoteInterpolation, _host.DisposeRemoteInterpolation, "remote interpolation").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.FrameSubscription, _host.UnsubscribeFrameReceived, "unsubscribe frame receiver").ConfigureAwait(false);
+            await DisposeSyncStepAsync(CleanupStep.LogicSession, _host.StopBattleLogicSession, "battle logic session").ConfigureAwait(false);
 
             if (failures.Count == 0)
             {
-                DisposeStep(CleanupStep.SessionHandles, _host.ResetSessionHandles, "session handles");
+                await DisposeSyncStepAsync(CleanupStep.SessionHandles, _host.ResetSessionHandles, "session handles").ConfigureAwait(false);
             }
 
             if (failures.Count > 0)

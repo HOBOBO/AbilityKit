@@ -6,8 +6,15 @@ using AbilityKit.Ability.World.Services.Attributes;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    public interface IMobaPlayerActorBindingTransaction : IService
+    {
+        void Bind(PlayerId playerId, int actorId);
+        bool Unbind(PlayerId playerId, int expectedActorId);
+    }
+
+    [WorldService(typeof(IMobaPlayerActorBindingTransaction))]
     [WorldService(typeof(MobaPlayerActorMapService))]
-    public sealed class MobaPlayerActorMapService : IService
+    public sealed class MobaPlayerActorMapService : IService, IMobaPlayerActorBindingTransaction
     {
         private readonly Dictionary<string, int> _map = new Dictionary<string, int>();
 

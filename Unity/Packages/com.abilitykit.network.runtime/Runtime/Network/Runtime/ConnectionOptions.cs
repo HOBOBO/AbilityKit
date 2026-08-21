@@ -1,5 +1,8 @@
+#nullable enable
+
 using System;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Runtime.Observability;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -50,7 +53,7 @@ namespace AbilityKit.Network.Runtime
 
     public sealed class ConnectionOptions
     {
-        public IFrameCodec FrameCodec;
+        public IFrameCodec? FrameCodec;
 
         public TimeSpan HeartbeatInterval = TimeSpan.FromSeconds(10);
         public TimeSpan HeartbeatTimeout = TimeSpan.FromSeconds(30);
@@ -69,13 +72,19 @@ namespace AbilityKit.Network.Runtime
         /// Optional transport-session factory. The connection manager owns and disposes the
         /// returned session; the session owns the transport supplied in the factory context.
         /// </summary>
-        public NetworkRuntimeSessionFactory SessionFactory;
+        public NetworkRuntimeSessionFactory? SessionFactory;
 
         /// <summary>Optional heartbeat middleware factory.</summary>
-        public NetworkHeartbeatMiddlewareFactory HeartbeatFactory;
+        public NetworkHeartbeatMiddlewareFactory? HeartbeatFactory;
 
         /// <summary>Optional reconnect cadence factory.</summary>
-        public ReconnectAttemptSchedulerFactory ReconnectSchedulerFactory;
+        public ReconnectAttemptSchedulerFactory? ReconnectSchedulerFactory;
+
+        /// <summary>
+        /// Optional packet observation settings. A new observer is resolved for every physical
+        /// session, including reconnects; the connection generation identifies that session.
+        /// </summary>
+        public NetworkTrafficCaptureOptions? TrafficCapture;
 
         public bool EnableKickHandling;
         public uint KickPushOpCode;

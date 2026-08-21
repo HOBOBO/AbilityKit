@@ -20,6 +20,7 @@ using AbilityKit.Game.Flow;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Protocol.Moba.StateSync;
+using AbilityKit.Triggering.Blackboard;
 using NUnit.Framework;
 
 namespace AbilityKit.Game.Tests
@@ -102,6 +103,126 @@ namespace AbilityKit.Game.Tests
         }
 
         [Test]
+        public void RollbackRegistryBuilder_RegistersOwnerBlackboardProviderOnlyWhenSnapshotCapabilityIsAvailable()
+        {
+            var boardId = BlackboardIdMapper.BoardId("local.rollback.registry");
+            var keyId = BlackboardIdMapper.KeyId("counter");
+            var global = new DictionaryBlackboardResolver();
+            var ownerStore = new OwnerBlackboardStore(global);
+            ownerStore.Configure(new[]
+            {
+                new BlackboardInitializationPlan
+                {
+                    BoardId = boardId,
+                    Scope = BlackboardInitializationScopes.Owner,
+                    Keys = new List<BlackboardInitializationKey>
+                    {
+                        new BlackboardInitializationKey
+                        {
+                            KeyId = keyId,
+                            Type = BlackboardKeyType.Int,
+                            IntValue = 1
+                        }
+                    }
+                }
+            });
+            var owner = ownerStore.GetOrCreate(7001);
+            Assert.That(owner.TryResolve(boardId, out var board), Is.True);
+            board.SetInt(keyId, 7);
+
+            var services = new TestWorldResolver();
+            services.Add<IOwnerBlackboardStore>(ownerStore);
+            using var world = new TestWorld(services);
+
+            var registry = MobaRollbackRegistryBuilder.Create(world);
+            Assert.That(registry.TryGet(MobaOwnerBlackboardRollbackProvider.DefaultKey, out var provider), Is.True);
+            var payload = provider.Export(new FrameIndex(12));
+            board.SetInt(keyId, 99);
+            provider.Import(new FrameIndex(12), payload);
+            Assert.That(board.TryGetInt(keyId, out var restored) && restored == 7, Is.True);
+
+            Assert.That(ownerStore.Release(7001), Is.True);
+            Assert.Throws<InvalidOperationException>(() => provider.Import(new FrameIndex(12), payload));
+        }
+
+        [Test]
+        public void OwnerBlackboardRollbackProvider_ValidatesLifecycleOwnersBeforeRestoringValues()
+        {
+            var boardId = BlackboardIdMapper.BoardId("local.rollback.lifecycle");
+            var keyId = BlackboardIdMapper.KeyId("counter");
+            var ownerStore = new OwnerBlackboardStore();
+            ownerStore.Configure(new[]
+            {
+                new BlackboardInitializationPlan
+                {
+                    BoardId = boardId,
+                    Scope = BlackboardInitializationScopes.Owner,
+                    Keys = new List<BlackboardInitializationKey>
+                    {
+                        new BlackboardInitializationKey
+                        {
+                            KeyId = keyId,
+                            Type = BlackboardKeyType.Int,
+                            IntValue = 1
+                        }
+                    }
+                }
+            });
+
+            var owner = ownerStore.GetOrCreate(8101);
+            Assert.That(owner.TryResolve(boardId, out var board), Is.True);
+            board.SetInt(keyId, 7);
+
+            var lifecycle = new TestOwnerKeySource("test-lifecycle", 8101);
+            var provider = new MobaOwnerBlackboardRollbackProvider(ownerStore, new[] { lifecycle });
+            var payload = provider.Export(new FrameIndex(20));
+
+            board.SetInt(keyId, 99);
+            lifecycle.SetOwnerKeys(8102);
+            var importError = Assert.Throws<InvalidOperationException>(() => provider.Import(new FrameIndex(20), payload));
+            StringAssert.Contains("test-lifecycle", importError.Message);
+            StringAssert.Contains("8102", importError.Message);
+            Assert.That(board.TryGetInt(keyId, out var unchanged) && unchanged == 99, Is.True,
+                "Lifecycle validation must finish before any Blackboard values are restored.");
+
+            var exportError = Assert.Throws<InvalidOperationException>(() => provider.Export(new FrameIndex(21)));
+            StringAssert.Contains("lifecycle check failed", exportError.Message);
+
+            lifecycle.SetOwnerKeys(8101);
+            ownerStore.GetOrCreate(8102);
+            var orphanError = Assert.Throws<InvalidOperationException>(() => provider.Export(new FrameIndex(22)));
+            StringAssert.Contains("8102", orphanError.Message);
+            StringAssert.Contains("no registered lifecycle source", orphanError.Message);
+        }
+
+        [Test]
+        public void RollbackCoordinator_PreflightRunsBeforeAnyProviderImport()
+        {
+            var mutating = new TrackingRollbackProvider(1);
+            var failing = new PreflightFailureRollbackProvider(2);
+            var registry = new RollbackRegistry();
+            registry.Register(mutating);
+            registry.Register(failing);
+            var coordinator = new RollbackCoordinator(registry, new RollbackSnapshotRingBuffer(2));
+            var snapshot = new WorldRollbackSnapshot(
+                WorldRollbackSnapshotCodec.CurrentVersion,
+                new FrameIndex(30),
+                new[]
+                {
+                    new WorldRollbackSnapshotEntry(1, new byte[] { 1 }),
+                    new WorldRollbackSnapshotEntry(2, new byte[] { 2 })
+                });
+
+            Assert.That(coordinator.TryRestore(snapshot, out var result), Is.False);
+            Assert.That(result.Status, Is.EqualTo(RollbackOperationStatus.ProviderFailed));
+            Assert.That(result.ProviderKey, Is.EqualTo(2));
+            Assert.That(result.ProviderCount, Is.EqualTo(0));
+            StringAssert.Contains("preflight", result.Message);
+            Assert.That(mutating.Imported, Is.False,
+                "A preflight failure must happen before any provider mutates runtime state.");
+        }
+
+        [Test]
         public void RollbackProviders_UseUniqueKeys()
         {
             var keys = new[]
@@ -113,6 +234,7 @@ namespace AbilityKit.Game.Tests
                 MobaActorStateMachineRollbackProvider.DefaultKey,
                 MobaBrainRollbackProvider.DefaultKey,
                 MobaShieldRollbackProvider.DefaultKey,
+                MobaOwnerBlackboardRollbackProvider.DefaultKey,
             };
 
             Assert.That(keys.Distinct().Count(), Is.EqualTo(keys.Length),
@@ -275,6 +397,51 @@ namespace AbilityKit.Game.Tests
                 },
                 true);
             return entity;
+        }
+
+        private sealed class TestOwnerKeySource : IMobaOwnerKeySource
+        {
+            private long[] _ownerKeys;
+
+            public TestOwnerKeySource(string name, params long[] ownerKeys)
+            {
+                Name = name;
+                _ownerKeys = ownerKeys ?? Array.Empty<long>();
+            }
+
+            public string Name { get; }
+
+            public void SetOwnerKeys(params long[] ownerKeys)
+            {
+                _ownerKeys = ownerKeys ?? Array.Empty<long>();
+            }
+
+            public void CopyActiveOwnerKeys(List<long> destination)
+            {
+                if (destination == null) return;
+                destination.Clear();
+                destination.AddRange(_ownerKeys);
+            }
+        }
+
+        private sealed class TrackingRollbackProvider : IRollbackStateProvider
+        {
+            public TrackingRollbackProvider(int key) => Key = key;
+
+            public int Key { get; }
+            public bool Imported { get; private set; }
+            public byte[] Export(FrameIndex frame) => Array.Empty<byte>();
+            public void Import(FrameIndex frame, byte[] payload) => Imported = true;
+        }
+
+        private sealed class PreflightFailureRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider
+        {
+            public PreflightFailureRollbackProvider(int key) => Key = key;
+
+            public int Key { get; }
+            public byte[] Export(FrameIndex frame) => Array.Empty<byte>();
+            public void ValidateImport(FrameIndex frame, byte[] payload) => throw new InvalidOperationException("preflight failure");
+            public void Import(FrameIndex frame, byte[] payload) => throw new InvalidOperationException("Import must not run after preflight failure.");
         }
 
         private sealed class TestWorldResolver : IWorldResolver

@@ -7,14 +7,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         IBattleDiagnosticReadOnlySession,
         IBattleDiagnosticRuntimeObjectCatalogSession,
         IBattleDiagnosticMetricSession,
+        IBattleDiagnosticMetricProfileSession,
         IDisposable
     {
         private readonly BattleDiagnosticSessionSnapshot _snapshot;
         private readonly HashSet<long> _stateActorIds;
 
-        public BattleDiagnosticOfflineSession(BattleDiagnosticSessionSnapshot snapshot)
+        public BattleDiagnosticOfflineSession(
+            BattleDiagnosticSessionSnapshot snapshot,
+            BattleDiagnosticResolvedMetricProfile metricProfile = null)
         {
             _snapshot = snapshot ?? throw new ArgumentNullException(nameof(snapshot));
+            MetricProfile = metricProfile;
             _stateActorIds = new HashSet<long>();
             for (var i = 0; i < snapshot.State.Actors.Count; i++)
                 _stateActorIds.Add(snapshot.State.Actors[i].ActorId);
@@ -41,6 +45,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public long ActorEffectStoreRevision => _snapshot.Effects.Revision;
         public long RuntimeObjectStoreRevision => _snapshot.Objects.Revision;
         public long MetricStoreRevision => _snapshot.FrameMetrics.Revision;
+        public BattleDiagnosticResolvedMetricProfile MetricProfile { get; }
         public long StoreRevision => EventStoreRevision;
 
         public BattleDiagnosticQueryResult<BattleDiagnosticMetricSample> QueryMetrics(
@@ -79,6 +84,27 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 MetricStoreRevision,
                 result,
                 hasMore);
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticMetricAggregate> QueryMetricAggregates(
+            BattleDiagnosticMetricAggregateQuery query)
+        {
+            if (!SessionInfo.Supports(BattleDiagnosticCapabilities.FrameMetrics))
+                return Unsupported<BattleDiagnosticMetricAggregate>(
+                    query.RequestId,
+                    MetricStoreRevision,
+                    "frame metric history");
+            if (query.Page.StoreRevision > 0L && query.Page.StoreRevision != MetricStoreRevision)
+                return Unavailable<BattleDiagnosticMetricAggregate>(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    BattleDiagnosticDataAvailability.Evicted,
+                    "The requested metric store revision is not present in this offline artifact.");
+
+            return BattleDiagnosticMetricAggregator.Query(
+                _snapshot.FrameMetrics.Samples,
+                MetricStoreRevision,
+                query);
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticWorldSummary> QueryWorld(long requestId, int frame)

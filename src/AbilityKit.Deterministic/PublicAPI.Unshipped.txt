@@ -32,11 +32,13 @@ static AbilityKit.Deterministic.DeterministicMath.Sqrt(AbilityKit.Deterministic.
 static AbilityKit.Deterministic.DeterministicMath.Tan(AbilityKit.Deterministic.Fixed64 angle) -> AbilityKit.Deterministic.Fixed64
 static AbilityKit.Deterministic.DeterministicMath.TwoPi.get -> AbilityKit.Deterministic.Fixed64
 AbilityKit.Deterministic.DeterministicRandom
+AbilityKit.Deterministic.DeterministicRandom.CaptureState(out ulong s0, out ulong s1, out ulong sequence) -> void
 AbilityKit.Deterministic.DeterministicRandom.DeterministicRandom(ulong seed = 305419896) -> void
 AbilityKit.Deterministic.DeterministicRandom.NextFixed(AbilityKit.Deterministic.Fixed64 minInclusive, AbilityKit.Deterministic.Fixed64 maxExclusive) -> AbilityKit.Deterministic.Fixed64
 AbilityKit.Deterministic.DeterministicRandom.NextFixed01() -> AbilityKit.Deterministic.Fixed64
 AbilityKit.Deterministic.DeterministicRandom.NextInt32(int minInclusive, int maxExclusive) -> int
 AbilityKit.Deterministic.DeterministicRandom.NextUInt64() -> ulong
+AbilityKit.Deterministic.DeterministicRandom.RestoreState(ulong s0, ulong s1, ulong sequence) -> void
 AbilityKit.Deterministic.DeterministicRandom.Sequence.get -> ulong
 AbilityKit.Deterministic.DeterministicRandom.SetSeed(ulong seed) -> void
 AbilityKit.Deterministic.Fixed64

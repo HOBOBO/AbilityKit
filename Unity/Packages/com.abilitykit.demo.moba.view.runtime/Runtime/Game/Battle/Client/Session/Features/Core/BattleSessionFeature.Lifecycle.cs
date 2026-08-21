@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.Battle.Shared.Assets;
 using UnityEngine;
@@ -22,10 +23,14 @@ namespace AbilityKit.Game.Flow
             ctx.Features.TryGet(out battleCtx);
             _ctx = battleCtx;
             _runtime.BindContext(_ctx);
+            _runtime.Diagnostics.BindScope(_plan.World.WorldId);
             ctx.Features.Set<IBattleAssetLoadSessionPort>(this);
             _flow = ctx.Entry != null ? ctx.Entry.Get<GameFlowDomain>() : null;
 
             _eventsCtrl.OnAttach(this);
+            Battle.Replay.BattleReplayControlProvider.Publish(
+                _plan.World.WorldId,
+                this);
             Battle.Replay.BattleReplayControlProvider.Current = this;
 
             EnsureSubFeaturesCreated();
@@ -56,39 +61,44 @@ namespace AbilityKit.Game.Flow
         public void OnDetach(in GamePhaseContext ctx)
         {
             var detachContext = ctx;
+            Battle.Replay.BattleReplayControlProvider.Withdraw(
+                _plan.World.WorldId,
+                this);
             if (ReferenceEquals(Battle.Replay.BattleReplayControlProvider.Current, this))
             {
                 Battle.Replay.BattleReplayControlProvider.Current = null;
             }
 
-            SessionTeardownPolicy.Execute(
-                OnDetachCleanupFailed,
-                new SessionTeardownStep(
-                    "sub-features",
-                    () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this))),
-                new SessionTeardownStep("spectator session", _runtime.Spectator.Stop),
-                new SessionTeardownStep("replay session", _runtime.Replay.Stop),
-                new SessionTeardownStep("battle session", StopSession),
-                new SessionTeardownStep("remote interpolation", DisposeRemoteInterpolation),
-                new SessionTeardownStep("session handles", ResetHandles),
-                new SessionTeardownStep("session flags", _state.ResetSessionFlags),
-                new SessionTeardownStep("session events", () => _eventsCtrl.OnDetach(this)),
-                new SessionTeardownStep("session context", () => SessionContextBinder.ClearSession(_ctx)),
-                new SessionTeardownStep("input context", () => _runtime.UnbindContext(_ctx)),
-                new SessionTeardownStep("asset load port", () => UnpublishAssetLoadPort(detachContext)),
-                new SessionTeardownStep("session diagnostics", _runtime.Diagnostics.Dispose),
-                new SessionTeardownStep("asset lease", _runtime.Assets.Dispose));
-
-            _ctx = null;
-            _flow = null;
-            _phaseCtx = default;
+            try
+            {
+                DetachAsync(detachContext).GetAwaiter().GetResult();
+            }
+            finally
+            {
+                _ctx = null;
+                _flow = null;
+                _phaseCtx = default;
+            }
         }
 
-        private static void OnDetachCleanupFailed(string resourceName, Exception exception)
+        private Task DetachAsync(GamePhaseContext detachContext)
         {
-            Log.Exception(
-                exception,
-                $"[BattleSessionFeature] Failed to release {resourceName} during detach");
+            return SessionTeardownPolicy.ExecuteAsync(
+                new AsyncSessionTeardownStep(
+                    "sub-features",
+                    () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this))),
+                new AsyncSessionTeardownStep("gateway room", StopGatewayRoomPreparationAsync),
+                new AsyncSessionTeardownStep("spectator session", _runtime.Spectator.StopAsync),
+                new AsyncSessionTeardownStep("replay session", _runtime.Replay.Stop),
+                new AsyncSessionTeardownStep("battle session", _orchestrator.StopSessionAsync),
+                new AsyncSessionTeardownStep("session handles", ResetHandles),
+                new AsyncSessionTeardownStep("session flags", _state.ResetSessionFlags),
+                new AsyncSessionTeardownStep("session events", () => _eventsCtrl.OnDetach(this)),
+                new AsyncSessionTeardownStep("session context", () => SessionContextBinder.ClearSession(_ctx)),
+                new AsyncSessionTeardownStep("input context", () => _runtime.UnbindContext(_ctx)),
+                new AsyncSessionTeardownStep("asset load port", () => UnpublishAssetLoadPort(detachContext)),
+                new AsyncSessionTeardownStep("session diagnostics", _runtime.Diagnostics.Dispose),
+                new AsyncSessionTeardownStep("asset lease", _runtime.Assets.Dispose));
         }
 
         internal void AdoptAssetLease(IBattleAssetLease lease) =>
@@ -125,9 +135,7 @@ namespace AbilityKit.Game.Flow
             {
                 var projection = _tickLoop.CreateProjection();
                 SessionContextBinder.BindTickProjection(_ctx, in projection);
-                if (_ctx.TryGetRuntimeWorld(out var runtimeWorld))
-                    _runtime.Diagnostics.TryBindMetricSink(runtimeWorld);
-                _runtime.Diagnostics.RecordFrameMetrics(_ctx);
+                _runtime.Diagnostics.RecordFrameMetrics(_ctx, in projection);
             }
 
             _subFeatureHost?.Tick(new FeatureModuleContext<BattleSessionFeature>(ctx, this), deltaTime);

@@ -1,0 +1,20 @@
+{
+  "Id": 10030000,
+  "Name": "赵云-龙鸣-被动免伤参数",
+  "DurationMs": 0,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [],
+  "IntervalMs": 0,
+  "PresentationTemplateId": 0,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 1,
+  "MaxStacks": 1,
+  "TriggerIds": [],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": [],
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

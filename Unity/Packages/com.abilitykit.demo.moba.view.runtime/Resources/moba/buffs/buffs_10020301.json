@@ -1,0 +1,24 @@
+{
+  "Id": 10020301,
+  "Name": "小乔-星华缭乱-持续落星状态",
+  "DurationMs": 5000,
+  "OnAddEffects": [],
+  "OnRemoveEffects": [],
+  "OnIntervalEffects": [
+    10020311
+  ],
+  "IntervalMs": 1000,
+  "PresentationTemplateId": 90002003,
+  "StackingPolicy": 0,
+  "RefreshPolicy": 1,
+  "MaxStacks": 1,
+  "TriggerIds": [
+    10020312
+  ],
+  "ContinuousTagTemplateId": 0,
+  "TagNames": null,
+  "Modifiers": [],
+  "DispelPolicy": 0,
+  "DispelCategory": 0,
+  "DispelBlockedByTagNames": null
+}

@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abilitykit.dev/schemas/protocol-catalog.schema.json",
+  "title": "AbilityKit Protocol Catalog",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "catalogId",
+    "projectId",
+    "domain",
+    "revision",
+    "defaultCodec",
+    "messages"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "catalogId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "projectId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "defaultCodec": {
+      "type": "string",
+      "minLength": 1
+    },
+    "messages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/message"
+      }
+    }
+  },
+  "$defs": {
+    "message": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "opCode",
+        "direction",
+        "kind",
+        "payloadType"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "opCode": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4294967295
+        },
+        "direction": {
+          "enum": ["c2s", "s2c", "bidirectional"]
+        },
+        "kind": {
+          "enum": ["request", "response", "push", "event"]
+        },
+        "payloadType": {
+          "type": "string",
+          "minLength": 1
+        },
+        "codec": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reliability": {
+          "enum": ["reliable", "realtime"]
+        },
+        "response": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimumSchemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maximumSchemaVersion": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "maximumPayloadBytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "captureSampleRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "sensitiveFields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

@@ -12,6 +12,7 @@ using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Observability;
+using AbilityKit.Demo.Moba.Rollback;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -20,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
     /// </summary>
     [WorldService(typeof(IContinuousManager), WorldLifetime.Scoped)]
     [WorldService(typeof(MobaContinuousManager), WorldLifetime.Scoped)]
-    public sealed class MobaContinuousManager : DefaultContinuousManager, IWorldInitializable, System.IDisposable
+    public sealed class MobaContinuousManager : DefaultContinuousManager, IWorldInitializable, IMobaOwnerKeySource, System.IDisposable
     {
         private readonly List<IMobaContinuousIntervalHandler> _intervalHandlers = new List<IMobaContinuousIntervalHandler>();
         private MobaContinuousModifierProjectorRegistry _modifierProjectors;
@@ -78,6 +79,15 @@ namespace AbilityKit.Demo.Moba.Services
         public void Reproject(IContinuous continuous)
         {
             _lifecycleBinder?.Reproject(continuous);
+        }
+
+        public string Name => "continuous";
+
+        public void CopyActiveOwnerKeys(List<long> destination)
+        {
+            if (destination == null) return;
+            _ownerBoundTriggerBinder?.CopyActiveOwnerKeys(destination);
+            if (_ownerBoundTriggerBinder == null) destination.Clear();
         }
 
         public void Tick(float deltaTimeSeconds)

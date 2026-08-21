@@ -53,6 +53,29 @@ namespace AbilityKit.Demo.Shooter.View
                 _runtime.ComputeStateHash(),
                 _frameworkSnapshotPipeline.LastAppliedSnapshotFlags);
         }
+
+        public ShooterClientSnapshotApplyOutcome ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
+        {
+            var applyResult = _frameworkSnapshotPipeline.ApplyGatewaySnapshot(in snapshot);
+            if (applyResult != ShooterSnapshotApplyResult.AppliedPackedSnapshot)
+            {
+                return new ShooterClientSnapshotApplyOutcome(
+                    true,
+                    applyResult,
+                    0,
+                    0u,
+                    0u,
+                    0u);
+            }
+
+            return new ShooterClientSnapshotApplyOutcome(
+                true,
+                applyResult,
+                _frameworkSnapshotPipeline.LastAppliedFrame,
+                _frameworkSnapshotPipeline.LastAppliedStateHash,
+                _runtime.ComputeStateHash(),
+                _frameworkSnapshotPipeline.LastAppliedSnapshotFlags);
+        }
     }
 
     internal readonly struct ShooterClientSnapshotApplyOutcome

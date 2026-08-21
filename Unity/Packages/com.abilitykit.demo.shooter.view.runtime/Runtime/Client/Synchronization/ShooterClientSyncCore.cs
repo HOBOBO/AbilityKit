@@ -133,5 +133,10 @@ namespace AbilityKit.Demo.Shooter.View
             return _frameSync.ApplyGatewayPush(opCode, payload);
         }
 
+        public ShooterSnapshotApplyResult ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
+        {
+            return _frameSync.ApplyGatewaySnapshot(in snapshot);
+        }
+
     }
 }

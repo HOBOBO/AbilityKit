@@ -4,6 +4,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.World.Abstractions;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Game.Flow;
@@ -12,6 +14,7 @@ using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Battle.Projection;
 using AbilityKit.Demo.Common.Rooms;
 using NUnit.Framework;
 
@@ -41,6 +44,219 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void FixedStepBudget_NormalUpdate_PreservesRemainderWithoutOverBudget()
+        {
+            var result = FixedStepBudgetPolicy.Evaluate(
+                accumulatorSeconds: 0.01f,
+                deltaTime: 0.24f,
+                fixedDeltaSeconds: 0.1f);
+
+            Assert.That(result.Steps, Is.EqualTo(2));
+            Assert.That(result.BacklogSteps, Is.Zero);
+            Assert.That(result.AccumulatorSeconds, Is.EqualTo(0.05f).Within(0.0001f));
+            Assert.That(result.DroppedSeconds, Is.Zero);
+            Assert.That(result.OverBudget, Is.False);
+            Assert.That(result.InvalidDelta, Is.False);
+        }
+
+        [Test]
+        public void FixedStepBudget_LargeDelta_ClampsAndRetainsBoundedBacklog()
+        {
+            var result = FixedStepBudgetPolicy.Evaluate(
+                accumulatorSeconds: 0f,
+                deltaTime: 1.2f,
+                fixedDeltaSeconds: 0.1f);
+
+            Assert.That(result.Steps, Is.EqualTo(FixedStepBudgetPolicy.MaxStepsPerUpdate));
+            Assert.That(result.BacklogSteps, Is.EqualTo(5));
+            Assert.That(result.AccumulatorSeconds, Is.EqualTo(0.5f).Within(0.0001f));
+            Assert.That(result.DroppedSeconds, Is.EqualTo(0.2f).Within(0.0001f));
+            Assert.That(result.OverBudget, Is.True);
+
+            var drained = FixedStepBudgetPolicy.Evaluate(
+                result.AccumulatorSeconds,
+                deltaTime: 0f,
+                fixedDeltaSeconds: 0.1f);
+
+            Assert.That(drained.Steps, Is.EqualTo(5));
+            Assert.That(drained.BacklogSteps, Is.Zero);
+            Assert.That(drained.AccumulatorSeconds, Is.Zero.Within(0.0001f));
+            Assert.That(drained.DroppedSeconds, Is.Zero);
+            Assert.That(drained.OverBudget, Is.False);
+        }
+
+        [TestCase(float.NaN)]
+        [TestCase(float.PositiveInfinity)]
+        [TestCase(-0.1f)]
+        public void FixedStepBudget_InvalidDelta_IsRejected(float deltaTime)
+        {
+            var result = FixedStepBudgetPolicy.Evaluate(
+                accumulatorSeconds: 0f,
+                deltaTime,
+                fixedDeltaSeconds: 0.1f);
+
+            Assert.That(result.Steps, Is.Zero);
+            Assert.That(result.AccumulatorSeconds, Is.Zero);
+            Assert.That(result.DroppedSeconds, Is.Zero);
+            Assert.That(result.InvalidDelta, Is.True);
+        }
+
+        [Test]
+        public void BattleSessionTickProjection_ExposesBudgetTelemetry()
+        {
+            var projection = BattleSessionTickProjector.Create(
+                lastFrame: 30,
+                tickAccumulator: 0.05f,
+                fixedDeltaSeconds: 0.1f,
+                lastUpdateSteps: 5,
+                backlogSteps: 3,
+                overBudgetUpdateCount: 7L,
+                droppedTimeSeconds: 1.25d,
+                invalidDeltaCount: 2L);
+
+            Assert.That(projection.LastFrame, Is.EqualTo(30));
+            Assert.That(projection.LogicTimeSeconds, Is.EqualTo(3.05d).Within(0.0001d));
+            Assert.That(projection.LastUpdateSteps, Is.EqualTo(5));
+            Assert.That(projection.BacklogSteps, Is.EqualTo(3));
+            Assert.That(projection.OverBudgetUpdateCount, Is.EqualTo(7L));
+            Assert.That(projection.DroppedTimeSeconds, Is.EqualTo(1.25d));
+            Assert.That(projection.InvalidDeltaCount, Is.EqualTo(2L));
+        }
+
+        [Test]
+        public void TickState_Reset_ClearsBudgetTelemetry()
+        {
+            var tick = new BattleSessionState.TickState
+            {
+                LastFrame = 30,
+                TickAcc = 0.5f,
+                LastUpdateSteps = 5,
+                BacklogSteps = 3,
+                OverBudgetUpdateCount = 7L,
+                DroppedTimeSeconds = 1.25d,
+                InvalidDeltaCount = 2L,
+                WorldReady = true,
+                FirstFrameReceived = true,
+            };
+
+            tick.Reset();
+
+            Assert.That(tick.LastFrame, Is.Zero);
+            Assert.That(tick.TickAcc, Is.Zero);
+            Assert.That(tick.LastUpdateSteps, Is.Zero);
+            Assert.That(tick.BacklogSteps, Is.Zero);
+            Assert.That(tick.OverBudgetUpdateCount, Is.Zero);
+            Assert.That(tick.DroppedTimeSeconds, Is.Zero);
+            Assert.That(tick.InvalidDeltaCount, Is.Zero);
+            Assert.That(tick.WorldReady, Is.False);
+            Assert.That(tick.FirstFrameReceived, Is.False);
+        }
+
+        [Test]
+        public void BattleSessionState_PublishesLifecycleGenerationAndTransitions()
+        {
+            var state = new BattleSessionState();
+
+            state.BeginStart();
+            var starting = state.LifecycleDiagnosticsSnapshot;
+            state.CompleteStart();
+            state.BeginStop();
+            state.CompleteStop();
+            var stopped = state.LifecycleDiagnosticsSnapshot;
+
+            Assert.That(starting.Generation, Is.EqualTo(1));
+            Assert.That(starting.State, Is.EqualTo(SessionLifecycleDiagnosticState.Starting));
+            Assert.That(stopped.Generation, Is.EqualTo(1));
+            Assert.That(stopped.PreviousState, Is.EqualTo(SessionLifecycleDiagnosticState.Stopping));
+            Assert.That(stopped.State, Is.EqualTo(SessionLifecycleDiagnosticState.Stopped));
+            Assert.That(stopped.HasPendingOperation, Is.False);
+            Assert.That(stopped.HasTeardownFailure, Is.False);
+        }
+
+        [Test]
+        public void LifecycleDiagnosticsRecorder_RejectsStaleOperationCompletion()
+        {
+            var diagnostics = new SessionLifecycleDiagnosticsRecorder();
+            diagnostics.BeginGeneration(1, SessionLifecycleDiagnosticState.Running);
+            var staleGeneration = diagnostics.BeginPendingOperation("old-stop");
+            diagnostics.BeginGeneration(2, SessionLifecycleDiagnosticState.Starting);
+
+            diagnostics.CompletePendingOperation(
+                staleGeneration,
+                TimeSpan.FromSeconds(3),
+                new InvalidOperationException("stale"),
+                SessionLifecycleDiagnosticState.Faulted);
+
+            var snapshot = diagnostics.Snapshot;
+            Assert.That(snapshot.Generation, Is.EqualTo(2));
+            Assert.That(snapshot.State, Is.EqualTo(SessionLifecycleDiagnosticState.Starting));
+            Assert.That(snapshot.LastStopLatency, Is.Zero);
+            Assert.That(snapshot.HasTeardownFailure, Is.False);
+        }
+
+        [Test]
+        public void WorldCapabilities_StaleOwnerClearDoesNotClearReplacement()
+        {
+            var firstProducer = new TrackingProjectionProducer();
+            var replacementProducer = new TrackingProjectionProducer();
+            var firstWorld = CreateWorld(firstProducer, "first");
+            var replacementWorld = CreateWorld(replacementProducer, "replacement");
+            var capabilities = new BattleSessionWorldCapabilities();
+
+            capabilities.Bind(firstWorld);
+            capabilities.Bind(replacementWorld);
+
+            Assert.That(capabilities.OwnerWorld, Is.SameAs(replacementWorld));
+            Assert.That(capabilities.ProjectionProducer, Is.SameAs(replacementProducer));
+            Assert.That(capabilities.Clear(firstWorld), Is.False);
+            Assert.That(capabilities.OwnerWorld, Is.SameAs(replacementWorld));
+            Assert.That(capabilities.ProjectionProducer, Is.SameAs(replacementProducer));
+            Assert.That(capabilities.Clear(replacementWorld), Is.True);
+            Assert.That(capabilities.OwnerWorld, Is.Null);
+            Assert.That(capabilities.ProjectionProducer, Is.Null);
+        }
+
+        [Test]
+        public void RemoteDrivenWorldRuntime_ResetClearsCapabilities()
+        {
+            var producer = new TrackingProjectionProducer();
+            var world = CreateWorld(producer, "remote");
+            var handles = new BattleSessionRemoteDrivenWorldRuntime();
+            handles.BindWorldRuntime(new RemoteDrivenWorldRuntime(
+                world.Id,
+                worlds: null,
+                runtime: null,
+                world));
+
+            Assert.That(handles.World, Is.SameAs(world));
+            Assert.That(handles.Capabilities.OwnerWorld, Is.SameAs(world));
+            Assert.That(handles.Capabilities.ProjectionProducer, Is.SameAs(producer));
+
+            handles.Reset();
+
+            Assert.That(handles.World, Is.Null);
+            Assert.That(handles.Capabilities.OwnerWorld, Is.Null);
+            Assert.That(handles.Capabilities.ProjectionProducer, Is.Null);
+        }
+
+        [Test]
+        public void BattleSessionDiagnostics_StaleOwnerCannotClearReplacementMetricSink()
+        {
+            var diagnostics = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var firstWorld = CreateWorld(new TrackingProjectionProducer(), "first");
+            var replacementWorld = CreateWorld(new TrackingProjectionProducer(), "replacement");
+
+            InvokeBindMetricSink(diagnostics, firstWorld);
+            InvokeBindMetricSink(diagnostics, replacementWorld);
+
+            Assert.That(diagnostics.ClearMetricSink(firstWorld), Is.False);
+            Assert.That(GetPrivateField<IWorld>(diagnostics, "_metricSinkWorld"),
+                Is.SameAs(replacementWorld));
+            Assert.That(diagnostics.ClearMetricSink(replacementWorld), Is.True);
+            Assert.That(GetPrivateField<IWorld>(diagnostics, "_metricSinkWorld"), Is.Null);
+        }
+
+        [Test]
         public void BattleSessionRuntime_ConfiguresStableSimulationOwnerOnce()
         {
             var runtime = new BattleSessionRuntime();
@@ -62,6 +278,46 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.Throws<ArgumentNullException>(() => runtime.ConfigureSimulation(null));
             Assert.That(runtime.Simulation, Is.Null);
+        }
+
+        [Test]
+        public void SessionRuntimeResourcesPort_UsesCurrentAccessorsAndRuntimeHandles()
+        {
+            var runtime = new BattleSessionRuntime();
+            var installer = new TrackingSimulationInstaller();
+            runtime.ConfigureSimulation(installer);
+            var plan = CreatePlan();
+            var initialContext = new BattleContext();
+            var currentContext = new BattleContext();
+            var fixedDeltaSeconds = 0.05f;
+            var port = new SessionRuntimeResourcesPort(
+                runtime,
+                () => plan,
+                () => currentContext,
+                () => null,
+                () => false,
+                () => fixedDeltaSeconds,
+                _ => 17,
+                _ => { });
+            var world = CreateWorld(new TrackingProjectionProducer(), "remote");
+            runtime.Handles.RemoteDriven.BindWorldRuntime(new RemoteDrivenWorldRuntime(
+                world.Id,
+                worlds: null,
+                runtime: null,
+                world));
+
+            currentContext = initialContext;
+            fixedDeltaSeconds = 0.125f;
+            port.StartRemoteDrivenLocalWorld();
+
+            Assert.That(installer.LastRemoteDrivenOptions.Context, Is.SameAs(initialContext));
+            Assert.That(installer.LastRemoteDrivenOptions.FixedDeltaSeconds, Is.EqualTo(0.125f));
+            Assert.That(installer.LastRemoteDrivenOptions.ResolveIdealFrameLimit(default), Is.EqualTo(17));
+
+            port.ResetSessionHandles();
+
+            Assert.That(runtime.Handles.RemoteDriven.World, Is.Null);
+            Assert.That(runtime.Handles.RemoteDriven.Capabilities.OwnerWorld, Is.Null);
         }
 
         [Test]
@@ -427,6 +683,22 @@ namespace AbilityKit.Game.Test.UnitTest
                 timeSyncIntervalMs: timeSyncIntervalMs);
         }
 
+        private static TestWorld CreateWorld(IActorProjectionProducer producer, string id)
+        {
+            var services = new TestWorldResolver();
+            services.Add(producer);
+            return new TestWorld(services, id);
+        }
+
+        private static void InvokeBindMetricSink(BattleSessionDiagnostics diagnostics, IWorld world)
+        {
+            var method = typeof(BattleSessionDiagnostics).GetMethod(
+                "BindMetricSink",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null, "Metric sink bind method was not found.");
+            method.Invoke(diagnostics, new object[] { world, null });
+        }
+
         private static void SetPrivateField(object target, string fieldName, object value)
         {
             var field = target.GetType().GetField(
@@ -436,6 +708,72 @@ namespace AbilityKit.Game.Test.UnitTest
             field.SetValue(target, value);
         }
 
+        private static T GetPrivateField<T>(object target, string fieldName)
+        {
+            var field = target.GetType().GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(field, Is.Not.Null, $"Private field '{fieldName}' was not found.");
+            return (T)field.GetValue(target);
+        }
+
+        private sealed class TestWorldResolver : IWorldResolver
+        {
+            private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
+
+            internal void Add<T>(T service)
+            {
+                _services[typeof(T)] = service;
+                _services[service.GetType()] = service;
+            }
+
+            public object Resolve(Type serviceType) => _services[serviceType];
+
+            public T Resolve<T>() => (T)Resolve(typeof(T));
+
+            public bool TryResolve(Type serviceType, out object instance) =>
+                _services.TryGetValue(serviceType, out instance);
+
+            public bool TryResolve<T>(out T instance)
+            {
+                if (_services.TryGetValue(typeof(T), out var service))
+                {
+                    instance = (T)service;
+                    return true;
+                }
+
+                instance = default;
+                return false;
+            }
+        }
+
+        private sealed class TestWorld : IWorld
+        {
+            internal TestWorld(IWorldResolver services, string id)
+            {
+                Services = services;
+                Id = new WorldId(id);
+            }
+
+            public WorldId Id { get; }
+            public string WorldType => "moba";
+            public IWorldResolver Services { get; }
+            public void Initialize() { }
+            public void Tick(float deltaTime) { }
+            public void Dispose() { }
+        }
+
+        private sealed class TrackingProjectionProducer : IActorProjectionProducer
+        {
+            public ActorProjectionData ExtractFull(int actorId) => default;
+
+            public void ExtractAll(List<ActorProjectionData> buffer)
+            {
+            }
+
+            public ActorProjectionData ExtractSpawn(int actorId) => default;
+        }
+
         private sealed class TrackingSimulationInstaller : IBattleSessionWorldInstaller
         {
             private bool _remoteDrivenStarted;
@@ -443,6 +781,7 @@ namespace AbilityKit.Game.Test.UnitTest
 
             public int RemoteDrivenStartCount { get; private set; }
             public int ConfirmedStartCount { get; private set; }
+            public RemoteDrivenWorldInstallOptions LastRemoteDrivenOptions { get; private set; }
             public Exception RemoteDrivenFailure { get; set; }
             public Exception ConfirmedFailure { get; set; }
 
@@ -450,6 +789,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 if (_remoteDrivenStarted) return;
 
+                LastRemoteDrivenOptions = options;
                 RemoteDrivenStartCount++;
                 options.ResetTickState?.Invoke();
                 if (RemoteDrivenFailure != null) throw RemoteDrivenFailure;

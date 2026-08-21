@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
 using AbilityKit.Core.Logging;
@@ -94,7 +95,7 @@ namespace AbilityKit.Network.Battle
         /// <summary>
         /// 输入提交的异常出口（网络错误/序列化失败等，不含服务端业务拒绝 —— 拒绝走
         /// <see cref="NetworkSubmitInputResponse"/>）。两条提交路径异常时都会触发；
-        /// <see cref="SendInputAsync"/> 的 await 方拿到的仍是 default 响应，需要区分异常请订阅此事件。
+        /// awaitable 路径同时返回带有 <c>TransportError</c> 状态的失败响应（主动取消除外，取消会继续抛出）。
         /// </summary>
         public event Action<Exception> SubmitInputFailed;
 
@@ -163,7 +164,7 @@ namespace AbilityKit.Network.Battle
                 return;
             }
 
-            _ = SendInputWithResponseAsync(request);
+            _ = SendInputWithResponseAsync(request, null, default(CancellationToken));
         }
 
         private async Task SendInputWithoutResponseAsync(SubmitInputRequest request)
@@ -191,29 +192,59 @@ namespace AbilityKit.Network.Battle
         /// </summary>
         public System.Threading.Tasks.Task<NetworkSubmitInputResponse> SendInputAsync(SubmitInputRequest request)
         {
+            return SendInputAsync(request, null, default(CancellationToken));
+        }
+
+        /// <summary>
+        /// Submits input with a caller-owned timeout/cancellation budget. The original overload
+        /// keeps the five-second transport default for existing callers.
+        /// </summary>
+        public System.Threading.Tasks.Task<NetworkSubmitInputResponse> SendInputAsync(
+            SubmitInputRequest request,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken = default(CancellationToken))
+        {
             if (_options.SerializeSubmitInput == null) throw new InvalidOperationException("SerializeSubmitInput is not configured.");
             if (_options.DeserializeSubmitInputResponse == null)
             {
                 throw new InvalidOperationException("DeserializeSubmitInputResponse is not configured; use SendInput for fire-and-forget.");
             }
 
-            return SendInputWithResponseAsync(request);
+            return SendInputWithResponseAsync(request, timeout, cancellationToken);
         }
 
-        private async System.Threading.Tasks.Task<NetworkSubmitInputResponse> SendInputWithResponseAsync(SubmitInputRequest request)
+        private async System.Threading.Tasks.Task<NetworkSubmitInputResponse> SendInputWithResponseAsync(
+            SubmitInputRequest request,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
         {
+            if (timeout.HasValue && timeout.Value <= TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+
             object current = _options.PrepareSubmitInput?.Invoke(request) ?? request;
             NetworkSubmitInputResponse response = default;
+            CancellationTokenSource timeoutCancellation = null;
+            var effectiveCancellationToken = cancellationToken;
+            if (timeout.HasValue)
+            {
+                timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                timeoutCancellation.CancelAfter(timeout.Value);
+                effectiveCancellationToken = timeoutCancellation.Token;
+            }
+
             try
             {
-                await WaitForAuthenticationAsync();
+                await WaitForAuthenticationAsync(effectiveCancellationToken);
                 for (var attempt = 0; attempt < 2; attempt++)
                 {
                     var payload = _options.SerializeSubmitInput.Invoke(current);
                     var responsePayload = await _sdkClient.SendRawRequestAsync(
                         _options.OpSubmitInput,
                         payload,
-                        TimeSpan.FromSeconds(5));
+                        timeout ?? TimeSpan.FromSeconds(5),
+                        effectiveCancellationToken);
                     response = _options.DeserializeSubmitInputResponse.Invoke(responsePayload);
                     if (response.Accepted)
                     {
@@ -240,13 +271,52 @@ namespace AbilityKit.Network.Battle
                         $"serverFrame={response.ServerFrame}");
                 }
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                SubmitInputFailed?.Invoke(new OperationCanceledException("Shooter input submission was cancelled.", cancellationToken));
+                throw;
+            }
+            catch (OperationCanceledException ex) when (timeoutCancellation != null && timeoutCancellation.IsCancellationRequested)
+            {
+                Log.Exception(ex, "[NetworkTransport] Input submission timed out.");
+                SubmitInputFailed?.Invoke(ex);
+                response = CreateTransportFailureResponse(in response, "TransportTimeout", "Input submission timed out.");
+            }
+            catch (TimeoutException ex)
+            {
+                Log.Exception(ex, "[NetworkTransport] Input submission timed out.");
+                SubmitInputFailed?.Invoke(ex);
+                response = CreateTransportFailureResponse(in response, "TransportTimeout", ex.Message);
+            }
             catch (Exception ex)
             {
                 Log.Exception(ex, "[NetworkTransport] Input submission failed.");
                 SubmitInputFailed?.Invoke(ex);
+                response = CreateTransportFailureResponse(in response, "TransportError", ex.Message);
+            }
+            finally
+            {
+                timeoutCancellation?.Dispose();
             }
 
             return response;
+        }
+
+        private static NetworkSubmitInputResponse CreateTransportFailureResponse(
+            in NetworkSubmitInputResponse response,
+            string status,
+            string message)
+        {
+            return new NetworkSubmitInputResponse(
+                accepted: false,
+                serverFrame: response.ServerFrame,
+                reasonCode: -1,
+                retryAtAuthoritativeFrame: false,
+                status: status,
+                message: message,
+                acceptedFrame: response.AcceptedFrame,
+                serverTicks: response.ServerTicks,
+                shouldResync: false);
         }
 
         public async System.Threading.Tasks.Task<long> AcknowledgeReliableEventsAsync(
@@ -358,6 +428,15 @@ namespace AbilityKit.Network.Battle
                     nameof(options));
             }
 
+            if (options.TrafficObserver != null &&
+                (options.ConnectionFactory != null || options.HasSdkClientSource))
+            {
+                throw new ArgumentException(
+                    "Traffic observation requires TransportFactory when NetworkTransport owns composition. " +
+                    "Configure observation on the injected SDK client or connection instead.",
+                    nameof(options));
+            }
+
             if (options.SdkClientOwnership != NetworkSdkClientOwnership.Borrowed &&
                 options.SdkClientOwnership != NetworkSdkClientOwnership.Owned)
             {
@@ -419,6 +498,13 @@ namespace AbilityKit.Network.Battle
                 connectionOptions.FrameCodec = options.FrameCodec;
                 options.ConfigureConnection?.Invoke(connectionOptions);
             });
+
+            if (options.TrafficObserver != null)
+            {
+                builder.ObserveTraffic(
+                    options.TrafficObserver,
+                    options.ConfigureTrafficCapture);
+            }
 
             ownsSdkClient = true;
             return builder
@@ -521,6 +607,33 @@ namespace AbilityKit.Network.Battle
                 }
 
                 return _authenticationCompletion.Task;
+            }
+        }
+
+        private Task WaitForAuthenticationAsync(CancellationToken cancellationToken)
+        {
+            var authentication = WaitForAuthenticationAsync();
+            if (!cancellationToken.CanBeCanceled || authentication.IsCompleted)
+            {
+                return authentication;
+            }
+
+            return AwaitWithCancellationAsync(authentication, cancellationToken);
+        }
+
+        private static async Task AwaitWithCancellationAsync(Task task, CancellationToken cancellationToken)
+        {
+            if (!cancellationToken.CanBeCanceled)
+            {
+                await task;
+                return;
+            }
+
+            var cancellation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using (cancellationToken.Register(() => cancellation.TrySetCanceled()))
+            {
+                var completed = await Task.WhenAny(task, cancellation.Task);
+                await completed;
             }
         }
 

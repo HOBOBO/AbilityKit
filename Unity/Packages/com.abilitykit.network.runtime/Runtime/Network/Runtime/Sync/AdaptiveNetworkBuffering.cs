@@ -263,7 +263,7 @@ namespace AbilityKit.Network.Runtime.Sync
     /// <summary>
     /// Expands immediately but requires sustained lower demand before shrinking gradually.
     /// </summary>
-    public sealed class AdaptiveNetworkBufferCapacityPolicy : IBufferCapacityPolicy<NetworkBufferSizingSample>
+    public sealed class AdaptiveNetworkBufferCapacityPolicy
     {
         public AdaptiveNetworkBufferCapacityPolicy(NetworkBufferCapacityPolicyOptions options)
         {
@@ -353,12 +353,13 @@ namespace AbilityKit.Network.Runtime.Sync
     /// <summary>Optional network-driven binding for a retained-frame capacity.</summary>
     public sealed class AdaptiveNetworkBufferController
     {
-        private readonly BufferCapacityController<NetworkBufferSizingSample> _controller;
+        private readonly IBufferCapacityControl _capacityControl;
 
         public AdaptiveNetworkBufferController(
             IBufferCapacityControl capacityControl,
             NetworkBufferCapacityPolicyOptions? options = null)
         {
+            _capacityControl = capacityControl ?? throw new ArgumentNullException(nameof(capacityControl));
             Policy = new AdaptiveNetworkBufferCapacityPolicy(
                 options ?? NetworkBufferCapacityPolicyOptions.PredictionHistoryDefault);
             if (Policy.Options.MinCapacity <= 0)
@@ -368,23 +369,35 @@ namespace AbilityKit.Network.Runtime.Sync
                     nameof(options));
             }
 
-            _controller = new BufferCapacityController<NetworkBufferSizingSample>(
-                capacityControl,
-                Policy,
-                Policy.Options.MinCapacity,
-                Policy.Options.MaxCapacity);
+            if (_capacityControl.Capacity <= 0)
+            {
+                throw new ArgumentException(
+                    "Capacity control must report a positive capacity.",
+                    nameof(capacityControl));
+            }
+
+            TargetCapacity = Clamp(_capacityControl.Capacity);
         }
 
         public AdaptiveNetworkBufferCapacityPolicy Policy { get; }
 
-        public int CurrentCapacity => _controller.CurrentCapacity;
+        public int CurrentCapacity => _capacityControl.Capacity;
 
-        public int TargetCapacity => _controller.LastTargetCapacity;
+        public int TargetCapacity { get; private set; }
 
         public bool Observe(NetworkBufferSizingSample sample)
         {
             if (!sample.HasRoundTripSample) return false;
-            return _controller.Update(sample);
+            var target = Policy.GetTargetCapacity(sample, _capacityControl.Capacity);
+            TargetCapacity = target;
+            return target != _capacityControl.Capacity
+                && _capacityControl.TrySetCapacity(target);
+        }
+
+        private int Clamp(int capacity)
+        {
+            if (capacity < Policy.Options.MinCapacity) return Policy.Options.MinCapacity;
+            return capacity > Policy.Options.MaxCapacity ? Policy.Options.MaxCapacity : capacity;
         }
     }
 

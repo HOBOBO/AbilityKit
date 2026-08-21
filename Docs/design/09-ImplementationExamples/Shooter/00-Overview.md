@@ -1,7 +1,7 @@
 # Shooter Demo 专题总览
 
 > 文档类型：项目级综合示例导航与能力边界
-> 事实基线：2026-08-19
+> 事实基线：2026-08-20
 > Shooter 示例从单篇概览拆成多个专题。它展示 AbilityKit 机制如何被项目应用层组合为网络同步、服务端权威、Svelto 模拟、快照、Gateway/Orleans 与 Smoke 闭环；其业务编排是参考实现，不是框架默认应用套件。
 
 ## 1. 拆分理由
@@ -21,6 +21,8 @@ Shooter 示例包含多个独立设计点，并已进一步拆成客户端同步
 | 战斗玩法内核 | 一帧管线、敌人波次、projectile 命中、空间索引、Bot AI、胜负状态 | [13-战斗玩法内核深潜](13-BattleGameplayKernelDeepDive.md) |
 | 多进程故障矩阵 | recoverable retry、Gateway offline、slow consumer、周期断线、manifest、reliable/diff/replay 收敛 | [14-多进程故障矩阵与收敛证据](14-MultiprocessFaultMatrixAndConvergenceEvidence.md) |
 | 千单位同步与渲染优化 | AOI 变化抑制、零分配 codec/Mapper/Projection、GPU 增量上传、端到端指标与 2K 门禁 | [15-千单位状态同步与渲染优化](15-ThousandEntitySynchronizationAndRenderingOptimization.md) |
+| PureState 多帧样本块 | v2 扁平样本协议、服务端逐帧采样环、AOI 过滤、客户端时间轴播放与 A/B 模板 | [18-PureState Multi-Sample Blocks](18-PureStateMultiSampleBlocks.md) |
+| PureState 样本密度与 A/B | near/mid/far 历史样本密度、近端预算优先、1K payload 门禁与 Headless 指标 | [19-PureState Sample Density and A/B Validation](19-PureStateSampleDensityAndABValidation.md) |
 | 工业化流程 | runtime/acceptance/sync 测试、Orleans smoke、replay artifact、DSL/配置环境测试 | [工程质量：MOBA 与 Shooter 示例工业化流程](../../10-EngineeringQuality/03-MobaShooterIndustrializationFlow.md) |
 | Gateway/Orleans/Smoke | room flow、RoomGrain、BattleRuntimeAdapter、FrameSyncGrain、SmokeRunner | [05-服务端流程与 Smoke 深潜](05-ServerFlowAndSmokeDeepDive.md) |
 
@@ -253,6 +255,6 @@ Shooter PlayMode 默认战局已调整为至少 10 分钟，并将“同屏敌�
 
 ---
 
-> 文档版本：v3.2
-> 更新日期：2026-08-19
+> 文档版本：v3.3
+> 更新日期：2026-08-20
 > 更新责任：Shooter 应用编排、同步模板、服务端 adapter 或验收 gate 变化时同步复核。

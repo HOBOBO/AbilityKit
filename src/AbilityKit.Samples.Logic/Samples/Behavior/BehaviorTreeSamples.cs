@@ -260,7 +260,7 @@ namespace AbilityKit.Samples.Logic.Samples.Behavior
         }
     }
 
-    internal sealed class SampleBlackboard : IBlackboard
+    internal sealed class SampleBlackboard
     {
         private readonly Dictionary<string, object> _values = new Dictionary<string, object>();
 

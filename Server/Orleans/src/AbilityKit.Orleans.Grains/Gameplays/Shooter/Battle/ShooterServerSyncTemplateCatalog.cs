@@ -16,7 +16,10 @@ internal sealed class ShooterServerSyncTemplatePolicy
         ShooterPureStateSyncSettings? pureStateSettings = null,
         float aoiVisibleRadius = 24f,
         float aoiBoundaryRadius = 30f,
-        bool useObserverAoi = false)
+        bool useObserverAoi = false,
+        ShooterPureStatePlaybackPayloadMode playbackPayloadMode = ShooterPureStatePlaybackPayloadMode.SingleSample,
+        int sampleBlockFrameCount = 1,
+        ShooterPureStateSampleDensityPolicy? sampleDensityPolicy = null)
     {
         if (string.IsNullOrWhiteSpace(templateId))
         {
@@ -32,6 +35,9 @@ internal sealed class ShooterServerSyncTemplatePolicy
         AoiVisibleRadius = Math.Max(0f, aoiVisibleRadius);
         AoiBoundaryRadius = Math.Max(AoiVisibleRadius, aoiBoundaryRadius);
         UseObserverAoi = useObserverAoi;
+        PlaybackPayloadMode = playbackPayloadMode;
+        SampleBlockFrameCount = sampleBlockFrameCount;
+        SampleDensityPolicy = sampleDensityPolicy ?? ShooterPureStateSampleDensityPolicy.FullDensity;
     }
 
     public string TemplateId { get; }
@@ -51,6 +57,12 @@ internal sealed class ShooterServerSyncTemplatePolicy
     public float AoiBoundaryRadius { get; }
 
     public bool UseObserverAoi { get; }
+
+    public ShooterPureStatePlaybackPayloadMode PlaybackPayloadMode { get; }
+
+    public int SampleBlockFrameCount { get; }
+
+    public ShooterPureStateSampleDensityPolicy SampleDensityPolicy { get; }
 
     public ServerBattleSyncTemplate CreateServerTemplate()
     {
@@ -73,7 +85,10 @@ internal sealed class ShooterServerSyncTemplatePolicy
                 PureStateSettings,
                 AoiVisibleRadius,
                 AoiBoundaryRadius,
-                UseObserverAoi)
+                UseObserverAoi,
+                PlaybackPayloadMode,
+                SampleBlockFrameCount,
+                SampleDensityPolicy)
             : ShooterStateSyncPushOptions.Packed(networkCondition);
     }
 }
@@ -107,6 +122,7 @@ internal static class ShooterServerSyncTemplateCatalog
         Packed(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate, 1, 60, NetworkConditionProfile.Lan),
         PureState(ShooterServerProtocol.BatchStateLowFrequencyTemplate, 60, 300, NetworkConditionProfile.Mobile4G, BatchStateSettings),
         PureState(ShooterServerProtocol.MassBattleLodAoiTemplate, 3, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true),
+        PureState(ShooterServerProtocol.MassBattleLodAoiSampleBlockTemplate, 3, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true, playbackPayloadMode: ShooterPureStatePlaybackPayloadMode.MultiSampleBlock, sampleBlockFrameCount: 3, sampleDensityPolicy: ShooterPureStateSampleDensityPolicy.MassBattle),
         Packed(ShooterServerProtocol.HybridHeroPredictionTemplate, 1, 30, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate, 1, 60, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.StateSyncAuthorityTemplate, 1, 30, NetworkConditionProfile.Ideal),
@@ -188,7 +204,10 @@ internal static class ShooterServerSyncTemplateCatalog
         ShooterPureStateSyncSettings? settings,
         float aoiVisibleRadius = 24f,
         float aoiBoundaryRadius = 30f,
-        bool useObserverAoi = false)
+        bool useObserverAoi = false,
+        ShooterPureStatePlaybackPayloadMode playbackPayloadMode = ShooterPureStatePlaybackPayloadMode.SingleSample,
+        int sampleBlockFrameCount = 1,
+        ShooterPureStateSampleDensityPolicy? sampleDensityPolicy = null)
     {
         return new ShooterServerSyncTemplatePolicy(
             templateId,
@@ -199,6 +218,9 @@ internal static class ShooterServerSyncTemplateCatalog
             settings,
             aoiVisibleRadius,
             aoiBoundaryRadius,
-            useObserverAoi);
+            useObserverAoi,
+            playbackPayloadMode,
+            sampleBlockFrameCount,
+            sampleDensityPolicy);
     }
 }

@@ -9,6 +9,8 @@ namespace AbilityKit.Pipeline
     {
         private readonly IAbilityConditionNode _condition;
 
+        public IAbilityConditionNode Condition => _condition;
+
         /// <summary>
         /// 创建条件门控阶段。
         /// </summary>

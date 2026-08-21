@@ -403,7 +403,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             var knownTypes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
-                "seq", "set_var", "set_num_var",
+                "seq", "set_var", "set_num_var", "add_num_var",
                 "debug_log", "log_attacker",
                 "effect_execute", "add_buff", "remove_buff",
                 "shoot_projectile", "give_damage", "take_damage", "heal", "modify_resource",

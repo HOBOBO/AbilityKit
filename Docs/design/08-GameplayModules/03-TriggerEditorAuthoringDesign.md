@@ -235,6 +235,8 @@ TemplateBinding
 - 检查组引用循环；
 - 导出前确定性展开。
 
+首版组定义归属于单个 Module，ConditionGroup 和 ActionGroup 各自保存稳定 ID、显示信息和一个树根。节点通过 `groupReference` 引用同类型组；引用节点不得同时保存 Type、Args 或 Children。Source JSON 保留引用关系，校验、展开预览和复制为本地内容共享同一个确定性解析器，后续 Runtime 导出也必须复用该解析器。跨 Module 复用由后续 Template Asset 承担，避免组目录过早演变成缺少版本协议的全局依赖。
+
 ## 9. 校验和诊断
 
 校验分为三个层次：
@@ -309,6 +311,16 @@ Source JSON 采用一模块一文件，文件中包含稳定的 `moduleId`、`sc
 
 同步成功后更新 Asset 基线哈希和文件内容。所有写文件操作采用临时文件后原子替换；所有写 Asset 操作接入 Unity Undo、Dirty 和 SaveAssets 流程。
 
+### 10.2 编解码器抽象（格式不固定为 JSON）
+
+Source 读写建立在 `ITriggerSourceCodec<TDocument>` 抽象上（`Editor/Utilities/TriggerSourceCodec.cs`）：
+
+- 注册表 `TriggerSourceCodecs` 按文件扩展名（忽略大小写）解析格式；JSON 是默认实现且默认值固定，注册新 codec 只增加可解析的扩展名，不抢占默认。
+- codec 契约：`Deserialize` 必须对未知字段报错或显式保留（JSON 实现为 `MissingMemberHandling.Error`），不得静默丢弃；`Serialize` 输出必须能被同一 codec 完整还原。
+- 内容基线哈希在 `TriggerSourceCanonical` 中基于固定的 DOM 规范投影（camelCase、忽略 null、无缩进、字符串枚举）计算，与 codec 无关——同一内容换格式导出/导入，基线哈希不变，不产生假冲突。
+- 临时文件原子写入与路径归一化属于格式无关管线，不进 codec。
+- 模块与模板文档各有一份注册（同扩展名可分别指向不同实现）；未注册扩展名读写时以 InvalidSource 类错误显式失败，并列出受支持扩展名。
+
 ## 11. 编辑器形态和实施顺序
 
 ### P0：协议和样例冻结
@@ -331,13 +343,15 @@ Source JSON 采用一模块一文件，文件中包含稳定的 `moduleId`、`sc
 - Source JSON 双向同步与冲突检测；
 - Undo/Redo 和批量校验。
 
-### P2：模板和组
+当前进度：项目级 Event Catalog、Global Blackboard Catalog、Template Catalog、MOBA 初始目录和一键项目初始化已经落地；模块 Inspector 已形成列表式生产闭环，支持触发器导航、递归 Condition/Action 编辑、事件感知的 Payload/Blackboard ValueRef 选择器、模板引用和参数绑定、可跳转诊断、Undo/Redo，以及带冲突处理的 Source JSON 导入导出。Condition 与当前 MOBA PlanAction 已全部补齐强类型参数 Schema。模块内 ConditionGroup / ActionGroup 已支持 JSON 双向同步、嵌套引用、缺失/重复/循环校验、只读展开预览和复制为本地树。Authoring Schema 2.2 已具备 canonical Runtime export、独立 Template Asset、模板 Source JSON 双向同步、精确版本和参数绑定校验。Global Blackboard 初始化计划和项目级 Build Gate 也已接入 Runtime/MOBA 启动链。模块↔项目的双向成员登记已由 TriggerAuthoringProjectMembership 统一维护（修复了构建门禁模块清单无人写入的断点），Project 资产新增 Inspector 与模块创建/登记入口，一键初始化附带起始模块；约定字段（Phase/Scope/Schedule Mode/InterruptPolicy）改为受约束下拉并补齐 Cue/ExecutionControl 编辑；模板绑定等破坏性操作增加确认；诊断点击可定位到具体节点并高亮；描述符目录已清理为单源注册（消除中英文重复注册覆盖）。Source 编解码已抽为 ITriggerSourceCodec 注册表（按扩展名解析、JSON 默认、哈希基于 DOM 规范投影与格式无关，见 10.2），新增第二种格式只需注册实现并通过同一套 round-trip/哈希稳定性测试。Y3 式体验第一批已落地：三栏工作台窗口（Window/AbilityKit/Trigger Authoring Workspace，项目/模块树含未挂载模块警示 + 嵌入式模块编辑 + Source 同步与项目校验卡，含复制路径/打开目录入口）、可搜索节点浏览器（AdvancedDropdown：分类树 + 搜索 + 最近使用，替换节点选择的 GenericMenu）、触发器列表增强（搜索过滤、事件列、E/W 诊断角标、上移下移、右键菜单）、节点级重排（↑↓，走 Undo）与节点剪贴板复制/粘贴（带 marker 的 Source 形态文本，跨触发器/跨模块，根空位与子节点两处粘贴入口）。生产链第一批已落地：Project 资产新增 RuntimeOutputRoot（相对 Unity 工程根，MOBA 初始化默认指向 demo 的 Resources/ability/triggers）与一键 Runtime 导出（TriggerAuthoringProjectExport：先跑完整项目门禁，再按模块原子写出 {moduleId}.runtime.json，入口在 Project Inspector、右键菜单与工作台校验卡）；Golden Examples（技能/Buff/被动三个模块，Create Golden Example Modules 菜单落资产并登记）带联动验收测试（校验+canonical Runtime 编译全绿+引用搜索）；Source 外部变更/文件缺失在 Inspector 顶部横幅提示（Import/Dismiss，可关断、状态变化自动复位，工作台同步卡同步提示）；引用搜索 TriggerAuthoringReferenceFinder 覆盖事件/组/模板/全局黑板键，Inspector 内事件字段、组行、模板绑定三处 Refs 入口，结果在独立浮窗可 ping 定位。Golden 触发器 Id 已按模块分段唯一（技能 101/102、Buff 201、被动 301），满足项目级跨模块 TriggerId 聚合校验；golden 验收测试含端到端链路（项目一键导出到临时目录 → 逐文件 TriggerPlanJsonDatabase.LoadFromJson 加载 → 触发器数守恒）。新增 tools/run-unity-editmode-tests.ps1 一键跑 Unity EditMode 测试（要求工程未被其它 Unity 实例占用，产物落 local/Logs/）。模块编辑 UI 已抽取为共享绘制器 TriggerAuthoringModuleDrawer（纯 IMGUI 类，无 Editor 生命周期，Repaint 经事件回调宿主）：Module Inspector 是它的瘦宿主，工作台窗口直接持有同一绘制器实例（替代 Editor.CreateEditor 嵌入，切换模块经 SetAsset 复用编辑状态）。迁移面调查（只读）：demo 87 个旧 JSON 共 101 条触发器，条件/动作类型对新链描述符集映射覆盖率 100%（21 动作+9 条件零缺失），但 80/101 触发器 event 为空且字段命名/值形态不同——迁移为逐条重录（判定 event 归属需团队领域判断），非机械换名。
 
-- Global Blackboard Catalog；
-- Template Asset 和实例绑定；
-- ConditionGroup / ActionGroup；
-- 展开预览；
-- 版本和引用迁移。
+### P2：模板、组和展开预览
+
+- Template Asset 和实例绑定；（已完成首版）
+- ConditionGroup / ActionGroup；（已完成模块内版本）
+- 展开预览；（已完成组引用版本）
+- 版本校验；（已完成精确版本）
+- 引用迁移。
 
 ### P3：可视化和调试
 
@@ -370,3 +384,108 @@ P0 设计完成后的第一批实现必须能够证明：
 ```
 
 本设计确认后，下一步应先建立 Descriptor、Authoring DTO、Source DTO 和校验器的最小闭环，再扩展 Odin 界面，避免先堆 UI 后反复改数据模型。
+
+## 13. Authoring v2 Runtime Plan 导出基线
+
+Authoring v2 使用独立的 canonical exporter，不复用旧 `AbilityModuleSO` / `TriggerEditorConfig` 导出链。导出顺序固定为：
+
+```text
+Authoring Validate
+    -> ConditionGroup / ActionGroup 确定性展开
+    -> Condition 后缀表达式与 Action 调用编译
+    -> Runtime DTO 序列化
+    -> 临时文件原子替换
+```
+
+首版已覆盖：
+
+- `all` / `any` / `not`、常量条件、数值比较、`has_buff`、`health_percent` 和当前项目上下文谓词；
+- `seq` 与当前 MOBA 正式注册的 PlanAction；
+- Number / Integer / Boolean / Entity / ObjectId 常量；
+- String 常量经稳定字符串表转换；
+- Payload、Context、TemplateParameter 与 Expression 数值引用；
+- Global Blackboard 稳定 domain/key ID、默认值初始化和 Runtime resolver 注册；
+- IntegerList 常量按运行时 indexed named-arg 约定展开；
+- EventId、Phase、Priority、Scope、AllowExternal、CueId 和触发器 Template binding；
+- disabled trigger 跳过统计、输出确定性和 Runtime Loader 加载验证。
+
+canonical exporter 坚持 enabled trigger 全有或全无。以下配置在 Runtime 契约补齐前产生稳定诊断并阻止整个数据库输出：
+
+- 非默认 `InterruptPriority`；
+- 触发器级 Schedule；
+- InterruptPolicy 与 StopPropagation 控制；
+- Vector3 或动态 IntegerList 单值引用；
+- 动态 String 引用；
+- Local Blackboard 已进入 owner-aware Runtime 初始化契约；Module board 在同一 owner 内共享，Trigger board 在同一 owner 内隔离；
+- 未在当前项目 Runtime PlanAction 集合注册的动作；
+- Runtime 无映射的条件类型。
+
+Action `Arity` 按正式 Runtime Source writer 的约定取具名参数数量的 `min(2, count)`，完整参数仍写入 `Args`。当前 Runtime `ActionCallPlanValidator` 对 `NamedArgs.Count == Arity` 的要求与该 writer 在参数超过两个时存在历史不一致；canonical exporter 暂不修改共享 Runtime 契约，由 Runtime 专项批次统一修正。
+
+Runtime Plan JSON 是生成物，不参与 Source JSON 的反写与同步哈希。Template Asset 已复用本导出器的值引用编译规则，并在进入导出器前完成模板存在性、版本和参数绑定校验。
+
+## 14. Authoring v2 Template Asset 基线
+
+Authoring Schema `2.2` 引入独立 `TriggerAuthoringTemplateAsset` 和项目级 `TriggerAuthoringTemplateCatalogAsset`。模板资产保存稳定 `TemplateId`、`TemplateVersion`、事件、参数 Schema、Condition 和 Actions；模块实例只保存 `TemplateId + Version + Bindings`，不序列化 Unity GUID、实例 ID 或模板树副本。
+
+模板使用独立 Source JSON 文档：
+
+```text
+schema + version + metadata + template
+```
+
+它与 Module Source JSON 采用相同的严格未知字段检查、内容哈希、冲突检测和原子写入。AI 可以直接编辑模板 JSON 并反写 Template Asset；Catalog 和 Unity 引用不进入 JSON。
+
+首版模板契约：
+
+- 模板版本采用精确字符串匹配，不隐式接受 SemVer 范围；
+- 参数声明类型、必填、常量默认值和实例允许来源；
+- 实例绑定覆盖模板默认值，先完成最终值合并再编译，避免 Runtime 字符串表残留死数据；
+- 模板树通过 `TemplateParameter` 读取参数，未声明参数、类型不符和模块局部 Group 引用会阻断；
+- 模板实例不能同时保存本地 Condition/Actions，不进行隐式树合并；
+- 模板事件必须与实例 Trigger 事件一致；
+- 首版模板不能引用另一个模板，因此模板循环依赖在数据结构上不可表达；后续若增加组合模板，必须先引入显式依赖图和循环诊断。
+
+Runtime export 在校验通过后从 Catalog 解析模板资产，使用模板树替代实例本地树，再复用 canonical exporter 的 Condition、Action、ValueRef 和字符串表编译链。Runtime JSON 继续使用现有 Trigger `Template` binding 协议，不让共享 Triggering Runtime 依赖 Unity Authoring Asset。
+
+Runtime Loader 的 fallback `Actions -> ExecutionRoot` 转换也必须在同一个 Template binding 作用域中执行；转换器使用保存/恢复 binding 状态的作用域，避免模板参数在 fallback root 中丢失或污染下一条 Trigger。
+
+## 15. Project Build Gate 与 Global Blackboard Runtime 契约
+
+`TriggerAuthoringProjectAsset` 显式保存本项目参与构建的 Module Asset 清单。构建校验不通过全工程隐式猜测模块归属；Module 和 Template 都必须反向引用同一个 Project，Catalog 和 Module 清单共同形成确定的构建输入。
+
+项目校验覆盖：
+
+- Event、Global Blackboard 和 Template Catalog 必填、空引用及重复稳定 ID；
+- Global Blackboard domain、类型和常量默认值；
+- Module/Template 的 Project 归属以及重复 ModuleId/TemplateId；
+- 每个 Module 的 Authoring 校验和 canonical Runtime export；
+- 多 Module Runtime 聚合、跨模块 TriggerId、字符串表与 Blackboard 初始化冲突；
+- 聚合 JSON 由正式 `TriggerPlanJsonDatabase` 再加载一次。
+
+校验可从 Project Asset 菜单或 `Tools/AbilityKit/Trigger Authoring/Validate All Projects` 执行，并通过 `IPreprocessBuildWithReport` 在 Player Build 前自动阻断错误。没有 Module 的 Project 只产生警告，便于先创建项目目录再逐步接入模块。
+
+Runtime Plan JSON 增加 `Blackboards` 初始化段。每个 global domain 生成一个稳定 BoardId，每个 Catalog Key 生成稳定 KeyId，并携带支持类型的默认值。`TriggerPlanJsonDatabase` 在单文件、目录和聚合加载中保留该段，`InitializeBlackboards` 只接受可写 resolver；MOBA 的 Trigger Plan 启动阶段在所有文件合并后统一应用初始化计划。相同 board 可以确定性去重，默认值冲突在项目聚合时阻断。
+
+Local Blackboard 同样进入 `Blackboards` 初始化段，但使用 `Scope=owner`，不会由世界级 `InitializeBlackboards` 物化。`OwnerBlackboardStore` 按 ownerKey 应用这些初始化模板，并以 Global resolver 作为只共享全局 board 的回退；`TRG2057` 仅阻断 Global Trigger 引用 Local Blackboard。
+
+## 16. Owner-aware Local Blackboard Runtime 契约
+
+Local Blackboard 已使用显式 owner resolver 接入 canonical Runtime Plan，不通过 thread-static 或隐式 current-owner 状态传递。Runtime JSON 继续使用 `Blackboards` 初始化段，并由 `Scope` 区分 `global` 与 `owner`；`InitializeBlackboards` 只初始化 Global，`ConfigureOwnerBlackboards` 只保存 Owner 初始化模板。
+
+- Module Local BoardId：`local.module:<moduleId>`；同一 owner 内的同模块 Trigger 共享。
+- Trigger Local BoardId：`local.trigger:<moduleId>:<triggerId>`；同一 owner 内按 Trigger 隔离。
+- 同名 key 优先解析 Trigger 声明，否则回退 Module 声明。
+- Local Blackboard 只允许 owner-bound Trigger 引用；Global Trigger 会由 `TRG2057` 阻断。
+- `OwnerBlackboardStore` 为每个非零 ownerKey 创建独立 resolver，并以世界 Global resolver 作为解析回退；释放 owner 不会清理 Global 状态。
+- MOBA 使用真实 owner context id 作为 ownerKey，不降级为 actorId。
+- `ApplyTriggers` 创建并复用 owner 状态；`Stop`、`OnDeinit` 和 `Dispose` 都释放 owner 状态；释放后重新 Apply 会从默认值重建。
+- Local 默认值必须是 `DictionaryBlackboard` 可表示的常量；不支持的类型和默认值在 canonical export 阶段阻断。
+
+Blackboard 写入已使用独立 `BlackboardTarget` 参数接入，不再把写目标当作普通 `NumericValueRef` 提前解引用。`set_num_var` 与 `add_num_var` 继续提供明确的数值写入语义；泛型 `set_var` 已成为正式 Runtime Action，并通过 typed value union 支持 Number/Integer、Boolean、String 常量。Authoring 会校验 target/value 类型一致，Runtime 初始化 Schema 同时执行 `CanRead/CanWrite` 和目标类型校验，手工修改 Runtime JSON 不能绕过权限。Runtime、Export JSON 与 Readable JSON 均保留 Bool/String 显式类型，支持 JSON 双向反写；动态 Bool/String 的 Payload、Blackboard、Expression 引用仍明确拒绝，等待后续 typed reference 契约。
+
+Blackboard Snapshot 第一批已落地为 Owner store 的显式契约：`BlackboardSnapshot` 使用版本号和 typed entries 保存 Local Blackboard 的 Int/Bool/Float/Double/String 当前值，支持 JSON 序列化与反序列化；Global fallback 不进入 Owner snapshot。恢复要求 owner 仍存在、版本匹配、board/key/type 完整匹配，并在全部校验通过后才写回。
+
+MOBA 已提供 opt-in `MobaOwnerBlackboardRollbackProvider`（registry key `10008`）：仅当宿主注册了 `IOwnerBlackboardSnapshotStore` 时加入 Rollback registry，以 owner 集合快照作为 payload；导入时 active owner 集合不一致会失败，不会隐式创建或释放 owner。Provider 同时要求 Passive、Continuous、Trigger subscription 暴露的 ownerKey 并集与快照 owner 集合完全一致；任一方向缺失都会在导出/导入阶段主动失败。
+
+该 provider 已能力门控接入 MOBA Rollback registry，但 owner 生命周期仍由各业务服务负责。回滚期间不能假设 Local Blackboard 会自动创建或恢复 Buff、Passive、Continuous 和 Trigger subscription；宿主必须在回滚前后按统一顺序重同步 owner 创建/销毁、触发器订阅和持续行为绑定，再恢复 Blackboard 值。Provider 实现 `IRollbackStatePreflightProvider`，由 `RollbackCoordinator` 在任何 provider 写入前完成 JSON、生命周期和 Blackboard schema 校验；失败会直接终止恢复，不进入部分恢复状态。生命周期协调完成前，需要回滚确定性的玩法仍不应依赖可变 Local Blackboard。

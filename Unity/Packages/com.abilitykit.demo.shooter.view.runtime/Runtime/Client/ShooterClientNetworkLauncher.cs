@@ -13,6 +13,7 @@ using AbilityKit.Network.Client;
 using AbilityKit.Network.Room;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Sdk;
+using AbilityKit.Network.Sdk.Observability;
 using AbilityKit.Protocol.Shooter;
 
 namespace AbilityKit.Demo.Shooter.View
@@ -726,6 +727,17 @@ namespace AbilityKit.Demo.Shooter.View
                     // Shooter is a raw downlink consumer: all pushes route through RawServerPushReceived
                     // into ShooterClientSession.ApplyGatewayPush; typed deserializers stay off.
                     .WithRawDownlinkOnly();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                ShooterProtocolDecoderModule.Register(NetworkTrafficMonitor.Default.Decoders);
+                config.ObserveTraffic(NetworkTrafficMonitor.Default, options =>
+                {
+                    options.ConnectionId = "shooter-battle-primary";
+                    options.Role = "battle";
+                    options.CatalogId = "abilitykit.shooter.battle";
+                    options.TransportName = "tcp";
+                    options.MaximumPayloadPreviewBytes = 65536;
+                });
+#endif
             }, connect: false);
 
             // InlineDispatcher callback: PacketReceived (incl. RequestClient response matching) fires

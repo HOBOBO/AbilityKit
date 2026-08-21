@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=../protocol-catalog.schema.json
+schemaVersion: 1
+catalogId: abilitykit.shooter.battle
+projectId: abilitykit.shooter
+domain: battle
+revision: 1
+defaultCodec: memorypack
+messages:
+  - id: player-command.event
+    opCode: 5101
+    direction: c2s
+    kind: event
+    payloadType: AbilityKit.Protocol.Shooter.ShooterInputPayload
+    reliability: realtime
+    maximumPayloadBytes: 262144
+    captureSampleRate: 0.1
+  - id: start-game.push
+    opCode: 5201
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Shooter.ShooterStartGamePayload
+    maximumPayloadBytes: 1048576
+  - id: state.push
+    opCode: 5202
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Shooter.ShooterStateSnapshotPayload
+    reliability: realtime
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.05
+  - id: events.push
+    opCode: 5203
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Shooter.ShooterEventSnapshot[]
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25
+  - id: packed-state.push
+    opCode: 5204
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Shooter.ShooterPackedSnapshotPayload
+    reliability: realtime
+    minimumSchemaVersion: 2
+    maximumSchemaVersion: 3
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.05
+  - id: packed-state-delta.push
+    opCode: 5205
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Shooter.ShooterPackedSnapshotPayload
+    reliability: realtime
+    minimumSchemaVersion: 2
+    maximumSchemaVersion: 3
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.05
+  - id: state-hash.push
+    opCode: 5206
+    direction: s2c
+    kind: push
+    payloadType: System.UInt64
+    maximumPayloadBytes: 4096
+  - id: pure-state.push
+    opCode: 5207
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Shooter.ShooterPureStateSnapshotPayload
+    codec: custom-binary
+    reliability: realtime
+    minimumSchemaVersion: 1
+    maximumSchemaVersion: 2
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.02
+  - id: pure-state-delta.push
+    opCode: 5208
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Shooter.ShooterPureStateSnapshotPayload
+    codec: custom-binary
+    reliability: realtime
+    minimumSchemaVersion: 1
+    maximumSchemaVersion: 2
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.02

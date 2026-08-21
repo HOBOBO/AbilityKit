@@ -85,7 +85,7 @@ Core 不是通用工具包。如果某个类型只有一个子系统使用、携
 
 Ring 后端用于单调追加和频繁淘汰的热路径；Sparse/List 后端用于乱序帧或低频参考实现。它们共享行为契约，但不承诺相同复杂度。淘汰、范围删除、清空和缩容必须断开内部存储对已删除引用的持有。所有后端均非线程安全；读取、写入和容量调整需要单一所有者或外部同步。
 
-`IBufferCapacityControl` 只暴露单次容量请求，不保证多个缓冲区之间的原子调整。`BufferCapacityController<TSample>` 对策略目标应用上下界，记录最近一次有界目标，并把底层拒绝原样返回；它不进行重试、平滑、调度或并发协调，这些仍归 Network 等策略所有者负责。
+`IBufferCapacityControl` 只暴露单次容量请求，不保证多个缓冲区之间的原子调整。策略评估、上下界、重试、平滑、调度和并发协调均由 Network 等策略所有者负责，不上提到 Core。
 
 ## 托管池化缓冲区
 
@@ -161,7 +161,7 @@ Core 也不提供通用 `Result<T>`。触发器执行、流程状态、回滚、
 | `PooledBufferOwner<T>` | `Dispose` 是幂等的，最多归还一次。缓冲区访问不得与释放并发；已取得的视图在释放后失效。 |
 | `StablePriorityList<T>` | 非线程安全；变更和枚举需要单一所有者或外部同步。 |
 | `SortedIntSet` | 非线程安全；必须与它索引的领域值处于同一把锁或同一所有者下。 |
-| Frame/Sequential 缓冲区与 `BufferCapacityController<TSample>` | 非线程安全；存取、范围删除、清空及容量调整不得并发，复合容量策略需由调用方协调。 |
+| Frame/Sequential 缓冲区与 `IBufferCapacityControl` | 非线程安全；存取、范围删除、清空及容量调整不得并发，复合容量策略需由调用方协调。 |
 | 观测值类型与 `NullObservationSink<TEvent>` | 值类型没有共享可变状态，Null Sink 可并发复用；其他 Sink 的线程安全、重入和事件保留行为由具体实现声明。 |
 | `DisposableRegistration` | 支持并发调用 `Dispose`，释放回调最多执行一次。回调及其目标仍遵循各自的线程安全要求。 |
 | `EventDispatcher` 和 `StableStringIdRegistry` | 非线程安全；应在同一执行上下文中订阅/注册/发布/退订，或在整个操作外加保护。 |

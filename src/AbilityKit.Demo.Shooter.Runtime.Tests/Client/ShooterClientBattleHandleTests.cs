@@ -454,6 +454,79 @@ public sealed class ShooterClientBattleHandleTests
     }
 
     [Fact]
+    public async Task ClientBattleHandleCoalescesChangingPureStateGapsUntilBaselineRecovers()
+    {
+        var source = new ShooterBattleRuntimePort();
+        var start = new ShooterStartGamePayload(
+            "battle-handle-coalesced-pure-state-recovery",
+            30,
+            4910,
+            new[]
+            {
+                new ShooterStartPlayer(11, "P11", 0f, 0f),
+                new ShooterStartPlayer(12, "P12", 5f, 0f)
+            });
+        Assert.True(source.StartGame(in start));
+        Assert.True(source.Tick(1f / 30f));
+        var firstDelta = source.ExportPureStateSnapshot(9011ul, isFullBaseline: false, baselineFrame: 99, baselineHash: 123u);
+        Assert.True(source.Tick(1f / 30f));
+        var laterDelta = source.ExportPureStateSnapshot(9011ul, isFullBaseline: false, baselineFrame: 100, baselineHash: 124u);
+
+        var presentation = new ShooterPresentationFacade();
+        var session = new ShooterClientSession(new ShooterBattleRuntimePort(), presentation, tickRate: 30);
+        Assert.True(session.StartGame(in start));
+        var roomClient = new ScriptedShooterRoomClient();
+        var anchor = new ShooterGatewayWorldStartAnchor(123456L, 10000000L, 0, 1d / 30d);
+        var flow = new ShooterRoomGatewayFlowResult(
+            "session-token",
+            "room-9",
+            1009ul,
+            "battle-9",
+            9011ul,
+            11u,
+            in anchor,
+            223456L,
+            ShooterRoomGatewayEntryKind.TeamLobby,
+            canStart: true,
+            started: true,
+            subscribed: true,
+            "ready");
+        var handle = new ShooterClientBattleHandle(session, flow, roomClient);
+
+        var firstResult = await handle.ApplyGatewayPushAndRequestFullSnapshotResyncIfNeededAsync(
+            RoomGatewayOpCodes.DeltaSnapshotPushed,
+            CreatePureStateGatewayPayload(in firstDelta, ShooterOpCodes.Snapshot.PureStateDelta, isFullSnapshot: false));
+        var firstRequestedFrame = roomClient.LastFullStateSyncRequest.LastAuthoritativeFrame;
+        var laterResult = await handle.ApplyGatewayPushAndRequestFullSnapshotResyncIfNeededAsync(
+            RoomGatewayOpCodes.DeltaSnapshotPushed,
+            CreatePureStateGatewayPayload(in laterDelta, ShooterOpCodes.Snapshot.PureStateDelta, isFullSnapshot: false));
+
+        Assert.Equal(ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded, firstResult);
+        Assert.Equal(ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded, laterResult);
+        Assert.NotEqual(firstDelta.Frame, laterDelta.Frame);
+        Assert.Equal(firstDelta.Frame, firstRequestedFrame);
+        Assert.Equal(1, roomClient.Calls.Count(call => call.StartsWith("request-full-state:")));
+        Assert.Equal(1, handle.AutomaticFullStateSyncCoalescedRequestCount);
+
+        var recoveredBaseline = source.ExportPureStateSnapshot(9011ul, isFullBaseline: true);
+        var recoveredResult = await handle.ApplyGatewayPushAndRequestFullSnapshotResyncIfNeededAsync(
+            RoomGatewayOpCodes.SnapshotPushed,
+            CreatePureStateGatewayPayload(in recoveredBaseline, ShooterOpCodes.Snapshot.PureState, isFullSnapshot: true));
+        Assert.Equal(ShooterSnapshotApplyResult.AppliedActorSnapshot, recoveredResult);
+        Assert.False(presentation.NeedsPureStateFullBaselineResync);
+
+        Assert.True(source.Tick(1f / 30f));
+        var newGap = source.ExportPureStateSnapshot(9011ul, isFullBaseline: false, baselineFrame: 101, baselineHash: 125u);
+        var newGapResult = await handle.ApplyGatewayPushAndRequestFullSnapshotResyncIfNeededAsync(
+            RoomGatewayOpCodes.DeltaSnapshotPushed,
+            CreatePureStateGatewayPayload(in newGap, ShooterOpCodes.Snapshot.PureStateDelta, isFullSnapshot: false));
+
+        Assert.Equal(ShooterSnapshotApplyResult.PureStateBaselineResyncNeeded, newGapResult);
+        Assert.Equal(2, roomClient.Calls.Count(call => call.StartsWith("request-full-state:")));
+        Assert.Equal(1, handle.AutomaticFullStateSyncCoalescedRequestCount);
+    }
+
+    [Fact]
     public async Task ClientBattleHandleExecutesFrameworkRecoveryDecisionThroughActionRouter()
     {
         var session = new ShooterClientSession(

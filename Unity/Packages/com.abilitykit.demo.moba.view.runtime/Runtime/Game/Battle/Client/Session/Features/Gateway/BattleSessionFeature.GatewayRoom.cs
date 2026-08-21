@@ -30,9 +30,20 @@ namespace AbilityKit.Game.Flow
 
         private void StopGatewayRoomPreparation()
         {
-            _runtime.GatewayRoom.Dispose();
-            _state.GatewayRoomTimeSync.Reset();
-            _runtime.Diagnostics.ClearTimeSync();
+            StopGatewayRoomPreparationAsync().GetAwaiter().GetResult();
+        }
+
+        private async Task StopGatewayRoomPreparationAsync()
+        {
+            try
+            {
+                await _runtime.GatewayRoom.StopAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                _state.GatewayRoomTimeSync.Reset();
+                _runtime.Diagnostics.ClearTimeSync();
+            }
         }
 
         private void PublishGatewayClockSample(

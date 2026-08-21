@@ -6,8 +6,7 @@
         "AbilityKit.Deterministic",
         "AbilityKit.Continuous",
         "AbilityKit.Ability",
-        "AbilityKit.Pipeline",
-        "BTRuntime"
+        "AbilityKit.Pipeline"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

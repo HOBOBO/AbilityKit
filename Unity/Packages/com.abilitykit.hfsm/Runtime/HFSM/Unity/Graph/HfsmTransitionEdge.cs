@@ -41,6 +41,18 @@ namespace UnityHFSM.Graph
         [SerializeField]
         private bool _forceInstantly;
 
+        [SerializeField]
+        private string _nextTriggerId;
+
+        [SerializeField]
+        private string _nextConditionKey;
+
+        [SerializeField]
+        private string _nextActionKey;
+
+        [SerializeField]
+        private long _nextMinimumActiveDurationRaw;
+
         /// <summary>
         /// 条件列表（运行时使用，不序列化）
         /// </summary>
@@ -114,6 +126,31 @@ namespace UnityHFSM.Graph
         {
             get => _forceInstantly;
             set => _forceInstantly = value;
+        }
+
+        public string NextTriggerId
+        {
+            get => _nextTriggerId;
+            set => _nextTriggerId = value ?? string.Empty;
+        }
+
+        public string NextConditionKey
+        {
+            get => _nextConditionKey;
+            set => _nextConditionKey = value ?? string.Empty;
+        }
+
+        public string NextActionKey
+        {
+            get => _nextActionKey;
+            set => _nextActionKey = value ?? string.Empty;
+        }
+
+        /// <summary>Q32.32 raw duration used by Next Definition export.</summary>
+        public long NextMinimumActiveDurationRaw
+        {
+            get => _nextMinimumActiveDurationRaw;
+            set => _nextMinimumActiveDurationRaw = value;
         }
 
         /// <summary>
@@ -240,6 +277,10 @@ namespace UnityHFSM.Graph
             clone._priority = _priority;
             clone._isExitTransition = _isExitTransition;
             clone._forceInstantly = _forceInstantly;
+            clone._nextTriggerId = _nextTriggerId;
+            clone._nextConditionKey = _nextConditionKey;
+            clone._nextActionKey = _nextActionKey;
+            clone._nextMinimumActiveDurationRaw = _nextMinimumActiveDurationRaw;
             clone._useAndLogic = _useAndLogic;
 
             // 深拷贝条件

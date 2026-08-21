@@ -387,6 +387,12 @@ public class StateSyncPush
     /// EventWatermark 所属的可靠事件 epoch。与全量快照共同构成恢复基线。
     /// </summary>
     [Id(11)] public string EventEpoch { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Network conditioning profile selected for this battle. This is internal
+    /// metadata used by the observer delivery budget and is not sent on the wire.
+    /// </summary>
+    [Id(12)] public string NetworkEnvironmentId { get; set; } = string.Empty;
 }
 
 /// <summary>

@@ -7,6 +7,14 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
 {
     public interface IMobaActorSpawnCoordinator : IService
     {
+        bool TryPrepareBatch(
+            IReadOnlyList<MobaActorSpawnRequest> requests,
+            out MobaActorSpawnBatchResult result);
+
+        void PublishBatch(IReadOnlyList<MobaActorSpawnResult> actors);
+
+        void RollbackBatch(IReadOnlyList<MobaActorSpawnResult> actors);
+
         bool TrySpawnBatch(
             IReadOnlyList<MobaActorSpawnRequest> requests,
             out MobaActorSpawnBatchResult result);
@@ -56,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             _spawns = spawns ?? throw new ArgumentNullException(nameof(spawns));
         }
 
-        public bool TrySpawnBatch(
+        public bool TryPrepareBatch(
             IReadOnlyList<MobaActorSpawnRequest> requests,
             out MobaActorSpawnBatchResult result)
         {
@@ -107,27 +115,53 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
                 actors[builtCount++] = actor;
             }
 
+            result = new MobaActorSpawnBatchResult(true, actors, -1, null);
+            return true;
+        }
+
+        public void PublishBatch(IReadOnlyList<MobaActorSpawnResult> actors)
+        {
+            if (_spawns == null) throw new InvalidOperationException("actor spawn transaction service is required");
+            if (actors == null) return;
+            for (var i = 0; i < actors.Count; i++)
+            {
+                var actor = actors[i];
+                _spawns.Publish(in actor);
+            }
+        }
+
+        public void RollbackBatch(IReadOnlyList<MobaActorSpawnResult> actors)
+        {
+            if (_spawns == null || actors == null) return;
+            for (var i = actors.Count - 1; i >= 0; i--)
+            {
+                var actor = actors[i];
+                _spawns.Rollback(in actor);
+            }
+        }
+
+        public bool TrySpawnBatch(
+            IReadOnlyList<MobaActorSpawnRequest> requests,
+            out MobaActorSpawnBatchResult result)
+        {
+            if (!TryPrepareBatch(requests, out result)) return false;
+
             try
             {
-                for (var i = 0; i < actors.Length; i++)
-                {
-                    _spawns.Publish(in actors[i]);
-                }
+                PublishBatch(result.Actors);
+                return true;
             }
             catch (Exception ex)
             {
                 var error = $"actor spawn publish failed: {ex.Message}";
-                var rollbackError = Rollback(actors, builtCount);
+                var rollbackError = Rollback(result.Actors, result.Actors.Length);
                 if (!string.IsNullOrEmpty(rollbackError))
                 {
                     error = $"{error}; rollback failed: {rollbackError}";
                 }
-                result = MobaActorSpawnBatchResult.Failed(actors.Length, error);
+                result = MobaActorSpawnBatchResult.Failed(result.Actors.Length, error);
                 return false;
             }
-
-            result = new MobaActorSpawnBatchResult(true, actors, -1, null);
-            return true;
         }
 
         private string Rollback(MobaActorSpawnResult[] actors, int count)

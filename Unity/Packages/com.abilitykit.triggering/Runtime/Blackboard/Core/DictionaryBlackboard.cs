@@ -3,8 +3,9 @@ using System.Collections.Generic;
 
 namespace AbilityKit.Triggering.Blackboard
 {
-    public sealed class DictionaryBlackboard : IBlackboard
+    public sealed class DictionaryBlackboard : IBlackboard, IBlackboardSchema, IBlackboardSnapshotParticipant
     {
+        private readonly Dictionary<int, BlackboardKeySchema> _schema;
         private readonly Dictionary<int, int> _ints;
 
         private readonly Dictionary<int, bool> _bools;
@@ -15,11 +16,24 @@ namespace AbilityKit.Triggering.Blackboard
         public DictionaryBlackboard(int capacity = 16)
         {
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity));
+            _schema = new Dictionary<int, BlackboardKeySchema>(capacity);
             _ints = new Dictionary<int, int>(capacity);
             _bools = new Dictionary<int, bool>(capacity);
             _floats = new Dictionary<int, float>(capacity);
             _doubles = new Dictionary<int, double>(capacity);
             _strings = new Dictionary<int, string>(capacity);
+        }
+
+        public void DefineKey(int keyId, BlackboardKeyType type, bool canRead = true, bool canWrite = true)
+        {
+            if (keyId == 0) throw new ArgumentOutOfRangeException(nameof(keyId));
+            if (type == BlackboardKeyType.Unknown) throw new ArgumentOutOfRangeException(nameof(type));
+            _schema[keyId] = new BlackboardKeySchema(type, canRead, canWrite);
+        }
+
+        public bool TryGetKeySchema(int keyId, out BlackboardKeySchema schema)
+        {
+            return _schema.TryGetValue(keyId, out schema);
         }
 
         public bool TryGetInt(int keyId, out int value)
@@ -68,6 +82,12 @@ namespace AbilityKit.Triggering.Blackboard
                 return true;
             }
 
+            if (_bools.TryGetValue(keyId, out var b))
+            {
+                value = b ? 1d : 0d;
+                return true;
+            }
+
             value = 0d;
             return false;
         }
@@ -104,6 +124,151 @@ namespace AbilityKit.Triggering.Blackboard
             _floats.Clear();
             _doubles.Clear();
             _strings.Clear();
+        }
+
+        public bool TryCaptureSnapshot(int boardId, out BlackboardSnapshotBoard snapshot, out string error)
+        {
+            snapshot = new BlackboardSnapshotBoard { BoardId = boardId };
+            foreach (var schemaPair in _schema)
+            {
+                var entry = BlackboardSnapshotEntry.Missing(schemaPair.Key, schemaPair.Value.Type);
+                switch (schemaPair.Value.Type)
+                {
+                    case BlackboardKeyType.Int:
+                        if (_ints.TryGetValue(schemaPair.Key, out var intValue))
+                        {
+                            entry.HasValue = true;
+                            entry.ValueKind = BlackboardSnapshotValueKind.Int;
+                            entry.IntValue = intValue;
+                        }
+                        break;
+                    case BlackboardKeyType.Bool:
+                        if (_bools.TryGetValue(schemaPair.Key, out var boolValue))
+                        {
+                            entry.HasValue = true;
+                            entry.ValueKind = BlackboardSnapshotValueKind.Bool;
+                            entry.BoolValue = boolValue;
+                        }
+                        break;
+                    case BlackboardKeyType.Float:
+                        if (_floats.TryGetValue(schemaPair.Key, out var floatValue))
+                        {
+                            entry.HasValue = true;
+                            entry.ValueKind = BlackboardSnapshotValueKind.Float;
+                            entry.FloatValue = floatValue;
+                        }
+                        break;
+                    case BlackboardKeyType.Double:
+                        if (_doubles.TryGetValue(schemaPair.Key, out var doubleValue))
+                        {
+                            entry.HasValue = true;
+                            entry.ValueKind = BlackboardSnapshotValueKind.Double;
+                            entry.DoubleValue = doubleValue;
+                        }
+                        break;
+                    case BlackboardKeyType.String:
+                        if (_strings.TryGetValue(schemaPair.Key, out var stringValue))
+                        {
+                            entry.HasValue = true;
+                            entry.ValueKind = BlackboardSnapshotValueKind.String;
+                            entry.StringValue = stringValue;
+                        }
+                        break;
+                    default:
+                        error = $"Blackboard key type {schemaPair.Value.Type} cannot be snapshotted. keyId={schemaPair.Key}.";
+                        snapshot = null;
+                        return false;
+                }
+                snapshot.Entries.Add(entry);
+            }
+            snapshot.Entries.Sort((left, right) => left.KeyId.CompareTo(right.KeyId));
+            error = null;
+            return true;
+        }
+
+        public bool ValidateSnapshot(BlackboardSnapshotBoard snapshot, out string error)
+        {
+            if (snapshot == null)
+            {
+                error = "Blackboard snapshot board is required.";
+                return false;
+            }
+            var seen = new HashSet<int>();
+            var entries = snapshot.Entries ?? new List<BlackboardSnapshotEntry>();
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (!seen.Add(entry.KeyId))
+                {
+                    error = $"Blackboard snapshot contains duplicate keyId={entry.KeyId}.";
+                    return false;
+                }
+                if (!_schema.TryGetValue(entry.KeyId, out var schema))
+                {
+                    error = $"Blackboard snapshot references unknown keyId={entry.KeyId}.";
+                    return false;
+                }
+                if (schema.Type != entry.Type)
+                {
+                    error = $"Blackboard snapshot type mismatch. keyId={entry.KeyId} schema={schema.Type} snapshot={entry.Type}.";
+                    return false;
+                }
+                if (!entry.HasValue) continue;
+                var expectedKind = ToSnapshotValueKind(schema.Type);
+                if (entry.ValueKind != expectedKind)
+                {
+                    error = $"Blackboard snapshot value kind mismatch. keyId={entry.KeyId} expected={expectedKind} actual={entry.ValueKind}.";
+                    return false;
+                }
+            }
+            foreach (var schemaPair in _schema)
+            {
+                if (!seen.Contains(schemaPair.Key))
+                {
+                    error = $"Blackboard snapshot is missing keyId={schemaPair.Key}.";
+                    return false;
+                }
+            }
+            error = null;
+            return true;
+        }
+
+        public bool TryRestoreSnapshot(BlackboardSnapshotBoard snapshot, out string error)
+        {
+            if (!ValidateSnapshot(snapshot, out error)) return false;
+            Clear();
+            var entries = snapshot.Entries ?? new List<BlackboardSnapshotEntry>();
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (!entry.HasValue) continue;
+                switch (entry.ValueKind)
+                {
+                    case BlackboardSnapshotValueKind.Int: _ints[entry.KeyId] = entry.IntValue; break;
+                    case BlackboardSnapshotValueKind.Bool: _bools[entry.KeyId] = entry.BoolValue; break;
+                    case BlackboardSnapshotValueKind.Float: _floats[entry.KeyId] = entry.FloatValue; break;
+                    case BlackboardSnapshotValueKind.Double: _doubles[entry.KeyId] = entry.DoubleValue; break;
+                    case BlackboardSnapshotValueKind.String: _strings[entry.KeyId] = entry.StringValue; break;
+                    default:
+                        error = $"Blackboard snapshot value kind {entry.ValueKind} is not supported.";
+                        return false;
+                }
+            }
+            error = null;
+            return true;
+        }
+
+        private static BlackboardSnapshotValueKind ToSnapshotValueKind(BlackboardKeyType type)
+        {
+            switch (type)
+            {
+                case BlackboardKeyType.Int: return BlackboardSnapshotValueKind.Int;
+                case BlackboardKeyType.Bool: return BlackboardSnapshotValueKind.Bool;
+                case BlackboardKeyType.Float: return BlackboardSnapshotValueKind.Float;
+                case BlackboardKeyType.Double: return BlackboardSnapshotValueKind.Double;
+                case BlackboardKeyType.String: return BlackboardSnapshotValueKind.String;
+                default: throw new ArgumentOutOfRangeException(nameof(type), type, "Unsupported Blackboard type.");
+            }
         }
     }
 }

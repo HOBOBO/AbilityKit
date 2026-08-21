@@ -7,20 +7,22 @@ namespace AbilityKit.Game.Flow
     {
         private readonly object _gate = new object();
         private NetworkTransport _transport;
+        private string _scope;
         private InputSubmissionStatsSnapshot _snapshot;
         private Action<NetworkSubmitInputResponse> _completed;
         private Action<Exception> _failed;
 
         internal bool IsBound => _transport != null;
 
-        internal void Bind(NetworkTransport transport)
+        internal void Bind(NetworkTransport transport, string scope = null)
         {
             if (transport == null) throw new ArgumentNullException(nameof(transport));
 
             Dispose();
             _transport = transport;
+            _scope = scope ?? string.Empty;
             _snapshot = new InputSubmissionStatsSnapshot();
-            InputSubmissionStatsProvider.Current = _snapshot;
+            Publish(_snapshot);
             _completed = HandleCompleted;
             _failed = HandleFailed;
             transport.SubmitInputCompleted += _completed;
@@ -37,11 +39,13 @@ namespace AbilityKit.Game.Flow
                 if (_failed != null) transport.SubmitInputFailed -= _failed;
             }
 
+            InputSubmissionStatsProvider.Withdraw(_scope, _snapshot);
             if (ReferenceEquals(InputSubmissionStatsProvider.Current, _snapshot))
             {
                 InputSubmissionStatsProvider.Current = null;
             }
 
+            _scope = string.Empty;
             _snapshot = null;
             _completed = null;
             _failed = null;
@@ -67,8 +71,10 @@ namespace AbilityKit.Game.Flow
                     LastMessage = response.Message,
                     LastFailure = previous.LastFailure
                 };
+                var scope = _scope;
                 _snapshot = snapshot;
-                InputSubmissionStatsProvider.Current = snapshot;
+                InputSubmissionStatsProvider.Withdraw(scope, previous);
+                Publish(snapshot);
             }
         }
 
@@ -92,9 +98,17 @@ namespace AbilityKit.Game.Flow
                     LastMessage = previous.LastMessage,
                     LastFailure = exception?.ToString() ?? string.Empty
                 };
+                var scope = _scope;
                 _snapshot = snapshot;
-                InputSubmissionStatsProvider.Current = snapshot;
+                InputSubmissionStatsProvider.Withdraw(scope, previous);
+                Publish(snapshot);
             }
+        }
+
+        private void Publish(InputSubmissionStatsSnapshot snapshot)
+        {
+            InputSubmissionStatsProvider.Publish(_scope, snapshot);
+            InputSubmissionStatsProvider.Current = snapshot;
         }
     }
 }

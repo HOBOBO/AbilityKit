@@ -19,6 +19,7 @@
         "AbilityKit.Host.Extensions",
         "AbilityKit.Host.Extensions.Client",
         "AbilityKit.Ability",
+        "AbilityKit.Ability.Behavior",
         "AbilityKit.Ability.TestKit",
         "AbilityKit.Host.Extensions.Moba",
         "AbilityKit.Game.Flow.Core",

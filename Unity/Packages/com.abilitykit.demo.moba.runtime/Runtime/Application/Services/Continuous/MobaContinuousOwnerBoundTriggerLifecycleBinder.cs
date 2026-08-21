@@ -4,10 +4,11 @@ using AbilityKit.Continuous;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Triggering;
+using AbilityKit.Demo.Moba.Rollback;
 
 namespace AbilityKit.Demo.Moba.Services
 {
-    internal sealed class MobaContinuousOwnerBoundTriggerLifecycleBinder : IContinuousLifecycleBinder, IMobaOwnerBoundTriggerGate, IMobaOwnerBoundTriggerExecutionSourceProvider, IDisposable
+    internal sealed class MobaContinuousOwnerBoundTriggerLifecycleBinder : IContinuousLifecycleBinder, IMobaOwnerBoundTriggerGate, IMobaOwnerBoundTriggerExecutionSourceProvider, IMobaOwnerKeySource, IDisposable
     {
         private readonly MobaTriggerExecutionGateway _triggers;
         private readonly MobaOwnerBoundTriggerGateService _gates;
@@ -89,6 +90,18 @@ namespace AbilityKit.Demo.Moba.Services
         public bool IsMatch(long ownerKey, int triggerId)
         {
             return TryGetBinding(ownerKey, triggerId, out _);
+        }
+
+        public string Name => "continuous";
+
+        public void CopyActiveOwnerKeys(List<long> destination)
+        {
+            if (destination == null) return;
+            destination.Clear();
+            foreach (var ownerKey in _bindingsByOwnerKey.Keys)
+            {
+                if (ownerKey != 0) destination.Add(ownerKey);
+            }
         }
 
         public bool CanExecute(long ownerKey, int triggerId)

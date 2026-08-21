@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Game.Battle;
@@ -37,6 +38,7 @@ namespace AbilityKit.Game.Flow
         void StartRemoteDrivenLocalWorld();
         void StartConfirmedAuthorityWorld();
         void DisposeReplayRecordWriter();
+        Task StopRecoveryAsync();
         void TryDestroyBattleWorlds();
         void DisposeSnapshotRouting();
         void DisposeConfirmedView();
@@ -64,6 +66,7 @@ namespace AbilityKit.Game.Flow
         void StartConfirmedAuthorityWorld();
 
         void DisposeReplayRecordWriter();
+        Task StopRecoveryAsync();
         void TryDestroyBattleWorlds();
         void DisposeSnapshotRouting();
         void DisposeConfirmedView();

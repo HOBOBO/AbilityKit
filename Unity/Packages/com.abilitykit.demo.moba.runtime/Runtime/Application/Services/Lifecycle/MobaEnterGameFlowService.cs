@@ -22,24 +22,141 @@ using AbilityKit.Protocol.Moba.CreateWorld;
 
 namespace AbilityKit.Demo.Moba.Services
 {
+    public readonly struct MobaEnterGameStartupSnapshotBatch
+    {
+        public readonly byte[] EnterGamePayload;
+        public readonly byte[] SpawnPayload;
+
+        public MobaEnterGameStartupSnapshotBatch(
+            byte[] enterGamePayload,
+            byte[] spawnPayload)
+        {
+            EnterGamePayload = enterGamePayload;
+            SpawnPayload = spawnPayload;
+        }
+    }
+
+    public interface IMobaEnterGameStartupSnapshotTransaction : IService
+    {
+        bool TryPrepare(
+            in EnterMobaGameRes response,
+            IReadOnlyList<MobaActorSpawnSnapshotEntry> spawnEntries,
+            out MobaEnterGameStartupSnapshotBatch batch,
+            out MobaGameStartFailureCode failureCode,
+            out string error);
+
+        void Commit(in MobaEnterGameStartupSnapshotBatch batch);
+
+        void Rollback();
+    }
+
+    [WorldService(typeof(IMobaEnterGameStartupSnapshotTransaction))]
+    public sealed class MobaEnterGameStartupSnapshotTransaction
+        : IMobaEnterGameStartupSnapshotTransaction
+    {
+        private readonly IMobaEnterGameSnapshotSink _enterGameSnapshots;
+        private readonly MobaActorSpawnSnapshotService _spawnSnapshots;
+
+        public MobaEnterGameStartupSnapshotTransaction(
+            IMobaEnterGameSnapshotSink enterGameSnapshots,
+            MobaActorSpawnSnapshotService spawnSnapshots)
+        {
+            _enterGameSnapshots = enterGameSnapshots ??
+                throw new ArgumentNullException(nameof(enterGameSnapshots));
+            _spawnSnapshots = spawnSnapshots ??
+                throw new ArgumentNullException(nameof(spawnSnapshots));
+        }
+
+        public bool TryPrepare(
+            in EnterMobaGameRes response,
+            IReadOnlyList<MobaActorSpawnSnapshotEntry> spawnEntries,
+            out MobaEnterGameStartupSnapshotBatch batch,
+            out MobaGameStartFailureCode failureCode,
+            out string error)
+        {
+            batch = default;
+            failureCode = MobaGameStartFailureCode.None;
+            error = null;
+            try
+            {
+                var enterGamePayload = EnterMobaGameCodec.SerializeRes(response);
+                if (enterGamePayload == null || enterGamePayload.Length == 0)
+                {
+                    failureCode = MobaGameStartFailureCode.PublishEnterGameSnapshotFailed;
+                    error = "enter-game snapshot serialization returned an empty payload";
+                    return false;
+                }
+
+                var entries = CopySpawnEntries(spawnEntries);
+                var spawnPayload = MobaActorSpawnSnapshotCodec.Serialize(entries);
+                if (spawnPayload == null || spawnPayload.Length == 0)
+                {
+                    failureCode = MobaGameStartFailureCode.PublishSpawnSnapshotFailed;
+                    error = "actor-spawn snapshot serialization returned an empty payload";
+                    return false;
+                }
+
+                batch = new MobaEnterGameStartupSnapshotBatch(
+                    enterGamePayload,
+                    spawnPayload);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                failureCode = MobaGameStartFailureCode.PublishEnterGameSnapshotFailed;
+                error = ex.GetType().Name + ": " + ex.Message;
+                return false;
+            }
+        }
+
+        public void Commit(in MobaEnterGameStartupSnapshotBatch batch)
+        {
+            _enterGameSnapshots.PublishEnterGameResPayload(batch.EnterGamePayload);
+            _spawnSnapshots.PublishSpawnPayload(batch.SpawnPayload);
+        }
+
+        public void Rollback()
+        {
+            _enterGameSnapshots.PublishEnterGameResPayload(null);
+            _spawnSnapshots.PublishSpawnPayload(null);
+        }
+
+        private static MobaActorSpawnSnapshotEntry[] CopySpawnEntries(
+            IReadOnlyList<MobaActorSpawnSnapshotEntry> spawnEntries)
+        {
+            if (spawnEntries == null || spawnEntries.Count == 0)
+            {
+                return Array.Empty<MobaActorSpawnSnapshotEntry>();
+            }
+
+            var entries = new MobaActorSpawnSnapshotEntry[spawnEntries.Count];
+            for (var i = 0; i < entries.Length; i++)
+            {
+                entries[i] = spawnEntries[i];
+            }
+
+            return entries;
+        }
+
+        public void Dispose()
+        {
+        }
+    }
+
     [WorldService(typeof(IMobaGameStartPort))]
     [WorldService(typeof(MobaEnterGameFlowService))]
     public sealed class MobaEnterGameFlowService : IService, IMobaGameStartPort
     {
-        [WorldInject] private IMobaEnterGameSnapshotSink _snapshot = null;
+        [WorldInject] private IMobaEnterGameStartupSnapshotTransaction _snapshots = null;
         [WorldInject] private IWorldContext _worldContext = null;
         [WorldInject] private global::Entitas.IContexts _contexts = null;
         [WorldInject] private ActorIdAllocator _actorIds = null;
-        [WorldInject] private MobaActorRegistry _registry = null;
-        [WorldInject] private MobaEntityManager _entities = null;
         [WorldInject] private IMobaActorSpawnCoordinator _actorSpawns = null;
-        [WorldInject] private IMobaActorSpawnTransactionService _actorSpawnTransactions = null;
-        [WorldInject] private MobaPlayerActorMapService _playerActorMap = null;
+        [WorldInject] private IMobaPlayerActorBindingTransaction _playerActorBindings = null;
         [WorldInject(required: false)] private ActorEntityInitPipeline _generator = null;
-        [WorldInject] private MobaActorSpawnSnapshotService _spawn = null;
         [WorldInject(required: false)] private IWorldResolver _services = null;
-        [WorldInject(required: false)] private MobaLogicWorldRunGateService _phase = null;
-        [WorldInject(required: false)] private MobaGameplayService _gameplay = null;
+        [WorldInject(required: false)] private IMobaBattleRunGateCommitter _runGate = null;
+        [WorldInject(required: false)] private IMobaGameplayStartTransaction _gameplayStart = null;
         [WorldInject(required: false)] private IMobaMapRuntimeService _maps = null;
 
         private bool _started;
@@ -63,7 +180,16 @@ namespace AbilityKit.Demo.Moba.Services
                 return validation;
             }
 
-            Log.Info($"[MobaEnterGameFlowService] TryStartGame: begin (players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value})");
+            if (MobaRuntimeLog.IsEnabled(
+                    MobaRuntimeLogLevel.Info,
+                    MobaRuntimeLogPurpose.Lifecycle))
+            {
+                MobaRuntimeLog.Info(
+                    MobaRuntimeLogModule.Bootstrap,
+                    MobaRuntimeLogPurpose.Lifecycle,
+                    nameof(MobaEnterGameFlowService),
+                    $"TryStartGame begin. players={(effectiveReq.Players != null ? effectiveReq.Players.Length : 0)}, playerId={effectiveReq.PlayerId.Value}");
+            }
 
             var spawnEntries = new List<MobaActorSpawnSnapshotEntry>(effectiveReq.Players != null ? effectiveReq.Players.Length : 4);
             var buildResult = BuildEnterGameActors(in effectiveReq, spawnEntries, out var built);
@@ -75,27 +201,29 @@ namespace AbilityKit.Demo.Moba.Services
             var bindResult = BindPlayerActors(built.PlayerActors);
             if (!bindResult.Succeeded)
             {
-                RollbackBuiltActors(in built);
+                RollbackPreparedStart(in built, cancelGameplay: false);
                 return bindResult;
             }
 
             var gameplayPreparation = PrepareGameplay(effectiveReq.GameplayId);
             if (!gameplayPreparation.Succeeded)
             {
-                RollbackBuiltActors(in built);
+                RollbackPreparedStart(in built, cancelGameplay: false);
                 return gameplayPreparation;
             }
 
-            var publishResult = PublishEnterGameSnapshots(in effectiveReq, in built, spawnEntries);
-            if (!publishResult.Succeeded)
+            var snapshotPreparation = PrepareEnterGameSnapshots(
+                in effectiveReq,
+                in built,
+                spawnEntries,
+                out var snapshotBatch);
+            if (!snapshotPreparation.Succeeded)
             {
-                _gameplay.CancelPreparedStart();
-                return publishResult;
+                RollbackPreparedStart(in built, cancelGameplay: true);
+                return snapshotPreparation;
             }
 
-            CommitGameplay();
-            MarkGameStarted();
-            return MobaGameStartResult.Success;
+            return CommitPreparedStart(in built, in snapshotBatch);
         }
 
         private MobaGameStartResult ValidateStartRequest(ActorContext actorContext, in MobaGameStartSpec spec, out EnterMobaGameReq effectiveReq)
@@ -241,7 +369,7 @@ namespace AbilityKit.Demo.Moba.Services
                     requests[i] = request;
                 }
 
-                if (!_actorSpawns.TrySpawnBatch(requests, out var batch) || !batch.Success)
+                if (!_actorSpawns.TryPrepareBatch(requests, out var batch) || !batch.Success)
                 {
                     throw new InvalidOperationException(batch.Error ?? "actor spawn batch failed");
                 }
@@ -307,39 +435,90 @@ namespace AbilityKit.Demo.Moba.Services
                 return buildValidation;
             }
 
-            Log.Info($"[MobaEnterGameFlowService] TryStartGame: BuildEnterGameActors done (localActorId={built.LocalActorId})");
+            if (MobaRuntimeLog.IsEnabled(
+                    MobaRuntimeLogLevel.Info,
+                    MobaRuntimeLogPurpose.Lifecycle))
+            {
+                MobaRuntimeLog.Info(
+                    MobaRuntimeLogModule.Bootstrap,
+                    MobaRuntimeLogPurpose.Lifecycle,
+                    nameof(MobaEnterGameFlowService),
+                    $"BuildEnterGameActors completed. localActorId={built.LocalActorId}");
+            }
+
             return MobaGameStartResult.Success;
         }
 
-        private MobaGameStartResult PublishEnterGameSnapshots(
+        private MobaGameStartResult PrepareEnterGameSnapshots(
             in EnterMobaGameReq effectiveReq,
             in BuildActorsResult built,
-            List<MobaActorSpawnSnapshotEntry> spawnEntries)
+            IReadOnlyList<MobaActorSpawnSnapshotEntry> spawnEntries,
+            out MobaEnterGameStartupSnapshotBatch batch)
         {
-            var res = CreateEnterGameRes(in effectiveReq, in built);
-
+            batch = default;
+            var response = CreateEnterGameRes(in effectiveReq, in built);
             try
             {
-                _snapshot.PublishEnterGameResPayload(EnterMobaGameCodec.SerializeRes(res));
+                if (_snapshots.TryPrepare(
+                        in response,
+                        spawnEntries,
+                        out batch,
+                        out var failureCode,
+                        out var error))
+                {
+                    return MobaGameStartResult.Success;
+                }
+
+                return Fail(
+                    failureCode == MobaGameStartFailureCode.None
+                        ? MobaGameStartFailureCode.PublishEnterGameSnapshotFailed
+                        : failureCode,
+                    error ?? "enter-game snapshot preparation failed");
             }
             catch (Exception ex)
             {
-                ReportStartupException(ex, MobaBattleExceptionDomain.Snapshot, "PublishEnterGameSnapshot", MobaBattleExceptionSeverity.Critical, $"playerId={effectiveReq.PlayerId.Value} localActorId={built.LocalActorId}");
-                return Fail(MobaGameStartFailureCode.PublishEnterGameSnapshotFailed, ex.Message);
+                ReportStartupException(
+                    ex,
+                    MobaBattleExceptionDomain.Snapshot,
+                    nameof(PrepareEnterGameSnapshots),
+                    MobaBattleExceptionSeverity.Critical,
+                    $"playerId={effectiveReq.PlayerId.Value} localActorId={built.LocalActorId}");
+                return Fail(
+                    MobaGameStartFailureCode.PublishEnterGameSnapshotFailed,
+                    ex.Message);
             }
+        }
 
+        private MobaGameStartResult CommitPreparedStart(
+            in BuildActorsResult built,
+            in MobaEnterGameStartupSnapshotBatch snapshotBatch)
+        {
             try
             {
-                var payload = MobaActorSpawnSnapshotCodec.Serialize(spawnEntries.ToArray());
-                _spawn.PublishSpawnPayload(payload);
+                if (!_gameplayStart.CommitPreparedStart())
+                {
+                    throw new InvalidOperationException(
+                        _gameplayStart.LastStartFailureReason ??
+                        "prepared gameplay commit failed");
+                }
+
+                _actorSpawns.PublishBatch(built.SpawnResults);
+                _snapshots.Commit(in snapshotBatch);
+                MarkGameStarted();
+                return MobaGameStartResult.Success;
             }
             catch (Exception ex)
             {
-                ReportStartupException(ex, MobaBattleExceptionDomain.Snapshot, "PublishActorSpawnSnapshot", MobaBattleExceptionSeverity.Critical, $"spawnCount={(spawnEntries != null ? spawnEntries.Count : 0)}");
-                return Fail(MobaGameStartFailureCode.PublishSpawnSnapshotFailed, ex.Message);
+                ReportStartupException(
+                    ex,
+                    MobaBattleExceptionDomain.Bootstrap,
+                    nameof(CommitPreparedStart),
+                    MobaBattleExceptionSeverity.Critical,
+                    $"localActorId={built.LocalActorId}");
+                TryRollbackSnapshots();
+                RollbackPreparedStart(in built, cancelGameplay: true);
+                return Fail(MobaGameStartFailureCode.GameStartCommitFailed, ex.Message);
             }
-
-            return MobaGameStartResult.Success;
         }
 
         private EnterMobaGameRes CreateEnterGameRes(in EnterMobaGameReq effectiveReq, in BuildActorsResult built)
@@ -363,7 +542,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void MarkGameStarted()
         {
-            _phase?.SetInGame("game start applied");
+            _runGate?.SetInGame("game start applied");
             _started = true;
         }
 
@@ -417,9 +596,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         private MobaGameStartResult PrepareGameplay(int gameplayId)
         {
-            if (_gameplay == null)
+            if (_gameplayStart == null)
             {
-                return Fail(MobaGameStartFailureCode.MissingGameplayService, "MobaGameplayService is required to start battle gameplay.");
+                return Fail(MobaGameStartFailureCode.MissingGameplayService, "IMobaGameplayStartTransaction is required to start battle gameplay.");
             }
 
             if (gameplayId <= 0)
@@ -427,24 +606,15 @@ namespace AbilityKit.Demo.Moba.Services
                 return Fail(MobaGameStartFailureCode.InvalidGameplayId, $"gameplay id must be positive for formal battle start. gameplayId={gameplayId}");
             }
 
-            if (!_gameplay.TryPrepareStart(gameplayId, out var error))
+            if (!_gameplayStart.TryPrepareStart(gameplayId, out var error))
             {
                 var detail = string.IsNullOrEmpty(error)
                     ? string.Empty
                     : $", detail={error}";
-                return Fail(MobaGameStartFailureCode.GameplayStartFailed, $"gameplay preparation failed. gameplayId={gameplayId}, phase={_gameplay.Phase}, currentGameplayId={_gameplay.CurrentGameplayId}{detail}");
+                return Fail(MobaGameStartFailureCode.GameplayStartFailed, $"gameplay preparation failed. gameplayId={gameplayId}, phase={_gameplayStart.Phase}, currentGameplayId={_gameplayStart.CurrentGameplayId}{detail}");
             }
 
             return MobaGameStartResult.Success;
-        }
-
-        private void CommitGameplay()
-        {
-            if (!_gameplay.CommitPreparedStart())
-            {
-                throw new InvalidOperationException(
-                    "prepared gameplay commit failed after snapshots were published");
-            }
         }
 
         private MobaGameStartResult BindPlayerActors(MobaPlayerActorEntry[] playerActors)
@@ -462,10 +632,36 @@ namespace AbilityKit.Demo.Moba.Services
                     return Fail(MobaGameStartFailureCode.InvalidActorBuildResult, $"player actor id is invalid. index={i}, playerId={entry.PlayerId.Value}, actorId={entry.ActorId}");
                 }
 
-                _playerActorMap.Bind(entry.PlayerId, entry.ActorId);
+                _playerActorBindings.Bind(entry.PlayerId, entry.ActorId);
             }
 
             return MobaGameStartResult.Success;
+        }
+
+        private void RollbackPreparedStart(
+            in BuildActorsResult built,
+            bool cancelGameplay)
+        {
+            if (cancelGameplay)
+            {
+                try
+                {
+                    if (_gameplayStart != null && _gameplayStart.IsRunning)
+                    {
+                        _gameplayStart.Reset();
+                    }
+                    else
+                    {
+                        _gameplayStart?.CancelPreparedStart();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    ReportRollbackException(ex, "gameplay");
+                }
+            }
+
+            RollbackBuiltActors(in built);
         }
 
         private void RollbackBuiltActors(in BuildActorsResult built)
@@ -477,38 +673,54 @@ namespace AbilityKit.Demo.Moba.Services
                 {
                     var entry = playerActors[i];
                     if (entry.ActorId <= 0) continue;
-
-                    _playerActorMap?.Unbind(entry.PlayerId, entry.ActorId);
+                    try
+                    {
+                        _playerActorBindings?.Unbind(entry.PlayerId, entry.ActorId);
+                    }
+                    catch (Exception ex)
+                    {
+                        ReportRollbackException(
+                            ex,
+                            $"player-map playerId={entry.PlayerId.Value} actorId={entry.ActorId}");
+                    }
                 }
             }
 
-            if (built.SpawnResults != null && built.SpawnResults.Length > 0)
-            {
-                RollbackSpawnResults(built.SpawnResults);
-                return;
-            }
-
-            if (playerActors == null) return;
-
-            for (var i = playerActors.Length - 1; i >= 0; i--)
-            {
-                var entry = playerActors[i];
-                if (entry.ActorId <= 0) continue;
-                new MobaActorSpawnRegistrar(_registry, _entities).Unregister(
-                    entry.ActorId,
-                    out var entity,
-                    publishDespawn: false);
-                ActorSpawnPipeline.DestroyBuiltEntity(entity);
-            }
+            RollbackSpawnResults(built.SpawnResults);
         }
 
         private void RollbackSpawnResults(MobaActorSpawnResult[] spawnResults)
         {
-            if (spawnResults == null || _actorSpawnTransactions == null) return;
-            for (var i = spawnResults.Length - 1; i >= 0; i--)
+            try
             {
-                _actorSpawnTransactions.Rollback(in spawnResults[i]);
+                _actorSpawns?.RollbackBatch(spawnResults);
             }
+            catch (Exception ex)
+            {
+                ReportRollbackException(ex, "actor-spawn-batch");
+            }
+        }
+
+        private void TryRollbackSnapshots()
+        {
+            try
+            {
+                _snapshots?.Rollback();
+            }
+            catch (Exception ex)
+            {
+                ReportRollbackException(ex, "startup-snapshots");
+            }
+        }
+
+        private void ReportRollbackException(Exception exception, string step)
+        {
+            ReportStartupException(
+                exception,
+                MobaBattleExceptionDomain.Bootstrap,
+                "RollbackPreparedStart",
+                MobaBattleExceptionSeverity.Critical,
+                $"step={step}");
         }
 
         public void Dispose()

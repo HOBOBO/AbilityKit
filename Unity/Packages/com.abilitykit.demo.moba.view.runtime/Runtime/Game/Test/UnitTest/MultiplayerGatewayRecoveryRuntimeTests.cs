@@ -140,6 +140,50 @@ namespace AbilityKit.Game.Test.UnitTest
                 Is.EqualTo(NetworkSessionRecoverySignalKind.ReconnectExhausted));
         }
 
+        [UnityTest]
+        public IEnumerator LifecycleDiagnostics_MapsRecoveryStateAndRetryCount()
+        {
+            var diagnostics = new SessionLifecycleDiagnosticsRecorder();
+            diagnostics.BeginGeneration(7, SessionLifecycleDiagnosticState.Running);
+            var runtime = new MultiplayerGatewayRecoveryRuntime(
+                _ => Task.FromResult(Restored(MultiplayerRoomPhase.Lobby)),
+                lifecycleDiagnostics: diagnostics);
+
+            Report(runtime, NetworkSessionRecoverySignalKind.ReconnectScheduled);
+            yield return Wait(runtime.PendingExecution);
+            Report(runtime, NetworkSessionRecoverySignalKind.ReconnectAttemptStarted);
+            yield return Wait(runtime.PendingExecution);
+
+            var reconnecting = diagnostics.Snapshot;
+            Assert.That(reconnecting.Generation, Is.EqualTo(7));
+            Assert.That(reconnecting.State, Is.EqualTo(SessionLifecycleDiagnosticState.Recovering));
+            Assert.That(reconnecting.RetryCount, Is.EqualTo(1));
+
+            Report(runtime, NetworkSessionRecoverySignalKind.ConnectionRestored);
+            yield return Wait(runtime.PendingExecution);
+
+            var recovered = diagnostics.Snapshot;
+            Assert.That(recovered.State, Is.EqualTo(SessionLifecycleDiagnosticState.Running));
+            Assert.That(recovered.RetryCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void LifecycleDiagnostics_ResetDoesNotOverrideStoppingState()
+        {
+            var diagnostics = new SessionLifecycleDiagnosticsRecorder();
+            diagnostics.BeginGeneration(3, SessionLifecycleDiagnosticState.Running);
+            var runtime = new MultiplayerGatewayRecoveryRuntime(
+                _ => Task.FromResult(Restored(MultiplayerRoomPhase.Lobby)),
+                lifecycleDiagnostics: diagnostics);
+            diagnostics.Transition(SessionLifecycleDiagnosticState.Stopping);
+
+            runtime.Reset();
+
+            Assert.That(diagnostics.Snapshot.State,
+                Is.EqualTo(SessionLifecycleDiagnosticState.Stopping));
+            Assert.That(diagnostics.Snapshot.RetryCount, Is.Zero);
+        }
+
         private static void Report(
             MultiplayerGatewayRecoveryRuntime runtime,
             NetworkSessionRecoverySignalKind kind)

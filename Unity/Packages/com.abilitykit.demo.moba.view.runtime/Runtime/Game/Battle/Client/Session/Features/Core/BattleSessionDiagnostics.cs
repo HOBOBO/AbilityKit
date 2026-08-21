@@ -8,6 +8,146 @@ using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Game.Flow
 {
+    public enum SessionLifecycleDiagnosticState
+    {
+        Created = 0,
+        Starting = 1,
+        Running = 2,
+        Recovering = 3,
+        Stopping = 4,
+        Stopped = 5,
+        Faulted = 6,
+    }
+
+    public readonly struct SessionLifecycleDiagnosticsSnapshot
+    {
+        public SessionLifecycleDiagnosticsSnapshot(
+            int generation,
+            SessionLifecycleDiagnosticState previousState,
+            SessionLifecycleDiagnosticState state,
+            int retryCount,
+            string pendingOperation,
+            TimeSpan lastStopLatency,
+            string teardownFailure)
+        {
+            Generation = generation;
+            PreviousState = previousState;
+            State = state;
+            RetryCount = retryCount;
+            PendingOperation = pendingOperation ?? string.Empty;
+            LastStopLatency = lastStopLatency;
+            TeardownFailure = teardownFailure ?? string.Empty;
+        }
+
+        public int Generation { get; }
+        public SessionLifecycleDiagnosticState PreviousState { get; }
+        public SessionLifecycleDiagnosticState State { get; }
+        public int RetryCount { get; }
+        public bool HasPendingOperation => !string.IsNullOrEmpty(PendingOperation);
+        public string PendingOperation { get; }
+        public TimeSpan LastStopLatency { get; }
+        public bool HasTeardownFailure => !string.IsNullOrEmpty(TeardownFailure);
+        public string TeardownFailure { get; }
+    }
+
+    internal sealed class SessionLifecycleDiagnosticsRecorder
+    {
+        private readonly object _gate = new object();
+        private int _generation;
+        private SessionLifecycleDiagnosticState _previousState;
+        private SessionLifecycleDiagnosticState _state = SessionLifecycleDiagnosticState.Created;
+        private int _retryCount;
+        private string _pendingOperation = string.Empty;
+        private TimeSpan _lastStopLatency;
+        private string _teardownFailure = string.Empty;
+
+        internal SessionLifecycleDiagnosticsSnapshot Snapshot
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return new SessionLifecycleDiagnosticsSnapshot(
+                        _generation,
+                        _previousState,
+                        _state,
+                        _retryCount,
+                        _pendingOperation,
+                        _lastStopLatency,
+                        _teardownFailure);
+                }
+            }
+        }
+
+        internal void BeginGeneration(int generation, SessionLifecycleDiagnosticState state)
+        {
+            lock (_gate)
+            {
+                _generation = generation;
+                _previousState = _state;
+                _state = state;
+                _retryCount = 0;
+                _pendingOperation = string.Empty;
+                _lastStopLatency = TimeSpan.Zero;
+                _teardownFailure = string.Empty;
+            }
+        }
+
+        internal void Transition(SessionLifecycleDiagnosticState state)
+        {
+            lock (_gate)
+            {
+                if (_state == state) return;
+                _previousState = _state;
+                _state = state;
+            }
+        }
+
+        internal void SetRetryCount(int retryCount)
+        {
+            lock (_gate) _retryCount = Math.Max(0, retryCount);
+        }
+
+        internal int BeginPendingOperation(string operation)
+        {
+            if (string.IsNullOrWhiteSpace(operation))
+            {
+                throw new ArgumentException("A pending operation name is required.", nameof(operation));
+            }
+
+            lock (_gate)
+            {
+                _pendingOperation = operation;
+                return _generation;
+            }
+        }
+
+        internal void CompletePendingOperation(
+            int generation,
+            TimeSpan stopLatency,
+            Exception teardownFailure = null,
+            SessionLifecycleDiagnosticState? finalState = null)
+        {
+            lock (_gate)
+            {
+                if (_generation != generation) return;
+                _pendingOperation = string.Empty;
+                _lastStopLatency = stopLatency < TimeSpan.Zero ? TimeSpan.Zero : stopLatency;
+                _teardownFailure = teardownFailure?.ToString() ?? string.Empty;
+                if (finalState.HasValue && _state != finalState.Value)
+                {
+                    _previousState = _state;
+                    _state = finalState.Value;
+                }
+            }
+        }
+
+        internal void RecordFailure(Exception failure)
+        {
+            lock (_gate) _teardownFailure = failure?.ToString() ?? string.Empty;
+        }
+    }
+
     /// <summary>
     /// Owns compatibility diagnostics publications for one battle session.
     /// Source runtimes retain ownership of transports, worlds, and evaluators.
@@ -18,11 +158,13 @@ namespace AbilityKit.Game.Flow
         private static bool _debugForceClientHashMismatch;
 
         private readonly BattleReplicationRuntime _replication;
+        private string _scope = string.Empty;
         private bool _forceClientHashMismatch;
         private JitterBufferStatsSnapshot _jitterBufferStats;
         private TimeSyncStatsSnapshot _timeSyncStats;
         private Dictionary<string, TimeSyncStatsSnapshot> _timeSyncStatsByWorld;
         private ConfirmedAuthorityWorldStatsSnapshot _confirmedAuthorityWorldStats;
+        private IWorld _metricSinkWorld;
         private IBattleDiagnosticMetricSink _metricSink;
         private int _lastMetricFrame = BattleDiagnosticFrames.Invalid;
 
@@ -56,13 +198,38 @@ namespace AbilityKit.Game.Flow
         internal SyncHealthReport SynchronizationHealthReport =>
             _replication.SynchronizationHealthReport;
 
-        internal void TryBindMetricSink(IWorld world)
+        internal void BindScope(string scope)
         {
-            if (_metricSink != null || world?.Services == null) return;
-            world.Services.TryResolve(out _metricSink);
+            var normalized = scope ?? string.Empty;
+            if (string.Equals(_scope, normalized, StringComparison.Ordinal)) return;
+
+            WithdrawScopedPublications();
+            _scope = normalized;
+            PublishScopedPublications();
         }
 
-        internal void RecordFrameMetrics(BattleContext context)
+        internal void BindMetricSink(IWorld world, IBattleDiagnosticMetricSink metricSink)
+        {
+            if (ReferenceEquals(_metricSinkWorld, world) && ReferenceEquals(_metricSink, metricSink)) return;
+
+            _metricSinkWorld = world;
+            _metricSink = metricSink;
+            _lastMetricFrame = BattleDiagnosticFrames.Invalid;
+        }
+
+        internal bool ClearMetricSink(IWorld ownerWorld)
+        {
+            if (!ReferenceEquals(_metricSinkWorld, ownerWorld)) return false;
+
+            _metricSinkWorld = null;
+            _metricSink = null;
+            _lastMetricFrame = BattleDiagnosticFrames.Invalid;
+            return true;
+        }
+
+        internal void RecordFrameMetrics(
+            BattleContext context,
+            in BattleSessionTickProjection tick)
         {
             var sink = _metricSink;
             if (sink == null || !sink.IsEnabled || context == null ||
@@ -116,6 +283,20 @@ namespace AbilityKit.Game.Flow
                         prediction.TotalRollbackRestoreFailed);
                 }
 
+                Gauge(sink, frame, timestamp, BattleDiagnosticMetricCategory.Simulation,
+                    BattleDiagnosticFrameMetricKeys.SimulationLastUpdateSteps, tick.LastUpdateSteps);
+                Gauge(sink, frame, timestamp, BattleDiagnosticMetricCategory.Simulation,
+                    BattleDiagnosticFrameMetricKeys.SimulationBacklogSteps, tick.BacklogSteps);
+                Counter(sink, frame, timestamp, BattleDiagnosticMetricCategory.Simulation,
+                    BattleDiagnosticFrameMetricKeys.SimulationOverBudgetUpdateTotal,
+                    tick.OverBudgetUpdateCount);
+                Counter(sink, frame, timestamp, BattleDiagnosticMetricCategory.Simulation,
+                    BattleDiagnosticFrameMetricKeys.SimulationDroppedTimeSecondsTotal,
+                    tick.DroppedTimeSeconds);
+                Counter(sink, frame, timestamp, BattleDiagnosticMetricCategory.Simulation,
+                    BattleDiagnosticFrameMetricKeys.SimulationInvalidDeltaTotal,
+                    tick.InvalidDeltaCount);
+
                 var network = _jitterBufferStats;
                 if (network != null)
                 {
@@ -160,7 +341,10 @@ namespace AbilityKit.Game.Flow
 
         internal void PublishJitterBuffer(JitterBufferStatsSnapshot snapshot)
         {
+            var previous = _jitterBufferStats;
             _jitterBufferStats = snapshot;
+            BattleFlowDebugProvider.WithdrawJitterBufferStats(_scope, previous);
+            BattleFlowDebugProvider.PublishJitterBufferStats(_scope, snapshot);
             BattleFlowDebugProvider.JitterBufferStats = snapshot;
         }
 
@@ -168,8 +352,12 @@ namespace AbilityKit.Game.Flow
             TimeSyncStatsSnapshot current,
             Dictionary<string, TimeSyncStatsSnapshot> byWorld)
         {
+            var previous = _timeSyncStats;
+            var previousByWorld = _timeSyncStatsByWorld;
             _timeSyncStats = current;
             _timeSyncStatsByWorld = byWorld;
+            BattleFlowDebugProvider.WithdrawTimeSyncStats(_scope, previous, previousByWorld);
+            BattleFlowDebugProvider.PublishTimeSyncStats(_scope, current, byWorld);
             BattleFlowDebugProvider.TimeSyncStats = current;
             BattleFlowDebugProvider.TimeSyncStatsByWorld = byWorld;
         }
@@ -181,7 +369,11 @@ namespace AbilityKit.Game.Flow
                 WorldId = worldId,
                 RecentViewEvents = null,
             };
+            var previous = _confirmedAuthorityWorldStats;
             _confirmedAuthorityWorldStats = snapshot;
+            if (string.IsNullOrWhiteSpace(_scope)) _scope = worldId ?? string.Empty;
+            BattleFlowDebugProvider.WithdrawConfirmedAuthorityStats(_scope, previous);
+            BattleFlowDebugProvider.PublishConfirmedAuthorityStats(_scope, snapshot);
             BattleFlowDebugProvider.ConfirmedAuthorityWorldStats = snapshot;
         }
 
@@ -208,6 +400,7 @@ namespace AbilityKit.Game.Flow
 
         internal void ClearJitterBuffer()
         {
+            BattleFlowDebugProvider.WithdrawJitterBufferStats(_scope, _jitterBufferStats);
             if (ReferenceEquals(BattleFlowDebugProvider.JitterBufferStats, _jitterBufferStats))
             {
                 BattleFlowDebugProvider.JitterBufferStats = null;
@@ -217,6 +410,10 @@ namespace AbilityKit.Game.Flow
 
         internal void ClearTimeSync()
         {
+            BattleFlowDebugProvider.WithdrawTimeSyncStats(
+                _scope,
+                _timeSyncStats,
+                _timeSyncStatsByWorld);
             if (ReferenceEquals(BattleFlowDebugProvider.TimeSyncStats, _timeSyncStats))
             {
                 BattleFlowDebugProvider.TimeSyncStats = null;
@@ -233,6 +430,9 @@ namespace AbilityKit.Game.Flow
 
         internal void ClearConfirmedAuthority()
         {
+            BattleFlowDebugProvider.WithdrawConfirmedAuthorityStats(
+                _scope,
+                _confirmedAuthorityWorldStats);
             if (ReferenceEquals(
                     BattleFlowDebugProvider.ConfirmedAuthorityWorldStats,
                     _confirmedAuthorityWorldStats))
@@ -240,6 +440,30 @@ namespace AbilityKit.Game.Flow
                 BattleFlowDebugProvider.ConfirmedAuthorityWorldStats = null;
             }
             _confirmedAuthorityWorldStats = null;
+        }
+
+        private void WithdrawScopedPublications()
+        {
+            BattleFlowDebugProvider.WithdrawJitterBufferStats(_scope, _jitterBufferStats);
+            BattleFlowDebugProvider.WithdrawTimeSyncStats(
+                _scope,
+                _timeSyncStats,
+                _timeSyncStatsByWorld);
+            BattleFlowDebugProvider.WithdrawConfirmedAuthorityStats(
+                _scope,
+                _confirmedAuthorityWorldStats);
+        }
+
+        private void PublishScopedPublications()
+        {
+            BattleFlowDebugProvider.PublishJitterBufferStats(_scope, _jitterBufferStats);
+            BattleFlowDebugProvider.PublishTimeSyncStats(
+                _scope,
+                _timeSyncStats,
+                _timeSyncStatsByWorld);
+            BattleFlowDebugProvider.PublishConfirmedAuthorityStats(
+                _scope,
+                _confirmedAuthorityWorldStats);
         }
 
         public void Dispose()
@@ -252,6 +476,8 @@ namespace AbilityKit.Game.Flow
             ClearJitterBuffer();
             ClearTimeSync();
             ClearConfirmedAuthority();
+            _scope = string.Empty;
+            _metricSinkWorld = null;
             _metricSink = null;
             _lastMetricFrame = BattleDiagnosticFrames.Invalid;
         }

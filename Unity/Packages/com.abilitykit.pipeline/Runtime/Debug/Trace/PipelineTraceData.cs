@@ -95,13 +95,21 @@ namespace AbilityKit.Pipeline
         /// 创建追踪事件记录。
         /// </summary>
         public PipelineTraceEvent(int seq, EPipelineTraceEventType type, AbilityPipelinePhaseId phaseId, EAbilityPipelineState state, string message)
+            : this(seq, type, phaseId, state, message, DateTime.UtcNow)
+        {
+        }
+
+        /// <summary>
+        /// 使用已捕获的时间戳创建追踪事件记录。
+        /// </summary>
+        public PipelineTraceEvent(int seq, EPipelineTraceEventType type, AbilityPipelinePhaseId phaseId, EAbilityPipelineState state, string message, DateTime utcTime)
         {
             Seq = seq;
             Type = type;
             PhaseId = phaseId;
             State = state;
             Message = message ?? string.Empty;
-            UtcTime = DateTime.UtcNow;
+            UtcTime = utcTime;
         }
 
         /// <summary>

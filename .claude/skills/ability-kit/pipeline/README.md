@@ -47,8 +47,11 @@ com.abilitykit.pipeline/
     ├── PipelineEditorInitializer.cs
     ├── Core/Time/UnityTimeProvider.cs
     └── Debug/
-        ├── EditorPipelineRegistry.cs            # ← 旧 AbilityPipelineLiveRegistry 的真身
-        └── EditorPipelineTraceRecorder.cs       # ← Ring Buffer trace
+        ├── EditorPipelineRegistry.cs            # ← 非侵入式运行观测与历史存储
+        ├── EditorPipelineTraceRecorder.cs       # ← Ring Buffer trace
+        ├── PipelineDebuggerUserState.cs         # ← UserSettings 中的个人窗口/采集偏好
+        ├── PipelineDebugSessionAsset.cs         # ← 显式导出的只读 run DTO 快照
+        └── PipelineRuntimeDebuggerWindow.cs     # ← 运行状态、阶段树、Trace、Context 和控制窗口
 ```
 
 ## 核心接口（方法签名）
@@ -128,17 +131,21 @@ PipelineGraph.Gate(...)
 
 ## 调试（旧 skill 大幅改写）
 
-**旧 `AbilityPipelineLiveRegistry` 不存在**；真身是 `EditorPipelineRegistry`（`Editor/Debug/EditorPipelineRegistry.cs`，`#if UNITY_EDITOR`）：
+**旧 `AbilityPipelineLiveRegistry` 不存在**；现由 `EditorPipelineRegistry`（`Editor/Debug/EditorPipelineRegistry.cs`，`#if UNITY_EDITOR`）通过 `PipelineDebugHooks` 旁路观察：
 
-- `sealed class : IPipelineRegistry`，单例 `Instance`
-- `DebugEntry` 用 `WeakReference` 持有 owner
-- 方法：`Register / Unregister / GetActiveOwners / InterruptAll / GetOwnersByPhase / RentOwnersByPhase / GetOwnersByState / GetTrace / TryGetOwner`
+- 不实现和替换 `IPipelineRegistry`，业务 Registry/TraceRecorder 保持原样
+- `DebugEntry` 用 `WeakReference` 持有 owner/pipeline/config/run/context
+- 保留活跃 run、终态历史、阶段定义树、Context 文本快照和 ring buffer Trace
+- `PipelineRuntimeDebuggerWindow` 菜单入口：`Window/AbilityKit/Pipeline Runtime Debugger`
+- 个人筛选、布局和采集参数写入 `PipelineDebuggerUserState`，不作为共享项目资产
+- `PipelineDebugSessionAsset` 仅保存用户显式导出的 DTO 快照，不持有或重连实时对象
 
-**旧 `PipelineGraphAsset`（ScriptableObject）不存在**；调试基础设施通过 API 暴露，**没有 EditorWindow**：
+**旧 `PipelineGraphAsset`（ScriptableObject）不存在**；阶段可视化来自运行定义的只读诊断树：
 
 - `EditorPipelineTraceRecorder` — `sealed class : IPipelineTraceRecorder`，单例，含嵌套 `EditorPipelineRunTrace`（Ring Buffer 实现 `IPipelineRunTrace`）
-- `PipelineDebugHooks` — 静态调试钩子
+- `PipelineDebugHooks` — 静态调试钩子，提供开始、Trace 和结束通知并隔离观察者异常
 - `NoOpPipelineTraceRecorder` — runtime 默认空实现
+- `IPipelineRunControl` — Editor 无需知道 `TCtx` 即可暂停、恢复、取消和中断
 
 ## 运行时（PipelineRuntime）
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Diagnostics
 {
@@ -988,7 +989,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         Network = 2,
         Rollback = 3,
         TimeSync = 4,
-        Reconciliation = 5
+        Reconciliation = 5,
+        Simulation = 6
     }
 
     public enum BattleDiagnosticMetricValueKind
@@ -1016,6 +1018,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public const string RollbackLastFrame = "rollback.last_frame";
         public const string RollbackTotal = "rollback.total";
         public const string RollbackRestoreFailedTotal = "rollback.restore_failed_total";
+        public const string SimulationLastUpdateSteps = "simulation.last_update_steps";
+        public const string SimulationBacklogSteps = "simulation.backlog_steps";
+        public const string SimulationOverBudgetUpdateTotal = "simulation.over_budget_update_total";
+        public const string SimulationDroppedTimeSecondsTotal = "simulation.dropped_time_seconds_total";
+        public const string SimulationInvalidDeltaTotal = "simulation.invalid_delta_total";
     }
 
     /// <summary>A compact, frame-addressable value produced by a runtime diagnostics hook.</summary>
@@ -1089,6 +1096,991 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ Value.GetHashCode();
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Dimension ?? string.Empty);
                 return hashCode;
+            }
+        }
+    }
+
+    /// <summary>A loss-aware frame bucket projected from one metric series.</summary>
+    public readonly struct BattleDiagnosticMetricAggregate : IEquatable<BattleDiagnosticMetricAggregate>
+    {
+        public BattleDiagnosticMetricAggregate(
+            BattleDiagnosticSessionScope scope,
+            int firstFrame,
+            int lastFrame,
+            long firstMonotonicTimestamp,
+            long lastMonotonicTimestamp,
+            BattleDiagnosticMetricCategory category,
+            BattleDiagnosticMetricValueKind valueKind,
+            string metric,
+            string dimension,
+            double firstValue,
+            double lastValue,
+            double minimumValue,
+            double maximumValue,
+            int sampleCount)
+        {
+            if (!scope.IsValid) throw new ArgumentException("A valid session scope is required.", nameof(scope));
+            if (!BattleDiagnosticFrames.IsValid(firstFrame)) throw new ArgumentOutOfRangeException(nameof(firstFrame));
+            if (lastFrame < firstFrame) throw new ArgumentOutOfRangeException(nameof(lastFrame));
+            if (firstMonotonicTimestamp < 0L) throw new ArgumentOutOfRangeException(nameof(firstMonotonicTimestamp));
+            if (lastMonotonicTimestamp < firstMonotonicTimestamp)
+                throw new ArgumentOutOfRangeException(nameof(lastMonotonicTimestamp));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricCategory), category) ||
+                category == BattleDiagnosticMetricCategory.Unknown)
+                throw new ArgumentOutOfRangeException(nameof(category));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricValueKind), valueKind))
+                throw new ArgumentOutOfRangeException(nameof(valueKind));
+            if (string.IsNullOrWhiteSpace(metric)) throw new ArgumentException("A stable metric key is required.", nameof(metric));
+            if (sampleCount <= 0) throw new ArgumentOutOfRangeException(nameof(sampleCount));
+            if (double.IsNaN(firstValue) || double.IsInfinity(firstValue))
+                throw new ArgumentOutOfRangeException(nameof(firstValue));
+            if (double.IsNaN(lastValue) || double.IsInfinity(lastValue))
+                throw new ArgumentOutOfRangeException(nameof(lastValue));
+            if (double.IsNaN(minimumValue) || double.IsInfinity(minimumValue))
+                throw new ArgumentOutOfRangeException(nameof(minimumValue));
+            if (double.IsNaN(maximumValue) || double.IsInfinity(maximumValue) || maximumValue < minimumValue)
+                throw new ArgumentOutOfRangeException(nameof(maximumValue));
+
+            Scope = scope;
+            FirstFrame = firstFrame;
+            LastFrame = lastFrame;
+            FirstMonotonicTimestamp = firstMonotonicTimestamp;
+            LastMonotonicTimestamp = lastMonotonicTimestamp;
+            Category = category;
+            ValueKind = valueKind;
+            Metric = metric;
+            Dimension = dimension ?? string.Empty;
+            FirstValue = firstValue;
+            LastValue = lastValue;
+            MinimumValue = minimumValue;
+            MaximumValue = maximumValue;
+            SampleCount = sampleCount;
+        }
+
+        public BattleDiagnosticSessionScope Scope { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+        public long FirstMonotonicTimestamp { get; }
+        public long LastMonotonicTimestamp { get; }
+        public BattleDiagnosticMetricCategory Category { get; }
+        public BattleDiagnosticMetricValueKind ValueKind { get; }
+        public string Metric { get; }
+        public string Dimension { get; }
+        public double FirstValue { get; }
+        public double LastValue { get; }
+        public double MinimumValue { get; }
+        public double MaximumValue { get; }
+        public int SampleCount { get; }
+
+        public bool Equals(BattleDiagnosticMetricAggregate other)
+        {
+            return Scope.Equals(other.Scope) && FirstFrame == other.FirstFrame && LastFrame == other.LastFrame &&
+                   FirstMonotonicTimestamp == other.FirstMonotonicTimestamp &&
+                   LastMonotonicTimestamp == other.LastMonotonicTimestamp && Category == other.Category &&
+                   ValueKind == other.ValueKind && string.Equals(Metric, other.Metric, StringComparison.Ordinal) &&
+                   string.Equals(Dimension, other.Dimension, StringComparison.Ordinal) &&
+                   FirstValue.Equals(other.FirstValue) && LastValue.Equals(other.LastValue) &&
+                   MinimumValue.Equals(other.MinimumValue) && MaximumValue.Equals(other.MaximumValue) &&
+                   SampleCount == other.SampleCount;
+        }
+
+        public override bool Equals(object obj) => obj is BattleDiagnosticMetricAggregate other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = Scope.GetHashCode();
+                hashCode = (hashCode * 397) ^ FirstFrame;
+                hashCode = (hashCode * 397) ^ LastFrame;
+                hashCode = (hashCode * 397) ^ (int)Category;
+                hashCode = (hashCode * 397) ^ (int)ValueKind;
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Metric ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Dimension ?? string.Empty);
+                hashCode = (hashCode * 397) ^ LastValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ MinimumValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ MaximumValue.GetHashCode();
+                hashCode = (hashCode * 397) ^ SampleCount;
+                return hashCode;
+            }
+        }
+    }
+
+    public enum BattleDiagnosticMetricAssessmentMode
+    {
+        None = 0,
+        LatestHigh = 1,
+        WindowMaximumHigh = 2,
+        WindowDeltaHigh = 3
+    }
+
+    public enum BattleDiagnosticMetricSeverity
+    {
+        Normal = 0,
+        Warning = 1,
+        Critical = 2
+    }
+
+    public readonly struct BattleDiagnosticMetricDescriptor
+    {
+        public BattleDiagnosticMetricDescriptor(
+            string metric,
+            BattleDiagnosticMetricCategory category,
+            BattleDiagnosticMetricValueKind valueKind,
+            string displayName,
+            string unit,
+            string group,
+            int order,
+            double suggestedMinimum = double.NaN,
+            double suggestedMaximum = double.NaN,
+            BattleDiagnosticMetricAssessmentMode assessmentMode = BattleDiagnosticMetricAssessmentMode.None,
+            double warningThreshold = double.NaN,
+            double criticalThreshold = double.NaN)
+        {
+            if (string.IsNullOrWhiteSpace(metric)) throw new ArgumentException("A stable metric key is required.", nameof(metric));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricCategory), category) ||
+                category == BattleDiagnosticMetricCategory.Unknown)
+                throw new ArgumentOutOfRangeException(nameof(category));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricValueKind), valueKind))
+                throw new ArgumentOutOfRangeException(nameof(valueKind));
+            if (string.IsNullOrWhiteSpace(displayName)) throw new ArgumentException("A display name is required.", nameof(displayName));
+            if (order < 0) throw new ArgumentOutOfRangeException(nameof(order));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticMetricAssessmentMode), assessmentMode))
+                throw new ArgumentOutOfRangeException(nameof(assessmentMode));
+            var hasSuggestedRange = !double.IsNaN(suggestedMinimum) || !double.IsNaN(suggestedMaximum);
+            if (hasSuggestedRange &&
+                (double.IsNaN(suggestedMinimum) || double.IsInfinity(suggestedMinimum) ||
+                 double.IsNaN(suggestedMaximum) || double.IsInfinity(suggestedMaximum) ||
+                 suggestedMaximum <= suggestedMinimum))
+                throw new ArgumentException("Suggested metric ranges require finite increasing bounds.");
+            var hasAssessment = assessmentMode != BattleDiagnosticMetricAssessmentMode.None;
+            if (hasAssessment &&
+                (double.IsNaN(warningThreshold) || double.IsInfinity(warningThreshold) ||
+                 double.IsNaN(criticalThreshold) || double.IsInfinity(criticalThreshold) ||
+                 criticalThreshold < warningThreshold))
+                throw new ArgumentException("Metric assessments require finite increasing thresholds.");
+
+            Metric = metric;
+            Category = category;
+            ValueKind = valueKind;
+            DisplayName = displayName;
+            Unit = unit ?? string.Empty;
+            Group = group ?? string.Empty;
+            Order = order;
+            SuggestedMinimum = suggestedMinimum;
+            SuggestedMaximum = suggestedMaximum;
+            AssessmentMode = assessmentMode;
+            WarningThreshold = warningThreshold;
+            CriticalThreshold = criticalThreshold;
+        }
+
+        public string Metric { get; }
+        public BattleDiagnosticMetricCategory Category { get; }
+        public BattleDiagnosticMetricValueKind ValueKind { get; }
+        public string DisplayName { get; }
+        public string Unit { get; }
+        public string Group { get; }
+        public int Order { get; }
+        public double SuggestedMinimum { get; }
+        public double SuggestedMaximum { get; }
+        public BattleDiagnosticMetricAssessmentMode AssessmentMode { get; }
+        public double WarningThreshold { get; }
+        public double CriticalThreshold { get; }
+        public bool HasSuggestedRange => !double.IsNaN(SuggestedMinimum) && !double.IsNaN(SuggestedMaximum);
+        public bool HasAssessment => AssessmentMode != BattleDiagnosticMetricAssessmentMode.None;
+
+        public BattleDiagnosticMetricDescriptor WithThresholds(
+            double warningThreshold,
+            double criticalThreshold,
+            double suggestedMinimum = double.NaN,
+            double suggestedMaximum = double.NaN)
+        {
+            return new BattleDiagnosticMetricDescriptor(
+                Metric,
+                Category,
+                ValueKind,
+                DisplayName,
+                Unit,
+                Group,
+                Order,
+                double.IsNaN(suggestedMinimum) ? SuggestedMinimum : suggestedMinimum,
+                double.IsNaN(suggestedMaximum) ? SuggestedMaximum : suggestedMaximum,
+                AssessmentMode,
+                warningThreshold,
+                criticalThreshold);
+        }
+    }
+
+    public readonly struct BattleDiagnosticMetricAssessment
+    {
+        public BattleDiagnosticMetricAssessment(
+            in BattleDiagnosticMetricDescriptor descriptor,
+            string dimension,
+            BattleDiagnosticMetricSeverity severity,
+            double actualValue,
+            int firstFrame,
+            int lastFrame,
+            int sampleCount)
+        {
+            Descriptor = descriptor;
+            Dimension = dimension ?? string.Empty;
+            Severity = severity;
+            ActualValue = actualValue;
+            FirstFrame = firstFrame;
+            LastFrame = lastFrame;
+            SampleCount = sampleCount;
+        }
+
+        public BattleDiagnosticMetricDescriptor Descriptor { get; }
+        public string Dimension { get; }
+        public BattleDiagnosticMetricSeverity Severity { get; }
+        public double ActualValue { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+        public int SampleCount { get; }
+        public bool IsIssue => Severity >= BattleDiagnosticMetricSeverity.Warning;
+        public double ActiveThreshold => Severity == BattleDiagnosticMetricSeverity.Critical
+            ? Descriptor.CriticalThreshold
+            : Descriptor.WarningThreshold;
+    }
+
+    public readonly struct BattleDiagnosticMetricProfileContext : IEquatable<BattleDiagnosticMetricProfileContext>
+    {
+        public BattleDiagnosticMetricProfileContext(
+            string project,
+            string gameMode = "",
+            string networkMode = "",
+            string deviceTier = "")
+        {
+            Project = project ?? string.Empty;
+            GameMode = gameMode ?? string.Empty;
+            NetworkMode = networkMode ?? string.Empty;
+            DeviceTier = deviceTier ?? string.Empty;
+        }
+
+        public string Project { get; }
+        public string GameMode { get; }
+        public string NetworkMode { get; }
+        public string DeviceTier { get; }
+
+        public bool Equals(BattleDiagnosticMetricProfileContext other)
+        {
+            return EqualsValue(Project, other.Project) && EqualsValue(GameMode, other.GameMode) &&
+                   EqualsValue(NetworkMode, other.NetworkMode) && EqualsValue(DeviceTier, other.DeviceTier);
+        }
+
+        public override bool Equals(object obj) => obj is BattleDiagnosticMetricProfileContext other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = StringComparer.OrdinalIgnoreCase.GetHashCode(Project ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.OrdinalIgnoreCase.GetHashCode(GameMode ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.OrdinalIgnoreCase.GetHashCode(NetworkMode ?? string.Empty);
+                hashCode = (hashCode * 397) ^ StringComparer.OrdinalIgnoreCase.GetHashCode(DeviceTier ?? string.Empty);
+                return hashCode;
+            }
+        }
+
+        internal static bool EqualsValue(string left, string right)
+        {
+            return string.Equals(left ?? string.Empty, right ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    public readonly struct BattleDiagnosticMetricThresholdOverride
+    {
+        public BattleDiagnosticMetricThresholdOverride(
+            string metric,
+            double warningThreshold,
+            double criticalThreshold,
+            double suggestedMinimum = double.NaN,
+            double suggestedMaximum = double.NaN)
+        {
+            if (string.IsNullOrWhiteSpace(metric)) throw new ArgumentException("A stable metric key is required.", nameof(metric));
+            if (double.IsNaN(warningThreshold) || double.IsInfinity(warningThreshold))
+                throw new ArgumentOutOfRangeException(nameof(warningThreshold));
+            if (double.IsNaN(criticalThreshold) || double.IsInfinity(criticalThreshold) ||
+                criticalThreshold < warningThreshold)
+                throw new ArgumentOutOfRangeException(nameof(criticalThreshold));
+            var hasSuggestedRange = !double.IsNaN(suggestedMinimum) || !double.IsNaN(suggestedMaximum);
+            if (hasSuggestedRange &&
+                (double.IsNaN(suggestedMinimum) || double.IsInfinity(suggestedMinimum) ||
+                 double.IsNaN(suggestedMaximum) || double.IsInfinity(suggestedMaximum) ||
+                 suggestedMaximum <= suggestedMinimum))
+                throw new ArgumentException("Suggested metric ranges require finite increasing bounds.");
+            Metric = metric;
+            WarningThreshold = warningThreshold;
+            CriticalThreshold = criticalThreshold;
+            SuggestedMinimum = suggestedMinimum;
+            SuggestedMaximum = suggestedMaximum;
+        }
+
+        public string Metric { get; }
+        public double WarningThreshold { get; }
+        public double CriticalThreshold { get; }
+        public double SuggestedMinimum { get; }
+        public double SuggestedMaximum { get; }
+    }
+
+    public sealed class BattleDiagnosticMetricProfileLayer
+    {
+        private readonly BattleDiagnosticMetricThresholdOverride[] _overrides;
+
+        public BattleDiagnosticMetricProfileLayer(
+            string name,
+            int priority,
+            IEnumerable<BattleDiagnosticMetricThresholdOverride> overrides,
+            string project = "",
+            string gameMode = "",
+            string networkMode = "",
+            string deviceTier = "")
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("A profile layer name is required.", nameof(name));
+            Name = name;
+            Priority = priority;
+            Project = project ?? string.Empty;
+            GameMode = gameMode ?? string.Empty;
+            NetworkMode = networkMode ?? string.Empty;
+            DeviceTier = deviceTier ?? string.Empty;
+            _overrides = overrides == null
+                ? Array.Empty<BattleDiagnosticMetricThresholdOverride>()
+                : new List<BattleDiagnosticMetricThresholdOverride>(overrides).ToArray();
+        }
+
+        public string Name { get; }
+        public int Priority { get; }
+        public string Project { get; }
+        public string GameMode { get; }
+        public string NetworkMode { get; }
+        public string DeviceTier { get; }
+        public IReadOnlyList<BattleDiagnosticMetricThresholdOverride> Overrides => _overrides;
+        public int Specificity => Count(Project) + Count(GameMode) + Count(NetworkMode) + Count(DeviceTier);
+
+        public bool Matches(in BattleDiagnosticMetricProfileContext context)
+        {
+            return Matches(Project, context.Project) && Matches(GameMode, context.GameMode) &&
+                   Matches(NetworkMode, context.NetworkMode) && Matches(DeviceTier, context.DeviceTier);
+        }
+
+        private static int Count(string value) => string.IsNullOrEmpty(value) ? 0 : 1;
+
+        private static bool Matches(string selector, string actual)
+        {
+            return string.IsNullOrEmpty(selector) ||
+                   string.Equals(selector, actual ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    public sealed class BattleDiagnosticResolvedMetricProfile
+    {
+        private readonly BattleDiagnosticMetricDescriptor[] _descriptors;
+        private readonly string[] _matchedLayers;
+
+        internal BattleDiagnosticResolvedMetricProfile(
+            in BattleDiagnosticMetricProfileContext context,
+            BattleDiagnosticMetricDescriptor[] descriptors,
+            string[] matchedLayers,
+            string name = "")
+        {
+            Context = context;
+            _descriptors = descriptors ?? Array.Empty<BattleDiagnosticMetricDescriptor>();
+            _matchedLayers = matchedLayers ?? Array.Empty<string>();
+            Name = string.IsNullOrEmpty(name)
+                ? _matchedLayers.Length == 0 ? "Default" : "Default + " + string.Join(" + ", _matchedLayers)
+                : name;
+        }
+
+        public string Name { get; }
+        public BattleDiagnosticMetricProfileContext Context { get; }
+        public IReadOnlyList<BattleDiagnosticMetricDescriptor> Descriptors => _descriptors;
+        public IReadOnlyList<string> MatchedLayers => _matchedLayers;
+
+        public bool TryGet(string metric, out BattleDiagnosticMetricDescriptor descriptor)
+        {
+            for (var i = 0; i < _descriptors.Length; i++)
+            {
+                if (!string.Equals(_descriptors[i].Metric, metric, StringComparison.Ordinal)) continue;
+                descriptor = _descriptors[i];
+                return true;
+            }
+            descriptor = default;
+            return false;
+        }
+    }
+
+    public readonly struct BattleDiagnosticMetricProfileDifference
+    {
+        public BattleDiagnosticMetricProfileDifference(
+            in BattleDiagnosticMetricDescriptor captured,
+            in BattleDiagnosticMetricDescriptor current)
+        {
+            Metric = captured.Metric;
+            DisplayName = captured.DisplayName;
+            Unit = captured.Unit;
+            CapturedWarningThreshold = captured.WarningThreshold;
+            CurrentWarningThreshold = current.WarningThreshold;
+            CapturedCriticalThreshold = captured.CriticalThreshold;
+            CurrentCriticalThreshold = current.CriticalThreshold;
+            CapturedSuggestedMinimum = captured.SuggestedMinimum;
+            CurrentSuggestedMinimum = current.SuggestedMinimum;
+            CapturedSuggestedMaximum = captured.SuggestedMaximum;
+            CurrentSuggestedMaximum = current.SuggestedMaximum;
+        }
+
+        public string Metric { get; }
+        public string DisplayName { get; }
+        public string Unit { get; }
+        public double CapturedWarningThreshold { get; }
+        public double CurrentWarningThreshold { get; }
+        public double CapturedCriticalThreshold { get; }
+        public double CurrentCriticalThreshold { get; }
+        public double CapturedSuggestedMinimum { get; }
+        public double CurrentSuggestedMinimum { get; }
+        public double CapturedSuggestedMaximum { get; }
+        public double CurrentSuggestedMaximum { get; }
+        public bool WarningChanged => !Same(CapturedWarningThreshold, CurrentWarningThreshold);
+        public bool CriticalChanged => !Same(CapturedCriticalThreshold, CurrentCriticalThreshold);
+        public bool SuggestedRangeChanged =>
+            !Same(CapturedSuggestedMinimum, CurrentSuggestedMinimum) ||
+            !Same(CapturedSuggestedMaximum, CurrentSuggestedMaximum);
+
+        private static bool Same(double left, double right) =>
+            left.Equals(right) || double.IsNaN(left) && double.IsNaN(right);
+    }
+
+    public sealed class BattleDiagnosticMetricProfileComparison
+    {
+        private readonly BattleDiagnosticMetricProfileDifference[] _thresholdDifferences;
+
+        internal BattleDiagnosticMetricProfileComparison(
+            BattleDiagnosticResolvedMetricProfile captured,
+            BattleDiagnosticResolvedMetricProfile current,
+            BattleDiagnosticMetricProfileDifference[] thresholdDifferences)
+        {
+            Captured = captured;
+            Current = current;
+            _thresholdDifferences = thresholdDifferences ??
+                                    Array.Empty<BattleDiagnosticMetricProfileDifference>();
+        }
+
+        public BattleDiagnosticResolvedMetricProfile Captured { get; }
+        public BattleDiagnosticResolvedMetricProfile Current { get; }
+        public bool ContextMatches => Captured.Context.Equals(Current.Context);
+        public IReadOnlyList<BattleDiagnosticMetricProfileDifference> ThresholdDifferences =>
+            _thresholdDifferences;
+        public bool HasDifferences => !ContextMatches || _thresholdDifferences.Length > 0;
+    }
+
+    public static class BattleDiagnosticMetricProfileComparer
+    {
+        public static BattleDiagnosticMetricProfileComparison Compare(
+            BattleDiagnosticResolvedMetricProfile captured,
+            BattleDiagnosticResolvedMetricProfile current)
+        {
+            if (captured == null) throw new ArgumentNullException(nameof(captured));
+            if (current == null) throw new ArgumentNullException(nameof(current));
+            var differences = new List<BattleDiagnosticMetricProfileDifference>();
+            for (var i = 0; i < captured.Descriptors.Count; i++)
+            {
+                var capturedDescriptor = captured.Descriptors[i];
+                if (!capturedDescriptor.HasAssessment ||
+                    !current.TryGet(capturedDescriptor.Metric, out var currentDescriptor))
+                    continue;
+                var difference = new BattleDiagnosticMetricProfileDifference(
+                    in capturedDescriptor,
+                    in currentDescriptor);
+                if (difference.WarningChanged || difference.CriticalChanged ||
+                    difference.SuggestedRangeChanged)
+                    differences.Add(difference);
+            }
+            return new BattleDiagnosticMetricProfileComparison(
+                captured,
+                current,
+                differences.ToArray());
+        }
+    }
+
+    public static class BattleDiagnosticMetricProfileResolver
+    {
+        public static BattleDiagnosticResolvedMetricProfile Resolve(
+            in BattleDiagnosticMetricProfileContext context,
+            IReadOnlyList<BattleDiagnosticMetricProfileLayer> layers = null)
+        {
+            var descriptors = new BattleDiagnosticMetricDescriptor[BattleDiagnosticFrameMetricCatalog.All.Count];
+            for (var i = 0; i < descriptors.Length; i++)
+                descriptors[i] = BattleDiagnosticFrameMetricCatalog.All[i];
+            var matches = new List<BattleDiagnosticMetricProfileLayer>();
+            if (layers != null)
+            {
+                for (var i = 0; i < layers.Count; i++)
+                {
+                    var layer = layers[i];
+                    if (layer != null && layer.Matches(in context)) matches.Add(layer);
+                }
+            }
+            matches.Sort(CompareLayers);
+
+            for (var i = 0; i < matches.Count; i++)
+            {
+                var layer = matches[i];
+                for (var j = 0; j < layer.Overrides.Count; j++)
+                {
+                    var item = layer.Overrides[j];
+                    for (var k = 0; k < descriptors.Length; k++)
+                    {
+                        if (!string.Equals(descriptors[k].Metric, item.Metric, StringComparison.Ordinal)) continue;
+                        descriptors[k] = descriptors[k].WithThresholds(
+                            item.WarningThreshold,
+                            item.CriticalThreshold,
+                            item.SuggestedMinimum,
+                            item.SuggestedMaximum);
+                        break;
+                    }
+                }
+            }
+
+            var names = new string[matches.Count];
+            for (var i = 0; i < matches.Count; i++) names[i] = matches[i].Name;
+            return new BattleDiagnosticResolvedMetricProfile(in context, descriptors, names);
+        }
+
+        public static BattleDiagnosticResolvedMetricProfile Restore(
+            in BattleDiagnosticMetricProfileContext context,
+            string name,
+            IReadOnlyList<BattleDiagnosticMetricThresholdOverride> overrides)
+        {
+            var layer = new BattleDiagnosticMetricProfileLayer(
+                "Captured",
+                0,
+                overrides ?? Array.Empty<BattleDiagnosticMetricThresholdOverride>());
+            var resolved = Resolve(in context, new[] { layer });
+            var descriptors = new BattleDiagnosticMetricDescriptor[resolved.Descriptors.Count];
+            for (var i = 0; i < descriptors.Length; i++) descriptors[i] = resolved.Descriptors[i];
+            return new BattleDiagnosticResolvedMetricProfile(
+                in context,
+                descriptors,
+                new[] { "Captured" },
+                string.IsNullOrEmpty(name) ? "Captured" : name);
+        }
+
+        private static int CompareLayers(
+            BattleDiagnosticMetricProfileLayer left,
+            BattleDiagnosticMetricProfileLayer right)
+        {
+            var comparison = left.Specificity.CompareTo(right.Specificity);
+            if (comparison != 0) return comparison;
+            comparison = left.Priority.CompareTo(right.Priority);
+            return comparison != 0
+                ? comparison
+                : string.Compare(left.Name, right.Name, StringComparison.Ordinal);
+        }
+    }
+
+    public static class BattleDiagnosticMetricProfileRegistry
+    {
+        private static readonly object Sync = new object();
+        private static readonly List<BattleDiagnosticMetricProfileLayer> Layers =
+            new List<BattleDiagnosticMetricProfileLayer>();
+        private static BattleDiagnosticMetricProfileContext _context =
+            new BattleDiagnosticMetricProfileContext("AbilityKit.Demo.Moba");
+        private static long _revision;
+
+        public static long Revision
+        {
+            get { lock (Sync) return _revision; }
+        }
+
+        public static BattleDiagnosticMetricProfileContext Context
+        {
+            get { lock (Sync) return _context; }
+        }
+
+        public static void SetContext(in BattleDiagnosticMetricProfileContext context)
+        {
+            lock (Sync)
+            {
+                if (_context.Equals(context)) return;
+                _context = context;
+                _revision++;
+            }
+        }
+
+        public static void RegisterOrReplace(BattleDiagnosticMetricProfileLayer layer)
+        {
+            if (layer == null) throw new ArgumentNullException(nameof(layer));
+            lock (Sync)
+            {
+                for (var i = 0; i < Layers.Count; i++)
+                {
+                    if (!string.Equals(Layers[i].Name, layer.Name, StringComparison.Ordinal)) continue;
+                    Layers[i] = layer;
+                    _revision++;
+                    return;
+                }
+                Layers.Add(layer);
+                _revision++;
+            }
+        }
+
+        public static void ReplaceAll(
+            in BattleDiagnosticMetricProfileContext context,
+            IEnumerable<BattleDiagnosticMetricProfileLayer> layers)
+        {
+            var replacements = layers == null
+                ? new List<BattleDiagnosticMetricProfileLayer>()
+                : new List<BattleDiagnosticMetricProfileLayer>(layers);
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < replacements.Count; i++)
+            {
+                var layer = replacements[i];
+                if (layer == null) throw new ArgumentException("Profile layers cannot contain null entries.", nameof(layers));
+                if (!names.Add(layer.Name))
+                    throw new ArgumentException("Profile layer names must be unique: " + layer.Name, nameof(layers));
+            }
+            lock (Sync)
+            {
+                _context = context;
+                Layers.Clear();
+                Layers.AddRange(replacements);
+                _revision++;
+            }
+        }
+
+        public static bool Remove(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return false;
+            lock (Sync)
+            {
+                for (var i = 0; i < Layers.Count; i++)
+                {
+                    if (!string.Equals(Layers[i].Name, name, StringComparison.Ordinal)) continue;
+                    Layers.RemoveAt(i);
+                    _revision++;
+                    return true;
+                }
+                return false;
+            }
+        }
+
+        public static BattleDiagnosticResolvedMetricProfile Resolve()
+        {
+            lock (Sync)
+            {
+                return BattleDiagnosticMetricProfileResolver.Resolve(in _context, Layers);
+            }
+        }
+    }
+
+    public readonly struct BattleDiagnosticCompoundMetricRule
+    {
+        public BattleDiagnosticCompoundMetricRule(
+            string id,
+            string displayName,
+            BattleDiagnosticMetricCategory category,
+            string primaryMetric,
+            string secondaryMetric)
+        {
+            if (string.IsNullOrWhiteSpace(id)) throw new ArgumentException("A stable rule id is required.", nameof(id));
+            if (string.IsNullOrWhiteSpace(displayName)) throw new ArgumentException("A display name is required.", nameof(displayName));
+            if (category == BattleDiagnosticMetricCategory.Unknown) throw new ArgumentOutOfRangeException(nameof(category));
+            if (string.IsNullOrWhiteSpace(primaryMetric)) throw new ArgumentException("A primary metric is required.", nameof(primaryMetric));
+            if (string.IsNullOrWhiteSpace(secondaryMetric)) throw new ArgumentException("A secondary metric is required.", nameof(secondaryMetric));
+            Id = id;
+            DisplayName = displayName;
+            Category = category;
+            PrimaryMetric = primaryMetric;
+            SecondaryMetric = secondaryMetric;
+        }
+
+        public string Id { get; }
+        public string DisplayName { get; }
+        public BattleDiagnosticMetricCategory Category { get; }
+        public string PrimaryMetric { get; }
+        public string SecondaryMetric { get; }
+    }
+
+    public readonly struct BattleDiagnosticCompoundMetricAssessment
+    {
+        public BattleDiagnosticCompoundMetricAssessment(
+            in BattleDiagnosticCompoundMetricRule rule,
+            string dimension,
+            BattleDiagnosticMetricSeverity severity,
+            in BattleDiagnosticMetricAssessment primary,
+            in BattleDiagnosticMetricAssessment secondary)
+        {
+            Rule = rule;
+            Dimension = dimension ?? string.Empty;
+            Severity = severity;
+            Primary = primary;
+            Secondary = secondary;
+            FirstFrame = Math.Min(primary.FirstFrame, secondary.FirstFrame);
+            LastFrame = Math.Max(primary.LastFrame, secondary.LastFrame);
+        }
+
+        public BattleDiagnosticCompoundMetricRule Rule { get; }
+        public string Dimension { get; }
+        public BattleDiagnosticMetricSeverity Severity { get; }
+        public BattleDiagnosticMetricAssessment Primary { get; }
+        public BattleDiagnosticMetricAssessment Secondary { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+    }
+
+    public static class BattleDiagnosticFrameMetricCatalog
+    {
+        private static readonly BattleDiagnosticMetricDescriptor[] Descriptors =
+        {
+            Metric(BattleDiagnosticFrameMetricKeys.PredictionConfirmedFrame, BattleDiagnosticMetricCategory.Prediction, BattleDiagnosticMetricValueKind.Gauge, "Confirmed Frame", "frame", "prediction.cursor", 10),
+            Metric(BattleDiagnosticFrameMetricKeys.PredictionPredictedFrame, BattleDiagnosticMetricCategory.Prediction, BattleDiagnosticMetricValueKind.Gauge, "Predicted Frame", "frame", "prediction.cursor", 20),
+            Metric(BattleDiagnosticFrameMetricKeys.PredictionAheadFrames, BattleDiagnosticMetricCategory.Prediction, BattleDiagnosticMetricValueKind.Gauge, "Prediction Ahead", "frames", "prediction.pressure", 30, 0d, 8d, BattleDiagnosticMetricAssessmentMode.WindowMaximumHigh, 4d, 8d),
+            Metric(BattleDiagnosticFrameMetricKeys.PredictionBacklog, BattleDiagnosticMetricCategory.Prediction, BattleDiagnosticMetricValueKind.Gauge, "Prediction Backlog", "frames", "prediction.pressure", 40, 0d, 8d, BattleDiagnosticMetricAssessmentMode.WindowMaximumHigh, 4d, 8d),
+            Metric(BattleDiagnosticFrameMetricKeys.PredictionWindow, BattleDiagnosticMetricCategory.Prediction, BattleDiagnosticMetricValueKind.Gauge, "Prediction Window", "frames", "prediction.pressure", 50, 0d, 8d),
+            Metric(BattleDiagnosticFrameMetricKeys.PredictionStalled, BattleDiagnosticMetricCategory.Prediction, BattleDiagnosticMetricValueKind.Flag, "Prediction Stalled", "flag", "prediction.health", 60, 0d, 1d, BattleDiagnosticMetricAssessmentMode.WindowMaximumHigh, 0.5d, 1d),
+
+            Metric(BattleDiagnosticFrameMetricKeys.NetworkDelayFrames, BattleDiagnosticMetricCategory.Network, BattleDiagnosticMetricValueKind.Gauge, "Buffer Delay", "frames", "network.buffer", 110, 0d, 12d),
+            Metric(BattleDiagnosticFrameMetricKeys.NetworkBufferedCount, BattleDiagnosticMetricCategory.Network, BattleDiagnosticMetricValueKind.Gauge, "Buffered Frames", "frames", "network.buffer", 120, 0d, 12d),
+            Metric(BattleDiagnosticFrameMetricKeys.NetworkTargetGap, BattleDiagnosticMetricCategory.Network, BattleDiagnosticMetricValueKind.Gauge, "Target Gap", "frames", "network.buffer", 130, 0d, 6d, BattleDiagnosticMetricAssessmentMode.WindowMaximumHigh, 2d, 5d),
+            Metric(BattleDiagnosticFrameMetricKeys.NetworkDuplicateTotal, BattleDiagnosticMetricCategory.Network, BattleDiagnosticMetricValueKind.Counter, "Duplicate Packets", "count", "network.delivery", 140, assessmentMode: BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh, warningThreshold: 1d, criticalThreshold: 5d),
+            Metric(BattleDiagnosticFrameMetricKeys.NetworkLateTotal, BattleDiagnosticMetricCategory.Network, BattleDiagnosticMetricValueKind.Counter, "Late Packets", "count", "network.delivery", 150, assessmentMode: BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh, warningThreshold: 1d, criticalThreshold: 5d),
+
+            Metric(BattleDiagnosticFrameMetricKeys.RollbackActive, BattleDiagnosticMetricCategory.Rollback, BattleDiagnosticMetricValueKind.Flag, "Rollback Active", "flag", "rollback.activity", 210, 0d, 1d, BattleDiagnosticMetricAssessmentMode.WindowMaximumHigh, 0.5d, double.MaxValue),
+            Metric(BattleDiagnosticFrameMetricKeys.RollbackReplayToFrame, BattleDiagnosticMetricCategory.Rollback, BattleDiagnosticMetricValueKind.Gauge, "Replay Target", "frame", "rollback.cursor", 220),
+            Metric(BattleDiagnosticFrameMetricKeys.RollbackLastFrame, BattleDiagnosticMetricCategory.Rollback, BattleDiagnosticMetricValueKind.Gauge, "Last Rollback Frame", "frame", "rollback.cursor", 230),
+            Metric(BattleDiagnosticFrameMetricKeys.RollbackTotal, BattleDiagnosticMetricCategory.Rollback, BattleDiagnosticMetricValueKind.Counter, "Rollbacks", "count", "rollback.health", 240, assessmentMode: BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh, warningThreshold: 1d, criticalThreshold: 3d),
+            Metric(BattleDiagnosticFrameMetricKeys.RollbackRestoreFailedTotal, BattleDiagnosticMetricCategory.Rollback, BattleDiagnosticMetricValueKind.Counter, "Restore Failures", "count", "rollback.health", 250, assessmentMode: BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh, warningThreshold: 1d, criticalThreshold: 1d)
+        };
+
+        private static readonly BattleDiagnosticCompoundMetricRule[] CompoundRules =
+        {
+            new BattleDiagnosticCompoundMetricRule(
+                "prediction.backlog_stall",
+                "Prediction cannot drain its backlog",
+                BattleDiagnosticMetricCategory.Prediction,
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                BattleDiagnosticFrameMetricKeys.PredictionStalled),
+            new BattleDiagnosticCompoundMetricRule(
+                "network.late_target_gap",
+                "Late delivery is widening the target gap",
+                BattleDiagnosticMetricCategory.Network,
+                BattleDiagnosticFrameMetricKeys.NetworkTargetGap,
+                BattleDiagnosticFrameMetricKeys.NetworkLateTotal),
+            new BattleDiagnosticCompoundMetricRule(
+                "rollback.restore_failure",
+                "Rollback recovery is failing",
+                BattleDiagnosticMetricCategory.Rollback,
+                BattleDiagnosticFrameMetricKeys.RollbackTotal,
+                BattleDiagnosticFrameMetricKeys.RollbackRestoreFailedTotal)
+        };
+
+        public static IReadOnlyList<BattleDiagnosticMetricDescriptor> All => Descriptors;
+        public static IReadOnlyList<BattleDiagnosticCompoundMetricRule> AllCompoundRules => CompoundRules;
+
+        public static bool TryGet(string metric, out BattleDiagnosticMetricDescriptor descriptor)
+        {
+            for (var i = 0; i < Descriptors.Length; i++)
+            {
+                if (!string.Equals(Descriptors[i].Metric, metric, StringComparison.Ordinal)) continue;
+                descriptor = Descriptors[i];
+                return true;
+            }
+            descriptor = default;
+            return false;
+        }
+
+        public static bool TryGet(
+            string metric,
+            BattleDiagnosticResolvedMetricProfile profile,
+            out BattleDiagnosticMetricDescriptor descriptor)
+        {
+            return profile != null
+                ? profile.TryGet(metric, out descriptor)
+                : TryGet(metric, out descriptor);
+        }
+
+        public static IReadOnlyList<BattleDiagnosticMetricAssessment> Evaluate(
+            IReadOnlyList<BattleDiagnosticMetricAggregate> aggregates,
+            BattleDiagnosticResolvedMetricProfile profile = null)
+        {
+            var builders = new Dictionary<string, AssessmentBuilder>(StringComparer.Ordinal);
+            if (aggregates != null)
+            {
+                for (var i = 0; i < aggregates.Count; i++)
+                {
+                    var aggregate = aggregates[i];
+                    if (!TryGet(aggregate.Metric, profile, out var descriptor) || !descriptor.HasAssessment) continue;
+                    var key = aggregate.Metric + "\n" + aggregate.Dimension;
+                    if (!builders.TryGetValue(key, out var builder))
+                    {
+                        builder = new AssessmentBuilder(in descriptor, in aggregate);
+                        builders.Add(key, builder);
+                    }
+                    else
+                    {
+                        builder.Add(in aggregate);
+                    }
+                }
+            }
+
+            var result = new List<BattleDiagnosticMetricAssessment>(builders.Count);
+            foreach (var pair in builders)
+            {
+                var assessment = pair.Value.Build();
+                if (assessment.IsIssue) result.Add(assessment);
+            }
+            result.Sort(CompareAssessments);
+            return result;
+        }
+
+        public static IReadOnlyList<BattleDiagnosticCompoundMetricAssessment> EvaluateCompounds(
+            IReadOnlyList<BattleDiagnosticMetricAssessment> assessments)
+        {
+            var result = new List<BattleDiagnosticCompoundMetricAssessment>();
+            if (assessments == null || assessments.Count == 0) return result;
+            for (var ruleIndex = 0; ruleIndex < CompoundRules.Length; ruleIndex++)
+            {
+                var rule = CompoundRules[ruleIndex];
+                for (var i = 0; i < assessments.Count; i++)
+                {
+                    var primary = assessments[i];
+                    if (!string.Equals(primary.Descriptor.Metric, rule.PrimaryMetric, StringComparison.Ordinal))
+                        continue;
+                    for (var j = 0; j < assessments.Count; j++)
+                    {
+                        var secondary = assessments[j];
+                        if (!string.Equals(secondary.Descriptor.Metric, rule.SecondaryMetric, StringComparison.Ordinal) ||
+                            !string.Equals(primary.Dimension, secondary.Dimension, StringComparison.Ordinal))
+                            continue;
+                        var severity = primary.Severity > secondary.Severity
+                            ? primary.Severity
+                            : secondary.Severity;
+                        result.Add(new BattleDiagnosticCompoundMetricAssessment(
+                            in rule,
+                            primary.Dimension,
+                            severity,
+                            in primary,
+                            in secondary));
+                        break;
+                    }
+                }
+            }
+            result.Sort(CompareCompoundAssessments);
+            return result;
+        }
+
+        private static BattleDiagnosticMetricDescriptor Metric(
+            string metric,
+            BattleDiagnosticMetricCategory category,
+            BattleDiagnosticMetricValueKind valueKind,
+            string displayName,
+            string unit,
+            string group,
+            int order,
+            double suggestedMinimum = double.NaN,
+            double suggestedMaximum = double.NaN,
+            BattleDiagnosticMetricAssessmentMode assessmentMode = BattleDiagnosticMetricAssessmentMode.None,
+            double warningThreshold = double.NaN,
+            double criticalThreshold = double.NaN)
+        {
+            return new BattleDiagnosticMetricDescriptor(
+                metric,
+                category,
+                valueKind,
+                displayName,
+                unit,
+                group,
+                order,
+                suggestedMinimum,
+                suggestedMaximum,
+                assessmentMode,
+                warningThreshold,
+                criticalThreshold);
+        }
+
+        private static int CompareAssessments(
+            BattleDiagnosticMetricAssessment left,
+            BattleDiagnosticMetricAssessment right)
+        {
+            var comparison = right.Severity.CompareTo(left.Severity);
+            if (comparison != 0) return comparison;
+            comparison = right.ActualValue.CompareTo(left.ActualValue);
+            if (comparison != 0) return comparison;
+            return left.Descriptor.Order.CompareTo(right.Descriptor.Order);
+        }
+
+        private static int CompareCompoundAssessments(
+            BattleDiagnosticCompoundMetricAssessment left,
+            BattleDiagnosticCompoundMetricAssessment right)
+        {
+            var comparison = right.Severity.CompareTo(left.Severity);
+            return comparison != 0
+                ? comparison
+                : string.Compare(left.Rule.Id, right.Rule.Id, StringComparison.Ordinal);
+        }
+
+        private sealed class AssessmentBuilder
+        {
+            private readonly BattleDiagnosticMetricDescriptor _descriptor;
+            private readonly string _dimension;
+            private readonly int _firstFrame;
+            private int _lastFrame;
+            private readonly double _firstValue;
+            private double _lastValue;
+            private double _maximumValue;
+            private int _sampleCount;
+
+            public AssessmentBuilder(
+                in BattleDiagnosticMetricDescriptor descriptor,
+                in BattleDiagnosticMetricAggregate aggregate)
+            {
+                _descriptor = descriptor;
+                _dimension = aggregate.Dimension;
+                _firstFrame = aggregate.FirstFrame;
+                _lastFrame = aggregate.LastFrame;
+                _firstValue = aggregate.FirstValue;
+                _lastValue = aggregate.LastValue;
+                _maximumValue = aggregate.MaximumValue;
+                _sampleCount = aggregate.SampleCount;
+            }
+
+            public void Add(in BattleDiagnosticMetricAggregate aggregate)
+            {
+                _lastFrame = aggregate.LastFrame;
+                _lastValue = aggregate.LastValue;
+                _maximumValue = Math.Max(_maximumValue, aggregate.MaximumValue);
+                _sampleCount += aggregate.SampleCount;
+            }
+
+            public BattleDiagnosticMetricAssessment Build()
+            {
+                double actual;
+                switch (_descriptor.AssessmentMode)
+                {
+                    case BattleDiagnosticMetricAssessmentMode.LatestHigh:
+                        actual = _lastValue;
+                        break;
+                    case BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh:
+                        actual = Math.Max(0d, _lastValue - _firstValue);
+                        break;
+                    default:
+                        actual = _maximumValue;
+                        break;
+                }
+
+                var severity = actual >= _descriptor.CriticalThreshold
+                    ? BattleDiagnosticMetricSeverity.Critical
+                    : actual >= _descriptor.WarningThreshold
+                        ? BattleDiagnosticMetricSeverity.Warning
+                        : BattleDiagnosticMetricSeverity.Normal;
+                return new BattleDiagnosticMetricAssessment(
+                    in _descriptor,
+                    _dimension,
+                    severity,
+                    actual,
+                    _firstFrame,
+                    _lastFrame,
+                    _sampleCount);
             }
         }
     }

@@ -379,6 +379,41 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void ActorSpawnCoordinator_PrepareDoesNotPublishUntilExplicitCommit()
+        {
+            var transactions = new RecordingSpawnTransactionService();
+            var coordinator = new MobaActorSpawnCoordinator(transactions);
+            var requests = CreateSpawnRequests(811, 812, 813);
+
+            var succeeded = coordinator.TryPrepareBatch(requests, out var result);
+
+            Assert.IsTrue(succeeded, result.Error);
+            CollectionAssert.IsEmpty(transactions.PublishedActorIds);
+            coordinator.PublishBatch(result.Actors);
+            CollectionAssert.AreEqual(
+                new[] { 811, 812, 813 },
+                transactions.PublishedActorIds);
+        }
+
+        [Test]
+        public void ActorSpawnCoordinator_ExplicitRollbackUsesReverseOrder()
+        {
+            var transactions = new RecordingSpawnTransactionService();
+            var coordinator = new MobaActorSpawnCoordinator(transactions);
+            var requests = CreateSpawnRequests(821, 822, 823);
+            Assert.IsTrue(
+                coordinator.TryPrepareBatch(requests, out var result),
+                result.Error);
+
+            coordinator.RollbackBatch(result.Actors);
+
+            CollectionAssert.AreEqual(
+                new[] { 823, 822, 821 },
+                transactions.RolledBackActorIds);
+            CollectionAssert.IsEmpty(transactions.PublishedActorIds);
+        }
+
+        [Test]
         public void PlayerActorMap_UnbindRequiresExpectedActorId()
         {
             var map = new MobaPlayerActorMapService();

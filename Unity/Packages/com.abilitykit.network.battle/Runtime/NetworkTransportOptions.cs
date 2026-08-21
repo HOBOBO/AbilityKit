@@ -1,6 +1,7 @@
 using System;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Observability;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Network.Sdk;
 
@@ -57,6 +58,16 @@ namespace AbilityKit.Network.Battle
         /// Set to null to use SDK defaults. The initial value preserves the historical Battle reconnect preset.
         /// </summary>
         public Action<ConnectionOptions> ConfigureConnection = ApplyBattleConnectionDefaults;
+
+        /// <summary>
+        /// Optional packet observer installed only when this transport builds its SDK client from
+        /// <see cref="TransportFactory"/>. Prebuilt SDK clients and injected connections must
+        /// configure observation at their own composition boundary.
+        /// </summary>
+        public INetworkTrafficObserver TrafficObserver;
+
+        /// <summary>Configures metadata and payload-preview policy for <see cref="TrafficObserver"/>.</summary>
+        public Action<NetworkTrafficCaptureOptions> ConfigureTrafficCapture;
 
         public uint OpCreateWorld;
         public uint OpJoin;

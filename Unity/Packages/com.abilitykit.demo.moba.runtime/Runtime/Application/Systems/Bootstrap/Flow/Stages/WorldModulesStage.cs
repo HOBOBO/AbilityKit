@@ -73,6 +73,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 return payloads;
             });
             builder.Register<IBlackboardResolver>(WorldLifetime.Singleton, _ => new DictionaryBlackboardResolver());
+            builder.Register<IOwnerBlackboardStore>(WorldLifetime.Singleton, r =>
+                new OwnerBlackboardStore(r.Resolve<IBlackboardResolver>()));
             builder.Register<INumericVarDomainRegistry>(WorldLifetime.Singleton, _ =>
             {
                 var registry = new NumericVarDomainRegistry();

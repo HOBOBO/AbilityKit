@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Shooter.View
         public const int DefaultBufferCapacity = 64;
         public const float DefaultPlaybackFramesPerSecond = 30f;
         public const float DefaultInterpolationDelayFrames = 2f;
+        public const float DefaultDelayConvergenceRate = 0.125f;
 
         private readonly ShooterSnapshotViewBatch[] _buffer;
         private readonly ShooterSnapshotSamplingPolicy _samplingPolicy;
@@ -23,9 +24,12 @@ namespace AbilityKit.Demo.Shooter.View
         private int _start;
         private int _count;
         private float _playbackFrame;
+        private float _interpolationDelayFrames;
+        private float _targetInterpolationDelayFrames;
         private ShooterSnapshotViewBatchKey _lastSampledBatchKey;
         private bool _hasLastSampledBatchKey;
         private bool _playbackInitialized;
+        private bool _isPrebuffering;
         private int _playbackSearchIndex;
 
         public ShooterSnapshotStream()
@@ -46,6 +50,7 @@ namespace AbilityKit.Demo.Shooter.View
             _samplingPolicy = samplingPolicy ?? throw new ArgumentNullException(nameof(samplingPolicy));
             PlaybackFramesPerSecond = DefaultPlaybackFramesPerSecond;
             InterpolationDelayFrames = DefaultInterpolationDelayFrames;
+            DelayConvergenceRate = DefaultDelayConvergenceRate;
         }
 
         public event Action<ShooterSnapshotViewBatch>? SnapshotApplied;
@@ -64,7 +69,56 @@ namespace AbilityKit.Demo.Shooter.View
 
         public float PlaybackFramesPerSecond { get; set; }
 
-        public float InterpolationDelayFrames { get; set; }
+        public float InterpolationDelayFrames
+        {
+            get => _interpolationDelayFrames;
+            set
+            {
+                var delay = Math.Max(0f, value);
+                _targetInterpolationDelayFrames = delay;
+                if (!_playbackInitialized)
+                {
+                    _interpolationDelayFrames = delay;
+                }
+            }
+        }
+
+        public float TargetInterpolationDelayFrames => _targetInterpolationDelayFrames;
+
+        /// <summary>
+        /// Maximum fraction of normal playback progress used each tick to converge the active delay.
+        /// A value below one prevents delay changes from moving the playback clock backwards or snapping it forwards.
+        /// </summary>
+        public float DelayConvergenceRate { get; set; }
+
+        public float BufferedFrameSpan => _count > 1
+            ? Math.Max(0f, GetAt(_count - 1).Frame - GetAt(0).Frame)
+            : 0f;
+
+        public float AvailablePlaybackLeadFrames => _count > 0 && _playbackInitialized
+            ? Math.Max(0f, GetAt(_count - 1).Frame - _playbackFrame)
+            : 0f;
+
+        public bool IsPlaybackStarved => _count > 0
+            && _playbackInitialized
+            && !_isPrebuffering
+            && _playbackFrame >= GetAt(_count - 1).Frame;
+
+        public bool TrySetTargetInterpolationDelayFrames(float delayFrames)
+        {
+            if (float.IsNaN(delayFrames) || float.IsInfinity(delayFrames) || delayFrames < 0f)
+            {
+                return false;
+            }
+
+            _targetInterpolationDelayFrames = delayFrames;
+            if (!_playbackInitialized)
+            {
+                _interpolationDelayFrames = delayFrames;
+            }
+
+            return true;
+        }
 
         public void Publish(in ShooterSnapshotViewBatch batch)
         {
@@ -130,12 +184,26 @@ namespace AbilityKit.Demo.Shooter.View
             if (!_playbackInitialized)
             {
                 var latest = GetAt(_count - 1);
-                _playbackFrame = Math.Max(GetAt(0).Frame, latest.Frame - Math.Max(0f, InterpolationDelayFrames));
+                var oldestFrame = GetAt(0).Frame;
+                _playbackFrame = Math.Max(oldestFrame, latest.Frame - Math.Max(0f, _interpolationDelayFrames));
+                _isPrebuffering = latest.Frame - _playbackFrame < _interpolationDelayFrames;
                 _playbackInitialized = true;
             }
             else
             {
-                _playbackFrame += deltaTime * Math.Max(0f, PlaybackFramesPerSecond);
+                var playbackAdvance = deltaTime * Math.Max(0f, PlaybackFramesPerSecond);
+                var latestFrame = GetAt(_count - 1).Frame;
+                if (_isPrebuffering && latestFrame - _playbackFrame < _interpolationDelayFrames)
+                {
+                    playbackAdvance = 0f;
+                }
+                else
+                {
+                    _isPrebuffering = false;
+                    playbackAdvance = ConvergePlaybackDelay(playbackAdvance);
+                }
+
+                _playbackFrame = Math.Min(latestFrame, _playbackFrame + playbackAdvance);
             }
 
             if (!TryFindPlaybackSampleWindow(_playbackFrame, out var from, out var to))
@@ -179,13 +247,45 @@ namespace AbilityKit.Demo.Shooter.View
             _start = 0;
             _count = 0;
             _playbackFrame = 0f;
+            _interpolationDelayFrames = _targetInterpolationDelayFrames;
             _lastSampledBatchKey = default;
             _hasLastSampledBatchKey = false;
             _playbackInitialized = false;
+            _isPrebuffering = false;
             _playbackSearchIndex = 0;
             _transformTracks.Clear();
             _sampledTransformKeys.Clear();
             _transientTransformBuffer.Clear();
+        }
+
+        private float ConvergePlaybackDelay(float playbackAdvance)
+        {
+            if (playbackAdvance <= 0f || _interpolationDelayFrames == _targetInterpolationDelayFrames)
+            {
+                return playbackAdvance;
+            }
+
+            var convergenceRate = Math.Max(0f, Math.Min(1f, DelayConvergenceRate));
+            var maxDelayStep = playbackAdvance * convergenceRate;
+            if (maxDelayStep <= 0f)
+            {
+                return playbackAdvance;
+            }
+
+            if (_interpolationDelayFrames < _targetInterpolationDelayFrames)
+            {
+                var delayStep = Math.Min(
+                    maxDelayStep,
+                    _targetInterpolationDelayFrames - _interpolationDelayFrames);
+                _interpolationDelayFrames += delayStep;
+                return Math.Max(0f, playbackAdvance - delayStep);
+            }
+
+            var catchUpStep = Math.Min(
+                maxDelayStep,
+                _interpolationDelayFrames - _targetInterpolationDelayFrames);
+            _interpolationDelayFrames -= catchUpStep;
+            return playbackAdvance + catchUpStep;
         }
 
         private bool TryFindSampleWindow(float playbackFrame, out ShooterSnapshotViewBatch from, out ShooterSnapshotViewBatch to)

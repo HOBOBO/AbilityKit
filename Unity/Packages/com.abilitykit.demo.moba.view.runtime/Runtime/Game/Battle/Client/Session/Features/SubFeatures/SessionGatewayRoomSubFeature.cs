@@ -42,8 +42,6 @@ namespace AbilityKit.Game.Flow
             }
             _planBuiltHandler = null;
             _sessionRequested = false;
-
-            runtime?.StopGatewayRoomPreparation();
         }
 
         public void PreTick(in FeatureModuleContext<BattleSessionFeature> ctx, float deltaTime)

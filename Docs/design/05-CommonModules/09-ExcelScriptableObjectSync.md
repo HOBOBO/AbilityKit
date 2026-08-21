@@ -27,6 +27,7 @@ Excel Sync 面向“策划维护 Excel、Unity 编辑器维护 ScriptableObject�
 | 模板与批处理服务 | `Unity/Packages/com.abilitykit.excel-sync/Editor/Core/ExcelSyncTemplateService.cs` |
 | Codec registry | `Unity/Packages/com.abilitykit.excel-sync/Editor/Codecs/ExcelCodecRegistry.cs` |
 | EPPlus backend | `Unity/Packages/com.abilitykit.excel-sync/Editor/Backends/EpplusTableReaderWriter.cs` |
+| 类型命名（带类型表头） | `Unity/Packages/com.abilitykit.excel-sync/Editor/Core/IExcelTypeNameProvider.cs`、`DefaultExcelTypeNameProvider.cs` |
 | 批量菜单 | `Unity/Packages/com.abilitykit.excel-sync/Editor/Menus/ExcelSyncBatchMenu.cs` |
 | Editor asmdef | `Unity/Packages/com.abilitykit.excel-sync/Editor/com.abilitykit.excel-sync.editor.asmdef` |
 
@@ -57,9 +58,11 @@ Baseline 是导出比较依据，不是运行时配置或完整文件快照。�
 
 表头按大小写不敏感方式匹配。同步会拒绝重复表头和缺失主键列，并要求目标行类型的所有可导出 public 字段、可读写 public 属性都存在；Excel 额外列可以保留。这是结构校验，不保证主键唯一、外键存在、枚举值或业务范围合法。
 
-可选 Editor/Runtime schema 校验要求成员集合一致，并允许 Editor `string` 对 Runtime `JObject`、识别出的 HotUpdate custom type，以及递归兼容的 `List<T>`。复杂值的正确性仍取决于 codec 和后续业务校验。
+可选 Editor/Runtime schema 校验要求成员集合一致，并允许 Editor `string` 对 Runtime `JObject`、识别出的 HotUpdate custom type，以及递归兼容的 `List<T>` 与 `T[]`。复杂值的正确性仍取决于 codec 和后续业务校验。
 
-默认 `ExcelCodecRegistry` 按顺序注册 primitive、宽松 JObject、List 和宽松 JSON object codec。List 默认接受逗号、分号、竖线和空格，导出默认使用逗号。Registry 是进程级可变单例，追加 codec 和按列分隔符会持续影响同一 Editor 进程；团队应集中注册并固定顺序。
+默认 `ExcelCodecRegistry` 按顺序注册 primitive、宽松 JObject、List 和宽松 JSON object codec。List 默认接受逗号、分号、竖线和空格，导出默认使用逗号；并同时解码 `List<T>` 与 `T[]`（基础元素按分隔符切分，复杂元素数组整体按 JSON 数组编解码）。Registry 是进程级可变单例，追加 codec 和按列分隔符会持续影响同一 Editor 进程；团队应集中注册并固定顺序。
+
+集合成员的解析已泛化为大小写不敏感 + 支持 `List<T>`/`T[]`，候选字段名 `DataList`/`Items`/`Rows`（不再硬编码 `DataList` 且不限 `List<>`），写回时自动把 `List<T>` 转成目标数组类型。
 
 ## 5. 导入与提交边界
 
@@ -112,12 +115,12 @@ flowchart TD
 当前导出还具有这些语义：
 
 - 新 Local 行会插入 Excel。
-- Remote-only 行不会因 Local 缺失而删除。
-- 没有 baseline row 的已有 Remote 行不会被 Local 覆盖。
+- 删除传播：Excel 与 baseline 都存在、但 Local 已缺失的行——Excel 侧未改（== baseline）时安全删除该行；Excel 侧已改时记录删除冲突。
+- Excel 里存在、但 baseline 没有且 Local 也没有的行（导入后在 Excel 新增）→ 记录“远端新增”冲突，不静默保留也不误删。
 - 只有 Local 相对 Base 改变的单元格才参与写入。
 - 成功保存后不刷新 baseline。
 
-连续导出仍以最近一次 import 为 Base，比较语义会滞后。推荐成功导出并确认后重新导入；更完整的实现应在 Excel 保存成功后原子更新 baseline。
+删除传播在主循环之后自底向上 `DeleteRow`，先汇总冲突再决定是否 `package.Save()`；有冲突时同样不落盘。连续导出仍以最近一次 import 为 Base，比较语义会滞后。推荐成功导出并确认后重新导入；更完整的实现应在 Excel 保存成功后原子更新 baseline。
 
 ## 7. 生成与批处理
 
@@ -137,11 +140,12 @@ EPPlus reader 在 sheet 名为空时选择首个 sheet，指定 sheet 不存在�
 
 ## 9. 测试与验证
 
-截至 2026-08-17：
+截至 2026-08-21：
 
-- package 内没有 NUnit `[Test]` 或 `[UnityTest]`。
-- 没有独立 `.NET` 镜像工程，核心依赖 UnityEditor、Odin 和 EPPlus。
-- 当前批次未启动 Unity Editor Test Runner，也没有执行真实 Excel 往返验收。
+- EditMode 测试已具备：`com.abilitykit.demo.moba.editor/Tests/ConfigSync/AbilityKit.Demo.Moba.ConfigSync.Tests`，5 用例覆盖 CreateSkeleton 表头、Excel→SO 导入（含 `int[]`/`string[]`/复杂对象数组解码 + baseline 建立）、SO→Excel 三方合并写回、冲突中止 + `.conflicts.json`、删除传播、删除冲突、文件夹整表替换 + 孤儿清理；已在 Unity Editor Test Runner 全绿（5/5）。
+- 已注册 gate：`tools/test-gates.json` 的 `moba-config-sync`（P1，`unity-editmode-test` 指向上述程序集）。
+- 已执行真实 Excel 往返：demo.moba Buff 表经 headless CLI 正式化（数组 JSON 27 条 → 逐条目文件夹 → SO → 带类型 Excel + baseline），四表示对齐。
+- 仍没有独立 `.NET` 镜像工程（核心依赖 UnityEditor、Odin、EPPlus）；E4 仅一次性手工冒烟、无可复现 artifact，E5 未接入 CI 阻断。
 
 最低人工验证应使用临时表和临时资产：
 
@@ -163,7 +167,7 @@ Excel Sync 输出只是 authoring 资产。若运行时使用 ConfigDatabase 或
 
 ## 11. 采用结论
 
-Excel Sync 已具备模板、反射映射、codec、baseline 和三方冲突检测的完整编辑器工具面。冲突时不保存 EPPlus package 是有效保护，但重复主键、非事务导入、baseline 不刷新、无删除传播、无编译等待、批处理不回滚和无自动测试仍限制成熟度。
+Excel Sync 已具备模板、反射映射、codec（含 `T[]` 数组）、baseline、三方冲突检测与删除传播的完整编辑器工具面。冲突时不保存 EPPlus package 是有效保护；demo.moba 项目层还提供了 headless CLI（push-json / pull-excel / bootstrap / export-typed / seed-from-json）与带类型标注导出（`IExcelTypeNameProvider`，供 Luban 或自研管线下游解析列类型）。但重复主键、非事务导入、baseline 不刷新、无编译等待、批处理不回滚仍限制成熟度。
 
 生产声明应限定为“受版本控制和人工审查保护的 Unity Editor 双向同步工具”，不能称为无人值守配置发布系统或跨端运行时配置方案。
 
@@ -176,6 +180,6 @@ Excel Sync 已具备模板、反射映射、codec、baseline 和三方冲突检�
 
 ---
 
-文档类型：Canonical 设计与 Editor 工作流 | 事实基线：2026-08-17 | 证据等级：E0 Editor 实现、E1 静态可审计、E2 authoring 接入；无独立 E3、E4 或自动 E5
+文档类型：Canonical 设计与 Editor 工作流 | 事实基线：2026-08-21 | 证据等级：E0 Editor 实现、E1 静态可审计、E2 authoring 接入、E3 自动测试（EditMode 5 用例 + `moba-config-sync` gate）；无 E4 可复现 artifact、无自动 E5
 
-*文档版本：v3.1 | 最后更新：2026-08-17*
+*文档版本：v3.2 | 最后更新：2026-08-21*

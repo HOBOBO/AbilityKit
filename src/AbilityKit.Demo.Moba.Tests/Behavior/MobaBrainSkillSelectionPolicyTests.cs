@@ -86,10 +86,10 @@ public sealed class MobaBrainSkillSelectionPolicyTests
 
         manager.Tick(0.016f, frame: 1);
 
-        Assert.True(decision.Blackboard.GetValue<bool>(MobaBTreeKeys.SkillValid));
-        Assert.Equal(1002, decision.Blackboard.GetValue<int>(MobaBTreeKeys.SkillId));
-        Assert.Equal(2, decision.Blackboard.GetValue<int>(MobaBTreeKeys.SkillSlot));
-        Assert.Equal(12f, decision.Blackboard.GetValue<float>(MobaBTreeKeys.SkillRange));
+        Assert.True(decision.Blackboard.GetBool(MobaBTreeKeys.SkillValid));
+        Assert.Equal(1002, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillId));
+        Assert.Equal(2, decision.Blackboard.GetInt64(MobaBTreeKeys.SkillSlot));
+        Assert.Equal(12f, decision.Blackboard.GetFixed64(MobaBTreeKeys.SkillRange).ToSingle());
     }
 
     [Fact]
@@ -133,47 +133,20 @@ public sealed class MobaBrainSkillSelectionPolicyTests
     {
         return """
             {
-              "$type": "BTCore.Runtime.BTree, BTRuntime",
-              "BTData": {
-                "$type": "BTCore.Runtime.BTData, BTRuntime",
-                "EntryNode": {
-                  "$type": "BTCore.Runtime.EntryNode, BTRuntime",
-                  "State": 0,
-                  "ChildGuid": "node",
-                  "Name": "Entry",
-                  "Guid": "entry"
-                },
-                "Nodes": {
-                  "$type": "System.Collections.Generic.List`1[[BTCore.Runtime.BTNode, BTRuntime]], mscorlib",
-                  "$values": [
-                    {
-                      "$type": "BTCore.Runtime.EntryNode, BTRuntime",
-                      "State": 0,
-                      "ChildGuid": "node",
-                      "Name": "Entry",
-                      "Guid": "entry"
-                    },
-                    {
-                      "$type": "BTEXT:MobaSelectReadySkillAction",
-                      "State": 0,
-                      "Name": "Select",
-                      "Guid": "node",
-                      "Properties": {}
-                    }
-                  ]
+              "formatVersion": 1,
+              "treeId": "test_select_ready_skill",
+              "rootNodeId": "node",
+              "nodes": [
+                {
+                  "id": "node",
+                  "type": "moba.selectReadySkill",
+                  "name": "Select",
+                  "comment": "",
+                  "properties": {},
+                  "childIds": []
                 }
-              },
-              "Blackboard": {
-                "$type": "BTCore.Runtime.Blackboards.Blackboard, BTRuntime",
-                "Values": {
-                  "$type": "System.Collections.Generic.List`1[[BTCore.Runtime.Blackboards.BlackboardValue, BTRuntime]], mscorlib",
-                  "$values": []
-                }
-              },
-              "Settings": {
-                "$type": "BTCore.Runtime.BTSettings, BTRuntime",
-                "RestartWhenComplete": false
-              }
+              ],
+              "blackboard": { "keys": [] }
             }
             """;
     }

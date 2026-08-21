@@ -1,19 +1,16 @@
 using System;
 using AbilityKit.Ability.Behavior;
+using AbilityKit.BehaviorTree;
+using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Search;
-using BTCore.Runtime.Blackboards;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 {
-    public interface IMobaBTreeContextNode
-    {
-        void Bind(MobaBTreeRuntimeContext context);
-    }
-
     /// <summary>
     /// Runtime-only dependencies available to sensing nodes. Conditions and intent nodes should
     /// communicate through the blackboard instead of querying the world directly.
+    /// 节点经 <see cref="BtServiceResolver"/> 解析本上下文（替代旧 IMobaBTreeContextNode 绑定）。
     /// </summary>
     public sealed class MobaBTreeRuntimeContext
     {
@@ -142,186 +139,172 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         Cast = 2,
     }
 
+    /// <summary>
+    /// 黑板协议助手：标准 key 声明注入、目标/技能清理与每帧瞬时意图清空。
+    /// 位置/距离/朝向以 Fixed64 存储（写入端 float 边界转换），id/优先级为 Int64。
+    /// </summary>
     internal static class MobaBTreeBlackboard
     {
-        public static void Initialize(Blackboard bb)
+        /// <summary>把标准 key 补进树定义（树 JSON 只需声明用到的 key，其余由此注入）。</summary>
+        public static void EnsureStandardSchema(BtTreeDefinition definition)
         {
-            if (bb == null) throw new ArgumentNullException(nameof(bb));
-            if (bb.Values == null)
-                bb.Values = new System.Collections.Generic.List<BTCore.Runtime.Blackboards.BlackboardValue>();
+            Ensure(definition, MobaBTreeKeys.OwnerId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.OwnerX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerZ, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerSpeed, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.OwnerCanMove, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.OwnerCanCast, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.EvaluationFrame, BtValueType.Int64);
 
-            ValidateDeclaredKeys(bb);
-            Ensure<long>(bb, MobaBTreeKeys.OwnerId);
-            Ensure<float>(bb, MobaBTreeKeys.OwnerX);
-            Ensure<float>(bb, MobaBTreeKeys.OwnerY);
-            Ensure<float>(bb, MobaBTreeKeys.OwnerZ);
-            Ensure<float>(bb, MobaBTreeKeys.OwnerSpeed);
-            Ensure<bool>(bb, MobaBTreeKeys.OwnerCanMove);
-            Ensure<bool>(bb, MobaBTreeKeys.OwnerCanCast);
-            Ensure<long>(bb, MobaBTreeKeys.EvaluationFrame);
+            Ensure(definition, MobaBTreeKeys.TargetValid, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.TargetId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.TargetX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.TargetY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.TargetZ, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.TargetDistance, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.TargetSelectedFrame, BtValueType.Int64);
 
-            Ensure<bool>(bb, MobaBTreeKeys.TargetValid);
-            Ensure<int>(bb, MobaBTreeKeys.TargetId);
-            Ensure<float>(bb, MobaBTreeKeys.TargetX);
-            Ensure<float>(bb, MobaBTreeKeys.TargetY);
-            Ensure<float>(bb, MobaBTreeKeys.TargetZ);
-            Ensure<float>(bb, MobaBTreeKeys.TargetDistance);
-            Ensure<long>(bb, MobaBTreeKeys.TargetSelectedFrame);
+            Ensure(definition, MobaBTreeKeys.SkillValid, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.SkillId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.SkillSlot, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.SkillRange, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.SkillApproachRange, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.SkillCategory, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.SkillType, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.SkillTargetQueryId, BtValueType.Int64);
 
-            Ensure<bool>(bb, MobaBTreeKeys.SkillValid);
-            Ensure<int>(bb, MobaBTreeKeys.SkillId);
-            Ensure<int>(bb, MobaBTreeKeys.SkillSlot);
-            Ensure<float>(bb, MobaBTreeKeys.SkillRange);
-            Ensure<float>(bb, MobaBTreeKeys.SkillApproachRange);
-            Ensure<int>(bb, MobaBTreeKeys.SkillCategory);
-            Ensure<int>(bb, MobaBTreeKeys.SkillType);
-            Ensure<int>(bb, MobaBTreeKeys.SkillTargetQueryId);
+            Ensure(definition, MobaBTreeKeys.AimValid, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.AimTargetActorId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.AimX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.AimY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.AimZ, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.AimDirectionX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.AimDirectionY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.AimDirectionZ, BtValueType.Fixed64);
 
-            Ensure<bool>(bb, MobaBTreeKeys.AimValid);
-            Ensure<int>(bb, MobaBTreeKeys.AimTargetActorId);
-            Ensure<float>(bb, MobaBTreeKeys.AimX);
-            Ensure<float>(bb, MobaBTreeKeys.AimY);
-            Ensure<float>(bb, MobaBTreeKeys.AimZ);
-            Ensure<float>(bb, MobaBTreeKeys.AimDirectionX);
-            Ensure<float>(bb, MobaBTreeKeys.AimDirectionY);
-            Ensure<float>(bb, MobaBTreeKeys.AimDirectionZ);
+            Ensure(definition, MobaBTreeKeys.CastRequestValid, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.CastRequestPriority, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.CastRequestSkillId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.CastRequestSkillSlot, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.CastRequestTargetActorId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.CastRequestAimX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastRequestAimY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastRequestAimZ, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastRequestDirectionX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastRequestDirectionY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastRequestDirectionZ, BtValueType.Fixed64);
 
-            Ensure<bool>(bb, MobaBTreeKeys.CastRequestValid);
-            Ensure<int>(bb, MobaBTreeKeys.CastRequestPriority);
-            Ensure<int>(bb, MobaBTreeKeys.CastRequestSkillId);
-            Ensure<int>(bb, MobaBTreeKeys.CastRequestSkillSlot);
-            Ensure<int>(bb, MobaBTreeKeys.CastRequestTargetActorId);
-            Ensure<float>(bb, MobaBTreeKeys.CastRequestAimX);
-            Ensure<float>(bb, MobaBTreeKeys.CastRequestAimY);
-            Ensure<float>(bb, MobaBTreeKeys.CastRequestAimZ);
-            Ensure<float>(bb, MobaBTreeKeys.CastRequestDirectionX);
-            Ensure<float>(bb, MobaBTreeKeys.CastRequestDirectionY);
-            Ensure<float>(bb, MobaBTreeKeys.CastRequestDirectionZ);
+            Ensure(definition, MobaBTreeKeys.MoveRequestValid, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.MoveRequestPriority, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.MoveRequestX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.MoveRequestY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.MoveRequestZ, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.MoveRequestStopRange, BtValueType.Fixed64);
 
-            Ensure<bool>(bb, MobaBTreeKeys.MoveRequestValid);
-            Ensure<int>(bb, MobaBTreeKeys.MoveRequestPriority);
-            Ensure<float>(bb, MobaBTreeKeys.MoveRequestX);
-            Ensure<float>(bb, MobaBTreeKeys.MoveRequestY);
-            Ensure<float>(bb, MobaBTreeKeys.MoveRequestZ);
-            Ensure<float>(bb, MobaBTreeKeys.MoveRequestStopRange);
+            Ensure(definition, MobaBTreeKeys.HoldRequestValid, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.HoldRequestPriority, BtValueType.Int64);
 
-            Ensure<bool>(bb, MobaBTreeKeys.HoldRequestValid);
-            Ensure<int>(bb, MobaBTreeKeys.HoldRequestPriority);
-
-            Ensure<int>(bb, MobaBTreeKeys.OutputKind);
-            Ensure<bool>(bb, MobaBTreeKeys.HasMove);
-            Ensure<float>(bb, MobaBTreeKeys.MoveX);
-            Ensure<float>(bb, MobaBTreeKeys.MoveY);
-            Ensure<float>(bb, MobaBTreeKeys.MoveZ);
-            Ensure<bool>(bb, MobaBTreeKeys.HasCast);
-            Ensure<int>(bb, MobaBTreeKeys.CastSkillId);
-            Ensure<int>(bb, MobaBTreeKeys.CastSkillSlot);
-            Ensure<int>(bb, MobaBTreeKeys.CastTargetActorId);
-            Ensure<float>(bb, MobaBTreeKeys.CastAimX);
-            Ensure<float>(bb, MobaBTreeKeys.CastAimY);
-            Ensure<float>(bb, MobaBTreeKeys.CastAimZ);
-            Ensure<float>(bb, MobaBTreeKeys.CastDirectionX);
-            Ensure<float>(bb, MobaBTreeKeys.CastDirectionY);
-            Ensure<float>(bb, MobaBTreeKeys.CastDirectionZ);
+            Ensure(definition, MobaBTreeKeys.OutputKind, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.HasMove, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.MoveX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.MoveY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.MoveZ, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.HasCast, BtValueType.Bool);
+            Ensure(definition, MobaBTreeKeys.CastSkillId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.CastSkillSlot, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.CastTargetActorId, BtValueType.Int64);
+            Ensure(definition, MobaBTreeKeys.CastAimX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastAimY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastAimZ, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastDirectionX, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastDirectionY, BtValueType.Fixed64);
+            Ensure(definition, MobaBTreeKeys.CastDirectionZ, BtValueType.Fixed64);
         }
 
-        public static void ClearTarget(Blackboard bb)
-        {
-            bb.SetValue(MobaBTreeKeys.TargetValid, false);
-            bb.SetValue(MobaBTreeKeys.TargetId, 0);
-            bb.SetValue(MobaBTreeKeys.TargetX, 0f);
-            bb.SetValue(MobaBTreeKeys.TargetY, 0f);
-            bb.SetValue(MobaBTreeKeys.TargetZ, 0f);
-            bb.SetValue(MobaBTreeKeys.TargetDistance, 0f);
-            bb.SetValue(MobaBTreeKeys.TargetSelectedFrame, 0L);
-        }
 
-        public static void ClearSkill(Blackboard bb, float defaultApproachRange)
+        private static void Ensure(BtTreeDefinition definition, string key, BtValueType type)
         {
-            bb.SetValue(MobaBTreeKeys.SkillValid, false);
-            bb.SetValue(MobaBTreeKeys.SkillId, 0);
-            bb.SetValue(MobaBTreeKeys.SkillSlot, 0);
-            bb.SetValue(MobaBTreeKeys.SkillRange, 0f);
-            bb.SetValue(MobaBTreeKeys.SkillApproachRange, defaultApproachRange);
-            bb.SetValue(MobaBTreeKeys.SkillCategory, 0);
-            bb.SetValue(MobaBTreeKeys.SkillType, 0);
-            bb.SetValue(MobaBTreeKeys.SkillTargetQueryId, 0);
-        }
-
-        public static void ClearTransientIntents(Blackboard bb)
-        {
-            bb.SetValue(MobaBTreeKeys.AimValid, false);
-            bb.SetValue(MobaBTreeKeys.AimTargetActorId, 0);
-            bb.SetValue(MobaBTreeKeys.AimX, 0f);
-            bb.SetValue(MobaBTreeKeys.AimY, 0f);
-            bb.SetValue(MobaBTreeKeys.AimZ, 0f);
-            bb.SetValue(MobaBTreeKeys.AimDirectionX, 0f);
-            bb.SetValue(MobaBTreeKeys.AimDirectionY, 0f);
-            bb.SetValue(MobaBTreeKeys.AimDirectionZ, 0f);
-            bb.SetValue(MobaBTreeKeys.CastRequestValid, false);
-            bb.SetValue(MobaBTreeKeys.CastRequestPriority, 0);
-            bb.SetValue(MobaBTreeKeys.CastRequestSkillId, 0);
-            bb.SetValue(MobaBTreeKeys.CastRequestSkillSlot, 0);
-            bb.SetValue(MobaBTreeKeys.CastRequestTargetActorId, 0);
-            bb.SetValue(MobaBTreeKeys.CastRequestAimX, 0f);
-            bb.SetValue(MobaBTreeKeys.CastRequestAimY, 0f);
-            bb.SetValue(MobaBTreeKeys.CastRequestAimZ, 0f);
-            bb.SetValue(MobaBTreeKeys.CastRequestDirectionX, 0f);
-            bb.SetValue(MobaBTreeKeys.CastRequestDirectionY, 0f);
-            bb.SetValue(MobaBTreeKeys.CastRequestDirectionZ, 0f);
-            bb.SetValue(MobaBTreeKeys.MoveRequestValid, false);
-            bb.SetValue(MobaBTreeKeys.MoveRequestPriority, 0);
-            bb.SetValue(MobaBTreeKeys.MoveRequestX, 0f);
-            bb.SetValue(MobaBTreeKeys.MoveRequestY, 0f);
-            bb.SetValue(MobaBTreeKeys.MoveRequestZ, 0f);
-            bb.SetValue(MobaBTreeKeys.MoveRequestStopRange, 0f);
-            bb.SetValue(MobaBTreeKeys.HoldRequestValid, false);
-            bb.SetValue(MobaBTreeKeys.HoldRequestPriority, 0);
-            bb.SetValue(MobaBTreeKeys.OutputKind, (int)MobaBTreeIntentKind.Hold);
-            bb.SetValue(MobaBTreeKeys.HasMove, false);
-            bb.SetValue(MobaBTreeKeys.MoveX, 0f);
-            bb.SetValue(MobaBTreeKeys.MoveY, 0f);
-            bb.SetValue(MobaBTreeKeys.MoveZ, 0f);
-            bb.SetValue(MobaBTreeKeys.HasCast, false);
-            bb.SetValue(MobaBTreeKeys.CastSkillId, 0);
-            bb.SetValue(MobaBTreeKeys.CastSkillSlot, 0);
-            bb.SetValue(MobaBTreeKeys.CastTargetActorId, 0);
-            bb.SetValue(MobaBTreeKeys.CastAimX, 0f);
-            bb.SetValue(MobaBTreeKeys.CastAimY, 0f);
-            bb.SetValue(MobaBTreeKeys.CastAimZ, 0f);
-            bb.SetValue(MobaBTreeKeys.CastDirectionX, 0f);
-            bb.SetValue(MobaBTreeKeys.CastDirectionY, 0f);
-            bb.SetValue(MobaBTreeKeys.CastDirectionZ, 0f);
-        }
-
-        private static void ValidateDeclaredKeys(Blackboard bb)
-        {
-            var names = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
-            for (var i = 0; i < bb.Values.Count; i++)
+            if (definition.Blackboard.TryGetType(key, out var existing))
             {
-                var value = bb.Values[i]
-                    ?? throw new InvalidOperationException($"MOBA behavior-tree blackboard value at index {i} is null.");
-                if (string.IsNullOrWhiteSpace(value.Name))
-                    throw new InvalidOperationException($"MOBA behavior-tree blackboard value at index {i} has an empty name.");
-                if (!names.Add(value.Name))
-                    throw new InvalidOperationException($"MOBA behavior-tree blackboard key '{value.Name}' is duplicated.");
-            }
-        }
-
-        private static void Ensure<T>(Blackboard bb, string key)
-        {
-            var existing = bb.Values.Find(value => string.Equals(value.Name, key, StringComparison.Ordinal));
-            if (existing == null)
-            {
-                bb.Values.Add(new BTCore.Runtime.Blackboards.BlackboardValue<T>(key));
+                if (existing != type)
+                {
+                    throw new InvalidOperationException(
+                        $"MOBA behavior-tree blackboard key '{key}' must be {type}, but the tree declares {existing}.");
+                }
                 return;
             }
 
-            if (existing.Type != typeof(T))
-            {
-                throw new InvalidOperationException(
-                    $"MOBA behavior-tree blackboard key '{key}' must be '{typeof(T).FullName}', but was '{existing.Type?.FullName ?? "<null>"}'.");
-            }
+            definition.Blackboard.Keys.Add(new BtBlackboardKeyDefinition { Name = key, Type = type });
+        }
+
+        public static void ClearTarget(BtBlackboard bb)
+        {
+            bb.SetBool(MobaBTreeKeys.TargetValid, false);
+            bb.SetInt64(MobaBTreeKeys.TargetId, 0);
+            bb.SetFixed64(MobaBTreeKeys.TargetX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.TargetY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.TargetZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.TargetDistance, Fixed64.Zero);
+            bb.SetInt64(MobaBTreeKeys.TargetSelectedFrame, 0);
+        }
+
+        public static void ClearSkill(BtBlackboard bb, Fixed64 defaultApproachRange)
+        {
+            bb.SetBool(MobaBTreeKeys.SkillValid, false);
+            bb.SetInt64(MobaBTreeKeys.SkillId, 0);
+            bb.SetInt64(MobaBTreeKeys.SkillSlot, 0);
+            bb.SetFixed64(MobaBTreeKeys.SkillRange, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.SkillApproachRange, defaultApproachRange);
+            bb.SetInt64(MobaBTreeKeys.SkillCategory, 0);
+            bb.SetInt64(MobaBTreeKeys.SkillType, 0);
+            bb.SetInt64(MobaBTreeKeys.SkillTargetQueryId, 0);
+        }
+
+        public static void ClearTransientIntents(BtBlackboard bb)
+        {
+            bb.SetBool(MobaBTreeKeys.AimValid, false);
+            bb.SetInt64(MobaBTreeKeys.AimTargetActorId, 0);
+            bb.SetFixed64(MobaBTreeKeys.AimX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.AimY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.AimZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.AimDirectionX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.AimDirectionY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.AimDirectionZ, Fixed64.Zero);
+            bb.SetBool(MobaBTreeKeys.CastRequestValid, false);
+            bb.SetInt64(MobaBTreeKeys.CastRequestPriority, 0);
+            bb.SetInt64(MobaBTreeKeys.CastRequestSkillId, 0);
+            bb.SetInt64(MobaBTreeKeys.CastRequestSkillSlot, 0);
+            bb.SetInt64(MobaBTreeKeys.CastRequestTargetActorId, 0);
+            bb.SetFixed64(MobaBTreeKeys.CastRequestAimX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastRequestAimY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastRequestAimZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionZ, Fixed64.Zero);
+            bb.SetBool(MobaBTreeKeys.MoveRequestValid, false);
+            bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, 0);
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.MoveRequestStopRange, Fixed64.Zero);
+            bb.SetBool(MobaBTreeKeys.HoldRequestValid, false);
+            bb.SetInt64(MobaBTreeKeys.HoldRequestPriority, 0);
+            bb.SetInt64(MobaBTreeKeys.OutputKind, (long)MobaBTreeIntentKind.Hold);
+            bb.SetBool(MobaBTreeKeys.HasMove, false);
+            bb.SetFixed64(MobaBTreeKeys.MoveX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.MoveY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.MoveZ, Fixed64.Zero);
+            bb.SetBool(MobaBTreeKeys.HasCast, false);
+            bb.SetInt64(MobaBTreeKeys.CastSkillId, 0);
+            bb.SetInt64(MobaBTreeKeys.CastSkillSlot, 0);
+            bb.SetInt64(MobaBTreeKeys.CastTargetActorId, 0);
+            bb.SetFixed64(MobaBTreeKeys.CastAimX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastAimY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastAimZ, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastDirectionX, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastDirectionY, Fixed64.Zero);
+            bb.SetFixed64(MobaBTreeKeys.CastDirectionZ, Fixed64.Zero);
         }
     }
 }

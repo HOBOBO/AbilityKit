@@ -1,213 +1,174 @@
-# Pipeline Runtime + Debugger（Run-centric）
+# Pipeline Runtime Debugger
 
-## 适用范围
+## 1. 定位
 
-本文档描述**以 Run 为中心**的 Pipeline 调试体系结构，以及如何使用编辑器调试窗口快速定位问题。
+Pipeline 调试体系分成两个单向依赖层：
 
-内容包含：
+| 层 | 职责 | 依赖 UnityEditor |
+|---|---|---|
+| Runtime | 执行 Pipeline，按需发送开始、Trace、结束等观测事件 | 否 |
+| Editor | 订阅事件，保存活跃运行与历史，展示和控制运行实例 | 是 |
 
-- **运行时（Runtime）**：`AbilityPipeline<TCtx>` 的运行实例（run）、`AbilityPipelineLiveRegistry`、`PipelineRunTrace`。
-- **编辑器（Editor）**：`AbilityPipelineRunDebuggerWindow` 的使用方式，Trace 查看/筛选/跳转，以及 Graph 同步与高亮。
+Editor 不替换 `PipelineRuntime.Registry` 或 `TraceRecorder`。业务运行时继续使用自己的注册表和追踪策略，Editor 通过 `PipelineDebugHooks` 旁路观察，因此默认 Runtime、自定义 Runtime 和多 World Runtime 都可以被同一个窗口查看。
 
+调试回调由 Runtime 做异常隔离。Editor 观察者抛出异常不会改变 Pipeline 状态或阻止清理。
 
-## 快速上手（3 分钟）
+## 2. 打开窗口
 
-### 运行时侧（你需要确保能注册到 LiveRegistry）
+1. 打开 `Window/AbilityKit/Pipeline Runtime Debugger`。
+2. 进入 Play Mode 并启动任意 `AbilityPipeline<TCtx>` run。
+3. 左侧选择运行实例，右侧查看 Overview、Phases、Trace 和 Context。
 
-- 使用 `IAbilityPipeline<TCtx>.Start(config, context)` 启动一次 run。
-- 在默认实现 `AbilityPipeline<TCtx>` 中，会在编辑器模式下自动：
-  - `AbilityPipelineLiveRegistry.RegisterRun(...)`
-  - 在每次 `Tick()` 时 `AbilityPipelineLiveRegistry.TouchRun(...)`
-  - 在结束时 `AbilityPipelineLiveRegistry.UnregisterRun(...)`
+窗口可以在退出 Play Mode 后继续查看已保留的运行历史。默认最多保留 128 个已结束 run，每个 run 最多保留 2048 条 Trace；容量和刷新频率可从窗口右上角的设置菜单调整。
 
-如果你是自定义 pipeline run，请确保也能在 `UNITY_EDITOR` 下写入上述注册/触达逻辑。
+## 3. 窗口能力
 
-### 编辑器侧（打开窗口 + 绑定图）
+### 3.1 Run 列表
 
-- 进入 **Play Mode**。
-- 打开 `AbilityPipelineRunDebuggerWindow`。
-- 在 `Running Run` 下拉中选择要观察的 run。
-- 若要可视化/高亮：
-  - 将一个 `PipelineGraphAsset` 拖到 `Graph Asset`
-  - 点击 `Sync Graph From Selected Run` 从当前 run 同步生成/更新图
+- 按名称、Pipeline 类型、Run ID 或当前 Phase 搜索。
+- 按 All、Active、History、Failed、Pinned 筛选，并直接显示运行、活跃、失败和置顶数量。
+- 列表按 `ACTIVE`、`PINNED`、`RECENT` 分组；当前需要处理的运行优先于普通历史。
+- 运行可置顶；置顶历史不会被容量裁剪或“清理历史”移除，取消置顶后重新遵循普通历史策略。
+- `Follow` 自动选择最新运行。
+- 状态色区分 Executing、Paused、Completed 和 Failed。
+- Capture 开关控制是否记录后续新 run。
+- 清理按钮只删除已结束历史，不影响活跃运行。
+- 左右面板分隔线可拖动，宽度会作为当前用户偏好保留。
+- 空状态会区分未进入 Play Mode、等待 run、暂停采集和筛选无结果。
+- 右键运行可置顶、保存快照、复制摘要或直接跳到失败位置；双击 Phase 会打开仅显示该 Phase 的 Trace。
 
-### 常用操作
+### 3.2 Overview
 
-- **事件 -> 图**：点击 Trace 的某条 phase 事件（`PhaseStart/PhaseComplete/PhaseError`），会 focus 并居中到对应节点。
-- **图 -> 事件**：点击 `Locate Trace For Focus`，会定位到当前 focus（或 current phase）对应的最近事件。
+显示 Run ID、状态、当前 Phase、业务 elapsed time、墙钟时长、开始/结束时间，以及 Pipeline、Config、Context 的实际类型。
 
+失败运行会优先显示真实异常消息，并提供 `Trace` 和 `Phase` 跳转；类型和 UTC 时间等技术信息默认折叠，减少日常排障噪声。
 
-## 运行时概览（Runtime Overview）
+活跃 run 可以从窗口执行：
 
-### 关键概念
+- Pause / Resume
+- Cancel：在下一次 Tick 生效
+- Interrupt：立即进入终态
 
-- `IAbilityPipeline<TCtx>`
-  - 通过 `Start(config, context)` 创建 run。
+控制入口只依赖非泛型 `IPipelineRunControl`，Editor 不反射调用具体 Pipeline 类型。
+`Interrupt` 默认要求二次确认，避免把调试观察误操作成业务终止。
 
-- `IAbilityPipelineRun<TCtx>`
-  - 外部驱动执行的句柄。
-  - 主要操作：
-    - `Tick(float deltaTime)`
-    - `Pause()` / `Resume()`
-    - `Interrupt()` / `Cancel()`
+如果 pipeline、config、context 或 run 本身是 `UnityEngine.Object`，Overview 会提供只读对象引用和 Ping 操作；普通 C# 对象仍只显示类型，不改变弱引用生命周期。
 
-- `AbilityPipeline<TCtx>`
-  - 默认 pipeline 实现。
-  - 内部有私有 `Run` 实现，持有 run 的执行状态。
+### 3.3 Phases
 
+`AbilityPipeline<TCtx>` 实现 `IPipelineDebugGraphProvider`，在 run 开始时提供不可变的节点、边和 `StructureId`。运行时结构始终是执行真相；Editor 只创建临时只读视图，不会在没有定义资产时生成或修改项目资产。
 
-### 调试数据模型（Debug runtime data model）
+Graph 视图会区分 Sequence、Parallel、Conditional、Gate、普通 Phase 和其他 Composite。节点展示 Pending、Active、Completed、Skipped、Failed；Conditional 边还会显示命中、拒绝和当前选择分支。状态来自 run 的 `IPipelineDebugStateProvider`，终态会在池化阶段列表释放前缓存，因此历史 run 仍能保留复合节点和条件结果。
 
-调试系统以 run 为中心，依赖以下运行时数据：
+每个节点使用结构路径形式的稳定 `NodeKey`，例如 `0/1/0`。`NodeKey` 用于结构、状态、边和布局关联；`PhaseId` 继续用于业务查询和 Trace，不能代替节点键，因为不同分支可能使用相同 Phase ID。
 
-- **Selected run（全局焦点）**
-  - `AbilityPipelineLiveRegistry.SelectedRun`：调试窗口的全局 focus。
+工具栏支持 `Graph / Tree` 切换：
 
-- **Live entries（活跃条目）**
-  - `AbilityPipelineLiveRegistry.Entry` 内部用 `WeakReference` 保存：
-    - `Config`
-    - `Pipeline`
-    - `Run`
-  - 同时保存：
-    - 最新 `Snapshot`
-    - 编辑器专用 `PipelineRunTrace`
+- Graph 自动进行层级布局；中键拖动或 `Alt + 左键` 平移，滚轮缩放。
+- Fit 按钮适配全部节点；靶心按钮聚焦 Active 或 Failed 节点。
+- 单击选择节点，`Trace` 跳转到对应 Phase；双击直接进入 Phase Trace。
+- Tree 是紧凑层级回退，同样使用运行时节点状态，不依赖 Graph 绘制能力。
 
-- **Snapshot（快照）**
-  - `AbilityPipelineLiveRegistry.Snapshot`：
-    - `State`
-    - `CurrentPhaseId`
-    - `PhaseIndex`
-    - `IsPaused`
+Pipeline 或 Config 可以选择实现 `IPipelineDebugGraphLayoutProvider` 提供 authored 坐标。常见做法是由 ScriptableObject 定义实现该接口，但 Runtime 协议本身仍是纯 C#，不依赖 `ScriptableObject`。只有布局的 `StructureId` 与运行时图完全一致时才会采用坐标；旧 SO 或结构已变更时窗口会显示警告并自动回退布局，绝不会用资产覆盖运行结构。
 
-- **Trace（事件流）**
-  - `PipelineRunTrace`：一个有容量上限的 ring buffer，存 `PipelineTraceEvent`。
-  - 常见类型：
-    - `RunStart`, `RunEnd`
-    - `PhaseStart`, `PhaseComplete`, `PhaseError`
-    - `Tick`
+### 3.4 Trace
 
+Trace 支持：
 
-### 数据如何写入（How data gets populated）
+- All、Lifecycle、Phases、Errors、Control 分类。
+- 按 Phase ID、事件类型和消息搜索。
+- 选择并复制单条事件。
+- 在列表下方查看选中事件的完整消息。
+- 在 UTC 时间和从 run 开始计算的相对时间之间切换。
+- 清理当前 run 的 Trace。
+- 从 Overview 的失败摘要或 Phase 树进入 Trace 时，自动设置对应失败/Phase 筛选。
 
-在默认运行时实现中：
+时间使用事件原始 `UtcTime`，不会在 Editor 复制到 ring buffer 时重新生成。
 
-- run 创建时：
-  - 调用 `AbilityPipelineLiveRegistry.RegisterRun(owner, config, this)`（仅编辑器）
-  - 追加 `RunStart`
+### 3.5 Context
 
-- 每次 `Tick()`：
-  - `AbilityPipelineLiveRegistry.TouchRun(this)` 刷新 snapshot（仅编辑器）
-  - 追加 `Tick`
+Editor 在活跃期按固定频率读取 Context，并在结束通知到达、Context 释放前保存最后一份文本快照。内容包括：
 
-- 阶段边界：
-  - 追加 `PhaseStart` / `PhaseComplete` / `PhaseError`
+- `PipelineState`、`CurrentPhaseId`、暂停和中断状态。
+- `ElapsedTime`、`AbilityInstance`。
+- `SharedData`。
+- Context 公开的业务属性，最多 64 项。
 
-- run 结束时：
-  - `AbilityPipelineLiveRegistry.UnregisterRun(this)`（仅编辑器）
+快照只保存名称和值的文本，不强引用业务对象。属性读取异常会降级为异常类型占位符，不中断调试采集。
 
+Context 页以 `Field | Start | Current` 展示运行开始与当前/结束快照，变化字段会高亮。`Changed` 开关只显示变化字段；搜索会同时匹配字段名、初始值和当前值。复制变化字段时使用 `before -> after` 保留差异语义。
 
-### 生命周期与安全性（Safety / lifetime behavior）
+## 4. 编辑器状态与会话资产
 
-- Registry 对运行时实例的引用均为弱引用（`WeakReference`），避免 editor 工具反向“延长对象生命周期”。
-- Registry 会清理已经被 GC 的 run。
-- 若 `SelectedRun` 变为无效（unregister 或 GC），Registry 会自动回退选择一个仍存活的 run（通常是“最新注册的”）。
+调试器使用两种不同的 ScriptableObject 状态，不能与实时对象仓库混用：
 
+| 类型 | 存储位置 | 内容 | 是否持有运行时对象 |
+|---|---|---|---|
+| `PipelineDebuggerUserState` | `UserSettings/AbilityKit/PipelineDebuggerState.asset` | 当前用户的筛选、搜索、面板宽度、刷新频率、容量和确认选项 | 否 |
+| `PipelineDebugSessionAsset` | 用户显式选择的项目资产路径 | 单个 run 的图结构、节点状态、Trace，以及 Context 初始/最终 DTO 快照 | 否 |
 
-## 编辑器工具（Editor Tooling）
+`PipelineDebuggerUserState` 使用 `ScriptableSingleton`，属于工作环境偏好，不应作为团队共享的 Pipeline 定义资产。只有存在明确的团队级调试策略时，才应另外增加共享 profile，而不是把用户布局提交到项目中。
 
-### 窗口入口
+工具栏的保存按钮会创建格式 v3 的 `PipelineDebugSessionAsset`。除原有 run、Trace 和 Context DTO 外，v3 还保存 `NodeKey`、节点类型、摘要、执行状态、选择分支、条件结果、图边、`StructureId`、布局来源，以及存在时的 authored 坐标。该资产的 Inspector 是只读诊断视图，可在退出 Play Mode 或跨机器后检查，但它不是回放引擎，也不会重新连接原 run。
 
-- `AbilityPipelineRunDebuggerWindow`（仅 Play Mode 可用）
+实时 owner、pipeline、config、run 和 context 始终只存在于 `EditorPipelineRegistry` 的弱引用中。Unity 无法可靠序列化任意 C# 运行对象，把这些引用写进 ScriptableObject 还会延长生命周期并造成已销毁对象、Domain Reload 和内存泄漏问题。
 
-窗口数据来源：
+## 5. Runtime 观测协议
 
-- `AbilityPipelineLiveRegistry.GetEntries()`
-- `AbilityPipelineLiveRegistry.SelectedRun`
+`PipelineDebugHooks` 提供：
 
+| 事件 | 时机 |
+|---|---|
+| `OnRunStartedDetailed` | Run 已创建并注册，首条 RunStart Trace 之前 |
+| `OnTrace` | Runtime 写入一条 Trace 时 |
+| `OnRunEnded` | Run 进入终态、释放 Context 之前 |
 
-### Run 列表行为
+`PipelineRunStartedData` 携带 owner、pipeline、config、非泛型 control 和 context。观察者只能把这些对象视为瞬时引用；Editor 实现统一使用 `WeakReference`，避免工具延长业务对象生命周期。
 
-- 下拉框会列出当前活跃 runs。
-- `Follow Selected Run`：
-  - 窗口选择会跟随 `AbilityPipelineLiveRegistry.SelectedRun`。
+`IPipelineLifeOwner.OwnerId` 由进程级生成器分配，不再使用对象哈希，避免不同 Context 泛型或哈希碰撞导致调试记录互相覆盖。
 
-- `Lock Global SelectedRun`：
-  - 窗口会强制 `AbilityPipelineLiveRegistry.SelectedRun` 与当前下拉选择保持一致。
+图诊断使用三个互相独立的可选协议：
 
+| 接口 | 作用 |
+|---|---|
+| `IPipelineDebugGraphProvider` | 捕获只读节点、边和结构哈希 |
+| `IPipelineDebugStateProvider` | 捕获当前或已缓存的节点执行状态与条件结果 |
+| `IPipelineDebugGraphLayoutProvider` | 提供与 `StructureId` 匹配的可选 authored 坐标 |
 
-### Trace 体验（Trace UX）
+旧的 `IPipelineDebugStructureProvider` 仍保留兼容；Editor 会为其构造基础图，但新实现应优先提供完整图协议。
 
-- Trace 筛选：
-  - 类型多选 + 预设：`All` / `Lifecycle` / `Errors` / `Ticks`
-  - 文本筛选会匹配 `PhaseId` 与 `Message`
+## 6. 自定义 Pipeline 接入
 
-- 点击 Trace 行：
-  - 选中并高亮该行，同时滚动定位。
-  - 若为 phase 事件（`PhaseStart/PhaseComplete/PhaseError`）且已绑定 `PipelineGraphAsset`，会 focus 并居中到对应节点。
+继承 `AbilityPipeline<TCtx>` 的实现无需额外代码，会自动发送完整观测事件和阶段结构。
 
-- `Locate Trace For Focus`：
-  - 基于 `_focusRuntimeKey`（若无 focus 则使用 current phase id）定位最近相关事件，并滚动+高亮。
+完全自定义的 Run 若希望进入统一调试窗口，需要：
 
+1. 实现 `IPipelineLifeOwner`。
+2. 如需窗口控制，实现 `IPipelineRunControl`。
+3. 在开始、Trace 和结束边界调用 `PipelineDebugHooks` 对应通知。
+4. 如需完整阶段图，实现 `IPipelineDebugGraphProvider`；仅有旧阶段树时仍可实现 `IPipelineDebugStructureProvider`。
+5. 如需复合节点实时状态，实现 `IPipelineDebugStateProvider`。
+6. 如需 SO 或其他定义提供的固定坐标，实现 `IPipelineDebugGraphLayoutProvider`，并保证 `StructureId` 精确匹配。
 
-## Graph 资产与同步（Graph Assets and Sync）
+业务代码不应引用 `AbilityKit.Pipeline.Editor`。
 
-### Graph 资产
+## 7. 性能与线程边界
 
-调试器使用 `PipelineGraphAsset` 做可视化与高亮。
+- 没有观察者时，DebugHooks 只做空委托判断。
+- 阶段树只在 run 开始且 Editor 观察者存在时读取。
+- Context 反射和历史 ring buffer 全部位于 Editor 程序集。
+- Hook 可能从 Pipeline 所在线程触发；窗口只在 `EditorApplication.update` 主线程调用 Unity GUI API。
+- 默认采集适合开发调试，不是生产遥测或确定性回放格式。
 
-关键映射规则：
+## 8. 文件入口
 
-- `PipelineGraphNode.RuntimeKey` 用于把图节点绑定到运行时。
-- 对于 pipeline phase：`RuntimeKey` 通常是 `PhaseId.ToString()`。
-
-
-### 从选中 run 同步图
-
-窗口提供：
-
-- `Sync Graph From Selected Run`
-
-该操作会根据当前选中的 pipeline 实例生成/更新节点与边。
-
-行为：
-
-- 通过 `RuntimeKey` 匹配来**保留已有节点位置**。
-- 补齐缺失 nodes/edges。
-
-
-### 高亮
-
-- current phase / focus phase 会影响：
-  - 节点高亮
-  - 边高亮（路径强调，非相关边会变暗）
-  - 可选：仅显示与 focus/current 连通的子图
-
-
-## 常见问题（FAQ / 排错）
-
-### 窗口没有数据
-
-- 必须在 Play Mode。
-- 必须确实产生了 run，并且 run 会在编辑器下调用 `RegisterRun` / `TouchRun`。
-
-### 图不高亮
-
-- 窗口中需要绑定 `PipelineGraphAsset`。
-- 确认节点的 `RuntimeKey` 与 `PhaseId.ToString()` 一致。
-
-### `SelectedRun` 显示 “(Not in list)”
-
-- 说明 `SelectedRun` 指向的对象不在当前活跃 entries 中。
-- Registry 会在清理/注销时自动修复选择；必要时重新打开窗口也会触发刷新。
-
-
-## 扩展点（Extension points）
-
-- 添加更多 Trace 事件：
-  - 扩展 `PipelineTraceEventType`，并在 run 的关键节点写入。
-
-- 强化图同步能力：
-  - 扩展 `PipelineGraphSyncUtility` 来支持更多 phase/container 结构。
-
-- 支持确定性回放（Deterministic replay）：
-  - 可扩展 snapshot 捕获更多字段，但应保持轻量；Trace 为有上限 ring buffer。
+| 文件 | 作用 |
+|---|---|
+| `Runtime/Debug/PipelineDebugHooks.cs` | Runtime 到观察者的安全通知入口 |
+| `Runtime/Debug/PipelineRunDebugData.cs` | 开始/结束数据和阶段结构协议 |
+| `Runtime/Interface/IPipelineRunControl.cs` | 非泛型运行控制面 |
+| `Editor/PipelineEditorInitializer.cs` | 安装和卸载 Editor 观察者 |
+| `Editor/Debug/EditorPipelineRegistry.cs` | 活跃运行、历史、Context 和 Trace 存储 |
+| `Editor/Debug/PipelineRuntimeDebuggerWindow.cs` | 调试窗口 |
+| `Editor/Debug/PipelineDebuggerUserState.cs` | 当前用户的窗口和采集偏好 |
+| `Editor/Debug/PipelineDebugSessionAsset.cs` | 显式保存的只读 run 快照资产 |

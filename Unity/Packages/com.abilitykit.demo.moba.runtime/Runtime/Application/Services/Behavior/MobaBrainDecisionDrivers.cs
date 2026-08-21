@@ -122,7 +122,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     }
 
     /// <summary>
-    /// BTCore 决策驱动器。定义键对应导出的行为树资源名。
+    /// 行为树决策驱动器。定义键对应导出的行为树资源名（com.abilitykit.behaviortree）。
     /// </summary>
     public sealed class MobaBTreeBrainDecisionDriver :
         IMobaBrainDecisionDriver,
@@ -176,7 +176,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                 context.Config,
                 context.SearchTargets,
                 context.CurrentTimeMsProvider,
-                context.Definition.SkillSelectionPolicy);
+                context.Definition.SkillSelectionPolicy,
+                debugName: treeName,
+                debugOwnerLabel: "actor:" + context.OwnerActorId);
             if (decision == null)
             {
                 Log.Warning($"[MobaBrain] behavior tree create failed. brainId={context.Definition.BrainId} tree={treeName}");

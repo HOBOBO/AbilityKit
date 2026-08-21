@@ -4,6 +4,7 @@
     "references": [
         "AbilityKit.Ability",
         "AbilityKit.Ability.Editor",
+        "AbilityKit.Triggering",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
@@ -15,7 +16,8 @@
     "overrideReferences": true,
     "precompiledReferences": [
         "nunit.framework.dll",
-        "Sirenix.Serialization.dll"
+        "Sirenix.Serialization.dll",
+        "Newtonsoft.Json.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [

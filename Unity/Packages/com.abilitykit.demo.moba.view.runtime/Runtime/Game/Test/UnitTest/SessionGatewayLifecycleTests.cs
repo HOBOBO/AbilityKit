@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Ability.Host;
@@ -14,14 +15,100 @@ using AbilityKit.Network.Battle;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Conditioning;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Demo.Common.Rooms;
+using AbilityKit.World.ECS;
 using NUnit.Framework;
+using UnityEngine;
 using UnityEngine.TestTools;
 
 namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class SessionGatewayLifecycleTests
     {
+        [Test]
+        public void GatewayRoomClient_ComposesNarrowCapabilitiesAndDisposalOwnership()
+        {
+            var client = new ControllableGatewayRoomClient();
+
+            Assert.That(client, Is.InstanceOf<IGatewayAuthenticationCapability>());
+            Assert.That(client, Is.InstanceOf<IGatewayClockCapability>());
+            Assert.That(client, Is.InstanceOf<IGatewayRoomCommandCapability>());
+            Assert.That(client, Is.InstanceOf<IGatewayRoomRecoveryQueryCapability>());
+            Assert.That(client, Is.InstanceOf<IGatewayRoomPushDecodingCapability>());
+            Assert.That(client, Is.InstanceOf<IDisposable>());
+        }
+
+        [Test]
+        public void NarrowGatewayConsumers_DoNotDependOnAggregateClient()
+        {
+            AssertConstructorDoesNotDependOnAggregateClient(typeof(ClientRoomPushSynchronizer));
+            AssertConstructorDoesNotDependOnAggregateClient(typeof(MobaRoomGatewaySessionClient));
+            AssertMethodDoesNotDependOnAggregateClient(typeof(GatewayClockSynchronizer), "Start");
+        }
+
+        [Test]
+        public void GatewayRootServices_PublishesNarrowCapabilitiesAndWithdrawsThem()
+        {
+            var world = new EntityWorld();
+            var root = world.Create("gateway-root-capability-boundary");
+            var config = ScriptableObject.CreateInstance<BattleGatewayConfigSO>();
+            var store = new ClientRoomStore();
+            var client = new ControllableGatewayRoomClient();
+            var runtime = new StubGatewayRuntime();
+            var gatewaySession = CreateUninitialized<GatewayMultiplayerRoomSession>();
+            var snapshotProvider = CreateUninitialized<ClientRoomSnapshotProvider>();
+            var controller = CreateUninitialized<MultiplayerRoomFlowController>();
+            var pushSynchronizer = CreateUninitialized<ClientRoomPushSynchronizer>();
+            var assetLoader = CreateUninitialized<MultiplayerBattleAssetLoader>();
+            var services = new MultiplayerGatewayRootServices(
+                config,
+                null,
+                store,
+                client,
+                client,
+                client,
+                gatewaySession,
+                gatewaySession,
+                snapshotProvider,
+                controller,
+                pushSynchronizer,
+                assetLoader,
+                runtime,
+                runtime);
+
+            try
+            {
+                services.Publish(root);
+
+                Assert.That(root.TryGetRef<IGatewayRoomCommandCapability>(out var commands), Is.True);
+                Assert.That(commands, Is.SameAs(client));
+                Assert.That(root.TryGetRef<IGatewayRoomRecoveryQueryCapability>(out var recoveryQuery), Is.True);
+                Assert.That(recoveryQuery, Is.SameAs(client));
+                Assert.That(root.TryGetRef<IDemoRoomDirectoryClient>(out var directory), Is.True);
+                Assert.That(directory, Is.SameAs(client));
+                Assert.That(root.TryGetRef<IMultiplayerGatewayDiagnostics>(out var diagnostics), Is.True);
+                Assert.That(diagnostics, Is.SameAs(runtime));
+                Assert.That(root.TryGetRef<IMultiplayerGatewayRecoveryControl>(out var recoveryControl), Is.True);
+                Assert.That(recoveryControl, Is.SameAs(runtime));
+                Assert.That(root.TryGetRef<IGatewayRoomClient>(out _), Is.False);
+                Assert.That(root.TryGetRef<IMultiplayerGatewayRuntime>(out _), Is.False);
+
+                services.Withdraw();
+
+                Assert.That(root.TryGetRef<IGatewayRoomCommandCapability>(out _), Is.False);
+                Assert.That(root.TryGetRef<IGatewayRoomRecoveryQueryCapability>(out _), Is.False);
+                Assert.That(root.TryGetRef<IDemoRoomDirectoryClient>(out _), Is.False);
+                Assert.That(root.TryGetRef<IMultiplayerGatewayDiagnostics>(out _), Is.False);
+                Assert.That(root.TryGetRef<IMultiplayerGatewayRecoveryControl>(out _), Is.False);
+            }
+            finally
+            {
+                services.Withdraw();
+                UnityEngine.Object.DestroyImmediate(config);
+            }
+        }
+
         [Test]
         public void GatewayRoom_BuildTickAndDispose_PublishesAndClearsOwnedResources()
         {
@@ -49,6 +136,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(connection.TickCount, Is.EqualTo(1));
             Assert.That(connection.LastDeltaTime, Is.EqualTo(0.25f));
 
+            var client = (ControllableGatewayRoomClient)clientFactory.LastClient;
             owner.Dispose();
             owner.Dispose();
 
@@ -57,6 +145,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(handles.GatewayRoom.Client, Is.Null);
             Assert.That(handles.GatewayRoom.ConnectionOwner, Is.Null);
             Assert.That(registry.RemoveCount, Is.EqualTo(1));
+            Assert.That(client.DisposeCount, Is.EqualTo(1));
             Assert.That(connection.DisposeCount, Is.EqualTo(1));
         }
 
@@ -95,11 +184,13 @@ namespace AbilityKit.Game.Test.UnitTest
 
             owner.Build(CreatePlan(), dispatcher, dispatcher);
             var firstConnection = connectionFactory.Connections[0];
-            var firstClient = owner.Client;
+            var firstClient = (ControllableGatewayRoomClient)owner.Client;
 
             owner.Build(CreatePlan(), dispatcher, dispatcher);
             var secondConnection = connectionFactory.Connections[1];
+            var secondClient = (ControllableGatewayRoomClient)owner.Client;
 
+            Assert.That(firstClient.DisposeCount, Is.EqualTo(1));
             Assert.That(firstConnection.DisposeCount, Is.EqualTo(1));
             Assert.That(owner.Connection, Is.SameAs(secondConnection));
             Assert.That(owner.Client, Is.Not.SameAs(firstClient));
@@ -107,6 +198,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(registry.RemoveCount, Is.EqualTo(1));
 
             owner.Dispose();
+            Assert.That(secondClient.DisposeCount, Is.EqualTo(1));
             Assert.That(secondConnection.DisposeCount, Is.EqualTo(1));
         }
 
@@ -130,17 +222,20 @@ namespace AbilityKit.Game.Test.UnitTest
             var dispatcher = new InlineDispatcher();
 
             staleOwner.Build(CreatePlan(), dispatcher, dispatcher);
+            var staleClient = (ControllableGatewayRoomClient)staleOwner.Client;
             var activeConnection = new TrackingConnection();
             registry.Register(
                 AbilityKitConnectionRole.GatewayReliable,
                 activeConnection);
             activeOwner.Build(CreatePlan(), dispatcher, dispatcher);
-            var activeClient = activeOwner.Client;
+            var activeClient = (ControllableGatewayRoomClient)activeOwner.Client;
             var activeToken = handles.GatewayRoom.ConnectionOwner;
 
             staleOwner.Dispose();
             activeOwner.Tick(0.5f);
 
+            Assert.That(staleClient.DisposeCount, Is.EqualTo(1));
+            Assert.That(activeClient.DisposeCount, Is.Zero);
             Assert.That(handles.GatewayRoom.ConnectionOwner, Is.SameAs(activeToken));
             Assert.That(handles.GatewayRoom.Conn, Is.SameAs(activeConnection));
             Assert.That(handles.GatewayRoom.Client, Is.SameAs(activeClient));
@@ -150,6 +245,7 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(registry.RemoveCount, Is.Zero);
 
             activeOwner.Dispose();
+            Assert.That(activeClient.DisposeCount, Is.EqualTo(1));
             Assert.That(activeConnection.DisposeCount, Is.EqualTo(1));
             Assert.That(registry.RemoveCount, Is.EqualTo(1));
         }
@@ -232,6 +328,8 @@ namespace AbilityKit.Game.Test.UnitTest
             runtime.Start(
                 connection,
                 client,
+                client,
+                client,
                 CreatePlan(
                     gatewaySessionToken: string.Empty,
                     gatewayAutoCreateRoom: true),
@@ -273,14 +371,18 @@ namespace AbilityKit.Game.Test.UnitTest
             runtime.Start(
                 connection,
                 client,
+                client,
+                client,
                 CreatePlan(gatewaySessionToken: string.Empty),
                 _ => publishCount++,
                 null,
                 null);
             var task = runtime.Task;
-            runtime.StopWork();
+            var stopTask = runtime.StopWorkAsync();
+            Assert.That(stopTask.IsCompleted, Is.False);
             client.GuestLoginCompletion.SetResult("late-token");
 
+            await AwaitWithTimeoutAsync(stopTask);
             Assert.That(await IsCanceledAsync(task), Is.True);
             Assert.That(client.GuestLoginToken.IsCancellationRequested, Is.True);
             Assert.That(publishCount, Is.Zero);
@@ -309,6 +411,8 @@ namespace AbilityKit.Game.Test.UnitTest
             runtime.Start(
                 connection,
                 staleClient,
+                staleClient,
+                staleClient,
                 CreatePlan(gatewaySessionToken: string.Empty),
                 plan => publishedTokens.Add(plan.Gateway.SessionToken),
                 null,
@@ -316,6 +420,8 @@ namespace AbilityKit.Game.Test.UnitTest
             var staleTask = runtime.Task;
             runtime.Start(
                 connection,
+                activeClient,
+                activeClient,
                 activeClient,
                 CreatePlan(gatewaySessionToken: string.Empty),
                 plan => publishedTokens.Add(plan.Gateway.SessionToken),
@@ -357,10 +463,11 @@ namespace AbilityKit.Game.Test.UnitTest
                 request.ClientSendTicks,
                 System.Diagnostics.Stopwatch.Frequency));
             var estimate = await AwaitWithTimeoutAsync(published.Task);
+            var stopTask = runtime.StopWorkAsync();
 
             Assert.That(estimate.HasClockSync, Is.True);
             Assert.That(estimate.Samples, Is.EqualTo(1));
-            runtime.StopWork();
+            await AwaitWithTimeoutAsync(stopTask);
             Assert.That(runtime.Estimate.HasClockSync, Is.True);
             runtime.ClearEstimate();
             Assert.That(runtime.Estimate.HasClockSync, Is.False);
@@ -372,6 +479,47 @@ namespace AbilityKit.Game.Test.UnitTest
         public IEnumerator GatewayClock_NotifiesAtFailureThresholdAndRejectsStaleGeneration()
         {
             yield return AwaitTask(GatewayClock_NotifiesAtFailureThresholdAndRejectsStaleGenerationCore());
+        }
+
+        [UnityTest]
+        public IEnumerator GatewayClock_StopWorkAsync_WaitsForPendingRequest()
+        {
+            yield return AwaitTask(GatewayClock_StopWorkAsync_WaitsForPendingRequestCore());
+        }
+
+        private static async Task GatewayClock_StopWorkAsync_WaitsForPendingRequestCore()
+        {
+            var runtime = new GatewayClockSynchronizer();
+            var client = new ControllableGatewayRoomClient();
+            var options = CreatePlan(timeSyncIntervalMs: 60000).TimeSync;
+
+            runtime.Start(client, in options, null, null);
+            var request = await client.WaitForTimeSyncRequestAsync();
+            var cancellationReenteredOwner = false;
+            using (request.Token.Register(() =>
+                   {
+                       var reentry = System.Threading.Tasks.Task.Run(() => runtime.Task);
+                       cancellationReenteredOwner = reentry.Wait(1000);
+                   }))
+            {
+                var firstStopTask = runtime.StopWorkAsync();
+                var secondStopTask = runtime.StopWorkAsync();
+
+                Assert.That(firstStopTask.IsCompleted, Is.False);
+                Assert.That(secondStopTask.IsCompleted, Is.False);
+                Assert.That(request.Token.IsCancellationRequested, Is.True);
+                Assert.That(cancellationReenteredOwner, Is.True);
+
+                request.Completion.SetResult(new GatewayTimeSyncResult(
+                    request.ClientSendTicks,
+                    request.ClientSendTicks,
+                    System.Diagnostics.Stopwatch.Frequency));
+                await AwaitWithTimeoutAsync(firstStopTask);
+                await AwaitWithTimeoutAsync(secondStopTask);
+            }
+
+            Assert.That(runtime.Task, Is.Null);
+            runtime.Dispose();
         }
 
         private static async Task GatewayClock_NotifiesAtFailureThresholdAndRejectsStaleGenerationCore()
@@ -476,6 +624,37 @@ namespace AbilityKit.Game.Test.UnitTest
                 timeSyncIntervalMs: timeSyncIntervalMs);
         }
 
+        private static void AssertConstructorDoesNotDependOnAggregateClient(Type type)
+        {
+            foreach (var constructor in type.GetConstructors(
+                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                foreach (var parameter in constructor.GetParameters())
+                {
+                    Assert.That(
+                        parameter.ParameterType,
+                        Is.Not.EqualTo(typeof(IGatewayRoomClient)),
+                        $"{type.Name} constructor parameter '{parameter.Name}' must use a narrow gateway capability.");
+                }
+            }
+        }
+
+        private static void AssertMethodDoesNotDependOnAggregateClient(Type type, string methodName)
+        {
+            foreach (var method in type.GetMethods(
+                         BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (!string.Equals(method.Name, methodName, StringComparison.Ordinal)) continue;
+                foreach (var parameter in method.GetParameters())
+                {
+                    Assert.That(
+                        parameter.ParameterType,
+                        Is.Not.EqualTo(typeof(IGatewayRoomClient)),
+                        $"{type.Name}.{methodName} parameter '{parameter.Name}' must use a narrow gateway capability.");
+                }
+            }
+        }
+
         private static IEnumerator AwaitTask(Task task)
         {
             while (!task.IsCompleted)
@@ -524,6 +703,25 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
+        private static T CreateUninitialized<T>() where T : class
+        {
+            return (T)FormatterServices.GetUninitializedObject(typeof(T));
+        }
+
+        private sealed class StubGatewayRuntime : IMultiplayerGatewayRuntime
+        {
+            public bool IsRemoteActive => false;
+            public ConnectionState ConnectionState => ConnectionState.Disconnected;
+            public MultiplayerRecoveryState RecoveryState => MultiplayerRecoveryState.None;
+            public NetworkSessionRecoveryDecision RecoveryDecision => default;
+            public NetworkSessionRecoveryDiagnostics RecoveryDiagnostics => default;
+            public SessionLifecycleDiagnosticsSnapshot LifecycleDiagnostics => default;
+
+            public void ResetReconnect()
+            {
+            }
+        }
+
         private sealed class InlineDispatcher : IDispatcher
         {
             public void Post(Action action) => action?.Invoke();
@@ -544,7 +742,9 @@ namespace AbilityKit.Game.Test.UnitTest
             }
         }
 
-        private sealed class ControllableGatewayRoomClient : IGatewayRoomClient
+        private sealed class ControllableGatewayRoomClient :
+            IGatewayRoomClient,
+            IDemoRoomDirectoryClient
         {
             private readonly object _gate = new object();
             private readonly Queue<TimeSyncRequest> _timeSyncRequests = new Queue<TimeSyncRequest>();
@@ -562,6 +762,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public CancellationToken JoinRoomToken { get; private set; }
             public Exception AutomaticTimeSyncFailure { get; set; }
             public int TimeSyncCallCount { get; private set; }
+            public int DisposeCount { get; private set; }
 
             public Task<GatewayTimeSyncResult> TimeSyncAsync(
                 uint timeSyncOpCode,
@@ -680,10 +881,21 @@ namespace AbilityKit.Game.Test.UnitTest
                 string sessionToken, string region, string serverId, TimeSpan? timeout = null,
                 CancellationToken cancellationToken = default) => throw new NotSupportedException();
 
+            public Task<DemoRoomDirectoryResult> ListRoomsAsync(
+                DemoRoomDirectoryQuery query,
+                TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default) =>
+                throw new NotSupportedException();
+
             public ClientRoomSnapshot DeserializeRoomStateChangedPush(ArraySegment<byte> payload) =>
                 throw new NotSupportedException();
 
             public bool IsRoomStateChangedPush(uint opCode) => false;
+
+            public void Dispose()
+            {
+                DisposeCount++;
+            }
 
             internal sealed class TimeSyncRequest
             {
@@ -716,7 +928,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     throw new InvalidOperationException("Injected gateway client creation failure.");
                 }
 
-                LastClient = Client ?? new GatewayRoomClient(connection, opCodes);
+                LastClient = Client ?? new ControllableGatewayRoomClient();
                 return LastClient;
             }
         }

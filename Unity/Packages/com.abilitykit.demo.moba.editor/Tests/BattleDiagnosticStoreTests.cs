@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
+using AbilityKit.Game.Editor;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 {
@@ -612,6 +614,379 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(snapshot.Samples.Select(item => item.Sequence), Is.EqualTo(new long[] { 1, 2 }));
         }
 
+        [Test]
+        public void MetricRingStore_AggregatesLongRangesPerSeriesAndPreservesExtrema()
+        {
+            var store = new BattleDiagnosticMetricRingStore(_scope, capacity: 32);
+            var sequence = 0L;
+            for (var frame = 0; frame < 100; frame += 10)
+            {
+                var backlog = frame == 20 ? 99d : frame / 10d;
+                Assert.That(store.TryAppend(new BattleDiagnosticMetricSample(
+                    _scope,
+                    ++sequence,
+                    frame,
+                    frame * 100L,
+                    BattleDiagnosticMetricCategory.Prediction,
+                    BattleDiagnosticMetricValueKind.Gauge,
+                    BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                    backlog)), Is.True);
+                Assert.That(store.TryAppend(new BattleDiagnosticMetricSample(
+                    _scope,
+                    ++sequence,
+                    frame,
+                    frame * 100L + 1L,
+                    BattleDiagnosticMetricCategory.Prediction,
+                    BattleDiagnosticMetricValueKind.Gauge,
+                    BattleDiagnosticFrameMetricKeys.PredictionWindow,
+                    6d)), Is.True);
+            }
+
+            var firstPage = store.QueryMetricAggregates(new BattleDiagnosticMetricAggregateQuery(
+                1,
+                new BattleDiagnosticFrameRange(0, 99),
+                new BattleDiagnosticPageRequest(0L, 0, 3),
+                BattleDiagnosticMetricCategory.Prediction,
+                bucketCount: 2));
+
+            Assert.That(firstPage.Status.HasMore, Is.True);
+            Assert.That(firstPage.Items.Count, Is.EqualTo(3));
+            var firstBacklogBucket = firstPage.Items.Single(item =>
+                item.Metric == BattleDiagnosticFrameMetricKeys.PredictionBacklog && item.FirstFrame == 0);
+            Assert.That(firstBacklogBucket.LastFrame, Is.EqualTo(49));
+            Assert.That(firstBacklogBucket.SampleCount, Is.EqualTo(5));
+            Assert.That(firstBacklogBucket.FirstValue, Is.EqualTo(0d));
+            Assert.That(firstBacklogBucket.LastValue, Is.EqualTo(4d));
+            Assert.That(firstBacklogBucket.MinimumValue, Is.EqualTo(0d));
+            Assert.That(firstBacklogBucket.MaximumValue, Is.EqualTo(99d));
+
+            var secondPage = store.QueryMetricAggregates(new BattleDiagnosticMetricAggregateQuery(
+                2,
+                new BattleDiagnosticFrameRange(0, 99),
+                new BattleDiagnosticPageRequest(firstPage.Status.StoreRevision, 3, 3),
+                BattleDiagnosticMetricCategory.Prediction,
+                bucketCount: 2));
+            Assert.That(secondPage.Status.HasMore, Is.False);
+            Assert.That(secondPage.Items.Single().FirstFrame, Is.EqualTo(50));
+
+            store.TryAppend(new BattleDiagnosticMetricSample(
+                _scope,
+                ++sequence,
+                100,
+                10000L,
+                BattleDiagnosticMetricCategory.Prediction,
+                BattleDiagnosticMetricValueKind.Gauge,
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                10d));
+            var stalePage = store.QueryMetricAggregates(new BattleDiagnosticMetricAggregateQuery(
+                3,
+                new BattleDiagnosticFrameRange(0, 100),
+                new BattleDiagnosticPageRequest(firstPage.Status.StoreRevision, 0, 3),
+                BattleDiagnosticMetricCategory.Prediction,
+                bucketCount: 2));
+            Assert.That(stalePage.Status.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
+        }
+
+        [Test]
+        public void FrameMetricCatalog_EvaluatesWindowMaximumAndCounterDelta()
+        {
+            Assert.That(
+                BattleDiagnosticFrameMetricCatalog.All.Select(item => item.Metric).Distinct().Count(),
+                Is.EqualTo(BattleDiagnosticFrameMetricCatalog.All.Count));
+            Assert.That(BattleDiagnosticFrameMetricCatalog.TryGet(
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                out var backlogDescriptor), Is.True);
+            Assert.That(backlogDescriptor.Unit, Is.EqualTo("frames"));
+            Assert.That(backlogDescriptor.Group, Is.EqualTo("prediction.pressure"));
+            Assert.That(backlogDescriptor.HasSuggestedRange, Is.True);
+
+            var store = new BattleDiagnosticMetricRingStore(_scope, capacity: 8);
+            store.TryAppend(new BattleDiagnosticMetricSample(
+                _scope, 1, 10, 100L,
+                BattleDiagnosticMetricCategory.Prediction,
+                BattleDiagnosticMetricValueKind.Gauge,
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                1d));
+            store.TryAppend(new BattleDiagnosticMetricSample(
+                _scope, 2, 20, 200L,
+                BattleDiagnosticMetricCategory.Prediction,
+                BattleDiagnosticMetricValueKind.Gauge,
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                9d));
+            store.TryAppend(new BattleDiagnosticMetricSample(
+                _scope, 3, 10, 201L,
+                BattleDiagnosticMetricCategory.Network,
+                BattleDiagnosticMetricValueKind.Counter,
+                BattleDiagnosticFrameMetricKeys.NetworkDuplicateTotal,
+                100d));
+            store.TryAppend(new BattleDiagnosticMetricSample(
+                _scope, 4, 20, 202L,
+                BattleDiagnosticMetricCategory.Network,
+                BattleDiagnosticMetricValueKind.Counter,
+                BattleDiagnosticFrameMetricKeys.NetworkDuplicateTotal,
+                101d));
+
+            var aggregates = store.QueryMetricAggregates(new BattleDiagnosticMetricAggregateQuery(
+                1,
+                new BattleDiagnosticFrameRange(10, 20),
+                new BattleDiagnosticPageRequest(0L, 0, 10),
+                bucketCount: 1));
+            var assessments = BattleDiagnosticFrameMetricCatalog.Evaluate(aggregates.Items);
+
+            var backlog = assessments.Single(item =>
+                item.Descriptor.Metric == BattleDiagnosticFrameMetricKeys.PredictionBacklog);
+            Assert.That(backlog.Severity, Is.EqualTo(BattleDiagnosticMetricSeverity.Critical));
+            Assert.That(backlog.ActualValue, Is.EqualTo(9d));
+            var duplicates = assessments.Single(item =>
+                item.Descriptor.Metric == BattleDiagnosticFrameMetricKeys.NetworkDuplicateTotal);
+            Assert.That(duplicates.Severity, Is.EqualTo(BattleDiagnosticMetricSeverity.Warning));
+            Assert.That(duplicates.ActualValue, Is.EqualTo(1d));
+        }
+
+        [Test]
+        public void MetricProfileResolver_AppliesMatchingLayersFromGeneralToSpecific()
+        {
+            var context = new BattleDiagnosticMetricProfileContext(
+                "AbilityKit.Demo.Moba",
+                "ranked",
+                "wan",
+                "low");
+            var metric = BattleDiagnosticFrameMetricKeys.PredictionBacklog;
+            var layers = new[]
+            {
+                new BattleDiagnosticMetricProfileLayer(
+                    "Global",
+                    0,
+                    new[] { new BattleDiagnosticMetricThresholdOverride(metric, 7d, 10d) }),
+                new BattleDiagnosticMetricProfileLayer(
+                    "Project",
+                    0,
+                    new[] { new BattleDiagnosticMetricThresholdOverride(metric, 6d, 9d) },
+                    project: "AbilityKit.Demo.Moba"),
+                new BattleDiagnosticMetricProfileLayer(
+                    "Ranked WAN",
+                    0,
+                    new[] { new BattleDiagnosticMetricThresholdOverride(metric, 4d, 7d) },
+                    project: "AbilityKit.Demo.Moba",
+                    gameMode: "ranked",
+                    networkMode: "wan"),
+                new BattleDiagnosticMetricProfileLayer(
+                    "Low Device",
+                    0,
+                    new[] { new BattleDiagnosticMetricThresholdOverride(metric, 3d, 6d, 0d, 6d) },
+                    project: "AbilityKit.Demo.Moba",
+                    gameMode: "ranked",
+                    networkMode: "wan",
+                    deviceTier: "low"),
+                new BattleDiagnosticMetricProfileLayer(
+                    "Wrong Network",
+                    100,
+                    new[] { new BattleDiagnosticMetricThresholdOverride(metric, 1d, 2d) },
+                    networkMode: "lan")
+            };
+
+            var profile = BattleDiagnosticMetricProfileResolver.Resolve(in context, layers);
+
+            Assert.That(profile.MatchedLayers, Is.EqualTo(new[] { "Global", "Project", "Ranked WAN", "Low Device" }));
+            Assert.That(profile.TryGet(metric, out var descriptor), Is.True);
+            Assert.That(descriptor.WarningThreshold, Is.EqualTo(3d));
+            Assert.That(descriptor.CriticalThreshold, Is.EqualTo(6d));
+            Assert.That(descriptor.SuggestedMaximum, Is.EqualTo(6d));
+        }
+
+        [Test]
+        public void MetricProfileComparer_ReportsContextAndEffectiveThresholdDifferences()
+        {
+            var capturedContext = new BattleDiagnosticMetricProfileContext(
+                "AbilityKit.Demo.Moba",
+                "ranked",
+                "wan",
+                "low");
+            var currentContext = new BattleDiagnosticMetricProfileContext(
+                "AbilityKit.Demo.Moba",
+                "ranked",
+                "lan",
+                "high");
+            var metric = BattleDiagnosticFrameMetricKeys.PredictionBacklog;
+            var captured = BattleDiagnosticMetricProfileResolver.Resolve(
+                in capturedContext,
+                new[]
+                {
+                    new BattleDiagnosticMetricProfileLayer(
+                        "Captured Low",
+                        0,
+                        new[] { new BattleDiagnosticMetricThresholdOverride(metric, 2d, 5d, 0d, 6d) })
+                });
+            var current = BattleDiagnosticMetricProfileResolver.Resolve(
+                in currentContext,
+                new[]
+                {
+                    new BattleDiagnosticMetricProfileLayer(
+                        "Current High",
+                        0,
+                        new[] { new BattleDiagnosticMetricThresholdOverride(metric, 4d, 8d, 0d, 10d) })
+                });
+
+            var comparison = BattleDiagnosticMetricProfileComparer.Compare(captured, current);
+
+            Assert.That(comparison.HasDifferences, Is.True);
+            Assert.That(comparison.ContextMatches, Is.False);
+            var difference = comparison.ThresholdDifferences.Single(item => item.Metric == metric);
+            Assert.That(difference.WarningChanged, Is.True);
+            Assert.That(difference.CriticalChanged, Is.True);
+            Assert.That(difference.SuggestedRangeChanged, Is.True);
+            Assert.That(difference.CapturedWarningThreshold, Is.EqualTo(2d));
+            Assert.That(difference.CurrentCriticalThreshold, Is.EqualTo(8d));
+        }
+
+        [Test]
+        public void MetricProfileComparer_EquivalentProfilesHaveNoDifferences()
+        {
+            var context = new BattleDiagnosticMetricProfileContext("AbilityKit.Demo.Moba");
+            var captured = BattleDiagnosticMetricProfileResolver.Resolve(in context);
+            var current = BattleDiagnosticMetricProfileResolver.Resolve(in context);
+
+            var comparison = BattleDiagnosticMetricProfileComparer.Compare(captured, current);
+
+            Assert.That(comparison.HasDifferences, Is.False);
+            Assert.That(comparison.ContextMatches, Is.True);
+            Assert.That(comparison.ThresholdDifferences, Is.Empty);
+        }
+
+        [Test]
+        public void MetricProfileAsset_ValidConfigurationBuildsEffectivePreview()
+        {
+            var asset = ScriptableObject.CreateInstance<BattleDiagnosticMetricProfileAsset>();
+            try
+            {
+                asset.GameMode = "ranked";
+                asset.NetworkMode = "wan";
+                asset.DeviceTier = "low";
+                var layer = new BattleDiagnosticMetricProfileLayerConfig
+                {
+                    Name = "Ranked WAN Low",
+                    Priority = 10,
+                    Project = "AbilityKit.Demo.Moba",
+                    GameMode = "ranked",
+                    NetworkMode = "wan",
+                    DeviceTier = "low"
+                };
+                layer.Overrides.Add(new BattleDiagnosticMetricThresholdOverrideConfig
+                {
+                    Metric = BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                    WarningThreshold = 2d,
+                    CriticalThreshold = 5d,
+                    OverrideSuggestedRange = true,
+                    SuggestedMinimum = 0d,
+                    SuggestedMaximum = 6d
+                });
+                asset.Layers.Add(layer);
+
+                var built = asset.TryBuild(out var context, out var layers, out var issues);
+                var preview = asset.BuildPreview();
+
+                Assert.That(built, Is.True);
+                Assert.That(issues, Is.Empty);
+                Assert.That(context, Is.EqualTo(asset.Context));
+                Assert.That(layers.Single().Name, Is.EqualTo("Ranked WAN Low"));
+                Assert.That(preview.MatchedLayers, Is.EqualTo(new[] { "Ranked WAN Low" }));
+                Assert.That(preview.TryGet(
+                    BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                    out var descriptor), Is.True);
+                Assert.That(descriptor.WarningThreshold, Is.EqualTo(2d));
+                Assert.That(descriptor.CriticalThreshold, Is.EqualTo(5d));
+                Assert.That(descriptor.SuggestedMaximum, Is.EqualTo(6d));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(asset);
+            }
+        }
+
+        [Test]
+        public void MetricProfileAsset_InvalidRulesAreReportedAndDoNotBuild()
+        {
+            var asset = ScriptableObject.CreateInstance<BattleDiagnosticMetricProfileAsset>();
+            try
+            {
+                var first = new BattleDiagnosticMetricProfileLayerConfig { Name = "Duplicate" };
+                first.Overrides.Add(new BattleDiagnosticMetricThresholdOverrideConfig
+                {
+                    Metric = "unknown.metric",
+                    WarningThreshold = 5d,
+                    CriticalThreshold = 2d
+                });
+                first.Overrides.Add(new BattleDiagnosticMetricThresholdOverrideConfig
+                {
+                    Metric = "unknown.metric",
+                    WarningThreshold = 1d,
+                    CriticalThreshold = 2d
+                });
+                asset.Layers.Add(first);
+                asset.Layers.Add(new BattleDiagnosticMetricProfileLayerConfig { Name = "Duplicate" });
+
+                var built = asset.TryBuild(out _, out var layers, out var issues);
+
+                Assert.That(built, Is.False);
+                Assert.That(layers, Is.Empty);
+                Assert.That(issues.Count(item =>
+                    item.Severity == BattleDiagnosticMetricProfileValidationSeverity.Error),
+                    Is.GreaterThanOrEqualTo(4));
+                Assert.That(issues.Any(item => item.Message.Contains("duplicated")), Is.True);
+                Assert.That(issues.Any(item => item.Message.Contains("unknown")), Is.True);
+                Assert.That(issues.Any(item => item.Message.Contains("critical")), Is.True);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(asset);
+            }
+        }
+
+        [Test]
+        public void FrameMetricCatalog_CompoundRulesRequireBothSignalsInSameDimension()
+        {
+            BattleDiagnosticFrameMetricCatalog.TryGet(
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                out var backlogDescriptor);
+            BattleDiagnosticFrameMetricCatalog.TryGet(
+                BattleDiagnosticFrameMetricKeys.PredictionStalled,
+                out var stalledDescriptor);
+            BattleDiagnosticFrameMetricCatalog.TryGet(
+                BattleDiagnosticFrameMetricKeys.NetworkTargetGap,
+                out var gapDescriptor);
+            BattleDiagnosticFrameMetricCatalog.TryGet(
+                BattleDiagnosticFrameMetricKeys.NetworkLateTotal,
+                out var lateDescriptor);
+            BattleDiagnosticFrameMetricCatalog.TryGet(
+                BattleDiagnosticFrameMetricKeys.RollbackTotal,
+                out var rollbackDescriptor);
+            BattleDiagnosticFrameMetricCatalog.TryGet(
+                BattleDiagnosticFrameMetricKeys.RollbackRestoreFailedTotal,
+                out var restoreDescriptor);
+            var assessments = new[]
+            {
+                Assessment(in backlogDescriptor, "local", BattleDiagnosticMetricSeverity.Warning),
+                Assessment(in stalledDescriptor, "local", BattleDiagnosticMetricSeverity.Critical),
+                Assessment(in gapDescriptor, "local", BattleDiagnosticMetricSeverity.Warning),
+                Assessment(in lateDescriptor, "local", BattleDiagnosticMetricSeverity.Warning),
+                Assessment(in rollbackDescriptor, "local", BattleDiagnosticMetricSeverity.Warning),
+                Assessment(in restoreDescriptor, "local", BattleDiagnosticMetricSeverity.Critical),
+                Assessment(in backlogDescriptor, "remote", BattleDiagnosticMetricSeverity.Warning)
+            };
+
+            var compounds = BattleDiagnosticFrameMetricCatalog.EvaluateCompounds(assessments);
+
+            Assert.That(compounds.Select(item => item.Rule.Id), Is.EqualTo(new[]
+            {
+                "prediction.backlog_stall",
+                "rollback.restore_failure",
+                "network.late_target_gap"
+            }));
+            Assert.That(compounds.Single(item => item.Rule.Id == "prediction.backlog_stall").Severity,
+                Is.EqualTo(BattleDiagnosticMetricSeverity.Critical));
+            Assert.That(compounds.Any(item => item.Dimension == "remote"), Is.False);
+        }
+
         private BattleDiagnosticEventQuery Query(long requestId, int offset, int limit)
         {
             return new BattleDiagnosticEventQuery(
@@ -636,6 +1011,23 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 BattleDiagnosticMetricValueKind.Gauge,
                 metric,
                 value);
+        }
+
+        private static BattleDiagnosticMetricAssessment Assessment(
+            in BattleDiagnosticMetricDescriptor descriptor,
+            string dimension,
+            BattleDiagnosticMetricSeverity severity)
+        {
+            return new BattleDiagnosticMetricAssessment(
+                in descriptor,
+                dimension,
+                severity,
+                severity == BattleDiagnosticMetricSeverity.Critical
+                    ? descriptor.CriticalThreshold
+                    : descriptor.WarningThreshold,
+                10,
+                20,
+                2);
         }
 
         private static BattleDiagnosticEvent TriggerEvent(

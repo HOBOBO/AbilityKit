@@ -1,4 +1,5 @@
 using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using MemoryPack;
@@ -60,6 +61,46 @@ namespace AbilityKit.Protocol.Room
                 SchemaVersion = value.SchemaVersion,
                 RemovedActorIds = value.RemovedActorIds,
                 EventEpoch = value.EventEpoch
+            };
+        }
+    }
+
+    [MemoryPackable]
+    internal partial class ReusableWireReliableBattleEventPush
+    {
+        [MemoryPackOrder(0)] public string BattleId = string.Empty;
+        [MemoryPackOrder(1)] public string Epoch = string.Empty;
+        [MemoryPackOrder(2)] public long FirstAvailableSequence;
+        [MemoryPackOrder(3)] public long Watermark;
+        [MemoryPackOrder(4)] public bool RetentionGap;
+        [MemoryPackOrder(5)] public List<WireReliableBattleEvent>? Events;
+    }
+
+    /// <summary>Reusable decode buffer for the reliable-event push envelope.</summary>
+    public sealed class WireReliableBattleEventPushDecodeBuffer
+    {
+        private ReusableWireReliableBattleEventPush? _buffer = new ReusableWireReliableBattleEventPush();
+
+        public WireReliableBattleEventPush Decode(ArraySegment<byte> payload)
+        {
+            if (payload.Array == null || payload.Count == 0)
+            {
+                return default;
+            }
+
+            MemoryPackSerializer.Deserialize(
+                new ReadOnlySpan<byte>(payload.Array, payload.Offset, payload.Count),
+                ref _buffer);
+            var value = _buffer ?? new ReusableWireReliableBattleEventPush();
+            _buffer = value;
+            return new WireReliableBattleEventPush
+            {
+                BattleId = value.BattleId,
+                Epoch = value.Epoch,
+                FirstAvailableSequence = value.FirstAvailableSequence,
+                Watermark = value.Watermark,
+                RetentionGap = value.RetentionGap,
+                Events = value.Events
             };
         }
     }

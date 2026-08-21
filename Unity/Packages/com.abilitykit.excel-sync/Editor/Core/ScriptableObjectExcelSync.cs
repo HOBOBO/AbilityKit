@@ -382,10 +382,10 @@ namespace AbilityKit.ExcelSync.Editor
             }
 
             var sheet = string.IsNullOrEmpty(options.SheetName)
-                ? package.Workbook.Worksheets[0]
-                : (package.Workbook.Worksheets[options.SheetName] ?? package.Workbook.Worksheets[0]);
+                ? ExcelSheetLookup.FirstSheet(package)
+                : (package.Workbook.Worksheets[options.SheetName] ?? ExcelSheetLookup.FirstSheet(package));
 
-            if (sheet.Dimension == null)
+            if (sheet == null || sheet.Dimension == null)
             {
                 return (new List<string>(), new List<string>());
             }
@@ -1142,8 +1142,8 @@ namespace AbilityKit.ExcelSync.Editor
                     }
 
                     var sheet = string.IsNullOrEmpty(options.SheetName)
-                        ? package.Workbook.Worksheets[0]
-                        : (package.Workbook.Worksheets[options.SheetName] ?? package.Workbook.Worksheets[0]);
+                        ? ExcelSheetLookup.FirstSheet(package)
+                        : (package.Workbook.Worksheets[options.SheetName] ?? ExcelSheetLookup.FirstSheet(package));
 
                     if (sheet.Dimension != null)
                     {
@@ -1215,6 +1215,7 @@ namespace AbilityKit.ExcelSync.Editor
 
                             var baseRowMap = baselineAsset.BuildRowMap();
                             var conflictList = new List<ExcelSoSyncConflict>();
+                            var exportedKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                             foreach (var item in listObj)
                             {
@@ -1235,6 +1236,8 @@ namespace AbilityKit.ExcelSync.Editor
                                 {
                                     continue;
                                 }
+
+                                exportedKeys.Add(pkStr);
 
                                 var isNewRow = false;
                                 if (!codeToRow.TryGetValue(pkStr, out var rowIndex))
@@ -1313,6 +1316,82 @@ namespace AbilityKit.ExcelSync.Editor
                                 }
                             }
 
+                            // 删除传播：Excel 与 baseline 中都存在、但 SO 已缺失的行。
+                            // Excel 侧未改（== baseline）→ 安全删除该行；Excel 侧已改 → 删除冲突；
+                            // baseline 没有的行（导入后在 Excel 新增）→ 远端新增冲突，不误删。
+                            var rowsToDelete = new List<int>();
+                            foreach (var pair in codeToRow)
+                            {
+                                if (exportedKeys.Contains(pair.Key))
+                                {
+                                    continue;
+                                }
+
+                                if (long.TryParse(pair.Key, out var zeroCheck) && zeroCheck == 0)
+                                {
+                                    continue;
+                                }
+
+                                var excelRow = pair.Value;
+                                var keyCellAddress = $"{sheet.Name}!{sheet.Cells[excelRow, primaryKeyColumnIndex + 1].Address}";
+
+                                if (!baseRowMap.TryGetValue(pair.Key, out var deletedBaseRow) || deletedBaseRow == null)
+                                {
+                                    conflictList.Add(new ExcelSoSyncConflict
+                                    {
+                                        Key = pair.Key,
+                                        Column = options.PrimaryKeyColumnName,
+                                        Address = keyCellAddress,
+                                        Base = string.Empty,
+                                        Local = "(deleted)",
+                                        Remote = "(added in Excel)"
+                                    });
+                                    continue;
+                                }
+
+                                var remotelyModified = false;
+                                foreach (var b in bindings)
+                                {
+                                    if (b.ColumnIndex < 0 || b.ColumnIndex >= deletedBaseRow.Count)
+                                    {
+                                        continue;
+                                    }
+
+                                    var deletedCell = sheet.Cells[excelRow, b.ColumnIndex + 1];
+                                    var deletedBaseStr = deletedBaseRow[b.ColumnIndex] ?? string.Empty;
+                                    var deletedRemoteStr = NormalizeCellString(deletedCell.Value, b.ColumnName, registry);
+                                    if (!string.Equals(deletedRemoteStr, deletedBaseStr, StringComparison.Ordinal))
+                                    {
+                                        remotelyModified = true;
+                                        break;
+                                    }
+                                }
+
+                                if (remotelyModified)
+                                {
+                                    conflictList.Add(new ExcelSoSyncConflict
+                                    {
+                                        Key = pair.Key,
+                                        Column = "(row)",
+                                        Address = keyCellAddress,
+                                        Base = "(baseline row)",
+                                        Local = "(deleted)",
+                                        Remote = "(modified in Excel)"
+                                    });
+                                }
+                                else
+                                {
+                                    rowsToDelete.Add(excelRow);
+                                }
+                            }
+
+                            // 自底向上删除，避免行号位移。
+                            rowsToDelete.Sort((x, y) => y.CompareTo(x));
+                            foreach (var rowToDelete in rowsToDelete)
+                            {
+                                sheet.DeleteRow(rowToDelete);
+                            }
+
                             if (conflictList.Count > 0)
                             {
                                 var conflictReportAssetPath = GetBaselineAssetPath(targetAsset) + ".conflicts.json";
@@ -1342,6 +1421,142 @@ namespace AbilityKit.ExcelSync.Editor
         private sealed class ConflictWrapper
         {
             public List<ExcelSoSyncConflict> Items = new List<ExcelSoSyncConflict>();
+        }
+
+        /// <summary>
+        /// 首次把 SO 数据全量落成 Excel（表头 + 数据行），随后执行一次 Import 建立 baseline。
+        /// 仅用于某张表第一次接入 Excel 作为落盘来源；Excel 文件或 baseline 已存在时拒绝执行，
+        /// 防止覆盖既有的 Excel 真相源（后续同步一律走 Import/Export 的三方合并）。
+        /// </summary>
+        public static void BootstrapExcelFromSo(
+            ScriptableObject targetAsset,
+            string excelFilePath,
+            ExcelTableOptions options,
+            ITableReaderWriterFactory factory,
+            IExcelTypeNameProvider typeNameProvider = null,
+            ExcelCodecRegistry registry = null)
+        {
+            if (targetAsset == null)
+            {
+                throw new ArgumentNullException(nameof(targetAsset));
+            }
+
+            if (File.Exists(excelFilePath))
+            {
+                throw new InvalidOperationException($"Bootstrap refuses to overwrite an existing Excel file: {excelFilePath}. Delete it first, or use Export (safe merge) instead.");
+            }
+
+            var baselineAssetPath = GetBaselineAssetPath(targetAsset);
+            if (!string.IsNullOrEmpty(baselineAssetPath) && File.Exists(baselineAssetPath))
+            {
+                throw new InvalidOperationException("Baseline already exists for this asset. Use Import/Export instead of bootstrap.");
+            }
+
+            options ??= new ExcelTableOptions();
+            registry ??= ExcelCodecRegistry.Default;
+
+            var dataListMember = FindDataListMember(targetAsset.GetType());
+            if (dataListMember == null)
+            {
+                throw new InvalidOperationException($"Cannot find DataList(List<T>) on {targetAsset.GetType().Name}");
+            }
+
+            var elementType = GetListElementType(dataListMember);
+            if (elementType == null)
+            {
+                throw new InvalidOperationException($"DataList on {targetAsset.GetType().Name} is not List<T>/T[]");
+            }
+
+            var headers = ExcelReflectionMapper.BuildHeaders(elementType).ToList();
+            var pk = NormalizeHeader(options.PrimaryKeyColumnName);
+            if (string.IsNullOrEmpty(pk) || !headers.Any(h => string.Equals(NormalizeHeader(h), pk, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException($"Primary key column '{options.PrimaryKeyColumnName}' not found on {elementType.Name} members.");
+            }
+
+            var bindings = ExcelReflectionMapper.BuildBindings(elementType, headers);
+            var byColumnIndex = new Dictionary<int, ExcelReflectionMapper.ColumnBinding>();
+            foreach (var b in bindings)
+            {
+                byColumnIndex[b.ColumnIndex] = b;
+            }
+
+            var directory = Path.GetDirectoryName(excelFilePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var pkMember = FindMemberIgnoreCase(elementType, options.PrimaryKeyColumnName);
+            var rows = GetMemberValue(targetAsset, dataListMember) as System.Collections.IEnumerable;
+            using (var writer = factory.CreateWriter(excelFilePath, options))
+            {
+                writer.WriteHeaders(headers, options.HeaderRowIndex);
+
+                if (typeNameProvider != null)
+                {
+                    var typeRow = new List<object>(headers.Count);
+                    for (var i = 0; i < headers.Count; i++)
+                    {
+                        if (byColumnIndex.TryGetValue(i, out var b))
+                        {
+                            typeRow.Add(typeNameProvider.GetTypeName(ExcelReflectionMapper.GetMemberType(b.Member)));
+                        }
+                        else
+                        {
+                            typeRow.Add("string");
+                        }
+                    }
+
+                    writer.WriteRow(options.HeaderRowIndex + 1, typeRow);
+                }
+
+                var rowIndex = options.DataStartRowIndex;
+                if (rows != null)
+                {
+                    foreach (var item in rows)
+                    {
+                        if (item == null)
+                        {
+                            continue;
+                        }
+
+                        var pkStr = pkMember != null ? ExcelReflectionMapper.GetValue(item, pkMember)?.ToString()?.Trim() : null;
+                        if (string.IsNullOrWhiteSpace(pkStr))
+                        {
+                            continue;
+                        }
+
+                        if (long.TryParse(pkStr, out var pkLong) && pkLong == 0)
+                        {
+                            continue;
+                        }
+
+                        var values = new List<object>(headers.Count);
+                        for (var i = 0; i < headers.Count; i++)
+                        {
+                            if (byColumnIndex.TryGetValue(i, out var b))
+                            {
+                                values.Add(NormalizeCellString(ExcelReflectionMapper.GetValue(item, b.Member), b.ColumnName, registry));
+                            }
+                            else
+                            {
+                                values.Add(string.Empty);
+                            }
+                        }
+
+                        writer.WriteRow(rowIndex, values);
+                        rowIndex++;
+                    }
+                }
+
+                writer.Save();
+            }
+
+            AssetDatabase.Refresh();
+
+            // 立即 Import 一次：建立 baseline，并让 SO 与 Excel 完成回读校验。
+            ImportToSingleAssetDataList(targetAsset, excelFilePath, options, factory, registry);
         }
 
         private static MemberInfo FindMemberIgnoreCase(Type t, string name)
@@ -1653,30 +1868,74 @@ namespace AbilityKit.ExcelSync.Editor
 
         private static MemberInfo FindDataListMember(Type t)
         {
-            var f = t.GetField("DataList", BindingFlags.Public | BindingFlags.Instance);
-            if (f != null)
+            var flags = BindingFlags.Public | BindingFlags.Instance;
+
+            MemberInfo best = null;
+            foreach (var f in t.GetFields(flags))
             {
-                return f;
+                if (IsCollectionMember(f.FieldType) && IsDataListCandidate(f.Name))
+                {
+                    best = f;
+                    break;
+                }
             }
 
-            var p = t.GetProperty("DataList", BindingFlags.Public | BindingFlags.Instance);
-            if (p != null && p.CanRead && p.CanWrite)
+            if (best == null)
             {
-                return p;
+                foreach (var p in t.GetProperties(flags))
+                {
+                    if (p.CanRead && p.CanWrite && IsCollectionMember(p.PropertyType) && IsDataListCandidate(p.Name))
+                    {
+                        best = p;
+                        break;
+                    }
+                }
             }
 
-            return null;
+            return best;
+        }
+
+        private static bool IsDataListCandidate(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                return false;
+            }
+
+            return string.Equals(name, "DataList", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "Items", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(name, "Rows", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsCollectionMember(Type memberType)
+        {
+            if (memberType.IsArray)
+            {
+                return true;
+            }
+
+            if (memberType.IsGenericType && memberType.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private static Type GetListElementType(MemberInfo member)
         {
             var mt = ExcelReflectionMapper.GetMemberType(member);
-            if (!mt.IsGenericType || mt.GetGenericTypeDefinition() != typeof(List<>))
+            if (mt.IsArray)
             {
-                return null;
+                return mt.GetElementType();
             }
 
-            return mt.GetGenericArguments()[0];
+            if (mt.IsGenericType && mt.GetGenericTypeDefinition() == typeof(List<>))
+            {
+                return mt.GetGenericArguments()[0];
+            }
+
+            return null;
         }
 
         private static object GetMemberValue(object target, MemberInfo member)
@@ -1686,6 +1945,19 @@ namespace AbilityKit.ExcelSync.Editor
 
         private static void SetMemberValue(object target, MemberInfo member, object value)
         {
+            var memberType = ExcelReflectionMapper.GetMemberType(member);
+            if (memberType.IsArray && value is System.Collections.IList list && !value.GetType().IsArray)
+            {
+                var elementType = memberType.GetElementType();
+                var arr = Array.CreateInstance(elementType, list.Count);
+                for (var i = 0; i < list.Count; i++)
+                {
+                    arr.SetValue(list[i], i);
+                }
+
+                value = arr;
+            }
+
             ExcelReflectionMapper.SetValue(target, member, value);
         }
 

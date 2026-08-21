@@ -101,8 +101,16 @@
         "com.abilitykit.core": "0.1.0",
         "com.abilitykit.deterministic": "0.1.0",
         "com.abilitykit.continuous": "0.1.0",
-        "com.abilitykit.pipeline": "0.1.0",
-        "com.abilitykit.thirdparty.behaviortreeeditor": "0.0.1"
+        "com.abilitykit.pipeline": "0.1.0"
+      }
+    },
+    "com.abilitykit.behaviortree": {
+      "version": "file:com.abilitykit.behaviortree",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0"
       }
     },
     "com.abilitykit.combat.collision.abstractions": {
@@ -294,6 +302,7 @@
         "com.abilitykit.combat.motion": "0.1.0",
         "com.abilitykit.world.snapshot": "0.1.0",
         "com.abilitykit.ability": "0.1.0",
+        "com.abilitykit.ai.abstractions": "0.1.0",
         "com.abilitykit.behavior": "0.1.0",
         "com.abilitykit.context": "0.1.0",
         "com.abilitykit.coordinator": "0.1.0",
@@ -312,7 +321,7 @@
         "com.abilitykit.modifiers": "0.1.0",
         "com.abilitykit.pipeline": "0.1.0",
         "com.abilitykit.protocol.moba": "0.1.0",
-        "com.abilitykit.thirdparty.behaviortreeeditor": "0.0.1",
+        "com.abilitykit.behaviortree": "0.1.0",
         "com.abilitykit.thirdparty.luban.runtime": "0.0.1",
         "com.abilitykit.trace": "0.1.0",
         "com.abilitykit.triggering": "0.1.0",
@@ -575,7 +584,8 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
-        "com.abilitykit.deterministic": "0.1.0"
+        "com.abilitykit.deterministic": "0.1.0",
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
       }
     },
     "com.abilitykit.host": {
@@ -702,7 +712,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.network.runtime": "0.1.0"
+        "com.abilitykit.network.runtime": "0.1.0",
+        "com.abilitykit.protocol": "0.1.0"
       }
     },
     "com.abilitykit.network.transport.inmemory": {
@@ -802,12 +813,6 @@
     },
     "com.abilitykit.thirdparty.actioneditor": {
       "version": "file:com.abilitykit.thirdparty.actioneditor",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
-    "com.abilitykit.thirdparty.behaviortreeeditor": {
-      "version": "file:com.abilitykit.thirdparty.behaviortreeeditor",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}

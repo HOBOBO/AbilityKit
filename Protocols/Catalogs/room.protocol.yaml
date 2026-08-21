@@ -1,0 +1,325 @@
+# yaml-language-server: $schema=../protocol-catalog.schema.json
+schemaVersion: 1
+catalogId: abilitykit.room
+projectId: abilitykit.shared
+domain: room
+revision: 1
+defaultCodec: memorypack
+messages:
+  - id: guest-login.request
+    opCode: 100
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRoomGuestLoginReq
+    response: guest-login.response
+    maximumPayloadBytes: 4096
+  - id: guest-login.response
+    opCode: 100
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomGuestLoginRes
+    maximumPayloadBytes: 8192
+    sensitiveFields: [sessionToken]
+  - id: account-login.request
+    opCode: 111
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRoomAccountLoginReq
+    response: account-login.response
+    maximumPayloadBytes: 8192
+    sensitiveFields: [accessToken]
+  - id: account-login.response
+    opCode: 111
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomAccountLoginRes
+    maximumPayloadBytes: 8192
+    sensitiveFields: [sessionToken, refreshToken]
+  - id: renew-session.request
+    opCode: 120
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRenewSessionReq
+    response: renew-session.response
+    maximumPayloadBytes: 8192
+    sensitiveFields: [sessionToken]
+  - id: renew-session.response
+    opCode: 120
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRenewSessionRes
+    maximumPayloadBytes: 8192
+    sensitiveFields: [sessionToken]
+  - id: create-room.request
+    opCode: 101
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireCreateRoomReq
+    response: create-room.response
+    maximumPayloadBytes: 16384
+    sensitiveFields: [sessionToken]
+  - id: create-room.response
+    opCode: 101
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireCreateRoomRes
+    maximumPayloadBytes: 262144
+  - id: join-room.request
+    opCode: 102
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireJoinRoomReq
+    response: join-room.response
+    maximumPayloadBytes: 16384
+    sensitiveFields: [sessionToken]
+  - id: join-room.response
+    opCode: 102
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireJoinRoomRes
+    maximumPayloadBytes: 262144
+  - id: restore-room.request
+    opCode: 109
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRestoreRoomReq
+    response: restore-room.response
+    maximumPayloadBytes: 16384
+    sensitiveFields: [sessionToken]
+  - id: restore-room.response
+    opCode: 109
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRestoreRoomRes
+    maximumPayloadBytes: 262144
+  - id: list-rooms.request
+    opCode: 110
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireListRoomsReq
+    response: list-rooms.response
+    maximumPayloadBytes: 8192
+    sensitiveFields: [sessionToken]
+  - id: list-rooms.response
+    opCode: 110
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireListRoomsRes
+    maximumPayloadBytes: 524288
+  - id: set-ready.request
+    opCode: 104
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRoomReadyReq
+    response: set-ready.response
+    sensitiveFields: [sessionToken]
+  - id: set-ready.response
+    opCode: 104
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomSnapshotRes
+    maximumPayloadBytes: 262144
+  - id: pick-hero.request
+    opCode: 105
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRoomPickHeroReq
+    response: pick-hero.response
+    sensitiveFields: [sessionToken]
+  - id: pick-hero.response
+    opCode: 105
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomSnapshotRes
+    maximumPayloadBytes: 262144
+  - id: start-battle.request
+    opCode: 106
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireStartRoomBattleReq
+    response: start-battle.response
+    sensitiveFields: [sessionToken]
+  - id: start-battle.response
+    opCode: 106
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireStartRoomBattleRes
+    maximumPayloadBytes: 262144
+  - id: submit-battle-input.request
+    opCode: 107
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireSubmitBattleInputReq
+    response: submit-battle-input.response
+    maximumPayloadBytes: 262144
+    captureSampleRate: 0.1
+    sensitiveFields: [sessionToken]
+  - id: submit-battle-input.response
+    opCode: 107
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireSubmitBattleInputRes
+    maximumPayloadBytes: 16384
+    captureSampleRate: 0.1
+  - id: subscribe-state-sync.request
+    opCode: 103
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireSubscribeStateSyncReq
+    response: subscribe-state-sync.response
+    sensitiveFields: [sessionToken]
+  - id: subscribe-state-sync.response
+    opCode: 103
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireSubscribeStateSyncRes
+  - id: request-full-state-sync.request
+    opCode: 108
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRequestFullStateSyncReq
+    response: request-full-state-sync.response
+    sensitiveFields: [sessionToken]
+  - id: request-full-state-sync.response
+    opCode: 108
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRequestFullStateSyncRes
+  - id: state-sync-metrics.request
+    opCode: 117
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireGetStateSyncDeliveryMetricsReq
+    response: state-sync-metrics.response
+    sensitiveFields: [sessionToken]
+  - id: state-sync-metrics.response
+    opCode: 117
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireGetStateSyncDeliveryMetricsRes
+    maximumPayloadBytes: 65536
+  - id: begin-loading.request
+    opCode: 112
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireBeginLoadingReq
+    response: begin-loading.response
+    sensitiveFields: [sessionToken]
+  - id: begin-loading.response
+    opCode: 112
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomOperationRes
+    maximumPayloadBytes: 262144
+  - id: report-assets-loaded.request
+    opCode: 113
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireReportAssetsLoadedReq
+    response: report-assets-loaded.response
+    sensitiveFields: [sessionToken]
+  - id: report-assets-loaded.response
+    opCode: 113
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomOperationRes
+    maximumPayloadBytes: 262144
+  - id: report-loading-progress.request
+    opCode: 118
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireReportLoadingProgressReq
+    response: report-loading-progress.response
+    captureSampleRate: 0.25
+    sensitiveFields: [sessionToken]
+  - id: report-loading-progress.response
+    opCode: 118
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomOperationRes
+    maximumPayloadBytes: 262144
+    captureSampleRate: 0.25
+  - id: cancel-loading.request
+    opCode: 114
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireCancelLoadingReq
+    response: cancel-loading.response
+    sensitiveFields: [sessionToken]
+  - id: cancel-loading.response
+    opCode: 114
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomOperationRes
+    maximumPayloadBytes: 262144
+  - id: leave-room.request
+    opCode: 119
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireLeaveRoomReq
+    response: leave-room.response
+    sensitiveFields: [sessionToken]
+  - id: leave-room.response
+    opCode: 119
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomOperationRes
+    maximumPayloadBytes: 262144
+  - id: get-snapshot.request
+    opCode: 115
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireGetSnapshotReq
+    response: get-snapshot.response
+    sensitiveFields: [sessionToken]
+  - id: get-snapshot.response
+    opCode: 115
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomSnapshotRes
+    maximumPayloadBytes: 524288
+  - id: ack-reliable-events.request
+    opCode: 116
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireAckReliableBattleEventsReq
+    response: ack-reliable-events.response
+    captureSampleRate: 0.25
+    sensitiveFields: [sessionToken]
+  - id: ack-reliable-events.response
+    opCode: 116
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireAckReliableBattleEventsRes
+    captureSampleRate: 0.25
+  - id: state-sync-snapshot.push
+    opCode: 9002
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Room.WireStateSyncSnapshotPush
+    reliability: realtime
+    maximumSchemaVersion: 8
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.05
+  - id: state-sync-delta.push
+    opCode: 9003
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Room.WireStateSyncSnapshotPush
+    reliability: realtime
+    maximumSchemaVersion: 8
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.05
+  - id: room-state-changed.push
+    opCode: 9004
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Room.WireRoomStateChangedPush
+    maximumPayloadBytes: 524288
+  - id: reliable-battle-events.push
+    opCode: 9005
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Room.WireReliableBattleEventPush
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25

@@ -81,4 +81,31 @@ public sealed class ShooterServerSyncTemplateCatalogTests
         Assert.Equal(3, mass.SnapshotIntervalFrames);
         Assert.Equal(450, mass.FullSnapshotIntervalFrames);
     }
+
+    [Fact]
+    public void Catalog_MassBattleSampleBlock_IsAnExplicitComparisonTemplate()
+    {
+        var single = ShooterServerSyncTemplateCatalog.Resolve(ShooterServerProtocol.MassBattleLodAoiTemplate);
+        var blocked = ShooterServerSyncTemplateCatalog.Resolve(ShooterServerProtocol.MassBattleLodAoiSampleBlockTemplate);
+        var singleOptions = single.CreatePushOptions("limitedbw");
+        var blockedOptions = blocked.CreatePushOptions("limitedbw");
+
+        Assert.Equal(ShooterPureStatePlaybackPayloadMode.SingleSample, singleOptions.PlaybackPayloadMode);
+        Assert.Equal(1, singleOptions.SampleBlockFrameCount);
+        Assert.Equal(ShooterPureStatePlaybackPayloadMode.MultiSampleBlock, blockedOptions.PlaybackPayloadMode);
+        Assert.Equal(3, blockedOptions.SampleBlockFrameCount);
+        Assert.Equal(0.40f, blockedOptions.SampleDensityPolicy.NearRadiusRatio);
+        Assert.Equal(0.75f, blockedOptions.SampleDensityPolicy.MidRadiusRatio);
+        Assert.Equal(1, blockedOptions.SampleDensityPolicy.NearHistoricalStride);
+        Assert.Equal(2, blockedOptions.SampleDensityPolicy.MidHistoricalStride);
+        Assert.Equal(0, blockedOptions.SampleDensityPolicy.FarHistoricalStride);
+        Assert.Equal(32, blockedOptions.SampleDensityPolicy.MaxHistoricalTransformsPerBlock);
+        Assert.Equal(1, singleOptions.SampleDensityPolicy.NearHistoricalStride);
+        Assert.Equal(1, singleOptions.SampleDensityPolicy.FarHistoricalStride);
+        Assert.Equal(int.MaxValue, singleOptions.SampleDensityPolicy.MaxHistoricalTransformsPerBlock);
+        Assert.Equal(single.SnapshotIntervalFrames, blocked.SnapshotIntervalFrames);
+        Assert.Equal(single.FullSnapshotIntervalFrames, blocked.FullSnapshotIntervalFrames);
+        Assert.Equal(singleOptions.ResolvePureStateSettings().ActiveSyncBudget, blockedOptions.ResolvePureStateSettings().ActiveSyncBudget);
+        Assert.Contains(ShooterServerProtocol.MassBattleLodAoiSampleBlockTemplate, ShooterServerProtocol.CreateStateSyncTemplateIds());
+    }
 }

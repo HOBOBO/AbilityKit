@@ -21,16 +21,16 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
 
         // === Golden baseline ===
-        // Catalog: 6 runnable templates × 6 network environments = 36 scenarios.
+        // Catalog: 7 runnable templates × 6 network environments = 42 scenarios.
         // AuthoritativeInterpolation: 12 Completed（StateSyncAuthority + AuthoritativeInterpolationPresentation
         // 两个模板都走 ShooterInterpolationDemoHarnessCarrier）。
         // PredictRollback: 6 Completed (ShooterDemoHarnessCarrier supports it).
         // BatchStateSync: 6 Completed through the low-frequency interpolation-compatible carrier.
-        // MassBattleLodSync: 6 Completed through the LOD/batch interpolation-compatible carrier.
+        // MassBattleLodSync: 12 Completed through the two LOD/batch interpolation-compatible templates.
         // HybridHeroPrediction: 6 Completed (ShooterHybridDemoHarnessCarrier requires the dedicated Hybrid controller).
 
-        Assert.Equal(36, batch.ScenarioCount);
-        Assert.Equal(36, batch.CompletedCount);
+        Assert.Equal(42, batch.ScenarioCount);
+        Assert.Equal(42, batch.CompletedCount);
         Assert.Equal(0, batch.DegradedCount);
         Assert.Equal(0, batch.UnsupportedCount);
         Assert.Equal(0, batch.FailedCount);
@@ -43,7 +43,7 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
         var batch = ShooterAcceptanceLab.RunCatalogMatrix(stepCount: 2);
 
         // PredictRollback × 6 Completed + AuthoritativeInterpolation × 12 Completed（双模板）
-        // + BatchStateSync × 6 Completed + MassBattleLodSync × 6 Completed
+        // + BatchStateSync × 6 Completed + MassBattleLodSync × 12 Completed (two templates)
         // + HybridHeroPrediction × 6 Completed = 5 summary rows.
         Assert.Equal(5, batch.Summary.Rows.Count);
 
@@ -65,8 +65,8 @@ public sealed class ShooterAcceptanceMatrixSnapshotTests
             NetworkSyncModel.BatchStateSync,
             DemoHarnessRunStatus.Completed));
 
-        // MassBattleLodSync: 6 Completed.
-        Assert.Equal(6, batch.Summary.CountFor(
+        // MassBattleLodSync: 12 Completed (single-sample and sample-block templates).
+        Assert.Equal(12, batch.Summary.CountFor(
             ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName,
             NetworkSyncModel.MassBattleLodSync,
             DemoHarnessRunStatus.Completed));

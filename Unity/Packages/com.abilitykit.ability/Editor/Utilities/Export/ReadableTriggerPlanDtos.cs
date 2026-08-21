@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using AbilityKit.Triggering.Blackboard;
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
@@ -199,6 +200,10 @@ namespace AbilityKit.Ability.Editor.Utilities
         /// 表达式文本（当 Kind=Expr 时使用）
         /// </summary>
         public string ExprText;
+        public BlackboardKeyType KeyType;
+        public string Scope;
+        public bool BoolValue;
+        public string StringValue;
 
         // =============== 便捷构造方法 ===============
 

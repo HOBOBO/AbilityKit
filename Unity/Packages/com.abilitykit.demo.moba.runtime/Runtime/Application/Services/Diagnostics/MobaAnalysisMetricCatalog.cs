@@ -1,4 +1,7 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Diagnostics.Analysis;
 
 namespace AbilityKit.Demo.Moba.Services
@@ -90,6 +93,147 @@ namespace AbilityKit.Demo.Moba.Services
 
             Add(catalog, MobaBattleDiagnosticMetric.ExceptionPrefix + "*", "moba.exception", "counter", "count", "Exception counters grouped by exception metric suffix.", "stable", "always", "diagnostics", "exceptionType", "rootContextId", "sourceContextId");
             Add(catalog, MobaBattleDiagnosticMetric.TempEntityPrefix + "*", "moba.temp_entity", "gauge", "count", "Temporary entity lifecycle metrics grouped by entity kind and lifecycle suffix.", "stable", "always", "runtime", "entityKind", "lifecycle", "frame");
+            AppendFrameMetricsTo(catalog, BattleDiagnosticMetricProfileRegistry.Resolve());
+        }
+
+        public static void AppendFrameMetricsTo(
+            List<AnalysisMetricCatalogEntry> catalog,
+            BattleDiagnosticResolvedMetricProfile profile = null)
+        {
+            if (catalog == null) return;
+            var descriptors = profile?.Descriptors ?? BattleDiagnosticFrameMetricCatalog.All;
+            for (var i = 0; i < descriptors.Count; i++)
+            {
+                var descriptor = descriptors[i];
+                if (catalog.Exists(entry => string.Equals(entry.Name, descriptor.Metric, StringComparison.Ordinal)))
+                    continue;
+                var entry = new AnalysisMetricCatalogEntry
+                {
+                    Name = descriptor.Metric,
+                    Category = "battle.frame_metric." + descriptor.Category.ToString().ToLowerInvariant(),
+                    Kind = descriptor.ValueKind.ToString().ToLowerInvariant(),
+                    Unit = descriptor.Unit,
+                    Description = descriptor.DisplayName + " frame history metric.",
+                    Stability = "stable",
+                    Sampling = "sampled",
+                    Owner = "frame-sync"
+                };
+                entry.Dimensions.Add("frame");
+                entry.Dimensions.Add("dimension");
+                entry.Tags.Add(descriptor.Group);
+                entry.Values.Add(new AnalysisKeyValue("displayName", descriptor.DisplayName));
+                entry.Values.Add(new AnalysisKeyValue("group", descriptor.Group));
+                entry.Values.Add(new AnalysisKeyValue("order", descriptor.Order.ToString(CultureInfo.InvariantCulture)));
+                if (descriptor.HasSuggestedRange)
+                {
+                    entry.Values.Add(new AnalysisKeyValue("suggestedMinimum", Format(descriptor.SuggestedMinimum)));
+                    entry.Values.Add(new AnalysisKeyValue("suggestedMaximum", Format(descriptor.SuggestedMaximum)));
+                }
+                if (descriptor.HasAssessment)
+                {
+                    entry.Values.Add(new AnalysisKeyValue("assessmentMode", descriptor.AssessmentMode.ToString()));
+                    entry.Values.Add(new AnalysisKeyValue("warningThreshold", Format(descriptor.WarningThreshold)));
+                    if (descriptor.CriticalThreshold < double.MaxValue)
+                        entry.Values.Add(new AnalysisKeyValue("criticalThreshold", Format(descriptor.CriticalThreshold)));
+                }
+                catalog.Add(entry);
+            }
+        }
+
+        public static void AppendFrameThresholdsTo(
+            AnalysisThresholdProfile target,
+            BattleDiagnosticResolvedMetricProfile profile = null)
+        {
+            if (target == null) return;
+            var descriptors = profile?.Descriptors ?? BattleDiagnosticFrameMetricCatalog.All;
+            for (var i = 0; i < descriptors.Count; i++)
+            {
+                var descriptor = descriptors[i];
+                if (!descriptor.HasAssessment) continue;
+                AddFrameThreshold(target, in descriptor, "warning", descriptor.WarningThreshold);
+                if (descriptor.CriticalThreshold < double.MaxValue)
+                    AddFrameThreshold(target, in descriptor, "critical", descriptor.CriticalThreshold);
+            }
+            AppendCompoundRules(target);
+            if (profile != null) AppendProfileMetadata(target, profile);
+        }
+
+        private static void AddFrameThreshold(
+            AnalysisThresholdProfile profile,
+            in BattleDiagnosticMetricDescriptor descriptor,
+            string severity,
+            double value)
+        {
+            var id = "battle.frame_metric." + descriptor.Metric + "." + severity;
+            var rule = profile.Rules.Find(item => string.Equals(item.Id, id, StringComparison.Ordinal));
+            if (rule == null)
+            {
+                rule = new AnalysisThresholdRule { Id = id };
+                profile.Rules.Add(rule);
+            }
+            rule.Metric = descriptor.Metric;
+            rule.Category = descriptor.Category.ToString().ToLowerInvariant();
+            rule.Severity = severity;
+            rule.Operator = descriptor.AssessmentMode == BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh
+                ? "window-delta>="
+                : descriptor.AssessmentMode == BattleDiagnosticMetricAssessmentMode.WindowMaximumHigh
+                    ? "window-max>="
+                    : ">=";
+            rule.Value = value;
+            rule.Unit = descriptor.Unit;
+            rule.Description = descriptor.DisplayName + " " + severity + " threshold.";
+            rule.Tags.Clear();
+            rule.Tags.Add(descriptor.Group);
+        }
+
+        private static void AppendCompoundRules(AnalysisThresholdProfile profile)
+        {
+            var rules = BattleDiagnosticFrameMetricCatalog.AllCompoundRules;
+            for (var i = 0; i < rules.Count; i++)
+            {
+                var descriptor = rules[i];
+                var id = "battle.frame_metric.compound." + descriptor.Id;
+                var rule = profile.Rules.Find(item => string.Equals(item.Id, id, StringComparison.Ordinal));
+                if (rule == null)
+                {
+                    rule = new AnalysisThresholdRule { Id = id };
+                    profile.Rules.Add(rule);
+                }
+                rule.Metric = descriptor.Id;
+                rule.Category = descriptor.Category.ToString().ToLowerInvariant();
+                rule.Severity = "warning";
+                rule.Operator = "all";
+                rule.Value = 1d;
+                rule.Unit = "rule";
+                rule.Description = descriptor.DisplayName;
+                rule.Tags.Clear();
+                rule.Tags.Add("compound");
+                rule.Values.Clear();
+                rule.Values.Add(new AnalysisKeyValue("primaryMetric", descriptor.PrimaryMetric));
+                rule.Values.Add(new AnalysisKeyValue("secondaryMetric", descriptor.SecondaryMetric));
+            }
+        }
+
+        private static void AppendProfileMetadata(
+            AnalysisThresholdProfile target,
+            BattleDiagnosticResolvedMetricProfile profile)
+        {
+            SetMetadata(target.Metadata, "frameMetricProfile", profile.Name);
+            SetMetadata(target.Metadata, "frameMetricProject", profile.Context.Project);
+            SetMetadata(target.Metadata, "frameMetricGameMode", profile.Context.GameMode);
+            SetMetadata(target.Metadata, "frameMetricNetworkMode", profile.Context.NetworkMode);
+            SetMetadata(target.Metadata, "frameMetricDeviceTier", profile.Context.DeviceTier);
+        }
+
+        private static void SetMetadata(List<AnalysisKeyValue> values, string key, string value)
+        {
+            var item = values.Find(entry => string.Equals(entry.Key, key, StringComparison.Ordinal));
+            if (item == null)
+            {
+                values.Add(new AnalysisKeyValue(key, value));
+                return;
+            }
+            item.Value = value ?? string.Empty;
         }
 
         private static void Add(List<AnalysisMetricCatalogEntry> catalog, string name, string category, string kind, string unit, string description, string stability, string sampling, string owner, params string[] dimensions)
@@ -115,6 +259,11 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             catalog.Add(entry);
+        }
+
+        private static string Format(double value)
+        {
+            return value.ToString("R", CultureInfo.InvariantCulture);
         }
     }
 }

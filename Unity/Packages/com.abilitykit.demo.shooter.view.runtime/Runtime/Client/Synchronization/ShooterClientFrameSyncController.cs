@@ -281,7 +281,42 @@ namespace AbilityKit.Demo.Shooter.View
             var wasAwaitingFullSnapshot = NeedsFullSnapshotResync;
             var hasPredictedControlledPlayer = TryCapturePredictedControlledPlayer(out var predictedControlledPlayer);
             var snapshotApply = _snapshotApply.ApplyGatewayPush(opCode, payload);
+            return ApplySnapshotOutcome(
+                snapshotApply,
+                payload,
+                replayTargetFrame,
+                predictedHashBeforeCorrection,
+                wasAwaitingFullSnapshot,
+                hasPredictedControlledPlayer,
+                in predictedControlledPlayer);
+        }
 
+        public ShooterSnapshotApplyResult ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
+        {
+            var replayTargetFrame = _runtime.CurrentFrame;
+            var predictedHashBeforeCorrection = _runtime.IsStarted ? _runtime.ComputeStateHash() : 0u;
+            var wasAwaitingFullSnapshot = NeedsFullSnapshotResync;
+            var hasPredictedControlledPlayer = TryCapturePredictedControlledPlayer(out var predictedControlledPlayer);
+            var snapshotApply = _snapshotApply.ApplyGatewaySnapshot(in snapshot);
+            return ApplySnapshotOutcome(
+                snapshotApply,
+                new ArraySegment<byte>(snapshot.PayloadBytes),
+                replayTargetFrame,
+                predictedHashBeforeCorrection,
+                wasAwaitingFullSnapshot,
+                hasPredictedControlledPlayer,
+                in predictedControlledPlayer);
+        }
+
+        private ShooterSnapshotApplyResult ApplySnapshotOutcome(
+            in ShooterClientSnapshotApplyOutcome snapshotApply,
+            ArraySegment<byte> payload,
+            int replayTargetFrame,
+            uint predictedHashBeforeCorrection,
+            bool wasAwaitingFullSnapshot,
+            bool hasPredictedControlledPlayer,
+            in ShooterSveltoPlayerComponent predictedControlledPlayer)
+        {
             LastSnapshotApplyResult = snapshotApply.ApplyResult;
             LastFreshImportedStateHash = 0u;
             LastMismatchPackedPayload = null;

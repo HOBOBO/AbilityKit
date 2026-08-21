@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Triggering.Blackboard;
 using Newtonsoft.Json;
 
 namespace AbilityKit.Triggering.Runtime.Plan.Json
@@ -35,10 +36,13 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 FormatVersion = 1,
                 Triggers = new List<TriggerPlanJsonDatabase.TriggerPlanDto>(),
-                Strings = new Dictionary<int, string>()
+                Strings = new Dictionary<int, string>(),
+                Blackboards = new List<BlackboardInitializationPlan>()
             };
             var triggerSources = new Dictionary<int, string>();
             var stringSources = new Dictionary<int, string>();
+            var blackboardSources = new Dictionary<int, string>();
+            var blackboardFingerprints = new Dictionary<int, string>();
 
             foreach (var document in documents.OrderBy(
                          item => item.Name ?? string.Empty,
@@ -64,10 +68,12 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
 
                 MergeTriggers(merged, result.Dto, document.Name, triggerSources);
                 MergeStrings(merged, result.Dto, document.Name, stringSources);
+                MergeBlackboards(merged, result.Dto, document.Name, blackboardSources, blackboardFingerprints);
                 RejectUnsupportedAggregateSections(result.Dto, document.Name);
             }
 
             merged.Triggers.Sort((left, right) => left.TriggerId.CompareTo(right.TriggerId));
+            merged.Blackboards.Sort((left, right) => left.BoardId.CompareTo(right.BoardId));
             var settings = new JsonSerializerSettings
             {
                 Formatting = Formatting.Indented,
@@ -156,6 +162,35 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 throw new InvalidOperationException(
                     $"Trigger plan source {DisplayName(sourceName)} contains module or behavior sections. "
                     + "Split aggregate compilation currently accepts triggers and strings only.");
+            }
+        }
+
+        private static void MergeBlackboards(
+            TriggerPlanJsonDatabase.TriggerPlanDatabaseDto target,
+            TriggerPlanJsonDatabase.TriggerPlanDatabaseDto source,
+            string sourceName,
+            Dictionary<int, string> boardSources,
+            Dictionary<int, string> fingerprints)
+        {
+            if (source.Blackboards == null) return;
+
+            foreach (var board in source.Blackboards.OrderBy(item => item?.BoardId ?? 0))
+            {
+                if (board == null || board.BoardId == 0) continue;
+                var fingerprint = JsonConvert.SerializeObject(board, Formatting.None);
+                if (fingerprints.TryGetValue(board.BoardId, out var existing))
+                {
+                    if (!string.Equals(existing, fingerprint, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(
+                            $"Conflicting Blackboard board ID {board.BoardId} in {DisplayName(boardSources[board.BoardId])} and {DisplayName(sourceName)}.");
+                    }
+                    continue;
+                }
+
+                fingerprints.Add(board.BoardId, fingerprint);
+                boardSources.Add(board.BoardId, sourceName);
+                target.Blackboards.Add(board);
             }
         }
 

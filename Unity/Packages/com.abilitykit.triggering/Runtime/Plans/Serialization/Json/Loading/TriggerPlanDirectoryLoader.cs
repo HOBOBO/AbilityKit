@@ -141,7 +141,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             {
                 FormatVersion = 1,
                 Triggers = new List<TriggerPlanJsonDatabase.TriggerPlanDto>(),
-                Strings = new Dictionary<int, string>()
+                Strings = new Dictionary<int, string>(),
+                Blackboards = new List<AbilityKit.Triggering.Blackboard.BlackboardInitializationPlan>()
             };
 
             foreach (var file in files)
@@ -182,6 +183,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                         {
                             mergedDto.Strings[kvp.Key] = kvp.Value;
                         }
+                    }
+
+                    if (runtimeDto?.Blackboards != null)
+                    {
+                        mergedDto.Blackboards.AddRange(runtimeDto.Blackboards);
                     }
                 }
                 catch (Exception ex)

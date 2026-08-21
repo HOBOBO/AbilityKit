@@ -1,0 +1,115 @@
+# yaml-language-server: $schema=../protocol-catalog.schema.json
+schemaVersion: 1
+catalogId: abilitykit.moba.battle
+projectId: abilitykit.moba
+domain: battle
+revision: 2
+defaultCodec: memorypack
+messages:
+  - id: move-input.event
+    opCode: 3003
+    direction: c2s
+    kind: event
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaMovePayload
+    reliability: realtime
+    maximumPayloadBytes: 4096
+    captureSampleRate: 0.1
+  - id: skill-input.event
+    opCode: 3020
+    direction: c2s
+    kind: event
+    payloadType: AbilityKit.Protocol.Moba.SkillInputEvent
+    reliability: reliable
+    maximumPayloadBytes: 4096
+  - id: debug-spawn-unit.event
+    opCode: 3030
+    direction: c2s
+    kind: event
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitPayload
+    maximumPayloadBytes: 8192
+  - id: debug-replace-hero.event
+    opCode: 3031
+    direction: c2s
+    kind: event
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaDebugReplaceHeroPayload
+    maximumPayloadBytes: 8192
+  - id: lobby-snapshot.push
+    opCode: 4001
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot
+    maximumPayloadBytes: 262144
+  - id: enter-game.push
+    opCode: 4002
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaEnterGamePayload
+    maximumPayloadBytes: 1048576
+  - id: actor-transform.push
+    opCode: 4003
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload
+    reliability: realtime
+    maximumPayloadBytes: 2097152
+    captureSampleRate: 0.05
+  - id: state-hash.push
+    opCode: 4004
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload
+    maximumPayloadBytes: 4096
+  - id: actor-spawn.push
+    opCode: 4005
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload
+    maximumPayloadBytes: 1048576
+  - id: projectile-event.push
+    opCode: 4006
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload
+    reliability: realtime
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25
+  - id: damage-event.push
+    opCode: 4007
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotPayload
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25
+  - id: actor-despawn.push
+    opCode: 4008
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload
+    maximumPayloadBytes: 524288
+  - id: area-event.push
+    opCode: 4009
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotPayload
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25
+  - id: presentation-cue.push
+    opCode: 4010
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25
+  - id: skill-state.push
+    opCode: 4011
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload
+    maximumPayloadBytes: 1048576
+    captureSampleRate: 0.25
+  - id: player-hero-changed.push
+    opCode: 4012
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload
+    maximumPayloadBytes: 524288

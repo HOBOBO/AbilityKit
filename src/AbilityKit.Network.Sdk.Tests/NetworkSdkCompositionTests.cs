@@ -1,12 +1,52 @@
 using System.Threading;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Observability;
 using Xunit;
 
 namespace AbilityKit.Network.Sdk.Tests;
 
 public sealed class NetworkSdkCompositionTests
 {
+    [Fact]
+    public void ObserveTraffic_WithTransportFactory_InstallsConfiguredObserver()
+    {
+        var observer = new RecordingTrafficObserver();
+        var transport = new RecordingTransport();
+        using var client = new NetworkSdkBuilder()
+            .UseTransportFactory(() => transport)
+            .ObserveTraffic(observer, options =>
+            {
+                options.ConnectionId = "room-primary";
+                options.Role = "room";
+                options.CatalogId = "room";
+                options.MaximumPayloadPreviewBytes = 1;
+            })
+            .Build();
+
+        client.Open("gateway.example", 7100);
+        client.SendPacket(77, new ArraySegment<byte>(new byte[] { 4, 5 }));
+
+        var traffic = Assert.Single(observer.Events);
+        Assert.Equal("room-primary", traffic.ConnectionId);
+        Assert.Equal("room", traffic.Role);
+        Assert.Equal("room", traffic.CatalogId);
+        Assert.Equal(77u, traffic.OpCode);
+        Assert.Equal(new byte[] { 4 }, traffic.PayloadPreview.ToArray());
+    }
+
+    [Fact]
+    public void ObserveTraffic_WithExternalConnection_RejectsSilentInstallation()
+    {
+        var builder = new NetworkSdkBuilder()
+            .UseConnectionFactory(() => new RecordingConnection())
+            .ObserveTraffic(new RecordingTrafficObserver());
+
+        var exception = Assert.Throws<InvalidOperationException>(() => builder.Build());
+
+        Assert.Contains("externally created connection", exception.Message);
+    }
+
     [Fact]
     public async Task RequestClientFactory_CreatesOwnedRequestComponentPerSdkClient()
     {
@@ -105,5 +145,32 @@ public sealed class NetworkSdkCompositionTests
             DisposeCount++;
             State = ConnectionState.Disconnected;
         }
+    }
+
+    private sealed class RecordingTrafficObserver : INetworkTrafficObserver
+    {
+        public List<NetworkTrafficEvent> Events { get; } = new();
+
+        public void OnTraffic(NetworkTrafficEvent trafficEvent) => Events.Add(trafficEvent);
+    }
+
+    private sealed class RecordingTransport : ITransport
+    {
+        public bool IsConnected { get; private set; }
+
+        public event Action? Connected;
+        public event Action? Disconnected;
+        public event Action<Exception>? Error;
+        public event Action<ArraySegment<byte>>? BytesReceived;
+
+        public void Connect(string host, int port)
+        {
+            IsConnected = true;
+            Connected?.Invoke();
+        }
+
+        public void Close() => IsConnected = false;
+        public void Send(ArraySegment<byte> bytes) { }
+        public void Dispose() => IsConnected = false;
     }
 }

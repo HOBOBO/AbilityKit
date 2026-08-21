@@ -5,6 +5,7 @@
         "AbilityKit.HFSM",
         "AbilityKit.HFSM.Core",
         "AbilityKit.HFSM.Unity",
+        "AbilityKit.HFSM.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

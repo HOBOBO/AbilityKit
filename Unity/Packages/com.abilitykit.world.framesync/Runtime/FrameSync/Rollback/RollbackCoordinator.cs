@@ -249,6 +249,31 @@ namespace AbilityKit.Ability.FrameSync.Rollback
 
                 for (int i = 0; i < entries.Length; i++)
                 {
+                    if (!(providers[i] is IRollbackStatePreflightProvider preflight)) continue;
+
+                    var entry = entries[i];
+                    try
+                    {
+                        preflight.ValidateImport(snapshot.Frame, entry.Payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(ex, $"Rollback preflight failed. key={entry.Key} frame={snapshot.Frame.Value} payloadLen={(entry.Payload != null ? entry.Payload.Length : 0)}");
+                        result = new RollbackOperationResult(
+                            RollbackOperationKind.Restore,
+                            RollbackOperationStatus.ProviderFailed,
+                            snapshot.Frame,
+                            providerKey: entry.Key,
+                            providerCount: 0,
+                            payloadBytes: CountPayloadBytes(entries),
+                            message: $"Rollback provider preflight failed before any provider import. {ex.Message}",
+                            exception: ex);
+                        return false;
+                    }
+                }
+
+                for (int i = 0; i < entries.Length; i++)
+                {
                     var entry = entries[i];
                     try
                     {

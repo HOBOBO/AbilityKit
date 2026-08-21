@@ -28,6 +28,25 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
     }
 
     [Fact]
+    public void HeadlessInputOverrideFeedsTheNormalFrameInputPumpAndIsClearedWithTheHost()
+    {
+        var playModeHost = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "ShooterRemoteStateSyncPlayModeHost.cs");
+        var unityInput = ReadUnityPackageSource(
+            "com.abilitykit.demo.shooter.view.runtime",
+            "Runtime", "Unity", "PlayMode", "UnityShooterPlayAdapters.cs");
+
+        var overrideIndex = unityInput.IndexOf(
+            "if (_inputOverride != null) return _inputOverride(controlledPlayerId);",
+            StringComparison.Ordinal);
+        var keyboardIndex = unityInput.IndexOf("Input.GetAxisRaw(\"Horizontal\")", StringComparison.Ordinal);
+        Assert.True(overrideIndex >= 0 && keyboardIndex > overrideIndex);
+        Assert.Contains("internal static void SetInputOverride", playModeHost, StringComparison.Ordinal);
+        Assert.Equal(2, CountOccurrences(playModeHost, "InputSource.SetInputOverride(null);"));
+    }
+
+    [Fact]
     public void RemotePlayModeUsesGatewayAssignedPlayerIdForInputAndPresentation()
     {
         var playModeHost = ReadUnityPackageSource(
@@ -238,6 +257,19 @@ public sealed class ShooterRemoteCoordinatorInputContractTests
         var path = Path.Combine(root, "Unity", "Packages", packageName, Path.Combine(relativeParts));
         Assert.True(File.Exists(path), $"Expected Unity package source file to exist: {path}");
         return File.ReadAllText(path);
+    }
+
+    private static int CountOccurrences(string source, string value)
+    {
+        var count = 0;
+        var offset = 0;
+        while ((offset = source.IndexOf(value, offset, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            offset += value.Length;
+        }
+
+        return count;
     }
 
     private static string FindRepositoryRoot(string startDirectory)

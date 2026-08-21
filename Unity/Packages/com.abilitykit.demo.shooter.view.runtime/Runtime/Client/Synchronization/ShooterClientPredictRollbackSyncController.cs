@@ -121,6 +121,11 @@ namespace AbilityKit.Demo.Shooter.View
             return _core.ApplyGatewayPush(opCode, payload);
         }
 
+        public ShooterSnapshotApplyResult ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot)
+        {
+            return _core.ApplyGatewaySnapshot(in snapshot);
+        }
+
         // --- IClientSyncStrategy<ShooterPlayerCommand, ShooterRemoteSnapshotSample> ---
         // 显式框架契约接口，映射到现有示例行为。
 

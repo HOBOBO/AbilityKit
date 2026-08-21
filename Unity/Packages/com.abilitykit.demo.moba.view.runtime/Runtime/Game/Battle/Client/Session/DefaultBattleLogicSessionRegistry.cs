@@ -7,6 +7,7 @@ namespace AbilityKit.Game.Battle
         private readonly bool _publishDebugFacade;
         private BattleLogicSession _current;
         private DefaultBattleDebugFacade _debugFacade;
+        private string _debugScope = string.Empty;
 
         public DefaultBattleLogicSessionRegistry(bool publishDebugFacade = true)
         {
@@ -26,6 +27,8 @@ namespace AbilityKit.Game.Battle
             if (_publishDebugFacade)
             {
                 _debugFacade ??= new DefaultBattleDebugFacade(() => _current);
+                _debugScope = options.WorldId.Value ?? string.Empty;
+                BattleDebugFacadeProvider.Publish(_debugScope, _debugFacade);
                 BattleDebugFacadeProvider.Current = _debugFacade;
             }
 
@@ -56,7 +59,11 @@ namespace AbilityKit.Game.Battle
 
         private void ClearDebugFacade()
         {
-            if (_publishDebugFacade && ReferenceEquals(BattleDebugFacadeProvider.Current, _debugFacade))
+            if (!_publishDebugFacade) return;
+
+            BattleDebugFacadeProvider.Withdraw(_debugScope, _debugFacade);
+            _debugScope = string.Empty;
+            if (ReferenceEquals(BattleDebugFacadeProvider.Current, _debugFacade))
             {
                 BattleDebugFacadeProvider.Current = null;
             }

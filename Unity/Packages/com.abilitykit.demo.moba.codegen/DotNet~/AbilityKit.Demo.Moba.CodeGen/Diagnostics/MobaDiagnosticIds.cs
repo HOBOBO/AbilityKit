@@ -24,8 +24,6 @@ namespace AbilityKit.Demo.Moba.CodeGen
         public const string AmbiguousDefaultProjectileEmitterRuleId = "AKSG5003";
         public const string InvalidBootstrapStageRuleId = "AKSG6001";
         public const string DuplicateBootstrapStageNameRuleId = "AKSG6002";
-        public const string InvalidBTreeNodeRuleId = "AKSG7001";
-        public const string DuplicateBTreeNodeNameRuleId = "AKSG7002";
         public const string InvalidSnapshotEmitterRuleId = "AKSG8001";
         public const string InvalidConfigTableRuleId = "AKSG1001";
         public const string DuplicateConfigTableRuleId = "AKSG1002";

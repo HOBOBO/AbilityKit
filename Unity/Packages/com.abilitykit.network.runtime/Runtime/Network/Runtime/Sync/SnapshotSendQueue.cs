@@ -244,7 +244,7 @@ namespace AbilityKit.Network.Runtime.Sync
             item = _items.First.Value;
             _items.RemoveFirst();
             if (_policy.BytesPerSecond > 0)
-                _availableBytes -= item.ByteCount;
+                _availableBytes -= requiredBudget;
             return true;
         }
 

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Diagnostics.Analysis;
@@ -55,9 +56,32 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.FrameMetrics.Metrics, Is.EqualTo(source.FrameMetrics.Metrics));
             Assert.That(restored.FrameMetrics.Samples, Is.EqualTo(source.FrameMetrics.Samples));
             StringAssert.Contains("\"frameMetrics\"", json);
+            StringAssert.Contains("\"frameMetricProfile\"", json);
             StringAssert.Contains("\"metric\": \"prediction.backlog\"", json);
+            var catalogEntry = artifact.Dictionaries.MetricCatalog.Single(entry =>
+                entry.Name == BattleDiagnosticFrameMetricKeys.PredictionBacklog);
+            Assert.That(catalogEntry.Unit, Is.EqualTo("frames"));
+            Assert.That(catalogEntry.Values.Single(value => value.Key == "group").Value,
+                Is.EqualTo("prediction.pressure"));
+            Assert.That(artifact.ThresholdProfile.Rules.Any(rule =>
+                rule.Metric == BattleDiagnosticFrameMetricKeys.PredictionBacklog &&
+                rule.Severity == "critical"), Is.True);
+            Assert.That(artifact.ThresholdProfile.Rules.Any(rule =>
+                rule.Id == "battle.frame_metric.compound.prediction.backlog_stall" &&
+                rule.Operator == "all" &&
+                rule.Values.Any(value => value.Key == "secondaryMetric" &&
+                                         value.Value == BattleDiagnosticFrameMetricKeys.PredictionStalled)), Is.True);
+            Assert.That(artifact.ThresholdProfile.Metadata.Single(value =>
+                value.Key == "frameMetricProfile").Value, Is.EqualTo("Default"));
+            StringAssert.Contains("\"assessmentMode\": \"WindowMaximumHigh\"", json);
+            StringAssert.Contains("\"operator\": \"window-max>=\"", json);
 
-            var metricSession = new BattleDiagnosticOfflineSession(restored);
+            var capturedProfile = MobaBattleDiagnosticArtifactCodec.FromMetricProfile(
+                artifact.BattleDiagnostics.FrameMetricProfile);
+            Assert.That(capturedProfile, Is.Not.Null);
+            Assert.That(capturedProfile.Name, Is.EqualTo("Default"));
+            var metricSession = new BattleDiagnosticOfflineSession(restored, capturedProfile);
+            Assert.That(metricSession.MetricProfile, Is.SameAs(capturedProfile));
             var metricResult = metricSession.QueryMetrics(new BattleDiagnosticMetricQuery(
                 1,
                 new BattleDiagnosticFrameRange(Frame - 2, Frame),
@@ -65,6 +89,16 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 BattleDiagnosticMetricCategory.Prediction));
             Assert.That(metricResult.Status.CanDisplayResults, Is.True);
             Assert.That(metricResult.Items.Single().Value, Is.EqualTo(3d));
+            var aggregateResult = metricSession.QueryMetricAggregates(
+                new BattleDiagnosticMetricAggregateQuery(
+                    2,
+                    new BattleDiagnosticFrameRange(Frame - 2, Frame),
+                    new BattleDiagnosticPageRequest(0, 0, 10),
+                    BattleDiagnosticMetricCategory.Prediction,
+                    bucketCount: 2));
+            Assert.That(aggregateResult.Status.CanDisplayResults, Is.True);
+            Assert.That(aggregateResult.Items.Single().LastValue, Is.EqualTo(3d));
+            Assert.That(aggregateResult.Items.Single().SampleCount, Is.EqualTo(1));
 
             Assert.That(restored.Events.Events[1].Payload.TryGetSyncSnapshotReceived(out var payload), Is.True);
             Assert.That(payload.AuthoritativeFrame, Is.EqualTo(Frame - 1));
@@ -112,6 +146,83 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void FrameMetricProfile_ExportsResolvedOverridesAndContext()
+        {
+            var context = new BattleDiagnosticMetricProfileContext(
+                "AbilityKit.Demo.Moba",
+                "ranked",
+                "wan",
+                "low");
+            var layer = new BattleDiagnosticMetricProfileLayer(
+                "Ranked Low WAN",
+                10,
+                new[]
+                {
+                    new BattleDiagnosticMetricThresholdOverride(
+                        BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                        2d,
+                        5d,
+                        0d,
+                        6d)
+                },
+                project: "AbilityKit.Demo.Moba",
+                gameMode: "ranked",
+                networkMode: "wan",
+                deviceTier: "low");
+            var profile = BattleDiagnosticMetricProfileResolver.Resolve(in context, new[] { layer });
+            var catalog = new List<AnalysisMetricCatalogEntry>();
+            var thresholds = new AnalysisThresholdProfile();
+
+            MobaAnalysisMetricCatalog.AppendFrameMetricsTo(catalog, profile);
+            MobaAnalysisMetricCatalog.AppendFrameThresholdsTo(thresholds, profile);
+
+            var entry = catalog.Single(item =>
+                item.Name == BattleDiagnosticFrameMetricKeys.PredictionBacklog);
+            Assert.That(entry.Values.Single(item => item.Key == "warningThreshold").Value, Is.EqualTo("2"));
+            Assert.That(entry.Values.Single(item => item.Key == "suggestedMaximum").Value, Is.EqualTo("6"));
+            Assert.That(thresholds.Rules.Single(item =>
+                item.Id == "battle.frame_metric.prediction.backlog.warning").Value, Is.EqualTo(2d));
+            Assert.That(thresholds.Metadata.Single(item => item.Key == "frameMetricProfile").Value,
+                Is.EqualTo("Default + Ranked Low WAN"));
+            Assert.That(thresholds.Metadata.Single(item => item.Key == "frameMetricNetworkMode").Value,
+                Is.EqualTo("wan"));
+
+            var section = MobaBattleDiagnosticArtifactCodec.ToSection(CreateSnapshot(), profile);
+            var json = MobaBattleDiagnosticArtifactCodec.ExportToString(
+                new AbilityKitAnalysisArtifact { BattleDiagnostics = section });
+            var imported = MobaBattleDiagnosticArtifactCodec.ImportArtifact(json);
+            var capturedProfile = MobaBattleDiagnosticArtifactCodec.FromMetricProfile(
+                imported.BattleDiagnostics.FrameMetricProfile);
+
+            Assert.That(capturedProfile.Name, Is.EqualTo("Default + Ranked Low WAN"));
+            Assert.That(capturedProfile.Context, Is.EqualTo(context));
+            Assert.That(capturedProfile.TryGet(
+                BattleDiagnosticFrameMetricKeys.PredictionBacklog,
+                out var capturedDescriptor), Is.True);
+            Assert.That(capturedDescriptor.WarningThreshold, Is.EqualTo(2d));
+            Assert.That(capturedDescriptor.CriticalThreshold, Is.EqualTo(5d));
+            Assert.That(capturedDescriptor.SuggestedMaximum, Is.EqualTo(6d));
+        }
+
+        [Test]
+        public void FrameMetricProfile_MissingFromLegacySection_RemainsOptional()
+        {
+            var section = MobaBattleDiagnosticArtifactCodec.ToSection(CreateSnapshot());
+            section.FrameMetricProfile = null;
+
+            var json = MobaBattleDiagnosticArtifactCodec.ExportToString(
+                new AbilityKitAnalysisArtifact { BattleDiagnostics = section });
+            var imported = MobaBattleDiagnosticArtifactCodec.ImportArtifact(json);
+            var snapshot = MobaBattleDiagnosticArtifactCodec.FromSection(imported.BattleDiagnostics);
+            var profile = MobaBattleDiagnosticArtifactCodec.FromMetricProfile(
+                imported.BattleDiagnostics.FrameMetricProfile);
+
+            Assert.That(profile, Is.Null);
+            using (var session = new BattleDiagnosticOfflineSession(snapshot, profile))
+                Assert.That(session.MetricProfile, Is.Null);
+        }
+
+        [Test]
         public void FromSection_MissingFrameMetrics_RemainsBackwardCompatible()
         {
             var section = MobaBattleDiagnosticArtifactCodec.ToSection(CreateSnapshot());
@@ -124,9 +235,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 1,
                 new BattleDiagnosticFrameRange(0, Frame),
                 new BattleDiagnosticPageRequest(0, 0, 10)));
+            var aggregateResult = offline.QueryMetricAggregates(
+                new BattleDiagnosticMetricAggregateQuery(
+                    2,
+                    new BattleDiagnosticFrameRange(0, Frame),
+                    new BattleDiagnosticPageRequest(0, 0, 10)));
 
             Assert.That(restored.FrameMetrics.Samples, Is.Empty);
             Assert.That(result.Status.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Unsupported));
+            Assert.That(aggregateResult.Status.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Unsupported));
         }
 
         [Test]
@@ -142,6 +259,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.That(source.Actors.Select(actor => actor.ActorId), Is.EqualTo(new long[] { 1, 2 }));
                 Assert.That(source.Session.SessionInfo.ConnectionState, Is.EqualTo(BattleDiagnosticConnectionState.Disconnected));
                 Assert.That(source.Session.SessionInfo.CaptureState, Is.EqualTo(BattleDiagnosticCaptureState.Frozen));
+                Assert.That(((IBattleDiagnosticMetricProfileSession)source.Session).MetricProfile, Is.Not.Null);
 
                 source.ReturnToLive();
 

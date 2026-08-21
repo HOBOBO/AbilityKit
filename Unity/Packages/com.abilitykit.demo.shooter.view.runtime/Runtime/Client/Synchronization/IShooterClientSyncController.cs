@@ -144,5 +144,7 @@ namespace AbilityKit.Demo.Shooter.View
         bool TryEnterCatchUp(int authoritativeFrame);
 
         ShooterSnapshotApplyResult ApplyGatewayPush(uint opCode, ArraySegment<byte> payload);
+
+        ShooterSnapshotApplyResult ApplyGatewaySnapshot(in ShooterGatewaySnapshot snapshot);
     }
 }

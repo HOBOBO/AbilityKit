@@ -1,5 +1,7 @@
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using AbilityKit.HFSM;
 using UnityHFSM.Graph;
 using UnityHFSM.Graph.Conditions;
 
@@ -91,6 +93,14 @@ namespace UnityHFSM.Editor
 
         private void DrawStateInspector(HfsmStateNode state)
         {
+            EditorGUILayout.LabelField("Next Runtime", EditorStyles.boldLabel);
+            DrawBindingField(
+                "Behavior",
+                HfsmBindingKind.State,
+                state.NextBehaviorKey,
+                value => state.NextBehaviorKey = value);
+            EditorGUILayout.Space();
+
             // Needs exit time
             EditorGUI.BeginChangeCheck();
             bool needsExitTime = EditorGUILayout.Toggle("Needs Exit Time", state.NeedsExitTime);
@@ -256,6 +266,38 @@ namespace UnityHFSM.Editor
             if (EditorGUI.EndChangeCheck())
             {
                 edge.IsExitTransition = isExit;
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
+
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Next Runtime", EditorStyles.boldLabel);
+
+            EditorGUI.BeginChangeCheck();
+            string triggerId = EditorGUILayout.TextField("Trigger ID", edge.NextTriggerId);
+            if (EditorGUI.EndChangeCheck())
+            {
+                edge.NextTriggerId = triggerId;
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
+
+            DrawBindingField(
+                "Condition",
+                HfsmBindingKind.Condition,
+                edge.NextConditionKey,
+                value => edge.NextConditionKey = value);
+            DrawBindingField(
+                "Action",
+                HfsmBindingKind.Action,
+                edge.NextActionKey,
+                value => edge.NextActionKey = value);
+
+            EditorGUI.BeginChangeCheck();
+            long minimumDurationRaw = EditorGUILayout.LongField(
+                new GUIContent("Min Duration Raw", "Q32.32 raw deterministic duration"),
+                edge.NextMinimumActiveDurationRaw);
+            if (EditorGUI.EndChangeCheck())
+            {
+                edge.NextMinimumActiveDurationRaw = minimumDurationRaw;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
 
@@ -507,6 +549,53 @@ namespace UnityHFSM.Editor
         {
             edge.AddCondition(condition);
             EditorUtility.SetDirty(_context.GraphAsset);
+        }
+
+        private void DrawBindingField(
+            string label,
+            HfsmBindingKind kind,
+            string currentKey,
+            System.Action<string> assign)
+        {
+            var descriptors = HfsmEditorBindingCatalog.Catalog.Descriptors
+                .Where(descriptor => descriptor.Kind == kind)
+                .ToArray();
+            var options = new string[descriptors.Length + 2];
+            options[0] = "(None)";
+            options[1] = "Custom...";
+            var selected = string.IsNullOrEmpty(currentKey) ? 0 : 1;
+            for (var index = 0; index < descriptors.Length; index++)
+            {
+                var descriptor = descriptors[index];
+                options[index + 2] = string.IsNullOrEmpty(descriptor.Category)
+                    ? $"{descriptor.DisplayName} [{descriptor.Key}]"
+                    : $"{descriptor.Category}/{descriptor.DisplayName} [{descriptor.Key}]";
+                if (descriptor.Key == currentKey) selected = index + 2;
+            }
+
+            EditorGUI.BeginChangeCheck();
+            var next = EditorGUILayout.Popup(label, selected, options);
+            if (EditorGUI.EndChangeCheck())
+            {
+                assign(next == 0 ? string.Empty : next == 1 ? currentKey : descriptors[next - 2].Key);
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
+
+            if (next == 1)
+            {
+                EditorGUI.indentLevel++;
+                EditorGUI.BeginChangeCheck();
+                var custom = EditorGUILayout.TextField("Stable Key", currentKey ?? string.Empty);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    assign(custom);
+                    EditorUtility.SetDirty(_context.GraphAsset);
+                }
+
+                if (!string.IsNullOrEmpty(custom) && !HfsmEditorBindingCatalog.Catalog.Contains(kind, custom))
+                    EditorGUILayout.HelpBox("This key has no registered descriptor and will block Next export.", MessageType.Warning);
+                EditorGUI.indentLevel--;
+            }
         }
 
         private void RemoveCondition(HfsmTransitionEdge edge, HfsmTransitionCondition condition)

@@ -1,5 +1,6 @@
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Protocol.Shooter;
+using System;
 
 namespace AbilityKit.Orleans.Grains.Battle.Gameplay;
 
@@ -37,6 +38,22 @@ internal interface IBattleRuntimeSession : IDisposable
     BattleWorldDiagnostics? GetWorldDiagnostics(ulong worldId, int frame);
 
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot);
+}
+
+/// <summary>
+/// Optional fast path for the per-tick response hash. Full world diagnostics are
+/// intentionally kept behind GetWorldDiagnostics because they materialize a
+/// complete inspection model and are not suitable for the authoritative tick
+/// hot path.
+/// </summary>
+internal interface IBattleRuntimeStateHashProvider
+{
+    uint ComputeStateHash();
+}
+
+internal interface IBattleRuntimeStageDiagnostics
+{
+    void SetStageTimingSink(Action<string, double>? sink);
 }
 
 internal interface IBattleRuntimeInputDiagnostics
