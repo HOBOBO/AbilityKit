@@ -1,0 +1,39 @@
+{
+  "Id": 50020301,
+  "Name": "小乔-星华缭乱-自身周围落星目标查询",
+  "MaxCount": 1,
+  "ExplicitTargetPolicy": 2,
+  "Provider": {
+    "Param": 0,
+    "Id": 0,
+    "Kind": 6
+  },
+  "Rules": [
+    {
+      "Center": 0,
+      "Forward": 0,
+      "Radius": 8.0,
+      "HalfAngleDeg": 0.0,
+      "LocalOffsetForward": 0.0,
+      "LocalOffsetRight": 0.0,
+      "Width": 0.0,
+      "Length": 0.0,
+      "ActorIds": null,
+      "Id": 0,
+      "Kind": 257
+    }
+  ],
+  "Scorers": [
+    {
+      "Source": 0,
+      "RandomSeed": 10020301,
+      "Direction": 0,
+      "Id": 0,
+      "Kind": 8194
+    }
+  ],
+  "Selector": {
+    "Id": 0,
+    "Kind": 4097
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "Id": 10050000,
+  "Name": "妲己-失心",
+  "CooldownMs": 0,
+  "TriggerIds": [
+    10050000
+  ],
+  "ContinuousProcessIds": null
+}

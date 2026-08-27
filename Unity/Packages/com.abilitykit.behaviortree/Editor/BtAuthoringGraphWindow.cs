@@ -419,6 +419,33 @@ namespace AbilityKit.BehaviorTree.Editor
 
                 _inspectorScroll.Add(fieldRow);
             }
+
+            // 子树引用节点：跨树跳转——打开被引用树的授权资产
+            if (!IsObservation && node.Type == BtBuiltInNodeTypes.Subtree
+                && node.Properties.TryGet(BtSubtreeNode.TreeIdProperty, out var treeIdValue)
+                && treeIdValue.TryGetString(out var referencedTreeId)
+                && !string.IsNullOrEmpty(referencedTreeId))
+            {
+                _inspectorScroll.Add(new Button(() => OpenReferencedTree(referencedTreeId))
+                {
+                    text = "打开引用树：" + referencedTreeId,
+                });
+            }
+        }
+
+        /// <summary>跨树跳转：按 TreeId 找到授权资产并打开其图编辑器。</summary>
+        private static void OpenReferencedTree(string treeId)
+        {
+            foreach (var guid in AssetDatabase.FindAssets("t:BtAuthoringAsset"))
+            {
+                var asset = AssetDatabase.LoadAssetAtPath<BtAuthoringAsset>(AssetDatabase.GUIDToAssetPath(guid));
+                if (asset != null && string.Equals(asset.LoadDocument().Tree.TreeId, treeId, System.StringComparison.Ordinal))
+                {
+                    Open(asset);
+                    return;
+                }
+            }
+            Debug.LogWarning($"[BtAuthoring] 未找到 TreeId='{treeId}' 的授权资产。");
         }
 
         private static string FormatFieldValue(BtPropertyField field, BtPropertyValue value)
@@ -466,13 +493,26 @@ namespace AbilityKit.BehaviorTree.Editor
             for (var i = 0; i < _document.Tree.Blackboard.Keys.Count; i++)
             {
                 var index = i;
+                var oldName = _document.Tree.Blackboard.Keys[index].Name;
                 var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
 
-                var nameField = new TextField { value = _document.Tree.Blackboard.Keys[index].Name, isDelayed = true };
+                var nameField = new TextField { value = oldName, isDelayed = true };
                 nameField.RegisterValueChangedCallback(evt =>
                 {
-                    PushUndo();
-                    _document.Tree.Blackboard.Keys[index].Name = evt.newValue;
+                    var newName = evt.newValue;
+                    if (string.Equals(oldName, newName, System.StringComparison.Ordinal)) return;
+                    try
+                    {
+                        PushUndo();
+                        var affected = BtKeyReferenceIndex.RenameKey(
+                            _document.Tree, BtEditorNodeCatalog.Registry, oldName, newName);
+                        Debug.Log($"[BtAuthoring] 重命名黑板 key '{oldName}' -> '{newName}'，同步 {affected.Count} 处引用。");
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogWarning("[BtAuthoring] 黑板 key 重命名失败: " + ex.Message);
+                    }
+                    RedrawInspector();
                 });
                 row.Add(nameField);
 
@@ -483,6 +523,13 @@ namespace AbilityKit.BehaviorTree.Editor
                     _document.Tree.Blackboard.Keys[index].Type = (BtValueType)evt.newValue;
                 });
                 row.Add(typeField);
+
+                var refCount = BtKeyReferenceIndex.FindReferences(
+                    _document.Tree, BtEditorNodeCatalog.Registry, oldName).Count;
+                if (refCount > 0)
+                {
+                    row.Add(new Label(refCount + " 引用") { style = { opacity = 0.6f } });
+                }
 
                 var removeButton = new Button(() =>
                 {
@@ -872,6 +919,13 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             Node = node;
             title = string.IsNullOrEmpty(node.Name) ? node.Type : node.Name;
+            if (node.Type == BtBuiltInNodeTypes.Subtree
+                && node.Properties.TryGet(BtSubtreeNode.TreeIdProperty, out var treeIdValue)
+                && treeIdValue.TryGetString(out var refTreeId)
+                && !string.IsNullOrEmpty(refTreeId))
+            {
+                title = "↳ " + refTreeId;
+            }
             SetPosition(new Rect(x, y, 160, 60));
 
             BtNodeDescriptor? descriptor = null;

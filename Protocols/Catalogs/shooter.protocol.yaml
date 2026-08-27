@@ -69,7 +69,7 @@ messages:
     codec: custom-binary
     reliability: realtime
     minimumSchemaVersion: 1
-    maximumSchemaVersion: 2
+    maximumSchemaVersion: 3
     maximumPayloadBytes: 4194304
     captureSampleRate: 0.02
   - id: pure-state-delta.push
@@ -80,6 +80,6 @@ messages:
     codec: custom-binary
     reliability: realtime
     minimumSchemaVersion: 1
-    maximumSchemaVersion: 2
+    maximumSchemaVersion: 3
     maximumPayloadBytes: 4194304
     captureSampleRate: 0.02

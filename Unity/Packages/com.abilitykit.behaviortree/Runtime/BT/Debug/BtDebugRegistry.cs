@@ -15,10 +15,13 @@ namespace AbilityKit.BehaviorTree
         /// <summary>当前位于几个运行栈上（0=不在执行路径，≥1=运行中）。</summary>
         public int OnStackCount { get; }
         public int RunningChildIndex { get; }
+        /// <summary>子树展开来源树（未用子树引用时为 null）。</summary>
+        public string? SourceTreeId { get; }
 
         public BtNodeDebugInfo(
             string nodeId, string name, string typeId, BtNodeKind kind,
-            BtNodeState state, int depth, int onStackCount, int runningChildIndex)
+            BtNodeState state, int depth, int onStackCount, int runningChildIndex,
+            string? sourceTreeId = null)
         {
             NodeId = nodeId;
             Name = name;
@@ -28,6 +31,7 @@ namespace AbilityKit.BehaviorTree
             Depth = depth;
             OnStackCount = onStackCount;
             RunningChildIndex = runningChildIndex;
+            SourceTreeId = sourceTreeId;
         }
     }
 
@@ -45,6 +49,10 @@ namespace AbilityKit.BehaviorTree
         int LastFrame { get; }
         /// <summary>树定义（只读观察用途；观察端据此渲染图/跳转子树，不得修改）。</summary>
         BtTreeDefinition TreeDefinition { get; }
+        /// <summary>子树展开后的节点来源树（nodeId -> treeId）；未用子树引用时为 null。</summary>
+        IReadOnlyDictionary<string, string>? NodeSourceTree { get; }
+        /// <summary>子树实例（内联根 -> 被引用 treeId）；观察端标记子树边界/跨树跳转。</summary>
+        IReadOnlyList<BtSubtreeInstance> SubtreeInstances { get; }
         List<BtNodeDebugInfo> GetNodeStates();
         BtBlackboardValueSnapshot GetBlackboard();
         BtTreeRuntimeSnapshot CaptureState();

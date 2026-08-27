@@ -13,20 +13,339 @@ MonoBehaviour:
   m_Name: ProjectileCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 200001
-    Name: 
-    VfxId: 200001
-    Speed: 10
+  - Id: 1
+    Name: "\u666E\u901A\u5B50\u5F39"
+    VfxId: 0
+    Speed: 50
     LifetimeMs: 2000
-    MaxDistance: 0
+    MaxDistance: 100
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
     HitPolicyKind: 1
-    HitsRemaining: -1
-    HitCooldownMs: 150
+    HitsRemaining: 1
+    HitCooldownMs: 0
     TickIntervalMs: 0
-    OnHitEffectId: 20005
+    OnHitEffectId: 0
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
     OnSpawnVfxId: 0
     OnHitVfxId: 0
     OnExpireVfxId: 0
-    ReturnAfterMs: 800
-    ReturnSpeed: 12
-    ReturnStopDistance: 0.8
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 2
+    Name: "\u56DE\u65CB\u9556"
+    VfxId: 0
+    Speed: 30
+    LifetimeMs: 3000
+    MaxDistance: 50
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 3
+    HitCooldownMs: 500
+    TickIntervalMs: 0
+    OnHitEffectId: 0
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 1500
+    ReturnSpeed: 40
+    ReturnStopDistance: 2
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30020001
+    Name: "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB-\u6247\u5B50\u6295\u5C04\u7269"
+    VfxId: 90002011
+    Speed: 24
+    LifetimeMs: 1200
+    MaxDistance: 10
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 1
+    HitCooldownMs: 0
+    TickIntervalMs: 0
+    OnHitEffectId: 10020011
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30020101
+    Name: "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E-\u6247\u5B50\u6295\u5C04\u7269"
+    VfxId: 90002001
+    Speed: 18
+    LifetimeMs: 2200
+    MaxDistance: 12
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 8
+    HitCooldownMs: 250
+    TickIntervalMs: 0
+    OnHitEffectId: 10020111
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 650
+    ReturnSpeed: 22
+    ReturnStopDistance: 1
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30040011
+    Name: "\u58A8\u5B50-\u666E\u901A\u653B\u51FB-\u80FD\u91CF\u5F39\u6295\u5C04\u7269"
+    VfxId: 90004011
+    Speed: 26
+    LifetimeMs: 1200
+    MaxDistance: 10
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 1
+    HitCooldownMs: 0
+    TickIntervalMs: 0
+    OnHitEffectId: 10040012
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30040201
+    Name: "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE-\u70AE\u5F39\u6295\u5C04\u7269"
+    VfxId: 90004002
+    Speed: 20
+    LifetimeMs: 1500
+    MaxDistance: 12
+    CollisionWidth: 1
+    CollisionHeight: 1.5
+    CollisionLength: 0.8
+    HitPolicyKind: 1
+    HitsRemaining: 1
+    HitCooldownMs: 0
+    TickIntervalMs: 33
+    OnHitEffectId: 0
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 93339900
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30050001
+    Name: "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB-\u7075\u9B42\u6295\u5C04\u7269"
+    VfxId: 90005011
+    Speed: 24
+    LifetimeMs: 1200
+    MaxDistance: 10
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 1
+    HitCooldownMs: 0
+    TickIntervalMs: 0
+    OnHitEffectId: 10050011
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30050101
+    Name: "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB-\u51B2\u51FB\u6CE2\u6295\u5C04\u7269"
+    VfxId: 90005001
+    Speed: 22
+    LifetimeMs: 1600
+    MaxDistance: 12
+    CollisionWidth: 2
+    CollisionHeight: 1.5
+    CollisionLength: 0.8
+    HitPolicyKind: 1
+    HitsRemaining: 6
+    HitCooldownMs: 180
+    TickIntervalMs: 33
+    OnHitEffectId: 10050111
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30050201
+    Name: "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B-\u8FFD\u8E2A\u9B45\u60D1\u5F39"
+    VfxId: 90005002
+    Speed: 18
+    LifetimeMs: 1800
+    MaxDistance: 16
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 1
+    HitCooldownMs: 0
+    TickIntervalMs: 33
+    OnHitEffectId: 10050211
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30050301
+    Name: "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC-\u72D0\u706B\u6295\u5C04\u7269"
+    VfxId: 90005004
+    Speed: 24
+    LifetimeMs: 1200
+    MaxDistance: 12
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 1
+    HitCooldownMs: 0
+    TickIntervalMs: 33
+    OnHitEffectId: 10050313
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30060001
+    Name: "\u5B34\u653F-\u666E\u901A\u653B\u51FB-\u98DE\u5251\u6295\u5C04\u7269"
+    VfxId: 90006011
+    Speed: 30
+    LifetimeMs: 1000
+    MaxDistance: 10
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 3
+    HitCooldownMs: 0
+    TickIntervalMs: 0
+    OnHitEffectId: 10060011
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: 
+    SpawnRandomOffsetX: 0
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0
+  - Id: 30060301
+    Name: "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743-\u98DE\u5251\u6295\u5C04\u7269"
+    VfxId: 90006003
+    Speed: 30
+    LifetimeMs: 900
+    MaxDistance: 14
+    CollisionWidth: 0
+    CollisionHeight: 0
+    CollisionLength: 0
+    HitPolicyKind: 1
+    HitsRemaining: 1
+    HitCooldownMs: 0
+    TickIntervalMs: 33
+    OnHitEffectId: 10060313
+    OnSpawnTriggerIds: 
+    OnHitTriggerIds: 
+    OnTickTriggerIds: 
+    OnExitTriggerIds: 
+    OnSpawnVfxId: 0
+    OnHitVfxId: 0
+    OnExpireVfxId: 0
+    ReturnAfterMs: 0
+    ReturnSpeed: 0
+    ReturnStopDistance: 0
+    StateMachineProfileId: ying_zheng_ultimate_projectile
+    SpawnRandomOffsetX: 0.25
+    SpawnRandomOffsetY: 0
+    SpawnRandomOffsetZ: 0.2

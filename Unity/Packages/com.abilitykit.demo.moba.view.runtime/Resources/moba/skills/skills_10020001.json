@@ -1,0 +1,15 @@
+{
+  "Id": 10020001,
+  "Name": "小乔-普通攻击",
+  "CooldownMs": 800,
+  "Range": 8,
+  "IconId": 101,
+  "Category": 2,
+  "SkillType": 1,
+  "Tags": [],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10020001
+}

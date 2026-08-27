@@ -1,0 +1,409 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: ProjectileCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\projectiles.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - CollisionHeight
+  - CollisionLength
+  - CollisionWidth
+  - HitCooldownMs
+  - HitPolicyKind
+  - HitsRemaining
+  - Id
+  - LifetimeMs
+  - MaxDistance
+  - Name
+  - OnExitTriggerIds
+  - OnExpireVfxId
+  - OnHitEffectId
+  - OnHitTriggerIds
+  - OnHitVfxId
+  - OnSpawnTriggerIds
+  - OnSpawnVfxId
+  - OnTickTriggerIds
+  - ReturnAfterMs
+  - ReturnSpeed
+  - ReturnStopDistance
+  - SpawnRandomOffsetX
+  - SpawnRandomOffsetY
+  - SpawnRandomOffsetZ
+  - Speed
+  - StateMachineProfileId
+  - TickIntervalMs
+  - VfxId
+  Rows:
+  - Key: 1
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
+    - 1
+    - 2000
+    - 100
+    - "\u666E\u901A\u5B50\u5F39"
+    - 
+    - 0
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 50
+    - 
+    - 0
+    - 0
+  - Key: 2
+    Values:
+    - 0
+    - 0
+    - 0
+    - 500
+    - 1
+    - 3
+    - 2
+    - 3000
+    - 50
+    - "\u56DE\u65CB\u9556"
+    - 
+    - 0
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 1500
+    - 40
+    - 2
+    - 0
+    - 0
+    - 0
+    - 30
+    - 
+    - 0
+    - 0
+  - Key: 30020001
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
+    - 30020001
+    - 1200
+    - 10
+    - "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB-\u6247\u5B50\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10020011
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 24
+    - 
+    - 0
+    - 90002011
+  - Key: 30020101
+    Values:
+    - 0
+    - 0
+    - 0
+    - 250
+    - 1
+    - 8
+    - 30020101
+    - 2200
+    - 12
+    - "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E-\u6247\u5B50\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10020111
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 650
+    - 22
+    - 1
+    - 0
+    - 0
+    - 0
+    - 18
+    - 
+    - 0
+    - 90002001
+  - Key: 30040011
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
+    - 30040011
+    - 1200
+    - 10
+    - "\u58A8\u5B50-\u666E\u901A\u653B\u51FB-\u80FD\u91CF\u5F39\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10040012
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 26
+    - 
+    - 0
+    - 90004011
+  - Key: 30040201
+    Values:
+    - 1.5
+    - 0.8
+    - 1
+    - 0
+    - 1
+    - 1
+    - 30040201
+    - 1500
+    - 12
+    - "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE-\u70AE\u5F39\u6295\u5C04\u7269"
+    - 10040211
+    - 0
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 20
+    - 
+    - 33
+    - 90004002
+  - Key: 30050001
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
+    - 30050001
+    - 1200
+    - 10
+    - "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB-\u7075\u9B42\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10050011
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 24
+    - 
+    - 0
+    - 90005011
+  - Key: 30050101
+    Values:
+    - 1.5
+    - 0.8
+    - 2
+    - 180
+    - 1
+    - 6
+    - 30050101
+    - 1600
+    - 12
+    - "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB-\u51B2\u51FB\u6CE2\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10050111
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 22
+    - 
+    - 33
+    - 90005001
+  - Key: 30050201
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
+    - 30050201
+    - 1800
+    - 16
+    - "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B-\u8FFD\u8E2A\u9B45\u60D1\u5F39"
+    - 
+    - 0
+    - 10050211
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 18
+    - 
+    - 33
+    - 90005002
+  - Key: 30050301
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
+    - 30050301
+    - 1200
+    - 12
+    - "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC-\u72D0\u706B\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10050313
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 24
+    - 
+    - 33
+    - 90005004
+  - Key: 30060001
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 3
+    - 30060001
+    - 1000
+    - 10
+    - "\u5B34\u653F-\u666E\u901A\u653B\u51FB-\u98DE\u5251\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10060011
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 30
+    - 
+    - 0
+    - 90006011
+  - Key: 30060301
+    Values:
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
+    - 30060301
+    - 900
+    - 14
+    - "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743-\u98DE\u5251\u6295\u5C04\u7269"
+    - 
+    - 0
+    - 10060313
+    - 
+    - 0
+    - 
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0.25
+    - 0
+    - 0.2
+    - 30
+    - ying_zheng_ultimate_projectile
+    - 33
+    - 90006003

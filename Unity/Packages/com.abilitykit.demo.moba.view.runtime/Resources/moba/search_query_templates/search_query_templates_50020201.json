@@ -1,0 +1,39 @@
+{
+  "Id": 50020201,
+  "Name": "小乔-甜蜜恋风-目标点范围查询",
+  "MaxCount": 10,
+  "ExplicitTargetPolicy": 2,
+  "Provider": {
+    "Param": 0,
+    "Id": 0,
+    "Kind": 6
+  },
+  "Rules": [
+    {
+      "Center": 1,
+      "Forward": 0,
+      "Radius": 4.0,
+      "HalfAngleDeg": 0.0,
+      "LocalOffsetForward": 0.0,
+      "LocalOffsetRight": 0.0,
+      "Width": 0.0,
+      "Length": 0.0,
+      "ActorIds": null,
+      "Id": 0,
+      "Kind": 257
+    }
+  ],
+  "Scorers": [
+    {
+      "Source": 0,
+      "RandomSeed": 0,
+      "Direction": 0,
+      "Id": 0,
+      "Kind": 8196
+    }
+  ],
+  "Selector": {
+    "Id": 0,
+    "Kind": 4097
+  }
+}

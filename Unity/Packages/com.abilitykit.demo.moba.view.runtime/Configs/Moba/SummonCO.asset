@@ -13,18 +13,20 @@ MonoBehaviour:
   m_Name: SummonCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 300001
-    Name: "\u6D4B\u8BD51"
-    UnitSubType: 0
-    ModelId: 0
-    AttributeTemplateId: 0
-    LifetimeMs: 0
-    DespawnOnOwnerDie: 0
-    MaxAlivePerOwner: 0
+  - Id: 1
+    Name: "\u5C0F\u5175"
+    UnitSubType: 1
+    ModelId: 1001
+    AttributeTemplateId: 1001
+    LifetimeMs: 60000
+    DespawnOnOwnerDie: 1
+    MaxAlivePerOwner: 10
     OverflowPolicy: 0
     StatsMode: 0
     AttrScales: []
     SkillIds: 
     PassiveSkillIds: 
+    BrainId: 0
+    InheritAttributeConfigId: 0
     DefaultComponentTemplateIds: 
     Tags: 

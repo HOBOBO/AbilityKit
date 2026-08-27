@@ -195,7 +195,9 @@ namespace AbilityKit.Demo.Shooter.Runtime
             NeighborIndices = Resize(NeighborIndices, neighborSlots);
             NeighborDistanceSquared = Resize(NeighborDistanceSquared, neighborSlots);
             Lines = Resize(Lines, neighborSlots);
-            ProjectedLines = Resize(ProjectedLines, _neighborCapacity);
+            // LinearProgram3 uses scratch lines. Keep one disjoint segment per
+            // agent so a server accelerator can solve agents concurrently.
+            ProjectedLines = Resize(ProjectedLines, neighborSlots);
         }
 
         private static T[] Resize<T>(T[] source, int size)

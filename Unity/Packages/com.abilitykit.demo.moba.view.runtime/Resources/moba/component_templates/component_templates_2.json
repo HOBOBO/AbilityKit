@@ -1,0 +1,12 @@
+{
+  "Id": 2,
+  "Name": "治疗组件",
+  "Ops": [
+    {
+      "Kind": 2,
+      "IntValue": 1,
+      "FloatValue": 0.0,
+      "BoolValue": false
+    }
+  ]
+}

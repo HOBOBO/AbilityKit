@@ -1,7 +1,7 @@
 # HFSM 确定性内核与渐进迁移
 
 > 文档类型：FrameworkCore canonical
-> 事实基线：2026-08-21
+> 事实基线：2026-08-24
 > 当前阶段：P1 定义协议与 Legacy 语义对照已落地，旧消费者尚未迁移
 
 ## 一、裁定
@@ -143,7 +143,9 @@ P0 固定以下契约：
 - 已增加不含 CLR 类型名的 JSON codec 和 golden fixture；下一格式版本出现时再增加 version migration。
 - 已增加 `HfsmBindingAttribute`、metadata-only `HfsmBindingCatalog` 和 Editor 自动扫描目录；编辑器不实例化业务状态即可展示字段与校验错误。重复 key 会记录 `HFSMBIND001`，并阻断 Next 导出而不让编辑器崩溃。
 - 已增加可版本控制的 `HfsmBindingCatalogAsset`。项目可从 Assets 菜单配置该清单；配置后 Inspector 和 Next exporter 优先使用资产，未配置时回退到程序集扫描。资产只保存稳定 key/展示元数据，不保存可执行对象，格式版本和重复/空 key 均有显式诊断。
-- 已建立旧 `HfsmGraphAsset` 到 Definition 的保守 importer，并接入编辑器导出 UI；后续补 binding 诊断面板聚合视图。
+- 已建立旧 `HfsmGraphAsset` 到 Definition 的保守 importer，并接入编辑器导出 UI。
+- 主编辑器已增加可折叠 Next Diagnostics 面板，聚合 importer、binding catalog 和 Definition 校验结果，展示 error/warning、catalog 来源和 Definition hash；诊断可定位嵌套 state/machine/transition，Validate 与 Next Export 共用同一分析结果。
+- binding catalog 的项目选择已从本机 `EditorPrefs` 迁移到 `ProjectSettings/AbilityKitHfsmSettings.asset`，团队可版本控制同一配置；旧偏好会单次迁移。
 - 已接入 Graph Inspector 的 Next binding/trigger/raw duration 字段，并将 Export 菜单区分 Next Runtime Definition 与 Legacy Archive。
 - Definition -> JSON -> Definition、Graph -> Definition -> JSON round-trip 和未知 binding 阻断均有 EditMode/.NET 测试覆盖。
 
@@ -176,7 +178,7 @@ P0 固定以下契约：
 | 层级执行/trigger/pending/force | `.NET` 聚焦测试 | E3，含原版延迟退出帧内顺序 |
 | Fixed64 时间门槛 | raw 值测试 | E3，不依赖墙钟 |
 | snapshot/restore/fault/observer | `.NET` 聚焦测试 | E3，状态载荷与失败边界已覆盖 |
-| Unity Graph 导出新 IR | Unity EditMode 最近一次 42/42 | E3，等价子集导入、binding 校验、canonical JSON、版本化 catalog asset 和不支持语义诊断已覆盖；编辑器导出 UI 已接入 |
+| Unity Graph 导出新 IR | Unity EditMode 最近一次 49/49 | E3，等价子集导入、binding 校验、canonical JSON、版本化 catalog asset、聚合诊断和嵌套目标定位已覆盖；Validate/Next Export 使用同一分析结果 |
 | 真实 MOBA/Shooter 消费 | 尚未迁移 | Legacy 仍是生产消费者 |
 | 大规模性能/Unity 平台 | 尚未执行 | 不能宣称 production-ready |
 

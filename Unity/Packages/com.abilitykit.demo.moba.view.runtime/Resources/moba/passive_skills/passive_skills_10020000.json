@@ -1,0 +1,9 @@
+{
+  "Id": 10020000,
+  "Name": "小乔-治愈微笑",
+  "CooldownMs": 0,
+  "TriggerIds": [
+    10020000
+  ],
+  "ContinuousProcessIds": null
+}

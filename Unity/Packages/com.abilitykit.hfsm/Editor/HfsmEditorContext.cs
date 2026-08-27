@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityHFSM.Graph;
@@ -99,6 +100,72 @@ namespace UnityHFSM.Editor
         /// Event raised when selection changes.
         /// </summary>
         public event Action OnSelectionChanged;
+
+        public bool FocusNode(string nodeId)
+        {
+            var node = _graphAsset?.GetNodeById(nodeId);
+            if (node == null) return false;
+
+            var parent = string.IsNullOrEmpty(node.ParentStateMachineId)
+                ? node as HfsmStateMachineNode
+                : _graphAsset.GetNodeById<HfsmStateMachineNode>(node.ParentStateMachineId);
+            if (parent != null && !NavigateToMachine(parent)) return false;
+
+            SetSelection(node);
+            CenterViewOnNode(node);
+            return true;
+        }
+
+        public bool FocusTransition(string transitionId)
+        {
+            var edge = _graphAsset?.GetEdgeById(transitionId);
+            if (edge == null) return false;
+
+            HfsmStateMachineNode owner = null;
+            foreach (var machine in _graphAsset.GetNodesOfType<HfsmStateMachineNode>())
+            {
+                if (machine.TransitionIds.Contains(transitionId) ||
+                    machine.AnyStateTransitionIds.Contains(transitionId))
+                {
+                    owner = machine;
+                    break;
+                }
+            }
+
+            if (owner != null && !NavigateToMachine(owner)) return false;
+            SelectEdge(edge);
+            var source = _graphAsset.GetNodeById(edge.SourceNodeId);
+            if (source != null) CenterViewOnNode(source);
+            return true;
+        }
+
+        public bool NavigateToMachine(HfsmStateMachineNode machine)
+        {
+            if (_graphAsset == null || machine == null) return false;
+
+            var path = new List<HfsmStateMachineNode>();
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            var current = machine;
+            while (current != null)
+            {
+                if (!visited.Add(current.Id)) return false;
+                path.Add(current);
+                current = string.IsNullOrEmpty(current.ParentStateMachineId)
+                    ? null
+                    : _graphAsset.GetNodeById<HfsmStateMachineNode>(current.ParentStateMachineId);
+            }
+
+            path.Reverse();
+            if (path.Count == 0 || path[0].Id != _graphAsset.RootStateMachineId) return false;
+            StateMachinePath.Clear();
+            StateMachinePath.AddRange(path);
+            CurrentStateMachine = machine;
+            ClearSelection();
+            UpdateCurrentView();
+            OnContextChanged?.Invoke();
+            OnStateMachineChanged?.Invoke();
+            return true;
+        }
 
         /// <summary>
         /// Resets the context to show the root state machine.
@@ -465,10 +532,11 @@ namespace UnityHFSM.Editor
 
             Undo.RecordObject(_graphAsset, "Delete Transition");
 
-            // Remove from state machine
-            if (CurrentStateMachine != null)
+            // Remove from the owning machine even when the diagnostic navigated from another level.
+            foreach (var machine in _graphAsset.GetNodesOfType<HfsmStateMachineNode>())
             {
-                CurrentStateMachine.RemoveTransition(edge.Id);
+                machine.RemoveTransition(edge.Id);
+                machine.RemoveAnyStateTransition(edge.Id);
             }
 
             _graphAsset.RemoveEdge(edge);

@@ -520,13 +520,16 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         var controller = StartedController(runtime, new ShooterPresentationFacade());
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 0, x: 0f));
 
+        // 权威帧落后客户端 1 帧：先扣除可达预测距离（PlayerSpeed * dt * 1 = 1/6），
+        // 剩余漂移 0.4 - 1/6 由本帧预算 0.25 封顶修正。
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 0.4f, isFull: false));
         Assert.True(runtime.TryGetPlayer(1, out var bounded));
-        Assert.Equal(0.25f, bounded.X, 3);
+        Assert.Equal(0.233f, bounded.X, 3);
 
+        // 同一客户端帧内第二份权威快照共享剩余预算（0.25 - 0.233），只推进到 0.25。
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 2, x: 1f, isFull: false));
         Assert.True(runtime.TryGetPlayer(1, out var stillBounded));
-        Assert.Equal(0.5f, stillBounded.X, 3);
+        Assert.Equal(0.25f, stillBounded.X, 3);
     }
 
     [Fact]
@@ -597,12 +600,14 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
     }
 
     [Fact]
-    public void AuthorityOverrideStillHardSnapsControlledPlayer()
+    public void AuthorityOverrideUsesBoundedCorrectionInsteadOfHardSnap()
     {
         var runtime = new ShooterBattleRuntimePort();
         var controller = StartedController(runtime, new ShooterPresentationFacade());
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 0, x: 0f));
 
+        // 同世界的 authority override 属于正常恢复流量：与全量基线一致走有界纠偏，
+        // 只有世界切换才硬拉回（见 WorldChangeForcesDeltaSnapshotToSnapAndResetsFrameWatermark）。
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(
             frame: 1,
             x: 2f,
@@ -610,7 +615,7 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
             flags: ShooterPackedSnapshotFlags.AuthorityOverride));
 
         Assert.True(runtime.TryGetPlayer(1, out var player));
-        Assert.Equal(2f, player.X, 3);
+        Assert.Equal(0.25f, player.X, 3);
     }
 
     [Fact]
@@ -619,12 +624,13 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         var runtime = new ShooterBattleRuntimePort();
         var controller = StartedController(runtime, new ShooterPresentationFacade());
 
+        // 全量基线同世界内不做硬拉回：落后 2 帧扣除可达预测距离后按预算收敛到 0.25。
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 2, x: 2f));
         var result = controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 9f));
 
         Assert.Equal(ShooterSnapshotApplyResult.IgnoredStaleSnapshot, result);
         Assert.True(runtime.TryGetPlayer(1, out var player));
-        Assert.Equal(2f, player.X, 3);
+        Assert.Equal(0.25f, player.X, 3);
     }
 
     [Fact]
@@ -765,6 +771,11 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         Assert.Equal(2d, diagnostics.HistoricalTransformAmplificationRatio);
         Assert.Equal(3, diagnostics.PublishedSnapshotCount);
         Assert.Equal(2f, diagnostics.BufferedFrameSpan);
+        Assert.Equal(2, diagnostics.ObservedTransformSampleIntervalCount);
+        Assert.Equal(1, diagnostics.TransformSampleIntervalP50Frames);
+        Assert.Equal(1, diagnostics.TransformSampleIntervalP95Frames);
+        Assert.Equal(1, diagnostics.TransformSampleIntervalP99Frames);
+        Assert.Equal(1, diagnostics.TransformSampleIntervalMaxFrames);
     }
 
     [Fact]
@@ -803,6 +814,49 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         Assert.Equal(1, diagnostics.StaleFrameSampleCount);
         Assert.Equal(0, diagnostics.InvalidFrameSampleCount);
         Assert.Equal(3, diagnostics.PublishedSnapshotCount);
+    }
+
+    [Fact]
+    public void PureStateSampleIntervalsExcludeTimeOutsideAoi()
+    {
+        var controller = StartedController(new ShooterBattleRuntimePort(), new ShooterPresentationFacade());
+        const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
+        var frames = new[]
+        {
+            new ShooterPureStateFrameSample(1, 100L, 0, 1),
+            new ShooterPureStateFrameSample(2, 200L, 1, 1)
+        };
+        var transforms = new[]
+        {
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 1000, 0, 1000, 0, flags),
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 1000, 0, flags)
+        };
+
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 3,
+            x: 3f,
+            isFull: true,
+            deltaIntervalFrames: 1,
+            interpolationDelayFrames: 1,
+            frameSamples: frames,
+            transformSamples: transforms));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 30,
+            x: 3f,
+            isFull: false,
+            stateHash: 124u,
+            deltaKind: ShooterPureStateDeltaKinds.Despawn));
+        controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
+            frame: 60,
+            x: 4f,
+            isFull: false,
+            stateHash: 125u,
+            deltaKind: ShooterPureStateDeltaKinds.Spawn));
+
+        var diagnostics = controller.PureStatePlaybackDiagnostics;
+        Assert.Equal(2, diagnostics.ObservedTransformSampleIntervalCount);
+        Assert.Equal(1, diagnostics.TransformSampleIntervalP99Frames);
+        Assert.Equal(1, diagnostics.TransformSampleIntervalMaxFrames);
     }
 
     [Fact]

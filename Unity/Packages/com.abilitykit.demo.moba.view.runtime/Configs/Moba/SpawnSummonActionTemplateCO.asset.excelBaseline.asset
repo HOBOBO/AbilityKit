@@ -1,0 +1,91 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: SpawnSummonActionTemplateCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\spawn_summon_action_templates.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - AimPosKey
+  - ArcAngleDeg
+  - CasterKey
+  - DurationMs
+  - FixedPosFallbackX
+  - FixedPosFallbackY
+  - FixedPosFallbackZ
+  - FixedPosKey
+  - GridCols
+  - GridRows
+  - GridSpacingX
+  - GridSpacingZ
+  - Id
+  - IntervalMs
+  - Name
+  - OwnerKeyMode
+  - PatternCount
+  - PatternMode
+  - PerPointRotationMode
+  - PerPointYawOffsetDeg
+  - PositionMode
+  - QueryTemplateId
+  - Radius
+  - RandomRadiusMax
+  - RandomRadiusMin
+  - RandomSeed
+  - RotationMode
+  - Spacing
+  - StartAngleDeg
+  - SummonId
+  - TargetKey
+  - TargetMode
+  - TotalCount
+  - YawOffsetDeg
+  Rows:
+  - Key: 1
+    Values:
+    - 
+    - 360
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 0
+    - "\u53EC\u5524\u52A8\u4F5C-\u5706\u5F62"
+    - 0
+    - 3
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 2
+    - 0
+    - 1
+    - 
+    - 0
+    - 0
+    - 0

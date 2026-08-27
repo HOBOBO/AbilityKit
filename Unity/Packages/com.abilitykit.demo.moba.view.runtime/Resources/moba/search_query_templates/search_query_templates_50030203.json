@@ -1,0 +1,39 @@
+{
+  "Id": 50030203,
+  "Name": "赵云-破云之龙-三档前方突刺敌方查询",
+  "MaxCount": 10,
+  "ExplicitTargetPolicy": 2,
+  "Provider": {
+    "Param": 0,
+    "Id": 0,
+    "Kind": 6
+  },
+  "Rules": [
+    {
+      "Center": 0,
+      "Forward": 1,
+      "Radius": 8.0,
+      "HalfAngleDeg": 45.0,
+      "LocalOffsetForward": 0.0,
+      "LocalOffsetRight": 0.0,
+      "Width": 0.0,
+      "Length": 0.0,
+      "ActorIds": null,
+      "Id": 0,
+      "Kind": 258
+    }
+  ],
+  "Scorers": [
+    {
+      "Source": 0,
+      "RandomSeed": 0,
+      "Direction": 0,
+      "Id": 0,
+      "Kind": 8196
+    }
+  ],
+  "Selector": {
+    "Id": 0,
+    "Kind": 4097
+  }
+}

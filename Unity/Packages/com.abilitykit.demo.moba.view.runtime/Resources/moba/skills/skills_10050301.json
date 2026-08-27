@@ -1,0 +1,17 @@
+{
+  "Id": 10050301,
+  "Name": "妲己-女王崇拜",
+  "CooldownMs": 18000,
+  "Range": 12,
+  "IconId": 503,
+  "Category": 5,
+  "SkillType": 4,
+  "Tags": [
+    503
+  ],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10050301,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10050301
+}

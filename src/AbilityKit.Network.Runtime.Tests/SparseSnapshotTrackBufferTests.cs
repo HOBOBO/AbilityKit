@@ -48,6 +48,55 @@ public sealed class SparseSnapshotTrackBufferTests
     }
 
     [Fact]
+    public void SparseTrackExtrapolatesVelocityAndClampsAtConfiguredHorizon()
+    {
+        var buffer = new SparseSnapshotTrackBuffer<int, Pose3>(
+            static (in Pose3 from, in Pose3 to, float alpha) => new Pose3(
+                Lerp(from.X, to.X, alpha),
+                Lerp(from.Y, to.Y, alpha),
+                Lerp(from.Z, to.Z, alpha)),
+            static (in Pose3 sample, double delta) => sample with
+            {
+                X = sample.X + (sample.Z * (float)delta)
+            })
+        {
+            MaxExtrapolationTicks = 3d
+        };
+        var sample = new Pose3(10f, 20f, 2f);
+        buffer.Observe(7, 10L, in sample, SnapshotDeliveryHints.SparseUpdate);
+
+        Assert.True(buffer.TrySample(7, 12d, out var withinHorizon, out var withinKind));
+        Assert.True(buffer.TrySample(7, 30d, out var clamped, out var clampedKind));
+
+        Assert.Equal(SparseSnapshotSampleKind.Extrapolated, withinKind);
+        Assert.Equal(14f, withinHorizon.X);
+        Assert.Equal(SparseSnapshotSampleKind.Extrapolated, clampedKind);
+        Assert.Equal(16f, clamped.X);
+    }
+
+    [Fact]
+    public void DiscontinuityHintDisablesExtrapolation()
+    {
+        var buffer = new SparseSnapshotTrackBuffer<int, Pose3>(
+            static (in Pose3 from, in Pose3 to, float alpha) => to,
+            static (in Pose3 sample, double delta) => sample with { X = sample.X + 100f })
+        {
+            MaxExtrapolationTicks = 3d
+        };
+        var sample = new Pose3(10f, 20f, 2f);
+        buffer.Observe(
+            7,
+            10L,
+            in sample,
+            SnapshotDeliveryHints.SparseUpdate | SnapshotDeliveryHints.Teleport);
+
+        Assert.True(buffer.TrySample(7, 12d, out var held, out var kind));
+
+        Assert.Equal(SparseSnapshotSampleKind.Held, kind);
+        Assert.Equal(sample, held);
+    }
+
+    [Fact]
     public void OlderSampleCannotReplaceLatestTrackState()
     {
         var buffer = CreateBuffer();

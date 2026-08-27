@@ -1,0 +1,163 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: ProjectileLauncherCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\projectile_launchers.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - CountPerShot
+  - DurationMs
+  - EmitterType
+  - FanAngleDeg
+  - Id
+  - IntervalMs
+  - Name
+  Rows:
+  - Key: 1
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 1
+    - 0
+    - "\u666E\u653B\u53D1\u5C04\u5668"
+  - Key: 2
+    Values:
+    - 5
+    - 1000
+    - 1
+    - 90
+    - 2
+    - 500
+    - "\u6280\u80FD\u53D1\u5C04\u5668-\u6247\u5F62"
+  - Key: 31010101
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31010101
+    - 0
+    - "\u5EC9\u9887-\u7206\u88C2\u51B2\u649E-\u76F4\u7EBF\u51B2\u950B\u53D1\u5C04\u5668"
+  - Key: 31020001
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31020001
+    - 0
+    - "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u53D1\u5C04\u5668"
+  - Key: 31020101
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31020101
+    - 0
+    - "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E-\u5355\u6247\u7EBF\u6027\u53D1\u5C04\u5668"
+  - Key: 31030101
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31030101
+    - 0
+    - "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u76F4\u7EBF\u51B2\u950B\u53D1\u5C04\u5668"
+  - Key: 31040011
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31040011
+    - 0
+    - "\u58A8\u5B50-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u53D1\u5C04\u5668"
+  - Key: 31040101
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31040101
+    - 0
+    - "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65-\u76F4\u7EBF\u7A81\u8FDB\u53D1\u5C04\u5668"
+  - Key: 31040201
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31040201
+    - 0
+    - "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE-\u5355\u53D1\u70AE\u5F39\u53D1\u5C04\u5668"
+  - Key: 31050001
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31050001
+    - 0
+    - "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u53D1\u5C04\u5668"
+  - Key: 31050101
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31050101
+    - 0
+    - "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB-\u5355\u53D1\u51B2\u51FB\u6CE2\u53D1\u5C04\u5668"
+  - Key: 31050201
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31050201
+    - 0
+    - "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B-\u5355\u53D1\u8FFD\u8E2A\u9B45\u60D1\u5F39\u53D1\u5C04\u5668"
+  - Key: 31050301
+    Values:
+    - 1
+    - 1600
+    - 1
+    - 0
+    - 31050301
+    - 400
+    - "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC-\u72D0\u706B\u53D1\u5C04\u5668"
+  - Key: 31060001
+    Values:
+    - 1
+    - 0
+    - 1
+    - 0
+    - 31060001
+    - 0
+    - "\u5B34\u653F-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u98DE\u5251\u53D1\u5C04\u5668"
+  - Key: 31060301
+    Values:
+    - 5
+    - 2500
+    - 1
+    - 0
+    - 31060301
+    - 250
+    - "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743-\u98DE\u5251\u53D1\u5C04\u5668"

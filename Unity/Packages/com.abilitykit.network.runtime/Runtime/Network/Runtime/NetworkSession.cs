@@ -12,9 +12,10 @@ namespace AbilityKit.Network.Runtime
     public interface INetworkRuntimeSession : ISession
     {
         NetworkPipeline Pipeline { get; }
+        NetworkPacketRouter PacketRouter { get; }
     }
 
-    public sealed class NetworkSession : INetworkRuntimeSession
+    public sealed class NetworkSession : INetworkRuntimeSession, IProtocolRoutedConnection
     {
         private readonly ITransport _transport;
         private readonly IDispatcher _dispatcher;
@@ -23,6 +24,7 @@ namespace AbilityKit.Network.Runtime
         private readonly IFrameDecoder _frameDecoder;
 
         private readonly NetworkPipeline _pipeline;
+        private readonly NetworkPacketRouter _packetRouter;
         private readonly SessionContext _context;
 
         private bool _started;
@@ -36,6 +38,7 @@ namespace AbilityKit.Network.Runtime
             _frameDecoder = _frameCodec.CreateDecoder();
 
             _pipeline = new NetworkPipeline();
+            _packetRouter = new NetworkPacketRouter(exception => _dispatcher.Post(() => Error?.Invoke(exception)));
             _context = new SessionContext(this, _dispatcher);
         }
 
@@ -48,6 +51,7 @@ namespace AbilityKit.Network.Runtime
             _frameDecoder = _frameCodec.CreateDecoder();
 
             _pipeline = new NetworkPipeline();
+            _packetRouter = new NetworkPacketRouter(exception => _dispatcher.Post(() => Error?.Invoke(exception)));
             _context = new SessionContext(this, _dispatcher);
         }
 
@@ -61,6 +65,8 @@ namespace AbilityKit.Network.Runtime
         public event Action<uint, ArraySegment<byte>> ServerPushReceived;
 
         public NetworkPipeline Pipeline => _pipeline;
+
+        public NetworkPacketRouter PacketRouter => _packetRouter;
 
         public void Start()
         {
@@ -155,6 +161,8 @@ namespace AbilityKit.Network.Runtime
 
         private void DispatchPacketReceived(NetworkPacketHeader header, ArraySegment<byte> payload)
         {
+            _packetRouter.Dispatch(header, payload);
+
             var opCode = header.OpCode;
             var seq = header.Seq;
 

@@ -1,0 +1,15 @@
+{
+  "Id": 10010001,
+  "Name": "廉颇-普通攻击",
+  "CooldownMs": 800,
+  "Range": 3,
+  "IconId": 201,
+  "Category": 1,
+  "SkillType": 1,
+  "Tags": [],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10010001
+}

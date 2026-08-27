@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Threading.Tasks;
 using AbilityKit.Demo.Shooter.Runtime;
 using Unity.Burst;
 using Unity.Collections;
@@ -11,10 +12,13 @@ namespace AbilityKit.Demo.Shooter.Jobs
 {
     public sealed class ShooterUnityJobsRvoNeighborAccelerationService :
         IShooterRvoNeighborAccelerationService,
+        IShooterRvoAgentSolveAccelerationService,
         IDisposable
     {
         public const int DefaultMinimumAgentCount = 64;
         public const int DefaultInnerLoopBatchCount = 32;
+        public const int DefaultMinimumParallelSolveAgentCount = 256;
+        public const int DefaultMaximumSolveDegreeOfParallelism = 4;
 
         private const int DefaultGridCellDivisor = 4;
         private const int MediumDensityGridCellDivisor = 8;
@@ -56,6 +60,29 @@ namespace AbilityKit.Demo.Shooter.Jobs
         }
 
         public bool IsAvailable => !_disposed;
+
+        /// <summary>
+        /// 邻居收集用上面的 Burst jobs；ORCA 逐 agent 求解是纯数学、无 Unity API，
+        /// 用 Parallel.For 并行（阈值与共享 ShooterParallelRvoAccelerationService 一致），
+        /// 使托管求解器在 Unity 客户端也能并行解 ORCA。
+        /// </summary>
+        public bool TryForEachAgent(int count, Action<int> solveAgent)
+        {
+            if (_disposed || count < DefaultMinimumParallelSolveAgentCount ||
+                Environment.ProcessorCount <= 1)
+            {
+                return false;
+            }
+
+            if (solveAgent == null)
+            {
+                throw new ArgumentNullException(nameof(solveAgent));
+            }
+
+            var degreeOfParallelism = Math.Min(DefaultMaximumSolveDegreeOfParallelism, Environment.ProcessorCount);
+            Parallel.For(0, count, new ParallelOptions { MaxDegreeOfParallelism = degreeOfParallelism }, solveAgent);
+            return true;
+        }
 
         public bool TryCollectNeighbors(in ShooterRvoNeighborBatch batch)
         {

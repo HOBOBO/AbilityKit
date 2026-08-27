@@ -28,6 +28,7 @@ namespace AbilityKit.Network.Sdk.Observability
             if (capacity <= 0) throw new ArgumentOutOfRangeException(nameof(capacity));
             Catalogs = catalogs ?? throw new ArgumentNullException(nameof(catalogs));
             Decoders = decoders ?? throw new ArgumentNullException(nameof(decoders));
+            SamplingMetrics = new NetworkTrafficSamplingMetrics();
             _buffer = new NetworkTrafficRingBuffer(capacity);
             _inspector = new NetworkTrafficInspector(Catalogs, Decoders);
         }
@@ -37,6 +38,7 @@ namespace AbilityKit.Network.Sdk.Observability
 
         public ProtocolCatalogRegistry Catalogs { get; }
         public ProtocolPayloadDecoderRegistry Decoders { get; }
+        public NetworkTrafficSamplingMetrics SamplingMetrics { get; }
         public int Capacity => _buffer.Capacity;
         public int Count => _buffer.Count;
         public long DroppedCount => _buffer.DroppedCount;
@@ -46,6 +48,9 @@ namespace AbilityKit.Network.Sdk.Observability
         public IReadOnlyList<NetworkTrafficEvent> Snapshot() => _buffer.Snapshot();
 
         public IReadOnlyList<NetworkTrafficInspectionRow> Inspect() => _inspector.Inspect(_buffer);
+
+        public NetworkTrafficCaptureFilter CreateSamplingFilter(NetworkTrafficConnectionContext context) =>
+            NetworkTrafficCatalogSampler.CreateFilter(context, Catalogs, metrics: SamplingMetrics);
 
         public void Clear() => _buffer.Clear();
 

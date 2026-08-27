@@ -21,6 +21,8 @@ namespace AbilityKit.Demo.Shooter.View
     public sealed class ShooterClientNetworkLauncher : IDisposable
     {
         private readonly IConnection _connection;
+        private readonly NetworkSdkClientKey _sdkClientKey;
+        private readonly NetworkSdkClientLease _sdkClientLease;
         private readonly NetworkSdkClient _sdkClient;
         private readonly ShooterRoomGatewayConnection _gatewayConnection;
         private GatewayBattleClientHost? _battleHost;
@@ -33,9 +35,15 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterClientNetworkLauncher(IConnection connection)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
-            _sdkClient = new NetworkSdkBuilder()
-                .UseOwnedConnectionFactory(() => _connection)
-                .Build();
+            _sdkClientKey = new NetworkSdkClientKey(
+                "abilitykit.shooter",
+                "room",
+                Guid.NewGuid().ToString("N"));
+            _sdkClientLease = NetworkSdkClientHub.Default.Acquire(
+                _sdkClientKey,
+                new NetworkSdkBuilder()
+                    .UseOwnedConnectionFactory(() => _connection));
+            _sdkClient = _sdkClientLease.Client;
             _gatewayConnection = new ShooterRoomGatewayConnection(_sdkClient);
         }
 
@@ -736,6 +744,7 @@ namespace AbilityKit.Demo.Shooter.View
                     options.CatalogId = "abilitykit.shooter.battle";
                     options.TransportName = "tcp";
                     options.MaximumPayloadPreviewBytes = 65536;
+                    options.FilterFactory = NetworkTrafficMonitor.Default.CreateSamplingFilter;
                 });
 #endif
             }, connect: false);
@@ -797,17 +806,26 @@ namespace AbilityKit.Demo.Shooter.View
                 _sessionRecoveryBinding?.Dispose();
                 _sessionRecoveryBinding = null;
                 _battleData?.Dispose();
-                // The host disposes the battle transport and the room connection; if no battle was ever
-                // attached, the room connection is still ours to release.
-                if (_battleHost != null)
+                // The host disposes the battle transport and the room SDK client; if no battle was ever
+                // attached, the room SDK client is still ours to release. Remove the released Hub entry
+                // afterwards so diagnostics never retain a disposed sample client.
+                try
                 {
-                    _battleHost.Dispose();
+                    if (_battleHost != null)
+                    {
+                        _battleHost.Dispose();
+                    }
+                    else
+                    {
+                        _sdkClient.Dispose();
+                    }
+                    _gatewayConnection.Dispose();
                 }
-                else
+                finally
                 {
-                    _sdkClient.Dispose();
+                    _sdkClientLease.Dispose();
+                    NetworkSdkClientHub.Default.Remove(_sdkClientKey);
                 }
-                _gatewayConnection.Dispose();
             }
         }
     }

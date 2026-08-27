@@ -50,6 +50,23 @@ namespace AbilityKit.Network.Sdk
                 : value.Trim();
     }
 
+    public readonly struct NetworkSdkClientHubEntrySnapshot
+    {
+        internal NetworkSdkClientHubEntrySnapshot(
+            NetworkSdkClientKey key,
+            NetworkSdkClient client,
+            int leaseCount)
+        {
+            Key = key;
+            Client = client;
+            LeaseCount = leaseCount;
+        }
+
+        public NetworkSdkClientKey Key { get; }
+        public NetworkSdkClient Client { get; }
+        public int LeaseCount { get; }
+    }
+
     /// <summary>
     /// Owns reusable SDK clients and provides explicit leases to feature/session consumers.
     /// Entries remain cached after the last lease is released until Remove or Dispose is called.
@@ -118,6 +135,29 @@ namespace AbilityKit.Network.Sdk
             {
                 ThrowIfDisposed();
                 return _entries.TryGetValue(key, out var entry) ? entry.LeaseCount : 0;
+            }
+        }
+
+        /// <summary>Process-wide Hub consumed by the built-in diagnostics monitor.</summary>
+        public static NetworkSdkClientHub Default =>
+            Diagnostics.NetworkSdkDiagnosticsMonitor.Default.Hub;
+
+        public IReadOnlyList<NetworkSdkClientHubEntrySnapshot> Snapshot()
+        {
+            lock (_gate)
+            {
+                ThrowIfDisposed();
+                var snapshots = new NetworkSdkClientHubEntrySnapshot[_entries.Count];
+                var index = 0;
+                foreach (var pair in _entries)
+                {
+                    snapshots[index++] = new NetworkSdkClientHubEntrySnapshot(
+                        pair.Key,
+                        pair.Value.Client,
+                        pair.Value.LeaseCount);
+                }
+
+                return snapshots;
             }
         }
 

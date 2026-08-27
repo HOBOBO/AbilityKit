@@ -1,0 +1,17 @@
+{
+  "Id": 10050201,
+  "Name": "妲己-偶像魅力",
+  "CooldownMs": 8000,
+  "Range": 10,
+  "IconId": 502,
+  "Category": 5,
+  "SkillType": 2,
+  "Tags": [
+    502
+  ],
+  "SkillButtonTemplateId": 3,
+  "RequiredTargetQueryId": 50050201,
+  "LevelTableId": 10050201,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10050201
+}

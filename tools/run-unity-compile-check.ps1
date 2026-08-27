@@ -1,4 +1,4 @@
-# 无 Unity 实例也能做"Unity 侧编译验证"：按 asmdef 边界镜像编译 behaviortree 包 + demo BTree 源码，
+﻿# 无 Unity 实例也能做"Unity 侧编译验证"：按 asmdef 边界镜像编译 behaviortree 包 + demo BTree 源码，
 # 直接引用 Unity 2022.3 托管 DLL。dotnet 的 net10/latest + ImplicitUsings 会掩盖 Unity 侧错误
 # （init 访问器、缺 using、跨 asmdef 引用缺失），此校验能提前抓。
 # 用法：powershell -ExecutionPolicy Bypass -File tools/run-unity-compile-check.ps1

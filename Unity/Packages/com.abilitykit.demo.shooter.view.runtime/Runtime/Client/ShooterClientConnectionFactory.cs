@@ -99,7 +99,8 @@ namespace AbilityKit.Demo.Shooter.View
                 CatalogId = "abilitykit.room",
                 TransportName = "tcp",
                 MaximumPayloadPreviewBytes = 65536,
-                ObserverFactory = _ => NetworkTrafficMonitor.Default
+                ObserverFactory = _ => NetworkTrafficMonitor.Default,
+                FilterFactory = NetworkTrafficMonitor.Default.CreateSamplingFilter
             };
 #endif
             return options;

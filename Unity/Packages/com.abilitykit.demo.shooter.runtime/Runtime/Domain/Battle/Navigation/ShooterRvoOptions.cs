@@ -18,6 +18,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public const int DefaultMaxNeighbors = 12;
         public const float DefaultTimeHorizon = 1.25f;
         public const float DefaultMaxAcceleration = 12f;
+        public const int DefaultAcceleratedValidationInterval = 30;
 
         public static ShooterRvoOptions Disabled { get; } = new ShooterRvoOptions(ShooterRvoExecutionMode.Disabled);
 
@@ -56,6 +57,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public float TimeHorizon { get; }
 
         public float MaxAcceleration { get; }
+
+        /// <summary>
+        /// 加速邻居输出全量校验的采样间隔（按加速收集次数计；1 = 每次都校验）。
+        /// 加速实现与托管路径按状态哈希逐字节对齐，生产用默认 30（约 1 秒 @30Hz）
+        /// 作为漂移保险丝；确定性对照测试可设为 1。
+        /// </summary>
+        public int AcceleratedValidationInterval { get; set; } = DefaultAcceleratedValidationInterval;
 
         private static bool IsFinitePositive(float value)
         {

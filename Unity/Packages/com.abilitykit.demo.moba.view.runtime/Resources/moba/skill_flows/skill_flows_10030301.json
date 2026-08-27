@@ -1,0 +1,65 @@
+{
+  "Id": 10030301,
+  "Name": "赵云-天翔之龙",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "skill_10030301_release",
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 4,
+      "PhaseId": "skill_10030301_commit",
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 2,
+      "PhaseId": null,
+      "Checks": null,
+      "Timeline": {
+        "DurationMs": 800,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10030301,
+            "ExecuteMode": 0,
+            "EventTag": "zy_skill_3_cast"
+          }
+        ]
+      },
+      "Handlers": null,
+      "RulePlan": null,
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    }
+  ]
+}

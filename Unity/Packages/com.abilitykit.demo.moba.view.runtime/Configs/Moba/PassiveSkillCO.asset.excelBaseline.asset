@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: PassiveSkillCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\passive_skills.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - ContinuousProcessIds
+  - CooldownMs
+  - Id
+  - Name
+  - TriggerIds
+  Rows:
+  - Key: 10010000
+    Values:
+    - 10010003
+    - 0
+    - 10010000
+    - "\u5EC9\u9887-\u52C7\u58EB\u4E4B\u9B42"
+    - 10010000,10010002,10010004
+  - Key: 10020000
+    Values:
+    - 
+    - 0
+    - 10020000
+    - "\u5C0F\u4E54-\u6CBB\u6108\u5FAE\u7B11"
+    - 10020000
+  - Key: 10030000
+    Values:
+    - 
+    - 0
+    - 10030000
+    - "\u8D75\u4E91-\u9F99\u9E23"
+    - 10030000,10030002,10030312
+  - Key: 10040000
+    Values:
+    - 
+    - 0
+    - 10040000
+    - "\u58A8\u5B50-\u673A\u5173\u672F"
+    - 10040000,10040001,10040002
+  - Key: 10050000
+    Values:
+    - 
+    - 0
+    - 10050000
+    - "\u59B2\u5DF1-\u5931\u5FC3"
+    - 10050000
+  - Key: 10060000
+    Values:
+    - 
+    - 0
+    - 10060000
+    - "\u5B34\u653F-\u738B\u8005\u5BA1\u5224"
+    - 10060000,10060002,10060003

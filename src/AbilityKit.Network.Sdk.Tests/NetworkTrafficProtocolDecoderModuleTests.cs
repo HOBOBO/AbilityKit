@@ -75,6 +75,31 @@ public sealed class NetworkTrafficProtocolDecoderModuleTests
     }
 
     [Fact]
+    public void MobaMovePayload_GeneratedContract_PreservesGoldenBytes()
+    {
+        var payload = MobaMoveCodec.Serialize(1.5f, -2.25f);
+
+        Assert.Equal("0000C03F000010C0", Convert.ToHexString(payload));
+
+        MobaMoveCodec.Deserialize(
+            Convert.FromHexString("0000C03F000010C0"),
+            out var x,
+            out var z);
+        Assert.Equal(1.5f, x);
+        Assert.Equal(-2.25f, z);
+    }
+
+    [Fact]
+    public void RoomGuestLoginRequest_GeneratedContract_RoundTrips()
+    {
+        var expected = new WireRoomGuestLoginReq { GuestId = "guest-42" };
+        var payload = MemoryPack.MemoryPackSerializer.Serialize(expected);
+        var actual = MemoryPack.MemoryPackSerializer.Deserialize<WireRoomGuestLoginReq>(payload);
+
+        Assert.Equal("guest-42", actual.GuestId);
+    }
+
+    [Fact]
     public void ShooterModule_DecodesCompatibilityAwarePackedSnapshot()
     {
         var registry = new ProtocolPayloadDecoderRegistry();

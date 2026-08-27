@@ -4,13 +4,6 @@ using MemoryPack;
 
 namespace AbilityKit.Protocol.Room
 {
-    [ProtocolOpCode(RoomGatewayOpCodes.GuestLogin, ProtocolDirection.ClientToServer, nameof(WireRoomGuestLoginReq))]
-    [MemoryPackable]
-    public partial struct WireRoomGuestLoginReq
-    {
-        [MemoryPackOrder(0)] public string GuestId { get; set; }
-    }
-
     [MemoryPackable]
     public partial struct WireRoomGuestLoginRes
     {

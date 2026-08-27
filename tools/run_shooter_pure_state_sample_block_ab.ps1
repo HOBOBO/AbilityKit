@@ -42,7 +42,9 @@ param(
     [ValidateRange(0, 100)]
     [int]$MaxFullSnapshotIncrease = 4,
     [ValidateRange(1, 4096)]
-    [int]$MaxTransformSamplesPerBlock = 32
+    [int]$MaxTransformSamplesPerBlock = 32,
+    [ValidateRange(1, 4096)]
+    [int]$UnmeteredMaxTransformSamplesPerBlock = 2048
 )
 
 $ErrorActionPreference = 'Stop'
@@ -181,7 +183,11 @@ foreach ($case in $planCases) {
             MaxAverageGcBytesIncrease = $MaxAverageGcBytesIncrease
             MaxResyncNeededIncrease = $MaxResyncNeededIncrease
             MaxFullSnapshotIncrease = $MaxFullSnapshotIncrease
-            MaxTransformSamplesPerBlock = $MaxTransformSamplesPerBlock
+            MaxTransformSamplesPerBlock = if ($case.networkEnvironment -eq 'limitedbw') {
+                $MaxTransformSamplesPerBlock
+            } else {
+                $UnmeteredMaxTransformSamplesPerBlock
+            }
         }
         & $comparator @compareArguments
         $comparison = Get-Content -LiteralPath $comparisonPath -Raw | ConvertFrom-Json

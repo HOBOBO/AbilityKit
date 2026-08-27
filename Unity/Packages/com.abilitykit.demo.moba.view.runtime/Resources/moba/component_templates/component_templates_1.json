@@ -1,5 +1,12 @@
 {
   "Id": 1,
-  "Name": "AAAA",
-  "Ops": []
+  "Name": "伤害组件",
+  "Ops": [
+    {
+      "Kind": 1,
+      "IntValue": 1,
+      "FloatValue": 0.0,
+      "BoolValue": false
+    }
+  ]
 }

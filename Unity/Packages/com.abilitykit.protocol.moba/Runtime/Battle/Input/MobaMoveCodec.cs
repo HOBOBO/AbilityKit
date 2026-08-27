@@ -1,22 +1,8 @@
 using System;
-using AbilityKit.Protocol.Serialization;
 using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba.StateSync
 {
-    [MemoryPackable]
-    public partial struct MobaMovePayload
-    {
-        [MemoryPackOrder(0)] public float X;
-        [MemoryPackOrder(1)] public float Z;
-
-        public MobaMovePayload(float x, float z)
-        {
-            X = x;
-            Z = z;
-        }
-    }
-
     public static class MobaMoveCodec
     {
         public static byte[] Serialize(float x, float z)

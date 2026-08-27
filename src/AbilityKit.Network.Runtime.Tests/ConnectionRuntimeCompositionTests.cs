@@ -72,6 +72,42 @@ public sealed class ConnectionRuntimeCompositionTests
     }
 
     [Fact]
+    public void DiagnosticsSnapshot_ExposesConnectionAndRouterState()
+    {
+        var transport = new RecordingTransport();
+        RecordingSession? session = null;
+        var options = new ConnectionOptions
+        {
+            TrafficCapture = null,
+            SessionFactory = context => session = new RecordingSession(context.Transport),
+            ReconnectMaxAttempts = 3,
+            HeartbeatInterval = TimeSpan.FromSeconds(5),
+            HeartbeatTimeout = TimeSpan.FromSeconds(15)
+        };
+        using var connection = new ConnectionManager(() => transport, options);
+
+        var disconnected = connection.GetDiagnosticsSnapshot();
+        Assert.Equal(ConnectionState.Disconnected, disconnected.State);
+        Assert.Equal(0, disconnected.Generation);
+        Assert.Null(disconnected.PacketRouter);
+
+        connection.Open("gateway.example", 7100);
+        var routeHandler = (NetworkPacketRouteHandler)(_ => { });
+        session!.PacketRouter.Register(17, NetworkPacketDispatchKind.ServerPush, routeHandler);
+
+        var snapshot = connection.GetDiagnosticsSnapshot();
+        Assert.Equal("gateway.example", snapshot.Host);
+        Assert.Equal(7100, snapshot.Port);
+        Assert.Equal(1, snapshot.Generation);
+        Assert.Equal(ConnectionState.Connecting, snapshot.State);
+        Assert.True(snapshot.OpenRequested);
+        Assert.NotNull(snapshot.PacketRouter);
+        Assert.Single(snapshot.PacketRouter!.Value.Routes);
+        Assert.Equal(1, snapshot.PacketRouter.Value.Routes[0].HandlerCount);
+        Assert.Same(session.PacketRouter, connection.PacketRouter);
+    }
+
+    [Fact]
     public void Open_WhenSessionFactoryReturnsNull_DisposesCreatedTransport()
     {
         var transport = new RecordingTransport();
@@ -111,6 +147,7 @@ public sealed class ConnectionRuntimeCompositionTests
         public bool Started { get; private set; }
         public bool Disposed { get; private set; }
         public NetworkPipeline Pipeline { get; } = new();
+        public NetworkPacketRouter PacketRouter { get; } = new();
 
         public event Action? Connected;
         public event Action? Disconnected;

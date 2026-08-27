@@ -1,0 +1,65 @@
+{
+  "Id": 10060101,
+  "Name": "嬴政-王者惩戒",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "yz_skill_1_release",
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 4,
+      "PhaseId": "yz_skill_1_commit",
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 2,
+      "PhaseId": null,
+      "Checks": null,
+      "Timeline": {
+        "DurationMs": 800,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10060101,
+            "ExecuteMode": 0,
+            "EventTag": "yz_skill_1_cast"
+          }
+        ]
+      },
+      "Handlers": null,
+      "RulePlan": null,
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    }
+  ]
+}

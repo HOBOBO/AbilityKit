@@ -13,7 +13,7 @@ public sealed class WireSerializerTests
 {
     private static void ResetWireSerializer()
     {
-        // 属性 setter 接受 null（无校验），用于把静态状态拨回"未安装"。
+        // 兼容 setter 仍接受 null，用于测试隔离并把静态状态拨回“未安装”。
         WireSerializer.Current = null!;
         WireSerializer.TextSerializer = null!;
     }
@@ -26,6 +26,27 @@ public sealed class WireSerializerTests
         var ex = Assert.Throws<InvalidOperationException>(() => WireSerializer.Current);
 
         Assert.Contains("not installed", ex.Message);
+    }
+
+    [Fact]
+    public void ExplicitInstall_RejectsImplicitReplacementAndExposesNonThrowingProbe()
+    {
+        ResetWireSerializer();
+        var first = new RecordingWireSerializer();
+        var second = new RecordingWireSerializer();
+
+        Assert.False(WireSerializer.IsInstalled);
+        Assert.False(WireSerializer.TryGetCurrent(out _));
+
+        WireSerializer.Install(first);
+
+        Assert.True(WireSerializer.IsInstalled);
+        Assert.True(WireSerializer.TryGetCurrent(out var installed));
+        Assert.Same(first, installed);
+        Assert.Throws<InvalidOperationException>(() => WireSerializer.Install(second));
+
+        WireSerializer.Install(second, replaceExisting: true);
+        Assert.Same(second, WireSerializer.Current);
     }
 
     [Fact]

@@ -45,6 +45,22 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             };
         }
 
+        /// <summary>
+        /// 运行时 DTO（JSON 真相）→ 富作者形态 Def。用于把历史 JSON 配置迁移进编辑器 dataList。
+        /// 无 Def 对应的相位类型（如 Handlers）会被跳过。
+        /// </summary>
+        public static SkillFlowDef FromDto(SkillFlowDTO dto)
+        {
+            if (dto == null) return null;
+            return new SkillFlowDef
+            {
+                Id = dto.Id,
+                Name = dto.Name,
+                PipelineContinuousTagTemplateId = dto.PipelineContinuousTagTemplateId,
+                Phases = SkillPhaseDef.ConvertPhasesFromDto(dto.Phases),
+            };
+        }
+
         internal static SkillPhaseDTO[] ConvertPhases(IReadOnlyList<SkillPhaseDef> phases)
         {
             if (phases == null || phases.Count == 0) return Array.Empty<SkillPhaseDTO>();
@@ -99,6 +115,80 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 Type = (int)PhaseType,
                 PhaseId = string.IsNullOrWhiteSpace(PhaseId) ? null : PhaseId.Trim(),
             };
+        }
+
+        /// <summary>DTO 相位 → Def 相位（按 Type 分派到对应子类）。无 Def 形态的类型返回 null。</summary>
+        public static SkillPhaseDef FromDto(SkillPhaseDTO dto)
+        {
+            if (dto == null) return null;
+            var type = (SkillPhaseType)dto.Type;
+
+            SkillPhaseDef def;
+            switch (type)
+            {
+                case SkillPhaseType.Checks:
+                    def = new SkillChecksPhaseDef { Checks = dto.Checks ?? new SkillChecksPhaseDTO() };
+                    break;
+                case SkillPhaseType.Timeline:
+                    def = new SkillTimelinePhaseDef { Timeline = dto.Timeline ?? new SkillTimelinePhaseDTO() };
+                    break;
+                case SkillPhaseType.RulePlan:
+                    var rp = dto.RulePlan ?? new SkillRulePlanPhaseDTO();
+                    def = new SkillRulePlanPhaseDef
+                    {
+                        TriggerIds = rp.TriggerIds ?? Array.Empty<int>(),
+                        AbortOnFailure = rp.AbortOnFailure,
+                        FailReason = rp.FailReason,
+                    };
+                    break;
+                case SkillPhaseType.Sequence:
+                    def = new SkillSequencePhaseDef { Children = ConvertPhasesFromDto(dto.Children) };
+                    break;
+                case SkillPhaseType.Parallel:
+                    def = new SkillParallelPhaseDef { Children = ConvertPhasesFromDto(dto.Children) };
+                    break;
+                case SkillPhaseType.Repeat:
+                    var rep = dto.Repeat ?? new SkillRepeatPhaseDTO();
+                    def = new SkillRepeatPhaseDef
+                    {
+                        RepeatCount = rep.RepeatCount,
+                        IntervalMs = rep.IntervalMs,
+                        Phase = FromDto(rep.Phase),
+                    };
+                    break;
+                case SkillPhaseType.Delay:
+                    def = new SkillDelayPhaseDef { DelayMs = (dto.Delay ?? new SkillDelayPhaseDTO()).DelayMs };
+                    break;
+                case SkillPhaseType.WaitUntil:
+                    var w = dto.WaitUntil ?? new SkillWaitUntilPhaseDTO();
+                    def = new SkillWaitUntilPhaseDef
+                    {
+                        Condition = w.Condition,
+                        TimeoutMs = w.TimeoutMs,
+                        CompleteOnTimeout = w.CompleteOnTimeout,
+                        ObservedSlots = w.ObservedSlots ?? Array.Empty<int>(),
+                        Arguments = w.Arguments ?? Array.Empty<SkillWaitConditionArgumentDTO>(),
+                    };
+                    break;
+                default:
+                    return null; // Handlers 等无 Def 形态，跳过
+            }
+
+            def.PhaseId = dto.PhaseId;
+            return def;
+        }
+
+        internal static List<SkillPhaseDef> ConvertPhasesFromDto(SkillPhaseDTO[] dtos)
+        {
+            var list = new List<SkillPhaseDef>();
+            if (dtos == null) return list;
+            for (var i = 0; i < dtos.Length; i++)
+            {
+                var def = FromDto(dtos[i]);
+                if (def != null) list.Add(def);
+            }
+
+            return list;
         }
     }
 

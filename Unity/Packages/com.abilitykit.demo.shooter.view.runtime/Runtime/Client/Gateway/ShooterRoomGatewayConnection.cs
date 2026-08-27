@@ -25,38 +25,44 @@ namespace AbilityKit.Demo.Shooter.View
     {
         private readonly Func<uint, ArraySegment<byte>, TimeSpan?, CancellationToken, Task<ArraySegment<byte>>> _sendRequestAsync;
         private readonly Action<Action<uint, ArraySegment<byte>>> _unsubscribeServerPush;
-        private readonly IDisposable? _ownedRequestClient;
+        private readonly NetworkSdkClient? _ownedSdkClient;
         private ShooterClientSession? _session;
         private bool _disposed;
 
+        /// <summary>
+        /// Compatibility path for injected connections. The SDK owns the single request dispatcher
+        /// and the supplied connection for this facade's lifetime.
+        /// </summary>
         public ShooterRoomGatewayConnection(IConnection connection)
-            : this(connection, null)
+            : this(CreateOwnedSdkClient(connection), null, ownsSdkClient: true)
         {
         }
 
         public ShooterRoomGatewayConnection(IConnection connection, ShooterClientSession? session)
+            : this(CreateOwnedSdkClient(connection), session, ownsSdkClient: true)
         {
-            if (connection == null) throw new ArgumentNullException(nameof(connection));
-
-            var requestClient = new RequestClient(connection);
-            _sendRequestAsync = requestClient.SendRequestAsync;
-            _unsubscribeServerPush = handler => connection.ServerPushReceived -= handler;
-            _ownedRequestClient = requestClient;
-            _session = session;
-            connection.ServerPushReceived += OnServerPushReceived;
         }
 
         public ShooterRoomGatewayConnection(NetworkSdkClient sdkClient)
-            : this(sdkClient, null)
+            : this(sdkClient, null, ownsSdkClient: false)
         {
         }
 
         public ShooterRoomGatewayConnection(NetworkSdkClient sdkClient, ShooterClientSession? session)
+            : this(sdkClient, session, ownsSdkClient: false)
+        {
+        }
+
+        private ShooterRoomGatewayConnection(
+            NetworkSdkClient sdkClient,
+            ShooterClientSession? session,
+            bool ownsSdkClient)
         {
             if (sdkClient == null) throw new ArgumentNullException(nameof(sdkClient));
 
             _sendRequestAsync = sdkClient.SendRawRequestAsync;
             _unsubscribeServerPush = handler => sdkClient.ServerPushReceived -= handler;
+            _ownedSdkClient = ownsSdkClient ? sdkClient : null;
             _session = session;
             sdkClient.ServerPushReceived += OnServerPushReceived;
         }
@@ -111,6 +117,12 @@ namespace AbilityKit.Demo.Shooter.View
             SnapshotPushDispatched?.Invoke(opCode, payload, result);
         }
 
+        private static NetworkSdkClient CreateOwnedSdkClient(IConnection connection) =>
+            new NetworkSdkBuilder()
+                .UseOwnedConnectionFactory(
+                    () => connection ?? throw new ArgumentNullException(nameof(connection)))
+                .Build();
+
         private void ThrowIfDisposed()
         {
             if (_disposed)
@@ -128,7 +140,7 @@ namespace AbilityKit.Demo.Shooter.View
 
             _disposed = true;
             _unsubscribeServerPush(OnServerPushReceived);
-            _ownedRequestClient?.Dispose();
+            _ownedSdkClient?.Dispose();
         }
     }
 }

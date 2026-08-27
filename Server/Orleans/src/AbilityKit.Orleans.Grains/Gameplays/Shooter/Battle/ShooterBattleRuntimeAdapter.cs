@@ -1,4 +1,6 @@
 ﻿using AbilityKit.Ability.StateSync.Aoi;
+using AbilityKit.Ability.World.DI;
+using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Shooter;
 using AbilityKit.Demo.Shooter.Runtime;
 using AbilityKit.Orleans.Contracts.Battle;
@@ -136,6 +138,11 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
             AbilityKit.Ability.World.Abstractions.WorldCreateOptions options,
             BattleInitParams initParams)
         {
+            options.ServiceBuilder ??= WorldServiceContainerFactory.CreateDefaultOnly();
+            options.ServiceBuilder.TryRegister<IShooterRvoNeighborAccelerationService>(
+                WorldLifetime.Singleton,
+                _ => new ShooterServerRvoNeighborAccelerationService());
+
             if (initParams.EnemyBudget > 0)
             {
                 options.Extensions[typeof(ShooterEnemyBudgetOverride)] =
@@ -794,9 +801,24 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 return false;
             }
 
-            if (!_runtime.TryGetPlayer(playerId, out var player) || !player.Alive)
+            if (!_runtime.TryGetPlayer(playerId, out var player))
             {
                 return false;
+            }
+
+            if (!player.Alive)
+            {
+                // 观战回退：死亡观察者以竞技场中心为兴趣中心继续接收世界状态。
+                // 否则 fail-closed 空推送会让本端画面冻结，而战斗仍在另一端继续，
+                // 造成双端肉眼可见的大面积不同步。
+                interestScope = new ShooterPureStateInterestScope(
+                    playerId,
+                    0f,
+                    0f,
+                    _stateSyncPushOptions.AoiVisibleRadius,
+                    _stateSyncPushOptions.AoiBoundaryRadius,
+                    _stateSyncPushOptions.ResolvePureStateSettings().MaxEntityCount);
+                return true;
             }
 
             interestScope = new ShooterPureStateInterestScope(

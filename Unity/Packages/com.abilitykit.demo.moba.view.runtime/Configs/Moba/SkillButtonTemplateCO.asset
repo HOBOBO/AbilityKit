@@ -20,9 +20,18 @@ MonoBehaviour:
     EnableAim: 0
     AimMode: 0
     AimMaxRadius: 0
+    IndicatorShape: 0
+    IndicatorWorldWidth: 0
     UsePointMode: 0
     SelectRange: 0
     FaceToAim: 0
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
   - Id: 2
     Name: direction_line
     LongPressSeconds: 0.35
@@ -30,9 +39,18 @@ MonoBehaviour:
     EnableAim: 1
     AimMode: 0
     AimMaxRadius: 220
+    IndicatorShape: 1
+    IndicatorWorldWidth: 1.5
     UsePointMode: 1
     SelectRange: 0
     FaceToAim: 1
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
   - Id: 3
     Name: target_point_area
     LongPressSeconds: 0.35
@@ -40,6 +58,148 @@ MonoBehaviour:
     EnableAim: 1
     AimMode: 1
     AimMaxRadius: 220
+    IndicatorShape: 2
+    IndicatorWorldWidth: 2.8
     UsePointMode: 2
     SelectRange: 0
     FaceToAim: 0
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
+  - Id: 4
+    Name: direction_area
+    LongPressSeconds: 0.35
+    DragThreshold: 12
+    EnableAim: 1
+    AimMode: 0
+    AimMaxRadius: 220
+    IndicatorShape: 5
+    IndicatorWorldWidth: 2
+    UsePointMode: 1
+    SelectRange: 0
+    FaceToAim: 1
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
+  - Id: 5
+    Name: ying_zheng_target_sword_array
+    LongPressSeconds: 0.35
+    DragThreshold: 12
+    EnableAim: 1
+    AimMode: 1
+    AimMaxRadius: 220
+    IndicatorShape: 2
+    IndicatorWorldWidth: 4
+    UsePointMode: 2
+    SelectRange: 0
+    FaceToAim: 0
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
+  - Id: 6
+    Name: ying_zheng_self_guard
+    LongPressSeconds: 0
+    DragThreshold: 12
+    EnableAim: 0
+    AimMode: 0
+    AimMaxRadius: 0
+    IndicatorShape: 3
+    IndicatorWorldWidth: 0
+    UsePointMode: 0
+    SelectRange: 0
+    FaceToAim: 0
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 4
+    LockProjectileRadius: 0
+  - Id: 7
+    Name: ying_zheng_locked_direction_sword_stream
+    LongPressSeconds: 0.35
+    DragThreshold: 12
+    EnableAim: 1
+    AimMode: 0
+    AimMaxRadius: 220
+    IndicatorShape: 1
+    IndicatorWorldWidth: 0.6
+    UsePointMode: 1
+    SelectRange: 0
+    FaceToAim: 1
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
+  - Id: 8
+    Name: zhaoyun_thunder_dragon_self_enhance
+    LongPressSeconds: 0
+    DragThreshold: 12
+    EnableAim: 0
+    AimMode: 0
+    AimMaxRadius: 0
+    IndicatorShape: 0
+    IndicatorWorldWidth: 0
+    UsePointMode: 0
+    SelectRange: 0
+    FaceToAim: 0
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
+  - Id: 9
+    Name: zhaoyun_cloud_breaking_dragon_front_area
+    LongPressSeconds: 0.35
+    DragThreshold: 12
+    EnableAim: 1
+    AimMode: 0
+    AimMaxRadius: 220
+    IndicatorShape: 5
+    IndicatorWorldWidth: 3.5
+    UsePointMode: 1
+    SelectRange: 0
+    FaceToAim: 1
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0
+  - Id: 10
+    Name: zhaoyun_sky_soaring_dragon_landing_area
+    LongPressSeconds: 0.35
+    DragThreshold: 12
+    EnableAim: 1
+    AimMode: 1
+    AimMaxRadius: 220
+    IndicatorShape: 2
+    IndicatorWorldWidth: 4.5
+    UsePointMode: 2
+    SelectRange: 0
+    FaceToAim: 0
+    SectorAngleDegrees: 0
+    DashDistance: 0
+    LockOnDurationMs: 0
+    FanRadius: 0
+    FanAngleDegrees: 0
+    SelfRadius: 0
+    LockProjectileRadius: 0

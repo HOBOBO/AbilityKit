@@ -1,0 +1,9 @@
+{
+  "Id": 31050301,
+  "Name": "妲己-女王崇拜-狐火发射器",
+  "EmitterType": 1,
+  "DurationMs": 1600,
+  "IntervalMs": 400,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

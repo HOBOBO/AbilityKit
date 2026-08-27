@@ -1,0 +1,17 @@
+{
+  "Id": 10020301,
+  "Name": "小乔-星华缭乱",
+  "CooldownMs": 10000,
+  "Range": 20,
+  "IconId": 103,
+  "Category": 2,
+  "SkillType": 4,
+  "Tags": [
+    203
+  ],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10020301,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10020301
+}

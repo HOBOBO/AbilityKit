@@ -10,7 +10,7 @@
 # 产物按仓库约定落 local/Logs/（已被 .gitignore 覆盖）。
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("push-json", "pull-excel", "bootstrap", "export-typed", "seed-from-json", "status")]
+    [ValidateSet("push-json", "pull-excel", "bootstrap", "export-typed", "seed-from-json", "migrate-flows", "status")]
     [string]$Mode,
     [string]$UnityExe = "C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Unity.exe",
     [string]$Table = "",

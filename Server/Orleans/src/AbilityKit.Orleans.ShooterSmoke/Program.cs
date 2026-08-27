@@ -16,7 +16,11 @@ var tcpGatewayHost = options.Host;
 
 if (!options.ClientMode)
 {
-    Environment.SetEnvironmentVariable(ShooterStateSyncPayloadModeEnvironmentVariable, options.StateSyncPayloadMode);
+    Environment.SetEnvironmentVariable(
+        ShooterStateSyncPayloadModeEnvironmentVariable,
+        string.Equals(options.StateSyncPayloadMode, "template", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : options.StateSyncPayloadMode);
 }
 
 if (options.ClientMode)
@@ -213,7 +217,7 @@ readonly record struct ShooterSmokeProgramOptions(
         var conditionSeed = 20260610;
         var inputStateReplayOutputPath = string.Empty;
         var inputLogicReplayOutputPath = string.Empty;
-        var stateSyncPayloadMode = "packed";
+        var stateSyncPayloadMode = "template";
         var runId = string.Empty;
         var correlationId = string.Empty;
         var runRootPath = string.Empty;
@@ -516,6 +520,12 @@ readonly record struct ShooterSmokeProgramOptions(
 
     private static string NormalizeStateSyncPayloadMode(string? value)
     {
+        if (string.IsNullOrWhiteSpace(value)
+            || string.Equals(value, "template", StringComparison.OrdinalIgnoreCase))
+        {
+            return "template";
+        }
+
         if (string.Equals(value, "pure-state", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "purestate", StringComparison.OrdinalIgnoreCase)
             || string.Equals(value, "pure_state", StringComparison.OrdinalIgnoreCase))
@@ -523,8 +533,7 @@ readonly record struct ShooterSmokeProgramOptions(
             return "pure-state";
         }
 
-        if (string.IsNullOrWhiteSpace(value)
-            || string.Equals(value, "packed", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(value, "packed", StringComparison.OrdinalIgnoreCase))
         {
             return "packed";
         }

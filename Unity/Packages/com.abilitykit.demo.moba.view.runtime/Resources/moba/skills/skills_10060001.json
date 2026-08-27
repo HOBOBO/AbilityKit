@@ -1,0 +1,15 @@
+{
+  "Id": 10060001,
+  "Name": "嬴政-普通攻击",
+  "CooldownMs": 800,
+  "Range": 8,
+  "IconId": 601,
+  "Category": 6,
+  "SkillType": 1,
+  "Tags": [],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10060001
+}

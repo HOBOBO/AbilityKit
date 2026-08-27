@@ -1,0 +1,17 @@
+{
+  "Id": 10040301,
+  "Name": "墨子-墨守成规",
+  "CooldownMs": 45000,
+  "Range": 6,
+  "IconId": 403,
+  "Category": 4,
+  "SkillType": 4,
+  "Tags": [
+    403
+  ],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10040301,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10040301
+}

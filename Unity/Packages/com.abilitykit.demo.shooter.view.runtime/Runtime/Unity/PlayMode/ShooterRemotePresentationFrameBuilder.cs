@@ -19,6 +19,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var presentation = session.Presentation;
             var lastPushResult = launch.GatewayConnection.LastPushResult;
 
+            // 姿态连续性探针：吃最终合成批，量化远端拉扯与己方回拉（无头排查用）。
+            ShooterRemotePoseContinuityProbe.Configure(controlledPlayerId);
+            ShooterRemotePoseContinuityProbe.Observe(presentation.RenderBatch);
+            ShooterRemotePoseContinuityProbe.TryDriveSustainedInput(session, controlledPlayerId);
+
             return new ShooterHostPresentationFrame(
                 presentation.RenderBatch,
                 ShooterSnapshotViewBatch.Empty,

@@ -34,7 +34,12 @@ namespace AbilityKit.Demo.Shooter.View
             long invalidFrameSampleCount,
             long receivedTransformSampleCount,
             int maxTransformSampleCountPerBlock,
-            long receivedAuthoritativeTransformCount)
+            long receivedAuthoritativeTransformCount,
+            long observedTransformSampleIntervalCount,
+            int transformSampleIntervalP50Frames,
+            int transformSampleIntervalP95Frames,
+            int transformSampleIntervalP99Frames,
+            int transformSampleIntervalMaxFrames)
         {
             RenderTickCount = renderTickCount;
             PublishedSnapshotCount = publishedSnapshotCount;
@@ -57,6 +62,11 @@ namespace AbilityKit.Demo.Shooter.View
             ReceivedTransformSampleCount = receivedTransformSampleCount;
             MaxTransformSampleCountPerBlock = maxTransformSampleCountPerBlock;
             ReceivedAuthoritativeTransformCount = receivedAuthoritativeTransformCount;
+            ObservedTransformSampleIntervalCount = observedTransformSampleIntervalCount;
+            TransformSampleIntervalP50Frames = transformSampleIntervalP50Frames;
+            TransformSampleIntervalP95Frames = transformSampleIntervalP95Frames;
+            TransformSampleIntervalP99Frames = transformSampleIntervalP99Frames;
+            TransformSampleIntervalMaxFrames = transformSampleIntervalMaxFrames;
         }
 
         public long RenderTickCount { get; }
@@ -80,6 +90,11 @@ namespace AbilityKit.Demo.Shooter.View
         public long ReceivedTransformSampleCount { get; }
         public int MaxTransformSampleCountPerBlock { get; }
         public long ReceivedAuthoritativeTransformCount { get; }
+        public long ObservedTransformSampleIntervalCount { get; }
+        public int TransformSampleIntervalP50Frames { get; }
+        public int TransformSampleIntervalP95Frames { get; }
+        public int TransformSampleIntervalP99Frames { get; }
+        public int TransformSampleIntervalMaxFrames { get; }
         public double AverageFrameSamplesPerBlock => ReceivedSampleBlockCount > 0L
             ? ReceivedFrameSampleCount / (double)ReceivedSampleBlockCount
             : 0d;
@@ -115,6 +130,7 @@ namespace AbilityKit.Demo.Shooter.View
         private const float SmallErrorTolerance = 0.05f;
         private const float MaxCorrectionPerClientFrame = 0.25f;
         private const float PureStateStableRecoverySeconds = 2f;
+        private const int TransformSampleIntervalHistogramFrames = 256;
 
         private readonly IShooterBattleRuntimePort _runtime;
         private readonly ShooterClientSyncCore _core;
@@ -137,6 +153,8 @@ namespace AbilityKit.Demo.Shooter.View
         private readonly CompositeReadOnlyList<ShooterViewProjectileLifetimeComponentChange> _compositeProjectileLifetime = new CompositeReadOnlyList<ShooterViewProjectileLifetimeComponentChange>();
         private readonly CompositeReadOnlyList<ShooterEventSnapshot> _compositeEvents = new CompositeReadOnlyList<ShooterEventSnapshot>();
         private readonly HashSet<ShooterViewEntityKey> _suppressedPureStateTransforms = new HashSet<ShooterViewEntityKey>();
+        private readonly Dictionary<ShooterViewEntityKey, int> _lastPureStateTransformSampleFrames = new Dictionary<ShooterViewEntityKey, int>();
+        private readonly long[] _pureStateTransformSampleIntervalHistogram = new long[TransformSampleIntervalHistogramFrames];
         private readonly ReusableFilteredTransformList _filteredPureStateTransforms = new ReusableFilteredTransformList();
         private readonly PureStateDiscreteBatchAccumulator _pureStateDiscreteA = new PureStateDiscreteBatchAccumulator();
         private readonly PureStateDiscreteBatchAccumulator _pureStateDiscreteB = new PureStateDiscreteBatchAccumulator();
@@ -168,8 +186,11 @@ namespace AbilityKit.Demo.Shooter.View
         private long _pureStateReceivedTransformSampleCount;
         private int _pureStateMaxTransformSampleCountPerBlock;
         private long _pureStateReceivedAuthoritativeTransformCount;
+        private long _pureStateObservedTransformSampleIntervalCount;
+        private int _pureStateTransformSampleIntervalMaxFrames;
         private int _lastPureStatePublishedFrame = -1;
         private ulong _pureStatePlaybackWorldId;
+        private ShooterSnapshotViewBatch _lastPureStatePredictedBatch = ShooterSnapshotViewBatch.Empty;
 
         public ShooterClientAuthoritativeInterpolationSyncController(
             IShooterBattleRuntimePort runtime,
@@ -352,6 +373,13 @@ namespace AbilityKit.Demo.Shooter.View
         public ShooterClientFrameTickResult Tick(float deltaTime)
         {
             var result = _core.Tick(deltaTime);
+            if (_usesPureStatePresentation && result.Ticks > 0)
+            {
+                // 每次本地预测发布（PublishControlledPlayerPredictionOnly）后抓取该批，
+                // 供纯状态合成使用；ViewModel 随后可能被权威应用批覆盖。
+                _lastPureStatePredictedBatch = _presentation.ViewModel.Current;
+            }
+
             RefreshPredictedPose(_lastPredictedCommand.PlayerId, result.Frame, EstimatedServerTicks);
             _playback.Advance(deltaTime);
             PublishInterpolatedRemoteFrame();
@@ -505,6 +533,7 @@ namespace AbilityKit.Demo.Shooter.View
             if (batch.IsFullSnapshot)
             {
                 _suppressedPureStateTransforms.Clear();
+                _lastPureStateTransformSampleFrames.Clear();
             }
 
             for (var i = 0; i < batch.EntityChanges.Count; i++)
@@ -518,7 +547,9 @@ namespace AbilityKit.Demo.Shooter.View
 
             for (var i = 0; i < batch.RemovedEntities.Count; i++)
             {
-                _suppressedPureStateTransforms.Add(batch.RemovedEntities[i]);
+                var removed = batch.RemovedEntities[i];
+                _suppressedPureStateTransforms.Add(removed);
+                _lastPureStateTransformSampleFrames.Remove(removed);
             }
 
             if (_pendingPureStateDiscrete == null)
@@ -591,6 +622,8 @@ namespace AbilityKit.Demo.Shooter.View
                     sampleTransforms.Add(transform);
                 }
 
+                ObservePureStateTransformSampleIntervals(frameSample.Frame, sampleTransforms);
+
                 var playbackBatch = new ShooterSnapshotViewBatch(
                     pureState.WorldId,
                     frameSample.Frame,
@@ -641,9 +674,9 @@ namespace AbilityKit.Demo.Shooter.View
 
             var velocityX = sample.QuantizedVelocityX / 1000f;
             var velocityY = sample.QuantizedVelocityY / 1000f;
-            var hints = (sample.Flags & ShooterPureStateEntityFlags.LowFrequency) != 0
-                ? SnapshotDeliveryHints.SparseUpdate
-                : SnapshotDeliveryHints.None;
+            // Historical block entries are sparse trajectory observations even when their
+            // current-frame LOD flags describe a near entity.
+            var hints = SnapshotDeliveryHints.SparseUpdate;
             transform = new ShooterViewTransformComponentChange(
                 new ShooterViewEntityKey(kind, sample.EntityId),
                 sample.QuantizedX / 1000f,
@@ -682,6 +715,8 @@ namespace AbilityKit.Demo.Shooter.View
                     transforms.Add(transform);
                 }
             }
+
+            ObservePureStateTransformSampleIntervals(batch.Frame, transforms);
 
             var playbackBatch = new ShooterSnapshotViewBatch(
                 batch.WorldId,
@@ -729,7 +764,10 @@ namespace AbilityKit.Demo.Shooter.View
                 return;
             }
 
-            var local = _presentation.ViewModel.Current;
+            // 本地侧只取"最近一次本地预测发布批"。ViewModel.Current 会被权威应用批
+            // （含远端实体原始变换、且不含被服务端剔除的己方角色）交替覆盖——直接引用
+            // 会让推送帧出现同一远端实体两个位置（拉扯）并丢失己方角色（闪烁）。
+            var local = _lastPureStatePredictedBatch;
             var pendingDiscrete = _pendingPureStateDiscrete;
             var remoteDiscrete = pendingDiscrete != null
                 ? pendingDiscrete.CreateBatch()
@@ -782,6 +820,7 @@ namespace AbilityKit.Demo.Shooter.View
             _filteredPureStateTransforms.Clear();
             _pendingPureStateDiscrete = null;
             _publishedPureStateDiscrete = null;
+            _lastPureStatePredictedBatch = ShooterSnapshotViewBatch.Empty;
         }
 
         private void ConfigurePureStatePlaybackDelay(in ShooterPureStateSyncSettings settings)
@@ -857,6 +896,10 @@ namespace AbilityKit.Demo.Shooter.View
             _pureStateReceivedTransformSampleCount = 0L;
             _pureStateMaxTransformSampleCountPerBlock = 0;
             _pureStateReceivedAuthoritativeTransformCount = 0L;
+            _pureStateObservedTransformSampleIntervalCount = 0L;
+            _pureStateTransformSampleIntervalMaxFrames = 0;
+            _lastPureStateTransformSampleFrames.Clear();
+            Array.Clear(_pureStateTransformSampleIntervalHistogram, 0, _pureStateTransformSampleIntervalHistogram.Length);
             _lastPureStatePublishedFrame = -1;
             _pureStatePlaybackWorldId = 0UL;
             _pureStatePlayback.TrySetTargetInterpolationDelayFrames(_pureStateBaseDelayFrames);
@@ -1525,7 +1568,61 @@ namespace AbilityKit.Demo.Shooter.View
                 _pureStateInvalidFrameSampleCount,
                 _pureStateReceivedTransformSampleCount,
                 _pureStateMaxTransformSampleCountPerBlock,
-                _pureStateReceivedAuthoritativeTransformCount);
+                _pureStateReceivedAuthoritativeTransformCount,
+                _pureStateObservedTransformSampleIntervalCount,
+                ResolveTransformSampleIntervalPercentile(0.50d),
+                ResolveTransformSampleIntervalPercentile(0.95d),
+                ResolveTransformSampleIntervalPercentile(0.99d),
+                _pureStateTransformSampleIntervalMaxFrames);
+        }
+
+        private void ObservePureStateTransformSampleIntervals(
+            int frame,
+            IReadOnlyList<ShooterViewTransformComponentChange> transforms)
+        {
+            for (var i = 0; i < transforms.Count; i++)
+            {
+                var key = transforms[i].Key;
+                if (_lastPureStateTransformSampleFrames.TryGetValue(key, out var previousFrame))
+                {
+                    var interval = frame - previousFrame;
+                    if (interval <= 0)
+                    {
+                        continue;
+                    }
+
+                    var bucket = Math.Min(interval, _pureStateTransformSampleIntervalHistogram.Length - 1);
+                    _pureStateTransformSampleIntervalHistogram[bucket]++;
+                    _pureStateObservedTransformSampleIntervalCount++;
+                    _pureStateTransformSampleIntervalMaxFrames = Math.Max(
+                        _pureStateTransformSampleIntervalMaxFrames,
+                        interval);
+                }
+
+                _lastPureStateTransformSampleFrames[key] = frame;
+            }
+        }
+
+        private int ResolveTransformSampleIntervalPercentile(double percentile)
+        {
+            if (_pureStateObservedTransformSampleIntervalCount <= 0L)
+            {
+                return 0;
+            }
+
+            var threshold = (long)Math.Ceiling(
+                _pureStateObservedTransformSampleIntervalCount * Math.Max(0d, Math.Min(1d, percentile)));
+            var cumulative = 0L;
+            for (var frame = 0; frame < _pureStateTransformSampleIntervalHistogram.Length; frame++)
+            {
+                cumulative += _pureStateTransformSampleIntervalHistogram[frame];
+                if (cumulative >= threshold)
+                {
+                    return frame;
+                }
+            }
+
+            return _pureStateTransformSampleIntervalMaxFrames;
         }
 
         private sealed class PureStateDiscreteBatchAccumulator

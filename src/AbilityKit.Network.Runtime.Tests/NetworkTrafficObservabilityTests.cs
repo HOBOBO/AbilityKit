@@ -95,6 +95,7 @@ public sealed class NetworkTrafficObservabilityTests
     {
         var transports = new List<ControllableTransport>();
         var contexts = new List<NetworkTrafficConnectionContext>();
+        var filterContexts = new List<NetworkTrafficConnectionContext>();
         var options = new ConnectionOptions
         {
             ReconnectInitialDelay = TimeSpan.Zero,
@@ -108,6 +109,11 @@ public sealed class NetworkTrafficObservabilityTests
                 {
                     contexts.Add(context);
                     return new DelegateObserver(_ => { });
+                },
+                FilterFactory = context =>
+                {
+                    filterContexts.Add(context);
+                    return static (_, _) => true;
                 }
             }
         };
@@ -126,6 +132,7 @@ public sealed class NetworkTrafficObservabilityTests
 
         Assert.Equal(2, contexts.Count);
         Assert.Equal(new[] { 1, 2 }, contexts.Select(item => item.Generation));
+        Assert.Equal(new[] { 1, 2 }, filterContexts.Select(item => item.Generation));
         Assert.All(contexts, item => Assert.Equal("battle-primary", item.ConnectionId));
         Assert.All(contexts, item => Assert.Equal("gateway.example:7200", item.Endpoint));
     }

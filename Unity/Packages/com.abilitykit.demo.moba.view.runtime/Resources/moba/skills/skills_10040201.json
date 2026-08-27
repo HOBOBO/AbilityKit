@@ -1,0 +1,17 @@
+{
+  "Id": 10040201,
+  "Name": "墨子-机关重炮",
+  "CooldownMs": 7000,
+  "Range": 12,
+  "IconId": 402,
+  "Category": 4,
+  "SkillType": 2,
+  "Tags": [
+    402
+  ],
+  "SkillButtonTemplateId": 2,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10040201,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10040201
+}

@@ -13,15 +13,39 @@ MonoBehaviour:
   m_Name: CharacterCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 10001
-    Name: "\u6D4B\u8BD51"
-    ModelId: 10001
-    AttributeTemplateId: 10001
-    SkillIds: 11270000
-    PassiveSkillIds: 214e0000
-  - Id: 10002
-    Name: "\u6D4B\u8BD52"
-    ModelId: 10002
-    AttributeTemplateId: 10001
-    SkillIds: 11270000
-    PassiveSkillIds: 224e0000234e0000
+  - Id: 1001
+    Name: "\u5EC9\u9887"
+    ModelId: 1001
+    AttributeTemplateId: 1001
+    SkillIds: f5bd980059be9800bdbe9800
+    PassiveSkillIds: 90bd9800
+  - Id: 1002
+    Name: "\u5C0F\u4E54"
+    ModelId: 1002
+    AttributeTemplateId: 1002
+    SkillIds: 05e5980069e59800cde59800
+    PassiveSkillIds: a0e49800
+  - Id: 1003
+    Name: "\u8D75\u4E91"
+    ModelId: 1003
+    AttributeTemplateId: 1003
+    SkillIds: 150c9900790c9900dd0c9900
+    PassiveSkillIds: b00b9900
+  - Id: 1004
+    Name: "\u58A8\u5B50"
+    ModelId: 1004
+    AttributeTemplateId: 1004
+    SkillIds: 2533990089339900ed339900
+    PassiveSkillIds: c0329900
+  - Id: 1005
+    Name: "\u59B2\u5DF1"
+    ModelId: 1005
+    AttributeTemplateId: 1005
+    SkillIds: 355a9900995a9900fd5a9900
+    PassiveSkillIds: d0599900
+  - Id: 1006
+    Name: "\u5B34\u653F"
+    ModelId: 1006
+    AttributeTemplateId: 1006
+    SkillIds: 45819900a98199000d829900
+    PassiveSkillIds: e0809900

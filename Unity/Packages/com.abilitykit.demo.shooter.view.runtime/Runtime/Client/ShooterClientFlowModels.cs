@@ -26,9 +26,9 @@ namespace AbilityKit.Demo.Shooter.View
     public readonly struct ShooterRoomLaunchSpec
     {
         public const int DefaultOfflineTimeoutSeconds = 30 * 60;
-        public const string DefaultSyncTemplateId = ShooterSyncTemplateIds.MassBattleLodAoi;
+        public const string DefaultSyncTemplateId = ShooterSyncTemplateIds.MassBattleLodAoiSampleBlock;
         public const int DefaultSyncModel = (int)NetworkSyncModel.MassBattleLodSync;
-        public const string DefaultNetworkEnvironmentId = "limitedbw";
+        public const string DefaultNetworkEnvironmentId = "ideal";
         public const string DefaultCarrierName = ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName;
 
         public readonly string Region;

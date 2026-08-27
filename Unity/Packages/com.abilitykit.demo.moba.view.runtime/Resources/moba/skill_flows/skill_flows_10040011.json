@@ -1,0 +1,29 @@
+{
+  "Id": 10040011,
+  "Name": "墨子-普通攻击",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "PhaseId": null,
+      "Checks": null,
+      "Timeline": {
+        "DurationMs": 250,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10040011,
+            "ExecuteMode": 0,
+            "EventTag": "mz_basic_projectile"
+          }
+        ]
+      },
+      "Handlers": null,
+      "RulePlan": null,
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    }
+  ]
+}

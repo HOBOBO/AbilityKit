@@ -1,0 +1,170 @@
+{
+  "Id": 10010301,
+  "Name": "廉颇-天崩地裂",
+  "PipelineContinuousTagTemplateId": 10010001,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": null,
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 4,
+      "PhaseId": null,
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 10,
+      "PhaseId": "lp_skill_3_stages",
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": null,
+      "Children": [
+        {
+          "Type": 2,
+          "PhaseId": "lp_skill_3_stage_1",
+          "Checks": null,
+          "Timeline": {
+            "DurationMs": 650,
+            "Events": [
+              {
+                "AtMs": 0,
+                "EffectId": 10010000,
+                "ExecuteMode": 0,
+                "EventTag": "lp_passive_armor_start"
+              },
+              {
+                "AtMs": 0,
+                "EffectId": 10010301,
+                "ExecuteMode": 0,
+                "EventTag": "lp_skill_3_start"
+              }
+            ]
+          },
+          "Handlers": null,
+          "RulePlan": null,
+          "Children": null,
+          "Repeat": null,
+          "Delay": null,
+          "WaitUntil": null
+        },
+        {
+          "Type": 14,
+          "PhaseId": "lp_skill_3_wait_after_stage_1",
+          "Checks": null,
+          "Timeline": null,
+          "Handlers": null,
+          "RulePlan": null,
+          "Children": null,
+          "Repeat": null,
+          "Delay": null,
+          "WaitUntil": {
+            "Condition": "ObservedSlotsIdle",
+            "TimeoutMs": 0,
+            "CompleteOnTimeout": true,
+            "ObservedSlots": [
+              1,
+              2
+            ],
+            "Arguments": null
+          }
+        },
+        {
+          "Type": 2,
+          "PhaseId": "lp_skill_3_stage_2",
+          "Checks": null,
+          "Timeline": {
+            "DurationMs": 650,
+            "Events": [
+              {
+                "AtMs": 0,
+                "EffectId": 10010311,
+                "ExecuteMode": 0,
+                "EventTag": "lp_skill_3_second"
+              }
+            ]
+          },
+          "Handlers": null,
+          "RulePlan": null,
+          "Children": null,
+          "Repeat": null,
+          "Delay": null,
+          "WaitUntil": null
+        },
+        {
+          "Type": 14,
+          "PhaseId": "lp_skill_3_wait_after_stage_2",
+          "Checks": null,
+          "Timeline": null,
+          "Handlers": null,
+          "RulePlan": null,
+          "Children": null,
+          "Repeat": null,
+          "Delay": null,
+          "WaitUntil": {
+            "Condition": "ObservedSlotsIdle",
+            "TimeoutMs": 0,
+            "CompleteOnTimeout": true,
+            "ObservedSlots": [
+              1,
+              2
+            ],
+            "Arguments": null
+          }
+        },
+        {
+          "Type": 2,
+          "PhaseId": "lp_skill_3_stage_3",
+          "Checks": null,
+          "Timeline": {
+            "DurationMs": 300,
+            "Events": [
+              {
+                "AtMs": 0,
+                "EffectId": 10010321,
+                "ExecuteMode": 0,
+                "EventTag": "lp_skill_3_third"
+              }
+            ]
+          },
+          "Handlers": null,
+          "RulePlan": null,
+          "Children": null,
+          "Repeat": null,
+          "Delay": null,
+          "WaitUntil": null
+        }
+      ],
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    }
+  ]
+}

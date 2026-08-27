@@ -119,6 +119,241 @@ public sealed class ProtocolCatalogTests
         Assert.Equal("first", decoded.Value);
     }
 
+    [Fact]
+    public void BuiltInCatalogs_ValidateCleanly()
+    {
+        var result = ProtocolCatalogValidator.Validate(BuiltInProtocolCatalogs.All);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void Validator_RejectsCrossCatalogOpCodeConflictWithinSameProject()
+    {
+        var battle = Catalog("project-a.battle", "project-a", Message("login.event", 100));
+        var room = Catalog("project-a.room", "project-a", Message("login.event", 100));
+
+        var result = ProtocolCatalogValidator.Validate(new[] { battle, room });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP030");
+    }
+
+    [Fact]
+    public void Validator_RejectsUnknownDefaultAndMessageCodec()
+    {
+        var message = new ProtocolMessageDefinition(
+            "login.event",
+            100,
+            ProtocolDirection.ClientToServer,
+            ProtocolPacketKind.Event,
+            "Payload",
+            "json");
+        var catalog = new ProtocolCatalogDefinition("project-a.room", "project-a", "room", 1, "json", new[] { message });
+
+        var result = ProtocolCatalogValidator.Validate(catalog);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP031");
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP032");
+    }
+
+    [Fact]
+    public void Validator_AcceptsCodecRegisteredInOptions()
+    {
+        var options = new ProtocolCatalogValidationOptions(new[] { "avro" });
+        var message = new ProtocolMessageDefinition(
+            "login.event",
+            100,
+            ProtocolDirection.ClientToServer,
+            ProtocolPacketKind.Event,
+            "Payload",
+            "avro");
+        var catalog = new ProtocolCatalogDefinition("project-a.room", "project-a", "room", 1, "avro", new[] { message });
+
+        var result = ProtocolCatalogValidator.Validate(catalog, options);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void Validator_RejectsResponseIdOnNonRequest()
+    {
+        var push = new ProtocolMessageDefinition(
+            "state.push",
+            100,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Push,
+            "Payload",
+            "protobuf",
+            responseId: "someone.response");
+
+        var result = ProtocolCatalogValidator.Validate(Catalog("project-a.room", "project-a", push));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP025");
+    }
+
+    [Fact]
+    public void Validator_RejectsOrphanResponse()
+    {
+        var response = new ProtocolMessageDefinition(
+            "login.response",
+            100,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Response,
+            "Payload",
+            "protobuf");
+
+        var result = ProtocolCatalogValidator.Validate(Catalog("project-a.room", "project-a", response));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP026");
+    }
+
+    [Fact]
+    public void Validator_RejectsResponseSharedByMultipleRequests()
+    {
+        var response = new ProtocolMessageDefinition(
+            "login.response",
+            200,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Response,
+            "Payload",
+            "protobuf");
+        var catalog = Catalog(
+            "project-a.room",
+            "project-a",
+            Request("login-a.request", 100, "login.response"),
+            Request("login-b.request", 101, "login.response"),
+            response);
+
+        var result = ProtocolCatalogValidator.Validate(catalog);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP026");
+    }
+
+    [Fact]
+    public void Validator_RejectsNonOverlappingResponseSchemaVersions()
+    {
+        var request = new ProtocolMessageDefinition(
+            "login.request",
+            100,
+            ProtocolDirection.ClientToServer,
+            ProtocolPacketKind.Request,
+            "Payload",
+            "protobuf",
+            responseId: "login.response",
+            minimumSchemaVersion: 1,
+            maximumSchemaVersion: 1);
+        var response = new ProtocolMessageDefinition(
+            "login.response",
+            100,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Response,
+            "Payload",
+            "protobuf",
+            minimumSchemaVersion: 2,
+            maximumSchemaVersion: 3);
+
+        var result = ProtocolCatalogValidator.Validate(Catalog("project-a.room", "project-a", request, response));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP027");
+    }
+
+    [Fact]
+    public void MetadataRegistry_CatalogBackedViewProjectsCanonicalDefinitions()
+    {
+        var message = new ProtocolMessageDefinition(
+            "state.push",
+            101,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Push,
+            "Project.StatePush",
+            "protobuf",
+            ProtocolReliability.Realtime,
+            minimumSchemaVersion: 2,
+            maximumSchemaVersion: 4,
+            maximumPayloadBytes: 4096,
+            captureSampleRate: 0.25d,
+            sensitiveFields: new[] { "token" });
+        var catalogs = new ProtocolCatalogRegistry();
+        catalogs.Register(Catalog("project-a.room", "project-a", message));
+        var metadata = ProtocolStaticRegistry.Create(
+            catalogs,
+            new Dictionary<string, string>
+            {
+                ["project-a.room/state.push"] = "room.protocol.yaml"
+            });
+
+        Assert.True(metadata.IsCatalogBacked);
+        Assert.True(metadata.TryGet("project-a.room", "state.push", out var projected));
+        Assert.Equal("Project.StatePush", projected!.PayloadType);
+        Assert.Equal(ProtocolReliability.Realtime, projected.Reliability);
+        Assert.Equal(2, projected.MinimumSchemaVersion);
+        Assert.Equal(4, projected.MaximumSchemaVersion);
+        Assert.Equal(4096, projected.MaximumPayloadBytes);
+        Assert.Equal(0.25d, projected.CaptureSampleRate);
+        Assert.Equal(new[] { "token" }, projected.SensitiveFields);
+        Assert.Equal("room.protocol.yaml", projected.Source);
+        Assert.Single(metadata.FindByOpCode(101));
+        Assert.Single(metadata.All);
+    }
+
+    [Fact]
+    public void MetadataRegistry_CatalogBackedViewTracksLaterCatalogRegistrationsAndIsReadOnly()
+    {
+        var catalogs = new ProtocolCatalogRegistry();
+        var metadata = ProtocolStaticRegistry.Create(catalogs);
+
+        catalogs.Register(Catalog("project-a.room", "project-a", Message("state.event", 102)));
+
+        Assert.True(metadata.TryGet("project-a.room", "state.event", out _));
+        Assert.Throws<InvalidOperationException>(() => metadata.Register(
+            new ProtocolMessageMetadata(
+                "project-a.room",
+                "other.event",
+                103,
+                ProtocolDirection.ClientToServer,
+                ProtocolPacketKind.Event,
+                "Payload",
+                "protobuf",
+                ProtocolReliability.Reliable,
+                null,
+                string.Empty)));
+    }
+
+    [Fact]
+    public void Validator_RejectsMalformedPayloadType()
+    {
+        var message = new ProtocolMessageDefinition(
+            "login.event",
+            100,
+            ProtocolDirection.ClientToServer,
+            ProtocolPacketKind.Event,
+            "Payload Type",
+            "protobuf");
+
+        var result = ProtocolCatalogValidator.Validate(Catalog("project-a.room", "project-a", message));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP033");
+    }
+
+    private static ProtocolMessageDefinition Request(string id, uint opCode, string responseId) =>
+        new(
+            id,
+            opCode,
+            ProtocolDirection.ClientToServer,
+            ProtocolPacketKind.Request,
+            "Payload",
+            "protobuf",
+            responseId: responseId);
+
     private static ProtocolCatalogDefinition Catalog(
         string catalogId,
         string projectId,

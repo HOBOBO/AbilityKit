@@ -25,7 +25,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int CooldownReduceR;
         public int PhysicsPenetrationR;
         public int MagicPenetrationR;
-        public int MoveSpeed;
+        public float MoveSpeed;
         public int PhysicsBloodsuckingR;
         public int MagicBloodsuckingR;
         public int AttackRange;

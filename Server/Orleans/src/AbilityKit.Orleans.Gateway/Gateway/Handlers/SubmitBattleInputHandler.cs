@@ -116,7 +116,9 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
                 Message = submit.Message,
                 CurrentFrame = submit.CurrentFrame,
                 Status = submit.Status,
-                ShouldResync = !submit.Accepted,
+                // 限速/重复/容量是瞬时限流，不是状态分歧：丢弃该输入即可，
+                // 不应触发客户端全量重同步（会封锁本地预测输入，表现为"无法控制"）。
+                ShouldResync = !submit.Accepted && IsStateDivergenceStatus(submit.Status),
                 ServerTicks = DateTime.UtcNow.Ticks
             };
             var responsePayload = WireRoomGatewayBinary.Serialize(in wire);
@@ -126,6 +128,21 @@ public sealed partial class SubmitBattleInputHandler : GatewayRequestHandlerBase
         {
             return GatewayResponse.Error(request.Seq, GatewayStatusCode.InternalError);
         }
+    }
+
+    /// <summary>
+    /// 只有反映真实状态分歧的拒绝（世界/玩家不匹配、载荷损坏、输入缓冲拒绝）才要求
+    /// 客户端全量重同步；瞬时限流（限速/重复/序列过旧）与未初始化只丢弃该输入。
+    /// 误把限流当作分歧会驱动客户端进入恢复态并封锁本地预测输入（表现为"无法控制"）。
+    /// </summary>
+    private static bool IsStateDivergenceStatus(string? status)
+    {
+        return status == BattleResultStatusCodes.RejectedWorldMismatch ||
+            status == BattleResultStatusCodes.RejectedInvalidPayload ||
+            status == BattleResultStatusCodes.RejectedInvalidOpCode ||
+            status == BattleResultStatusCodes.RejectedInvalidPlayer ||
+            status == BattleResultStatusCodes.RejectedNullPlayer ||
+            status == BattleResultStatusCodes.RejectedByInputBuffer;
     }
 
     private static GatewayResponse CreateInputResponse(

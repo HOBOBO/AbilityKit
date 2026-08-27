@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 1
+projectId: abilitykit.shooter
+namespace: AbilityKit.Protocol.Shooter
+type: ShooterPlayerCommand
+memoryPackMode: sequential
+declaration: struct
+memberStyle: field
+fields:
+  - id: 0
+    name: playerId
+    scalarType: int32
+    required: true
+  - id: 1
+    name: moveX
+    scalarType: float
+    required: true
+  - id: 2
+    name: moveY
+    scalarType: float
+    required: true
+  - id: 3
+    name: aimX
+    scalarType: float
+    required: true
+  - id: 4
+    name: aimY
+    scalarType: float
+    required: true
+  - id: 5
+    name: fire
+    scalarType: bool
+    required: true
+  - id: 6
+    name: attackSlot
+    scalarType: int32
+    required: true

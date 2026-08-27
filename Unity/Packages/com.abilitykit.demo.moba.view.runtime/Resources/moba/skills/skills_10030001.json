@@ -1,0 +1,15 @@
+{
+  "Id": 10030001,
+  "Name": "赵云-普通攻击",
+  "CooldownMs": 800,
+  "Range": 3,
+  "IconId": 301,
+  "Category": 3,
+  "SkillType": 1,
+  "Tags": [],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10030001
+}

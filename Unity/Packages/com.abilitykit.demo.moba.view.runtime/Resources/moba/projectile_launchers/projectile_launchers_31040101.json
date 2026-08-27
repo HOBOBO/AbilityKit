@@ -1,0 +1,9 @@
+{
+  "Id": 31040101,
+  "Name": "墨子-和平漫步-直线突进发射器",
+  "EmitterType": 1,
+  "DurationMs": 0,
+  "IntervalMs": 0,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

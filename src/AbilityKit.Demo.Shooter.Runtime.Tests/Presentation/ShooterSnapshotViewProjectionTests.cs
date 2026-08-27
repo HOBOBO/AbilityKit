@@ -1366,6 +1366,54 @@ public sealed class ShooterSnapshotViewProjectionTests
     }
 
     [Fact]
+    public void SnapshotStreamExtrapolatesSparseVelocityWithBoundedHorizon()
+    {
+        var stream = new ShooterSnapshotStream(bufferCapacity: 4)
+        {
+            PlaybackFramesPerSecond = 30f,
+            MaxTransformExtrapolationFrames = 6f
+        };
+        var target = new ShooterViewEntityKey(ShooterViewEntityKind.Enemy, 2001);
+        var moving = new ShooterViewTransformComponentChange(
+            target,
+            10f,
+            0f,
+            1f,
+            0f,
+            30f,
+            0f,
+            SnapshotDeliveryHints.SparseUpdate);
+        var update = new ShooterSnapshotViewBatch(
+            worldId: 77ul,
+            frame: 10,
+            sequence: 1ul,
+            ShooterViewSnapshotKind.Delta,
+            ShooterViewBatchSource.AuthoritativeCorrection,
+            Array.Empty<ShooterViewEntityChange>(),
+            Array.Empty<ShooterViewEntityKey>(),
+            new[] { moving },
+            Array.Empty<ShooterViewHealthComponentChange>(),
+            Array.Empty<ShooterViewScoreComponentChange>(),
+            Array.Empty<ShooterViewProjectileLifetimeComponentChange>(),
+            Array.Empty<ShooterEventSnapshot>());
+        var later = CreateSparseTransformBatch(
+            frame: 30,
+            sequence: 2ul,
+            ShooterViewSnapshotKind.Delta,
+            target,
+            x: null,
+            deliveryHints: SnapshotDeliveryHints.None);
+
+        stream.Publish(in update);
+        stream.Publish(in later);
+
+        Assert.True(stream.TrySample(13f, out var projected));
+        Assert.True(stream.TrySample(30f, out var clamped));
+        Assert.Equal(13f, projected.TransformChanges[0].X, 3);
+        Assert.Equal(16f, clamped.TransformChanges[0].X, 3);
+    }
+
+    [Fact]
     public void SnapshotStreamStopsHoldingLowFrequencyTransformAfterDespawn()
     {
         var stream = new ShooterSnapshotStream(bufferCapacity: 4);

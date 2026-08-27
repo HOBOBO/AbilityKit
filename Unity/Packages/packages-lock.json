@@ -240,6 +240,7 @@
       "dependencies": {
         "com.abilitykit.core": "0.1.0",
         "com.abilitykit.network.runtime": "0.1.0",
+        "com.abilitykit.network.sdk": "0.1.0",
         "com.abilitykit.protocol.room": "0.1.0"
       }
     },

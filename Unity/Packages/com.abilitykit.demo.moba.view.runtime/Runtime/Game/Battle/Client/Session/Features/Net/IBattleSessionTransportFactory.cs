@@ -54,6 +54,7 @@ namespace AbilityKit.Game.Flow
                 options.CatalogId = "abilitykit.moba.battle";
                 options.TransportName = "tcp";
                 options.MaximumPayloadPreviewBytes = 65536;
+                options.FilterFactory = NetworkTrafficMonitor.Default.CreateSamplingFilter;
             };
 #endif
 

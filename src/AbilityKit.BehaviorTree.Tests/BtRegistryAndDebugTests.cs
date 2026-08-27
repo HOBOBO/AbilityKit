@@ -22,7 +22,8 @@ namespace AbilityKit.BehaviorTree.Tests
             Assert.True(registry.Contains(BtBuiltInNodeTypes.BlackboardCompare));
             Assert.True(registry.Contains(BtBuiltInNodeTypes.Wait));
             Assert.True(registry.Contains(BtBuiltInNodeTypes.SetBlackboard));
-            Assert.Equal(23, registry.Descriptors.Count());
+            Assert.True(registry.Contains(BtBuiltInNodeTypes.Subtree));
+            Assert.Equal(24, registry.Descriptors.Count());
         }
 
         [Fact]

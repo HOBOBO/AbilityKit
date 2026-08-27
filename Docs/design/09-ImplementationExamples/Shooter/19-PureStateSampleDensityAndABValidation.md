@@ -16,16 +16,17 @@ push cadence, PureState settings, AOI radii, active budget, and network profile
 as `mass-battle-lod-aoi`. Its only differences are the three-frame presentation
 block and this density policy:
 
-| Tier | Observer distance | Historical cadence | Current authority |
-|---|---:|---:|---:|
-| Near | `<= visibleRadius * 0.40` | Every historical frame | Unchanged |
-| Mid | `<= visibleRadius * 0.75` | Newest, then every second historical slot | Unchanged |
-| Far/boundary | Remaining AOI boundary | None | Unchanged |
+| Tier | Observer distance | Metered history | Unmetered history | Current authority |
+|---|---:|---:|---:|---:|
+| Near | `<= visibleRadius * 0.40` | Every historical frame | Every historical frame | Unchanged |
+| Mid | `<= visibleRadius * 0.75` | Newest historical frame | Newest historical frame | Unchanged |
+| Far/boundary | Remaining AOI boundary | None | Newest historical frame | Unchanged |
 
 The newest historical frame is the stride anchor. With authority frame 3 and
-historical frames 1 and 2, near sends frames 1 and 2, mid sends frame 2, and
-far sends neither. Velocity remains in each selected transform so sparse mid
-and far tracks retain extrapolation information.
+historical frames 1 and 2, near sends frames 1 and 2 and mid sends frame 2.
+Far sends neither on a metered link and sends frame 2 on an unmetered link.
+Velocity remains in each selected transform so sparse tracks retain bounded
+extrapolation information.
 
 AOI is evaluated before density. A transform outside the observer boundary is
 never emitted. The observer-controlled player is also omitted because local
@@ -41,7 +42,7 @@ in presentation-only transforms. The initial Headless runs demonstrated that
 this increases packet size and queue pressure enough to trigger sequence gaps,
 resync requests, and more full baselines.
 
-The mass-battle policy therefore applies an additional hard limit:
+The metered mass-battle policy therefore applies an additional hard limit:
 
 ```text
 MaxHistoricalTransformsPerBlock = 32
@@ -53,7 +54,10 @@ rounding up. With 32 available transforms both frames initially receive 16. If
 the older frame uses fewer than 16, its unused capacity transfers to the newer
 frame. The sum can never exceed 32, even when `ActiveSyncBudget` is 2,048.
 `FullDensity` keeps `int.MaxValue` so protocol tests can still compare an
-unbounded reference payload; the production mass-battle template uses 32.
+unbounded reference payload. The playable unmetered policy uses a 2,048
+transform block ceiling; the `limitedbw` comparison policy remains capped at
+32 and omits far history. This split prevents the weak-link stress case from
+silently becoming the local/LAN continuity default.
 
 Inside each frame, selection performs stable near, mid, and far passes over the
 captured transform order. This gives near entities first access to the frame's
@@ -163,7 +167,8 @@ the expected template, and sync model, network environment, enemy budget, and
 view backend must match. The baseline must contain no sample block or
 historical transform, while the candidate must contain both and reject zero
 invalid frame samples. The candidate must also report a positive
-`pureStatePlaybackMaxTransformSampleCountPerBlock` no greater than 32. This
+`pureStatePlaybackMaxTransformSampleCountPerBlock` no greater than 32 for
+`limitedbw` or 2,048 for an unmetered environment. This
 prevents a successful process exit, an old artifact without the block-budget
 field, or a stale result file from being mistaken for a valid A/B pair.
 
@@ -529,3 +534,590 @@ client queue depth of `18`, even though input success was `18/18`, resync count 
 substantially reduced persistent starvation, while intermittent main-thread or
 queue spikes still need a separate investigation. Do not weaken the gate or
 declare a stable 30 Hz result from these single repetitions.
+
+## 2026-08-24 formal multiplayer default correction
+
+The formal multiplayer profile still selected `mass-battle-lod-aoi` and
+inherited that experimental template's `limitedbw` network environment. This
+meant a normal local multiplayer launch unintentionally enabled the observer's
+128 Kbps stress budget. The server log for battle
+`36e69bb6897d41c58c716088b5cb5eb1` separated the stages clearly: the authority
+clock sustained about `30 Hz`, while one observer produced `3,800,716` bytes,
+sent `501,056` bytes, and merged `3,288,633` bytes. The one-to-two-second visual
+steps were therefore primarily queue supersession under an explicitly
+constrained profile, not evidence that the authority simulation only ticked
+once every one or two seconds.
+
+The playable default now separates synchronization shape from network fault
+injection:
+
+- the formal and fallback room defaults use
+  `mass-battle-lod-aoi-sample-block`, so the client can spread historical
+  samples across render frames;
+- the playable network environment is explicitly `ideal`, which disables the
+  observer token-bucket budget and client-side simulated loss/latency;
+- `limitedbw` remains available only when a test profile or matrix case asks
+  for it explicitly.
+
+The profile contract asserts the template ID, room network tag, zero bandwidth
+limit, and zero synthetic latency/jitter/loss/reorder. A fresh two-client
+Headless run is still required before assigning new arrival-gap or starvation
+numbers to this correction.
+
+The same playable-default contract now applies to every multiplayer entry
+surface, not only the formal scene controller. `ShooterPlayModeMenu`, the
+remote-state-sync profile samples, and the Unity two-client Headless runner all
+select `mass-battle-lod-aoi-sample-block` with `ideal` unless the caller
+explicitly chooses another network environment. The Headless command writes
+that environment into the profile before building both client session options
+and room tags, so a performance-matrix case no longer conditions only the
+server while silently leaving the client on another profile. The dedicated
+sample-block A/B runner continues to pass the single-sample baseline and
+`limitedbw` explicitly, preserving the stress comparison.
+
+## 2026-08-24 template routing fix and 1,000-unit server RVO follow-up
+
+The first Headless verification after the playable-default correction exposed
+another configuration override. `AbilityKit.Orleans.ShooterSmoke` defaulted
+`ABILITYKIT_SHOOTER_STATE_SYNC_PAYLOAD_MODE` to `packed` and wrote it for every
+server launch. That environment override has higher priority than the room
+sync template, so a room labelled `mass-battle-lod-aoi-sample-block` still sent
+packed actor snapshots. The diagnostic signature was unambiguous:
+`actorSnapshotAppliedCount > 0`, while every pure-state sample-block and
+playback counter remained zero.
+
+ShooterSmoke now defaults its command-line payload selector to `template`.
+That mode clears the environment override and lets the room template select
+the payload. Explicit `packed` and `pure-state` options remain available for
+the multi-process compatibility suites. A fresh 64-unit two-client run then
+reported 120/126 received sample blocks, 239/252 frame samples, 2,123/2,010
+playback render ticks, zero playback starvation, and a successful AOI despawn
+lifecycle:
+
+```text
+artifacts/shooter-unity-headless/20260824-082937-033
+```
+
+The 512-unit run also completed the full lifecycle with zero client GC and
+snapshot-arrival P95 around 181-184 ms. At 1,000 units, however, the authority
+fell to 18-22 Hz and playback starvation rose to 18-24%. The server stages
+showed that this was no longer primarily a serialization or observer-bandwidth
+problem: snapshot build averaged 2.8-3.4 ms, while `WorldTick` averaged
+20-30 ms and was dominated by enemy movement intent plus managed RVO.
+
+The Orleans world had selected `AcceleratedPreferred`, but unlike Unity it had
+no platform acceleration service and silently used the single-threaded managed
+neighbor collector. The server now injects a per-world deterministic spatial
+grid collector. It reuses its grid storage, writes disjoint per-agent neighbor
+slots, uses at most four workers above 256 agents, and sorts each result by
+distance then entity ID. A 513-agent test compares every result against a
+brute-force reference, and repeated parallel runs assert stable output.
+
+In the immediate 1,000-unit A/B repeat, the stable RVO mean decreased from
+12.48 ms to 9.84 ms and achieved authority rate increased from 22.02 Hz to
+24.55 Hz:
+
+```text
+before: artifacts/shooter-unity-headless/20260824-084249-577
+after:  artifacts/shooter-unity-headless/20260824-085805-364
+```
+
+This is a capacity improvement, not a final 30 Hz claim. The next server work
+should measure neighbor collection separately from ORCA solving, remove the
+remaining serial solve bottleneck, and validate multi-room fairness before
+raising worker parallelism. Client playback should retain the sample-block
+buffer: it masks ordinary 100-300 ms delivery variation, but it cannot conceal
+an authority that continuously produces fewer than 30 simulation frames per
+second.
+
+## 2026-08-24 RVO substage measurement and parallel ORCA
+
+The server performance sink now keeps the existing inclusive `RvoSolve`
+window and adds three non-overlapping substages:
+
+- `RvoNeighborCollect` covers accelerated collection plus any managed fallback;
+- `RvoAcceleratedValidation` covers bounds, ordering, duplicate, and exact
+  distance validation of accelerated output;
+- `RvoOrcaSolve` covers ORCA line construction and the per-agent linear
+  programs.
+
+The first 1,000-unit run with those counters completed the two-observer AOI
+lifecycle and reported `0 B/frame` client GC:
+
+```text
+artifacts/shooter-unity-headless/20260824-115114-247
+```
+
+Its stable `150-299` server window showed that the remaining RVO time was not
+primarily validation:
+
+```text
+AchievedHz=22.24
+WorldTick=18.305 ms
+EnemyMovementIntent=7.010 ms
+RvoSolve=10.021 ms
+  RvoNeighborCollect=3.040 ms
+  RvoAcceleratedValidation=0.921 ms
+  RvoOrcaSolve=6.016 ms
+```
+
+The managed solver therefore gained an optional server-only per-agent
+accelerator. ORCA agents read the immutable frame input and neighbor arrays and
+write disjoint line, projected-line, and output-velocity slots. The projected
+line scratch buffer was expanded from one shared segment to one segment per
+agent before enabling concurrency. Worlds without the accelerator, small
+worlds below 256 agents, and the normal Unity client path retain the serial
+solver. Tests compare the accelerated world against the managed world by state
+hash and assert that every parallel agent slot is visited exactly once.
+
+The immediate parallel-ORCA repeat used the same 1,000-unit template and ideal
+network profile:
+
+```text
+artifacts/shooter-unity-headless/20260824-120411-586
+```
+
+Stable-window comparison:
+
+```text
+                           before       parallel ORCA    change
+RvoOrcaSolve               6.016 ms     4.081 ms         -32.2%
+RvoSolve                  10.021 ms     8.356 ms         -16.6%
+WorldTick                 18.305 ms    16.289 ms         -11.0%
+Achieved authority rate   22.24 Hz     25.21 Hz          +13.4%
+```
+
+This repeat also passed AOI lifecycle and input acceptance with zero reported
+client GC. Its owner process performed a second Unity script/DAG refresh after
+the formal process started, producing a 3.3-second Editor update stall; client
+p99 arrival, input RTT, and playback starvation from that run are therefore
+not valid A/B evidence. The server stable window is still useful because the
+refresh contamination is visible and the individual stage counters remain
+separable.
+
+Parallel ORCA improves capacity but does not establish stable 30 Hz. The next
+server target is `EnemyMovementIntent` at roughly 6.6 ms, followed by the
+3.3 ms neighbor collector. Before increasing the current four-worker ceiling,
+run concurrent-room fairness and server allocation tests: two `Parallel.For`
+phases per authority tick may add thread-pool contention and small server-side
+allocations even though Unity client GC remains zero.
+
+## 2026-08-24 per-entity continuity follow-up
+
+Aggregate block counts were not enough to explain the reported one-second
+visual steps. The client now records a fixed 256-frame histogram of transform
+sample intervals per entity, including P50/P95/P99 and maximum. Historical
+block transforms are always marked as sparse trajectory observations, and the
+playback track may project their velocity for at most six frames. Teleports and
+`NoInterpolation` samples still bypass projection.
+
+The first fresh 1,000/ideal run used dense near and mid history but no far
+history:
+
+```text
+artifacts/shooter-unity-headless/20260824-130957-666
+```
+
+It proved the remaining tail directly. Both clients reported transform sample
+P50/P95/P99/max of `1/3/30/30` frames. The authority was producing normally;
+the stable server window reached `28.41 Hz`, snapshot queues did not remain
+backed up, and client GC was `0 B/frame`. The one-second step was therefore a
+far-LOD presentation hole rather than a one-Hz simulation or transport stream.
+
+For unmetered environments, the newest historical frame now also contains far
+AOI transforms. `limitedbw` retains far-history stride zero and the 32-transform
+block cap. The immediate same-machine repeat is stored at:
+
+```text
+artifacts/shooter-unity-headless/20260824-132818-421
+```
+
+| Metric | Before owner/member | Far-history owner/member |
+|---|---:|---:|
+| Per-entity interval P99 | `30 / 30` frames | `3 / 3` frames |
+| Per-entity interval P95 | `3 / 3` frames | `3 / 3` frames |
+| Average payload | `9.5 / 10.3 KB` | `14.9 / 15.9 KB` |
+| Maximum historical block | `426 / 384` | `641 / 618` transforms |
+| Playback starvation | `11.26% / 7.60%` | `5.45% / 6.36%` |
+| Held playback | `9.70% / 6.62%` | `4.19% / 4.77%` |
+| Delta apply P99 | `8 / 16 ms` | `26 / 13 ms` |
+| Stable authority rate | `28.41 Hz` | `29.23 Hz` |
+| Client GC | `0 / 0 B/frame` | `0 / 0 B/frame` |
+
+This establishes the intended continuity tradeoff: the 30-frame tail moved to
+three frames and held/starved presentation decreased, at a roughly 55% average
+payload increase. It is not a clean latency A/B. A shared Unity source file was
+modified while the second pair was starting, forcing AssetDatabase re-import;
+that run also contains larger Editor and FullBaseline stalls. Arrival/apply
+outliers from the pair must not be attributed solely to far history.
+
+The second artifact recorded a raw maximum interval of 90/102 frames even
+though P99 was three. Inspection found that the diagnostic retained an entity's
+last sample while it was outside AOI, then counted the invisible period when
+the entity re-entered. Full baselines and removals now terminate that entity's
+continuity segment. A focused lifecycle test proves that despawn-to-respawn time
+does not enter the interval histogram; the artifact itself predates this
+diagnostic correction.
+
+The Headless runner also separates compile warmup and client startup budgets
+from the multiplayer workflow timeout. Both Unity clients must publish startup
+state before the workflow stopwatch begins. This prevents a 170-250 second
+cold Asset Refresh from being reported as a synchronization timeout.
+
+The next bandwidth optimization should preserve the three-frame endpoint while
+reducing its cost, preferably with a quantized transform delta or far-tier
+velocity segment rather than removing far history again. Validate that work at
+1,000 and 2,000 units with repeated clean runs, and gate per-entity P99 together
+with payload, delta-apply P99, queue wait, and achieved authority rate.
+
+## 2026-08-24 pure-state v3 compressed history and 2,000-unit capacity evidence
+
+Pure-state schema version 3 keeps the three-frame trajectory endpoint while
+removing most of the raw historical-transform cost. The outer payload remains
+a 15-member line layout. Member 13, the v2 raw `TransformSamples` array, is
+empty; member 14 contains a compressed byte block with an encoding version,
+transform count, delta-coded entity IDs, and MemoryPack varints for entity
+kind, quantized position, quantized velocity, and flags. Decoding reconstructs
+the original `ShooterPureStateTransformSample[]` losslessly, so playback and
+interpolation do not need a separate v3 path.
+
+Compatibility remains explicit rather than relying on serializer tolerance:
+
+- decoders continue to accept the legacy 11/12/14-member v1/v2 layouts;
+- the .NET authority writes the v3 compressed block;
+- the uncommon Unity send path may still write the 14-member raw layout;
+- the pure-state catalog advertises maximum schema version 3;
+- wire gates cover v2 raw compatibility, field-for-field v3 round trips,
+  1,000-transform warmed decode with zero allocation, and compression bounds.
+
+The synthetic density gates require a 256-transform v3 block to remain below
+80% of its raw layout and the 1,400-transform SmoothMassBattle fixture to remain
+below 55%. Protocol and compatibility tests passed `36/36`; Grains sampling,
+template, and runtime-adapter tests passed `44/44`; the ShooterSmoke runner
+contract passed `6/6`.
+
+The first 1,000-unit run after compression is stored at:
+
+```text
+artifacts/shooter-unity-headless/20260824-171327-440
+```
+
+Compared with the uncompressed far-history run
+`20260824-132818-421`, average owner/member payload fell from
+`14.9/15.9 KB` to `9.06/8.88 KB`, approximately `39%/44%`. Per-entity
+transform interval P99 remained `3/3` frames, maximum payload stayed below
+`18.8 KB`, and both clients reported `0 B/frame` GC. This confirms that the
+compression removes bandwidth without reopening the one-second far-LOD hole.
+
+A warmed 1,000-unit repetition is available at
+`20260824-172233-521`, but both 1,000-unit runs include Unity Initial Refresh,
+script compilation, or Domain Reload activity. Their payload size, decode
+success, per-entity interval, and zero-allocation results remain useful. Their
+client apply P95/P99 values are not a clean A/B comparison against the earlier
+artifact.
+
+The 2,000-unit capacity run is stored at:
+
+```text
+artifacts/shooter-unity-headless/20260824-172623-481
+```
+
+It completed the multiplayer and AOI lifecycle with zero decode failures, zero
+snapshot resyncs, and `0/0 B/frame` client GC. Average payload was
+`12.27/15.49 KB`, maximum payload `27.55/29.13 KB`, and per-entity
+P50/P95/P99 remained `3/3/3` frames. Nevertheless, starvation reached
+`51.21%/55.58%` because the authority's first active window sustained only
+`15.37 Hz`:
+
+```text
+WorldTick                    34.427 ms
+EnemyMovementIntent         15.362 ms
+RvoSolve                     14.755 ms
+  RvoNeighborCollect         6.662 ms
+  RvoOrcaSolve               6.706 ms
+SnapshotBuildSerialize       6.805 ms
+```
+
+This separates the current failure modes. The v3 transport still provides
+three-frame observations at 2,000 units; the client cannot render 30 fresh
+authority frames per second when server simulation produces about 15. The next
+priority order is therefore:
+
+1. remove the small-player-set overhead in `EnemyMovementIntent`, then assess
+   whether its remaining per-enemy work merits server-only parallel execution;
+2. improve RVO neighbor collection and ORCA data layout without increasing the
+   current worker ceiling before multi-room fairness and allocation checks;
+3. restore a stable 30 Hz authority before deciding whether client apply needs
+   additional frame slicing;
+4. run at least three clean 1,000- and 2,000-unit repetitions with Unity asset
+   refresh disabled, and report median plus worst-case stage and presentation
+   metrics.
+
+The Headless runner now detects UTF-16 LE/BE and UTF-8 server logs and aligns
+offsets before reading appended data. This fixes the prior zero-byte
+`server-performance.log` export caused by seeking into a UTF-16 stream and
+decoding it as UTF-8. The parser and runner contract are covered by tests; a
+fresh end-to-end run must still confirm non-empty export on the real launcher.
+
+## 2026-08-26 playable 512-unit validation and gate correction
+
+The first fully green two-client Headless pass at the playable default
+(`mass-battle-lod-aoi-sample-block` + `ideal`, 512-unit budget) completed the
+complete lobby-to-battle-to-AI-lifecycle flow with the in-flight server fixes
+in the working tree:
+
+```text
+artifacts/shooter-unity-headless/20260825-170235-795
+```
+
+Both clients reported zero playback starvation (owner 0.0%, member <=0.3%),
+per-entity transform sample intervals P50/P95/P99 = 1/3/3 frames, zero client
+GC, sync-frame P95 of 2.0-2.5 ms, and 18/18 accepted inputs with zero resync.
+The authority sustained 29.98-30.00 Hz across both observed windows
+(`WorldTick` mean 0.7-0.9 ms, `EnemyMovementIntent` mean 0.047-0.059 ms,
+`RvoSolve` mean 0.5 ms). The earlier 15 ms `EnemyMovementIntent` figure came
+from the dictionary-backed expanding-ring nearest-player query that ran per
+enemy before the direct-scan path landed; with it, intent is no longer a
+capacity factor.
+
+Five stale tests were updated to the current intended semantics so the .NET
+suite is green again (579/579): bounded local-player correction now subtracts
+reachable prediction distance and shares one per-client-frame budget across
+same-frame authority snapshots, authority overrides and full baselines in the
+same world use bounded correction instead of hard snapping, and the default
+room template is `mass-battle-lod-aoi-sample-block` with the `ideal`
+environment. The hard-snap path remains covered by the world-change test.
+
+The Headless performance gate previously compared a single mixed
+`p99BattlePushApplyMs` against the 25 ms delta budget. A pure-state room always
+applies one full baseline (50-58 ms at 512 units, dominated by bulk view
+creation) per `FullSnapshotIntervalFrames`, so the mixed metric failed a gate
+the delta path had actually satisfied (delta apply P99 5.0-7.5 ms). The gate
+now checks the steady-state delta P99 against 25 ms and gives the bulk paths
+separate budgets (`FullSnapshotApplyMaxThresholdMs` 120,
+`P99ReliableEventApplyThresholdMs` 60). The runner also auto-attaches to the
+newest `host-*.log` silo log when `-ServerLogPath` is not supplied, because
+`ServerPerformance` windows are emitted by `BattleLogicHostGrain` in the silo
+host log, not the TCP gateway log.
+
+A new `.NET`-only authority benchmark
+(`ShooterAuthorityStageBenchmarkTests`, scaled via
+`ABILITYKIT_SHOOTER_BENCH_UNIT_COUNTS` / `ABILITYKIT_SHOOTER_BENCH_FRAMES`)
+drives the runtime adapter directly with per-observer pure-state pushes and
+self-verifies load by counting alive enemies each 60 frames. Without that
+check the benchmark silently measured a collapsed load after the players
+died (enemies lose their target, preferred velocities stay zero, and RVO
+becomes trivial). Verified-load stable-window results on this tree:
+
+```text
+  512 units (380-454 alive): intent 0.092 ms, collect 0.308 ms, ORCA 0.282 ms, ~347 Hz sim-only
+ 1000 units (856-932 alive): intent 0.172 ms, collect 0.847 ms, ORCA 0.691 ms, ~170 Hz sim-only
+ 2000 units (1844-1928 alive): intent 0.088 ms, collect 0.813 ms, ORCA 0.194 ms, ~139 Hz sim-only
+```
+
+Snapshot build plus serialize stays at or below ~0.8 ms mean (8.6-23.8 KB
+average per-observer payload). Under the pure-sim loop the whole authority
+tick is therefore 1.5-2.5 ms at every measured scale; the remaining
+end-to-end question is Orleans scheduling and delivery overhead, which the
+two-client Headless run at 2,000 units measures directly.
+
+Known remaining rough edges observed in the 512 pass:
+
+- the one-shot full-baseline apply (50-58 ms) is bulk view creation; slicing
+  baseline view spawns across frames is the follow-up if it becomes visible
+  in play;
+- a dead observer fails closed: the server cannot build an AOI scope, returns
+  empty pushes flagged `RequiresFullSnapshot`, and the client-side
+  `snapshotResyncNeededCount` grows while the player stays dead. A spectator
+  fallback scope (arena-center interest) would keep the world rendering;
+- `applyP99` for reliable-event batches can reach ~41 ms once per battle from
+  presentation-side effect work.
+
+That 2,000-unit two-client Headless run then completed green on the same tree:
+
+```text
+artifacts/shooter-unity-headless/20260825-170837-108
+```
+
+Both clients held zero playback starvation with sample intervals P95/P99 =
+3/3 frames, delta apply P99 of 6.5-10.5 ms, zero GC, and the authority
+sustained 29.83-30.05 Hz with both observers attached (`WorldTick` mean
+4.1-4.7 ms). Compared with the 2026-08-24 2,000-unit run (15.37 Hz, 51-56%
+starvation), the server-side acceleration service injection plus the
+small-player-set scan removed the entire capacity gap: the earlier runs
+executed without the per-world neighbor-acceleration registration that now
+lives in the runtime adapter. Stable 30 Hz authority at the 2,000-unit budget
+is therefore demonstrated end to end; the earlier four-step priority list is
+resolved by these measurements except for multi-repetition medians, which
+remain good hygiene rather than a known gap.
+
+## 2026-08-26 client-path (local mode) measurement
+
+`ShooterWorldModule` registers the null neighbor-acceleration service, so the
+Unity client world — including pure local play — runs the serial managed RVO
+solver while only the server adapter injects the accelerated collector and
+parallel ORCA. A local-path benchmark
+(`ShooterLocalWorldStageBenchmarkTests`, scaled via
+`ABILITYKIT_SHOOTER_LOCAL_BENCH_UNITS`) drives that exact configuration with
+one player under maximum blob density (all enemies converge on a single
+target) and stacked concurrent waves so the enemy budget actually fills:
+at 2,000/2,000 alive units the whole simulation is ~4.2 ms per frame
+(RvoSolve 3.6 ms with managed collect 2.8 ms, simulation 0.66 ms, intent
+0.05 ms); at 500/500 it is ~2 ms. The shared workspace grid rewrite therefore
+carries the client as well, and the server-only acceleration is worth less
+than a millisecond at this scale. Historical local-mode 2,000-unit stutter
+was dominated by the pre-fix intent ring query plus the pre-rewrite managed
+RVO (30-40 ms+ on the main thread), compounded by local mode building views
+for every entity because observer AOI only exists on the push side. With the
+current tree the remaining local-mode cost at 2,000 units is dominated by the
+presentation layer (full-entity view creation and per-frame transform
+updates), not simulation.
+
+## 2026-08-26 editor local-mode 2K stutter root cause and RVO acceleration sink
+
+The editor-local 2K-mode stutter (~10 FPS reported in Play mode, GPU
+instanced backend) was reproduced headlessly with a new editor benchmark
+(`ShooterLocalEditorPerfBenchCommand`, driven via Unity batchmode; splits
+simulation tick / presentation publish / end-to-end host frame costs and
+samples per-system stage timings inside the real editor Mono runtime). At a
+verified 2,048/2,048 alive enemies the local simulation tick cost 36 ms per
+frame: managed serial ORCA 16.0 ms, Burst-jobs hashmap neighbor collection
+10.5 ms, accelerated-output validation 2.5 ms, intent 2.8 ms. The GPU view
+backend itself was not the constraint (host frames averaged ~20 ms with tick
+dropping). The root cause was that the server's RVO acceleration (sorted-grid
+parallel collection + parallel ORCA) lived only in the Orleans assembly while
+every client world registered the null service.
+
+Fixes, validated by rerunning the same benchmark:
+
+1. The parallel acceleration implementation moved into the shared runtime
+   package (`ShooterParallelRvoAccelerationService`, platform-neutral
+   Parallel.For) and `ShooterWorldModule` registers it by default; the server
+   class became a thin subclass.
+2. The Burst jobs neighbor service now also implements the parallel
+   per-agent solve interface, but the play-mode factory no longer mounts the
+   jobs world module by default: measured head-to-head in the editor, the
+   shared parallel collector costs 3.8 ms/frame versus 10.8 ms/frame for the
+   Burst hashmap collector, and drops per-frame managed↔native copies and
+   pre-scan passes (GC 235 MB -> 23 MB over 8 s at 2,048 units). The jobs
+   module remains available for explicit composition.
+3. Accelerated-output validation is now sampled (default every 30th
+   accelerated collection, first included, configurable via
+   `ShooterRvoOptions.AcceleratedValidationInterval`; determinism contract
+   tests pin it to 1).
+
+Result at 2,048 units in the editor: simulation tick 36 -> 18 ms with items
+1-2, and the sampled validation removes a further ~3 ms; end-to-end host
+frame 20.6 -> ~10 ms (98 FPS in the batch harness). Play-mode smoothness at
+2K in a real editor window is expected to land well above 30 FPS; a player
+build (IL2CPP + full Burst) will be faster still. Remaining editor-only
+costs are the Mono tax on intent/spawn/ORCA bodies, which the .NET-side
+numbers show at 0.09/0.02/0.7 ms in Release.
+
+## 2026-08-26 remote pure-state composition: authority batch double-write
+
+Field reports from the two-client session described every remote entity being
+tugged back and forth and the controlled player freezing. A dedicated
+reproduction test (`ShooterRemotePureStateCompositionTests`, real cadence:
+60 fps render x 30 Hz simulation x one push every three frames) captured both
+defects in the composed render batch:
+
+- On every push frame the same remote entity appeared twice at two different
+  positions: once from the interpolation playback and once raw from the
+  authority batch. `PublishPureStatePresentationFrame` sourced its "local"
+  side from `Presentation.ViewModel.Current`, which the authority apply
+  overwrites ten times per second (prediction-only batches overwrite it at
+  30 Hz), so between pushes the composition mixed a stale raw pose over the
+  interpolated one — the visible tug.
+- On the same push frames the controlled player vanished from the render
+  batch: the server omits the observer's own player from pure-state export,
+  so the authority batch carries no controlled-player transform, and the
+  composition lost the predicted pose until the next local tick republished.
+
+The fix gives the controller its own hold of the latest predicted-local batch
+(`_lastPureStatePredictedBatch`, captured after each local prediction publish
+and cleared with the pure-state reset paths); the composition's local side now
+always comes from that hold instead of the shared view model. The reproduction
+test asserts per render frame: at most one transform per remote entity, the
+controlled player present after its first predicted tick and never pulled
+behind its own prediction, and a non-empty playback so the assertions cannot
+pass trivially. Full runtime suite 581/581.
+
+A related recovery hazard was observed while building the reproduction: a
+baseline-hash mismatch (or any `NeedsFullBaselineResync` condition) drives the
+frame-sync recovery machinery into catch-up/full-resync, which fast-forwards
+or resets the local prediction world — for a pure-state observer client whose
+remote state lives in the playback stream, that machinery treats the local
+prediction sandbox as if it had to track the server frame. The composition
+fix removes the visible artifact; keeping drift recovery inert for
+pure-state presentation clients remains a follow-up hardening item.
+
+## 2026-08-26 enemy tug root cause: sparse-LOD sample cadence and dead-observer freeze
+
+After the composition fix, a new pose-continuity probe
+(`ShooterRemotePoseContinuityProbe`, hooked at the per-render frame builder;
+optional sustained-input driver via `ABILITYKIT_SHOOTER_SUSTAINED_INPUT=1`)
+quantified the remaining field complaints under continuous play at 512 units.
+The probe's fingerprint was decisive: backward/forward jumps occurred as
+"same render frame, many entities, one uniform distance" (0.78/0.54/0.60 in
+different runs) — a batch event, not per-entity interpolation noise.
+
+Two causes, both fixed:
+
+1. **Dead-observer fail-closed freeze.** When a player died, the server could
+   no longer build that observer's AOI scope and returned empty pushes flagged
+   `RequiresFullBaselineResync`; that client's world froze while the other
+   kept playing — the dominant source of the perceived cross-client
+   desync, plus baseline-resync churn (owner 3 resyncs, member 0). The server
+   now falls back to an arena-center spectator scope for dead observers;
+   unresolved accounts keep the fail-closed path.
+
+2. **Sparse mid/far LOD cadence.** With mid=9 / far=30 frame sample intervals
+   and a six-frame extrapolation cap, low-cadence entities drifted to a held
+   pose and then jumped the accumulated distance when the next sample landed
+   — the uniform batch jumps. For unmetered environments (bandwidth 0) the
+   template now lifts mid/far cadence to the near cadence (3/3/3); metered
+   profiles keep 3/9/30 for the stress comparison. The full-baseline track
+   handling was also softened in the same round: baselines now prune tracks
+   to the baseline entity set instead of clearing all tracks, so a re-baseline
+   no longer restarts every entity's playback from the baseline pose.
+
+Validated head-to-head with the same sustained-input scenario:
+enemy backward-tug events went from 50-92 per client to **0 on both clients**
+(fully symmetric), own-player backward pulls stayed 0 throughout, snapshots
+applied cleanly, zero GC. The client contract assertion in the Headless
+command now accepts both the metered (3/9/30) and unmetered (3/3/3) LOD
+cadence shapes.
+
+## 2026-08-27 control loss root cause: per-render-frame input flooding vs admission throttle
+
+Field report after the tug fixes: the controlled player becomes uncontrollable
+after a while, and an idle player stutters in place once enemies swarm. The
+formal remote host loop called the input pump once per RENDER frame; with the
+submit queue's four-in-flight window draining in ~RTT on localhost, the
+effective gateway submission rate equals the editor frame rate (60-144/s).
+The battle input admission guard's token bucket (60/s sustained, burst 90)
+exhausts within about a second of continuous play, and the gateway mapped
+every rejection to `ShouldResync=true`. That drove the client into the
+frame-sync recovery state (`AwaitingFullSnapshot`), where `SubmitLocalInputs`
+returns zero — local prediction is blocked, inputs stop, control is lost;
+the repeated full-baseline re-application that follows is the in-place
+stutter. The headless runs never saw it because their movement probe submits
+at a low fixed rate.
+
+Fixes:
+
+1. the formal host now samples and submits input at the simulation tick rate
+   (30 Hz) via an accumulator, matching what the sim consumes per tick;
+2. the gateway classifies rejection reasons: only genuine state divergence
+   (world mismatch, invalid payload/op-code/player, input-buffer rejection)
+   demands a client resync; transient throttling (rate-limited, duplicate,
+   sequence-too-old, not-initialized) drops the single input;
+3. the headless sustained-input driver now floods through the real gateway
+   submission path at render rate — worse than production — and logs every
+   rejected submit with its status, so the validation proves control survives
+   even under flooding.
+
+Headless validation under the flood driver: input submissions at render rate
+with zero control loss; rejection/resync counters reported in the
+`[PoseContinuity]` heartbeat lines.

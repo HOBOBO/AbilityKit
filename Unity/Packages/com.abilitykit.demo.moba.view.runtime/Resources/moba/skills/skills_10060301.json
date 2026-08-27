@@ -1,0 +1,17 @@
+{
+  "Id": 10060301,
+  "Name": "嬴政-至尊王权",
+  "CooldownMs": 30000,
+  "Range": 14,
+  "IconId": 603,
+  "Category": 6,
+  "SkillType": 4,
+  "Tags": [
+    603
+  ],
+  "SkillButtonTemplateId": 7,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10060301,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10060301
+}

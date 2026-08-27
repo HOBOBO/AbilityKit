@@ -4,18 +4,8 @@ using MemoryPack;
 
 namespace AbilityKit.Protocol.Shooter
 {
-    [MemoryPackable]
     public partial struct ShooterPlayerSnapshot
     {
-        [MemoryPackOrder(0)] public int PlayerId;
-        [MemoryPackOrder(1)] public float X;
-        [MemoryPackOrder(2)] public float Y;
-        [MemoryPackOrder(3)] public float AimX;
-        [MemoryPackOrder(4)] public float AimY;
-        [MemoryPackOrder(5)] public int Hp;
-        [MemoryPackOrder(6)] public int Score;
-        [MemoryPackOrder(7)] public bool Alive;
-
         public ShooterPlayerSnapshot(int playerId, float x, float y, float aimX, float aimY, int hp, int score, bool alive)
         {
             PlayerId = playerId;
@@ -29,17 +19,8 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
-    [MemoryPackable]
     public partial struct ShooterBulletSnapshot
     {
-        [MemoryPackOrder(0)] public int BulletId;
-        [MemoryPackOrder(1)] public int OwnerPlayerId;
-        [MemoryPackOrder(2)] public float X;
-        [MemoryPackOrder(3)] public float Y;
-        [MemoryPackOrder(4)] public float VelocityX;
-        [MemoryPackOrder(5)] public float VelocityY;
-        [MemoryPackOrder(6)] public int RemainingFrames;
-
         public ShooterBulletSnapshot(int bulletId, int ownerPlayerId, float x, float y, float velocityX, float velocityY, int remainingFrames)
         {
             BulletId = bulletId;
@@ -52,18 +33,8 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
-    [MemoryPackable]
     public partial struct ShooterEnemySnapshot
     {
-        [MemoryPackOrder(0)] public int EnemyId;
-        [MemoryPackOrder(1)] public float X;
-        [MemoryPackOrder(2)] public float Y;
-        [MemoryPackOrder(3)] public float FacingX;
-        [MemoryPackOrder(4)] public float FacingY;
-        [MemoryPackOrder(5)] public int Hp;
-        [MemoryPackOrder(6)] public int MaxHp;
-        [MemoryPackOrder(7)] public bool Alive;
-
         public ShooterEnemySnapshot(int enemyId, float x, float y, float facingX, float facingY, int hp, int maxHp, bool alive)
         {
             EnemyId = enemyId;
@@ -86,17 +57,8 @@ namespace AbilityKit.Protocol.Shooter
         MatchEnded = 5
     }
 
-    [MemoryPackable]
     public partial struct ShooterEventSnapshot
     {
-        [MemoryPackOrder(0)] public int EventType;
-        [MemoryPackOrder(1)] public int SourcePlayerId;
-        [MemoryPackOrder(2)] public int TargetPlayerId;
-        [MemoryPackOrder(3)] public int BulletId;
-        [MemoryPackOrder(4)] public float X;
-        [MemoryPackOrder(5)] public float Y;
-        [MemoryPackOrder(6)] public int Value;
-
         public ShooterEventSnapshot(int eventType, int sourcePlayerId, int targetPlayerId, int bulletId, float x, float y, int value)
         {
             EventType = eventType;
@@ -120,18 +82,8 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
-    [MemoryPackable]
     public partial struct ShooterStateSnapshotPayload
     {
-        [MemoryPackOrder(0)] public int Frame;
-        [MemoryPackOrder(1)] public ShooterPlayerSnapshot[] Players;
-        [MemoryPackOrder(2)] public ShooterBulletSnapshot[] Bullets;
-        [MemoryPackOrder(3)] public ShooterEventSnapshot[] Events;
-        [MemoryPackOrder(4)] public int MatchState;
-        [MemoryPackOrder(5)] public int TimeLimitFrames;
-        [MemoryPackOrder(6)] public int RemainingTimeFrames;
-        [MemoryPackOrder(7)] public ShooterEnemySnapshot[] Enemies;
-
         public ShooterStateSnapshotPayload(int frame, ShooterPlayerSnapshot[] players, ShooterBulletSnapshot[] bullets, ShooterEventSnapshot[] events)
             : this(frame, players, bullets, events, matchState: 0, timeLimitFrames: 0, remainingTimeFrames: 0, enemies: Array.Empty<ShooterEnemySnapshot>())
         {

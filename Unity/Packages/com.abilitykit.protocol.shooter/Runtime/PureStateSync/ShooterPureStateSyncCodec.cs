@@ -418,7 +418,7 @@ namespace AbilityKit.Protocol.Shooter
             }
 
             var memberCount = ShooterPureStateSyncCodec.ReadObjectMemberCount(payload);
-            if (memberCount == 14)
+            if (memberCount == 14 || memberCount == 15)
             {
                 return DecodeCurrent(payload);
             }
@@ -449,7 +449,8 @@ namespace AbilityKit.Protocol.Shooter
             var reader = new MemoryPackReader(payload, state);
             try
             {
-                if (!reader.TryReadObjectHeader(out var memberCount) || (memberCount != 12 && memberCount != 14))
+                if (!reader.TryReadObjectHeader(out var memberCount) ||
+                    (memberCount != 12 && memberCount != 14 && memberCount != 15))
                 {
                     throw new EndOfStreamException("Unexpected pure-state snapshot member count.");
                 }
@@ -469,10 +470,24 @@ namespace AbilityKit.Protocol.Shooter
                 ReadUnmanagedPrefix(ref reader, ref _acknowledgedCommands, out var acknowledgedCommandCount);
                 var frameSampleCount = 0;
                 var transformSampleCount = 0;
-                if (memberCount == 14)
+                if (memberCount >= 14)
                 {
                     ReadUnmanagedPrefix(ref reader, ref _frameSamples, out frameSampleCount);
                     ReadUnmanagedPrefix(ref reader, ref _transformSamples, out transformSampleCount);
+                    if (memberCount == 15)
+                    {
+                        if (transformSampleCount != 0)
+                        {
+                            throw new MemoryPackSerializationException(
+                                "Compressed pure-state payload also contains raw transform samples.");
+                        }
+
+                        ReadCompressedTransformSamples(
+                            ref reader,
+                            ref _transformSamples,
+                            out transformSampleCount);
+                    }
+
                     ValidateFrameSamples(_frameSamples, frameSampleCount, transformSampleCount, frame);
                 }
                 if (reader.Remaining != 0)
@@ -532,6 +547,72 @@ namespace AbilityKit.Protocol.Shooter
             var source = MemoryMarshal.CreateReadOnlySpan(ref reader.GetSpanReference(byteCount), byteCount);
             source.CopyTo(destination);
             reader.Advance(byteCount);
+        }
+
+        private static void ReadCompressedTransformSamples(
+            ref MemoryPackReader reader,
+            ref ShooterPureStateTransformSample[] buffer,
+            out int count)
+        {
+            if (!reader.TryReadCollectionHeader(out var byteCount) || byteCount <= 0)
+            {
+                count = 0;
+                return;
+            }
+
+            if (byteCount > reader.Remaining)
+            {
+                throw new EndOfStreamException("Compressed transform block exceeds the remaining payload.");
+            }
+
+            var source = MemoryMarshal.CreateReadOnlySpan(ref reader.GetSpanReference(byteCount), byteCount);
+            reader.Advance(byteCount);
+            using var state = MemoryPackReaderOptionalStatePool.Rent(MemoryPackSerializerOptions.Default);
+            var compressedReader = new MemoryPackReader(source, state);
+            try
+            {
+                var encoding = compressedReader.ReadVarIntByte();
+                if (encoding != ShooterPureStateSyncCodec.CompressedTransformEncodingVersion)
+                {
+                    throw new MemoryPackSerializationException("Unsupported compressed transform encoding.");
+                }
+
+                count = compressedReader.ReadVarIntInt32();
+                if (count < 0 || count > byteCount / ShooterPureStateSyncCodec.MinimumCompressedTransformBytes)
+                {
+                    throw new MemoryPackSerializationException("Invalid compressed transform sample count.");
+                }
+
+                EnsureCapacity(ref buffer, count);
+                long previousEntityId = 0;
+                for (var i = 0; i < count; i++)
+                {
+                    var entityId = checked(previousEntityId + compressedReader.ReadVarIntInt64());
+                    if (entityId < int.MinValue || entityId > int.MaxValue)
+                    {
+                        throw new MemoryPackSerializationException("Compressed transform entity id is out of range.");
+                    }
+
+                    buffer[i] = new ShooterPureStateTransformSample(
+                        (int)entityId,
+                        compressedReader.ReadVarIntInt32(),
+                        compressedReader.ReadVarIntInt32(),
+                        compressedReader.ReadVarIntInt32(),
+                        compressedReader.ReadVarIntInt32(),
+                        compressedReader.ReadVarIntInt32(),
+                        compressedReader.ReadVarIntByte());
+                    previousEntityId = entityId;
+                }
+
+                if (compressedReader.Remaining != 0)
+                {
+                    throw new MemoryPackSerializationException("Unexpected trailing compressed transform data.");
+                }
+            }
+            finally
+            {
+                compressedReader.Dispose();
+            }
         }
 
         private static void EnsureCapacity<T>(ref T[] buffer, int count)
@@ -615,7 +696,9 @@ namespace AbilityKit.Protocol.Shooter
 
     public static class ShooterPureStateSyncCodec
     {
-        public const int CurrentVersion = 2;
+        public const int CurrentVersion = 3;
+        internal const byte CompressedTransformEncodingVersion = 1;
+        internal const int MinimumCompressedTransformBytes = 7;
 
         public static byte[] Serialize(in ShooterPureStateSnapshotPayload snapshot)
         {
@@ -709,6 +792,11 @@ namespace AbilityKit.Protocol.Shooter
             }
 
             var memberCount = ReadObjectMemberCount(payload);
+            if (memberCount == 15)
+            {
+                return CreateOwnedSnapshot(new ShooterPureStateSyncDecodeBuffer().Decode(payload));
+            }
+
             if (memberCount == 14)
             {
                 var value = MemoryPackSerializer.Deserialize<ShooterPureStateSnapshotPayload>(payload);
@@ -736,6 +824,92 @@ namespace AbilityKit.Protocol.Shooter
             }
 
             throw new MemoryPackSerializationException("Unexpected pure-state snapshot member count.");
+        }
+
+        private static ShooterPureStateSnapshotPayload CreateOwnedSnapshot(
+            in ShooterPureStateSnapshotPayload snapshot)
+        {
+            return new ShooterPureStateSnapshotPayload(
+                snapshot.Version,
+                snapshot.WorldId,
+                snapshot.Frame,
+                snapshot.ServerTick,
+                snapshot.SnapshotKind,
+                snapshot.BaselineFrame,
+                snapshot.BaselineHash,
+                snapshot.StateHash,
+                snapshot.Settings,
+                CopyOwnedPrefix(snapshot.Entities, snapshot.EffectiveEntityCount),
+                CopyOwnedPrefix(snapshot.VisibilityHints, snapshot.EffectiveVisibilityHintCount),
+                CopyOwnedPrefix(snapshot.AcknowledgedCommands, snapshot.EffectiveAcknowledgedCommandCount),
+                CopyOwnedPrefix(snapshot.FrameSamples, snapshot.EffectiveFrameSampleCount),
+                CopyOwnedPrefix(snapshot.TransformSamples, snapshot.EffectiveTransformSampleCount));
+        }
+
+        private static T[] CopyOwnedPrefix<T>(T[]? values, int count)
+        {
+            if (values == null || count <= 0)
+            {
+                return Array.Empty<T>();
+            }
+
+            count = Math.Min(count, values.Length);
+            var copy = new T[count];
+            Array.Copy(values, copy, count);
+            return copy;
+        }
+
+        internal static int GetCompressedTransformByteCount(
+            ShooterPureStateTransformSample[]? samples,
+            int count)
+        {
+            if (samples == null || count <= 0)
+            {
+                return 0;
+            }
+
+            count = Math.Min(count, samples.Length);
+            var byteCount = 1 + GetVarIntByteCount(count);
+            long previousEntityId = 0;
+            for (var i = 0; i < count; i++)
+            {
+                ref readonly var sample = ref samples[i];
+                byteCount = checked(byteCount +
+                    GetVarIntByteCount((long)sample.EntityId - previousEntityId) +
+                    GetVarIntByteCount(sample.EntityKind) +
+                    GetVarIntByteCount(sample.QuantizedX) +
+                    GetVarIntByteCount(sample.QuantizedY) +
+                    GetVarIntByteCount(sample.QuantizedVelocityX) +
+                    GetVarIntByteCount(sample.QuantizedVelocityY) +
+                    (sample.Flags <= 127 ? 1 : 2));
+                previousEntityId = sample.EntityId;
+            }
+
+            return byteCount;
+        }
+
+        private static int GetVarIntByteCount(int value)
+        {
+            return value >= -120 && value <= 127
+                ? 1
+                : value >= sbyte.MinValue && value <= sbyte.MaxValue
+                    ? 2
+                    : value >= short.MinValue && value <= short.MaxValue
+                        ? 3
+                        : 5;
+        }
+
+        private static int GetVarIntByteCount(long value)
+        {
+            return value >= -120L && value <= 127L
+                ? 1
+                : value >= sbyte.MinValue && value <= sbyte.MaxValue
+                    ? 2
+                    : value >= short.MinValue && value <= short.MaxValue
+                        ? 3
+                        : value >= int.MinValue && value <= int.MaxValue
+                            ? 5
+                            : 9;
         }
 
         internal static int ReadObjectMemberCount(ReadOnlySpan<byte> payload)
@@ -850,8 +1024,11 @@ namespace AbilityKit.Protocol.Shooter
             scoped ref ShooterPureStateSnapshotTransient value)
         {
             ref readonly var snapshot = ref value._snapshot;
+            var transformSampleCount = snapshot.EffectiveTransformSampleCount;
+            var useCompressedTransforms = snapshot.Version >= ShooterPureStateSyncCodec.CurrentVersion &&
+                                          transformSampleCount > 0;
             writer.WriteUnmanagedWithObjectHeader(
-                14,
+                (byte)(useCompressedTransforms ? 15 : 14),
                 snapshot.Version,
                 snapshot.WorldId,
                 snapshot.Frame,
@@ -865,7 +1042,30 @@ namespace AbilityKit.Protocol.Shooter
             writer.WriteUnmanagedSpan((snapshot.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>()).AsSpan(0, snapshot.EffectiveVisibilityHintCount));
             writer.WriteUnmanagedSpan((snapshot.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>()).AsSpan(0, snapshot.EffectiveAcknowledgedCommandCount));
             writer.WriteUnmanagedSpan((snapshot.FrameSamples ?? Array.Empty<ShooterPureStateFrameSample>()).AsSpan(0, snapshot.EffectiveFrameSampleCount));
-            writer.WriteUnmanagedSpan((snapshot.TransformSamples ?? Array.Empty<ShooterPureStateTransformSample>()).AsSpan(0, snapshot.EffectiveTransformSampleCount));
+            if (!useCompressedTransforms)
+            {
+                writer.WriteUnmanagedSpan((snapshot.TransformSamples ?? Array.Empty<ShooterPureStateTransformSample>()).AsSpan(0, transformSampleCount));
+                return;
+            }
+
+            writer.WriteUnmanagedSpan(Array.Empty<ShooterPureStateTransformSample>().AsSpan());
+            var samples = snapshot.TransformSamples ?? Array.Empty<ShooterPureStateTransformSample>();
+            writer.WriteCollectionHeader(ShooterPureStateSyncCodec.GetCompressedTransformByteCount(samples, transformSampleCount));
+            writer.WriteVarInt(ShooterPureStateSyncCodec.CompressedTransformEncodingVersion);
+            writer.WriteVarInt(transformSampleCount);
+            long previousEntityId = 0;
+            for (var i = 0; i < transformSampleCount; i++)
+            {
+                ref readonly var sample = ref samples[i];
+                writer.WriteVarInt((long)sample.EntityId - previousEntityId);
+                writer.WriteVarInt(sample.EntityKind);
+                writer.WriteVarInt(sample.QuantizedX);
+                writer.WriteVarInt(sample.QuantizedY);
+                writer.WriteVarInt(sample.QuantizedVelocityX);
+                writer.WriteVarInt(sample.QuantizedVelocityY);
+                writer.WriteVarInt(sample.Flags);
+                previousEntityId = sample.EntityId;
+            }
         }
 
         static void IMemoryPackable<ShooterPureStateSnapshotTransient>.Deserialize(

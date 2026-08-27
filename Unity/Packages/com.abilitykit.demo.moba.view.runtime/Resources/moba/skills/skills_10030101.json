@@ -1,0 +1,17 @@
+{
+  "Id": 10030101,
+  "Name": "赵云-惊雷之龙",
+  "CooldownMs": 7000,
+  "Range": 8,
+  "IconId": 301,
+  "Category": 3,
+  "SkillType": 2,
+  "Tags": [
+    301
+  ],
+  "SkillButtonTemplateId": 8,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10030101,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10030101
+}

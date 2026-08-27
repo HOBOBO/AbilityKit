@@ -13,15 +13,33 @@ MonoBehaviour:
   m_Name: PassiveSkillCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 20001
-    Name: "\u6D4B\u8BD5\u88AB\u52A8"
-    CooldownMs: 1000
-    TriggerIds: 214e0000
-  - Id: 20002
-    Name: "\u6D4B\u8BD5\u88AB\u52A8"
-    CooldownMs: 10000
-    TriggerIds: 224e0000
-  - Id: 20003
-    Name: "\u6D4B\u8BD5\u88AB\u52A8"
-    CooldownMs: 10000
-    TriggerIds: 234e0000
+  - Id: 10010000
+    Name: "\u5EC9\u9887-\u52C7\u58EB\u4E4B\u9B42"
+    CooldownMs: 0
+    TriggerIds: 90bd980092bd980094bd9800
+    ContinuousProcessIds: 93bd9800
+  - Id: 10020000
+    Name: "\u5C0F\u4E54-\u6CBB\u6108\u5FAE\u7B11"
+    CooldownMs: 0
+    TriggerIds: a0e49800
+    ContinuousProcessIds: 
+  - Id: 10030000
+    Name: "\u8D75\u4E91-\u9F99\u9E23"
+    CooldownMs: 0
+    TriggerIds: b00b9900b20b9900e80c9900
+    ContinuousProcessIds: 
+  - Id: 10040000
+    Name: "\u58A8\u5B50-\u673A\u5173\u672F"
+    CooldownMs: 0
+    TriggerIds: c0329900c1329900c2329900
+    ContinuousProcessIds: 
+  - Id: 10050000
+    Name: "\u59B2\u5DF1-\u5931\u5FC3"
+    CooldownMs: 0
+    TriggerIds: d0599900
+    ContinuousProcessIds: 
+  - Id: 10060000
+    Name: "\u5B34\u653F-\u738B\u8005\u5BA1\u5224"
+    CooldownMs: 0
+    TriggerIds: e0809900e2809900e3809900
+    ContinuousProcessIds: 

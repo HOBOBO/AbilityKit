@@ -1,0 +1,13 @@
+{
+  "Id": 10010000,
+  "Name": "廉颇-勇士之魂",
+  "CooldownMs": 0,
+  "TriggerIds": [
+    10010000,
+    10010002,
+    10010004
+  ],
+  "ContinuousProcessIds": [
+    10010003
+  ]
+}

@@ -12,6 +12,9 @@ namespace AbilityKit.Network.Runtime.Observability
         NetworkTrafficDirection direction,
         NetworkPacketHeader header);
 
+    public delegate NetworkTrafficCaptureFilter NetworkTrafficCaptureFilterFactory(
+        NetworkTrafficConnectionContext context);
+
     /// <summary>Configures packet metadata capture without changing the wire pipeline.</summary>
     public sealed class NetworkTrafficCaptureOptions
     {
@@ -22,6 +25,7 @@ namespace AbilityKit.Network.Runtime.Observability
         public int MaximumPayloadPreviewBytes;
         public NetworkTrafficObserverFactory? ObserverFactory;
         public NetworkTrafficCaptureFilter? Filter;
+        public NetworkTrafficCaptureFilterFactory? FilterFactory;
         public Func<DateTimeOffset> UtcNowProvider = () => DateTimeOffset.UtcNow;
         public Action<Exception>? ObserverErrorHandler;
 

@@ -925,6 +925,49 @@ public sealed class ShooterWorldModuleTests
         Assert.True(afterDistanceSquared < beforeDistanceSquared);
     }
 
+    [Fact]
+    public void RuntimeMovesEnemyTowardNearestOfTwoPlayers()
+    {
+        var flow = new ShooterSveltoGameplayBattleFlowConfig(
+            durationFrames: 120,
+            victoryTargetDefeats: 99,
+            maxActiveEnemies: 1,
+            new[] { new ShooterSveltoGameplayWaveConfig(1, 100, 1, 1, 3, 4f) },
+            enemyLoadoutId: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemyLoadoutId,
+            enemyAttackIntervalFrames: 120,
+            enemyAttackDamage: 1,
+            enemyProjectileSpeedScale: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemyProjectileSpeedScale,
+            enemyProjectilesPerShot: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemyProjectilesPerShot,
+            enemySpreadDegrees: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemySpreadDegrees);
+        var container = new WorldContainerBuilder()
+            .RegisterInstance(new ShooterEnemyWaveOptions(enabled: true, flow))
+            .RegisterInstance(new ShooterRvoOptions(ShooterRvoExecutionMode.Disabled))
+            .AddModule(new ShooterWorldModule())
+            .Build();
+        var runtime = container.Resolve<IShooterBattleRuntimePort>();
+        var entities = container.Resolve<IShooterEntityManager>();
+        var start = new ShooterStartGamePayload(
+            "two-player-nearest-target",
+            30,
+            1,
+            new[]
+            {
+                new ShooterStartPlayer(1, "P1", -10f, 0f),
+                new ShooterStartPlayer(2, "P2", 10f, 0f)
+            });
+
+        Assert.True(runtime.StartGame(in start));
+        Assert.True(runtime.Tick(0f));
+        var transform = new ShooterSveltoTransformComponent { X = 8f, Y = 0f, DirectionX = 1f };
+        var health = new ShooterSveltoHealthComponent { Current = 3, Max = 3, Alive = 1 };
+        entities.AddEnemy(9001, in transform, in health);
+
+        Assert.True(runtime.Tick(1f / 30f));
+        Assert.True(entities.TryGetEnemy(9001, out var moved, out _));
+        Assert.True(moved.X > transform.X);
+        Assert.True(MathF.Abs(10f - moved.X) < MathF.Abs(10f - transform.X));
+    }
+
     [Theory]
     [InlineData(ShooterRvoExecutionMode.Managed, true)]
     [InlineData(ShooterRvoExecutionMode.Disabled, false)]

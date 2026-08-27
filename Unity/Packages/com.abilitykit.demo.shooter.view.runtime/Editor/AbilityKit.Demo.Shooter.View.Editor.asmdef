@@ -10,7 +10,8 @@
     "AbilityKit.Network.Room",
     "AbilityKit.Network.Runtime",
     "AbilityKit.Protocol.Room",
-    "AbilityKit.Protocol.Shooter"
+    "AbilityKit.Protocol.Shooter",
+    "AbilityKit.World.StateSync"
   ],
   "includePlatforms": [
     "Editor"

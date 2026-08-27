@@ -1,0 +1,17 @@
+{
+  "Id": 10040101,
+  "Name": "墨子-和平漫步",
+  "CooldownMs": 10000,
+  "Range": 8,
+  "IconId": 401,
+  "Category": 4,
+  "SkillType": 2,
+  "Tags": [
+    401
+  ],
+  "SkillButtonTemplateId": 2,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10040101,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10040101
+}

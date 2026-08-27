@@ -1,0 +1,17 @@
+{
+  "Id": 10030301,
+  "Name": "赵云-天翔之龙",
+  "CooldownMs": 18000,
+  "Range": 12,
+  "IconId": 303,
+  "Category": 3,
+  "SkillType": 4,
+  "Tags": [
+    303
+  ],
+  "SkillButtonTemplateId": 10,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10030301,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10030301
+}

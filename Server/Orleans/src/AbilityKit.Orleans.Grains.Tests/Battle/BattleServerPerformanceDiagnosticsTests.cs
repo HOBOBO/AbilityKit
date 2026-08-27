@@ -135,6 +135,9 @@ public sealed class BattleServerPerformanceDiagnosticsTests
             diagnostics.RecordShooterStageMilliseconds("ShooterEnemyWaveBattleSystem.Spawn", 0.25d);
             diagnostics.RecordShooterStageMilliseconds("ShooterEnemyWaveBattleSystem.Attack", 0.5d);
             diagnostics.RecordShooterStageMilliseconds("ShooterEnemyRvoSolveBattleSystem", 4d);
+            diagnostics.RecordShooterStageMilliseconds("ShooterEnemyRvoSolveBattleSystem.NeighborCollect", 1d);
+            diagnostics.RecordShooterStageMilliseconds("ShooterEnemyRvoSolveBattleSystem.AcceleratedValidation", 0.5d);
+            diagnostics.RecordShooterStageMilliseconds("ShooterEnemyRvoSolveBattleSystem.OrcaSolve", 2d);
             Assert.Equal(i == 1, diagnostics.CompleteTick(startedAt + i * Stopwatch.Frequency / 30 + 1, 30, out var snapshot));
 
             if (i == 1)
@@ -144,6 +147,9 @@ public sealed class BattleServerPerformanceDiagnosticsTests
                 Assert.Equal(2, snapshot.ShooterStages["EnemyWaveAttack"].Count);
                 Assert.Equal(2, snapshot.ShooterStages["RvoSolve"].Count);
                 Assert.Equal(4d, snapshot.ShooterStages["RvoSolve"].MaxMilliseconds);
+                Assert.Equal(1d, snapshot.ShooterStages["RvoNeighborCollect"].MaxMilliseconds);
+                Assert.Equal(0.5d, snapshot.ShooterStages["RvoAcceleratedValidation"].MaxMilliseconds);
+                Assert.Equal(2d, snapshot.ShooterStages["RvoOrcaSolve"].MaxMilliseconds);
             }
         }
     }

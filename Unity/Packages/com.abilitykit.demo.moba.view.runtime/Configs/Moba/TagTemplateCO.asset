@@ -13,13 +13,21 @@ MonoBehaviour:
   m_Name: TagTemplateCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 101
-    Name: 
+  - Id: 1
+    Name: "\u65E0\u654C\u6807\u7B7E"
     RequiredTagNames: []
     BlockedTagNames: []
     GrantTagNames: []
     RemoveTagNames: []
-    RequiredTags: 
-    BlockedTags: 
-    GrantTags: 
-    RemoveTags: 
+  - Id: 2
+    Name: "\u6C89\u9ED8\u6807\u7B7E"
+    RequiredTagNames: []
+    BlockedTagNames: []
+    GrantTagNames: []
+    RemoveTagNames: []
+  - Id: 3
+    Name: "\u7729\u6655\u6807\u7B7E"
+    RequiredTagNames: []
+    BlockedTagNames: []
+    GrantTagNames: []
+    RemoveTagNames: []

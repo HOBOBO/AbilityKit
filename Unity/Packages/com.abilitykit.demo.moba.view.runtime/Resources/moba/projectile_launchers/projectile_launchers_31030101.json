@@ -1,0 +1,9 @@
+{
+  "Id": 31030101,
+  "Name": "赵云-惊雷之龙-直线冲锋发射器",
+  "EmitterType": 1,
+  "DurationMs": 0,
+  "IntervalMs": 0,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

@@ -13,19 +13,19 @@ MonoBehaviour:
   m_Name: SpawnSummonActionTemplateCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 101
-    Name: 
-    SummonId: 0
+  - Id: 1
+    Name: "\u53EC\u5524\u52A8\u4F5C-\u5706\u5F62"
+    SummonId: 1
     TargetMode: 0
     PositionMode: 0
     RotationMode: 0
     OwnerKeyMode: 0
     PatternMode: 0
-    PatternCount: 0
-    Spacing: 0
+    PatternCount: 3
+    Spacing: 2
     Radius: 0
     StartAngleDeg: 0
-    ArcAngleDeg: 0
+    ArcAngleDeg: 360
     YawOffsetDeg: 0
     RandomSeed: 0
     RandomRadiusMin: 0

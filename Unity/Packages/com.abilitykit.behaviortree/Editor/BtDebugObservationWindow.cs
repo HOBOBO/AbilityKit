@@ -23,6 +23,7 @@ namespace AbilityKit.BehaviorTree.Editor
         private readonly HashSet<string> _blackboardChanged = new();
         private readonly HashSet<string> _collapsedNodes = new();
         private readonly Dictionary<string, string> _parentOf = new();
+        private readonly Dictionary<string, string> _subtreeRootTree = new();
 
         private Vector2 _leftScroll;
         private Vector2 _rightScroll;
@@ -75,6 +76,7 @@ namespace AbilityKit.BehaviorTree.Editor
             _focusNodeId = "";
             _collapsedNodes.Clear();
             _parentOf.Clear();
+            _subtreeRootTree.Clear();
             _liveNodes.Clear();
             _lastBlackboardDisplay.Clear();
         }
@@ -143,6 +145,7 @@ namespace AbilityKit.BehaviorTree.Editor
                         _focusNodeId = "";
                         _collapsedNodes.Clear();
                         _parentOf.Clear();
+                        _subtreeRootTree.Clear();
                         _liveNodes.Clear();
                         _lastBlackboardDisplay.Clear();
                     }
@@ -226,6 +229,15 @@ namespace AbilityKit.BehaviorTree.Editor
                     {
                         _parentOf[childId] = node.Id;
                     }
+                }
+            }
+
+            // 子树实例（内联根 -> 被引用 treeId），供节点树标记子树边界
+            if (_subtreeRootTree.Count == 0 && view.SubtreeInstances != null)
+            {
+                foreach (var instance in view.SubtreeInstances)
+                {
+                    _subtreeRootTree[instance.InlinedRootNodeId] = instance.ReferencedTreeId;
                 }
             }
 
@@ -327,6 +339,11 @@ namespace AbilityKit.BehaviorTree.Editor
 
             var label = NodeDisplayName(nodeId);
             var display = (string.IsNullOrEmpty(info?.TypeId) ? label : label + "  [" + info.TypeId + "]");
+            // 子树内联根：标记来源树（跨树边界可视化）
+            if (_subtreeRootTree.TryGetValue(nodeId, out var sourceTree))
+            {
+                display += $"  ↳ {sourceTree}";
+            }
             if (children.Count > 0)
             {
                 display += collapsed ? $"  ({children.Count})" : "";

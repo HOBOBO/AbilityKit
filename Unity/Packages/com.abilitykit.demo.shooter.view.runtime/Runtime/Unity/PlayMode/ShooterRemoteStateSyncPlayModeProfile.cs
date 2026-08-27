@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AbilityKit.Demo.Shooter.View.PlayMode
@@ -22,6 +23,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         [Header("Session")]
         [SerializeField] private string syncTemplateId = ShooterRoomLaunchSpec.DefaultSyncTemplateId;
+        [SerializeField] private string networkEnvironmentId = ShooterRoomLaunchSpec.DefaultNetworkEnvironmentId;
         [SerializeField] private int randomSeed = 3901;
         [SerializeField] private int playerCount = 2;
         [SerializeField] private int controlledPlayerId = 1;
@@ -36,6 +38,9 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         public string RoomId => roomId ?? string.Empty;
         public TimeSpan Timeout => TimeSpan.FromSeconds(Math.Max(1f, timeoutSeconds));
         public string SyncTemplateId => string.IsNullOrWhiteSpace(syncTemplateId) ? ShooterRoomLaunchSpec.DefaultSyncTemplateId : syncTemplateId;
+        public string NetworkEnvironmentId => string.IsNullOrWhiteSpace(networkEnvironmentId)
+            ? ShooterRoomLaunchSpec.DefaultNetworkEnvironmentId
+            : networkEnvironmentId.Trim();
         public int RandomSeed => randomSeed;
         public int PlayerCount => Math.Max(1, playerCount);
         public int ControlledPlayerId => Math.Max(1, controlledPlayerId);
@@ -46,8 +51,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             string? roomIdOverride = null,
             ShooterRemoteStateSyncLaunchMode? launchModeOverride = null)
         {
-            var templateOptions = ShooterPlayModeSessionOptions.FromTemplate(
-                ShooterAcceptanceCatalog.GetSyncTemplate(SyncTemplateId),
+            var template = ShooterAcceptanceCatalog.GetSyncTemplate(SyncTemplateId);
+            var templateOptions = ShooterPlayModeSessionOptions.FromTemplateForNetwork(
+                template,
+                NetworkEnvironmentId,
                 RandomSeed,
                 ControlledPlayerId,
                 WorldScale);
@@ -76,7 +83,50 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 ServerId,
                 launchModeOverride ?? LaunchMode,
                 Timeout,
-                roomIdOverride ?? RoomId);
+                roomIdOverride ?? RoomId,
+                BuildRoomLaunchSpec(in template, in sessionOptions));
+        }
+
+        private ShooterRoomLaunchSpec BuildRoomLaunchSpec(
+            in ShooterSyncTemplate template,
+            in ShooterPlayModeSessionOptions sessionOptions)
+        {
+            var defaults = ShooterRoomLaunchSpec.CreateDefault(
+                $"unity-{sessionOptions.ControlledPlayerId}");
+            var tags = new Dictionary<string, string>(defaults.Tags, StringComparer.Ordinal)
+            {
+                [ShooterRoomLaunchTagKeys.SyncTemplateId] = template.Id,
+                [ShooterRoomLaunchTagKeys.SyncModel] = ((int)template.SyncModel).ToString(),
+                [ShooterRoomLaunchTagKeys.NetworkEnvironmentId] = NetworkEnvironmentId,
+                [ShooterRoomLaunchTagKeys.CarrierName] = template.ExpectedCarrierName,
+                [ShooterRoomLaunchTagKeys.EnableAuthoritativeWorld] = template.EnableAuthoritativeWorld.ToString(),
+                [ShooterRoomLaunchTagKeys.InterpolationEnabled] = template.ExpectsInterpolationDiagnostics.ToString(),
+                [ShooterRoomLaunchTagKeys.InputDelayFrames] = "0",
+                [ShooterRoomLaunchTagKeys.RandomSeed] = sessionOptions.RandomSeed.ToString(),
+                [ShooterRoomLaunchTagKeys.DurationFrames] = sessionOptions.GameplayScenario.BattleFlow.DurationFrames.ToString(),
+                [ShooterRoomLaunchTagKeys.EnemyBudget] = sessionOptions.GameplayScenario.BattleFlow.MaxActiveEnemies.ToString(),
+                [ShooterRoomLaunchTagKeys.VictoryTargetDefeats] = sessionOptions.GameplayScenario.BattleFlow.VictoryTargetDefeats.ToString()
+            };
+
+            return new ShooterRoomLaunchSpec(
+                Region,
+                ServerId,
+                defaults.RoomTitle,
+                Math.Max(PlayerCount, ControlledPlayerId),
+                defaults.GameplayId,
+                defaults.RuleSetId,
+                defaults.ConfigVersion,
+                defaults.ProtocolVersion,
+                defaults.WorldType,
+                defaults.ClientId,
+                tags,
+                template.Id,
+                (int)template.SyncModel,
+                NetworkEnvironmentId,
+                template.ExpectedCarrierName,
+                template.EnableAuthoritativeWorld,
+                template.ExpectsInterpolationDiagnostics,
+                inputDelayFrames: 0);
         }
     }
 }

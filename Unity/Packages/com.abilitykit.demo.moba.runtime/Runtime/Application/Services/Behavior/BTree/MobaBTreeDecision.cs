@@ -75,9 +75,29 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 DebugName = string.IsNullOrEmpty(debugName) ? null : debugName,
                 DebugOwnerLabel = debugOwnerLabel,
             };
-            var tree = BtTreeRuntime.Create(definition, MobaBTreeCatalog.Registry, services, options);
+            var tree = BtTreeRuntime.Create(definition, MobaBTreeCatalog.Registry, services, options, new MobaBTreeAssetResolver());
             tree.Enable(0, Fixed64.Zero);
             return new MobaBTreeDecision(tree, runtimeContext);
+        }
+
+        /// <summary>
+        /// 子树引用解析器：从同目录（Resources/Configs 的 moba/bt）按 treeId 读兄弟树 JSON。
+        /// 使 MOBA 树可用 builtin.subtree 跨树组合。
+        /// </summary>
+        private sealed class MobaBTreeAssetResolver : IBtTreeDefinitionResolver
+        {
+            public bool TryResolve(string treeId, out BtTreeDefinition definition)
+            {
+                definition = null!;
+                if (string.IsNullOrEmpty(treeId) || !MobaBTreeAssetLoader.TryLoad(null, treeId, out var json))
+                {
+                    return false;
+                }
+
+                definition = BtTreeJson.Load(json);
+                MobaBTreeBlackboard.EnsureStandardSchema(definition);
+                return true;
+            }
         }
 
         internal static void ValidateConfiguration(string json)

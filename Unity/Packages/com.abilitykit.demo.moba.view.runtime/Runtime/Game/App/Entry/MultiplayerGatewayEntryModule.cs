@@ -388,10 +388,22 @@ namespace AbilityKit.Game
                     options.CatalogId = "abilitykit.room";
                     options.TransportName = "tcp";
                     options.MaximumPayloadPreviewBytes = 65536;
+                    options.FilterFactory = NetworkTrafficMonitor.Default.CreateSamplingFilter;
                 });
 #endif
-                resources.SdkClient = sdkBuilder.Build();
-                attachment.Register(resources.SdkClient.Dispose);
+                resources.SdkClientKey = new NetworkSdkClientKey(
+                    "abilitykit.moba",
+                    "room",
+                    Guid.NewGuid().ToString("N"));
+                resources.SdkClientLease = NetworkSdkClientHub.Default.Acquire(
+                    resources.SdkClientKey,
+                    sdkBuilder);
+                resources.SdkClient = resources.SdkClientLease.Client;
+                attachment.Register(() =>
+                {
+                    resources.SdkClientLease.Dispose();
+                    NetworkSdkClientHub.Default.Remove(resources.SdkClientKey);
+                });
                 resources.Store = new ClientRoomStore();
                 resources.Client = new GatewayRoomClient(
                     resources.SdkClient,
@@ -743,6 +755,8 @@ namespace AbilityKit.Game
 
         private sealed class MultiplayerGatewayEntryResources
         {
+            public NetworkSdkClientKey SdkClientKey;
+            public NetworkSdkClientLease SdkClientLease;
             public NetworkSdkClient SdkClient;
             public DedicatedThreadDispatcher IoDispatcher;
             public ClientRoomStore Store;

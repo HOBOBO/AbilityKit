@@ -1,0 +1,21 @@
+{
+  "Id": 9,
+  "Name": "zhaoyun_cloud_breaking_dragon_front_area",
+  "LongPressSeconds": 0.35,
+  "DragThreshold": 12.0,
+  "EnableAim": true,
+  "AimMode": 0,
+  "AimMaxRadius": 220.0,
+  "IndicatorShape": 5,
+  "IndicatorWorldWidth": 3.5,
+  "UsePointMode": 1,
+  "SelectRange": 0.0,
+  "FaceToAim": true,
+  "SectorAngleDegrees": 0.0,
+  "DashDistance": 0.0,
+  "LockOnDurationMs": 0,
+  "FanRadius": 0.0,
+  "FanAngleDegrees": 0.0,
+  "SelfRadius": 0.0,
+  "LockProjectileRadius": 0.0
+}

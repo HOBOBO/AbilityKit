@@ -1,0 +1,15 @@
+{
+  "Id": 10050001,
+  "Name": "妲己-普通攻击",
+  "CooldownMs": 800,
+  "Range": 8,
+  "IconId": 501,
+  "Category": 5,
+  "SkillType": 1,
+  "Tags": [],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10050001
+}

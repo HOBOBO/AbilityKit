@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 1
+projectId: abilitykit.moba
+namespace: AbilityKit.Protocol.Moba.StateSync
+type: MobaStateHashSnapshotPayload
+memoryPackMode: sequential
+declaration: struct
+memberStyle: field
+fields:
+  - id: 0
+    name: version
+    scalarType: int32
+    required: true
+  - id: 1
+    name: frame
+    scalarType: int32
+    required: true
+  - id: 2
+    name: hash
+    scalarType: uint32
+    required: true

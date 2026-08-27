@@ -7,7 +7,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Text;
+using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Observability;
+using AbilityKit.Network.Sdk.Diagnostics;
 using AbilityKit.Network.Sdk.Observability;
 using UnityEditor;
 using UnityEngine;
@@ -17,6 +19,7 @@ namespace AbilityKit.Network.Sdk.Editor
     public sealed class NetworkTrafficMonitorWindow : EditorWindow
     {
         private enum DirectionFilter { All, Inbound, Outbound }
+        private enum DataView { Connections, Routes, Traffic }
 
         private readonly List<NetworkTrafficInspectionRow> _visible =
             new List<NetworkTrafficInspectionRow>();
@@ -24,6 +27,10 @@ namespace AbilityKit.Network.Sdk.Editor
 
         private IReadOnlyList<NetworkTrafficInspectionRow> _snapshot =
             Array.Empty<NetworkTrafficInspectionRow>();
+        private IReadOnlyList<NetworkClientDiagnosticsSnapshot> _diagnostics =
+            Array.Empty<NetworkClientDiagnosticsSnapshot>();
+        private DataView _dataView = DataView.Connections;
+        private Vector2 _diagnosticsScroll;
         private Vector2 _listScroll;
         private Vector2 _detailScroll;
         private string _search = string.Empty;
@@ -39,11 +46,12 @@ namespace AbilityKit.Network.Sdk.Editor
         private GUIStyle? _rowTitleStyle;
         private GUIStyle? _mutedStyle;
 
+        [MenuItem("Window/AbilityKit/Network Diagnostics")]
         [MenuItem("Window/AbilityKit/Network Traffic Monitor")]
         public static void Open()
         {
             var window = GetWindow<NetworkTrafficMonitorWindow>();
-            window.titleContent = new GUIContent("Network Traffic");
+            window.titleContent = new GUIContent("Network Diagnostics");
             window.minSize = new Vector2(760f, 420f);
             window.Show();
         }
@@ -66,6 +74,7 @@ namespace AbilityKit.Network.Sdk.Editor
         private void RefreshSnapshot(bool force)
         {
             _nextRefreshAt = EditorApplication.timeSinceStartup + 0.2d;
+            _diagnostics = NetworkSdkDiagnosticsMonitor.Default.Snapshot();
             var monitor = NetworkTrafficMonitor.Default;
             if (!force && monitor.Count == _snapshot.Count && monitor.DroppedCount == 0) return;
             _snapshot = monitor.Inspect();
@@ -76,13 +85,135 @@ namespace AbilityKit.Network.Sdk.Editor
         private void OnGUI()
         {
             EnsureStyles();
+            _dataView = (DataView)GUILayout.Toolbar(
+                (int)_dataView,
+                new[] { "Connections", "Routes", "Traffic" },
+                EditorStyles.toolbarButton);
+            if (_dataView == DataView.Connections)
+            {
+                DrawConnections();
+                return;
+            }
+
+            if (_dataView == DataView.Routes)
+            {
+                DrawRoutes();
+                return;
+            }
+
             DrawToolbar();
             DrawFilterBar();
-
             EditorGUILayout.BeginHorizontal();
             DrawTrafficList();
             DrawDetails();
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawConnections()
+        {
+            _diagnosticsScroll = EditorGUILayout.BeginScrollView(_diagnosticsScroll);
+            if (_diagnostics.Count == 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "No SDK clients are registered in NetworkSdkDiagnosticsMonitor.Default.Hub.",
+                    MessageType.Info);
+            }
+
+            for (var i = 0; i < _diagnostics.Count; i++)
+            {
+                var client = _diagnostics[i];
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.LabelField(client.Key.ToString(), EditorStyles.boldLabel);
+                DrawField("Project", client.Key.ProjectId);
+                DrawField("Role / Instance", $"{client.Key.Role} / {client.Key.InstanceId}");
+                DrawField("Leases", client.LeaseCount.ToString(CultureInfo.InvariantCulture));
+                if (!client.Connection.HasValue)
+                {
+                    EditorGUILayout.LabelField("Connection diagnostics are not supported.", _mutedStyle);
+                    EditorGUILayout.EndVertical();
+                    continue;
+                }
+
+                var connection = client.Connection.Value;
+                DrawField("State", connection.State.ToString());
+                DrawField("Endpoint", $"{connection.Host}:{connection.Port}");
+                DrawField("Identity", $"{connection.ConnectionId} / generation {connection.Generation}");
+                DrawField("Connected", connection.IsConnected.ToString());
+                DrawField("Reconnect", FormatReconnect(connection));
+                DrawField("Middleware", connection.PipelineMiddlewareCount.ToString(CultureInfo.InvariantCulture));
+                if (connection.PacketRouter.HasValue)
+                {
+                    var router = connection.PacketRouter.Value;
+                    DrawField("Router", $"dispatch {router.DispatchedCount}, handled {router.HandledCount}, " +
+                        $"unknown {router.UnknownCount}, exceptions {router.ExceptionCount}");
+                }
+                EditorGUILayout.EndVertical();
+            }
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawRoutes()
+        {
+            _diagnosticsScroll = EditorGUILayout.BeginScrollView(_diagnosticsScroll);
+            if (_diagnostics.Count == 0)
+            {
+                EditorGUILayout.HelpBox("No SDK client routes are available.", MessageType.Info);
+            }
+
+            for (var clientIndex = 0; clientIndex < _diagnostics.Count; clientIndex++)
+            {
+                var client = _diagnostics[clientIndex];
+                EditorGUILayout.LabelField(
+                    $"{client.Key}  ({client.Routes.Count} routes)",
+                    EditorStyles.boldLabel);
+                for (var routeIndex = 0; routeIndex < client.Routes.Count; routeIndex++)
+                {
+                    DrawRoute(client.Routes[routeIndex]);
+                }
+                EditorGUILayout.Space(6f);
+            }
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawRoute(NetworkRouteDiagnosticsSnapshot snapshot)
+        {
+            var route = snapshot.Route;
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField(
+                $"Opcode {route.OpCode}  {route.Kind}",
+                EditorStyles.boldLabel,
+                GUILayout.MinWidth(180f));
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(snapshot.MappingStatus.ToString(), EditorStyles.miniBoldLabel);
+            EditorGUILayout.EndHorizontal();
+            DrawField("Protocol", $"{snapshot.Direction?.ToString() ?? "-"} / {snapshot.PacketKind?.ToString() ?? "-"}");
+            DrawField("Handlers", route.HandlerCount.ToString(CultureInfo.InvariantCulture));
+            DrawField("Counters", $"dispatch {route.DispatchCount}, handled {route.HandledCount}, " +
+                $"unknown {route.UnknownCount}, exceptions {route.ExceptionCount}");
+            DrawField("Last Dispatch", route.LastDispatchUnixTimeMilliseconds == 0
+                ? "Never"
+                : DateTimeOffset.FromUnixTimeMilliseconds(route.LastDispatchUnixTimeMilliseconds)
+                    .ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture));
+            for (var i = 0; i < snapshot.Candidates.Count; i++)
+            {
+                var candidate = snapshot.Candidates[i];
+                DrawField(
+                    i == 0 ? "Catalog" : string.Empty,
+                    $"{candidate.CatalogProjectId}/{candidate.CatalogId} :: {candidate.MessageId}  " +
+                    $"{candidate.PayloadType} [{candidate.Codec}] sample={candidate.CaptureSampleRate:0.###}");
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        private static string FormatReconnect(NetworkConnectionDiagnosticsSnapshot connection)
+        {
+            if (connection.ReconnectExhausted)
+                return $"Exhausted ({connection.ReconnectAttemptsStarted}/{connection.ReconnectMaxAttempts})";
+            if (connection.ReconnectPending)
+                return $"Pending attempt {connection.NextReconnectAttempt}, " +
+                    $"remaining {connection.RemainingReconnectDelaySeconds:0.###}s";
+            return $"Idle ({connection.ReconnectAttemptsStarted}/{connection.ReconnectMaxAttempts})";
         }
 
         private void DrawToolbar()
@@ -108,9 +239,10 @@ namespace AbilityKit.Network.Sdk.Editor
                 GUILayout.Width(55f));
 
             GUILayout.Label(
-                $"Events {monitor.Count}/{monitor.Capacity}   Dropped {monitor.DroppedCount}",
+                $"Events {monitor.Count}/{monitor.Capacity}   Dropped {monitor.DroppedCount}   " +
+                $"Sampled {monitor.SamplingMetrics.GetSnapshot().SampledOut}",
                 EditorStyles.miniLabel,
-                GUILayout.MinWidth(170f));
+                GUILayout.MinWidth(240f));
             GUILayout.FlexibleSpace();
 
             _includeRawPayload = GUILayout.Toggle(
@@ -369,7 +501,7 @@ namespace AbilityKit.Network.Sdk.Editor
         }
 
         private static bool Contains(string? value, string search) =>
-            !string.IsNullOrEmpty(value) && value.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
+            value?.IndexOf(search, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }
 

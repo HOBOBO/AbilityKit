@@ -19,7 +19,8 @@ internal sealed class ShooterServerSyncTemplatePolicy
         bool useObserverAoi = false,
         ShooterPureStatePlaybackPayloadMode playbackPayloadMode = ShooterPureStatePlaybackPayloadMode.SingleSample,
         int sampleBlockFrameCount = 1,
-        ShooterPureStateSampleDensityPolicy? sampleDensityPolicy = null)
+        ShooterPureStateSampleDensityPolicy? sampleDensityPolicy = null,
+        ShooterPureStateSampleDensityPolicy? unmeteredSampleDensityPolicy = null)
     {
         if (string.IsNullOrWhiteSpace(templateId))
         {
@@ -38,6 +39,7 @@ internal sealed class ShooterServerSyncTemplatePolicy
         PlaybackPayloadMode = playbackPayloadMode;
         SampleBlockFrameCount = sampleBlockFrameCount;
         SampleDensityPolicy = sampleDensityPolicy ?? ShooterPureStateSampleDensityPolicy.FullDensity;
+        UnmeteredSampleDensityPolicy = unmeteredSampleDensityPolicy ?? SampleDensityPolicy;
     }
 
     public string TemplateId { get; }
@@ -64,6 +66,8 @@ internal sealed class ShooterServerSyncTemplatePolicy
 
     public ShooterPureStateSampleDensityPolicy SampleDensityPolicy { get; }
 
+    public ShooterPureStateSampleDensityPolicy UnmeteredSampleDensityPolicy { get; }
+
     public ServerBattleSyncTemplate CreateServerTemplate()
     {
         return new ServerBattleSyncTemplate(
@@ -79,16 +83,38 @@ internal sealed class ShooterServerSyncTemplatePolicy
         var networkCondition = ShooterServerSyncTemplateCatalog.ResolveNetworkCondition(
             networkEnvironmentId,
             DefaultNetworkCondition);
+        var unmetered = networkCondition.BandwidthKbps == 0;
+        var sampleDensityPolicy = unmetered
+            ? UnmeteredSampleDensityPolicy
+            : SampleDensityPolicy;
+        var settings = PureStateSettings;
+        if (unmetered && settings.HasValue)
+        {
+            // 非计量（ideal/LAN）网络带宽余量充足：mid/far LOD 采样节奏提升到与 near
+            // 一致，消除低频采样实体在新样本落地时的整批统一距离跳变（远端拉扯）。
+            // 计量档（如 limitedbw 压测）保留原 3/9/30 节奏。
+            settings = new ShooterPureStateSyncSettings(
+                settings.Value.MaxEntityCount,
+                settings.Value.ActiveSyncBudget,
+                settings.Value.BaselineIntervalFrames,
+                settings.Value.DeltaIntervalFrames,
+                settings.Value.LowFrequencyIntervalFrames,
+                settings.Value.InterpolationDelayFrames,
+                settings.Value.NearLodIntervalFrames,
+                Math.Min(settings.Value.MidLodIntervalFrames, settings.Value.NearLodIntervalFrames),
+                Math.Min(settings.Value.FarLodIntervalFrames, settings.Value.NearLodIntervalFrames));
+        }
+
         return PayloadMode == ShooterStateSyncPushPayloadMode.PureState
             ? ShooterStateSyncPushOptions.PureState(
                 networkCondition,
-                PureStateSettings,
+                settings,
                 AoiVisibleRadius,
                 AoiBoundaryRadius,
                 UseObserverAoi,
                 PlaybackPayloadMode,
                 SampleBlockFrameCount,
-                SampleDensityPolicy)
+                sampleDensityPolicy)
             : ShooterStateSyncPushOptions.Packed(networkCondition);
     }
 }
@@ -122,7 +148,7 @@ internal static class ShooterServerSyncTemplateCatalog
         Packed(ShooterServerProtocol.AuthoritativeInterpolationPresentationTemplate, 1, 60, NetworkConditionProfile.Lan),
         PureState(ShooterServerProtocol.BatchStateLowFrequencyTemplate, 60, 300, NetworkConditionProfile.Mobile4G, BatchStateSettings),
         PureState(ShooterServerProtocol.MassBattleLodAoiTemplate, 3, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true),
-        PureState(ShooterServerProtocol.MassBattleLodAoiSampleBlockTemplate, 3, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true, playbackPayloadMode: ShooterPureStatePlaybackPayloadMode.MultiSampleBlock, sampleBlockFrameCount: 3, sampleDensityPolicy: ShooterPureStateSampleDensityPolicy.MassBattle),
+        PureState(ShooterServerProtocol.MassBattleLodAoiSampleBlockTemplate, 3, 450, NetworkConditionProfile.LimitedBandwidth, MassBattleSettings, 24f, 30f, useObserverAoi: true, playbackPayloadMode: ShooterPureStatePlaybackPayloadMode.MultiSampleBlock, sampleBlockFrameCount: 3, sampleDensityPolicy: ShooterPureStateSampleDensityPolicy.MassBattle, unmeteredSampleDensityPolicy: ShooterPureStateSampleDensityPolicy.SmoothMassBattle),
         Packed(ShooterServerProtocol.HybridHeroPredictionTemplate, 1, 30, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.RuntimeSnapshotInterpolationTemplate, 1, 60, NetworkConditionProfile.Lan),
         Packed(ShooterServerProtocol.StateSyncAuthorityTemplate, 1, 30, NetworkConditionProfile.Ideal),
@@ -207,7 +233,8 @@ internal static class ShooterServerSyncTemplateCatalog
         bool useObserverAoi = false,
         ShooterPureStatePlaybackPayloadMode playbackPayloadMode = ShooterPureStatePlaybackPayloadMode.SingleSample,
         int sampleBlockFrameCount = 1,
-        ShooterPureStateSampleDensityPolicy? sampleDensityPolicy = null)
+        ShooterPureStateSampleDensityPolicy? sampleDensityPolicy = null,
+        ShooterPureStateSampleDensityPolicy? unmeteredSampleDensityPolicy = null)
     {
         return new ShooterServerSyncTemplatePolicy(
             templateId,
@@ -221,6 +248,7 @@ internal static class ShooterServerSyncTemplateCatalog
             useObserverAoi,
             playbackPayloadMode,
             sampleBlockFrameCount,
-            sampleDensityPolicy);
+            sampleDensityPolicy,
+            unmeteredSampleDensityPolicy);
     }
 }

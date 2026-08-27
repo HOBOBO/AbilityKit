@@ -158,8 +158,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
         }
     }
 
-    internal sealed class ShooterEnemyRvoSolveBattleSystem : IShooterBattleSystem
+    internal sealed class ShooterEnemyRvoSolveBattleSystem : IShooterBattleSystem, IShooterBattleSubstageDiagnostics
     {
+        internal const string NeighborCollectionStageName = "ShooterEnemyRvoSolveBattleSystem.NeighborCollect";
+        internal const string AcceleratedValidationStageName = "ShooterEnemyRvoSolveBattleSystem.AcceleratedValidation";
+        internal const string OrcaSolveStageName = "ShooterEnemyRvoSolveBattleSystem.OrcaSolve";
+
         private readonly ShooterRvoOptions _options;
         private readonly ShooterRvoWorldWorkspace _workspace;
         private readonly IShooterRvoSolver _solver;
@@ -176,6 +180,12 @@ namespace AbilityKit.Demo.Shooter.Runtime
         public int Order => ShooterBattleSystemOrder.EnemyRvoSolve;
 
         public string name => nameof(ShooterEnemyRvoSolveBattleSystem);
+
+        public Action<string, double>? StageTimingSink
+        {
+            get => _solver.StageTimingSink;
+            set => _solver.StageTimingSink = value;
+        }
 
         public void Step(in float deltaTime)
         {

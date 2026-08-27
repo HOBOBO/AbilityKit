@@ -56,10 +56,12 @@ public sealed class ShooterRvoNeighborAccelerationTests
         if (behavior == AccelerationBehavior.Unavailable)
         {
             Assert.Equal(0, service.CallCount);
+            Assert.Equal(0, service.SolveCallCount);
         }
         else
         {
             Assert.True(service.CallCount > 0);
+            Assert.True(service.SolveCallCount > 0);
         }
 
         Assert.Equal(managed.Runtime.ComputeStateHash(), accelerated.Runtime.ComputeStateHash());
@@ -79,6 +81,7 @@ public sealed class ShooterRvoNeighborAccelerationTests
         Assert.True(world.Runtime.StartGame(in start));
         Assert.True(world.Runtime.Tick(1f / 30f));
         Assert.Equal(0, service.CallCount);
+        Assert.Equal(0, service.SolveCallCount);
     }
 
     private static TestWorld CreateWorld(
@@ -98,7 +101,12 @@ public sealed class ShooterRvoNeighborAccelerationTests
             enemySpreadDegrees: ShooterSveltoGameplayBattleFlowConfig.DefaultEnemySpreadDegrees);
         var builder = new WorldContainerBuilder()
             .RegisterInstance(new ShooterEnemyWaveOptions(enabled: true, flow))
-            .RegisterInstance(new ShooterRvoOptions(executionMode, maxAcceleration: 100f));
+            .RegisterInstance(new ShooterRvoOptions(executionMode, maxAcceleration: 100f)
+            {
+                // 本组测试的契约是"伪造加速输出必须被逐次校验并回退"，
+                // 因此关掉生产用的采样校验（默认 30 次一次）。
+                AcceleratedValidationInterval = 1
+            });
         if (acceleration != null)
         {
             builder.RegisterInstance<IShooterRvoNeighborAccelerationService>(acceleration);
@@ -124,7 +132,9 @@ public sealed class ShooterRvoNeighborAccelerationTests
         ForgedDistance
     }
 
-    private sealed class TestNeighborAccelerationService : IShooterRvoNeighborAccelerationService
+    private sealed class TestNeighborAccelerationService :
+        IShooterRvoNeighborAccelerationService,
+        IShooterRvoAgentSolveAccelerationService
     {
         private readonly AccelerationBehavior _behavior;
 
@@ -135,6 +145,19 @@ public sealed class ShooterRvoNeighborAccelerationTests
 
         public bool IsAvailable => _behavior != AccelerationBehavior.Unavailable;
         public int CallCount { get; private set; }
+        public int SolveCallCount { get; private set; }
+
+        public bool TryForEachAgent(int count, Action<int> solveAgent)
+        {
+            if (!IsAvailable)
+            {
+                return false;
+            }
+
+            SolveCallCount++;
+            Parallel.For(0, count, solveAgent);
+            return true;
+        }
 
         public bool TryCollectNeighbors(in ShooterRvoNeighborBatch batch)
         {

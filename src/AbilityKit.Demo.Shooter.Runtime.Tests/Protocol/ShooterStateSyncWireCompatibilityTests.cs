@@ -16,7 +16,8 @@ public sealed class ShooterStateSyncWireCompatibilityTests
     [InlineData(ShooterStateSyncPayloadKind.PureState, 1, ShooterStateSyncCompatibilityStatus.Compatible)]
     [InlineData(ShooterStateSyncPayloadKind.PureState, 2, ShooterStateSyncCompatibilityStatus.Compatible)]
     [InlineData(ShooterStateSyncPayloadKind.PureState, 0, ShooterStateSyncCompatibilityStatus.UnsupportedOldVersion)]
-    [InlineData(ShooterStateSyncPayloadKind.PureState, 3, ShooterStateSyncCompatibilityStatus.UnsupportedFutureVersion)]
+    [InlineData(ShooterStateSyncPayloadKind.PureState, 3, ShooterStateSyncCompatibilityStatus.Compatible)]
+    [InlineData(ShooterStateSyncPayloadKind.PureState, 4, ShooterStateSyncCompatibilityStatus.UnsupportedFutureVersion)]
     public void CompatibilityPolicyClassifiesSupportedAndUnsupportedVersions(
         ShooterStateSyncPayloadKind payloadKind,
         int version,
@@ -227,6 +228,137 @@ public sealed class ShooterStateSyncWireCompatibilityTests
         Assert.True(runtime.Tick(1f / 30f));
         return runtime;
     }
+
+    [Fact]
+    public void PackedSnapshotGeneratedWireTypesRoundTripBidirectionallyThroughMemoryPack()
+    {
+        var chunk = new ShooterPackedComponentChunk(
+            ShooterPackedComponentKinds.Health,
+            ShooterPackedEntityKinds.Enemy,
+            1,
+            new[] { 33 },
+            new[] { 10.5f },
+            new[] { -20.25f },
+            new[] { 30f },
+            new[] { 40f },
+            new[] { 55 },
+            new byte[] { ShooterPackedEntityFlags.Alive | ShooterPackedEntityFlags.Enemy },
+            new[] { 4 },
+            new[] { 6 });
+
+        var chunkBytes = MemoryPackSerializer.Serialize(chunk);
+        var restoredChunk = MemoryPackSerializer.Deserialize<ShooterPackedComponentChunk>(chunkBytes);
+        Assert.Equal(chunk.ComponentKind, restoredChunk.ComponentKind);
+        Assert.Equal(chunk.EntityKind, restoredChunk.EntityKind);
+        Assert.Equal(chunk.Count, restoredChunk.Count);
+        Assert.Equal(chunk.EntityIds, restoredChunk.EntityIds);
+        Assert.Equal(chunk.ValueX, restoredChunk.ValueX);
+        Assert.Equal(chunk.ValueY, restoredChunk.ValueY);
+        Assert.Equal(chunk.ValueZ, restoredChunk.ValueZ);
+        Assert.Equal(chunk.ValueW, restoredChunk.ValueW);
+        Assert.Equal(chunk.IntValues, restoredChunk.IntValues);
+        Assert.Equal(chunk.Flags, restoredChunk.Flags);
+        Assert.Equal(chunk.OwnerIds, restoredChunk.OwnerIds);
+        Assert.Equal(chunk.Aux, restoredChunk.Aux);
+
+        var acknowledgement = new ShooterCommandAcknowledgement(7, 0x1234_5678_9ABC_DEF0ul);
+        var restoredAcknowledgement = MemoryPackSerializer.Deserialize<ShooterCommandAcknowledgement>(
+            MemoryPackSerializer.Serialize(acknowledgement));
+        Assert.Equal(7, restoredAcknowledgement.PlayerId);
+        Assert.Equal(0x1234_5678_9ABC_DEF0ul, restoredAcknowledgement.CommandSequence);
+
+        var payload = new ShooterPackedSnapshotPayload(
+            ShooterPackedSnapshotCodec.CurrentVersion,
+            9001ul,
+            77,
+            7700L,
+            ShooterPackedSnapshotFlags.Delta | ShooterPackedSnapshotFlags.KeyFrame,
+            0x0B0C_0D0Eu,
+            2,
+            new byte[] { 9, 8, 7 },
+            new[] { chunk },
+            new[] { acknowledgement });
+
+        var codecBytes = ShooterPackedSnapshotCodec.Serialize(in payload);
+        var directlyRestored = MemoryPackSerializer.Deserialize<ShooterPackedSnapshotPayload>(codecBytes);
+        Assert.Equal(payload.Version, directlyRestored.Version);
+        Assert.Equal(payload.WorldId, directlyRestored.WorldId);
+        Assert.Equal(payload.Frame, directlyRestored.Frame);
+        Assert.Equal(payload.ServerTick, directlyRestored.ServerTick);
+        Assert.Equal(payload.SnapshotFlags, directlyRestored.SnapshotFlags);
+        Assert.Equal(payload.StateHash, directlyRestored.StateHash);
+        Assert.Equal(payload.EntityCount, directlyRestored.EntityCount);
+        Assert.Equal(payload.ExtensionPayload, directlyRestored.ExtensionPayload);
+        var directlyRestoredChunk = Assert.Single(directlyRestored.ComponentChunks);
+        Assert.Equal(chunk.EntityIds, directlyRestoredChunk.EntityIds);
+        Assert.Equal(chunk.Flags, directlyRestoredChunk.Flags);
+        var directlyRestoredAcknowledgement = Assert.Single(directlyRestored.AcknowledgedCommands);
+        Assert.Equal(0x1234_5678_9ABC_DEF0ul, directlyRestoredAcknowledgement.CommandSequence);
+
+        var restoredByCodec = ShooterPackedSnapshotCodec.Deserialize(codecBytes);
+        Assert.Equal(payload.WorldId, restoredByCodec.WorldId);
+        Assert.Equal(payload.StateHash, restoredByCodec.StateHash);
+        Assert.Equal(codecBytes, ShooterPackedSnapshotCodec.Serialize(in restoredByCodec));
+    }
+
+    [Fact]
+    public void PackedSnapshotCodecFallsBackToLegacyBytesWithoutAcknowledgements()
+    {
+        var legacy = new LegacyShooterPackedSnapshotPayloadV2
+        {
+            Version = 2,
+            WorldId = 9001ul,
+            Frame = 77,
+            ServerTick = 7700L,
+            SnapshotFlags = ShooterPackedSnapshotFlags.Full,
+            StateHash = 0x0B0C_0D0Eu,
+            EntityCount = 2,
+            ExtensionPayload = new byte[] { 9, 8, 7 },
+            ComponentChunks = new[]
+            {
+                new ShooterPackedComponentChunk(
+                    ShooterPackedComponentKinds.Health,
+                    ShooterPackedEntityKinds.Enemy,
+                    1,
+                    new[] { 33 },
+                    new[] { 10.5f },
+                    Array.Empty<float>(),
+                    Array.Empty<float>(),
+                    Array.Empty<float>(),
+                    new[] { 55 },
+                    new byte[] { ShooterPackedEntityFlags.Alive },
+                    new[] { 4 },
+                    Array.Empty<int>())
+            }
+        };
+        var legacyBytes = MemoryPackSerializer.Serialize(legacy);
+
+        var restored = ShooterPackedSnapshotCodec.Deserialize(legacyBytes);
+
+        Assert.Equal(2, restored.Version);
+        Assert.Equal(9001ul, restored.WorldId);
+        Assert.Equal(77, restored.Frame);
+        Assert.Equal(7700L, restored.ServerTick);
+        Assert.Equal(ShooterPackedSnapshotFlags.Full, restored.SnapshotFlags);
+        Assert.Equal(0x0B0C_0D0Eu, restored.StateHash);
+        Assert.Equal(2, restored.EntityCount);
+        Assert.Equal(new byte[] { 9, 8, 7 }, restored.ExtensionPayload);
+        var chunk = Assert.Single(restored.ComponentChunks);
+        Assert.Equal(ShooterPackedComponentKinds.Health, chunk.ComponentKind);
+        Assert.Equal(ShooterPackedEntityKinds.Enemy, chunk.EntityKind);
+        Assert.Equal(new[] { 33 }, chunk.EntityIds);
+        Assert.Equal(new[] { 10.5f }, chunk.ValueX);
+        Assert.Equal(new[] { 55 }, chunk.IntValues);
+        Assert.Equal(new byte[] { ShooterPackedEntityFlags.Alive }, chunk.Flags);
+        Assert.Equal(new[] { 4 }, chunk.OwnerIds);
+        Assert.Empty(restored.AcknowledgedCommands);
+
+        var upgradedBytes = ShooterPackedSnapshotCodec.Serialize(in restored);
+        var restoredUpgraded = ShooterPackedSnapshotCodec.Deserialize(upgradedBytes);
+        Assert.Equal(restored.WorldId, restoredUpgraded.WorldId);
+        Assert.Single(restoredUpgraded.ComponentChunks);
+        Assert.Empty(restoredUpgraded.AcknowledgedCommands);
+    }
 }
 
 [MemoryPackable]
@@ -248,4 +380,22 @@ internal partial struct LegacyWireStateSyncSnapshotPush
     [MemoryPackOrder(5)] public int PayloadOpCode { get; set; }
     [MemoryPackOrder(6)] public byte[]? Payload { get; set; }
     [MemoryPackOrder(7)] public long ServerTicks { get; set; }
+}
+
+/// <summary>
+/// Wire shape of <see cref="ShooterPackedSnapshotPayload"/> before AcknowledgedCommands was
+/// appended: identical MemoryPack member order without the trailing acknowledgement array.
+/// </summary>
+[MemoryPackable]
+internal partial struct LegacyShooterPackedSnapshotPayloadV2
+{
+    [MemoryPackOrder(0)] public int Version;
+    [MemoryPackOrder(1)] public ulong WorldId;
+    [MemoryPackOrder(2)] public int Frame;
+    [MemoryPackOrder(3)] public long ServerTick;
+    [MemoryPackOrder(4)] public uint SnapshotFlags;
+    [MemoryPackOrder(5)] public uint StateHash;
+    [MemoryPackOrder(6)] public int EntityCount;
+    [MemoryPackOrder(7)] public byte[] ExtensionPayload;
+    [MemoryPackOrder(8)] public ShooterPackedComponentChunk[] ComponentChunks;
 }

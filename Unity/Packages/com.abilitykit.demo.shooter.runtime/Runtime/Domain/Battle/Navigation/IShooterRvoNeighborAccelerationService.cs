@@ -11,6 +11,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
         bool TryCollectNeighbors(in ShooterRvoNeighborBatch batch);
     }
 
+    public interface IShooterRvoAgentSolveAccelerationService
+    {
+        bool TryForEachAgent(int count, Action<int> solveAgent);
+    }
+
     public readonly struct ShooterRvoNeighborBatch
     {
         public ShooterRvoNeighborBatch(

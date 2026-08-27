@@ -1,0 +1,71 @@
+{
+  "Id": 10010201,
+  "Name": "廉颇-熔岩重击",
+  "PipelineContinuousTagTemplateId": 10010001,
+  "Phases": [
+    {
+      "Type": 4,
+      "PhaseId": "skill_10010201_release",
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101011
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_release_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 4,
+      "PhaseId": "skill_10010201_commit",
+      "Checks": null,
+      "Timeline": null,
+      "Handlers": null,
+      "RulePlan": {
+        "TriggerIds": [
+          900101012
+        ],
+        "AbortOnFailure": true,
+        "FailReason": "skill_commit_failed"
+      },
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    },
+    {
+      "Type": 2,
+      "PhaseId": null,
+      "Checks": null,
+      "Timeline": {
+        "DurationMs": 700,
+        "Events": [
+          {
+            "AtMs": 0,
+            "EffectId": 10010000,
+            "ExecuteMode": 0,
+            "EventTag": "lp_passive_armor_start"
+          },
+          {
+            "AtMs": 0,
+            "EffectId": 10010201,
+            "ExecuteMode": 0,
+            "EventTag": "lp_skill_2_cast"
+          }
+        ]
+      },
+      "Handlers": null,
+      "RulePlan": null,
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    }
+  ]
+}

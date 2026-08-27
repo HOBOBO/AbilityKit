@@ -1081,7 +1081,7 @@ namespace AbilityKit.Protocol.Generated
                         ProtocolReliability.Realtime,
                         null,
                         1,
-                        2,
+                        3,
                         4194304,
                         0.02d,
                         null
@@ -1096,7 +1096,7 @@ namespace AbilityKit.Protocol.Generated
                         ProtocolReliability.Realtime,
                         null,
                         1,
-                        2,
+                        3,
                         4194304,
                         0.02d,
                         null

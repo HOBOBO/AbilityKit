@@ -320,7 +320,7 @@ namespace AbilityKit.Ability.Explain.Editor
 
             if (TryHandleInWindowNavigation(action.NavigateTo)) return;
 
-            var nav = AbilityExplainRegistry.GetNavigator();
+            var nav = AbilityExplainRegistry.GetNavigator(action.NavigateTo);
             if (nav == null) return;
             if (!nav.CanNavigate(action.NavigateTo)) return;
             nav.Navigate(action.NavigateTo);
@@ -405,7 +405,7 @@ namespace AbilityKit.Ability.Explain.Editor
         {
             _state.Entities.Clear();
 
-            var provider = AbilityExplainRegistry.GetEntityProvider();
+            var provider = AbilityExplainRegistry.GetEntityProvider(_view.SearchText);
             if (provider != null)
             {
                 var q = provider.Query(_view.SearchText);
@@ -493,6 +493,7 @@ namespace AbilityKit.Ability.Explain.Editor
             _view.ClearDetails();
             _view.ClearIssues();
             _view.SetForestDiffMap(null);
+            _relationExpandedRoots.Clear();
 
             if (_state.SelectedEntity == null)
             {
@@ -505,14 +506,14 @@ namespace AbilityKit.Ability.Explain.Editor
                 _state.ResolveContext = ExplainResolveContext.For(_state.SelectedEntity.Value);
             }
 
-            var resolver = AbilityExplainRegistry.GetResolver();
+            var request = ExplainResolveRequest.For(_state.SelectedEntity.Value, context: _state.ResolveContext, options: BuildResolveOptions());
+            var resolver = AbilityExplainRegistry.GetResolver(request);
             if (resolver == null)
             {
                 _view.RenderMissingSetupHint();
                 return;
             }
 
-            var request = ExplainResolveRequest.For(_state.SelectedEntity.Value, context: _state.ResolveContext, options: BuildResolveOptions());
             if (!resolver.TryResolve(request, out var result) || result == null || result.Forest == null)
             {
                 _view.RenderMissingSetupHint();
@@ -544,9 +545,10 @@ namespace AbilityKit.Ability.Explain.Editor
             }
             else
             {
-                _view.RenderForest(result.Forest);
+                _view.RenderForest(forestToRender);
             }
             _view.RenderIssues(result.Issues);
+            _view.RenderDebug(result);
         }
 
         private static bool IsShowDiffEnabled(ExplainResolveContext ctx)

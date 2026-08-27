@@ -14,12 +14,14 @@ namespace AbilityKit.Demo.Shooter.View
         public const float DefaultPlaybackFramesPerSecond = 30f;
         public const float DefaultInterpolationDelayFrames = 2f;
         public const float DefaultDelayConvergenceRate = 0.125f;
+        public const float DefaultMaxTransformExtrapolationFrames = 6f;
 
         private readonly ShooterSnapshotViewBatch[] _buffer;
         private readonly ShooterSnapshotSamplingPolicy _samplingPolicy;
-        private readonly SparseSnapshotTrackBuffer<ShooterViewEntityKey, ShooterViewTransformComponentChange> _transformTracks =
-            new(InterpolateTransform);
+        private readonly SparseSnapshotTrackBuffer<ShooterViewEntityKey, ShooterViewTransformComponentChange> _transformTracks;
         private readonly HashSet<ShooterViewEntityKey> _sampledTransformKeys = new();
+        private readonly HashSet<ShooterViewEntityKey> _batchEntityKeys = new();
+        private readonly List<ShooterViewEntityKey> _tracksToRemove = new();
         private readonly ReusableTransformList _transientTransformBuffer = new();
         private int _start;
         private int _count;
@@ -48,6 +50,12 @@ namespace AbilityKit.Demo.Shooter.View
 
             _buffer = new ShooterSnapshotViewBatch[bufferCapacity];
             _samplingPolicy = samplingPolicy ?? throw new ArgumentNullException(nameof(samplingPolicy));
+            _transformTracks = new SparseSnapshotTrackBuffer<ShooterViewEntityKey, ShooterViewTransformComponentChange>(
+                InterpolateTransform,
+                ExtrapolateTransform)
+            {
+                MaxExtrapolationTicks = DefaultMaxTransformExtrapolationFrames
+            };
             PlaybackFramesPerSecond = DefaultPlaybackFramesPerSecond;
             InterpolationDelayFrames = DefaultInterpolationDelayFrames;
             DelayConvergenceRate = DefaultDelayConvergenceRate;
@@ -68,6 +76,12 @@ namespace AbilityKit.Demo.Shooter.View
         public float PlaybackFrame => _playbackFrame;
 
         public float PlaybackFramesPerSecond { get; set; }
+
+        public float MaxTransformExtrapolationFrames
+        {
+            get => (float)_transformTracks.MaxExtrapolationTicks;
+            set => _transformTracks.MaxExtrapolationTicks = Math.Max(0f, value);
+        }
 
         public float InterpolationDelayFrames
         {
@@ -255,6 +269,8 @@ namespace AbilityKit.Demo.Shooter.View
             _playbackSearchIndex = 0;
             _transformTracks.Clear();
             _sampledTransformKeys.Clear();
+            _batchEntityKeys.Clear();
+            _tracksToRemove.Clear();
             _transientTransformBuffer.Clear();
         }
 
@@ -376,7 +392,10 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (batch.ShouldReplaceMissingEntities)
             {
-                _transformTracks.Clear();
+                // 全量基线的语义是"权威集合替换"：裁剪掉不在基线中的实体轨道（防残留泄漏），
+                // 但保留仍在场实体的轨道并继续喂样本——无差别 Clear 会让全部实体从基线姿势
+                // 集体重启，表现为同帧整批实体统一距离跳变（拉扯）。
+                PruneTracksToBatchEntities(in batch);
             }
 
             for (var i = 0; i < batch.TransformChanges.Count; i++)
@@ -398,6 +417,41 @@ namespace AbilityKit.Demo.Shooter.View
                     _transformTracks.Remove(entity.Key);
                 }
             }
+        }
+
+        private void PruneTracksToBatchEntities(in ShooterSnapshotViewBatch batch)
+        {
+            if (_transformTracks.Count == 0)
+            {
+                return;
+            }
+
+            _batchEntityKeys.Clear();
+            for (var i = 0; i < batch.TransformChanges.Count; i++)
+            {
+                _batchEntityKeys.Add(batch.TransformChanges[i].Key);
+            }
+
+            for (var i = 0; i < batch.EntityChanges.Count; i++)
+            {
+                _batchEntityKeys.Add(batch.EntityChanges[i].Key);
+            }
+
+            var keys = _transformTracks.GetKeyEnumerator();
+            while (keys.MoveNext())
+            {
+                if (!_batchEntityKeys.Contains(keys.Current))
+                {
+                    _tracksToRemove.Add(keys.Current);
+                }
+            }
+
+            for (var i = 0; i < _tracksToRemove.Count; i++)
+            {
+                _transformTracks.Remove(_tracksToRemove[i]);
+            }
+
+            _tracksToRemove.Clear();
         }
 
         private ShooterSnapshotViewBatch ApplyLowFrequencyTransforms(
@@ -529,6 +583,22 @@ namespace AbilityKit.Demo.Shooter.View
                 Lerp(from.VelocityX, to.VelocityX, t),
                 Lerp(from.VelocityY, to.VelocityY, t),
                 from.DeliveryHints | to.DeliveryHints);
+        }
+
+        private ShooterViewTransformComponentChange ExtrapolateTransform(
+            in ShooterViewTransformComponentChange sample,
+            double deltaFrames)
+        {
+            var deltaSeconds = (float)(deltaFrames / Math.Max(1f, PlaybackFramesPerSecond));
+            return new ShooterViewTransformComponentChange(
+                sample.Key,
+                sample.X + (sample.VelocityX * deltaSeconds),
+                sample.Y + (sample.VelocityY * deltaSeconds),
+                sample.FacingX,
+                sample.FacingY,
+                sample.VelocityX,
+                sample.VelocityY,
+                sample.DeliveryHints);
         }
 
         private static float Lerp(float from, float to, float t)

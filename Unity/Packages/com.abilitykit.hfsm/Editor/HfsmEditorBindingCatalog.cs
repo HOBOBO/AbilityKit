@@ -2,13 +2,14 @@ using System;
 using System.Reflection;
 using AbilityKit.HFSM;
 using UnityEditor;
+using UnityEngine;
 
 namespace UnityHFSM.Editor
 {
     /// <summary>Editor-owned pull catalog. Runtime simulation never depends on this scan.</summary>
     public static class HfsmEditorBindingCatalog
     {
-        private const string CatalogAssetGuidPreference = "AbilityKit.HFSM.BindingCatalogGuid";
+        private const string LegacyCatalogAssetGuidPreference = "AbilityKit.HFSM.BindingCatalogGuid";
         private static HfsmBindingCatalog _catalog;
         private static HfsmBindingCatalogAsset _catalogAsset;
 
@@ -19,7 +20,13 @@ namespace UnityHFSM.Editor
                 if (_catalogAsset != null)
                     return _catalogAsset;
 
-                var guid = EditorPrefs.GetString(CatalogAssetGuidPreference, string.Empty);
+                var guid = HfsmEditorProjectSettings.instance.CatalogAssetGuid;
+                if (string.IsNullOrEmpty(guid) && EditorPrefs.HasKey(LegacyCatalogAssetGuidPreference))
+                {
+                    guid = EditorPrefs.GetString(LegacyCatalogAssetGuidPreference, string.Empty);
+                    HfsmEditorProjectSettings.instance.SetCatalogAssetGuid(guid);
+                    EditorPrefs.DeleteKey(LegacyCatalogAssetGuidPreference);
+                }
                 if (string.IsNullOrEmpty(guid))
                     return null;
 
@@ -49,16 +56,16 @@ namespace UnityHFSM.Editor
             _catalog = null;
             if (asset == null)
             {
-                EditorPrefs.DeleteKey(CatalogAssetGuidPreference);
+                HfsmEditorProjectSettings.instance.SetCatalogAssetGuid(string.Empty);
                 return;
             }
 
             var path = AssetDatabase.GetAssetPath(asset);
             var guid = string.IsNullOrEmpty(path) ? string.Empty : AssetDatabase.AssetPathToGUID(path);
             if (string.IsNullOrEmpty(guid))
-                EditorPrefs.DeleteKey(CatalogAssetGuidPreference);
+                HfsmEditorProjectSettings.instance.SetCatalogAssetGuid(string.Empty);
             else
-                EditorPrefs.SetString(CatalogAssetGuidPreference, guid);
+                HfsmEditorProjectSettings.instance.SetCatalogAssetGuid(guid);
         }
 
         [MenuItem("Assets/AbilityKit/HFSM/Use Selected Binding Catalog", true)]
@@ -101,6 +108,22 @@ namespace UnityHFSM.Editor
             }
 
             return catalog;
+        }
+    }
+
+    [FilePath("ProjectSettings/AbilityKitHfsmSettings.asset", FilePathAttribute.Location.ProjectFolder)]
+    internal sealed class HfsmEditorProjectSettings : ScriptableSingleton<HfsmEditorProjectSettings>
+    {
+        [SerializeField] private string catalogAssetGuid = string.Empty;
+
+        public string CatalogAssetGuid => catalogAssetGuid;
+
+        public void SetCatalogAssetGuid(string value)
+        {
+            value = value ?? string.Empty;
+            if (catalogAssetGuid == value) return;
+            catalogAssetGuid = value;
+            Save(true);
         }
     }
 }

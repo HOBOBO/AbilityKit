@@ -13,10 +13,108 @@ MonoBehaviour:
   m_Name: ProjectileLauncherCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 100001
-    Name: "\u6D4B\u8BD5\u53D1\u5C04\u5668"
+  - Id: 1
+    Name: "\u666E\u653B\u53D1\u5C04\u5668"
     EmitterType: 1
     DurationMs: 0
     IntervalMs: 0
     CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 2
+    Name: "\u6280\u80FD\u53D1\u5C04\u5668-\u6247\u5F62"
+    EmitterType: 1
+    DurationMs: 1000
+    IntervalMs: 500
+    CountPerShot: 5
+    FanAngleDeg: 90
+  - Id: 31010101
+    Name: "\u5EC9\u9887-\u7206\u88C2\u51B2\u649E-\u76F4\u7EBF\u51B2\u950B\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31020001
+    Name: "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31020101
+    Name: "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E-\u5355\u6247\u7EBF\u6027\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31030101
+    Name: "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99-\u76F4\u7EBF\u51B2\u950B\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31040011
+    Name: "\u58A8\u5B50-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31040101
+    Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65-\u76F4\u7EBF\u7A81\u8FDB\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31040201
+    Name: "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE-\u5355\u53D1\u70AE\u5F39\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31050001
+    Name: "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31050101
+    Name: "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB-\u5355\u53D1\u51B2\u51FB\u6CE2\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31050201
+    Name: "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B-\u5355\u53D1\u8FFD\u8E2A\u9B45\u60D1\u5F39\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31050301
+    Name: "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC-\u72D0\u706B\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 1600
+    IntervalMs: 400
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31060001
+    Name: "\u5B34\u653F-\u666E\u901A\u653B\u51FB-\u5355\u53D1\u98DE\u5251\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 0
+    IntervalMs: 0
+    CountPerShot: 1
+    FanAngleDeg: 0
+  - Id: 31060301
+    Name: "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743-\u98DE\u5251\u53D1\u5C04\u5668"
+    EmitterType: 1
+    DurationMs: 2500
+    IntervalMs: 250
+    CountPerShot: 5
     FanAngleDeg: 0

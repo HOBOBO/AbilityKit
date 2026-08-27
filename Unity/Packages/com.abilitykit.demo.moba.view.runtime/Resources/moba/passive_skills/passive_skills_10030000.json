@@ -1,0 +1,11 @@
+{
+  "Id": 10030000,
+  "Name": "赵云-龙鸣",
+  "CooldownMs": 0,
+  "TriggerIds": [
+    10030000,
+    10030002,
+    10030312
+  ],
+  "ContinuousProcessIds": null
+}

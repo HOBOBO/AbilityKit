@@ -7,7 +7,7 @@ param(
     [int]$GatewayPort = 4000,
     [string]$GatewayRegion = 'dev',
     [string]$GatewayServerId = 'local',
-    [string]$SyncTemplateId = 'mass-battle-lod-aoi',
+    [string]$SyncTemplateId = 'mass-battle-lod-aoi-sample-block',
     [int]$SyncModel = 5,
     [int[]]$EnemyBudgets = @(512, 2000),
     [ValidateSet('gameobject', 'gpu')]

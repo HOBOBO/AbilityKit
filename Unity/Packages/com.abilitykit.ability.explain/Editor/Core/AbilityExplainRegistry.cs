@@ -298,6 +298,7 @@ namespace AbilityKit.Ability.Explain.Editor
             EntityProviders.Clear();
             Resolvers.Clear();
             Navigators.Clear();
+            ContextEditorProviders.Clear();
             DetailsSectionProviders.Clear();
             DiscoveryPolicies.Clear();
             EntityListModules.Clear();

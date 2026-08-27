@@ -1029,7 +1029,7 @@
           "codec": "custom-binary",
           "reliability": "realtime",
           "minimumSchemaVersion": 1,
-          "maximumSchemaVersion": 2,
+          "maximumSchemaVersion": 3,
           "maximumPayloadBytes": 4194304,
           "captureSampleRate": 0.02
         },
@@ -1042,7 +1042,7 @@
           "codec": "custom-binary",
           "reliability": "realtime",
           "minimumSchemaVersion": 1,
-          "maximumSchemaVersion": 2,
+          "maximumSchemaVersion": 3,
           "maximumPayloadBytes": 4194304,
           "captureSampleRate": 0.02
         }

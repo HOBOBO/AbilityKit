@@ -111,10 +111,11 @@ public sealed class ShooterAcceptanceLabTests
         var launchSpec = ShooterRoomLaunchSpec.CreateDefault("client-a");
         var template = ShooterAcceptanceCatalog.GetSyncTemplate(launchSpec.SyncTemplateId);
 
-        // 2K multiplayer defaults to the pure-state AOI/LOD path; packed state sync remains explicitly selectable.
-        Assert.Equal(ShooterSyncTemplateIds.MassBattleLodAoi, launchSpec.SyncTemplateId);
+        // 可玩默认走 sample-block 纯状态模板 + ideal 网络（不做弱链路压测注入）；
+        // limitedbw 压测与 packed 路径仍可显式选择。
+        Assert.Equal(ShooterSyncTemplateIds.MassBattleLodAoiSampleBlock, launchSpec.SyncTemplateId);
         Assert.Equal((int)NetworkSyncModel.MassBattleLodSync, launchSpec.SyncModel);
-        Assert.Equal("limitedbw", launchSpec.NetworkEnvironmentId);
+        Assert.Equal("ideal", launchSpec.NetworkEnvironmentId);
         Assert.Equal(ShooterInterpolationDemoHarnessCarrier.DefaultCarrierName, launchSpec.CarrierName);
         Assert.Equal(template.SyncModel, (NetworkSyncModel)launchSpec.SyncModel);
         Assert.True(template.IsRunnable);
@@ -203,7 +204,10 @@ public sealed class ShooterAcceptanceLabTests
         Assert.Equal(template.SyncModel, options.SyncModel);
         Assert.Equal(template.RecommendedPlayerCount, options.PlayerCount);
         Assert.Equal(template.EnableAuthoritativeWorld, options.EnableAuthoritativeWorld);
-        Assert.Equal(template.DisplayName, options.NetworkName);
+        // 网络名来自模板选中的网络环境，而不是模板展示名。
+        Assert.Equal(
+            ShooterAcceptanceCatalog.GetNetworkEnvironment(template.NetworkEnvironmentId).DisplayName,
+            options.NetworkName);
         Assert.Equal(NetworkConditionProfile.Lan.BaseLatencyMs, options.LatencyMs);
     }
 

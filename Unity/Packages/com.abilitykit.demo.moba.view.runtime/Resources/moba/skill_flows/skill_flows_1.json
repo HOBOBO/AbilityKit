@@ -1,0 +1,22 @@
+{
+  "Id": 1,
+  "Name": "通用-普通攻击-兼容回退",
+  "PipelineContinuousTagTemplateId": 0,
+  "Phases": [
+    {
+      "Type": 2,
+      "PhaseId": null,
+      "Checks": null,
+      "Timeline": {
+        "DurationMs": 250,
+        "Events": []
+      },
+      "Handlers": null,
+      "RulePlan": null,
+      "Children": null,
+      "Repeat": null,
+      "Delay": null,
+      "WaitUntil": null
+    }
+  ]
+}

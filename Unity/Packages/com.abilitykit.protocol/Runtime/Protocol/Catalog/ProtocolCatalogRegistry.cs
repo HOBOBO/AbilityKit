@@ -51,6 +51,16 @@ namespace AbilityKit.Protocol.Catalog
                 return _catalogs.TryGetValue(catalogId ?? string.Empty, out catalog);
         }
 
+        public IReadOnlyList<ProtocolCatalogDefinition> Snapshot()
+        {
+            lock (_gate)
+            {
+                var catalogs = new ProtocolCatalogDefinition[_catalogs.Count];
+                _catalogs.Values.CopyTo(catalogs, 0);
+                return catalogs;
+            }
+        }
+
         public bool TryGetMessage(
             string catalogId,
             string messageId,

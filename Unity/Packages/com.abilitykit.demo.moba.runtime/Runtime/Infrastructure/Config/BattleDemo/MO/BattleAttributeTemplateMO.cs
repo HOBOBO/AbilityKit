@@ -26,7 +26,7 @@ namespace AbilityKit.Demo.Moba.Config.BattleDemo.MO
         public int CooldownReduceR { get; }
         public int PhysicsPenetrationR { get; }
         public int MagicPenetrationR { get; }
-        public int MoveSpeed { get; }
+        public float MoveSpeed { get; }
         public int PhysicsBloodsuckingR { get; }
         public int MagicBloodsuckingR { get; }
         public int AttackRange { get; }

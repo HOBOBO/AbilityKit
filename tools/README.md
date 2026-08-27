@@ -33,6 +33,14 @@
 | `audit_unity_package_dependencies.ps1` | 审计 Unity 包依赖 |
 | `open_samples_web.ps1` / `.cmd` | 打开 Samples Web 页面 |
 
+## 协议 catalog 治理（protocol catalog governance）
+
+| 脚本 | 用途 |
+|------|------|
+| `compile-protocol-catalogs.ps1` | 协议 catalog 唯一生成/校验入口：把 `Protocols/Catalogs/*.protocol.yaml` 编译为 manifest、`BuiltInProtocolCatalogs.g.cs` 与兼容 metadata 投影。运行时以 `ProtocolCatalogRegistry` 为真源，metadata 可通过生成的 `CreateRegistry(ProtocolCatalogRegistry)` 创建只读视图。默认重新生成写回；`-Check` 只读校验并拦截陈旧产物（CI PR/push 门禁 `protocol-catalogs` job 调用它） |
+| `export-protocol-wire.ps1` | 协议 Wire 正式导出唯一生成/校验入口（Shooter/MOBA 复用，含 `.tests.ps1`）：按项目把 `Protocols/WireSchemas/*.wire.yaml` 确定性导出为 Unity 协议包内已提交的 MemoryPack 产物。`-Check` 只读校验（CRLF/LF 归一化后逐文件比较），stale 退出码 3；`-Strict` 把缺失 wire schema 升级为失败（CI `protocol-catalogs` job 调用） |
+| `AbilityKit.Protocol.CatalogCompiler/` | codec-neutral 确定性编译工具（.NET 控制台），提供 MemoryPack backend adapter 与 Protobuf backend SPI；Protobuf 可通过 `--wire-input <root> --project <id> --export-protobuf <folder> [--check]` 导出/校验 |
+
 ## 配置同步（config sync）
 
 | 脚本 | 用途 |

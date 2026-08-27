@@ -1,0 +1,17 @@
+{
+  "Id": 10030201,
+  "Name": "赵云-破云之龙",
+  "CooldownMs": 8000,
+  "Range": 6,
+  "IconId": 302,
+  "Category": 3,
+  "SkillType": 2,
+  "Tags": [
+    302
+  ],
+  "SkillButtonTemplateId": 9,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10030201,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10030201
+}

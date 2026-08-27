@@ -56,7 +56,7 @@ namespace AbilityKit.Ability.Explain.Editor
                 Title = "Removed",
                 Root = new ExplainNode
                 {
-                    NodeId = Guid.NewGuid().ToString("N"),
+                    NodeId = "diff_removed_root",
                     Kind = "diff_removed_root",
                     Title = "Removed",
                     Children = removedRoots

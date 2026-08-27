@@ -11,6 +11,10 @@ namespace AbilityKit.Network.Runtime
         in TSample to,
         float alpha);
 
+    public delegate TSample SparseSnapshotExtrapolator<TSample>(
+        in TSample sample,
+        double deltaTimelineTicks);
+
     /// <summary>描述稀疏轨道采样结果的生成方式。</summary>
     public enum SparseSnapshotSampleKind
     {
@@ -21,7 +25,9 @@ namespace AbilityKit.Network.Runtime
         Held = 1,
 
         /// <summary>结果由两个权威样本插值得到。</summary>
-        Interpolated = 2
+        Interpolated = 2,
+
+        Extrapolated = 3
     }
 
     /// <summary>
@@ -33,10 +39,11 @@ namespace AbilityKit.Network.Runtime
     {
         private readonly Dictionary<TKey, Track> _tracks;
         private readonly SparseSnapshotInterpolator<TSample> _interpolate;
+        private readonly SparseSnapshotExtrapolator<TSample>? _extrapolate;
 
         /// <summary>使用默认键比较器创建缓冲区。</summary>
         public SparseSnapshotTrackBuffer(SparseSnapshotInterpolator<TSample> interpolate)
-            : this(interpolate, comparer: null)
+            : this(interpolate, extrapolate: null, comparer: null)
         {
         }
 
@@ -44,13 +51,28 @@ namespace AbilityKit.Network.Runtime
         public SparseSnapshotTrackBuffer(
             SparseSnapshotInterpolator<TSample> interpolate,
             IEqualityComparer<TKey>? comparer)
+            : this(interpolate, extrapolate: null, comparer)
+        {
+        }
+
+        public SparseSnapshotTrackBuffer(
+            SparseSnapshotInterpolator<TSample> interpolate,
+            SparseSnapshotExtrapolator<TSample>? extrapolate,
+            IEqualityComparer<TKey>? comparer = null)
         {
             _interpolate = interpolate ?? throw new ArgumentNullException(nameof(interpolate));
+            _extrapolate = extrapolate;
             _tracks = new Dictionary<TKey, Track>(comparer);
         }
 
         /// <summary>当前保留的实体轨道数量。</summary>
         public int Count => _tracks.Count;
+
+        /// <summary>
+        /// Maximum timeline distance projected past the latest sparse sample. Zero keeps the
+        /// previous hold-last-sample behavior. Projection is clamped at this horizon.
+        /// </summary>
+        public double MaxExtrapolationTicks { get; set; }
 
         /// <summary>
         /// 当样本时间不早于已保留端点时，添加或替换实体样本。
@@ -90,7 +112,13 @@ namespace AbilityKit.Network.Runtime
                 return false;
             }
 
-            return track.TrySample(targetTimelineTicks, _interpolate, out sample, out sampleKind);
+            return track.TrySample(
+                targetTimelineTicks,
+                _interpolate,
+                _extrapolate,
+                Math.Max(0d, MaxExtrapolationTicks),
+                out sample,
+                out sampleKind);
         }
 
         /// <summary>移除一条实体轨道。</summary>
@@ -185,6 +213,8 @@ namespace AbilityKit.Network.Runtime
             public bool TrySample(
                 double targetTimelineTicks,
                 SparseSnapshotInterpolator<TSample> interpolate,
+                SparseSnapshotExtrapolator<TSample>? extrapolate,
+                double maxExtrapolationTicks,
                 out TSample sample,
                 out SparseSnapshotSampleKind sampleKind)
             {
@@ -199,6 +229,17 @@ namespace AbilityKit.Network.Runtime
 
                 if (!_hasPrevious || targetTimelineTicks >= _latestTimelineTicks)
                 {
+                    if (!_noInterpolation && extrapolate != null && maxExtrapolationTicks > 0d &&
+                        targetTimelineTicks > _latestTimelineTicks)
+                    {
+                        var delta = Math.Min(
+                            maxExtrapolationTicks,
+                            targetTimelineTicks - _latestTimelineTicks);
+                        sample = extrapolate(in _latest, delta);
+                        sampleKind = SparseSnapshotSampleKind.Extrapolated;
+                        return true;
+                    }
+
                     sample = _latest;
                     sampleKind = SparseSnapshotSampleKind.Held;
                     return true;

@@ -6,9 +6,9 @@ using AbilityKit.Protocol.Shooter;
 namespace AbilityKit.Demo.Shooter.Runtime
 {
     /// <summary>
-    /// Optional server-side timing hook. The callback is invoked once per
-    /// battle system after a frame completes and is never installed by the
-    /// normal Unity client path.
+    /// Optional server-side timing hook. The callback is invoked for each
+    /// battle system and selected RVO substages, and is never installed by
+    /// the normal Unity client path.
     /// </summary>
     public interface IShooterBattlePerformancePort
     {

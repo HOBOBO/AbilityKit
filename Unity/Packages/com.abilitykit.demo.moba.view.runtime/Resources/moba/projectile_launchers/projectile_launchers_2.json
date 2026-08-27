@@ -1,0 +1,9 @@
+{
+  "Id": 2,
+  "Name": "技能发射器-扇形",
+  "EmitterType": 1,
+  "DurationMs": 1000,
+  "IntervalMs": 500,
+  "CountPerShot": 5,
+  "FanAngleDeg": 90.0
+}

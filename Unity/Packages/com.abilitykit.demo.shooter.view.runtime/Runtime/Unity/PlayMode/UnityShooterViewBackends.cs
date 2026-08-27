@@ -838,7 +838,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             }
 
             var root = new GameObject("ShooterPlayModeGpuInstancedViews");
-            UnityEngine.Object.DontDestroyOnLoad(root);
+            // 编辑模式（含无头基准）没有 Play Mode 语义，DDOL 会抛异常；根节点留在当前场景即可。
+            if (UnityEngine.Application.isPlaying)
+            {
+                UnityEngine.Object.DontDestroyOnLoad(root);
+            }
             _viewRoot = root.transform;
             _hudBehaviour = root.AddComponent<HudBehaviour>();
             _hudBehaviour.Initialize(this);

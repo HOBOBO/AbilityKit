@@ -1,0 +1,9 @@
+{
+  "Id": 31020001,
+  "Name": "小乔-普通攻击-单发发射器",
+  "EmitterType": 1,
+  "DurationMs": 0,
+  "IntervalMs": 0,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

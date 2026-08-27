@@ -137,7 +137,7 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 CooldownReduceR = obj["CooldownReduceR"]?.Value<int>() ?? 0,
                 PhysicsPenetrationR = obj["PhysicsPenetrationR"]?.Value<int>() ?? 0,
                 MagicPenetrationR = obj["MagicPenetrationR"]?.Value<int>() ?? 0,
-                MoveSpeed = obj["MoveSpeed"]?.Value<int>() ?? 0,
+                MoveSpeed = obj["MoveSpeed"]?.Value<float>() ?? 0f,
                 PhysicsBloodsuckingR = obj["PhysicsBloodsuckingR"]?.Value<int>() ?? 0,
                 MagicBloodsuckingR = obj["MagicBloodsuckingR"]?.Value<int>() ?? 0,
                 AttackRange = obj["AttackRange"]?.Value<int>() ?? 0,

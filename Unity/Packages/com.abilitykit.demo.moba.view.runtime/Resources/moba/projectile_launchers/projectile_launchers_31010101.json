@@ -1,0 +1,9 @@
+{
+  "Id": 31010101,
+  "Name": "廉颇-爆裂冲撞-直线冲锋发射器",
+  "EmitterType": 1,
+  "DurationMs": 0,
+  "IntervalMs": 0,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

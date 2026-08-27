@@ -1,0 +1,15 @@
+{
+  "Id": 10040011,
+  "Name": "墨子-普通攻击",
+  "CooldownMs": 800,
+  "Range": 8,
+  "IconId": 401,
+  "Category": 4,
+  "SkillType": 1,
+  "Tags": [],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10040011
+}

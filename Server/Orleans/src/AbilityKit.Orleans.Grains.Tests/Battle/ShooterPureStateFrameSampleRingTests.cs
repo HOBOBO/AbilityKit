@@ -136,6 +136,40 @@ public sealed class ShooterPureStateFrameSampleRingTests
     }
 
     [Fact]
+    public void AttachTo_SmoothMassBattleKeepsDenseNearAndMidHistory()
+    {
+        var ring = new ShooterPureStateFrameSampleRing();
+        var samples = CreateDistributedSamples(1_000);
+        CaptureThreeFrames(ring, samples);
+        var payload = CreatePayload(frame: 3);
+        var scope = new ShooterPureStateInterestScope(99_999, 0f, 0f, 24f, 30f);
+
+        ring.AttachTo(
+            ref payload,
+            blockFrameCount: 3,
+            maxTransformsPerFrame: 2_048,
+            scope,
+            ShooterPureStateSampleDensityPolicy.SmoothMassBattle,
+            out var diagnostics);
+
+        Assert.Equal(2, payload.EffectiveFrameSampleCount);
+        Assert.Equal(1_400, payload.EffectiveTransformSampleCount);
+        Assert.Equal(400, payload.FrameSamples[0].TransformCount);
+        Assert.Equal(1_000, payload.FrameSamples[1].TransformCount);
+        Assert.Equal(800, diagnostics.NearSelectedCount);
+        Assert.Equal(300, diagnostics.MidSelectedCount);
+        Assert.Equal(300, diagnostics.FarSelectedCount);
+
+        var compressedBytes = ShooterPureStateSyncCodec.Serialize(in payload);
+        var rawPayload = payload;
+        rawPayload.Version = 2;
+        var rawBytes = ShooterPureStateSyncCodec.Serialize(in rawPayload);
+        Assert.True(
+            compressedBytes.Length <= rawBytes.Length * 0.55d,
+            $"Expected compressed history <= 55% of v2 raw history. Compressed={compressedBytes.Length}, raw={rawBytes.Length}.");
+    }
+
+    [Fact]
     public void AttachTo_MassBattleRotatesTheHistoricalEntityWindowAcrossBlocks()
     {
         var ring = new ShooterPureStateFrameSampleRing();

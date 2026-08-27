@@ -1,0 +1,14 @@
+{
+  "Id": 1002,
+  "Name": "小乔",
+  "ModelId": 1002,
+  "AttributeTemplateId": 1002,
+  "SkillIds": [
+    10020101,
+    10020201,
+    10020301
+  ],
+  "PassiveSkillIds": [
+    10020000
+  ]
+}

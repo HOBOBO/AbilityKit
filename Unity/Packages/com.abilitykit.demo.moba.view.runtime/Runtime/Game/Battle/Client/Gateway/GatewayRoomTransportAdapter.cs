@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Room;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Runtime.Gateway;
 using AbilityKit.Network.Sdk;
 
 namespace AbilityKit.Game.Battle.Agent
@@ -33,13 +34,21 @@ namespace AbilityKit.Game.Battle.Agent
                 throw new ArgumentNullException(nameof(connection));
             }
 
-            var requestClient = new RequestClient(connection);
-            _sendRequestAsync = requestClient.SendRequestAsync;
+            var gateway = GatewayConnection.Create(connection);
+            _sendRequestAsync = async (opCode, payload, timeout, cancellationToken) =>
+            {
+                var response = await gateway.SendRequestAsync(
+                    opCode,
+                    payload.Array == null ? Array.Empty<byte>() : payload.ToArray(),
+                    timeout,
+                    cancellationToken).ConfigureAwait(false);
+                return new ArraySegment<byte>(response);
+            };
             _subscribeServerPush =
-                handler => connection.ServerPushReceived += handler;
+                handler => gateway.ServerPushReceived += handler;
             _unsubscribeServerPush =
-                handler => connection.ServerPushReceived -= handler;
-            _ownedRequestClient = requestClient;
+                handler => gateway.ServerPushReceived -= handler;
+            _ownedRequestClient = gateway;
         }
 
         public GatewayRoomTransportAdapter(NetworkSdkClient sdkClient)

@@ -239,6 +239,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.HFSM.Core.Tests"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Protocol.CatalogCompiler", "..\tools\AbilityKit.Protocol.CatalogCompiler\AbilityKit.Protocol.CatalogCompiler.csproj", "{91050921-32D3-428E-98F5-83F437C2BBDD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Protocol.CatalogCompiler.Tests", "AbilityKit.Protocol.CatalogCompiler.Tests\AbilityKit.Protocol.CatalogCompiler.Tests.csproj", "{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BehaviorTree.Cli", "AbilityKit.BehaviorTree.Cli\AbilityKit.BehaviorTree.Cli.csproj", "{8A3232C6-4466-4878-9DF3-E1E81D50EF4F}"
 EndProject
 Global
@@ -1667,6 +1669,18 @@ Global
 		{91050921-32D3-428E-98F5-83F437C2BBDD}.Release|x64.Build.0 = Release|Any CPU
 		{91050921-32D3-428E-98F5-83F437C2BBDD}.Release|x86.ActiveCfg = Release|Any CPU
 		{91050921-32D3-428E-98F5-83F437C2BBDD}.Release|x86.Build.0 = Release|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Debug|x64.Build.0 = Debug|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Debug|x86.Build.0 = Debug|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Release|x64.ActiveCfg = Release|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Release|x64.Build.0 = Release|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Release|x86.ActiveCfg = Release|Any CPU
+		{A3C7E9D1-5B2F-4E8A-9C6D-0F1E2A3B4C5D}.Release|x86.Build.0 = Release|Any CPU
 		{8A3232C6-4466-4878-9DF3-E1E81D50EF4F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{8A3232C6-4466-4878-9DF3-E1E81D50EF4F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8A3232C6-4466-4878-9DF3-E1E81D50EF4F}.Debug|x64.ActiveCfg = Debug|Any CPU

@@ -11,6 +11,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
     {
         private const float CellSize = 6f;
         private const int MaxSearchRadius = 64;
+        private const int DirectScanThreshold = 16;
         private const int FullScanFallbackThreshold = 256;
 
         private readonly ShooterSpatialHashGrid _grid = new(CellSize);
@@ -188,6 +189,19 @@ namespace AbilityKit.Demo.Shooter.Runtime
             if (_records.Count == 0)
             {
                 return false;
+            }
+
+            // Shooter rooms normally have only a handful of players. For that
+            // shape a short contiguous scan is substantially cheaper than a
+            // dictionary-backed expanding-ring query for every enemy.
+            if (_records.Count <= DirectScanThreshold)
+            {
+                return TryFindBestRecord(
+                    selfX,
+                    selfY,
+                    selfPlayerId,
+                    ref targetRecord,
+                    ref targetDistanceSq);
             }
 
             var cellX = _grid.ComputeCellX(selfX);

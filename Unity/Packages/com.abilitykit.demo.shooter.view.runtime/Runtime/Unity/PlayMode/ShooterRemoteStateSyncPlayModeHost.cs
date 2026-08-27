@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private static readonly UnityShooterPlayInputSource InputSource = new();
         private static readonly UnityShooterSwitchableViewSink ViewSink = new();
         private static readonly ShooterRemoteInputPump InputPump = new(InputSource);
+        private static float _inputSampleAccumulator;
         private static readonly ReconnectAttemptScheduler SessionReconnectScheduler = new();
         private static readonly ShooterSyncFramePerformanceCollector PerformanceCollector = new();
         private static readonly ProfilerMarker LauncherTickMarker = new ProfilerMarker("AbilityKit.Shooter.Sync.LauncherTick");
@@ -450,12 +451,21 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
             var localTimeAnchor = (_timeAnchors ??= ShooterTimeAnchorCoordinator.CreateLocal(_options.SessionOptions.TickRate)).AdvanceLocal();
             _lastRemoteTimeAnchor = state.Launch.Flow.RemoteTimeAnchorProjection.TimeAnchor;
-            var inputResult = InputPump.SubmitFrameInput(
-                state.Launch.Session,
-                ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId),
-                _inputSubmitStrategy);
-            _lastInput = inputResult.Input;
-            _lastSubmitResult = inputResult.SubmitResult;
+            // 输入按模拟 tick 节奏采样提交（30Hz），而不是每渲染帧：本机低 RTT 下每帧提交
+            // 的实际到达速率≈编辑器帧率，会耗尽服务端准入令牌桶触发限速→恢复态封锁输入。
+            _inputSampleAccumulator += Math.Max(0f, deltaSeconds);
+            var inputTickInterval = 1f / Math.Max(1, _options.SessionOptions.TickRate);
+            if (_inputSampleAccumulator >= inputTickInterval)
+            {
+                _inputSampleAccumulator = 0f;
+                var inputResult = InputPump.SubmitFrameInput(
+                    state.Launch.Session,
+                    ResolveEffectiveControlledPlayerId(state.Launch.Flow, _options.SessionOptions.ControlledPlayerId),
+                    _inputSubmitStrategy);
+                _lastInput = inputResult.Input;
+                _lastSubmitResult = inputResult.SubmitResult;
+            }
+
             _stepCount++;
 
             stageStartedAt = Stopwatch.GetTimestamp();
@@ -551,6 +561,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _stepCount = 0;
             _renderCount = 0;
             _timeAnchors = null;
+            _inputSampleAccumulator = 0f;
             _lastRemoteTimeAnchor = default;
             _lastRemoteLatencyCompensationDiagnostics = default;
             PerformanceCollector.Reset();

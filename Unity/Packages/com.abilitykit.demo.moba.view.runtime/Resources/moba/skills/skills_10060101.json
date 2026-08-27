@@ -1,0 +1,17 @@
+{
+  "Id": 10060101,
+  "Name": "嬴政-王者惩戒",
+  "CooldownMs": 8000,
+  "Range": 11,
+  "IconId": 601,
+  "Category": 6,
+  "SkillType": 2,
+  "Tags": [
+    601
+  ],
+  "SkillButtonTemplateId": 5,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10060101,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10060101
+}

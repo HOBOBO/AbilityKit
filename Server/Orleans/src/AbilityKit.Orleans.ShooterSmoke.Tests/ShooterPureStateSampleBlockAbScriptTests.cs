@@ -51,13 +51,23 @@ public sealed class ShooterPureStateSampleBlockAbScriptTests
         Assert.Contains("medianBudgetLimitedDrainRatioDelta", abRunner, StringComparison.Ordinal);
         Assert.Contains("[switch]$SkipPerformanceValidation", headlessRunner, StringComparison.Ordinal);
         Assert.Contains("if (-not $SkipPerformanceValidation)", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("[int]$CompileWarmupTimeoutSeconds = 600", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("[int]$ClientStartupTimeoutSeconds = 600", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("$startupTimer = [System.Diagnostics.Stopwatch]::StartNew()", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("Both Shooter clients published startup state", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("[string]$SyncTemplateId = 'mass-battle-lod-aoi-sample-block'", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("[string]$NetworkEnvironmentId = 'ideal'", headlessRunner, StringComparison.Ordinal);
         Assert.Contains("AddSeconds(30)", headlessRunner, StringComparison.Ordinal);
         Assert.Contains("[System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("[System.Text.Encoding]::Unicode", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("[System.Text.Encoding]::BigEndianUnicode", headlessRunner, StringComparison.Ordinal);
+        Assert.Contains("$readOffset--", headlessRunner, StringComparison.Ordinal);
         Assert.Contains("[string]$ServerLogPath", headlessRunner, StringComparison.Ordinal);
         Assert.Contains("[BattleLogicHost] ServerPerformance", headlessRunner, StringComparison.Ordinal);
         Assert.Contains("server-performance.log", headlessRunner, StringComparison.Ordinal);
         Assert.Contains("battlePushBudgetLimitedDrainCount", headlessCommand, StringComparison.Ordinal);
         Assert.Contains("battlePushCoalescedSnapshotCount", headlessCommand, StringComparison.Ordinal);
+        Assert.Matches("SetProfileField\\(\\s*profile,\\s*\"networkEnvironmentId\"", headlessCommand);
         Assert.Contains("movementBackwardEvents", headlessCommand, StringComparison.Ordinal);
         Assert.Contains("authorityAdvanced", headlessCommand, StringComparison.Ordinal);
     }

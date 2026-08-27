@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Demo.Common.Rooms
@@ -37,12 +38,38 @@ namespace AbilityKit.Demo.Common.Rooms
 
     public sealed class DemoRoomGatewayAccountClient : IDisposable
     {
-        private readonly RequestClient _requestClient;
+        private readonly NetworkSdkClient _sdkClient;
+        private readonly bool _ownsSdkClient;
 
+        /// <summary>
+        /// Compatibility path for callers that only have a connection. Request dispatch remains
+        /// owned by a single SDK client for the complete connection lifetime.
+        /// </summary>
         public DemoRoomGatewayAccountClient(IConnection connection)
+            : this(
+                new NetworkSdkBuilder()
+                    .UseOwnedConnectionFactory(
+                        () => connection ?? throw new ArgumentNullException(nameof(connection)))
+                    .Build(),
+                ownsSdkClient: true)
         {
-            _requestClient = new RequestClient(
-                connection ?? throw new ArgumentNullException(nameof(connection)));
+        }
+
+        /// <summary>
+        /// Uses an externally owned SDK client. Disposing this account facade does not dispose the
+        /// shared SDK client.
+        /// </summary>
+        public DemoRoomGatewayAccountClient(NetworkSdkClient sdkClient)
+            : this(sdkClient, ownsSdkClient: false)
+        {
+        }
+
+        private DemoRoomGatewayAccountClient(
+            NetworkSdkClient sdkClient,
+            bool ownsSdkClient)
+        {
+            _sdkClient = sdkClient ?? throw new ArgumentNullException(nameof(sdkClient));
+            _ownsSdkClient = ownsSdkClient;
         }
 
         public async Task<DemoAccountLoginResult> AccountLoginAsync(
@@ -64,7 +91,7 @@ namespace AbilityKit.Demo.Common.Rooms
                 KickExisting = kickExisting
             };
             var payload = WireRoomGatewayBinary.Serialize(in request);
-            var responsePayload = await _requestClient.SendRequestAsync(
+            var responsePayload = await _sdkClient.SendRawRequestAsync(
                 RoomGatewayOpCodes.AccountLogin,
                 payload,
                 timeout,
@@ -131,7 +158,10 @@ namespace AbilityKit.Demo.Common.Rooms
 
         public void Dispose()
         {
-            _requestClient.Dispose();
+            if (_ownsSdkClient)
+            {
+                _sdkClient.Dispose();
+            }
         }
     }
 }

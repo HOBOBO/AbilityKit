@@ -56,6 +56,8 @@ namespace AbilityKit.BehaviorTree
 
         private bool _enabled;
         private int _lastFrame;
+        private IReadOnlyDictionary<string, string>? _nodeSourceTree;
+        private IReadOnlyList<BtSubtreeInstance> _subtreeInstances = Array.Empty<BtSubtreeInstance>();
         private BtNodeState _treeState = BtNodeState.Inactive;
         private int _preIndex = -1;
         private BtNodeState _preState = BtNodeState.Inactive;
@@ -67,6 +69,11 @@ namespace AbilityKit.BehaviorTree
         public BtNodeState TreeState => _treeState;
         public BtNodeState RootNodeState => _flatNodes.Length > 0 ? _flatNodes[0].State : BtNodeState.Inactive;
         public int NodeCount => _flatNodes.Length;
+        /// <summary>子树展开后的节点来源树（nodeId -> treeId）；未用子树引用时为 null。</summary>
+        public IReadOnlyDictionary<string, string>? NodeSourceTree => _nodeSourceTree;
+
+        /// <summary>子树实例（内联根 -> 被引用 treeId）。</summary>
+        public IReadOnlyList<BtSubtreeInstance> SubtreeInstances => _subtreeInstances;
 
         private BtTreeRuntime(BtTreeDefinition definition, BtNodeRegistry registry, IBtServiceResolver services, BtTreeRunOptions? options)
         {
@@ -114,8 +121,18 @@ namespace AbilityKit.BehaviorTree
             BtTreeDefinition definition,
             BtNodeRegistry registry,
             IBtServiceResolver? services = null,
-            BtTreeRunOptions? options = null)
+            BtTreeRunOptions? options = null,
+            IBtTreeDefinitionResolver? subtreeResolver = null)
         {
+            if (subtreeResolver != null)
+            {
+                var expansion = BtTreeCompiler.ExpandReferences(definition, subtreeResolver);
+                return new BtTreeRuntime(expansion.Definition, registry, services, options)
+                {
+                    _nodeSourceTree = expansion.NodeSourceTree,
+                    _subtreeInstances = expansion.SubtreeInstances,
+                };
+            }
             return new BtTreeRuntime(definition, registry, services, options);
         }
 
@@ -789,6 +806,10 @@ namespace AbilityKit.BehaviorTree
         /// <summary>只读观察用途；观察端不得修改定义（实例节点已按它初始化）。</summary>
         BtTreeDefinition IBtTreeDebugView.TreeDefinition => _definition;
 
+        IReadOnlyDictionary<string, string>? IBtTreeDebugView.NodeSourceTree => _nodeSourceTree;
+
+        IReadOnlyList<BtSubtreeInstance> IBtTreeDebugView.SubtreeInstances => _subtreeInstances;
+
         List<BtNodeDebugInfo> IBtTreeDebugView.GetNodeStates()
         {
             var onStack = new int[_flatNodes.Length];
@@ -805,6 +826,10 @@ namespace AbilityKit.BehaviorTree
             {
                 var depth = 0;
                 for (var p = _parentIndex[i]; p != -1; p = _parentIndex[p]) depth++;
+                var sourceTree = _nodeSourceTree != null
+                    && _nodeSourceTree.TryGetValue(_flatDefinitions[i].Id, out var src)
+                    ? src
+                    : null;
                 result.Add(new BtNodeDebugInfo(
                     _flatDefinitions[i].Id,
                     _flatDefinitions[i].Name,
@@ -815,7 +840,8 @@ namespace AbilityKit.BehaviorTree
                     _flatNodes[i].State,
                     depth,
                     onStack[i],
-                    _flatNodes[i] is BtParentNodeBase parent ? parent.CaptureRunningIndex() : -1));
+                    _flatNodes[i] is BtParentNodeBase parent ? parent.CaptureRunningIndex() : -1,
+                    sourceTree));
             }
             return result;
         }

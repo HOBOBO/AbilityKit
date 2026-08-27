@@ -1,0 +1,17 @@
+{
+  "Id": 10050101,
+  "Name": "妲己-灵魂冲击",
+  "CooldownMs": 5000,
+  "Range": 12,
+  "IconId": 501,
+  "Category": 5,
+  "SkillType": 2,
+  "Tags": [
+    501
+  ],
+  "SkillButtonTemplateId": 4,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10050101,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10050101
+}

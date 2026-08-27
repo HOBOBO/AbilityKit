@@ -1,0 +1,222 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: BattleAttributeTemplateCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\attribute_templates.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - ActiveSkills
+  - AttackRange
+  - AttackSpeedR
+  - BasicAttackSkillId
+  - CooldownReduceR
+  - CriticalR
+  - ExtraHp
+  - ExtraMagicAttack
+  - ExtraPhysicsAttack
+  - Hp
+  - Id
+  - MagicAttack
+  - MagicBloodsuckingR
+  - MagicDefense
+  - MagicPenetrationR
+  - Mana
+  - MaxHp
+  - MaxMana
+  - MoveSpeed
+  - PassiveSkills
+  - PerSecondBloodR
+  - PerSecondManaR
+  - PhysicsAttack
+  - PhysicsBloodsuckingR
+  - PhysicsDefense
+  - PhysicsPenetrationR
+  - ResilienceR
+  Rows:
+  - Key: 1001
+    Values:
+    - 10010101,10010201,10010301
+    - 0
+    - 0
+    - 10010001
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 50000
+    - 1001
+    - 0
+    - 0
+    - 50
+    - 0
+    - 200
+    - 50000
+    - 200
+    - 5.2
+    - 10010000
+    - 0
+    - 0
+    - 163
+    - 0
+    - 132
+    - 0
+    - 0
+  - Key: 1002
+    Values:
+    - 10020101,10020201,10020301
+    - 0
+    - 0
+    - 10020001
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 50000
+    - 1002
+    - 300
+    - 0
+    - 50
+    - 0
+    - 300
+    - 50000
+    - 300
+    - 5
+    - 10020000
+    - 0
+    - 0
+    - 153
+    - 0
+    - 87
+    - 0
+    - 0
+  - Key: 1003
+    Values:
+    - 10030101,10030201,10030301
+    - 0
+    - 0
+    - 10030001
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 50000
+    - 1003
+    - 0
+    - 0
+    - 50
+    - 0
+    - 200
+    - 50000
+    - 200
+    - 5.4
+    - 10030000
+    - 0
+    - 0
+    - 168
+    - 0
+    - 99
+    - 0
+    - 0
+  - Key: 1004
+    Values:
+    - 10040101,10040201,10040301
+    - 0
+    - 0
+    - 10040011
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 50000
+    - 1004
+    - 320
+    - 0
+    - 80
+    - 0
+    - 350
+    - 50000
+    - 350
+    - 5
+    - 10040000
+    - 0
+    - 0
+    - 145
+    - 0
+    - 110
+    - 0
+    - 0
+  - Key: 1005
+    Values:
+    - 10050101,10050201,10050301
+    - 0
+    - 0
+    - 10050001
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 50000
+    - 1005
+    - 340
+    - 0
+    - 60
+    - 0
+    - 360
+    - 50000
+    - 360
+    - 5
+    - 10050000
+    - 0
+    - 0
+    - 150
+    - 0
+    - 82
+    - 0
+    - 0
+  - Key: 1006
+    Values:
+    - 10060101,10060201,10060301
+    - 0
+    - 0
+    - 10060001
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - 50000
+    - 1006
+    - 360
+    - 0
+    - 60
+    - 0
+    - 370
+    - 50000
+    - 370
+    - 5
+    - 10060000
+    - 0
+    - 0
+    - 145
+    - 0
+    - 84
+    - 0
+    - 0

@@ -13,13 +13,341 @@ MonoBehaviour:
   m_Name: SkillCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 10001
-    Name: "\u6D4B\u8BD51"
-    CooldownMs: 0
-    Range: 0
-    IconId: 0
+  - Id: 1
+    Name: "\u901A\u7528-\u666E\u901A\u653B\u51FB"
+    CooldownMs: 800
+    Range: 6
+    IconId: 1
     Category: 0
+    SkillType: 1
     Tags: 
-    LevelTableId: 10001
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
     PreCastFlowId: 0
-    CastFlowId: 10001
+    CastFlowId: 1
+  - Id: 10010001
+    Name: "\u5EC9\u9887-\u666E\u901A\u653B\u51FB"
+    CooldownMs: 800
+    Range: 3
+    IconId: 201
+    Category: 1
+    SkillType: 1
+    Tags: 
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
+    PreCastFlowId: 0
+    CastFlowId: 10010001
+  - Id: 10010101
+    Name: "\u5EC9\u9887-\u7206\u88C2\u51B2\u649E"
+    CooldownMs: 9000
+    Range: 8
+    IconId: 201
+    Category: 1
+    SkillType: 5
+    Tags: 65000000
+    SkillButtonTemplateId: 2
+    RequiredTargetQueryId: 0
+    LevelTableId: 10010101
+    PreCastFlowId: 0
+    CastFlowId: 10010101
+  - Id: 10010201
+    Name: "\u5EC9\u9887-\u7194\u5CA9\u91CD\u51FB"
+    CooldownMs: 11000
+    Range: 5
+    IconId: 202
+    Category: 1
+    SkillType: 5
+    Tags: 66000000
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 10010201
+    PreCastFlowId: 0
+    CastFlowId: 10010201
+  - Id: 10010301
+    Name: "\u5EC9\u9887-\u5929\u5D29\u5730\u88C2"
+    CooldownMs: 40000
+    Range: 10
+    IconId: 203
+    Category: 1
+    SkillType: 4
+    Tags: 67000000
+    SkillButtonTemplateId: 3
+    RequiredTargetQueryId: 0
+    LevelTableId: 10010301
+    PreCastFlowId: 0
+    CastFlowId: 10010301
+  - Id: 10020001
+    Name: "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB"
+    CooldownMs: 800
+    Range: 8
+    IconId: 101
+    Category: 2
+    SkillType: 1
+    Tags: 
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
+    PreCastFlowId: 0
+    CastFlowId: 10020001
+  - Id: 10020101
+    Name: "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E"
+    CooldownMs: 5000
+    Range: 12
+    IconId: 101
+    Category: 2
+    SkillType: 2
+    Tags: c9000000
+    SkillButtonTemplateId: 2
+    RequiredTargetQueryId: 0
+    LevelTableId: 10020101
+    PreCastFlowId: 0
+    CastFlowId: 10020101
+  - Id: 10020201
+    Name: "\u5C0F\u4E54-\u751C\u871C\u604B\u98CE"
+    CooldownMs: 7000
+    Range: 10
+    IconId: 102
+    Category: 2
+    SkillType: 2
+    Tags: ca000000
+    SkillButtonTemplateId: 3
+    RequiredTargetQueryId: 0
+    LevelTableId: 10020201
+    PreCastFlowId: 0
+    CastFlowId: 10020201
+  - Id: 10020301
+    Name: "\u5C0F\u4E54-\u661F\u534E\u7F2D\u4E71"
+    CooldownMs: 10000
+    Range: 20
+    IconId: 103
+    Category: 2
+    SkillType: 4
+    Tags: cb000000
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 10020301
+    PreCastFlowId: 0
+    CastFlowId: 10020301
+  - Id: 10030001
+    Name: "\u8D75\u4E91-\u666E\u901A\u653B\u51FB"
+    CooldownMs: 800
+    Range: 3
+    IconId: 301
+    Category: 3
+    SkillType: 1
+    Tags: 
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
+    PreCastFlowId: 0
+    CastFlowId: 10030001
+  - Id: 10030101
+    Name: "\u8D75\u4E91-\u60CA\u96F7\u4E4B\u9F99"
+    CooldownMs: 7000
+    Range: 8
+    IconId: 301
+    Category: 3
+    SkillType: 2
+    Tags: 2d010000
+    SkillButtonTemplateId: 8
+    RequiredTargetQueryId: 0
+    LevelTableId: 10030101
+    PreCastFlowId: 0
+    CastFlowId: 10030101
+  - Id: 10030201
+    Name: "\u8D75\u4E91-\u7834\u4E91\u4E4B\u9F99"
+    CooldownMs: 8000
+    Range: 6
+    IconId: 302
+    Category: 3
+    SkillType: 2
+    Tags: 2e010000
+    SkillButtonTemplateId: 9
+    RequiredTargetQueryId: 0
+    LevelTableId: 10030201
+    PreCastFlowId: 0
+    CastFlowId: 10030201
+  - Id: 10030301
+    Name: "\u8D75\u4E91-\u5929\u7FD4\u4E4B\u9F99"
+    CooldownMs: 18000
+    Range: 12
+    IconId: 303
+    Category: 3
+    SkillType: 4
+    Tags: 2f010000
+    SkillButtonTemplateId: 10
+    RequiredTargetQueryId: 0
+    LevelTableId: 10030301
+    PreCastFlowId: 0
+    CastFlowId: 10030301
+  - Id: 10040011
+    Name: "\u58A8\u5B50-\u666E\u901A\u653B\u51FB"
+    CooldownMs: 800
+    Range: 8
+    IconId: 401
+    Category: 4
+    SkillType: 1
+    Tags: 
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
+    PreCastFlowId: 0
+    CastFlowId: 10040011
+  - Id: 10040101
+    Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65"
+    CooldownMs: 10000
+    Range: 8
+    IconId: 401
+    Category: 4
+    SkillType: 2
+    Tags: 91010000
+    SkillButtonTemplateId: 2
+    RequiredTargetQueryId: 0
+    LevelTableId: 10040101
+    PreCastFlowId: 0
+    CastFlowId: 10040101
+  - Id: 10040112
+    Name: "\u58A8\u5B50-\u548C\u5E73\u6F2B\u6B65-\u5F3A\u5316\u8FD1\u6218\u666E\u653B"
+    CooldownMs: 800
+    Range: 6
+    IconId: 401
+    Category: 4
+    SkillType: 1
+    Tags: 91010000
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
+    PreCastFlowId: 0
+    CastFlowId: 10040112
+  - Id: 10040201
+    Name: "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE"
+    CooldownMs: 7000
+    Range: 12
+    IconId: 402
+    Category: 4
+    SkillType: 2
+    Tags: 92010000
+    SkillButtonTemplateId: 2
+    RequiredTargetQueryId: 0
+    LevelTableId: 10040201
+    PreCastFlowId: 0
+    CastFlowId: 10040201
+  - Id: 10040301
+    Name: "\u58A8\u5B50-\u58A8\u5B88\u6210\u89C4"
+    CooldownMs: 45000
+    Range: 6
+    IconId: 403
+    Category: 4
+    SkillType: 4
+    Tags: 93010000
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 10040301
+    PreCastFlowId: 0
+    CastFlowId: 10040301
+  - Id: 10050001
+    Name: "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB"
+    CooldownMs: 800
+    Range: 8
+    IconId: 501
+    Category: 5
+    SkillType: 1
+    Tags: 
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
+    PreCastFlowId: 0
+    CastFlowId: 10050001
+  - Id: 10050101
+    Name: "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB"
+    CooldownMs: 5000
+    Range: 12
+    IconId: 501
+    Category: 5
+    SkillType: 2
+    Tags: f5010000
+    SkillButtonTemplateId: 4
+    RequiredTargetQueryId: 0
+    LevelTableId: 10050101
+    PreCastFlowId: 0
+    CastFlowId: 10050101
+  - Id: 10050201
+    Name: "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B"
+    CooldownMs: 8000
+    Range: 10
+    IconId: 502
+    Category: 5
+    SkillType: 2
+    Tags: f6010000
+    SkillButtonTemplateId: 3
+    RequiredTargetQueryId: 50050201
+    LevelTableId: 10050201
+    PreCastFlowId: 0
+    CastFlowId: 10050201
+  - Id: 10050301
+    Name: "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC"
+    CooldownMs: 18000
+    Range: 12
+    IconId: 503
+    Category: 5
+    SkillType: 4
+    Tags: f7010000
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 10050301
+    PreCastFlowId: 0
+    CastFlowId: 10050301
+  - Id: 10060001
+    Name: "\u5B34\u653F-\u666E\u901A\u653B\u51FB"
+    CooldownMs: 800
+    Range: 8
+    IconId: 601
+    Category: 6
+    SkillType: 1
+    Tags: 
+    SkillButtonTemplateId: 1
+    RequiredTargetQueryId: 0
+    LevelTableId: 0
+    PreCastFlowId: 0
+    CastFlowId: 10060001
+  - Id: 10060101
+    Name: "\u5B34\u653F-\u738B\u8005\u60E9\u6212"
+    CooldownMs: 8000
+    Range: 11
+    IconId: 601
+    Category: 6
+    SkillType: 2
+    Tags: 59020000
+    SkillButtonTemplateId: 5
+    RequiredTargetQueryId: 0
+    LevelTableId: 10060101
+    PreCastFlowId: 0
+    CastFlowId: 10060101
+  - Id: 10060201
+    Name: "\u5B34\u653F-\u738B\u8005\u5B88\u5FA1"
+    CooldownMs: 10000
+    Range: 5
+    IconId: 602
+    Category: 6
+    SkillType: 2
+    Tags: 5a020000
+    SkillButtonTemplateId: 6
+    RequiredTargetQueryId: 0
+    LevelTableId: 10060201
+    PreCastFlowId: 0
+    CastFlowId: 10060201
+  - Id: 10060301
+    Name: "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743"
+    CooldownMs: 30000
+    Range: 14
+    IconId: 603
+    Category: 6
+    SkillType: 4
+    Tags: 5b020000
+    SkillButtonTemplateId: 7
+    RequiredTargetQueryId: 0
+    LevelTableId: 10060301
+    PreCastFlowId: 0
+    CastFlowId: 10060301

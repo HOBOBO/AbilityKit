@@ -13,7 +13,11 @@ MonoBehaviour:
   m_Name: AttrTypeCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 0
+  - Id: 1
+    Key: 
+    ValueKind: 0
+    DefaultValue: 0
+  - Id: 2
     Key: 
     ValueKind: 0
     DefaultValue: 0

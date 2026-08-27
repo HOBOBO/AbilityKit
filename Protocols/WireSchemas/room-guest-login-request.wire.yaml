@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 1
+projectId: abilitykit.shared
+namespace: AbilityKit.Protocol.Room
+type: WireRoomGuestLoginReq
+memoryPackMode: sequential
+declaration: struct
+memberStyle: property
+fields:
+  - id: 0
+    name: guestId
+    scalarType: string
+    required: true

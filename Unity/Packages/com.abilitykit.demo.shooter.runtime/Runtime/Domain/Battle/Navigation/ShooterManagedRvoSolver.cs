@@ -1,11 +1,14 @@
 #nullable enable
 
 using System;
+using System.Diagnostics;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {
     internal interface IShooterRvoSolver
     {
+        Action<string, double>? StageTimingSink { get; set; }
+
         void Solve(ShooterRvoWorldWorkspace workspace, ShooterRvoOptions options, float deltaTime);
     }
 
@@ -15,11 +18,21 @@ namespace AbilityKit.Demo.Shooter.Runtime
         internal const float EpsilonSquared = Epsilon * Epsilon;
 
         private readonly IShooterRvoNeighborAccelerationService _neighborAcceleration;
+        private readonly IShooterRvoAgentSolveAccelerationService? _agentSolveAcceleration;
+        private readonly Action<int> _solveAgentAction;
+        private ShooterRvoWorldWorkspace? _activeWorkspace;
+        private ShooterRvoOptions? _activeOptions;
+        private float _activeDeltaTime;
+        private int _acceleratedCollectionCount;
 
         public ShooterManagedRvoSolver(IShooterRvoNeighborAccelerationService? neighborAcceleration = null)
         {
             _neighborAcceleration = neighborAcceleration ?? ShooterNullRvoNeighborAccelerationService.Instance;
+            _agentSolveAcceleration = neighborAcceleration as IShooterRvoAgentSolveAccelerationService;
+            _solveAgentAction = SolveActiveAgent;
         }
+
+        public Action<string, double>? StageTimingSink { get; set; }
 
         public void Solve(ShooterRvoWorldWorkspace workspace, ShooterRvoOptions options, float deltaTime)
         {
@@ -30,47 +43,123 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 return;
             }
 
-            if (!options.PreferAcceleration || !TryCollectAcceleratedNeighbors(workspace, options))
+            var sink = StageTimingSink;
+            var neighborCollectionMilliseconds = 0d;
+            var acceleratedNeighborsValid = false;
+            if (options.PreferAcceleration && _neighborAcceleration.IsAvailable)
             {
-                CollectManagedNeighbors(workspace, options);
+                Array.Clear(workspace.NeighborCounts, 0, workspace.Count);
+                var batch = new ShooterRvoNeighborBatch(
+                    workspace.Count,
+                    options.MaxNeighbors,
+                    options.NeighborDistance,
+                    workspace.EntityIds,
+                    workspace.PositionX,
+                    workspace.PositionY,
+                    workspace.NeighborCounts,
+                    workspace.NeighborIndices,
+                    workspace.NeighborDistanceSquared);
+                var collectionStartedAt = sink != null ? Stopwatch.GetTimestamp() : 0L;
+                var acceleratedNeighborsCollected = false;
+                try
+                {
+                    acceleratedNeighborsCollected = _neighborAcceleration.TryCollectNeighbors(in batch);
+                }
+                catch
+                {
+                    acceleratedNeighborsCollected = false;
+                }
+
+                if (sink != null)
+                {
+                    neighborCollectionMilliseconds += ElapsedMilliseconds(collectionStartedAt);
+                }
+
+                if (acceleratedNeighborsCollected)
+                {
+                    // 采样校验：全量 O(n×K) 校验每 N 次加速收集执行一次（首次必校验）。
+                    // 加速实现与托管路径按状态哈希逐字节对齐（见服务端对照测试），
+                    // 采样的作用是漂移保险丝而非逐帧正确性来源；检测到失效即回退托管收集。
+                    _acceleratedCollectionCount++;
+                    var interval = Math.Max(1, options.AcceleratedValidationInterval);
+                    var shouldValidate = _acceleratedCollectionCount % interval == 0;
+                    if (shouldValidate)
+                    {
+                        var validationStartedAt = sink != null ? Stopwatch.GetTimestamp() : 0L;
+                        acceleratedNeighborsValid = ValidateAcceleratedNeighbors(
+                            workspace,
+                            options.MaxNeighbors,
+                            options.NeighborDistance * options.NeighborDistance);
+                        if (sink != null)
+                        {
+                            sink(
+                                ShooterEnemyRvoSolveBattleSystem.AcceleratedValidationStageName,
+                                ElapsedMilliseconds(validationStartedAt));
+                        }
+                    }
+                    else
+                    {
+                        acceleratedNeighborsValid = true;
+                    }
+                }
             }
 
-            for (var agentIndex = 0; agentIndex < workspace.Count; agentIndex++)
+            if (!acceleratedNeighborsValid)
             {
-                SolveAgent(workspace, options, agentIndex, deltaTime);
+                var collectionStartedAt = sink != null ? Stopwatch.GetTimestamp() : 0L;
+                CollectManagedNeighbors(workspace, options);
+                if (sink != null)
+                {
+                    neighborCollectionMilliseconds += ElapsedMilliseconds(collectionStartedAt);
+                }
+            }
+
+            if (sink != null)
+            {
+                sink(ShooterEnemyRvoSolveBattleSystem.NeighborCollectionStageName, neighborCollectionMilliseconds);
+            }
+
+            var solveStartedAt = sink != null ? Stopwatch.GetTimestamp() : 0L;
+            var solvedInParallel = false;
+            if (options.PreferAcceleration && _agentSolveAcceleration != null)
+            {
+                _activeWorkspace = workspace;
+                _activeOptions = options;
+                _activeDeltaTime = deltaTime;
+                try
+                {
+                    solvedInParallel = _agentSolveAcceleration.TryForEachAgent(workspace.Count, _solveAgentAction);
+                }
+                finally
+                {
+                    _activeWorkspace = null;
+                    _activeOptions = null;
+                    _activeDeltaTime = 0f;
+                }
+            }
+
+            if (!solvedInParallel)
+            {
+                for (var agentIndex = 0; agentIndex < workspace.Count; agentIndex++)
+                {
+                    SolveAgent(workspace, options, agentIndex, deltaTime);
+                }
+            }
+
+            if (sink != null)
+            {
+                sink(ShooterEnemyRvoSolveBattleSystem.OrcaSolveStageName, ElapsedMilliseconds(solveStartedAt));
             }
         }
 
-        private bool TryCollectAcceleratedNeighbors(ShooterRvoWorldWorkspace workspace, ShooterRvoOptions options)
-        {
-            if (!_neighborAcceleration.IsAvailable)
-            {
-                return false;
-            }
+        private static double ElapsedMilliseconds(long startedAt) =>
+            (Stopwatch.GetTimestamp() - startedAt) * 1000d / Stopwatch.Frequency;
 
-            Array.Clear(workspace.NeighborCounts, 0, workspace.Count);
-            var batch = new ShooterRvoNeighborBatch(
-                workspace.Count,
-                options.MaxNeighbors,
-                options.NeighborDistance,
-                workspace.EntityIds,
-                workspace.PositionX,
-                workspace.PositionY,
-                workspace.NeighborCounts,
-                workspace.NeighborIndices,
-                workspace.NeighborDistanceSquared);
-            try
-            {
-                return _neighborAcceleration.TryCollectNeighbors(in batch) &&
-                    ValidateAcceleratedNeighbors(
-                        workspace,
-                        options.MaxNeighbors,
-                        options.NeighborDistance * options.NeighborDistance);
-            }
-            catch
-            {
-                return false;
-            }
+        private void SolveActiveAgent(int agentIndex)
+        {
+            var workspace = _activeWorkspace ?? throw new InvalidOperationException("RVO workspace is not active.");
+            var options = _activeOptions ?? throw new InvalidOperationException("RVO options are not active.");
+            SolveAgent(workspace, options, agentIndex, _activeDeltaTime);
         }
 
         private static void CollectManagedNeighbors(ShooterRvoWorldWorkspace workspace, ShooterRvoOptions options)
@@ -151,6 +240,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             float deltaTime)
         {
             var lineOffset = agentIndex * options.MaxNeighbors;
+            var projectedLineOffset = agentIndex * options.MaxNeighbors;
             var lineCount = 0;
             var velocity = new ShooterRvoVector(
                 workspace.VelocityX[agentIndex],
@@ -247,6 +337,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     lineCount,
                     failedLine,
                     workspace.ProjectedLines,
+                    projectedLineOffset,
                     workspace.MaxSpeed[agentIndex],
                     ref result);
             }
@@ -361,6 +452,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             int count,
             int beginLine,
             ShooterRvoLine[] projectedLines,
+            int projectedOffset,
             float radius,
             ref ShooterRvoVector result)
         {
@@ -395,7 +487,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
                             current.Direction;
                     }
 
-                    projectedLines[projectedCount++] = new ShooterRvoLine
+                    projectedLines[projectedOffset + projectedCount++] = new ShooterRvoLine
                     {
                         Point = point,
                         Direction = (previous.Direction - current.Direction).NormalizedOr(new ShooterRvoVector(1f, 0f))
@@ -404,7 +496,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
                 var previousResult = result;
                 var optimalDirection = new ShooterRvoVector(-current.Direction.Y, current.Direction.X);
-                if (LinearProgram2(projectedLines, 0, projectedCount, radius, optimalDirection, directionOpt: true, ref result) < projectedCount)
+                if (LinearProgram2(projectedLines, projectedOffset, projectedCount, radius, optimalDirection, directionOpt: true, ref result) < projectedCount)
                 {
                     result = previousResult;
                 }

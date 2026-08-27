@@ -13,6 +13,11 @@ namespace AbilityKit.Demo.Shooter.Runtime
         int Order { get; }
     }
 
+    internal interface IShooterBattleSubstageDiagnostics
+    {
+        Action<string, double>? StageTimingSink { get; set; }
+    }
+
     internal static class ShooterBattleSystemOrder
     {
         public const int BeginFrame = 0;
@@ -74,6 +79,13 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 if (!ReferenceEquals(_stageTimingSink, value))
                 {
                     _stageTimingSink = value;
+                    for (var i = 0; i < _systems.Count; i++)
+                    {
+                        if (_systems[i] is IShooterBattleSubstageDiagnostics diagnostics)
+                        {
+                            diagnostics.StageTimingSink = value;
+                        }
+                    }
                 }
             }
         }

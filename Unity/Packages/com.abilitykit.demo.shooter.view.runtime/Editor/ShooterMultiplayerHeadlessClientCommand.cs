@@ -213,7 +213,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     $"Shooter headless sync model does not match template. Template={requestedTemplate.Id}, Expected={(int)requestedTemplate.SyncModel}, Actual={options.SyncModel}");
             }
 
-            _profile = CreateProfile(options.IsOwner ? 1 : 2, 2, requestedTemplate.Id, options.EnemyBudget);
+            _profile = CreateProfile(
+                options.IsOwner ? 1 : 2,
+                2,
+                requestedTemplate.Id,
+                options.NetworkEnvironmentId,
+                options.EnemyBudget);
             var sessionOptions = _profile.BuildSessionOptions();
             var launchSpec = _profile.BuildRoomLaunchSpec(
                 sessionOptions,
@@ -491,8 +496,12 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                     throw new InvalidOperationException(
                         $"Shooter AOI flow did not apply the expected pure-state full/delta snapshots. " +
                         $"pure={state.pureStateAppliedCount}, full={state.pureStateFullAppliedCount}, delta={state.pureStateDeltaAppliedCount}");
+                // 非计量网络（ideal/lan）下服务端把 mid/far LOD 提到与 near 一致（3/3/3，
+                // 消除低频采样实体的整批跳变）；计量档保持 3/9/30。
+                var meteredLod = state.midLodIntervalFrames == 9 && state.farLodIntervalFrames == 30;
+                var unmeteredLod = state.midLodIntervalFrames == 3 && state.farLodIntervalFrames == 3;
                 if (state.aoiVisibleRadius != 24f || state.aoiBoundaryRadius != 30f ||
-                    state.nearLodIntervalFrames != 3 || state.midLodIntervalFrames != 9 || state.farLodIntervalFrames != 30)
+                    state.nearLodIntervalFrames != 3 || (!meteredLod && !unmeteredLod))
                     throw new InvalidOperationException(
                         $"Shooter AOI/LOD settings were unexpected. radius={state.aoiVisibleRadius}/{state.aoiBoundaryRadius}, " +
                         $"lod={state.nearLodIntervalFrames}/{state.midLodIntervalFrames}/{state.farLodIntervalFrames}");
@@ -1213,6 +1222,11 @@ namespace AbilityKit.Demo.Shooter.View.Editor
                 pureStatePlaybackReceivedAuthoritativeTransformCount = pureStatePlayback.ReceivedAuthoritativeTransformCount,
                 pureStatePlaybackAverageTransformSamplesPerFrame = pureStatePlayback.AverageTransformSamplesPerFrame,
                 pureStatePlaybackHistoricalTransformAmplificationRatio = pureStatePlayback.HistoricalTransformAmplificationRatio,
+                pureStatePlaybackObservedTransformSampleIntervalCount = pureStatePlayback.ObservedTransformSampleIntervalCount,
+                pureStatePlaybackTransformSampleIntervalP50Frames = pureStatePlayback.TransformSampleIntervalP50Frames,
+                pureStatePlaybackTransformSampleIntervalP95Frames = pureStatePlayback.TransformSampleIntervalP95Frames,
+                pureStatePlaybackTransformSampleIntervalP99Frames = pureStatePlayback.TransformSampleIntervalP99Frames,
+                pureStatePlaybackTransformSampleIntervalMaxFrames = pureStatePlayback.TransformSampleIntervalMaxFrames,
                 battlePushQueueDepth = dataPlane.QueueDepth,
                 battlePushPeakQueueDepth = dataPlane.PeakQueueDepth,
                 battlePushEnqueuedCount = dataPlane.EnqueuedPushCount,
@@ -1407,10 +1421,17 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             int playerId,
             int playerCount,
             string syncTemplateId,
+            string networkEnvironmentId,
             int enemyBudget)
         {
             var profile = ScriptableObject.CreateInstance<ShooterMultiplayerProfileSO>();
             SetProfileField(profile, "syncTemplateId", syncTemplateId);
+            SetProfileField(
+                profile,
+                "networkEnvironmentId",
+                string.IsNullOrWhiteSpace(networkEnvironmentId)
+                    ? ShooterRoomLaunchSpec.DefaultNetworkEnvironmentId
+                    : networkEnvironmentId.Trim());
             SetProfileField(profile, "controlledPlayerId", playerId);
             SetProfileField(profile, "playerCount", playerCount);
             SetProfileField(profile, "maxPlayers", playerCount);
@@ -1696,6 +1717,11 @@ namespace AbilityKit.Demo.Shooter.View.Editor
             public long pureStatePlaybackReceivedAuthoritativeTransformCount;
             public double pureStatePlaybackAverageTransformSamplesPerFrame;
             public double pureStatePlaybackHistoricalTransformAmplificationRatio;
+            public long pureStatePlaybackObservedTransformSampleIntervalCount;
+            public int pureStatePlaybackTransformSampleIntervalP50Frames;
+            public int pureStatePlaybackTransformSampleIntervalP95Frames;
+            public int pureStatePlaybackTransformSampleIntervalP99Frames;
+            public int pureStatePlaybackTransformSampleIntervalMaxFrames;
             public int battlePushQueueDepth;
             public int battlePushPeakQueueDepth;
             public long battlePushEnqueuedCount;

@@ -1,0 +1,39 @@
+{
+  "Id": 50030201,
+  "Name": "赵云-破云之龙-前方枪刺敌方查询",
+  "MaxCount": 10,
+  "ExplicitTargetPolicy": 2,
+  "Provider": {
+    "Param": 0,
+    "Id": 0,
+    "Kind": 6
+  },
+  "Rules": [
+    {
+      "Center": 0,
+      "Forward": 1,
+      "Radius": 6.0,
+      "HalfAngleDeg": 35.0,
+      "LocalOffsetForward": 0.0,
+      "LocalOffsetRight": 0.0,
+      "Width": 0.0,
+      "Length": 0.0,
+      "ActorIds": null,
+      "Id": 0,
+      "Kind": 258
+    }
+  ],
+  "Scorers": [
+    {
+      "Source": 0,
+      "RandomSeed": 0,
+      "Direction": 0,
+      "Id": 0,
+      "Kind": 8196
+    }
+  ],
+  "Selector": {
+    "Id": 0,
+    "Kind": 4097
+  }
+}

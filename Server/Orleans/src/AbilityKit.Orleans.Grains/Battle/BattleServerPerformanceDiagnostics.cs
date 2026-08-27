@@ -14,6 +14,9 @@ internal enum BattleServerStage
     ShooterEnemyWaveSpawn,
     ShooterEnemyMovementIntent,
     ShooterRvoSolve,
+    ShooterRvoNeighborCollect,
+    ShooterRvoAcceleratedValidation,
+    ShooterRvoOrcaSolve,
     ShooterEnemyMovementIntegration,
     ShooterSimulation,
     ShooterEnemyLifecycleCleanup,
@@ -245,6 +248,9 @@ internal sealed class BattleServerPerformanceDiagnostics
             "ShooterEnemyWaveBattleSystem.Attack" => BattleServerStage.ShooterEnemyWaveAttack,
             "ShooterEnemyMovementIntentBattleSystem" => BattleServerStage.ShooterEnemyMovementIntent,
             "ShooterEnemyRvoSolveBattleSystem" => BattleServerStage.ShooterRvoSolve,
+            "ShooterEnemyRvoSolveBattleSystem.NeighborCollect" => BattleServerStage.ShooterRvoNeighborCollect,
+            "ShooterEnemyRvoSolveBattleSystem.AcceleratedValidation" => BattleServerStage.ShooterRvoAcceleratedValidation,
+            "ShooterEnemyRvoSolveBattleSystem.OrcaSolve" => BattleServerStage.ShooterRvoOrcaSolve,
             "ShooterEnemyMovementIntegrationBattleSystem" => BattleServerStage.ShooterEnemyMovementIntegration,
             "ShooterSimulationBattleSystem" => BattleServerStage.ShooterSimulation,
             "ShooterEnemyLifecycleCleanupBattleSystem" => BattleServerStage.ShooterEnemyLifecycleCleanup,
@@ -258,6 +264,9 @@ internal sealed class BattleServerPerformanceDiagnostics
             or "ShooterEnemyWaveBattleSystem.Attack"
             or "ShooterEnemyMovementIntentBattleSystem"
             or "ShooterEnemyRvoSolveBattleSystem"
+            or "ShooterEnemyRvoSolveBattleSystem.NeighborCollect"
+            or "ShooterEnemyRvoSolveBattleSystem.AcceleratedValidation"
+            or "ShooterEnemyRvoSolveBattleSystem.OrcaSolve"
             or "ShooterEnemyMovementIntegrationBattleSystem"
             or "ShooterSimulationBattleSystem"
             or "ShooterEnemyLifecycleCleanupBattleSystem"
@@ -273,6 +282,9 @@ internal sealed class BattleServerPerformanceDiagnostics
             BattleServerStage.ShooterEnemyWaveSpawn => "EnemyWave",
             BattleServerStage.ShooterEnemyMovementIntent => "EnemyMovementIntent",
             BattleServerStage.ShooterRvoSolve => "RvoSolve",
+            BattleServerStage.ShooterRvoNeighborCollect => "RvoNeighborCollect",
+            BattleServerStage.ShooterRvoAcceleratedValidation => "RvoAcceleratedValidation",
+            BattleServerStage.ShooterRvoOrcaSolve => "RvoOrcaSolve",
             BattleServerStage.ShooterEnemyMovementIntegration => "EnemyMovementIntegration",
             BattleServerStage.ShooterSimulation => "Simulation",
             BattleServerStage.ShooterEnemyLifecycleCleanup => "EnemyLifecycleCleanup",

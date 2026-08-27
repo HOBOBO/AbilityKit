@@ -1,0 +1,15 @@
+{
+  "Id": 1,
+  "Name": "通用-普通攻击",
+  "CooldownMs": 800,
+  "Range": 6,
+  "IconId": 1,
+  "Category": 0,
+  "SkillType": 1,
+  "Tags": [],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 1
+}

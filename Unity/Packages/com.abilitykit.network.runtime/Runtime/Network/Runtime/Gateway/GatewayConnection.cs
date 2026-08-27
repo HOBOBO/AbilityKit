@@ -17,17 +17,21 @@ namespace AbilityKit.Network.Runtime.Gateway
     {
         private readonly IConnection _connection;
         private readonly RequestClient _requestClient;
+        private readonly NetworkPacketRouter? _packetRouter;
         private readonly Dictionary<uint, List<Action<byte[]>>> _pushHandlers = new();
+        private readonly Dictionary<uint, Dictionary<Action<byte[]>, NetworkPacketRouteHandler>> _routeHandlers = new();
         private bool _disposed;
 
         public GatewayConnection(IConnection connection)
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
             _requestClient = new RequestClient(_connection);
+            _packetRouter = (connection as IProtocolRoutedConnection)?.PacketRouter;
             _connection.ServerPushReceived += OnServerPush;
         }
 
         public IConnection RawConnection => _connection;
+        public event Action<uint, ArraySegment<byte>>? ServerPushReceived;
         public bool IsConnected => _connection.IsConnected;
 
         /// <summary>便捷创建方法。</summary>
@@ -74,6 +78,33 @@ namespace AbilityKit.Network.Runtime.Gateway
             ThrowIfDisposed();
             if (handler == null) throw new ArgumentNullException(nameof(handler));
 
+            if (_packetRouter != null)
+            {
+                lock (_routeHandlers)
+                {
+                    if (!_routeHandlers.TryGetValue(opCode, out var handlers))
+                    {
+                        handlers = new Dictionary<Action<byte[]>, NetworkPacketRouteHandler>();
+                        _routeHandlers[opCode] = handlers;
+                    }
+
+                    if (handlers.ContainsKey(handler)) return;
+                    NetworkPacketRouteHandler routeHandler = dispatch =>
+                    {
+                        var bytes = dispatch.Payload.ToArray();
+                        try { handler(bytes); }
+                        catch (Exception ex)
+                        {
+                            Log.Exception(ex, $"[GatewayConnection] Push handler error. opCode={opCode}");
+                            throw;
+                        }
+                    };
+                    handlers.Add(handler, routeHandler);
+                    _packetRouter.Register(opCode, NetworkPacketDispatchKind.ServerPush, routeHandler);
+                }
+                return;
+            }
+
             lock (_pushHandlers)
             {
                 if (!_pushHandlers.TryGetValue(opCode, out var list))
@@ -91,6 +122,20 @@ namespace AbilityKit.Network.Runtime.Gateway
             ThrowIfDisposed();
             if (handler == null) return;
 
+            if (_packetRouter != null)
+            {
+                lock (_routeHandlers)
+                {
+                    if (_routeHandlers.TryGetValue(opCode, out var handlers) &&
+                        handlers.Remove(handler, out var routeHandler))
+                    {
+                        _packetRouter.Unregister(opCode, NetworkPacketDispatchKind.ServerPush, routeHandler);
+                        if (handlers.Count == 0) _routeHandlers.Remove(opCode);
+                    }
+                }
+                return;
+            }
+
             lock (_pushHandlers)
             {
                 if (_pushHandlers.TryGetValue(opCode, out var list))
@@ -104,6 +149,26 @@ namespace AbilityKit.Network.Runtime.Gateway
 
         private void OnServerPush(uint opCode, ArraySegment<byte> payload)
         {
+            var subscribers = ServerPushReceived?.GetInvocationList();
+            if (subscribers != null)
+            {
+                for (var i = 0; i < subscribers.Length; i++)
+                {
+                    try
+                    {
+                        ((Action<uint, ArraySegment<byte>>)subscribers[i])(
+                            opCode,
+                            payload);
+                    }
+                    catch (Exception ex)
+                    {
+                        Log.Exception(
+                            ex,
+                            $"[GatewayConnection] Server push subscriber error. opCode={opCode}");
+                    }
+                }
+            }
+
             var bytes = payload.ToArray();
             List<Action<byte[]>>? handlers;
 
@@ -131,6 +196,26 @@ namespace AbilityKit.Network.Runtime.Gateway
             _disposed = true;
 
             _connection.ServerPushReceived -= OnServerPush;
+
+            if (_packetRouter != null)
+            {
+                lock (_routeHandlers)
+                {
+                    foreach (var pair in _routeHandlers)
+                    {
+                        foreach (var routeHandler in pair.Value.Values)
+                        {
+                            _packetRouter.Unregister(
+                                pair.Key,
+                                NetworkPacketDispatchKind.ServerPush,
+                                routeHandler);
+                        }
+                    }
+                    _routeHandlers.Clear();
+                }
+            }
+
+            ServerPushReceived = null;
             _requestClient.Dispose();
 
             lock (_pushHandlers)

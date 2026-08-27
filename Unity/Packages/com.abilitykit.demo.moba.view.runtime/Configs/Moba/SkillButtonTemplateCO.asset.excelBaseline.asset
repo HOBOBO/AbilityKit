@@ -1,0 +1,250 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: SkillButtonTemplateCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\skill_button_templates.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - AimMaxRadius
+  - AimMode
+  - DashDistance
+  - DragThreshold
+  - EnableAim
+  - FaceToAim
+  - FanAngleDegrees
+  - FanRadius
+  - Id
+  - IndicatorShape
+  - IndicatorWorldWidth
+  - LockOnDurationMs
+  - LockProjectileRadius
+  - LongPressSeconds
+  - Name
+  - SectorAngleDegrees
+  - SelectRange
+  - SelfRadius
+  - UsePointMode
+  Rows:
+  - Key: 1
+    Values:
+    - 0
+    - 0
+    - 0
+    - 12
+    - False
+    - False
+    - 0
+    - 0
+    - 1
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - instant_click
+    - 0
+    - 0
+    - 0
+    - 0
+  - Key: 2
+    Values:
+    - 220
+    - 0
+    - 0
+    - 12
+    - True
+    - True
+    - 0
+    - 0
+    - 2
+    - 1
+    - 1.5
+    - 0
+    - 0
+    - 0.35
+    - direction_line
+    - 0
+    - 0
+    - 0
+    - 1
+  - Key: 3
+    Values:
+    - 220
+    - 1
+    - 0
+    - 12
+    - True
+    - False
+    - 0
+    - 0
+    - 3
+    - 2
+    - 2.8
+    - 0
+    - 0
+    - 0.35
+    - target_point_area
+    - 0
+    - 0
+    - 0
+    - 2
+  - Key: 4
+    Values:
+    - 220
+    - 0
+    - 0
+    - 12
+    - True
+    - True
+    - 0
+    - 0
+    - 4
+    - 5
+    - 2
+    - 0
+    - 0
+    - 0.35
+    - direction_area
+    - 0
+    - 0
+    - 0
+    - 1
+  - Key: 5
+    Values:
+    - 220
+    - 1
+    - 0
+    - 12
+    - True
+    - False
+    - 0
+    - 0
+    - 5
+    - 2
+    - 4
+    - 0
+    - 0
+    - 0.35
+    - ying_zheng_target_sword_array
+    - 0
+    - 0
+    - 0
+    - 2
+  - Key: 6
+    Values:
+    - 0
+    - 0
+    - 0
+    - 12
+    - False
+    - False
+    - 0
+    - 0
+    - 6
+    - 3
+    - 0
+    - 0
+    - 0
+    - 0
+    - ying_zheng_self_guard
+    - 0
+    - 0
+    - 4
+    - 0
+  - Key: 7
+    Values:
+    - 220
+    - 0
+    - 0
+    - 12
+    - True
+    - True
+    - 0
+    - 0
+    - 7
+    - 1
+    - 0.6
+    - 0
+    - 0
+    - 0.35
+    - ying_zheng_locked_direction_sword_stream
+    - 0
+    - 0
+    - 0
+    - 1
+  - Key: 8
+    Values:
+    - 0
+    - 0
+    - 0
+    - 12
+    - False
+    - False
+    - 0
+    - 0
+    - 8
+    - 0
+    - 0
+    - 0
+    - 0
+    - 0
+    - zhaoyun_thunder_dragon_self_enhance
+    - 0
+    - 0
+    - 0
+    - 0
+  - Key: 9
+    Values:
+    - 220
+    - 0
+    - 0
+    - 12
+    - True
+    - True
+    - 0
+    - 0
+    - 9
+    - 5
+    - 3.5
+    - 0
+    - 0
+    - 0.35
+    - zhaoyun_cloud_breaking_dragon_front_area
+    - 0
+    - 0
+    - 0
+    - 1
+  - Key: 10
+    Values:
+    - 220
+    - 1
+    - 0
+    - 12
+    - True
+    - False
+    - 0
+    - 0
+    - 10
+    - 2
+    - 4.5
+    - 0
+    - 0
+    - 0.35
+    - zhaoyun_sky_soaring_dragon_landing_area
+    - 0
+    - 0
+    - 0
+    - 2

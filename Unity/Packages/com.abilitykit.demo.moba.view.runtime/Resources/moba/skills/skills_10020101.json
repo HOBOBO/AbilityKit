@@ -1,0 +1,17 @@
+{
+  "Id": 10020101,
+  "Name": "小乔-绽放之舞",
+  "CooldownMs": 5000,
+  "Range": 12,
+  "IconId": 101,
+  "Category": 2,
+  "SkillType": 2,
+  "Tags": [
+    201
+  ],
+  "SkillButtonTemplateId": 2,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10020101,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10020101
+}

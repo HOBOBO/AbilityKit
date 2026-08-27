@@ -14,5 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   dataList:
   - Id: 1
-    Name: AAAA
-    Ops: []
+    Name: "\u4F24\u5BB3\u7EC4\u4EF6"
+    Ops:
+    - Kind: 1
+      IntValue: 1
+      FloatValue: 0
+      BoolValue: 0
+  - Id: 2
+    Name: "\u6CBB\u7597\u7EC4\u4EF6"
+    Ops:
+    - Kind: 2
+      IntValue: 1
+      FloatValue: 0
+      BoolValue: 0

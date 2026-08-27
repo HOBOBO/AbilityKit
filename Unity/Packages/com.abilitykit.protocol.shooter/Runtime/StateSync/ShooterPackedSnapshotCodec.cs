@@ -44,22 +44,8 @@ namespace AbilityKit.Protocol.Shooter
         public const int RuntimeMetadata = 6;
     }
 
-    [MemoryPackable]
     public partial struct ShooterPackedComponentChunk
     {
-        [MemoryPackOrder(0)] public int ComponentKind;
-        [MemoryPackOrder(1)] public int EntityKind;
-        [MemoryPackOrder(2)] public int Count;
-        [MemoryPackOrder(3)] public int[] EntityIds;
-        [MemoryPackOrder(4)] public float[] ValueX;
-        [MemoryPackOrder(5)] public float[] ValueY;
-        [MemoryPackOrder(6)] public float[] ValueZ;
-        [MemoryPackOrder(7)] public float[] ValueW;
-        [MemoryPackOrder(8)] public int[] IntValues;
-        [MemoryPackOrder(9)] public byte[] Flags;
-        [MemoryPackOrder(10)] public int[] OwnerIds;
-        [MemoryPackOrder(11)] public int[] Aux;
-
         [MemoryPackConstructor]
         public ShooterPackedComponentChunk(
             int componentKind,
@@ -107,12 +93,8 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
-    [MemoryPackable]
     public partial struct ShooterCommandAcknowledgement
     {
-        [MemoryPackOrder(0)] public int PlayerId;
-        [MemoryPackOrder(1)] public ulong CommandSequence;
-
         public ShooterCommandAcknowledgement(int playerId, ulong commandSequence)
         {
             PlayerId = playerId;
@@ -120,20 +102,8 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
-    [MemoryPackable]
     public partial struct ShooterPackedSnapshotPayload
     {
-        [MemoryPackOrder(0)] public int Version;
-        [MemoryPackOrder(1)] public ulong WorldId;
-        [MemoryPackOrder(2)] public int Frame;
-        [MemoryPackOrder(3)] public long ServerTick;
-        [MemoryPackOrder(4)] public uint SnapshotFlags;
-        [MemoryPackOrder(5)] public uint StateHash;
-        [MemoryPackOrder(6)] public int EntityCount;
-        [MemoryPackOrder(7)] public byte[] ExtensionPayload;
-        [MemoryPackOrder(8)] public ShooterPackedComponentChunk[] ComponentChunks;
-        [MemoryPackOrder(9)] public ShooterCommandAcknowledgement[] AcknowledgedCommands;
-
         [MemoryPackConstructor]
         public ShooterPackedSnapshotPayload(
             int version,

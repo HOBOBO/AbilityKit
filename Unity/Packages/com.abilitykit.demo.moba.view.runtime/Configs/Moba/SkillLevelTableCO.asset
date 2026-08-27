@@ -13,8 +13,891 @@ MonoBehaviour:
   m_Name: SkillLevelTableCO
   m_EditorClassIdentifier: 
   dataList:
-  - Id: 10001
+  - Id: 10010101
+    Levels:
+    - CooldownMs: 9000
+      Cost: 0
+      Params:
+      - 160
+      - 8
+      - 650
+      - 12.3
+      - 300
+      - 7
+      - 1500
+    - CooldownMs: 8600
+      Cost: 0
+      Params:
+      - 200
+      - 8
+      - 650
+      - 12.3
+      - 320
+      - 7.5
+      - 1500
+    - CooldownMs: 8200
+      Cost: 0
+      Params:
+      - 240
+      - 8
+      - 650
+      - 12.3
+      - 340
+      - 8
+      - 1500
+    - CooldownMs: 7800
+      Cost: 0
+      Params:
+      - 280
+      - 8
+      - 650
+      - 12.3
+      - 360
+      - 8.5
+      - 1500
+    - CooldownMs: 7400
+      Cost: 0
+      Params:
+      - 320
+      - 8
+      - 650
+      - 12.3
+      - 380
+      - 9
+      - 1500
+  - Id: 10010201
+    Levels:
+    - CooldownMs: 11000
+      Cost: 0
+      Params:
+      - 180
+      - 3.5
+      - 450
+      - 350
+      - 2500
+      - 0.3
+      - 1500
+      - 1500
+    - CooldownMs: 10600
+      Cost: 0
+      Params:
+      - 230
+      - 3.5
+      - 450
+      - 450
+      - 2500
+      - 0.35
+      - 1500
+      - 1500
+    - CooldownMs: 10200
+      Cost: 0
+      Params:
+      - 280
+      - 3.5
+      - 450
+      - 550
+      - 2500
+      - 0.4
+      - 1500
+      - 1500
+    - CooldownMs: 9800
+      Cost: 0
+      Params:
+      - 330
+      - 3.5
+      - 450
+      - 650
+      - 2500
+      - 0.45
+      - 1500
+      - 1500
+    - CooldownMs: 9400
+      Cost: 0
+      Params:
+      - 380
+      - 3.5
+      - 450
+      - 750
+      - 2500
+      - 0.5
+      - 1500
+      - 1500
+  - Id: 10010301
+    Levels:
+    - CooldownMs: 40000
+      Cost: 0
+      Params:
+      - 150
+      - 4.5
+      - 650
+      - 300
+      - 500
+      - 8
+      - 1800
+    - CooldownMs: 37000
+      Cost: 0
+      Params:
+      - 225
+      - 4.5
+      - 650
+      - 300
+      - 550
+      - 8.5
+      - 1800
+    - CooldownMs: 34000
+      Cost: 0
+      Params:
+      - 300
+      - 4.5
+      - 650
+      - 300
+      - 600
+      - 9
+      - 1800
+  - Id: 10020101
+    Levels:
+    - CooldownMs: 5000
+      Cost: 45
+      Params:
+      - 500
+      - 0.8
+      - 12
+      - 650
+      - 22
+      - 1
+      - 0.8
+      - 0.4
+    - CooldownMs: 4800
+      Cost: 50
+      Params:
+      - 585
+      - 0.8
+      - 12
+      - 650
+      - 22
+      - 1
+      - 0.8
+      - 0.4
+    - CooldownMs: 4600
+      Cost: 55
+      Params:
+      - 670
+      - 0.8
+      - 12
+      - 650
+      - 22
+      - 1
+      - 0.8
+      - 0.4
+    - CooldownMs: 4400
+      Cost: 60
+      Params:
+      - 755
+      - 0.8
+      - 12
+      - 650
+      - 22
+      - 1
+      - 0.8
+      - 0.4
+    - CooldownMs: 4200
+      Cost: 65
+      Params:
+      - 840
+      - 0.8
+      - 12
+      - 650
+      - 22
+      - 1
+      - 0.8
+      - 0.4
+  - Id: 10020201
+    Levels:
+    - CooldownMs: 7000
+      Cost: 60
+      Params:
+      - 300
+      - 0.5
+      - 4
+      - 300
+      - 500
+    - CooldownMs: 6800
+      Cost: 65
+      Params:
+      - 340
+      - 0.5
+      - 4
+      - 300
+      - 500
+    - CooldownMs: 6600
+      Cost: 70
+      Params:
+      - 380
+      - 0.5
+      - 4
+      - 300
+      - 500
+    - CooldownMs: 6400
+      Cost: 75
+      Params:
+      - 420
+      - 0.5
+      - 4
+      - 300
+      - 500
+    - CooldownMs: 6200
+      Cost: 80
+      Params:
+      - 460
+      - 0.5
+      - 4
+      - 300
+      - 500
+  - Id: 10020301
+    Levels:
+    - CooldownMs: 10000
+      Cost: 100
+      Params:
+      - 400
+      - 0.5
+      - 5000
+      - 1000
+      - 8
+      - 4
+      - 0.5
+    - CooldownMs: 9800
+      Cost: 110
+      Params:
+      - 500
+      - 0.5
+      - 5000
+      - 1000
+      - 8
+      - 4
+      - 0.5
+    - CooldownMs: 9600
+      Cost: 120
+      Params:
+      - 600
+      - 0.5
+      - 5000
+      - 1000
+      - 8
+      - 4
+      - 0.5
+    - CooldownMs: 9400
+      Cost: 130
+      Params:
+      - 700
+      - 0.5
+      - 5000
+      - 1000
+      - 8
+      - 4
+      - 0.5
+    - CooldownMs: 9200
+      Cost: 140
+      Params:
+      - 800
+      - 0.5
+      - 5000
+      - 1000
+      - 8
+      - 4
+      - 0.5
+  - Id: 10030000
     Levels:
     - CooldownMs: 0
       Cost: 0
-      Params: []
+      Params:
+      - 3
+      - 0.01
+      - 0.33
+  - Id: 10030101
+    Levels:
+    - CooldownMs: 7000
+      Cost: 35
+      Params:
+      - 8
+      - 450
+      - 17.8
+      - 190
+      - 1
+      - 0.25
+      - 2000
+      - 5000
+    - CooldownMs: 6800
+      Cost: 40
+      Params:
+      - 8
+      - 450
+      - 17.8
+      - 214
+      - 1
+      - 0.25
+      - 2000
+      - 5000
+    - CooldownMs: 6600
+      Cost: 45
+      Params:
+      - 8
+      - 450
+      - 17.8
+      - 238
+      - 1
+      - 0.25
+      - 2000
+      - 5000
+    - CooldownMs: 6400
+      Cost: 50
+      Params:
+      - 8
+      - 450
+      - 17.8
+      - 262
+      - 1
+      - 0.25
+      - 2000
+      - 5000
+    - CooldownMs: 6200
+      Cost: 55
+      Params:
+      - 8
+      - 450
+      - 17.8
+      - 286
+      - 1
+      - 0.25
+      - 2000
+      - 5000
+    - CooldownMs: 6000
+      Cost: 60
+      Params:
+      - 8
+      - 450
+      - 17.8
+      - 310
+      - 1
+      - 0.25
+      - 2000
+      - 5000
+  - Id: 10030201
+    Levels:
+    - CooldownMs: 8000
+      Cost: 55
+      Params:
+      - 85
+      - 0.35
+      - 4
+      - 180
+      - 35
+      - 6
+      - 35
+    - CooldownMs: 7800
+      Cost: 60
+      Params:
+      - 100
+      - 0.35
+      - 4
+      - 180
+      - 42
+      - 6
+      - 35
+    - CooldownMs: 7600
+      Cost: 65
+      Params:
+      - 115
+      - 0.35
+      - 4
+      - 180
+      - 49
+      - 6
+      - 35
+    - CooldownMs: 7400
+      Cost: 70
+      Params:
+      - 130
+      - 0.35
+      - 4
+      - 180
+      - 56
+      - 6
+      - 35
+    - CooldownMs: 7200
+      Cost: 75
+      Params:
+      - 145
+      - 0.35
+      - 4
+      - 180
+      - 63
+      - 6
+      - 35
+    - CooldownMs: 7000
+      Cost: 80
+      Params:
+      - 160
+      - 0.35
+      - 4
+      - 180
+      - 70
+      - 6
+      - 35
+  - Id: 10030301
+    Levels:
+    - CooldownMs: 18000
+      Cost: 100
+      Params:
+      - 350
+      - 1.3
+      - 4.5
+      - 600
+      - 500
+      - 5000
+      - 30
+      - 0.13
+    - CooldownMs: 16500
+      Cost: 110
+      Params:
+      - 450
+      - 1.3
+      - 4.5
+      - 600
+      - 500
+      - 5000
+      - 45
+      - 0.13
+    - CooldownMs: 15000
+      Cost: 120
+      Params:
+      - 550
+      - 1.3
+      - 4.5
+      - 600
+      - 500
+      - 5000
+      - 60
+      - 0.13
+  - Id: 10040000
+    Levels:
+    - CooldownMs: 0
+      Cost: 0
+      Params:
+      - 4
+      - 300
+      - 3000
+      - 450
+      - 0.7
+      - 350
+  - Id: 10040101
+    Levels:
+    - CooldownMs: 10000
+      Cost: 70
+      Params:
+      - 8
+      - 450
+      - 18
+      - 300
+      - 3000
+      - 5000
+      - 450
+      - 0.7
+    - CooldownMs: 9600
+      Cost: 75
+      Params:
+      - 8
+      - 450
+      - 18
+      - 360
+      - 3000
+      - 5000
+      - 520
+      - 0.7
+    - CooldownMs: 9200
+      Cost: 80
+      Params:
+      - 8
+      - 450
+      - 18
+      - 420
+      - 3000
+      - 5000
+      - 590
+      - 0.7
+    - CooldownMs: 8800
+      Cost: 85
+      Params:
+      - 8
+      - 450
+      - 18
+      - 480
+      - 3000
+      - 5000
+      - 660
+      - 0.7
+    - CooldownMs: 8400
+      Cost: 90
+      Params:
+      - 8
+      - 450
+      - 18
+      - 540
+      - 3000
+      - 5000
+      - 730
+      - 0.7
+    - CooldownMs: 8000
+      Cost: 95
+      Params:
+      - 8
+      - 450
+      - 18
+      - 600
+      - 3000
+      - 5000
+      - 800
+      - 0.7
+  - Id: 10040201
+    Levels:
+    - CooldownMs: 7000
+      Cost: 70
+      Params:
+      - 525
+      - 0.45
+      - 3.5
+      - 1000
+      - 12
+      - 20
+    - CooldownMs: 6800
+      Cost: 75
+      Params:
+      - 600
+      - 0.45
+      - 3.5
+      - 1000
+      - 12
+      - 20
+    - CooldownMs: 6600
+      Cost: 80
+      Params:
+      - 675
+      - 0.45
+      - 3.5
+      - 1000
+      - 12
+      - 20
+    - CooldownMs: 6400
+      Cost: 85
+      Params:
+      - 750
+      - 0.45
+      - 3.5
+      - 1000
+      - 12
+      - 20
+    - CooldownMs: 6200
+      Cost: 90
+      Params:
+      - 825
+      - 0.45
+      - 3.5
+      - 1000
+      - 12
+      - 20
+    - CooldownMs: 6000
+      Cost: 95
+      Params:
+      - 900
+      - 0.45
+      - 3.5
+      - 1000
+      - 12
+      - 20
+  - Id: 10040301
+    Levels:
+    - CooldownMs: 45000
+      Cost: 150
+      Params:
+      - 200
+      - 0.45
+      - 3500
+      - 500
+      - 5
+      - 500
+      - 450
+    - CooldownMs: 40000
+      Cost: 165
+      Params:
+      - 250
+      - 0.45
+      - 3500
+      - 500
+      - 5
+      - 500
+      - 650
+    - CooldownMs: 35000
+      Cost: 180
+      Params:
+      - 300
+      - 0.45
+      - 3500
+      - 500
+      - 5
+      - 500
+      - 850
+  - Id: 10050000
+    Levels:
+    - CooldownMs: 0
+      Cost: 0
+      Params:
+      - 30
+      - 3000
+      - 3
+  - Id: 10050101
+    Levels:
+    - CooldownMs: 5000
+      Cost: 50
+      Params:
+      - 520
+      - 0.8
+      - 12
+      - 22
+      - 6
+    - CooldownMs: 4800
+      Cost: 55
+      Params:
+      - 585
+      - 0.8
+      - 12
+      - 22
+      - 6
+    - CooldownMs: 4600
+      Cost: 60
+      Params:
+      - 650
+      - 0.8
+      - 12
+      - 22
+      - 6
+    - CooldownMs: 4400
+      Cost: 65
+      Params:
+      - 715
+      - 0.8
+      - 12
+      - 22
+      - 6
+    - CooldownMs: 4200
+      Cost: 70
+      Params:
+      - 780
+      - 0.8
+      - 12
+      - 22
+      - 6
+  - Id: 10050201
+    Levels:
+    - CooldownMs: 8000
+      Cost: 65
+      Params:
+      - 285
+      - 0.66
+      - 3
+      - 150
+      - 1500
+    - CooldownMs: 7600
+      Cost: 70
+      Params:
+      - 325
+      - 0.66
+      - 3
+      - 150
+      - 1500
+    - CooldownMs: 7200
+      Cost: 75
+      Params:
+      - 365
+      - 0.66
+      - 3
+      - 150
+      - 1500
+    - CooldownMs: 6800
+      Cost: 80
+      Params:
+      - 405
+      - 0.66
+      - 3
+      - 150
+      - 1500
+    - CooldownMs: 6400
+      Cost: 85
+      Params:
+      - 445
+      - 0.66
+      - 3
+      - 150
+      - 1500
+  - Id: 10050301
+    Levels:
+    - CooldownMs: 18000
+      Cost: 100
+      Params:
+      - 325
+      - 0.75
+      - 1600
+      - 400
+      - 8
+      - 5
+    - CooldownMs: 16500
+      Cost: 110
+      Params:
+      - 405
+      - 0.75
+      - 1600
+      - 400
+      - 8
+      - 5
+    - CooldownMs: 15000
+      Cost: 120
+      Params:
+      - 485
+      - 0.75
+      - 1600
+      - 400
+      - 8
+      - 5
+  - Id: 10060000
+    Levels:
+    - CooldownMs: 0
+      Cost: 0
+      Params:
+      - 1
+      - 2
+  - Id: 10060101
+    Levels:
+    - CooldownMs: 8000
+      Cost: 60
+      Params:
+      - 220
+      - 0.27
+      - 4
+      - 250
+      - 0.35
+      - 1000
+    - CooldownMs: 7600
+      Cost: 65
+      Params:
+      - 260
+      - 0.27
+      - 4
+      - 250
+      - 0.35
+      - 1000
+    - CooldownMs: 7200
+      Cost: 70
+      Params:
+      - 300
+      - 0.27
+      - 4
+      - 250
+      - 0.35
+      - 1000
+    - CooldownMs: 6800
+      Cost: 75
+      Params:
+      - 340
+      - 0.27
+      - 4
+      - 250
+      - 0.35
+      - 1000
+    - CooldownMs: 6400
+      Cost: 80
+      Params:
+      - 380
+      - 0.27
+      - 4
+      - 250
+      - 0.35
+      - 1000
+  - Id: 10060201
+    Levels:
+    - CooldownMs: 10000
+      Cost: 70
+      Params:
+      - 200
+      - 0.35
+      - 4
+      - 300
+      - 3000
+      - 0.25
+      - 0.25
+    - CooldownMs: 9500
+      Cost: 75
+      Params:
+      - 240
+      - 0.35
+      - 4
+      - 360
+      - 3000
+      - 0.25
+      - 0.25
+    - CooldownMs: 9000
+      Cost: 80
+      Params:
+      - 280
+      - 0.35
+      - 4
+      - 420
+      - 3000
+      - 0.25
+      - 0.25
+    - CooldownMs: 8500
+      Cost: 85
+      Params:
+      - 320
+      - 0.35
+      - 4
+      - 480
+      - 3000
+      - 0.25
+      - 0.25
+    - CooldownMs: 8000
+      Cost: 90
+      Params:
+      - 360
+      - 0.35
+      - 4
+      - 540
+      - 3000
+      - 0.25
+      - 0.25
+  - Id: 10060301
+    Levels:
+    - CooldownMs: 30000
+      Cost: 120
+      Params:
+      - 90
+      - 0.08
+      - 2500
+      - 250
+      - 14
+      - 5
+    - CooldownMs: 27000
+      Cost: 135
+      Params:
+      - 120
+      - 0.08
+      - 2500
+      - 250
+      - 14
+      - 5
+    - CooldownMs: 24000
+      Cost: 150
+      Params:
+      - 150
+      - 0.08
+      - 2500
+      - 250
+      - 14
+      - 5

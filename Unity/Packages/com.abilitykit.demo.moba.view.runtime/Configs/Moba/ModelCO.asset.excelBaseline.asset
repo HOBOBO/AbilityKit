@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: ModelCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\models.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - Id
+  - PrefabPath
+  - Scale
+  Rows:
+  - Key: 1001
+    Values:
+    - 1001
+    - character/character1
+    - 1
+  - Key: 1002
+    Values:
+    - 1002
+    - character/character2
+    - 2
+  - Key: 1003
+    Values:
+    - 1003
+    - character/character3
+    - 1
+  - Key: 1004
+    Values:
+    - 1004
+    - character/character4
+    - 1
+  - Key: 1005
+    Values:
+    - 1005
+    - character/character5
+    - 1
+  - Key: 1006
+    Values:
+    - 1006
+    - character/character6
+    - 1
+  - Key: 1007
+    Values:
+    - 1007
+    - character/character7
+    - 1
+  - Key: 90000101
+    Values:
+    - 90000101
+    - moba/placeholders/aoe_circle_preview
+    - 1
+  - Key: 90000102
+    Values:
+    - 90000102
+    - moba/placeholders/aoe_sector_preview
+    - 1

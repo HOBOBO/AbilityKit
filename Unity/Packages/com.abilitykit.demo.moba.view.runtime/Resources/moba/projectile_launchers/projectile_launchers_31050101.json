@@ -1,0 +1,9 @@
+{
+  "Id": 31050101,
+  "Name": "妲己-灵魂冲击-单发冲击波发射器",
+  "EmitterType": 1,
+  "DurationMs": 0,
+  "IntervalMs": 0,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

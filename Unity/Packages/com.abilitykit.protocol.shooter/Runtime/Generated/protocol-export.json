@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "generatorVersion": "1.0",
+  "projectId": "abilitykit.shooter",
+  "catalogIds": [
+    "abilitykit.shooter.battle"
+  ],
+  "referencedMemoryPackTypes": [
+    "AbilityKit.Protocol.Shooter.ShooterEventSnapshot",
+    "AbilityKit.Protocol.Shooter.ShooterInputPayload",
+    "AbilityKit.Protocol.Shooter.ShooterPackedSnapshotPayload",
+    "AbilityKit.Protocol.Shooter.ShooterStartGamePayload",
+    "AbilityKit.Protocol.Shooter.ShooterStateSnapshotPayload",
+    "System.UInt64"
+  ],
+  "generatedTypes": [
+    "AbilityKit.Protocol.Shooter.ShooterBulletSnapshot",
+    "AbilityKit.Protocol.Shooter.ShooterCommandAcknowledgement",
+    "AbilityKit.Protocol.Shooter.ShooterEnemySnapshot",
+    "AbilityKit.Protocol.Shooter.ShooterEventSnapshot",
+    "AbilityKit.Protocol.Shooter.ShooterInputPayload",
+    "AbilityKit.Protocol.Shooter.ShooterPackedComponentChunk",
+    "AbilityKit.Protocol.Shooter.ShooterPackedSnapshotPayload",
+    "AbilityKit.Protocol.Shooter.ShooterPlayerCommand",
+    "AbilityKit.Protocol.Shooter.ShooterPlayerSnapshot",
+    "AbilityKit.Protocol.Shooter.ShooterStartGamePayload",
+    "AbilityKit.Protocol.Shooter.ShooterStartPlayer",
+    "AbilityKit.Protocol.Shooter.ShooterStateSnapshotPayload"
+  ],
+  "missingWireSchemaTypes": [],
+  "generatedFiles": [
+    "ProjectMemoryPackCodecs.g.cs",
+    "ProtocolCatalogs.g.cs",
+    "ShooterBulletSnapshot.MemoryPack.g.cs",
+    "ShooterCommandAcknowledgement.MemoryPack.g.cs",
+    "ShooterEnemySnapshot.MemoryPack.g.cs",
+    "ShooterEventSnapshot.MemoryPack.g.cs",
+    "ShooterInputPayload.MemoryPack.g.cs",
+    "ShooterPackedComponentChunk.MemoryPack.g.cs",
+    "ShooterPackedSnapshotPayload.MemoryPack.g.cs",
+    "ShooterPlayerCommand.MemoryPack.g.cs",
+    "ShooterPlayerSnapshot.MemoryPack.g.cs",
+    "ShooterStartGamePayload.MemoryPack.g.cs",
+    "ShooterStartPlayer.MemoryPack.g.cs",
+    "ShooterStateSnapshotPayload.MemoryPack.g.cs"
+  ]
+}

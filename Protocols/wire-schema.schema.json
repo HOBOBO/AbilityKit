@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://abilitykit.dev/schemas/wire-schema.schema.json",
+  "title": "AbilityKit minimal field-level wire schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "type", "fields"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "projectId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Owning project used by selective protocol export. Specify together with namespace."
+    },
+    "namespace": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Generated C# namespace. Specify together with projectId."
+    },
+    "type": { "type": "string", "minLength": 1 },
+    "memoryPackMode": {
+      "type": "string",
+      "enum": ["version-tolerant", "sequential"],
+      "default": "version-tolerant",
+      "description": "Version-tolerant is the default for new protocols. Sequential preserves an existing positional MemoryPack layout."
+    },
+    "declaration": {
+      "type": "string",
+      "enum": ["class", "struct"],
+      "default": "class",
+      "description": "Generated C# declaration kind; this does not change field semantics."
+    },
+    "memberStyle": {
+      "type": "string",
+      "enum": ["property", "field"],
+      "default": "property",
+      "description": "Generated C# member style. Field preserves ref-based APIs during legacy migration."
+    },
+    "fields": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/field" }
+    },
+    "reservedIds": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0 },
+      "uniqueItems": true
+    }
+  },
+  "dependentRequired": {
+    "projectId": ["namespace"],
+    "namespace": ["projectId"]
+  },
+  "$defs": {
+    "field": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 0, "maximum": 4294967295 },
+        "name": { "type": "string", "minLength": 1 },
+        "scalarType": {
+          "type": "string",
+          "enum": ["bool", "int32", "int64", "uint32", "uint64", "float", "double", "string", "bytes"]
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "C# type reference for nested DTOs or enums; mutually exclusive with scalarType."
+        },
+        "array": { "type": "boolean", "default": false },
+        "optional": { "type": "boolean" },
+        "required": { "type": "boolean" }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            { "required": ["scalarType"], "not": { "required": ["type"] } },
+            { "required": ["type"], "not": { "required": ["scalarType"] } }
+          ]
+        },
+        {
+          "oneOf": [
+            { "required": ["optional"], "not": { "required": ["required"] } },
+            { "required": ["required"], "not": { "required": ["optional"] } },
+            { "not": { "anyOf": [{ "required": ["optional"] }, { "required": ["required"] }] } }
+          ]
+        }
+      ]
+    }
+  }
+}

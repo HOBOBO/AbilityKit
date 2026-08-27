@@ -61,10 +61,13 @@ $outputFullPath = Resolve-RepoPath $OutputPath
 $null = New-Item -ItemType Directory -Force -Path (Split-Path -Parent $outputFullPath)
 
 try {
-    $config = Get-Content -LiteralPath $configFullPath -Raw | ConvertFrom-Json
+    # Read as UTF-8 explicitly: test-gates.json has no BOM, and Windows PowerShell 5.1 on an
+    # ANSI-codepage machine (e.g. GBK) would otherwise decode it as the local codepage and
+    # corrupt non-ASCII descriptions into invalid JSON.
+    $config = [System.IO.File]::ReadAllText($configFullPath) | ConvertFrom-Json
     Add-Check -Name 'Gate JSON parseability' -Passed $true -Detail $ConfigPath
 
-    $workflowText = Get-Content -LiteralPath $workflowFullPath -Raw
+    $workflowText = [System.IO.File]::ReadAllText($workflowFullPath)
 
     $pythonLauncher = Get-Command py -ErrorAction SilentlyContinue
     $python = Get-Command python -ErrorAction SilentlyContinue

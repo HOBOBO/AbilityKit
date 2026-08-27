@@ -1,9 +1,9 @@
-using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using UnityHFSM.Editor.Export;
+using UnityHFSM.Editor.Diagnostics;
 using UnityHFSM.Graph.Descriptor;
 
 namespace UnityHFSM.Editor
@@ -31,6 +31,8 @@ namespace UnityHFSM.Editor
         // Toolbar
         private ToolbarButton _backButton;
         private Label _breadcrumbLabel;
+        private ToolbarButton _diagnosticsButton;
+        private VisualElement _diagnosticsPane;
 
         [MenuItem("Window/AbilityKit/HFSM Graph Editor")]
         public static void OpenWindow()
@@ -63,6 +65,7 @@ namespace UnityHFSM.Editor
         private const string EditorPrefLastZoom = "HfsmEditor_LastZoom";
         private const string EditorPrefLastPanX = "HfsmEditor_LastPanX";
         private const string EditorPrefLastPanY = "HfsmEditor_LastPanY";
+        private const string EditorPrefDiagnosticsVisible = "HfsmEditor_DiagnosticsVisible";
 
         private void OnEnable()
         {
@@ -141,6 +144,7 @@ namespace UnityHFSM.Editor
                 _context.OnContextChanged -= OnContextChanged;
                 _context.OnStateMachineChanged -= OnStateMachineChanged;
             }
+            _diagnosticsPanel?.Dispose();
         }
 
         private void CreateUI()
@@ -218,11 +222,18 @@ namespace UnityHFSM.Editor
 
             ToolbarButton validateButton = _root.Q<ToolbarButton>("ValidateButton");
             if (validateButton != null)
-                validateButton.clickable = new Clickable(() => ValidateGraph());
+                validateButton.clickable = new Clickable(ShowValidateMenu);
 
             ToolbarButton frameButton = _root.Q<ToolbarButton>("FrameButton");
             if (frameButton != null)
                 frameButton.clickable = new Clickable(() => FrameAll());
+
+            _diagnosticsButton = _root.Q<ToolbarButton>("DiagnosticsButton");
+            if (_diagnosticsButton != null)
+                _diagnosticsButton.clickable = new Clickable(ToggleDiagnostics);
+
+            _diagnosticsPane = _root.Q<VisualElement>("DiagnosticsPane");
+            SetDiagnosticsVisible(EditorPrefs.GetBool(EditorPrefDiagnosticsVisible, true));
 
             ToolbarButton exportButton = _root.Q<ToolbarButton>("ExportButton");
             if (exportButton != null)
@@ -237,6 +248,14 @@ namespace UnityHFSM.Editor
             menu.ShowAsContext();
         }
 
+        private void ShowValidateMenu()
+        {
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("Next Runtime"), false, ValidateNextGraph);
+            menu.AddItem(new GUIContent("Legacy Graph"), false, ValidateLegacyGraph);
+            menu.ShowAsContext();
+        }
+
         private void ExportNextDefinition()
         {
             if (_context.GraphAsset == null)
@@ -245,27 +264,12 @@ namespace UnityHFSM.Editor
                 return;
             }
 
-            HfsmNextDefinitionExportResult result;
-            try
-            {
-                var configuredCatalog = HfsmEditorBindingCatalog.ConfiguredAsset;
-                result = configuredCatalog == null
-                    ? HfsmNextDefinitionExporter.Export(_context.GraphAsset)
-                    : HfsmNextDefinitionExporter.ExportUsingCatalogAsset(_context.GraphAsset, configuredCatalog);
-            }
-            catch (System.Exception exception)
-            {
-                EditorUtility.DisplayDialog("Next Export Failed", exception.Message, "OK");
-                return;
-            }
+            var diagnostics = RunNextDiagnostics();
+            var result = diagnostics?.ExportResult;
 
-            if (!result.IsSuccess)
+            if (result == null || !result.IsSuccess)
             {
-                var details = string.Join("\n", result.Issues.Select(issue => issue.ToString()));
-                EditorUtility.DisplayDialog(
-                    "Next Export Blocked",
-                    string.IsNullOrEmpty(details) ? "The graph could not be converted." : details,
-                    "OK");
+                SetDiagnosticsVisible(true);
                 return;
             }
 
@@ -280,7 +284,7 @@ namespace UnityHFSM.Editor
             AssetDatabase.Refresh();
             EditorUtility.DisplayDialog(
                 "Next Export Successful",
-                $"Validated runtime definition exported to:\n{path}\n\nDefinition hash: {result.Definition.ComputeDefinitionHash()}",
+                $"Validated runtime definition exported to:\n{path}\n\nDefinition hash: {diagnostics.DefinitionHash}",
                 "OK");
         }
 
@@ -344,6 +348,7 @@ namespace UnityHFSM.Editor
         // Panels
         private HfsmInspectorPanel _inspectorPanel;
         private HfsmParameterPanel _parameterPanel;
+        private HfsmDiagnosticsPanel _diagnosticsPanel;
 
         // Auto-frame flag to defer framing until view has valid size
         private bool _pendingFrameAll = false;
@@ -382,6 +387,12 @@ namespace UnityHFSM.Editor
             {
                 inspectorContainer.onGUIHandler += () => _inspectorPanel.OnGUI();
             }
+
+            _diagnosticsPanel = new HfsmDiagnosticsPanel();
+            _diagnosticsPanel.Initialize(_context);
+            IMGUIContainer diagnosticsContainer = FindIMGUIContainer(_root, "DiagnosticsPanel");
+            if (diagnosticsContainer != null)
+                diagnosticsContainer.onGUIHandler += () => _diagnosticsPanel.OnGUI();
         }
 
         private IMGUIContainer FindIMGUIContainer(VisualElement root, string name)
@@ -654,7 +665,7 @@ namespace UnityHFSM.Editor
             Repaint();
         }
 
-        private void ValidateGraph()
+        private void ValidateNextGraph()
         {
             if (_context.GraphAsset == null)
             {
@@ -662,14 +673,44 @@ namespace UnityHFSM.Editor
                 return;
             }
 
-            if (_context.GraphAsset.Validate())
+            SetDiagnosticsVisible(true);
+            RunNextDiagnostics();
+            Repaint();
+        }
+
+        private void ValidateLegacyGraph()
+        {
+            if (_context.GraphAsset == null)
             {
-                EditorUtility.DisplayDialog("Validate Graph", "Graph is valid!", "OK");
+                EditorUtility.DisplayDialog("Validate Graph", "No graph loaded.", "OK");
+                return;
             }
-            else
-            {
-                EditorUtility.DisplayDialog("Validate Graph", "Graph has errors. Check console for details.", "OK");
-            }
+
+            var valid = _context.GraphAsset.Validate();
+            EditorUtility.DisplayDialog(
+                "Legacy Graph Validation",
+                valid ? "Graph is valid." : "Graph has errors. Check the Console for details.",
+                "OK");
+        }
+
+        private HfsmNextDiagnosticSnapshot RunNextDiagnostics()
+        {
+            if (_diagnosticsPanel == null || _context.GraphAsset == null) return null;
+            return _diagnosticsPanel.Refresh();
+        }
+
+        private void ToggleDiagnostics()
+        {
+            var visible = _diagnosticsPane == null ||
+                          _diagnosticsPane.style.display == DisplayStyle.None;
+            SetDiagnosticsVisible(visible);
+        }
+
+        private void SetDiagnosticsVisible(bool visible)
+        {
+            if (_diagnosticsPane != null)
+                _diagnosticsPane.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            EditorPrefs.SetBool(EditorPrefDiagnosticsVisible, visible);
         }
 
         private void FrameAll()

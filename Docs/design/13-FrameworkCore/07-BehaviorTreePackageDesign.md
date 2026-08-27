@@ -161,6 +161,7 @@ static class BtDebugRegistry {
 | 装饰 | Inverter、ForceSuccess、ForceFailure、Repeater（次数/直到成功/直到失败）、Retry（失败重试次数）、Timeout（Fixed64 秒）、Cooldown（Fixed64 秒）、Once（首次评估后锁定）、UntilSuccess、UntilFailure |
 | 条件 | BlackboardCompare（Bool/Int64/Fixed64 的等于/比较，key vs 常量或 key vs key）、Probability（种子派生）、BlackboardHasKey |
 | 动作 | Wait（Fixed64 秒或帧数）、SetBlackboard、Log（走 Core 日志，非 UnityEngine.Debug）、Succeed、Fail |
+| 引用 | Subtree（treeId 引用另一棵树，加载期内联展开：id 前缀 + 黑板并集 + 环检测 + 来源追踪 `BtTreeCompiler`） |
 
 条件中断语义：挂在组合节点下的条件节点按组合 `AbortType` 参与重评估（属性在组合节点上）。领域节点（MOBA 13 个）在 demo 包内以同样机制注册，不进框架包。
 

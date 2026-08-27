@@ -1,0 +1,17 @@
+{
+  "Id": 10020201,
+  "Name": "小乔-甜蜜恋风",
+  "CooldownMs": 7000,
+  "Range": 10,
+  "IconId": 102,
+  "Category": 2,
+  "SkillType": 2,
+  "Tags": [
+    202
+  ],
+  "SkillButtonTemplateId": 3,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10020201,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10020201
+}

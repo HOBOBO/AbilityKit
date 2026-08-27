@@ -4,6 +4,7 @@
   "references": [
     "AbilityKit.Core",
     "AbilityKit.Network.Runtime",
+    "AbilityKit.Network.Sdk",
     "AbilityKit.Protocol.Room"
   ],
   "includePlatforms": [],

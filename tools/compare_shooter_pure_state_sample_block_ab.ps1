@@ -115,6 +115,11 @@ function Get-Aggregate {
         maxTransformSamplesPerBlock = [int](($states | ForEach-Object { Get-Number $_ 'pureStatePlaybackMaxTransformSampleCountPerBlock' } | Measure-Object -Maximum).Maximum)
         historicalTransformCount = [long]$historicalTransforms
         authoritativeTransformCount = [long]$authoritativeTransforms
+        observedTransformSampleIntervalCount = [long](($states | ForEach-Object { Get-Number $_ 'pureStatePlaybackObservedTransformSampleIntervalCount' } | Measure-Object -Sum).Sum)
+        transformSampleIntervalP50Frames = [int](($states | ForEach-Object { Get-Number $_ 'pureStatePlaybackTransformSampleIntervalP50Frames' } | Measure-Object -Maximum).Maximum)
+        transformSampleIntervalP95Frames = [int](($states | ForEach-Object { Get-Number $_ 'pureStatePlaybackTransformSampleIntervalP95Frames' } | Measure-Object -Maximum).Maximum)
+        transformSampleIntervalP99Frames = [int](($states | ForEach-Object { Get-Number $_ 'pureStatePlaybackTransformSampleIntervalP99Frames' } | Measure-Object -Maximum).Maximum)
+        transformSampleIntervalMaxFrames = [int](($states | ForEach-Object { Get-Number $_ 'pureStatePlaybackTransformSampleIntervalMaxFrames' } | Measure-Object -Maximum).Maximum)
         resyncNeededCount = [long](($states | ForEach-Object { Get-Number $_ 'snapshotResyncNeededCount' } | Measure-Object -Sum).Sum)
         automaticFullStateSyncCoalescedRequestCount = [long](($states | ForEach-Object { Get-Number $_ 'automaticFullStateSyncCoalescedRequestCount' } | Measure-Object -Sum).Sum)
         fullSnapshotAppliedCount = [long](($states | ForEach-Object { Get-Number $_ 'pureStateFullAppliedCount' } | Measure-Object -Sum).Sum)
@@ -190,6 +195,9 @@ $deltas = [pscustomobject]@{
     resyncNeededCount = $candidate.resyncNeededCount - $baseline.resyncNeededCount
     automaticFullStateSyncCoalescedRequestCount = $candidate.automaticFullStateSyncCoalescedRequestCount - $baseline.automaticFullStateSyncCoalescedRequestCount
     fullSnapshotAppliedCount = $candidate.fullSnapshotAppliedCount - $baseline.fullSnapshotAppliedCount
+    transformSampleIntervalP95Frames = $candidate.transformSampleIntervalP95Frames - $baseline.transformSampleIntervalP95Frames
+    transformSampleIntervalP99Frames = $candidate.transformSampleIntervalP99Frames - $baseline.transformSampleIntervalP99Frames
+    transformSampleIntervalMaxFrames = $candidate.transformSampleIntervalMaxFrames - $baseline.transformSampleIntervalMaxFrames
 }
 
 if ($EnableGate) {

@@ -23,21 +23,36 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         public static ShooterPlayModeSessionOptions FromTemplate(in ShooterSyncTemplate template)
         {
-            var network = ShooterAcceptanceCatalog.GetNetworkEnvironment(template.NetworkEnvironmentId);
+            return FromTemplateForNetwork(
+                in template,
+                template.NetworkEnvironmentId,
+                randomSeed: 3901,
+                controlledPlayerId: 1,
+                worldScale: 1f);
+        }
+
+        public static ShooterPlayModeSessionOptions FromTemplateForNetwork(
+            in ShooterSyncTemplate template,
+            string networkEnvironmentId,
+            int randomSeed,
+            int controlledPlayerId,
+            float worldScale)
+        {
+            var network = ShooterAcceptanceCatalog.GetNetworkEnvironment(networkEnvironmentId);
             return new ShooterPlayModeSessionOptions(
                 template.SyncModel,
                 ShooterAcceptanceLab.DefaultTickRate,
                 template.RecommendedPlayerCount,
-                randomSeed: 3901,
-                controlledPlayerId: 1,
+                randomSeed,
+                controlledPlayerId,
                 enableAuthoritativeWorld: template.EnableAuthoritativeWorld,
                 latencyMs: network.Profile.BaseLatencyMs,
                 jitterMs: network.Profile.JitterMs,
                 packetLossRate: (float)network.Profile.PacketLossRate,
                 reorderRate: (float)network.Profile.ReorderRate,
                 bandwidthKbps: network.Profile.BandwidthKbps,
-                worldScale: 1f,
-                networkName: template.DisplayName,
+                worldScale,
+                networkName: network.DisplayName,
                 syncTemplateId: template.Id,
                 gameplayScenario: CreatePlayModeScenario(PlayModeDefaultEnemyBudget));
         }

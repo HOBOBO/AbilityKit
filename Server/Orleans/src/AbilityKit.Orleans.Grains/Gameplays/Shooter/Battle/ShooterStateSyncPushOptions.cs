@@ -59,6 +59,14 @@ internal readonly struct ShooterPureStateSampleDensityPolicy
         midHistoricalStride: 2,
         farHistoricalStride: 0,
         maxHistoricalTransformsPerBlock: 32);
+
+    public static ShooterPureStateSampleDensityPolicy SmoothMassBattle { get; } = new(
+        0.40f,
+        0.75f,
+        nearHistoricalStride: 1,
+        midHistoricalStride: 2,
+        farHistoricalStride: 2,
+        maxHistoricalTransformsPerBlock: 2048);
 }
 
 internal sealed class ShooterStateSyncPushOptions

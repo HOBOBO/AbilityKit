@@ -1,0 +1,17 @@
+{
+  "Id": 10010101,
+  "Name": "廉颇-爆裂冲撞",
+  "CooldownMs": 9000,
+  "Range": 8,
+  "IconId": 201,
+  "Category": 1,
+  "SkillType": 5,
+  "Tags": [
+    101
+  ],
+  "SkillButtonTemplateId": 2,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10010101,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10010101
+}

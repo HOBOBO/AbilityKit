@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "generatorVersion": "1.0",
+  "projectId": "abilitykit.moba",
+  "catalogIds": [
+    "abilitykit.moba.battle"
+  ],
+  "referencedMemoryPackTypes": [
+    "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot",
+    "AbilityKit.Protocol.Moba.SkillInputEvent",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaDebugReplaceHeroPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaEnterGamePayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaMovePayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
+  ],
+  "generatedTypes": [
+    "AbilityKit.Protocol.Moba.StateSync.MobaMovePayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
+  ],
+  "missingWireSchemaTypes": [
+    "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot",
+    "AbilityKit.Protocol.Moba.SkillInputEvent",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaDebugReplaceHeroPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaEnterGamePayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload"
+  ],
+  "generatedFiles": [
+    "MobaMovePayload.MemoryPack.g.cs",
+    "MobaStateHashSnapshotPayload.MemoryPack.g.cs",
+    "ProjectMemoryPackCodecs.g.cs",
+    "ProtocolCatalogs.g.cs"
+  ]
+}

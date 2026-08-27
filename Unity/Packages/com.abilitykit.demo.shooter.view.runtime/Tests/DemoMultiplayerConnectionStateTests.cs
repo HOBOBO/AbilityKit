@@ -71,13 +71,21 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             Assert.That(profile.StarterSceneName, Is.EqualTo("StarterScene"));
 
             var options = profile.BuildSessionOptions();
-            Assert.That(options.SyncTemplateId, Is.EqualTo("mass-battle-lod-aoi"));
+            Assert.That(options.SyncTemplateId, Is.EqualTo("mass-battle-lod-aoi-sample-block"));
+            Assert.That(profile.NetworkEnvironmentId, Is.EqualTo("ideal"));
+            Assert.That(options.LatencyMs, Is.Zero);
+            Assert.That(options.JitterMs, Is.Zero);
+            Assert.That(options.PacketLossRate, Is.Zero);
+            Assert.That(options.ReorderRate, Is.Zero);
+            Assert.That(options.BandwidthKbps, Is.Zero);
             Assert.That(options.PlayerCount, Is.EqualTo(2));
             Assert.That(options.ControlledPlayerId, Is.EqualTo(1));
             Assert.That(options.GameplayScenario.BattleFlow.MaxActiveEnemies, Is.EqualTo(512));
 
             var roomLaunchSpec = profile.BuildRoomLaunchSpec(options, "local", "server-a");
             Assert.That(roomLaunchSpec.Tags[ShooterRoomLaunchTagKeys.EnemyBudget], Is.EqualTo("512"));
+            Assert.That(roomLaunchSpec.NetworkEnvironmentId, Is.EqualTo("ideal"));
+            Assert.That(roomLaunchSpec.Tags[ShooterRoomLaunchTagKeys.NetworkEnvironmentId], Is.EqualTo("ideal"));
         }
 
         [Test]
@@ -101,11 +109,37 @@ namespace AbilityKit.Demo.Shooter.View.Tests
             Assert.That(options.LaunchMode, Is.EqualTo(ShooterRemoteStateSyncLaunchMode.RestoreOnly));
             Assert.That(options.RoomId, Is.EqualTo("room-1"));
             Assert.That(options.SessionToken, Is.EqualTo("session-1"));
-            Assert.That(options.SessionOptions.SyncTemplateId, Is.EqualTo("mass-battle-lod-aoi"));
+            Assert.That(options.SessionOptions.SyncTemplateId, Is.EqualTo("mass-battle-lod-aoi-sample-block"));
+            Assert.That(options.SessionOptions.BandwidthKbps, Is.Zero);
             Assert.That(options.RoomLaunchSpec, Is.Not.Null);
+            Assert.That(options.RoomLaunchSpec!.Value.NetworkEnvironmentId, Is.EqualTo("ideal"));
             Assert.That(
                 options.RoomLaunchSpec!.Value.Tags[ShooterRoomLaunchTagKeys.EnemyBudget],
                 Is.EqualTo("512"));
+        }
+
+        [Test]
+        public void RemoteStateSyncProfileKeepsClientAndRoomNetworkContractsAligned()
+        {
+            var profile = UnityEngine.ScriptableObject.CreateInstance<ShooterRemoteStateSyncPlayModeProfile>();
+            try
+            {
+                var options = profile.BuildLaunchOptions();
+
+                Assert.That(options.SessionOptions.SyncTemplateId, Is.EqualTo("mass-battle-lod-aoi-sample-block"));
+                Assert.That(options.SessionOptions.BandwidthKbps, Is.Zero);
+                Assert.That(profile.NetworkEnvironmentId, Is.EqualTo("ideal"));
+                Assert.That(options.RoomLaunchSpec, Is.Not.Null);
+                Assert.That(options.RoomLaunchSpec!.Value.SyncTemplateId, Is.EqualTo(options.SessionOptions.SyncTemplateId));
+                Assert.That(options.RoomLaunchSpec!.Value.NetworkEnvironmentId, Is.EqualTo("ideal"));
+                Assert.That(
+                    options.RoomLaunchSpec!.Value.Tags[ShooterRoomLaunchTagKeys.NetworkEnvironmentId],
+                    Is.EqualTo("ideal"));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(profile);
+            }
         }
 
         [Test]

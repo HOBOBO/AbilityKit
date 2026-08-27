@@ -31,7 +31,9 @@
     "AbilityKit.World.DI",
     "AbilityKit.World.Entitas",
     "AbilityKit.World.NetworkFragments",
-    "AbilityKit.ExcelSync.Editor"
+    "AbilityKit.ExcelSync.Editor",
+    "AbilityKit.Ability.Explain",
+    "AbilityKit.Ability.Explain.Editor"
   ],
   "includePlatforms": [
     "Editor"

@@ -311,6 +311,104 @@ public sealed class ShooterPureStateSyncCodecTests
     }
 
     [Fact]
+    public void FrameSampleBlockUsesCompressedWireLayoutAndPreservesEveryField()
+    {
+        var snapshot = CreateSnapshot();
+        const int samplesPerFrame = 128;
+        const int sampleCount = samplesPerFrame * 2;
+        snapshot.Frame = 12;
+        snapshot.FrameSamples = new[]
+        {
+            new ShooterPureStateFrameSample(10, 1000L, 0, samplesPerFrame),
+            new ShooterPureStateFrameSample(11, 1100L, samplesPerFrame, samplesPerFrame)
+        };
+        snapshot.TransformSamples = new ShooterPureStateTransformSample[sampleCount];
+        for (var i = 0; i < sampleCount; i++)
+        {
+            snapshot.TransformSamples[i] = new ShooterPureStateTransformSample(
+                (i % samplesPerFrame) + 1,
+                (i & 1) == 0 ? ShooterPackedEntityKinds.Enemy : ShooterPackedEntityKinds.Projectile,
+                5_000 + i,
+                -2_000 + i,
+                (i & 1) == 0 ? 100 : -100,
+                (i & 1) == 0 ? -50 : 50,
+                (byte)((i & 1) == 0 ? 3 : 2));
+        }
+        snapshot.SetTransientCounts(1, 1, 0, 2, sampleCount);
+
+        var compressed = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var legacyRaw = MemoryPackSerializer.Serialize(snapshot);
+        var restored = ShooterPureStateSyncCodec.Deserialize(compressed);
+
+        Assert.Equal(15, compressed[0]);
+        Assert.True(compressed.Length < legacyRaw.Length * 0.80d,
+            $"Expected compressed block < 80% of raw layout. Compressed={compressed.Length}, raw={legacyRaw.Length}.");
+        Assert.Equal(snapshot.TransformSamples, restored.TransformSamples);
+        Assert.Equal(snapshot.FrameSamples, restored.FrameSamples);
+    }
+
+    [Fact]
+    public void ReusableCompressedDecodeDoesNotAllocateAfterWarmup()
+    {
+        var snapshot = CreateSnapshot();
+        const int count = 1_000;
+        snapshot.Frame = 12;
+        snapshot.FrameSamples = new[] { new ShooterPureStateFrameSample(11, 1100L, 0, count) };
+        snapshot.TransformSamples = new ShooterPureStateTransformSample[count];
+        for (var i = 0; i < count; i++)
+        {
+            snapshot.TransformSamples[i] = new ShooterPureStateTransformSample(
+                i + 1,
+                ShooterPackedEntityKinds.Enemy,
+                5_000 + i,
+                -2_000 + i,
+                100,
+                -50,
+                ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
+        }
+        snapshot.SetTransientCounts(1, 1, 0, 1, count);
+        var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var buffer = new ShooterPureStateSyncDecodeBuffer();
+        var warmup = buffer.Decode(payload);
+        var transformSamples = warmup.TransformSamples;
+
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var i = 0; i < 64; i++)
+        {
+            buffer.Decode(payload);
+        }
+
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        var decoded = buffer.Decode(payload);
+        Assert.Same(transformSamples, decoded.TransformSamples);
+        Assert.Equal(count, decoded.EffectiveTransformSampleCount);
+        Assert.True(allocated < 256, $"Expected allocation-free compressed decode, actual={allocated} bytes.");
+    }
+
+    [Fact]
+    public void VersionTwoRawFrameSampleBlockRemainsReadable()
+    {
+        var snapshot = CreateSnapshot();
+        snapshot.Version = 2;
+        snapshot.Frame = 12;
+        snapshot.FrameSamples = new[] { new ShooterPureStateFrameSample(11, 1100L, 0, 1) };
+        snapshot.TransformSamples = new[]
+        {
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Enemy, 1_000, -2_000, 100, -50, 3)
+        };
+        snapshot.SetTransientCounts(1, 1, 0, 1, 1);
+
+        var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
+        var owned = ShooterPureStateSyncCodec.Deserialize(payload);
+        var reusable = new ShooterPureStateSyncDecodeBuffer().Decode(payload);
+
+        Assert.Equal(14, payload[0]);
+        Assert.Equal(2, owned.Version);
+        Assert.Equal(snapshot.TransformSamples, owned.TransformSamples);
+        Assert.Equal(snapshot.TransformSamples, reusable.TransformSamples.Take(1));
+    }
+
+    [Fact]
     public void ReusableDecoderKeepsFrameSampleArraysStableAfterWarmup()
     {
         var snapshot = CreateSnapshot();

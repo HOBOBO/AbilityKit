@@ -1,0 +1,17 @@
+{
+  "Id": 10060201,
+  "Name": "嬴政-王者守御",
+  "CooldownMs": 10000,
+  "Range": 5,
+  "IconId": 602,
+  "Category": 6,
+  "SkillType": 2,
+  "Tags": [
+    602
+  ],
+  "SkillButtonTemplateId": 6,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 10060201,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10060201
+}

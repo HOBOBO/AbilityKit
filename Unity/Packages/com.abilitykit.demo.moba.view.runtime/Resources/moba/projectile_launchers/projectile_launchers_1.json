@@ -1,0 +1,9 @@
+{
+  "Id": 1,
+  "Name": "普攻发射器",
+  "EmitterType": 1,
+  "DurationMs": 0,
+  "IntervalMs": 0,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

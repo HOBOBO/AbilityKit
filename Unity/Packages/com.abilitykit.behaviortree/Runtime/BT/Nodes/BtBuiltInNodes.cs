@@ -33,6 +33,7 @@ namespace AbilityKit.BehaviorTree
         public const string Log = "builtin.log";
         public const string Succeed = "builtin.succeed";
         public const string Fail = "builtin.fail";
+        public const string Subtree = "builtin.subtree";
     }
 
     /// <summary>内置节点目录注册入口。</summary>
@@ -195,6 +196,13 @@ namespace AbilityKit.BehaviorTree
             registry.RegisterOrReplace(new BtNodeDescriptor(
                 BtBuiltInNodeTypes.Fail, "恒失败 Fail", "动作节点", BtNodeKind.Action, 0, 0,
                 () => new BtFailNode()));
+
+            registry.RegisterOrReplace(new BtNodeDescriptor(
+                BtBuiltInNodeTypes.Subtree, "子树引用 Subtree", "动作节点", BtNodeKind.Action, 0, 0,
+                () => new BtSubtreeNode(),
+                new[] { new BtPropertyField(BtSubtreeNode.TreeIdProperty, BtValueType.String,
+                    BtPropertyValue.Of(""), "被引用的树 TreeId（加载期内联展开）") },
+                colorHint: "#6a5acd"));
 
             void Composite(string typeId, string displayName, Func<BtNodeBase> factory)
             {

@@ -89,6 +89,7 @@ public sealed class ShooterServerSyncTemplateCatalogTests
         var blocked = ShooterServerSyncTemplateCatalog.Resolve(ShooterServerProtocol.MassBattleLodAoiSampleBlockTemplate);
         var singleOptions = single.CreatePushOptions("limitedbw");
         var blockedOptions = blocked.CreatePushOptions("limitedbw");
+        var unmeteredBlockedOptions = blocked.CreatePushOptions("ideal");
 
         Assert.Equal(ShooterPureStatePlaybackPayloadMode.SingleSample, singleOptions.PlaybackPayloadMode);
         Assert.Equal(1, singleOptions.SampleBlockFrameCount);
@@ -100,6 +101,8 @@ public sealed class ShooterServerSyncTemplateCatalogTests
         Assert.Equal(2, blockedOptions.SampleDensityPolicy.MidHistoricalStride);
         Assert.Equal(0, blockedOptions.SampleDensityPolicy.FarHistoricalStride);
         Assert.Equal(32, blockedOptions.SampleDensityPolicy.MaxHistoricalTransformsPerBlock);
+        Assert.Equal(2, unmeteredBlockedOptions.SampleDensityPolicy.FarHistoricalStride);
+        Assert.Equal(2048, unmeteredBlockedOptions.SampleDensityPolicy.MaxHistoricalTransformsPerBlock);
         Assert.Equal(1, singleOptions.SampleDensityPolicy.NearHistoricalStride);
         Assert.Equal(1, singleOptions.SampleDensityPolicy.FarHistoricalStride);
         Assert.Equal(int.MaxValue, singleOptions.SampleDensityPolicy.MaxHistoricalTransformsPerBlock);

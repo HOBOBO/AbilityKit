@@ -9,7 +9,10 @@ using AbilityKit.Network.Runtime.Sync;
 
 namespace AbilityKit.Network.Runtime
 {
-    public sealed class ConnectionManager : IConnection, IReconnectableConnection
+    public sealed class ConnectionManager :
+        IConnection,
+        IReconnectableConnection,
+        INetworkConnectionDiagnosticsSource
     {
         private readonly Func<ITransport> _transportFactory;
         private readonly ConnectionOptions _options;
@@ -70,6 +73,35 @@ namespace AbilityKit.Network.Runtime
         /// 注入自定义中间件（例如 <see cref="Conditioning.NetworkConditioningMiddleware"/>）。
         /// </summary>
         public NetworkPipeline Pipeline => _session?.Pipeline;
+
+        /// <summary>当前物理会话的统一协议路由器；会话未建立时返回 null。</summary>
+        public NetworkPacketRouter PacketRouter => _session?.PacketRouter;
+
+        /// <summary>读取当前连接、重连、心跳和协议路由的只读诊断快照。</summary>
+        public NetworkConnectionDiagnosticsSnapshot GetDiagnosticsSnapshot()
+        {
+            var scheduler = _reconnectScheduler;
+            var packetRouter = _session?.PacketRouter?.GetSnapshot();
+            return new NetworkConnectionDiagnosticsSnapshot(
+                _connectionId,
+                _connectionGeneration,
+                _host,
+                _port,
+                State,
+                IsConnected,
+                _openRequested,
+                scheduler.IsPending,
+                IsReconnectExhausted,
+                scheduler.AttemptsStarted,
+                scheduler.MaxAttempts,
+                scheduler.NextAttemptNumber,
+                scheduler.NextDelaySeconds,
+                scheduler.RemainingDelaySeconds,
+                _timeSinceLastReceive,
+                _timeSinceLastHeartbeatSend,
+                _session?.Pipeline?.Count ?? 0,
+                packetRouter);
+        }
 
         public event Action Connected;
         public event Action Disconnected;
@@ -201,6 +233,7 @@ namespace AbilityKit.Network.Runtime
         {
             StopInternal(keepState: true);
 
+            _connectionGeneration = checked(_connectionGeneration + 1);
             State = connectState;
             try
             {
@@ -539,10 +572,9 @@ namespace AbilityKit.Network.Runtime
             if (capture == null) return;
 
             capture.Validate();
-            var generation = checked(++_connectionGeneration);
             var context = new NetworkTrafficConnectionContext(
                 _connectionId,
-                generation,
+                _connectionGeneration,
                 capture.Role,
                 capture.CatalogId,
                 $"{_host}:{_port}",
@@ -551,11 +583,12 @@ namespace AbilityKit.Network.Runtime
                     : capture.TransportName);
             var observer = capture.ObserverFactory.Invoke(context)
                 ?? throw new InvalidOperationException("Traffic observer factory returned null.");
+            var filter = capture.FilterFactory?.Invoke(context) ?? capture.Filter;
             pipeline.AddFirst(new NetworkTrafficProbeMiddleware(
                 context,
                 observer,
                 capture.MaximumPayloadPreviewBytes,
-                capture.Filter,
+                filter,
                 capture.UtcNowProvider,
                 capture.ObserverErrorHandler));
         }

@@ -1,0 +1,9 @@
+{
+  "Id": 31060301,
+  "Name": "嬴政-至尊王权-飞剑发射器",
+  "EmitterType": 1,
+  "DurationMs": 2500,
+  "IntervalMs": 250,
+  "CountPerShot": 5,
+  "FanAngleDeg": 0.0
+}

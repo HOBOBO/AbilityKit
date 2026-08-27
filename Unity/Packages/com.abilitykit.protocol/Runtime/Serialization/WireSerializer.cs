@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace AbilityKit.Protocol.Serialization
 {
@@ -11,18 +12,40 @@ namespace AbilityKit.Protocol.Serialization
         {
             get
             {
-                if (s_current != null) return s_current;
+                var current = Volatile.Read(ref s_current);
+                if (current != null) return current;
                 throw new InvalidOperationException(
                     "WireSerializer.Current is not installed. " +
-                    "Call MemoryPackWireSerializerInstaller.InstallAsCurrent() at startup " +
-                    "(package com.abilitykit.protocol). " +
-                    "The legacy BinaryObjectWireSerializer default has been removed — " +
-                    "all sync serialization is MemoryPack-only.");
+                    "Install an IWireSerializer explicitly during application bootstrap " +
+                    "by calling WireSerializer.Install(...) or a codec-specific installer.");
             }
             set
             {
-                s_current = value;
+                Volatile.Write(ref s_current, value);
             }
+        }
+
+        public static bool IsInstalled => Volatile.Read(ref s_current) != null;
+
+        public static bool TryGetCurrent(out IWireSerializer serializer)
+        {
+            serializer = Volatile.Read(ref s_current);
+            return serializer != null;
+        }
+
+        public static void Install(IWireSerializer serializer, bool replaceExisting = false)
+        {
+            if (serializer == null) throw new ArgumentNullException(nameof(serializer));
+            if (replaceExisting)
+            {
+                Volatile.Write(ref s_current, serializer);
+                return;
+            }
+
+            var previous = Interlocked.CompareExchange(ref s_current, serializer, null);
+            if (previous != null)
+                throw new InvalidOperationException(
+                    "A wire serializer is already installed. Pass replaceExisting: true only from an explicit reconfiguration boundary.");
         }
 
         public static ITextSerializer TextSerializer

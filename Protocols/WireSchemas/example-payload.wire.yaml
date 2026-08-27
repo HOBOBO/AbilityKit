@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 1
+projectId: abilitykit.shared
+namespace: AbilityKit.Protocol.Generated
+type: RoomPresence
+fields:
+  - id: 1
+    name: roomId
+    scalarType: uint64
+    required: true
+  - id: 2
+    name: participantIds
+    scalarType: uint64
+    array: true
+    optional: true
+  - id: 3
+    name: serverLabel
+    scalarType: string
+    optional: true
+reservedIds: [4]

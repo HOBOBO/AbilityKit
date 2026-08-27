@@ -2,7 +2,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.ExcelSync.Editor;
+using Newtonsoft.Json;
 using UnityEditor;
 using UnityEngine;
 
@@ -24,6 +26,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     ///   bootstrap  ：把尚未接入 Excel 的表从 SO 全量建出 Excel+baseline+逐条目文件夹（已接入的跳过）。
     ///   export-typed：同 bootstrap，但额外写"类型行"（第2行，字段名下方），产出带类型标注的表头供 Luban/自研管线下游解析。
     ///   seed-from-json：以数组 JSON 为真相源正式化（数组 JSON→逐条目文件夹→SO 整表替换→带类型 Excel+baseline）；JSON 只读不写。
+    ///   migrate-flows：把 skill_flows 的运行时 DTO 迁移成富作者形态 Def，填进 SkillFlowSO.dataList（供编辑器/解释器读取）；JSON 只读不写。
     ///   status     ：列出每张表的接入状态与数据量（只读）。
     ///
     /// 退出码：0=成功；1=存在处理失败；2=存在合并冲突（先解决 .conflicts.json 再重跑）；3=参数错误。
@@ -67,6 +70,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                         break;
                     case "seed-from-json":
                         exitCode = SeedFromJson(tables, excelFolder);
+                        break;
+                    case "migrate-flows":
+                        exitCode = MigrateFlows(tables, excelFolder);
                         break;
                     case "status":
                         exitCode = PrintStatus(tables, excelFolder);
@@ -297,6 +303,60 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             }
 
             return Report("seed-from-json", tables.Count, failures, null);
+        }
+
+        private static int MigrateFlows(List<MobaConfigTableAssetSO> tables, string excelFolder)
+        {
+            var failures = new List<string>();
+
+            foreach (var table in tables)
+            {
+                var name = table.GetType().Name;
+                try
+                {
+                    if (!(table is SkillFlowSO flowSo))
+                    {
+                        failures.Add($"{name}: migrate-flows only supports SkillFlowSO");
+                        continue;
+                    }
+
+                    // 从数组 JSON（真相）读 DTO，迁移成富作者形态 Def 填 dataList。
+                    var arrayJsonPath = ToAbsolute(Path.Combine(ResourcesMobaFolder, table.FileWithoutExt + ".json"));
+                    if (!File.Exists(arrayJsonPath))
+                    {
+                        failures.Add($"{name}: array json not found at {arrayJsonPath}");
+                        continue;
+                    }
+
+                    var dtos = JsonConvert.DeserializeObject<SkillFlowDTO[]>(File.ReadAllText(arrayJsonPath));
+                    if (dtos == null)
+                    {
+                        failures.Add($"{name}: failed to deserialize {arrayJsonPath}");
+                        continue;
+                    }
+
+                    var defs = new List<SkillFlowDef>(dtos.Length);
+                    foreach (var dto in dtos)
+                    {
+                        var def = SkillFlowDef.FromDto(dto);
+                        if (def != null) defs.Add(def);
+                    }
+
+                    flowSo.dataList = defs.ToArray();
+                    // legacyDataList 是递归 DTO，会触发 Unity 序列化深度告警；迁移到 Def 后清空以消除该告警。
+                    flowSo.legacyDataList = Array.Empty<SkillFlowDTO>();
+                    EditorUtility.SetDirty(flowSo);
+                    AssetDatabase.SaveAssets();
+
+                    Debug.Log($"[Headless][migrate-flows] {name}: migrated {defs.Count}/{dtos.Length} flows into dataList (Def)");
+                }
+                catch (Exception e)
+                {
+                    failures.Add($"{name}: {e.Message}");
+                }
+            }
+
+            return Report("migrate-flows", tables.Count, failures, null);
         }
 
         private static int PrintStatus(List<MobaConfigTableAssetSO> tables, string excelFolder)

@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         [Header("Session")]
         [SerializeField] private string templateId = DefaultTemplateId;
+        [SerializeField] private string networkEnvironmentId = ShooterRoomLaunchSpec.DefaultNetworkEnvironmentId;
         [SerializeField] private int randomSeed = 12345;
         [SerializeField] private int playerCount = 2;
         [SerializeField] private int controlledPlayerId = 1;
@@ -130,6 +131,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             GUILayout.Label("Session");
             templateId = TextField("Template", templateId);
+            networkEnvironmentId = TextField("Network", networkEnvironmentId);
             randomSeed = IntField("Seed", randomSeed);
             playerCount = Math.Max(1, IntField("Players", playerCount));
             controlledPlayerId = Math.Min(Math.Max(1, IntField("Player", controlledPlayerId)), playerCount);
@@ -515,8 +517,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private ShooterPlayModeSessionOptions BuildSessionOptions()
         {
-            var templateOptions = ShooterPlayModeSessionOptions.FromTemplate(
-                ShooterAcceptanceCatalog.GetSyncTemplate(NormalizeOrDefault(templateId, DefaultTemplateId)),
+            var template = ShooterAcceptanceCatalog.GetSyncTemplate(
+                NormalizeOrDefault(templateId, DefaultTemplateId));
+            var templateOptions = ShooterPlayModeSessionOptions.FromTemplateForNetwork(
+                template,
+                NormalizeOrDefault(networkEnvironmentId, ShooterRoomLaunchSpec.DefaultNetworkEnvironmentId),
                 randomSeed,
                 Math.Min(Math.Max(1, controlledPlayerId), Math.Max(1, playerCount)),
                 Math.Max(0.01f, worldScale));
@@ -563,11 +568,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             var defaults = ShooterRoomLaunchSpec.CreateDefault($"unity-{sessionOptions.ControlledPlayerId}");
             var template = ShooterAcceptanceCatalog.GetSyncTemplate(NormalizeOrDefault(sessionOptions.SyncTemplateId, DefaultTemplateId));
+            var networkEnvironment = NormalizeOrDefault(
+                networkEnvironmentId,
+                ShooterRoomLaunchSpec.DefaultNetworkEnvironmentId);
             var tags = new Dictionary<string, string>(defaults.Tags, StringComparer.Ordinal)
             {
                 [ShooterRoomLaunchTagKeys.SyncTemplateId] = template.Id,
                 [ShooterRoomLaunchTagKeys.SyncModel] = ((int)template.SyncModel).ToString(),
-                [ShooterRoomLaunchTagKeys.NetworkEnvironmentId] = template.NetworkEnvironmentId,
+                [ShooterRoomLaunchTagKeys.NetworkEnvironmentId] = networkEnvironment,
                 [ShooterRoomLaunchTagKeys.CarrierName] = template.ExpectedCarrierName,
                 [ShooterRoomLaunchTagKeys.EnableAuthoritativeWorld] = template.EnableAuthoritativeWorld.ToString(),
                 [ShooterRoomLaunchTagKeys.InterpolationEnabled] = template.ExpectsInterpolationDiagnostics.ToString(),
@@ -591,7 +599,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                 tags,
                 template.Id,
                 (int)template.SyncModel,
-                template.NetworkEnvironmentId,
+                networkEnvironment,
                 template.ExpectedCarrierName,
                 template.EnableAuthoritativeWorld,
                 template.ExpectsInterpolationDiagnostics,

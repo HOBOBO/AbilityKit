@@ -112,6 +112,7 @@ namespace AbilityKit.Tests
         [Test]
         public void ConfiguredCatalogAssetOverridesReflectionCatalog()
         {
+            var previous = UnityHFSM.Editor.HfsmEditorBindingCatalog.ConfiguredAsset;
             var asset = ScriptableObject.CreateInstance<UnityHFSM.Editor.HfsmBindingCatalogAsset>();
             try
             {
@@ -130,7 +131,7 @@ namespace AbilityKit.Tests
             }
             finally
             {
-                UnityHFSM.Editor.HfsmEditorBindingCatalog.SetConfiguredAsset(null);
+                UnityHFSM.Editor.HfsmEditorBindingCatalog.SetConfiguredAsset(previous);
                 UnityHFSM.Editor.HfsmEditorBindingCatalog.Reset();
                 Object.DestroyImmediate(asset);
             }

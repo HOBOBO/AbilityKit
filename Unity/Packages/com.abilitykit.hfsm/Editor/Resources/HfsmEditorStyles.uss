@@ -23,6 +23,12 @@
     background-color: #333333;
 }
 
+#DiagnosticsPane {
+    background-color: #303030;
+    border-top-width: 1px;
+    border-top-color: #1f1f1f;
+}
+
 .help-box {
     background-color: #3c3c3c;
     border-radius: 3px;

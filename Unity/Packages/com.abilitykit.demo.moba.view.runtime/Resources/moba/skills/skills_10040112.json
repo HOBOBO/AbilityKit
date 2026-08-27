@@ -1,0 +1,17 @@
+{
+  "Id": 10040112,
+  "Name": "墨子-和平漫步-强化近战普攻",
+  "CooldownMs": 800,
+  "Range": 6,
+  "IconId": 401,
+  "Category": 4,
+  "SkillType": 1,
+  "Tags": [
+    401
+  ],
+  "SkillButtonTemplateId": 1,
+  "RequiredTargetQueryId": 0,
+  "LevelTableId": 0,
+  "PreCastFlowId": 0,
+  "CastFlowId": 10040112
+}

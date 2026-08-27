@@ -16,6 +16,7 @@ namespace AbilityKit.Network.Sdk
     {
         private readonly IConnection _connection;
         private readonly IReconnectableConnection? _reconnectableConnection;
+        private readonly INetworkConnectionDiagnosticsSource? _diagnosticsSource;
         private readonly IRequestClient _requestClient;
         private Action<uint, uint, ArraySegment<byte>>? _packetReceived;
         private bool _disposed;
@@ -26,6 +27,7 @@ namespace AbilityKit.Network.Sdk
         {
             _connection = connection ?? throw new ArgumentNullException(nameof(connection));
             _reconnectableConnection = connection as IReconnectableConnection;
+            _diagnosticsSource = connection as INetworkConnectionDiagnosticsSource;
             _requestClient = requestClientFactory != null
                 ? requestClientFactory.Invoke(_connection)
                 : new RequestClient(_connection);
@@ -89,8 +91,23 @@ namespace AbilityKit.Network.Sdk
 
         public bool SupportsReconnect => _reconnectableConnection != null;
 
+        public bool SupportsDiagnostics => _diagnosticsSource != null;
+
         public bool IsReconnectExhausted =>
             _reconnectableConnection?.IsReconnectExhausted == true;
+
+        public bool TryGetDiagnosticsSnapshot(out NetworkConnectionDiagnosticsSnapshot snapshot)
+        {
+            ThrowIfDisposed();
+            if (_diagnosticsSource == null)
+            {
+                snapshot = default;
+                return false;
+            }
+
+            snapshot = _diagnosticsSource.GetDiagnosticsSnapshot();
+            return true;
+        }
 
         public event Action? Connected;
 

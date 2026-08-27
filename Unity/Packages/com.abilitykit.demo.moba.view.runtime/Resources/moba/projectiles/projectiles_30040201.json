@@ -1,0 +1,32 @@
+{
+  "Id": 30040201,
+  "Name": "墨子-机关重炮-炮弹投射物",
+  "VfxId": 90004002,
+  "Speed": 20.0,
+  "LifetimeMs": 1500,
+  "MaxDistance": 12.0,
+  "CollisionWidth": 1.0,
+  "CollisionHeight": 1.5,
+  "CollisionLength": 0.8,
+  "HitPolicyKind": 1,
+  "HitsRemaining": 1,
+  "HitCooldownMs": 0,
+  "TickIntervalMs": 33,
+  "OnHitEffectId": 0,
+  "OnSpawnTriggerIds": null,
+  "OnHitTriggerIds": null,
+  "OnTickTriggerIds": null,
+  "OnExitTriggerIds": [
+    10040211
+  ],
+  "OnSpawnVfxId": 0,
+  "OnHitVfxId": 0,
+  "OnExpireVfxId": 0,
+  "ReturnAfterMs": 0,
+  "ReturnSpeed": 0.0,
+  "ReturnStopDistance": 0.0,
+  "StateMachineProfileId": null,
+  "SpawnRandomOffsetX": 0.0,
+  "SpawnRandomOffsetY": 0.0,
+  "SpawnRandomOffsetZ": 0.0
+}

@@ -1,0 +1,9 @@
+{
+  "Id": 31020101,
+  "Name": "小乔-绽放之舞-单扇线性发射器",
+  "EmitterType": 1,
+  "DurationMs": 0,
+  "IntervalMs": 0,
+  "CountPerShot": 1,
+  "FanAngleDeg": 0.0
+}

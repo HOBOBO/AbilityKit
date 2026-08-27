@@ -27,6 +27,24 @@ public sealed class ShooterStateSyncGoldenFixtureTests
         Assert.Empty(pureState.AcknowledgedCommands);
     }
 
+    [Fact]
+    public void GoldenPackedPayloadReEncodesByteIdenticallyThroughCurrentCodec()
+    {
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "Fixtures", "StateSync", "packed-current.gateway-push.base64");
+        var fixtureText = File.ReadAllText(fixturePath).Trim();
+        if (string.Equals(fixtureText, "GENERATE", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var wire = WireRoomGatewayBinary.Deserialize<WireStateSyncSnapshotPush>(Convert.FromBase64String(fixtureText));
+        Assert.NotNull(wire.Payload);
+
+        var packed = ShooterPackedSnapshotCodec.Deserialize(wire.Payload!);
+
+        Assert.Equal(wire.Payload, ShooterPackedSnapshotCodec.Serialize(in packed));
+    }
+
     [Theory]
     [InlineData("packed-current.gateway-push.base64", ShooterStateSyncPayloadKind.Packed)]
     [InlineData("pure-state-current.gateway-push.base64", ShooterStateSyncPayloadKind.PureState)]

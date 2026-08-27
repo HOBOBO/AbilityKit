@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
+  m_Name: CharacterCO.asset.excelBaseline
+  m_EditorClassIdentifier: 
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\characters.xlsx
+  SheetName: 
+  HeaderRowIndex: 6
+  DataStartRowIndex: 8
+  PrimaryKeyColumnName: Id
+  Headers:
+  - AttributeTemplateId
+  - Id
+  - ModelId
+  - Name
+  - PassiveSkillIds
+  - SkillIds
+  Rows:
+  - Key: 1001
+    Values:
+    - 1001
+    - 1001
+    - 1001
+    - "\u5EC9\u9887"
+    - 10010000
+    - 10010101,10010201,10010301
+  - Key: 1002
+    Values:
+    - 1002
+    - 1002
+    - 1002
+    - "\u5C0F\u4E54"
+    - 10020000
+    - 10020101,10020201,10020301
+  - Key: 1003
+    Values:
+    - 1003
+    - 1003
+    - 1003
+    - "\u8D75\u4E91"
+    - 10030000
+    - 10030101,10030201,10030301
+  - Key: 1004
+    Values:
+    - 1004
+    - 1004
+    - 1004
+    - "\u58A8\u5B50"
+    - 10040000
+    - 10040101,10040201,10040301
+  - Key: 1005
+    Values:
+    - 1005
+    - 1005
+    - 1005
+    - "\u59B2\u5DF1"
+    - 10050000
+    - 10050101,10050201,10050301
+  - Key: 1006
+    Values:
+    - 1006
+    - 1006
+    - 1006
+    - "\u5B34\u653F"
+    - 10060000
+    - 10060101,10060201,10060301
