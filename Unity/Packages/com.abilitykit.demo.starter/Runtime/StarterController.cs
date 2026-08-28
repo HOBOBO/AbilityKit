@@ -23,7 +23,7 @@ namespace AbilityKit.Starter
         private string _accountId = string.Empty;
         private string _guestId = string.Empty;
         private string _sessionToken = string.Empty;
-        private string _status = "Login required";
+        private string _status = "需要登录";
         private string _error = string.Empty;
         private bool _busy;
         private bool _loadingScene;
@@ -33,7 +33,7 @@ namespace AbilityKit.Starter
         {
             if (config == null)
             {
-                _error = "Multiplayer starter config is not assigned.";
+                _error = "多人启动器配置未赋值。";
                 return;
             }
 
@@ -50,7 +50,7 @@ namespace AbilityKit.Starter
                 _accountId = restoredAccountId;
                 _sessionToken = restoredSessionToken;
                 _accountState.RecordLogin(restoredAccountId);
-                _status = "Select a game";
+                _status = "请选择玩法";
             }
         }
 
@@ -63,9 +63,9 @@ namespace AbilityKit.Starter
                 Mathf.Max(16f, (Screen.height - WindowHeight) * 0.5f),
                 WindowWidth,
                 WindowHeight);
-            GUILayout.BeginArea(rect, "AbilityKit Starter", GUI.skin.window);
+            GUILayout.BeginArea(rect, "AbilityKit 启动器", GUI.skin.window);
             GUILayout.Space(8f);
-            GUILayout.Label("Account");
+            GUILayout.Label("账号");
             var nextAccount = GUILayout.TextField(_accountId);
             if (!string.Equals(nextAccount, _accountId, StringComparison.Ordinal))
             {
@@ -75,7 +75,7 @@ namespace AbilityKit.Starter
 
             var previousEnabled = GUI.enabled;
             GUI.enabled = previousEnabled && !_busy && !_loadingScene && config != null;
-            if (GUILayout.Button(IsAuthenticated ? "Logout" : "Login", GUILayout.Height(36f)))
+            if (GUILayout.Button(IsAuthenticated ? "退出登录" : "登录", GUILayout.Height(36f)))
             {
                 if (IsAuthenticated)
                 {
@@ -83,29 +83,29 @@ namespace AbilityKit.Starter
                 }
                 else
                 {
-                    RunAsync("Logging in", LoginAsync);
+                    RunAsync("正在登录", LoginAsync);
                 }
             }
 
             GUILayout.Space(12f);
-            GUILayout.Label("Game");
+            GUILayout.Label("选择玩法（多人）");
             GUI.enabled = GUI.enabled && IsAuthenticated;
-            if (GUILayout.Button("MOBA", GUILayout.Height(48f)))
+            if (GUILayout.Button("MOBA（帧同步示例）", GUILayout.Height(48f)))
             {
                 LaunchMoba();
             }
 
-            if (GUILayout.Button("Shooter", GUILayout.Height(48f)))
+            if (GUILayout.Button("Shooter（状态同步示例）", GUILayout.Height(48f)))
             {
                 LaunchShooter();
             }
             GUI.enabled = previousEnabled;
 
             GUILayout.Space(10f);
-            GUILayout.Label(_busy ? $"Status: {_status}..." : $"Status: {_status}");
+            GUILayout.Label(_busy ? $"状态：{_status}……" : $"状态：{_status}");
             if (!string.IsNullOrWhiteSpace(_error))
             {
-                GUILayout.Label($"Error: {_error}");
+                GUILayout.Label($"错误：{_error}");
             }
             GUILayout.EndArea();
         }
@@ -119,7 +119,7 @@ namespace AbilityKit.Starter
                 40f);
             var previousEnabled = GUI.enabled;
             GUI.enabled = previousEnabled && !_busy && !_loadingScene && config != null;
-            if (GUI.Button(buttonRect, _showLocalMenu ? "Close Local Mode" : "Local Mode"))
+            if (GUI.Button(buttonRect, _showLocalMenu ? "收起本地模式" : "本地模式"))
             {
                 _showLocalMenu = !_showLocalMenu;
             }
@@ -131,13 +131,13 @@ namespace AbilityKit.Starter
                     buttonRect.yMax + 8f,
                     LocalMenuWidth,
                     LocalMenuHeight);
-                GUILayout.BeginArea(menuRect, "Select Game", GUI.skin.window);
+                GUILayout.BeginArea(menuRect, "选择玩法（本地）", GUI.skin.window);
                 GUILayout.Space(8f);
-                if (GUILayout.Button("MOBA", GUILayout.Height(48f)))
+                if (GUILayout.Button("MOBA（帧同步示例）", GUILayout.Height(48f)))
                 {
                     LaunchLocal(DemoGameplayId.Moba);
                 }
-                if (GUILayout.Button("Shooter", GUILayout.Height(48f)))
+                if (GUILayout.Button("Shooter（状态同步示例）", GUILayout.Height(48f)))
                 {
                     LaunchLocal(DemoGameplayId.Shooter);
                 }
@@ -166,7 +166,7 @@ namespace AbilityKit.Starter
 
         public void LaunchLocalAutomated(DemoGameplayId gameplay)
         {
-            LaunchLocal(gameplay, " (automated)");
+            LaunchLocal(gameplay, "（自动化）");
         }
 
         public async Task LaunchMobaAutomatedAsync(
@@ -180,7 +180,7 @@ namespace AbilityKit.Starter
         {
             var selectedConfig = RequireConfig();
             _accountId = string.IsNullOrWhiteSpace(accountId)
-                ? throw new ArgumentException("Automated account id is required.", nameof(accountId))
+                ? throw new ArgumentException("自动化启动需要账号 ID。", nameof(accountId))
                 : accountId.Trim();
             await AuthenticateAsync(host, port, _accountId, requestTimeout);
             DemoMultiplayerLaunchIntent.Request(DemoMultiplayerGameplay.Moba, new DemoMultiplayerLaunchRequest(
@@ -196,7 +196,7 @@ namespace AbilityKit.Starter
                 DemoGameplayId.Moba,
                 DemoLaunchMode.Multiplayer,
                 selectedConfig.MobaProfileId));
-            LoadGame(selectedConfig.MobaSceneName, "Opening MOBA (automated)");
+            LoadGame(selectedConfig.MobaSceneName, "正在打开 MOBA（自动化）");
         }
 
         private async Task AuthenticateAsync(
@@ -223,7 +223,7 @@ namespace AbilityKit.Starter
                 port,
                 result.AccountId,
                 result.SessionToken);
-            _status = "Select a game";
+            _status = "请选择玩法";
         }
 
         private void LaunchLocal(DemoGameplayId gameplay, string statusSuffix = "")
@@ -238,7 +238,7 @@ namespace AbilityKit.Starter
             var sceneName = gameplay == DemoGameplayId.Moba
                 ? selectedConfig.MobaSceneName
                 : selectedConfig.ShooterSceneName;
-            LoadGame(sceneName, $"Opening {gameplay} Local{statusSuffix}");
+            LoadGame(sceneName, $"正在打开 {gameplay} 本地模式{statusSuffix}");
         }
 
         private void LaunchMoba()
@@ -256,7 +256,7 @@ namespace AbilityKit.Starter
                 DemoGameplayId.Moba,
                 DemoLaunchMode.Multiplayer,
                 selectedConfig.MobaProfileId));
-            LoadGame(selectedConfig.MobaSceneName, "Opening MOBA");
+            LoadGame(selectedConfig.MobaSceneName, "正在打开 MOBA");
         }
 
         private void LaunchShooter()
@@ -274,7 +274,7 @@ namespace AbilityKit.Starter
                 DemoGameplayId.Shooter,
                 DemoLaunchMode.Multiplayer,
                 selectedConfig.ShooterProfileId));
-            LoadGame(selectedConfig.ShooterSceneName, "Opening Shooter");
+            LoadGame(selectedConfig.ShooterSceneName, "正在打开 Shooter");
         }
 
         private void LoadGame(string sceneName, string status)
@@ -288,7 +288,7 @@ namespace AbilityKit.Starter
         {
             if (!IsAuthenticated)
             {
-                throw new InvalidOperationException("Login is required.");
+                throw new InvalidOperationException("需要先登录。");
             }
 
             return RequireConfig();
@@ -298,7 +298,7 @@ namespace AbilityKit.Starter
         {
             return config != null
                 ? config
-                : throw new InvalidOperationException("Multiplayer starter config is not assigned.");
+                : throw new InvalidOperationException("多人启动器配置未赋值。");
         }
 
         private void ClearAuthentication()
@@ -306,7 +306,7 @@ namespace AbilityKit.Starter
             _sessionToken = string.Empty;
             _accountState?.ClearSession();
             StarterSessionState.Clear();
-            _status = "Login required";
+            _status = "需要登录";
         }
 
         private async void RunAsync(string status, Func<Task> action)
@@ -325,7 +325,7 @@ namespace AbilityKit.Starter
             }
             catch (Exception ex)
             {
-                _status = "Failed";
+                _status = "操作失败";
                 _error = ex.Message;
             }
             finally

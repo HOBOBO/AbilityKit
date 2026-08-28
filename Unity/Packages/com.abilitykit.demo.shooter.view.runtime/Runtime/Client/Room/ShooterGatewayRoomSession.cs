@@ -33,6 +33,7 @@ namespace AbilityKit.Demo.Shooter.View
 
     public sealed class ShooterGatewayRoomSession : IShooterRoomSession
     {
+        private readonly IShooterRoomGatewayRoomClient _roomClient;
         private readonly ShooterRoomGatewayFlow _shooterFlow;
         private readonly RoomGatewaySessionFlow _flow;
         private readonly ShooterRoomSessionStore _store;
@@ -47,6 +48,7 @@ namespace AbilityKit.Demo.Shooter.View
             IShooterClientLoadingStepProvider? loadingStepProvider = null)
         {
             if (roomClient == null) throw new ArgumentNullException(nameof(roomClient));
+            _roomClient = roomClient;
             _store = store ?? throw new ArgumentNullException(nameof(store));
             _shooterFlow = new ShooterRoomGatewayFlow(roomClient, loadingDefinition, loadingStepProvider);
             _flow = _shooterFlow.StagedFlow;
@@ -166,12 +168,19 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             var spec = RequireActiveSpec(roomId);
-            var result = await _flow.GetSnapshotAsync(
-                spec.SessionToken,
-                roomId,
+            var result = await _roomClient.GetSnapshotAsync(
+                new ShooterGatewayGetRoomSnapshotRequest(spec.SessionToken, roomId),
                 spec.Timeout,
                 cancellationToken).ConfigureAwait(false);
             EnsureSuccess(result.Success, result.Message, "get room snapshot");
+
+            // 重连新连接上推送 store 可能尚未收到快照：用刚请求到的权威快照喂给 store，
+            // 而不是要求推送已经就绪（否则 Reconnect 重进会抛"no authoritative snapshot"）。
+            if (result.Snapshot != null)
+            {
+                _store.TryApply(result.Snapshot);
+            }
+
             return RequireStoreSnapshot(roomId);
         }
 

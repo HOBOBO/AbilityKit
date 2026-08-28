@@ -60,7 +60,47 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         {
             if (_hasRequest && _request.IsAuthenticated && profile != null)
             {
-                RunAsync("Loading rooms", RefreshRoomsAsync);
+                RunAsync("Restoring session", RestoreActiveSessionOrListRoomsAsync);
+            }
+        }
+
+        /// <summary>
+        /// 重启后重登的自动恢复入口：先按账号查询活跃房间（服务器保留断线成员身份）。
+        /// 有活跃房间则直接重新加入——服务器识别 alreadyMember 走 Reconnect；若房间已处于
+        /// 战斗中，会话状态机进入 InBattle，随后的自动战斗交接（RestoreOnly）直接把客户端
+        /// 接回进行中的对局。无活跃房间时回落到原有房间列表流程。
+        /// </summary>
+        private async Task RestoreActiveSessionOrListRoomsAsync()
+        {
+            try
+            {
+                await EnsureRoomSessionConnectedAsync();
+                var roomClient = _roomClient;
+                if (roomClient == null)
+                {
+                    await RefreshRoomsAsync();
+                    return;
+                }
+
+                var restore = await roomClient.RestoreRoomAsync(
+                    new ShooterGatewayRestoreRoomRequest(_request.SessionToken, _request.Region, _request.ServerId),
+                    _request.Timeout,
+                    _lifetime.Token);
+                if (restore.Success && restore.HasActiveRoom && !string.IsNullOrWhiteSpace(restore.RoomId))
+                {
+                    _status = restore.IsInBattle ? "Rejoining battle" : "Rejoining room";
+                    await StartRoomAsync(create: false, restore.RoomId);
+                    return;
+                }
+
+                _error = restore.Success ? string.Empty : restore.Message;
+                await RefreshRoomsAsync();
+            }
+            catch (Exception ex)
+            {
+                _error = ex.Message;
+                UnityEngine.Debug.LogException(ex);
+                await RefreshRoomsAsync();
             }
         }
 
@@ -71,6 +111,10 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void OnGUI()
         {
+            // 右侧战斗控制窗（断线演示入口）：暂停/恢复与会话状态无关恒显，
+            // starter→多人主路径只装配本控制器，不依赖 PlayMode 菜单。
+            DrawBattleControlWindow();
+
             if (ShooterRemoteStateSyncPlayModeHost.IsRunning)
             {
                 DrawBattleStatus();
@@ -213,6 +257,53 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             GUI.enabled = true;
         }
 
+        private void DrawBattleControlWindow()
+        {
+            var isRunning = ShooterRemoteStateSyncPlayModeHost.IsRunning;
+            var isPaused = ShooterRemoteStateSyncPlayModeHost.IsPaused;
+            if (!isRunning && !isPaused && !ShooterRemoteStateSyncPlayModeHost.IsStarting)
+            {
+                return;
+            }
+
+            var isRefreshing = isPaused && ShooterRemoteStateSyncPlayModeHost.IsStarting;
+            var width = 236f;
+            var rect = new Rect(UnityEngine.Screen.width - width - 12f, 12f, width, isPaused ? 190f : 168f);
+            GUILayout.Window(GetInstanceID() + 1, rect, DrawBattleControlWindowContent, "Battle Control (Sync Demo)");
+        }
+
+        private void DrawBattleControlWindowContent(int windowId)
+        {
+            var isPaused = ShooterRemoteStateSyncPlayModeHost.IsPaused;
+            var isRefreshing = isPaused && ShooterRemoteStateSyncPlayModeHost.IsStarting;
+
+            GUILayout.Label($"State: {(isRefreshing ? "Refreshing latest state" : isPaused ? "Client paused" : "In battle")}");
+            GUILayout.Label($"Room: {ShooterRemoteStateSyncPlayModeHost.Flow?.RoomId ?? string.Empty}");
+
+            // 暂停 = 断开连接模拟断线：画面冻结、不接受输入，服务器战斗继续；
+            // 恢复 = 重连并请求最新全量快照覆盖到最新，再开启输入。
+            GUI.enabled = !_busy && !isPaused && !isRefreshing && !ShooterRemoteStateSyncPlayModeHost.IsAutoReconnecting;
+            if (GUILayout.Button("Pause Client", GUILayout.Height(30f)))
+            {
+                ShooterRemoteStateSyncPlayModeHost.Pause();
+                _status = "Client paused (connection closed); server battle continues.";
+            }
+
+            GUI.enabled = !_busy && isPaused && !isRefreshing;
+            if (GUILayout.Button("Resume & Refresh", GUILayout.Height(30f)))
+            {
+                RunAsync("Refreshing latest state", () => ResumeBattleAsync());
+            }
+
+            GUI.enabled = true;
+            if (!string.IsNullOrWhiteSpace(_error))
+            {
+                GUILayout.Label($"Error: {_error}");
+            }
+
+            GUI.DragWindow();
+        }
+
         private void DrawBattleStatus()
         {
             var isPaused = ShooterRemoteStateSyncPlayModeHost.IsPaused;
@@ -241,6 +332,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             GUI.enabled = true;
 
             if (!isPaused && GUILayout.Button("Disconnect and Return", GUILayout.Height(26f))) ReturnFromBattle();
+            if (!string.IsNullOrWhiteSpace(_error))
+            {
+                GUILayout.Label($"Error: {_error}");
+            }
+
             GUILayout.EndArea();
         }
 
@@ -256,6 +352,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             {
                 _status = "Resume failed";
                 _error = ex.Message;
+                UnityEngine.Debug.LogException(ex);
             }
         }
 
@@ -274,6 +371,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private async Task RefreshRoomsAsync()
         {
+            await EnsureRoomSessionConnectedAsync();
             var selectedProfile = RequireProfile();
             var result = await WithRoomClient(client => client.ListRoomsAsync(
                 new DemoRoomDirectoryQuery(
@@ -469,6 +567,17 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             _roomController = new ShooterRoomSessionController(session, store);
             _roomController.StateChanged += HandleRoomStateChanged;
             _roomController.RoomChanged += HandleRoomChanged;
+        }
+
+        /// <summary>确保房间会话存在，且其网关连接已真正建立（Open 是异步发起，紧跟的
+        /// 首个请求会踩 "Not connected." 竞态）。</summary>
+        private async Task EnsureRoomSessionConnectedAsync()
+        {
+            EnsureRoomSession();
+            if (_roomLauncher != null)
+            {
+                await _roomLauncher.EnsureConnectedAsync(_request.Host, _request.Port, _request.Timeout);
+            }
         }
 
         private void HandleRoomStateChanged(ShooterRoomSessionState state)

@@ -98,13 +98,11 @@ namespace AbilityKit.Demo.Shooter.View
                 if (_frameCount - _lastHeartbeatFrame >= HeartbeatIntervalFrames)
                 {
                     _lastHeartbeatFrame = _frameCount;
-                    var summary = Take();
-                    if (summary.OwnBackwardJumps > 0 ||
-                        summary.EnemyBackwardJumpsTotal > 0 ||
-                        summary.OwnObservations > 0)
+                    if (DiagnosticsLoggingEnabled)
                     {
-                        UnityEngine.Debug.Log(
-                            $"[PoseContinuity] frames={summary.Frames} ownObs={summary.OwnObservations} ownBack={summary.OwnBackwardJumps} ownMaxBack={summary.OwnMaxBackwardDistance:F3} enemies={summary.EnemiesTracked} enemiesWithBack={summary.EnemiesWithBackwardJumps} enemyBackTotal={summary.EnemyBackwardJumpsTotal} enemyMaxBack={summary.EnemyMaxBackwardDistance:F3} enemySnaps={summary.EnemyForwardSnapsTotal} inputAttempts={_gatewayInputAttempts} inputFailures={_gatewayInputFailures} inputResyncFlags={_gatewayInputResyncFlags}");
+                        var summary = Take();
+                        LogLine(
+                            $"[PoseContinuity] frames={summary.Frames} ownPos=({_ownTrack.LastX:F2},{_ownTrack.LastY:F2}) ownObs={summary.OwnObservations} ownBack={summary.OwnBackwardJumps} ownMaxBack={summary.OwnMaxBackwardDistance:F3} enemies={summary.EnemiesTracked} enemiesWithBack={summary.EnemiesWithBackwardJumps} enemyBackTotal={summary.EnemyBackwardJumpsTotal} enemyMaxBack={summary.EnemyMaxBackwardDistance:F3} enemySnaps={summary.EnemyForwardSnapsTotal} inputAttempts={_gatewayInputAttempts} inputFailures={_gatewayInputFailures} inputResyncFlags={_gatewayInputResyncFlags}");
                     }
                 }
             }
@@ -134,7 +132,7 @@ namespace AbilityKit.Demo.Shooter.View
                     track.MaxBackwardDistance = System.Math.Max(track.MaxBackwardDistance, distance);
                     if (distance > 0.15f)
                     {
-                        UnityEngine.Debug.Log(
+                        LogLine(
                             $"[PoseContinuity.Event] frame={_frameCount} entity={(isOwn ? "own" : entityId.ToString())} backward={distance:F3}");
                     }
                 }
@@ -144,7 +142,7 @@ namespace AbilityKit.Demo.Shooter.View
                     track.MaxForwardJump = System.Math.Max(track.MaxForwardJump, distance);
                     if (distance > 0.45f)
                     {
-                        UnityEngine.Debug.Log(
+                        LogLine(
                             $"[PoseContinuity.Event] frame={_frameCount} entity={(isOwn ? "own" : entityId.ToString())} forwardSnap={distance:F3}");
                     }
                 }
@@ -214,6 +212,22 @@ namespace AbilityKit.Demo.Shooter.View
             }
         }
 
+        private static void LogLine(string message)
+        {
+#if UNITY_5_3_OR_NEWER
+            UnityEngine.Debug.Log(message);
+#else
+            System.Console.WriteLine(message);
+#endif
+        }
+
+        // 姿态诊断日志默认关闭（避免刷屏影响性能）；排查时设 ABILITYKIT_SHOOTER_POSE_DIAGNOSTICS=1。
+        private static readonly bool DiagnosticsLoggingEnabled =
+            string.Equals(
+                System.Environment.GetEnvironmentVariable("ABILITYKIT_SHOOTER_POSE_DIAGNOSTICS"),
+                "1",
+                System.StringComparison.OrdinalIgnoreCase);
+
         private static bool _sustainedInputEnabled =
             string.Equals(
                 System.Environment.GetEnvironmentVariable("ABILITYKIT_SHOOTER_SUSTAINED_INPUT"),
@@ -240,14 +254,14 @@ namespace AbilityKit.Demo.Shooter.View
                         _gatewayInputResyncFlags++;
                     }
 
-                    UnityEngine.Debug.Log(
+                    LogLine(
                         $"[PoseContinuity.Input] submit rejected status={result.Remote.Status} shouldResync={result.Remote.ShouldResync} attempts={_gatewayInputAttempts}");
                 }
             }
             catch (System.Exception exception)
             {
                 _gatewayInputFailures++;
-                UnityEngine.Debug.Log($"[PoseContinuity.Input] submit threw {exception.GetType().Name}: {exception.Message}");
+                LogLine($"[PoseContinuity.Input] submit threw {exception.GetType().Name}: {exception.Message}");
             }
         }
 

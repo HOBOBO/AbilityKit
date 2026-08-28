@@ -37,7 +37,11 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
                     timeout,
                     result => result.Remote.ShouldResync,
                     MergeQueuedInput,
-                    maxInFlight: 4));
+                    // 30Hz 提交 × RTT/抖动窗口：4 个在途槽在 ~130ms RTT 下即饱和，
+                    // 饱和后的"替换合并"会丢弃排队输入的移动分量——本地已预测、服务端
+                    // 永远收不到，制造停止后回拉的漂移。32 槽给出 >1 秒的抖动余量，
+                    // 使替换在正常运行中不再发生。
+                    maxInFlight: 32));
         }
 
         internal static ShooterClientInputSubmitResult MergeQueuedInput(

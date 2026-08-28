@@ -216,6 +216,8 @@ namespace AbilityKit.Network.Room
 
             var deadline = DateTime.UtcNow + timeout;
             var observedLoading = false;
+            var lastPhase = (RoomGatewaySessionPhase)(-1);
+            var lastBattleId = string.Empty;
             var feed = _client as IRoomGatewaySnapshotFeed;
             if (feed != null && pollInterval < TimeSpan.FromSeconds(2))
             {
@@ -270,6 +272,8 @@ namespace AbilityKit.Network.Room
                     if (snapshot.Snapshot != null)
                     {
                         progress?.Report(snapshot.Snapshot);
+                        lastPhase = snapshot.Snapshot.Phase;
+                        lastBattleId = snapshot.Snapshot.BattleId ?? string.Empty;
                         ExtendDeadlineFromSnapshot(snapshot.Snapshot, ref deadline);
                         EnsureWaitablePhase(snapshot.Snapshot, roomId, ref observedLoading);
                         if (predicate(snapshot.Snapshot))
@@ -305,7 +309,7 @@ namespace AbilityKit.Network.Room
                 }
             }
 
-            throw new TimeoutException($"Room snapshot wait timed out after {timeout} for room {roomId}.");
+            throw new TimeoutException($"Room snapshot wait timed out after {timeout} for room {roomId}. lastPhase={lastPhase} battleId={lastBattleId}");
         }
 
         private static TaskCompletionSource<bool> CreateSignal() =>

@@ -82,6 +82,14 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
 
         private void OnGUI()
         {
+            // 远程同步会话期间的战斗控制窗（右侧）：断线演示入口，与进入路径无关。
+            if (ShooterRemoteStateSyncPlayModeHost.IsRunning ||
+                ShooterRemoteStateSyncPlayModeHost.IsPaused ||
+                ShooterRemoteStateSyncPlayModeHost.IsStarting)
+            {
+                DrawRemoteBattleControlWindow();
+            }
+
             if (!showMenu)
             {
                 if (GUI.Button(new Rect(12f, 12f, 130f, 28f), "Shooter Menu"))
@@ -475,6 +483,51 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
             var flow = launch.Flow;
             roomId = flow.RoomId;
             SetStatus($"Remote {mode} ok: room={flow.RoomId} battle={flow.BattleId}");
+        }
+
+        private void DrawRemoteBattleControlWindow()
+        {
+            var isPaused = ShooterRemoteStateSyncPlayModeHost.IsPaused;
+            var isRefreshing = isPaused && ShooterRemoteStateSyncPlayModeHost.IsStarting;
+            var width = 236f;
+            var rect = new Rect(Screen.width - width - 12f, 12f, width, isPaused ? 168f : 150f);
+            GUILayout.Window(GetInstanceID() + 1, rect, DrawRemoteBattleControlWindowContent, "Battle Control (Sync Demo)");
+        }
+
+        private void DrawRemoteBattleControlWindowContent(int windowId)
+        {
+            var isPaused = ShooterRemoteStateSyncPlayModeHost.IsPaused;
+            var isRefreshing = isPaused && ShooterRemoteStateSyncPlayModeHost.IsStarting;
+            GUILayout.Label($"State: {RemoteStateLabel()}");
+            GUILayout.Label($"Room: {ShooterRemoteStateSyncPlayModeHost.Flow?.RoomId ?? string.Empty}");
+
+            // 暂停 = 断开连接模拟断线：推送停止→画面冻结，输入泵停止→不接受输入；
+            // 服务器战斗继续。恢复 = 重连并请求最新全量快照覆盖到最新，再开启输入。
+            GUI.enabled = !_busy && !isPaused && !isRefreshing && !ShooterRemoteStateSyncPlayModeHost.IsAutoReconnecting;
+            if (GUILayout.Button("Pause Client", GUILayout.Height(30f)))
+            {
+                ShooterRemoteStateSyncPlayModeHost.Pause();
+                SetStatus("Client paused (connection closed); server battle continues.");
+            }
+
+            GUI.enabled = !_busy && isPaused && !isRefreshing;
+            if (GUILayout.Button("Resume & Refresh", GUILayout.Height(30f)))
+            {
+                RunAsync("refresh latest state", ResumeRemoteAsync);
+            }
+
+            GUI.enabled = true;
+            if (isRefreshing)
+            {
+                DrawMultiplayerLoadingStatus();
+            }
+
+            if (!string.IsNullOrWhiteSpace(_error))
+            {
+                GUILayout.Label($"Error: {_error}");
+            }
+
+            GUI.DragWindow();
         }
 
         private async Task ResumeRemoteAsync()

@@ -148,6 +148,8 @@ namespace AbilityKit.Demo.Shooter.View.Tests
                 FixedDeltaTime,
                 correctionBudget,
                 forceSnap,
+                localPredictionTolerance: 0.05f,
+                snapDistance: float.MaxValue,
                 out resolvedX,
                 out _);
         }

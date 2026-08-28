@@ -1121,3 +1121,41 @@ Fixes:
 Headless validation under the flood driver: input submissions at render rate
 with zero control loss; rejection/resync counters reported in the
 `[PoseContinuity]` heartbeat lines.
+
+## 2026-08-27 persistent cross-client position divergence: frame-age tolerance absorbing real drift
+
+Field report: the controlled player stops around 10 units right locally while
+the other client (rendering authority) keeps it at 8 — a long-lived two-unit
+disagreement. Root cause: `ResolveControlledPlayerPosition` treated the raw
+frame-number gap between client and authority as "legally reachable
+prediction distance". That gap is dominated by join-anchor offset plus push
+pipeline latency (it stays permanently around a dozen frames), so the
+tolerance permanently absorbed 1-2+ units of genuine drift. Drift arises
+whenever the local prediction applies inputs the server never did (rejected
+submissions, queue merges) — the bounded correction never fired, and the two
+ends disagreed forever.
+
+Fix: legal prediction lead is exactly what the pending-input replay already
+applied to the correction target (target = authority + in-flight inputs, so a
+correct prediction yields zero error). The frame-age term is removed; any
+error beyond `SmallErrorTolerance` converges at the bounded budget per frame
+(0.25). Two regression tests pin the semantics: a 500-frame gap with no
+in-flight inputs must still correct (old behavior absorbed up to 20 units),
+and in-flight input count alone provides no extra exemption. The existing
+replay tests already expected zero-slack behavior and now pass unchanged.
+Full suite 583/583.
+
+## 2026-08-27 no-prediction diagnostic mode
+
+To settle whether the remaining cross-client position disagreement lives in
+the prediction/reconciliation layer or in the sync pipeline itself, a
+diagnostic mode disables local prediction entirely via
+`ABILITYKIT_SHOOTER_DISABLE_LOCAL_PREDICTION=1`. The server already always
+exports the observer's own player (priority 1000, flagged `PredictedLocal`);
+the exclusion happens client-side. In this mode the client stops suppressing
+its own player's transforms from the interpolation playback (both the block
+samples and the flagged mapper transforms), renders the composition's local
+side as empty, and skips controlled-player reconciliation — both ends then
+render the identical server truth through their own playback delays. The
+pose probe heartbeat now includes the own player's position so the two
+clients' logs can be compared directly after a run.

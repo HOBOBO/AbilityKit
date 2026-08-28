@@ -514,19 +514,18 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
     }
 
     [Fact]
-    public void LocalPositionErrorAlwaysUsesBoundedCorrectionAfterInitialAuthority()
+    public void PackedPathPositionErrorUsesBoundedCorrectionAfterInitialAuthority()
     {
         var runtime = new ShooterBattleRuntimePort();
         var controller = StartedController(runtime, new ShooterPresentationFacade());
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 0, x: 0f));
 
-        // 权威帧落后客户端 1 帧：先扣除可达预测距离（PlayerSpeed * dt * 1 = 1/6），
-        // 剩余漂移 0.4 - 1/6 由本帧预算 0.25 封顶修正。
+        // 打包路径保持精确跟踪权威（窄容差）：0.4 的漂移由本帧预算 0.25 封顶修正。
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 1, x: 0.4f, isFull: false));
         Assert.True(runtime.TryGetPlayer(1, out var bounded));
-        Assert.Equal(0.233f, bounded.X, 3);
+        Assert.Equal(0.25f, bounded.X, 3);
 
-        // 同一客户端帧内第二份权威快照共享剩余预算（0.25 - 0.233），只推进到 0.25。
+        // 同一客户端帧内第二份权威快照共享本帧预算（已用尽），保持 0.25。
         controller.BufferRemoteSnapshot(PackedPlayerSnapshot(frame: 2, x: 1f, isFull: false));
         Assert.True(runtime.TryGetPlayer(1, out var stillBounded));
         Assert.Equal(0.25f, stillBounded.X, 3);
@@ -1295,6 +1294,110 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
 
         Assert.True(runtime.TryGetPlayer(1, out var player));
         Assert.Equal(3f, player.X, 3);
+    }
+
+    [Fact]
+    public void LargeErrorSnapsDirectlyInsteadOfCrawling()
+    {
+        // 重连/真实分歧：误差达到快照阈值（2.5）时直接赋值权威位置，不逐帧收敛。
+        var applied = ShooterClientAuthoritativeInterpolationSyncController.ResolveControlledPlayerPosition(
+            currentX: 0f,
+            currentY: 0f,
+            replayedAuthorityX: 8f,
+            replayedAuthorityY: 0f,
+            currentFrame: 1000,
+            authorityFrame: 900,
+            replayedFrames: 0,
+            fixedDeltaTime: 1f / 30f,
+            correctionBudget: 0.25f,
+            forceSnap: false,
+            localPredictionTolerance: 0.5f,
+            snapDistance: 2.5f,
+            out var resolvedX,
+            out var resolvedY);
+
+        Assert.Equal(8f, resolvedX, 3);
+        Assert.Equal(0f, resolvedY, 3);
+        Assert.Equal(8f, applied, 3);
+    }
+
+    [Fact]
+    public void SmallErrorKeepsLocalPrediction()
+    {
+        // 误差在本地预测保留阈值（0.5）内：不回拉，本地位置胜出。
+        var applied = ShooterClientAuthoritativeInterpolationSyncController.ResolveControlledPlayerPosition(
+            currentX: 1f,
+            currentY: 0f,
+            replayedAuthorityX: 0.6f,
+            replayedAuthorityY: 0f,
+            currentFrame: 1000,
+            authorityFrame: 998,
+            replayedFrames: 0,
+            fixedDeltaTime: 1f / 30f,
+            correctionBudget: 0.25f,
+            forceSnap: false,
+            localPredictionTolerance: 0.5f,
+            snapDistance: 2.5f,
+            out var resolvedX,
+            out var resolvedY);
+
+        Assert.Equal(1f, resolvedX, 3);
+        Assert.Equal(0f, resolvedY, 3);
+        Assert.Equal(0f, applied, 3);
+    }
+
+    [Fact]
+    public void FrameGapAloneNeverAbsorbsPositionalDrift()
+    {
+        // 复刻两端长期分歧的回归场景：客户端帧号领先权威 500 帧（加入锚点+管线延迟
+        // 的常态），但没有任何未确认输入在线（服务端收到了全部输入，或丢弃了造成
+        // 漂移的那部分）。1.5 单位的误差必须被视为漂移并按预算修正（每次 0.25 朝目标
+        // 收敛），而不是被"帧龄容差"吸收——旧实现用帧号差当合法提前量，容差高达
+        // 20 单位，漂移永久不可见。
+        var applied = ShooterClientAuthoritativeInterpolationSyncController.ResolveControlledPlayerPosition(
+            currentX: 2f,
+            currentY: 0f,
+            replayedAuthorityX: 0.5f,
+            replayedAuthorityY: 0f,
+            currentFrame: 1000,
+            authorityFrame: 500,
+            replayedFrames: 0,
+            fixedDeltaTime: 1f / 30f,
+            correctionBudget: 0.25f,
+            forceSnap: false,
+            localPredictionTolerance: 0.5f,
+            snapDistance: 2.5f,
+            out var resolvedX,
+            out var resolvedY);
+
+        Assert.Equal(0.25f, applied, 3);
+        Assert.Equal(1.75f, resolvedX, 3);
+        Assert.Equal(0f, resolvedY, 3);
+    }
+
+    [Fact]
+    public void InFlightInputsDoNotSuppressDriftCorrection()
+    {
+        // 在线未确认输入已被重放到目标上：目标=权威+在线输入。本地预测与目标的任何
+        // 超出容差的差值都是漂移，按预算修正——在线输入数量本身不提供额外豁免。
+        var applied = ShooterClientAuthoritativeInterpolationSyncController.ResolveControlledPlayerPosition(
+            currentX: 1.2f,
+            currentY: 0f,
+            replayedAuthorityX: 0.5f,
+            replayedAuthorityY: 0f,
+            currentFrame: 1000,
+            authorityFrame: 990,
+            replayedFrames: 3,
+            fixedDeltaTime: 1f / 30f,
+            correctionBudget: 0.25f,
+            forceSnap: false,
+            localPredictionTolerance: 0.5f,
+            snapDistance: 2.5f,
+            out var resolvedX,
+            out _);
+
+        Assert.Equal(0.25f, applied, 3);
+        Assert.Equal(0.95f, resolvedX, 3);
     }
 
     private static float TransformX(in ShooterSnapshotViewBatch batch, ShooterViewEntityKey key)

@@ -129,6 +129,12 @@ namespace AbilityKit.Demo.Shooter.View
         private const float PositionQuantizationScale = 1000f;
         private const float SmallErrorTolerance = 0.05f;
         private const float MaxCorrectionPerClientFrame = 0.25f;
+
+        /// <summary>本地预测保留阈值：误差在此之内视为正常预测提前量，不回拉（本地位置胜出）。</summary>
+        private const float LocalPredictionTolerance = 0.5f;
+
+        /// <summary>直接快照阈值：误差达到或超过此值（重连/真实分歧）直接赋值权威位置，不再逐帧收敛。</summary>
+        private const float SnapCorrectionDistance = 2.5f;
         private const float PureStateStableRecoverySeconds = 2f;
         private const int TransformSampleIntervalHistogramFrames = 256;
 
@@ -191,6 +197,13 @@ namespace AbilityKit.Demo.Shooter.View
         private int _lastPureStatePublishedFrame = -1;
         private ulong _pureStatePlaybackWorldId;
         private ShooterSnapshotViewBatch _lastPureStatePredictedBatch = ShooterSnapshotViewBatch.Empty;
+
+        /// <summary>调和诊断开关：ABILITYKIT_SHOOTER_RECONCILE_DIAGNOSTICS=1 时逐次打印纠偏明细。</summary>
+        private static readonly bool ReconcileDiagnosticsEnabled =
+            string.Equals(
+                Environment.GetEnvironmentVariable("ABILITYKIT_SHOOTER_RECONCILE_DIAGNOSTICS"),
+                "1",
+                StringComparison.OrdinalIgnoreCase);
 
         public ShooterClientAuthoritativeInterpolationSyncController(
             IShooterBattleRuntimePort runtime,
@@ -612,7 +625,8 @@ namespace AbilityKit.Demo.Shooter.View
                 {
                     var sample = transforms[transformIndex];
                     if (!TryCreateSampleTransform(in sample, out var transform) ||
-                        (transform.Key.EntityId == _presentation.ControlledPlayerId &&
+                        (ShooterClientPredictionMode.LocalPredictionEnabled &&
+                         transform.Key.EntityId == _presentation.ControlledPlayerId &&
                          transform.Key.Kind == ShooterViewEntityKind.Player) ||
                         _suppressedPureStateTransforms.Contains(transform.Key))
                     {
@@ -710,7 +724,8 @@ namespace AbilityKit.Demo.Shooter.View
             for (var i = 0; i < batch.TransformChanges.Count; i++)
             {
                 var transform = batch.TransformChanges[i];
-                if (!transform.IsPredictedLocal)
+                // 无预测模式：PredictedLocal 标记的服务端自身姿态是渲染真值，照常进播放流。
+                if (!transform.IsPredictedLocal || !ShooterClientPredictionMode.LocalPredictionEnabled)
                 {
                     transforms.Add(transform);
                 }
@@ -767,7 +782,10 @@ namespace AbilityKit.Demo.Shooter.View
             // 本地侧只取"最近一次本地预测发布批"。ViewModel.Current 会被权威应用批
             // （含远端实体原始变换、且不含被服务端剔除的己方角色）交替覆盖——直接引用
             // 会让推送帧出现同一远端实体两个位置（拉扯）并丢失己方角色（闪烁）。
-            var local = _lastPureStatePredictedBatch;
+            // 无预测模式：己方角色由播放流按权威渲染，本地侧为空。
+            var local = ShooterClientPredictionMode.LocalPredictionEnabled
+                ? _lastPureStatePredictedBatch
+                : ShooterSnapshotViewBatch.Empty;
             var pendingDiscrete = _pendingPureStateDiscrete;
             var remoteDiscrete = pendingDiscrete != null
                 ? pendingDiscrete.CreateBatch()
@@ -1003,6 +1021,12 @@ namespace AbilityKit.Demo.Shooter.View
             in ShooterGatewaySnapshot snapshot,
             bool forceAuthorityReset)
         {
+            // 无预测模式：本地世界不再作为渲染来源，纠偏调和没有意义，跳过。
+            if (!ShooterClientPredictionMode.LocalPredictionEnabled)
+            {
+                return;
+            }
+
             var playerId = _presentation.ControlledPlayerId;
             if (playerId <= 0 || snapshot.Frame < 0 || !_runtime.TryGetPlayer(playerId, out var current))
             {
@@ -1063,6 +1087,9 @@ namespace AbilityKit.Demo.Shooter.View
             var remainingCorrectionBudget = Math.Max(
                 0f,
                 MaxCorrectionPerClientFrame - _controlledCorrectionAppliedDistance);
+            // 纯状态表现路径：本地预测保留小误差、大误差直接快照；
+            // 打包路径（帧同步式）保持精确跟踪权威（窄容差、仅世界切换才快照）。
+            var retainLocalPrediction = _usesPureStatePresentation;
             var appliedCorrection = ResolveControlledPlayerPosition(
                 current.X,
                 current.Y,
@@ -1074,6 +1101,8 @@ namespace AbilityKit.Demo.Shooter.View
                 _fixedDeltaTime,
                 remainingCorrectionBudget,
                 forceSnap,
+                retainLocalPrediction ? LocalPredictionTolerance : SmallErrorTolerance,
+                retainLocalPrediction ? SnapCorrectionDistance : float.MaxValue,
                 out var resolvedX,
                 out var resolvedY);
             target.X = resolvedX;
@@ -1092,6 +1121,12 @@ namespace AbilityKit.Demo.Shooter.View
             if (PlayersEqual(in current, in target))
             {
                 return;
+            }
+
+            if (ReconcileDiagnosticsEnabled)
+            {
+                System.Console.WriteLine(
+                    $"[Reconcile] frame={snapshot.Frame} current=({current.X:F2},{current.Y:F2}) target=({target.X:F2},{target.Y:F2}) replayed={replayCount} ack={acknowledgedSequence} budget={remainingCorrectionBudget:F2} clientFrame={CurrentFrame}");
             }
 
             _runtime.SetPlayer(in target);
@@ -1118,38 +1153,39 @@ namespace AbilityKit.Demo.Shooter.View
             float fixedDeltaTime,
             float correctionBudget,
             bool forceSnap,
+            float localPredictionTolerance,
+            float snapDistance,
             out float resolvedX,
             out float resolvedY)
         {
             var deltaX = replayedAuthorityX - currentX;
             var deltaY = replayedAuthorityY - currentY;
             var error = (float)Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
-            if (forceSnap)
+
+            // 三档纠偏：
+            // 1) 世界切换或误差达到快照阈值（重连/真实分歧）：直接赋值权威位置，不逐帧爬；
+            // 2) 误差在本地预测保留阈值内：视为正常预测提前量，本地位置胜出、不回拉；
+            // 3) 中间地带：按预算有界收敛。
+            if (forceSnap || error >= snapDistance)
             {
                 resolvedX = replayedAuthorityX;
                 resolvedY = replayedAuthorityY;
                 return error;
             }
 
-            // The authority pose belongs to an older simulation frame. Movement inside the
-            // maximum distance reachable during that frame age is valid local prediction, not
-            // positional drift. Pending inputs already replayed onto the pose reduce that age.
-            var frameDistance = Math.Abs((long)currentFrame - authorityFrame);
-            var predictionLeadFrames = (int)Math.Max(
-                0L,
-                Math.Min(MaxReplayFrames, frameDistance - Math.Max(0, replayedFrames)));
-            var reachablePredictionDistance = ShooterBattleTuning.PlayerSpeed
-                * Math.Max(0f, fixedDeltaTime)
-                * predictionLeadFrames;
-            var excessError = error - reachablePredictionDistance;
-            if (excessError <= SmallErrorTolerance || error <= 0f || correctionBudget <= 0f)
+            // 合法预测提前量已由"未确认输入重放到目标"精确覆盖：目标=权威+在线输入。
+            // 帧号差（网络/管线延迟）不构成合法提前——把它当容差会把真实漂移永久吸收。
+            _ = replayedFrames;
+            _ = currentFrame;
+            _ = authorityFrame;
+            if (error <= localPredictionTolerance || error <= 0f || correctionBudget <= 0f)
             {
                 resolvedX = currentX;
                 resolvedY = currentY;
                 return 0f;
             }
 
-            var correction = Math.Min(excessError, correctionBudget);
+            var correction = Math.Min(error, correctionBudget);
             var scale = correction / error;
             resolvedX = currentX + deltaX * scale;
             resolvedY = currentY + deltaY * scale;

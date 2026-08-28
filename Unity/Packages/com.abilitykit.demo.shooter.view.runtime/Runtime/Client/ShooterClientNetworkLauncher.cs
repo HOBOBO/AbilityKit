@@ -337,7 +337,7 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
-            OpenIfNeeded(host, port);
+            await EnsureConnectedAsync(host, port, timeout).ConfigureAwait(false);
 
             var launcher = new ShooterClientGatewayLauncher(_gatewayConnection, flow => BuildBattleTransport(host, port, flow));
             var launched = await launcher.RestoreRoomAsync(
@@ -485,7 +485,7 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
-            OpenIfNeeded(host, port);
+            await EnsureConnectedAsync(host, port, timeout).ConfigureAwait(false);
 
             var launcher = new ShooterClientGatewayLauncher(_gatewayConnection, flow => BuildBattleTransport(host, port, flow));
             var launched = await launcher.CreateReadyStartAndSubscribeAsync(
@@ -668,7 +668,7 @@ namespace AbilityKit.Demo.Shooter.View
             CancellationToken cancellationToken = default)
         {
             ThrowIfDisposed();
-            OpenIfNeeded(host, port);
+            await EnsureConnectedAsync(host, port, timeout).ConfigureAwait(false);
 
             var launcher = new ShooterClientGatewayLauncher(_gatewayConnection, flow => BuildBattleTransport(host, port, flow));
             var launched = await launcher.JoinReadyStartAndSubscribeAsync(
@@ -765,6 +765,48 @@ namespace AbilityKit.Demo.Shooter.View
         {
             if (_sessionRecoveryBinding != null) _sessionRecoveryBinding.Enabled = true;
             _sdkClient.OpenIfDisconnected(host, port);
+        }
+
+        /// <summary>
+        /// 打开连接并等到真正建立（TcpTransport.Connect 是异步发起，Send 不等待就会
+        /// 在 stream 就绪前抛 "Not connected."）。恢复路径是唯一在全新连接上"开完立刻
+        /// 发请求"的路径，此前正是它踩中该竞态导致恢复静默失败。
+        /// </summary>
+        public async Task EnsureConnectedAsync(string host, int port, TimeSpan? timeout)
+        {
+            if (_sdkClient.IsConnected)
+            {
+                return;
+            }
+
+            var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(10));
+            var connectedTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Action handler = () => connectedTcs.TrySetResult(true);
+            _sdkClient.Connected += handler;
+            try
+            {
+                OpenIfNeeded(host, port);
+                if (_sdkClient.IsConnected)
+                {
+                    return;
+                }
+
+                var remaining = deadline - DateTime.UtcNow;
+                if (remaining <= TimeSpan.Zero)
+                {
+                    throw new TimeoutException($"Timed out waiting for gateway connection to {host}:{port}.");
+                }
+
+                var completed = await Task.WhenAny(connectedTcs.Task, Task.Delay(remaining)).ConfigureAwait(false);
+                if (completed != connectedTcs.Task || !_sdkClient.IsConnected)
+                {
+                    throw new TimeoutException($"Timed out waiting for gateway connection to {host}:{port}.");
+                }
+            }
+            finally
+            {
+                _sdkClient.Connected -= handler;
+            }
         }
 
         private void AttachBattleSessionRecovery(ShooterClientSession session)

@@ -26,8 +26,13 @@ namespace AbilityKit.Network.Runtime
         {
             get
             {
+                // TcpClient.Connected 在 ConnectAsync 完成的那一刻就为 true，但 Send 用的
+                // _stream 要等 GetStream() 之后才赋值——若这里只看 _client.Connected，会有一个
+                // "IsConnected==true 但 Send 抛 Not connected" 的竞态窗口。要求 stream 已就绪，
+                // 使 IsConnected 与"可发送"严格一致（恢复流程靠它判断连接是否真正建立）。
                 var c = _client;
-                return c != null && c.Connected;
+                var s = _stream;
+                return c != null && s != null && c.Connected;
             }
         }
 
