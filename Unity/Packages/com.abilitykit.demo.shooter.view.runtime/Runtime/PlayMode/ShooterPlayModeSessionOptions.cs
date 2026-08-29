@@ -14,7 +14,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private const int PlayModeCampaignReinforcementGroups = 5;
         private const int PlayModeReinforcementIntervalSeconds = 60;
 
-        public const int PlayModeDefaultEnemyBudget = 512;
+        public const int PlayModeDefaultEnemyBudget = 1024;
         public const int PlayModeMediumEnemyBudget = 2048;
         public const int PlayModeHighDensityEnemyBudget = 8192;
 

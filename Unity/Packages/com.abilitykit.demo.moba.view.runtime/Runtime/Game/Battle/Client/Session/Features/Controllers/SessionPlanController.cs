@@ -31,12 +31,20 @@ namespace AbilityKit.Game.Flow
 
             LogPlan(plan);
 
+            var startedImmediately = false;
             if (!IsSessionStartIntercepted(host, hooks, plan))
             {
                 if (!TryStartSession(host, plan)) return;
+                startedImmediately = true;
             }
 
             SessionContextBinder.BindSession(ctx, state, handles, hooks, plan);
+            if (startedImmediately &&
+                host is BattleSessionFeature feature &&
+                !TryBeginColdStartRecovery(host, feature))
+            {
+                return;
+            }
         }
 
         private static BattleStartPlan BuildPlan(IBattleBootstrapper bootstrapper)
@@ -71,6 +79,27 @@ namespace AbilityKit.Game.Flow
             catch (Exception ex)
             {
                 Log.Exception(ex, "[BattleSessionFeature] StartSession failed in OnAttach");
+                host.StopSession();
+                host.NotifySessionFailed(ex);
+                return false;
+            }
+        }
+
+        private static bool TryBeginColdStartRecovery(
+            ISessionPlanHost host,
+            BattleSessionFeature feature)
+        {
+            try
+            {
+                // Cold recovery reads the bound BattleContext plan and session. It must run only
+                // after SessionContextBinder has published both; otherwise the context still has
+                // the default Local plan and BeginColdStartRecovery rejects the restored battle.
+                feature.BeginColdStartRecoveryAfterImmediateSessionStart();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Exception(ex, "[BattleSessionFeature] Cold-start recovery failed in OnAttach");
                 host.StopSession();
                 host.NotifySessionFailed(ex);
                 return false;

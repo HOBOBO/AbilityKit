@@ -130,10 +130,10 @@ namespace AbilityKit.Demo.Shooter.View
         private const float SmallErrorTolerance = 0.05f;
         private const float MaxCorrectionPerClientFrame = 0.25f;
 
-        /// <summary>本地预测保留阈值：误差在此之内视为正常预测提前量，不回拉（本地位置胜出）。</summary>
-        private const float LocalPredictionTolerance = 0.5f;
-
-        /// <summary>直接快照阈值：误差达到或超过此值（重连/真实分歧）直接赋值权威位置，不再逐帧收敛。</summary>
+        /// <summary>
+        /// 直接快照阈值：误差达到或超过此值（重连/真实分歧）直接赋值权威位置。
+        /// 纯状态表现路径下低于此值一律信任本地预测（不回拉，另一端按权威自然追上来重合）。
+        /// </summary>
         private const float SnapCorrectionDistance = 2.5f;
         private const float PureStateStableRecoverySeconds = 2f;
         private const int TransformSampleIntervalHistogramFrames = 256;
@@ -688,6 +688,8 @@ namespace AbilityKit.Demo.Shooter.View
 
             var velocityX = sample.QuantizedVelocityX / 1000f;
             var velocityY = sample.QuantizedVelocityY / 1000f;
+            var facingX = sample.QuantizedFacingX / 1000f;
+            var facingY = sample.QuantizedFacingY / 1000f;
             // Historical block entries are sparse trajectory observations even when their
             // current-frame LOD flags describe a near entity.
             var hints = SnapshotDeliveryHints.SparseUpdate;
@@ -695,8 +697,8 @@ namespace AbilityKit.Demo.Shooter.View
                 new ShooterViewEntityKey(kind, sample.EntityId),
                 sample.QuantizedX / 1000f,
                 sample.QuantizedY / 1000f,
-                velocityX == 0f && velocityY == 0f ? 0f : velocityX,
-                velocityX == 0f && velocityY == 0f ? 1f : velocityY,
+                facingX == 0f && facingY == 0f ? 0f : facingX,
+                facingX == 0f && facingY == 0f ? 1f : facingY,
                 velocityX,
                 velocityY,
                 hints);
@@ -1087,7 +1089,9 @@ namespace AbilityKit.Demo.Shooter.View
             var remainingCorrectionBudget = Math.Max(
                 0f,
                 MaxCorrectionPerClientFrame - _controlledCorrectionAppliedDistance);
-            // 纯状态表现路径：本地预测保留小误差、大误差直接快照；
+            // 纯状态表现路径：信任本地预测——预测正确时本地位置即最终位置（另一端按权威
+            // 自然追上来重合），只有达到快照阈值（重连/真实分歧）才直接赋值权威。
+            // 通过把容差设成与快照阈值相同来消除中间"有界收敛"档。
             // 打包路径（帧同步式）保持精确跟踪权威（窄容差、仅世界切换才快照）。
             var retainLocalPrediction = _usesPureStatePresentation;
             var appliedCorrection = ResolveControlledPlayerPosition(
@@ -1101,7 +1105,7 @@ namespace AbilityKit.Demo.Shooter.View
                 _fixedDeltaTime,
                 remainingCorrectionBudget,
                 forceSnap,
-                retainLocalPrediction ? LocalPredictionTolerance : SmallErrorTolerance,
+                retainLocalPrediction ? SnapCorrectionDistance : SmallErrorTolerance,
                 retainLocalPrediction ? SnapCorrectionDistance : float.MaxValue,
                 out var resolvedX,
                 out var resolvedY);
@@ -1212,10 +1216,13 @@ namespace AbilityKit.Demo.Shooter.View
                     var explicitlyAcknowledged = acknowledgedSequence > 0
                         && pending.CommandSequence > 0
                         && pending.CommandSequence <= acknowledgedSequence;
-                    var legacyFrameAcknowledged = acknowledgedSequence == 0
-                        && pending.GatewayCompleted
+                    // 帧式清除兜底：输入已完成且其接受帧已不晚于权威帧，说明其移动已反映在
+                    // 快照里，无论序号匹配是否生效都应清除——否则 pending 无限积压（重放
+                    // 只覆盖最近的 MaxReplayFrames 条，本地领先持续暴露、反复被快照拽回）。
+                    var frameAcknowledged = pending.GatewayCompleted
+                        && pending.AcceptedFrame > 0
                         && pending.AcceptedFrame <= authorityFrame;
-                    if (explicitlyAcknowledged || legacyFrameAcknowledged)
+                    if (explicitlyAcknowledged || frameAcknowledged)
                     {
                         _pendingInputs.RemoveAt(i);
                     }
@@ -1377,8 +1384,8 @@ namespace AbilityKit.Demo.Shooter.View
 
                     player.X = entity.QuantizedX / PositionQuantizationScale;
                     player.Y = entity.QuantizedY / PositionQuantizationScale;
-                    player.AimX = entity.QuantizedVelocityX / PositionQuantizationScale;
-                    player.AimY = entity.QuantizedVelocityY / PositionQuantizationScale;
+                    player.AimX = entity.QuantizedFacingX / PositionQuantizationScale;
+                    player.AimY = entity.QuantizedFacingY / PositionQuantizationScale;
                     player.Hp = entity.Hp;
                     player.Score = entity.Score;
                     player.Alive = (entity.Flags & ShooterPureStateEntityFlags.Alive) != 0;

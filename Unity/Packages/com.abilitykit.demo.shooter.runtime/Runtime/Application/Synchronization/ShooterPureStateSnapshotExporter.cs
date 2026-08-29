@@ -40,6 +40,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
         private readonly IShooterStateHashProvider _stateHashProvider;
         private readonly IShooterEntityManager? _entities;
         private readonly ISveltoWorldContext? _context;
+        private readonly IShooterBattleRules? _rules;
         private readonly ShooterSnapshotOrderBuffer _orderBuffer = new();
         private readonly ShooterPureStateInterestPolicy _interestPolicy = new();
         private readonly Dictionary<AoiEntityKey, int> _candidateIndexByKey = new Dictionary<AoiEntityKey, int>();
@@ -70,7 +71,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterBattleState state,
             IShooterSnapshotReadPort snapshotReadPort,
             IShooterStateHashProvider stateHashProvider)
-            : this(state, snapshotReadPort, stateHashProvider, entities: null)
+            : this(state, snapshotReadPort, stateHashProvider, entities: null, rules: null)
         {
         }
 
@@ -78,13 +79,15 @@ namespace AbilityKit.Demo.Shooter.Runtime
             ShooterBattleState state,
             IShooterSnapshotReadPort snapshotReadPort,
             IShooterStateHashProvider stateHashProvider,
-            IShooterEntityManager? entities)
+            IShooterEntityManager? entities,
+            IShooterBattleRules? rules = null)
         {
             _state = state ?? throw new ArgumentNullException(nameof(state));
             _snapshotReadPort = snapshotReadPort ?? throw new ArgumentNullException(nameof(snapshotReadPort));
             _stateHashProvider = stateHashProvider ?? throw new ArgumentNullException(nameof(stateHashProvider));
             _entities = entities;
             _context = entities?.SveltoContext;
+            _rules = rules;
         }
 
         public ShooterPureStateWorldCacheDiagnostics WorldCacheDiagnostics => new ShooterPureStateWorldCacheDiagnostics(
@@ -167,6 +170,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     entity.QuantizedY,
                     entity.QuantizedVelocityX,
                     entity.QuantizedVelocityY,
+                    entity.QuantizedFacingX,
+                    entity.QuantizedFacingY,
                     entity.Flags);
             }
 
@@ -280,6 +285,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             {
                 var player = players[i];
                 var flags = CreatePlayerFlags(in player);
+                ResolvePlayerMovementVelocity(player.PlayerId, out var velocityX, out var velocityY);
                 var entity = new ShooterPureStateEntityDelta(
                     player.PlayerId,
                     ShooterPackedEntityKinds.Player,
@@ -288,6 +294,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     player.PlayerId,
                     QuantizePosition(player.X),
                     QuantizePosition(player.Y),
+                    QuantizeVelocity(velocityX),
+                    QuantizeVelocity(velocityY),
                     QuantizeVelocity(player.AimX),
                     QuantizeVelocity(player.AimY),
                     player.Hp,
@@ -309,6 +317,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     bullet.OwnerPlayerId,
                     QuantizePosition(bullet.X),
                     QuantizePosition(bullet.Y),
+                    QuantizeVelocity(bullet.VelocityX),
+                    QuantizeVelocity(bullet.VelocityY),
                     QuantizeVelocity(bullet.VelocityX),
                     QuantizeVelocity(bullet.VelocityY),
                     0,
@@ -513,6 +523,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             {
                 var player = players[playerOrder[i]];
                 var flags = CreatePlayerFlags(in player);
+                ResolvePlayerMovementVelocity(player.PlayerId, out var velocityX, out var velocityY);
                 var entity = new ShooterPureStateEntityDelta(
                     player.PlayerId,
                     ShooterPackedEntityKinds.Player,
@@ -521,6 +532,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     player.PlayerId,
                     QuantizePosition(player.X),
                     QuantizePosition(player.Y),
+                    QuantizeVelocity(velocityX),
+                    QuantizeVelocity(velocityY),
                     QuantizeVelocity(player.AimX),
                     QuantizeVelocity(player.AimY),
                     player.Hp,
@@ -543,6 +556,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     bullet.OwnerPlayerId,
                     QuantizePosition(bullet.X),
                     QuantizePosition(bullet.Y),
+                    QuantizeVelocity(bullet.VelocityX),
+                    QuantizeVelocity(bullet.VelocityY),
                     QuantizeVelocity(bullet.VelocityX),
                     QuantizeVelocity(bullet.VelocityY),
                     0,
@@ -573,6 +588,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     0,
                     QuantizePosition(transform.X),
                     QuantizePosition(transform.Y),
+                    QuantizeVelocity(transform.DirectionX),
+                    QuantizeVelocity(transform.DirectionY),
                     QuantizeVelocity(transform.DirectionX),
                     QuantizeVelocity(transform.DirectionY),
                     health.Current,
@@ -922,6 +939,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 entity.QuantizedY,
                 entity.QuantizedVelocityX,
                 entity.QuantizedVelocityY,
+                entity.QuantizedFacingX,
+                entity.QuantizedFacingY,
                 entity.Hp,
                 entity.Score,
                 entity.RemainingFrames,
@@ -1040,6 +1059,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 0,
                 0,
                 0,
+                0,
+                0,
                 (byte)(change.Flags & ~ShooterPureStateEntityFlags.Alive));
         }
 
@@ -1061,6 +1082,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     ? ShooterPureStateEntityLayers.KeyInteraction
                     : ShooterPureStateEntityLayers.Combat,
                 ShooterPureStateDeltaKinds.Despawn,
+                0,
+                0,
                 0,
                 0,
                 0,
@@ -1295,6 +1318,30 @@ namespace AbilityKit.Demo.Shooter.Runtime
             return (int)MathF.Round(value * VelocityScale);
         }
 
+        /// <summary>
+        /// 玩家移动速度取自最新命令（move × PlayerSpeed），与打包路径一致；停下时为 0，
+        /// 使纯状态客户端外推在停止时保持落点而非沿朝向漂移。速度取规则集的 PlayerSpeed，
+        /// 未注入规则集时回退默认值（基准/单测无规则集场景）。
+        /// </summary>
+        private void ResolvePlayerMovementVelocity(int playerId, out float velocityX, out float velocityY)
+        {
+            velocityX = 0f;
+            velocityY = 0f;
+            if (!_state.InputBuffer.TryGetLatestCommand(playerId, out var command))
+            {
+                return;
+            }
+
+            var moveX = command.MoveX;
+            var moveY = command.MoveY;
+            if (ShooterBattleMath.Normalize(ref moveX, ref moveY) > 0f)
+            {
+                var speed = _rules?.PlayerSpeed ?? ShooterBattleTuning.PlayerSpeed;
+                velocityX = moveX * speed;
+                velocityY = moveY * speed;
+            }
+        }
+
         private readonly struct ShooterPureStateCandidate : IComparable<ShooterPureStateCandidate>
         {
             public ShooterPureStateCandidate(
@@ -1450,6 +1497,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
             private readonly int _quantizedY;
             private readonly int _quantizedVelocityX;
             private readonly int _quantizedVelocityY;
+            private readonly int _quantizedFacingX;
+            private readonly int _quantizedFacingY;
             private readonly int _hp;
             private readonly int _score;
             private readonly int _remainingFrames;
@@ -1461,6 +1510,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 int quantizedY,
                 int quantizedVelocityX,
                 int quantizedVelocityY,
+                int quantizedFacingX,
+                int quantizedFacingY,
                 int hp,
                 int score,
                 int remainingFrames,
@@ -1471,6 +1522,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                 _quantizedY = quantizedY;
                 _quantizedVelocityX = quantizedVelocityX;
                 _quantizedVelocityY = quantizedVelocityY;
+                _quantizedFacingX = quantizedFacingX;
+                _quantizedFacingY = quantizedFacingY;
                 _hp = hp;
                 _score = score;
                 _remainingFrames = remainingFrames;
@@ -1484,6 +1537,8 @@ namespace AbilityKit.Demo.Shooter.Runtime
                     _quantizedY == other._quantizedY &&
                     _quantizedVelocityX == other._quantizedVelocityX &&
                     _quantizedVelocityY == other._quantizedVelocityY &&
+                    _quantizedFacingX == other._quantizedFacingX &&
+                    _quantizedFacingY == other._quantizedFacingY &&
                     _hp == other._hp &&
                     _score == other._score &&
                     _remainingFrames == other._remainingFrames &&

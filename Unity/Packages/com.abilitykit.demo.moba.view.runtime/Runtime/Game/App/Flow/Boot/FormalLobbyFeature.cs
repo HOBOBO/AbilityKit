@@ -157,7 +157,15 @@ namespace AbilityKit.Game.Flow
                 TryStartAutomaticCreate();
             }
 
-            if (!ShouldEnterBattle(_selection, _controller)) return;
+            if (!ShouldEnterBattle(_selection, _controller) ||
+                ShouldDeferBattleEntryForRestore(
+                    _gatewayConfig?.RestoreRoomOnEntry == true,
+                    _runtime.InitializationStarted,
+                    IsOperationBusy,
+                    _controller?.LastRestoreResult))
+            {
+                return;
+            }
 
             var snapshot = _controller.CurrentSnapshot;
             var flow = ctx.Entry?.Get<GameFlowDomain>();
@@ -168,6 +176,8 @@ namespace AbilityKit.Game.Flow
             {
                 return;
             }
+            var coldStartReconnect = ShouldUseColdStartRecovery(
+                _controller.LastRestoreResult);
             _battleEntry.TryEnterBattle(
                 _controller.CurrentState,
                 snapshot,
@@ -175,6 +185,7 @@ namespace AbilityKit.Game.Flow
                 _session,
                 _launchRequest,
                 _controller.LocalPlayerId,
+                coldStartReconnect,
                 flow.EnterBattle);
         }
 
@@ -221,6 +232,26 @@ namespace AbilityKit.Game.Flow
                 selection?.IsRemoteSelected == true,
                 controller.CurrentState,
                 controller.CurrentSnapshot);
+        }
+
+        internal static bool ShouldDeferBattleEntryForRestore(
+            bool restoreRoomOnEntry,
+            bool initializationStarted,
+            bool operationBusy,
+            MultiplayerRoomRestoreResult? restoreResult)
+        {
+            return restoreRoomOnEntry &&
+                   initializationStarted &&
+                   operationBusy &&
+                   !restoreResult.HasValue;
+        }
+
+        internal static bool ShouldUseColdStartRecovery(
+            MultiplayerRoomRestoreResult? restoreResult)
+        {
+            return restoreResult.HasValue &&
+                   restoreResult.Value.HasActiveRoom &&
+                   restoreResult.Value.NextStep == MultiplayerRoomRestoreNextStep.EnterBattle;
         }
 
         internal static bool TryBuildLaunchSpec(
@@ -465,16 +496,19 @@ namespace AbilityKit.Game.Flow
         {
             return _commands.PrepareDefaultLoadoutAsync(
                 _gatewayConfig.BuildDefaultLoadout(),
+                _gatewayConfig.BuildSecondPlayerLoadout(),
                 operationContext);
         }
 
         internal static MultiplayerLoadoutSpec ResolveAvailableDefaultLoadout(
-            MultiplayerLoadoutSpec configured,
+            MultiplayerLoadoutSpec firstPlayerLoadout,
+            MultiplayerLoadoutSpec secondPlayerLoadout,
             MultiplayerRoomSnapshot snapshot,
             uint localPlayerId)
         {
             return FormalLobbyDecision.ResolveAvailableDefaultLoadout(
-                configured,
+                firstPlayerLoadout,
+                secondPlayerLoadout,
                 snapshot,
                 localPlayerId);
         }

@@ -125,6 +125,28 @@ namespace AbilityKit.Network.Battle
         }
 
         /// <summary>
+        /// 协议无关的原始请求通道：重连恢复流程（如帧同步 CatchUp）用它发送类型化封装之外的
+        /// 请求并取回响应负载；推送类回复仍走 <see cref="RawServerPushReceived"/>。
+        /// </summary>
+        public async System.Threading.Tasks.Task<byte[]> SendBattleRecoveryRequestAsync(
+            uint opCode,
+            byte[] payload,
+            TimeSpan timeout)
+        {
+            ThrowIfDisposed();
+            if (opCode == 0)
+            {
+                throw new ArgumentException("An opcode is required.", nameof(opCode));
+            }
+
+            var response = await _sdkClient.SendRawRequestAsync(
+                opCode,
+                payload ?? Array.Empty<byte>(),
+                timeout).ConfigureAwait(false);
+            return response.Count == 0 ? Array.Empty<byte>() : response.ToArray();
+        }
+
+        /// <summary>
         /// Pumps the underlying SDK client (heartbeat / reconnect middleware). For single-threaded hosts
         /// that drive the transport via a main-thread tick loop (alongside a queued callback dispatcher);
         /// dispatcher-driven hosts (dedicated IO + main-thread-callback) do not need to call this.

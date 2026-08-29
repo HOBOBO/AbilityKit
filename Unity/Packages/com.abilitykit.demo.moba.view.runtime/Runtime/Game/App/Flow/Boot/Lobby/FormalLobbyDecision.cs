@@ -61,10 +61,15 @@ namespace AbilityKit.Game.Flow
         }
 
         public static MultiplayerLoadoutSpec ResolveAvailableDefaultLoadout(
-            MultiplayerLoadoutSpec configured,
+            MultiplayerLoadoutSpec firstPlayerLoadout,
+            MultiplayerLoadoutSpec secondPlayerLoadout,
             MultiplayerRoomSnapshot snapshot,
             uint localPlayerId)
         {
+            var localPlayer = FindPlayer(snapshot, localPlayerId);
+            var configured = localPlayer?.JoinOrdinal == 2
+                ? secondPlayerLoadout
+                : firstPlayerLoadout;
             var teamId = configured.TeamId;
             var spawnPointId = configured.SpawnPointId;
             var players = snapshot?.Players;
@@ -93,6 +98,20 @@ namespace AbilityKit.Game.Flow
                 configured.AttributeTemplateId,
                 configured.BasicAttackSkillId,
                 configured.SkillIds);
+        }
+
+        private static MultiplayerRoomPlayerSnapshot FindPlayer(
+            MultiplayerRoomSnapshot snapshot,
+            uint playerId)
+        {
+            var players = snapshot?.Players;
+            if (players == null || playerId == 0u) return null;
+            for (var i = 0; i < players.Count; i++)
+            {
+                if (players[i].PlayerId == playerId) return players[i];
+            }
+
+            return null;
         }
     }
 }

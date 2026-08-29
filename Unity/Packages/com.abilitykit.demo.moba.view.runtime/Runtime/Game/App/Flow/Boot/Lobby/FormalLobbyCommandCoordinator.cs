@@ -47,14 +47,16 @@ namespace AbilityKit.Game.Flow
         }
 
         public async Task PrepareDefaultLoadoutAsync(
-            MultiplayerLoadoutSpec configuredLoadout,
+            MultiplayerLoadoutSpec firstPlayerLoadout,
+            MultiplayerLoadoutSpec secondPlayerLoadout,
             LobbyOperationContext operationContext)
         {
             try
             {
                 await _room.PickHeroAsync(
                     FormalLobbyDecision.ResolveAvailableDefaultLoadout(
-                        configuredLoadout,
+                        firstPlayerLoadout,
+                        secondPlayerLoadout,
                         _room.CurrentSnapshot,
                         _room.LocalPlayerId),
                     operationContext.CancellationToken);

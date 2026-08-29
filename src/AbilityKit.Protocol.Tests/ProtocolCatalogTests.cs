@@ -7,15 +7,49 @@ namespace AbilityKit.Protocol.Tests;
 public sealed class ProtocolCatalogTests
 {
     [Fact]
-    public void Validator_AcceptsDistinctCatalogsAcrossProjects()
+    public void Validator_AcceptsDistinctOpcodesAcrossProjects()
     {
         var catalogs = new[]
         {
             Catalog("project-a.room", "project-a", Message("login.request", 100)),
-            Catalog("project-b.room", "project-b", Message("login.request", 100))
+            Catalog("project-b.room", "project-b", Message("login.request", 101))
         };
 
         var result = ProtocolCatalogValidator.Validate(catalogs);
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void Validator_RejectsSharedTransportPushConflictAcrossProjects()
+    {
+        var catalogs = new[]
+        {
+            Catalog("project-a.room", "project-a", Push("snapshot.push", 9002)),
+            Catalog("project-b.battle", "project-b", Push("catch-up.push", 9002))
+        };
+
+        var result = ProtocolCatalogValidator.Validate(catalogs);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Diagnostics, item => item.Code == "AKP030");
+    }
+
+    [Fact]
+    public void Validator_AllowsRequestAndResponseToShareOpCode()
+    {
+        var request = Request("login.request", 100, "login.response");
+        var response = new ProtocolMessageDefinition(
+            "login.response",
+            100,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Response,
+            "Payload",
+            "protobuf");
+
+        var result = ProtocolCatalogValidator.Validate(
+            Catalog("project-a.room", "project-a", request, response));
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Diagnostics);
@@ -353,6 +387,15 @@ public sealed class ProtocolCatalogTests
             "Payload",
             "protobuf",
             responseId: responseId);
+
+    private static ProtocolMessageDefinition Push(string id, uint opCode) =>
+        new(
+            id,
+            opCode,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Push,
+            "Payload",
+            "protobuf");
 
     private static ProtocolCatalogDefinition Catalog(
         string catalogId,

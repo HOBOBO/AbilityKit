@@ -15,7 +15,8 @@ param(
     [ValidateRange(10, 300)]
     [int]$ClientStartupTimeoutSeconds = 180,
     [string]$OutputRoot,
-    [switch]$SkipCompileWarmup
+    [switch]$SkipCompileWarmup,
+    [switch]$ColdRestart
 )
 
 $ErrorActionPreference = 'Stop'
@@ -61,7 +62,12 @@ $ownerEventsPath = Join-Path $runDirectory 'owner-events.jsonl'
 $memberEventsPath = Join-Path $runDirectory 'member-events.jsonl'
 $ownerResultPath = Join-Path $runDirectory 'owner-result.json'
 $memberResultPath = Join-Path $runDirectory 'member-result.json'
+$ownerRestartStatePath = Join-Path $runDirectory 'owner-restart-state.json'
+$ownerRestartEventsPath = Join-Path $runDirectory 'owner-restart-events.jsonl'
+$ownerRestartResultPath = Join-Path $runDirectory 'owner-restart-result.json'
+$coldReconnectSignalPath = Join-Path $runDirectory 'cold-reconnect-completed.signal'
 $ownerLogPath = Join-Path $runDirectory 'owner-unity.log'
+$ownerRestartLogPath = Join-Path $runDirectory 'owner-restart-unity.log'
 $memberLogPath = Join-Path $runDirectory 'member-unity.log'
 $ownerCompileLogPath = Join-Path $runDirectory 'owner-compile.log'
 $memberCompileLogPath = Join-Path $runDirectory 'member-compile.log'
@@ -77,7 +83,8 @@ function New-ClientArguments {
         [string]$StatePath,
         [string]$EventsPath,
         [string]$ResultPath,
-        [string]$LogPath
+        [string]$LogPath,
+        [string]$RunMode = 'hotResume'
     )
 
     return @(
@@ -87,11 +94,13 @@ function New-ClientArguments {
         '-executeMethod', $executeMethod,
         '-mobaHeadlessRole', $Role,
         '-mobaHeadlessAccount', $Account,
+        '-mobaHeadlessRunMode', $RunMode,
         '-mobaHeadlessRoomPath', $roomPath,
         '-mobaHeadlessMovementSignal', $movementSignalPath,
         '-mobaHeadlessSkillSignal', $skillSignalPath,
         '-mobaHeadlessOwnerObservedSignal', $ownerObservedSignalPath,
         '-mobaHeadlessMemberObservedSignal', $memberObservedSignalPath,
+        '-mobaHeadlessColdReconnectSignal', $coldReconnectSignalPath,
         '-mobaHeadlessState', $StatePath,
         '-mobaHeadlessEvents', $EventsPath,
         '-mobaHeadlessResult', $ResultPath,
@@ -117,10 +126,37 @@ function Read-ClientState {
     }
 }
 
+function Get-AccountActor {
+    param($State, [string]$AccountId)
+    if (-not $State -or -not $State.actors) { return $null }
+    return $State.actors | Where-Object { $_.accountId -eq $AccountId } | Select-Object -First 1
+}
+
 function Get-OwnerActor {
     param($State, [string]$OwnerAccountId)
-    if (-not $State -or -not $State.actors) { return $null }
-    return $State.actors | Where-Object { $_.accountId -eq $OwnerAccountId } | Select-Object -First 1
+    return Get-AccountActor $State $OwnerAccountId
+}
+
+function Assert-LocalControlOwnership {
+    param(
+        $State,
+        [string]$ExpectedAccountId,
+        [string]$Label
+    )
+
+    $actor = Get-AccountActor $State $ExpectedAccountId
+    if (-not $actor) {
+        throw "$Label did not expose an authoritative actor for account '$ExpectedAccountId'."
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$State.localPlayerId) -or
+        [string]$State.localPlayerId -ne [string]$actor.playerId) {
+        throw "$Label local player ownership mismatch. account=$ExpectedAccountId, localPlayer=$($State.localPlayerId), authoritativePlayer=$($actor.playerId)"
+    }
+    if ([int]$State.localActorId -le 0 -or [int]$State.localActorId -ne [int]$actor.actorId) {
+        throw "$Label local actor ownership mismatch. account=$ExpectedAccountId, localActor=$($State.localActorId), authoritativeActor=$($actor.actorId), player=$($actor.playerId), team=$($actor.teamId)"
+    }
+
+    return $actor
 }
 
 function Wait-UnityProjectAvailable {
@@ -238,6 +274,7 @@ function Stop-OrphanedUnityCompilerServers {
 
 $ownerProcess = $null
 $memberProcess = $null
+$ownerRestartProcess = $null
 try {
     if (-not $SkipCompileWarmup) {
         Wait-UnityProjectAvailable -ProjectPath $OwnerProject -Label 'owner warmup'
@@ -249,11 +286,12 @@ try {
     Wait-UnityProjectAvailable -ProjectPath $OwnerProject -Label 'owner client'
     Wait-UnityProjectAvailable -ProjectPath $MemberProject -Label 'member client'
 
-    Write-Host "Starting Unity owner client. Project=$OwnerProject" -ForegroundColor Cyan
+    $initialRunMode = if ($ColdRestart) { 'coldRestartSource' } else { 'hotResume' }
+    Write-Host "Starting Unity owner client. Project=$OwnerProject, mode=$initialRunMode" -ForegroundColor Cyan
     $ownerProcess = Start-Process -FilePath $UnityExe -ArgumentList (New-ClientArguments `
         -ProjectPath $OwnerProject -Role 'owner' -Account $ownerAccount `
         -StatePath $ownerStatePath -EventsPath $ownerEventsPath `
-        -ResultPath $ownerResultPath -LogPath $ownerLogPath) -PassThru -WindowStyle Hidden
+        -ResultPath $ownerResultPath -LogPath $ownerLogPath -RunMode $initialRunMode) -PassThru -WindowStyle Hidden
 
     $startupTimer = [System.Diagnostics.Stopwatch]::StartNew()
     while ($startupTimer.Elapsed.TotalSeconds -lt $ClientStartupTimeoutSeconds) {
@@ -274,18 +312,25 @@ try {
     $memberProcess = Start-Process -FilePath $UnityExe -ArgumentList (New-ClientArguments `
         -ProjectPath $MemberProject -Role 'member' -Account $memberAccount `
         -StatePath $memberStatePath -EventsPath $memberEventsPath `
-        -ResultPath $memberResultPath -LogPath $memberLogPath) -PassThru -WindowStyle Hidden
+        -ResultPath $memberResultPath -LogPath $memberLogPath -RunMode $initialRunMode) -PassThru -WindowStyle Hidden
 
     $timer = [System.Diagnostics.Stopwatch]::StartNew()
     $movementSignaled = $false
     $skillSignaled = $false
     $lastOwnerStage = ''
     $lastMemberStage = ''
+    $lastOwnerRestartStage = ''
+    $coldRestartStarted = $false
 
     while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
         $ownerProcess.Refresh()
+        if ($ownerRestartProcess) { $ownerRestartProcess.Refresh() }
         $memberProcess.Refresh()
-        $ownerState = Read-ClientState $ownerStatePath
+        $ownerState = if ($coldRestartStarted) {
+            Read-ClientState $ownerRestartStatePath
+        } else {
+            Read-ClientState $ownerStatePath
+        }
         $memberState = Read-ClientState $memberStatePath
 
         if ($ownerState -and $ownerState.stage -ne $lastOwnerStage) {
@@ -313,18 +358,40 @@ try {
             Write-Host 'Both clients completed movement validation; skill synchronization probe started.' -ForegroundColor Cyan
         }
 
-        if ($ownerProcess.HasExited -and $memberProcess.HasExited) { break }
-        if ($ownerProcess.HasExited -and $ownerProcess.ExitCode -ne 0) { break }
+        if ($ColdRestart -and -not $coldRestartStarted -and
+            $ownerState.stage -eq 'WaitingForProcessTermination' -and
+            $memberState.stage -eq 'WaitingForColdReconnect') {
+            Write-Host 'Cold restart checkpoint reached; terminating the owner Unity process.' -ForegroundColor Yellow
+            Stop-Process -Id $ownerProcess.Id -Force -ErrorAction Stop
+            $ownerProcess.WaitForExit(10000) | Out-Null
+            Wait-UnityProjectAvailable -ProjectPath $OwnerProject -Label 'owner cold reconnect'
+            Start-Sleep -Seconds 2
+            Write-Host 'Restarting owner with the same account; formal lobby must restore the active battle.' -ForegroundColor Cyan
+            $ownerRestartProcess = Start-Process -FilePath $UnityExe -ArgumentList (New-ClientArguments `
+                -ProjectPath $OwnerProject -Role 'owner' -Account $ownerAccount `
+                -StatePath $ownerRestartStatePath -EventsPath $ownerRestartEventsPath `
+                -ResultPath $ownerRestartResultPath -LogPath $ownerRestartLogPath `
+                -RunMode 'coldReconnect') -PassThru -WindowStyle Hidden
+            $coldRestartStarted = $true
+            $lastOwnerStage = ''
+            continue
+        }
+
+        $activeOwnerProcess = if ($coldRestartStarted) { $ownerRestartProcess } else { $ownerProcess }
+        if ($activeOwnerProcess.HasExited -and $memberProcess.HasExited) { break }
+        if ($activeOwnerProcess.HasExited -and $activeOwnerProcess.ExitCode -ne 0) { break }
         if ($memberProcess.HasExited -and $memberProcess.ExitCode -ne 0) { break }
         Start-Sleep -Milliseconds 500
     }
 
-    $ownerProcess.Refresh()
+    $activeOwnerProcess = if ($coldRestartStarted) { $ownerRestartProcess } else { $ownerProcess }
+    $activeOwnerResultPath = if ($coldRestartStarted) { $ownerRestartResultPath } else { $ownerResultPath }
+    $activeOwnerProcess.Refresh()
     $memberProcess.Refresh()
-    $clientFailed = ($ownerProcess.HasExited -and $ownerProcess.ExitCode -ne 0) -or
+    $clientFailed = ($activeOwnerProcess.HasExited -and $activeOwnerProcess.ExitCode -ne 0) -or
                     ($memberProcess.HasExited -and $memberProcess.ExitCode -ne 0)
     if ($clientFailed) {
-        foreach ($process in @($ownerProcess, $memberProcess)) {
+        foreach ($process in @($ownerProcess, $ownerRestartProcess, $memberProcess)) {
             if ($process -and -not $process.HasExited) {
                 Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
                 $process.WaitForExit(10000) | Out-Null
@@ -332,17 +399,17 @@ try {
             }
         }
     }
-    if (-not $ownerProcess.HasExited -or -not $memberProcess.HasExited) {
+    if (-not $activeOwnerProcess.HasExited -or -not $memberProcess.HasExited) {
         throw "Unity headless clients did not finish within $TimeoutSeconds seconds."
     }
-    if ($ownerProcess.ExitCode -ne 0 -or $memberProcess.ExitCode -ne 0) {
-        throw "Unity client failed. ownerExit=$($ownerProcess.ExitCode), memberExit=$($memberProcess.ExitCode)."
+    if ($activeOwnerProcess.ExitCode -ne 0 -or $memberProcess.ExitCode -ne 0) {
+        throw "Unity client failed. ownerExit=$($activeOwnerProcess.ExitCode), memberExit=$($memberProcess.ExitCode)."
     }
-    if (-not (Test-Path $ownerResultPath) -or -not (Test-Path $memberResultPath)) {
+    if (-not (Test-Path $activeOwnerResultPath) -or -not (Test-Path $memberResultPath)) {
         throw 'One or both Unity result files are missing.'
     }
 
-    $ownerResult = Get-Content $ownerResultPath -Raw | ConvertFrom-Json
+    $ownerResult = Get-Content $activeOwnerResultPath -Raw | ConvertFrom-Json
     $memberResult = Get-Content $memberResultPath -Raw | ConvertFrom-Json
     if (-not $ownerResult.success -or -not $memberResult.success) {
         throw "Client assertion failed. owner='$($ownerResult.message)', member='$($memberResult.message)'."
@@ -358,16 +425,44 @@ try {
     if ($ownerState.playerCount -lt 2 -or $memberState.playerCount -lt 2) {
         throw 'Both clients must observe two authoritative room members.'
     }
-    if (-not [bool]$ownerState.soloLobbyVerified) {
+    $initialOwnerState = if ($ColdRestart) { Read-ClientState $ownerStatePath } else { $ownerState }
+    $initialOwnerLocalActor = Assert-LocalControlOwnership $initialOwnerState $ownerAccount 'owner before recovery'
+    $finalOwnerLocalActor = Assert-LocalControlOwnership $ownerState $ownerAccount 'owner after recovery'
+    $memberLocalActor = Assert-LocalControlOwnership $memberState $memberAccount 'member'
+    if ($ColdRestart -and
+        ([string]$initialOwnerLocalActor.playerId -ne [string]$finalOwnerLocalActor.playerId -or
+         [int]$initialOwnerLocalActor.actorId -ne [int]$finalOwnerLocalActor.actorId -or
+         [int]$initialOwnerLocalActor.teamId -ne [int]$finalOwnerLocalActor.teamId -or
+         [int]$initialOwnerLocalActor.heroId -ne [int]$finalOwnerLocalActor.heroId)) {
+        throw "Cold reconnect changed owner control identity. before=player:$($initialOwnerLocalActor.playerId)/actor:$($initialOwnerLocalActor.actorId)/team:$($initialOwnerLocalActor.teamId)/hero:$($initialOwnerLocalActor.heroId), after=player:$($finalOwnerLocalActor.playerId)/actor:$($finalOwnerLocalActor.actorId)/team:$($finalOwnerLocalActor.teamId)/hero:$($finalOwnerLocalActor.heroId)"
+    }
+    if (-not [bool]$initialOwnerState.soloLobbyVerified) {
         throw 'Owner did not verify that the room stayed in Lobby before the second client joined.'
     }
     if ($ownerState.syncMode -ne 'Lockstep' -or $memberState.syncMode -ne 'Lockstep') {
         throw "FrameSync probe ran with an unexpected mode. owner=$($ownerState.syncMode), member=$($memberState.syncMode)"
     }
-    if (-not [bool]$ownerState.skillValidated -or -not [bool]$memberState.skillValidated) {
+    if (-not [bool]$initialOwnerState.skillValidated -or -not [bool]$memberState.skillValidated) {
         throw 'Both clients must observe the owner skill synchronization probe.'
     }
-    foreach ($observedState in @($ownerState, $memberState)) {
+    # 热恢复或真实进程冷重启验收；member 全程在线且服务器继续模拟。
+    if (-not [bool]$ownerState.pauseResumeValidated -or -not [bool]$memberState.pauseResumeValidated) {
+        throw "In-battle recovery was not validated by both clients. owner=$($ownerState.pauseResumeValidated), member=$($memberState.pauseResumeValidated)"
+    }
+    if ($ColdRestart) {
+        if (-not [bool]$ownerState.coldRecoveryObserved -or
+            -not [bool]$ownerState.coldInputFreezeObserved -or
+            -not [bool]$ownerState.catchUpRequestCompleted -or
+            [int]$ownerState.catchUpPayloadCount -lt 1 -or
+            [int]$ownerState.catchUpFrameCount -lt 1 -or
+            [int]$ownerState.pausedAtFrame -ne -1) {
+            throw "Cold-start lockstep recovery evidence is incomplete. source=$($ownerState.pausedAtFrame), payloads=$($ownerState.catchUpPayloadCount), frames=$($ownerState.catchUpFrameCount), freeze=$($ownerState.coldInputFreezeObserved)"
+        }
+    }
+    elseif ([int]$ownerState.resumedAtFrame -le [int]$ownerState.pausedAtFrame) {
+        throw "Owner resumed frame did not advance past the paused frame. paused=$($ownerState.pausedAtFrame), resumed=$($ownerState.resumedAtFrame)"
+    }
+    foreach ($observedState in @($initialOwnerState, $memberState)) {
         if ([double]$observedState.skillTargetDamage -lt 0.01) {
             throw "Skill target damage was not observed by $($observedState.role). damage=$($observedState.skillTargetDamage)"
         }
@@ -390,9 +485,9 @@ try {
         [long]$memberState.roomRefreshFallbackCount -ne 0) {
         throw "Room push sequence required a snapshot fallback. owner=$($ownerState.roomRefreshFallbackCount), member=$($memberState.roomRefreshFallbackCount)"
     }
-    if ([int]$ownerState.skillSubmitAttemptCount -lt 1 -or
-        [int]$ownerState.skillSubmitSuccessCount -lt 1) {
-        throw "Owner skill input was not submitted successfully. attempts=$($ownerState.skillSubmitAttemptCount), successes=$($ownerState.skillSubmitSuccessCount)"
+    if ([int]$initialOwnerState.skillSubmitAttemptCount -lt 1 -or
+        [int]$initialOwnerState.skillSubmitSuccessCount -lt 1) {
+        throw "Owner skill input was not submitted successfully. attempts=$($initialOwnerState.skillSubmitAttemptCount), successes=$($initialOwnerState.skillSubmitSuccessCount)"
     }
 
     $ownerActorFromOwner = Get-OwnerActor $ownerState $ownerAccount
@@ -437,19 +532,22 @@ try {
     }
 
     Write-Host ''
-    Write-Host 'MOBA Unity two-client headless acceptance PASSED.' -ForegroundColor Green
+    $acceptanceName = if ($ColdRestart) { 'cold-restart reconnect' } else { 'hot pause/resume' }
+    Write-Host "MOBA Unity two-client $acceptanceName headless acceptance PASSED." -ForegroundColor Green
     Write-Host "RoomId=$($ownerState.roomId) BattleId=$($ownerState.battleId) WorldId=$($ownerState.worldId)"
-    Write-Host "Lobby gate: soloLobbyVerified=$($ownerState.soloLobbyVerified), finalPlayers=$($ownerState.playerCount)"
+    Write-Host "Ownership: owner=account:$ownerAccount/player:$($finalOwnerLocalActor.playerId)/actor:$($finalOwnerLocalActor.actorId)/team:$($finalOwnerLocalActor.teamId)/hero:$($finalOwnerLocalActor.heroId), member=account:$memberAccount/player:$($memberLocalActor.playerId)/actor:$($memberLocalActor.actorId)/team:$($memberLocalActor.teamId)/hero:$($memberLocalActor.heroId)"
+    Write-Host "Recovery: mode=$acceptanceName source=$($ownerState.pausedAtFrame) resumed=$($ownerState.resumedAtFrame), catchUpFrames=$($ownerState.catchUpFrameCount), memberFrameKeptAdvancing=$($memberState.pauseResumeValidated)"
+    Write-Host "Lobby gate: soloLobbyVerified=$($initialOwnerState.soloLobbyVerified), finalPlayers=$($ownerState.playerCount)"
     Write-Host "Room push: owner=$($ownerState.roomPushAppliedCount)/$($ownerState.roomPushCount), member=$($memberState.roomPushAppliedCount)/$($memberState.roomPushCount), fallback=0"
     Write-Host "Frames: mode=$($ownerState.syncMode), owner=$($ownerState.frame), member=$($memberState.frame), positionDelta=$($positionDelta.ToString('F3')), runtimeDelta=$($runtimePositionDelta.ToString('F3'))"
-    Write-Host "Trajectory: ownerSamples=$($ownerState.movementSampleCount), ownerMaxBackward=$([double]$ownerState.maxBackwardMovement), memberSamples=$($memberState.movementSampleCount), memberMaxBackward=$([double]$memberState.maxBackwardMovement)"
-    Write-Host "Skill: ownerDisplacement=$([double]$ownerState.maxSkillDisplacement), memberDisplacement=$([double]$memberState.maxSkillDisplacement), submits=$($ownerState.skillSubmitSuccessCount)/$($ownerState.skillSubmitAttemptCount)"
-    Write-Host "Hit effects: ownerDamage=$([double]$ownerState.skillTargetDamage), memberDamage=$([double]$memberState.skillTargetDamage), ownerRuntimeRise=$([double]$ownerState.skillTargetRuntimeRise), memberRuntimeRise=$([double]$memberState.skillTargetRuntimeRise), ownerPresentedRise=$([double]$ownerState.skillTargetPresentedRise), memberPresentedRise=$([double]$memberState.skillTargetPresentedRise), landed=$($ownerState.skillTargetLanded)/$($memberState.skillTargetLanded)"
+    Write-Host "Trajectory: ownerSamples=$($initialOwnerState.movementSampleCount), ownerMaxBackward=$([double]$initialOwnerState.maxBackwardMovement), memberSamples=$($memberState.movementSampleCount), memberMaxBackward=$([double]$memberState.maxBackwardMovement)"
+    Write-Host "Skill: ownerDisplacement=$([double]$initialOwnerState.maxSkillDisplacement), memberDisplacement=$([double]$memberState.maxSkillDisplacement), submits=$($initialOwnerState.skillSubmitSuccessCount)/$($initialOwnerState.skillSubmitAttemptCount)"
+    Write-Host "Hit effects: ownerDamage=$([double]$initialOwnerState.skillTargetDamage), memberDamage=$([double]$memberState.skillTargetDamage), ownerRuntimeRise=$([double]$initialOwnerState.skillTargetRuntimeRise), memberRuntimeRise=$([double]$memberState.skillTargetRuntimeRise), ownerPresentedRise=$([double]$initialOwnerState.skillTargetPresentedRise), memberPresentedRise=$([double]$memberState.skillTargetPresentedRise), landed=$($initialOwnerState.skillTargetLanded)/$($memberState.skillTargetLanded)"
     Write-Host "Prediction: ownerRollbacks=$($ownerState.predictionRollbackCount), memberRollbacks=$($memberState.predictionRollbackCount), ownerMismatches=$($ownerState.predictionMismatchCount), memberMismatches=$($memberState.predictionMismatchCount), ownerDroppedLocal=$($ownerState.predictionDroppedLocalInputBatches), memberDroppedLocal=$($memberState.predictionDroppedLocalInputBatches), settled=$(-not $ownerState.predictionReplaying -and -not $memberState.predictionReplaying)"
     Write-Host "Artifacts: $runDirectory"
 }
 finally {
-    foreach ($process in @($ownerProcess, $memberProcess)) {
+    foreach ($process in @($ownerProcess, $ownerRestartProcess, $memberProcess)) {
         if ($process -and -not $process.HasExited) {
             Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
         }

@@ -43,6 +43,16 @@ MonoBehaviour:
   - 10010101
   - 10010201
   - 10010301
+  SecondPlayerHeroId: 1002
+  SecondPlayerTeamId: 2
+  SecondPlayerSpawnPointId: 0
+  SecondPlayerHeroLevel: 1
+  SecondPlayerAttributeTemplateId: 1002
+  SecondPlayerBasicAttackSkillId: 10020001
+  SecondPlayerSkillIds:
+  - 10020101
+  - 10020201
+  - 10020301
   StarterSceneName: StarterScene
   TimeSyncOpCode: 1300
   TimeSyncIntervalMs: 1000

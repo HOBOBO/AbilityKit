@@ -43,8 +43,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
 
     private const int DefaultTickRate = 30;
 
-    /// <summary>录制帧数上限：3 小时 @ 60fps，防止长时间战斗 OOM。</summary>
-    private const int MaxRecordingFrames = 10800;
+    /// <summary>完整输入历史上限：3 小时 @ 60fps，供新进程从确定性初始基线追帧。</summary>
+    private const int MaxRecordingFrames = 648000;
 
     private DateTime _startedAtUtc;
     private int _totalInputCount;
@@ -203,19 +203,59 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
     {
         if (request is null) throw new ArgumentNullException(nameof(request));
 
-        var from = request.FromFrameExclusive;
-        var to = request.ToFrameInclusive;
-        if (to <= from)
+        var history = request.FromFrameExclusive == -1 && _enableRecording
+            ? _fullRecording
+            : null;
+        // FromFrameExclusive=-1 is reserved for a new-process lockstep restore. Never let it
+        // fall through to the short ring buffer: an absent/truncated full recording must fail.
+        var maxAvailableFrames = request.FromFrameExclusive == -1
+            ? history?.Count ?? 0
+            : MaxHistoryFrames;
+        if (!TryResolveCatchUpRange(
+                _roomId,
+                _worldId,
+                _frame,
+                request,
+                maxAvailableFrames,
+                out var from,
+                out var to))
         {
+            _logger.LogWarning(
+                "[BattleFrameSyncGrain] Catch-up range rejected. AuthoritativeRoomId={AuthoritativeRoomId} AuthoritativeWorldId={AuthoritativeWorldId} NextFrame={NextFrame} RequestedRoomId={RequestedRoomId} RequestedWorldId={RequestedWorldId} FromFrameExclusive={FromFrameExclusive} ToFrameInclusive={ToFrameInclusive} MaxAvailableFrames={MaxAvailableFrames}",
+                _roomId,
+                _worldId,
+                _frame,
+                request.RoomId,
+                request.WorldId,
+                request.FromFrameExclusive,
+                request.ToFrameInclusive,
+                maxAvailableFrames);
             return Task.FromResult<FrameSyncCatchUpPayload?>(null);
         }
 
-        var frameInputs = new List<List<FrameInputItem>>(to - from);
+        var frameCount = to - from;
+        var frameInputs = new List<List<FrameInputItem>>(frameCount);
         for (var f = from + 1; f <= to; f++)
         {
-            if (!_inputHistory.TryGetValue(f, out var inputs))
+            List<FrameInputItem>? inputs;
+            if (history != null && f >= 0 && f < history.Count)
             {
-                // 历史不完整，客户端应回退到全量快照
+                inputs = history[f];
+            }
+            else if (!_inputHistory.TryGetValue(f, out inputs))
+            {
+                // MOBA 锁步恢复要求连续的权威输入历史。缺帧时拒绝恢复；不能回退到
+                // shooter 状态同步的全量状态快照，否则会破坏确定性追帧语义。
+                _logger.LogWarning(
+                    "[BattleFrameSyncGrain] Catch-up history frame missing. RoomId={RoomId} WorldId={WorldId} MissingFrame={MissingFrame} FromFrameExclusive={FromFrameExclusive} ToFrameInclusive={ToFrameInclusive} NextFrame={NextFrame} HistoryCount={HistoryCount} RecordingCount={RecordingCount}",
+                    _roomId,
+                    _worldId,
+                    f,
+                    from,
+                    to,
+                    _frame,
+                    _inputHistory.Count,
+                    _fullRecording.Count);
                 return Task.FromResult<FrameSyncCatchUpPayload?>(null);
             }
 
@@ -223,11 +263,67 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
         }
 
         var payload = new FrameSyncCatchUpPayload(
-            request.RoomId,
-            request.WorldId,
+            _roomId,
+            _worldId,
             from + 1,
             frameInputs);
         return Task.FromResult<FrameSyncCatchUpPayload?>(payload);
+    }
+
+    internal static bool TryResolveCatchUpRange(
+        ulong authoritativeRoomId,
+        ulong authoritativeWorldId,
+        int currentFrame,
+        FrameSyncCatchUpRequest request,
+        out int fromFrameExclusive,
+        out int toFrameInclusive)
+    {
+        return TryResolveCatchUpRange(
+            authoritativeRoomId,
+            authoritativeWorldId,
+            currentFrame,
+            request,
+            MaxHistoryFrames,
+            out fromFrameExclusive,
+            out toFrameInclusive);
+    }
+
+    internal static bool TryResolveCatchUpRange(
+        ulong authoritativeRoomId,
+        ulong authoritativeWorldId,
+        int currentFrame,
+        FrameSyncCatchUpRequest request,
+        int maxAvailableFrames,
+        out int fromFrameExclusive,
+        out int toFrameInclusive)
+    {
+        fromFrameExclusive = 0;
+        toFrameInclusive = 0;
+
+        if (request.RoomId == 0
+            || request.RoomId != authoritativeRoomId
+            || request.WorldId == 0
+            || request.WorldId != authoritativeWorldId
+            || request.FromFrameExclusive < -1
+            || request.ToFrameInclusive <= request.FromFrameExclusive
+            || maxAvailableFrames <= 0)
+        {
+            return false;
+        }
+
+        // _frame/currentFrame 表示下一个待处理帧；历史只写入到 currentFrame - 1。
+        // CatchUp 尾帧必须 clamp 到最后一个已处理权威帧，否则会请求尚不存在的历史项。
+        var latestProcessedFrame = currentFrame - 1;
+        var clampedTo = Math.Min(request.ToFrameInclusive, latestProcessedFrame);
+        var frameCount = (long)clampedTo - request.FromFrameExclusive;
+        if (frameCount <= 0 || frameCount > maxAvailableFrames)
+        {
+            return false;
+        }
+
+        fromFrameExclusive = request.FromFrameExclusive;
+        toFrameInclusive = clampedTo;
+        return true;
     }
 
     public Task<FrameSyncRecording?> DumpRecordingAsync()
@@ -350,7 +446,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
             _inputHistory.Remove(k);
         }
 
-        // 录制模式：追加到完整历史（不修剪），达到上限后静默停止录制
+        // 录制模式：追加到完整历史（不修剪）。达到上限后 Count 将小于权威帧数，
+        // 冷启动 CatchUp 的连续范围校验会明确拒绝恢复，不会错误退回短历史或状态快照。
         if (_enableRecording && _fullRecording.Count < MaxRecordingFrames)
         {
             _fullRecording.Add(new List<FrameInputItem>(inputs));

@@ -71,6 +71,11 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(gateway.DefaultAttributeTemplateId, Is.EqualTo(1001));
             Assert.That(gateway.DefaultBasicAttackSkillId, Is.EqualTo(10010001));
             Assert.That(gateway.DefaultSkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
+            Assert.That(gateway.SecondPlayerHeroId, Is.EqualTo(1002));
+            Assert.That(gateway.SecondPlayerTeamId, Is.EqualTo(2));
+            Assert.That(gateway.SecondPlayerAttributeTemplateId, Is.EqualTo(1002));
+            Assert.That(gateway.SecondPlayerBasicAttackSkillId, Is.EqualTo(10020001));
+            Assert.That(gateway.SecondPlayerSkillIds, Is.EqualTo(new[] { 10020101, 10020201, 10020301 }));
             Assert.That(gateway.StarterSceneName, Is.EqualTo("StarterScene"));
             Assert.That(preset.HostMode, Is.EqualTo(BattleHostMode.GatewayRemote));
             Assert.That(preset.GatewaySO, Is.SameAs(gateway));
@@ -93,6 +98,15 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(loadout.AttributeTemplateId, Is.EqualTo(1001));
             Assert.That(loadout.BasicAttackSkillId, Is.EqualTo(10010001));
             Assert.That(loadout.SkillIds, Is.EqualTo(new[] { 10010101, 10010201, 10010301 }));
+
+            var secondPlayerLoadout = gateway.BuildSecondPlayerLoadout();
+            Assert.That(secondPlayerLoadout.HeroId, Is.EqualTo(1002));
+            Assert.That(secondPlayerLoadout.TeamId, Is.EqualTo(2));
+            Assert.That(secondPlayerLoadout.SpawnPointId, Is.EqualTo(0));
+            Assert.That(secondPlayerLoadout.Level, Is.EqualTo(1));
+            Assert.That(secondPlayerLoadout.AttributeTemplateId, Is.EqualTo(1002));
+            Assert.That(secondPlayerLoadout.BasicAttackSkillId, Is.EqualTo(10020001));
+            Assert.That(secondPlayerLoadout.SkillIds, Is.EqualTo(new[] { 10020101, 10020201, 10020301 }));
         }
 
         [Test]

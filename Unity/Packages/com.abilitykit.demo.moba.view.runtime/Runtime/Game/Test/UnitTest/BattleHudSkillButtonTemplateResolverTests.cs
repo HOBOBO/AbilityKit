@@ -222,6 +222,22 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void HudSession_IgnoresForeignEnterGameActorForExplicitLocalPlayer()
+        {
+            var session = new BattleHudSessionModel();
+            session.Synchronize("p2", localActorId: 0, loadoutRevision: 0);
+
+            session.ApplyEnterGameSnapshot("p1", localActorId: 1001);
+
+            Assert.That(session.LocalPlayerId, Is.EqualTo("p2"));
+            Assert.That(session.LocalActorId, Is.Zero);
+
+            session.ApplyEnterGameSnapshot("p2", localActorId: 1002);
+
+            Assert.That(session.LocalActorId, Is.EqualTo(1002));
+        }
+
+        [Test]
         public void ControlPlayerChange_RebindsXiaoQiaoSlotsOnNextHudCheck()
         {
             var root = new GameObject("ControlPlayerChangeHudTests.Root", typeof(RectTransform), typeof(Canvas));

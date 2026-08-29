@@ -24,7 +24,23 @@ namespace AbilityKit.Game.Flow.Battle.Snapshot
                 return;
             }
 
-            ctx.LocalActorId = res.LocalActorId;
+            var localPlayerId = ctx.ResolveLocalControlPlayerId();
+            if (!string.IsNullOrEmpty(localPlayerId) &&
+                !string.Equals(
+                    localPlayerId,
+                    res.PlayerId.Value,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Warning(
+                    $"[BattleEnterGameApplier] Ignored non-local enter-game actor. " +
+                    $"localPlayer={localPlayerId}, responsePlayer={res.PlayerId.Value}, actor={res.LocalActorId}.");
+                return;
+            }
+
+            if (res.LocalActorId > 0)
+            {
+                ctx.LocalActorId = res.LocalActorId;
+            }
 
             var world = ctx.EntityWorld;
             var lookup = ctx.EntityLookup;

@@ -23,7 +23,7 @@ MonoBehaviour:
   playerCount: 2
   controlledPlayerId: 1
   worldScale: 1
-  enemyBudget: 512
+  enemyBudget: 1024
   enableAuthorityComparison: 0
   renderBackend: 1
   starterSceneName: StarterScene

@@ -32,6 +32,94 @@ namespace AbilityKit.Game.Test.UnitTest
         }
 
         [Test]
+        public void RestoredIdentity_UsesAuthenticatedAccountSnapshot()
+        {
+            var snapshot = new RoomGatewaySnapshot
+            {
+                Players = new[]
+                {
+                    new RoomGatewayPlayerSnapshot { AccountId = "account-member", PlayerId = 8u },
+                    new RoomGatewayPlayerSnapshot { AccountId = "account-owner", PlayerId = 17u },
+                }
+            };
+
+            var playerId = GatewayMultiplayerRoomSession.ResolveAuthoritativeRestoredPlayerId(
+                snapshot,
+                "account-owner",
+                serverPlayerId: 17u);
+
+            Assert.That(playerId, Is.EqualTo(17u));
+        }
+
+        [TestCase(0u)]
+        [TestCase(8u)]
+        public void RestoredIdentity_MissingOrForeignServerIdentityFailsClosed(uint serverPlayerId)
+        {
+            var snapshot = new RoomGatewaySnapshot
+            {
+                Players = new[]
+                {
+                    new RoomGatewayPlayerSnapshot { AccountId = "account-member", PlayerId = 8u },
+                    new RoomGatewayPlayerSnapshot { AccountId = "account-owner", PlayerId = 17u },
+                }
+            };
+
+            Assert.Throws<InvalidOperationException>(() =>
+                GatewayMultiplayerRoomSession.ResolveAuthoritativeRestoredPlayerId(
+                    snapshot,
+                    "account-owner",
+                    serverPlayerId));
+        }
+
+        [Test]
+        public void DefaultLoadout_UsesSecondHeroForSecondJoinOrdinal()
+        {
+            var first = new MultiplayerLoadoutSpec(
+                1001,
+                1,
+                0,
+                1,
+                1001,
+                10010001,
+                new[] { 10010101, 10010201, 10010301 });
+            var second = new MultiplayerLoadoutSpec(
+                1002,
+                2,
+                0,
+                1,
+                1002,
+                10020001,
+                new[] { 10020101, 10020201, 10020301 });
+            var snapshot = new MultiplayerRoomSnapshot
+            {
+                Players = new[]
+                {
+                    new MultiplayerRoomPlayerSnapshot { PlayerId = 7, JoinOrdinal = 1 },
+                    new MultiplayerRoomPlayerSnapshot { PlayerId = 8, JoinOrdinal = 2 }
+                }
+            };
+
+            var ownerLoadout = FormalLobbyFeature.ResolveAvailableDefaultLoadout(
+                first,
+                second,
+                snapshot,
+                localPlayerId: 7);
+            var memberLoadout = FormalLobbyFeature.ResolveAvailableDefaultLoadout(
+                first,
+                second,
+                snapshot,
+                localPlayerId: 8);
+
+            Assert.That(ownerLoadout.HeroId, Is.EqualTo(1001));
+            Assert.That(ownerLoadout.TeamId, Is.EqualTo(1));
+            Assert.That(memberLoadout.HeroId, Is.EqualTo(1002));
+            Assert.That(memberLoadout.TeamId, Is.EqualTo(2));
+            Assert.That(memberLoadout.AttributeTemplateId, Is.EqualTo(1002));
+            Assert.That(memberLoadout.BasicAttackSkillId, Is.EqualTo(10020001));
+            Assert.That(memberLoadout.SkillIds, Is.EqualTo(new[] { 10020101, 10020201, 10020301 }));
+        }
+
+        [Test]
         public void MembershipNotice_FormatsLeaveJoinAndOwnerTransfer()
         {
             var change = new ClientRoomMembershipChange(
@@ -712,6 +800,72 @@ namespace AbilityKit.Game.Test.UnitTest
             Assert.That(request.SuppressAutomaticLobbyActions, Is.True);
             Assert.That(FormalLobbyFeature.ShouldRunAutomaticLobbyActions(request), Is.False);
             Assert.That(FormalLobbyFeature.ShouldRunAutomaticLobbyActions(null), Is.True);
+        }
+
+        [Test]
+        public void BattleEntry_WaitsForRestoreResultWhenInBattleSnapshotArrivesEarly()
+        {
+            Assert.That(
+                FormalLobbyFeature.ShouldDeferBattleEntryForRestore(
+                    restoreRoomOnEntry: true,
+                    initializationStarted: true,
+                    operationBusy: true,
+                    restoreResult: null),
+                Is.True,
+                "An early InBattle snapshot must not consume the battle-entry gate before restore metadata arrives.");
+
+            var restored = new MultiplayerRoomRestoreResult(
+                "room-a",
+                numericRoomId: 10UL,
+                playerId: 7u,
+                MultiplayerRoomPhase.InBattle,
+                MultiplayerRoomRestoreNextStep.EnterBattle,
+                MultiplayerRoomEntryKind.Reconnect,
+                canStart: false,
+                message: string.Empty,
+                MultiplayerRoomRestoreStatus.Restored,
+                MultiplayerRoomRestoreErrorCode.None);
+
+            Assert.That(
+                FormalLobbyFeature.ShouldDeferBattleEntryForRestore(
+                    restoreRoomOnEntry: true,
+                    initializationStarted: true,
+                    operationBusy: true,
+                    restoreResult: restored),
+                Is.False);
+            Assert.That(FormalLobbyFeature.ShouldUseColdStartRecovery(restored), Is.True);
+        }
+
+        [Test]
+        public void BattleEntry_NonRestoreFlowIsNotBlockedByAnotherLobbyOperation()
+        {
+            Assert.That(
+                FormalLobbyFeature.ShouldDeferBattleEntryForRestore(
+                    restoreRoomOnEntry: false,
+                    initializationStarted: true,
+                    operationBusy: true,
+                    restoreResult: null),
+                Is.False);
+            Assert.That(FormalLobbyFeature.ShouldUseColdStartRecovery(null), Is.False);
+        }
+
+        [Test]
+        public void RestoredActiveBattle_UsesColdRecoveryEvenWhenLegacyEntryKindIsTeamLobby()
+        {
+            var restored = new MultiplayerRoomRestoreResult(
+                "room-a",
+                numericRoomId: 10UL,
+                playerId: 7u,
+                MultiplayerRoomPhase.InBattle,
+                MultiplayerRoomRestoreNextStep.EnterBattle,
+                MultiplayerRoomEntryKind.TeamLobby,
+                canStart: false,
+                message: string.Empty,
+                MultiplayerRoomRestoreStatus.Restored,
+                MultiplayerRoomRestoreErrorCode.None);
+
+            Assert.That(FormalLobbyFeature.ShouldUseColdStartRecovery(restored), Is.True,
+                "A new process restoring an active battle always needs frame-0 lockstep replay; entry-kind metadata must not disable recovery.");
         }
 
         [Test]

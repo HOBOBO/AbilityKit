@@ -282,8 +282,8 @@ namespace AbilityKit.Demo.Shooter.View
                     key.Value,
                     entity.QuantizedX / 1000f,
                     entity.QuantizedY / 1000f,
-                    entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 0f : entity.QuantizedVelocityX / 1000f,
-                    entity.QuantizedVelocityX == 0 && entity.QuantizedVelocityY == 0 ? 1f : entity.QuantizedVelocityY / 1000f,
+                    entity.QuantizedFacingX == 0 && entity.QuantizedFacingY == 0 ? 0f : entity.QuantizedFacingX / 1000f,
+                    entity.QuantizedFacingX == 0 && entity.QuantizedFacingY == 0 ? 1f : entity.QuantizedFacingY / 1000f,
                     entity.QuantizedVelocityX / 1000f,
                     entity.QuantizedVelocityY / 1000f,
                     deliveryHints);

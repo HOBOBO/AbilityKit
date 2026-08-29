@@ -201,7 +201,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
             _packedSnapshotExporter = new ShooterPackedSnapshotExporter(_state, _entities, _rules, this);
             _packedSnapshotImporter = new ShooterPackedSnapshotImporter(_state, _entities);
             _bytesCodec = new ShooterPackedSnapshotBytesCodec();
-            _pureStateSnapshotExporter = new ShooterPureStateSnapshotExporter(_state, this, this, _entities);
+            _pureStateSnapshotExporter = new ShooterPureStateSnapshotExporter(_state, this, this, _entities, _rules);
             _botAiRuntime = new ShooterBotAiRuntime(_state, _entities);
             _botAiService = new ShooterBotAiService(_botAiRuntime);
             _services = CreateServiceContext(_enemyWaveOptions);

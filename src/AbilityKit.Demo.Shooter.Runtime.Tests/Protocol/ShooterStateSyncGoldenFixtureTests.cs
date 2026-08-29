@@ -154,6 +154,8 @@ public sealed class ShooterStateSyncGoldenFixtureTests
                         9,
                         1250,
                         -2500,
+                        0,
+                        0,
                         50,
                         -25,
                         80,

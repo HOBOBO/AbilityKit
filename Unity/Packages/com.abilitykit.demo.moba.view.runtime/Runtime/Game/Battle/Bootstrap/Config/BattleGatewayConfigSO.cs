@@ -92,6 +92,27 @@ namespace AbilityKit.Game.Flow
         [LabelText("Default Skill Ids")]
         public int[] DefaultSkillIds = { 10010101, 10010201, 10010301 };
 
+        [LabelText("Second Player Hero Id")]
+        public int SecondPlayerHeroId = 1002;
+
+        [LabelText("Second Player Team Id")]
+        public int SecondPlayerTeamId = 2;
+
+        [LabelText("Second Player Spawn Point Id")]
+        public int SecondPlayerSpawnPointId;
+
+        [LabelText("Second Player Hero Level")]
+        public int SecondPlayerHeroLevel = 1;
+
+        [LabelText("Second Player Attribute Template Id")]
+        public int SecondPlayerAttributeTemplateId = 1002;
+
+        [LabelText("Second Player Basic Attack Skill Id")]
+        public int SecondPlayerBasicAttackSkillId = 10020001;
+
+        [LabelText("Second Player Skill Ids")]
+        public int[] SecondPlayerSkillIds = { 10020101, 10020201, 10020301 };
+
         [LabelText("Starter Scene")]
         public string StarterSceneName = "StarterScene";
 
@@ -160,6 +181,18 @@ namespace AbilityKit.Game.Flow
                 Math.Max(1, DefaultAttributeTemplateId),
                 Math.Max(1, DefaultBasicAttackSkillId),
                 DefaultSkillIds);
+        }
+
+        public MultiplayerLoadoutSpec BuildSecondPlayerLoadout()
+        {
+            return new MultiplayerLoadoutSpec(
+                Math.Max(1, SecondPlayerHeroId),
+                Math.Max(1, SecondPlayerTeamId),
+                Math.Max(0, SecondPlayerSpawnPointId),
+                Math.Max(1, SecondPlayerHeroLevel),
+                Math.Max(1, SecondPlayerAttributeTemplateId),
+                Math.Max(1, SecondPlayerBasicAttackSkillId),
+                SecondPlayerSkillIds);
         }
 
         public bool TryValidateFormalLobby(out string error)
@@ -231,18 +264,21 @@ namespace AbilityKit.Game.Flow
                 DefaultAttributeTemplateId <= 0 ||
                 DefaultBasicAttackSkillId <= 0 ||
                 DefaultSkillIds == null ||
-                DefaultSkillIds.Length == 0)
+                DefaultSkillIds.Length == 0 ||
+                SecondPlayerHeroId <= 0 ||
+                SecondPlayerTeamId <= 0 ||
+                SecondPlayerSpawnPointId < 0 ||
+                SecondPlayerHeroLevel <= 0 ||
+                SecondPlayerAttributeTemplateId <= 0 ||
+                SecondPlayerBasicAttackSkillId <= 0 ||
+                SecondPlayerSkillIds == null ||
+                SecondPlayerSkillIds.Length == 0)
             {
-                error = "Default multiplayer loadout is invalid.";
+                error = "Default multiplayer loadouts are invalid.";
                 return false;
             }
-            for (var i = 0; i < DefaultSkillIds.Length; i++)
+            if (!AllSkillIdsAreValid(DefaultSkillIds) || !AllSkillIdsAreValid(SecondPlayerSkillIds))
             {
-                if (DefaultSkillIds[i] > 0)
-                {
-                    continue;
-                }
-
                 error = "Default multiplayer loadout skill ids must be greater than zero.";
                 return false;
             }
@@ -270,6 +306,16 @@ namespace AbilityKit.Game.Flow
             }
 
             error = string.Empty;
+            return true;
+        }
+
+        private static bool AllSkillIdsAreValid(int[] skillIds)
+        {
+            for (var i = 0; i < skillIds.Length; i++)
+            {
+                if (skillIds[i] <= 0) return false;
+            }
+
             return true;
         }
 

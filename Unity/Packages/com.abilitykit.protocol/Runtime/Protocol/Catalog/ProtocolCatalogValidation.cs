@@ -360,12 +360,13 @@ namespace AbilityKit.Protocol.Catalog
             IReadOnlyList<ProtocolCatalogDefinition?> catalogs,
             ICollection<ProtocolCatalogDiagnostic> diagnostics)
         {
-            // The wire header carries only the opcode, so within one project the
-            // (opCode, direction, kind) identity must be unambiguous across catalogs
-            // that could share a connection. Different projects are isolated.
+            // Gateway packet headers carry only opcode/sequence. A request and its correlated
+            // response may intentionally share an opcode, but unsolicited traffic in the same
+            // direction must have one decoder across every catalog on that connection. Catalog
+            // project ids are governance ownership, not transport namespaces.
             var claimed = new Dictionary<
-                (string ProjectId, uint OpCode, ProtocolDirection Direction, ProtocolPacketKind Kind),
-                string>();
+                (uint OpCode, ProtocolDirection Direction, ProtocolPacketKind Kind),
+                (string CatalogId, string ProjectId, string MessageId)>();
 
             for (var i = 0; i < catalogs.Count; i++)
             {
@@ -379,21 +380,23 @@ namespace AbilityKit.Protocol.Catalog
                     if (message == null || message.OpCode == 0)
                         continue;
 
-                    var key = (catalog.ProjectId, message.OpCode, message.Direction, message.Kind);
-                    if (claimed.TryGetValue(key, out var existingCatalogId))
+                    var key = (message.OpCode, message.Direction, message.Kind);
+                    if (claimed.TryGetValue(key, out var existing))
                     {
-                        if (!string.Equals(existingCatalogId, catalog.CatalogId, StringComparison.Ordinal))
+                        if (!string.Equals(existing.CatalogId, catalog.CatalogId, StringComparison.Ordinal))
                         {
                             diagnostics.Add(Error(
                                 "AKP030",
                                 catalog.CatalogId,
                                 message.Id,
-                                $"OpCode {message.OpCode} ({message.Direction}, {message.Kind}) conflicts with catalog '{existingCatalogId}' in project '{catalog.ProjectId}'."));
+                                $"OpCode {message.OpCode} ({message.Direction}, {message.Kind}) conflicts with " +
+                                $"message '{existing.MessageId}' in catalog '{existing.CatalogId}' " +
+                                $"(project '{existing.ProjectId}'); project ids do not isolate a shared transport opcode."));
                         }
                     }
                     else
                     {
-                        claimed.Add(key, catalog.CatalogId);
+                        claimed.Add(key, (catalog.CatalogId, catalog.ProjectId, message.Id));
                     }
                 }
             }

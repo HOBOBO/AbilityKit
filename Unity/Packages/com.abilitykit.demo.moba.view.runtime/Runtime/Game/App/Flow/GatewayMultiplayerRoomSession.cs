@@ -138,11 +138,15 @@ namespace AbilityKit.Game.Flow
                         MultiplayerRoomRestoreErrorCode.InternalError);
                 }
 
+                var authoritativePlayerId = ResolveAuthoritativeRestoredPlayerId(
+                    restored.Snapshot,
+                    spec.AccountId,
+                    result.PlayerId);
                 var restoredSnapshot = GatewayRoomProtocolMapper.ToClientSnapshot(
                     restored.Snapshot,
                     restored.NumericRoomId);
                 var candidateMembership = new GatewayRoomMembership();
-                candidateMembership.Commit(result.RoomId, result.NumericRoomId, result.PlayerId);
+                candidateMembership.Commit(result.RoomId, result.NumericRoomId, authoritativePlayerId);
 
                 var current = _store.Current;
                 var replacesCurrentRoom = current != null &&
@@ -567,6 +571,47 @@ namespace AbilityKit.Game.Flow
             MultiplayerRoomLaunchSpec spec)
         {
             return GatewayRoomProtocolMapper.BuildLaunchTags(spec);
+        }
+
+        internal static uint ResolveAuthoritativeRestoredPlayerId(
+            RoomGatewaySnapshot snapshot,
+            string accountId,
+            uint serverPlayerId)
+        {
+            if (snapshot?.Players == null || string.IsNullOrWhiteSpace(accountId))
+            {
+                throw new InvalidOperationException(
+                    "Active room restore requires an authenticated account and an authoritative player snapshot.");
+            }
+
+            uint snapshotPlayerId = 0u;
+            for (var i = 0; i < snapshot.Players.Count; i++)
+            {
+                var player = snapshot.Players[i];
+                if (player != null && string.Equals(
+                        player.AccountId,
+                        accountId,
+                        StringComparison.Ordinal))
+                {
+                    snapshotPlayerId = player.PlayerId;
+                    break;
+                }
+            }
+
+            if (snapshotPlayerId == 0u)
+            {
+                throw new InvalidOperationException(
+                    $"Active room restore snapshot does not contain a player identity for account '{accountId}'.");
+            }
+
+            if (serverPlayerId == 0u || serverPlayerId != snapshotPlayerId)
+            {
+                throw new InvalidOperationException(
+                    $"Active room restore player identity mismatch for account '{accountId}': " +
+                    $"server={serverPlayerId}, snapshot={snapshotPlayerId}.");
+            }
+
+            return snapshotPlayerId;
         }
 
         private void ValidateActiveSession(string roomId)

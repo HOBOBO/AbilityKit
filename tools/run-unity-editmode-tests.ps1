@@ -7,7 +7,8 @@
 param(
     [string]$UnityExe = "C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Unity.exe",
     [string]$TestAssembly = "AbilityKit.Ability.Editor.Tests",
-    [string]$ResultsPath = ""
+    [string]$ResultsPath = "",
+    [string]$TestFilter = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -31,10 +32,21 @@ Write-Host "Running EditMode tests for '$TestAssembly' ..."
 Write-Host "Project: $projectPath"
 Write-Host "Results: $ResultsPath"
 
-& $UnityExe -batchmode -nographics -projectPath $projectPath `
-    -runTests -testPlatform EditMode -assemblyNames $TestAssembly `
-    -testResults $ResultsPath -logFile $logPath
-$exitCode = $LASTEXITCODE
+$arguments = @(
+    "-batchmode",
+    "-nographics",
+    "-projectPath", $projectPath,
+    "-runTests",
+    "-testPlatform", "EditMode",
+    "-assemblyNames", $TestAssembly,
+    "-testResults", $ResultsPath,
+    "-logFile", $logPath
+)
+if (-not [string]::IsNullOrWhiteSpace($TestFilter)) {
+    $arguments += @("-testFilter", $TestFilter)
+}
+$process = Start-Process -FilePath $UnityExe -ArgumentList $arguments -Wait -PassThru
+$exitCode = $process.ExitCode
 
 Write-Host "Unity exit code: $exitCode"
 Write-Host "Results: $ResultsPath"

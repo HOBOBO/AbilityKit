@@ -249,6 +249,8 @@ public sealed class ShooterPureStateSyncCodecTests
                     3400,
                     20,
                     -10,
+                    20,
+                    -10,
                     0,
                     0,
                     12,
@@ -292,8 +294,8 @@ public sealed class ShooterPureStateSyncCodecTests
         };
         snapshot.TransformSamples = new[]
         {
-            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1000, 2000, 10, 20, 3),
-            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1100, 2200, 10, 20, 3)
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1000, 2000, 10, 20, 30, 40, 3),
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1100, 2200, 10, 20, 30, 40, 3)
         };
         snapshot.SetTransientCounts(1, 1, 0, 2, 2);
 
@@ -332,6 +334,8 @@ public sealed class ShooterPureStateSyncCodecTests
                 -2_000 + i,
                 (i & 1) == 0 ? 100 : -100,
                 (i & 1) == 0 ? -50 : 50,
+                (i & 1) == 0 ? 200 : -200,
+                (i & 1) == 0 ? -150 : 150,
                 (byte)((i & 1) == 0 ? 3 : 2));
         }
         snapshot.SetTransientCounts(1, 1, 0, 2, sampleCount);
@@ -364,6 +368,8 @@ public sealed class ShooterPureStateSyncCodecTests
                 -2_000 + i,
                 100,
                 -50,
+                100,
+                -50,
                 ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible);
         }
         snapshot.SetTransientCounts(1, 1, 0, 1, count);
@@ -394,7 +400,7 @@ public sealed class ShooterPureStateSyncCodecTests
         snapshot.FrameSamples = new[] { new ShooterPureStateFrameSample(11, 1100L, 0, 1) };
         snapshot.TransformSamples = new[]
         {
-            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Enemy, 1_000, -2_000, 100, -50, 3)
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Enemy, 1_000, -2_000, 100, -50, 100, -50, 3)
         };
         snapshot.SetTransientCounts(1, 1, 0, 1, 1);
 
@@ -415,7 +421,7 @@ public sealed class ShooterPureStateSyncCodecTests
         snapshot.FrameSamples = new[] { new ShooterPureStateFrameSample(19, 19L, 0, 1) };
         snapshot.TransformSamples = new[]
         {
-            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1, 2, 3, 4, 3)
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1, 2, 3, 4, 3, 4, 3)
         };
         snapshot.SetTransientCounts(1, 1, 0, 1, 1);
         var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
@@ -471,7 +477,7 @@ public sealed class ShooterPureStateSyncCodecTests
         snapshot.FrameSamples = new[] { new ShooterPureStateFrameSample(snapshot.Frame + 1, 1L, 0, 1) };
         snapshot.TransformSamples = new[]
         {
-            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1, 2, 3, 4, 3)
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Projectile, 1, 2, 3, 4, 3, 4, 3)
         };
         snapshot.SetTransientCounts(1, 1, 0, 1, 1);
         var payload = ShooterPureStateSyncCodec.Serialize(in snapshot);
@@ -494,7 +500,7 @@ public sealed class ShooterPureStateSyncCodecTests
             snapshot.BaselineHash,
             snapshot.StateHash,
             snapshot.Settings,
-            snapshot.Entities,
+            snapshot.Entities.Select(e => e.ToLegacy()).ToArray(),
             snapshot.VisibilityHints);
         var payload = MemoryPackSerializer.Serialize(legacy);
 
@@ -545,6 +551,8 @@ public sealed class ShooterPureStateSyncCodecTests
                     1,
                     1200,
                     3400,
+                    20,
+                    -10,
                     20,
                     -10,
                     0,
@@ -621,7 +629,7 @@ internal partial struct LegacyPureStateSnapshotPayload
     [MemoryPackOrder(6)] public uint BaselineHash;
     [MemoryPackOrder(7)] public uint StateHash;
     [MemoryPackOrder(8)] public ShooterPureStateSyncSettings Settings;
-    [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities;
+    [MemoryPackOrder(9)] public ShooterLegacyPureStateEntityDelta[] Entities;
     [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
 
     public LegacyPureStateSnapshotPayload(
@@ -634,7 +642,7 @@ internal partial struct LegacyPureStateSnapshotPayload
         uint baselineHash,
         uint stateHash,
         ShooterPureStateSyncSettings settings,
-        ShooterPureStateEntityDelta[] entities,
+        ShooterLegacyPureStateEntityDelta[] entities,
         ShooterPureStateVisibilityHint[] visibilityHints)
     {
         Version = version;

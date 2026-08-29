@@ -129,6 +129,13 @@ namespace AbilityKit.Game.Flow
 
             if (_session == null) return;
 
+            // Lockstep recovery is a production battle lifecycle responsibility. It must keep
+            // progressing in release/headless builds even when the debug GUI feature is absent.
+            if (MobaBattlePauseController.IsRecovering && _ctx != null)
+            {
+                MobaBattlePauseController.TickRecovery(_ctx);
+            }
+
             InvokeMainTickSubFeatures(ctx, deltaTime);
 
             if (_ctx != null)

@@ -515,7 +515,7 @@ namespace AbilityKit.Network.Room
                 snapshot,
                 phase,
                 nextStep,
-                SelectPlayerId(restored.CurrentPlayerId, playerId),
+                restored.CurrentPlayerId,
                 serverNowTicks,
                 restored.Message,
                 restored.JoinKind,

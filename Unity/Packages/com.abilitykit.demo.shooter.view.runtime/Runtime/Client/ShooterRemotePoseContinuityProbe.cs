@@ -37,6 +37,7 @@ namespace AbilityKit.Demo.Shooter.View
         private static readonly object Gate = new();
         private static readonly Dictionary<int, Track> EnemyTracks = new();
         private static Track _ownTrack;
+        private static Track _remotePlayerTrack;
         private static int _controlledPlayerId;
         private static long _frameCount;
         private static long _lastHeartbeatFrame;
@@ -83,6 +84,11 @@ namespace AbilityKit.Demo.Shooter.View
                     {
                         ObserveTrack(ref _ownTrack, transform.X, transform.Y, transform.Key.EntityId, isOwn: true);
                     }
+                    else if (transform.Key.Kind == ShooterViewEntityKind.Player)
+                    {
+                        // 远端玩家：其权威姿态（对方客户端的视角），用于对比本地预测位移 vs 权威位移。
+                        ObserveTrack(ref _remotePlayerTrack, transform.X, transform.Y, transform.Key.EntityId, isOwn: false);
+                    }
                     else if (transform.Key.Kind == ShooterViewEntityKind.Enemy)
                     {
                         if (!EnemyTracks.TryGetValue(transform.Key.EntityId, out var track))
@@ -102,7 +108,7 @@ namespace AbilityKit.Demo.Shooter.View
                     {
                         var summary = Take();
                         LogLine(
-                            $"[PoseContinuity] frames={summary.Frames} ownPos=({_ownTrack.LastX:F2},{_ownTrack.LastY:F2}) ownObs={summary.OwnObservations} ownBack={summary.OwnBackwardJumps} ownMaxBack={summary.OwnMaxBackwardDistance:F3} enemies={summary.EnemiesTracked} enemiesWithBack={summary.EnemiesWithBackwardJumps} enemyBackTotal={summary.EnemyBackwardJumpsTotal} enemyMaxBack={summary.EnemyMaxBackwardDistance:F3} enemySnaps={summary.EnemyForwardSnapsTotal} inputAttempts={_gatewayInputAttempts} inputFailures={_gatewayInputFailures} inputResyncFlags={_gatewayInputResyncFlags}");
+                            $"[PoseContinuity] frames={summary.Frames} ownPos=({_ownTrack.LastX:F2},{_ownTrack.LastY:F2}) remotePlayerPos=({_remotePlayerTrack.LastX:F2},{_remotePlayerTrack.LastY:F2}) ownBack={summary.OwnBackwardJumps} ownMaxBack={summary.OwnMaxBackwardDistance:F3} enemyBackTotal={summary.EnemyBackwardJumpsTotal} inputFailures={_gatewayInputFailures} inputResyncFlags={_gatewayInputResyncFlags}");
                     }
                 }
             }
@@ -173,21 +179,25 @@ namespace AbilityKit.Demo.Shooter.View
 
             lock (Gate)
             {
+                // 时间节流到 ~30Hz，复刻正式宿主的输入采样节奏（不再洪泛）。
+                var nowTicks = System.Diagnostics.Stopwatch.GetTimestamp();
+                if (nowTicks - _lastSustainedInputTimestampTicks < SustainedInputIntervalTicks)
+                {
+                    return;
+                }
+
+                _lastSustainedInputTimestampTicks = nowTicks;
                 _sustainedInputFrame++;
-                // 每渲染帧提交（复刻真实编辑器会话的提交节奏：宿主循环逐帧调用输入泵，
-                // 本机 RTT 下实际到达服务端的速率≈编辑器帧率，会触发服务端限速→
-                // ShouldResync→恢复状态封锁本地输入，即"过一会就不能控制"）。
-                var phase = (_sustainedInputFrame / 90) % 6;
+
+                // 简单"朝 +x 移动 / 停止"循环：便于对比移动结束后的最终落点。
+                var phase = (_sustainedInputFrame / 60) % 4;
                 float moveX;
                 float moveY;
                 switch (phase)
                 {
-                    case 0: moveX = 1f; moveY = 0f; break;
-                    case 1: moveX = 0f; moveY = 1f; break;
-                    case 2: moveX = 0f; moveY = 0f; break;
-                    case 3: moveX = -1f; moveY = 0.6f; break;
-                    case 4: moveX = 0.7f; moveY = -0.7f; break;
-                    default: moveX = 0f; moveY = 0f; break;
+                    case 0:
+                    case 1: moveX = 1f; moveY = 0f; break;   // 移动 2 秒
+                    default: moveX = 0f; moveY = 0f; break;  // 停止 2 秒
                 }
 
                 var angle = _sustainedInputFrame * 0.05f;
@@ -197,10 +207,9 @@ namespace AbilityKit.Demo.Shooter.View
                     moveY,
                     System.MathF.Cos(angle),
                     System.MathF.Sin(angle),
-                    _sustainedInputFrame % 20 < 10,
+                    _sustainedInputFrame % 40 < 10,
                     0);
-                // 走真实网关提交路径（本地预测 + 网关上行 + 服务端准入守卫 + ShouldResync
-                // 恢复联动），复刻正式宿主每渲染帧提交的节奏。
+                // 走真实网关提交路径（本地预测 + 网关上行 + 服务端准入守卫 + ShouldResync 恢复联动）。
                 var context = new ShooterGatewayBattleInputContext(
                     "probe-session",
                     "probe-battle",
@@ -234,6 +243,9 @@ namespace AbilityKit.Demo.Shooter.View
                 "1",
                 System.StringComparison.OrdinalIgnoreCase);
         private static long _sustainedInputFrame;
+        private static long _lastSustainedInputTimestampTicks;
+        private static readonly long SustainedInputIntervalTicks =
+            System.Diagnostics.Stopwatch.Frequency / 30;
         private static long _gatewayInputAttempts;
         private static long _gatewayInputFailures;
         private static long _gatewayInputResyncFlags;

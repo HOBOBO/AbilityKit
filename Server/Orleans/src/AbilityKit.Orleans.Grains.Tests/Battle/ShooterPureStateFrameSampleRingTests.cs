@@ -86,9 +86,9 @@ public sealed class ShooterPureStateFrameSampleRingTests
         const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
         var samples = new[]
         {
-            new ShooterPureStateTransformSample(20, ShooterPackedEntityKinds.Enemy, 15_000, 0, 0, 0, flags),
-            new ShooterPureStateTransformSample(10, ShooterPackedEntityKinds.Enemy, 5_000, 0, 0, 0, flags),
-            new ShooterPureStateTransformSample(30, ShooterPackedEntityKinds.Enemy, 22_000, 0, 0, 0, flags)
+            new ShooterPureStateTransformSample(20, ShooterPackedEntityKinds.Enemy, 15_000, 0, 0, 0, 0, 0, flags),
+            new ShooterPureStateTransformSample(10, ShooterPackedEntityKinds.Enemy, 5_000, 0, 0, 0, 0, 0, flags),
+            new ShooterPureStateTransformSample(30, ShooterPackedEntityKinds.Enemy, 22_000, 0, 0, 0, 0, 0, flags)
         };
         var ring = new ShooterPureStateFrameSampleRing();
         ring.Capture(1, 100L, samples, samples.Length);
@@ -215,8 +215,8 @@ public sealed class ShooterPureStateFrameSampleRingTests
         const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
         var samples = new[]
         {
-            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Player, 1_000, 0, 0, 0, flags),
-            new ShooterPureStateTransformSample(8, ShooterPackedEntityKinds.Enemy, 2_000, 0, 0, 0, flags)
+            new ShooterPureStateTransformSample(7, ShooterPackedEntityKinds.Player, 1_000, 0, 0, 0, 0, 0, flags),
+            new ShooterPureStateTransformSample(8, ShooterPackedEntityKinds.Enemy, 2_000, 0, 0, 0, 0, 0, flags)
         };
         var ring = new ShooterPureStateFrameSampleRing();
         ring.Capture(1, 100L, samples, samples.Length);
@@ -242,7 +242,7 @@ public sealed class ShooterPureStateFrameSampleRingTests
         const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
         var samples = new[]
         {
-            new ShooterPureStateTransformSample(30, ShooterPackedEntityKinds.Enemy, 22_000, 0, 0, 0, flags)
+            new ShooterPureStateTransformSample(30, ShooterPackedEntityKinds.Enemy, 22_000, 0, 0, 0, 0, 0, flags)
         };
         var ring = new ShooterPureStateFrameSampleRing();
         ring.Capture(1, 100L, samples, samples.Length);
@@ -364,8 +364,8 @@ public sealed class ShooterPureStateFrameSampleRingTests
         const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
         return new[]
         {
-            new ShooterPureStateTransformSample(1, ShooterPackedEntityKinds.Player, nearX, 0, 100, 0, flags),
-            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Enemy, 100_000, 0, 0, 0, flags)
+            new ShooterPureStateTransformSample(1, ShooterPackedEntityKinds.Player, nearX, 0, 100, 0, 100, 0, flags),
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Enemy, 100_000, 0, 0, 0, 0, 0, flags)
         };
     }
 
@@ -374,9 +374,9 @@ public sealed class ShooterPureStateFrameSampleRingTests
         const byte flags = ShooterPureStateEntityFlags.Alive | ShooterPureStateEntityFlags.Visible;
         return new[]
         {
-            new ShooterPureStateTransformSample(10, ShooterPackedEntityKinds.Enemy, 5_000, 0, 0, 0, flags),
-            new ShooterPureStateTransformSample(20, ShooterPackedEntityKinds.Enemy, 15_000, 0, 0, 0, flags),
-            new ShooterPureStateTransformSample(30, ShooterPackedEntityKinds.Enemy, 22_000, 0, 0, 0, flags)
+            new ShooterPureStateTransformSample(10, ShooterPackedEntityKinds.Enemy, 5_000, 0, 0, 0, 0, 0, flags),
+            new ShooterPureStateTransformSample(20, ShooterPackedEntityKinds.Enemy, 15_000, 0, 0, 0, 0, 0, flags),
+            new ShooterPureStateTransformSample(30, ShooterPackedEntityKinds.Enemy, 22_000, 0, 0, 0, 0, 0, flags)
         };
     }
 
@@ -398,6 +398,8 @@ public sealed class ShooterPureStateFrameSampleRingTests
                 ShooterPackedEntityKinds.Enemy,
                 quantizedX,
                 i % 1_000,
+                100,
+                0,
                 100,
                 0,
                 flags);
@@ -423,6 +425,8 @@ public sealed class ShooterPureStateFrameSampleRingTests
                 transform.QuantizedY,
                 transform.QuantizedVelocityX,
                 transform.QuantizedVelocityY,
+                transform.QuantizedFacingX,
+                transform.QuantizedFacingY,
                 100,
                 0,
                 0,

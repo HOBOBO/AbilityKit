@@ -92,7 +92,16 @@ public sealed partial class CatchUpRequestHandler : GatewayRequestHandlerBase
 
             if (payload is null)
             {
-                // 历史不完整，客户端应回退到全量快照路径
+                // MOBA 使用锁步帧同步；权威输入历史不连续或请求范围无效时明确拒绝追帧恢复，
+                // 不得回退到 shooter 状态同步使用的全量状态快照。
+                _logger.LogWarning(
+                    "[CatchUpRequestHandler] Frame-sync catch-up rejected. ConnectionId={ConnectionId} AccountId={AccountId} RoomId={RoomId} WorldId={WorldId} FromFrameExclusive={FromFrameExclusive} ToFrameInclusive={ToFrameInclusive}",
+                    context.ConnectionId,
+                    context.AccountId,
+                    wireRequest.RoomId,
+                    wireRequest.WorldId,
+                    wireRequest.FromFrameExclusive,
+                    wireRequest.ToFrameInclusive);
                 return GatewayResponse.Error(request.Seq, GatewayStatusCode.NotFound);
             }
 

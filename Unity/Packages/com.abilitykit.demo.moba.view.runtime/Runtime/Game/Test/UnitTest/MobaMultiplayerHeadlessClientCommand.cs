@@ -53,6 +53,8 @@ namespace AbilityKit.Game.Test.UnitTest
         private const float KnockupObservationThreshold = 0.20f;
         private const float KnockupLandingEpsilon = 0.10f;
         private const float DamageObservationThreshold = 0.01f;
+        private static readonly TimeSpan PauseFreezeObservationDuration = TimeSpan.FromSeconds(1.5);
+        private static readonly TimeSpan PausePredictionSettleDuration = TimeSpan.FromSeconds(0.6);
 
         private static ClientOptions? _options;
         private static CancellationTokenSource? _lifetime;
@@ -105,6 +107,17 @@ namespace AbilityKit.Game.Test.UnitTest
         private static bool _skillTargetPresentedKnockupObserved;
         private static bool _skillTargetLanded;
         private static bool _skillTargetPresentedSampleObserved;
+        private static DateTime _pauseStartedUtc;
+        private static int _pausedAtFrame;
+        private static int _pauseSettleFrame;
+        private static DateTime _pauseSettleSampledAtUtc;
+        private static int _resumedAtFrame;
+        private static bool _pauseResumeValidated;
+        private static DateTime _memberWaitStartedUtc;
+        private static int _memberFrameAtWaitStart;
+        private static bool _coldRecoveryObserved;
+        private static bool _coldInputFreezeObserved;
+        private static DateTime _completionSettleStartedUtc;
 
         static MobaMultiplayerHeadlessClientCommand()
         {
@@ -214,6 +227,17 @@ namespace AbilityKit.Game.Test.UnitTest
             _gatewayDiagnostics ??= entry.Get<IMultiplayerGatewayDiagnostics>();
             var gateway = _gatewayDiagnostics;
 
+            if (_options!.RunMode == ClientRunMode.ColdReconnect &&
+                entry.TryGet(out BattleContext coldObservationContext) &&
+                MobaBattlePauseController.IsRecovering)
+            {
+                _coldRecoveryObserved = true;
+                if (!coldObservationContext.CanSubmitGameplayInput)
+                {
+                    _coldInputFreezeObserved = true;
+                }
+            }
+
             if (_movementStartedUtc != default && entry.TryGet(out BattleContext trajectoryContext))
             {
                 ObserveMovementTrajectory(trajectoryContext);
@@ -241,6 +265,13 @@ namespace AbilityKit.Game.Test.UnitTest
                     }
 
                     if (DateTime.UtcNow - _gatewayConnectedUtc < TimeSpan.FromMilliseconds(750)) return;
+                    if (_options!.RunMode == ClientRunMode.ColdReconnect)
+                    {
+                        SetStage(
+                            ClientStage.WaitingForBattle,
+                            "authenticated after process restart; formal lobby is restoring the active battle");
+                        return;
+                    }
                     BeginRoomOperation();
                     return;
 
@@ -331,6 +362,13 @@ namespace AbilityKit.Game.Test.UnitTest
 
                     _hasOwnerBaseline = true;
                     _battleBaselineFrame = context.LastFrame;
+                    if (_options!.RunMode == ClientRunMode.ColdReconnect)
+                    {
+                        SetStage(
+                            ClientStage.WaitingForColdRecovery,
+                            "restored battle world is observable; validating frame-0 lockstep catch-up");
+                        return;
+                    }
                     SetStage(ClientStage.BattleReady, "battle context and both runtime player actors are observable");
                     return;
 
@@ -438,10 +476,250 @@ namespace AbilityKit.Game.Test.UnitTest
 
                 case ClientStage.WaitingForSkillSettle:
                     if (!ObserveSkillSettle(RequireBattleContext(entry))) return;
+                    if (_options!.RunMode == ClientRunMode.ColdRestartSource)
+                    {
+                        _memberWaitStartedUtc = DateTime.UtcNow;
+                        _memberFrameAtWaitStart = RequireBattleContext(entry).LastFrame;
+                        if (_options.Role == ClientRole.Owner)
+                        {
+                            SetStage(
+                                ClientStage.WaitingForProcessTermination,
+                                "skill settled; coordinator may terminate this Unity process for cold restart");
+                        }
+                        else
+                        {
+                            SetStage(
+                                ClientStage.WaitingForColdReconnect,
+                                "skill settled; staying online while the owner Unity process is restarted");
+                        }
+                        return;
+                    }
+                    if (_options.Role == ClientRole.Owner)
+                    {
+                        SetStage(
+                            ClientStage.PausingClient,
+                            "skill settled; pausing client (closing battle connection) for reconnect demo");
+                    }
+                    else
+                    {
+                        _memberWaitStartedUtc = DateTime.UtcNow;
+                        _memberFrameAtWaitStart = RequireBattleContext(entry).LastFrame;
+                        SetStage(
+                            ClientStage.WaitingForOwnerResume,
+                            "skill settled; waiting for the owner to pause and resume while the server keeps simulating");
+                    }
+                    return;
+
+                case ClientStage.PausingClient:
+                {
+                    var pauseContext = RequireBattleContext(entry);
+                    if (!MobaBattlePauseController.Pause(pauseContext))
+                    {
+                        throw new InvalidOperationException(
+                            "Failed to pause the battle: the battle session is unavailable.");
+                    }
+
+                    _pausedAtFrame = pauseContext.LastFrame;
+                    _pauseStartedUtc = DateTime.UtcNow;
+                    SetStage(
+                        ClientStage.ObservingPause,
+                        $"client paused at frame {_pausedAtFrame}; battle connection closed while the server continues");
+                    return;
+                }
+
+                case ClientStage.ObservingPause:
+                {
+                    var pausedContext = BattleFlowDebugProvider.Current;
+                    if (pausedContext == null)
+                    {
+                        throw new InvalidOperationException("Battle context disappeared while paused.");
+                    }
+
+                    // 冻结的正确断言对象是"服务器确认帧"：帧同步客户端断线后本地理想帧时钟
+                    // 仍会按墙钟自推 LastFrame（用最后输入空转），但确认帧只随服务器帧前进，
+                    // 断开后必然冻结。同时断言输入门保持关闭（无输入离开本客户端）。
+                    if (!TryGetConfirmedFrame(pausedContext, out var confirmedFrame))
+                    {
+                        throw new InvalidOperationException(
+                            "Prediction confirmed-frame stats are unavailable; cannot verify the pause freeze.");
+                    }
+
+                    if (_pauseSettleFrame == 0)
+                    {
+                        if (DateTime.UtcNow - _pauseStartedUtc < PausePredictionSettleDuration) return;
+                        _pauseSettleFrame = confirmedFrame;
+                        _pauseSettleSampledAtUtc = DateTime.UtcNow;
+                        return;
+                    }
+
+                    if (DateTime.UtcNow - _pauseSettleSampledAtUtc < PauseFreezeObservationDuration) return;
+                    if (confirmedFrame != _pauseSettleFrame)
+                    {
+                        throw new InvalidOperationException(
+                            $"Confirmed server frame kept advancing while disconnected: " +
+                            $"{_pauseSettleFrame} -> {confirmedFrame}.");
+                    }
+
+                    if (pausedContext.CanSubmitGameplayInput)
+                    {
+                        throw new InvalidOperationException(
+                            "Gameplay input gate reopened while the client was paused.");
+                    }
+
+                    // 帧同步语义恢复：同一会话重连 + CatchUp 补帧 + 追上后重开输入。
+                    if (!MobaBattlePauseController.Resume(pausedContext))
+                    {
+                        throw new InvalidOperationException("Pause controller rejected the resume request.");
+                    }
+
+                    _pausedAtFrame = _pauseSettleFrame;
+                    SetStage(
+                        ClientStage.WaitingForResume,
+                        $"pause verified (confirmed frame frozen at {_pauseSettleFrame}, input gate closed); " +
+                        "reconnecting the same session and catching up missed frames");
+                    return;
+                }
+
+                case ClientStage.WaitingForResume:
+                {
+                    var recoveryContext = BattleFlowDebugProvider.Current;
+                    if (recoveryContext == null)
+                    {
+                        throw new InvalidOperationException("Battle context disappeared during resume recovery.");
+                    }
+
+                    var recoveryError = MobaBattlePauseController.RecoveryError;
+                    if (!string.IsNullOrEmpty(recoveryError))
+                    {
+                        throw new InvalidOperationException("Frame-sync resume recovery failed: " + recoveryError);
+                    }
+
+                    if (MobaBattlePauseController.IsRecovering ||
+                        !recoveryContext.CanSubmitGameplayInput ||
+                        !TryGetConfirmedFrame(recoveryContext, out var resumedConfirmed) ||
+                        resumedConfirmed <= _pausedAtFrame)
+                    {
+                        return;
+                    }
+
+                    _resumedAtFrame = resumedConfirmed;
+                    _pauseResumeValidated = true;
+                    if (_completionSettleStartedUtc == default)
+                    {
+                        _completionSettleStartedUtc = DateTime.UtcNow;
+                        File.WriteAllText(
+                            GetOwnerResumedSignalPath(),
+                            DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+                        return;
+                    }
+                    if (DateTime.UtcNow - _completionSettleStartedUtc < TimeSpan.FromSeconds(2)) return;
                     Finish(
                         true,
-                        "Formal two-client MOBA flow, movement, skill synchronization, and final convergence passed.");
+                        $"Formal two-client MOBA flow passed including in-battle pause (confirmed frame {_pausedAtFrame}) " +
+                        $"and frame-sync resume via catch-up (confirmed frame {_resumedAtFrame}); " +
+                        "the server kept simulating while disconnected.");
                     return;
+                }
+
+                case ClientStage.WaitingForOwnerResume:
+                {
+                    if (!File.Exists(GetOwnerResumedSignalPath())) return;
+                    var memberContext = RequireBattleContext(entry);
+                    // Owner 断线期间 member 的帧仍在前进——服务器战斗没有因一端断线而停摆。
+                    if (memberContext.LastFrame <= _memberFrameAtWaitStart)
+                    {
+                        throw new InvalidOperationException(
+                            $"Member frame did not advance while the owner was paused: " +
+                            $"{_memberFrameAtWaitStart} -> {memberContext.LastFrame}.");
+                    }
+
+                    _pauseResumeValidated = true;
+                    if (_completionSettleStartedUtc == default)
+                    {
+                        _completionSettleStartedUtc = DateTime.UtcNow;
+                        return;
+                    }
+                    if (DateTime.UtcNow - _completionSettleStartedUtc < TimeSpan.FromSeconds(2)) return;
+                    Finish(
+                        true,
+                        $"Member observed the owner pause and rejoin; member frame kept advancing " +
+                        $"({_memberFrameAtWaitStart} -> {memberContext.LastFrame}) while the owner was disconnected.");
+                    return;
+                }
+
+                case ClientStage.WaitingForProcessTermination:
+                    return;
+
+                case ClientStage.WaitingForColdReconnect:
+                {
+                    if (!File.Exists(_options!.ColdReconnectSignalPath)) return;
+                    var memberContext = RequireBattleContext(entry);
+                    if (memberContext.LastFrame <= _memberFrameAtWaitStart)
+                    {
+                        throw new InvalidOperationException(
+                            $"Member frame did not advance during owner process restart: " +
+                            $"{_memberFrameAtWaitStart} -> {memberContext.LastFrame}.");
+                    }
+
+                    _pauseResumeValidated = true;
+                    if (_completionSettleStartedUtc == default)
+                    {
+                        _completionSettleStartedUtc = DateTime.UtcNow;
+                        return;
+                    }
+                    if (DateTime.UtcNow - _completionSettleStartedUtc < TimeSpan.FromSeconds(2)) return;
+                    Finish(
+                        true,
+                        $"Member remained online while owner process restarted; frame advanced " +
+                        $"({_memberFrameAtWaitStart} -> {memberContext.LastFrame}).");
+                    return;
+                }
+
+                case ClientStage.WaitingForColdRecovery:
+                {
+                    var coldContext = RequireBattleContext(entry);
+                    var recoveryError = MobaBattlePauseController.RecoveryError;
+                    if (!string.IsNullOrEmpty(recoveryError))
+                    {
+                        throw new InvalidOperationException("Cold-start frame-sync recovery failed: " + recoveryError);
+                    }
+
+                    if (MobaBattlePauseController.IsRecovering ||
+                        !MobaBattlePauseController.CatchUpRequestCompleted ||
+                        MobaBattlePauseController.CatchUpPayloadCount < 1 ||
+                        MobaBattlePauseController.CatchUpFrameCount < 1 ||
+                        MobaBattlePauseController.PausedAtConfirmedFrame != -1 ||
+                        coldContext.PredictionStats?.IsReplaying == true ||
+                        !coldContext.CanSubmitGameplayInput ||
+                        !TryGetConfirmedFrame(coldContext, out var coldConfirmed) ||
+                        coldConfirmed < MobaBattlePauseController.RecoveryTargetFrame)
+                    {
+                        return;
+                    }
+
+                    if (!_coldRecoveryObserved || !_coldInputFreezeObserved)
+                    {
+                        throw new InvalidOperationException(
+                            "Cold recovery completed without observing the production input-freeze/catch-up phase.");
+                    }
+                    _pausedAtFrame = -1;
+                    _resumedAtFrame = coldConfirmed;
+                    _pauseResumeValidated = true;
+                    if (_completionSettleStartedUtc == default)
+                    {
+                        _completionSettleStartedUtc = DateTime.UtcNow;
+                        File.WriteAllText(
+                            _options.ColdReconnectSignalPath,
+                            DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+                        return;
+                    }
+                    if (DateTime.UtcNow - _completionSettleStartedUtc < TimeSpan.FromSeconds(2)) return;
+                    Finish(
+                        true,
+                        $"Cold-start reconnect replayed {MobaBattlePauseController.CatchUpFrameCount} authoritative " +
+                        $"lockstep frames from source -1 and reached confirmed frame {coldConfirmed}.");
+                    return;
+                }
 
                 case ClientStage.Passed:
                 case ClientStage.Failed:
@@ -470,7 +748,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     _options.Region,
                     _options.ServerId,
                     TimeSpan.FromSeconds(_options.RequestTimeoutSeconds),
-                    suppressAutomaticLobbyActions: true);
+                    suppressAutomaticLobbyActions: _options.RunMode != ClientRunMode.ColdReconnect);
                 SetStage(ClientStage.StartingFromStarter, "Starter is logging in and launching MOBA");
                 return;
             }
@@ -528,6 +806,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             var loadout = FormalLobbyFeature.ResolveAvailableDefaultLoadout(
                 _gatewayConfig!.BuildDefaultLoadout(),
+                _gatewayConfig.BuildSecondPlayerLoadout(),
                 _controller!.CurrentSnapshot,
                 _controller.LocalPlayerId);
             await _controller.PickHeroAsync(loadout, _lifetime!.Token);
@@ -844,6 +1123,17 @@ namespace AbilityKit.Game.Test.UnitTest
                 : _options.MemberObservedSignalPath;
         }
 
+        /// <summary>Owner 暂停后成功重进战斗的信号文件：双方都知道 OwnerObservedSignalPath，无需新增命令行参数。</summary>
+        private static string GetOwnerResumedSignalPath()
+        {
+            if (_options == null)
+            {
+                throw new InvalidOperationException("Headless client options are unavailable.");
+            }
+
+            return _options.OwnerObservedSignalPath + ".ownerresumed";
+        }
+
         private static bool TryGetOwnerPosition(BattleContext context, out Vector3 position, out int actorCount)
         {
             return TryGetOwnerPositions(
@@ -851,6 +1141,23 @@ namespace AbilityKit.Game.Test.UnitTest
                 out _,
                 out position,
                 out actorCount);
+        }
+
+        private static bool TryGetConfirmedFrame(BattleContext context, out int confirmedFrame)
+        {
+            confirmedFrame = 0;
+            var prediction = context.PredictionStats;
+            if (prediction == null ||
+                !prediction.TryGetFrames(
+                    new WorldId(context.Plan.World.WorldId),
+                    out var confirmed,
+                    out _))
+            {
+                return false;
+            }
+
+            confirmedFrame = confirmed.Value;
+            return true;
         }
 
         private static bool TryGetOwnerRuntimePosition(
@@ -1027,6 +1334,7 @@ namespace AbilityKit.Game.Test.UnitTest
             {
                 timestampUtc = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
                 role = _options?.Role.ToString().ToLowerInvariant() ?? string.Empty,
+                runMode = _options?.RunMode.ToString() ?? string.Empty,
                 accountId = _options?.AccountId ?? string.Empty,
                 stage = _stage.ToString(),
                 detail = _stageDetail,
@@ -1157,9 +1465,23 @@ namespace AbilityKit.Game.Test.UnitTest
             }
             state.actors = CaptureActors(context, snapshot);
             state.syncMode = context?.Plan.Sync.SyncMode.ToString() ?? string.Empty;
+            state.recoveryPhase = MobaBattlePauseController.RecoveryPhaseName;
+            state.recoveryTransportAuthenticated = MobaBattlePauseController.RecoveryTransportAuthenticated;
+            state.recoveryTargetFrame = MobaBattlePauseController.RecoveryTargetFrame;
+            state.recoveryLatestLiveFrame = MobaBattlePauseController.LatestLiveFrame;
+            state.catchUpRequestStarted = MobaBattlePauseController.CatchUpRequestStarted;
+            state.catchUpRequestCompleted = MobaBattlePauseController.CatchUpRequestCompleted;
+            state.catchUpPayloadCount = MobaBattlePauseController.CatchUpPayloadCount;
+            state.catchUpFrameCount = MobaBattlePauseController.CatchUpFrameCount;
+            state.recoveryError = MobaBattlePauseController.RecoveryError ?? string.Empty;
+            state.coldRecoveryObserved = _coldRecoveryObserved;
+            state.coldInputFreezeObserved = _coldInputFreezeObserved;
             state.movementSampleCount = _movementSampleCount;
             state.maxBackwardMovement = _maxBackwardMovement;
             state.skillValidated = _skillValidated;
+            state.pauseResumeValidated = _pauseResumeValidated;
+            state.pausedAtFrame = _pausedAtFrame;
+            state.resumedAtFrame = _resumedAtFrame;
             state.maxSkillDisplacement = _maxSkillDisplacement;
             state.skillStableFrameCount = _skillStableFrameCount;
             state.skillTargetActorId = _skillTargetActorId;
@@ -1230,6 +1552,9 @@ namespace AbilityKit.Game.Test.UnitTest
                 {
                     accountId = player.AccountId,
                     playerId = playerId,
+                    heroId = player.HeroId,
+                    teamId = player.TeamId,
+                    joinOrdinal = player.JoinOrdinal,
                     ready = player.LobbyReady,
                     online = player.IsOnline
                 };
@@ -1289,7 +1614,11 @@ namespace AbilityKit.Game.Test.UnitTest
                    $"pushApplied={_pushSynchronizer?.AppliedPushCount ?? 0L},refreshFallbacks={_pushSynchronizer?.RefreshFallbackCount ?? 0L}," +
                    $"battleId={snapshot?.BattleId ?? "n/a"},worldId={snapshot?.WorldId ?? 0UL}," +
                    $"battlePhase={_flow?.CurrentBattlePhase.ToString() ?? "n/a"},frame={context?.LastFrame ?? 0}," +
-                   $"roomError={_controller?.LastError ?? "n/a"}";
+                   $"recovery={MobaBattlePauseController.RecoveryPhaseName},auth={MobaBattlePauseController.RecoveryTransportAuthenticated}," +
+                   $"catchUpStarted={MobaBattlePauseController.CatchUpRequestStarted},catchUpCompleted={MobaBattlePauseController.CatchUpRequestCompleted}," +
+                   $"catchUpTarget={MobaBattlePauseController.RecoveryTargetFrame},latestLive={MobaBattlePauseController.LatestLiveFrame}," +
+                   $"catchUpPayloads={MobaBattlePauseController.CatchUpPayloadCount},catchUpFrames={MobaBattlePauseController.CatchUpFrameCount}," +
+                   $"recoveryError={MobaBattlePauseController.RecoveryError ?? "n/a"},roomError={_controller?.LastError ?? "n/a"}";
         }
 
         private static void Finish(bool success, string message)
@@ -1402,6 +1731,17 @@ namespace AbilityKit.Game.Test.UnitTest
             _skillLastObservedFrame = 0;
             _skillStableFrameCount = 0;
             _hasSkillLastPosition = false;
+            _pauseStartedUtc = default;
+            _pausedAtFrame = 0;
+            _pauseSettleFrame = 0;
+            _pauseSettleSampledAtUtc = default;
+            _resumedAtFrame = 0;
+            _pauseResumeValidated = false;
+            _memberWaitStartedUtc = default;
+            _memberFrameAtWaitStart = 0;
+            _coldRecoveryObserved = false;
+            _coldInputFreezeObserved = false;
+            _completionSettleStartedUtc = default;
         }
 
         private enum ClientStage
@@ -1426,7 +1766,21 @@ namespace AbilityKit.Game.Test.UnitTest
             ObservingSkill = 17,
             WaitingForSkillSettle = 18,
             Passed = 19,
-            Failed = 20
+            Failed = 20,
+            PausingClient = 21,
+            ObservingPause = 22,
+            WaitingForResume = 23,
+            WaitingForOwnerResume = 24,
+            WaitingForProcessTermination = 25,
+            WaitingForColdReconnect = 26,
+            WaitingForColdRecovery = 27
+        }
+
+        private enum ClientRunMode
+        {
+            HotResume,
+            ColdRestartSource,
+            ColdReconnect
         }
 
         private enum ClientRole
@@ -1439,6 +1793,7 @@ namespace AbilityKit.Game.Test.UnitTest
         private sealed class ClientOptions
         {
             public ClientRole Role;
+            public ClientRunMode RunMode;
             public string Host = "127.0.0.1";
             public int Port = 4000;
             public string Region = "dev";
@@ -1452,6 +1807,7 @@ namespace AbilityKit.Game.Test.UnitTest
             public string OwnerObservedSignalPath = string.Empty;
             public string MemberObservedSignalPath = string.Empty;
             public string SkillSignalPath = string.Empty;
+            public string ColdReconnectSignalPath = string.Empty;
             public string StatePath = string.Empty;
             public string EventLogPath = string.Empty;
             public string ResultPath = string.Empty;
@@ -1466,9 +1822,17 @@ namespace AbilityKit.Game.Test.UnitTest
                     throw new ArgumentException("-mobaHeadlessRole must be owner or member.");
                 }
 
+                var runModeText = Value(args, "-mobaHeadlessRunMode") ?? "hotResume";
+                if (!Enum.TryParse(runModeText, ignoreCase: true, out ClientRunMode runMode))
+                {
+                    throw new ArgumentException(
+                        "-mobaHeadlessRunMode must be hotResume, coldRestartSource, or coldReconnect.");
+                }
+
                 var options = new ClientOptions
                 {
                     Role = role,
+                    RunMode = runMode,
                     Host = Value(args, "-gatewayHost") ?? "127.0.0.1",
                     Port = IntValue(args, "-gatewayPort", 4000),
                     Region = Value(args, "-gatewayRegion") ?? "dev",
@@ -1481,6 +1845,7 @@ namespace AbilityKit.Game.Test.UnitTest
                     OwnerObservedSignalPath = FullPath(Required(args, "-mobaHeadlessOwnerObservedSignal")),
                     MemberObservedSignalPath = FullPath(Required(args, "-mobaHeadlessMemberObservedSignal")),
                     SkillSignalPath = FullPath(Required(args, "-mobaHeadlessSkillSignal")),
+                    ColdReconnectSignalPath = FullPath(Required(args, "-mobaHeadlessColdReconnectSignal")),
                     StatePath = FullPath(Required(args, "-mobaHeadlessState")),
                     EventLogPath = FullPath(Required(args, "-mobaHeadlessEvents")),
                     ResultPath = FullPath(Required(args, "-mobaHeadlessResult")),
@@ -1537,6 +1902,7 @@ namespace AbilityKit.Game.Test.UnitTest
         {
             public string timestampUtc = string.Empty;
             public string role = string.Empty;
+            public string runMode = string.Empty;
             public string accountId = string.Empty;
             public string stage = string.Empty;
             public string detail = string.Empty;
@@ -1589,6 +1955,17 @@ namespace AbilityKit.Game.Test.UnitTest
             public int frame;
             public int confirmedFrame;
             public int predictedFrame;
+            public string recoveryPhase = string.Empty;
+            public bool recoveryTransportAuthenticated;
+            public int recoveryTargetFrame;
+            public int recoveryLatestLiveFrame;
+            public bool catchUpRequestStarted;
+            public bool catchUpRequestCompleted;
+            public int catchUpPayloadCount;
+            public int catchUpFrameCount;
+            public string recoveryError = string.Empty;
+            public bool coldRecoveryObserved;
+            public bool coldInputFreezeObserved;
             public string localPlayerId = string.Empty;
             public int localActorId;
             public bool inputFeatureAttached;
@@ -1621,6 +1998,9 @@ namespace AbilityKit.Game.Test.UnitTest
             public float maxBackwardMovement;
             public bool skillValidated;
             public float maxSkillDisplacement;
+            public bool pauseResumeValidated;
+            public int pausedAtFrame;
+            public int resumedAtFrame;
             public int skillStableFrameCount;
             public int skillTargetActorId;
             public float skillTargetBaselineHp;
@@ -1640,6 +2020,9 @@ namespace AbilityKit.Game.Test.UnitTest
             public string accountId = string.Empty;
             public string playerId = string.Empty;
             public int actorId;
+            public int heroId;
+            public int teamId;
+            public long joinOrdinal;
             public bool ready;
             public bool online;
             public bool hasPosition;

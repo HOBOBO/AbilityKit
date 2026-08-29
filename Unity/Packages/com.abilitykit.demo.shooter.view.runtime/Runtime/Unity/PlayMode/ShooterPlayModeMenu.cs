@@ -18,7 +18,7 @@ namespace AbilityKit.Demo.Shooter.View.PlayMode
         private const string DefaultTemplateId = ShooterRoomLaunchSpec.DefaultSyncTemplateId;
         private static readonly string[] EnemyBudgetLabels =
         {
-            "Playable 512",
+            "Playable 1024",
             "Stress 2k",
             "Extreme 8k"
         };

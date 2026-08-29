@@ -11,7 +11,7 @@ namespace AbilityKit.Game.Test.UnitTest
     public sealed class BattleInputRuntimeTests
     {
         [Test]
-        public void LocalActorResolver_UsesCachedActorWithoutMapping()
+        public void LocalActorResolver_UsesCacheWhenAuthoritativeMappingIsUnavailable()
         {
             var port = new FakeActorResolutionPort
             {
@@ -23,7 +23,25 @@ namespace AbilityKit.Game.Test.UnitTest
 
             Assert.That(resolved, Is.True);
             Assert.That(actorId, Is.EqualTo(41));
-            Assert.That(port.MapCount, Is.Zero);
+            Assert.That(port.MapCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void LocalActorResolver_AuthoritativeMappingRepairsForeignCachedActor()
+        {
+            var port = new FakeActorResolutionPort
+            {
+                CachedActorId = 41,
+                MappedActorId = 73,
+            };
+            var resolver = new BattleLocalActorResolver(port);
+
+            var resolved = resolver.TryResolveActorId(out var actorId);
+
+            Assert.That(resolved, Is.True);
+            Assert.That(actorId, Is.EqualTo(73));
+            Assert.That(port.CachedActorId, Is.EqualTo(73));
+            Assert.That(port.MapCount, Is.EqualTo(1));
         }
 
         [Test]

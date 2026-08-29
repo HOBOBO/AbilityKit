@@ -170,7 +170,11 @@ namespace AbilityKit.Game.Flow
             }
 
             var playerIdValue = ResolveLocalControlPlayerId();
-            if (string.IsNullOrEmpty(playerIdValue)) playerIdValue = "p1";
+            if (string.IsNullOrEmpty(playerIdValue))
+            {
+                return false;
+            }
+
             return playerActors.TryGetActorId(new PlayerId(playerIdValue), out actorId) && actorId > 0;
         }
 

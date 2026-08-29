@@ -17,7 +17,8 @@ public sealed class ShooterStateSyncWireCompatibilityTests
     [InlineData(ShooterStateSyncPayloadKind.PureState, 2, ShooterStateSyncCompatibilityStatus.Compatible)]
     [InlineData(ShooterStateSyncPayloadKind.PureState, 0, ShooterStateSyncCompatibilityStatus.UnsupportedOldVersion)]
     [InlineData(ShooterStateSyncPayloadKind.PureState, 3, ShooterStateSyncCompatibilityStatus.Compatible)]
-    [InlineData(ShooterStateSyncPayloadKind.PureState, 4, ShooterStateSyncCompatibilityStatus.UnsupportedFutureVersion)]
+    [InlineData(ShooterStateSyncPayloadKind.PureState, 4, ShooterStateSyncCompatibilityStatus.Compatible)]
+    [InlineData(ShooterStateSyncPayloadKind.PureState, 5, ShooterStateSyncCompatibilityStatus.UnsupportedFutureVersion)]
     public void CompatibilityPolicyClassifiesSupportedAndUnsupportedVersions(
         ShooterStateSyncPayloadKind payloadKind,
         int version,
@@ -117,6 +118,8 @@ public sealed class ShooterStateSyncWireCompatibilityTests
                     2000,
                     30,
                     40,
+                    50,
+                    60,
                     0,
                     0,
                     75,

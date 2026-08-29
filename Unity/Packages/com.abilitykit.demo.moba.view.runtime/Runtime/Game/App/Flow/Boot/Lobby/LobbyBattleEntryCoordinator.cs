@@ -55,6 +55,7 @@ namespace AbilityKit.Game.Flow
             GatewayMultiplayerRoomSession session,
             DemoMultiplayerLaunchRequest launchRequest,
             uint localPlayerId,
+            bool coldStartReconnect,
             Action<IBattleBootstrapper> enter)
         {
             if (selection == null) throw new ArgumentNullException(nameof(selection));
@@ -77,7 +78,8 @@ namespace AbilityKit.Game.Flow
                     session,
                     launchRequest,
                     snapshot.Players,
-                    snapshot.SyncCapabilities));
+                    snapshot.SyncCapabilities,
+                    coldStartReconnect));
             });
         }
     }

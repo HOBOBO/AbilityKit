@@ -30,6 +30,8 @@ namespace AbilityKit.Game.Flow
         private readonly IReadOnlyList<MultiplayerRoomPlayerSnapshot> _players;
         private readonly RoomGatewayNetworkSyncCapabilities _syncCapabilities;
 
+        public bool ColdStartReconnect { get; }
+
         public ExistingGatewayRoomBattleBootstrapper(
             IBattleBootstrapper inner,
             string sessionToken,
@@ -41,7 +43,8 @@ namespace AbilityKit.Game.Flow
             IMobaReliableBattleEventCheckpointStore checkpointStore = null,
             DemoMultiplayerLaunchRequest launchRequest = null,
             IReadOnlyList<MultiplayerRoomPlayerSnapshot> players = null,
-            RoomGatewayNetworkSyncCapabilities syncCapabilities = null)
+            RoomGatewayNetworkSyncCapabilities syncCapabilities = null,
+            bool coldStartReconnect = false)
         {
             if (inner == null) throw new ArgumentNullException(nameof(inner));
 
@@ -67,6 +70,7 @@ namespace AbilityKit.Game.Flow
                 : _sourcePlan.Gateway.ServerId;
             _players = players;
             _syncCapabilities = syncCapabilities;
+            ColdStartReconnect = coldStartReconnect;
         }
 
         public bool IsAuthenticated => !string.IsNullOrWhiteSpace(_sessionToken);

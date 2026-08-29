@@ -398,6 +398,10 @@ namespace AbilityKit.Game
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (_entry == null || !_entry.DebugEnabled) return;
 
+            // 英雄替换、冷却重置、生成单位等均为本地单人验收命令。
+            // 多人 Gateway 模块存在时不创建控制器也不绘制窗口，避免对权威战斗产生误导性入口。
+            if (_entry.TryGet(out MultiplayerRoomFlowController _)) return;
+
             _entry.TryGet(out IFlowCommandSink sink);
             var inBattle = sink != null && sink.CurrentRootPhase == MobaRootState.Battle;
             EnsureLocalDebugController();

@@ -161,6 +161,8 @@ public sealed class ShooterRemotePureStateCompositionTests
                     0,
                     0,
                     0,
+                    0,
+                    0,
                     1000,
                     0,
                     0,

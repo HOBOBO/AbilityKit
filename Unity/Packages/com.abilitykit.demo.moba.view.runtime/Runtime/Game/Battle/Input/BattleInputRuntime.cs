@@ -26,27 +26,29 @@ namespace AbilityKit.Game.Flow
 
         internal bool TryResolveActorId(out int actorId)
         {
-            actorId = _port.CachedActorId;
-            if (actorId > 0) return true;
-            if (!_port.TryResolveMappedActorId(out actorId) || actorId <= 0) return false;
+            if (_port.TryResolveMappedActorId(out actorId) && actorId > 0)
+            {
+                // The player-to-actor map is authoritative. A snapshot/HUD callback may have
+                // populated the cache before actor ownership was available, so always repair it.
+                _port.CachedActorId = actorId;
+                return true;
+            }
 
-            _port.CachedActorId = actorId;
-            return true;
+            actorId = _port.CachedActorId;
+            return actorId > 0;
         }
 
         internal bool TryResolveWorldPosition(out Vector3 position)
         {
-            if (_port.TryResolveActorWorldPosition(_port.CachedActorId, out position)) return true;
-            if (!_port.TryResolveMappedActorId(out var actorId) ||
-                actorId <= 0 ||
-                !_port.TryResolveActorWorldPosition(actorId, out position))
+            if (_port.TryResolveMappedActorId(out var mappedActorId) && mappedActorId > 0)
             {
-                position = default;
-                return false;
+                _port.CachedActorId = mappedActorId;
+                return _port.TryResolveActorWorldPosition(mappedActorId, out position);
             }
 
-            _port.CachedActorId = actorId;
-            return true;
+            if (_port.TryResolveActorWorldPosition(_port.CachedActorId, out position)) return true;
+            position = default;
+            return false;
         }
     }
 

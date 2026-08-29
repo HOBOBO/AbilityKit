@@ -3,9 +3,81 @@ schemaVersion: 1
 catalogId: abilitykit.moba.battle
 projectId: abilitykit.moba
 domain: battle
-revision: 2
+revision: 3
 defaultCodec: memorypack
 messages:
+  - id: frame-sync-submit-input.request
+    opCode: 2001
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireSubmitFrameInputReq
+    codec: custom-binary
+    reliability: realtime
+    response: frame-sync-submit-input.response
+    maximumPayloadBytes: 262144
+    captureSampleRate: 0.1
+  - id: frame-sync-submit-input.response
+    opCode: 2001
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireSubmitFrameInputRes
+    codec: custom-binary
+    maximumPayloadBytes: 16384
+    captureSampleRate: 0.1
+  - id: frame-sync-catch-up.request
+    opCode: 2002
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpRequest
+    codec: custom-binary
+    maximumPayloadBytes: 4096
+  - id: frame-sync-metrics.request
+    opCode: 2003
+    direction: c2s
+    kind: request
+    payloadType: System.Byte[]
+    codec: custom-binary
+    response: frame-sync-metrics.response
+    maximumPayloadBytes: 4096
+  - id: frame-sync-metrics.response
+    opCode: 2003
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireFrameSyncMetrics
+    codec: custom-binary
+    maximumPayloadBytes: 65536
+  - id: frame-sync-spectator-subscribe.request
+    opCode: 2004
+    direction: c2s
+    kind: request
+    payloadType: System.UInt64
+    codec: custom-binary
+    response: frame-sync-spectator-subscribe.response
+    maximumPayloadBytes: 4096
+  - id: frame-sync-spectator-subscribe.response
+    opCode: 2004
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireSpectatorSubscribeRes
+    codec: custom-binary
+    maximumPayloadBytes: 16384
+  - id: frame-sync-frame.push
+    opCode: 9001
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireFramePushedPush
+    codec: custom-binary
+    reliability: realtime
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.05
+  - id: frame-sync-catch-up.push
+    opCode: 9010
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Moba.Generated.GatewayFrameSync.WireCatchUpPayloadPush
+    codec: custom-binary
+    maximumPayloadBytes: 4194304
+    captureSampleRate: 0.25
   - id: move-input.event
     opCode: 3003
     direction: c2s

@@ -122,6 +122,7 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal(30, mobaFrameRoute.TickRate);
         Assert.Equal("battle-1", mobaFrameRoute.BattleId);
         Assert.Equal("frame-sync-authority", mobaFrameRoute.SyncTemplateId);
+        Assert.True(mobaFrameRoute.EnableRecording);
         Assert.Null(mobaStateRoute);
         Assert.True(mobaStateStartRoute.RequiresBattleRuntime);
         Assert.True(mobaStateStartRoute.IsUnsupportedTemplate);

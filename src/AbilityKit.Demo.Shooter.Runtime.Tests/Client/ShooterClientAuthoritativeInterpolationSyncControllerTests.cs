@@ -182,6 +182,8 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
                     1,
                     (int)(x * 1000f),
                     (int)(y * 1000f),
+                    0,
+                    0,
                     (int)(aimX * 1000f),
                     (int)(aimY * 1000f),
                     hp,
@@ -239,6 +241,8 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
                     deltaKind ?? (isFull ? ShooterPureStateDeltaKinds.Spawn : ShooterPureStateDeltaKinds.Update),
                     entityId,
                     (int)(x * 1000f),
+                    0,
+                    0,
                     0,
                     1000,
                     0,
@@ -741,8 +745,8 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         };
         var transforms = new[]
         {
-            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 1000, 0, 1000, 0, flags),
-            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 1000, 0, flags)
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 1000, 0, 0, 0, 1000, 0, flags),
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 0, 0, 1000, 0, flags)
         };
 
         var result = controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
@@ -785,7 +789,7 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         var frames = new[] { new ShooterPureStateFrameSample(2, 200L, 0, 1) };
         var transforms = new[]
         {
-            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 1000, 0, flags)
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 0, 0, 1000, 0, flags)
         };
 
         controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
@@ -827,8 +831,8 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         };
         var transforms = new[]
         {
-            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 1000, 0, 1000, 0, flags),
-            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 1000, 0, flags)
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 1000, 0, 0, 0, 1000, 0, flags),
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 2000, 0, 0, 0, 1000, 0, flags)
         };
 
         controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
@@ -866,7 +870,7 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
         var frames = new[] { new ShooterPureStateFrameSample(4, 400L, 0, 1) };
         var transforms = new[]
         {
-            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 4000, 0, 1000, 0, flags)
+            new ShooterPureStateTransformSample(2, ShooterPackedEntityKinds.Player, 4000, 0, 0, 0, 1000, 0, flags)
         };
 
         controller.BufferRemoteSnapshot(PureStateRemotePlayerSnapshot(
@@ -1259,7 +1263,7 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
     }
 
     [Fact]
-    public void PackedAndPureStateSnapshotsApplyEquivalentLocalAuthority()
+    public void PackedAndPureStateSnapshotsApplyEquivalentNonPositionalAuthority()
     {
         var packedRuntime = new ShooterBattleRuntimePort();
         var pureRuntime = new ShooterBattleRuntimePort();
@@ -1273,8 +1277,7 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
 
         Assert.True(packedRuntime.TryGetPlayer(1, out var packed));
         Assert.True(pureRuntime.TryGetPlayer(1, out var pure));
-        Assert.Equal(packed.X, pure.X, 3);
-        Assert.Equal(packed.Y, pure.Y, 3);
+        // 位置纠偏策略按路径不同（打包精确跟踪、纯状态信任本地），因此只断言非位置字段一致。
         Assert.Equal(packed.AimX, pure.AimX, 3);
         Assert.Equal(packed.AimY, pure.AimY, 3);
         Assert.Equal(packed.Hp, pure.Hp);
@@ -1311,7 +1314,7 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
             fixedDeltaTime: 1f / 30f,
             correctionBudget: 0.25f,
             forceSnap: false,
-            localPredictionTolerance: 0.5f,
+            localPredictionTolerance: 2.5f,
             snapDistance: 2.5f,
             out var resolvedX,
             out var resolvedY);
@@ -1322,38 +1325,10 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
     }
 
     [Fact]
-    public void SmallErrorKeepsLocalPrediction()
+    public void BelowSnapThresholdKeepsLocalPrediction()
     {
-        // 误差在本地预测保留阈值（0.5）内：不回拉，本地位置胜出。
-        var applied = ShooterClientAuthoritativeInterpolationSyncController.ResolveControlledPlayerPosition(
-            currentX: 1f,
-            currentY: 0f,
-            replayedAuthorityX: 0.6f,
-            replayedAuthorityY: 0f,
-            currentFrame: 1000,
-            authorityFrame: 998,
-            replayedFrames: 0,
-            fixedDeltaTime: 1f / 30f,
-            correctionBudget: 0.25f,
-            forceSnap: false,
-            localPredictionTolerance: 0.5f,
-            snapDistance: 2.5f,
-            out var resolvedX,
-            out var resolvedY);
-
-        Assert.Equal(1f, resolvedX, 3);
-        Assert.Equal(0f, resolvedY, 3);
-        Assert.Equal(0f, applied, 3);
-    }
-
-    [Fact]
-    public void FrameGapAloneNeverAbsorbsPositionalDrift()
-    {
-        // 复刻两端长期分歧的回归场景：客户端帧号领先权威 500 帧（加入锚点+管线延迟
-        // 的常态），但没有任何未确认输入在线（服务端收到了全部输入，或丢弃了造成
-        // 漂移的那部分）。1.5 单位的误差必须被视为漂移并按预算修正（每次 0.25 朝目标
-        // 收敛），而不是被"帧龄容差"吸收——旧实现用帧号差当合法提前量，容差高达
-        // 20 单位，漂移永久不可见。
+        // 纯状态表现路径：低于快照阈值（2.5）一律信任本地预测、不回拉（另一端按权威
+        // 自然追上来重合）。即使帧号差距巨大（重连后帧号差 500）也不影响——本地位置胜出。
         var applied = ShooterClientAuthoritativeInterpolationSyncController.ResolveControlledPlayerPosition(
             currentX: 2f,
             currentY: 0f,
@@ -1365,23 +1340,22 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
             fixedDeltaTime: 1f / 30f,
             correctionBudget: 0.25f,
             forceSnap: false,
-            localPredictionTolerance: 0.5f,
+            localPredictionTolerance: 2.5f,
             snapDistance: 2.5f,
             out var resolvedX,
             out var resolvedY);
 
-        Assert.Equal(0.25f, applied, 3);
-        Assert.Equal(1.75f, resolvedX, 3);
+        Assert.Equal(2f, resolvedX, 3);
         Assert.Equal(0f, resolvedY, 3);
+        Assert.Equal(0f, applied, 3);
     }
 
     [Fact]
-    public void InFlightInputsDoNotSuppressDriftCorrection()
+    public void InFlightInputsDoNotChangeTrustedLocalPrediction()
     {
-        // 在线未确认输入已被重放到目标上：目标=权威+在线输入。本地预测与目标的任何
-        // 超出容差的差值都是漂移，按预算修正——在线输入数量本身不提供额外豁免。
+        // 在线未确认输入数量不改变"信任本地"：低于快照阈值的误差仍本地胜出。
         var applied = ShooterClientAuthoritativeInterpolationSyncController.ResolveControlledPlayerPosition(
-            currentX: 1.2f,
+            currentX: 2f,
             currentY: 0f,
             replayedAuthorityX: 0.5f,
             replayedAuthorityY: 0f,
@@ -1391,13 +1365,13 @@ public sealed class ShooterClientAuthoritativeInterpolationSyncControllerTests
             fixedDeltaTime: 1f / 30f,
             correctionBudget: 0.25f,
             forceSnap: false,
-            localPredictionTolerance: 0.5f,
+            localPredictionTolerance: 2.5f,
             snapDistance: 2.5f,
             out var resolvedX,
             out _);
 
-        Assert.Equal(0.25f, applied, 3);
-        Assert.Equal(0.95f, resolvedX, 3);
+        Assert.Equal(2f, resolvedX, 3);
+        Assert.Equal(0f, applied, 3);
     }
 
     private static float TransformX(in ShooterSnapshotViewBatch batch, ShooterViewEntityKey key)

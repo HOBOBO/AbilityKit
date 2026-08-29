@@ -102,10 +102,12 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(6)] public int QuantizedY;
         [MemoryPackOrder(7)] public int QuantizedVelocityX;
         [MemoryPackOrder(8)] public int QuantizedVelocityY;
-        [MemoryPackOrder(9)] public int Hp;
-        [MemoryPackOrder(10)] public int Score;
-        [MemoryPackOrder(11)] public int RemainingFrames;
-        [MemoryPackOrder(12)] public byte Flags;
+        [MemoryPackOrder(9)] public int QuantizedFacingX;
+        [MemoryPackOrder(10)] public int QuantizedFacingY;
+        [MemoryPackOrder(11)] public int Hp;
+        [MemoryPackOrder(12)] public int Score;
+        [MemoryPackOrder(13)] public int RemainingFrames;
+        [MemoryPackOrder(14)] public byte Flags;
 
         public ShooterPureStateEntityDelta(
             int entityId,
@@ -117,6 +119,8 @@ namespace AbilityKit.Protocol.Shooter
             int quantizedY,
             int quantizedVelocityX,
             int quantizedVelocityY,
+            int quantizedFacingX,
+            int quantizedFacingY,
             int hp,
             int score,
             int remainingFrames,
@@ -131,10 +135,33 @@ namespace AbilityKit.Protocol.Shooter
             QuantizedY = quantizedY;
             QuantizedVelocityX = quantizedVelocityX;
             QuantizedVelocityY = quantizedVelocityY;
+            QuantizedFacingX = quantizedFacingX;
+            QuantizedFacingY = quantizedFacingY;
             Hp = hp;
             Score = score;
             RemainingFrames = remainingFrames;
             Flags = flags;
+        }
+
+        /// <summary>转换为旧线格式（无朝向字段），旧速度字段承载朝向。</summary>
+        public ShooterLegacyPureStateEntityDelta ToLegacy()
+        {
+            return new ShooterLegacyPureStateEntityDelta
+            {
+                EntityId = EntityId,
+                EntityKind = EntityKind,
+                EntityLayer = EntityLayer,
+                DeltaKind = DeltaKind,
+                OwnerId = OwnerId,
+                QuantizedX = QuantizedX,
+                QuantizedY = QuantizedY,
+                QuantizedVelocityX = QuantizedFacingX,
+                QuantizedVelocityY = QuantizedFacingY,
+                Hp = Hp,
+                Score = Score,
+                RemainingFrames = RemainingFrames,
+                Flags = Flags
+            };
         }
     }
 
@@ -183,7 +210,9 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(3)] public int QuantizedY;
         [MemoryPackOrder(4)] public int QuantizedVelocityX;
         [MemoryPackOrder(5)] public int QuantizedVelocityY;
-        [MemoryPackOrder(6)] public byte Flags;
+        [MemoryPackOrder(6)] public int QuantizedFacingX;
+        [MemoryPackOrder(7)] public int QuantizedFacingY;
+        [MemoryPackOrder(8)] public byte Flags;
 
         public ShooterPureStateTransformSample(
             int entityId,
@@ -192,6 +221,8 @@ namespace AbilityKit.Protocol.Shooter
             int quantizedY,
             int quantizedVelocityX,
             int quantizedVelocityY,
+            int quantizedFacingX,
+            int quantizedFacingY,
             byte flags)
         {
             EntityId = entityId;
@@ -200,6 +231,8 @@ namespace AbilityKit.Protocol.Shooter
             QuantizedY = quantizedY;
             QuantizedVelocityX = quantizedVelocityX;
             QuantizedVelocityY = quantizedVelocityY;
+            QuantizedFacingX = quantizedFacingX;
+            QuantizedFacingY = quantizedFacingY;
             Flags = flags;
         }
     }
@@ -328,6 +361,50 @@ namespace AbilityKit.Protocol.Shooter
         }
     }
 
+    /// <summary>
+    /// 纯状态实体增量的旧线格式：在朝向字段（QuantizedFacingX/Y）加入之前，速度字段
+    /// 同时承载朝向与移动速度。仅用于解码历史 payload，解码后转换为当前结构。
+    /// </summary>
+    [MemoryPackable]
+    public partial struct ShooterLegacyPureStateEntityDelta
+    {
+        [MemoryPackOrder(0)] public int EntityId;
+        [MemoryPackOrder(1)] public int EntityKind;
+        [MemoryPackOrder(2)] public int EntityLayer;
+        [MemoryPackOrder(3)] public int DeltaKind;
+        [MemoryPackOrder(4)] public int OwnerId;
+        [MemoryPackOrder(5)] public int QuantizedX;
+        [MemoryPackOrder(6)] public int QuantizedY;
+        [MemoryPackOrder(7)] public int QuantizedVelocityX;
+        [MemoryPackOrder(8)] public int QuantizedVelocityY;
+        [MemoryPackOrder(9)] public int Hp;
+        [MemoryPackOrder(10)] public int Score;
+        [MemoryPackOrder(11)] public int RemainingFrames;
+        [MemoryPackOrder(12)] public byte Flags;
+
+        public ShooterPureStateEntityDelta ToCurrent()
+        {
+            // 旧格式的速度字段承载的是朝向（aim）；迁移到当前结构时朝向沿用旧速度值，
+            // 移动速度置零（历史 payload 不含真实移动速度，停止外推以保持落点稳定）。
+            return new ShooterPureStateEntityDelta(
+                EntityId,
+                EntityKind,
+                EntityLayer,
+                DeltaKind,
+                OwnerId,
+                QuantizedX,
+                QuantizedY,
+                0,
+                0,
+                QuantizedVelocityX,
+                QuantizedVelocityY,
+                Hp,
+                Score,
+                RemainingFrames,
+                Flags);
+        }
+    }
+
     [MemoryPackable]
     internal partial struct ShooterLegacyPureStateSnapshotPayload
     {
@@ -340,7 +417,7 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(6)] public uint BaselineHash;
         [MemoryPackOrder(7)] public uint StateHash;
         [MemoryPackOrder(8)] public ShooterPureStateSyncSettings Settings;
-        [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities;
+        [MemoryPackOrder(9)] public ShooterLegacyPureStateEntityDelta[] Entities;
         [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
     }
 
@@ -378,7 +455,7 @@ namespace AbilityKit.Protocol.Shooter
         [MemoryPackOrder(6)] public uint BaselineHash;
         [MemoryPackOrder(7)] public uint StateHash;
         [MemoryPackOrder(8)] public ShooterLegacyPureStateSyncSettings Settings;
-        [MemoryPackOrder(9)] public ShooterPureStateEntityDelta[] Entities;
+        [MemoryPackOrder(9)] public ShooterLegacyPureStateEntityDelta[] Entities;
         [MemoryPackOrder(10)] public ShooterPureStateVisibilityHint[] VisibilityHints;
         [MemoryPackOrder(11)] public ShooterCommandAcknowledgement[] AcknowledgedCommands;
     }
@@ -600,6 +677,8 @@ namespace AbilityKit.Protocol.Shooter
                         compressedReader.ReadVarIntInt32(),
                         compressedReader.ReadVarIntInt32(),
                         compressedReader.ReadVarIntInt32(),
+                        compressedReader.ReadVarIntInt32(),
+                        compressedReader.ReadVarIntInt32(),
                         compressedReader.ReadVarIntByte());
                     previousEntityId = entityId;
                 }
@@ -666,7 +745,7 @@ namespace AbilityKit.Protocol.Shooter
                     legacy.BaselineHash,
                     legacy.StateHash,
                     settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : settings,
-                    legacy.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
+                    ShooterPureStateSyncCodec.ConvertLegacyEntities(legacy.Entities),
                     legacy.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>(),
                     legacy.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
             }
@@ -683,7 +762,7 @@ namespace AbilityKit.Protocol.Shooter
                     legacy.BaselineHash,
                     legacy.StateHash,
                     legacy.Settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : legacy.Settings,
-                    legacy.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
+                    ShooterPureStateSyncCodec.ConvertLegacyEntities(legacy.Entities),
                     legacy.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>());
             }
         }
@@ -696,9 +775,25 @@ namespace AbilityKit.Protocol.Shooter
 
     public static class ShooterPureStateSyncCodec
     {
-        public const int CurrentVersion = 3;
+        public const int CurrentVersion = 4;
         internal const byte CompressedTransformEncodingVersion = 1;
-        internal const int MinimumCompressedTransformBytes = 7;
+        internal const int MinimumCompressedTransformBytes = 9;
+
+        internal static ShooterPureStateEntityDelta[] ConvertLegacyEntities(ShooterLegacyPureStateEntityDelta[]? entities)
+        {
+            if (entities == null || entities.Length == 0)
+            {
+                return Array.Empty<ShooterPureStateEntityDelta>();
+            }
+
+            var converted = new ShooterPureStateEntityDelta[entities.Length];
+            for (var i = 0; i < entities.Length; i++)
+            {
+                converted[i] = entities[i].ToCurrent();
+            }
+
+            return converted;
+        }
 
         public static byte[] Serialize(in ShooterPureStateSnapshotPayload snapshot)
         {
@@ -881,6 +976,8 @@ namespace AbilityKit.Protocol.Shooter
                     GetVarIntByteCount(sample.QuantizedY) +
                     GetVarIntByteCount(sample.QuantizedVelocityX) +
                     GetVarIntByteCount(sample.QuantizedVelocityY) +
+                    GetVarIntByteCount(sample.QuantizedFacingX) +
+                    GetVarIntByteCount(sample.QuantizedFacingY) +
                     (sample.Flags <= 127 ? 1 : 2));
                 previousEntityId = sample.EntityId;
             }
@@ -942,7 +1039,7 @@ namespace AbilityKit.Protocol.Shooter
                     legacy.BaselineHash,
                     legacy.StateHash,
                     settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : settings,
-                    legacy.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
+                    ShooterPureStateSyncCodec.ConvertLegacyEntities(legacy.Entities),
                     legacy.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>(),
                     legacy.AcknowledgedCommands ?? Array.Empty<ShooterCommandAcknowledgement>());
             }
@@ -959,7 +1056,7 @@ namespace AbilityKit.Protocol.Shooter
                     legacy.BaselineHash,
                     legacy.StateHash,
                     legacy.Settings.MaxEntityCount <= 0 ? ShooterPureStateSyncSettings.Default : legacy.Settings,
-                    legacy.Entities ?? Array.Empty<ShooterPureStateEntityDelta>(),
+                    ShooterPureStateSyncCodec.ConvertLegacyEntities(legacy.Entities),
                     legacy.VisibilityHints ?? Array.Empty<ShooterPureStateVisibilityHint>());
             }
         }
@@ -1063,6 +1160,8 @@ namespace AbilityKit.Protocol.Shooter
                 writer.WriteVarInt(sample.QuantizedY);
                 writer.WriteVarInt(sample.QuantizedVelocityX);
                 writer.WriteVarInt(sample.QuantizedVelocityY);
+                writer.WriteVarInt(sample.QuantizedFacingX);
+                writer.WriteVarInt(sample.QuantizedFacingY);
                 writer.WriteVarInt(sample.Flags);
                 previousEntityId = sample.EntityId;
             }

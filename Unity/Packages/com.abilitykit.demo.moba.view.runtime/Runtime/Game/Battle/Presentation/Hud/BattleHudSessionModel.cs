@@ -37,7 +37,13 @@ namespace AbilityKit.Game.Flow
                 _localPlayerId = playerId;
             }
 
-            if (_localActorId <= 0 && localActorId > 0)
+            if (_localActorId <= 0 &&
+                localActorId > 0 &&
+                !string.IsNullOrEmpty(_localPlayerId) &&
+                string.Equals(
+                    _localPlayerId,
+                    playerId,
+                    StringComparison.OrdinalIgnoreCase))
             {
                 _localActorId = localActorId;
             }

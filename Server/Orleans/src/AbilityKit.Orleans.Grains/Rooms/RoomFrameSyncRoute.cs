@@ -31,7 +31,10 @@ internal static class RoomFrameSyncRoute
             initParams.TickRate > 0 ? initParams.TickRate : 30,
             battleId,
             syncTemplate.TemplateId,
-            (int)syncTemplate.RuntimeMode);
+            (int)syncTemplate.RuntimeMode,
+            // MOBA 冷启动重连会创建全新的本地确定性世界，必须能够从 frame 0
+            // 重放权威输入；短环形历史只用于同进程热恢复。
+            EnableRecording: true);
 
         return new RoomBattleStartRoute(syncTemplate.RequiresBattleRuntime, frameSyncOptions, syncTemplate.TemplateId, false);
     }
