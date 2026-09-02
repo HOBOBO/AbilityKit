@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using AbilityKit.Ability.Config.Authoring;
+using AbilityKit.Editor.Platform.Synchronization;
 using UnityEditor;
 using UnityEngine;
 
@@ -28,6 +29,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string AssetHash;
         public string SourceHash;
         public string Error;
+        public EditorSourceSyncInspection PlatformInspection;
     }
 
     internal sealed class TriggerAuthoringSyncResult
@@ -134,39 +136,33 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             if (string.IsNullOrWhiteSpace(sourcePath)) return inspection;
             inspection.SourceExists = File.Exists(sourcePath);
-            if (!inspection.SourceExists)
+            var sourceIsValid = true;
+            if (inspection.SourceExists)
             {
-                inspection.State = string.IsNullOrEmpty(asset.LastSynchronizedHash)
-                    ? TriggerAuthoringSyncState.Untracked
-                    : TriggerAuthoringSyncState.SourceMissing;
-                return inspection;
+                try
+                {
+                    var source = TriggerAuthoringSourceCodec.ReadFile(sourcePath);
+                    inspection.SourceHash = TriggerAuthoringSourceCodec.ComputeContentHash(source);
+                }
+                catch (Exception ex)
+                {
+                    sourceIsValid = false;
+                    inspection.Error = ex.Message;
+                }
             }
 
-            try
-            {
-                var source = TriggerAuthoringSourceCodec.ReadFile(sourcePath);
-                inspection.SourceHash = TriggerAuthoringSourceCodec.ComputeContentHash(source);
-            }
-            catch (Exception ex)
-            {
-                inspection.State = TriggerAuthoringSyncState.InvalidSource;
-                inspection.Error = ex.Message;
-                return inspection;
-            }
-
-            var baseline = asset.LastSynchronizedHash;
-            if (string.IsNullOrEmpty(baseline))
-            {
-                inspection.State = TriggerAuthoringSyncState.Untracked;
-                return inspection;
-            }
-
-            var assetChanged = !string.Equals(assetHash, baseline, StringComparison.Ordinal);
-            var sourceChanged = !string.Equals(inspection.SourceHash, baseline, StringComparison.Ordinal);
-            if (assetChanged && sourceChanged) inspection.State = TriggerAuthoringSyncState.Conflict;
-            else if (assetChanged) inspection.State = TriggerAuthoringSyncState.AssetChanged;
-            else if (sourceChanged) inspection.State = TriggerAuthoringSyncState.JsonChanged;
-            else inspection.State = TriggerAuthoringSyncState.InSync;
+            var platformInspection = EditorSourceSyncClassifier.Inspect(
+                new EditorSourceSyncSnapshot(
+                    assetHash,
+                    inspection.SourceHash ?? string.Empty,
+                    asset.LastSynchronizedHash ?? string.Empty,
+                    isTracked: inspection.SourceExists || !string.IsNullOrEmpty(asset.LastSynchronizedHash),
+                    sourceExists: inspection.SourceExists,
+                    sourceIsValid: sourceIsValid,
+                    sourcePath: sourcePath,
+                    error: inspection.Error));
+            inspection.PlatformInspection = platformInspection;
+            inspection.State = MapState(platformInspection.State);
             return inspection;
         }
 
@@ -187,12 +183,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.AssetChanged, BuildValidationMessage(diagnostics));
 
             var inspection = Inspect(asset, sourcePath);
-            if (!force && inspection.State == TriggerAuthoringSyncState.Untracked && inspection.SourceExists)
-                return TriggerAuthoringSyncResult.Failed(inspection.State, "Existing untracked Source JSON would be overwritten. Import it or force export.", true);
-            if (!force && (inspection.State == TriggerAuthoringSyncState.JsonChanged ||
-                           inspection.State == TriggerAuthoringSyncState.Conflict ||
-                           inspection.State == TriggerAuthoringSyncState.InvalidSource))
-                return TriggerAuthoringSyncResult.Failed(inspection.State, inspection.Error ?? "Source JSON contains changes that would be overwritten.", true);
+            var assessment = EditorSourceSyncOperationPolicy.Assess(
+                inspection.PlatformInspection,
+                EditorSourceSyncDirection.Export);
+            if (!force && assessment.RequiresForce)
+                return TriggerAuthoringSyncResult.Failed(
+                    inspection.State,
+                    inspection.Error ?? "Source JSON contains changes that would be overwritten.",
+                    true);
 
             var document = TriggerAuthoringSourceCodec.CreateDocument(asset);
             TriggerAuthoringSourceCodec.WriteFileAtomic(sourcePath, document);
@@ -239,10 +237,15 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.InvalidSource, BuildValidationMessage(diagnostics));
 
             var inspection = Inspect(asset, sourcePath);
-            if (!force && inspection.State == TriggerAuthoringSyncState.Untracked && HasAuthoredContent(asset.Module))
-                return TriggerAuthoringSyncResult.Failed(inspection.State, "Untracked Asset content would be overwritten. Use force import after reviewing the Source JSON.", true);
-            if (!force && (inspection.State == TriggerAuthoringSyncState.AssetChanged || inspection.State == TriggerAuthoringSyncState.Conflict))
-                return TriggerAuthoringSyncResult.Failed(inspection.State, "Asset contains changes that would be overwritten.", true);
+            var assessment = EditorSourceSyncOperationPolicy.Assess(
+                inspection.PlatformInspection,
+                EditorSourceSyncDirection.Import,
+                HasAuthoredContent(asset.Module));
+            if (!force && assessment.RequiresForce)
+                return TriggerAuthoringSyncResult.Failed(
+                    inspection.State,
+                    "Asset contains changes that would be overwritten.",
+                    true);
 
             Undo.RecordObject(asset, "Import Trigger Authoring Source JSON");
             asset.Metadata = document.Metadata ?? new TriggerAuthoringSourceMetadata();
@@ -251,6 +254,21 @@ namespace AbilityKit.Ability.Editor.Utilities
             asset.MarkSynchronized(NormalizePath(sourcePath), hash);
             EditorUtility.SetDirty(asset);
             return TriggerAuthoringSyncResult.Succeeded(TriggerAuthoringSyncState.InSync, hash);
+        }
+
+        private static TriggerAuthoringSyncState MapState(EditorSourceSyncState state)
+        {
+            return state switch
+            {
+                EditorSourceSyncState.Untracked => TriggerAuthoringSyncState.Untracked,
+                EditorSourceSyncState.InSync => TriggerAuthoringSyncState.InSync,
+                EditorSourceSyncState.LocalChanged => TriggerAuthoringSyncState.AssetChanged,
+                EditorSourceSyncState.SourceChanged => TriggerAuthoringSyncState.JsonChanged,
+                EditorSourceSyncState.Conflict => TriggerAuthoringSyncState.Conflict,
+                EditorSourceSyncState.SourceMissing => TriggerAuthoringSyncState.SourceMissing,
+                EditorSourceSyncState.InvalidSource => TriggerAuthoringSyncState.InvalidSource,
+                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown source sync state.")
+            };
         }
 
         private static bool HasAuthoredContent(TriggerAuthoringModuleData module)

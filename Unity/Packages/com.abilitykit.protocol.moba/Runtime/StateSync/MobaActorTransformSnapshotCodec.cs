@@ -4,17 +4,8 @@ using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba.StateSync
 {
-    [MemoryPackable]
     public partial struct MobaActorTransformSnapshotEntry
     {
-        [MemoryPackOrder(0)] public int ActorId;
-        [MemoryPackOrder(1)] public float X;
-        [MemoryPackOrder(2)] public float Y;
-        [MemoryPackOrder(3)] public float Z;
-        [MemoryPackOrder(4)] public float ForwardX;
-        [MemoryPackOrder(5)] public float ForwardY;
-        [MemoryPackOrder(6)] public float ForwardZ;
-
         public MobaActorTransformSnapshotEntry(int actorId, float x, float y, float z)
             : this(actorId, x, y, z, 0f, 0f, 1f)
         {
@@ -32,11 +23,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         }
     }
 
-    [MemoryPackable]
     public partial struct MobaActorTransformSnapshotPayload
     {
-        [MemoryPackOrder(0)] public MobaActorTransformSnapshotEntry[] Entries;
-
         [MemoryPackConstructor]
         public MobaActorTransformSnapshotPayload(MobaActorTransformSnapshotEntry[] entries)
         {

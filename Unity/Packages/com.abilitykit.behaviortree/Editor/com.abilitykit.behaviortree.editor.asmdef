@@ -3,7 +3,8 @@
     "rootNamespace": "AbilityKit.BehaviorTree.Editor",
     "references": [
         "AbilityKit.BehaviorTree",
-        "AbilityKit.Deterministic"
+        "AbilityKit.Deterministic",
+        "AbilityKit.Editor.Platform"
     ],
     "includePlatforms": [
         "Editor"

@@ -10,19 +10,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Heal = 2,
     }
 
-    [MemoryPackable]
     public partial struct MobaDamageEventSnapshotEntry
     {
-        [MemoryPackOrder(0)] public int Kind;
-        [MemoryPackOrder(1)] public int AttackerActorId;
-        [MemoryPackOrder(2)] public int TargetActorId;
-        [MemoryPackOrder(3)] public int DamageType;
-        [MemoryPackOrder(4)] public float Value;
-        [MemoryPackOrder(5)] public int ReasonKind;
-        [MemoryPackOrder(6)] public int ReasonParam;
-        [MemoryPackOrder(7)] public float TargetHp;
-        [MemoryPackOrder(8)] public float TargetMaxHp;
-
         public MobaDamageEventSnapshotEntry(int kind, int attackerActorId, int targetActorId, int damageType, float value, int reasonKind, int reasonParam, float targetHp, float targetMaxHp)
         {
             Kind = kind;
@@ -37,11 +26,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         }
     }
 
-    [MemoryPackable]
     public partial struct MobaDamageEventSnapshotPayload
     {
-        [MemoryPackOrder(0)] public MobaDamageEventSnapshotEntry[] Entries;
-
         [MemoryPackConstructor]
         public MobaDamageEventSnapshotPayload(MobaDamageEventSnapshotEntry[] entries)
         {

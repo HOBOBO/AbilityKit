@@ -235,7 +235,16 @@ internal sealed record AdminSkillDiagnosticsEventsHttpResponse(
     [property: Id(1)] AdminSkillEventFilterHttpResponse Filters,
     [property: Id(2)] AdminSkillEventHttpResponse[] Events,
     [property: Id(3)] string[] Warnings,
-    [property: Id(4)] long ServerNowTicks);
+    [property: Id(4)] long ServerNowTicks,
+    [property: Id(5)] string SchemaVersion,
+    [property: Id(6)] bool IsDataAvailable,
+    [property: Id(7)] string? UnavailableReason,
+    [property: Id(8)] long StoreRevision = 0,
+    [property: Id(9)] bool HasMore = false,
+    [property: Id(10)] long MonotonicTimestampFrequency = 0,
+    [property: Id(11)] int Offset = 0,
+    [property: Id(12)] int Limit = 0,
+    [property: Id(13)] string? DataAvailability = null);
 
 [GenerateSerializer]
 internal sealed record AdminSkillEventFilterHttpResponse(
@@ -255,7 +264,19 @@ internal sealed record AdminSkillEventHttpResponse(
     [property: Id(6)] int? TargetActorId,
     [property: Id(7)] double? Value,
     [property: Id(8)] string? Message,
-    [property: Id(9)] string Severity);
+    [property: Id(9)] string Severity,
+    [property: Id(10)] string BattleId,
+    [property: Id(11)] string WorldId,
+    [property: Id(12)] string SessionId,
+    [property: Id(13)] int Generation,
+    [property: Id(14)] long Sequence,
+    [property: Id(15)] long MonotonicTimestamp,
+    [property: Id(16)] long NodeId,
+    [property: Id(17)] long RootId,
+    [property: Id(18)] long ParentId,
+    [property: Id(19)] long SourceContextId,
+    [property: Id(20)] long RootContextId,
+    [property: Id(21)] long OwnerContextId);
 
 [GenerateSerializer]
 internal sealed record AdminSkillAnalysisModelHttpResponse(

@@ -53,6 +53,8 @@ namespace UnityHFSM
 
         /// <summary>参数定义列表</summary>
         public List<BehaviorParameterDefinition> parameters = new List<BehaviorParameterDefinition>();
+        public int minChildren;
+        public int maxChildren;
 
         public BehaviorTypeDefinition() { }
 
@@ -63,6 +65,8 @@ namespace UnityHFSM
             this.category = category;
             this.categoryName = categoryName ?? GetDefaultCategoryName(category);
             this.description = description ?? string.Empty;
+            minChildren = category == BehaviorCategory.Primitive ? 0 : 1;
+            maxChildren = category == BehaviorCategory.Composite ? -1 : 1;
         }
 
         private static string GetDefaultCategoryName(BehaviorCategory category)
@@ -221,7 +225,9 @@ namespace UnityHFSM
             string categoryName = null,
             string description = null,
             IEnumerable<BehaviorParameterDefinition> parameters = null,
-            Action<IAction, HfsmBehaviorItem> factory = null)
+            Action<IAction, HfsmBehaviorItem> factory = null,
+            int minChildren = -1,
+            int maxChildren = -1)
             where TAction : UnityHFSM.Actions.IAction, new()
         {
             RegisterInternal(
@@ -232,7 +238,9 @@ namespace UnityHFSM
                 description,
                 parameters,
                 typeof(TAction),
-                factory
+                factory,
+                minChildren,
+                maxChildren
             );
         }
 
@@ -247,7 +255,9 @@ namespace UnityHFSM
             string categoryName = null,
             string description = null,
             IEnumerable<BehaviorParameterDefinition> parameters = null,
-            Action<IAction, HfsmBehaviorItem> factory = null)
+            Action<IAction, HfsmBehaviorItem> factory = null,
+            int minChildren = -1,
+            int maxChildren = -1)
         {
             RegisterInternal(
                 typeName,
@@ -257,7 +267,9 @@ namespace UnityHFSM
                 description,
                 parameters,
                 actionType,
-                factory
+                factory,
+                minChildren,
+                maxChildren
             );
         }
 
@@ -269,7 +281,9 @@ namespace UnityHFSM
             string description,
             IEnumerable<BehaviorParameterDefinition> parameters,
             Type actionType,
-            Action<IAction, HfsmBehaviorItem> factory)
+            Action<IAction, HfsmBehaviorItem> factory,
+            int minChildren,
+            int maxChildren)
         {
             if (string.IsNullOrEmpty(typeName))
                 throw new ArgumentException("typeName cannot be null or empty", nameof(typeName));
@@ -285,7 +299,9 @@ namespace UnityHFSM
 
             var definition = new BehaviorTypeDefinition(typeName, displayName, category, categoryName, description)
             {
-                actionType = actionType
+                actionType = actionType,
+                minChildren = minChildren < 0 ? (category == BehaviorCategory.Primitive ? 0 : 1) : minChildren,
+                maxChildren = maxChildren < 0 ? (category == BehaviorCategory.Composite ? -1 : 1) : maxChildren
             };
 
             if (parameters != null)
@@ -317,10 +333,12 @@ namespace UnityHFSM
             string categoryName = null,
             string description = null,
             IEnumerable<BehaviorParameterDefinition> parameters = null,
-            Action<IAction, HfsmBehaviorItem> factory = null)
+            Action<IAction, HfsmBehaviorItem> factory = null,
+            int minChildren = -1,
+            int maxChildren = -1)
             where TAction : UnityHFSM.Actions.IAction, new()
         {
-            Register<TAction>(typeName, displayName, category, categoryName, description, parameters, factory);
+            Register<TAction>(typeName, displayName, category, categoryName, description, parameters, factory, minChildren, maxChildren);
         }
 
         /// <summary>

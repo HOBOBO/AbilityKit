@@ -12,6 +12,13 @@ namespace AbilityKit.Network.Runtime
         Unknown = 3
     }
 
+    public enum NetworkPacketDispatchOutcome
+    {
+        NoRoute = 0,
+        Handled = 1,
+        BoundaryRejected = 2
+    }
+
     public readonly struct NetworkPacketDispatch
     {
         public NetworkPacketDispatch(NetworkPacketDispatchKind kind, NetworkPacketHeader header, ArraySegment<byte> payload)
@@ -65,13 +72,15 @@ namespace AbilityKit.Network.Runtime
             long dispatchedCount,
             long handledCount,
             long unknownCount,
-            long exceptionCount)
+            long exceptionCount,
+            long boundaryRejectedCount)
         {
             Routes = routes;
             DispatchedCount = dispatchedCount;
             HandledCount = handledCount;
             UnknownCount = unknownCount;
             ExceptionCount = exceptionCount;
+            BoundaryRejectedCount = boundaryRejectedCount;
         }
 
         public IReadOnlyList<NetworkPacketRouteSnapshot> Routes { get; }
@@ -79,9 +88,19 @@ namespace AbilityKit.Network.Runtime
         public long HandledCount { get; }
         public long UnknownCount { get; }
         public long ExceptionCount { get; }
+        public long BoundaryRejectedCount { get; }
     }
 
     public delegate void NetworkPacketRouteHandler(NetworkPacketDispatch dispatch);
+
+    /// <summary>
+    /// Optional inbound boundary check. Returning false prevents route handlers from seeing the
+    /// packet. The callback must be allocation-free and must not throw; exceptions are treated as
+    /// rejected packets and reported through the router exception callback.
+    /// </summary>
+    public delegate bool NetworkPacketBoundaryValidator(
+        NetworkPacketHeader header,
+        ArraySegment<byte> payload);
 
     /// <summary>
     /// Framework-level opcode router. It is deliberately independent from Catalog and business protocol types.
@@ -103,14 +122,19 @@ namespace AbilityKit.Network.Runtime
         private readonly Dictionary<(uint OpCode, NetworkPacketDispatchKind Kind), Route> _routes =
             new Dictionary<(uint OpCode, NetworkPacketDispatchKind Kind), Route>();
         private readonly Action<Exception> _exceptionHandler;
+        private readonly NetworkPacketBoundaryValidator _boundaryValidator;
         private long _dispatchedCount;
         private long _handledCount;
         private long _unknownCount;
         private long _exceptionCount;
+        private long _boundaryRejectedCount;
 
-        public NetworkPacketRouter(Action<Exception> exceptionHandler = null)
+        public NetworkPacketRouter(
+            Action<Exception> exceptionHandler = null,
+            NetworkPacketBoundaryValidator boundaryValidator = null)
         {
             _exceptionHandler = exceptionHandler;
+            _boundaryValidator = boundaryValidator;
         }
 
         public void Register(uint opCode, NetworkPacketDispatchKind kind, NetworkPacketRouteHandler handler)
@@ -147,17 +171,50 @@ namespace AbilityKit.Network.Runtime
 
         public bool Dispatch(NetworkPacketHeader header, ArraySegment<byte> payload)
         {
+            return DispatchDetailed(header, payload) == NetworkPacketDispatchOutcome.Handled;
+        }
+
+        /// <summary>Dispatches and preserves the reason a packet was not delivered.</summary>
+        public NetworkPacketDispatchOutcome DispatchDetailed(
+            NetworkPacketHeader header,
+            ArraySegment<byte> payload)
+        {
+            lock (_gate) _dispatchedCount++;
+
+            if (_boundaryValidator != null)
+            {
+                bool accepted;
+                try
+                {
+                    accepted = _boundaryValidator(header, payload);
+                }
+                catch (Exception exception)
+                {
+                    lock (_gate) _exceptionCount++;
+                    lock (_gate) _boundaryRejectedCount++;
+                    try { _exceptionHandler?.Invoke(exception); }
+                    catch { }
+                    return NetworkPacketDispatchOutcome.BoundaryRejected;
+                }
+
+                if (!accepted)
+                {
+                    lock (_gate) _unknownCount++;
+                    lock (_gate) _boundaryRejectedCount++;
+                    return NetworkPacketDispatchOutcome.BoundaryRejected;
+                }
+            }
+
             var kind = ResolveKind(header.Flags);
             NetworkPacketRouteHandler[] handlers;
             Route route;
 
             lock (_gate)
             {
-                _dispatchedCount++;
                 if (!_routes.TryGetValue((header.OpCode, kind), out route))
                 {
                     _unknownCount++;
-                    return false;
+                    return NetworkPacketDispatchOutcome.NoRoute;
                 }
 
                 route.DispatchCount++;
@@ -167,7 +224,7 @@ namespace AbilityKit.Network.Runtime
                 {
                     route.UnknownCount++;
                     _unknownCount++;
-                    return false;
+                    return NetworkPacketDispatchOutcome.NoRoute;
                 }
             }
 
@@ -200,7 +257,9 @@ namespace AbilityKit.Network.Runtime
                     _handledCount++;
                 }
             }
-            return handled;
+            return handled
+                ? NetworkPacketDispatchOutcome.Handled
+                : NetworkPacketDispatchOutcome.NoRoute;
         }
 
         public NetworkPacketRouterSnapshot GetSnapshot()
@@ -226,7 +285,8 @@ namespace AbilityKit.Network.Runtime
                     _dispatchedCount,
                     _handledCount,
                     _unknownCount,
-                    _exceptionCount);
+                    _exceptionCount,
+                    _boundaryRejectedCount);
             }
         }
 

@@ -92,6 +92,14 @@
         "com.abilitykit.gameplaytags": "0.1.0"
       }
     },
+    "com.abilitykit.battleflow": {
+      "version": "file:com.abilitykit.battleflow",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.scenario": "0.1.0"
+      }
+    },
     "com.abilitykit.behavior": {
       "version": "file:com.abilitykit.behavior",
       "depth": 0,
@@ -266,6 +274,14 @@
         "com.abilitykit.hotreload": "0.1.0"
       }
     },
+    "com.abilitykit.demo.moba.environment": {
+      "version": "file:com.abilitykit.demo.moba.environment",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.environment": "0.1.0"
+      }
+    },
     "com.abilitykit.demo.moba.host": {
       "version": "file:com.abilitykit.demo.moba.host",
       "depth": 0,
@@ -329,7 +345,8 @@
         "com.abilitykit.world.networkfragments": "0.1.0",
         "com.abilitykit.world.statesync": "0.1.0",
         "com.cysharp.memorypack": "1.10.0",
-        "com.abilitykit.deterministic": "0.1.0"
+        "com.abilitykit.deterministic": "0.1.0",
+        "com.abilitykit.environment": "0.1.0"
       }
     },
     "com.abilitykit.demo.moba.share": {
@@ -528,6 +545,12 @@
         "com.abilitykit.core": "0.1.0"
       }
     },
+    "com.abilitykit.environment": {
+      "version": "file:com.abilitykit.environment",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.excel-sync": {
       "version": "file:com.abilitykit.excel-sync",
       "depth": 0,
@@ -705,7 +728,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.core": "0.1.0"
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.protocol": "0.1.0"
       }
     },
     "com.abilitykit.network.sdk": {
@@ -811,6 +835,14 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
+    },
+    "com.abilitykit.scenario": {
+      "version": "file:com.abilitykit.scenario",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
+      }
     },
     "com.abilitykit.thirdparty.actioneditor": {
       "version": "file:com.abilitykit.thirdparty.actioneditor",

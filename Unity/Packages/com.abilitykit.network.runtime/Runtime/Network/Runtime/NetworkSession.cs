@@ -29,7 +29,11 @@ namespace AbilityKit.Network.Runtime
 
         private bool _started;
 
-        public NetworkSession(ITransport transport, IDispatcher dispatcher = null, IFrameCodec frameCodec = null)
+        public NetworkSession(
+            ITransport transport,
+            IDispatcher dispatcher = null,
+            IFrameCodec frameCodec = null,
+            ProtocolPacketBoundaryValidator boundaryValidator = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _dispatcher = dispatcher ?? InlineDispatcher.Instance;
@@ -38,11 +42,18 @@ namespace AbilityKit.Network.Runtime
             _frameDecoder = _frameCodec.CreateDecoder();
 
             _pipeline = new NetworkPipeline();
-            _packetRouter = new NetworkPacketRouter(exception => _dispatcher.Post(() => Error?.Invoke(exception)));
+            _packetRouter = new NetworkPacketRouter(
+                exception => _dispatcher.Post(() => Error?.Invoke(exception)),
+                boundaryValidator == null ? null : boundaryValidator.Validate);
             _context = new SessionContext(this, _dispatcher);
         }
 
-        public NetworkSession(ITransport transport, IDispatcher callbackDispatcher, IDispatcher ioDispatcher, IFrameCodec frameCodec = null)
+        public NetworkSession(
+            ITransport transport,
+            IDispatcher callbackDispatcher,
+            IDispatcher ioDispatcher,
+            IFrameCodec frameCodec = null,
+            ProtocolPacketBoundaryValidator boundaryValidator = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _dispatcher = callbackDispatcher ?? InlineDispatcher.Instance;
@@ -51,7 +62,9 @@ namespace AbilityKit.Network.Runtime
             _frameDecoder = _frameCodec.CreateDecoder();
 
             _pipeline = new NetworkPipeline();
-            _packetRouter = new NetworkPacketRouter(exception => _dispatcher.Post(() => Error?.Invoke(exception)));
+            _packetRouter = new NetworkPacketRouter(
+                exception => _dispatcher.Post(() => Error?.Invoke(exception)),
+                boundaryValidator == null ? null : boundaryValidator.Validate);
             _context = new SessionContext(this, _dispatcher);
         }
 
@@ -161,7 +174,9 @@ namespace AbilityKit.Network.Runtime
 
         private void DispatchPacketReceived(NetworkPacketHeader header, ArraySegment<byte> payload)
         {
-            _packetRouter.Dispatch(header, payload);
+            var outcome = _packetRouter.DispatchDetailed(header, payload);
+            if (outcome == NetworkPacketDispatchOutcome.BoundaryRejected)
+                return;
 
             var opCode = header.OpCode;
             var seq = header.Seq;

@@ -4,12 +4,8 @@ using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba.StateSync
 {
-    [MemoryPackable]
     public partial struct MobaActorDespawnSnapshotEntry
     {
-        [MemoryPackOrder(0)] public int ActorId;
-        [MemoryPackOrder(1)] public byte Reason;
-
         public MobaActorDespawnSnapshotEntry(int actorId, byte reason)
         {
             ActorId = actorId;
@@ -17,11 +13,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         }
     }
 
-    [MemoryPackable]
     public partial struct MobaActorDespawnSnapshotPayload
     {
-        [MemoryPackOrder(0)] public MobaActorDespawnSnapshotEntry[] Entries;
-
         [MemoryPackConstructor]
         public MobaActorDespawnSnapshotPayload(MobaActorDespawnSnapshotEntry[] entries)
         {

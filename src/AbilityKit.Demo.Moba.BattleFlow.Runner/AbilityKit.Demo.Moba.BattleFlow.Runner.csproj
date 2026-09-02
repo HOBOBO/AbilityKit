@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.Demo.Moba.BattleFlow.Runner</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Moba.BattleFlow.Runner</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Console\AbilityKit.Demo.Moba.Console.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Scenario\AbilityKit.Scenario.csproj" />
+    <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
+    <ProjectReference Include="..\AbilityKit.Environment\AbilityKit.Environment.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Environment\AbilityKit.Demo.Moba.Environment.csproj" />
+  </ItemGroup>
+</Project>

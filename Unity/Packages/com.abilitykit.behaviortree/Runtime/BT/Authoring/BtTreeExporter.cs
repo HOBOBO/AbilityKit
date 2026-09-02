@@ -14,8 +14,7 @@ namespace AbilityKit.BehaviorTree.Authoring
             if (document == null || document.Tree == null)
                 return new BtTreeDefinition();
 
-            // 深拷贝：走 JSON 往返，确保返回对象与编辑态文档完全解耦
-            return BtTreeJson.Load(BtTreeJson.Save(document.Tree));
+            return document.Tree.DeepClone();
         }
 
         /// <summary>
@@ -41,15 +40,23 @@ namespace AbilityKit.BehaviorTree.Authoring
         }
 
         /// <summary>从运行时 IR 构造授权文档（无布局；供导入既有 JSON 进入编辑器用）。</summary>
-        public static BtAuthoringSourceDocument Import(BtTreeDefinition definition)
+        public static BtAuthoringSourceDocument Import(BtTreeDefinition definition, BtNodeRegistry? registry = null)
         {
             var document = new BtAuthoringSourceDocument();
             if (definition != null)
             {
-                document.Tree = BtTreeJson.Load(BtTreeJson.Save(definition));
+                document.Tree = definition.DeepClone();
                 foreach (var node in document.Tree.Nodes)
                 {
                     document.Layout.Add(new BtNodeLayoutData { NodeId = node.Id });
+                    var displayName = registry != null && registry.TryGetDescriptor(node.Type, out var descriptor)
+                        ? descriptor.DisplayName
+                        : node.Id;
+                    document.NodeMetadata.Add(new BtAuthoringNodeMetadata
+                    {
+                        NodeId = node.Id,
+                        DisplayName = displayName,
+                    });
                 }
             }
             return document;

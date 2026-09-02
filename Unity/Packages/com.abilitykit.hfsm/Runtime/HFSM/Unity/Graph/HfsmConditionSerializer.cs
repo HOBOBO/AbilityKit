@@ -23,6 +23,7 @@ namespace UnityHFSM.Graph.Conditions
 
             var wrapper = new ConditionListWrapper
             {
+                Version = 2,
                 Conditions = conditions.ConvertAll(c => new ConditionData
                 {
                     TypeName = c.TypeName,
@@ -44,34 +45,9 @@ namespace UnityHFSM.Graph.Conditions
         /// <returns>条件列表</returns>
         public static List<HfsmTransitionCondition> Deserialize(string json)
         {
-            var result = new List<HfsmTransitionCondition>();
-
-            if (string.IsNullOrEmpty(json) || json == "{}")
-                return result;
-
             try
             {
-#if UNITY_EDITOR || UNITY_STANDALONE || UNITY_WEBGL || UNITY_ANDROID || UNITY_IOS || UNITY_SERVER
-                var wrapper = UnityEngine.JsonUtility.FromJson<ConditionListWrapper>(json);
-#else
-                var wrapper = System.Text.Json.JsonSerializer.Deserialize<ConditionListWrapper>(json, JsonOptions);
-#endif
-                if (wrapper == null || wrapper.Conditions == null)
-                    return result;
-
-                foreach (var conditionData in wrapper.Conditions)
-                {
-                    if (string.IsNullOrEmpty(conditionData.TypeName))
-                        continue;
-
-                    var condition = HfsmConditionRegistry.Create(conditionData.TypeName);
-                    if (condition != null && conditionData.Config != null)
-                    {
-                        var configDict = conditionData.Config.ToDictionary();
-                        condition.SetFromConfig(configDict);
-                        result.Add(condition);
-                    }
-                }
+                return DeserializeCore(json, false);
             }
             catch (Exception e)
             {
@@ -80,6 +56,63 @@ namespace UnityHFSM.Graph.Conditions
 #else
                 UnityHFSM.Graph.HfsmLog.LogError($"HfsmConditionSerializer: Failed to deserialize conditions: {e.Message}");
 #endif
+                return new List<HfsmTransitionCondition>();
+            }
+        }
+
+        public static List<HfsmTransitionCondition> DeserializeStrict(string json)
+        {
+            return DeserializeCore(json, true);
+        }
+
+        private static List<HfsmTransitionCondition> DeserializeCore(string json, bool strict)
+        {
+            var result = new List<HfsmTransitionCondition>();
+            if (string.IsNullOrEmpty(json) || json == "{}")
+                return result;
+
+#if UNITY_EDITOR || UNITY_STANDALONE || UNITY_WEBGL || UNITY_ANDROID || UNITY_IOS || UNITY_SERVER
+            var wrapper = UnityEngine.JsonUtility.FromJson<ConditionListWrapper>(json);
+#else
+            var wrapper = System.Text.Json.JsonSerializer.Deserialize<ConditionListWrapper>(json, JsonOptions);
+#endif
+            if (wrapper == null)
+                throw new InvalidOperationException("The condition document could not be deserialized.");
+            if (strict && wrapper.Version > 2)
+                throw new InvalidOperationException($"Condition document version '{wrapper.Version}' is not supported.");
+            if (wrapper.Conditions == null)
+            {
+                if (strict)
+                    throw new InvalidOperationException("The condition document has no condition list.");
+                return result;
+            }
+
+            foreach (var conditionData in wrapper.Conditions)
+            {
+                if (conditionData == null || string.IsNullOrEmpty(conditionData.TypeName))
+                {
+                    if (strict)
+                        throw new InvalidOperationException("A serialized condition has no type name.");
+                    continue;
+                }
+
+                var condition = HfsmConditionRegistry.Create(conditionData.TypeName);
+                if (condition == null)
+                {
+                    if (strict)
+                        throw new InvalidOperationException($"Condition type '{conditionData.TypeName}' is not registered.");
+                    continue;
+                }
+
+                if (conditionData.Config == null)
+                {
+                    if (strict)
+                        throw new InvalidOperationException($"Condition '{conditionData.TypeName}' has no configuration.");
+                    continue;
+                }
+
+                condition.SetFromConfig(conditionData.Config.ToDictionary());
+                result.Add(condition);
             }
 
             return result;
@@ -91,6 +124,7 @@ namespace UnityHFSM.Graph.Conditions
         [Serializable]
         private class ConditionListWrapper
         {
+            public int Version;
             public List<ConditionData> Conditions;
         }
 
@@ -111,6 +145,9 @@ namespace UnityHFSM.Graph.Conditions
     [Serializable]
     public class ConditionConfigWrapper
     {
+        public List<ConditionConfigEntry> Entries = new List<ConditionConfigEntry>();
+
+        // Legacy v1 fields retained for backward-compatible reads.
         public string ParameterName;
         public int Operator;
         public int ParameterType;
@@ -122,6 +159,18 @@ namespace UnityHFSM.Graph.Conditions
 
         public Dictionary<string, object> ToDictionary()
         {
+            if (Entries != null && Entries.Count > 0)
+            {
+                var entries = new Dictionary<string, object>(StringComparer.Ordinal);
+                foreach (var entry in Entries)
+                {
+                    if (entry != null && !string.IsNullOrEmpty(entry.Key))
+                        entries[entry.Key] = entry.GetValue();
+                }
+
+                return entries;
+            }
+
             var dict = new Dictionary<string, object>();
 
             if (ParameterName != null)
@@ -148,24 +197,126 @@ namespace UnityHFSM.Graph.Conditions
         {
             var wrapper = new ConditionConfigWrapper();
 
-            if (config.TryGetValue("ParameterName", out var name))
-                wrapper.ParameterName = name as string;
-            if (config.TryGetValue("Operator", out var op))
-                wrapper.Operator = Convert.ToInt32(op);
-            if (config.TryGetValue("ParameterType", out var type))
-                wrapper.ParameterType = Convert.ToInt32(type);
-            if (config.TryGetValue("BoolValue", out var bval))
-                wrapper.BoolValue = Convert.ToBoolean(bval);
-            if (config.TryGetValue("FloatValue", out var fval))
-                wrapper.FloatValue = Convert.ToSingle(fval);
-            if (config.TryGetValue("IntValue", out var ival))
-                wrapper.IntValue = Convert.ToInt32(ival);
-            if (config.TryGetValue("Duration", out var dur))
-                wrapper.Duration = Convert.ToSingle(dur);
-            if (config.TryGetValue("BehaviorId", out var bid))
-                wrapper.BehaviorId = bid as string;
+            if (config == null)
+                return wrapper;
+
+            var keys = new List<string>(config.Keys);
+            keys.Sort(StringComparer.Ordinal);
+            foreach (var key in keys)
+            {
+                wrapper.Entries.Add(ConditionConfigEntry.Create(key, config[key]));
+            }
 
             return wrapper;
+        }
+    }
+
+    public enum ConditionConfigValueType
+    {
+        Null,
+        String,
+        Boolean,
+        Int32,
+        Int64,
+        Single,
+        Double
+    }
+
+    [Serializable]
+    public sealed class ConditionConfigEntry
+    {
+        public string Key;
+        public ConditionConfigValueType ValueType;
+        public string StringValue;
+        public bool BoolValue;
+        public int Int32Value;
+        public long Int64Value;
+        public float SingleValue;
+        public double DoubleValue;
+
+        public object GetValue()
+        {
+            return ValueType switch
+            {
+                ConditionConfigValueType.Null => null,
+                ConditionConfigValueType.String => StringValue,
+                ConditionConfigValueType.Boolean => BoolValue,
+                ConditionConfigValueType.Int32 => Int32Value,
+                ConditionConfigValueType.Int64 => Int64Value,
+                ConditionConfigValueType.Single => SingleValue,
+                ConditionConfigValueType.Double => DoubleValue,
+                _ => throw new InvalidOperationException($"Unknown condition config value type '{ValueType}'.")
+            };
+        }
+
+        public static ConditionConfigEntry Create(string key, object value)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentException("Condition config keys cannot be null or empty.", nameof(key));
+
+            var entry = new ConditionConfigEntry { Key = key };
+            if (value == null)
+            {
+                entry.ValueType = ConditionConfigValueType.Null;
+                return entry;
+            }
+
+            if (value.GetType().IsEnum)
+            {
+                entry.ValueType = ConditionConfigValueType.Int32;
+                entry.Int32Value = Convert.ToInt32(value);
+                return entry;
+            }
+
+            switch (value)
+            {
+                case string stringValue:
+                    entry.ValueType = ConditionConfigValueType.String;
+                    entry.StringValue = stringValue;
+                    break;
+                case bool boolValue:
+                    entry.ValueType = ConditionConfigValueType.Boolean;
+                    entry.BoolValue = boolValue;
+                    break;
+                case byte byteValue:
+                    entry.ValueType = ConditionConfigValueType.Int32;
+                    entry.Int32Value = byteValue;
+                    break;
+                case sbyte signedByteValue:
+                    entry.ValueType = ConditionConfigValueType.Int32;
+                    entry.Int32Value = signedByteValue;
+                    break;
+                case short shortValue:
+                    entry.ValueType = ConditionConfigValueType.Int32;
+                    entry.Int32Value = shortValue;
+                    break;
+                case ushort unsignedShortValue:
+                    entry.ValueType = ConditionConfigValueType.Int32;
+                    entry.Int32Value = unsignedShortValue;
+                    break;
+                case int intValue:
+                    entry.ValueType = ConditionConfigValueType.Int32;
+                    entry.Int32Value = intValue;
+                    break;
+                case long longValue:
+                    entry.ValueType = ConditionConfigValueType.Int64;
+                    entry.Int64Value = longValue;
+                    break;
+                case float floatValue:
+                    entry.ValueType = ConditionConfigValueType.Single;
+                    entry.SingleValue = floatValue;
+                    break;
+                case double doubleValue:
+                    entry.ValueType = ConditionConfigValueType.Double;
+                    entry.DoubleValue = doubleValue;
+                    break;
+                default:
+                    throw new NotSupportedException(
+                        $"Condition config value '{key}' has unsupported type '{value.GetType().FullName}'. " +
+                        "Use null, string, bool, integer, float, double, or enum values.");
+            }
+
+            return entry;
         }
     }
 
@@ -175,6 +326,7 @@ namespace UnityHFSM.Graph.Conditions
         internal static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new System.Text.Json.JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
+            IncludeFields = true,
             DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
             WriteIndented = false
         };

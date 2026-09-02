@@ -6,8 +6,6 @@
     {
       "id": "20000000-0000-4000-8000-000000000001",
       "type": "builtin.sequence",
-      "name": "RefreshPlanArbitrate",
-      "comment": "",
       "properties": {
         "abortType": {
           "type": "Int64",
@@ -24,8 +22,6 @@
     {
       "id": "20000000-0000-4000-8000-000000000002",
       "type": "moba.selectNearestEnemy",
-      "name": "QueryNearestEnemy",
-      "comment": "",
       "properties": {
         "searchRadius": {
           "type": "Fixed64",
@@ -37,16 +33,12 @@
     {
       "id": "20000000-0000-4000-8000-000000000003",
       "type": "moba.selectReadySkill",
-      "name": "SelectReadySkillCandidate",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000004",
       "type": "builtin.selector",
-      "name": "BuildCombatIntent",
-      "comment": "",
       "properties": {
         "abortType": {
           "type": "Int64",
@@ -62,8 +54,6 @@
     {
       "id": "20000000-0000-4000-8000-000000000005",
       "type": "builtin.sequence",
-      "name": "BuildCastIntent",
-      "comment": "",
       "properties": {
         "abortType": {
           "type": "Int64",
@@ -82,8 +72,6 @@
     {
       "id": "20000000-0000-4000-8000-000000000006",
       "type": "builtin.sequence",
-      "name": "BuildMoveIntent",
-      "comment": "",
       "properties": {
         "abortType": {
           "type": "Int64",
@@ -100,64 +88,48 @@
     {
       "id": "20000000-0000-4000-8000-000000000007",
       "type": "moba.holdPosition",
-      "name": "RequestHold",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000008",
       "type": "moba.arbitrateCombatIntent",
-      "name": "ArbitrateIntent",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000009",
       "type": "moba.hasEnemy",
-      "name": "HasCastTarget",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000010",
       "type": "moba.hasSelectedSkill",
-      "name": "HasSkillCandidate",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000011",
       "type": "moba.canCast",
-      "name": "CanCast",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000012",
       "type": "moba.selectedSkillInRange",
-      "name": "SkillInRange",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000013",
       "type": "moba.resolveTargetAim",
-      "name": "ResolveTargetAim",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000014",
       "type": "moba.castSelectedSkill",
-      "name": "RequestCast",
-      "comment": "",
       "properties": {
         "priority": {
           "type": "Int64",
@@ -169,32 +141,24 @@
     {
       "id": "20000000-0000-4000-8000-000000000015",
       "type": "moba.hasEnemy",
-      "name": "HasMoveTarget",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000016",
       "type": "moba.canMove",
-      "name": "CanMove",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000017",
       "type": "moba.shouldApproachEnemy",
-      "name": "ShouldApproach",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "20000000-0000-4000-8000-000000000018",
       "type": "moba.moveToEnemy",
-      "name": "RequestMove",
-      "comment": "",
       "properties": {
         "priority": {
           "type": "Int64",

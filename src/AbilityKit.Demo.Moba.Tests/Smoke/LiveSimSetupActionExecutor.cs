@@ -9,6 +9,8 @@ using AbilityKit.Demo.Moba.EntitasAdapters;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Buffs;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
+using AbilityKit.Demo.Moba.Acceptance;
+using AbilityKit.Scenario;
 using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Trace;
 using Xunit;
@@ -22,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Tests.Smoke;
 /// 但直接跑在 console 逻辑世界（<c>bootstrapper.RuntimeServices</c>）上——所有服务都是可 Resolve 的
 /// <c>[WorldService]</c>，与 Unity harness 完全无关。NUnit <c>Assert</c> 换成 xUnit。
 /// </summary>
-public sealed class LiveSimSetupActionExecutor
+public sealed class LiveSimSetupActionExecutor : IAcceptanceObservationSource
 {
     public const float DefaultFixedDelta = 1f / 30f;
     public const string DefaultLocalPlayerId = "player_1";
@@ -206,6 +208,87 @@ public sealed class LiveSimSetupActionExecutor
 
     /// <summary>诊断用：actor 是否已注册进碰撞世界（CollisionWorldSyncSystem 每帧把 Transform+Collider 实体注册并赋 CollisionId）。</summary>
     public bool HasCollisionId(int actorId) => AssertActorEntity(actorId).hasCollisionId;
+
+    public int GetActorTeamId(int actorId)
+    {
+        var entity = AssertActorEntity(actorId);
+        return entity.hasTeam ? (int)entity.team.Value : 0;
+    }
+
+    public float GetActorMana(int actorId) => new MobaAttrs(AssertActorEntity(actorId)).Mana;
+    public float GetActorMaxHp(int actorId) => new MobaAttrs(AssertActorEntity(actorId)).MaxHp;
+    public float GetActorMaxMana(int actorId) => new MobaAttrs(AssertActorEntity(actorId)).MaxMana;
+
+    public int CountActorBuffs(int actorId, int buffId = 0)
+    {
+        var entity = AssertActorEntity(actorId);
+        if (!entity.hasBuffs || entity.buffs.Active == null) return 0;
+        var count = 0;
+        for (var i = 0; i < entity.buffs.Active.Count; i++)
+        {
+            var runtime = entity.buffs.Active[i];
+            if (runtime != null && (buffId <= 0 || runtime.BuffId == buffId)) count++;
+        }
+        return count;
+    }
+
+    public AcceptanceObservations CaptureObservations(MobaAcceptanceExpectation expectation)
+    {
+        var states = PickStateExpectations(expectation);
+        var values = new List<AcceptanceObservation>(states.Length);
+        foreach (var state in states)
+        {
+            if (state == null) continue;
+            var alias = state.alias ?? string.Empty;
+            if (!TryGetActorId(alias, out var actorId)) continue;
+            var property = (state.property ?? string.Empty).Trim().ToLowerInvariant().Replace("_", string.Empty).Replace("-", string.Empty);
+            object value;
+            switch (property)
+            {
+                case "exists":
+                case "present":
+                case "bound": value = true; break;
+                case "actorid":
+                case "id": value = actorId; break;
+                case "hp": value = GetActorHp(actorId); break;
+                case "mana": value = GetActorMana(actorId); break;
+                case "maxhp": value = GetActorMaxHp(actorId); break;
+                case "maxmana": value = GetActorMaxMana(actorId); break;
+                case "teamid": value = GetActorTeamId(actorId); break;
+                case "buff":
+                case "hasbuff": value = CountActorBuffs(actorId, state.expectedInt) > 0; break;
+                case "buffcount": value = CountActorBuffs(actorId, state.expectedInt); break;
+                case "position":
+                case "transform.position":
+                {
+                    var position = GetActorPosition(actorId);
+                    value = new TestVector3(position.X, position.Y, position.Z);
+                    break;
+                }
+                default: continue;
+            }
+            values.Add(new AcceptanceObservation(alias, actorId.ToString(), null, state.property ?? string.Empty, value));
+        }
+        return new AcceptanceObservations { States = values };
+    }
+
+    AcceptanceObservations IAcceptanceObservationSource.Capture(TestScenario scenario)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        var expectations = scenario.Expectations as TestExpectations;
+        return CaptureObservations(new MobaAcceptanceExpectation
+        {
+            scenario = new MobaAcceptanceScenarioExpectation
+            {
+                stateExpectations = expectations?.State ?? Array.Empty<MobaAcceptanceStateExpectation>(),
+            },
+        });
+    }
+
+    private static MobaAcceptanceStateExpectation[] PickStateExpectations(MobaAcceptanceExpectation expectation)
+        => expectation.scenario?.stateExpectations is { Length: > 0 } preferred
+            ? preferred
+            : expectation.stateExpectations ?? Array.Empty<MobaAcceptanceStateExpectation>();
 
     // —— tick ——
 

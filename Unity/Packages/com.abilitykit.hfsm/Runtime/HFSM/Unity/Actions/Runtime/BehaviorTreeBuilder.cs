@@ -10,6 +10,26 @@ namespace UnityHFSM.Actions
             IReadOnlyList<UnityHFSM.HfsmBehaviorItem> items,
             string rootId)
         {
+            return BuildFromEditorItems(items, rootId, null);
+        }
+
+        /// <summary>
+        /// Builds a behavior tree and wraps every node with a runtime state source.
+        /// The default builder remains unwrapped for compatibility with existing callers.
+        /// </summary>
+        public static IAction BuildInstrumentedFromEditorItems(
+            IReadOnlyList<UnityHFSM.HfsmBehaviorItem> items,
+            string rootId,
+            IDictionary<string, IActionRuntimeStateSource> runtimeStates)
+        {
+            return BuildFromEditorItems(items, rootId, runtimeStates);
+        }
+
+        private static IAction BuildFromEditorItems(
+            IReadOnlyList<UnityHFSM.HfsmBehaviorItem> items,
+            string rootId,
+            IDictionary<string, IActionRuntimeStateSource> runtimeStates)
+        {
             if (items == null || items.Count == 0)
                 throw new ArgumentException("A behavior tree must contain at least one node.", nameof(items));
             if (string.IsNullOrWhiteSpace(rootId))
@@ -31,6 +51,22 @@ namespace UnityHFSM.Actions
                 var action = HfsmBehaviorTypeRegistry.CreateAndConfigure(item.TypeName, item);
                 action.Name = item.displayName;
                 actionMap.Add(item.id, action);
+            }
+
+            if (runtimeStates != null)
+            {
+                var instrumentedMap = new Dictionary<string, IAction>(StringComparer.Ordinal);
+                foreach (var item in items)
+                {
+                    var observed = new ObservedAction(
+                        item.id,
+                        item.parentId,
+                        item.TypeName,
+                        actionMap[item.id]);
+                    instrumentedMap.Add(item.id, observed);
+                    runtimeStates[item.id] = observed;
+                }
+                actionMap = instrumentedMap;
             }
 
             if (!itemMap.TryGetValue(rootId, out var rootItem))
@@ -94,15 +130,14 @@ namespace UnityHFSM.Actions
 
         private static void ValidateChildCount(UnityHFSM.HfsmBehaviorItem item, BehaviorCategory category)
         {
-            switch (category)
-            {
-                case BehaviorCategory.Primitive when item.childIds.Count != 0:
-                    throw new InvalidOperationException($"Primitive behavior '{item.id}' cannot have children.");
-                case BehaviorCategory.Composite when item.childIds.Count == 0:
-                    throw new InvalidOperationException($"Composite behavior '{item.id}' must have at least one child.");
-                case BehaviorCategory.Decorator when item.childIds.Count != 1:
-                    throw new InvalidOperationException($"Decorator behavior '{item.id}' must have exactly one child.");
-            }
+            var definition = HfsmBehaviorTypeRegistry.GetDefinition(item.TypeName);
+            var count = item.childIds.Count;
+            var min = definition?.minChildren ?? (category == BehaviorCategory.Primitive ? 0 : 1);
+            var max = definition?.maxChildren ?? (category == BehaviorCategory.Composite ? -1 : 1);
+            if (count < min)
+                throw new InvalidOperationException($"Behavior '{item.id}' requires at least {min} child node(s).");
+            if (max >= 0 && count > max)
+                throw new InvalidOperationException($"Behavior '{item.id}' supports at most {max} child node(s).");
         }
 
         private static void Visit(
@@ -125,6 +160,81 @@ namespace UnityHFSM.Actions
         {
             if (!HfsmBehaviorTypeRegistry.IsInitialized)
                 HfsmBehaviorTypeRegistry.Initialize();
+        }
+
+        private sealed class ObservedAction : IAction, ICompositeAction, IDecoratorAction, IActionRuntimeStateSource
+        {
+            private readonly IAction _inner;
+
+            public ObservedAction(string runtimeId, string parentRuntimeId, string typeName, IAction inner)
+            {
+                RuntimeId = runtimeId ?? string.Empty;
+                ParentRuntimeId = parentRuntimeId ?? string.Empty;
+                TypeName = typeName ?? string.Empty;
+                _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+            }
+
+            public string RuntimeId { get; }
+            public string ParentRuntimeId { get; }
+            public string TypeName { get; }
+            public ActionRuntimeStatus RuntimeStatus { get; private set; }
+            public bool IsActive { get; private set; }
+            public int ExecutionCount { get; private set; }
+            public float ElapsedTime { get; private set; }
+
+            public string Name
+            {
+                get => _inner.Name;
+                set => _inner.Name = value;
+            }
+
+            public BehaviorStatus Execute(BehaviorContext context)
+            {
+                ExecutionCount++;
+                IsActive = true;
+                RuntimeStatus = ActionRuntimeStatus.Running;
+                if (context != null && context.deltaTime > 0f)
+                    ElapsedTime += context.deltaTime;
+
+                var status = _inner.Execute(context);
+                IsActive = status == BehaviorStatus.Running;
+                RuntimeStatus = status == BehaviorStatus.Running
+                    ? ActionRuntimeStatus.Running
+                    : status == BehaviorStatus.Success
+                        ? ActionRuntimeStatus.Success
+                        : ActionRuntimeStatus.Failure;
+                return status;
+            }
+
+            public void Reset()
+            {
+                _inner.Reset();
+                RuntimeStatus = ActionRuntimeStatus.Inactive;
+                IsActive = false;
+                ExecutionCount = 0;
+                ElapsedTime = 0f;
+            }
+
+            public void ForceEnd()
+            {
+                _inner.ForceEnd();
+                RuntimeStatus = ActionRuntimeStatus.Cancelled;
+                IsActive = false;
+            }
+
+            public void AddChild(IAction child)
+            {
+                if (!(_inner is ICompositeAction composite))
+                    throw new InvalidOperationException($"Action '{TypeName}' is not composite.");
+                composite.AddChild(child);
+            }
+
+            public void SetChild(IAction child)
+            {
+                if (!(_inner is IDecoratorAction decorator))
+                    throw new InvalidOperationException($"Action '{TypeName}' is not a decorator.");
+                decorator.SetChild(child);
+            }
         }
     }
 }

@@ -102,6 +102,45 @@ public sealed class HfsmRuntimeExecutionTests
     }
 
     [Fact]
+    public void PendingTriggerContextSurvivesSnapshotRestoreUntilApproval()
+    {
+        var owner = new TestOwner();
+        var definition = HfsmFixtures.Flat(
+            HfsmFixtures.State("cast", "cast", requiresExitApproval: true),
+            HfsmFixtures.State("idle"));
+        definition.Machines[0].Transitions.Add(new HfsmTransitionDefinition
+        {
+            Id = "finish",
+            FromStateId = "cast",
+            ToStateId = "idle",
+            TriggerId = "finish-cast",
+            ActionKey = "trace",
+        });
+        var bindings = new HfsmRuntimeBindings<TestOwner>()
+            .RegisterState("cast", () => new TraceState("cast"))
+            .RegisterAction("trace", () => new TraceTransitionAction());
+        var source = new HfsmRuntime<TestOwner>(owner, definition, bindings);
+        source.Initialize(0, Fixed64.Zero);
+
+        Assert.True(source.Trigger("finish-cast"));
+        var snapshot = source.CaptureSnapshot();
+        Assert.Equal("finish-cast", snapshot.Machines.Single().PendingTriggerId);
+
+        var restored = new HfsmRuntime<TestOwner>(owner, definition, bindings);
+        var observer = new RecordingObserver();
+        restored.AddObserver(observer);
+        restored.RestoreSnapshot(snapshot);
+        owner.AllowExit = true;
+        owner.Trace.Clear();
+        restored.Tick(1, Fixed64.One);
+
+        Assert.Equal(new[] { "tick:cast", "before:finish-cast", "exit:cast", "after:finish-cast" }, owner.Trace);
+        var completed = Assert.Single(observer.Events,
+            item => item.Type == HfsmRuntimeEventType.TransitionCompleted);
+        Assert.Equal("finish-cast", completed.TriggerId);
+    }
+
+    [Fact]
     public void ObserverFailureIsIsolatedButStateFailureFaultsRuntime()
     {
         var safe = new HfsmRuntime<TestOwner>(

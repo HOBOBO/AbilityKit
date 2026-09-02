@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using AbilityKit.Demo.Moba.Acceptance;
+using AbilityKit.Scenario;
 using AbilityKit.Demo.Moba.Testing;
 using AbilityKit.Game.Test.UnitTest;
 

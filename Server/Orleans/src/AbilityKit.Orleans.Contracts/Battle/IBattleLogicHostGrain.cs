@@ -56,6 +56,11 @@ public interface IBattleLogicHostGrain : IGrainWithStringKey
     Task<WorldStartAnchor?> GetWorldStartAnchorAsync();
 
     /// <summary>
+    /// 查询当前战斗 runtime 已捕获的诊断事件。
+    /// </summary>
+    Task<BattleDiagnosticEventsResult> QueryDiagnosticEventsAsync(BattleDiagnosticEventsQuery query);
+
+    /// <summary>
     /// 订阅状态同步观察者，并从客户端累计确认位置恢复可靠事件。
     /// 观察者元数据由调用方随请求传入，避免 Host 回调非可重入 Observer。
     /// </summary>

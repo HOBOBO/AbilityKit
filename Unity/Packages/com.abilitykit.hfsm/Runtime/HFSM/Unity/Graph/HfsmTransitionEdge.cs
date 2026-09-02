@@ -98,7 +98,11 @@ namespace UnityHFSM.Graph
         public string ConditionConfigJson
         {
             get => _conditionConfigJson;
-            set => _conditionConfigJson = value;
+            set
+            {
+                _conditionConfigJson = value;
+                InvalidateConditionsCache();
+            }
         }
 
         /// <summary>
@@ -198,6 +202,7 @@ namespace UnityHFSM.Graph
         /// </summary>
         public void InvalidateConditionsCache()
         {
+            _conditions = null;
             _conditionsLoaded = false;
         }
 
@@ -221,10 +226,7 @@ namespace UnityHFSM.Graph
             if (condition == null)
                 return;
 
-            if (_conditions == null)
-                _conditions = new List<HfsmTransitionCondition>();
-
-            _conditions.Add(condition);
+            Conditions.Add(condition);
             SerializeConditions();
         }
 
@@ -233,13 +235,13 @@ namespace UnityHFSM.Graph
         /// </summary>
         public void RemoveCondition(HfsmTransitionCondition condition)
         {
-            if (_conditions == null || condition == null)
+            if (condition == null)
                 return;
 
-            _conditions.Remove(condition);
-            SerializeConditions();
-            // 重新加载以确保 UI 显示正确
-            GetConditionsFresh();
+            if (Conditions.Remove(condition))
+            {
+                SerializeConditions();
+            }
         }
 
         /// <summary>
@@ -247,7 +249,7 @@ namespace UnityHFSM.Graph
         /// </summary>
         public void ClearConditions()
         {
-            _conditions?.Clear();
+            Conditions.Clear();
             SerializeConditions();
         }
 
@@ -256,7 +258,9 @@ namespace UnityHFSM.Graph
         /// </summary>
         private void SerializeConditions()
         {
+            _conditions = _conditions ?? new List<HfsmTransitionCondition>();
             _conditionConfigJson = HfsmConditionSerializer.Serialize(_conditions);
+            _conditionsLoaded = true;
         }
 
         /// <summary>
@@ -284,13 +288,14 @@ namespace UnityHFSM.Graph
             clone._useAndLogic = _useAndLogic;
 
             // 深拷贝条件
-            if (_conditions != null)
+            if (_conditionsLoaded && _conditions != null)
             {
                 clone._conditions = new List<HfsmTransitionCondition>();
                 foreach (var condition in _conditions)
                 {
                     clone._conditions.Add(condition.Clone());
                 }
+                clone._conditionsLoaded = true;
             }
 
             return clone;

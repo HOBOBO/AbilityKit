@@ -5,6 +5,10 @@ description: AbilityKit Shooter Demo（com.abilitykit.demo.shooter.*）——6 �
 
 # shooter-demo skill
 
+## Protocol changes
+
+For Shooter opcodes, payloads, MemoryPack fields, codecs, or generated DTOs, follow [`protocol-wire`](../protocol-wire/SKILL.md). Protocol fields must originate from grouped Wire Schema v2; handwritten protocol files retain behavior only.
+
 基于源码核校（2026-08-03）。Shooter demo 实际存在，约 215 个 .cs 文件，分 6 个包。
 
 ## 核心定位（必读）

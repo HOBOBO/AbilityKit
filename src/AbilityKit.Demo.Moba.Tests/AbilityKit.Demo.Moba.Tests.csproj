@@ -10,6 +10,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Environment\AbilityKit.Environment.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Environment\AbilityKit.Demo.Moba.Environment.csproj" />
+    <ProjectReference Include="..\AbilityKit.Scenario\AbilityKit.Scenario.csproj" />
+    <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.BattleFlow.Runner\AbilityKit.Demo.Moba.BattleFlow.Runner.csproj" />
     <ProjectReference Include="..\AbilityKit.AI.Abstractions\AbilityKit.AI.Abstractions.csproj" />
     <ProjectReference Include="..\AbilityKit.AI.Inference\AbilityKit.AI.Inference.csproj" />
     <ProjectReference Include="..\AbilityKit.AI.Training.Runner\AbilityKit.AI.Training.Runner.csproj" />

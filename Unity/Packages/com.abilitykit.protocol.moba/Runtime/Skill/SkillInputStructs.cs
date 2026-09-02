@@ -1,5 +1,4 @@
 using AbilityKit.Core.Mathematics;
-using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba
 {
@@ -11,19 +10,8 @@ namespace AbilityKit.Protocol.Moba
         Cancel = 4,
     }
 
-    [MemoryPackable]
-    public readonly partial struct SkillInputEvent
+    public partial struct SkillInputEvent
     {
-        [MemoryPackOrder(0)] public readonly int Slot;
-        [MemoryPackOrder(1)] public readonly SkillInputPhase Phase;
-        [MemoryPackOrder(2)] public readonly int PointerId;
-        [MemoryPackOrder(3)] public readonly int TargetActorId;
-        [MemoryPackOrder(4)] public readonly Vec3 AimPos;
-        [MemoryPackOrder(5)] public readonly Vec3 AimDir;
-        [MemoryPackOrder(6)] public readonly int OpCode;
-        [MemoryPackOrder(7)] public readonly byte[] Payload;
-
-        [MemoryPackConstructor]
         public SkillInputEvent(
             int slot,
             SkillInputPhase phase,

@@ -268,18 +268,30 @@ export function buildTimelineFromAnalysisNodes(nodes: SkillAnalysisFlatNodeProje
 }
 
 export function buildTimelineFromRuntimeEvents(events: AdminSkillDiagnosticsEvents | null): SkillAnalysisTimelineEventProjection[] {
-  return (events?.events || [])
-    .map((event, index) => ({
-      id: `runtime:${event.frame}:${event.skillInstanceId}:${event.stage}:${index}`,
+  if (!events?.isDataAvailable) return [];
+
+  const runtimeEvents = events.events || [];
+  const frequency = events.monotonicTimestampFrequency || 0;
+  const timestamps = runtimeEvents
+    .map(event => event.monotonicTimestamp)
+    .filter(timestamp => Number.isFinite(timestamp));
+  const origin = timestamps.length > 0 ? Math.min(...timestamps) : 0;
+  const hasUsableClock = frequency > 0 && Number.isFinite(origin);
+
+  return runtimeEvents
+    .map(event => ({
+      id: `runtime:${event.sessionId}:${event.generation}:${event.sequence}`,
       frame: event.frame,
-      timeMs: 0,
+      timeMs: hasUsableClock && Number.isFinite(event.monotonicTimestamp)
+        ? Math.max(0, (event.monotonicTimestamp - origin) * 1000 / frequency)
+        : 0,
       lane: skillAnalysisLaneLabel(inferRuntimeEventDomain(event.stage, event.eventType), event.stage || 'runtime-event', event.eventType),
       label: `${event.eventType} 角色 ${event.actorId} 技能 ${event.skillId}`,
-      nodeId: null,
+      nodeId: event.nodeId > 0 ? String(event.nodeId) : null,
       severity: event.severity || 'info',
       source: 'runtime-diagnostics'
     }))
-    .sort((a, b) => a.frame - b.frame || a.id.localeCompare(b.id));
+    .sort((a, b) => a.frame - b.frame || a.timeMs - b.timeMs || a.id.localeCompare(b.id));
 }
 
 export function buildAnalysisArtifactTraceRecords(artifact: Record<string, unknown> | null | undefined): Record<string, unknown>[] {

@@ -15,11 +15,7 @@ namespace AbilityKit.BehaviorTree.Editor
         [SerializeField] private List<BtAuthoringAsset> _trees = new();
 
         [Tooltip("导出目标目录（相对仓库根），导出时扇出到全部目标。例如 Unity Resources 与 console Configs 各一条。")]
-        [SerializeField] private List<string> _exportTargets = new()
-        {
-            "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/bt",
-            "src/AbilityKit.Demo.Moba.Console/Configs/moba/bt",
-        };
+        [SerializeField] private List<string> _exportTargets = new();
 
         public List<BtAuthoringAsset> Trees => _trees;
         public List<string> ExportTargets => _exportTargets;

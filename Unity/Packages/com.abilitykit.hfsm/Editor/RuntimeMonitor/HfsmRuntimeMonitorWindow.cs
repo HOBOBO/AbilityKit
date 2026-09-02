@@ -449,6 +449,69 @@ namespace UnityHFSM.Editor.RuntimeMonitor
 
                 // 递归绘制子节点
                 DrawStateTreeNode(state.path, indent + 1);
+                if (!state.isStateMachine)
+                    DrawBehaviorRuntimeRows(state.path, indent + 1);
+            }
+        }
+
+        private void DrawBehaviorRuntimeRows(string statePath, int indent)
+        {
+            if (_currentSnapshot.behaviorNodes == null)
+                return;
+
+            foreach (var behavior in _currentSnapshot.behaviorNodes)
+            {
+                if (!string.Equals(behavior.statePath, statePath, StringComparison.Ordinal))
+                    continue;
+
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(indent * 15 + 15);
+                var statusColor = GetBehaviorStatusColor(behavior.status);
+                var statusStyle = new GUIStyle(EditorStyles.miniLabel)
+                {
+                    normal = { textColor = statusColor },
+                    fontStyle = behavior.isActive ? FontStyle.Bold : FontStyle.Normal
+                };
+                GUILayout.Label(GetBehaviorStatusGlyph(behavior.status), statusStyle, GUILayout.Width(14));
+                GUILayout.Label(string.IsNullOrEmpty(behavior.name) ? behavior.typeName : behavior.name, statusStyle);
+                GUILayout.FlexibleSpace();
+                if (behavior.elapsedTime > 0f)
+                    GUILayout.Label($"{behavior.elapsedTime:F1}s", EditorStyles.miniLabel);
+                GUILayout.EndHorizontal();
+            }
+        }
+
+        private static Color GetBehaviorStatusColor(BehaviorNodeStatus status)
+        {
+            switch (status)
+            {
+                case BehaviorNodeStatus.Running:
+                    return new Color(0.3f, 0.8f, 1f);
+                case BehaviorNodeStatus.Success:
+                    return new Color(0.3f, 0.85f, 0.35f);
+                case BehaviorNodeStatus.Failure:
+                    return new Color(1f, 0.35f, 0.35f);
+                case BehaviorNodeStatus.Cancelled:
+                    return new Color(1f, 0.65f, 0.25f);
+                default:
+                    return new Color(0.55f, 0.55f, 0.55f);
+            }
+        }
+
+        private static string GetBehaviorStatusGlyph(BehaviorNodeStatus status)
+        {
+            switch (status)
+            {
+                case BehaviorNodeStatus.Running:
+                    return ">";
+                case BehaviorNodeStatus.Success:
+                    return "V";
+                case BehaviorNodeStatus.Failure:
+                    return "X";
+                case BehaviorNodeStatus.Cancelled:
+                    return "-";
+                default:
+                    return ".";
             }
         }
 

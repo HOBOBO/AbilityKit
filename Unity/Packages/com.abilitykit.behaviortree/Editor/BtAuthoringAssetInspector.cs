@@ -1,5 +1,8 @@
 using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.Export;
+using AbilityKit.Editor.Platform.UI;
 using UnityEditor;
 using UnityEngine;
 
@@ -68,43 +71,47 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private static void DrawSync(BtAuthoringAsset asset)
         {
-            EditorGUILayout.LabelField("Source Sync", EditorStyles.boldLabel);
             var inspection = BtAuthoringSourceSync.Inspect(asset);
-            switch (inspection.State)
-            {
-                case BtAuthoringSyncState.JsonChanged:
-                    EditorGUILayout.HelpBox("External changes detected. Import to apply.", MessageType.Warning);
-                    break;
-                case BtAuthoringSyncState.Conflict:
-                    EditorGUILayout.HelpBox("Asset and source file have diverged.", MessageType.Error);
-                    break;
-                case BtAuthoringSyncState.InvalidSource:
-                    EditorGUILayout.HelpBox("Source file is missing.", MessageType.Error);
-                    break;
-            }
+            var sourcePath = inspection.SourcePath;
+            EditorImGuiControls.DrawSourceSyncCard(
+                new EditorSourceSyncCardModel(
+                    inspection.PlatformInspection,
+                    import: () => ImportSource(asset),
+                    export: () => ExportSource(asset),
+                    copyPath: string.IsNullOrWhiteSpace(sourcePath)
+                        ? null
+                        : () => EditorGUIUtility.systemCopyBuffer = sourcePath,
+                    revealPath: CanReveal(sourcePath)
+                        ? () => EditorUtility.RevealInFinder(
+                            BtAuthoringSourceSync.ResolvePath(sourcePath))
+                        : null));
+        }
 
-            EditorGUILayout.LabelField("Path", string.IsNullOrEmpty(asset.SourceJsonPath) ? "<unbound>" : asset.SourceJsonPath);
+        private static void ImportSource(BtAuthoringAsset asset)
+        {
+            var path = PickImportPath(asset);
+            if (string.IsNullOrEmpty(path)) return;
+            RunSyncOperation(
+                "Import Source",
+                () => BtAuthoringSourceSync.Import(asset, path),
+                () => BtAuthoringSourceSync.Import(asset, path, force: true));
+        }
 
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Import Source"))
-            {
-                var path = PickSourcePath(asset);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    var result = BtAuthoringSourceSync.Import(asset, path);
-                    ShowResult(result);
-                }
-            }
-            if (GUILayout.Button("Export Source"))
-            {
-                var path = PickSourcePath(asset);
-                if (!string.IsNullOrEmpty(path))
-                {
-                    var result = BtAuthoringSourceSync.Export(asset, path);
-                    ShowResult(result);
-                }
-            }
-            EditorGUILayout.EndHorizontal();
+        private static void ExportSource(BtAuthoringAsset asset)
+        {
+            var path = PickExportPath(asset);
+            if (string.IsNullOrEmpty(path)) return;
+            RunSyncOperation(
+                "Export Source",
+                () => BtAuthoringSourceSync.Export(asset, path),
+                () => BtAuthoringSourceSync.Export(asset, path, force: true));
+        }
+
+        private static bool CanReveal(string sourcePath)
+        {
+            return !string.IsNullOrWhiteSpace(sourcePath) &&
+                System.IO.File.Exists(
+                    BtAuthoringSourceSync.ResolvePath(sourcePath));
         }
 
         private static void DrawRuntimeExport(BtAuthoringAsset asset)
@@ -113,29 +120,72 @@ namespace AbilityKit.BehaviorTree.Editor
             EditorGUILayout.LabelField("Path", asset.ResolveRuntimeExportPath(asset.LoadDocument().Tree.TreeId));
             if (GUILayout.Button("Export Runtime JSON"))
             {
-                var ok = BtAuthoringRuntimeExporter.Export(asset, out var outputs, out var errors);
-                if (ok)
+                var report = BtAuthoringRuntimeExporter.Export(asset);
+                var outputs = report.Artifacts.Select(artifact => artifact.Path).ToArray();
+                if (report.Success)
                 {
+                    var verb = report.ExportedCount > 0 ? "Exported" : "Unchanged";
                     Debug.Log("[BtAuthoring] Runtime export succeeded: " + string.Join(", ", outputs));
-                    EditorUtility.DisplayDialog("Runtime Export", "Exported:\n" + string.Join("\n", outputs), "OK");
+                    EditorUtility.DisplayDialog(
+                        "Runtime Export",
+                        verb + ":\n" + string.Join("\n", outputs),
+                        "OK");
                 }
                 else
                 {
-                    EditorUtility.DisplayDialog("Runtime Export Failed", string.Join("\n", errors), "OK");
+                    EditorUtility.DisplayDialog(
+                        "Runtime Export Failed",
+                        string.Join("\n", report.Messages),
+                        "OK");
                 }
             }
         }
 
-        private static string PickSourcePath(BtAuthoringAsset asset)
+        private static string ExistingSourcePath(BtAuthoringAsset asset)
         {
             var existing = BtAuthoringSourceSync.ResolvePath(asset.SourceJsonPath);
             if (!string.IsNullOrEmpty(asset.SourceJsonPath) && System.IO.File.Exists(existing))
             {
                 return asset.SourceJsonPath;
             }
+            return "";
+        }
 
+        private static string PickImportPath(BtAuthoringAsset asset)
+        {
+            var existing = ExistingSourcePath(asset);
+            if (!string.IsNullOrEmpty(existing)) return existing;
             var chosen = EditorUtility.OpenFilePanel("Behavior Tree Authoring JSON", Application.dataPath, "json");
             return string.IsNullOrEmpty(chosen) ? "" : chosen;
+        }
+
+        private static string PickExportPath(BtAuthoringAsset asset)
+        {
+            var existing = ExistingSourcePath(asset);
+            if (!string.IsNullOrEmpty(existing)) return existing;
+            var treeId = asset.LoadDocument().Tree.TreeId;
+            var fileName = string.IsNullOrWhiteSpace(treeId) ? asset.name : treeId;
+            var chosen = EditorUtility.SaveFilePanel(
+                "Behavior Tree Authoring JSON", Application.dataPath, fileName, "json");
+            return string.IsNullOrEmpty(chosen) ? "" : chosen;
+        }
+
+        private static void RunSyncOperation(
+            string operation,
+            System.Func<BtAuthoringSyncResult> execute,
+            System.Func<BtAuthoringSyncResult> force)
+        {
+            var result = execute();
+            if (!result.Success && result.CanForce
+                && EditorUtility.DisplayDialog(
+                    operation + " Conflict",
+                    result.Message,
+                    "Overwrite",
+                    "Cancel"))
+            {
+                result = force();
+            }
+            ShowResult(result);
         }
 
         private static void ShowResult(BtAuthoringSyncResult result)

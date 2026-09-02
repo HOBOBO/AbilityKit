@@ -19,14 +19,56 @@ namespace AbilityKit.BehaviorTree
         private static readonly JsonSerializerSettings SnapshotSettings = CreateSettings(false);
 
         public static string Save(BtTreeDefinition definition)
-            => JsonConvert.SerializeObject(definition, DefinitionSettings);
+        {
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            return JsonConvert.SerializeObject(definition, DefinitionSettings);
+        }
 
         public static BtTreeDefinition Load(string json)
         {
+            if (string.IsNullOrWhiteSpace(json))
+                throw new ArgumentException("BT runtime JSON must not be empty.", nameof(json));
+
+            var root = JObject.Parse(json);
+            if (root.Property("schema", StringComparison.OrdinalIgnoreCase) != null
+                || root.Property("tree", StringComparison.OrdinalIgnoreCase) != null
+                || root.Property("layout", StringComparison.OrdinalIgnoreCase) != null
+                || root.Property("groups", StringComparison.OrdinalIgnoreCase) != null
+                || root.Property("nodeMetadata", StringComparison.OrdinalIgnoreCase) != null)
+            {
+                throw new JsonSerializationException(
+                    "BT authoring JSON cannot be loaded as a runtime definition. Export it with BtTreeExporter first.");
+            }
+
             var definition = JsonConvert.DeserializeObject<BtTreeDefinition>(json, DefinitionSettings);
             if (definition == null)
                 throw new InvalidOperationException("BT tree JSON produced a null definition.");
+            ValidateRuntimeShape(definition);
             return definition;
+        }
+
+        private static void ValidateRuntimeShape(BtTreeDefinition definition)
+        {
+            if (definition.Nodes == null)
+                throw new JsonSerializationException("BT runtime definition requires a non-null 'nodes' array.");
+            if (definition.Blackboard == null || definition.Blackboard.Keys == null)
+                throw new JsonSerializationException("BT runtime definition requires a non-null blackboard schema.");
+
+            foreach (var node in definition.Nodes)
+            {
+                if (node == null)
+                    throw new JsonSerializationException("BT runtime definition contains a null node.");
+                if (node.Properties == null)
+                    throw new JsonSerializationException($"BT node '{node.Id}' requires a non-null 'properties' object.");
+                if (node.ChildIds == null)
+                    throw new JsonSerializationException($"BT node '{node.Id}' requires a non-null 'childIds' array.");
+            }
+
+            foreach (var key in definition.Blackboard.Keys)
+            {
+                if (key == null)
+                    throw new JsonSerializationException("BT blackboard schema contains a null key definition.");
+            }
         }
 
         public static string SaveSnapshot(BtTreeRuntimeSnapshot snapshot)

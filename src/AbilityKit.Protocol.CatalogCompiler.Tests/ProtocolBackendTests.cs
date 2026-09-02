@@ -16,15 +16,17 @@ public sealed class ProtocolBackendTests
         await File.WriteAllTextAsync(
             Path.Combine(wireDirectory, "test.wire.yaml"),
             """
-            schemaVersion: 1
+            schemaVersion: 2
             projectId: project.test
+            groupId: domain
             namespace: Project.Test.Protocol
-            type: TestPayload
-            fields:
-              - id: 0
-                name: count
-                scalarType: int32
-                required: true
+            types:
+              - name: TestPayload
+                fields:
+                  - id: 0
+                    name: count
+                    scalarType: int32
+                    required: true
             """);
 
         try
@@ -47,6 +49,54 @@ public sealed class ProtocolBackendTests
             Assert.Equal(0, checkCode);
             Assert.Contains("int32 count = 1;", await File.ReadAllTextAsync(
                 Path.Combine(outputDirectory, "TestPayload.proto")));
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ProtobufCli_ExportsEveryTypeFromGroupedV2Source()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "abilitykit-protobuf-group-" + Guid.NewGuid().ToString("N"));
+        var wireDirectory = Path.Combine(root, "wire");
+        var outputDirectory = Path.Combine(root, "generated");
+        Directory.CreateDirectory(wireDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(wireDirectory, "test.wire.yaml"),
+            """
+            schemaVersion: 2
+            projectId: project.test
+            groupId: domain
+            namespace: Project.Test.Protocol
+            types:
+              - name: Command
+                fields:
+                  - id: 0
+                    name: value
+                    scalarType: int32
+                    required: true
+              - name: Payload
+                fields:
+                  - id: 0
+                    name: command
+                    type: Project.Test.Protocol.Command
+                    required: true
+            """);
+
+        try
+        {
+            var exportCode = await CatalogCompilerProgram.RunAsync(new[]
+            {
+                "--wire-input", wireDirectory,
+                "--project", "project.test",
+                "--export-protobuf", outputDirectory
+            });
+
+            Assert.Equal(0, exportCode);
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "Command.proto")));
+            Assert.True(File.Exists(Path.Combine(outputDirectory, "Payload.proto")));
         }
         finally
         {

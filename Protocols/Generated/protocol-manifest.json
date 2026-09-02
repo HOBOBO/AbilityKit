@@ -4,7 +4,8 @@
   "sources": [
     "moba.protocol.yaml",
     "room.protocol.yaml",
-    "shooter.protocol.yaml"
+    "shooter.protocol.yaml",
+    "system.protocol.yaml"
   ],
   "catalogs": [
     {
@@ -1165,6 +1166,42 @@
           "maximumSchemaVersion": 3,
           "maximumPayloadBytes": 4194304,
           "captureSampleRate": 0.02
+        }
+      ]
+    },
+    {
+      "catalogId": "abilitykit.system",
+      "projectId": "abilitykit.shared",
+      "domain": "system",
+      "revision": 1,
+      "defaultCodec": "custom-binary",
+      "messages": [
+        {
+          "id": "catalog-advertisement.request",
+          "opCode": 1,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Catalog.ProtocolCatalogAdvertisement",
+          "codec": "custom-binary",
+          "reliability": "reliable",
+          "response": "catalog-advertisement.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "catalog-advertisement.response",
+          "opCode": 1,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Catalog.ProtocolCatalogAdvertisement",
+          "codec": "custom-binary",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 1048576,
+          "captureSampleRate": 1
         }
       ]
     }

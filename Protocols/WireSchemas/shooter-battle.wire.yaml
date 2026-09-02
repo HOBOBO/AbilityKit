@@ -1,0 +1,393 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 2
+projectId: abilitykit.shooter
+groupId: battle
+namespace: AbilityKit.Protocol.Shooter
+defaults:
+  memoryPackMode: sequential
+  declaration: struct
+  memberStyle: field
+types:
+  - name: ShooterBulletSnapshot
+    fields:
+      - id: 0
+        name: bulletId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: ownerPlayerId
+        scalarType: int32
+        required: true
+      - id: 2
+        name: x
+        scalarType: float
+        required: true
+      - id: 3
+        name: y
+        scalarType: float
+        required: true
+      - id: 4
+        name: velocityX
+        scalarType: float
+        required: true
+      - id: 5
+        name: velocityY
+        scalarType: float
+        required: true
+      - id: 6
+        name: remainingFrames
+        scalarType: int32
+        required: true
+
+  - name: ShooterCommandAcknowledgement
+    fields:
+      - id: 0
+        name: playerId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: commandSequence
+        scalarType: uint64
+        required: true
+
+  - name: ShooterEnemySnapshot
+    fields:
+      - id: 0
+        name: enemyId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: x
+        scalarType: float
+        required: true
+      - id: 2
+        name: y
+        scalarType: float
+        required: true
+      - id: 3
+        name: facingX
+        scalarType: float
+        required: true
+      - id: 4
+        name: facingY
+        scalarType: float
+        required: true
+      - id: 5
+        name: hp
+        scalarType: int32
+        required: true
+      - id: 6
+        name: maxHp
+        scalarType: int32
+        required: true
+      - id: 7
+        name: alive
+        scalarType: bool
+        required: true
+
+  - name: ShooterEventSnapshot
+    fields:
+      - id: 0
+        name: eventType
+        scalarType: int32
+        required: true
+      - id: 1
+        name: sourcePlayerId
+        scalarType: int32
+        required: true
+      - id: 2
+        name: targetPlayerId
+        scalarType: int32
+        required: true
+      - id: 3
+        name: bulletId
+        scalarType: int32
+        required: true
+      - id: 4
+        name: x
+        scalarType: float
+        required: true
+      - id: 5
+        name: y
+        scalarType: float
+        required: true
+      - id: 6
+        name: value
+        scalarType: int32
+        required: true
+
+  - name: ShooterInputPayload
+    fields:
+      - id: 0
+        name: commands
+        type: AbilityKit.Protocol.Shooter.ShooterPlayerCommand
+        array: true
+        required: true
+
+  - name: ShooterPackedComponentChunk
+    fields:
+      - id: 0
+        name: componentKind
+        scalarType: int32
+        required: true
+      - id: 1
+        name: entityKind
+        scalarType: int32
+        required: true
+      - id: 2
+        name: count
+        scalarType: int32
+        required: true
+      - id: 3
+        name: entityIds
+        scalarType: int32
+        array: true
+        required: true
+      - id: 4
+        name: valueX
+        scalarType: float
+        array: true
+        required: true
+      - id: 5
+        name: valueY
+        scalarType: float
+        array: true
+        required: true
+      - id: 6
+        name: valueZ
+        scalarType: float
+        array: true
+        required: true
+      - id: 7
+        name: valueW
+        scalarType: float
+        array: true
+        required: true
+      - id: 8
+        name: intValues
+        scalarType: int32
+        array: true
+        required: true
+      - id: 9
+        name: flags
+        scalarType: bytes
+        required: true
+      - id: 10
+        name: ownerIds
+        scalarType: int32
+        array: true
+        required: true
+      - id: 11
+        name: aux
+        scalarType: int32
+        array: true
+        required: true
+
+  - name: ShooterPackedSnapshotPayload
+    fields:
+      - id: 0
+        name: version
+        scalarType: int32
+        required: true
+      - id: 1
+        name: worldId
+        scalarType: uint64
+        required: true
+      - id: 2
+        name: frame
+        scalarType: int32
+        required: true
+      - id: 3
+        name: serverTick
+        scalarType: int64
+        required: true
+      - id: 4
+        name: snapshotFlags
+        scalarType: uint32
+        required: true
+      - id: 5
+        name: stateHash
+        scalarType: uint32
+        required: true
+      - id: 6
+        name: entityCount
+        scalarType: int32
+        required: true
+      - id: 7
+        name: extensionPayload
+        scalarType: bytes
+        required: true
+      - id: 8
+        name: componentChunks
+        type: AbilityKit.Protocol.Shooter.ShooterPackedComponentChunk
+        array: true
+        required: true
+      - id: 9
+        name: acknowledgedCommands
+        type: AbilityKit.Protocol.Shooter.ShooterCommandAcknowledgement
+        array: true
+        required: true
+
+  - name: ShooterPlayerCommand
+    fields:
+      - id: 0
+        name: playerId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: moveX
+        scalarType: float
+        required: true
+      - id: 2
+        name: moveY
+        scalarType: float
+        required: true
+      - id: 3
+        name: aimX
+        scalarType: float
+        required: true
+      - id: 4
+        name: aimY
+        scalarType: float
+        required: true
+      - id: 5
+        name: fire
+        scalarType: bool
+        required: true
+      - id: 6
+        name: attackSlot
+        scalarType: int32
+        required: true
+
+  - name: ShooterPlayerSnapshot
+    fields:
+      - id: 0
+        name: playerId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: x
+        scalarType: float
+        required: true
+      - id: 2
+        name: y
+        scalarType: float
+        required: true
+      - id: 3
+        name: aimX
+        scalarType: float
+        required: true
+      - id: 4
+        name: aimY
+        scalarType: float
+        required: true
+      - id: 5
+        name: hp
+        scalarType: int32
+        required: true
+      - id: 6
+        name: score
+        scalarType: int32
+        required: true
+      - id: 7
+        name: alive
+        scalarType: bool
+        required: true
+
+  - name: ShooterStartGamePayload
+    fields:
+      - id: 0
+        name: matchId
+        scalarType: string
+        required: true
+      - id: 1
+        name: tickRate
+        scalarType: int32
+        required: true
+      - id: 2
+        name: randomSeed
+        scalarType: int32
+        required: true
+      - id: 3
+        name: players
+        type: AbilityKit.Protocol.Shooter.ShooterStartPlayer
+        array: true
+        required: true
+      - id: 4
+        name: worldId
+        scalarType: uint64
+        required: true
+      - id: 5
+        name: startServerTicks
+        scalarType: int64
+        required: true
+      - id: 6
+        name: serverTickFrequency
+        scalarType: int64
+        required: true
+      - id: 7
+        name: startFrame
+        scalarType: int32
+        required: true
+      - id: 8
+        name: fixedDeltaSeconds
+        scalarType: double
+        required: true
+
+  - name: ShooterStartPlayer
+    fields:
+      - id: 0
+        name: playerId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: name
+        scalarType: string
+        required: true
+      - id: 2
+        name: spawnX
+        scalarType: float
+        required: true
+      - id: 3
+        name: spawnY
+        scalarType: float
+        required: true
+
+  - name: ShooterStateSnapshotPayload
+    fields:
+      - id: 0
+        name: frame
+        scalarType: int32
+        required: true
+      - id: 1
+        name: players
+        type: AbilityKit.Protocol.Shooter.ShooterPlayerSnapshot
+        array: true
+        required: true
+      - id: 2
+        name: bullets
+        type: AbilityKit.Protocol.Shooter.ShooterBulletSnapshot
+        array: true
+        required: true
+      - id: 3
+        name: events
+        type: AbilityKit.Protocol.Shooter.ShooterEventSnapshot
+        array: true
+        required: true
+      - id: 4
+        name: matchState
+        scalarType: int32
+        required: true
+      - id: 5
+        name: timeLimitFrames
+        scalarType: int32
+        required: true
+      - id: 6
+        name: remainingTimeFrames
+        scalarType: int32
+        required: true
+      - id: 7
+        name: enemies
+        type: AbilityKit.Protocol.Shooter.ShooterEnemySnapshot
+        array: true
+        required: true

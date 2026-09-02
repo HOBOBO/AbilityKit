@@ -80,6 +80,22 @@ internal sealed class ThrowingObserver : IHfsmRuntimeObserver
         throw new InvalidOperationException("Observer failure must be isolated.");
 }
 
+internal sealed class RecordingObserver : IHfsmRuntimeObserver
+{
+    public List<HfsmRuntimeEvent> Events { get; } = new();
+
+    public void OnRuntimeEvent(in HfsmRuntimeEvent runtimeEvent) => Events.Add(runtimeEvent);
+}
+
+internal sealed class TraceTransitionAction : IHfsmTransitionAction<TestOwner>
+{
+    public void BeforeTransition(TestOwner owner, in HfsmTransitionContext context) =>
+        owner.Trace.Add("before:" + context.TriggerId);
+
+    public void AfterTransition(TestOwner owner, in HfsmTransitionContext context) =>
+        owner.Trace.Add("after:" + context.TriggerId);
+}
+
 internal sealed class ThrowingState : HfsmStateBase<TestOwner>
 {
     public override void OnTick(TestOwner owner, in HfsmTickContext context) =>

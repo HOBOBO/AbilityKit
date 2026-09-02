@@ -49,6 +49,7 @@
                          "com.abilitykit.world.networkfragments":  "0.1.0",
                          "com.abilitykit.world.statesync":  "0.1.0",
                          "com.cysharp.memorypack":  "1.10.0",
-                         "com.abilitykit.deterministic":  "0.1.0"
+                         "com.abilitykit.deterministic":  "0.1.0",
+                         "com.abilitykit.environment":  "0.1.0"
                      }
 }

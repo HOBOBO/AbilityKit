@@ -1,4 +1,5 @@
 using AbilityKit.BehaviorTree.Authoring;
+using Newtonsoft.Json.Linq;
 using Xunit;
 using static AbilityKit.BehaviorTree.Tests.TestNodeTypes;
 
@@ -18,6 +19,8 @@ namespace AbilityKit.BehaviorTree.Tests
 
             var document = new BtAuthoringSourceDocument { Tree = definition };
             document.Metadata.Author = "hobobo";
+            document.NodeMetadata.Add(new BtAuthoringNodeMetadata
+                { NodeId = "root", DisplayName = "Root Sequence", Comment = "editor only" });
             document.Layout.Add(new BtNodeLayoutData { NodeId = "root", X = 10, Y = 20 });
             document.Layout.Add(new BtNodeLayoutData { NodeId = "a", X = 100, Y = 30 });
             document.Layout.Add(new BtNodeLayoutData { NodeId = "b", X = 200, Y = 40 });
@@ -31,6 +34,15 @@ namespace AbilityKit.BehaviorTree.Tests
                 Height = 200,
                 NodeIds = { "a", "b" },
             });
+            document.Notes.Add(new BtAuthoringNoteData
+            {
+                Id = "note-1",
+                Text = "仅供策划阅读",
+                X = 24,
+                Y = 48,
+                Width = 220,
+                Height = 120,
+            });
             return document;
         }
 
@@ -43,9 +55,19 @@ namespace AbilityKit.BehaviorTree.Tests
             // 运行时 IR 不含布局/分组，也不含授权元数据
             Assert.DoesNotContain("\"layout\"", json);
             Assert.DoesNotContain("\"groups\"", json);
+            Assert.DoesNotContain("\"notes\"", json);
             Assert.DoesNotContain("\"author\"", json);
+            Assert.DoesNotContain("\"nodeMetadata\"", json);
+            Assert.DoesNotContain("\"displayName\"", json);
+            Assert.DoesNotContain("\"comment\"", json);
+            Assert.DoesNotContain("仅供策划阅读", json);
             Assert.DoesNotContain("\"x\"", json);
             Assert.DoesNotContain("abilitykit-bt-authoring", json);
+            foreach (var node in (JArray)JObject.Parse(json)["nodes"]!)
+            {
+                Assert.Null(node["name"]);
+                Assert.Null(node["comment"]);
+            }
         }
 
         [Fact]
@@ -85,8 +107,8 @@ namespace AbilityKit.BehaviorTree.Tests
             var definition = BtTreeExporter.ToRuntimeDefinition(document);
 
             // 修改返回值不影响编辑态文档
-            definition.Nodes[1].Name = "污染";
-            Assert.NotEqual("污染", document.Tree.Nodes[1].Name);
+            definition.Nodes[1].Type = "polluted.type";
+            Assert.NotEqual("polluted.type", document.Tree.Nodes[1].Type);
         }
 
         [Fact]
@@ -98,9 +120,37 @@ namespace AbilityKit.BehaviorTree.Tests
 
             Assert.Equal(3, loaded.Layout.Count);
             Assert.Single(loaded.Groups);
+            Assert.Single(loaded.Notes);
             Assert.Equal("战斗意图", loaded.Groups[0].Title);
+            Assert.Equal("仅供策划阅读", loaded.Notes[0].Text);
+            Assert.Equal(24f, loaded.Notes[0].X);
             Assert.Equal(10f, loaded.Layout[0].X);
+            Assert.Equal("Root Sequence", loaded.NodeMetadata[0].DisplayName);
+            Assert.Equal("editor only", loaded.NodeMetadata[0].Comment);
             Assert.Equal(document.Tree.ComputeDefinitionHash(), loaded.Tree.ComputeDefinitionHash());
+        }
+
+        [Fact]
+        public void AuthoringJson_MigratesLegacyNodeNameAndComment()
+        {
+            var root = JObject.Parse(BtAuthoringJson.Save(AuthoringDocument()));
+            root["version"] = BtAuthoringSchema.LegacyVersion;
+            root.Remove("nodeMetadata");
+            var node = (JObject)root["tree"]!["nodes"]![0]!;
+            node["name"] = "Legacy Root";
+            node["comment"] = "legacy note";
+
+            var loaded = BtAuthoringJson.Load(root.ToString());
+            Assert.Equal(BtAuthoringSchema.Version, loaded.Version);
+            Assert.True(loaded.TryGetNodeMetadata("root", out var metadata));
+            Assert.Equal("Legacy Root", metadata.DisplayName);
+            Assert.Equal("legacy note", metadata.Comment);
+
+            var upgraded = BtAuthoringJson.Save(loaded);
+            Assert.Contains("\"nodeMetadata\"", upgraded);
+            var upgradedRoot = JObject.Parse(upgraded);
+            Assert.Null(upgradedRoot["tree"]!["nodes"]![0]!["name"]);
+            Assert.Null(upgradedRoot["tree"]!["nodes"]![0]!["comment"]);
         }
 
         [Fact]
@@ -113,7 +163,9 @@ namespace AbilityKit.BehaviorTree.Tests
             var document = BtTreeExporter.Import(definition);
             Assert.Single(document.Tree.Nodes);
             Assert.Single(document.Layout);
+            Assert.Single(document.NodeMetadata);
             Assert.Equal("root", document.Layout[0].NodeId);
+            Assert.Equal("root", document.NodeMetadata[0].DisplayName);
             Assert.Equal(0f, document.Layout[0].X);
         }
 

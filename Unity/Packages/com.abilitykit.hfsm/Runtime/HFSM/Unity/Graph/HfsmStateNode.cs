@@ -284,6 +284,8 @@ namespace UnityHFSM.Graph
             clone._displayName = _displayName;
             clone._position = _position + new Vector2(50, 50);
             clone._size = _size;
+            clone.isDefault = isDefault;
+            clone.ParentStateMachineId = ParentStateMachineId;
             clone._needsExitTime = _needsExitTime;
             clone._isGhostState = _isGhostState;
             clone._nextBehaviorKey = _nextBehaviorKey;

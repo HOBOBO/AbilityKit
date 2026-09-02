@@ -6,6 +6,7 @@ using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime.Observability;
 using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Protocol.Catalog;
 
 namespace AbilityKit.Network.Runtime
 {
@@ -237,6 +238,7 @@ namespace AbilityKit.Network.Runtime
             State = connectState;
             try
             {
+                _options.PacketBoundaryValidator?.BeginConnection(_connectionGeneration);
                 _transport = _transportFactory.Invoke()
                     ?? throw new InvalidOperationException("Network transport factory returned null.");
                 var frameCodec = _options.FrameCodec ?? LengthPrefixedFrameCodec.Instance;
@@ -244,10 +246,16 @@ namespace AbilityKit.Network.Runtime
                     _transport,
                     _dispatcher,
                     _ioDispatcher,
-                    frameCodec);
+                    frameCodec,
+                    _options.PacketBoundaryValidator);
                 _session = _options.SessionFactory != null
                     ? _options.SessionFactory.Invoke(sessionContext)
-                    : new NetworkSession(_transport, _dispatcher, _ioDispatcher, frameCodec);
+                    : new NetworkSession(
+                        _transport,
+                        _dispatcher,
+                        _ioDispatcher,
+                        frameCodec,
+                        _options.PacketBoundaryValidator);
                 if (_session == null)
                 {
                     throw new InvalidOperationException("Network session factory returned null.");
@@ -302,6 +310,15 @@ namespace AbilityKit.Network.Runtime
                     resetReconnect: false);
                 throw;
             }
+        }
+
+        /// <summary>Applies a remote catalog advertisement to the configured protocol session.</summary>
+        public ProtocolCatalogNegotiationResult ApplyRemoteCatalog(
+            ProtocolCatalogDefinition remoteCatalog)
+        {
+            if (_options.PacketBoundaryValidator == null)
+                throw new InvalidOperationException("No protocol catalog boundary is configured.");
+            return _options.PacketBoundaryValidator.ApplyRemoteCatalog(remoteCatalog);
         }
 
         private void StopInternal(bool keepState = false, bool resetReconnect = true)

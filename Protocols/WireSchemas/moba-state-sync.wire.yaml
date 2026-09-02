@@ -1,0 +1,429 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 2
+projectId: abilitykit.moba
+groupId: state-sync
+namespace: AbilityKit.Protocol.Moba.StateSync
+defaults:
+  memoryPackMode: sequential
+  declaration: struct
+  memberStyle: field
+types:
+  - name: MobaActorDespawnSnapshotEntry
+    fields:
+      - id: 0
+        name: actorId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: reason
+        scalarType: uint8
+        required: true
+
+  - name: MobaActorDespawnSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaActorSpawnSnapshotEntry
+    fields:
+      - id: 0
+        name: netId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: kind
+        scalarType: int32
+        required: true
+      - id: 2
+        name: code
+        scalarType: int32
+        required: true
+      - id: 3
+        name: ownerNetId
+        scalarType: int32
+        required: true
+      - id: 4
+        name: x
+        scalarType: float
+        required: true
+      - id: 5
+        name: y
+        scalarType: float
+        required: true
+      - id: 6
+        name: z
+        scalarType: float
+        required: true
+
+  - name: MobaActorSpawnSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaActorTransformSnapshotEntry
+    fields:
+      - id: 0
+        name: actorId
+        scalarType: int32
+        required: true
+      - id: 1
+        name: x
+        scalarType: float
+        required: true
+      - id: 2
+        name: y
+        scalarType: float
+        required: true
+      - id: 3
+        name: z
+        scalarType: float
+        required: true
+      - id: 4
+        name: forwardX
+        scalarType: float
+        required: true
+      - id: 5
+        name: forwardY
+        scalarType: float
+        required: true
+      - id: 6
+        name: forwardZ
+        scalarType: float
+        required: true
+
+  - name: MobaActorTransformSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaAreaEventSnapshotEntry
+    fields:
+      - id: 0
+        name: kind
+        scalarType: int32
+        required: true
+      - id: 1
+        name: areaId
+        scalarType: int32
+        required: true
+      - id: 2
+        name: ownerActorId
+        scalarType: int32
+        required: true
+      - id: 3
+        name: templateId
+        scalarType: int32
+        required: true
+      - id: 4
+        name: x
+        scalarType: float
+        required: true
+      - id: 5
+        name: y
+        scalarType: float
+        required: true
+      - id: 6
+        name: z
+        scalarType: float
+        required: true
+      - id: 7
+        name: radius
+        scalarType: float
+        required: true
+
+  - name: MobaAreaEventSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaDamageEventSnapshotEntry
+    fields:
+      - id: 0
+        name: kind
+        scalarType: int32
+        required: true
+      - id: 1
+        name: attackerActorId
+        scalarType: int32
+        required: true
+      - id: 2
+        name: targetActorId
+        scalarType: int32
+        required: true
+      - id: 3
+        name: damageType
+        scalarType: int32
+        required: true
+      - id: 4
+        name: value
+        scalarType: float
+        required: true
+      - id: 5
+        name: reasonKind
+        scalarType: int32
+        required: true
+      - id: 6
+        name: reasonParam
+        scalarType: int32
+        required: true
+      - id: 7
+        name: targetHp
+        scalarType: float
+        required: true
+      - id: 8
+        name: targetMaxHp
+        scalarType: float
+        required: true
+
+  - name: MobaDamageEventSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaDebugReplaceHeroPayload
+    fields:
+      - id: 0
+        name: version
+        scalarType: uint8
+        required: true
+      - id: 1
+        name: heroId
+        scalarType: int32
+        required: true
+
+  - name: MobaDebugSpawnUnitPayload
+    fields:
+      - id: 0
+        name: version
+        scalarType: uint8
+        required: true
+      - id: 1
+        name: relation
+        type: AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitRelation
+        external: true
+        required: true
+
+  - name: MobaEnterGamePayload
+    fields:
+      - id: 0
+        name: x
+        scalarType: float
+        required: true
+      - id: 1
+        name: y
+        scalarType: float
+        required: true
+      - id: 2
+        name: z
+        scalarType: float
+        required: true
+
+  - name: MobaMovePayload
+    fields:
+      - id: 0
+        name: x
+        scalarType: float
+        required: true
+      - id: 1
+        name: z
+        scalarType: float
+        required: true
+
+  - name: MobaPlayerHeroChangedSnapshotEntry
+    fields:
+      - id: 0
+        name: playerId
+        scalarType: string
+        required: true
+      - id: 1
+        name: previousActorId
+        scalarType: int32
+        required: true
+      - id: 2
+        name: actorId
+        scalarType: int32
+        required: true
+      - id: 3
+        name: teamId
+        scalarType: int32
+        required: true
+      - id: 4
+        name: heroId
+        scalarType: int32
+        required: true
+      - id: 5
+        name: attributeTemplateId
+        scalarType: int32
+        required: true
+      - id: 6
+        name: level
+        scalarType: int32
+        required: true
+      - id: 7
+        name: basicAttackSkillId
+        scalarType: int32
+        required: true
+      - id: 8
+        name: skillIds
+        scalarType: int32
+        array: true
+        required: true
+
+  - name: MobaPlayerHeroChangedSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaPresentationCueSnapshotEntry
+    fields:
+      - { id: 0, name: stage, scalarType: int32, required: true }
+      - { id: 1, name: cueKind, scalarType: string, required: true }
+      - { id: 2, name: cueVfxId, scalarType: string, required: true }
+      - { id: 3, name: cueSfxId, scalarType: string, required: true }
+      - { id: 4, name: templateId, scalarType: int32, required: true }
+      - { id: 5, name: vfxId, scalarType: int32, required: true }
+      - { id: 6, name: sfxId, scalarType: int32, required: true }
+      - { id: 7, name: requestKey, scalarType: string, required: true }
+      - { id: 8, name: sourceActorId, scalarType: int32, required: true }
+      - { id: 9, name: targetActorId, scalarType: int32, required: true }
+      - { id: 10, name: triggerEventId, scalarType: int32, required: true }
+      - { id: 11, name: triggerEventName, scalarType: string, required: true }
+      - { id: 12, name: triggerId, scalarType: int32, required: true }
+      - { id: 13, name: phase, scalarType: int32, required: true }
+      - { id: 14, name: priority, scalarType: int32, required: true }
+      - { id: 15, name: order, scalarType: int32, required: true }
+      - { id: 16, name: actionIndex, scalarType: int32, required: true }
+      - { id: 17, name: interruptReason, scalarType: int32, required: true }
+      - { id: 18, name: interruptSourceName, scalarType: string, required: true }
+      - { id: 19, name: interruptTriggerId, scalarType: int32, required: true }
+      - { id: 20, name: interruptConditionPassed, scalarType: bool, required: true }
+      - { id: 21, name: targets, scalarType: int32, array: true, required: true }
+      - { id: 22, name: positions, scalarType: float, array: true, required: true }
+      - { id: 23, name: offsetX, scalarType: float, required: true }
+      - { id: 24, name: offsetY, scalarType: float, required: true }
+      - { id: 25, name: offsetZ, scalarType: float, required: true }
+      - { id: 26, name: durationMsOverride, scalarType: int32, required: true }
+      - { id: 27, name: scale, scalarType: float, required: true }
+      - { id: 28, name: colorR, scalarType: float, required: true }
+      - { id: 29, name: colorG, scalarType: float, required: true }
+      - { id: 30, name: colorB, scalarType: float, required: true }
+      - { id: 31, name: colorA, scalarType: float, required: true }
+      - { id: 32, name: ownerKind, scalarType: string, required: true }
+      - { id: 33, name: instanceId, scalarType: int64, required: true }
+      - { id: 34, name: instanceKey, scalarType: string, required: true }
+      - { id: 35, name: stackCount, scalarType: int32, required: true }
+      - { id: 36, name: maxStackCount, scalarType: int32, required: true }
+      - { id: 37, name: elapsedSeconds, scalarType: float, required: true }
+      - { id: 38, name: remainingSeconds, scalarType: float, required: true }
+      - { id: 39, name: lifecycleReason, scalarType: int32, required: true }
+      - { id: 40, name: contextKind, scalarType: int32, required: true }
+      - { id: 41, name: originKind, scalarType: int32, required: true }
+      - { id: 42, name: sourceContextId, scalarType: int64, required: true }
+      - { id: 43, name: rootContextId, scalarType: int64, required: true }
+      - { id: 44, name: ownerContextId, scalarType: int64, required: true }
+      - { id: 45, name: sourceConfigId, scalarType: int32, required: true }
+      - { id: 46, name: contextEventId, scalarType: string, required: true }
+      - { id: 47, name: numericParamKeys, scalarType: int32, array: true, required: true }
+      - { id: 48, name: numericParamValues, scalarType: float, array: true, required: true }
+      - { id: 49, name: stringParamKeys, scalarType: string, array: true, required: true }
+      - { id: 50, name: stringParamValues, scalarType: string, array: true, required: true }
+      - { id: 51, name: cueLevel, scalarType: int32, required: true }
+      - { id: 52, name: cueStage, scalarType: int32, required: true }
+      - { id: 53, name: replicationMode, scalarType: int32, required: true }
+      - { id: 54, name: replicationId, scalarType: string, required: true }
+      - { id: 55, name: predictionKey, scalarType: int32, required: true }
+      - { id: 56, name: predictionState, scalarType: int32, required: true }
+      - { id: 57, name: predictedFrame, scalarType: int32, required: true }
+      - { id: 58, name: confirmedFrame, scalarType: int32, required: true }
+
+  - name: MobaPresentationCueSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaProjectileEventSnapshotEntry
+    fields:
+      - { id: 0, name: kind, scalarType: int32, required: true }
+      - { id: 1, name: projectileActorId, scalarType: int32, required: true }
+      - { id: 2, name: ownerActorId, scalarType: int32, required: true }
+      - { id: 3, name: templateId, scalarType: int32, required: true }
+      - { id: 4, name: launcherActorId, scalarType: int32, required: true }
+      - { id: 5, name: rootActorId, scalarType: int32, required: true }
+      - { id: 6, name: x, scalarType: float, required: true }
+      - { id: 7, name: y, scalarType: float, required: true }
+      - { id: 8, name: z, scalarType: float, required: true }
+      - { id: 9, name: hitCollider, scalarType: int32, required: true }
+      - { id: 10, name: exitReason, scalarType: int32, required: true }
+      - { id: 11, name: projectileId, scalarType: int32, required: true }
+      - { id: 12, name: forwardX, scalarType: float, required: true }
+      - { id: 13, name: forwardY, scalarType: float, required: true }
+      - { id: 14, name: forwardZ, scalarType: float, required: true }
+
+  - name: MobaProjectileEventSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaSkillStateSnapshotEntry
+    fields:
+      - { id: 0, name: actorId, scalarType: int32, required: true }
+      - { id: 1, name: slot, scalarType: int32, required: true }
+      - { id: 2, name: skillId, scalarType: int32, required: true }
+      - { id: 3, name: level, scalarType: int32, required: true }
+      - { id: 4, name: cooldownTotalMs, scalarType: int32, required: true }
+      - { id: 5, name: cooldownRemainingMs, scalarType: int32, required: true }
+      - { id: 6, name: cooldownEndTimeMs, scalarType: int64, required: true }
+      - { id: 7, name: serverTimeMs, scalarType: int64, required: true }
+      - id: 8
+        name: availability
+        type: AbilityKit.Protocol.Moba.StateSync.MobaSkillAvailabilityState
+        external: true
+        required: true
+      - { id: 9, name: disableReason, scalarType: int32, required: true }
+
+  - name: MobaSkillStateSnapshotPayload
+    fields:
+      - id: 0
+        name: entries
+        type: AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry
+        array: true
+        required: true
+
+  - name: MobaStateHashSnapshotPayload
+    fields:
+      - id: 0
+        name: version
+        scalarType: int32
+        required: true
+      - id: 1
+        name: frame
+        scalarType: int32
+        required: true
+      - id: 2
+        name: hash
+        scalarType: uint32
+        required: true

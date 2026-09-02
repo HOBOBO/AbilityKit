@@ -358,6 +358,10 @@ namespace AbilityKit.Game.Test.UnitTest
         public int executedExpectedActionCount;
         public int expectedRelationshipCount;
         public int satisfiedRelationshipCount;
+        public int expectedStateCount;
+        public int satisfiedStateCount;
+        public int expectedContextCount;
+        public int satisfiedContextCount;
     }
 
     [Serializable]
@@ -373,15 +377,21 @@ namespace AbilityKit.Game.Test.UnitTest
         public int expectedRelationshipCount;
         public int satisfiedRelationshipCount;
         public int expectedStateCount;
+        public int satisfiedStateCount;
         public int expectedContextCount;
+        public int satisfiedContextCount;
         public bool allRequiredTraceNodesMatched;
         public bool allForbiddenTraceNodesAbsent;
         public bool allExpectedActionsExecuted;
         public bool allRelationshipsSatisfied;
+        public bool allStateExpectationsSatisfied;
+        public bool allContextExpectationsSatisfied;
         public string missingTraceNodes;
         public string unexpectedTraceNodes;
         public string missingActions;
         public string missingRelationships;
+        public string missingStates;
+        public string missingContexts;
     }
 
     [Serializable]

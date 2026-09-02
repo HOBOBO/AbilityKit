@@ -163,12 +163,40 @@ namespace UnityHFSM.Graph
             clone._displayName = _displayName;
             clone._position = _position + new Vector2(50, 50);
             clone._size = _size;
+            clone.isDefault = isDefault;
+            clone.ParentStateMachineId = ParentStateMachineId;
             clone._defaultStateId = _defaultStateId;
             clone._childNodeIds = new List<string>(_childNodeIds);
             clone._transitionIds = new List<string>(_transitionIds);
             clone._anyStateTransitionIds = new List<string>(_anyStateTransitionIds);
             clone._rememberLastState = _rememberLastState;
             return clone;
+        }
+
+        internal void RemapReferences(
+            IReadOnlyDictionary<string, string> nodeIdMap,
+            IReadOnlyDictionary<string, string> transitionIdMap)
+        {
+            ParentStateMachineId = Remap(ParentStateMachineId, nodeIdMap);
+            _defaultStateId = Remap(_defaultStateId, nodeIdMap);
+            RemapList(_childNodeIds, nodeIdMap);
+            RemapList(_transitionIds, transitionIdMap);
+            RemapList(_anyStateTransitionIds, transitionIdMap);
+        }
+
+        private static void RemapList(List<string> ids, IReadOnlyDictionary<string, string> idMap)
+        {
+            for (var index = 0; index < ids.Count; index++)
+            {
+                ids[index] = Remap(ids[index], idMap);
+            }
+        }
+
+        private static string Remap(string id, IReadOnlyDictionary<string, string> idMap)
+        {
+            return !string.IsNullOrEmpty(id) && idMap.TryGetValue(id, out var remappedId)
+                ? remappedId
+                : id;
         }
     }
 }

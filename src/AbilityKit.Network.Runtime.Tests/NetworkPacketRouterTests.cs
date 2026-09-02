@@ -1,6 +1,8 @@
 using System;
 using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Protocol;
+using AbilityKit.Protocol.Catalog;
 using Xunit;
 
 namespace AbilityKit.Network.Runtime.Tests;
@@ -86,5 +88,84 @@ public sealed class NetworkPacketRouterTests
         Assert.Equal(1, handled);
         Assert.True(router.Unregister(40, NetworkPacketDispatchKind.ServerPush, handler));
         Assert.False(router.Dispatch(new NetworkPacketHeader(NetworkPacketFlags.ServerPush, 40, 0, 0), default));
+    }
+
+    [Fact]
+    public void Dispatch_BoundaryRejectsOversizedAndMalformedPayloadBeforeHandlers()
+    {
+        var catalogs = new ProtocolCatalogRegistry();
+        catalogs.Register(new ProtocolCatalogDefinition(
+            "project-a.room", "project-a", "room", 1, "memorypack",
+            new[]
+            {
+                new ProtocolMessageDefinition(
+                    "room.login", 52, ProtocolDirection.ClientToServer,
+                    ProtocolPacketKind.Request, "Payload", "memorypack"),
+                new ProtocolMessageDefinition(
+                    "room.push", 50, ProtocolDirection.ServerToClient,
+                    ProtocolPacketKind.Push, "Payload", "memorypack",
+                    maximumPayloadBytes: 2)
+            }));
+
+        var failures = new List<ProtocolPacketBoundaryFailureKind>();
+        var boundary = new ProtocolPacketBoundaryValidator(
+            catalogs, "project-a.room", failure: (kind, _) => failures.Add(kind));
+        var router = new NetworkPacketRouter(boundaryValidator: boundary.Validate);
+        var handled = 0;
+        router.Register(50, NetworkPacketDispatchKind.ServerPush, _ => handled++);
+
+        Assert.False(router.Dispatch(
+            new NetworkPacketHeader(NetworkPacketFlags.ServerPush, 50, 0, 3),
+            new ArraySegment<byte>(new byte[] { 1, 2, 3 })));
+        Assert.False(router.Dispatch(
+            new NetworkPacketHeader(NetworkPacketFlags.ServerPush, 50, 0, 2),
+            new ArraySegment<byte>(new byte[] { 1 })));
+        Assert.Equal(0, handled);
+        Assert.Equal(new[]
+        {
+            ProtocolPacketBoundaryFailureKind.PayloadTooLarge,
+            ProtocolPacketBoundaryFailureKind.MalformedPayloadLength
+        }, failures);
+        Assert.Equal(2, router.GetSnapshot().DispatchedCount);
+        Assert.Equal(2, router.GetSnapshot().BoundaryRejectedCount);
+    }
+
+    [Fact]
+    public void Dispatch_BoundaryCanRequireCatalogNegotiation()
+    {
+        var catalogs = new ProtocolCatalogRegistry();
+        var catalog = new ProtocolCatalogDefinition(
+            "project-a.room", "project-a", "room", 1, "memorypack",
+            new[]
+            {
+                new ProtocolMessageDefinition(
+                    "room.push", 51, ProtocolDirection.ServerToClient,
+                    ProtocolPacketKind.Push, "Payload", "memorypack",
+                    minimumSchemaVersion: 1,
+                    maximumSchemaVersion: 3)
+            });
+        catalogs.Register(catalog);
+        var negotiation = new ProtocolCatalogNegotiationSession(catalog);
+        var failures = new List<ProtocolPacketBoundaryFailureKind>();
+        var boundary = new ProtocolPacketBoundaryValidator(
+            catalogs,
+            "project-a.room",
+            failure: (kind, _) => failures.Add(kind),
+            negotiationSession: negotiation,
+            requireNegotiated: true,
+            bootstrapMessageIds: new[] { "room.login" });
+        var router = new NetworkPacketRouter(boundaryValidator: boundary.Validate);
+        var handled = 0;
+        router.Register(51, NetworkPacketDispatchKind.ServerPush, _ => handled++);
+        var header = new NetworkPacketHeader(NetworkPacketFlags.ServerPush, 51, 0, 1);
+
+        Assert.False(router.Dispatch(header, new ArraySegment<byte>(new byte[] { 1 })));
+        Assert.True(boundary.Validate(
+            new NetworkPacketHeader(NetworkPacketFlags.Request, 52, 0, 1),
+            new ArraySegment<byte>(new byte[] { 1 })));
+        negotiation.ApplyRemoteCatalog(catalog);
+        Assert.True(router.Dispatch(header, new ArraySegment<byte>(new byte[] { 1 })));
+        Assert.Equal(1, handled);
+        Assert.Contains(ProtocolPacketBoundaryFailureKind.NegotiationPending, failures);
     }
 }

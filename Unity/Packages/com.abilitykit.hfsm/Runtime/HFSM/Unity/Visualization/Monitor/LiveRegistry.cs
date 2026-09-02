@@ -6,7 +6,9 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityHFSM.Inspection;
 
 namespace UnityHFSM.Visualization
 {
@@ -58,7 +60,8 @@ namespace UnityHFSM.Visualization
         }
 
         private static readonly List<Entry> _entries = new List<Entry>();
-        private static readonly Dictionary<object, Entry> _fsmToEntry = new Dictionary<object, Entry>();
+        private static readonly ConditionalWeakTable<object, Entry> _fsmToEntry =
+            new ConditionalWeakTable<object, Entry>();
 
         /// <summary>
         /// 当注册表变化时触发
@@ -98,21 +101,29 @@ namespace UnityHFSM.Visualization
             CleanupDeadEntries();
 
             // 检查是否已存在
-            for (int i = 0; i < _entries.Count; i++)
+            if (_fsmToEntry.TryGetValue(fsm, out var existingEntry))
             {
-                var e = _entries[i];
-                if (ReferenceEquals(e.Fsm.Target, fsm))
-                {
-                    _entries[i] = new Entry(name, fsm, provider ?? e.Provider);
-                    Changed?.Invoke();
-                    return;
-                }
+                var replacementProvider = provider ?? existingEntry.Provider;
+                if (ReferenceEquals(replacementProvider, fsm))
+                    replacementProvider = new WrapperVisualizationProvider(fsm);
+                var replacement = new Entry(name, fsm, replacementProvider);
+                var index = _entries.IndexOf(existingEntry);
+                if (index >= 0)
+                    _entries[index] = replacement;
+                else
+                    _entries.Add(replacement);
+                _fsmToEntry.Remove(fsm);
+                _fsmToEntry.Add(fsm, replacement);
+                Changed?.Invoke();
+                return;
             }
 
             var providerImpl = provider ?? TryCreateProvider(fsm);
+            if (ReferenceEquals(providerImpl, fsm))
+                providerImpl = new WrapperVisualizationProvider(fsm);
             var entry = new Entry(name, fsm, providerImpl);
             _entries.Add(entry);
-            _fsmToEntry[fsm] = entry;
+            _fsmToEntry.Add(fsm, entry);
             Changed?.Invoke();
         }
 
@@ -165,10 +176,11 @@ namespace UnityHFSM.Visualization
         /// </summary>
         public static Entry GetEntry(int index)
         {
+            CleanupDeadEntries();
+
             if (index < 0 || index >= _entries.Count)
                 return null;
 
-            CleanupDeadEntries();
             return _entries[index];
         }
 
@@ -213,7 +225,8 @@ namespace UnityHFSM.Visualization
         {
             if (fsm == null) return;
 
-            if (_fsmToEntry.TryGetValue(fsm, out var entry))
+            var entry = FindEntry(fsm);
+            if (entry != null)
             {
                 if (entry.Provider != null)
                 {
@@ -235,9 +248,6 @@ namespace UnityHFSM.Visualization
             {
                 if (!_entries[i].Fsm.IsAlive)
                 {
-                    var target = _entries[i].Fsm.Target;
-                    if (target != null)
-                        _fsmToEntry.Remove(target);
                     _entries.RemoveAt(i);
                     removed = true;
                 }
@@ -252,9 +262,17 @@ namespace UnityHFSM.Visualization
         /// </summary>
         private static IVisualizationProvider TryCreateProvider(object fsm)
         {
+            // StateMachine exposes a visitor-based, strongly typed inspection surface.
+            if (fsm is IStateMachineInspectionSource inspectionSource)
+            {
+                return new StateMachineVisualizationProvider(
+                    inspectionSource,
+                    fsm as IVisualizationParameterSource);
+            }
+
             // 检查是否实现了 IVisualizationProvider 接口
             if (fsm is IVisualizationProvider provider)
-                return provider;
+                return new WrapperVisualizationProvider(provider);
 
             // 检查类型是否实现了相关接口
             var type = fsm.GetType();
@@ -271,6 +289,12 @@ namespace UnityHFSM.Visualization
 
             // 返回默认的反射式提供者
             return new ReflectionVisualizationProvider(fsm);
+        }
+
+        private static Entry FindEntry(object fsm)
+        {
+            CleanupDeadEntries();
+            return _fsmToEntry.TryGetValue(fsm, out var entry) ? entry : null;
         }
 
         /// <summary>
@@ -308,11 +332,16 @@ namespace UnityHFSM.Visualization
             _snapshot = new FsmSnapshot();
         }
 
-        public FsmSnapshot GetSnapshot() => _snapshot;
+        public FsmSnapshot GetSnapshot()
+        {
+            _callback?.Invoke(_snapshot);
+            _snapshot.snapshotTime = Time.time;
+            return _snapshot;
+        }
 
         public IEnumerable<string> GetActiveStatePaths()
         {
-            _callback(_snapshot);
+            _callback?.Invoke(_snapshot);
             return _snapshot.activeStatePaths;
         }
 
@@ -358,13 +387,13 @@ namespace UnityHFSM.Visualization
     /// </summary>
     internal class ReflectionVisualizationProvider : IVisualizationProvider
     {
-        private readonly object _fsm;
+        private readonly WeakReference _fsm;
         private readonly FsmSnapshot _snapshot;
         private readonly List<StateTransitionRecord> _history = new List<StateTransitionRecord>();
 
         public ReflectionVisualizationProvider(object fsm)
         {
-            _fsm = fsm;
+            _fsm = new WeakReference(fsm);
             _snapshot = new FsmSnapshot();
             ProbeFsmStructure();
         }
@@ -421,17 +450,22 @@ namespace UnityHFSM.Visualization
 
         private void ProbeFsmStructure()
         {
-            var type = _fsm.GetType();
+            var fsm = _fsm.Target;
+            if (fsm == null) return;
+            var type = fsm.GetType();
+
+            if (ProbeRuntimeChildren(fsm, ""))
+                return;
 
             // 探测 activeStateName 或类似属性
-            var activeStateProperty = type.GetProperty("activeStateName");
-            var statesProperty = type.GetProperty("states");
-            var stateMachinesProperty = type.GetProperty("stateMachines");
+            var activeStateProperty = type.GetProperty("ActiveStateName") ?? type.GetProperty("activeStateName");
+            var statesProperty = type.GetProperty("States") ?? type.GetProperty("states");
+            var stateMachinesProperty = type.GetProperty("StateMachines") ?? type.GetProperty("stateMachines");
 
             // 如果有子状态机，递归探测
             if (stateMachinesProperty != null)
             {
-                var stateMachines = stateMachinesProperty.GetValue(_fsm) as System.Collections.IEnumerable;
+                var stateMachines = stateMachinesProperty.GetValue(fsm) as System.Collections.IEnumerable;
                 if (stateMachines != null)
                 {
                     foreach (var sm in stateMachines)
@@ -444,7 +478,7 @@ namespace UnityHFSM.Visualization
             // 探测顶层状态
             if (statesProperty != null)
             {
-                var states = statesProperty.GetValue(_fsm) as System.Collections.IEnumerable;
+                var states = statesProperty.GetValue(fsm) as System.Collections.IEnumerable;
                 if (states != null)
                 {
                     foreach (var state in states)
@@ -453,6 +487,41 @@ namespace UnityHFSM.Visualization
                     }
                 }
             }
+        }
+
+        private bool ProbeRuntimeChildren(object machine, string parentPath)
+        {
+            var type = machine.GetType();
+            var getStateNames = type.GetMethod("GetAllStateNames", Type.EmptyTypes);
+            var getState = type.GetMethod("GetState");
+            if (getStateNames == null || getState == null)
+                return false;
+
+            var stateNames = getStateNames.Invoke(machine, null) as System.Collections.IEnumerable;
+            if (stateNames == null)
+                return true;
+
+            foreach (var stateId in stateNames)
+            {
+                var name = stateId?.ToString() ?? "Unknown";
+                var path = string.IsNullOrEmpty(parentPath) ? name : $"{parentPath}/{name}";
+                var state = getState.Invoke(machine, new[] { stateId });
+                var isStateMachine = state != null &&
+                    state.GetType().GetMethod("GetAllStateNames", Type.EmptyTypes) != null;
+                _snapshot.states.Add(new StateNodeInfo
+                {
+                    name = name,
+                    path = path,
+                    parentPath = parentPath,
+                    isStateMachine = isStateMachine,
+                    nestingLevel = string.IsNullOrEmpty(parentPath) ? 0 : parentPath.Split('/').Length
+                });
+
+                if (isStateMachine)
+                    ProbeRuntimeChildren(state, path);
+            }
+
+            return true;
         }
 
         private void ProbeSubStateMachine(object sm, string parentPath)
@@ -527,18 +596,27 @@ namespace UnityHFSM.Visualization
         private void UpdateActiveStates()
         {
             _snapshot.activeStatePaths.Clear();
-            var type = _fsm.GetType();
+            var fsm = _fsm.Target;
+            if (fsm == null) return;
+            var type = fsm.GetType();
 
             // 尝试获取当前激活的状态名称
-            var activeStateProperty = type.GetProperty("activeStateName");
-            var activeStateField = type.GetField("activeStateName");
+            var activeStateProperty = type.GetProperty("ActiveStateName") ?? type.GetProperty("activeStateName");
+            var activeStateField = type.GetField("ActiveStateName") ?? type.GetField("activeStateName");
 
             if (activeStateProperty != null || activeStateField != null)
             {
-                var activeName = (activeStateProperty?.GetValue(_fsm) ?? activeStateField?.GetValue(_fsm))?.ToString();
-                if (!string.IsNullOrEmpty(activeName))
+                try
                 {
-                    _snapshot.activeStatePaths.Add(activeName);
+                    var activeName = (activeStateProperty?.GetValue(fsm) ?? activeStateField?.GetValue(fsm))?.ToString();
+                    if (!string.IsNullOrEmpty(activeName))
+                    {
+                        _snapshot.activeStatePaths.Add(activeName);
+                    }
+                }
+                catch (System.Reflection.TargetInvocationException)
+                {
+                    // An uninitialized state machine may not have an active state yet.
                 }
             }
 
@@ -568,20 +646,22 @@ namespace UnityHFSM.Visualization
     /// </summary>
     internal class WrapperVisualizationProvider : IVisualizationProvider
     {
-        private readonly object _fsm;
+        private readonly WeakReference _fsm;
 
         public WrapperVisualizationProvider(object fsm)
         {
-            _fsm = fsm;
+            _fsm = new WeakReference(fsm);
         }
 
-        public FsmSnapshot GetSnapshot() => (_fsm as IVisualizationProvider)?.GetSnapshot() ?? new FsmSnapshot();
-        public IEnumerable<string> GetActiveStatePaths() => (_fsm as IVisualizationProvider)?.GetActiveStatePaths() ?? Array.Empty<string>();
-        public IEnumerable<ParameterInfo> GetParameters() => (_fsm as IVisualizationProvider)?.GetParameters() ?? Array.Empty<ParameterInfo>();
-        public IEnumerable<(string name, string parentPath, bool isStateMachine)> GetStateStructure() => (_fsm as IVisualizationProvider)?.GetStateStructure() ?? Array.Empty<(string, string, bool)>();
-        public IEnumerable<TransitionInfo> GetTransitions() => (_fsm as IVisualizationProvider)?.GetTransitions() ?? Array.Empty<TransitionInfo>();
-        public void RecordTransition(string fromPath, string toPath, string trigger) => (_fsm as IVisualizationProvider)?.RecordTransition(fromPath, toPath, trigger);
-        public IEnumerable<StateTransitionRecord> GetHistory(int maxCount = 50) => (_fsm as IVisualizationProvider)?.GetHistory(maxCount) ?? Array.Empty<StateTransitionRecord>();
+        private IVisualizationProvider Provider => _fsm.Target as IVisualizationProvider;
+
+        public FsmSnapshot GetSnapshot() => Provider?.GetSnapshot() ?? new FsmSnapshot();
+        public IEnumerable<string> GetActiveStatePaths() => Provider?.GetActiveStatePaths() ?? Array.Empty<string>();
+        public IEnumerable<ParameterInfo> GetParameters() => Provider?.GetParameters() ?? Array.Empty<ParameterInfo>();
+        public IEnumerable<(string name, string parentPath, bool isStateMachine)> GetStateStructure() => Provider?.GetStateStructure() ?? Array.Empty<(string, string, bool)>();
+        public IEnumerable<TransitionInfo> GetTransitions() => Provider?.GetTransitions() ?? Array.Empty<TransitionInfo>();
+        public void RecordTransition(string fromPath, string toPath, string trigger) => Provider?.RecordTransition(fromPath, toPath, trigger);
+        public IEnumerable<StateTransitionRecord> GetHistory(int maxCount = 50) => Provider?.GetHistory(maxCount) ?? Array.Empty<StateTransitionRecord>();
     }
 }
 

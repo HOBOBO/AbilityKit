@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Demo.Moba.Acceptance;
+using AbilityKit.Scenario;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.Services;
@@ -29,13 +30,35 @@ public sealed class LiveSimAcceptanceScenarioRunner
     private static readonly (float X, float Y, float Z) DefaultAnchor = (-15f, 0f, 0f);
 
     public static MobaAcceptanceSummary Run(MobaAcceptanceExpectation expectation)
+        => Run(expectation, null, null);
+
+    /// <summary>
+    /// Runs a scenario with optional carrier profile resolution and behavior binding. Keeping the
+    /// dependencies optional preserves the legacy trace-only entry point while allowing BT/HFSM
+    /// carriers to share the same scenario contract.
+    /// </summary>
+    public static MobaAcceptanceSummary Run(
+        MobaAcceptanceExpectation expectation,
+        ScenarioProfileCatalog? profileCatalog,
+        IBehaviorProfileBinder? behaviorBinder)
     {
         ArgumentNullException.ThrowIfNull(expectation);
+
+        // Validate the neutral contract before constructing a carrier world. This turns
+        // malformed profiles into deterministic input errors instead of opaque sim failures.
+        var scenario = TestScenarioAdapter.FromMoba(expectation, "dotnet.console");
+        TestScenarioValidator.ThrowIfInvalid(scenario);
+        profileCatalog?.ThrowIfInvalid(scenario);
+        behaviorBinder ??= NoopBehaviorProfileBinder.Instance;
 
         using var bootstrapper = Boot();
         var executor = new LiveSimSetupActionExecutor(bootstrapper);
 
         AssembleActors(executor, PickActors(expectation), DefaultAnchor);
+        BindBehaviors(scenario, executor, profileCatalog, behaviorBinder);
+        behaviorBinder.Start();
+        try
+        {
         RunSetup(executor, PickSetupActions(expectation), DefaultAnchor);
 
         var timeline = new LiveSimTimelineRunner(bootstrapper, executor);
@@ -45,7 +68,47 @@ public sealed class LiveSimAcceptanceScenarioRunner
         executor.TickMilliseconds(500);
 
         var records = CaptureRecords(bootstrapper, expectation.caseId);
-        return AcceptanceVerifier.Verify(expectation, records);
+        var observations = ((IAcceptanceObservationSource)executor).Capture(scenario);
+        observations = MergeBehaviorObservations(observations, behaviorBinder.CaptureSnapshots());
+        return AcceptanceVerifier.VerifyWithObservations(expectation, records, observations);
+        }
+        finally
+        {
+            behaviorBinder.Stop();
+        }
+    }
+
+    private static void BindBehaviors(
+        TestScenario scenario,
+        LiveSimSetupActionExecutor executor,
+        ScenarioProfileCatalog? catalog,
+        IBehaviorProfileBinder binder)
+    {
+        if (catalog == null) return;
+        foreach (var actor in scenario.Actors)
+        {
+            if (string.IsNullOrWhiteSpace(actor.BehaviorProfileId)) continue;
+            if (!executor.TryGetActorId(actor.Alias, out var actorId))
+                throw new InvalidOperationException($"Behavior actor alias '{actor.Alias}' was not spawned.");
+            if (!((IScenarioProfileResolver<BehaviorProfile>)catalog).TryResolve(actor.BehaviorProfileId, out var profile))
+                throw new InvalidOperationException($"Behavior profile '{actor.BehaviorProfileId}' was not found.");
+            binder.Bind(new BehaviorBindingRequest(scenario, actor, actorId, profile, scenario.Seed));
+        }
+    }
+
+    private static AcceptanceObservations MergeBehaviorObservations(
+        AcceptanceObservations observations,
+        IReadOnlyList<BehaviorRuntimeSnapshot> snapshots)
+    {
+        if (snapshots == null || snapshots.Count == 0) return observations;
+        var contexts = new List<AcceptanceObservation>(observations.Contexts);
+        foreach (var snapshot in snapshots)
+        {
+            contexts.Add(new AcceptanceObservation(snapshot.Alias, snapshot.ActorId, "behavior", "state", snapshot.State));
+            foreach (var pair in snapshot.Blackboard)
+                contexts.Add(new AcceptanceObservation(snapshot.Alias, snapshot.ActorId, "behavior", "blackboard." + pair.Key, pair.Value));
+        }
+        return new AcceptanceObservations { States = observations.States, Contexts = contexts };
     }
 
     private static MobaAcceptanceVector3Expectation Offset(MobaAcceptanceVector3Expectation position, (float X, float Y, float Z) anchor)

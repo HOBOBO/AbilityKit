@@ -51,6 +51,8 @@ namespace AbilityKit.BehaviorTree
         BtTreeDefinition TreeDefinition { get; }
         /// <summary>子树展开后的节点来源树（nodeId -> treeId）；未用子树引用时为 null。</summary>
         IReadOnlyDictionary<string, string>? NodeSourceTree { get; }
+        /// <summary>子树展开后的节点来源 id（运行 nodeId -> authoring nodeId）；未展开时为 null。</summary>
+        IReadOnlyDictionary<string, string>? NodeSourceNode { get; }
         /// <summary>子树实例（内联根 -> 被引用 treeId）；观察端标记子树边界/跨树跳转。</summary>
         IReadOnlyList<BtSubtreeInstance> SubtreeInstances { get; }
         List<BtNodeDebugInfo> GetNodeStates();
@@ -85,7 +87,7 @@ namespace AbilityKit.BehaviorTree
     public static class BtDebugRegistry
     {
         private static readonly object Gate = new();
-        private static readonly Dictionary<long, IBtTreeDebugView> Views = new();
+        private static readonly Dictionary<long, WeakReference<IBtTreeDebugView>> Views = new();
         private static long _nextId = 1;
 
         public static BtTreeDebugHandle Register(IBtTreeDebugView view)
@@ -94,7 +96,7 @@ namespace AbilityKit.BehaviorTree
             lock (Gate)
             {
                 var handle = new BtTreeDebugHandle(_nextId++);
-                Views.Add(handle.Id, view);
+                Views.Add(handle.Id, new WeakReference<IBtTreeDebugView>(view));
                 return handle;
             }
         }
@@ -113,7 +115,10 @@ namespace AbilityKit.BehaviorTree
         {
             lock (Gate)
             {
-                return new List<IBtTreeDebugView>(Views.Values);
+                var entries = CollectEntriesLocked();
+                var result = new List<IBtTreeDebugView>(entries.Count);
+                foreach (var entry in entries) result.Add(entry.View);
+                return result;
             }
         }
 
@@ -122,19 +127,35 @@ namespace AbilityKit.BehaviorTree
         {
             lock (Gate)
             {
-                var entries = new List<BtDebugRegistryEntry>(Views.Count);
-                foreach (var pair in Views)
-                {
-                    entries.Add(new BtDebugRegistryEntry(pair.Key, pair.Value));
-                }
-                entries.Sort(static (a, b) => a.Id.CompareTo(b.Id));
-                return entries;
+                return CollectEntriesLocked();
             }
         }
 
         public static int Count
         {
-            get { lock (Gate) { return Views.Count; } }
+            get { lock (Gate) { return CollectEntriesLocked().Count; } }
+        }
+
+        private static List<BtDebugRegistryEntry> CollectEntriesLocked()
+        {
+            var entries = new List<BtDebugRegistryEntry>(Views.Count);
+            List<long>? dead = null;
+            foreach (var pair in Views)
+            {
+                if (pair.Value.TryGetTarget(out var view))
+                {
+                    entries.Add(new BtDebugRegistryEntry(pair.Key, view));
+                    continue;
+                }
+                dead ??= new List<long>();
+                dead.Add(pair.Key);
+            }
+            if (dead != null)
+            {
+                foreach (var id in dead) Views.Remove(id);
+            }
+            entries.Sort(static (a, b) => a.Id.CompareTo(b.Id));
+            return entries;
         }
 
         /// <summary>测试辅助：清空登记表。</summary>

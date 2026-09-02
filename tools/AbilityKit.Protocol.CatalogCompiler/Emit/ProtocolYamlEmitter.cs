@@ -36,40 +36,65 @@ public static class ProtocolYamlEmitter
         return Normalize(CatalogSchemaHeader + Serializer.Serialize(source));
     }
 
-    public static string EmitWireSchema(ProtocolWorkspaceWireSchema schema)
+    public static string EmitWireSchemaDocument(WireSchemaDocumentIr document)
     {
-        ArgumentNullException.ThrowIfNull(schema);
-        var source = new WireSchemaSource
+        ArgumentNullException.ThrowIfNull(document);
+        if (document.SchemaVersion != WireSchemaFormatVersions.Current)
+            throw new ArgumentException(
+                $"Only schemaVersion {WireSchemaFormatVersions.Current} wire documents can be emitted.",
+                nameof(document));
+        if (document.Schemas.Count == 0)
+            throw new InvalidDataException("A wire schema document must contain at least one type.");
+        foreach (var schema in document.Schemas)
         {
-            SchemaVersion = ProtocolCatalogConstants.SchemaVersion,
-            ProjectId = EmptyToNull(schema.ProjectId),
-            Namespace = EmptyToNull(schema.Namespace),
-            Type = schema.Type?.Trim() ?? string.Empty,
-            MemoryPackMode = string.Equals(
-                schema.MemoryPackMode,
-                "version-tolerant",
-                StringComparison.OrdinalIgnoreCase)
-                ? null
-                : EmptyToNull(schema.MemoryPackMode),
-            Declaration = string.Equals(schema.Declaration, "class", StringComparison.OrdinalIgnoreCase)
-                ? null
-                : EmptyToNull(schema.Declaration),
-            MemberStyle = string.Equals(schema.MemberStyle, "property", StringComparison.OrdinalIgnoreCase)
-                ? null
-                : EmptyToNull(schema.MemberStyle),
-            Fields = (schema.Fields ?? Array.Empty<ProtocolWorkspaceWireField>()).Select(field => new WireFieldSource
+            if (!string.Equals(schema.ProjectId, document.ProjectId, StringComparison.Ordinal) ||
+                !string.Equals(schema.TargetNamespace, document.TargetNamespace, StringComparison.Ordinal) ||
+                !string.Equals(schema.GroupId, document.GroupId, StringComparison.Ordinal))
             {
-                Id = field.Id,
-                Name = field.Name?.Trim() ?? string.Empty,
-                ScalarType = string.IsNullOrWhiteSpace(field.TypeName)
-                    ? field.ScalarType?.Trim().ToLowerInvariant()
-                    : null,
-                Type = EmptyToNull(field.TypeName),
-                Array = field.Array ? true : null,
-                Optional = field.Optional ? true : null,
-                Required = field.Optional ? null : true
-            }).ToArray(),
-            ReservedIds = schema.ReservedIds is { Length: > 0 } ? schema.ReservedIds : null
+                throw new InvalidDataException(
+                    $"Wire type '{schema.Type}' ownership does not match its document projectId, groupId and namespace.");
+            }
+        }
+        var duplicateType = document.Schemas
+            .GroupBy(schema => schema.Type, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateType != null)
+            throw new InvalidDataException($"Wire document contains duplicate type '{duplicateType.Key}'.");
+
+        var defaults = new WireDefaultsSource
+        {
+            MemoryPackMode = document.DefaultMemoryPackMode == WireMemoryPackMode.VersionTolerant
+                ? null
+                : FormatMemoryPackMode(document.DefaultMemoryPackMode),
+            Declaration = document.DefaultDeclarationKind == WireDeclarationKind.Class
+                ? null
+                : FormatDeclaration(document.DefaultDeclarationKind),
+            MemberStyle = document.DefaultMemberStyle == WireMemberStyle.Property
+                ? null
+                : FormatMemberStyle(document.DefaultMemberStyle)
+        };
+        var source = new WireSchemaGroupSource
+        {
+            SchemaVersion = WireSchemaFormatVersions.Current,
+            ProjectId = document.ProjectId,
+            GroupId = document.GroupId,
+            Namespace = document.TargetNamespace,
+            Defaults = IsEmpty(defaults) ? null : defaults,
+            Types = document.Schemas.Select(schema => new WireTypeSource
+            {
+                Name = schema.Type,
+                MemoryPackMode = schema.MemoryPackMode == document.DefaultMemoryPackMode
+                    ? null
+                    : FormatMemoryPackMode(schema.MemoryPackMode),
+                Declaration = schema.DeclarationKind == document.DefaultDeclarationKind
+                    ? null
+                    : FormatDeclaration(schema.DeclarationKind),
+                MemberStyle = schema.MemberStyle == document.DefaultMemberStyle
+                    ? null
+                    : FormatMemberStyle(schema.MemberStyle),
+                Fields = ToFields(schema.Fields),
+                ReservedIds = schema.ReservedIds.Count > 0 ? schema.ReservedIds.ToArray() : null
+            }).ToArray()
         };
         return Normalize(WireSchemaHeader + Serializer.Serialize(source));
     }
@@ -99,6 +124,31 @@ public static class ProtocolYamlEmitter
 
     private static string? EmptyToNull(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static WireFieldSource[] ToFields(IReadOnlyList<WireFieldIr> fields) =>
+        fields.Select(field => new WireFieldSource
+        {
+            Id = field.Id,
+            Name = field.Name,
+            ScalarType = field.IsCustomType ? null : field.ScalarType,
+            Type = field.IsCustomType ? field.TypeName : null,
+            External = field.IsExternalReference ? true : null,
+            Array = field.IsArray ? true : null,
+            Optional = field.IsOptional ? true : null,
+            Required = field.IsOptional ? null : true
+        }).ToArray();
+
+    private static string FormatMemoryPackMode(WireMemoryPackMode value) =>
+        value == WireMemoryPackMode.Sequential ? "sequential" : "version-tolerant";
+
+    private static string FormatDeclaration(WireDeclarationKind value) =>
+        value == WireDeclarationKind.Struct ? "struct" : "class";
+
+    private static string FormatMemberStyle(WireMemberStyle value) =>
+        value == WireMemberStyle.Field ? "field" : "property";
+
+    private static bool IsEmpty(WireDefaultsSource defaults) =>
+        defaults.MemoryPackMode == null && defaults.Declaration == null && defaults.MemberStyle == null;
 
     private static string Normalize(string yaml) =>
         yaml.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd() + "\n";
@@ -131,12 +181,26 @@ public static class ProtocolYamlEmitter
         public string[]? SensitiveFields { get; set; }
     }
 
-    private sealed class WireSchemaSource
+    private sealed class WireSchemaGroupSource
     {
         public int SchemaVersion { get; set; }
-        public string? ProjectId { get; set; }
-        public string? Namespace { get; set; }
-        public string Type { get; set; } = string.Empty;
+        public string ProjectId { get; set; } = string.Empty;
+        public string GroupId { get; set; } = string.Empty;
+        public string Namespace { get; set; } = string.Empty;
+        public WireDefaultsSource? Defaults { get; set; }
+        public WireTypeSource[] Types { get; set; } = Array.Empty<WireTypeSource>();
+    }
+
+    private sealed class WireDefaultsSource
+    {
+        public string? MemoryPackMode { get; set; }
+        public string? Declaration { get; set; }
+        public string? MemberStyle { get; set; }
+    }
+
+    private sealed class WireTypeSource
+    {
+        public string Name { get; set; } = string.Empty;
         public string? MemoryPackMode { get; set; }
         public string? Declaration { get; set; }
         public string? MemberStyle { get; set; }
@@ -150,6 +214,7 @@ public static class ProtocolYamlEmitter
         public string Name { get; set; } = string.Empty;
         public string? ScalarType { get; set; }
         public string? Type { get; set; }
+        public bool? External { get; set; }
         public bool? Array { get; set; }
         public bool? Optional { get; set; }
         public bool? Required { get; set; }

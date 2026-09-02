@@ -1,0 +1,19 @@
+{
+  "name": "com.abilitykit.scenario",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Scenario",
+  "unity": "2022.3",
+  "description": "Gameplay-neutral battle scenario IR (the DSL's normative contract), with project-pluggable expectations.",
+  "keywords": [
+    "abilitykit",
+    "scenario",
+    "dsl",
+    "testing"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}

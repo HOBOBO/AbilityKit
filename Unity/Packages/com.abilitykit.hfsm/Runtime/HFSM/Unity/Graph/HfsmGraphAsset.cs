@@ -458,10 +458,9 @@ namespace UnityHFSM.Graph
             var clone = new HfsmGraphAsset();
 #endif
             clone._graphName = _graphName + " (Clone)";
-            clone._rootStateMachineId = _rootStateMachineId;
-            clone._editorData = _editorData.Clone();
 
             var nodeIdMap = new Dictionary<string, string>();
+            var transitionIdMap = new Dictionary<string, string>();
 
             foreach (var node in _nodes)
             {
@@ -477,7 +476,25 @@ namespace UnityHFSM.Graph
                 clonedEdge.SourceNodeId = nodeIdMap.TryGetValue(edge.SourceNodeId, out var newSourceId) ? newSourceId : edge.SourceNodeId;
                 clonedEdge.TargetNodeId = nodeIdMap.TryGetValue(edge.TargetNodeId, out var newTargetId) ? newTargetId : edge.TargetNodeId;
                 clone._edges.Add(clonedEdge);
+                transitionIdMap[edge.Id] = clonedEdge.Id;
             }
+
+            foreach (var clonedNode in clone._nodes)
+            {
+                if (clonedNode is HfsmStateMachineNode stateMachineNode)
+                {
+                    stateMachineNode.RemapReferences(nodeIdMap, transitionIdMap);
+                }
+                else if (nodeIdMap.TryGetValue(clonedNode.ParentStateMachineId, out var newParentId))
+                {
+                    clonedNode.ParentStateMachineId = newParentId;
+                }
+            }
+
+            clone._rootStateMachineId = nodeIdMap.TryGetValue(_rootStateMachineId, out var newRootId)
+                ? newRootId
+                : _rootStateMachineId;
+            clone._editorData = _editorData.Clone(nodeIdMap);
 
             foreach (var parameter in _parameters)
             {

@@ -20,7 +20,7 @@ namespace AbilityKit.BehaviorTree
 
         /// <summary>
         /// 结构哈希：覆盖节点 id/类型/有序子结构/属性与黑板 schema。
-        /// 不含 TreeId / Name / Comment（重命名与注释不应使快照失效）。
+        /// 不含 TreeId；编辑态显示名、注释和布局不属于运行时定义。
         /// </summary>
         public long ComputeDefinitionHash()
         {
@@ -61,6 +61,47 @@ namespace AbilityKit.BehaviorTree
             return hash;
         }
 
+        /// <summary>
+        /// 创建完整的运行时定义副本。运行时与导出器用它取得定义所有权，避免调用方后续修改
+        /// 节点、属性或黑板 schema，导致已创建实例的拓扑和定义哈希不一致。
+        /// </summary>
+        public BtTreeDefinition DeepClone()
+        {
+            var clone = new BtTreeDefinition
+            {
+                TreeId = TreeId,
+                FormatVersion = FormatVersion,
+                RootNodeId = RootNodeId,
+            };
+
+            foreach (var node in Nodes)
+            {
+                var nodeClone = new BtNodeDefinition
+                {
+                    Id = node.Id,
+                    Type = node.Type,
+                };
+                foreach (var property in node.Properties.Values)
+                {
+                    nodeClone.Properties.Set(property.Key, CloneValue(property.Value));
+                }
+                nodeClone.ChildIds.AddRange(node.ChildIds);
+                clone.Nodes.Add(nodeClone);
+            }
+
+            foreach (var key in Blackboard.Keys)
+            {
+                clone.Blackboard.Keys.Add(new BtBlackboardKeyDefinition
+                {
+                    Name = key.Name,
+                    Type = key.Type,
+                    Default = key.Default == null ? null : CloneValue(key.Default),
+                });
+            }
+
+            return clone;
+        }
+
         private static long HashPropertyValue(BtPropertyValue value) => value.Type switch
         {
             BtValueType.Bool => value.BoolValue ? 1 : 0,
@@ -68,6 +109,15 @@ namespace AbilityKit.BehaviorTree
             BtValueType.Fixed64 => value.Fixed64Raw,
             BtValueType.String => HashString(value.StringValue),
             _ => 0,
+        };
+
+        internal static BtPropertyValue CloneValue(BtPropertyValue value) => value.Type switch
+        {
+            BtValueType.Bool => BtPropertyValue.Of(value.BoolValue),
+            BtValueType.Int64 => BtPropertyValue.Of(value.Int64Value),
+            BtValueType.Fixed64 => BtPropertyValue.Of(Fixed64.FromRaw(value.Fixed64Raw)),
+            BtValueType.String => BtPropertyValue.Of(value.StringValue),
+            _ => throw new InvalidOperationException($"Unsupported BT value type '{value.Type}'."),
         };
 
         internal static long HashString(string value)

@@ -21,7 +21,21 @@ namespace AbilityKit.Protocol.Generated
             if (registry == null) throw new ArgumentNullException(nameof(registry));
 
             registry.TryRegister("abilitykit.moba.battle", "move-input.event", Decode<AbilityKit.Protocol.Moba.StateSync.MobaMovePayload>);
+            registry.TryRegister("abilitykit.moba.battle", "skill-input.event", Decode<AbilityKit.Protocol.Moba.SkillInputEvent>);
+            registry.TryRegister("abilitykit.moba.battle", "debug-spawn-unit.event", Decode<AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "debug-replace-hero.event", Decode<AbilityKit.Protocol.Moba.StateSync.MobaDebugReplaceHeroPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "lobby-snapshot.push", Decode<AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot>);
+            registry.TryRegister("abilitykit.moba.battle", "enter-game.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaEnterGamePayload>);
+            registry.TryRegister("abilitykit.moba.battle", "actor-transform.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload>);
             registry.TryRegister("abilitykit.moba.battle", "state-hash.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "actor-spawn.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "projectile-event.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "damage-event.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "actor-despawn.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "area-event.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "presentation-cue.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "skill-state.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload>);
+            registry.TryRegister("abilitykit.moba.battle", "player-hero-changed.push", Decode<AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload>);
         }
 
         private static object? Decode<T>(ArraySegment<byte> payload)

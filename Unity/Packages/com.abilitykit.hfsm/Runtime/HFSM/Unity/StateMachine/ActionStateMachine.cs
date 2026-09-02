@@ -9,6 +9,8 @@ using UnityEngine;
 using UnityHFSM.Actions;
 using UnityHFSM.Actions.Runtime;
 using UnityHFSM.Graph;
+using UnityHFSM.Graph.Compilation;
+using UnityHFSM.Graph.Conditions;
 
 namespace UnityHFSM
 {
@@ -16,12 +18,52 @@ namespace UnityHFSM
     /// 支持行为树执行的状态机。
     /// 可以从 HfsmGraphAsset 初始化，并自动执行状态中的行为。
     /// </summary>
-    public class ActionStateMachine<TStateId, TEvent> : StateMachine<TStateId, TEvent>, IActionable<TEvent>
+    public class ActionStateMachine<TStateId, TEvent> : StateMachine<TStateId, TEvent>, IActionable<TEvent>, Visualization.IVisualizationParameterSource
     {
         private ActionStorage<TEvent> actionStorage;
         private readonly Dictionary<string, BehaviorExecutor> behaviorExecutors = new Dictionary<string, BehaviorExecutor>();
         private MonoBehaviour monoBehaviour;
         private object userData;
+
+        public StateMachineGraphProgram GraphProgram { get; private set; }
+        public HfsmParameterStore Parameters { get; } = new HfsmParameterStore();
+
+        public IEnumerable<Visualization.ParameterInfo> GetVisualizationParameters()
+        {
+            if (GraphProgram == null || GraphProgram.Parameters == null)
+                yield break;
+
+            foreach (var parameter in GraphProgram.Parameters)
+            {
+                var info = new Visualization.ParameterInfo
+                {
+                    name = parameter.Name,
+                    isTrigger = parameter.ParameterType == HfsmParameterType.Trigger,
+                    type = parameter.ParameterType == HfsmParameterType.Bool
+                        ? Visualization.ParameterType.Bool
+                        : parameter.ParameterType == HfsmParameterType.Int
+                            ? Visualization.ParameterType.Int
+                            : parameter.ParameterType == HfsmParameterType.Float
+                                ? Visualization.ParameterType.Float
+                                : Visualization.ParameterType.Trigger
+                };
+
+                switch (parameter.ParameterType)
+                {
+                    case HfsmParameterType.Bool:
+                        info.boolValue = Parameters.GetBool(parameter.Name);
+                        break;
+                    case HfsmParameterType.Int:
+                        info.intValue = Parameters.GetInt(parameter.Name);
+                        break;
+                    case HfsmParameterType.Float:
+                        info.floatValue = Parameters.GetFloat(parameter.Name);
+                        break;
+                }
+
+                yield return info;
+            }
+        }
 
         /// <summary>
         /// 行为完成时触发的事件（行为ID，状态ID，完成状态）
@@ -71,72 +113,219 @@ namespace UnityHFSM
             InitializeFromGraph(graph);
         }
 
+        public void InitializeFromGraph(
+            HfsmGraphAsset graph,
+            MonoBehaviour mono,
+            StateMachineGraphBinding<TStateId, TEvent> binding)
+        {
+            monoBehaviour = mono;
+            InitializeFromGraph(graph, binding);
+        }
+
         /// <summary>
         /// 从 HfsmGraphAsset 初始化状态机（无 MonoBehaviour）
         /// </summary>
         public void InitializeFromGraph(HfsmGraphAsset graph)
         {
-            if (graph == null)
-                return;
-
-            graph.Initialize();
-
-            var rootSM = graph.GetRootStateMachine();
-            if (rootSM != null)
-            {
-                BuildStateMachineFromNode(graph, rootSM, this);
-            }
+            InitializeFromGraph(graph, StateMachineGraphBinding<TStateId, TEvent>.CreateNameBinding(Parameters));
         }
 
-        private void BuildStateMachineFromNode(HfsmGraphAsset graph, HfsmStateMachineNode smNode, object parentFsm)
+        public void InitializeFromGraph(
+            HfsmGraphAsset graph,
+            StateMachineGraphBinding<TStateId, TEvent> binding)
         {
-            foreach (var childId in smNode.ChildNodeIds)
+            if (graph == null)
+                throw new ArgumentNullException(nameof(graph));
+
+            InitializeFromProgram(new StateMachineGraphCompiler().Compile(graph), binding);
+        }
+
+        public void InitializeFromProgram(
+            StateMachineGraphProgram program,
+            StateMachineGraphBinding<TStateId, TEvent> binding)
+        {
+            GraphProgram = program ?? throw new ArgumentNullException(nameof(program));
+            if (binding == null)
+                throw new ArgumentNullException(nameof(binding));
+
+            Parameters.LoadDefaults(program.Parameters);
+            var mappedStateIds = new Dictionary<string, TStateId>(StringComparer.Ordinal);
+            BuildMachine(program, program.RootMachine, this, binding, mappedStateIds);
+        }
+
+        private void BuildMachine(
+            StateMachineGraphProgram program,
+            MachineProgram machine,
+            StateMachine<TStateId, TStateId, TEvent> runtimeMachine,
+            StateMachineGraphBinding<TStateId, TEvent> binding,
+            IDictionary<string, TStateId> mappedStateIds)
+        {
+            var localIds = new HashSet<TStateId>(EqualityComparer<TStateId>.Default);
+            foreach (var childNodeId in machine.ChildNodeIds)
             {
-                var childNode = graph.GetNodeById(childId);
-                if (childNode == null)
-                    continue;
-
-                if (childNode is HfsmStateMachineNode childSMNode)
+                var child = program.GetNode(childNodeId);
+                var runtimeId = binding.StateIdSelector(child);
+                if (!localIds.Add(runtimeId))
                 {
-                    var subFsm = new HybridStateMachine<TStateId, TEvent>();
-                    AddState((TStateId)(object)childNode.GetName(), subFsm);
-
-                    BuildStateMachineFromNode(graph, childSMNode, subFsm);
-
-                    if (!string.IsNullOrEmpty(smNode.DefaultStateId) && smNode.DefaultStateId == childId)
-                    {
-                        SetStartState((TStateId)(object)childNode.GetName());
-                    }
+                    throw new InvalidOperationException(
+                        $"The graph binding maps more than one child of machine '{machine.RuntimeName}' to state ID '{runtimeId}'.");
                 }
-                else if (childNode is HfsmStateNode stateNode)
+
+                mappedStateIds.Add(childNodeId, runtimeId);
+                if (child is MachineProgram childMachine)
+                {
+                    var subMachine = new HybridStateMachine<TStateId, TEvent>(rememberLastState: childMachine.RememberLastState);
+                    runtimeMachine.AddState(runtimeId, subMachine);
+                    BuildMachine(program, childMachine, subMachine, binding, mappedStateIds);
+                }
+                else if (child is StateProgram state)
                 {
                     var actionState = new ActionBehaviorState<TStateId, TEvent>(
-                        stateNode,
-                        stateNode.NeedsExitTime,
-                        stateNode.IsGhostState,
+                        state.Template,
+                        state.NeedsExitTime,
+                        state.IsGhostState,
                         monoBehaviour,
                         userData,
-                        this
+                        runtimeMachine
                     );
 
-                    AddState((TStateId)(object)stateNode.GetName(), actionState);
+                    runtimeMachine.AddState(runtimeId, actionState);
 
-                    if (stateNode.isDefault || (!string.IsNullOrEmpty(smNode.DefaultStateId) && smNode.DefaultStateId == childId))
-                    {
-                        SetStartState((TStateId)(object)stateNode.GetName());
-                    }
+                    Parameters.BindActionCompletion(state.SourceNodeId, () => actionState.BehaviorCompleted);
+                    Parameters.BindNodeElapsedTime(state.SourceNodeId, () => actionState.ElapsedTime);
 
                     actionState.OnBehaviorCompleted += (behaviorId, status) =>
                     {
-                        OnBehaviorCompleted?.Invoke(behaviorId, stateNode.GetName(), status);
+                        OnBehaviorCompleted?.Invoke(behaviorId, state.RuntimeName, status);
                     };
 
                     actionState.OnBehaviorFailed += (behaviorId) =>
                     {
-                        OnBehaviorFailed?.Invoke(behaviorId, stateNode.GetName());
+                        OnBehaviorFailed?.Invoke(behaviorId, state.RuntimeName);
                     };
                 }
             }
+
+            if (!string.IsNullOrEmpty(machine.DefaultChildNodeId))
+                runtimeMachine.SetStartState(mappedStateIds[machine.DefaultChildNodeId]);
+
+            Parameters.BindActiveState(machine.SourceNodeId, stateNodeId =>
+            {
+                if (!mappedStateIds.TryGetValue(stateNodeId, out var mappedStateId))
+                    return false;
+                try
+                {
+                    return EqualityComparer<TStateId>.Default.Equals(runtimeMachine.ActiveStateName, mappedStateId);
+                }
+                catch (InvalidOperationException)
+                {
+                    return false;
+                }
+            });
+
+            foreach (var transition in machine.Transitions)
+                AddCompiledTransition(runtimeMachine, transition, binding, mappedStateIds);
+        }
+
+        private static void AddCompiledTransition(
+            StateMachine<TStateId, TStateId, TEvent> runtimeMachine,
+            TransitionProgram program,
+            StateMachineGraphBinding<TStateId, TEvent> binding,
+            IDictionary<string, TStateId> mappedStateIds)
+        {
+            var from = program.IsFromAnyState || program.IsExitTransition && string.IsNullOrEmpty(program.SourceNodeId)
+                ? default
+                : mappedStateIds[program.SourceNodeId];
+            var to = program.IsExitTransition ? default : mappedStateIds[program.TargetNodeId];
+            var condition = CreateCondition(program, binding.EvaluationContext);
+            var action = ResolveTransitionAction(program, binding.TransitionActionResolver);
+            var transition = new Transition<TStateId>(
+                from,
+                to,
+                condition == null ? null : _ => condition(),
+                action == null ? null : _ => action(),
+                forceInstantly: program.ForceInstantly);
+
+            var hasTrigger = !string.IsNullOrEmpty(program.TriggerId);
+            var trigger = hasTrigger ? binding.EventIdSelector(program.TriggerId) : default;
+            if (program.IsExitTransition)
+            {
+                if (program.IsFromAnyState)
+                {
+                    if (hasTrigger)
+                        runtimeMachine.AddExitTriggerTransitionFromAny(trigger, transition);
+                    else
+                        runtimeMachine.AddExitTransitionFromAny(transition);
+                }
+                else if (hasTrigger)
+                    runtimeMachine.AddExitTriggerTransition(trigger, transition);
+                else
+                    runtimeMachine.AddExitTransition(transition);
+            }
+            else if (program.IsFromAnyState)
+            {
+                if (hasTrigger)
+                    runtimeMachine.AddTriggerTransitionFromAny(trigger, transition);
+                else
+                    runtimeMachine.AddTransitionFromAny(transition);
+            }
+            else if (hasTrigger)
+                runtimeMachine.AddTriggerTransition(trigger, transition);
+            else
+                runtimeMachine.AddTransition(transition);
+        }
+
+        private static Func<bool> CreateCondition(TransitionProgram program, IHfsmEvaluationContext context)
+        {
+            if (program.Conditions.Count == 0)
+                return null;
+            if (context == null)
+            {
+                throw new InvalidOperationException(
+                    $"Transition '{program.SourceEdgeId}' has conditions, but the graph binding has no evaluation context.");
+            }
+
+            if (program.UseAndLogic)
+            {
+                return () =>
+                {
+                    foreach (var condition in program.Conditions)
+                    {
+                        if (!condition.Evaluate(context))
+                            return false;
+                    }
+                    return true;
+                };
+            }
+
+            return () =>
+            {
+                foreach (var condition in program.Conditions)
+                {
+                    if (condition.Evaluate(context))
+                        return true;
+                }
+                return false;
+            };
+        }
+
+        private static Action ResolveTransitionAction(
+            TransitionProgram program,
+            Func<string, Action> resolver)
+        {
+            if (string.IsNullOrEmpty(program.ActionKey))
+                return null;
+            if (resolver == null)
+            {
+                throw new InvalidOperationException(
+                    $"Transition '{program.SourceEdgeId}' declares action key '{program.ActionKey}', " +
+                    "but the graph binding has no transition action resolver.");
+            }
+
+            var action = resolver(program.ActionKey);
+            if (action == null)
+                throw new InvalidOperationException($"No transition action is registered for key '{program.ActionKey}'.");
+            return action;
         }
 
         /// <summary>
@@ -199,7 +388,7 @@ namespace UnityHFSM
     /// <summary>
     /// 支持行为树执行的状态
     /// </summary>
-    public class ActionBehaviorState<TStateId, TEvent> : State<TStateId>, IActionable<TEvent>
+    public class ActionBehaviorState<TStateId, TEvent> : State<TStateId>, IActionable<TEvent>, IActionRuntimeStateProvider
     {
         private readonly HfsmStateNode node;
         private readonly MonoBehaviour mono;
@@ -207,11 +396,19 @@ namespace UnityHFSM
         private readonly object parentFsm;
         private BehaviorExecutor executor;
         private ActionStorage<TEvent> actionStorage;
+        private readonly Dictionary<string, IActionRuntimeStateSource> runtimeStates =
+            new Dictionary<string, IActionRuntimeStateSource>(StringComparer.Ordinal);
         private string behaviorRootId;
         private bool behaviorCompleted;
+        private float elapsedTime;
+
+        public bool BehaviorCompleted => behaviorCompleted;
+        public float ElapsedTime => elapsedTime;
 
         public event Action<string, BehaviorStatus> OnBehaviorCompleted;
         public event Action<string> OnBehaviorFailed;
+
+        public IEnumerable<IActionRuntimeStateSource> GetActionRuntimeStates() => runtimeStates.Values;
 
         public ActionBehaviorState(
             HfsmStateNode node,
@@ -255,19 +452,24 @@ namespace UnityHFSM
             var roots = stateNode.GetRootBehaviorItems();
             if (roots.Count == 1)
                 behaviorRootId = roots[0].id;
-            return BehaviorTreeBuilder.BuildFromEditorItems(stateNode.BehaviorItems);
+            return BehaviorTreeBuilder.BuildInstrumentedFromEditorItems(
+                stateNode.BehaviorItems,
+                roots.Count == 1 ? roots[0].id : null,
+                runtimeStates);
         }
 
         public override void OnEnter()
         {
             base.OnEnter();
             behaviorCompleted = false;
+            elapsedTime = 0f;
             executor?.Reset();
         }
 
         public override void OnLogic()
         {
             base.OnLogic();
+            elapsedTime += Time.deltaTime;
 
             if (executor != null && !behaviorCompleted)
             {

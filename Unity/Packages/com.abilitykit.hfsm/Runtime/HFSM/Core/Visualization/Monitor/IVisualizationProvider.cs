@@ -75,6 +75,34 @@ namespace UnityHFSM.Visualization
     }
 
     /// <summary>
+    /// Runtime status of one action node inside a state behavior tree.
+    /// </summary>
+    public enum BehaviorNodeStatus
+    {
+        Inactive,
+        Running,
+        Success,
+        Failure,
+        Cancelled
+    }
+
+    /// <summary>
+    /// Debug information for a behavior node. StatePath identifies its owning HFSM state.
+    /// </summary>
+    public struct BehaviorNodeInfo
+    {
+        public string statePath;
+        public string id;
+        public string parentId;
+        public string name;
+        public string typeName;
+        public BehaviorNodeStatus status;
+        public bool isActive;
+        public int executionCount;
+        public float elapsedTime;
+    }
+
+    /// <summary>
     /// 转换/连线信息
     /// </summary>
     public struct TransitionInfo
@@ -226,6 +254,11 @@ namespace UnityHFSM.Visualization
         public List<StateTransitionRecord> history;
 
         /// <summary>
+        /// Runtime behavior tree node states.
+        /// </summary>
+        public List<BehaviorNodeInfo> behaviorNodes;
+
+        /// <summary>
         /// 快照时间
         /// </summary>
         public float snapshotTime;
@@ -237,6 +270,7 @@ namespace UnityHFSM.Visualization
             parameters = new List<ParameterInfo>();
             activeStatePaths = new List<string>();
             history = new List<StateTransitionRecord>();
+            behaviorNodes = new List<BehaviorNodeInfo>();
         }
 
         /// <summary>

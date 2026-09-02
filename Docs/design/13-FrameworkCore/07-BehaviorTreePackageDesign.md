@@ -60,10 +60,14 @@ sealed class BtTreeDefinition {
 sealed class BtNodeDefinition {
     string Id;                     // 稳定字符串 id（编辑器生成，导出后不变）
     string Type;                   // 注册中心类型 id，如 "builtin.sequence" / "moba.select_nearest_enemy"
-    string Name;                   // 显示名
-    string Comment;
     BtPropertyBag Properties;      // 类型化属性，受节点描述符 schema 约束
     List<string> ChildIds;         // 有序子节点（直接内嵌，无独立边表）
+}
+
+sealed class BtAuthoringNodeMetadata {
+    string NodeId;                 // 关联运行时节点 id
+    string DisplayName;            // 仅编辑态
+    string Comment;                // 仅编辑态
 }
 ```
 
@@ -71,9 +75,9 @@ sealed class BtNodeDefinition {
 
 ### 3.2 JSON 格式（导出格式权威）
 
-- 无 `$type`、无程序集名、无编辑器字段（布局、分组、注释中 Comment 保留，位置/分组不进 IR）。
+- 无 `$type`、无程序集名、无编辑器字段。节点显示名、注释、布局、分组统一留在授权文档，均不进运行时 IR。
 - 字段名稳定，新增字段必须向后兼容（加载端忽略未知字段）。
-- 编辑态（布局/分组/便签/撤销）只存在于编辑器授权资产中，导出时剥离。golden diff 测试保证"同授权资产两次导出字节一致"。
+- 编辑态（节点显示信息、布局、分组、便签、撤销）只存在于编辑器授权资产中，导出时剥离。授权 schema v2 使用独立 `nodeMetadata`；v1 内嵌的 `name/comment` 加载时自动迁移。golden diff 测试保证"同授权资产两次导出字节一致"。
 - 载体先 JSON（人类可读、可 golden diff、Unity Resources / Configs 目录直接可用）；格式版本字段预留二进制管线接口。
 
 ## 四、节点注册中心与包外扩展
@@ -150,8 +154,10 @@ static class BtDebugRegistry {
 
 - 纯 C#、进程内、无 Unity 引用；注册是**运行时→注册中心的单向登记**，运行时不知道任何编辑器类型。
 - 编辑器观察窗口在 `EditorApplication.update` 里轮询 `Entries` 并按需拉取 `IBtTreeDebugView`，渲染节点状态着色、当前运行路径与黑板值——**编辑器主动获取**，不修改任何运行时结构。
+- `BtDebugObservationSession` 独立负责采样、节点/黑板差异和有界历史；观察窗口只负责选择实例与绘制，采样语义可脱离 IMGUI 单测。
+- 观察图通过可注册的 authoring document provider 旁加载编辑元数据；内置 provider 同时支持 AssetDatabase 资产与 headless manifest。来源优先级是显式契约：项目 provider > headless 权威源 > Unity 资产镜像；相同优先级按后注册者优先，每个注册句柄独立注销。子树展开结果携带来源树和原始节点 id，观察端无需解析展开 id；找不到来源时退回描述符名称与自动布局。
 - 同一注册中心服务纯 .NET 场景（console/headless/服务端 dump），调试视图契约与 Unity 解耦。
-- 注册默认开启受 `BtTreeRunOptions.DebugName` 控制：非空才注册（生产/服务端可关闭，避免开销与泄漏）。
+- 注册受 `BtTreeRunOptions.DebugName` 控制：非空才注册；注册中心持有弱引用，宿主仍应通过 `Dispose`/`Disable` 正常终止运行节点并注销句柄。
 
 ## 九、内置节点库（确定性实现）
 
@@ -169,8 +175,10 @@ static class BtDebugRegistry {
 
 复用触发器编辑器（TriggerAuthoring）已验证的基建模式：
 
-- **授权资产**：`BtAuthoringAsset : ScriptableObject`，编辑态 JSON（布局/分组/便签/黑板 schema + 树结构引用同一 IR 结构）。外部变更横幅、source sync 同模式。
+- **授权资产**：`BtAuthoringAsset : ScriptableObject`，编辑态 JSON（节点显示信息/布局/分组/便签 + 运行时树结构）。编辑元数据通过 NodeId 旁挂，不进入 `BtNodeDefinition`。外部变更横幅、source sync 同模式。
 - **图编辑窗口**：GraphView；节点视图、端口数量、菜单分组、属性面板全部由 `BtNodeRegistry.Descriptors` 拉取驱动；通用类型化属性编辑器替代逐节点 Inspector 类。
+- **编辑器内部职责**：`BtAuthoringGraphWindow` 只编排窗口生命周期、模式、工具栏和保存/导出；`BtAuthoringGraphView` 管画布交互与连线投影，`BtAuthoringNodeView` 管单节点呈现，`BtNodeSearchProvider` 管节点创建目录，`BtAuthoringInspectorRenderer` 通过窄宿主接口渲染通用属性和观察详情。各层不持有领域节点实现。
+- **文档会话**：`BtAuthoringDocumentSession` 持有当前文档、只读标记、dirty 生命周期和有界 undo/redo；窗口不再分别维护互相依赖的状态集合，观察图从会话层拒绝写入。
 - **一键导出**：授权资产 → 运行时 IR JSON（剥离布局），输出路径可配置（Resources / Configs）；导出前强制跑 `BtTreeValidator`，错误不清空旧产物。
 - **golden 测试**：示例授权资产导出结果与 golden JSON 比对；"加载→执行→快照"链路的端到端测试进 EditMode 测试目录。
 - **运行时观察窗口**：按第八节拉取注册中心，节点着色（Running/Success/Failure/Inactive）、当前路径高亮、黑板表格、快照 diff。
@@ -220,7 +228,8 @@ static class BtDebugRegistry {
 
 ### 14.1 角色与权威
 
-- **授权资产**（`BtAuthoringAsset`）：编辑权威（结构 + 布局 + 源同步）。一个资产一棵树。
+- **authoring 文档**：结构、布局、显示信息的内容权威；既可由 `BtAuthoringAsset` 承载，也可由 manifest 指向独立 JSON。二者绑定时按规范化文档哈希做双向同步与冲突检测。
+- **授权资产**（`BtAuthoringAsset`）：Unity 内的 authoring 文档载体。一个资产一棵树，不自动高于已绑定的外部 authoring JSON。
 - **项目目录资产**（`BtAuthoringProjectAsset`）：一批树的管理单元——显式注册树资产、声明导出目标列表、持有默认模板偏好。同触发器编辑器的 Project/Module 模式。
 - **运行时 JSON**（导出产物）：运行时唯一消费格式，加载端（Unity Resources / console Configs / 服务端）只认它。
 
@@ -243,16 +252,18 @@ static class BtDebugRegistry {
 
 ### 14.5 导出协议
 
-- **格式**：运行时 IR JSON（`BtTreeJson`，camelCase、无 CLR 类型名、golden 字节稳定）。二进制载体通过 `formatVersion` 预留，不在本版实现。
+- **格式**：运行时 IR JSON（`BtTreeJson`，camelCase、无 CLR 类型名、无编辑元数据、golden 字节稳定）。`BtTreeJson` 会拒绝把授权文档误当运行时定义加载；二进制载体通过 `formatVersion` 预留，不在本版实现。
 - **目标**：项目资产持有 `ExportTargets`（相对仓库根的目录列表），导出对**全部目标扇出**（Unity Resources + console Configs 一份源同时落两处，消灭手工双维护）。
 - **增量**：导出内容 SHA-256 与目标现存一致则跳过写盘（报告标记 unchanged）。
 - **门禁**：导出前强制 `BtTreeValidator`，错误不清空旧产物（既有约定）。
 - **报告**：每次批量导出产出 per-tree/per-target 结果（Exported / Unchanged / Skipped-Error）。
+- **headless 权威源**：项目清单用 `sourceKind=AuthoringDocument` 指向独立授权目录；`RuntimeDefinition` 仅作旧清单兼容。MOBA 源位于 `tools/bt-export/authoring/moba`，Resources / Console 目录都只是可重建产物。
 
 ### 14.6 实现分层
 
 - 管线核心（模板、目录 DTO、扇出/增量/报告）在 `Runtime/BT/Authoring/`（纯 C#，dotnet 测试覆盖）；编辑器壳（向导/菜单/Inspector）在 `Editor/`，只做 UI 与资产 IO。
-- MOBA demo 以项目资产 + 两棵树的授权资产实际接线：导出目标 = `Resources/moba/bt`（view.runtime）+ `Configs/moba/bt`（Console），以定义哈希对拍验证与手写 JSON 等价。
+- 编辑器壳内部继续按会话、窗口编排、画布、节点视图、搜索目录、属性 renderer 分层；窗口与 renderer 之间使用面向文档/刷新命令的窄接口，避免把 `EditorWindow` 变成所有交互实现的公共依赖。
+- MOBA demo 通过 headless manifest 管理两棵 authoring JSON；导出目标为 view.runtime Resources 与 Console Configs。Unity 观察工具直接读取同一 manifest，不要求再生成一份镜像项目资产。
 
 ## 十五、包外扩展点（框架节点 + 开放编辑体验）
 

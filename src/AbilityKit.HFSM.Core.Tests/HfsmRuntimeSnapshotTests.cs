@@ -66,6 +66,19 @@ public sealed class HfsmRuntimeSnapshotTests
     }
 
     [Fact]
+    public void RestoreRejectsPreviousSnapshotProtocolVersion()
+    {
+        var runtime = new HfsmRuntime<TestOwner>(
+            new TestOwner(),
+            HfsmFixtures.Flat(HfsmFixtures.State("idle")),
+            new HfsmRuntimeBindings<TestOwner>());
+        var snapshot = runtime.CaptureSnapshot();
+        snapshot.SnapshotVersion = 1;
+
+        Assert.Throws<InvalidOperationException>(() => runtime.RestoreSnapshot(snapshot));
+    }
+
+    [Fact]
     public void RuntimeCompilesAnImmutableSemanticCopyOfDefinition()
     {
         var definition = HfsmFixtures.Flat(HfsmFixtures.State("idle"), HfsmFixtures.State("done"));

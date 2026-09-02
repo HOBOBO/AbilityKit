@@ -19,17 +19,25 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private readonly List<BtDebugRegistryEntry> _entries = new();
         private readonly Dictionary<string, BtNodeDebugInfo> _liveNodes = new();
-        private readonly Dictionary<string, string> _lastBlackboardDisplay = new();
-        private readonly HashSet<string> _blackboardChanged = new();
         private readonly HashSet<string> _collapsedNodes = new();
         private readonly Dictionary<string, string> _parentOf = new();
         private readonly Dictionary<string, string> _subtreeRootTree = new();
+        private readonly Dictionary<string, BtAuthoringNodeMetadata> _authoredMetadata = new();
+        private readonly BtDebugObservationSession _session = new();
 
         private Vector2 _leftScroll;
         private Vector2 _rightScroll;
+        private Vector2 _eventScroll;
+        private BtTreeDefinition _displayDefinition;
+        private string _instanceFilter = "";
+        private string _nodeFilter = "";
         private string _blackboardFilter = "";
         private long _selectedId;
         private string _focusNodeId = "";
+        private string _selectedNodeId = "";
+        private bool _paused;
+        private bool _showRunningPathOnly;
+        private bool _showEventHistory = true;
         private double _nextPollAt;
 
         [MenuItem("Window/AbilityKit/Behavior Tree Observation")]
@@ -68,17 +76,63 @@ namespace AbilityKit.BehaviorTree.Editor
             _nextPollAt = EditorApplication.timeSinceStartup + PollIntervalSeconds;
             _entries.Clear();
             _entries.AddRange(BtDebugRegistry.GetEntries());
+            _entries.Sort((a, b) =>
+            {
+                var tree = string.Compare(a.View?.TreeId, b.View?.TreeId, System.StringComparison.Ordinal);
+                return tree != 0 ? tree : a.Id.CompareTo(b.Id);
+            });
 
-            if (_selectedId != 0 && _entries.Exists(e => e.Id == _selectedId)) return;
+            if (_selectedId == 0 || !_entries.Exists(e => e.Id == _selectedId))
+            {
+                _selectedId = _entries.Count > 0 ? _entries[0].Id : 0;
+                ResetObservedState();
+            }
 
-            // 选中实例已注销：清空观察态
-            _selectedId = _entries.Count > 0 ? _entries[0].Id : 0;
+            if (!_paused && SelectedView is { } selected)
+            {
+                CaptureSelected(selected);
+            }
+        }
+
+        private void ResetObservedState()
+        {
             _focusNodeId = "";
+            _selectedNodeId = "";
             _collapsedNodes.Clear();
             _parentOf.Clear();
             _subtreeRootTree.Clear();
+            _authoredMetadata.Clear();
+            _displayDefinition = null;
             _liveNodes.Clear();
-            _lastBlackboardDisplay.Clear();
+            _session.Reset();
+        }
+
+        private void CaptureSelected(IBtTreeDebugView view)
+        {
+            if (_displayDefinition == null)
+            {
+                _displayDefinition = view.TreeDefinition;
+                LoadAuthoringMetadata(view);
+            }
+            _session.Capture(view);
+        }
+
+        private void LoadAuthoringMetadata(IBtTreeDebugView view)
+        {
+            BtAuthoringSourceDocument document;
+            try
+            {
+                document = BtAuthoringDocumentCatalog.BuildObservationDocument(view, BtEditorNodeCatalog.Registry);
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[BtObservation] 无法加载 authoring 元数据: " + ex.Message);
+                return;
+            }
+            foreach (var metadata in document.NodeMetadata)
+            {
+                _authoredMetadata[metadata.NodeId] = metadata;
+            }
         }
 
         private IBtTreeDebugView SelectedView
@@ -99,7 +153,16 @@ namespace AbilityKit.BehaviorTree.Editor
             GUILayout.Label("Behavior Tree Runtime", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
             GUILayout.Label(_entries.Count + " instance(s)", EditorStyles.miniLabel);
-            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton)) _nextPollAt = 0d;
+            if (GUILayout.Button(_paused ? "继续刷新" : "冻结视图", EditorStyles.toolbarButton))
+            {
+                _paused = !_paused;
+                if (!_paused) _nextPollAt = 0d;
+            }
+            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton))
+            {
+                if (_paused && SelectedView is { } selected) CaptureSelected(selected);
+                else _nextPollAt = 0d;
+            }
             EditorGUILayout.EndHorizontal();
         }
 
@@ -110,6 +173,8 @@ namespace AbilityKit.BehaviorTree.Editor
         private void DrawInstanceList()
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.Width(LeftPaneWidth));
+            _instanceFilter = EditorGUILayout.TextField(
+                _instanceFilter ?? "", EditorStyles.toolbarSearchField, GUILayout.ExpandWidth(true));
             _leftScroll = EditorGUILayout.BeginScrollView(_leftScroll);
 
             if (_entries.Count == 0)
@@ -125,6 +190,7 @@ namespace AbilityKit.BehaviorTree.Editor
             {
                 var view = entry.View;
                 if (view == null) continue;
+                if (!MatchesInstanceFilter(entry, view)) continue;
 
                 if (!string.Equals(currentGroup, view.TreeId, System.StringComparison.Ordinal))
                 {
@@ -133,8 +199,8 @@ namespace AbilityKit.BehaviorTree.Editor
                     GUILayout.Label(currentGroup, EditorStyles.boldLabel);
                 }
 
-                var label = "#" + entry.Id
-                            + (string.IsNullOrEmpty(view.OwnerLabel) ? "" : "  " + view.OwnerLabel);
+                var label = "#" + entry.Id + "  " + view.DisplayName
+                            + (string.IsNullOrEmpty(view.OwnerLabel) ? "" : "  ·  " + view.OwnerLabel);
                 var oldBackground = GUI.backgroundColor;
                 if (entry.Id == _selectedId) GUI.backgroundColor = new Color(0.42f, 0.66f, 0.92f);
                 if (GUILayout.Button(label, EditorStyles.miniButton, GUILayout.Height(22f)))
@@ -142,12 +208,9 @@ namespace AbilityKit.BehaviorTree.Editor
                     if (_selectedId != entry.Id)
                     {
                         _selectedId = entry.Id;
-                        _focusNodeId = "";
-                        _collapsedNodes.Clear();
-                        _parentOf.Clear();
-                        _subtreeRootTree.Clear();
-                        _liveNodes.Clear();
-                        _lastBlackboardDisplay.Clear();
+                        ResetObservedState();
+                        CaptureSelected(entry.View);
+                        _nextPollAt = 0d;
                     }
                 }
                 GUI.backgroundColor = oldBackground;
@@ -155,6 +218,15 @@ namespace AbilityKit.BehaviorTree.Editor
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
+        }
+
+        private bool MatchesInstanceFilter(BtDebugRegistryEntry entry, IBtTreeDebugView view)
+        {
+            if (string.IsNullOrWhiteSpace(_instanceFilter)) return true;
+            return entry.Id.ToString().IndexOf(_instanceFilter, System.StringComparison.OrdinalIgnoreCase) >= 0
+                || view.TreeId.IndexOf(_instanceFilter, System.StringComparison.OrdinalIgnoreCase) >= 0
+                || view.DisplayName.IndexOf(_instanceFilter, System.StringComparison.OrdinalIgnoreCase) >= 0
+                || view.OwnerLabel.IndexOf(_instanceFilter, System.StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
         // ------------------------------------------------------------------
@@ -173,7 +245,8 @@ namespace AbilityKit.BehaviorTree.Editor
                 return;
             }
 
-            var nodes = view.GetNodeStates();
+            if (!_session.HasSample && !_paused) CaptureSelected(view);
+            var nodes = _session.Nodes;
             RefreshLiveState(view, nodes);
 
             EditorGUILayout.LabelField(
@@ -181,7 +254,8 @@ namespace AbilityKit.BehaviorTree.Editor
                 + (string.IsNullOrEmpty(view.OwnerLabel) ? "" : $"  —  {view.OwnerLabel}"),
                 EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
-                $"frame {view.LastFrame}   nodes {view.NodeCount}   state {DescribeRootState(nodes)}",
+                $"frame {_session.LastFrame}   nodes {view.NodeCount}   state {DescribeRootState(nodes)}"
+                + (_paused ? "   [视图已冻结]" : ""),
                 EditorStyles.miniLabel);
 
             EditorGUILayout.BeginHorizontal();
@@ -189,30 +263,61 @@ namespace AbilityKit.BehaviorTree.Editor
             {
                 BtAuthoringGraphWindow.OpenObservation(view);
             }
+            if (GUILayout.Button("复制运行快照", EditorStyles.miniButton)) CopyRuntimeSnapshot(view);
             if (GUILayout.Button("全部展开", EditorStyles.miniButton)) _collapsedNodes.Clear();
             if (GUILayout.Button("全部收起", EditorStyles.miniButton))
             {
-                foreach (var pair in _parentOf)
+                foreach (var node in _displayDefinition?.Nodes ?? EmptyNodes)
                 {
-                    _collapsedNodes.Add(pair.Key);
+                    if (node.ChildIds.Count > 0) _collapsedNodes.Add(node.Id);
                 }
             }
             EditorGUILayout.EndHorizontal();
 
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("节点", EditorStyles.miniLabel, GUILayout.Width(28f));
+            var nextNodeFilter = EditorGUILayout.TextField(
+                _nodeFilter ?? "", EditorStyles.toolbarSearchField, GUILayout.Width(220f));
+            if (!string.Equals(nextNodeFilter, _nodeFilter, System.StringComparison.Ordinal))
+            {
+                _nodeFilter = nextNodeFilter;
+                FocusFirstNodeMatch();
+            }
+            _showRunningPathOnly = GUILayout.Toggle(
+                _showRunningPathOnly, "仅运行路径", EditorStyles.miniButton, GUILayout.Width(84f));
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+
             _rightScroll = EditorGUILayout.BeginScrollView(_rightScroll);
 
-            DrawBreadcrumb(view);
+            DrawBreadcrumb();
             GUILayout.Space(2f);
-            DrawNodeTree(view, nodes);
+            DrawNodeTree();
+            DrawSelectedNodeDetail();
 
             GUILayout.Space(6f);
-            DrawBlackboard(view.GetBlackboard());
+            DrawBlackboard(_session.Blackboard);
+            DrawEventHistory();
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
         }
 
-        private void RefreshLiveState(IBtTreeDebugView view, List<BtNodeDebugInfo> nodes)
+        private void CopyRuntimeSnapshot(IBtTreeDebugView view)
+        {
+            try
+            {
+                EditorGUIUtility.systemCopyBuffer = BtTreeJson.SaveSnapshot(view.CaptureState());
+                ShowNotification(new GUIContent("运行快照已复制"));
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("[BtObservation] 无法复制运行快照: " + ex.Message);
+                ShowNotification(new GUIContent("快照复制失败"));
+            }
+        }
+
+        private void RefreshLiveState(IBtTreeDebugView view, IReadOnlyList<BtNodeDebugInfo> nodes)
         {
             _liveNodes.Clear();
             foreach (var node in nodes)
@@ -221,9 +326,9 @@ namespace AbilityKit.BehaviorTree.Editor
             }
 
             // 父子映射来自定义（跳子树/面包屑用）；树定义不可变，缓存到切换实例或首次
-            if (_parentOf.Count == 0 && view.TreeDefinition != null)
+            if (_parentOf.Count == 0 && _displayDefinition != null)
             {
-                foreach (var node in view.TreeDefinition.Nodes)
+                foreach (var node in _displayDefinition.Nodes)
                 {
                     foreach (var childId in node.ChildIds)
                     {
@@ -241,21 +346,21 @@ namespace AbilityKit.BehaviorTree.Editor
                 }
             }
 
-            if (string.IsNullOrEmpty(_focusNodeId) && view.TreeDefinition != null)
+            if (string.IsNullOrEmpty(_focusNodeId) && _displayDefinition != null)
             {
-                _focusNodeId = view.TreeDefinition.RootNodeId;
+                _focusNodeId = _displayDefinition.RootNodeId;
             }
         }
 
-        private static string DescribeRootState(List<BtNodeDebugInfo> nodes)
+        private static string DescribeRootState(IReadOnlyList<BtNodeDebugInfo> nodes)
         {
             return nodes.Count > 0 ? nodes[0].State.ToString() : "?";
         }
 
         /// <summary>面包屑：根 → … → 聚焦节点，点击任意层级跳回。</summary>
-        private void DrawBreadcrumb(IBtTreeDebugView view)
+        private void DrawBreadcrumb()
         {
-            var definition = view.TreeDefinition;
+            var definition = _displayDefinition;
             if (definition == null || string.IsNullOrEmpty(_focusNodeId)) return;
 
             var chain = new List<string>();
@@ -291,27 +396,25 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private string NodeDisplayName(string nodeId)
         {
+            if (_authoredMetadata.TryGetValue(nodeId, out var metadata)
+                && !string.IsNullOrWhiteSpace(metadata.DisplayName)) return metadata.DisplayName;
             if (_liveNodes.TryGetValue(nodeId, out var info)
                 && !string.IsNullOrEmpty(info.Name)) return info.Name;
             return nodeId;
         }
 
-        private void DrawNodeTree(IBtTreeDebugView view, List<BtNodeDebugInfo> nodes)
+        private void DrawNodeTree()
         {
-            var definition = view.TreeDefinition;
+            var definition = _displayDefinition;
             if (definition == null || string.IsNullOrEmpty(_focusNodeId)) return;
-
-            var childIds = ChildIdsOf(definition, _focusNodeId);
-            foreach (var childId in childIds)
-            {
-                DrawNodeRecursive(definition, childId, 0);
-            }
+            DrawNodeRecursive(definition, _focusNodeId, 0);
         }
 
         private void DrawNodeRecursive(BtTreeDefinition definition, string nodeId, int depth)
         {
             _liveNodes.TryGetValue(nodeId, out var info);
             var children = ChildIdsOf(definition, nodeId);
+            if (_showRunningPathOnly && !NodeOrDescendantIsRunning(definition, nodeId)) return;
             var collapsed = _collapsedNodes.Contains(nodeId);
 
             EditorGUILayout.BeginHorizontal();
@@ -351,17 +454,22 @@ namespace AbilityKit.BehaviorTree.Editor
 
             var rowStyle = (info?.OnStackCount ?? 0) > 0 ? EditorStyles.boldLabel : EditorStyles.miniLabel;
             var rect = GUILayoutUtility.GetRect(new GUIContent(display), rowStyle, GUILayout.ExpandWidth(true));
+            if (string.Equals(_selectedNodeId, nodeId, System.StringComparison.Ordinal))
+            {
+                EditorGUI.DrawRect(rect, new Color(0.25f, 0.5f, 0.85f, 0.22f));
+            }
             GUI.Label(rect, display, rowStyle);
 
-            // 双击父节点跳转子树；运行中的父节点显示当前子游标
+            // 单击查看详情，双击父节点聚焦其子树；运行中的父节点显示当前子游标
             if (Event.current.type == EventType.MouseDown
-                && Event.current.clickCount == 2 && rect.Contains(Event.current.mousePosition))
+                && rect.Contains(Event.current.mousePosition))
             {
-                if (children.Count > 0)
+                _selectedNodeId = nodeId;
+                if (Event.current.clickCount == 2 && children.Count > 0)
                 {
                     _focusNodeId = nodeId;
-                    Event.current.Use();
                 }
+                Event.current.Use();
             }
             if (children.Count > 0 && info is { RunningChildIndex: >= 0 })
             {
@@ -377,6 +485,57 @@ namespace AbilityKit.BehaviorTree.Editor
             }
         }
 
+        private bool NodeOrDescendantIsRunning(BtTreeDefinition definition, string nodeId)
+        {
+            if (_liveNodes.TryGetValue(nodeId, out var info) && info.OnStackCount > 0) return true;
+            foreach (var childId in ChildIdsOf(definition, nodeId))
+            {
+                if (NodeOrDescendantIsRunning(definition, childId)) return true;
+            }
+            return false;
+        }
+
+        private void FocusFirstNodeMatch()
+        {
+            if (string.IsNullOrWhiteSpace(_nodeFilter)) return;
+            foreach (var node in _session.Nodes)
+            {
+                if (node.NodeId.IndexOf(_nodeFilter, System.StringComparison.OrdinalIgnoreCase) < 0
+                    && NodeDisplayName(node.NodeId).IndexOf(
+                        _nodeFilter, System.StringComparison.OrdinalIgnoreCase) < 0
+                    && node.TypeId.IndexOf(_nodeFilter, System.StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    continue;
+                }
+                _focusNodeId = node.NodeId;
+                _selectedNodeId = node.NodeId;
+                return;
+            }
+        }
+
+        private void DrawSelectedNodeDetail()
+        {
+            if (string.IsNullOrEmpty(_selectedNodeId)
+                || !_liveNodes.TryGetValue(_selectedNodeId, out var info)) return;
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField(NodeDisplayName(info.NodeId), EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Node ID", info.NodeId, EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("Type", info.TypeId, EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("State", info.State.ToString(), EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("Depth / Stack", info.Depth + " / " + info.OnStackCount, EditorStyles.miniLabel);
+            if (info.RunningChildIndex >= 0)
+                EditorGUILayout.LabelField("Running Child", (info.RunningChildIndex + 1).ToString(), EditorStyles.miniLabel);
+            if (!string.IsNullOrEmpty(info.SourceTreeId))
+                EditorGUILayout.LabelField("Source Tree", info.SourceTreeId, EditorStyles.miniLabel);
+            if (_authoredMetadata.TryGetValue(info.NodeId, out var metadata)
+                && !string.IsNullOrWhiteSpace(metadata.Comment))
+            {
+                EditorGUILayout.HelpBox(metadata.Comment, MessageType.None);
+            }
+            EditorGUILayout.EndVertical();
+        }
+
         private static List<string> ChildIdsOf(BtTreeDefinition definition, string nodeId)
         {
             foreach (var node in definition.Nodes)
@@ -387,6 +546,7 @@ namespace AbilityKit.BehaviorTree.Editor
         }
 
         private static readonly List<string> EmptyChildIds = new();
+        private static readonly List<BtNodeDefinition> EmptyNodes = new();
 
         // ------------------------------------------------------------------
         // 黑板（实时值 + 变更高亮 + 过滤）
@@ -407,51 +567,50 @@ namespace AbilityKit.BehaviorTree.Editor
                 return;
             }
 
-            var current = new Dictionary<string, string>();
             for (var i = 0; i < snapshot.KeyNames.Count; i++)
             {
-                var raw = FormatValue(snapshot, i);
-                current[snapshot.KeyNames[i]] = raw;
+                var raw = BtDebugObservationSession.FormatBlackboardValue(snapshot, i);
                 if (_blackboardFilter.Length > 0
                     && snapshot.KeyNames[i].IndexOf(_blackboardFilter, System.StringComparison.OrdinalIgnoreCase) < 0)
                 {
                     continue;
                 }
 
-                var changed = _blackboardChanged.Contains(snapshot.KeyNames[i]);
+                var changed = _session.HasBlackboardChanged(snapshot.KeyNames[i]);
                 var oldColor = GUI.backgroundColor;
                 if (changed) GUI.backgroundColor = new Color(1f, 0.85f, 0.45f);
                 EditorGUILayout.LabelField(snapshot.KeyNames[i], raw, EditorStyles.miniLabel);
                 GUI.backgroundColor = oldColor;
             }
 
-            // 本帧值作为下一次比较基线；变更集合只保留一轮
-            _blackboardChanged.Clear();
-            foreach (var pair in current)
-            {
-                if (_lastBlackboardDisplay.TryGetValue(pair.Key, out var previous)
-                    && !string.Equals(previous, pair.Value, System.StringComparison.Ordinal))
-                {
-                    _blackboardChanged.Add(pair.Key);
-                }
-            }
-            _lastBlackboardDisplay.Clear();
-            foreach (var pair in current)
-            {
-                _lastBlackboardDisplay[pair.Key] = pair.Value;
-            }
         }
 
-        private static string FormatValue(BtBlackboardValueSnapshot snapshot, int index)
+        private void DrawEventHistory()
         {
-            return snapshot.KeyTypes[index] switch
+            GUILayout.Space(6f);
+            _showEventHistory = EditorGUILayout.Foldout(
+                _showEventHistory, "采样变化 (" + _session.Events.Count + ")", true);
+            if (!_showEventHistory) return;
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("清空", EditorStyles.miniButton, GUILayout.Width(48f))) _session.ClearHistory();
+            EditorGUILayout.EndHorizontal();
+
+            _eventScroll = EditorGUILayout.BeginScrollView(_eventScroll, GUILayout.MaxHeight(150f));
+            if (_session.Events.Count == 0)
             {
-                BtValueType.Bool => snapshot.BoolValues[index].ToString(),
-                BtValueType.Int64 => snapshot.Int64Values[index].ToString(),
-                BtValueType.Fixed64 => AbilityKit.Deterministic.Fixed64.FromRaw(snapshot.Fixed64RawValues[index]).ToString(),
-                BtValueType.String => snapshot.StringValues[index],
-                _ => "?",
-            };
+                EditorGUILayout.LabelField("等待下一次采样差异", EditorStyles.miniLabel);
+            }
+            for (var i = _session.Events.Count - 1; i >= 0; i--)
+            {
+                var item = _session.Events[i];
+                EditorGUILayout.LabelField(
+                    "f" + item.Frame + "  " + item.Source,
+                    item.Change,
+                    EditorStyles.miniLabel);
+            }
+            EditorGUILayout.EndScrollView();
         }
 
         private static Color StateColor(BtNodeState state) => state switch
@@ -461,5 +620,6 @@ namespace AbilityKit.BehaviorTree.Editor
             BtNodeState.Failure => new Color(0.95f, 0.5f, 0.45f),
             _ => Color.gray,
         };
+
     }
 }

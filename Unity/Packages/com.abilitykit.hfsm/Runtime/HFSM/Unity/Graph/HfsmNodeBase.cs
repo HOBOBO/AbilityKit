@@ -33,6 +33,12 @@ namespace UnityHFSM.Graph
         [SerializeField]
         protected Vector2 _size = new Vector2(150, 60);
 
+        [SerializeField]
+        private bool _isDefault;
+
+        [SerializeField]
+        private string _parentStateMachineId;
+
         /// <summary>
         /// Unique identifier for this node.
         /// </summary>
@@ -78,12 +84,20 @@ namespace UnityHFSM.Graph
         /// <summary>
         /// Whether this node is the default start state of its parent state machine.
         /// </summary>
-        public bool isDefault { get; set; }
+        public bool isDefault
+        {
+            get => _isDefault;
+            set => _isDefault = value;
+        }
 
         /// <summary>
         /// Parent state machine ID for nested state machines.
         /// </summary>
-        public string ParentStateMachineId { get; set; }
+        public string ParentStateMachineId
+        {
+            get => _parentStateMachineId;
+            set => _parentStateMachineId = value;
+        }
 
         protected HfsmNodeBase()
         {

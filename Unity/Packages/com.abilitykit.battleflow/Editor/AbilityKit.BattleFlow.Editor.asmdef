@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.BattleFlow.Editor",
+  "rootNamespace": "AbilityKit.BattleFlow.Editor",
+  "references": [
+    "AbilityKit.BattleFlow",
+    "AbilityKit.Scenario"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

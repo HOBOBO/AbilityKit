@@ -16,9 +16,9 @@
     提交；CI（.github/workflows/abilitykit-test-gates.yml 的 protocol-catalogs job）在
     PR/push 门禁用 -Check 拦截陈旧产物。
 
-    项目注册表：新项目接入 = 编写该项目的 *.wire.yaml（projectId 声明归属）并把输出目录
-    登记到下方 $projectRegistry。Shooter 与 MOBA 均已接入默认确定性导出；MOBA 仍处于渐进迁移，
-    因而默认只校验已接管的类型，不能在全项目 schema 补齐前启用 -Strict。
+    项目注册表：新项目接入 = 编写该项目的 *.wire.yaml（projectId/groupId 声明归属）并把输出目录
+    登记到下方 $projectRegistry。Shooter 与 MOBA 均已完成 MemoryPack catalog 载荷闭包迁移，
+    持续集成对两者都启用 -Strict；Room 仍按其独立迁移节奏校验。
 
 .PARAMETER Projects
     要导出/校验的项目键（注册表键），逗号分隔。默认 shooter,moba。

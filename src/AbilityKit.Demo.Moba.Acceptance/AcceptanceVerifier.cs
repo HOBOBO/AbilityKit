@@ -28,6 +28,30 @@ public static class AcceptanceVerifier
         string? expectationPath = null,
         string? traceJsonlPath = null,
         string? summaryJsonPath = null)
+        => VerifyCore(expectation, records, null, expectationPath, traceJsonlPath, summaryJsonPath);
+
+    /// <summary>
+    /// Verifies trace plus carrier-provided state/context observations. Keeping observations
+    /// outside the DTO lets console, Unity, replay and network carriers share this oracle.
+    /// </summary>
+    public static MobaAcceptanceSummary VerifyWithObservations(
+        MobaAcceptanceExpectation expectation,
+        MobaAcceptanceTraceRecord[] records,
+        AcceptanceObservations? observations,
+        string? expectationPath = null,
+        string? traceJsonlPath = null,
+        string? summaryJsonPath = null)
+    {
+        return VerifyCore(expectation, records, observations, expectationPath, traceJsonlPath, summaryJsonPath);
+    }
+
+    private static MobaAcceptanceSummary VerifyCore(
+        MobaAcceptanceExpectation expectation,
+        MobaAcceptanceTraceRecord[] records,
+        AcceptanceObservations? observations,
+        string? expectationPath,
+        string? traceJsonlPath,
+        string? summaryJsonPath)
     {
         ArgumentNullException.ThrowIfNull(expectation);
         ArgumentNullException.ThrowIfNull(records);
@@ -35,12 +59,13 @@ public static class AcceptanceVerifier
         var effectId = expectation.config != null ? expectation.config.effectId : 0;
         var skillId = expectation.config != null ? expectation.config.skillId : 0;
         var effectRootId = FindRootId(records, "EffectExecution", effectId);
-
-        var coverage = BuildCoverage(expectation, records, effectRootId);
+        var coverage = BuildCoverage(expectation, records, effectRootId, observations, observations is not null);
         var passed = coverage.allRequiredTraceNodesMatched
                      && coverage.allForbiddenTraceNodesAbsent
                      && coverage.allExpectedActionsExecuted
-                     && coverage.allRelationshipsSatisfied;
+                     && coverage.allRelationshipsSatisfied
+                     && coverage.allStateExpectationsSatisfied
+                     && coverage.allContextExpectationsSatisfied;
 
         return new MobaAcceptanceSummary
         {
@@ -83,6 +108,10 @@ public static class AcceptanceVerifier
                 executedExpectedActionCount = coverage.executedExpectedActionCount,
                 expectedRelationshipCount = coverage.expectedRelationshipCount,
                 satisfiedRelationshipCount = coverage.satisfiedRelationshipCount,
+                expectedStateCount = coverage.expectedStateCount,
+                satisfiedStateCount = coverage.satisfiedStateCount,
+                expectedContextCount = coverage.expectedContextCount,
+                satisfiedContextCount = coverage.satisfiedContextCount,
             },
             coverage = coverage,
             traceCounts = CountByKind(records),
@@ -104,7 +133,8 @@ public static class AcceptanceVerifier
     // —— 以下为 BuildCoverage / 辅助查询的忠实移植（纯函数，无 harness 依赖）——
 
     private static MobaAcceptanceCoverageSummary BuildCoverage(
-        MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records, long effectRootId)
+        MobaAcceptanceExpectation expectation, MobaAcceptanceTraceRecord[] records, long effectRootId,
+        AcceptanceObservations? observations, bool evaluateObservations)
     {
         var required = expectation.mustContain;
         var forbidden = expectation.mustNotContain;
@@ -117,8 +147,8 @@ public static class AcceptanceVerifier
             forbiddenTraceNodeCount = forbidden != null ? forbidden.Length : 0,
             expectedActionCount = actions != null ? actions.Length : 0,
             expectedRelationshipCount = relationships != null ? relationships.Length : 0,
-            expectedStateCount = CountStateExpectations(expectation),
-            expectedContextCount = CountContextExpectations(expectation),
+            expectedStateCount = Pick(expectation.scenario?.stateExpectations, expectation.stateExpectations)?.Length ?? 0,
+            expectedContextCount = Pick(expectation.scenario?.contextExpectations, expectation.contextExpectations)?.Length ?? 0,
         };
 
         var missingTraceNodes = new List<string>();
@@ -165,31 +195,32 @@ public static class AcceptanceVerifier
             }
         }
 
+        var stateExpectations = Pick(expectation.scenario?.stateExpectations, expectation.stateExpectations);
+        var contextExpectations = Pick(expectation.scenario?.contextExpectations, expectation.contextExpectations);
+        var stateMatch = evaluateObservations
+            ? AcceptanceObservationMatcher.Match(stateExpectations, observations!.States)
+            : (stateExpectations?.Length ?? 0, string.Empty);
+        var contextMatch = evaluateObservations
+            ? AcceptanceObservationMatcher.Match(contextExpectations, observations!.Contexts)
+            : (contextExpectations?.Length ?? 0, string.Empty);
+
         coverage.missingExpectedTraceNodeCount = missingTraceNodes.Count;
         coverage.unexpectedForbiddenTraceNodeCount = unexpectedTraceNodes.Count;
         coverage.allRequiredTraceNodesMatched = coverage.missingExpectedTraceNodeCount == 0;
         coverage.allForbiddenTraceNodesAbsent = coverage.unexpectedForbiddenTraceNodeCount == 0;
         coverage.allExpectedActionsExecuted = coverage.executedExpectedActionCount == coverage.expectedActionCount;
         coverage.allRelationshipsSatisfied = coverage.satisfiedRelationshipCount == coverage.expectedRelationshipCount;
+        coverage.satisfiedStateCount = stateMatch.Item1;
+        coverage.satisfiedContextCount = contextMatch.Item1;
+        coverage.allStateExpectationsSatisfied = stateMatch.Item1 == coverage.expectedStateCount;
+        coverage.allContextExpectationsSatisfied = contextMatch.Item1 == coverage.expectedContextCount;
         coverage.missingTraceNodes = string.Join(",", missingTraceNodes.ToArray());
         coverage.unexpectedTraceNodes = string.Join(",", unexpectedTraceNodes.ToArray());
         coverage.missingActions = string.Join(",", missingActions.ToArray());
         coverage.missingRelationships = string.Join(",", missingRelationships.ToArray());
+        coverage.missingStates = stateMatch.Item2;
+        coverage.missingContexts = contextMatch.Item2;
         return coverage;
-    }
-
-    private static int CountStateExpectations(MobaAcceptanceExpectation e)
-    {
-        var n = e.stateExpectations != null ? e.stateExpectations.Length : 0;
-        if (e.scenario != null && e.scenario.stateExpectations != null) n += e.scenario.stateExpectations.Length;
-        return n;
-    }
-
-    private static int CountContextExpectations(MobaAcceptanceExpectation e)
-    {
-        var n = e.contextExpectations != null ? e.contextExpectations.Length : 0;
-        if (e.scenario != null && e.scenario.contextExpectations != null) n += e.scenario.contextExpectations.Length;
-        return n;
     }
 
     private static string FormatTraceExpectation(MobaAcceptanceTraceExpectation e, int actualCount)

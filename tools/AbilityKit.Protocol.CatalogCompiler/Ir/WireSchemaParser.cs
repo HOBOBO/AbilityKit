@@ -8,4 +8,7 @@ public sealed class WireSchemaParser : IWireSchemaParser
     private readonly YamlWireSchemaParser _yaml = new();
 
     public WireSchemaIr Parse(string sourcePath, string sourceText) => _yaml.Parse(sourcePath, sourceText);
+
+    public WireSchemaDocumentIr ParseDocument(string sourcePath, string sourceText) =>
+        _yaml.ParseDocument(sourcePath, sourceText);
 }

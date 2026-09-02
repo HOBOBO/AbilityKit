@@ -46,7 +46,7 @@ public static class MemoryPackExportPlanner
 
             selected.Add(qualifiedType, schema);
             foreach (var dependency in schema.Fields
-                         .Where(field => field.IsCustomType)
+                         .Where(field => field.IsCustomType && !field.IsExternalReference)
                          .Select(field => field.TypeName))
                 pending.Add(dependency);
         }

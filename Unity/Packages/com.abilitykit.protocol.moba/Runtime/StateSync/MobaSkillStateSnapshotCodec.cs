@@ -11,26 +11,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Disabled = 2,
     }
 
-    [MemoryPackable]
-    public partial struct MobaSkillStateSnapshotEntry
-    {
-        [MemoryPackOrder(0)] public int ActorId;
-        [MemoryPackOrder(1)] public int Slot;
-        [MemoryPackOrder(2)] public int SkillId;
-        [MemoryPackOrder(3)] public int Level;
-        [MemoryPackOrder(4)] public int CooldownTotalMs;
-        [MemoryPackOrder(5)] public int CooldownRemainingMs;
-        [MemoryPackOrder(6)] public long CooldownEndTimeMs;
-        [MemoryPackOrder(7)] public long ServerTimeMs;
-        [MemoryPackOrder(8)] public MobaSkillAvailabilityState Availability;
-        [MemoryPackOrder(9)] public int DisableReason;
-    }
-
-    [MemoryPackable]
     public partial struct MobaSkillStateSnapshotPayload
     {
-        [MemoryPackOrder(0)] public MobaSkillStateSnapshotEntry[] Entries;
-
         [MemoryPackConstructor]
         public MobaSkillStateSnapshotPayload(MobaSkillStateSnapshotEntry[] entries)
         {

@@ -529,7 +529,9 @@ public sealed class ProtocolCompatibilityTests
         var wireSchemas = Directory
             .EnumerateFiles(wireRoot, "*.wire.yaml", SearchOption.AllDirectories)
             .OrderBy(path => path.Replace('\\', '/'), StringComparer.Ordinal)
-            .Select(path => wireParser.Parse(path, File.ReadAllText(path, Encoding.UTF8)))
+            .SelectMany(path => wireParser
+                .ParseDocument(path, File.ReadAllText(path, Encoding.UTF8))
+                .Schemas)
             .ToArray();
 
         return ProtocolCompatibilityBaseline.Capture(catalogs, wireSchemas);

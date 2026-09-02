@@ -18,7 +18,7 @@ namespace AbilityKit.BehaviorTree.Tests
         private static BtTreeDefinition LeafTree(string treeId, string leafType, string leafId)
         {
             var tree = new BtTreeDefinition { TreeId = treeId };
-            tree.Nodes.Add(new BtNodeDefinition { Id = leafId, Type = leafType, Name = leafId });
+            tree.Nodes.Add(new BtNodeDefinition { Id = leafId, Type = leafType });
             tree.RootNodeId = leafId;
             return tree;
         }
@@ -54,6 +54,8 @@ namespace AbilityKit.BehaviorTree.Tests
             // 来源追踪
             Assert.Equal("skill_tree", expansion.NodeSourceTree["sub.wait"]);
             Assert.Equal(parent.TreeId, expansion.NodeSourceTree["root"]);
+            Assert.Equal("wait", expansion.NodeSourceNode["sub.wait"]);
+            Assert.Equal("root", expansion.NodeSourceNode["root"]);
 
             // 展开后可运行（wait 结束 → 完成）
             var registry = CreateRegistry();
@@ -178,6 +180,7 @@ namespace AbilityKit.BehaviorTree.Tests
             Assert.Single(view.SubtreeInstances);
             Assert.Equal("skill", view.SubtreeInstances[0].ReferencedTreeId);
             Assert.Equal("skill", view.NodeSourceTree!["sub.w"]);
+            Assert.Equal("w", view.NodeSourceNode!["sub.w"]);
         }
 
         [Fact]

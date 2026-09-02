@@ -4,13 +4,8 @@ using MemoryPack;
 
 namespace AbilityKit.Protocol.Moba.StateSync
 {
-    [MemoryPackable]
     public partial struct MobaEnterGamePayload
     {
-        [MemoryPackOrder(0)] public float X;
-        [MemoryPackOrder(1)] public float Y;
-        [MemoryPackOrder(2)] public float Z;
-
         public MobaEnterGamePayload(float x, float y, float z)
         {
             X = x;
@@ -33,13 +28,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
 
         public static bool TryDeserializePosition(int opCode, byte[] payload, out Vec3 pos)
         {
-            if (opCode != PayloadOpCode)
-            {
-                pos = default;
-                return false;
-            }
-
-            if (payload == null || payload.Length == 0)
+            if (opCode != PayloadOpCode || payload == null || payload.Length == 0)
             {
                 pos = default;
                 return false;

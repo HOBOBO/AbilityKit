@@ -142,13 +142,15 @@ namespace AbilityKit.HFSM
             HfsmTickContext tick,
             string machineId,
             string stateId,
-            string transitionId)
+            string transitionId,
+            string triggerId)
         {
             Type = type;
             Tick = tick;
             MachineId = machineId;
             StateId = stateId;
             TransitionId = transitionId;
+            TriggerId = triggerId;
         }
 
         public HfsmRuntimeEventType Type { get; }
@@ -160,6 +162,8 @@ namespace AbilityKit.HFSM
         public string StateId { get; }
 
         public string TransitionId { get; }
+
+        public string TriggerId { get; }
     }
 
     /// <summary>

@@ -3,6 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.Synchronization;
 
 namespace AbilityKit.BehaviorTree.Editor
 {
@@ -31,102 +32,238 @@ namespace AbilityKit.BehaviorTree.Editor
     {
         public BtAuthoringSyncState State { get; set; }
         public string SourcePath { get; set; } = "";
+        internal EditorSourceSyncInspection PlatformInspection { get; set; }
     }
 
     /// <summary>
-    /// 授权源同步：资产内文档为编辑权威，外部 JSON 文件为协作/版本化载体。
-    /// 双向比对（资产改动 / 文件改动 / 冲突 / 无效源），外部变更横幅据此提示 Import。
+    /// 授权源同步：资产与外部 authoring JSON 是同一文档的两种载体。
+    /// 比较规范化后的文档语义，避免缩进、换行或属性顺序制造伪冲突。
     /// </summary>
     public static class BtAuthoringSourceSync
     {
         public static BtAuthoringSyncInspection Inspect(BtAuthoringAsset asset)
-        {
-            var inspection = new BtAuthoringSyncInspection { SourcePath = asset.SourceJsonPath };
+            => Inspect(asset, asset?.SourceJsonPath ?? "");
 
-            if (string.IsNullOrWhiteSpace(asset.SourceJsonPath))
+        /// <summary>检查指定源路径；用于导入/导出新路径时避免错误复用旧绑定的基线。</summary>
+        public static BtAuthoringSyncInspection Inspect(BtAuthoringAsset asset, string path)
+        {
+            var inspection = new BtAuthoringSyncInspection { SourcePath = path ?? "" };
+            if (asset == null)
             {
-                inspection.State = BtAuthoringSyncState.InSync;
-                return inspection;
+                return CompleteInspection(
+                    inspection,
+                    localHash: string.Empty,
+                    sourceHash: string.Empty,
+                    baselineHash: string.Empty,
+                    isTracked: true,
+                    sourceExists: true,
+                    sourceIsValid: false,
+                    error: "Asset is null.");
             }
 
-            var resolved = ResolvePath(asset.SourceJsonPath);
+            var assetHash = HashDocument(asset.LoadDocument());
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                // An unbound asset has no external source to compare. Preserve the historical
+                // InSync compatibility state while still providing a complete platform inspection.
+                return CompleteInspection(
+                    inspection,
+                    assetHash,
+                    assetHash,
+                    assetHash,
+                    isTracked: true,
+                    sourceExists: true);
+            }
+
+            string resolved;
+            try
+            {
+                resolved = ResolvePath(path);
+            }
+            catch (Exception ex)
+            {
+                return CompleteInspection(
+                    inspection,
+                    assetHash,
+                    string.Empty,
+                    asset.LastSynchronizedHash,
+                    isTracked: true,
+                    sourceExists: true,
+                    sourceIsValid: false,
+                    error: ex.Message);
+            }
+
+            var isBoundPath = PathsEqual(path, asset.SourceJsonPath);
+            var baseline = isBoundPath ? asset.LastSynchronizedHash : string.Empty;
             if (!File.Exists(resolved))
             {
-                inspection.State = BtAuthoringSyncState.InvalidSource;
-                return inspection;
+                return CompleteInspection(
+                    inspection,
+                    assetHash,
+                    string.Empty,
+                    baseline,
+                    // A concrete requested path is tracked for availability even before a
+                    // successful baseline exists, so the platform can distinguish missing
+                    // source from an untracked but existing source.
+                    isTracked: true,
+                    sourceExists: false);
             }
 
-            var fileContent = File.ReadAllText(resolved);
-            var fileHash = Hash(fileContent);
-
-            if (string.Equals(asset.LastSynchronizedHash, fileHash, StringComparison.Ordinal))
+            string fileHash;
+            try
             {
-                inspection.State = BtAuthoringSyncState.InSync;
-                return inspection;
+                fileHash = HashDocument(BtAuthoringJson.Load(File.ReadAllText(resolved)));
             }
-
-            var assetJson = BtAuthoringJson.Save(asset.LoadDocument());
-            var assetHash = Hash(assetJson);
-
-            if (string.Equals(fileHash, assetHash, StringComparison.Ordinal))
+            catch (Exception ex)
             {
-                inspection.State = BtAuthoringSyncState.Conflict;
-                return inspection;
+                return CompleteInspection(
+                    inspection,
+                    assetHash,
+                    string.Empty,
+                    baseline,
+                    isTracked: true,
+                    sourceExists: true,
+                    sourceIsValid: false,
+                    error: ex.Message);
             }
 
-            // 资产未变但文件变 → 外部改动；资产变但文件未变 → 本地改动
-            inspection.State = string.Equals(asset.LastSynchronizedHash, assetHash, StringComparison.Ordinal)
-                ? BtAuthoringSyncState.JsonChanged
-                : BtAuthoringSyncState.AssetChanged;
-            return inspection;
+            return CompleteInspection(
+                inspection,
+                assetHash,
+                fileHash,
+                baseline,
+                isTracked: true,
+                sourceExists: true);
         }
 
         public static BtAuthoringSyncResult Import(BtAuthoringAsset asset, string path, bool force = false)
         {
             if (asset == null) return BtAuthoringSyncResult.Fail("Asset is null.");
-            var resolved = ResolvePath(path);
+            string resolved;
+            try
+            {
+                resolved = ResolvePath(path);
+            }
+            catch (Exception ex)
+            {
+                return BtAuthoringSyncResult.Fail($"Invalid source path: {ex.Message}");
+            }
             if (!File.Exists(resolved)) return BtAuthoringSyncResult.Fail($"Source file not found: {resolved}");
 
-            var inspection = Inspect(asset);
-            if (!force && inspection.State == BtAuthoringSyncState.AssetChanged)
+            var inspection = Inspect(asset, path);
+            var assessment = AssessOperation(inspection, EditorSourceSyncDirection.Import);
+            if (!force && assessment.RequiresForce)
             {
                 return BtAuthoringSyncResult.Fail(
-                    "Asset has local unsaved changes. Force import will overwrite them.", canForce: true);
+                    "The asset contains changes that are not present in the source. Force import will overwrite them.",
+                    canForce: true);
             }
 
             var fileContent = File.ReadAllText(resolved);
+            BtAuthoringSourceDocument document;
             try
             {
-                asset.ImportJson(fileContent);
+                document = BtAuthoringJson.Load(fileContent);
             }
             catch (Exception ex)
             {
                 return BtAuthoringSyncResult.Fail($"Invalid source JSON: {ex.Message}");
             }
 
-            asset.MarkSynchronized(path, Hash(fileContent));
+            asset.SaveDocument(document);
+            asset.MarkSynchronized(path, HashDocument(document));
             return BtAuthoringSyncResult.Ok("Imported.");
         }
 
         public static BtAuthoringSyncResult Export(BtAuthoringAsset asset, string path, bool force = false)
         {
             if (asset == null) return BtAuthoringSyncResult.Fail("Asset is null.");
-            var resolved = ResolvePath(path);
+            string resolved;
+            try
+            {
+                resolved = ResolvePath(path);
+            }
+            catch (Exception ex)
+            {
+                return BtAuthoringSyncResult.Fail($"Invalid source path: {ex.Message}");
+            }
 
             if (!force && File.Exists(resolved))
             {
-                var inspection = Inspect(asset);
-                if (inspection.State == BtAuthoringSyncState.JsonChanged)
+                var inspection = Inspect(asset, path);
+                var assessment = AssessOperation(inspection, EditorSourceSyncDirection.Export);
+                if (assessment.RequiresForce)
                 {
                     return BtAuthoringSyncResult.Fail(
-                        "Source file has external changes. Force export will overwrite them.", canForce: true);
+                        "The source contains changes that are not present in the asset. Force export will overwrite them.",
+                        canForce: true);
                 }
             }
 
-            var json = BtAuthoringJson.Save(asset.LoadDocument());
-            File.WriteAllText(resolved, json);
-            asset.MarkSynchronized(path, Hash(json));
+            var document = asset.LoadDocument();
+            var json = BtAuthoringJson.Save(document);
+            try
+            {
+                var directory = Path.GetDirectoryName(resolved);
+                if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
+                File.WriteAllText(resolved, json);
+            }
+            catch (Exception ex)
+            {
+                return BtAuthoringSyncResult.Fail($"Unable to write source JSON: {ex.Message}");
+            }
+            asset.MarkSynchronized(path, HashDocument(document));
             return BtAuthoringSyncResult.Ok("Exported.");
+        }
+
+        private static EditorSourceSyncOperationAssessment AssessOperation(
+            BtAuthoringSyncInspection inspection,
+            EditorSourceSyncDirection direction)
+        {
+            return EditorSourceSyncOperationPolicy.Assess(
+                inspection.PlatformInspection,
+                direction);
+        }
+
+        private static BtAuthoringSyncInspection CompleteInspection(
+            BtAuthoringSyncInspection inspection,
+            string localHash,
+            string sourceHash,
+            string baselineHash,
+            bool isTracked,
+            bool sourceExists,
+            bool sourceIsValid = true,
+            string error = null)
+        {
+            inspection.PlatformInspection = EditorSourceSyncClassifier.Inspect(
+                new EditorSourceSyncSnapshot(
+                    localHash,
+                    sourceHash,
+                    baselineHash,
+                    isTracked,
+                    sourceExists,
+                    sourceIsValid,
+                    inspection.SourcePath,
+                    error));
+            inspection.State = MapState(inspection.PlatformInspection.State);
+            return inspection;
+        }
+
+        private static BtAuthoringSyncState MapState(EditorSourceSyncState state)
+        {
+            return state switch
+            {
+                EditorSourceSyncState.InSync => BtAuthoringSyncState.InSync,
+                EditorSourceSyncState.LocalChanged => BtAuthoringSyncState.AssetChanged,
+                EditorSourceSyncState.SourceChanged => BtAuthoringSyncState.JsonChanged,
+                EditorSourceSyncState.Conflict => BtAuthoringSyncState.Conflict,
+                // BT's public compatibility enum has no untracked/missing states. Historically,
+                // a differing source without a bound baseline was treated as a conflict.
+                EditorSourceSyncState.Untracked => BtAuthoringSyncState.Conflict,
+                EditorSourceSyncState.SourceMissing => BtAuthoringSyncState.InvalidSource,
+                EditorSourceSyncState.InvalidSource => BtAuthoringSyncState.InvalidSource,
+                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown source sync state.")
+            };
         }
 
         public static string ResolvePath(string path)
@@ -137,6 +274,25 @@ namespace AbilityKit.BehaviorTree.Editor
                 ?? UnityEngine.Application.dataPath;
             return Path.GetFullPath(Path.Combine(projectRoot, path));
         }
+
+        private static bool PathsEqual(string left, string right)
+        {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right)) return false;
+            var comparison = Path.DirectorySeparatorChar == '\\'
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
+            try
+            {
+                return string.Equals(ResolvePath(left), ResolvePath(right), comparison);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        private static string HashDocument(BtAuthoringSourceDocument document)
+            => Hash(BtAuthoringJson.Save(document));
 
         private static string Hash(string content)
         {

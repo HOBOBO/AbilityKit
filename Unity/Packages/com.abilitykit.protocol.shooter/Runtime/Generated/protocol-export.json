@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generatorVersion": "1.0",
   "projectId": "abilitykit.shooter",
   "catalogIds": [
@@ -26,6 +26,25 @@
     "AbilityKit.Protocol.Shooter.ShooterStartGamePayload",
     "AbilityKit.Protocol.Shooter.ShooterStartPlayer",
     "AbilityKit.Protocol.Shooter.ShooterStateSnapshotPayload"
+  ],
+  "generatedGroups": [
+    {
+      "groupId": "battle",
+      "generatedTypes": [
+        "AbilityKit.Protocol.Shooter.ShooterBulletSnapshot",
+        "AbilityKit.Protocol.Shooter.ShooterCommandAcknowledgement",
+        "AbilityKit.Protocol.Shooter.ShooterEnemySnapshot",
+        "AbilityKit.Protocol.Shooter.ShooterEventSnapshot",
+        "AbilityKit.Protocol.Shooter.ShooterInputPayload",
+        "AbilityKit.Protocol.Shooter.ShooterPackedComponentChunk",
+        "AbilityKit.Protocol.Shooter.ShooterPackedSnapshotPayload",
+        "AbilityKit.Protocol.Shooter.ShooterPlayerCommand",
+        "AbilityKit.Protocol.Shooter.ShooterPlayerSnapshot",
+        "AbilityKit.Protocol.Shooter.ShooterStartGamePayload",
+        "AbilityKit.Protocol.Shooter.ShooterStartPlayer",
+        "AbilityKit.Protocol.Shooter.ShooterStateSnapshotPayload"
+      ]
+    }
   ],
   "missingWireSchemaTypes": [],
   "generatedFiles": [

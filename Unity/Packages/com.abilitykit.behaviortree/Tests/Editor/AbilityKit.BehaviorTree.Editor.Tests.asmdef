@@ -4,6 +4,8 @@
     "references": [
         "AbilityKit.BehaviorTree",
         "AbilityKit.BehaviorTree.Editor",
+        "AbilityKit.Deterministic",
+        "AbilityKit.Editor.Platform",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

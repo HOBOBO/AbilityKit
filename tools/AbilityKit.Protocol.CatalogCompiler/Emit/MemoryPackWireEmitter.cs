@@ -74,6 +74,7 @@ public static class MemoryPackWireEmitter
         var scalar = field.IsCustomType ? ResolveCustomType(field.TypeName) : field.ScalarType switch
         {
             "bool" => "bool",
+            "uint8" => "byte",
             "int32" => "int",
             "int64" => "long",
             "uint32" => "uint",

@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using AbilityKit.BehaviorTree.Authoring;
 using AbilityKit.Deterministic;
+using Newtonsoft.Json;
 using Xunit;
 using static AbilityKit.BehaviorTree.Tests.TestNodeTypes;
 
@@ -126,17 +128,53 @@ namespace AbilityKit.BehaviorTree.Tests
             Assert.Contains("\"rootNodeId\"", json);
             Assert.Contains("\"builtin.sequence\"", json);
             Assert.DoesNotContain("$type", json);
+            Assert.DoesNotContain("\"comment\"", json);
             Assert.DoesNotContain("AbilityKit.BehaviorTree.Bt", json);   // 无 CLR 类型名
+            foreach (var node in (Newtonsoft.Json.Linq.JArray)Newtonsoft.Json.Linq.JObject.Parse(json)["nodes"]!)
+            {
+                Assert.Null(node["name"]);
+                Assert.Null(node["comment"]);
+            }
         }
 
         [Fact]
-        public void DefinitionHash_IgnoresDisplayNameChanges()
+        public void DefinitionHash_IgnoresTreeIdChanges()
         {
             var a = RunningTree();
             var b = RunningTree();
-            b.Nodes[0].Name = "改名";
             b.TreeId = "renamed";
             Assert.Equal(a.ComputeDefinitionHash(), b.ComputeDefinitionHash());
+        }
+
+        [Fact]
+        public void RuntimeJson_RejectsAuthoringDocument()
+        {
+            var document = BtTreeExporter.Import(RunningTree());
+            var exception = Assert.Throws<JsonSerializationException>(
+                () => BtTreeJson.Load(BtAuthoringJson.Save(document)));
+            Assert.Contains("authoring JSON", exception.Message);
+        }
+
+        [Fact]
+        public void Runtime_OwnsDefinitionSnapshot()
+        {
+            var source = RunningTree();
+            var runtime = BtTreeRuntime.Create(source, CreateRegistry());
+            var originalHash = runtime.Definition.ComputeDefinitionHash();
+
+            source.Nodes[1].Properties.Set("durationSeconds", BtPropertyValue.Of(Fixed64.FromInt32(99)));
+            source.RootNodeId = "counter";
+            var exposedCopy = runtime.Definition;
+            exposedCopy.RootNodeId = "counter";
+
+            Assert.Equal(originalHash, runtime.Definition.ComputeDefinitionHash());
+            Assert.Equal("root", runtime.Definition.RootNodeId);
+
+            runtime.Enable();
+            runtime.Blackboard.SetInt64("test.result", 1);
+            runtime.Update(1, Fixed64.Zero);
+            runtime.Update(2, Fixed64.FromInt32(2));
+            Assert.Equal(BtNodeState.Success, runtime.RootNodeState);
         }
 
         [Fact]

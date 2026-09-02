@@ -1,0 +1,19 @@
+{
+  "name": "com.abilitykit.battleflow",
+  "version": "0.1.0",
+  "displayName": "AbilityKit BattleFlow",
+  "unity": "2022.3",
+  "description": "Battle scenario block model (atomic + composite) that compiles to the neutral scenario IR, with a project-extensible block library.",
+  "keywords": [
+    "abilitykit",
+    "battleflow",
+    "block",
+    "dsl"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.scenario": "0.1.0"
+  }
+}

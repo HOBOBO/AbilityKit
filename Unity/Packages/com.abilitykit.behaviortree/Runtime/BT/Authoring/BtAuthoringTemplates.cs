@@ -85,21 +85,29 @@ namespace AbilityKit.BehaviorTree.Authoring
             Prop(document, "hold", BtSetBlackboardNode.ValueKindProperty, BtPropertyValue.Of(0L));
             Prop(document, "hold", BtSetBlackboardNode.ConstBoolProperty, BtPropertyValue.Of(true));
 
-            // 深度列布局
-            var y = 0f;
-            foreach (var node in document.Tree.Nodes)
-            {
-                document.Layout.Add(new BtNodeLayoutData { NodeId = node.Id, X = 0f, Y = y });
-                y += 120f;
-            }
+            // 根节点居上，同层节点横向展开，首次打开即可读出分支关系。
+            SetLayout(document, ("root", 400f, 40f),
+                ("perceive", 180f, 180f), ("arbitrate", 620f, 180f),
+                ("hasTarget", 60f, 320f), ("canAct", 280f, 320f),
+                ("actBranch", 500f, 320f), ("hold", 800f, 320f),
+                ("actReady", 500f, 460f), ("act", 720f, 460f));
             return document;
+        }
+
+        private static void SetLayout(
+            BtAuthoringSourceDocument document,
+            params (string Id, float X, float Y)[] entries)
+        {
+            foreach (var entry in entries)
+                document.Layout.Add(new BtNodeLayoutData { NodeId = entry.Id, X = entry.X, Y = entry.Y });
         }
 
         private static void Node(BtAuthoringSourceDocument document, string id, string type, params string[] childIds)
         {
-            var node = new BtNodeDefinition { Id = id, Type = type, Name = id };
+            var node = new BtNodeDefinition { Id = id, Type = type };
             node.ChildIds.AddRange(childIds);
             document.Tree.Nodes.Add(node);
+            document.NodeMetadata.Add(new BtAuthoringNodeMetadata { NodeId = id, DisplayName = id });
         }
 
         private static void Prop(BtAuthoringSourceDocument document, string nodeId, string key, BtPropertyValue value)

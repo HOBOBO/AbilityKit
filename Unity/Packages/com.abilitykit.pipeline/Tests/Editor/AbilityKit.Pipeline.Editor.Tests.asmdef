@@ -1,0 +1,25 @@
+{
+    "name": "AbilityKit.Pipeline.Editor.Tests",
+    "rootNamespace": "AbilityKit.Pipeline.Editor.Tests",
+    "references": [
+        "AbilityKit.Pipeline",
+        "AbilityKit.Pipeline.Editor",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

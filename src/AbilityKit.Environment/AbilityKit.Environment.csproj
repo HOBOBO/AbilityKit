@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AbilityKit.EnvironmentModel</RootNamespace>
+    <AssemblyName>AbilityKit.Environment</AssemblyName>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- 引用 Packages 目录下的源码 -->
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.environment/Runtime/**/*.cs" />
+  </ItemGroup>
+</Project>

@@ -2,6 +2,7 @@
 
 using System;
 using AbilityKit.Network.Abstractions;
+using AbilityKit.Network.Protocol;
 using AbilityKit.Network.Runtime.Observability;
 
 namespace AbilityKit.Network.Runtime
@@ -13,18 +14,21 @@ namespace AbilityKit.Network.Runtime
             ITransport transport,
             IDispatcher callbackDispatcher,
             IDispatcher ioDispatcher,
-            IFrameCodec frameCodec)
+            IFrameCodec frameCodec,
+            ProtocolPacketBoundaryValidator? packetBoundaryValidator)
         {
             Transport = transport;
             CallbackDispatcher = callbackDispatcher;
             IoDispatcher = ioDispatcher;
             FrameCodec = frameCodec;
+            PacketBoundaryValidator = packetBoundaryValidator;
         }
 
         public ITransport Transport { get; }
         public IDispatcher CallbackDispatcher { get; }
         public IDispatcher IoDispatcher { get; }
         public IFrameCodec FrameCodec { get; }
+        public ProtocolPacketBoundaryValidator? PacketBoundaryValidator { get; }
     }
 
     /// <summary>Inputs supplied when a connection manager creates its reconnect scheduler.</summary>
@@ -85,6 +89,12 @@ namespace AbilityKit.Network.Runtime
         /// session, including reconnects; the connection generation identifies that session.
         /// </summary>
         public NetworkTrafficCaptureOptions? TrafficCapture;
+
+        /// <summary>
+        /// Optional catalog-backed inbound guard installed on the default network session. It is
+        /// recreated for every reconnect session and runs before packet route handlers.
+        /// </summary>
+        public ProtocolPacketBoundaryValidator? PacketBoundaryValidator;
 
         public bool EnableKickHandling;
         public uint KickPushOpCode;

@@ -125,6 +125,7 @@ public static class CatalogCompilerProgram
         Console.WriteLine("  --input <catalog-root> --wire-input <wire-root> --workspace-output <workspace.json>");
         Console.WriteLine("  --write-catalog <catalog.json> --output <catalog.protocol.yaml>");
         Console.WriteLine("  --write-wire-schema <schema.json> --output <schema.wire.yaml>");
+        Console.WriteLine("    appends a type to an existing grouped v2 document when schema.sourceType is empty");
         Console.WriteLine("  --input <catalog-root> --wire-input <wire-root> --compatibility-baseline <baseline.json> [--check]");
         Console.WriteLine("  --input <catalog-root> --wire-input <wire-root> --compatibility-check <baseline.json>");
         Console.WriteLine("    exits 5 when breaking changes are not covered by the owning catalog revision bump");

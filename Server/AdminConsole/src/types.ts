@@ -246,6 +246,18 @@ export interface AdminSkillEvent {
   value?: number | null;
   message?: string | null;
   severity: string;
+  battleId: string;
+  worldId: string;
+  sessionId: string;
+  generation: number;
+  sequence: number;
+  monotonicTimestamp: number;
+  nodeId: number;
+  rootId: number;
+  parentId: number;
+  sourceContextId: number;
+  rootContextId: number;
+  ownerContextId: number;
 }
 
 export interface AdminSkillDiagnosticsEvents {
@@ -254,6 +266,15 @@ export interface AdminSkillDiagnosticsEvents {
   events: AdminSkillEvent[];
   warnings: string[];
   serverNowTicks: number;
+  schemaVersion: string;
+  isDataAvailable: boolean;
+  unavailableReason?: string | null;
+  storeRevision?: number;
+  hasMore?: boolean;
+  monotonicTimestampFrequency?: number;
+  offset?: number;
+  limit?: number;
+  dataAvailability?: string | null;
 }
 
 export interface AdminSkillAnalysisStage {

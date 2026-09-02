@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.Export;
 using UnityEngine;
 
 namespace AbilityKit.BehaviorTree.Editor
@@ -12,37 +14,72 @@ namespace AbilityKit.BehaviorTree.Editor
     /// </summary>
     public static class BtAuthoringRuntimeExporter
     {
-        public static bool Export(BtAuthoringAsset asset, out List<string> outputs, out List<string> errors)
+        public static EditorExportReport Export(BtAuthoringAsset asset)
         {
-            outputs = new List<string>();
-            errors = new List<string>();
+            const string jobId = "behaviortree.runtime-json";
+            var target = asset == null ? "Behavior Tree" : asset.name;
+            var job = new EditorExportJob(
+                jobId,
+                target,
+                "json",
+                () => ExportEntry(asset, jobId, target));
+            return EditorExportExecutor.Execute(new[] { job });
+        }
+
+        public static bool Export(
+            BtAuthoringAsset asset,
+            out List<string> outputs,
+            out List<string> errors)
+        {
+            var report = Export(asset);
+            outputs = report.Artifacts
+                .Select(artifact => artifact.Path)
+                .ToList();
+            errors = report.Entries
+                .Where(entry => entry.Status == EditorExportStatus.Failed)
+                .SelectMany(entry => entry.Messages)
+                .ToList();
+            return report.Success;
+        }
+
+        private static EditorExportReportEntry ExportEntry(
+            BtAuthoringAsset asset,
+            string jobId,
+            string target)
+        {
             if (asset == null)
-            {
-                errors.Add("Asset is null.");
-                return false;
-            }
+                return EditorExportReportEntry.Failed(jobId, target, "Asset is null.");
 
             var document = asset.LoadDocument();
             var tree = document.Tree;
             if (string.IsNullOrWhiteSpace(tree.TreeId))
-            {
-                errors.Add("TreeId must not be empty.");
-                return false;
-            }
+                return EditorExportReportEntry.Failed(jobId, target, "TreeId must not be empty.");
 
-            var json = BtTreeExporter.Export(document, BtEditorNodeCatalog.Registry, out var validationErrors);
+            var json = BtTreeExporter.Export(
+                document,
+                BtEditorNodeCatalog.Registry,
+                out var validationErrors);
             if (validationErrors.Count > 0)
             {
-                errors.AddRange(validationErrors);
-                return false;
+                return new EditorExportReportEntry(
+                    jobId,
+                    target,
+                    EditorExportStatus.Failed,
+                    messages: validationErrors);
             }
 
             var relativePath = asset.ResolveRuntimeExportPath(tree.TreeId);
-            var absolutePath = Path.GetFullPath(Path.Combine(Application.dataPath, "..", relativePath));
-            Directory.CreateDirectory(Path.GetDirectoryName(absolutePath)!);
-            File.WriteAllText(absolutePath, json);
-            outputs.Add(relativePath);
-            return true;
+            var absolutePath = Path.GetFullPath(
+                Path.Combine(Application.dataPath, "..", relativePath));
+            var writeStatus = EditorAtomicFileWriter.WriteAllText(absolutePath, json);
+            var exportStatus = writeStatus == EditorAtomicWriteStatus.Unchanged
+                ? EditorExportStatus.Unchanged
+                : EditorExportStatus.Exported;
+            return new EditorExportReportEntry(
+                jobId,
+                target,
+                exportStatus,
+                new[] { new EditorExportArtifact(relativePath, "json") });
         }
     }
 }

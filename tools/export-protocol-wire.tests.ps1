@@ -53,16 +53,18 @@ messages:
 '@
     [System.IO.File]::WriteAllText((Join-Path $root 'Protocols/Catalogs/fixture.protocol.yaml'), $catalog, (New-Object System.Text.UTF8Encoding($false)))
 
-    $wireSchema = @'
-schemaVersion: 1
+$wireSchema = @'
+schemaVersion: 2
 projectId: abilitykit.shooter
+groupId: battle
 namespace: Fixture.Protocol
-type: FixturePayload
-fields:
-  - id: 0
-    name: value
-    scalarType: int32
-    required: true
+types:
+  - name: FixturePayload
+    fields:
+      - id: 0
+        name: value
+        scalarType: int32
+        required: true
 '@
     [System.IO.File]::WriteAllText((Join-Path $root 'Protocols/WireSchemas/fixture-payload.wire.yaml'), $wireSchema, (New-Object System.Text.UTF8Encoding($false)))
     return $root
@@ -106,6 +108,10 @@ try {
         'protocol-export.json')) {
         Assert-True -Condition (Test-Path (Join-Path $exportDirectory $expectedFile)) -Message ("Write mode should export {0}." -f $expectedFile)
     }
+    $manifest = Get-Content (Join-Path $exportDirectory 'protocol-export.json') -Raw | ConvertFrom-Json
+    Assert-Equal -Expected 1 -Actual $manifest.generatedGroups.Count -Message "Manifest should contain one generated group."
+    Assert-Equal -Expected 'battle' -Actual $manifest.generatedGroups[0].groupId -Message "Manifest should retain wire group ownership."
+    Assert-Equal -Expected 'Fixture.Protocol.FixturePayload' -Actual $manifest.generatedGroups[0].generatedTypes[0] -Message "Manifest should assign the generated type to its group."
 
     # 2. Check mode passes after a write, even when line endings were normalized by git.
     $dtoPath = Join-Path $exportDirectory 'FixturePayload.MemoryPack.g.cs'

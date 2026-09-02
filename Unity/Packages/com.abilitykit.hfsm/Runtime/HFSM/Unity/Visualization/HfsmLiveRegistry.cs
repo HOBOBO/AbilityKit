@@ -2,110 +2,94 @@
 
 using System;
 using System.Collections.Generic;
+using UnityEditor;
+using UnityHFSM.Inspection;
 
 namespace UnityHFSM.Visualization
 {
-	public static class HfsmLiveRegistry
-	{
-		public static bool AutoRegisterEnabled = true;
-		public static Predicate<object> AutoRegisterFilter;
-		public static Func<object, string> AutoRegisterNameProvider;
+    public static class HfsmLiveRegistry
+    {
+        public sealed class Entry
+        {
+            internal Entry(LiveRegistry.Entry entry)
+            {
+                Name = entry.Name;
+                Fsm = entry.Fsm;
+                FsmType = entry.FsmType;
+            }
 
-		public sealed class Entry
-		{
-			public readonly string Name;
-			public readonly WeakReference Fsm;
-			public readonly Type FsmType;
+            public readonly string Name;
+            public readonly WeakReference Fsm;
+            public readonly Type FsmType;
+        }
 
-			public Entry(string name, object fsm)
-			{
-				Name = name ?? string.Empty;
-				Fsm = new WeakReference(fsm);
-				FsmType = fsm?.GetType();
-			}
-		}
+        static HfsmLiveRegistry()
+        {
+            RuntimeInspectionRegistryInstaller.EnsureInstalled();
+        }
 
-		static readonly List<Entry> _entries = new List<Entry>();
+        public static bool AutoRegisterEnabled
+        {
+            get => LiveRegistry.AutoRegisterEnabled;
+            set => LiveRegistry.AutoRegisterEnabled = value;
+        }
 
-		public static event Action Changed;
+        public static Predicate<object> AutoRegisterFilter
+        {
+            get => LiveRegistry.AutoRegisterFilter;
+            set => LiveRegistry.AutoRegisterFilter = value;
+        }
 
-		public static void AutoRegister(object fsm)
-		{
-			if (!AutoRegisterEnabled) return;
-			if (fsm == null) return;
+        public static Func<object, string> AutoRegisterNameProvider
+        {
+            get => LiveRegistry.AutoRegisterNameProvider;
+            set => LiveRegistry.AutoRegisterNameProvider = value;
+        }
 
-			if (AutoRegisterFilter != null && !AutoRegisterFilter(fsm))
-				return;
+        public static event Action Changed
+        {
+            add => LiveRegistry.Changed += value;
+            remove => LiveRegistry.Changed -= value;
+        }
 
-			var name = AutoRegisterNameProvider != null
-				? AutoRegisterNameProvider(fsm)
-				: fsm.GetType().Name;
+        public static void AutoRegister(object fsm) => LiveRegistry.AutoRegister(fsm);
+        public static void Register(string name, object fsm) => LiveRegistry.Register(name, fsm);
+        public static void Unregister(object fsm) => LiveRegistry.Unregister(fsm);
 
-			Register(name, fsm);
-		}
+        public static IReadOnlyList<Entry> GetEntries()
+        {
+            var source = LiveRegistry.GetEntries();
+            var entries = new Entry[source.Count];
+            for (var index = 0; index < source.Count; index++)
+                entries[index] = new Entry(source[index]);
+            return entries;
+        }
+    }
 
-		public static void Register(string name, object fsm)
-		{
-			if (fsm == null) return;
+    [InitializeOnLoad]
+    internal static class RuntimeInspectionRegistryInstaller
+    {
+        private static IDisposable _installation;
 
-			CleanupDeadEntries();
+        static RuntimeInspectionRegistryInstaller()
+        {
+            EnsureInstalled();
+        }
 
-			for (var i = 0; i < _entries.Count; i++)
-			{
-				var e = _entries[i];
-				if (ReferenceEquals(e.Fsm.Target, fsm))
-				{
-					_entries[i] = new Entry(name, fsm);
-					Changed?.Invoke();
-					return;
-				}
-			}
+        internal static void EnsureInstalled()
+        {
+            if (RuntimeInspectionHub.Backend is UnityLiveRegistryBackend)
+                return;
+            _installation?.Dispose();
+            _installation = RuntimeInspectionHub.InstallBackend(new UnityLiveRegistryBackend());
+        }
 
-			_entries.Add(new Entry(name, fsm));
-			Changed?.Invoke();
-		}
-
-		public static void Unregister(object fsm)
-		{
-			if (fsm == null) return;
-
-			var removed = false;
-			for (var i = _entries.Count - 1; i >= 0; i--)
-			{
-				var target = _entries[i].Fsm.Target;
-				if (target == null || ReferenceEquals(target, fsm))
-				{
-					_entries.RemoveAt(i);
-					removed = true;
-				}
-			}
-
-			if (removed)
-				Changed?.Invoke();
-		}
-
-		public static IReadOnlyList<Entry> GetEntries()
-		{
-			CleanupDeadEntries();
-			return _entries;
-		}
-
-		static void CleanupDeadEntries()
-		{
-			var removed = false;
-			for (var i = _entries.Count - 1; i >= 0; i--)
-			{
-				if (_entries[i].Fsm.Target == null)
-				{
-					_entries.RemoveAt(i);
-					removed = true;
-				}
-			}
-
-			if (removed)
-				Changed?.Invoke();
-		}
-	}
+        private sealed class UnityLiveRegistryBackend : IRuntimeInspectionRegistryBackend
+        {
+            public void AutoRegister(object runtime) => LiveRegistry.AutoRegister(runtime);
+            public void Unregister(object runtime) => LiveRegistry.Unregister(runtime);
+        }
+    }
 }
 
 #endif

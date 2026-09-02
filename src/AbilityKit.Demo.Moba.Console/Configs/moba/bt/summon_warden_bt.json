@@ -6,8 +6,6 @@
     {
       "id": "30000000-0000-4000-8000-000000000001",
       "type": "builtin.sequence",
-      "name": "RefreshPlanArbitrate",
-      "comment": "",
       "properties": {
         "abortType": {
           "type": "Int64",
@@ -23,8 +21,6 @@
     {
       "id": "30000000-0000-4000-8000-000000000002",
       "type": "moba.selectNearestEnemy",
-      "name": "QueryNearestEnemy",
-      "comment": "",
       "properties": {
         "searchRadius": {
           "type": "Fixed64",
@@ -36,8 +32,6 @@
     {
       "id": "30000000-0000-4000-8000-000000000003",
       "type": "builtin.selector",
-      "name": "BuildMoveOrHold",
-      "comment": "",
       "properties": {
         "abortType": {
           "type": "Int64",
@@ -52,16 +46,12 @@
     {
       "id": "30000000-0000-4000-8000-000000000004",
       "type": "moba.arbitrateCombatIntent",
-      "name": "ArbitrateIntent",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "30000000-0000-4000-8000-000000000005",
       "type": "builtin.sequence",
-      "name": "BuildMoveIntent",
-      "comment": "",
       "properties": {
         "abortType": {
           "type": "Int64",
@@ -78,40 +68,30 @@
     {
       "id": "30000000-0000-4000-8000-000000000006",
       "type": "moba.holdPosition",
-      "name": "RequestHold",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "30000000-0000-4000-8000-000000000007",
       "type": "moba.hasEnemy",
-      "name": "HasTarget",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "30000000-0000-4000-8000-000000000008",
       "type": "moba.canMove",
-      "name": "CanMove",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "30000000-0000-4000-8000-000000000009",
       "type": "moba.shouldApproachEnemy",
-      "name": "ShouldApproach",
-      "comment": "",
       "properties": {},
       "childIds": []
     },
     {
       "id": "30000000-0000-4000-8000-000000000010",
       "type": "moba.moveToEnemy",
-      "name": "RequestMove",
-      "comment": "",
       "properties": {
         "priority": {
           "type": "Int64",

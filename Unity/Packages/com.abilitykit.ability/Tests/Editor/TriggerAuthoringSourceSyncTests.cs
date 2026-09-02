@@ -94,6 +94,42 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void Inspect_TreatsIndependentlyConvergedContentAsInSync()
+        {
+            var path = GetSourcePath();
+            Assert.That(TriggerAuthoringSourceSync.Export(_asset, path).Success, Is.True);
+
+            _asset.Module.DisplayName = "Converged";
+            var source = TriggerAuthoringSourceCodec.ReadFile(path);
+            source.Module.DisplayName = "Converged";
+            TriggerAuthoringSourceCodec.WriteFileAtomic(path, source);
+
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.InSync));
+        }
+
+        [Test]
+        public void Inspect_DistinguishesUntrackedMissingAndInvalidSources()
+        {
+            var path = GetSourcePath();
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.Untracked));
+
+            Assert.That(TriggerAuthoringSourceSync.Export(_asset, path).Success, Is.True);
+            File.Delete(path);
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.SourceMissing));
+
+            File.WriteAllText(path, "not-json");
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.InvalidSource));
+        }
+
+        [Test]
         public void Export_DoesNotOverwriteUntrackedJsonWithoutForce()
         {
             var path = GetSourcePath();

@@ -524,13 +524,16 @@
       "name": "foundation-units",
       "level": "P1",
       "owner": "Runtime Platform",
-      "description": "Foundation leaf-package unit contracts: timer scheduling semantics, gameplay tag hierarchy/query/persistence, diagnostics profiler data, flow engine contracts, and protocol wire serialization.",
+      "description": "Foundation leaf-package unit contracts: timer scheduling semantics, gameplay tag hierarchy/query/persistence, diagnostics profiler data, flow engine contracts, protocol wire serialization, and environment profile mechanism.",
       "scope": [
         "timer",
         "gameplaytags",
         "diagnostics",
         "flow",
-        "protocol"
+        "protocol",
+        "environment",
+        "scenario",
+        "battleflow"
       ],
       "requiredBefore": [
         "merge-foundation-package-change",
@@ -568,6 +571,21 @@
           "name": "Protocol wire serialization tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Protocol.Tests/AbilityKit.Protocol.Tests.csproj"
+        },
+        {
+          "name": "Environment profile mechanism tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Environment.Tests/AbilityKit.Environment.Tests.csproj"
+        },
+        {
+          "name": "Scenario IR tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Scenario.Tests/AbilityKit.Scenario.Tests.csproj"
+        },
+        {
+          "name": "BattleFlow block model tests",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.BattleFlow.Tests/AbilityKit.BattleFlow.Tests.csproj"
         }
       ]
     },

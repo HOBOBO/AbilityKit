@@ -70,6 +70,79 @@ namespace AbilityKit.Protocol.Catalog
                 return _messagesById.TryGetValue(Qualify(catalogId, messageId), out message);
         }
 
+        /// <summary>
+        /// Selects the highest schema version supported by a registered message and a peer's
+        /// advertised range. Call this during connection/session negotiation before decoding.
+        /// </summary>
+        public bool TryNegotiateSchemaVersion(
+            string catalogId,
+            string messageId,
+            int peerMinimumSchemaVersion,
+            int peerMaximumSchemaVersion,
+            out int selectedSchemaVersion)
+        {
+            if (!TryGetMessage(catalogId, messageId, out var message) || message == null)
+            {
+                selectedSchemaVersion = 0;
+                return false;
+            }
+
+            return ProtocolSchemaVersionNegotiator.TrySelect(
+                message,
+                peerMinimumSchemaVersion,
+                peerMaximumSchemaVersion,
+                out selectedSchemaVersion);
+        }
+
+        public bool TryNegotiateCatalog(
+            ProtocolCatalogDefinition remote,
+            out ProtocolCatalogNegotiationResult? result)
+        {
+            if (remote == null)
+            {
+                result = null;
+                return false;
+            }
+
+            lock (_gate)
+            {
+                if (!_catalogs.TryGetValue(remote.CatalogId, out var local))
+                {
+                    result = null;
+                    return false;
+                }
+
+                result = ProtocolCatalogNegotiator.Negotiate(local, remote);
+                return result.IsCompatible;
+            }
+        }
+
+        /// <summary>
+        /// Negotiates a multi-catalog advertisement for a single physical connection. Catalogs
+        /// unknown to this registry are treated as optional; every shared catalog must pass the
+        /// normal identity and schema-window checks.
+        /// </summary>
+        public bool TryNegotiateAdvertisement(
+            ProtocolCatalogAdvertisement remoteAdvertisement,
+            out ProtocolCatalogAdvertisementNegotiationResult? result)
+        {
+            if (remoteAdvertisement == null)
+            {
+                result = null;
+                return false;
+            }
+
+            lock (_gate)
+            {
+                var localCatalogs = new ProtocolCatalogDefinition[_catalogs.Count];
+                _catalogs.Values.CopyTo(localCatalogs, 0);
+                result = ProtocolCatalogAdvertisementNegotiator.Negotiate(
+                    localCatalogs,
+                    remoteAdvertisement);
+                return result.IsCompatible;
+            }
+        }
+
         public bool TryGetMessage(
             in ProtocolMessageKey key,
             out ProtocolMessageDefinition? message)

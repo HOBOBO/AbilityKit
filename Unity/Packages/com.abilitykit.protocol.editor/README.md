@@ -2,11 +2,13 @@
 
 Unity editor tooling for the repository-owned protocol YAML workspace.
 
-Open `Tools/AbilityKit/Framework/Protocol/Protocol Workspace` to edit and validate Catalog and Wire Schema documents, inspect project/message/type coverage, and export one project's generated MemoryPack DTOs and Catalog source.
+Open `Tools/AbilityKit/Framework/Protocol/Protocol Workspace` to edit and validate Catalog and grouped Wire Schema documents, inspect project/message/type coverage, and export one project's generated MemoryPack DTOs and Catalog source.
 
 New schemas default to version-tolerant classes with properties. Existing positional MemoryPack contracts can select `sequential`, `struct`, and field members; sequential field IDs must stay contiguous from zero. Project export follows custom-type references and includes the complete owned schema dependency closure.
 
 YAML remains the source of truth. The editor invokes `AbilityKit.Protocol.CatalogCompiler` for parsing, validation, canonical writes, and export, so CLI, CI, and Unity share one implementation.
+
+Wire Schema v2 is edited as a group document. Select any type from a group and use **Add Type** to stage another type in the same YAML file; saving appends it while preserving the group's other types and document ownership. The `+` button creates a new group document. Existing types can be renamed, and the compiler rejects duplicate names or ownership changes. The inspector shows effective per-type generation settings; document-level defaults and ownership metadata remain source-controlled YAML so changing one type cannot silently rewrite its siblings.
 
 ## Legacy ScriptableObject track — FROZEN (superseded, 2026-08)
 

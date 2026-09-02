@@ -136,6 +136,151 @@ public sealed class ProtocolCatalogTests
         Assert.Equal("invalid payload", failed.Error);
         Assert.False(missing.Success);
         Assert.Equal("No payload decoder is registered.", missing.Error);
+        Assert.Equal(ProtocolDecodeFailureKind.DecoderException, failed.FailureKind);
+        Assert.Equal(ProtocolDecodeFailureKind.DecoderNotRegistered, missing.FailureKind);
+    }
+
+    [Fact]
+    public void DecoderRegistry_BoundedDecodeRejectsUnsupportedVersionAndOversizedPayload()
+    {
+        var registry = new ProtocolPayloadDecoderRegistry();
+        registry.Register("project-a.room", "login.response", payload => payload.Count);
+        var definition = new ProtocolMessageDefinition(
+            "login.response",
+            100,
+            ProtocolDirection.ServerToClient,
+            ProtocolPacketKind.Response,
+            "Payload",
+            "memorypack",
+            minimumSchemaVersion: 2,
+            maximumSchemaVersion: 3,
+            maximumPayloadBytes: 2);
+
+        var unsupported = registry.Decode(
+            "project-a.room",
+            definition,
+            new ArraySegment<byte>(new byte[] { 1 }),
+            schemaVersion: 1);
+        var oversized = registry.Decode(
+            "project-a.room",
+            definition,
+            new ArraySegment<byte>(new byte[] { 1, 2, 3 }),
+            schemaVersion: 2);
+        var decoded = registry.Decode(
+            "project-a.room",
+            definition,
+            new ArraySegment<byte>(new byte[] { 1, 2 }),
+            schemaVersion: 3);
+
+        Assert.False(unsupported.Success);
+        Assert.Equal(ProtocolDecodeFailureKind.UnsupportedSchemaVersion, unsupported.FailureKind);
+        Assert.False(oversized.Success);
+        Assert.Equal(ProtocolDecodeFailureKind.PayloadTooLarge, oversized.FailureKind);
+        Assert.True(decoded.Success);
+        Assert.Equal(2, decoded.Value);
+    }
+
+    [Fact]
+    public void CatalogRegistry_NegotiatesHighestCompatibleSchemaVersion()
+    {
+        var catalogs = new ProtocolCatalogRegistry();
+        catalogs.Register(new ProtocolCatalogDefinition(
+            "project-a.room",
+            "project-a",
+            "room",
+            1,
+            "memorypack",
+            new[]
+            {
+                new ProtocolMessageDefinition(
+                    "login.request",
+                    99,
+                    ProtocolDirection.ClientToServer,
+                    ProtocolPacketKind.Request,
+                    "Payload",
+                    "memorypack",
+                    responseId: "login.response",
+                    minimumSchemaVersion: 2,
+                    maximumSchemaVersion: 4),
+                new ProtocolMessageDefinition(
+                    "login.response",
+                    100,
+                    ProtocolDirection.ServerToClient,
+                    ProtocolPacketKind.Response,
+                    "Payload",
+                    "memorypack",
+                    minimumSchemaVersion: 2,
+                    maximumSchemaVersion: 4)
+            }));
+
+        Assert.True(catalogs.TryNegotiateSchemaVersion(
+            "project-a.room",
+            "login.response",
+            3,
+            6,
+            out var selected));
+        Assert.Equal(4, selected);
+        Assert.False(catalogs.TryNegotiateSchemaVersion(
+            "project-a.room",
+            "login.response",
+            5,
+            6,
+            out _));
+    }
+
+    [Fact]
+    public void CatalogNegotiator_SelectsCommonVersionsAndReportsIncompatibility()
+    {
+        var local = CreateNegotiationCatalog(2, 4);
+        var remote = CreateNegotiationCatalog(3, 5);
+
+        var result = ProtocolCatalogNegotiator.Negotiate(local, remote);
+        Assert.True(result.IsCompatible);
+        Assert.True(result.TryGetSchemaVersion("login.request", out var selected));
+        Assert.Equal(4, selected);
+
+        var incompatible = ProtocolCatalogNegotiator.Negotiate(
+            local,
+            CreateNegotiationCatalog(5, 6));
+        Assert.False(incompatible.IsCompatible);
+        Assert.Equal(
+            ProtocolCatalogNegotiationFailureKind.SchemaVersionMismatch,
+            incompatible.FailureKind);
+        Assert.Contains("login.request", incompatible.IncompatibleMessageIds);
+    }
+
+    [Fact]
+    public void CatalogNegotiationSession_ResetsPerConnectionAndStoresSelection()
+    {
+        var session = new ProtocolCatalogNegotiationSession(CreateNegotiationCatalog(1, 3));
+        Assert.Equal(ProtocolCatalogNegotiationState.Pending, session.State);
+        Assert.False(session.IsNegotiated);
+
+        var result = session.ApplyRemoteCatalog(CreateNegotiationCatalog(2, 4));
+        Assert.True(result.IsCompatible);
+        Assert.Equal(ProtocolCatalogNegotiationState.Negotiated, session.State);
+        Assert.Equal(3, session.Result!.SelectedSchemaVersions["login.request"]);
+
+        session.Reset(12);
+        Assert.Equal(ProtocolCatalogNegotiationState.Pending, session.State);
+        Assert.Equal(12, session.ConnectionGeneration);
+        Assert.Null(session.Result);
+    }
+
+    private static ProtocolCatalogDefinition CreateNegotiationCatalog(
+        int minimumSchemaVersion,
+        int maximumSchemaVersion)
+    {
+        return new ProtocolCatalogDefinition(
+            "project-a.room", "project-a", "room", 1, "memorypack",
+            new[]
+            {
+                new ProtocolMessageDefinition(
+                    "login.request", 99, ProtocolDirection.ClientToServer,
+                    ProtocolPacketKind.Request, "Payload", "memorypack",
+                    minimumSchemaVersion: minimumSchemaVersion,
+                    maximumSchemaVersion: maximumSchemaVersion)
+            });
     }
 
     [Fact]
@@ -160,6 +305,53 @@ public sealed class ProtocolCatalogTests
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Diagnostics);
+    }
+
+    [Fact]
+    public void CatalogAdvertisementCodec_RoundTripsMultipleCatalogsDeterministically()
+    {
+        var advertisement = ProtocolCatalogAdvertisement.FromCatalogs(BuiltInProtocolCatalogs.All);
+
+        var encoded = ProtocolCatalogAdvertisementCodec.Encode(advertisement);
+        Assert.True(ProtocolCatalogAdvertisementCodec.TryDecode(encoded, out var decoded, out var error), error);
+        Assert.NotNull(decoded);
+        Assert.Equal(
+            advertisement.Catalogs.Select(catalog => catalog.CatalogId),
+            decoded!.Catalogs.Select(catalog => catalog.CatalogId));
+        Assert.Equal(encoded, ProtocolCatalogAdvertisementCodec.Encode(decoded));
+        Assert.Equal("abilitykit.system", decoded.Catalogs.Single(catalog => catalog.CatalogId == "abilitykit.system").CatalogId);
+    }
+
+    [Fact]
+    public void CatalogAdvertisementCodec_RejectsTruncationAndConfiguredBounds()
+    {
+        var advertisement = ProtocolCatalogAdvertisement.FromCatalogs(BuiltInProtocolCatalogs.All);
+        var encoded = ProtocolCatalogAdvertisementCodec.Encode(advertisement);
+
+        Assert.False(ProtocolCatalogAdvertisementCodec.TryDecode(
+            encoded.AsSpan(0, encoded.Length - 1), out _, out var truncatedError));
+        Assert.Contains("Truncated", truncatedError, StringComparison.OrdinalIgnoreCase);
+        Assert.False(ProtocolCatalogAdvertisementCodec.TryDecode(
+            encoded,
+            out _,
+            out var boundError,
+            new ProtocolCatalogAdvertisementDecodeOptions(maximumPayloadBytes: encoded.Length - 1)));
+        Assert.Contains("exceeds", boundError, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void CatalogRegistry_NegotiatesSharedCatalogsFromAdvertisement()
+    {
+        var registry = BuiltInProtocolCatalogs.CreateRegistry();
+        var remote = ProtocolCatalogAdvertisement.FromCatalogs(new[]
+        {
+            BuiltInProtocolCatalogs.All.Single(catalog => catalog.CatalogId == "abilitykit.room")
+        });
+
+        Assert.True(registry.TryNegotiateAdvertisement(remote, out var result));
+        Assert.NotNull(result);
+        Assert.True(result!.TryGetCatalogResult("abilitykit.room", out var roomResult));
+        Assert.True(roomResult!.IsCompatible);
     }
 
     [Fact]

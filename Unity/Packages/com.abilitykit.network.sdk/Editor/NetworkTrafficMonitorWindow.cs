@@ -145,7 +145,8 @@ namespace AbilityKit.Network.Sdk.Editor
                 {
                     var router = connection.PacketRouter.Value;
                     DrawField("Router", $"dispatch {router.DispatchedCount}, handled {router.HandledCount}, " +
-                        $"unknown {router.UnknownCount}, exceptions {router.ExceptionCount}");
+                        $"unknown {router.UnknownCount}, exceptions {router.ExceptionCount}, " +
+                        $"boundary rejected {router.BoundaryRejectedCount}");
                 }
                 EditorGUILayout.EndVertical();
             }

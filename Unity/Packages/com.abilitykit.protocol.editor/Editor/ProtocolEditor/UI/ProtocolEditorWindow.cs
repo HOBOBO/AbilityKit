@@ -218,7 +218,7 @@ namespace AbilityKit.ProtocolEditor.UI
         private static readonly string[] Reliabilities = { "reliable", "realtime" };
         private static readonly string[] ScalarTypes =
         {
-            "bool", "int32", "int64", "uint32", "uint64", "float", "double", "string", "bytes"
+            "bool", "uint8", "int32", "int64", "uint32", "uint64", "float", "double", "string", "bytes"
         };
         private static readonly string[] MemoryPackModes = { "version-tolerant", "sequential" };
         private static readonly string[] DeclarationKinds = { "class", "struct" };
@@ -449,6 +449,11 @@ namespace AbilityKit.ProtocolEditor.UI
                 {
                     GUILayout.Label("Wire Schemas", EditorStyles.boldLabel);
                     GUILayout.FlexibleSpace();
+                    using (new EditorGUI.DisabledScope(SelectedWireSchema() == null))
+                    {
+                        if (GUILayout.Button("Add Type", GUILayout.Width(72f)) && CanSwitchDocument())
+                            AddWireSchemaType();
+                    }
                     if (GUILayout.Button("+", GUILayout.Width(28f)) && CanSwitchDocument()) CreateWireSchema();
                 }
                 _leftScroll = EditorGUILayout.BeginScrollView(_leftScroll);
@@ -456,7 +461,11 @@ namespace AbilityKit.ProtocolEditor.UI
                 {
                     var selected = i == _wireSchemaIndex;
                     var schema = _workspace.wireSchemas[i];
-                    var label = string.Format("{0}\n{1}", schema.QualifiedType, schema.projectId);
+                    var source = string.IsNullOrEmpty(schema.sourcePath)
+                        ? "<unsaved>"
+                        : Path.GetFileName(schema.sourcePath);
+                    var label = string.Format("{0}\n{1} / {2} / {3}",
+                        schema.QualifiedType, schema.projectId, schema.groupId, source);
                     if (GUILayout.Toggle(selected, label, "Button", GUILayout.Height(42f)) &&
                         !selected && CanSwitchDocument())
                     {
@@ -484,9 +493,16 @@ namespace AbilityKit.ProtocolEditor.UI
                 if (GUILayout.Button("Save", GUILayout.Width(70f))) SaveWireSchema(schema);
             }
             EditorGUILayout.LabelField("Source", schema.sourcePath, EditorStyles.miniLabel);
+            EditorGUILayout.HelpBox(
+                "Project ID, Group ID and namespace are shared by every type in this wire document.",
+                MessageType.Info);
             EditorGUI.BeginChangeCheck();
-            schema.projectId = EditorGUILayout.TextField("Project ID", schema.projectId);
-            schema.@namespace = EditorGUILayout.TextField("Namespace", schema.@namespace);
+            using (new EditorGUI.DisabledScope(File.Exists(schema.sourcePath)))
+            {
+                schema.projectId = EditorGUILayout.TextField("Project ID", schema.projectId);
+                schema.groupId = EditorGUILayout.TextField("Group ID", schema.groupId);
+                schema.@namespace = EditorGUILayout.TextField("Namespace", schema.@namespace);
+            }
             schema.type = EditorGUILayout.TextField("Type", schema.type);
             schema.memoryPackMode = Popup("MemoryPack Mode", schema.memoryPackMode, MemoryPackModes);
             schema.declaration = Popup("Declaration", schema.declaration, DeclarationKinds);
@@ -544,12 +560,14 @@ namespace AbilityKit.ProtocolEditor.UI
             if (typeMode == 0)
             {
                 if (customType) field.typeName = string.Empty;
+                field.external = false;
                 field.scalarType = Popup("Scalar Type", field.scalarType, ScalarTypes);
             }
             else
             {
                 if (!customType) field.typeName = "AbilityKit.Protocol.Generated.NestedPayload";
                 field.typeName = EditorGUILayout.TextField("Type Reference", field.typeName);
+                field.external = EditorGUILayout.Toggle("External Owner", field.external);
             }
             field.array = EditorGUILayout.Toggle("Array", field.array);
             field.optional = EditorGUILayout.Toggle("Optional", field.optional);
@@ -714,8 +732,10 @@ namespace AbilityKit.ProtocolEditor.UI
             var schema = new ProtocolWireSchemaDto
             {
                 sourcePath = path,
-                schemaVersion = 1,
+                schemaVersion = 2,
+                sourceType = "Payload",
                 projectId = projectId,
+                groupId = "domain",
                 @namespace = "AbilityKit.Protocol.Generated",
                 type = "Payload",
                 memoryPackMode = "version-tolerant",
@@ -725,6 +745,51 @@ namespace AbilityKit.ProtocolEditor.UI
                 reservedIds = Array.Empty<uint>()
             };
             SaveWireSchema(schema);
+        }
+
+        private void AddWireSchemaType()
+        {
+            var selected = SelectedWireSchema();
+            if (selected == null) return;
+
+            var typeName = "New" + selected.type;
+            var suffix = 2;
+            while (_workspace.wireSchemas.Any(value =>
+                       string.Equals(value.sourcePath, selected.sourcePath, StringComparison.OrdinalIgnoreCase) &&
+                       string.Equals(value.type, typeName, StringComparison.Ordinal)))
+            {
+                typeName = "New" + selected.type + suffix++;
+            }
+
+            var schema = new ProtocolWireSchemaDto
+            {
+                sourcePath = selected.sourcePath,
+                schemaVersion = 2,
+                // An empty sourceType tells the compiler to append this type to the existing group document.
+                sourceType = string.Empty,
+                projectId = selected.projectId,
+                groupId = selected.groupId,
+                @namespace = selected.@namespace,
+                type = typeName,
+                memoryPackMode = selected.memoryPackMode,
+                declaration = selected.declaration,
+                memberStyle = selected.memberStyle,
+                fields = Array.Empty<ProtocolWireFieldDto>(),
+                reservedIds = Array.Empty<uint>(),
+                reservedIdsText = string.Empty
+            };
+
+            var schemas = new List<ProtocolWireSchemaDto>(_workspace.wireSchemas)
+            {
+                schema
+            };
+            _workspace.wireSchemas = schemas.ToArray();
+            _wireSchemaIndex = _workspace.wireSchemas.Length - 1;
+            _wireFieldIndex = 0;
+            _dirty = true;
+            SetStatus(
+                $"New type '{schema.type}' staged for group '{schema.groupId}'. Save to append it to {Path.GetFileName(schema.sourcePath)}.",
+                MessageType.Info);
         }
 
         private void AddMessage(ProtocolCatalogDto catalog)
@@ -1111,7 +1176,9 @@ namespace AbilityKit.ProtocolEditor.UI
     {
         public string sourcePath;
         public int schemaVersion;
+        public string sourceType;
         public string projectId;
+        public string groupId;
         public string @namespace;
         public string type;
         public string memoryPackMode;
@@ -1123,6 +1190,7 @@ namespace AbilityKit.ProtocolEditor.UI
         public string QualifiedType => string.IsNullOrEmpty(@namespace) ? type : @namespace + "." + type;
         public void Normalize()
         {
+            sourceType = string.IsNullOrWhiteSpace(sourceType) ? type : sourceType;
             memoryPackMode = string.IsNullOrWhiteSpace(memoryPackMode) ? "version-tolerant" : memoryPackMode;
             declaration = string.IsNullOrWhiteSpace(declaration) ? "class" : declaration;
             memberStyle = string.IsNullOrWhiteSpace(memberStyle) ? "property" : memberStyle;
@@ -1139,6 +1207,7 @@ namespace AbilityKit.ProtocolEditor.UI
         public string name;
         public string scalarType;
         public string typeName;
+        public bool external;
         public bool array;
         public bool optional;
     }

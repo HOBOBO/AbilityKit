@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.Export;
 using UnityEditor;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
@@ -14,48 +15,75 @@ namespace AbilityKit.BehaviorTree.Editor
     /// 描述符驱动生成——编辑器只认识描述符，新增包外节点零编辑器代码。
     /// 边方向：子 → 父（输出端口在上，输入端口在下，连线建立 ChildIds 关系）。
     /// </summary>
-    public sealed class BtAuthoringGraphWindow : EditorWindow
+    public sealed class BtAuthoringGraphWindow : EditorWindow, IBtAuthoringGraphHost, IBtAuthoringInspectorHost
     {
         private BtAuthoringAsset? _asset;
-        private BtAuthoringSourceDocument _document = new();
+        private readonly BtAuthoringDocumentSession _documentSession = new();
+        private BtAuthoringSourceDocument _document => _documentSession.Document;
         private BtAuthoringGraphView _graphView = null!;
-        private ScrollView _inspectorScroll = null!;
+        private BtAuthoringInspectorRenderer _inspectorRenderer = null!;
         private BtNodeDefinition? _selectedNode;
         private Label? _modeLabel;
+        private Label? _dirtyLabel;
         private Label? _validationLabel;
-        private List<string> _undoList = new();
-        private Stack<string> _redoStack = new();
-        private const int UndoDepthLimit = 64;
+        private VisualElement? _validationPanel;
+        private UnityEditor.UIElements.ToolbarSearchField? _nodeSearchField;
+        private Button? _undoButton;
+        private Button? _redoButton;
+        private Button? _observationPauseButton;
+        private readonly List<BtNodeDebugInfo> _observationStates = new();
+        private bool _isDirty => _documentSession.IsDirty;
+        private bool _observationPaused;
+        private int _observationFrame;
 
         /// <summary>观察模式：绑定一个运行中实例，把实时节点状态着色到画布（只读）。</summary>
         private IBtTreeDebugView? _observedView;
 
-        internal bool IsObservation => _observedView != null;
+        internal bool IsObservation => _documentSession.IsReadOnly;
 
         public static void Open(BtAuthoringAsset asset)
         {
-            var window = GetWindow<BtAuthoringGraphWindow>();
+            var window = Resources.FindObjectsOfTypeAll<BtAuthoringGraphWindow>()
+                .FirstOrDefault(candidate => !candidate.IsObservation);
+            if (window != null && ReferenceEquals(window._asset, asset))
+            {
+                window.Show();
+                window.Focus();
+                return;
+            }
+            if (window != null && !window.ConfirmAssetSwitch(asset)) return;
+            window ??= CreateWindow<BtAuthoringGraphWindow>();
             window.titleContent = new GUIContent("BT Authoring");
             window.minSize = new Vector2(900f, 560f);
             window.EnterEditMode(asset);
+            window.Show();
+            window.Focus();
         }
 
         /// <summary>以观察模式打开：从运行时实例的树定义渲染图，实时着色节点状态。</summary>
         public static void OpenObservation(IBtTreeDebugView view)
         {
             if (view == null) return;
-            var window = GetWindow<BtAuthoringGraphWindow>();
+            var window = Resources.FindObjectsOfTypeAll<BtAuthoringGraphWindow>()
+                .FirstOrDefault(candidate => ReferenceEquals(candidate._observedView, view))
+                ?? CreateWindow<BtAuthoringGraphWindow>();
             window.titleContent = new GUIContent("BT Observation Graph");
             window.minSize = new Vector2(900f, 560f);
             window.EnterObservationMode(view);
+            window.Show();
+            window.Focus();
         }
 
         private void EnterEditMode(BtAuthoringAsset asset)
         {
             _observedView = null;
             _asset = asset;
-            _document = asset != null ? asset.LoadDocument() : new BtAuthoringSourceDocument();
+            _documentSession.Open(asset != null ? asset.LoadDocument() : new BtAuthoringSourceDocument());
             _selectedNode = null;
+            _observationPaused = false;
+            _observationFrame = 0;
+            _observationStates.Clear();
+            hasUnsavedChanges = false;
             BuildUi();
             RebuildGraph();
         }
@@ -65,53 +93,32 @@ namespace AbilityKit.BehaviorTree.Editor
             _observedView = view;
             _asset = null;
             _selectedNode = null;
+            _observationPaused = false;
+            _observationFrame = view.LastFrame;
+            _observationStates.Clear();
+            hasUnsavedChanges = false;
             // 从运行时定义构造只读文档（布局为空，节点按层级自动排布）
-            _document = BuildObservationDocument(view.TreeDefinition);
+            _documentSession.Open(
+                BtAuthoringDocumentCatalog.BuildObservationDocument(view, BtEditorNodeCatalog.Registry),
+                isReadOnly: true);
             BuildUi();
             RebuildGraph();
         }
 
-        private static BtAuthoringSourceDocument BuildObservationDocument(BtTreeDefinition definition)
+        private bool ConfirmAssetSwitch(BtAuthoringAsset nextAsset)
         {
-            if (definition == null) return new BtAuthoringSourceDocument();
-            var document = BtTreeExporter.Import(definition);
-            // 简单层级布局：深度为列，同深度依次下行
-            var depthOf = new Dictionary<string, int>();
-            var ordered = new List<(string id, int depth)>();
-            ComputeDepth(definition, definition.RootNodeId, 0, depthOf, ordered);
-            var rowByDepth = new Dictionary<int, int>();
-            foreach (var (id, depth) in ordered)
-            {
-                rowByDepth.TryGetValue(depth, out var row);
-                rowByDepth[depth] = row + 1;
-                var layout = document.Layout.Find(l => l.NodeId == id);
-                if (layout != null)
-                {
-                    layout.X = depth * 260f;
-                    layout.Y = row * 130f;
-                }
-            }
-            return document;
-        }
-
-        private static void ComputeDepth(
-            BtTreeDefinition definition, string nodeId, int depth,
-            Dictionary<string, int> depthOf, List<(string id, int depth)> ordered)
-        {
-            if (depthOf.ContainsKey(nodeId)) return;
-            depthOf[nodeId] = depth;
-            ordered.Add((nodeId, depth));
-            foreach (var node in definition.Nodes)
-            {
-                if (string.Equals(node.Id, nodeId, System.StringComparison.Ordinal))
-                {
-                    foreach (var childId in node.ChildIds)
-                    {
-                        ComputeDepth(definition, childId, depth + 1, depthOf, ordered);
-                    }
-                    break;
-                }
-            }
+            if (!_isDirty) return true;
+            var currentName = _asset != null ? _asset.name : "当前行为树";
+            var nextName = nextAsset != null ? nextAsset.name : "新行为树";
+            var choice = EditorUtility.DisplayDialogComplex(
+                "未保存的行为树",
+                $"'{currentName}' 包含未保存修改。打开 '{nextName}' 前要如何处理？",
+                "保存并打开",
+                "取消",
+                "放弃并打开");
+            if (choice == 1) return false;
+            if (choice == 0) Save();
+            return true;
         }
 
         private void OnEnable()
@@ -131,35 +138,115 @@ namespace AbilityKit.BehaviorTree.Editor
             rootVisualElement.Clear();
 
             var toolbar = new UnityEditor.UIElements.Toolbar();
-            _modeLabel = new Label(IsObservation ? "观察模式（只读）" : "Behavior Tree");
+            toolbar.style.minHeight = 27f;
+            _modeLabel = new Label(IsObservation ? "观察模式（只读）" : "Behavior Tree")
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    minWidth = 130f,
+                    marginLeft = 6f,
+                    marginRight = 6f,
+                },
+            };
             toolbar.Add(_modeLabel);
             if (IsObservation)
             {
-                toolbar.Add(new Button(() => ExitObservation()) { text = "退出观察" });
-                toolbar.Add(new Button(() => _graphView.FrameAll()) { text = "Frame All" });
+                toolbar.Add(ToolbarButton("关闭", "关闭当前观察图", Close));
+                _observationPauseButton = ToolbarButton("冻结", "冻结显示，运行时继续推进", ToggleObservationPause);
+                toolbar.Add(_observationPauseButton);
+                toolbar.Add(ToolbarButton("复制快照", "复制当前运行状态 JSON", CopyObservationSnapshot));
+                toolbar.Add(ToolbarSeparator());
+                toolbar.Add(ToolbarButton("适应画布", "显示全部节点", () => _graphView.FrameAll()));
             }
             else
             {
-                toolbar.Add(new Button(() => Save()) { text = "Save" });
-                toolbar.Add(new Button(() => ExportRuntime()) { text = "Export Runtime" });
-                toolbar.Add(new Button(() => AddRoot()) { text = "Add Root" });
-                toolbar.Add(new Button(() => PerformUndo()) { text = "撤销 (Ctrl+Z)" });
-                toolbar.Add(new Button(() => PerformRedo()) { text = "重做 (Ctrl+Y)" });
-                toolbar.Add(new Button(() => AddGroupFromSelection()) { text = "包围所选建分组" });
-                toolbar.Add(new Button(() => ValidateOnGraph()) { text = "校验" });
+                toolbar.Add(ToolbarButton("保存", "保存授权文档 (Ctrl+S)", Save));
+                toolbar.Add(ToolbarButton("导出", "保存并导出纯运行时 IR (Ctrl+Shift+E)", ExportRuntime));
+                toolbar.Add(ToolbarSeparator());
+                _undoButton = ToolbarButton("撤销", "撤销上一步 (Ctrl+Z)", PerformUndo);
+                _redoButton = ToolbarButton("重做", "重做下一步 (Ctrl+Y)", PerformRedo);
+                toolbar.Add(_undoButton);
+                toolbar.Add(_redoButton);
+                toolbar.Add(ToolbarSeparator());
+                toolbar.Add(ToolbarButton("添加根", "为空树创建可直接运行的根节点", AddRoot));
+                toolbar.Add(ToolbarButton("分组", "将当前选中节点放入新分组", AddGroupFromSelection));
+                toolbar.Add(ToolbarButton("注释", "在画布中心添加不参与运行时导出的说明", AddCanvasNote));
+                toolbar.Add(ToolbarButton("自动布局", "按父子层级整理全部节点 (Ctrl+L)", AutoLayout));
+                toolbar.Add(ToolbarButton("适应画布", "显示全部节点", () => _graphView.FrameAll()));
+                toolbar.Add(ToolbarSeparator());
+                toolbar.Add(ToolbarButton("校验", "校验结构、属性和黑板引用", ValidateOnGraph));
+                _dirtyLabel = new Label { style = { marginLeft = 8f, opacity = 0.75f } };
+                toolbar.Add(_dirtyLabel);
             }
+
+            toolbar.Add(new VisualElement { style = { flexGrow = 1f } });
+
+            _nodeSearchField = new UnityEditor.UIElements.ToolbarSearchField
+            {
+                tooltip = "按显示名、节点 ID 或类型查找 (Ctrl+F)",
+            };
+            _nodeSearchField.style.width = 170f;
+            _nodeSearchField.style.marginRight = 6f;
+            _nodeSearchField.RegisterValueChangedCallback(evt =>
+            {
+                if (!string.IsNullOrWhiteSpace(evt.newValue))
+                    _graphView.FocusFirstMatch(evt.newValue);
+            });
+            toolbar.Add(_nodeSearchField);
             rootVisualElement.Add(toolbar);
 
-            var split = new TwoPaneSplitView(0, 260f, TwoPaneSplitViewOrientation.Horizontal);
+            // Keep the inspector at a readable width while allowing the graph canvas to use the remaining space.
+            var split = new TwoPaneSplitView(1, 340f, TwoPaneSplitViewOrientation.Horizontal);
             split.Add(_graphView);
 
             var rightPane = new VisualElement();
-            _inspectorScroll = new ScrollView();
-            rightPane.Add(_inspectorScroll);
-            _validationLabel = new Label { style = { whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal, paddingTop = 6 } };
-            rightPane.Add(_validationLabel);
+            rightPane.style.flexGrow = 1f;
+            var inspectorScroll = new ScrollView();
+            inspectorScroll.style.flexGrow = 1f;
+            _inspectorRenderer = new BtAuthoringInspectorRenderer(inspectorScroll, this);
+            rightPane.Add(inspectorScroll);
+            _validationPanel = new ScrollView
+            {
+                style =
+                {
+                    display = DisplayStyle.None,
+                    maxHeight = 190f,
+                    paddingTop = 6f,
+                    borderTopWidth = 1f,
+                    borderTopColor = new Color(0.3f, 0.3f, 0.3f),
+                },
+            };
+            _validationLabel = new Label { style = { whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal } };
+            _validationPanel.Add(_validationLabel);
+            rightPane.Add(_validationPanel);
             split.Add(rightPane);
             rootVisualElement.Add(split);
+            RefreshChrome();
+        }
+
+        private static Button ToolbarButton(string text, string tooltip, Action action)
+        {
+            var button = new Button(action) { text = text, tooltip = tooltip };
+            button.style.height = 22f;
+            button.style.marginLeft = 1f;
+            button.style.marginRight = 1f;
+            return button;
+        }
+
+        private static VisualElement ToolbarSeparator()
+        {
+            return new VisualElement
+            {
+                style =
+                {
+                    width = 1f,
+                    height = 16f,
+                    marginLeft = 5f,
+                    marginRight = 5f,
+                    backgroundColor = new Color(0.33f, 0.33f, 0.33f),
+                },
+            };
         }
 
         // ------------------------------------------------------------------
@@ -168,9 +255,32 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void OnGraphKeyDown(KeyDownEvent evt)
         {
-            if (IsObservation) return;
             if (evt == null || !evt.ctrlKey) return;
-            if (evt.keyCode == UnityEngine.KeyCode.Z)
+            if (evt.keyCode == UnityEngine.KeyCode.F)
+            {
+                _nodeSearchField?.Focus();
+                evt.StopPropagation();
+            }
+            else if (IsObservation)
+            {
+                return;
+            }
+            else if (evt.keyCode == UnityEngine.KeyCode.S)
+            {
+                Save();
+                evt.StopPropagation();
+            }
+            else if (evt.keyCode == UnityEngine.KeyCode.E && evt.shiftKey)
+            {
+                ExportRuntime();
+                evt.StopPropagation();
+            }
+            else if (evt.keyCode == UnityEngine.KeyCode.L)
+            {
+                AutoLayout();
+                evt.StopPropagation();
+            }
+            else if (evt.keyCode == UnityEngine.KeyCode.Z)
             {
                 PerformUndo();
                 evt.StopPropagation();
@@ -182,69 +292,152 @@ namespace AbilityKit.BehaviorTree.Editor
             }
         }
 
-        internal void PushUndo()
+        private void PushUndo()
         {
-            if (IsObservation) return;
-            _redoStack.Clear();
-            _undoList.Add(BtAuthoringJson.Save(_document));
-            if (_undoList.Count > UndoDepthLimit)
-            {
-                _undoList.RemoveAt(0);   // 丢弃最旧快照
-            }
+            if (_documentSession.RecordChange()) RefreshChrome();
+        }
+
+        private void PushUndoSnapshot(string snapshot)
+        {
+            if (_documentSession.RecordChange(snapshot)) RefreshChrome();
         }
 
         private void PerformUndo()
         {
-            if (IsObservation || _undoList.Count == 0) return;
-            _redoStack.Push(BtAuthoringJson.Save(_document));
-            ApplySnapshot(_undoList[_undoList.Count - 1]);
-            _undoList.RemoveAt(_undoList.Count - 1);
-        }
-
-        private void PerformRedo()
-        {
-            if (IsObservation || _redoStack.Count == 0) return;
-            _undoList.Add(BtAuthoringJson.Save(_document));
-            ApplySnapshot(_redoStack.Pop());
-        }
-
-        private void ApplySnapshot(string documentJson)
-        {
             try
             {
-                _document = BtAuthoringJson.Load(documentJson);
+                if (!_documentSession.Undo()) return;
+                _selectedNode = null;
+                RebuildGraph();
+                RefreshChrome();
             }
             catch (Exception ex)
             {
                 Debug.LogError("[BtAuthoring] 撤销快照损坏，已放弃: " + ex.Message);
-                return;
             }
-            _selectedNode = null;
-            RebuildGraph();
+        }
+
+        private void PerformRedo()
+        {
+            try
+            {
+                if (!_documentSession.Redo()) return;
+                _selectedNode = null;
+                RebuildGraph();
+                RefreshChrome();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError("[BtAuthoring] 重做快照损坏，已放弃: " + ex.Message);
+            }
+        }
+
+        public override void SaveChanges()
+        {
+            Save();
+            base.SaveChanges();
+        }
+
+        public override void DiscardChanges()
+        {
+            if (_documentSession.DiscardChanges())
+            {
+                _selectedNode = null;
+                RebuildGraph();
+                RefreshChrome();
+            }
+            base.DiscardChanges();
+        }
+
+        private void RefreshChrome()
+        {
+            if (_modeLabel != null && !IsObservation)
+                _modeLabel.text = string.IsNullOrWhiteSpace(_document.Tree.TreeId)
+                    ? "Behavior Tree"
+                    : _document.Tree.TreeId;
+            if (_dirtyLabel != null)
+                _dirtyLabel.text = _isDirty ? "未保存" : "已保存";
+            hasUnsavedChanges = _documentSession.IsDirty;
+            _undoButton?.SetEnabled(_documentSession.CanUndo);
+            _redoButton?.SetEnabled(_documentSession.CanRedo);
+            titleContent = new GUIContent(IsObservation
+                ? "BT Observation"
+                : (_isDirty ? "BT Authoring *" : "BT Authoring"));
         }
 
         /// <summary>图上校验：右栏列出错误，错误涉及的节点标红边框。</summary>
         private void ValidateOnGraph()
         {
             var errors = BtTreeValidator.Validate(_document.Tree, BtEditorNodeCatalog.Registry);
-            if (_validationLabel == null) return;
+            if (_validationLabel == null || _validationPanel == null) return;
+            _validationPanel.Clear();
+            _validationPanel.style.display = DisplayStyle.Flex;
             if (errors.Count == 0)
             {
                 _validationLabel.text = "✔ 校验通过";
                 _validationLabel.style.color = new Color(0.55f, 0.9f, 0.62f);
-                _graphView.ClearNodeStates();
+                _validationPanel.Add(_validationLabel);
+                _graphView.ClearErrorNodes();
             }
             else
             {
-                _validationLabel.text = "✘ " + errors.Count + " 个错误：\n" + string.Join("\n", errors);
+                _validationLabel.text = "✘ " + errors.Count + " 个错误";
                 _validationLabel.style.color = new Color(0.95f, 0.5f, 0.45f);
+                _validationPanel.Add(_validationLabel);
+                foreach (var error in errors)
+                {
+                    var nodeId = FindErrorNodeId(error);
+                    if (nodeId == null)
+                    {
+                        _validationPanel.Add(new Label(error)
+                        {
+                            style = { whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal },
+                        });
+                        continue;
+                    }
+
+                    var focusError = new Button(() => _graphView.FocusNode(nodeId))
+                    {
+                        text = error,
+                        tooltip = "定位节点 " + nodeId,
+                    };
+                    focusError.style.unityTextAlign = TextAnchor.MiddleLeft;
+                    focusError.style.whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal;
+                    _validationPanel.Add(focusError);
+                }
                 _graphView.MarkErrorNodes(errors);
             }
         }
 
-        private void ExitObservation()
+        private string? FindErrorNodeId(string error)
         {
-            EnterEditMode(null);
+            foreach (var node in _document.Tree.Nodes.OrderByDescending(n => n.Id.Length))
+            {
+                if (error.Contains("'" + node.Id + "'")) return node.Id;
+            }
+            return null;
+        }
+
+        private void ToggleObservationPause()
+        {
+            _observationPaused = !_observationPaused;
+            if (_observationPauseButton != null)
+                _observationPauseButton.text = _observationPaused ? "继续" : "冻结";
+        }
+
+        private void CopyObservationSnapshot()
+        {
+            if (_observedView == null) return;
+            try
+            {
+                EditorGUIUtility.systemCopyBuffer = BtTreeJson.SaveSnapshot(_observedView.CaptureState());
+                ShowNotification(new GUIContent("运行快照已复制"));
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("[BtObservation] 无法复制运行快照: " + ex.Message);
+                ShowNotification(new GUIContent("快照复制失败"));
+            }
         }
 
         private void ObservationTick()
@@ -260,12 +453,20 @@ namespace AbilityKit.BehaviorTree.Editor
             if (!alive)
             {
                 if (_modeLabel != null) _modeLabel.text = "观察模式（实例已停止）";
-                _graphView.ClearNodeStates();
                 return;
             }
 
-            _graphView.ApplyNodeStates(_observedView.GetNodeStates());
-            if (_modeLabel != null) _modeLabel.text = "观察模式  frame " + _observedView.LastFrame;
+            if (!_observationPaused)
+            {
+                _observationStates.Clear();
+                _observationStates.AddRange(_observedView.GetNodeStates());
+                _observationFrame = _observedView.LastFrame;
+                _graphView.ApplyNodeStates(_observationStates);
+                _inspectorRenderer.RefreshRuntimeDetails();
+            }
+            if (_modeLabel != null)
+                _modeLabel.text = "观察模式  frame " + _observationFrame
+                    + (_observationPaused ? "（已冻结）" : "");
         }
 
         private void UpdateSelectedInspector()
@@ -275,12 +476,13 @@ namespace AbilityKit.BehaviorTree.Editor
             var selected = view?.Node;
             if (ReferenceEquals(selected, _selectedNode)) return;
             _selectedNode = selected;
-            RedrawInspector();
+            _inspectorRenderer.Render(_selectedNode);
         }
 
         private void RebuildGraph()
         {
             if (_graphView == null) return;
+            BtAuthoringLayoutUtility.EnsureLayout(_document);
             _graphView.ClearAll();
             foreach (var node in _document.Tree.Nodes)
             {
@@ -294,344 +496,100 @@ namespace AbilityKit.BehaviorTree.Editor
                 }
             }
             _graphView.AddGroups(_document.Groups);
-            RedrawInspector();
+            _graphView.AddNotes(_document.Notes);
+            _inspectorRenderer.Render(_selectedNode);
         }
 
-        private void RedrawInspector()
+        private void AutoLayout()
         {
-            _inspectorScroll.Clear();
-            if (_selectedNode == null)
-            {
-                DrawTreePanel();
-                return;
-            }
-
-            var node = _selectedNode;
-            _inspectorScroll.Add(new Label(node.Name));
-            _inspectorScroll.Add(new Label("Type: " + node.Type));
-
-            if (!BtEditorNodeCatalog.Registry.TryGetDescriptor(node.Type, out var descriptor))
-            {
-                return;
-            }
-
-            _inspectorScroll.Add(new Label("Properties"));
-            foreach (var field in descriptor.PropertySchema.OrderBy(f => f.Order))
-            {
-                var fieldRow = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-                fieldRow.Add(new Label(field.Name) { style = { width = 140 } });
-
-                var current = node.Properties.TryGet(field.Name, out var existing)
-                    ? existing
-                    : (field.Default ?? DefaultOf(field.Type));
-
-                if (IsObservation)
-                {
-                    // 观察模式只读：仅展示当前值
-                    fieldRow.Add(new Label(FormatFieldValue(field, current)));
-                    _inspectorScroll.Add(fieldRow);
-                    continue;
-                }
-
-                if (field.Kind == BtPropertyFieldKind.Enum)
-                {
-                    var options = field.Options.Count > 0 ? field.Options : new[] { "<空>" };
-                    var index = (int)Math.Clamp(current.Int64Value, 0, options.Count - 1);
-                    var popup = new PopupField<string>(new List<string>(options), index);
-                    popup.RegisterValueChangedCallback(evt =>
-                    {
-                        PushUndo();
-                        node.Properties.Set(field.Name, BtPropertyValue.Of((long)popup.index));
-                    });
-                    fieldRow.Add(popup);
-                }
-                else if (field.Kind == BtPropertyFieldKind.BlackboardKeyRef)
-                {
-                    var choices = new List<string>();
-                    foreach (var key in _document.Tree.Blackboard.Keys)
-                    {
-                        if (!choices.Contains(key.Name)) choices.Add(key.Name);
-                    }
-                    if (!choices.Contains(current.StringValue)) choices.Add(current.StringValue);
-                    var popup = new PopupField<string>(choices, current.StringValue);
-                    popup.RegisterValueChangedCallback(evt =>
-                    {
-                        PushUndo();
-                        node.Properties.Set(field.Name, BtPropertyValue.Of(evt.newValue));
-                    });
-                    fieldRow.Add(popup);
-                }
-                else
-                {
-                    switch (field.Type)
-                    {
-                        case BtValueType.Bool:
-                            var toggle = new Toggle { value = current.BoolValue };
-                            toggle.RegisterValueChangedCallback(evt =>
-                            {
-                                PushUndo();
-                                node.Properties.Set(field.Name, BtPropertyValue.Of(evt.newValue));
-                            });
-                            fieldRow.Add(toggle);
-                            break;
-
-                        case BtValueType.Int64:
-                            var intField = new IntegerField { value = (int)current.Int64Value };
-                            intField.RegisterValueChangedCallback(evt =>
-                            {
-                                PushUndo();
-                                node.Properties.Set(field.Name, BtPropertyValue.Of((long)evt.newValue));
-                            });
-                            fieldRow.Add(intField);
-                            break;
-
-                        case BtValueType.Fixed64:
-                            var fixedField = new FloatField
-                            {
-                                value = AbilityKit.Deterministic.Fixed64.FromRaw(current.Fixed64Raw).ToSingle(),
-                            };
-                            fixedField.RegisterValueChangedCallback(evt =>
-                            {
-                                PushUndo();
-                                node.Properties.Set(field.Name,
-                                    BtPropertyValue.Of(AbilityKit.Deterministic.Fixed64.FromSingle(evt.newValue)));
-                            });
-                            fieldRow.Add(fixedField);
-                            break;
-
-                        case BtValueType.String:
-                            var textField = new TextField { value = current.StringValue };
-                            textField.RegisterValueChangedCallback(evt =>
-                            {
-                                PushUndo();
-                                node.Properties.Set(field.Name, BtPropertyValue.Of(evt.newValue));
-                            });
-                            fieldRow.Add(textField);
-                            break;
-                    }
-                }
-
-                if (field.Min.HasValue || field.Max.HasValue)
-                {
-                    fieldRow.Add(new Label($"[{field.Min?.ToString() ?? "-∞"}, {field.Max?.ToString() ?? "+∞"}]")
-                        { style = { opacity = 0.5f } });
-                }
-
-                _inspectorScroll.Add(fieldRow);
-            }
-
-            // 子树引用节点：跨树跳转——打开被引用树的授权资产
-            if (!IsObservation && node.Type == BtBuiltInNodeTypes.Subtree
-                && node.Properties.TryGet(BtSubtreeNode.TreeIdProperty, out var treeIdValue)
-                && treeIdValue.TryGetString(out var referencedTreeId)
-                && !string.IsNullOrEmpty(referencedTreeId))
-            {
-                _inspectorScroll.Add(new Button(() => OpenReferencedTree(referencedTreeId))
-                {
-                    text = "打开引用树：" + referencedTreeId,
-                });
-            }
+            if (IsObservation || _document.Tree.Nodes.Count == 0) return;
+            var before = BtAuthoringJson.Save(_document);
+            if (!BtAuthoringLayoutUtility.ApplyLayout(_document)) return;
+            PushUndoSnapshot(before);
+            _selectedNode = null;
+            RebuildGraph();
+            rootVisualElement.schedule.Execute(() => _graphView.FrameAll()).ExecuteLater(30);
         }
 
-        /// <summary>跨树跳转：按 TreeId 找到授权资产并打开其图编辑器。</summary>
-        private static void OpenReferencedTree(string treeId)
+        private void AddCanvasNote()
         {
-            foreach (var guid in AssetDatabase.FindAssets("t:BtAuthoringAsset"))
+            if (IsObservation) return;
+            PushUndo();
+            var center = _graphView.GetViewportCenter();
+            var note = new BtAuthoringNoteData
             {
-                var asset = AssetDatabase.LoadAssetAtPath<BtAuthoringAsset>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset != null && string.Equals(asset.LoadDocument().Tree.TreeId, treeId, System.StringComparison.Ordinal))
-                {
-                    Open(asset);
-                    return;
-                }
-            }
-            Debug.LogWarning($"[BtAuthoring] 未找到 TreeId='{treeId}' 的授权资产。");
+                Id = "note-" + Guid.NewGuid().ToString("N").Substring(0, 12),
+                Text = "在此输入说明...",
+                X = center.x - 120f,
+                Y = center.y - 70f,
+                Width = 240f,
+                Height = 140f,
+            };
+            _document.Notes.Add(note);
+            _graphView.AddNote(note);
         }
-
-        private static string FormatFieldValue(BtPropertyField field, BtPropertyValue value)
-        {
-            if (field.Kind == BtPropertyFieldKind.Enum)
-            {
-                var index = (int)value.Int64Value;
-                return index >= 0 && index < field.Options.Count ? field.Options[index] : index.ToString();
-            }
-            return value?.ToString() ?? "";
-        }
-
-        /// <summary>未选中节点时的树级面板：TreeId / 描述 / 黑板 schema 编辑。</summary>
-        private void DrawTreePanel()
-        {
-            _inspectorScroll.Add(new Label("Tree"));
-            _inspectorScroll.Add(new Label("（选中图上节点编辑其属性）") { style = { opacity = 0.6f } });
-
-            if (IsObservation)
-            {
-                _inspectorScroll.Add(new Label("TreeId: " + _document.Tree.TreeId));
-                return;
-            }
-
-            var treeIdField = new TextField("TreeId（=导出文件名）") { value = _document.Tree.TreeId };
-            treeIdField.RegisterValueChangedCallback(evt =>
-            {
-                PushUndo();
-                _document.Tree.TreeId = evt.newValue;
-            });
-            _inspectorScroll.Add(treeIdField);
-
-            var descriptionField = new TextField("描述") { value = _document.Metadata.Description };
-            descriptionField.RegisterValueChangedCallback(evt =>
-            {
-                PushUndo();
-                _document.Metadata.Description = evt.newValue;
-            });
-            _inspectorScroll.Add(descriptionField);
-
-            _inspectorScroll.Add(new Label("Blackboard Schema") { style = { paddingTop = 8 } });
-            _inspectorScroll.Add(new Label("改名不会同步节点里的 key 引用——改完后跑一次校验抓失效引用。")
-                { style = { opacity = 0.6f, whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal } });
-
-            for (var i = 0; i < _document.Tree.Blackboard.Keys.Count; i++)
-            {
-                var index = i;
-                var oldName = _document.Tree.Blackboard.Keys[index].Name;
-                var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-
-                var nameField = new TextField { value = oldName, isDelayed = true };
-                nameField.RegisterValueChangedCallback(evt =>
-                {
-                    var newName = evt.newValue;
-                    if (string.Equals(oldName, newName, System.StringComparison.Ordinal)) return;
-                    try
-                    {
-                        PushUndo();
-                        var affected = BtKeyReferenceIndex.RenameKey(
-                            _document.Tree, BtEditorNodeCatalog.Registry, oldName, newName);
-                        Debug.Log($"[BtAuthoring] 重命名黑板 key '{oldName}' -> '{newName}'，同步 {affected.Count} 处引用。");
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Debug.LogWarning("[BtAuthoring] 黑板 key 重命名失败: " + ex.Message);
-                    }
-                    RedrawInspector();
-                });
-                row.Add(nameField);
-
-                var typeField = new EnumField(_document.Tree.Blackboard.Keys[index].Type);
-                typeField.RegisterValueChangedCallback(evt =>
-                {
-                    PushUndo();
-                    _document.Tree.Blackboard.Keys[index].Type = (BtValueType)evt.newValue;
-                });
-                row.Add(typeField);
-
-                var refCount = BtKeyReferenceIndex.FindReferences(
-                    _document.Tree, BtEditorNodeCatalog.Registry, oldName).Count;
-                if (refCount > 0)
-                {
-                    row.Add(new Label(refCount + " 引用") { style = { opacity = 0.6f } });
-                }
-
-                var removeButton = new Button(() =>
-                {
-                    PushUndo();
-                    _document.Tree.Blackboard.Keys.RemoveAt(index);
-                    RedrawInspector();
-                }) { text = "-" };
-                row.Add(removeButton);
-                _inspectorScroll.Add(row);
-            }
-
-            _inspectorScroll.Add(new Button(() =>
-            {
-                PushUndo();
-                _document.Tree.Blackboard.Keys.Add(new BtBlackboardKeyDefinition
-                {
-                    Name = "key" + _document.Tree.Blackboard.Keys.Count,
-                    Type = BtValueType.Int64,
-                });
-                RedrawInspector();
-            }) { text = "+ 添加 Key" });
-
-            _inspectorScroll.Add(new Label("Groups") { style = { paddingTop = 8 } });
-            for (var i = 0; i < _document.Groups.Count; i++)
-            {
-                var index = i;
-                var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-                var titleField = new TextField { value = _document.Groups[index].Title, isDelayed = true };
-                titleField.RegisterValueChangedCallback(evt =>
-                {
-                    PushUndo();
-                    _document.Groups[index].Title = evt.newValue;
-                    RebuildGraph();
-                });
-                row.Add(titleField);
-                row.Add(new Label(_document.Groups[index].NodeIds.Count + " 节点")
-                    { style = { opacity = 0.5f } });
-                row.Add(new Button(() =>
-                {
-                    PushUndo();
-                    _document.Groups.RemoveAt(index);
-                    RebuildGraph();
-                }) { text = "-" });
-                _inspectorScroll.Add(row);
-            }
-        }
-
-        private static BtPropertyValue DefaultOf(BtValueType type) => type switch
-        {
-            BtValueType.Bool => BtPropertyValue.Of(false),
-            BtValueType.Int64 => BtPropertyValue.Of(0L),
-            BtValueType.Fixed64 => BtPropertyValue.Of(AbilityKit.Deterministic.Fixed64.Zero),
-            BtValueType.String => BtPropertyValue.Of(""),
-            _ => BtPropertyValue.Of(0L),
-        };
 
         private void Save()
         {
             if (_asset == null) return;
             _asset.SaveDocument(_document);
             EditorUtility.SetDirty(_asset);
+            _documentSession.MarkSaved();
+            RefreshChrome();
             Debug.Log("[BtAuthoring] Saved.");
         }
 
         private void ExportRuntime()
         {
             if (_asset == null) return;
-            var ok = BtAuthoringRuntimeExporter.Export(_asset, out var outputs, out var errors);
+            Save();
+            var report = BtAuthoringRuntimeExporter.Export(_asset);
+            var outputs = report.Artifacts.Select(artifact => artifact.Path);
+            var successMessage = report.ExportedCount > 0
+                ? "Exported:\n" + string.Join("\n", outputs)
+                : "Unchanged:\n" + string.Join("\n", outputs);
             EditorUtility.DisplayDialog(
-                "Runtime Export",
-                ok ? "Exported:\n" + string.Join("\n", outputs) : string.Join("\n", errors),
+                report.Success ? "Runtime Export" : "Runtime Export Failed",
+                report.Success
+                    ? successMessage
+                    : string.Join("\n", report.Messages),
                 "OK");
         }
 
         private void AddRoot()
         {
+            if (IsObservation) return;
+            if (_document.Tree.Nodes.Any(n => string.Equals(n.Id, _document.Tree.RootNodeId, StringComparison.Ordinal)))
+            {
+                Debug.LogWarning("[BtAuthoring] 已存在根节点。请选中其他节点并使用“设为根节点”。");
+                return;
+            }
+
             PushUndo();
             var id = NewNodeId();
-            var node = new BtNodeDefinition { Id = id, Type = BtBuiltInNodeTypes.Sequence, Name = "Root" };
+            var node = new BtNodeDefinition { Id = id, Type = BtBuiltInNodeTypes.Succeed };
             _document.Tree.Nodes.Add(node);
             _document.Tree.RootNodeId = id;
+            _document.NodeMetadata.Add(new BtAuthoringNodeMetadata { NodeId = id, DisplayName = "Root" });
             _document.Layout.Add(new BtNodeLayoutData { NodeId = id, X = 400, Y = 40 });
             _graphView.AddNodeView(node);
         }
 
-        internal string NewNodeId()
+        private string NewNodeId()
         {
             return "n" + Guid.NewGuid().ToString("N").Substring(0, 12);
         }
 
-        internal BtAuthoringGraphView GraphView => _graphView;
-
         /// <summary>搜索窗建节点入口：写文档 + 布局 + 图视图。</summary>
-        internal void AddNodeFromDescriptor(BtNodeDescriptor descriptor, Vector2 graphPosition)
+        private void AddNodeFromDescriptor(BtNodeDescriptor descriptor, Vector2 graphPosition)
         {
+            if (IsObservation) return;
             PushUndo();
             var id = NewNodeId();
             var node = new BtNodeDefinition
             {
                 Id = id,
                 Type = descriptor.TypeId,
-                Name = descriptor.DisplayName,
             };
             foreach (var field in descriptor.PropertySchema)
             {
@@ -641,18 +599,56 @@ namespace AbilityKit.BehaviorTree.Editor
                 }
             }
             _document.Tree.Nodes.Add(node);
+            _document.NodeMetadata.Add(new BtAuthoringNodeMetadata
+            {
+                NodeId = id,
+                DisplayName = descriptor.DisplayName,
+            });
             _document.Layout.Add(new BtNodeLayoutData { NodeId = id, X = graphPosition.x, Y = graphPosition.y });
             _graphView.AddNodeView(node);
         }
 
-        internal BtAuthoringSourceDocument Document => _document;
+        private string ResolveNodeDisplayName(BtNodeDefinition node)
+        {
+            if (_document.TryGetNodeMetadata(node.Id, out var metadata)
+                && !string.IsNullOrWhiteSpace(metadata.DisplayName))
+            {
+                return metadata.DisplayName;
+            }
+            return BtEditorNodeCatalog.Registry.TryGetDescriptor(node.Type, out var descriptor)
+                ? descriptor.DisplayName
+                : node.Type;
+        }
+
+        private int ResolveChildOrder(string nodeId)
+        {
+            foreach (var parent in _document.Tree.Nodes)
+            {
+                var index = parent.ChildIds.IndexOf(nodeId);
+                if (index >= 0) return index + 1;
+            }
+            return 0;
+        }
+
+        private bool CanConnect(string childId, string parentId, out string error)
+        {
+            if (!BtEditorNodeCatalog.Registry.TryGetDescriptor(
+                    _document.Tree.Nodes.Find(n => n.Id == parentId)?.Type ?? "", out var descriptor))
+            {
+                error = $"父节点 '{parentId}' 的类型未注册。";
+                return false;
+            }
+            return BtAuthoringGraphOperations.CanConnect(
+                _document.Tree, parentId, childId, descriptor.MaxChildren, out error);
+        }
 
         /// <summary>把当前选中的节点包围成一个新分组。</summary>
-        internal void AddGroupFromSelection()
+        private void AddGroupFromSelection()
         {
-            PushUndo();
+            if (IsObservation) return;
             var selected = _graphView.selection.OfType<BtAuthoringNodeView>().ToList();
             if (selected.Count == 0) return;
+            PushUndo();
 
             var minX = float.MaxValue;
             var minY = float.MaxValue;
@@ -683,8 +679,9 @@ namespace AbilityKit.BehaviorTree.Editor
             _graphView.AddGroup(group);
         }
 
-        internal void OnEdgeChanged(string childId, string parentId, bool connected)
+        private void OnEdgeChanged(string childId, string parentId, bool connected)
         {
+            if (IsObservation) return;
             var parent = _document.Tree.Nodes.Find(n => n.Id == parentId);
             if (parent == null) return;
             if (connected)
@@ -696,371 +693,42 @@ namespace AbilityKit.BehaviorTree.Editor
                 parent.ChildIds.Remove(childId);
             }
         }
-    }
 
-    /// <summary>GraphView 实现：节点视图 + 边回调 + 描述符驱动创建菜单。</summary>
-    internal sealed class BtAuthoringGraphView : GraphView
-    {
-        private readonly BtAuthoringGraphWindow _window;
-        private readonly Dictionary<string, BtAuthoringNodeView> _nodeViewsById =
-            new(System.StringComparer.Ordinal);
-        private readonly Dictionary<Group, BtAuthoringGroupData> _groupDataByElement = new();
-
-        public BtAuthoringGraphView(BtAuthoringGraphWindow window)
+        BtAuthoringSourceDocument IBtAuthoringGraphHost.Document => _document;
+        bool IBtAuthoringGraphHost.IsReadOnly => IsObservation;
+        void IBtAuthoringGraphHost.RecordChange() => PushUndo();
+        void IBtAuthoringGraphHost.RecordChange(string beforeChangeSnapshot)
+            => PushUndoSnapshot(beforeChangeSnapshot);
+        bool IBtAuthoringGraphHost.CanConnect(string childId, string parentId, out string error)
+            => CanConnect(childId, parentId, out error);
+        void IBtAuthoringGraphHost.SetConnected(string childId, string parentId, bool connected)
+            => OnEdgeChanged(childId, parentId, connected);
+        string IBtAuthoringGraphHost.ResolveNodeDisplayName(BtNodeDefinition node)
+            => ResolveNodeDisplayName(node);
+        int IBtAuthoringGraphHost.ResolveChildOrder(string nodeId) => ResolveChildOrder(nodeId);
+        Vector2 IBtAuthoringGraphHost.ScreenToGraphPosition(Vector2 screenPosition)
         {
-            _window = window;
-
-            AddSearchWindow();
-            this.AddManipulator(new ContentDragger());
-            this.AddManipulator(new SelectionDragger());
-            this.AddManipulator(new RectangleSelector());
-            SetupZoom(ContentZoomer.DefaultMinScale, ContentZoomer.DefaultMaxScale);
-
-            graphViewChanged += OnGraphViewChanged;
-            serializeGraphElements = SerializeElements;
-            canPasteSerializedData = _ => false;
-        }
-
-        private void AddSearchWindow()
-        {
-            var provider = ScriptableObject.CreateInstance<BtNodeSearchProvider>();
-            provider.Init(_window);
-            nodeCreationRequest = context =>
-                SearchWindow.Open(new SearchWindowContext(context.screenMousePosition), provider);
-        }
-
-        private GraphViewChange OnGraphViewChanged(GraphViewChange change)
-        {
-            if (_window.IsObservation)
-            {
-                // 观察模式只读：吞掉增删边/节点变更（返回空 change 取消操作；拖动仅影响画布不落盘）
-                return new GraphViewChange();
-            }
-
-            // 一次用户动作（建边/删选区）压一份撤销快照
-            if ((change.edgesToCreate != null && change.edgesToCreate.Count > 0)
-                || (change.elementsToRemove != null && change.elementsToRemove.Count > 0))
-            {
-                _window.PushUndo();
-            }
-
-            if (change.edgesToCreate != null)
-            {
-                foreach (var edge in change.edgesToCreate)
-                {
-                    if (edge.input.node is BtAuthoringNodeView parentView
-                        && edge.output.node is BtAuthoringNodeView childView)
-                    {
-                        _window.OnEdgeChanged(childView.Node.Id, parentView.Node.Id, true);
-                    }
-                }
-            }
-            if (change.elementsToRemove != null)
-            {
-                foreach (var element in change.elementsToRemove)
-                {
-                    if (element is Edge edge
-                        && edge.input.node is BtAuthoringNodeView parentView
-                        && edge.output.node is BtAuthoringNodeView childView)
-                    {
-                        _window.OnEdgeChanged(childView.Node.Id, parentView.Node.Id, false);
-                    }
-                    if (element is BtAuthoringNodeView nodeView)
-                    {
-                        _window.Document.Tree.Nodes.RemoveAll(n => n.Id == nodeView.Node.Id);
-                        _window.Document.Layout.RemoveAll(l => l.NodeId == nodeView.Node.Id);
-                    }
-                    if (element is Group group)
-                    {
-                        if (_groupDataByElement.TryGetValue(group, out var groupData))
-                        {
-                            _window.Document.Groups.Remove(groupData);
-                            _groupDataByElement.Remove(group);
-                        }
-                    }
-                }
-            }
-            if (change.movedElements != null)
-            {
-                // 拖动后把画布坐标写回文档，Save 时持久化
-                foreach (var element in change.movedElements)
-                {
-                    if (element is BtAuthoringNodeView nodeView)
-                    {
-                        var position = nodeView.GetPosition();
-                        var layout = _window.Document.Layout.Find(l => l.NodeId == nodeView.Node.Id);
-                        if (layout != null)
-                        {
-                            layout.X = position.x;
-                            layout.Y = position.y;
-                        }
-                    }
-                    else if (element is Group group && _groupDataByElement.TryGetValue(group, out var groupData))
-                    {
-                        var rect = group.GetPosition();
-                        groupData.X = rect.x;
-                        groupData.Y = rect.y;
-                        groupData.Width = rect.width;
-                        groupData.Height = rect.height;
-                    }
-                }
-            }
-            return change;
-        }
-
-        private string SerializeElements(IEnumerable<GraphElement> elements) => string.Empty;
-
-        public void AddNodeView(BtNodeDefinition node)
-        {
-            var layout = _window.Document.Layout.Find(l => l.NodeId == node.Id);
-            var view = new BtAuthoringNodeView(node, layout?.X ?? 0f, layout?.Y ?? 0f);
-            if (string.Equals(node.Id, _window.Document.Tree.RootNodeId, System.StringComparison.Ordinal))
-            {
-                view.title = "★ " + view.title;
-            }
-            _nodeViewsById[node.Id] = view;
-            AddElement(view);
-        }
-
-        public void Connect(string childId, string parentId)
-        {
-            var parent = FindNodeView(parentId);
-            var child = FindNodeView(childId);
-            if (parent == null || child == null) return;
-
-            var edge = parent.inputContainer.Children().OfType<Port>().FirstOrDefault()?.ConnectTo(child.OutputPort);
-            if (edge != null) AddElement(edge);
-        }
-
-        public void ClearAll()
-        {
-            _nodeViewsById.Clear();
-            _groupDataByElement.Clear();
-            foreach (var element in graphElements.ToList()) RemoveElement(element);
-        }
-
-        /// <summary>观察模式：把运行时节点状态着色到画布（运行中加边框高亮）。</summary>
-        public void ApplyNodeStates(IEnumerable<BtNodeDebugInfo> states)
-        {
-            foreach (var state in states)
-            {
-                if (state == null || !_nodeViewsById.TryGetValue(state.NodeId, out var view)) continue;
-                view.ApplyRuntimeState(state.State, state.OnStackCount > 0);
-            }
-        }
-
-        public void ClearNodeStates()
-        {
-            foreach (var view in _nodeViewsById.Values)
-            {
-                view.ApplyRuntimeState(BtNodeState.Inactive, false);
-            }
-        }
-
-        /// <summary>校验错误标红：错误消息以 'nodeId' 引用节点，命中的节点加红边框。</summary>
-        public void MarkErrorNodes(List<string> errors)
-        {
-            foreach (var pair in _nodeViewsById)
-            {
-                var quoted = "'" + pair.Key + "'";
-                var hasError = false;
-                foreach (var error in errors)
-                {
-                    if (error.Contains(quoted)) { hasError = true; break; }
-                }
-                pair.Value.SetErrorBorder(hasError);
-            }
-        }
-
-        private BtAuthoringNodeView FindNodeView(string nodeId)
-        {
-            return _nodeViewsById.TryGetValue(nodeId, out var view) ? view : null;
-        }
-
-        /// <summary>按文档分组数据渲染分组框，并把成员节点加入分组。</summary>
-        public void AddGroups(IEnumerable<BtAuthoringGroupData> groups)
-        {
-            if (groups == null) return;
-            foreach (var groupData in groups)
-            {
-                if (groupData == null) continue;
-                AddGroup(groupData);
-            }
-        }
-
-        public void AddGroup(BtAuthoringGroupData groupData)
-        {
-            var group = new Group
-            {
-                title = string.IsNullOrEmpty(groupData.Title) ? "分组" : groupData.Title,
-            };
-            group.SetPosition(new Rect(groupData.X, groupData.Y,
-                Mathf.Max(groupData.Width, 120f), Mathf.Max(groupData.Height, 60f)));
-            AddElement(group);
-            _groupDataByElement[group] = groupData;
-
-            foreach (var nodeId in groupData.NodeIds)
-            {
-                var view = FindNodeView(nodeId);
-                if (view != null) group.AddElement(view);
-            }
-        }
-    }
-
-    /// <summary>
-    /// 节点视图：输出端口（parent，连向父节点）所有节点都有；
-    /// 输入端口（child，接收子节点）仅组合/装饰节点有（按描述符 Kind 判定）。
-    /// </summary>
-    internal sealed class BtAuthoringNodeView : Node
-    {
-        public BtNodeDefinition Node { get; }
-
-        public BtAuthoringNodeView(BtNodeDefinition node, float x, float y)
-        {
-            Node = node;
-            title = string.IsNullOrEmpty(node.Name) ? node.Type : node.Name;
-            if (node.Type == BtBuiltInNodeTypes.Subtree
-                && node.Properties.TryGet(BtSubtreeNode.TreeIdProperty, out var treeIdValue)
-                && treeIdValue.TryGetString(out var refTreeId)
-                && !string.IsNullOrEmpty(refTreeId))
-            {
-                title = "↳ " + refTreeId;
-            }
-            SetPosition(new Rect(x, y, 160, 60));
-
-            BtNodeDescriptor? descriptor = null;
-            var isParentKind = BtEditorNodeCatalog.Registry.TryGetDescriptor(node.Type, out descriptor)
-                && (descriptor.Kind == BtNodeKind.Composite || descriptor.Kind == BtNodeKind.Decorator);
-
-            if (descriptor != null)
-            {
-                titleContainer.style.backgroundColor = ResolveNodeColor(descriptor);
-            }
-            if (isParentKind)
-            {
-                // 按 Kind 约束端口：装饰节点恰好一个子，组合节点多个子
-                var inputCapacity = descriptor!.Kind == BtNodeKind.Decorator
-                    ? Port.Capacity.Single
-                    : Port.Capacity.Multi;
-                var input = Port.Create<Edge>(Orientation.Vertical, Direction.Input, inputCapacity, typeof(Port));
-                input.portName = "child";
-                inputContainer.Add(input);
-            }
-
-            var output = Port.Create<Edge>(Orientation.Vertical, Direction.Output, Port.Capacity.Single, typeof(Port));
-            output.portName = "parent";
-            OutputPort = output;
-            outputContainer.Add(output);
-
-            RefreshExpandedState();
-        }
-
-        public Port OutputPort { get; }
-
-        /// <summary>节点主题色：描述符 ColorHint 优先，否则按 Kind 给默认色。</summary>
-        private static Color ResolveNodeColor(BtNodeDescriptor descriptor)
-        {
-            if (!string.IsNullOrEmpty(descriptor.ColorHint) && ColorUtility.TryParseHtmlString(descriptor.ColorHint, out var custom))
-            {
-                return custom;
-            }
-            return descriptor.Kind switch
-            {
-                BtNodeKind.Composite => new Color(0.22f, 0.42f, 0.62f),
-                BtNodeKind.Decorator => new Color(0.42f, 0.3f, 0.58f),
-                BtNodeKind.Condition => new Color(0.2f, 0.48f, 0.32f),
-                BtNodeKind.Action => new Color(0.48f, 0.4f, 0.2f),
-                _ => new Color(0.3f, 0.3f, 0.3f),
-            };
-        }
-
-        /// <summary>观察模式着色：标题栏按状态着色，运行中节点加亮色边框。</summary>
-        public void ApplyRuntimeState(BtNodeState state, bool onStack)
-        {
-            titleContainer.style.backgroundColor = state switch
-            {
-                BtNodeState.Running => new Color(0.65f, 0.55f, 0.1f),
-                BtNodeState.Success => new Color(0.18f, 0.5f, 0.25f),
-                BtNodeState.Failure => new Color(0.55f, 0.18f, 0.15f),
-                _ => new Color(0.18f, 0.18f, 0.18f, 0.4f),
-            };
-
-            var border = onStack ? new Color(1f, 0.85f, 0.3f) : new Color(0f, 0f, 0f, 0f);
-            style.borderBottomColor = border;
-            style.borderTopColor = border;
-            style.borderLeftColor = border;
-            style.borderRightColor = border;
-            style.borderBottomWidth = onStack ? 2f : 0f;
-            style.borderTopWidth = onStack ? 2f : 0f;
-            style.borderLeftWidth = onStack ? 2f : 0f;
-            style.borderRightWidth = onStack ? 2f : 0f;
-        }
-
-        /// <summary>编辑模式校验错误标记（红边框；观察模式的运行高亮互不干扰——不同模式使用）。</summary>
-        public void SetErrorBorder(bool hasError)
-        {
-            var border = hasError ? new Color(0.95f, 0.25f, 0.2f) : new Color(0f, 0f, 0f, 0f);
-            style.borderBottomColor = border;
-            style.borderTopColor = border;
-            style.borderLeftColor = border;
-            style.borderRightColor = border;
-            style.borderBottomWidth = hasError ? 2f : 0f;
-            style.borderTopWidth = hasError ? 2f : 0f;
-            style.borderLeftWidth = hasError ? 2f : 0f;
-            style.borderRightWidth = hasError ? 2f : 0f;
-        }
-    }
-
-    /// <summary>节点创建菜单：从描述符目录拉取分组与类型。</summary>
-    internal sealed class BtNodeSearchProvider : ScriptableObject, ISearchWindowProvider
-    {
-        private BtAuthoringGraphWindow? _window;
-
-        public void Init(BtAuthoringGraphWindow window)
-        {
-            _window = window;
-        }
-
-        public List<SearchTreeEntry> CreateSearchTree(SearchWindowContext context)
-        {
-            var entries = new List<SearchTreeEntry>
-            {
-                new SearchTreeGroupEntry(new GUIContent("Create Node")),
-            };
-
-            foreach (var group in BtEditorNodeCatalog.Registry.Descriptors
-                         .Select(d => d.Category)
-                         .Distinct()
-                         .OrderBy(c => c, StringComparer.Ordinal))
-            {
-                entries.Add(new SearchTreeGroupEntry(new GUIContent(group), 1));
-                foreach (var descriptor in BtEditorNodeCatalog.Registry.Descriptors
-                             .Where(d => d.Category == group)
-                             .OrderBy(d => d.MenuOrder)
-                             .ThenBy(d => d.DisplayName, StringComparer.Ordinal))
-                {
-                    entries.Add(new SearchTreeEntry(new GUIContent(descriptor.DisplayName))
-                    {
-                        level = 2,
-                        userData = descriptor,
-                    });
-                }
-            }
-            return entries;
-        }
-
-        public bool OnSelectEntry(SearchTreeEntry entry, SearchWindowContext context)
-        {
-            if (entry.userData is not BtNodeDescriptor descriptor || _window == null) return false;
-            if (_window.IsObservation) return false;   // 观察模式只读
-
-            // 屏幕坐标 → 窗口坐标 → 图内容坐标（Unity GraphView 标准换算）
-            var windowRoot = _window.rootVisualElement;
+            var windowRoot = rootVisualElement;
             var windowMousePosition = windowRoot.ChangeCoordinatesTo(
-                windowRoot.parent, context.screenMousePosition - _window.position.position);
-            var graphPosition = _window.GraphView.contentViewContainer.WorldToLocal(windowMousePosition);
-            _window.AddNodeFromDescriptor(descriptor, graphPosition);
-            return true;
+                windowRoot.parent, screenPosition - position.position);
+            return _graphView.contentViewContainer.WorldToLocal(windowMousePosition);
         }
+        void IBtAuthoringGraphHost.AddNode(BtNodeDescriptor descriptor, Vector2 graphPosition)
+            => AddNodeFromDescriptor(descriptor, graphPosition);
+
+        BtAuthoringSourceDocument IBtAuthoringInspectorHost.Document => _document;
+        bool IBtAuthoringInspectorHost.IsReadOnly => IsObservation;
+        IBtTreeDebugView? IBtAuthoringInspectorHost.ObservedView => _observedView;
+        IReadOnlyList<BtNodeDebugInfo> IBtAuthoringInspectorHost.ObservationStates => _observationStates;
+        string IBtAuthoringInspectorHost.ResolveNodeDisplayName(BtNodeDefinition node)
+            => ResolveNodeDisplayName(node);
+        void IBtAuthoringInspectorHost.RecordChange() => PushUndo();
+        void IBtAuthoringInspectorHost.RecordChange(string beforeChangeSnapshot)
+            => PushUndoSnapshot(beforeChangeSnapshot);
+        void IBtAuthoringInspectorHost.RefreshNodeTitles() => _graphView.RefreshNodeTitles();
+        void IBtAuthoringInspectorHost.RebuildGraph() => RebuildGraph();
+        void IBtAuthoringInspectorHost.RefreshChrome() => RefreshChrome();
+        void IBtAuthoringInspectorHost.FocusNode(string nodeId) => _graphView.FocusNode(nodeId);
     }
+
 }

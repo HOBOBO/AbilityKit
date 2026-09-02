@@ -7,24 +7,46 @@ namespace AbilityKit.Protocol.Catalog
 {
     public delegate object? ProtocolPayloadDecoder(ArraySegment<byte> payload);
 
+    public enum ProtocolDecodeFailureKind
+    {
+        None = 0,
+        InvalidRequest = 1,
+        DecoderNotRegistered = 2,
+        UnsupportedSchemaVersion = 3,
+        PayloadTooLarge = 4,
+        DecoderException = 5,
+        UnknownMessage = 6,
+        AmbiguousMessage = 7,
+        PayloadPreviewTruncated = 8,
+        MalformedPayload = 9
+    }
+
     public readonly struct ProtocolDecodeResult
     {
-        private ProtocolDecodeResult(bool success, object? value, string error)
+        private ProtocolDecodeResult(
+            bool success,
+            object? value,
+            string error,
+            ProtocolDecodeFailureKind failureKind)
         {
             Success = success;
             Value = value;
             Error = error ?? string.Empty;
+            FailureKind = failureKind;
         }
 
         public bool Success { get; }
         public object? Value { get; }
         public string Error { get; }
+        public ProtocolDecodeFailureKind FailureKind { get; }
 
         public static ProtocolDecodeResult Decoded(object? value) =>
-            new ProtocolDecodeResult(true, value, string.Empty);
+            new ProtocolDecodeResult(true, value, string.Empty, ProtocolDecodeFailureKind.None);
 
-        public static ProtocolDecodeResult Failed(string error) =>
-            new ProtocolDecodeResult(false, null, error);
+        public static ProtocolDecodeResult Failed(
+            string error,
+            ProtocolDecodeFailureKind failureKind = ProtocolDecodeFailureKind.InvalidRequest) =>
+            new ProtocolDecodeResult(false, null, error, failureKind);
     }
 
     public sealed class ProtocolPayloadDecoderRegistry
@@ -90,11 +112,66 @@ namespace AbilityKit.Protocol.Catalog
             string messageId,
             ArraySegment<byte> payload)
         {
+            return DecodeRegistered(catalogId, messageId, payload);
+        }
+
+        /// <summary>
+        /// Decodes a payload after enforcing the catalog message's schema-version range and
+        /// maximum payload size. Use this overload at transport and inspection boundaries so
+        /// malformed or oversized input is rejected before a decoder can allocate or parse it.
+        /// A null schema version skips only the version check, which is useful for captures whose
+        /// transport header does not carry a protocol version; the payload limit is always applied.
+        /// </summary>
+        public ProtocolDecodeResult Decode(
+            string catalogId,
+            ProtocolMessageDefinition definition,
+            ArraySegment<byte> payload,
+            int? schemaVersion = null)
+        {
+            if (string.IsNullOrWhiteSpace(catalogId))
+                return ProtocolDecodeResult.Failed(
+                    "Catalog id is required.",
+                    ProtocolDecodeFailureKind.InvalidRequest);
+            if (definition == null)
+                return ProtocolDecodeResult.Failed(
+                    "Protocol message definition is required.",
+                    ProtocolDecodeFailureKind.InvalidRequest);
+            if (payload.Count < 0)
+                return ProtocolDecodeResult.Failed(
+                    "Payload segment is invalid.",
+                    ProtocolDecodeFailureKind.InvalidRequest);
+            if (schemaVersion.HasValue &&
+                (schemaVersion.Value < definition.MinimumSchemaVersion ||
+                 schemaVersion.Value > definition.MaximumSchemaVersion))
+            {
+                return ProtocolDecodeResult.Failed(
+                    $"Schema version {schemaVersion.Value} is outside the supported range " +
+                    $"{definition.MinimumSchemaVersion}..{definition.MaximumSchemaVersion}.",
+                    ProtocolDecodeFailureKind.UnsupportedSchemaVersion);
+            }
+            if (payload.Count > definition.MaximumPayloadBytes)
+            {
+                return ProtocolDecodeResult.Failed(
+                    $"Payload length {payload.Count} exceeds the maximum " +
+                    $"{definition.MaximumPayloadBytes} bytes.",
+                    ProtocolDecodeFailureKind.PayloadTooLarge);
+            }
+
+            return DecodeRegistered(catalogId, definition.Id, payload);
+        }
+
+        private ProtocolDecodeResult DecodeRegistered(
+            string catalogId,
+            string messageId,
+            ArraySegment<byte> payload)
+        {
             ProtocolPayloadDecoder? decoder;
             lock (_gate)
             {
                 if (!_decoders.TryGetValue(Qualify(catalogId, messageId), out decoder))
-                    return ProtocolDecodeResult.Failed("No payload decoder is registered.");
+                    return ProtocolDecodeResult.Failed(
+                        "No payload decoder is registered.",
+                        ProtocolDecodeFailureKind.DecoderNotRegistered);
             }
 
             try
@@ -103,7 +180,9 @@ namespace AbilityKit.Protocol.Catalog
             }
             catch (Exception exception)
             {
-                return ProtocolDecodeResult.Failed(exception.Message);
+                return ProtocolDecodeResult.Failed(
+                    exception.Message,
+                    ProtocolDecodeFailureKind.DecoderException);
             }
         }
 

@@ -57,13 +57,16 @@ namespace AbilityKit.BehaviorTree
         private bool _enabled;
         private int _lastFrame;
         private IReadOnlyDictionary<string, string>? _nodeSourceTree;
+        private IReadOnlyDictionary<string, string>? _nodeSourceNode;
         private IReadOnlyList<BtSubtreeInstance> _subtreeInstances = Array.Empty<BtSubtreeInstance>();
         private BtNodeState _treeState = BtNodeState.Inactive;
         private int _preIndex = -1;
         private BtNodeState _preState = BtNodeState.Inactive;
         private BtTreeDebugHandle? _debugHandle;
+        private bool _disposed;
 
-        public BtTreeDefinition Definition => _definition;
+        /// <summary>当前运行定义的只读语义副本；修改返回对象不会影响运行中的实例。</summary>
+        public BtTreeDefinition Definition => _definition.DeepClone();
         public BtBlackboard Blackboard => _context.Blackboard;
         public bool IsEnabled => _enabled;
         public BtNodeState TreeState => _treeState;
@@ -72,33 +75,37 @@ namespace AbilityKit.BehaviorTree
         /// <summary>子树展开后的节点来源树（nodeId -> treeId）；未用子树引用时为 null。</summary>
         public IReadOnlyDictionary<string, string>? NodeSourceTree => _nodeSourceTree;
 
+        /// <summary>子树展开后的节点来源 id（运行 nodeId -> authoring nodeId）。</summary>
+        public IReadOnlyDictionary<string, string>? NodeSourceNode => _nodeSourceNode;
+
         /// <summary>子树实例（内联根 -> 被引用 treeId）。</summary>
         public IReadOnlyList<BtSubtreeInstance> SubtreeInstances => _subtreeInstances;
 
         private BtTreeRuntime(BtTreeDefinition definition, BtNodeRegistry registry, IBtServiceResolver services, BtTreeRunOptions? options)
         {
-            _definition = definition ?? throw new ArgumentNullException(nameof(definition));
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            _definition = definition.DeepClone();
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _options = options ?? new BtTreeRunOptions();
-            _definitionHash = definition.ComputeDefinitionHash();
+            _definitionHash = _definition.ComputeDefinitionHash();
 
-            var errors = BtTreeValidator.Validate(definition, registry);
+            var errors = BtTreeValidator.Validate(_definition, registry);
             if (errors.Count > 0)
             {
                 throw new InvalidOperationException(
-                    "Invalid behavior tree definition '" + definition.TreeId + "':\n" + string.Join("\n", errors));
+                    "Invalid behavior tree definition '" + _definition.TreeId + "':\n" + string.Join("\n", errors));
             }
 
-            _context = new BtExecutionContext(BtBlackboard.Create(definition.Blackboard), services ?? new BtServiceResolver());
+            _context = new BtExecutionContext(BtBlackboard.Create(_definition.Blackboard), services ?? new BtServiceResolver());
 
-            foreach (var nodeDefinition in definition.Nodes)
+            foreach (var nodeDefinition in _definition.Nodes)
             {
                 var node = registry.CreateNode(nodeDefinition.Type);
                 node.NodeId = nodeDefinition.Id;
                 var random = new DeterministicRandom(DeriveNodeSeed(_options.Seed, nodeDefinition.Id));
                 var initContext = new BtNodeInitContext
                 {
-                    Tree = definition,
+                    Tree = _definition,
                     Definition = nodeDefinition,
                     Properties = new BtPropertyReader(nodeDefinition.Properties),
                     ChildCount = nodeDefinition.ChildIds.Count,
@@ -130,6 +137,7 @@ namespace AbilityKit.BehaviorTree
                 return new BtTreeRuntime(expansion.Definition, registry, services, options)
                 {
                     _nodeSourceTree = expansion.NodeSourceTree,
+                    _nodeSourceNode = expansion.NodeSourceNode,
                     _subtreeInstances = expansion.SubtreeInstances,
                 };
             }
@@ -138,11 +146,26 @@ namespace AbilityKit.BehaviorTree
 
         public void Dispose()
         {
-            if (_debugHandle != null)
+            if (_disposed) return;
+            Exception? stopError = null;
+            try
             {
-                BtDebugRegistry.Unregister(_debugHandle);
-                _debugHandle = null;
+                Disable();
             }
+            catch (Exception ex)
+            {
+                stopError = ex;
+            }
+            finally
+            {
+                _disposed = true;
+                if (_debugHandle != null)
+                {
+                    BtDebugRegistry.Unregister(_debugHandle);
+                    _debugHandle = null;
+                }
+            }
+            if (stopError != null) throw stopError;
         }
 
         private static ulong DeriveNodeSeed(ulong treeSeed, string nodeId)
@@ -158,14 +181,60 @@ namespace AbilityKit.BehaviorTree
         /// <summary>构建执行拓扑并启动根节点。可重复调用（先重置全部运行态）。</summary>
         public void Enable(int frame = 0, Fixed64? time = null)
         {
+            if (_disposed) throw new ObjectDisposedException(nameof(BtTreeRuntime));
+            if (_enabled) Disable();
             _context.BeginTick(frame, time ?? Fixed64.Zero);
             _lastFrame = frame;
             ResetRuntimeState();
             Flatten();
 
             _runStacks.Add(new List<int>());
-            PushNode(0, 0);
             _enabled = true;
+            try
+            {
+                PushNode(0, 0);
+            }
+            catch
+            {
+                try { Disable(); }
+                catch (Exception) { /* Preserve the original OnStart failure. */ }
+                throw;
+            }
+        }
+
+        /// <summary>终止当前执行路径；所有运行节点按叶到根收到一次 OnStop。</summary>
+        public void Disable()
+        {
+            if (!_enabled) return;
+            Exception? firstError = null;
+            var stopped = new HashSet<int>();
+            try
+            {
+                for (var stackIndex = _runStacks.Count - 1; stackIndex >= 0; stackIndex--)
+                {
+                    var stack = _runStacks[stackIndex];
+                    for (var index = stack.Count - 1; index >= 0; index--)
+                    {
+                        var nodeIndex = stack[index];
+                        if (!stopped.Add(nodeIndex)) continue;
+                        try
+                        {
+                            _flatNodes[nodeIndex].OnStop(_context);
+                        }
+                        catch (Exception ex)
+                        {
+                            firstError ??= ex;
+                        }
+                        _flatNodes[nodeIndex].State = BtNodeState.Inactive;
+                    }
+                }
+            }
+            finally
+            {
+                _enabled = false;
+                ResetRuntimeState();
+            }
+            if (firstError != null) throw firstError;
         }
 
         private void ResetRuntimeState()
@@ -804,9 +873,11 @@ namespace AbilityKit.BehaviorTree
         int IBtTreeDebugView.LastFrame => _lastFrame;
 
         /// <summary>只读观察用途；观察端不得修改定义（实例节点已按它初始化）。</summary>
-        BtTreeDefinition IBtTreeDebugView.TreeDefinition => _definition;
+        BtTreeDefinition IBtTreeDebugView.TreeDefinition => _definition.DeepClone();
 
         IReadOnlyDictionary<string, string>? IBtTreeDebugView.NodeSourceTree => _nodeSourceTree;
+
+        IReadOnlyDictionary<string, string>? IBtTreeDebugView.NodeSourceNode => _nodeSourceNode;
 
         IReadOnlyList<BtSubtreeInstance> IBtTreeDebugView.SubtreeInstances => _subtreeInstances;
 
@@ -832,7 +903,9 @@ namespace AbilityKit.BehaviorTree
                     : null;
                 result.Add(new BtNodeDebugInfo(
                     _flatDefinitions[i].Id,
-                    _flatDefinitions[i].Name,
+                    _registry.TryGetDescriptor(_flatDefinitions[i].Type, out var nameDescriptor)
+                        ? nameDescriptor.DisplayName
+                        : _flatDefinitions[i].Type,
                     _flatDefinitions[i].Type,
                     _registry.TryGetDescriptor(_flatDefinitions[i].Type, out var descriptor)
                         ? descriptor.Kind

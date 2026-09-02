@@ -5,6 +5,7 @@ using System.IO;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Inspectors;
 using AbilityKit.Ability.Editor.Utilities;
+using AbilityKit.Editor.Platform.UI;
 using Sirenix.Utilities.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -204,9 +205,9 @@ namespace AbilityKit.Ability.Editor.Windows
 
         private void DrawSyncCard()
         {
-            SirenixEditorGUI.BeginBox("Source Sync");
             if (_selectedModule == null)
             {
+                SirenixEditorGUI.BeginBox("Source Sync");
                 EditorGUILayout.LabelField("No module selected.", EditorStyles.miniLabel);
                 SirenixEditorGUI.EndBox();
                 return;
@@ -219,32 +220,13 @@ namespace AbilityKit.Ability.Editor.Windows
             }
 
             var inspection = _syncInspection;
-            var oldColor = GUI.color;
-            GUI.color = GetSyncColor(inspection.State);
-            GUILayout.Label(inspection.State.ToString(), EditorStyles.boldLabel);
-            GUI.color = oldColor;
-            if (inspection.State == TriggerAuthoringSyncState.JsonChanged)
-                EditorGUILayout.HelpBox("External changes detected. Use Import to apply.", MessageType.Warning);
-            EditorGUILayout.LabelField(
-                "Path",
-                string.IsNullOrEmpty(inspection.SourcePath) ? "<unbound>" : inspection.SourcePath,
-                EditorStyles.miniLabel);
-
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Import", EditorStyles.miniButtonLeft)) ImportSource();
-            if (GUILayout.Button("Export", EditorStyles.miniButtonRight)) ExportSource();
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            using (new EditorGUI.DisabledScope(string.IsNullOrEmpty(inspection.SourcePath)))
-            {
-                if (GUILayout.Button("Copy Path", EditorStyles.miniButtonLeft))
-                    EditorGUIUtility.systemCopyBuffer = inspection.SourcePath ?? string.Empty;
-                if (GUILayout.Button("Reveal", EditorStyles.miniButtonRight))
-                    EditorUtility.RevealInFinder(inspection.SourcePath);
-            }
-            EditorGUILayout.EndHorizontal();
-            SirenixEditorGUI.EndBox();
+            EditorImGuiControls.DrawSourceSyncCard(
+                new EditorSourceSyncCardModel(
+                    inspection.PlatformInspection,
+                    ImportSource,
+                    ExportSource,
+                    copyPath: () => EditorGUIUtility.systemCopyBuffer = inspection.SourcePath ?? string.Empty,
+                    revealPath: () => EditorUtility.RevealInFinder(inspection.SourcePath)));
         }
 
         private void DrawValidationCard()
@@ -444,19 +426,6 @@ namespace AbilityKit.Ability.Editor.Windows
             if (Path.IsPathRooted(asset.SourceJsonPath)) return Path.GetFullPath(asset.SourceJsonPath);
             var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
             return Path.GetFullPath(Path.Combine(projectRoot, asset.SourceJsonPath));
-        }
-
-        private static Color GetSyncColor(TriggerAuthoringSyncState state)
-        {
-            switch (state)
-            {
-                case TriggerAuthoringSyncState.InSync: return new Color(0.55f, 0.9f, 0.62f);
-                case TriggerAuthoringSyncState.AssetChanged:
-                case TriggerAuthoringSyncState.JsonChanged: return new Color(1f, 0.82f, 0.38f);
-                case TriggerAuthoringSyncState.Conflict:
-                case TriggerAuthoringSyncState.InvalidSource: return new Color(1f, 0.48f, 0.44f);
-                default: return Color.white;
-            }
         }
     }
 }

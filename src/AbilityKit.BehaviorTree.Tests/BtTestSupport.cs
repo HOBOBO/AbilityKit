@@ -139,7 +139,7 @@ namespace AbilityKit.BehaviorTree.Tests
 
         public TreeBuilder Node(string id, string type, params string[] childIds)
         {
-            var node = new BtNodeDefinition { Id = id, Type = type, Name = id };
+            var node = new BtNodeDefinition { Id = id, Type = type };
             node.ChildIds.AddRange(childIds);
             _definition.Nodes.Add(node);
             return this;

@@ -98,22 +98,21 @@ namespace AbilityKit.Network.Sdk.Observability
 
             ProtocolDecodeResult decode;
             if (candidates.Count == 0)
-            {
-                decode = ProtocolDecodeResult.Failed("No matching protocol message is registered.");
-            }
-            else if (candidates.Count > 1)
-            {
-                decode = ProtocolDecodeResult.Failed("Packet kind is ambiguous for this traffic event.");
-            }
-            else if (traffic.IsPayloadPreviewTruncated)
-            {
                 decode = ProtocolDecodeResult.Failed(
-                    "Payload preview is truncated; capture the complete payload before decoding.");
-            }
+                    "No matching protocol message is registered.",
+                    ProtocolDecodeFailureKind.UnknownMessage);
+            else if (candidates.Count > 1)
+                decode = ProtocolDecodeResult.Failed(
+                    "Packet kind is ambiguous for this traffic event.",
+                    ProtocolDecodeFailureKind.AmbiguousMessage);
+            else if (traffic.IsPayloadPreviewTruncated)
+                decode = ProtocolDecodeResult.Failed(
+                    "Payload preview is truncated; capture the complete payload before decoding.",
+                    ProtocolDecodeFailureKind.PayloadPreviewTruncated);
             else
             {
                 var payload = new ArraySegment<byte>(traffic.PayloadPreview.ToArray());
-                decode = _decoders.Decode(traffic.CatalogId, candidates[0].Id, payload);
+                decode = _decoders.Decode(traffic.CatalogId, candidates[0], payload);
             }
 
             return new NetworkTrafficInspectionRow(traffic, candidates, decode);

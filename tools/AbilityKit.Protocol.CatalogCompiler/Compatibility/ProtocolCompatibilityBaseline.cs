@@ -69,8 +69,8 @@ public sealed class ProtocolCompatibilityBaselineWireField
 
 /// <summary>
 /// Captures the compatibility baseline from the compiler IR and (de)serializes the baseline
-/// artifact. Serialization is byte-stable for a given IR (fixed formatting, camelCase, ordinal
-/// ordering inherited from the caller's sorted sources), matching the manifest emitter contract.
+/// artifact. Serialization is byte-stable for a given IR (fixed formatting, camelCase, and wire
+/// types sorted by qualified type independently of source-file grouping).
 /// </summary>
 public static class ProtocolCompatibilityBaseline
 {
@@ -95,7 +95,10 @@ public static class ProtocolCompatibilityBaseline
             SchemaVersion = ProtocolCatalogConstants.SchemaVersion,
             GeneratorVersion = ProtocolCatalogConstants.GeneratorVersion,
             Catalogs = catalogs.Select(ToBaselineCatalog).ToList(),
-            WireSchemas = wireSchemas.Select(ToBaselineWireSchema).ToList()
+            WireSchemas = wireSchemas
+                .OrderBy(MemoryPackExportPlanner.QualifiedType, StringComparer.Ordinal)
+                .Select(ToBaselineWireSchema)
+                .ToList()
         };
     }
 

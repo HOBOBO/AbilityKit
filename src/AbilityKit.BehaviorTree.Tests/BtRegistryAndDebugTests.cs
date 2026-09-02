@@ -110,6 +110,21 @@ namespace AbilityKit.BehaviorTree.Tests
     /// <summary>调试注册中心：登记/注销/编辑器拉取。</summary>
     public sealed class BtDebugRegistryTests
     {
+        private sealed class LifecycleNode : BtActionNodeBase
+        {
+            public static int Starts;
+            public static int Stops;
+            public static bool ThrowOnStart;
+
+            public override void OnStart(BtExecutionContext context)
+            {
+                Starts++;
+                if (ThrowOnStart) throw new System.InvalidOperationException("start failed");
+            }
+            public override BtNodeState OnTick(BtExecutionContext context) => BtNodeState.Running;
+            public override void OnStop(BtExecutionContext context) => Stops++;
+        }
+
         [Fact]
         public void DebugName_RegistersIntoRegistry_AndDisposeUnregisters()
         {
@@ -180,6 +195,56 @@ namespace AbilityKit.BehaviorTree.Tests
             var afterDispose = BtDebugRegistry.GetEntries();
             Assert.Single(afterDispose);
             Assert.Equal("b", afterDispose[0].View.DisplayName);
+            second.Dispose();
+        }
+
+        [Fact]
+        public void DisableAndDispose_StopRunningNodesExactlyOnce()
+        {
+            LifecycleNode.Starts = 0;
+            LifecycleNode.Stops = 0;
+            LifecycleNode.ThrowOnStart = false;
+            var registry = TestNodeTypes.CreateRegistry();
+            registry.Register(new BtNodeDescriptor(
+                "test.lifecycle", "Lifecycle", "Test", BtNodeKind.Action, 0, 0, () => new LifecycleNode()));
+            var definition = new TreeBuilder()
+                .Node("root", "test.lifecycle")
+                .Root("root");
+            var runtime = BtTreeRuntime.Create(definition, registry);
+
+            runtime.Enable();
+            runtime.Disable();
+            runtime.Disable();
+            Assert.Equal(1, LifecycleNode.Starts);
+            Assert.Equal(1, LifecycleNode.Stops);
+
+            runtime.Enable();
+            runtime.Dispose();
+            runtime.Dispose();
+            Assert.Equal(2, LifecycleNode.Starts);
+            Assert.Equal(2, LifecycleNode.Stops);
+            Assert.Throws<System.ObjectDisposedException>(() => runtime.Enable());
+        }
+
+        [Fact]
+        public void EnableFailure_CleansUpPartiallyStartedPath()
+        {
+            LifecycleNode.Starts = 0;
+            LifecycleNode.Stops = 0;
+            LifecycleNode.ThrowOnStart = true;
+            var registry = TestNodeTypes.CreateRegistry();
+            registry.Register(new BtNodeDescriptor(
+                "test.lifecycle.failure", "Lifecycle", "Test", BtNodeKind.Action, 0, 0, () => new LifecycleNode()));
+            var definition = new TreeBuilder()
+                .Node("root", "test.lifecycle.failure")
+                .Root("root");
+            using var runtime = BtTreeRuntime.Create(definition, registry);
+
+            Assert.Throws<System.InvalidOperationException>(() => runtime.Enable());
+            Assert.False(runtime.IsEnabled);
+            Assert.Equal(1, LifecycleNode.Starts);
+            Assert.Equal(1, LifecycleNode.Stops);
+            LifecycleNode.ThrowOnStart = false;
         }
 
         [Fact]

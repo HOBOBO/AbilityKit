@@ -5,6 +5,10 @@ description: AbilityKit MOBA Demo（com.abilitykit.demo.moba.*）的包结构、
 
 # moba-demo skill
 
+## Protocol changes
+
+For MOBA opcodes, payloads, MemoryPack fields, codecs, or generated DTOs, follow [`protocol-wire`](../protocol-wire/SKILL.md). Protocol fields must originate from grouped Wire Schema v2; handwritten protocol files retain behavior only.
+
 基于源码核校（2026-08-04）。**覆盖 demo 装配/阶段机/ECS/视图/同步/网络/Editor/测试/配置/CodeGen，以及导航/寻路/碰撞墙体/PathFollowing/map 运行时/AI BT**。技能/触发器/BUFF/Passive 业务内容归 [ability-kit](../ability-kit/SKILL.md)。碰撞/移动/导航基础设施（`com.abilitykit.combat.{collision,motion,navigation}` 包）归 ability-kit 的 [combat_* 子目录](../ability-kit/SKILL.md)。
 
 ## 7 个包总览

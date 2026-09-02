@@ -1,0 +1,21 @@
+{
+  "name": "AbilityKit.Editor.Platform.Tests",
+  "rootNamespace": "AbilityKit.Editor.Platform.Tests",
+  "references": [
+    "AbilityKit.Editor.Platform"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

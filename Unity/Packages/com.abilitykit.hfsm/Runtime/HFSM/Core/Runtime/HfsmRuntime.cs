@@ -185,6 +185,7 @@ namespace AbilityKit.HFSM
                     ActiveStateId = machine.ActiveStateId,
                     RememberedStateId = machine.RememberedStateId,
                     PendingTransitionId = machine.PendingTransitionId,
+                    PendingTriggerId = machine.PendingTriggerId,
                     ActiveSinceRaw = machine.ActiveSinceRaw,
                 });
 
@@ -235,6 +236,7 @@ namespace AbilityKit.HFSM
                     machine.ActiveStateId = source.ActiveStateId;
                     machine.RememberedStateId = source.RememberedStateId;
                     machine.PendingTransitionId = source.PendingTransitionId;
+                    machine.PendingTriggerId = source.PendingTriggerId;
                     machine.ActiveSinceRaw = source.ActiveSinceRaw;
                 }
 
@@ -272,7 +274,7 @@ namespace AbilityKit.HFSM
                     if (state.Behavior.CanExit(_owner, in context))
                     {
                         var pending = machine.TransitionsById[machine.PendingTransitionId];
-                        PerformTransition(machine, state, pending, string.Empty, in context);
+                        PerformTransition(machine, state, pending, machine.PendingTriggerId, in context);
                     }
 
                     return;
@@ -376,7 +378,9 @@ namespace AbilityKit.HFSM
             }
 
             machine.PendingTransitionId = transition.Definition.Id;
-            Notify(HfsmRuntimeEventType.ExitRequested, in context, machine.Id, state.Id, transition.Definition.Id);
+            machine.PendingTriggerId = triggerId;
+            Notify(HfsmRuntimeEventType.ExitRequested, in context, machine.Id, state.Id,
+                transition.Definition.Id, triggerId);
             state.Behavior.OnExitRequested(_owner, in context);
             if (state.Behavior.CanExit(_owner, in context))
             {
@@ -402,21 +406,24 @@ namespace AbilityKit.HFSM
             transition.Action?.BeforeTransition(_owner, in transitionContext);
             if (source.ChildMachine != null) ExitMachine(source.ChildMachine, in context);
             source.Behavior.OnExit(_owner, in context);
-            Notify(HfsmRuntimeEventType.StateExited, in context, machine.Id, source.Id, transition.Definition.Id);
+            Notify(HfsmRuntimeEventType.StateExited, in context, machine.Id, source.Id,
+                transition.Definition.Id, triggerId);
 
             machine.PendingTransitionId = string.Empty;
+            machine.PendingTriggerId = string.Empty;
             machine.ActiveStateId = transition.Definition.ToStateId;
             machine.RememberedStateId = machine.ActiveStateId;
             machine.ActiveSinceRaw = context.TimeRaw;
 
             var target = machine.StatesById[machine.ActiveStateId];
             target.Behavior.OnEnter(_owner, in context);
-            Notify(HfsmRuntimeEventType.StateEntered, in context, machine.Id, target.Id, transition.Definition.Id);
+            Notify(HfsmRuntimeEventType.StateEntered, in context, machine.Id, target.Id,
+                transition.Definition.Id, triggerId);
             if (target.ChildMachine != null) EnterMachine(target.ChildMachine, in context);
 
             transition.Action?.AfterTransition(_owner, in transitionContext);
             Notify(HfsmRuntimeEventType.TransitionCompleted, in context,
-                machine.Id, target.Id, transition.Definition.Id);
+                machine.Id, target.Id, transition.Definition.Id, triggerId);
         }
 
         private void EnterMachine(CompiledMachine machine, in HfsmTickContext context)
@@ -428,6 +435,7 @@ namespace AbilityKit.HFSM
 
             machine.ActiveStateId = stateId;
             machine.PendingTransitionId = string.Empty;
+            machine.PendingTriggerId = string.Empty;
             machine.ActiveSinceRaw = context.TimeRaw;
             var state = machine.StatesById[stateId];
             state.Behavior.OnEnter(_owner, in context);
@@ -445,6 +453,7 @@ namespace AbilityKit.HFSM
             machine.RememberedStateId = state.Id;
             machine.ActiveStateId = string.Empty;
             machine.PendingTransitionId = string.Empty;
+            machine.PendingTriggerId = string.Empty;
             machine.ActiveSinceRaw = 0L;
         }
 
@@ -484,11 +493,17 @@ namespace AbilityKit.HFSM
                     if (string.IsNullOrEmpty(item.ActiveStateId) ||
                         !runtime.TransitionsById.TryGetValue(item.PendingTransitionId, out var pending) ||
                         pending.Definition.ForceImmediate ||
+                        !string.Equals(pending.Definition.TriggerId, item.PendingTriggerId, StringComparison.Ordinal) ||
                         (!pending.Definition.FromAnyState &&
                          !string.Equals(pending.Definition.FromStateId, item.ActiveStateId, StringComparison.Ordinal)))
                     {
                         throw new InvalidOperationException($"HFSM snapshot machine '{pair.Key}' has an invalid pending transition.");
                     }
+                }
+                else if (!string.IsNullOrEmpty(item.PendingTriggerId))
+                {
+                    throw new InvalidOperationException(
+                        $"HFSM snapshot machine '{pair.Key}' has a trigger without a pending transition.");
                 }
 
                 if (string.IsNullOrEmpty(item.ActiveStateId))
@@ -588,10 +603,12 @@ namespace AbilityKit.HFSM
             in HfsmTickContext context,
             string machineId,
             string stateId,
-            string transitionId)
+            string transitionId,
+            string triggerId = "")
         {
             if (_observers.Count == 0) return;
-            var runtimeEvent = new HfsmRuntimeEvent(type, context, machineId, stateId, transitionId);
+            var runtimeEvent = new HfsmRuntimeEvent(
+                type, context, machineId, stateId, transitionId, triggerId);
             var observers = _observers.ToArray();
             for (var index = 0; index < observers.Length; index++)
             {
@@ -764,6 +781,7 @@ namespace AbilityKit.HFSM
             public string ActiveStateId { get; set; } = string.Empty;
             public string RememberedStateId { get; set; } = string.Empty;
             public string PendingTransitionId { get; set; } = string.Empty;
+            public string PendingTriggerId { get; set; } = string.Empty;
             public long ActiveSinceRaw { get; set; }
         }
 

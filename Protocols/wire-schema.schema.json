@@ -1,56 +1,79 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://abilitykit.dev/schemas/wire-schema.schema.json",
-  "title": "AbilityKit minimal field-level wire schema",
+  "title": "AbilityKit grouped field-level wire schema",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "type", "fields"],
+  "required": ["schemaVersion", "projectId", "groupId", "namespace", "types"],
   "properties": {
-    "schemaVersion": { "type": "integer", "const": 1 },
+    "schemaVersion": { "type": "integer", "const": 2 },
     "projectId": {
       "type": "string",
       "minLength": 1,
-      "description": "Owning project used by selective protocol export. Specify together with namespace."
+      "description": "Owning project used by selective protocol export."
+    },
+    "groupId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(?:[.-][a-z0-9]+)*$",
+      "description": "Stable project-local business domain id used for ownership and export governance."
     },
     "namespace": {
       "type": "string",
       "minLength": 1,
-      "description": "Generated C# namespace. Specify together with projectId."
+      "description": "Generated C# namespace shared by all types in this group."
     },
-    "type": { "type": "string", "minLength": 1 },
+    "defaults": { "$ref": "#/$defs/defaults" },
+    "types": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/groupType" }
+    }
+  },
+  "$defs": {
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "memoryPackMode": { "$ref": "#/$defs/memoryPackMode" },
+        "declaration": { "$ref": "#/$defs/declaration" },
+        "memberStyle": { "$ref": "#/$defs/memberStyle" }
+      }
+    },
+    "groupType": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "fields"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "memoryPackMode": { "$ref": "#/$defs/memoryPackMode" },
+        "declaration": { "$ref": "#/$defs/declaration" },
+        "memberStyle": { "$ref": "#/$defs/memberStyle" },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/field" }
+        },
+        "reservedIds": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 },
+          "uniqueItems": true
+        }
+      }
+    },
     "memoryPackMode": {
       "type": "string",
       "enum": ["version-tolerant", "sequential"],
-      "default": "version-tolerant",
-      "description": "Version-tolerant is the default for new protocols. Sequential preserves an existing positional MemoryPack layout."
+      "default": "version-tolerant"
     },
     "declaration": {
       "type": "string",
       "enum": ["class", "struct"],
-      "default": "class",
-      "description": "Generated C# declaration kind; this does not change field semantics."
+      "default": "class"
     },
     "memberStyle": {
       "type": "string",
       "enum": ["property", "field"],
-      "default": "property",
-      "description": "Generated C# member style. Field preserves ref-based APIs during legacy migration."
+      "default": "property"
     },
-    "fields": {
-      "type": "array",
-      "items": { "$ref": "#/$defs/field" }
-    },
-    "reservedIds": {
-      "type": "array",
-      "items": { "type": "integer", "minimum": 0 },
-      "uniqueItems": true
-    }
-  },
-  "dependentRequired": {
-    "projectId": ["namespace"],
-    "namespace": ["projectId"]
-  },
-  "$defs": {
     "field": {
       "type": "object",
       "additionalProperties": false,
@@ -60,12 +83,17 @@
         "name": { "type": "string", "minLength": 1 },
         "scalarType": {
           "type": "string",
-          "enum": ["bool", "int32", "int64", "uint32", "uint64", "float", "double", "string", "bytes"]
+          "enum": ["bool", "uint8", "int32", "int64", "uint32", "uint64", "float", "double", "string", "bytes"]
         },
         "type": {
           "type": "string",
           "minLength": 1,
-          "description": "C# type reference for nested DTOs or enums; mutually exclusive with scalarType."
+          "description": "Fully qualified C# type reference; mutually exclusive with scalarType."
+        },
+        "external": {
+          "type": "boolean",
+          "default": false,
+          "description": "The custom type is owned outside this project export and must not be generated as part of its dependency closure."
         },
         "array": { "type": "boolean", "default": false },
         "optional": { "type": "boolean" },
@@ -84,6 +112,10 @@
             { "required": ["required"], "not": { "required": ["optional"] } },
             { "not": { "anyOf": [{ "required": ["optional"] }, { "required": ["required"] }] } }
           ]
+        },
+        {
+          "if": { "properties": { "external": { "const": true } }, "required": ["external"] },
+          "then": { "required": ["type"], "not": { "required": ["scalarType"] } }
         }
       ]
     }

@@ -2,6 +2,8 @@
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.Host.Extensions.Moba.Runtime;
 using AbilityKit.Ability.World.Services;
+using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Gameplay;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
@@ -227,6 +229,108 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             }
 
             return null;
+        }
+
+        public BattleDiagnosticEventsResult QueryDiagnosticEvents(BattleDiagnosticEventsQuery query)
+        {
+            if (_battleWorld == null)
+            {
+                return CreateDiagnosticResult(
+                    query,
+                    "Unavailable",
+                    BattleDiagnosticDataAvailability.Disconnected,
+                    0,
+                    false,
+                    "Battle world is not initialized.",
+                    Array.Empty<BattleDiagnosticEvent>());
+            }
+
+            if (!_battleWorld.Services.TryResolve<IBattleDiagnosticEventReadStore>(out var store) || store == null)
+            {
+                return CreateDiagnosticResult(
+                    query,
+                    "Unavailable",
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    0,
+                    false,
+                    "The runtime does not expose a diagnostic event read store.",
+                    Array.Empty<BattleDiagnosticEvent>());
+            }
+
+            var effectiveLimit = query.Limit <= 0 ? 100 : Math.Min(query.Limit, 500);
+            var effectiveOffset = Math.Max(0, query.Offset);
+            var filter = new BattleDiagnosticFilter(
+                new BattleDiagnosticFrameFilter(BattleDiagnosticFrames.Invalid, BattleDiagnosticFrames.Invalid),
+                BattleDiagnosticEventChannel.All,
+                query.ActorId ?? 0,
+                BattleDiagnosticActorRelation.Either,
+                query.SkillId ?? 0);
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                query.RequestId <= 0 ? 1 : query.RequestId,
+                filter,
+                new BattleDiagnosticPageRequest(query.StoreRevision, effectiveOffset, effectiveLimit),
+                query.NewestFirst));
+            var status = result.Status;
+            return CreateDiagnosticResult(
+                query,
+                status.Phase.ToString(),
+                status.Availability,
+                status.StoreRevision,
+                status.HasMore,
+                string.IsNullOrEmpty(status.Message) ? null : status.Message,
+                result.Items);
+        }
+
+        private BattleDiagnosticEventsResult CreateDiagnosticResult(
+            BattleDiagnosticEventsQuery query,
+            string status,
+            BattleDiagnosticDataAvailability availability,
+            long storeRevision,
+            bool hasMore,
+            string? message,
+            IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            var store = _battleWorld?.Services.TryResolve<IBattleDiagnosticEventReadStore>(out var resolvedStore) == true
+                ? resolvedStore
+                : null;
+            var scope = store?.Scope ?? default;
+            var sessionInfo = _battleWorld?.Services.TryResolve<IBattleDiagnosticReadOnlySession>(out var session) == true && session != null
+                ? session.SessionInfo
+                : default;
+            var events = items.Select(static item => new BattleDiagnosticEventRecord(
+                item.Frame,
+                item.Sequence,
+                item.MonotonicTimestamp,
+                item.Kind.ToString(),
+                item.Channel.ToString(),
+                item.Outcome.ToString(),
+                item.SourceActorId,
+                item.TargetActorId,
+                item.ConfigId,
+                item.SkillRuntime.RuntimeId,
+                item.RootContextId,
+                item.ContextId,
+                item.Summary,
+                item.SkillRuntime.Generation,
+                item.ContextId,
+                item.RootContextId,
+                0,
+                0,
+                0)).ToArray();
+            return new BattleDiagnosticEventsResult(
+                status,
+                availability.ToString(),
+                storeRevision,
+                hasMore,
+                BattleDiagnosticContractConstants.SchemaVersion,
+                sessionInfo.MonotonicTimestampFrequency,
+                scope.SessionId,
+                scope.WorldId,
+                scope.WorldEpoch,
+                message,
+                events,
+                Math.Max(0, query.Offset),
+                query.Limit <= 0 ? 100 : Math.Min(query.Limit, 500));
         }
 
         public BattleWorldDiagnostics? GetWorldDiagnostics(ulong worldId, int frame)

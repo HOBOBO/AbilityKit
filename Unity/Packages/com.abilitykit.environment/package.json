@@ -1,0 +1,17 @@
+{
+  "name": "com.abilitykit.environment",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Environment",
+  "unity": "2022.3",
+  "description": "Project-neutral environment profile mechanism: declare concerns and compose named scenario profiles as data, then bind to a project's own world-assembly primitives.",
+  "keywords": [
+    "abilitykit",
+    "environment",
+    "scenario",
+    "profile"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {}
+}

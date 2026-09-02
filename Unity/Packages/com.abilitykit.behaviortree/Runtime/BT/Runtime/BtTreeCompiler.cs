@@ -22,20 +22,23 @@ namespace AbilityKit.BehaviorTree
         }
     }
 
-    /// <summary>展开结果：自包含定义 + 每个展开节点 id 到来源 treeId 的溯源 + 子树实例列表。</summary>
+    /// <summary>展开结果：自包含定义 + 每个展开节点的来源树/原始节点溯源 + 子树实例列表。</summary>
     public sealed class BtExpansionResult
     {
         public BtTreeDefinition Definition { get; }
         public IReadOnlyDictionary<string, string> NodeSourceTree { get; }
+        public IReadOnlyDictionary<string, string> NodeSourceNode { get; }
         public IReadOnlyList<BtSubtreeInstance> SubtreeInstances { get; }
 
         public BtExpansionResult(
             BtTreeDefinition definition,
             Dictionary<string, string> nodeSourceTree,
+            Dictionary<string, string> nodeSourceNode,
             List<BtSubtreeInstance> subtreeInstances)
         {
             Definition = definition;
             NodeSourceTree = nodeSourceTree;
+            NodeSourceNode = nodeSourceNode;
             SubtreeInstances = subtreeInstances;
         }
     }
@@ -65,12 +68,14 @@ namespace AbilityKit.BehaviorTree
             };
 
             var provenance = new Dictionary<string, string>(StringComparer.Ordinal);
+            var sourceNodes = new Dictionary<string, string>(StringComparer.Ordinal);
             var subtreeInstances = new List<BtSubtreeInstance>();
             var visiting = new HashSet<string>(StringComparer.Ordinal);
             result.RootNodeId = ExpandSubtree(
-                definition.TreeId, definition.RootNodeId, "", definition, resolver, result, provenance, subtreeInstances, visiting);
+                definition.TreeId, definition.RootNodeId, "", definition, resolver, result,
+                provenance, sourceNodes, subtreeInstances, visiting);
 
-            return new BtExpansionResult(result, provenance, subtreeInstances);
+            return new BtExpansionResult(result, provenance, sourceNodes, subtreeInstances);
         }
 
         private static string ExpandSubtree(
@@ -81,6 +86,7 @@ namespace AbilityKit.BehaviorTree
             IBtTreeDefinitionResolver resolver,
             BtTreeDefinition result,
             Dictionary<string, string> provenance,
+            Dictionary<string, string> sourceNodes,
             List<BtSubtreeInstance> subtreeInstances,
             HashSet<string> visiting)
         {
@@ -113,7 +119,8 @@ namespace AbilityKit.BehaviorTree
                     ? sourceNode.Id
                     : idPrefix + "." + sourceNode.Id;
                 var expandedRootId = ExpandSubtree(
-                    refTree.TreeId, refTree.RootNodeId, childPrefix, refTree, resolver, result, provenance, subtreeInstances, visiting);
+                    refTree.TreeId, refTree.RootNodeId, childPrefix, refTree, resolver, result,
+                    provenance, sourceNodes, subtreeInstances, visiting);
                 visiting.Remove(refTree.TreeId);
                 subtreeInstances.Add(new BtSubtreeInstance(expandedRootId, refTree.TreeId));
                 return expandedRootId;
@@ -125,18 +132,18 @@ namespace AbilityKit.BehaviorTree
             {
                 Id = newId,
                 Type = sourceNode.Type,
-                Name = sourceNode.Name,
-                Comment = sourceNode.Comment,
                 Properties = CloneProperties(sourceNode.Properties),
             };
             foreach (var childId in sourceNode.ChildIds)
             {
                 newNode.ChildIds.Add(ExpandSubtree(
-                    sourceTreeId, childId, idPrefix, sourceTree, resolver, result, provenance, subtreeInstances, visiting));
+                    sourceTreeId, childId, idPrefix, sourceTree, resolver, result,
+                    provenance, sourceNodes, subtreeInstances, visiting));
             }
 
             result.Nodes.Add(newNode);
             provenance[newId] = sourceTreeId;
+            sourceNodes[newId] = sourceNode.Id;
             return newId;
         }
 
@@ -154,19 +161,10 @@ namespace AbilityKit.BehaviorTree
             var clone = new BtPropertyBag();
             foreach (var pair in source.Values)
             {
-                clone.Set(pair.Key, CloneValue(pair.Value));
+                clone.Set(pair.Key, BtTreeDefinition.CloneValue(pair.Value));
             }
             return clone;
         }
-
-        private static BtPropertyValue CloneValue(BtPropertyValue value) => value.Type switch
-        {
-            BtValueType.Bool => BtPropertyValue.Of(value.BoolValue),
-            BtValueType.Int64 => BtPropertyValue.Of(value.Int64Value),
-            BtValueType.Fixed64 => BtPropertyValue.Of(Deterministic.Fixed64.FromRaw(value.Fixed64Raw)),
-            BtValueType.String => BtPropertyValue.Of(value.StringValue),
-            _ => BtPropertyValue.Of(value.Int64Value),
-        };
 
         private static BtBlackboardSchema MergeBlackboard(
             BtTreeDefinition root,
@@ -207,7 +205,7 @@ namespace AbilityKit.BehaviorTree
                 {
                     Name = key.Name,
                     Type = key.Type,
-                    Default = key.Default != null ? CloneValue(key.Default) : null,
+                    Default = key.Default != null ? BtTreeDefinition.CloneValue(key.Default) : null,
                 };
             }
 

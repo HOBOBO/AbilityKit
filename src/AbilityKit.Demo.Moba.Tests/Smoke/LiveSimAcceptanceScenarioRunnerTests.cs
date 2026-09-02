@@ -1,5 +1,6 @@
 using System.IO;
 using AbilityKit.Demo.Moba.Acceptance;
+using AbilityKit.Scenario;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;

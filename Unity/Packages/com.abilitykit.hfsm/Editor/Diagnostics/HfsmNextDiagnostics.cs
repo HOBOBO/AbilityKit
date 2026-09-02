@@ -4,6 +4,7 @@ using System.Linq;
 using AbilityKit.HFSM.Unity.Migration;
 using UnityHFSM.Editor.Export;
 using UnityHFSM.Graph;
+using UnityHFSM.Graph.Compilation;
 
 namespace UnityHFSM.Editor.Diagnostics
 {
@@ -68,16 +69,49 @@ namespace UnityHFSM.Editor.Diagnostics
             if (graph == null) throw new ArgumentNullException(nameof(graph));
 
             var catalogAsset = HfsmEditorBindingCatalog.ConfiguredAsset;
-            if (catalogAsset != null)
+            var export = catalogAsset != null
+                ? HfsmNextDefinitionExporter.ExportUsingCatalogAsset(graph, catalogAsset)
+                : HfsmNextDefinitionExporter.Export(graph);
+
+            var issues = export.Issues.ToList();
+            try
             {
-                return new HfsmNextDiagnosticSnapshot(
-                    HfsmNextDefinitionExporter.ExportUsingCatalogAsset(graph, catalogAsset),
-                    catalogAsset.name);
+                new StateMachineGraphCompiler().Compile(graph);
+            }
+            catch (GraphCompilationException exception)
+            {
+                foreach (var diagnostic in exception.Diagnostics)
+                {
+                    issues.Add(new HfsmNextDefinitionExportIssue(
+                        "GRAPH_" + diagnostic.Code,
+                        diagnostic.Severity == GraphDiagnosticSeverity.Error
+                            ? HfsmLegacyImportSeverity.Error
+                            : HfsmLegacyImportSeverity.Warning,
+                        BuildGraphPath(diagnostic.ElementId, diagnostic.Code),
+                        diagnostic.Message));
+                }
+            }
+
+            if (issues.Count != export.Issues.Count)
+            {
+                export = new HfsmNextDefinitionExportResult(export.Definition, export.Json, issues);
             }
 
             return new HfsmNextDiagnosticSnapshot(
-                HfsmNextDefinitionExporter.Export(graph),
-                "Assembly scan");
+                export,
+                catalogAsset != null ? catalogAsset.name : "Assembly scan");
+        }
+
+        private static string BuildGraphPath(string elementId, string code)
+        {
+            if (string.IsNullOrEmpty(elementId))
+                return "$.graph";
+
+            return code.StartsWith("EDGE_", StringComparison.Ordinal) ||
+                   code.StartsWith("ANY_STATE_", StringComparison.Ordinal) ||
+                   code.StartsWith("CONDITION_", StringComparison.Ordinal)
+                ? $"$.edges['{elementId}']"
+                : $"$.nodes['{elementId}']";
         }
 
         public static HfsmDiagnosticTarget ResolveTarget(string path)

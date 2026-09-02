@@ -20,6 +20,7 @@ public sealed class ProtocolWorkspaceWorkflowTests
 
         Assert.Equal(new[] { "project.test" }, workspace.Projects);
         Assert.Equal("project.test", workspace.WireSchemas[0].ProjectId);
+        Assert.Equal("battle", workspace.WireSchemas[0].GroupId);
         Assert.Equal("Project.Test.Protocol.TestPayload", workspace.WireSchemas[0].QualifiedType);
         Assert.Empty(workspace.Diagnostics);
         Assert.Equal(
@@ -58,7 +59,7 @@ public sealed class ProtocolWorkspaceWorkflowTests
             Array.Empty<string>(),
             new[] { Schema() },
             new[] { "TestPayload.wire.yaml" });
-        var yaml = ProtocolYamlEmitter.EmitWireSchema(workspace.WireSchemas[0]);
+        var yaml = ProtocolYamlEmitter.EmitWireSchemaDocument(Document(Schema()));
         var parsed = new YamlWireSchemaParser().Parse("TestPayload.wire.yaml", yaml);
 
         Assert.Equal("project.test", parsed.ProjectId);
@@ -75,7 +76,9 @@ public sealed class ProtocolWorkspaceWorkflowTests
         var editorSchema = new ProtocolWorkspaceWireSchema
         {
             SourcePath = "Legacy.wire.yaml",
+            SchemaVersion = WireSchemaFormatVersions.Current,
             ProjectId = "project.test",
+            GroupId = "battle",
             Namespace = "Project.Test.Protocol",
             Type = "Legacy",
             MemoryPackMode = "sequential",
@@ -87,7 +90,16 @@ public sealed class ProtocolWorkspaceWorkflowTests
             }
         };
 
-        var yaml = ProtocolYamlEmitter.EmitWireSchema(editorSchema);
+        var schema = ProtocolWorkspaceEmitter.ToWireSchemaIr(editorSchema);
+        var yaml = ProtocolYamlEmitter.EmitWireSchemaDocument(new WireSchemaDocumentIr(
+            WireSchemaFormatVersions.Current,
+            schema.ProjectId,
+            schema.TargetNamespace,
+            schema.GroupId,
+            schema.MemoryPackMode,
+            schema.DeclarationKind,
+            schema.MemberStyle,
+            new[] { schema }));
         var parsed = new YamlWireSchemaParser().Parse("Legacy.wire.yaml", yaml);
 
         Assert.Contains("memoryPackMode: sequential", yaml);
@@ -97,6 +109,96 @@ public sealed class ProtocolWorkspaceWorkflowTests
         Assert.Equal(WireDeclarationKind.Struct, parsed.DeclarationKind);
         Assert.Equal(WireMemberStyle.Field, parsed.MemberStyle);
         Assert.Equal(0u, parsed.Fields[0].Id);
+    }
+
+    [Fact]
+    public void WireSchemaYaml_RoundTripsExternalTypeOwnership()
+    {
+        var editorSchema = new ProtocolWorkspaceWireSchema
+        {
+            ProjectId = "project.test",
+            GroupId = "battle",
+            Namespace = "Project.Test.Protocol",
+            Type = "Payload",
+            MemoryPackMode = "sequential",
+            Declaration = "struct",
+            MemberStyle = "field",
+            Fields = new[]
+            {
+                new ProtocolWorkspaceWireField
+                {
+                    Id = 0,
+                    Name = "position",
+                    TypeName = "Shared.Math.Vec3",
+                    External = true
+                }
+            }
+        };
+
+        var schema = ProtocolWorkspaceEmitter.ToWireSchemaIr(editorSchema);
+        var yaml = ProtocolYamlEmitter.EmitWireSchemaDocument(new WireSchemaDocumentIr(
+            WireSchemaFormatVersions.Current,
+            schema.ProjectId,
+            schema.TargetNamespace,
+            schema.GroupId,
+            schema.MemoryPackMode,
+            schema.DeclarationKind,
+            schema.MemberStyle,
+            new[] { schema }));
+        var parsed = new YamlWireSchemaParser().Parse("Payload.wire.yaml", yaml);
+
+        Assert.Contains("external: true", yaml);
+        Assert.True(parsed.Fields[0].IsExternalReference);
+    }
+
+    [Fact]
+    public void GroupedWireSchemaYaml_RoundTripsDefaultsAndTypeOverrides()
+    {
+        var command = new WireSchemaIr(
+            2,
+            "Command",
+            new[] { new WireFieldIr(0, "value", "int32", false, false) },
+            Array.Empty<uint>(),
+            "project.test",
+            "Project.Test.Protocol",
+            WireMemoryPackMode.Sequential,
+            WireDeclarationKind.Struct,
+            WireMemberStyle.Field,
+            "battle");
+        var payload = Schema();
+        var groupedPayload = new WireSchemaIr(
+            2,
+            payload.Type,
+            payload.Fields,
+            payload.ReservedIds,
+            payload.ProjectId,
+            payload.TargetNamespace,
+            payload.MemoryPackMode,
+            payload.DeclarationKind,
+            payload.MemberStyle,
+            "battle");
+        var document = new WireSchemaDocumentIr(
+            2,
+            "project.test",
+            "Project.Test.Protocol",
+            "battle",
+            WireMemoryPackMode.Sequential,
+            WireDeclarationKind.Struct,
+            WireMemberStyle.Field,
+            new[] { command, groupedPayload });
+
+        var yaml = ProtocolYamlEmitter.EmitWireSchemaDocument(document);
+        var parsed = new YamlWireSchemaParser().ParseDocument("group.wire.yaml", yaml);
+
+        Assert.Contains("schemaVersion: 2", yaml);
+        Assert.Contains("groupId: battle", yaml);
+        Assert.Contains("types:", yaml);
+        Assert.Contains("name: Command", yaml);
+        Assert.Equal(2, parsed.Schemas.Count);
+        Assert.Equal(WireMemoryPackMode.Sequential, parsed.Schemas[0].MemoryPackMode);
+        Assert.Equal(WireMemoryPackMode.VersionTolerant, parsed.Schemas[1].MemoryPackMode);
+        Assert.Equal(WireDeclarationKind.Class, parsed.Schemas[1].DeclarationKind);
+        Assert.Equal(WireMemberStyle.Property, parsed.Schemas[1].MemberStyle);
     }
 
     [Fact]
@@ -120,7 +222,7 @@ public sealed class ProtocolWorkspaceWorkflowTests
     public void MemoryPackEmitter_CanPreserveLegacySequentialStructShape()
     {
         var schema = new WireSchemaIr(
-            1,
+            WireSchemaFormatVersions.Current,
             "LegacyPayload",
             new[] { new WireFieldIr(0, "value", "int32", false, false) },
             Array.Empty<uint>(),
@@ -128,7 +230,8 @@ public sealed class ProtocolWorkspaceWorkflowTests
             "Project.Test.Protocol",
             WireMemoryPackMode.Sequential,
             WireDeclarationKind.Struct,
-            WireMemberStyle.Field);
+            WireMemberStyle.Field,
+            "battle");
 
         var output = MemoryPackWireEmitter.Emit(schema);
 
@@ -143,14 +246,15 @@ public sealed class ProtocolWorkspaceWorkflowTests
     public void ExportPlanner_IncludesNestedSchemasAndIgnoresSystemPrimitives()
     {
         var command = new WireSchemaIr(
-            1,
+            WireSchemaFormatVersions.Current,
             "Command",
             new[] { new WireFieldIr(0, "value", "int32", false, false) },
             Array.Empty<uint>(),
             "project.test",
-            "Project.Test.Protocol");
+            "Project.Test.Protocol",
+            groupId: "battle");
         var payload = new WireSchemaIr(
-            1,
+            WireSchemaFormatVersions.Current,
             "Payload",
             new[]
             {
@@ -164,7 +268,8 @@ public sealed class ProtocolWorkspaceWorkflowTests
             },
             Array.Empty<uint>(),
             "project.test",
-            "Project.Test.Protocol");
+            "Project.Test.Protocol",
+            groupId: "battle");
 
         var plan = MemoryPackExportPlanner.Create(
             new[] { "Project.Test.Protocol.Payload", "System.UInt64" },
@@ -172,6 +277,37 @@ public sealed class ProtocolWorkspaceWorkflowTests
             includeUnreferenced: false);
 
         Assert.Equal(new[] { command, payload }, plan.Schemas);
+        Assert.Empty(plan.MissingTypes);
+    }
+
+    [Fact]
+    public void ExportPlanner_DoesNotGenerateExplicitExternalReferences()
+    {
+        var payload = new WireSchemaIr(
+            WireSchemaFormatVersions.Current,
+            "Payload",
+            new[]
+            {
+                new WireFieldIr(
+                    0,
+                    "position",
+                    string.Empty,
+                    false,
+                    false,
+                    "Shared.Math.Vec3",
+                    isExternalReference: true)
+            },
+            Array.Empty<uint>(),
+            "project.test",
+            "Project.Test.Protocol",
+            groupId: "battle");
+
+        var plan = MemoryPackExportPlanner.Create(
+            new[] { "Project.Test.Protocol.Payload" },
+            new[] { payload },
+            includeUnreferenced: false);
+
+        Assert.Equal(new[] { payload }, plan.Schemas);
         Assert.Empty(plan.MissingTypes);
     }
 
@@ -199,7 +335,7 @@ public sealed class ProtocolWorkspaceWorkflowTests
         });
 
     private static WireSchemaIr Schema() => new(
-        1,
+        WireSchemaFormatVersions.Current,
         "TestPayload",
         new[]
         {
@@ -215,5 +351,16 @@ public sealed class ProtocolWorkspaceWorkflowTests
         },
         new uint[] { 3 },
         "project.test",
-        "Project.Test.Protocol");
+        "Project.Test.Protocol",
+        groupId: "battle");
+
+    private static WireSchemaDocumentIr Document(params WireSchemaIr[] schemas) => new(
+        WireSchemaFormatVersions.Current,
+        "project.test",
+        "Project.Test.Protocol",
+        "battle",
+        WireMemoryPackMode.VersionTolerant,
+        WireDeclarationKind.Class,
+        WireMemberStyle.Property,
+        schemas);
 }

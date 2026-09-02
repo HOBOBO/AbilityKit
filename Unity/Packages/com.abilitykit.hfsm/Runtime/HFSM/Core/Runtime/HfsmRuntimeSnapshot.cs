@@ -5,7 +5,7 @@ namespace AbilityKit.HFSM
 {
     public sealed class HfsmRuntimeSnapshot
     {
-        public const int CurrentSnapshotVersion = 1;
+        public const int CurrentSnapshotVersion = 2;
 
         public int SnapshotVersion { get; set; } = CurrentSnapshotVersion;
 
@@ -33,6 +33,8 @@ namespace AbilityKit.HFSM
         public string RememberedStateId { get; set; } = string.Empty;
 
         public string PendingTransitionId { get; set; } = string.Empty;
+
+        public string PendingTriggerId { get; set; } = string.Empty;
 
         public long ActiveSinceRaw { get; set; }
     }

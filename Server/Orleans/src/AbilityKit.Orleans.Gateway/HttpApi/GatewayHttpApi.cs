@@ -264,8 +264,18 @@ internal static class GatewayHttpApi
             .WithName("Gateway.AdminSkillDiagnosticsSummary")
             .Produces<AdminSkillDiagnosticsSummaryHttpResponse>(StatusCodes.Status200OK);
 
-        group.MapGet("/skills/events", async (string? battleId, int? actorId, int? skillId, int? limit) =>
-            Results.Ok(await GatewaySkillDiagnostics.GetEventsAsync(battleId, actorId, skillId, limit ?? 100)))
+        group.MapGet("/skills/events", async (
+                string? battleId,
+                int? actorId,
+                int? skillId,
+                int? limit,
+                IClusterClient client) =>
+            Results.Ok(await GatewaySkillDiagnostics.GetEventsAsync(
+                client,
+                battleId,
+                actorId,
+                skillId,
+                limit ?? 100)))
             .WithName("Gateway.AdminSkillDiagnosticsEvents")
             .Produces<AdminSkillDiagnosticsEventsHttpResponse>(StatusCodes.Status200OK);
 

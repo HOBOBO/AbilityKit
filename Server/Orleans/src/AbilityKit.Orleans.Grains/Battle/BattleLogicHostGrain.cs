@@ -466,6 +466,29 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
         return Task.FromResult(_runtimeSession?.GetWorldDiagnostics(_worldId, _battleHostState.Frame));
     }
 
+    public Task<BattleDiagnosticEventsResult> QueryDiagnosticEventsAsync(BattleDiagnosticEventsQuery query)
+    {
+        if (_runtimeSession == null || !_initialized)
+        {
+            return Task.FromResult(new BattleDiagnosticEventsResult(
+                "Unavailable",
+                "Disconnected",
+                0,
+                false,
+                BattleDiagnosticContractConstants.SchemaVersion,
+                0,
+                string.Empty,
+                string.Empty,
+                0,
+                "Battle runtime is not initialized.",
+                Array.Empty<BattleDiagnosticEventRecord>(),
+                Math.Max(0, query.Offset),
+                query.Limit <= 0 ? 100 : Math.Min(query.Limit, 500)));
+        }
+
+        return Task.FromResult(_runtimeSession.QueryDiagnosticEvents(query));
+    }
+
     public Task<WorldStartAnchor?> GetWorldStartAnchorAsync()
     {
         return Task.FromResult(_worldStartAnchor);

@@ -43,6 +43,7 @@
     "AbilityKit.Game.Battle.Runtime",
     "AbilityKit.Network.Battle",
     "AbilityKit.BehaviorTree",
+    "AbilityKit.Environment",
     "MemoryPack"
   ],
   "includePlatforms": [],

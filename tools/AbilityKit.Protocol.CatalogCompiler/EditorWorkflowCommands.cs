@@ -8,6 +8,8 @@ using AbilityKit.Protocol.CatalogCompiler.Lowering;
 
 internal static class EditorWorkflowCommands
 {
+    private const int MemoryPackExportManifestSchemaVersion = 2;
+
     public static async Task<int?> TryRunAsync(string[] args)
     {
         if (Has(args, "--workspace-output")) return await WriteWorkspaceAsync(args);
@@ -54,9 +56,77 @@ internal static class EditorWorkflowCommands
     {
         var editorJson = await File.ReadAllTextAsync(Required(args, "--write-wire-schema"), Encoding.UTF8);
         var schema = ProtocolWorkspaceEmitter.DeserializeWireSchema(editorJson);
-        var yaml = ProtocolYamlEmitter.EmitWireSchema(schema);
-        _ = new YamlWireSchemaParser().Parse(schema.SourcePath, yaml);
-        WriteIfChanged(Required(args, "--output"), yaml);
+        var output = Required(args, "--output");
+        var parser = new YamlWireSchemaParser();
+        if (schema.SchemaVersion != WireSchemaFormatVersions.Current)
+            throw new InvalidDataException(
+                $"Unsupported wire schema version {schema.SchemaVersion}; expected {WireSchemaFormatVersions.Current}.");
+
+        var edited = ProtocolWorkspaceEmitter.ToWireSchemaIr(schema);
+        WireSchemaDocumentIr updated;
+        if (File.Exists(output))
+        {
+            var document = parser.ParseDocument(
+                output,
+                await File.ReadAllTextAsync(output, Encoding.UTF8));
+            if (!string.Equals(schema.ProjectId, document.ProjectId, StringComparison.Ordinal) ||
+                !string.Equals(schema.Namespace, document.TargetNamespace, StringComparison.Ordinal) ||
+                !string.Equals(schema.GroupId, document.GroupId, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "Wire schema projectId, groupId and namespace are document-level values; edit the YAML source to change them.");
+            }
+
+            var sourceType = schema.SourceType?.Trim() ?? string.Empty;
+            var index = document.Schemas
+                .Select((value, valueIndex) => (value, valueIndex))
+                .Where(value => string.Equals(value.value.Type, sourceType, StringComparison.Ordinal))
+                .Select(value => value.valueIndex)
+                .SingleOrDefault(-1);
+            var schemas = document.Schemas.ToList();
+            if (string.IsNullOrWhiteSpace(sourceType))
+            {
+                if (schemas.Any(value => string.Equals(value.Type, edited.Type, StringComparison.Ordinal)))
+                    throw new InvalidDataException(
+                        $"Grouped wire schema type '{edited.Type}' already exists in '{output}'.");
+                schemas.Add(edited);
+            }
+            else
+            {
+                if (index < 0)
+                    throw new InvalidDataException($"Grouped wire schema type '{sourceType}' no longer exists in '{output}'.");
+                if (schemas.Select((value, valueIndex) => (value, valueIndex)).Any(value =>
+                        value.valueIndex != index && string.Equals(value.value.Type, edited.Type, StringComparison.Ordinal)))
+                    throw new InvalidDataException(
+                        $"Grouped wire schema type '{edited.Type}' already exists in '{output}'.");
+                schemas[index] = edited;
+            }
+            updated = new WireSchemaDocumentIr(
+                document.SchemaVersion,
+                document.ProjectId,
+                document.TargetNamespace,
+                document.GroupId,
+                document.DefaultMemoryPackMode,
+                document.DefaultDeclarationKind,
+                document.DefaultMemberStyle,
+                schemas);
+        }
+        else
+        {
+            updated = new WireSchemaDocumentIr(
+                WireSchemaFormatVersions.Current,
+                edited.ProjectId,
+                edited.TargetNamespace,
+                edited.GroupId,
+                edited.MemoryPackMode,
+                edited.DeclarationKind,
+                edited.MemberStyle,
+                new[] { edited });
+        }
+
+        var yaml = ProtocolYamlEmitter.EmitWireSchemaDocument(updated);
+        _ = parser.ParseDocument(output, yaml);
+        WriteIfChanged(output, yaml);
         Console.WriteLine($"Wrote wire schema '{schema.QualifiedType}' ({schema.Fields.Length} fields).");
         return 0;
     }
@@ -186,13 +256,25 @@ internal static class EditorWorkflowCommands
         plannedFiles[MemoryPackExportVerifier.ManifestFileName] = JsonSerializer.Serialize(
             new MemoryPackExportManifest
             {
-                SchemaVersion = ProtocolCatalogConstants.SchemaVersion,
+                SchemaVersion = MemoryPackExportManifestSchemaVersion,
                 GeneratorVersion = ProtocolCatalogConstants.GeneratorVersion,
                 ProjectId = projectId,
                 CatalogIds = selectedCatalogs.Select(value => value.catalog.CatalogId).ToArray(),
                 ReferencedMemoryPackTypes = referencedTypes,
                 GeneratedTypes = selectedSchemas
                     .Select(value => MemoryPackExportPlanner.QualifiedType(value.schema))
+                    .ToArray(),
+                GeneratedGroups = selectedSchemas
+                    .GroupBy(value => value.schema.GroupId, StringComparer.Ordinal)
+                    .OrderBy(group => group.Key, StringComparer.Ordinal)
+                    .Select(group => new MemoryPackExportGroupManifest
+                    {
+                        GroupId = group.Key,
+                        GeneratedTypes = group
+                            .Select(value => MemoryPackExportPlanner.QualifiedType(value.schema))
+                            .OrderBy(value => value, StringComparer.Ordinal)
+                            .ToArray()
+                    })
                     .ToArray(),
                 MissingWireSchemaTypes = missingTypes,
                 GeneratedFiles = plannedFiles.Keys
@@ -313,10 +395,30 @@ internal static class EditorWorkflowCommands
     {
         var sources = ResolveSources(inputPath, "*.wire.yaml");
         var parser = new YamlWireSchemaParser();
-        var values = new WireSchemaIr[sources.Count];
+        var values = new List<WireSchemaIr>();
+        var expandedSources = new List<string>();
         for (var i = 0; i < sources.Count; i++)
-            values[i] = parser.Parse(sources[i], await File.ReadAllTextAsync(sources[i], Encoding.UTF8));
-        return new LoadedSources<WireSchemaIr>(values, sources);
+        {
+            var document = parser.ParseDocument(
+                sources[i],
+                await File.ReadAllTextAsync(sources[i], Encoding.UTF8));
+            foreach (var schema in document.Schemas)
+            {
+                values.Add(schema);
+                expandedSources.Add(sources[i]);
+            }
+        }
+        var duplicateGroup = values
+            .Select((schema, index) => (schema.ProjectId, schema.GroupId, source: expandedSources[index]))
+            .Distinct()
+            .GroupBy(value => (value.ProjectId, value.GroupId))
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateGroup != null)
+        {
+            throw new InvalidDataException(
+                $"Project '{duplicateGroup.Key.ProjectId}' defines wire group '{duplicateGroup.Key.GroupId}' in multiple files.");
+        }
+        return new LoadedSources<WireSchemaIr>(values, expandedSources);
     }
 
     private static IReadOnlyList<string> ResolveSources(string inputPath, string pattern)
@@ -410,7 +512,15 @@ internal static class EditorWorkflowCommands
         public string[] CatalogIds { get; set; } = Array.Empty<string>();
         public string[] ReferencedMemoryPackTypes { get; set; } = Array.Empty<string>();
         public string[] GeneratedTypes { get; set; } = Array.Empty<string>();
+        public MemoryPackExportGroupManifest[] GeneratedGroups { get; set; } =
+            Array.Empty<MemoryPackExportGroupManifest>();
         public string[] MissingWireSchemaTypes { get; set; } = Array.Empty<string>();
         public string[] GeneratedFiles { get; set; } = Array.Empty<string>();
+    }
+
+    private sealed class MemoryPackExportGroupManifest
+    {
+        public string GroupId { get; set; } = string.Empty;
+        public string[] GeneratedTypes { get; set; } = Array.Empty<string>();
     }
 }

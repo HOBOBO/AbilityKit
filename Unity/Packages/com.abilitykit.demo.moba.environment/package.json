@@ -1,0 +1,19 @@
+{
+  "name": "com.abilitykit.demo.moba.environment",
+  "version": "0.1.0",
+  "displayName": "AbilityKit MOBA Environment",
+  "unity": "2022.3",
+  "description": "MOBA environment profile taxonomy and group expander, built on com.abilitykit.environment.",
+  "keywords": [
+    "abilitykit",
+    "moba",
+    "environment",
+    "preview"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.environment": "0.1.0"
+  }
+}

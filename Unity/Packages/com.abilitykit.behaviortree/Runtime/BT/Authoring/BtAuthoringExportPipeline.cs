@@ -135,7 +135,8 @@ namespace AbilityKit.BehaviorTree.Authoring
         }
 
         /// <summary>
-        /// 清单驱动的 headless 导出：从源目录按 TreeId 读取运行时 JSON，转授权文档后扇出到全部目标。
+        /// 清单驱动的 headless 导出：从源目录按 TreeId 读取授权文档（推荐）或兼容的运行时 JSON，
+        /// 再扇出纯运行时 IR 到全部目标。
         /// 无 Unity 依赖，CLI/CI/AI 脚本可直接调用；缺源文件对每个目标记 Error，缺目标记 SkippedNoTargets。
         /// </summary>
         public static List<BtExportReportEntry> ExportProject(
@@ -166,8 +167,37 @@ namespace AbilityKit.BehaviorTree.Authoring
                     continue;
                 }
 
-                var definition = BtTreeJson.Load(File.ReadAllText(sourcePath));
-                var document = BtTreeExporter.Import(definition);
+                BtAuthoringSourceDocument document;
+                try
+                {
+                    var sourceJson = File.ReadAllText(sourcePath);
+                    document = manifest.SourceKind switch
+                    {
+                        BtAuthoringSourceKind.AuthoringDocument => BtAuthoringJson.Load(sourceJson),
+                        BtAuthoringSourceKind.RuntimeDefinition => BtTreeExporter.Import(BtTreeJson.Load(sourceJson)),
+                        _ => throw new InvalidOperationException($"不支持的行为树源类型: {manifest.SourceKind}."),
+                    };
+                }
+                catch (Exception ex)
+                {
+                    foreach (var target in manifest.ExportTargets)
+                    {
+                        report.Add(new BtExportReportEntry(treeId, target, BtExportStatus.Error,
+                            "源文件加载失败: " + ex.Message));
+                    }
+                    continue;
+                }
+
+                if (!string.Equals(document.Tree.TreeId, treeId, StringComparison.Ordinal))
+                {
+                    foreach (var target in manifest.ExportTargets)
+                    {
+                        report.Add(new BtExportReportEntry(treeId, target, BtExportStatus.Error,
+                            $"清单 TreeId '{treeId}' 与源文档 TreeId '{document.Tree.TreeId}' 不一致。"));
+                    }
+                    continue;
+                }
+
                 report.AddRange(ExportAll(
                     new[] { new KeyValuePair<string, BtAuthoringSourceDocument>(treeId, document) },
                     manifest.ExportTargets,

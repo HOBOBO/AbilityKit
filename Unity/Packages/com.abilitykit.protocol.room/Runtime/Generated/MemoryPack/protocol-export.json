@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generatorVersion": "1.0",
   "projectId": "abilitykit.shared",
   "catalogIds": [
@@ -48,6 +48,14 @@
   ],
   "generatedTypes": [
     "AbilityKit.Protocol.Room.WireRoomGuestLoginReq"
+  ],
+  "generatedGroups": [
+    {
+      "groupId": "room.auth",
+      "generatedTypes": [
+        "AbilityKit.Protocol.Room.WireRoomGuestLoginReq"
+      ]
+    }
   ],
   "missingWireSchemaTypes": [
     "AbilityKit.Protocol.Room.WireAckReliableBattleEventsReq",

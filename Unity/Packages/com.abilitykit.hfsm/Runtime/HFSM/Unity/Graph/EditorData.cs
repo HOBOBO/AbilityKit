@@ -313,22 +313,43 @@ namespace UnityHFSM.Graph
 
         public HfsmGraphEditorData Clone()
         {
+            return Clone(new Dictionary<string, string>());
+        }
+
+        internal HfsmGraphEditorData Clone(IReadOnlyDictionary<string, string> nodeIdMap)
+        {
             var clone = new HfsmGraphEditorData
             {
                 _zoom = _zoom,
                 _pan = _pan,
-                _expandedStateMachineIds = new List<string>(_expandedStateMachineIds)
+                _expandedStateMachineIds = RemapIds(_expandedStateMachineIds, nodeIdMap)
             };
 
             clone._nodeDataCache = new Dictionary<string, HfsmNodeEditorData>();
             foreach (var data in _nodeEditorData)
             {
-                var clonedData = data.Clone(Guid.NewGuid().ToString("N"));
+                var nodeId = nodeIdMap.TryGetValue(data.NodeId, out var remappedId)
+                    ? remappedId
+                    : data.NodeId;
+                var clonedData = data.Clone(nodeId);
                 clone._nodeEditorData.Add(clonedData);
                 clone._nodeDataCache[clonedData.NodeId] = clonedData;
             }
 
             return clone;
+        }
+
+        private static List<string> RemapIds(
+            List<string> ids,
+            IReadOnlyDictionary<string, string> nodeIdMap)
+        {
+            var result = new List<string>(ids.Count);
+            foreach (var id in ids)
+            {
+                result.Add(nodeIdMap.TryGetValue(id, out var remappedId) ? remappedId : id);
+            }
+
+            return result;
         }
     }
 }

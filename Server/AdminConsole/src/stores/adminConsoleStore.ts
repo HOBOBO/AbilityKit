@@ -1,7 +1,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import { adminStorage } from '../services/storage';
 import { AdminDomainApis } from '../services/domainApi';
-import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree, toText as acceptanceToText } from '../services/skillAcceptanceAnalysis';
+import { buildAcceptanceAssertionGroups, buildAcceptanceTraceTree, filterAcceptanceCases, flattenAcceptanceTraceTree } from '../services/skillAcceptanceAnalysis';
 import { buildAnalysisArtifactTraceRecords, buildSkillAnalysisEntityRelations, buildSkillAnalysisFilterOptions, buildSkillAnalysisTree, buildTimelineFromAnalysisNodes, buildTimelineFromRuntimeEvents, createDefaultSkillAnalysisFilter, filterSkillAnalysisNodes, flattenSkillAnalysisTree } from '../services/skillAnalysisProjection';
 import type { AddRoomRobotsResponse, AdminApiCallLogItem, AdminClusterDiagnostics, AdminDashboardResponse, AdminServerOperationResponse, AdminServerStatus, AdminSkillAcceptanceArtifactDirectoryList, AdminSkillAcceptanceBatch, AdminSkillAcceptanceCase, AdminSkillAcceptanceDeleteResponse, AdminSkillAcceptanceRunPlan, AdminSkillAcceptanceRunRequest, AdminSkillAcceptanceRunResponse, AdminSkillAcceptanceTemplateList, AdminSkillAnalysisArtifact, AdminSkillAnalysisArtifactDirectoryList, AdminSkillAnalysisArtifactList, AdminSkillAnalysisModel, AdminSkillDiagnosticsEvents, AdminSkillDiagnosticsSummary, AdminStartRoomBattleResponse, ApiResult, CreateRoomResponse, GameplayDescriptor, RestoreRoomResponse, RoomRuntimeState, RoomSnapshot, RoomSummary, SessionResponse, ShooterSandboxState, ShooterWorldDiagnostics, SkillAnalysisFlatNodeProjection } from '../types';
 
@@ -359,53 +359,51 @@ function toText(value: unknown): string {
 }
 
 function buildRuntimeAnalysisRecords(events: AdminSkillDiagnosticsEvents | null): Record<string, unknown>[] {
-  const runtimeEvents = events?.events || [];
-  const lastNodeByInstance = new Map<number, number>();
-  const rootNodeByInstance = new Map<number, number>();
+  if (!events?.isDataAvailable) return [];
 
-  return runtimeEvents.map((event, index) => {
-    const instanceId = Number(event.skillInstanceId || 0);
-    const nodeId = instanceId > 0 ? instanceId * 1000 + index + 1 : index + 1;
-    const rootId = rootNodeByInstance.get(instanceId) || nodeId;
-    if (!rootNodeByInstance.has(instanceId)) rootNodeByInstance.set(instanceId, nodeId);
+  return (events.events || [])
+    .filter(event => event.nodeId > 0 && event.rootId > 0)
+    .map(event => {
+      const severity = event.severity || 'info';
+      const label = `${event.stage || 'runtime'} · ${event.eventType}`;
 
-    const parentId = lastNodeByInstance.get(instanceId) || 0;
-    lastNodeByInstance.set(instanceId, nodeId);
-
-    const severity = event.severity || (acceptanceToText(event.eventType).toLowerCase().includes('fail') ? 'error' : 'info');
-    const label = `${event.stage || 'runtime'} · ${event.eventType}`;
-
-    return {
-      nodeId,
-      rootId,
-      parentId,
-      kind: event.eventType || 'runtime-event',
-      eventType: event.eventType,
-      stage: event.stage || 'runtime-event',
-      status: severity,
-      severity,
-      frame: Number(event.frame || 0),
-      timeMs: index * 33,
-      actorId: event.actorId,
-      sourceActorId: event.actorId,
-      targetActorId: event.targetActorId,
-      skillId: event.skillId,
-      sourceContextId: String(nodeId),
-      rootContextId: String(rootId),
-      ownerContextId: parentId > 0 ? String(parentId) : String(rootId),
-      entityKind: 'runtime-event',
-      runtimeKind: event.eventType || 'runtime-event',
-      entityId: instanceId || nodeId,
-      displayName: label,
-      name: label,
-      debugName: label,
-      message: event.message || label,
-      result: event.value ?? event.message ?? label,
-      eventId: event.skillInstanceId,
-      instanceId: event.skillInstanceId,
-      value: event.value
-    };
-  });
+      return {
+        schemaVersion: events.schemaVersion,
+        battleId: event.battleId,
+        worldId: event.worldId,
+        sessionId: event.sessionId,
+        generation: event.generation,
+        sequence: event.sequence,
+        monotonicTimestamp: event.monotonicTimestamp,
+        nodeId: event.nodeId,
+        rootId: event.rootId,
+        parentId: event.parentId,
+        kind: event.eventType || 'runtime-event',
+        eventType: event.eventType,
+        stage: event.stage || 'runtime-event',
+        status: severity,
+        severity,
+        frame: Number(event.frame || 0),
+        actorId: event.actorId,
+        sourceActorId: event.actorId,
+        targetActorId: event.targetActorId,
+        skillId: event.skillId,
+        sourceContextId: String(event.sourceContextId),
+        rootContextId: String(event.rootContextId),
+        ownerContextId: String(event.ownerContextId),
+        entityKind: 'runtime-event',
+        runtimeKind: event.eventType || 'runtime-event',
+        entityId: event.skillInstanceId || event.nodeId,
+        displayName: label,
+        name: label,
+        debugName: label,
+        message: event.message || label,
+        result: event.value ?? event.message ?? label,
+        eventId: event.sequence,
+        instanceId: event.skillInstanceId,
+        value: event.value
+      };
+    });
 }
 
 function getAnalysisNodeKey(node: SkillAnalysisFlatNodeProjection): string {

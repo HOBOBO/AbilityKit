@@ -1,0 +1,16 @@
+{
+  "name": "AbilityKit.Demo.Moba.Environment",
+  "rootNamespace": "AbilityKit.Demo.Moba.EnvironmentModel",
+  "references": [
+    "AbilityKit.Environment"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

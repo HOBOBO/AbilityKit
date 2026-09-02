@@ -52,8 +52,10 @@ public sealed class ProtocolWorkspaceMessage
 public sealed class ProtocolWorkspaceWireSchema
 {
     public string SourcePath { get; set; } = string.Empty;
-    public int SchemaVersion { get; set; } = ProtocolCatalogConstants.SchemaVersion;
+    public int SchemaVersion { get; set; } = WireSchemaFormatVersions.Current;
+    public string SourceType { get; set; } = string.Empty;
     public string ProjectId { get; set; } = string.Empty;
+    public string GroupId { get; set; } = string.Empty;
     public string Namespace { get; set; } = string.Empty;
     public string Type { get; set; } = string.Empty;
     public string MemoryPackMode { get; set; } = "version-tolerant";
@@ -70,6 +72,7 @@ public sealed class ProtocolWorkspaceWireField
     public string Name { get; set; } = string.Empty;
     public string ScalarType { get; set; } = string.Empty;
     public string TypeName { get; set; } = string.Empty;
+    public bool External { get; set; }
     public bool Array { get; set; }
     public bool Optional { get; set; }
 }
@@ -138,6 +141,31 @@ public static class ProtocolWorkspaceEmitter
         JsonSerializer.Deserialize<ProtocolWorkspaceWireSchema>(json, JsonOptions)
         ?? throw new InvalidDataException("Wire schema editor document is empty.");
 
+    public static WireSchemaIr ToWireSchemaIr(ProtocolWorkspaceWireSchema schema)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        return new WireSchemaIr(
+            WireSchemaFormatVersions.Current,
+            schema.Type?.Trim() ?? string.Empty,
+            (schema.Fields ?? Array.Empty<ProtocolWorkspaceWireField>()).Select(field => new WireFieldIr(
+                field.Id,
+                field.Name?.Trim() ?? string.Empty,
+                string.IsNullOrWhiteSpace(field.TypeName)
+                    ? field.ScalarType?.Trim().ToLowerInvariant() ?? string.Empty
+                    : string.Empty,
+                field.Array,
+                field.Optional,
+                string.IsNullOrWhiteSpace(field.TypeName) ? null : field.TypeName.Trim(),
+                field.External)).ToArray(),
+            schema.ReservedIds ?? Array.Empty<uint>(),
+            schema.ProjectId?.Trim(),
+            schema.Namespace?.Trim(),
+            ParseMemoryPackMode(schema.MemoryPackMode),
+            ParseDeclaration(schema.Declaration),
+            ParseMemberStyle(schema.MemberStyle),
+            schema.GroupId?.Trim());
+    }
+
     private static ProtocolWorkspaceCatalog ToCatalog(ProtocolCatalogIr value, string source) => new()
     {
         SourcePath = NormalizePath(source),
@@ -169,7 +197,10 @@ public static class ProtocolWorkspaceEmitter
     private static ProtocolWorkspaceWireSchema ToWireSchema(WireSchemaIr value, string source) => new()
     {
         SourcePath = NormalizePath(source),
+        SchemaVersion = value.SchemaVersion,
+        SourceType = value.Type,
         ProjectId = value.ProjectId,
+        GroupId = value.GroupId,
         Namespace = value.TargetNamespace,
         Type = value.Type,
         MemoryPackMode = value.MemoryPackMode == WireMemoryPackMode.Sequential
@@ -183,11 +214,36 @@ public static class ProtocolWorkspaceEmitter
             Name = field.Name,
             ScalarType = field.ScalarType,
             TypeName = field.TypeName,
+            External = field.IsExternalReference,
             Array = field.IsArray,
             Optional = field.IsOptional
         }).ToArray(),
         ReservedIds = value.ReservedIds.ToArray()
     };
+
+    private static WireMemoryPackMode ParseMemoryPackMode(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            null or "" or "version-tolerant" => WireMemoryPackMode.VersionTolerant,
+            "sequential" => WireMemoryPackMode.Sequential,
+            _ => throw new InvalidDataException($"Unsupported memoryPackMode '{value}'.")
+        };
+
+    private static WireDeclarationKind ParseDeclaration(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            null or "" or "class" => WireDeclarationKind.Class,
+            "struct" => WireDeclarationKind.Struct,
+            _ => throw new InvalidDataException($"Unsupported declaration '{value}'.")
+        };
+
+    private static WireMemberStyle ParseMemberStyle(string? value) =>
+        value?.Trim().ToLowerInvariant() switch
+        {
+            null or "" or "property" => WireMemberStyle.Property,
+            "field" => WireMemberStyle.Field,
+            _ => throw new InvalidDataException($"Unsupported memberStyle '{value}'.")
+        };
 
     private static string FormatDirection(IrDirection value) => value switch
     {

@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.Json.Nodes;
+using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Gateway.HttpApi;
 using Xunit;
@@ -288,8 +289,25 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("AdminSkillAnalysisArtifactHttpResponse", models);
         Assert.Contains("internal static class GatewaySkillDiagnostics", diagnostics);
         Assert.Contains("RuntimeContextOnly", diagnostics);
-        Assert.DoesNotContain("TraceNotConnected", diagnostics);
-        Assert.DoesNotContain("Skill trace sink is not connected", diagnostics);
+        Assert.Contains("abilitykit-battle-diagnostics.v1", diagnostics);
+        Assert.Contains("RuntimeEventsUnavailable", diagnostics);
+        Assert.Contains("IsDataAvailable", models);
+        Assert.Contains("UnavailableReason", models);
+        Assert.Contains("MonotonicTimestamp", models);
+        Assert.Contains("RootContextId", models);
+        Assert.Contains("OwnerContextId", models);
+        Assert.Contains("MapEvent", diagnostics);
+        Assert.Contains("MapResult", diagnostics);
+        Assert.Contains("schemaVersion", types);
+        Assert.Contains("isDataAvailable", types);
+        Assert.Contains("monotonicTimestamp", types);
+        Assert.Contains("if (!events?.isDataAvailable) return [];", store);
+        Assert.Contains("event.nodeId", store);
+        Assert.Contains("event.rootId", store);
+        Assert.Contains("event.parentId", store);
+        Assert.DoesNotContain("index * 33", store);
+        Assert.DoesNotContain("lastNodeByInstance", store);
+        Assert.DoesNotContain("rootNodeByInstance", store);
         Assert.Contains("GetCurrentFrameAsync", diagnostics);
         Assert.Contains("GatewaySkillAnalysisModelProvider.GetModel", diagnostics);
         Assert.Contains("internal static class GatewaySkillAnalysisModelProvider", modelProvider);
@@ -351,6 +369,222 @@ public sealed class GatewayAdminConsoleTests
         Assert.Contains("artifactAnalysisEntityRelations", store);
         Assert.Contains("离线技能分析文件", panel);
         Assert.Contains("artifact-toolbar", panel);
+    }
+
+    [Fact]
+    public async Task Skill_events_should_report_unavailable_until_runtime_read_channel_is_connected()
+    {
+        var response = await GatewaySkillDiagnostics.GetEventsAsync(
+            "battle-1",
+            actorId: 7,
+            skillId: 11,
+            limit: 100);
+
+        Assert.Equal("Unavailable", response.DiagnosticsStatus);
+        Assert.Equal("abilitykit-battle-diagnostics.v1", response.SchemaVersion);
+        Assert.False(response.IsDataAvailable);
+        Assert.NotEmpty(response.UnavailableReason);
+        Assert.Empty(response.Events);
+        Assert.Contains(response.UnavailableReason, response.Warnings);
+        Assert.Equal("battle-1", response.Filters.BattleId);
+        Assert.Equal(7, response.Filters.ActorId);
+        Assert.Equal(11, response.Filters.SkillId);
+    }
+
+    [Fact]
+    public void Gateway_result_mapping_preserves_available_empty_state_and_paging_metadata()
+    {
+        var result = new BattleDiagnosticEventsResult(
+            "Ready",
+            "Available",
+            17,
+            true,
+            BattleDiagnosticContractConstants.SchemaVersion,
+            1000,
+            "session-1",
+            "world-1",
+            3,
+            null,
+            Array.Empty<BattleDiagnosticEventRecord>(),
+            4,
+            2);
+        var filters = new AdminSkillEventFilterHttpResponse("battle-1", 7, 11, 2);
+
+        var mapped = GatewaySkillDiagnostics.MapResult(result, "battle-1", filters);
+
+        Assert.Equal("Ready", mapped.DiagnosticsStatus);
+        Assert.Equal("Available", mapped.DataAvailability);
+        Assert.True(mapped.IsDataAvailable);
+        Assert.Null(mapped.UnavailableReason);
+        Assert.Empty(mapped.Events);
+        Assert.Empty(mapped.Warnings);
+        Assert.Equal(17, mapped.StoreRevision);
+        Assert.True(mapped.HasMore);
+        Assert.Equal(1000, mapped.MonotonicTimestampFrequency);
+        Assert.Equal(4, mapped.Offset);
+        Assert.Equal(2, mapped.Limit);
+    }
+
+    [Theory]
+    [InlineData("Unsupported", "Runtime diagnostics are not supported.")]
+    [InlineData("Disconnected", "Runtime diagnostic channel disconnected.")]
+    [InlineData("Error", "Runtime diagnostic query failed in the battle runtime.")]
+    public void Gateway_result_mapping_exposes_unavailable_runtime_states(
+        string availability,
+        string message)
+    {
+        var result = new BattleDiagnosticEventsResult(
+            "Unavailable",
+            availability,
+            0,
+            false,
+            BattleDiagnosticContractConstants.SchemaVersion,
+            1000,
+            "session-1",
+            "world-1",
+            3,
+            message,
+            Array.Empty<BattleDiagnosticEventRecord>(),
+            0,
+            50);
+        var filters = new AdminSkillEventFilterHttpResponse("battle-1", null, null, 50);
+
+        var mapped = GatewaySkillDiagnostics.MapResult(result, "battle-1", filters);
+
+        Assert.Equal("Unavailable", mapped.DiagnosticsStatus);
+        Assert.Equal(availability, mapped.DataAvailability);
+        Assert.False(mapped.IsDataAvailable);
+        Assert.Equal(message, mapped.UnavailableReason);
+        Assert.Contains(message, mapped.Warnings);
+        Assert.Empty(mapped.Events);
+        Assert.Equal(1000, mapped.MonotonicTimestampFrequency);
+        Assert.Equal(50, mapped.Limit);
+    }
+
+    [Fact]
+    public void Gateway_event_mapping_preserves_runtime_facts_and_unknown_correlations()
+    {
+        var result = new BattleDiagnosticEventsResult(
+            "Ready",
+            "Available",
+            17,
+            true,
+            BattleDiagnosticContractConstants.SchemaVersion,
+            1000,
+            "session-1",
+            "world-1",
+            3,
+            null,
+            Array.Empty<BattleDiagnosticEventRecord>(),
+            4,
+            2);
+        var item = new BattleDiagnosticEventRecord(
+            12,
+            88,
+            4500,
+            "SkillRuntimeEnded",
+            "Skill",
+            "Succeeded",
+            7,
+            0,
+            901,
+            42,
+            700,
+            701,
+            "completed",
+            2,
+            701,
+            700,
+            0,
+            0,
+            0);
+
+        var mapped = GatewaySkillDiagnostics.MapEvent(item, "battle-1", result);
+
+        Assert.Equal(12, mapped.Frame);
+        Assert.Equal(7, mapped.ActorId);
+        Assert.Equal(901, mapped.SkillId);
+        Assert.Equal(42, mapped.SkillInstanceId);
+        Assert.Equal("SkillRuntimeEnded", mapped.Stage);
+        Assert.Equal("SkillRuntimeEnded", mapped.EventType);
+        Assert.Null(mapped.TargetActorId);
+        Assert.Equal("battle-1", mapped.BattleId);
+        Assert.Equal("world-1", mapped.WorldId);
+        Assert.Equal("session-1", mapped.SessionId);
+        Assert.Equal(2, mapped.Generation);
+        Assert.Equal(88, mapped.Sequence);
+        Assert.Equal(4500, mapped.MonotonicTimestamp);
+        Assert.Equal(701, mapped.NodeId);
+        Assert.Equal(700, mapped.RootId);
+        Assert.Equal(0, mapped.ParentId);
+        Assert.Equal(0, mapped.SourceContextId);
+        Assert.Equal(0, mapped.OwnerContextId);
+    }
+
+    [Fact]
+    public void Admin_console_runtime_projection_should_not_invent_time_or_trace_edges()
+    {
+        var store = File.ReadAllText(GetAdminConsoleProjectPath("src", "stores", "adminConsoleStore.ts"));
+        var projection = File.ReadAllText(GetAdminConsoleProjectPath("src", "services", "skillAnalysisProjection.ts"));
+        var types = File.ReadAllText(GetAdminConsoleProjectPath("src", "types.ts"));
+
+        Assert.Contains("if (!events?.isDataAvailable) return [];", store);
+        Assert.Contains("event.nodeId", store);
+        Assert.Contains("event.rootId", store);
+        Assert.Contains("event.parentId", store);
+        Assert.DoesNotContain("index * 33", store);
+        Assert.DoesNotContain("lastNodeByInstance", store);
+        Assert.DoesNotContain("rootNodeByInstance", store);
+        Assert.Contains("runtime:${event.sessionId}:${event.generation}:${event.sequence}", projection);
+        Assert.Contains("monotonicTimestampFrequency", projection);
+        Assert.Contains("(event.monotonicTimestamp - origin) * 1000 / frequency", projection);
+        Assert.Contains("isDataAvailable: boolean", types);
+        Assert.Contains("unavailableReason?: string | null", types);
+        Assert.Contains("storeRevision?: number", types);
+        Assert.Contains("hasMore?: boolean", types);
+        Assert.Contains("offset?: number", types);
+        Assert.Contains("limit?: number", types);
+    }
+
+    [Fact]
+    public void Admin_console_runtime_event_type_should_include_server_correlation_fields()
+    {
+        var types = File.ReadAllText(GetAdminConsoleProjectPath("src", "types.ts"));
+
+        Assert.Contains("worldId: string", types);
+        Assert.Contains("sessionId: string", types);
+        Assert.Contains("generation: number", types);
+        Assert.Contains("sequence: number", types);
+        Assert.Contains("monotonicTimestamp: number", types);
+        Assert.Contains("nodeId: number", types);
+        Assert.Contains("rootId: number", types);
+        Assert.Contains("parentId: number", types);
+        Assert.Contains("sourceContextId: number", types);
+        Assert.Contains("rootContextId: number", types);
+        Assert.Contains("ownerContextId: number", types);
+    }
+
+    [Fact]
+    public void Gateway_runtime_diagnostics_projection_should_use_runtime_facts_without_guessing_edges()
+    {
+        var diagnostics = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewaySkillDiagnostics.cs"));
+        var models = File.ReadAllText(GetGatewaySourcePath("HttpApi", "GatewayHttpApiModels.cs"));
+
+        Assert.Contains("QueryDiagnosticEventsAsync", diagnostics);
+        Assert.Contains("result.StoreRevision", diagnostics);
+        Assert.Contains("result.HasMore", diagnostics);
+        Assert.Contains("result.MonotonicTimestampFrequency", diagnostics);
+        Assert.Contains("item.NodeId", diagnostics);
+        Assert.Contains("item.RootId", diagnostics);
+        Assert.Contains("item.ParentId", diagnostics);
+        Assert.Contains("item.SourceContextId", diagnostics);
+        Assert.Contains("item.RootContextId", diagnostics);
+        Assert.Contains("item.OwnerContextId", diagnostics);
+        Assert.Contains("StoreRevision", models);
+        Assert.Contains("HasMore", models);
+        Assert.Contains("MonotonicTimestampFrequency", models);
+        Assert.Contains("Offset", models);
+        Assert.Contains("Limit", models);
     }
 
     [Fact]

@@ -8,7 +8,7 @@ using AbilityKit.Demo.Moba.Services.Behavior.BTree;
 namespace AbilityKit.BehaviorTree.Cli
 {
     /// <summary>
-    /// 行为树 headless 导出 CLI：按项目清单把源 JSON 导出到全部目标，无需 Unity。
+    /// 行为树 headless 导出 CLI：按项目清单把授权源导出为纯运行时 IR 并扇出到全部目标，无需 Unity。
     /// 用法：dotnet run --project src/AbilityKit.BehaviorTree.Cli -- tools/bt-export/moba-bt-manifest.json
     /// 退出码 0=成功；1=存在错误/无目标。
     /// </summary>

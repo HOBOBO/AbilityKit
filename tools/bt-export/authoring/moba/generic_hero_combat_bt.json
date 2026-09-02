@@ -1,0 +1,276 @@
+{
+  "schema": "abilitykit-bt-authoring",
+  "version": "2.0",
+  "metadata": {
+    "author": "AbilityKit",
+    "description": "MOBA behavior tree authoring source."
+  },
+  "tree": {
+    "treeId": "generic_hero_combat_bt",
+    "formatVersion": 1,
+    "rootNodeId": "20000000-0000-4000-8000-000000000001",
+    "nodes": [
+      {
+        "id": "20000000-0000-4000-8000-000000000001",
+        "type": "builtin.sequence",
+        "properties": {
+          "abortType": {
+            "type": "Int64",
+            "value": 0
+          }
+        },
+        "childIds": [
+          "20000000-0000-4000-8000-000000000002",
+          "20000000-0000-4000-8000-000000000003",
+          "20000000-0000-4000-8000-000000000004",
+          "20000000-0000-4000-8000-000000000008"
+        ]
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000002",
+        "type": "moba.selectNearestEnemy",
+        "properties": {
+          "searchRadius": {
+            "type": "Fixed64",
+            "value": 4294967296000
+          }
+        },
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000003",
+        "type": "moba.selectReadySkill",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000004",
+        "type": "builtin.selector",
+        "properties": {
+          "abortType": {
+            "type": "Int64",
+            "value": 0
+          }
+        },
+        "childIds": [
+          "20000000-0000-4000-8000-000000000005",
+          "20000000-0000-4000-8000-000000000006",
+          "20000000-0000-4000-8000-000000000007"
+        ]
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000005",
+        "type": "builtin.sequence",
+        "properties": {
+          "abortType": {
+            "type": "Int64",
+            "value": 0
+          }
+        },
+        "childIds": [
+          "20000000-0000-4000-8000-000000000009",
+          "20000000-0000-4000-8000-000000000010",
+          "20000000-0000-4000-8000-000000000011",
+          "20000000-0000-4000-8000-000000000012",
+          "20000000-0000-4000-8000-000000000013",
+          "20000000-0000-4000-8000-000000000014"
+        ]
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000006",
+        "type": "builtin.sequence",
+        "properties": {
+          "abortType": {
+            "type": "Int64",
+            "value": 0
+          }
+        },
+        "childIds": [
+          "20000000-0000-4000-8000-000000000015",
+          "20000000-0000-4000-8000-000000000016",
+          "20000000-0000-4000-8000-000000000017",
+          "20000000-0000-4000-8000-000000000018"
+        ]
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000007",
+        "type": "moba.holdPosition",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000008",
+        "type": "moba.arbitrateCombatIntent",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000009",
+        "type": "moba.hasEnemy",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000010",
+        "type": "moba.hasSelectedSkill",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000011",
+        "type": "moba.canCast",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000012",
+        "type": "moba.selectedSkillInRange",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000013",
+        "type": "moba.resolveTargetAim",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000014",
+        "type": "moba.castSelectedSkill",
+        "properties": {
+          "priority": {
+            "type": "Int64",
+            "value": 100
+          }
+        },
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000015",
+        "type": "moba.hasEnemy",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000016",
+        "type": "moba.canMove",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000017",
+        "type": "moba.shouldApproachEnemy",
+        "properties": {},
+        "childIds": []
+      },
+      {
+        "id": "20000000-0000-4000-8000-000000000018",
+        "type": "moba.moveToEnemy",
+        "properties": {
+          "priority": {
+            "type": "Int64",
+            "value": 50
+          }
+        },
+        "childIds": []
+      }
+    ],
+    "blackboard": {
+      "keys": []
+    }
+  },
+  "nodeMetadata": [
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000001",
+      "displayName": "RefreshPlanArbitrate",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000002",
+      "displayName": "QueryNearestEnemy",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000003",
+      "displayName": "SelectReadySkillCandidate",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000004",
+      "displayName": "BuildCombatIntent",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000005",
+      "displayName": "BuildCastIntent",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000006",
+      "displayName": "BuildMoveIntent",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000007",
+      "displayName": "RequestHold",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000008",
+      "displayName": "ArbitrateIntent",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000009",
+      "displayName": "HasCastTarget",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000010",
+      "displayName": "HasSkillCandidate",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000011",
+      "displayName": "CanCast",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000012",
+      "displayName": "SkillInRange",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000013",
+      "displayName": "ResolveTargetAim",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000014",
+      "displayName": "RequestCast",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000015",
+      "displayName": "HasMoveTarget",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000016",
+      "displayName": "CanMove",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000017",
+      "displayName": "ShouldApproach",
+      "comment": ""
+    },
+    {
+      "nodeId": "20000000-0000-4000-8000-000000000018",
+      "displayName": "RequestMove",
+      "comment": ""
+    }
+  ],
+  "layout": [],
+  "groups": []
+}

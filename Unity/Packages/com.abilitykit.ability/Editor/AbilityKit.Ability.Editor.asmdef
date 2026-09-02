@@ -8,7 +8,8 @@
         "AbilityKit.Pipeline",
         "AbilityKit.Pipeline.Editor",
         "AbilityKit.Triggering",
-        "AbilityKit.World.Snapshot"
+        "AbilityKit.World.Snapshot",
+        "AbilityKit.Editor.Platform"
     ],
     "includePlatforms": [
         "Editor"

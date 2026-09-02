@@ -51,6 +51,7 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
 
             Assert.That(loaded.Layout, Has.Count.EqualTo(document.Layout.Count));
             Assert.That(loaded.Groups, Has.Count.EqualTo(document.Groups.Count));
+            Assert.That(loaded.Notes, Has.Count.EqualTo(document.Notes.Count));
             Assert.That(
                 loaded.Tree.ComputeDefinitionHash(),
                 Is.EqualTo(document.Tree.ComputeDefinitionHash()));

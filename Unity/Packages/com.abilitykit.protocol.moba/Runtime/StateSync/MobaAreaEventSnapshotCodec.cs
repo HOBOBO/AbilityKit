@@ -10,18 +10,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Expire = 2,
     }
 
-    [MemoryPackable]
     public partial struct MobaAreaEventSnapshotEntry
     {
-        [MemoryPackOrder(0)] public int Kind;
-        [MemoryPackOrder(1)] public int AreaId;
-        [MemoryPackOrder(2)] public int OwnerActorId;
-        [MemoryPackOrder(3)] public int TemplateId;
-        [MemoryPackOrder(4)] public float X;
-        [MemoryPackOrder(5)] public float Y;
-        [MemoryPackOrder(6)] public float Z;
-        [MemoryPackOrder(7)] public float Radius;
-
         public MobaAreaEventSnapshotEntry(int kind, int areaId, int ownerActorId, int templateId, float x, float y, float z, float radius)
         {
             Kind = kind;
@@ -35,11 +25,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         }
     }
 
-    [MemoryPackable]
     public partial struct MobaAreaEventSnapshotPayload
     {
-        [MemoryPackOrder(0)] public MobaAreaEventSnapshotEntry[] Entries;
-
         [MemoryPackConstructor]
         public MobaAreaEventSnapshotPayload(MobaAreaEventSnapshotEntry[] entries)
         {

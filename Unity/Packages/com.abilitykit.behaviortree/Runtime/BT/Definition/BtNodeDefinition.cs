@@ -10,8 +10,6 @@ namespace AbilityKit.BehaviorTree
     {
         public string Id { get; set; } = "";
         public string Type { get; set; } = "";
-        public string Name { get; set; } = "";
-        public string Comment { get; set; } = "";
         public BtPropertyBag Properties { get; set; } = new();
         public List<string> ChildIds { get; set; } = new();
     }

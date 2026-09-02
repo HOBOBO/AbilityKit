@@ -10,17 +10,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Projectile = 2,
     }
 
-    [MemoryPackable]
     public partial struct MobaActorSpawnSnapshotEntry
     {
-        [MemoryPackOrder(0)] public int NetId;
-        [MemoryPackOrder(1)] public int Kind;
-        [MemoryPackOrder(2)] public int Code;
-        [MemoryPackOrder(3)] public int OwnerNetId;
-        [MemoryPackOrder(4)] public float X;
-        [MemoryPackOrder(5)] public float Y;
-        [MemoryPackOrder(6)] public float Z;
-
         public MobaActorSpawnSnapshotEntry(int netId, int kind, int code, int ownerNetId, float x, float y, float z)
         {
             NetId = netId;
@@ -33,11 +24,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         }
     }
 
-    [MemoryPackable]
     public partial struct MobaActorSpawnSnapshotPayload
     {
-        [MemoryPackOrder(0)] public MobaActorSpawnSnapshotEntry[] Entries;
-
         [MemoryPackConstructor]
         public MobaActorSpawnSnapshotPayload(MobaActorSpawnSnapshotEntry[] entries)
         {
@@ -70,13 +58,9 @@ namespace AbilityKit.Protocol.Moba.StateSync
         Enemy = 2,
     }
 
-    [MemoryPackable]
     public partial struct MobaDebugSpawnUnitPayload
     {
         public const byte CurrentVersion = 1;
-
-        [MemoryPackOrder(0)] public byte Version;
-        [MemoryPackOrder(1)] public MobaDebugSpawnUnitRelation Relation;
 
         public MobaDebugSpawnUnitPayload(byte version, MobaDebugSpawnUnitRelation relation)
         {
@@ -90,24 +74,16 @@ namespace AbilityKit.Protocol.Moba.StateSync
         public static byte[] Serialize(MobaDebugSpawnUnitRelation relation)
         {
             if (!IsSupportedRelation(relation))
-            {
                 throw new ArgumentOutOfRangeException(nameof(relation), relation, "debug spawn relation is invalid");
-            }
 
-            var payload = new MobaDebugSpawnUnitPayload(
-                MobaDebugSpawnUnitPayload.CurrentVersion,
-                relation);
+            var payload = new MobaDebugSpawnUnitPayload(MobaDebugSpawnUnitPayload.CurrentVersion, relation);
             return MemoryPackSerializer.Serialize(payload);
         }
 
-        public static bool TryDeserialize(
-            byte[] payload,
-            out MobaDebugSpawnUnitRelation relation,
-            out string error)
+        public static bool TryDeserialize(byte[] payload, out MobaDebugSpawnUnitRelation relation, out string error)
         {
             relation = default;
             error = null;
-
             if (payload == null || payload.Length == 0)
             {
                 error = "payload is null or empty";
@@ -139,20 +115,13 @@ namespace AbilityKit.Protocol.Moba.StateSync
             }
         }
 
-        private static bool IsSupportedRelation(MobaDebugSpawnUnitRelation relation)
-        {
-            return relation == MobaDebugSpawnUnitRelation.Ally ||
-                   relation == MobaDebugSpawnUnitRelation.Enemy;
-        }
+        private static bool IsSupportedRelation(MobaDebugSpawnUnitRelation relation) =>
+            relation == MobaDebugSpawnUnitRelation.Ally || relation == MobaDebugSpawnUnitRelation.Enemy;
     }
 
-    [MemoryPackable]
     public partial struct MobaDebugReplaceHeroPayload
     {
         public const byte CurrentVersion = 1;
-
-        [MemoryPackOrder(0)] public byte Version;
-        [MemoryPackOrder(1)] public int HeroId;
 
         public MobaDebugReplaceHeroPayload(byte version, int heroId)
         {
@@ -166,13 +135,9 @@ namespace AbilityKit.Protocol.Moba.StateSync
         public static byte[] Serialize(int heroId)
         {
             if (heroId <= 0)
-            {
                 throw new ArgumentOutOfRangeException(nameof(heroId), heroId, "hero id must be positive");
-            }
 
-            var payload = new MobaDebugReplaceHeroPayload(
-                MobaDebugReplaceHeroPayload.CurrentVersion,
-                heroId);
+            var payload = new MobaDebugReplaceHeroPayload(MobaDebugReplaceHeroPayload.CurrentVersion, heroId);
             return MemoryPackSerializer.Serialize(payload);
         }
 
@@ -212,19 +177,8 @@ namespace AbilityKit.Protocol.Moba.StateSync
         }
     }
 
-    [MemoryPackable]
     public partial struct MobaPlayerHeroChangedSnapshotEntry
     {
-        [MemoryPackOrder(0)] public string PlayerId;
-        [MemoryPackOrder(1)] public int PreviousActorId;
-        [MemoryPackOrder(2)] public int ActorId;
-        [MemoryPackOrder(3)] public int TeamId;
-        [MemoryPackOrder(4)] public int HeroId;
-        [MemoryPackOrder(5)] public int AttributeTemplateId;
-        [MemoryPackOrder(6)] public int Level;
-        [MemoryPackOrder(7)] public int BasicAttackSkillId;
-        [MemoryPackOrder(8)] public int[] SkillIds;
-
         public MobaPlayerHeroChangedSnapshotEntry(
             string playerId,
             int previousActorId,
@@ -248,12 +202,6 @@ namespace AbilityKit.Protocol.Moba.StateSync
         }
     }
 
-    [MemoryPackable]
-    public partial struct MobaPlayerHeroChangedSnapshotPayload
-    {
-        [MemoryPackOrder(0)] public MobaPlayerHeroChangedSnapshotEntry[] Entries;
-    }
-
     public static class MobaPlayerHeroChangedSnapshotCodec
     {
         public static byte[] Serialize(MobaPlayerHeroChangedSnapshotEntry[] entries)
@@ -268,9 +216,7 @@ namespace AbilityKit.Protocol.Moba.StateSync
         public static MobaPlayerHeroChangedSnapshotEntry[] Deserialize(byte[] payload)
         {
             if (payload == null || payload.Length == 0)
-            {
                 return Array.Empty<MobaPlayerHeroChangedSnapshotEntry>();
-            }
 
             var decoded = MemoryPackSerializer.Deserialize<MobaPlayerHeroChangedSnapshotPayload>(payload);
             return decoded.Entries ?? Array.Empty<MobaPlayerHeroChangedSnapshotEntry>();

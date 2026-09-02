@@ -2,6 +2,7 @@ using System.IO;
 using System.Linq;
 using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Game.Test.UnitTest;
+using AbilityKit.Scenario;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Acceptance.Tests;
@@ -33,7 +34,7 @@ public class AcceptanceVerifierTests
     public void Happy_path_trace_is_accepted()
     {
         var (expectation, _) = LoadScenario();
-        var summary = AcceptanceVerifier.Verify(expectation, HappyPathTrace(effectRoot: 100));
+        var summary = AcceptanceVerifier.VerifyWithObservations(expectation, HappyPathTrace(effectRoot: 100), HappyPathObservations());
         Assert.True(summary.result.passed);
         Assert.True(summary.result.allExpectedActionsExecuted);
         Assert.True(summary.coverage.allRequiredTraceNodesMatched);
@@ -46,7 +47,7 @@ public class AcceptanceVerifierTests
         var (expectation, _) = LoadScenario();
         // 回归：漏掉 DamageApply
         var trace = HappyPathTrace(100).Where(r => r.kind != "DamageApply").ToArray();
-        var summary = AcceptanceVerifier.Verify(expectation, trace);
+        var summary = AcceptanceVerifier.VerifyWithObservations(expectation, trace, HappyPathObservations());
 
         Assert.False(summary.result.passed);
         Assert.Contains("DamageApply", summary.coverage.missingTraceNodes);
@@ -61,7 +62,7 @@ public class AcceptanceVerifierTests
         {
             new MobaAcceptanceTraceExpectation { kind = "DamageApply", configId = 10010101 },
         };
-        var summary = AcceptanceVerifier.Verify(expectation, HappyPathTrace(100));
+        var summary = AcceptanceVerifier.VerifyWithObservations(expectation, HappyPathTrace(100), HappyPathObservations());
 
         Assert.False(summary.result.passed);
         Assert.False(summary.coverage.allForbiddenTraceNodesAbsent);
@@ -71,7 +72,7 @@ public class AcceptanceVerifierTests
     public void Summary_round_trips_through_System_Text_Json()
     {
         var (expectation, _) = LoadScenario();
-        var summary = AcceptanceVerifier.Verify(expectation, HappyPathTrace(100));
+        var summary = AcceptanceVerifier.VerifyWithObservations(expectation, HappyPathTrace(100), HappyPathObservations());
         var json = AcceptanceJsonCodec.SerializeSummary(summary);
         var back = AcceptanceJsonCodec.ParseSummary(json); // 往返反序列化
 
@@ -91,9 +92,121 @@ public class AcceptanceVerifierTests
         var (expectation, _) = LoadScenario();
         // mustContain 里 DamageApply 10010101 maxCount=1；放 2 条应判失败
         var trace = HappyPathTrace(100).Concat(HappyPathTrace(100).Where(r => r.kind == "DamageApply")).ToArray();
-        var summary = AcceptanceVerifier.Verify(expectation, trace);
+        var summary = AcceptanceVerifier.VerifyWithObservations(expectation, trace, HappyPathObservations());
         Assert.False(summary.result.passed);
         Assert.Contains("DamageApply", summary.coverage.missingTraceNodes);
+    }
+
+    [Fact]
+    public void State_observation_is_part_of_verdict()
+    {
+        var (expectation, _) = LoadScenario();
+        var observations = new AcceptanceObservations
+        {
+            States = new[] { new AcceptanceObservation("caster", null, null, "hasBuff", false) },
+        };
+        var summary = AcceptanceVerifier.VerifyWithObservations(expectation, HappyPathTrace(100), observations);
+
+        Assert.False(summary.result.passed);
+        Assert.False(summary.coverage.allStateExpectationsSatisfied);
+        Assert.Contains("caster.hasBuff", summary.coverage.missingStates);
+    }
+
+    [Fact]
+    public void Context_observation_is_part_of_verdict()
+    {
+        var (expectation, _) = LoadScenario();
+        expectation.contextExpectations = new[]
+        {
+            new MobaAcceptanceContextExpectation
+            {
+                alias = "target", kind = "collision", property = "layer",
+                comparator = "eq", expectedValue = "enemy"
+            }
+        };
+        var summary = AcceptanceVerifier.VerifyWithObservations(expectation, HappyPathTrace(100), HappyPathObservations());
+
+        Assert.False(summary.result.passed);
+        Assert.False(summary.coverage.allContextExpectationsSatisfied);
+        Assert.Contains("target.layer", summary.coverage.missingContexts);
+    }
+
+    [Fact]
+    public void Moba_expectation_maps_to_valid_neutral_scenario_profile()
+    {
+        var (expectation, _) = LoadScenario();
+        var scenario = TestScenarioAdapter.FromMoba(expectation);
+
+        Assert.Equal(expectation.caseId, scenario.CaseId);
+        Assert.Equal("skill_10010101_scenario_world", scenario.WorldProfileId);
+        Assert.Equal(2, scenario.Actors.Count);
+        Assert.Empty(TestScenarioValidator.Validate(scenario));
+    }
+
+    [Fact]
+    public void Invalid_profile_is_rejected_before_carrier_start()
+    {
+        var scenario = new TestScenario
+        {
+            CaseId = "invalid",
+            WorldProfileId = "arena",
+            TickRate = 0,
+            Actors = new[]
+            {
+                new TestActor { Alias = "unit" },
+                new TestActor { Alias = "UNIT" },
+            },
+        };
+
+        var errors = TestScenarioValidator.Validate(scenario);
+        Assert.Contains(errors, x => x.Contains("tickRate"));
+        Assert.Contains(errors, x => x.Contains("duplicate actor alias"));
+    }
+
+    [Fact]
+    public void Neutral_scenario_json_round_trips_and_validates()
+    {
+        var scenario = new TestScenario
+        {
+            CaseId = "codec-roundtrip",
+            WorldProfileId = "arena-with-walls",
+            WorldParameters = new Dictionary<string, string> { ["collisionProfile"] = "moba.default" },
+            Actors = new[]
+            {
+                new TestActor
+                {
+                    Alias = "caster", Archetype = "hero", BehaviorProfileId = "bt_assassin_combo",
+                    CollisionProfileId = "hero", Parameters = new Dictionary<string, string> { ["team"] = "1" }
+                }
+            }
+        };
+
+        var back = TestScenarioCodec.Parse(TestScenarioCodec.Serialize(scenario));
+        Assert.Equal("arena-with-walls", back.WorldProfileId);
+        Assert.Equal("bt_assassin_combo", back.Actors.Single().BehaviorProfileId);
+        Assert.Equal("moba.default", back.WorldParameters["collisionProfile"]);
+    }
+
+    [Fact]
+    public void Profile_catalog_validates_world_collision_and_behavior_references()
+    {
+        var catalog = new ScenarioProfileCatalog()
+            .Add(new CollisionProfile("arena", "aabb", "world", "unit", new Dictionary<string, string>()))
+            .Add(new WorldProfile("arena-world", "arena", "arena", new Dictionary<string, string>()))
+            .Add(new BehaviorProfile("bt_assassin", BehaviorProfileKind.BehaviorTree, "assassin_combo", 100,
+                new Dictionary<string, string> { ["targetSelector"] = "nearest_enemy" },
+                new Dictionary<string, string>()));
+        var scenario = new TestScenario
+        {
+            CaseId = "profile-catalog",
+            WorldProfileId = "arena-world",
+            Actors = new[]
+            {
+                new TestActor { Alias = "caster", BehaviorProfileId = "bt_assassin", CollisionProfileId = "arena" },
+            },
+        };
+
+        Assert.Empty(catalog.ValidateReferences(scenario));
     }
 
     // —— 辅助 ——
@@ -115,6 +228,15 @@ public class AcceptanceVerifierTests
         Rec("EffectAction",    2133799056, effectRoot),
         Rec("BuffApply",       10010000,   effectRoot),
         Rec("DamageApply",     10010101,   effectRoot), // count=1 ≤ maxCount=1
+    };
+
+    private static AcceptanceObservations HappyPathObservations() => new()
+    {
+        States = new[]
+        {
+            new AcceptanceObservation("caster", null, null, "hasBuff", true),
+            new AcceptanceObservation("target", null, null, "hp", 857.5862f),
+        },
     };
 
     private static MobaAcceptanceTraceRecord Rec(string kind, int configId, long rootId) => new()

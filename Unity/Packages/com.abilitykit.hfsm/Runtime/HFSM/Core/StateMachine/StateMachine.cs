@@ -4,10 +4,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using UnityHFSM.Inspection;
 
-#if HFSM_UNITY || UNITY_EDITOR || UNITY_STANDALONE || UNITY_WEBGL || UNITY_ANDROID || UNITY_IOS || UNITY_SERVER
-using UnityHFSM.Visualization;
-#endif
-
 /**
  * Hierarchical Finite State Machine for Unity
  * by Inspiaaa and contributors
@@ -23,6 +19,7 @@ namespace UnityHFSM
 	/// </summary>
 	public class StateMachine<TOwnId, TStateId, TEvent> :
 		StateBase<TOwnId>,
+		IStateMachineInspectionSource,
 		ITriggerable<TEvent>,
 		IStateMachine<TStateId>,
 		IActionable<TEvent>
@@ -423,12 +420,10 @@ namespace UnityHFSM
 		/// </summary>
 		public override void OnEnter()
 		{
-			#if UNITY_EDITOR
 			if (IsRootFsm && RegisterForInspection)
 			{
-				HfsmLiveRegistry.AutoRegister(this);
+				UnityHFSM.Inspection.RuntimeInspectionHub.AutoRegister(this);
 			}
-			#endif
 
 			if (!startState.hasState)
 			{
@@ -475,12 +470,10 @@ namespace UnityHFSM
 
 		public override void OnExit()
 		{
-			#if UNITY_EDITOR
 			if (IsRootFsm && RegisterForInspection)
 			{
-				HfsmLiveRegistry.Unregister(this);
+				UnityHFSM.Inspection.RuntimeInspectionHub.Unregister(this);
 			}
-			#endif
 
 			if (activeState == null)
 				return;

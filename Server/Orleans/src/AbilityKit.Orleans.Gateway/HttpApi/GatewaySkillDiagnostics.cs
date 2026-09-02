@@ -7,6 +7,10 @@ using Orleans;
 internal static class GatewaySkillDiagnostics
 {
     private const string RuntimeContextOnly = "RuntimeContextOnly";
+    private const string RuntimeEventsUnavailable = "Unavailable";
+    private const string RuntimeEventsSchemaVersion = "abilitykit-battle-diagnostics.v1";
+    private const string RuntimeEventsUnavailableReason =
+        "The battle runtime diagnostic read channel is not connected to the Gateway.";
 
     public static async Task<AdminSkillDiagnosticsSummaryHttpResponse> GetSummaryAsync(
         IClusterClient client,
@@ -92,14 +96,120 @@ internal static class GatewaySkillDiagnostics
     {
         var effectiveLimit = limit <= 0 ? 100 : Math.Min(limit, 500);
         var filters = new AdminSkillEventFilterHttpResponse(battleId, actorId, skillId, effectiveLimit);
-        var warnings = Array.Empty<string>();
+        return Task.FromResult(CreateUnavailableResponse(filters, RuntimeEventsUnavailableReason));
+    }
 
-        var response = new AdminSkillDiagnosticsEventsHttpResponse(
-            RuntimeContextOnly,
+    public static async Task<AdminSkillDiagnosticsEventsHttpResponse> GetEventsAsync(
+        IClusterClient client,
+        string? battleId,
+        int? actorId,
+        int? skillId,
+        int limit)
+    {
+        var effectiveLimit = limit <= 0 ? 100 : Math.Min(limit, 500);
+        var filters = new AdminSkillEventFilterHttpResponse(battleId, actorId, skillId, effectiveLimit);
+        if (string.IsNullOrWhiteSpace(battleId))
+        {
+            return CreateUnavailableResponse(filters, "Battle id is required to query runtime diagnostics.");
+        }
+
+        try
+        {
+            var result = await client.GetGrain<IBattleLogicHostGrain>(battleId)
+                .QueryDiagnosticEventsAsync(new BattleDiagnosticEventsQuery(
+                    DateTime.UtcNow.Ticks,
+                    actorId,
+                    skillId,
+                    effectiveLimit));
+            return MapResult(result, battleId, filters);
+        }
+        catch (Exception exception)
+        {
+            return CreateUnavailableResponse(filters, $"Runtime diagnostic query failed: {exception.Message}");
+        }
+    }
+
+    internal static AdminSkillDiagnosticsEventsHttpResponse MapResult(
+        BattleDiagnosticEventsResult result,
+        string battleId,
+        AdminSkillEventFilterHttpResponse filters)
+    {
+        var events = (result.Events ?? Array.Empty<BattleDiagnosticEventRecord>())
+            .Select(item => MapEvent(item, battleId, result))
+            .ToArray();
+        var isDataAvailable = string.Equals(
+            result.Availability,
+            "Available",
+            StringComparison.Ordinal);
+        var warnings = string.IsNullOrWhiteSpace(result.Message)
+            ? Array.Empty<string>()
+            : new[] { result.Message };
+
+        return new AdminSkillDiagnosticsEventsHttpResponse(
+            result.Status,
+            filters,
+            events,
+            warnings,
+            DateTime.UtcNow.Ticks,
+            result.SchemaVersion,
+            isDataAvailable,
+            isDataAvailable ? null : result.Message,
+            result.StoreRevision,
+            result.HasMore,
+            result.MonotonicTimestampFrequency,
+            result.Offset,
+            result.Limit,
+            result.Availability);
+    }
+
+    internal static AdminSkillEventHttpResponse MapEvent(
+        BattleDiagnosticEventRecord item,
+        string battleId,
+        BattleDiagnosticEventsResult result)
+    {
+        // Runtime fields are authoritative. Zero correlation IDs mean unknown, not an inferred edge.
+        return new AdminSkillEventHttpResponse(
+            item.Frame,
+            checked((int)item.SourceActorId),
+            item.SkillId,
+            item.SkillInstanceId,
+            item.EventType,
+            item.EventType,
+            item.TargetActorId == 0 ? null : checked((int)item.TargetActorId),
+            null,
+            item.Message,
+            item.Outcome,
+            battleId,
+            result.WorldId,
+            result.SessionId,
+            item.Generation,
+            item.Sequence,
+            item.MonotonicTimestamp,
+            item.NodeId,
+            item.RootId,
+            item.ParentId,
+            item.SourceContextId,
+            item.RootContextId,
+            item.OwnerContextId);
+    }
+
+    private static AdminSkillDiagnosticsEventsHttpResponse CreateUnavailableResponse(
+        AdminSkillEventFilterHttpResponse filters,
+        string reason)
+    {
+        return new AdminSkillDiagnosticsEventsHttpResponse(
+            RuntimeEventsUnavailable,
             filters,
             Array.Empty<AdminSkillEventHttpResponse>(),
-            warnings,
-            DateTime.UtcNow.Ticks);
-        return Task.FromResult(response);
+            new[] { reason },
+            DateTime.UtcNow.Ticks,
+            RuntimeEventsSchemaVersion,
+            false,
+            reason,
+            0,
+            false,
+            0,
+            0,
+            filters.Limit);
     }
 }

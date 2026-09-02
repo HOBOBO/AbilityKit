@@ -226,6 +226,24 @@ internal sealed class ShooterBattleRuntimeAdapter : IBattleRuntimeAdapter
                 : new BattleBotAiMountResult(false, request.PlayerId, currentFrame, "RejectedMountFailed", "Shooter runtime rejected bot AI mount.");
         }
 
+        public BattleDiagnosticEventsResult QueryDiagnosticEvents(BattleDiagnosticEventsQuery query)
+        {
+            return new BattleDiagnosticEventsResult(
+                "Unavailable",
+                "Unsupported",
+                0,
+                false,
+                BattleDiagnosticContractConstants.SchemaVersion,
+                0,
+                string.Empty,
+                string.Empty,
+                0,
+                "Shooter runtime does not expose battle diagnostic event queries.",
+                Array.Empty<BattleDiagnosticEventRecord>(),
+                Math.Max(0, query.Offset),
+                query.Limit <= 0 ? 100 : Math.Min(query.Limit, 500));
+        }
+
         public BattleInputValidationResult ValidateInput(BattleInputItem input)
         {
             if (input.OpCode != ShooterOpCodes.Input.PlayerCommand)

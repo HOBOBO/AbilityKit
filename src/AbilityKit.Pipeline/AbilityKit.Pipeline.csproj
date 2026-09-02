@@ -15,11 +15,10 @@
     <ProjectReference Include="../AbilityKit.Core/AbilityKit.Core.csproj" />
   </ItemGroup>
 
-  <!-- 引用 Packages 目录下的源码（排除 Pipeline.cs，使用本地版本） -->
+  <!-- 引用 Packages 目录下的源码（排除 Pipeline.cs，使用本地版本）。
+       注：Editor/Debug 是 Unity 编辑器调试器（并行会话在途开发），不进 .NET 镜像编译——否则其未完成文件会打断全仓 .NET 构建。 -->
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.pipeline/Runtime/**/*.cs" Exclude="../../Unity/Packages/com.abilitykit.pipeline/Runtime/Pipeline.cs" />
-    <Compile Include="../../Unity/Packages/com.abilitykit.pipeline/Editor/Debug/**/*.cs"
-             Exclude="../../Unity/Packages/com.abilitykit.pipeline/Editor/Debug/PipelineRuntimeDebuggerWindow.cs;../../Unity/Packages/com.abilitykit.pipeline/Editor/Debug/PipelineDebuggerUserState.cs;../../Unity/Packages/com.abilitykit.pipeline/Editor/Debug/PipelineDebugSessionAsset.cs" />
   </ItemGroup>
 
 </Project>

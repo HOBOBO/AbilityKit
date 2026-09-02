@@ -8,7 +8,7 @@
     3) AcceptanceVerifier：从 MobaAcceptanceTraceExporter.BuildCoverage / BuildSummary 忠实移植的纯判定器，
        不再依赖 MobaSkillConfigTestHarness —— 这正是 harness 解耦的「第一刀」。
     不链接 runner/exporter/harness（它们依赖 UnityEngine.JsonUtility + 模拟器 + NUnit）。
-    零 ProjectReference：本层是完全自洽的。
+    玩法中立 IR（TestScenario 等）已提取到 AbilityKit.Scenario（框架包），本层只保留 MOBA 断言插件 + adapter。
   -->
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -28,6 +28,10 @@
     <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Runtime\Game\Test\UnitTest\Acceptance\Infrastructure\MobaAcceptanceModels.cs">
       <Link>Linked\MobaAcceptanceModels.cs</Link>
     </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Scenario\AbilityKit.Scenario.csproj" />
   </ItemGroup>
 
 </Project>

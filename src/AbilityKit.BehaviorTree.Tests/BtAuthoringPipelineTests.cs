@@ -54,10 +54,17 @@ namespace AbilityKit.BehaviorTree.Tests
                 var report2 = BtAuthoringExportPipeline.ExportAll(trees, new[] { targetA, targetB }, registry, root);
                 Assert.All(report2, e => Assert.Equal(BtExportStatus.Unchanged, e.Status));
 
-                // 修改后重导 -> Exported
-                document.Tree.Nodes[0].Name = "改名";
+                // 只改编辑态显示信息：运行时产物不变 -> Unchanged
+                document.GetOrCreateNodeMetadata("root").DisplayName = "改名";
                 var report3 = BtAuthoringExportPipeline.ExportAll(trees, new[] { targetA }, registry, root);
-                Assert.All(report3, e => Assert.Equal(BtExportStatus.Exported, e.Status));
+                Assert.All(report3, e => Assert.Equal(BtExportStatus.Unchanged, e.Status));
+
+                // 修改运行时属性后重导 -> Exported
+                var action = document.Tree.Nodes.Find(n => n.Id == "act")!;
+                action.Properties.Set(BtWaitNode.DurationSecondsProperty,
+                    BtPropertyValue.Of(AbilityKit.Deterministic.Fixed64.One));
+                var report4 = BtAuthoringExportPipeline.ExportAll(trees, new[] { targetA }, registry, root);
+                Assert.All(report4, e => Assert.Equal(BtExportStatus.Exported, e.Status));
             }
             finally
             {
@@ -197,6 +204,47 @@ namespace AbilityKit.BehaviorTree.Tests
         }
 
         [Fact]
+        public void ExportProject_AuthoringSource_PreservesEditorDataButExportsPureRuntimeIr()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "ak-bt-authoring-project-" + System.Guid.NewGuid().ToString("N"));
+            var sourceDir = Path.Combine(root, "src");
+            var target = Path.Combine(root, "out");
+            try
+            {
+                Directory.CreateDirectory(sourceDir);
+                var document = BtAuthoringTemplates.BuildEmpty();
+                document.Tree.TreeId = "authored_tree";
+                document.GetOrCreateNodeMetadata("root").DisplayName = "策划显示名";
+                document.GetOrCreateNodeMetadata("root").Comment = "仅编辑器可见";
+                File.WriteAllText(Path.Combine(sourceDir, "authored_tree.json"), BtAuthoringJson.Save(document));
+
+                var manifest = new BtAuthoringProjectManifest
+                {
+                    SourceDirectory = sourceDir,
+                    SourceKind = BtAuthoringSourceKind.AuthoringDocument,
+                    Trees = { "authored_tree" },
+                    ExportTargets = { target },
+                };
+
+                var report = BtAuthoringExportPipeline.ExportProject(manifest, BuiltinRegistry(), root);
+                Assert.Single(report);
+                Assert.Equal(BtExportStatus.Exported, report[0].Status);
+
+                var source = File.ReadAllText(Path.Combine(sourceDir, "authored_tree.json"));
+                var runtime = File.ReadAllText(Path.Combine(target, "authored_tree.json"));
+                Assert.Contains("策划显示名", source);
+                Assert.Contains("仅编辑器可见", source);
+                Assert.DoesNotContain("策划显示名", runtime);
+                Assert.DoesNotContain("仅编辑器可见", runtime);
+                Assert.DoesNotContain("nodeMetadata", runtime);
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+            }
+        }
+
+        [Fact]
         public void GoldenHeroCombatTemplate_MatchesGoldenExample()
         {
             // golden 模板与 golden 例子同源：定义哈希一致（模板漂移哨兵）
@@ -205,6 +253,41 @@ namespace AbilityKit.BehaviorTree.Tests
             Assert.Equal(
                 fromGolden.Tree.ComputeDefinitionHash(),
                 fromTemplate.Tree.ComputeDefinitionHash());
+        }
+
+        [Fact]
+        public void GraphOperations_RejectCyclesMultipleParentsAndCapacityOverflow()
+        {
+            var tree = new TreeBuilder()
+                .Node("root", BtBuiltInNodeTypes.Sequence, "left", "right")
+                .Node("left", BtBuiltInNodeTypes.Sequence, "leaf")
+                .Node("right", BtBuiltInNodeTypes.Sequence)
+                .Node("leaf", BtBuiltInNodeTypes.Succeed)
+                .Node("orphan", BtBuiltInNodeTypes.Succeed)
+                .Root("root");
+
+            Assert.False(BtAuthoringGraphOperations.CanConnect(tree, "leaf", "root", -1, out var cycle));
+            Assert.Contains("形成环", cycle);
+            Assert.False(BtAuthoringGraphOperations.CanConnect(tree, "right", "leaf", -1, out var multipleParents));
+            Assert.Contains("已属于父节点", multipleParents);
+            Assert.False(BtAuthoringGraphOperations.CanConnect(tree, "right", "root", 0, out var capacity));
+            Assert.Contains("最多允许", capacity);
+            Assert.True(BtAuthoringGraphOperations.CanConnect(tree, "right", "orphan", -1, out _));
+        }
+
+        [Fact]
+        public void GraphOperations_MoveChildChangesExecutionOrderOnly()
+        {
+            var tree = new TreeBuilder()
+                .Node("root", BtBuiltInNodeTypes.Sequence, "a", "b", "c")
+                .Node("a", BtBuiltInNodeTypes.Succeed)
+                .Node("b", BtBuiltInNodeTypes.Succeed)
+                .Node("c", BtBuiltInNodeTypes.Succeed)
+                .Root("root");
+
+            Assert.True(BtAuthoringGraphOperations.MoveChild(tree, "root", 2, 0));
+            Assert.Equal(new[] { "c", "a", "b" }, tree.Nodes[0].ChildIds);
+            Assert.False(BtAuthoringGraphOperations.MoveChild(tree, "root", 0, -1));
         }
     }
 }

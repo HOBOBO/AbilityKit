@@ -37,6 +37,8 @@ internal interface IBattleRuntimeSession : IDisposable
 
     BattleWorldDiagnostics? GetWorldDiagnostics(ulong worldId, int frame);
 
+    BattleDiagnosticEventsResult QueryDiagnosticEvents(BattleDiagnosticEventsQuery query);
+
     StateSyncPush CreateStateSyncPush(ulong worldId, int frame, bool isFullSnapshot);
 }
 

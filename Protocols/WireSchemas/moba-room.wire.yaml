@@ -1,0 +1,42 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 2
+projectId: abilitykit.moba
+groupId: room
+namespace: AbilityKit.Ability.Host.Extensions.Moba.Room
+defaults:
+  memoryPackMode: sequential
+  declaration: struct
+  memberStyle: field
+types:
+  - name: MobaRoomPlayerSnapshot
+    fields:
+      - id: 0
+        name: playerId
+        type: AbilityKit.Ability.Host.PlayerId
+        external: true
+        required: true
+      - { id: 1, name: teamId, scalarType: int32, required: true }
+      - { id: 2, name: ready, scalarType: bool, required: true }
+      - { id: 3, name: heroId, scalarType: int32, required: true }
+      - { id: 4, name: spawnPointId, scalarType: int32, required: true }
+      - { id: 5, name: level, scalarType: int32, required: true }
+      - { id: 6, name: attributeTemplateId, scalarType: int32, required: true }
+      - { id: 7, name: basicAttackSkillId, scalarType: int32, required: true }
+      - { id: 8, name: skillIds, scalarType: int32, array: true, required: true }
+
+  - name: MobaRoomSnapshot
+    fields:
+      - { id: 0, name: revision, scalarType: int32, required: true }
+      - { id: 1, name: matchId, scalarType: string, required: true }
+      - { id: 2, name: mapId, scalarType: int32, required: true }
+      - { id: 3, name: randomSeed, scalarType: int32, required: true }
+      - { id: 4, name: tickRate, scalarType: int32, required: true }
+      - { id: 5, name: inputDelayFrames, scalarType: int32, required: true }
+      - { id: 6, name: minPlayers, scalarType: int32, required: true }
+      - { id: 7, name: maxPlayers, scalarType: int32, required: true }
+      - { id: 8, name: canStart, scalarType: bool, required: true }
+      - id: 9
+        name: players
+        type: AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomPlayerSnapshot
+        array: true
+        required: true

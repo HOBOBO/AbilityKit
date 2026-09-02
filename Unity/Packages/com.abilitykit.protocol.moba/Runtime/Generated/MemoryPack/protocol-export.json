@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generatorVersion": "1.0",
   "projectId": "abilitykit.moba",
   "catalogIds": [
@@ -24,29 +24,105 @@
     "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
   ],
   "generatedTypes": [
-    "AbilityKit.Protocol.Moba.StateSync.MobaMovePayload",
-    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
-  ],
-  "missingWireSchemaTypes": [
+    "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomPlayerSnapshot",
     "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot",
     "AbilityKit.Protocol.Moba.SkillInputEvent",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaDebugReplaceHeroPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitPayload",
     "AbilityKit.Protocol.Moba.StateSync.MobaEnterGamePayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaMovePayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry",
     "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
-    "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload"
+    "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry",
+    "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
+    "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
   ],
+  "generatedGroups": [
+    {
+      "groupId": "input",
+      "generatedTypes": [
+        "AbilityKit.Protocol.Moba.SkillInputEvent"
+      ]
+    },
+    {
+      "groupId": "room",
+      "generatedTypes": [
+        "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomPlayerSnapshot",
+        "AbilityKit.Ability.Host.Extensions.Moba.Room.MobaRoomSnapshot"
+      ]
+    },
+    {
+      "groupId": "state-sync",
+      "generatedTypes": [
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorDespawnSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorSpawnSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaActorTransformSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaAreaEventSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaDamageEventSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaDebugReplaceHeroPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaDebugSpawnUnitPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaEnterGamePayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaMovePayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaPlayerHeroChangedSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaPresentationCueSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaProjectileEventSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotEntry",
+        "AbilityKit.Protocol.Moba.StateSync.MobaSkillStateSnapshotPayload",
+        "AbilityKit.Protocol.Moba.StateSync.MobaStateHashSnapshotPayload"
+      ]
+    }
+  ],
+  "missingWireSchemaTypes": [],
   "generatedFiles": [
+    "MobaActorDespawnSnapshotEntry.MemoryPack.g.cs",
+    "MobaActorDespawnSnapshotPayload.MemoryPack.g.cs",
+    "MobaActorSpawnSnapshotEntry.MemoryPack.g.cs",
+    "MobaActorSpawnSnapshotPayload.MemoryPack.g.cs",
+    "MobaActorTransformSnapshotEntry.MemoryPack.g.cs",
+    "MobaActorTransformSnapshotPayload.MemoryPack.g.cs",
+    "MobaAreaEventSnapshotEntry.MemoryPack.g.cs",
+    "MobaAreaEventSnapshotPayload.MemoryPack.g.cs",
+    "MobaDamageEventSnapshotEntry.MemoryPack.g.cs",
+    "MobaDamageEventSnapshotPayload.MemoryPack.g.cs",
+    "MobaDebugReplaceHeroPayload.MemoryPack.g.cs",
+    "MobaDebugSpawnUnitPayload.MemoryPack.g.cs",
+    "MobaEnterGamePayload.MemoryPack.g.cs",
     "MobaMovePayload.MemoryPack.g.cs",
+    "MobaPlayerHeroChangedSnapshotEntry.MemoryPack.g.cs",
+    "MobaPlayerHeroChangedSnapshotPayload.MemoryPack.g.cs",
+    "MobaPresentationCueSnapshotEntry.MemoryPack.g.cs",
+    "MobaPresentationCueSnapshotPayload.MemoryPack.g.cs",
+    "MobaProjectileEventSnapshotEntry.MemoryPack.g.cs",
+    "MobaProjectileEventSnapshotPayload.MemoryPack.g.cs",
+    "MobaRoomPlayerSnapshot.MemoryPack.g.cs",
+    "MobaRoomSnapshot.MemoryPack.g.cs",
+    "MobaSkillStateSnapshotEntry.MemoryPack.g.cs",
+    "MobaSkillStateSnapshotPayload.MemoryPack.g.cs",
     "MobaStateHashSnapshotPayload.MemoryPack.g.cs",
     "ProjectMemoryPackCodecs.g.cs",
-    "ProtocolCatalogs.g.cs"
+    "ProtocolCatalogs.g.cs",
+    "SkillInputEvent.MemoryPack.g.cs"
   ]
 }

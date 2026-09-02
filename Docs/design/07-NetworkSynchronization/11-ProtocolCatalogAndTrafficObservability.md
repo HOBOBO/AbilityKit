@@ -6,7 +6,7 @@
 
 本子系统用于统一 AbilityKit 各项目的协议治理和数据包观测能力，同时不改变现有线上字节格式。
 
-- 业务载荷字段仍由项目的线上 IDL 和生成 DTO 定义。现有 MOBA、Shooter 和 Room MemoryPack 类型继续有效，并采用渐进方式迁移。
+- 业务载荷字段由正式 Wire Schema 和生成 DTO 定义。Shooter 与 MOBA 的 catalog MemoryPack 载荷闭包已完成迁移；Room 按独立计划继续迁移。
 - `*.protocol.yaml` 是传输标识和运行策略的治理目录。可选的 `*.wire.yaml` 是项目选择生成的载荷字段级 IDL；两类文档使用独立的模式并承担不同职责。
 - Room 与 Battle 默认使用独立的物理连接，因为二者的故障域、重连策略、生命周期和流量特征不同。
 - 可复用的客户端单元是 `NetworkSdkClient`，它持有一个 `IConnection` 和一个请求客户端。原始 `IConnection` 实例不得在职责无关的角色间池化或共享。
@@ -106,6 +106,37 @@ dotnet test src/AbilityKit.Protocol.Tests/AbilityKit.Protocol.Tests.csproj
 - MemoryPack 后端导出还会生成 `ProjectMemoryPackCodecs.g.cs`：其中包含封装 `MemoryPackSerializer` 的编解码门面，以及向 `ProtocolPayloadDecoderRegistry` 注册解码器的粘合代码。如果 DTO 的限定类型只映射到一个 MemoryPack 目录消息，还会附加 `[ProtocolOpCode]`。这些依赖 MemoryPack 的文件只存在于显式启用的导出目录；始终参与编译的 `BuiltInProtocolCatalogs.g.cs` 不会引用 MemoryPack 命名空间。
 - 导出清单会列出每个被引用的 MemoryPack 载荷、生成类型、缺失的线上模式和生成文件。为支持渐进迁移，缺失模式默认仅产生警告；严格导出模式则会失败。
 
+Wire Schema 只保留正式的分组源格式。每份文档使用 `schemaVersion: 2`，并由同一 `projectId` 下唯一且稳定的 `groupId` 管理一组共享 C# `namespace` 的相关类型。`defaults` 可统一声明 `memoryPackMode`、`declaration` 和 `memberStyle`，每个 `types` 条目仍可独立覆盖；字段 ID、保留 ID、兼容性身份和生成的 `*.g.cs` 文件仍然按类型隔离。
+
+```yaml
+schemaVersion: 2
+projectId: abilitykit.shooter
+groupId: battle
+namespace: AbilityKit.Protocol.Shooter
+defaults:
+  memoryPackMode: sequential
+  declaration: struct
+  memberStyle: field
+types:
+  - name: ShooterPlayerCommand
+    fields:
+      - id: 0
+        name: playerId
+        scalarType: int32
+        required: true
+  - name: ShooterInputPayload
+    declaration: class
+    memberStyle: property
+    fields:
+      - id: 0
+        name: commands
+        type: AbilityKit.Protocol.Shooter.ShooterPlayerCommand
+        array: true
+        required: true
+```
+
+`groupId` 使用小写字母、数字、点或连字符，例如 `battle`、`state-sync`、`room.auth`。项目内公用类型进入正式的 `common` 组，真正跨项目的公用类型进入独立共享项目；不保留无归属类型，也不把 Catalog 传输策略塞入 Wire 文档。Unity 工作区会把分组文档展开为独立类型；保存某个类型时会保留同文件中的其他类型，使用 Wire Schemas 视图的 `Add Type` 可直接向当前 group 追加类型；文档级 `projectId`、`groupId` 和 `namespace` 则直接在 YAML 中维护。导出清单按组记录生成类型。完整格式示例见 `Protocols/README.md`。
+
 编辑器所依赖的编译器命令仍可供无界面工具调用：
 
 ```powershell
@@ -126,15 +157,15 @@ dotnet run --project tools/AbilityKit.Protocol.CatalogCompiler -- `
 ./tools/export-protocol-wire.ps1 -Projects moba
 
 ./tools/compile-protocol-catalogs.ps1 -Check
-./tools/export-protocol-wire.ps1 -Projects shooter -Check -Strict
+./tools/export-protocol-wire.ps1 -Projects shooter,moba -Check -Strict
 ./tools/export-protocol-wire.ps1 -Projects moba -Check
 ```
 
-`-Check` 会在临时目录执行确定性导出，并与已提交结果比较，不会写回仓库。比较前统一 CRLF 与 LF，因此纯换行符漂移不会产生误报；生成文件缺失、残留或内容过期时返回退出码 3。`-Strict` 还要求目标项目引用的每个 MemoryPack 载荷均有 Wire Schema，闭包不完整时返回退出码 4。Shooter 已完成 12/12 的严格闭包，因此持续集成必须使用 `-Check -Strict`；MOBA 当前只完成 Move 和 StateHash 两个载荷，仍有 14 个待迁移载荷，因此继续使用渐进式 `-Check`，不得提前启用全项目严格模式。Room 同样保持渐进式检查。
+`-Check` 会在临时目录执行确定性导出，并与已提交结果比较，不会写回仓库。比较前统一 CRLF 与 LF，因此纯换行符漂移不会产生误报；生成文件缺失、残留或内容过期时返回退出码 3。`-Strict` 还要求目标项目引用的每个 MemoryPack 载荷均有 Wire Schema，闭包不完整时返回退出码 4。Shooter 与 MOBA 均已完成严格闭包，持续集成必须对两者使用 `-Check -Strict`；Room 仍保持渐进式检查。
 
 线上字段 ID 是稳定的 MemoryPack 顺序。新契约默认使用 `memoryPackMode: version-tolerant`、`declaration: class` 和 `memberStyle: property`；已删除的 ID 必须移入 `reservedIds`，不得被静默复用。旧有位置式契约可以使用 `memoryPackMode: sequential`，但 ID 必须从零开始连续排列，且不能存在保留空缺。`memberStyle: field` 可在将声明迁移到生成源码时保留现有的引用式 API。顺序模式仅用于在生成源码迁移期间保持现有字节格式；其字段列表必须冻结，并且每次迁移都必须具备线上字节黄金测试。
 
-Shooter 已完成全部 12 个 MemoryPack 载荷的 Wire Schema 闭包。DTO 成员现由已提交的生成源码参与编译；构造函数、攻击槽位规范化逻辑、旧九字段载荷回退和编解码器仍保留在手写的分部类型中。固定 Base64 黄金字节、旧实现与生成实现的双向解码测试、生成类型往返测试、解码器注册测试以及已提交源码的新鲜度测试共同保护切换过程。MOBA 的首个最小闭包包含 `MobaMovePayload` 和 `MobaStateHashSnapshotPayload`，采用相同的字段顺序冻结和黄金字节策略；其余载荷按目录逐批迁移。
+Shooter 已完成全部 12 个 MemoryPack 载荷的 Wire Schema 闭包。MOBA 已完成 catalog 引用的 16 个顶层 MemoryPack 载荷及其 10 个生成依赖类型，按 `input`、`room`、`state-sync` 三个稳定分组管理。两者 DTO 成员均由已提交的生成源码参与编译；构造函数、常量、转换逻辑和编解码器保留在手写分部类型中。固定黄金字节、生成类型往返测试、解码器注册测试、严格闭包和已提交源码新鲜度检查共同保护切换过程。外部包已经拥有的值对象与枚举使用字段级 `external: true` 显式引用，不在当前项目重复生成。
 
 协议兼容基线位于 `Protocols/Compatibility/protocol-compatibility-baseline.json`。只有在评审确认当前 Catalog/Wire 源应成为新的兼容起点时，才可临时设置 `AK_UPDATE_PROTOCOL_COMPAT_BASELINE=1` 并运行完整 CatalogCompiler 测试刷新基线；刷新后必须清除该变量，再次运行完整测试和兼容性检查，禁止在普通持续集成中自动更新基线。
 
@@ -227,6 +258,20 @@ using var battleLease = hub.Acquire(battleKey, battleBuilder);
 ## 7. 可视化与安全边界
 
 可视化层应使用 `NetworkTrafficEvent.CatalogId` 和数据包标识关联 `ProtocolCatalogRegistry`，再通过 `ProtocolPayloadDecoderRegistry` 分发载荷字节。解码器由协议包注册，因此共享网络运行时无需依赖项目 DTO 程序集。
+
+运行时接收链还必须在业务 handler 之前执行协议边界检查。`ProtocolPacketBoundaryValidator` 可安装到 `NetworkPacketRouter`，按目录消息的方向、kind、schema 版本范围、`maximumPayloadBytes` 和 frame payload 长度拒绝输入；被拒绝的包不会进入任何业务 handler。若需要直接解码，应使用带 `ProtocolMessageDefinition` 的 bounded `ProtocolPayloadDecoderRegistry.Decode` 重载。旧的按 `catalogId/messageId` 解码重载仅为兼容保留，不得用于新的 transport、dispatch 或观测入口。失败结果使用 `ProtocolDecodeFailureKind`/`ProtocolPacketBoundaryFailureKind` 分类，指标和断线策略不得依赖异常文本。
+
+连接或 session handshake 应先调用 `ProtocolCatalogRegistry.TryNegotiateSchemaVersion`（或 `ProtocolSchemaVersionNegotiator.TrySelect`）计算双方消息范围的交集，再把选定版本传给接收边界。Wire Schema YAML 的 `schemaVersion: 2` 是文档格式版本，catalog `revision` 是发布修订号，线上 schema version 范围是第三个独立概念；框架不会自动把它们互相转换。
+
+当握手需要交换完整目录广告时，使用 `ProtocolCatalogNegotiator.Negotiate`：它校验 catalog/project/domain 身份，对双方共有消息校验 opcode、方向、kind、codec 和版本范围，并返回按消息 ID 索引的 `SelectedSchemaVersions`。新增消息 ID 不会阻断旧客户端；共有消息没有版本交集或传输身份发生变化时，结果为不可兼容并携带 `ProtocolCatalogNegotiationFailureKind`。协商结果应绑定当前连接代次，重连后重新协商，不能跨连接复用。
+
+正式广告消息由 `abilitykit.system` catalog 定义，使用操作码 `1` 的 `catalog-advertisement.request/response`。载荷通过 `ProtocolCatalogAdvertisement.FromCatalogs` 生成，并由 `ProtocolCatalogAdvertisementCodec` 执行确定性、有界的 `custom-binary` 编解码。一次广告可以携带同一物理连接上的多个 catalog；`ProtocolCatalogRegistry.TryNegotiateAdvertisement` 会忽略本地未知的可选 catalog，但要求双方共有的每个 catalog 都兼容。业务不得另行定义临时 JSON 广告，系统广告也不属于需要迁移到业务 Wire Schema 的 MemoryPack DTO。
+
+启用 `requireNegotiated` 时，系统广告消息本身必须加入 `bootstrapMessageIds`，否则接收边界会在完成协商前拒绝用于完成协商的消息。认证策略仍由业务决定：可在认证成功后交换广告，也可把认证消息和系统广告共同作为最小 bootstrap 集合。
+
+`ProtocolCatalogNegotiationSession` 提供了单 catalog 的连接代次状态：`ConnectionManager.StartConnect` 会自动将已配置的会话置为 `Pending`，业务在自己的认证/握手响应收到后调用 `ConnectionManager.ApplyRemoteCatalog`。启用 boundary 的 `requireNegotiated` 后，除显式列入 `bootstrapMessageIds` 的登录/系统握手消息外，Pending 或 Failed 状态的包会在所有 legacy 与 typed route 入口前被拒绝；协商成功后才使用保存的逐消息版本。Room、MOBA、Shooter 仍可使用不同认证流程，但目录广告统一使用系统 catalog。
+
+`NetworkPacketRouterSnapshot.BoundaryRejectedCount` 用于区分协议边界拒绝与普通未知路由；编辑器诊断窗口应同时展示该计数。边界拒绝不会进入 legacy packet 事件，未知 opcode 在未启用 `rejectUnknownMessages` 时仍保持兼容投递。
 
 `sensitiveFields` 是治理元数据，并不意味着自动完成字节级脱敏。原始载荷预览在解码前可能包含凭据或个人数据。生产配置应保持仅采集包头，或应用采集过滤器。解码后的可视化或导出层必须在持久化或远程导出前，对目录声明的字段执行脱敏。
 

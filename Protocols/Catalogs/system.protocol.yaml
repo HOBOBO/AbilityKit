@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=../protocol-catalog.schema.json
+schemaVersion: 1
+catalogId: abilitykit.system
+projectId: abilitykit.shared
+domain: system
+revision: 1
+defaultCodec: custom-binary
+messages:
+  - id: catalog-advertisement.request
+    opCode: 1
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Catalog.ProtocolCatalogAdvertisement
+    codec: custom-binary
+    response: catalog-advertisement.response
+    maximumPayloadBytes: 1048576
+  - id: catalog-advertisement.response
+    opCode: 1
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Catalog.ProtocolCatalogAdvertisement
+    codec: custom-binary
+    maximumPayloadBytes: 1048576

@@ -52,7 +52,7 @@ namespace AbilityKit.BehaviorTree.Editor
             EditorGUILayout.Space(12f);
             EditorGUILayout.LabelField("存量迁移", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "选择一个包含运行时导出 JSON 的目录（如 Resources/moba/bt），批量为每个 JSON 创建授权资产并注册到项目。", MessageType.Info);
+                "选择一个包含运行时导出 JSON 的目录，批量为每个 JSON 创建授权资产并注册到项目。", MessageType.Info);
             if (GUILayout.Button("从运行时 JSON 批量导入…"))
             {
                 ImportFromRuntimeJson();
