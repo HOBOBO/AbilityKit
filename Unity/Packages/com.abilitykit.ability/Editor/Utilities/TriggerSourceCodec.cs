@@ -5,6 +5,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using AbilityKit.Ability.Config.Authoring;
+using AbilityKit.Editor.Platform.Export;
 
 namespace AbilityKit.Ability.Editor.Utilities
 {
@@ -147,22 +148,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public static void WriteTextAtomic(string path, string content)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
-            var fullPath = Path.GetFullPath(path);
-            var directory = Path.GetDirectoryName(fullPath);
-            if (string.IsNullOrEmpty(directory)) throw new InvalidOperationException("Source directory could not be resolved.");
-            Directory.CreateDirectory(directory);
-
-            var temporaryPath = Path.Combine(directory, "." + Path.GetFileName(fullPath) + "." + Guid.NewGuid().ToString("N") + ".tmp");
-            try
-            {
-                File.WriteAllText(temporaryPath, content, Utf8WithoutBom);
-                if (File.Exists(fullPath)) File.Replace(temporaryPath, fullPath, null);
-                else File.Move(temporaryPath, fullPath);
-            }
-            finally
-            {
-                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-            }
+            EditorAtomicFileWriter.WriteAllText(path, content, Utf8WithoutBom);
         }
     }
 }

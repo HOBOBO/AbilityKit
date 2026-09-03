@@ -69,4 +69,69 @@ namespace AbilityKit.BattleFlow
             Slot = Slot,
         });
     }
+
+    /// <summary>等待一段时间（wait）。</summary>
+    public sealed class WaitBlock : BattleAtomicBlock
+    {
+        /// <summary>触发时刻（毫秒）。</summary>
+        public int AtMs { get; set; }
+
+        /// <summary>等待时长（毫秒）。</summary>
+        public int DurationMs { get; set; } = 500;
+
+        /// <inheritdoc/>
+        public override void Compile(BattleFlowBuilder builder) => builder.AddTimelineStep(new TestTimelineStep
+        {
+            AtMs = AtMs,
+            Action = "wait",
+            DurationMs = DurationMs,
+        });
+    }
+
+    /// <summary>把 actor 移动到某位置（move_to）。</summary>
+    public sealed class MoveToBlock : BattleAtomicBlock
+    {
+        /// <summary>触发时刻（毫秒）。</summary>
+        public int AtMs { get; set; }
+
+        /// <summary>施动者别名。</summary>
+        public string ActorAlias { get; set; } = string.Empty;
+
+        /// <summary>目标位置。</summary>
+        public TestVector3? Position { get; set; }
+
+        /// <inheritdoc/>
+        public override void Compile(BattleFlowBuilder builder) => builder.AddTimelineStep(new TestTimelineStep
+        {
+            AtMs = AtMs,
+            Action = "move_to",
+            ActorAlias = ActorAlias,
+            Position = Position,
+        });
+    }
+
+    /// <summary>放置一个障碍物（墙体/立柱）。</summary>
+    public sealed class PlaceObstacleBlock : BattleAtomicBlock
+    {
+        /// <summary>障碍 id。</summary>
+        public string Id { get; set; } = string.Empty;
+
+        /// <summary>障碍形状（box 等）。</summary>
+        public string Shape { get; set; } = "box";
+
+        /// <summary>障碍尺寸。</summary>
+        public TestVector3 Size { get; set; } = new(1, 1, 1);
+
+        /// <summary>障碍位置。</summary>
+        public TestVector3 Position { get; set; }
+
+        /// <inheritdoc/>
+        public override void Compile(BattleFlowBuilder builder) => builder.AddObstacle(new TestObstacle
+        {
+            Id = Id,
+            Shape = Shape,
+            Size = Size,
+            Position = Position,
+        });
+    }
 }

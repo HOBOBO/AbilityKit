@@ -447,9 +447,65 @@ namespace AbilityKit.Editor.Platform.Tests
 
             Assert.That(model.Title, Is.EqualTo("Source Sync"));
             Assert.That(model.StatusMessage, Is.EqualTo("The source cannot be read."));
+            Assert.That(model.StateLabel, Is.EqualTo("Invalid Source"));
             Assert.That(model.HasSourcePath, Is.False);
             Assert.That(model.CanCopyPath, Is.False);
             Assert.That(model.CanRevealPath, Is.False);
+        }
+
+        [Test]
+        public void SourceSyncCardModel_ChangesPlatformLabelsWithLanguage()
+        {
+            var localization = new EditorLocalizationService
+            {
+                ProjectDefaultLanguage = "zh-CN"
+            };
+            using var registration = localization.RegisterSource(
+                new DictionaryEditorLocalizationSource(
+                    "source-sync-test",
+                    new Dictionary<string, IReadOnlyDictionary<string, string>>
+                    {
+                        ["en"] = new Dictionary<string, string>
+                        {
+                            ["abilitykit.editor.sourceSync.title"] = "Source Sync",
+                            ["abilitykit.editor.sourceSync.state.InSync"] = "In Sync",
+                            ["abilitykit.editor.sourceSync.message.InSync"] = "Synchronized.",
+                            ["abilitykit.editor.sourceSync.path"] = "Path",
+                            ["abilitykit.editor.sourceSync.unbound"] = "<unbound>",
+                            ["abilitykit.editor.sourceSync.import"] = "Import",
+                            ["abilitykit.editor.sourceSync.export"] = "Export",
+                            ["abilitykit.editor.sourceSync.copyPath"] = "Copy Path",
+                            ["abilitykit.editor.sourceSync.reveal"] = "Reveal"
+                        },
+                        ["zh-CN"] = new Dictionary<string, string>
+                        {
+                            ["abilitykit.editor.sourceSync.title"] = "源同步",
+                            ["abilitykit.editor.sourceSync.state.InSync"] = "已同步",
+                            ["abilitykit.editor.sourceSync.message.InSync"] = "已完成同步。",
+                            ["abilitykit.editor.sourceSync.path"] = "路径",
+                            ["abilitykit.editor.sourceSync.unbound"] = "<未绑定>",
+                            ["abilitykit.editor.sourceSync.import"] = "导入",
+                            ["abilitykit.editor.sourceSync.export"] = "导出",
+                            ["abilitykit.editor.sourceSync.copyPath"] = "复制路径",
+                            ["abilitykit.editor.sourceSync.reveal"] = "定位文件"
+                        }
+                    }));
+            var model = new EditorSourceSyncCardModel(
+                InspectSync("same", "same", "same"),
+                null,
+                null,
+                localization: localization);
+
+            Assert.That(model.Title, Is.EqualTo("源同步"));
+            Assert.That(model.StateLabel, Is.EqualTo("已同步"));
+            Assert.That(model.StatusMessage, Is.EqualTo("已完成同步。"));
+            Assert.That(model.ImportLabel, Is.EqualTo("导入"));
+
+            localization.UserLanguageOverride = "en";
+
+            Assert.That(model.Title, Is.EqualTo("Source Sync"));
+            Assert.That(model.StateLabel, Is.EqualTo("In Sync"));
+            Assert.That(model.StatusMessage, Is.EqualTo("Synchronized."));
         }
 
         [Test]
@@ -473,7 +529,7 @@ namespace AbilityKit.Editor.Platform.Tests
 
             Assert.That(
                 card.Q<Label>("source-sync-status").text,
-                Is.EqualTo(EditorSourceSyncState.Conflict.ToString()));
+                Is.EqualTo("Conflict"));
             Assert.That(
                 card.Q<Label>("source-sync-path").text,
                 Is.EqualTo("source.json"));

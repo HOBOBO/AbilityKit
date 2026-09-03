@@ -1,18 +1,21 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Host;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.BattleFlow;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Acceptance;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
+using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EnvironmentModel;
 using AbilityKit.Demo.Moba.Services.LogicWorld;
-using AbilityKit.Demo.Moba.EnvironmentModel;
+using AbilityKit.Game.Test.UnitTest;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Scenario;
 using AbilityKit.Trace;
@@ -20,9 +23,9 @@ using AbilityKit.Trace;
 namespace AbilityKit.Demo.Moba.BattleFlow;
 
 /// <summary>
-/// MOBA 战斗流程的世界执行核心（纯 .NET）：boot console 世界 → 生成 actors → 按 timeline 施放技能 → 采 trace → 中性结果。
+/// MOBA 战斗流程的世界执行核心（纯 .NET）：boot console 世界 → 绑环境 → 生成 actors → 按 timeline 施放 → 采 trace → 按断言判 verdict。
 /// 这是「编辑器 headless 跑」的引擎；编辑器（Unity）侧通过 shell-out 调用本工程的命令行入口。
-/// 当前是 smoke 级：只生成 + 施放 + 采 trace，不判断言、不绑环境（后续切片）。
+/// 有断言（MobaBattleFlowAssertions）时走 AcceptanceVerifier 判 pass/fail；无断言时 smoke（跑通即通过）。
 /// </summary>
 public sealed class MobaBattleFlowScenarioRunner
 {
@@ -37,17 +40,36 @@ public sealed class MobaBattleFlowScenarioRunner
         var envEntities = BindEnvironment(scenario, services);
         SpawnActors(scenario, services, aliases);
         RunTimeline(scenario, bootstrapper, services, aliases);
-        var traceNodes = CountTraceNodes(services);
+        var records = CaptureTraceRecords(bootstrapper, scenario.CaseId);
 
-        var summary = $"actors={scenario.Actors.Count}, timeline={scenario.Timeline.Count}, traceNodes={traceNodes}";
+        var summary = $"actors={scenario.Actors.Count}, timeline={scenario.Timeline.Count}, traceNodes={records.Length}";
         if (!string.IsNullOrEmpty(scenario.EnvironmentProfileId))
             summary += $", env={scenario.EnvironmentProfileId}({envEntities}个)";
 
-        return new BattleFlowRunResult
+        var assertions = scenario.Expectations as MobaBattleFlowAssertions;
+        if (assertions == null || !HasAssertions(assertions))
         {
-            Passed = true,
-            Summary = summary,
-        };
+            // 无断言：smoke，跑通即通过
+            return new BattleFlowRunResult { Passed = true, Summary = summary };
+        }
+
+        var expectation = ConvertToExpectation(scenario, assertions);
+        var verdict = AcceptanceVerifier.Verify(expectation, records);
+        summary += $", verdict={(verdict.result.passed ? "PASSED" : "FAILED")}";
+        if (!verdict.result.passed)
+            summary += $", missing={verdict.coverage.missingTraceNodes}";
+        return new BattleFlowRunResult { Passed = verdict.result.passed, Summary = summary };
+    }
+
+    private static ConsoleBattleBootstrapper Boot()
+    {
+        var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        bootstrapper.Initialize();
+        bootstrapper.Start();
+        for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
+        bootstrapper.SetupBattle();
+        for (var i = 0; i < 10; i++) bootstrapper.Tick();
+        return bootstrapper;
     }
 
     /// <summary>按 EnvironmentProfileId 解析环境（常用组→原语）并用 binder 生成环境实体（背景怪/墙等）。返回生成的实体数。</summary>
@@ -62,17 +84,6 @@ public sealed class MobaBattleFlowScenarioRunner
         var binder = new MobaEnvironmentProfileBinder(services);
         var result = binder.Bind(in resolved);
         return result.Handles.Count;
-    }
-
-    private static ConsoleBattleBootstrapper Boot()
-    {
-        var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
-        bootstrapper.Initialize();
-        bootstrapper.Start();
-        for (var i = 0; i < 8 && bootstrapper.Context.EcsWorld == null; i++) bootstrapper.Tick();
-        bootstrapper.SetupBattle();
-        for (var i = 0; i < 10; i++) bootstrapper.Tick();
-        return bootstrapper;
     }
 
     private static void SpawnActors(TestScenario scenario, IWorldResolver services, Dictionary<string, int> aliases)
@@ -138,18 +149,82 @@ public sealed class MobaBattleFlowScenarioRunner
         input.TrySubmit(castFrame, new[] { command });
     }
 
-    private static int CountTraceNodes(IWorldResolver services)
+    private static MobaAcceptanceTraceRecord[] CaptureTraceRecords(ConsoleBattleBootstrapper bootstrapper, string caseId)
     {
-        if (!services.TryResolve<MobaTraceRegistry>(out var trace) || trace == null) return 0;
-        var count = 0;
+        var services = bootstrapper.RuntimeServices;
+        if (services == null || !services.TryResolve<MobaTraceRegistry>(out var trace) || trace == null)
+            return Array.Empty<MobaAcceptanceTraceRecord>();
+
+        var records = new List<MobaAcceptanceTraceRecord>(64);
+        var seen = new HashSet<long>();
         foreach (MobaTraceKind kind in Enum.GetValues(typeof(MobaTraceKind)))
         {
             if (kind == MobaTraceKind.None) continue;
             foreach (var node in trace.GetNodesByKind((int)kind))
-                if (node.IsValid) count++;
+            {
+                if (!node.IsValid || !seen.Add(node.ContextId)) continue;
+                var metadata = node.Metadata;
+                var frame = node.CreatedFrame;
+                records.Add(new MobaAcceptanceTraceRecord
+                {
+                    caseId = caseId,
+                    frame = frame,
+                    timeMs = (int)Math.Round(frame * (1000f / 30f)),
+                    rootId = node.RootId,
+                    parentId = node.ParentId,
+                    nodeId = node.ContextId,
+                    kind = kind.ToString(),
+                    kindValue = node.Kind,
+                    configId = metadata != null ? metadata.ConfigId : 0,
+                    sourceActorId = metadata != null ? metadata.SourceActorId : 0,
+                    targetActorId = metadata != null ? metadata.TargetActorId : 0,
+                    sourceId = metadata != null ? metadata.SourceId : 0,
+                    targetId = metadata != null ? metadata.TargetId : 0,
+                    isRoot = node.IsRoot,
+                    isEnded = node.IsEnded,
+                    endedFrame = node.EndedFrame,
+                    endReason = node.EndReason,
+                    childCount = node.ChildCount,
+                });
+            }
         }
-        return count;
+        records.Sort((x, y) =>
+        {
+            var c = x.rootId.CompareTo(y.rootId);
+            return c != 0 ? c : x.nodeId.CompareTo(y.nodeId);
+        });
+        return records.ToArray();
     }
+
+    private static bool HasAssertions(MobaBattleFlowAssertions assertions) =>
+        assertions.MustContain.Count > 0 || assertions.MustNotContain.Count > 0 ||
+        assertions.State.Count > 0 || assertions.Context.Count > 0 || assertions.Relationships.Count > 0;
+
+    private static MobaAcceptanceExpectation ConvertToExpectation(TestScenario scenario, MobaBattleFlowAssertions assertions) =>
+        new MobaAcceptanceExpectation
+        {
+            caseId = scenario.CaseId,
+            mustContain = assertions.MustContain.Select(a => new MobaAcceptanceTraceExpectation
+            {
+                kind = a.Kind, configId = a.ConfigId, minCount = a.MinCount, maxCount = a.MaxCount, underEffectId = a.UnderEffectId,
+            }).ToArray(),
+            mustNotContain = assertions.MustNotContain.Select(a => new MobaAcceptanceTraceExpectation
+            {
+                kind = a.Kind, configId = a.ConfigId, underEffectId = a.UnderEffectId,
+            }).ToArray(),
+            stateExpectations = assertions.State.Select(a => new MobaAcceptanceStateExpectation
+            {
+                alias = a.Alias, property = a.Property, comparator = a.Comparator, expectedValue = a.ExpectedValue,
+            }).ToArray(),
+            contextExpectations = assertions.Context.Select(a => new MobaAcceptanceContextExpectation
+            {
+                alias = a.Alias, kind = a.Kind, property = a.Property, comparator = a.Comparator, expectedValue = a.ExpectedValue,
+            }).ToArray(),
+            relationships = assertions.Relationships.Select(a => new MobaAcceptanceRelationshipExpectation
+            {
+                parentKind = a.ParentKind, parentConfigId = a.ParentConfigId, childKind = a.ChildKind, childConfigId = a.ChildConfigId,
+            }).ToArray(),
+        };
 
     private static bool IsCast(string action)
         => string.IsNullOrEmpty(action) || string.Equals(action, "cast_skill", StringComparison.OrdinalIgnoreCase);

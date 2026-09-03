@@ -94,6 +94,8 @@ public sealed class TestTimelineStep
     public int Slot { get; init; }
     public TestVector3? Position { get; init; }
     public TestVector3? Direction { get; init; }
+    /// <summary>持续时间（wait 等动作用，毫秒）。</summary>
+    public int DurationMs { get; init; }
 }
 
 /// <summary>载体中立的 3D 向量（原为 record struct，为 Unity C# 兼容改为普通 readonly struct）。</summary>

@@ -49,6 +49,8 @@ namespace UnityHFSM.Visualization
             _snapshot.parameters.Clear();
             _snapshot.behaviorNodes.Clear();
             _snapshot.activeStatePaths.Clear();
+            _snapshot.pendingStatePaths.Clear();
+            _snapshot.exitingStatePaths.Clear();
             _snapshot.history.Clear();
             _snapshot.snapshotTime = Time.time;
 
@@ -150,6 +152,8 @@ namespace UnityHFSM.Visualization
             {
                 var state = _snapshot.states[index];
                 state.isActive = _snapshot.activeStatePaths.Contains(state.path);
+                state.isEntering = _snapshot.pendingStatePaths.Contains(state.path);
+                state.isExiting = _snapshot.exitingStatePaths.Contains(state.path);
                 _snapshot.states[index] = state;
             }
         }
@@ -228,6 +232,25 @@ namespace UnityHFSM.Visualization
                         : path + "/" + activeNameText;
                     if (!string.IsNullOrEmpty(activePath))
                         _provider._snapshot.activeStatePaths.Add(activePath);
+
+                    if (!fsm.HasPendingTransition)
+                        return;
+
+                    if (!string.IsNullOrEmpty(activePath))
+                        _provider._snapshot.exitingStatePaths.Add(activePath);
+
+                    if (fsm.IsPendingExitTransition)
+                        return;
+
+                    var pendingName = fsm.PendingStateName;
+                    var pendingNameText = ReferenceEquals(pendingName, null)
+                        ? string.Empty
+                        : pendingName.ToString();
+                    var pendingPath = string.IsNullOrEmpty(path)
+                        ? pendingNameText
+                        : Join(path, pendingNameText);
+                    if (!string.IsNullOrEmpty(pendingPath))
+                        _provider._snapshot.pendingStatePaths.Add(pendingPath);
                 }
                 catch (InvalidOperationException)
                 {
@@ -309,6 +332,8 @@ namespace UnityHFSM.Visualization
                     conditionDescription = string.IsNullOrEmpty(trigger)
                         ? transition.GetType().Name
                         : transition.GetType().Name + " [trigger: " + trigger + "]",
+                    isFromAny = fromAny,
+                    forceInstantly = transition.forceInstantly,
                     canTransition = IsEligible(machine, transition, fromAny),
                     lastTransitionTime = 0f
                 });

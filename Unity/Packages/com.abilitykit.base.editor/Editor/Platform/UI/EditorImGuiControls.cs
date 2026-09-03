@@ -171,7 +171,7 @@ namespace AbilityKit.Editor.Platform.UI
             EditorGUILayout.LabelField(model.Title, EditorStyles.boldLabel);
             var previousColor = GUI.color;
             GUI.color = SourceSyncColor(model.Inspection.State);
-            EditorGUILayout.LabelField(model.Inspection.State.ToString(), EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(model.StateLabel, EditorStyles.miniBoldLabel);
             GUI.color = previousColor;
 
             var messageType = model.Inspection.State switch
@@ -186,29 +186,29 @@ namespace AbilityKit.Editor.Platform.UI
             };
             EditorGUILayout.HelpBox(model.StatusMessage, messageType);
             EditorGUILayout.LabelField(
-                "Path",
-                model.HasSourcePath ? model.SourcePath : "<unbound>",
+                model.PathLabel,
+                model.HasSourcePath ? model.SourcePath : model.UnboundLabel,
                 EditorStyles.miniLabel);
 
             EditorGUILayout.BeginHorizontal();
             using (new EditorGUI.DisabledScope(!model.CanImport))
             {
-                if (GUILayout.Button("Import", EditorStyles.miniButtonLeft)) model.Import?.Invoke();
+                if (GUILayout.Button(model.ImportLabel, EditorStyles.miniButtonLeft)) model.Import?.Invoke();
             }
             using (new EditorGUI.DisabledScope(!model.CanExport))
             {
-                if (GUILayout.Button("Export", EditorStyles.miniButtonRight)) model.Export?.Invoke();
+                if (GUILayout.Button(model.ExportLabel, EditorStyles.miniButtonRight)) model.Export?.Invoke();
             }
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
             using (new EditorGUI.DisabledScope(!model.CanCopyPath))
             {
-                if (GUILayout.Button("Copy Path", EditorStyles.miniButtonLeft)) model.CopyPath?.Invoke();
+                if (GUILayout.Button(model.CopyPathLabel, EditorStyles.miniButtonLeft)) model.CopyPath?.Invoke();
             }
             using (new EditorGUI.DisabledScope(!model.CanRevealPath))
             {
-                if (GUILayout.Button("Reveal", EditorStyles.miniButtonRight)) model.RevealPath?.Invoke();
+                if (GUILayout.Button(model.RevealLabel, EditorStyles.miniButtonRight)) model.RevealPath?.Invoke();
             }
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();

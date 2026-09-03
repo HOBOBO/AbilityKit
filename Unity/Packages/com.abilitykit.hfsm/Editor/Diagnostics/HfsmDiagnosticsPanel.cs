@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using AbilityKit.Editor.Platform.Diagnostics;
 using AbilityKit.HFSM.Unity.Migration;
 using UnityEditor;
 using UnityEngine;
@@ -10,6 +11,7 @@ namespace UnityHFSM.Editor.Diagnostics
     {
         private HfsmEditorContext _context;
         private HfsmNextDiagnosticSnapshot _snapshot;
+        private EditorDiagnosticCollection _diagnostics;
         private Vector2 _scrollPosition;
         private bool _needsRefresh = true;
         private bool _showErrors = true;
@@ -46,6 +48,7 @@ namespace UnityHFSM.Editor.Diagnostics
         {
             _needsRefresh = false;
             _snapshot = null;
+            _diagnostics = null;
             _failure = string.Empty;
             if (_context?.GraphAsset == null) return null;
 
@@ -58,6 +61,7 @@ namespace UnityHFSM.Editor.Diagnostics
             try
             {
                 _snapshot = HfsmNextDiagnostics.Analyze(_context.GraphAsset);
+                _diagnostics = _snapshot.ToPlatformDiagnostics(Focus);
             }
             catch (Exception exception)
             {
@@ -121,8 +125,8 @@ namespace UnityHFSM.Editor.Diagnostics
             EditorGUILayout.BeginHorizontal();
             var status = _snapshot.IsExportReady ? "Ready" : "Blocked";
             GUILayout.Label(status, EditorStyles.boldLabel, GUILayout.Width(55));
-            GUILayout.Label($"Errors {_snapshot.ErrorCount}", GUILayout.Width(65));
-            GUILayout.Label($"Warnings {_snapshot.WarningCount}", GUILayout.Width(85));
+            GUILayout.Label($"Errors {_diagnostics?.ErrorCount ?? 0}", GUILayout.Width(65));
+            GUILayout.Label($"Warnings {_diagnostics?.WarningCount ?? 0}", GUILayout.Width(85));
             GUILayout.Label("Catalog: " + _snapshot.CatalogSource, GUILayout.MinWidth(80));
             EditorGUILayout.EndHorizontal();
             if (!string.IsNullOrEmpty(_snapshot.DefinitionHash))
@@ -134,9 +138,10 @@ namespace UnityHFSM.Editor.Diagnostics
 
         private void DrawIssues()
         {
-            var issues = _snapshot.Issues.Where(issue =>
-                    (_showErrors && issue.Severity == HfsmLegacyImportSeverity.Error) ||
-                    (_showWarnings && issue.Severity == HfsmLegacyImportSeverity.Warning))
+            var issues = (_diagnostics?.Items ?? Array.Empty<EditorDiagnostic>())
+                .Where(issue =>
+                    (_showErrors && issue.Severity == EditorDiagnosticSeverity.Error) ||
+                    (_showWarnings && issue.Severity == EditorDiagnosticSeverity.Warning))
                 .ToArray();
             if (issues.Length == 0)
             {
@@ -151,7 +156,7 @@ namespace UnityHFSM.Editor.Diagnostics
             {
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 GUILayout.Label(
-                    issue.Severity == HfsmLegacyImportSeverity.Error ? "Error" : "Warning",
+                    issue.Severity == EditorDiagnosticSeverity.Error ? "Error" : "Warning",
                     EditorStyles.boldLabel,
                     GUILayout.Width(55));
                 GUILayout.Label(issue.Code, GUILayout.Width(90));
@@ -160,10 +165,9 @@ namespace UnityHFSM.Editor.Diagnostics
                     EditorStyles.wordWrappedMiniLabel,
                     GUILayout.MinHeight(30));
 
-                var target = HfsmNextDiagnostics.ResolveTarget(issue.Path);
-                EditorGUI.BeginDisabledGroup(!target.IsValid);
+                EditorGUI.BeginDisabledGroup(!issue.CanLocate);
                 if (GUILayout.Button("Focus", GUILayout.Width(52), GUILayout.Height(22)))
-                    Focus(target);
+                    issue.Locate?.Invoke();
                 EditorGUI.EndDisabledGroup();
                 EditorGUILayout.EndHorizontal();
             }

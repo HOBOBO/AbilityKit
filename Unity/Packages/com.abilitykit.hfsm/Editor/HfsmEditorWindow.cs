@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using AbilityKit.Editor.Platform.Commands;
+using AbilityKit.Editor.Platform.Export;
+using AbilityKit.Editor.Platform.State;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -14,6 +19,21 @@ namespace UnityHFSM.Editor
     /// </summary>
     public class HfsmEditorWindow : EditorWindow
     {
+        private const string LastGraphGuidStateKey = "last-graph-guid";
+        private const string LastZoomStateKey = "last-zoom";
+        private const string LastPanXStateKey = "last-pan-x";
+        private const string LastPanYStateKey = "last-pan-y";
+        private const string DiagnosticsVisibleStateKey = "diagnostics-visible";
+        private const string LegacyLastGraphGuidKey = "HfsmEditor_LastGraphGuid";
+        private const string LegacyLastZoomKey = "HfsmEditor_LastZoom";
+        private const string LegacyLastPanXKey = "HfsmEditor_LastPanX";
+        private const string LegacyLastPanYKey = "HfsmEditor_LastPanY";
+        private const string LegacyDiagnosticsVisibleKey = "HfsmEditor_DiagnosticsVisible";
+
+        private readonly IEditorUserStateStore _userState =
+            new EditorPrefsUserStateStore("hfsm", "graph-editor");
+        private readonly EditorCommandRegistry _commands = new EditorCommandRegistry();
+        private readonly List<IDisposable> _commandRegistrations = new List<IDisposable>();
         private HfsmEditorContext _context;
         private VisualElement _root;
 
@@ -61,14 +81,10 @@ namespace UnityHFSM.Editor
             }
         }
 
-        private const string EditorPrefLastGraphGuid = "HfsmEditor_LastGraphGuid";
-        private const string EditorPrefLastZoom = "HfsmEditor_LastZoom";
-        private const string EditorPrefLastPanX = "HfsmEditor_LastPanX";
-        private const string EditorPrefLastPanY = "HfsmEditor_LastPanY";
-        private const string EditorPrefDiagnosticsVisible = "HfsmEditor_DiagnosticsVisible";
-
         private void OnEnable()
         {
+            MigrateLegacyUserState();
+            RegisterCommands();
             _context = new HfsmEditorContext();
             _context.OnContextChanged += OnContextChanged;
             _context.OnStateMachineChanged += OnStateMachineChanged;
@@ -77,12 +93,12 @@ namespace UnityHFSM.Editor
             CreateLayers();
 
             // Initialize view state
-            bool hasSavedView = EditorPrefs.HasKey(EditorPrefLastZoom);
+            bool hasSavedView = _userState.HasKey(LastZoomStateKey);
             if (hasSavedView)
             {
-                float zoom = EditorPrefs.GetFloat(EditorPrefLastZoom);
-                float panX = EditorPrefs.GetFloat(EditorPrefLastPanX);
-                float panY = EditorPrefs.GetFloat(EditorPrefLastPanY);
+                float zoom = _userState.GetFloat(LastZoomStateKey);
+                float panX = _userState.GetFloat(LastPanXStateKey);
+                float panY = _userState.GetFloat(LastPanYStateKey);
                 _context.ZoomFactor = zoom;
                 _context.PanOffset = new Vector2(panX, panY);
             }
@@ -98,15 +114,54 @@ namespace UnityHFSM.Editor
             RestoreLastGraph();
         }
 
+        private void MigrateLegacyUserState()
+        {
+            MigrateLegacyString(LegacyLastGraphGuidKey, LastGraphGuidStateKey);
+            MigrateLegacyFloat(LegacyLastZoomKey, LastZoomStateKey);
+            MigrateLegacyFloat(LegacyLastPanXKey, LastPanXStateKey);
+            MigrateLegacyFloat(LegacyLastPanYKey, LastPanYStateKey);
+            MigrateLegacyBool(LegacyDiagnosticsVisibleKey, DiagnosticsVisibleStateKey);
+        }
+
+        private void MigrateLegacyString(string legacyKey, string stateKey)
+        {
+            if (EditorPrefs.HasKey(legacyKey))
+            {
+                if (!_userState.HasKey(stateKey))
+                    _userState.SetString(stateKey, EditorPrefs.GetString(legacyKey));
+                EditorPrefs.DeleteKey(legacyKey);
+            }
+        }
+
+        private void MigrateLegacyFloat(string legacyKey, string stateKey)
+        {
+            if (EditorPrefs.HasKey(legacyKey))
+            {
+                if (!_userState.HasKey(stateKey))
+                    _userState.SetFloat(stateKey, EditorPrefs.GetFloat(legacyKey));
+                EditorPrefs.DeleteKey(legacyKey);
+            }
+        }
+
+        private void MigrateLegacyBool(string legacyKey, string stateKey)
+        {
+            if (EditorPrefs.HasKey(legacyKey))
+            {
+                if (!_userState.HasKey(stateKey))
+                    _userState.SetBool(stateKey, EditorPrefs.GetBool(legacyKey));
+                EditorPrefs.DeleteKey(legacyKey);
+            }
+        }
+
         private void RestoreLastGraph()
         {
-            if (!EditorPrefs.HasKey(EditorPrefLastGraphGuid))
+            if (!_userState.HasKey(LastGraphGuidStateKey))
             {
                 // No saved graph - will need auto-frame when a graph is loaded
                 return;
             }
 
-            string guid = EditorPrefs.GetString(EditorPrefLastGraphGuid);
+            string guid = _userState.GetString(LastGraphGuidStateKey);
             if (string.IsNullOrEmpty(guid))
                 return;
 
@@ -124,9 +179,12 @@ namespace UnityHFSM.Editor
         private void OnDisable()
         {
             // Save view state
-            EditorPrefs.SetFloat(EditorPrefLastZoom, _context.ZoomFactor);
-            EditorPrefs.SetFloat(EditorPrefLastPanX, _context.PanOffset.x);
-            EditorPrefs.SetFloat(EditorPrefLastPanY, _context.PanOffset.y);
+            if (_context != null)
+            {
+                _userState.SetFloat(LastZoomStateKey, _context.ZoomFactor);
+                _userState.SetFloat(LastPanXStateKey, _context.PanOffset.x);
+                _userState.SetFloat(LastPanYStateKey, _context.PanOffset.y);
+            }
 
             // Save last opened graph
             if (_context != null && _context.GraphAsset != null)
@@ -135,7 +193,7 @@ namespace UnityHFSM.Editor
                 if (!string.IsNullOrEmpty(path))
                 {
                     string guid = AssetDatabase.AssetPathToGUID(path);
-                    EditorPrefs.SetString(EditorPrefLastGraphGuid, guid);
+                    _userState.SetString(LastGraphGuidStateKey, guid);
                 }
             }
 
@@ -145,6 +203,34 @@ namespace UnityHFSM.Editor
                 _context.OnStateMachineChanged -= OnStateMachineChanged;
             }
             _diagnosticsPanel?.Dispose();
+            foreach (var registration in _commandRegistrations)
+                registration.Dispose();
+            _commandRegistrations.Clear();
+        }
+
+        private void RegisterCommands()
+        {
+            if (_commandRegistrations.Count > 0) return;
+            RegisterCommand("hfsm.graph.new", "hfsm.command.new", _ => CreateNewGraph());
+            RegisterCommand("hfsm.graph.load", "hfsm.command.load", _ => LoadGraphFromPicker());
+            RegisterCommand("hfsm.graph.back", "hfsm.command.back", _ => _context?.NavigateBack());
+            RegisterCommand("hfsm.graph.validate-menu", "hfsm.command.validate", _ => ShowValidateMenu());
+            RegisterCommand("hfsm.graph.validate-next", "hfsm.command.validate-next", _ => ValidateNextGraph());
+            RegisterCommand("hfsm.graph.validate-legacy", "hfsm.command.validate-legacy", _ => ValidateLegacyGraph());
+            RegisterCommand("hfsm.graph.frame-all", "hfsm.command.frame-all", _ => FrameAll());
+            RegisterCommand("hfsm.graph.toggle-diagnostics", "hfsm.command.diagnostics", _ => ToggleDiagnostics());
+            RegisterCommand("hfsm.graph.export-menu", "hfsm.command.export", _ => ShowExportMenu());
+            RegisterCommand("hfsm.graph.export-next", "hfsm.command.export-next", _ => ExportNextDefinition());
+        }
+
+        private void RegisterCommand(string id, string labelKey, Action<EditorCommandContext> execute)
+        {
+            _commandRegistrations.Add(_commands.Register(new EditorCommand(id, labelKey, execute)));
+        }
+
+        private void ExecuteCommand(string id)
+        {
+            _commands.Execute(id, new EditorCommandContext(this, _context?.GraphAsset));
         }
 
         private void CreateUI()
@@ -207,52 +293,64 @@ namespace UnityHFSM.Editor
             // Wire up back button
             if (_backButton != null)
             {
-                _backButton.clickable = new Clickable(() => _context.NavigateBack());
+                _backButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.back"));
                 _backButton.SetEnabled(false);
             }
 
-            // Wire up action buttons from UXML
+            // Wire up action buttons from UXML through stable platform commands.
             ToolbarButton newButton = _root.Q<ToolbarButton>("NewButton");
             if (newButton != null)
-                newButton.clickable = new Clickable(() => CreateNewGraph());
+                newButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.new"));
 
             ToolbarButton loadButton = _root.Q<ToolbarButton>("LoadButton");
             if (loadButton != null)
-                loadButton.clickable = new Clickable(() => LoadGraphFromPicker());
+                loadButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.load"));
 
             ToolbarButton validateButton = _root.Q<ToolbarButton>("ValidateButton");
             if (validateButton != null)
-                validateButton.clickable = new Clickable(ShowValidateMenu);
+                validateButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.validate-menu"));
 
             ToolbarButton frameButton = _root.Q<ToolbarButton>("FrameButton");
             if (frameButton != null)
-                frameButton.clickable = new Clickable(() => FrameAll());
+                frameButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.frame-all"));
 
             _diagnosticsButton = _root.Q<ToolbarButton>("DiagnosticsButton");
             if (_diagnosticsButton != null)
-                _diagnosticsButton.clickable = new Clickable(ToggleDiagnostics);
+                _diagnosticsButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.toggle-diagnostics"));
 
             _diagnosticsPane = _root.Q<VisualElement>("DiagnosticsPane");
-            SetDiagnosticsVisible(EditorPrefs.GetBool(EditorPrefDiagnosticsVisible, true));
+            SetDiagnosticsVisible(_userState.GetBool(DiagnosticsVisibleStateKey, true));
 
             ToolbarButton exportButton = _root.Q<ToolbarButton>("ExportButton");
             if (exportButton != null)
-                exportButton.clickable = new Clickable(ShowExportMenu);
+                exportButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.export-menu"));
         }
 
         private void ShowExportMenu()
         {
             var menu = new GenericMenu();
-            menu.AddItem(new GUIContent("Next Runtime Definition"), false, ExportNextDefinition);
-            menu.AddItem(new GUIContent("Legacy Archive JSON"), false, ExportLegacyArchive);
+            var actions = HfsmExportActionRegistry.CreateActions(
+                () => ExecuteCommand("hfsm.graph.export-next"),
+                ExportLegacyArchive);
+            foreach (var action in actions)
+                menu.AddItem(
+                    new GUIContent(action.Label, action.Description),
+                    false,
+                    () => action.Execute());
             menu.ShowAsContext();
         }
 
         private void ShowValidateMenu()
         {
             var menu = new GenericMenu();
-            menu.AddItem(new GUIContent("Next Runtime"), false, ValidateNextGraph);
-            menu.AddItem(new GUIContent("Legacy Graph"), false, ValidateLegacyGraph);
+            menu.AddItem(
+                new GUIContent("Next Runtime"),
+                false,
+                () => ExecuteCommand("hfsm.graph.validate-next"));
+            menu.AddItem(
+                new GUIContent("Legacy Graph"),
+                false,
+                () => ExecuteCommand("hfsm.graph.validate-legacy"));
             menu.ShowAsContext();
         }
 
@@ -280,7 +378,7 @@ namespace UnityHFSM.Editor
                 "Choose where to save the validated runtime definition");
             if (string.IsNullOrEmpty(path)) return;
 
-            System.IO.File.WriteAllText(path, result.Json, new System.Text.UTF8Encoding(false));
+            EditorAtomicFileWriter.WriteAllText(path, result.Json);
             AssetDatabase.Refresh();
             EditorUtility.DisplayDialog(
                 "Next Export Successful",
@@ -288,7 +386,7 @@ namespace UnityHFSM.Editor
                 "OK");
         }
 
-        private void ExportLegacyArchive()
+        private void ExportLegacyArchive(string exporterName)
         {
             if (_context.GraphAsset == null)
             {
@@ -296,13 +394,10 @@ namespace UnityHFSM.Editor
                 return;
             }
 
-            // Initialize the extension registry to register exporters
-            HfsmExtensionRegistry.Initialize();
-
-            var exporter = HfsmExtensionRegistry.GetExporter("JSON");
+            var exporter = HfsmExtensionRegistry.GetExporter(exporterName);
             if (exporter == null)
             {
-                EditorUtility.DisplayDialog("Export", "JSON exporter not found.", "OK");
+                EditorUtility.DisplayDialog("Export", $"{exporterName} exporter not found.", "OK");
                 return;
             }
 
@@ -324,7 +419,7 @@ namespace UnityHFSM.Editor
 
                 if (result.success)
                 {
-                    System.IO.File.WriteAllText(path, result.data);
+                    EditorAtomicFileWriter.WriteAllText(path, result.data);
                     EditorUtility.DisplayDialog("Export Successful",
                         $"Graph exported to:\n{path}\n\nElapsed time: {result.elapsedMilliseconds}ms\nSize: {result.data.Length} bytes",
                         "OK");
@@ -710,7 +805,7 @@ namespace UnityHFSM.Editor
         {
             if (_diagnosticsPane != null)
                 _diagnosticsPane.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
-            EditorPrefs.SetBool(EditorPrefDiagnosticsVisible, visible);
+            _userState.SetBool(DiagnosticsVisibleStateKey, visible);
         }
 
         private void FrameAll()

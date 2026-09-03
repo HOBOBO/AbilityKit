@@ -4,7 +4,8 @@
   "references": [
     "AbilityKit.HFSM.Core",
     "AbilityKit.HFSM.Unity",
-    "AbilityKit.Core"
+    "AbilityKit.Core",
+    "AbilityKit.Editor.Platform"
   ],
   "includePlatforms": [
     "Editor"

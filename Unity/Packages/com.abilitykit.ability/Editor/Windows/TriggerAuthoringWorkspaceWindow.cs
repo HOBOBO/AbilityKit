@@ -5,8 +5,9 @@ using System.IO;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Inspectors;
 using AbilityKit.Ability.Editor.Utilities;
+using AbilityKit.Editor.Platform.Commands;
+using AbilityKit.Editor.Platform.Diagnostics;
 using AbilityKit.Editor.Platform.UI;
-using Sirenix.Utilities.Editor;
 using UnityEditor;
 using UnityEngine;
 
@@ -25,17 +26,19 @@ namespace AbilityKit.Ability.Editor.Windows
 
         private readonly List<TriggerAuthoringProjectAsset> _projects = new List<TriggerAuthoringProjectAsset>();
         private readonly List<TriggerAuthoringModuleAsset> _unassignedModules = new List<TriggerAuthoringModuleAsset>();
+        private readonly EditorCommandRegistry _commands = new EditorCommandRegistry();
+        private readonly List<IDisposable> _commandRegistrations = new List<IDisposable>();
+        private readonly TriggerAuthoringProjectTreePanel _projectTreePanel = new TriggerAuthoringProjectTreePanel();
+        private readonly TriggerAuthoringModuleContentPanel _moduleContentPanel = new TriggerAuthoringModuleContentPanel();
+        private readonly TriggerAuthoringSourceSyncPanel _sourceSyncPanel = new TriggerAuthoringSourceSyncPanel();
+        private readonly TriggerAuthoringProjectValidationPanel _validationPanel = new TriggerAuthoringProjectValidationPanel();
 
         private TriggerAuthoringModuleAsset _selectedModule;
         private TriggerAuthoringModuleDrawer _moduleDrawer;
-        private Vector2 _treeScroll;
-        private Vector2 _detailScroll;
         private Vector2 _rightScroll;
-        private string _search = string.Empty;
-        private TriggerAuthoringSyncInspection _syncInspection;
-        private double _nextSyncInspectionAt;
         private TriggerAuthoringProjectValidationResult _validation;
         private TriggerAuthoringProjectAsset _validationProject;
+        private EditorDiagnosticCollection _platformDiagnostics = new EditorDiagnosticCollection();
         private readonly Action _selectionChangedHandler;
 
         public TriggerAuthoringWorkspaceWindow()
@@ -53,6 +56,7 @@ namespace AbilityKit.Ability.Editor.Windows
 
         private void OnEnable()
         {
+            RegisterCommands();
             RefreshProjects();
             Selection.selectionChanged += _selectionChangedHandler;
         }
@@ -60,6 +64,10 @@ namespace AbilityKit.Ability.Editor.Windows
         private void OnDisable()
         {
             Selection.selectionChanged -= _selectionChangedHandler;
+            DisposeModuleDrawer();
+            for (var i = 0; i < _commandRegistrations.Count; i++)
+                _commandRegistrations[i].Dispose();
+            _commandRegistrations.Clear();
         }
 
         private void OnFocus()
@@ -88,108 +96,58 @@ namespace AbilityKit.Ability.Editor.Windows
 
         private void DrawToolbar()
         {
-            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Trigger Authoring", EditorStyles.boldLabel);
-            GUILayout.FlexibleSpace();
-            if (GUILayout.Button(new GUIContent("Create Project", "Run the project setup wizard (catalogs + starter module)"), EditorStyles.toolbarButton))
-                EditorApplication.ExecuteMenuItem("Assets/AbilityKit/Trigger Authoring/Create MOBA Project Setup");
-            if (GUILayout.Button(new GUIContent("Validate All", "Validate every Trigger Authoring project"), EditorStyles.toolbarButton))
-            {
-                var failures = TriggerAuthoringProjectValidationMenu.ValidateAllProjects(true);
-                EditorUtility.DisplayDialog(
-                    "Trigger Authoring Project Validation",
-                    failures.Count == 0
-                        ? "All Trigger Authoring projects are valid."
-                        : string.Join(Environment.NewLine, failures.ToArray()),
-                    "OK");
-            }
-            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton))
-            {
-                RefreshProjects();
-                Repaint();
-            }
-            EditorGUILayout.EndHorizontal();
+            EditorImGuiControls.DrawCommandToolbar(
+                _commands,
+                TriggerAuthoringEditorIntegration.Localization,
+                new EditorCommandContext(this, _selectedModule),
+                command => command.Id == TriggerAuthoringCommandIds.CreateProject ||
+                           command.Id == TriggerAuthoringCommandIds.ValidateAll ||
+                           command.Id == TriggerAuthoringCommandIds.Refresh);
+        }
+
+        private void RegisterCommands()
+        {
+            if (_commandRegistrations.Count > 0) return;
+            var commands = TriggerAuthoringCommandFactory.CreateWorkspace(
+                () => EditorApplication.ExecuteMenuItem(
+                    "Assets/AbilityKit/Trigger Authoring/Create MOBA Project Setup"),
+                ValidateAllProjects,
+                () =>
+                {
+                    RefreshProjects();
+                    Repaint();
+                },
+                ValidateSelectedProject,
+                ExportSelectedProject,
+                () => _selectedModule != null && _selectedModule.Project != null);
+            for (var i = 0; i < commands.Count; i++)
+                _commandRegistrations.Add(_commands.Register(commands[i]));
+        }
+
+        private static void ValidateAllProjects()
+        {
+            var failures = TriggerAuthoringProjectValidationMenu.ValidateAllProjects(true);
+            EditorUtility.DisplayDialog(
+                "Trigger Authoring Project Validation",
+                failures.Count == 0
+                    ? "All Trigger Authoring projects are valid."
+                    : string.Join(Environment.NewLine, failures.ToArray()),
+                "OK");
         }
 
         private void DrawTree()
         {
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.Width(LeftPaneWidth));
-            EditorGUILayout.BeginHorizontal();
-            _search = EditorGUILayout.TextField(_search ?? string.Empty, EditorStyles.toolbarSearchField);
-            if (GUILayout.Button("x", EditorStyles.toolbarButton, GUILayout.Width(20f)) &&
-                !string.IsNullOrEmpty(_search))
-            {
-                _search = string.Empty;
-                GUI.FocusControl(null);
-            }
-            EditorGUILayout.EndHorizontal();
-
-            _treeScroll = EditorGUILayout.BeginScrollView(_treeScroll);
-            var filter = (_search ?? string.Empty).Trim();
-            for (var i = 0; i < _projects.Count; i++)
-            {
-                var project = _projects[i];
-                if (project == null) continue;
-                GUILayout.Label(project.name, EditorStyles.boldLabel);
-                var modules = project.Modules;
-                for (var m = 0; m < modules.Count; m++)
-                {
-                    if (modules[m] != null) DrawModuleRow(modules[m], filter);
-                }
-            }
-
-            if (_unassignedModules.Count > 0)
-            {
-                GUILayout.Space(4f);
-                GUILayout.Label($"Unassigned Modules ({_unassignedModules.Count})", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox(
-                    "These modules are not registered in any project; the build gate skips them.",
-                    MessageType.Warning);
-                for (var i = 0; i < _unassignedModules.Count; i++)
-                    DrawModuleRow(_unassignedModules[i], filter);
-            }
-            EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
-        }
-
-        private void DrawModuleRow(TriggerAuthoringModuleAsset module, string filter)
-        {
-            var moduleId = module.Module != null ? module.Module.ModuleId : null;
-            var summary = string.IsNullOrWhiteSpace(moduleId) ? module.name : moduleId;
-            var triggerCount = module.Module != null && module.Module.Triggers != null
-                ? module.Module.Triggers.Count
-                : 0;
-            var label = summary + "  (" + triggerCount + ")";
-            if (filter.Length > 0 &&
-                label.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0 &&
-                module.name.IndexOf(filter, StringComparison.OrdinalIgnoreCase) < 0)
-                return;
-
-            var oldBackground = GUI.backgroundColor;
-            if (module == _selectedModule) GUI.backgroundColor = new Color(0.42f, 0.66f, 0.92f);
-            if (GUILayout.Button(label, EditorStyles.miniButton, GUILayout.Height(24f)))
-                SelectModule(module, true);
-            GUI.backgroundColor = oldBackground;
+            _projectTreePanel.Draw(
+                _projects,
+                _unassignedModules,
+                _selectedModule,
+                module => SelectModule(module, true),
+                LeftPaneWidth);
         }
 
         private void DrawCenter()
         {
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            if (_selectedModule == null)
-            {
-                EditorGUILayout.HelpBox(
-                    "Select a module on the left to start editing.\n" +
-                    "No project yet? Use Create Project in the toolbar (catalogs + starter module).",
-                    MessageType.Info);
-                GUILayout.FlexibleSpace();
-                EditorGUILayout.EndVertical();
-                return;
-            }
-
-            _detailScroll = EditorGUILayout.BeginScrollView(_detailScroll);
-            if (_moduleDrawer != null) _moduleDrawer.Draw();
-            EditorGUILayout.EndScrollView();
-            EditorGUILayout.EndVertical();
+            _moduleContentPanel.Draw(_selectedModule, _moduleDrawer);
         }
 
         private void DrawRightPane()
@@ -205,87 +163,18 @@ namespace AbilityKit.Ability.Editor.Windows
 
         private void DrawSyncCard()
         {
-            if (_selectedModule == null)
-            {
-                SirenixEditorGUI.BeginBox("Source Sync");
-                EditorGUILayout.LabelField("No module selected.", EditorStyles.miniLabel);
-                SirenixEditorGUI.EndBox();
-                return;
-            }
-
-            if (_syncInspection == null || _nextSyncInspectionAt <= EditorApplication.timeSinceStartup)
-            {
-                _syncInspection = TriggerAuthoringSourceSync.Inspect(_selectedModule);
-                _nextSyncInspectionAt = EditorApplication.timeSinceStartup + 0.5d;
-            }
-
-            var inspection = _syncInspection;
-            EditorImGuiControls.DrawSourceSyncCard(
-                new EditorSourceSyncCardModel(
-                    inspection.PlatformInspection,
-                    ImportSource,
-                    ExportSource,
-                    copyPath: () => EditorGUIUtility.systemCopyBuffer = inspection.SourcePath ?? string.Empty,
-                    revealPath: () => EditorUtility.RevealInFinder(inspection.SourcePath)));
+            _sourceSyncPanel.Draw(_selectedModule, ImportSource, ExportSource);
         }
 
         private void DrawValidationCard()
         {
-            SirenixEditorGUI.BeginBox("Project Validation");
-            var project = _selectedModule != null ? _selectedModule.Project : null;
-            if (project == null)
-            {
-                EditorGUILayout.HelpBox("The selected module is not registered in a project.", MessageType.Warning);
-                SirenixEditorGUI.EndBox();
-                return;
-            }
-
-            EditorGUILayout.LabelField(project.name, EditorStyles.miniBoldLabel);
-            EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Validate", EditorStyles.miniButtonLeft))
-            {
-                _validation = TriggerAuthoringProjectValidator.Validate(project);
-                _validationProject = project;
-            }
-            if (GUILayout.Button("Export Runtime", EditorStyles.miniButtonRight))
-            {
-                var result = TriggerAuthoringProjectExport.ExportAll(project);
-                var message = "[TriggerAuthoring] Project runtime export " +
-                              (result.Success ? "succeeded. " : "failed. ") + result.BuildMessage();
-                if (result.Success) Debug.Log(message, project);
-                else Debug.LogError(message, project);
-                EditorUtility.DisplayDialog("Project Runtime Export", result.BuildMessage(), "OK");
-            }
-            EditorGUILayout.EndHorizontal();
-
-            if (_validation != null && _validationProject == project)
-            {
-                var errors = 0;
-                var warnings = 0;
-                for (var i = 0; i < _validation.Diagnostics.Count; i++)
-                {
-                    if (_validation.Diagnostics[i].Severity == TriggerAuthoringDiagnosticSeverity.Error) errors++;
-                    else if (_validation.Diagnostics[i].Severity == TriggerAuthoringDiagnosticSeverity.Warning) warnings++;
-                }
-
-                EditorGUILayout.LabelField(
-                    $"{_validation.ModuleCount} modules, {_validation.TemplateCount} templates  (E{errors} W{warnings})",
-                    EditorStyles.miniLabel);
-                for (var i = 0; i < _validation.Diagnostics.Count; i++)
-                {
-                    var diagnostic = _validation.Diagnostics[i];
-                    EditorGUILayout.HelpBox(
-                        diagnostic.Code + " " + diagnostic.Path + ": " + diagnostic.Message,
-                        diagnostic.Severity == TriggerAuthoringDiagnosticSeverity.Error
-                            ? MessageType.Error
-                            : MessageType.Warning);
-                }
-            }
-            else
-            {
-                EditorGUILayout.LabelField("Not validated yet.", EditorStyles.miniLabel);
-            }
-            SirenixEditorGUI.EndBox();
+            _validationPanel.Draw(
+                _selectedModule,
+                _validation,
+                _validationProject,
+                _platformDiagnostics,
+                _commands,
+                this);
         }
 
         private void ImportSource()
@@ -319,7 +208,7 @@ namespace AbilityKit.Ability.Editor.Windows
             {
                 EditorUtility.DisplayDialog("Trigger Source Import Failed", result.Message, "OK");
             }
-            _nextSyncInspectionAt = 0d;
+            _sourceSyncPanel.Invalidate();
             Repaint();
         }
 
@@ -358,8 +247,91 @@ namespace AbilityKit.Ability.Editor.Windows
             {
                 EditorUtility.DisplayDialog("Trigger Source Export Failed", result.Message, "OK");
             }
-            _nextSyncInspectionAt = 0d;
+            _sourceSyncPanel.Invalidate();
             Repaint();
+        }
+
+        private void ValidateSelectedProject()
+        {
+            var project = _selectedModule != null ? _selectedModule.Project : null;
+            if (project == null) return;
+            _validation = TriggerAuthoringProjectValidator.Validate(project);
+            _validationProject = project;
+            _platformDiagnostics = TriggerAuthoringDiagnosticAdapter.Adapt(
+                _validation.Diagnostics,
+                project,
+                LocateProjectDiagnostic);
+            Repaint();
+        }
+
+        private void ExportSelectedProject()
+        {
+            var project = _selectedModule != null ? _selectedModule.Project : null;
+            if (project == null) return;
+            var result = TriggerAuthoringProjectExport.ExportAll(project);
+            var message = "[TriggerAuthoring] Project runtime export " +
+                          (result.Success ? "succeeded. " : "failed. ") + result.BuildMessage();
+            if (result.Success) Debug.Log(message, project);
+            else Debug.LogError(message, project);
+            EditorUtility.DisplayDialog("Project Runtime Export", result.BuildMessage(), "OK");
+        }
+
+        private void LocateProjectDiagnostic(string path)
+        {
+            if (_validationProject == null) return;
+
+            UnityEngine.Object target = _validationProject;
+            if (TryReadPathIndex(path, "project.modules[", out var moduleIndex) &&
+                moduleIndex >= 0 &&
+                moduleIndex < _validationProject.Modules.Count &&
+                _validationProject.Modules[moduleIndex] != null)
+            {
+                target = _validationProject.Modules[moduleIndex];
+            }
+            else if (TryReadPathIndex(path, "project.templates[", out var templateIndex) &&
+                     _validationProject.TemplateCatalog != null &&
+                     templateIndex >= 0 &&
+                     templateIndex < _validationProject.TemplateCatalog.Templates.Count &&
+                     _validationProject.TemplateCatalog.Templates[templateIndex] != null)
+            {
+                target = _validationProject.TemplateCatalog.Templates[templateIndex];
+            }
+            else if (!string.IsNullOrEmpty(path) &&
+                     path.StartsWith("project.eventCatalog", StringComparison.Ordinal) &&
+                     _validationProject.EventCatalog != null)
+            {
+                target = _validationProject.EventCatalog;
+            }
+            else if (!string.IsNullOrEmpty(path) &&
+                     path.StartsWith("project.globalBlackboardCatalog", StringComparison.Ordinal) &&
+                     _validationProject.GlobalBlackboardCatalog != null)
+            {
+                target = _validationProject.GlobalBlackboardCatalog;
+            }
+            else if (!string.IsNullOrEmpty(path) &&
+                     path.StartsWith("project.templateCatalog", StringComparison.Ordinal) &&
+                     _validationProject.TemplateCatalog != null)
+            {
+                target = _validationProject.TemplateCatalog;
+            }
+
+            Selection.activeObject = target;
+            EditorGUIUtility.PingObject(target);
+        }
+
+        private static bool TryReadPathIndex(
+            string path,
+            string prefix,
+            out int index)
+        {
+            index = -1;
+            if (string.IsNullOrEmpty(path)) return false;
+            var start = path.IndexOf(prefix, StringComparison.Ordinal);
+            if (start < 0) return false;
+            start += prefix.Length;
+            var end = path.IndexOf(']', start);
+            return end > start &&
+                   int.TryParse(path.Substring(start, end - start), out index);
         }
 
         private void SelectModule(TriggerAuthoringModuleAsset module, bool syncSelection)
@@ -383,9 +355,17 @@ namespace AbilityKit.Ability.Editor.Windows
 
             _validation = null;
             _validationProject = null;
-            _syncInspection = null;
-            _nextSyncInspectionAt = 0d;
+            _platformDiagnostics.Clear();
+            _sourceSyncPanel.Invalidate();
             if (syncSelection) Selection.activeObject = module;
+        }
+
+        private void DisposeModuleDrawer()
+        {
+            if (_moduleDrawer == null) return;
+            _moduleDrawer.RepaintRequested -= Repaint;
+            _moduleDrawer.Dispose();
+            _moduleDrawer = null;
         }
 
         private void RefreshProjects()

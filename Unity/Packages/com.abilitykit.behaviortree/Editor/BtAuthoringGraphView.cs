@@ -316,19 +316,14 @@ namespace AbilityKit.BehaviorTree.Editor
             foreach (var view in _nodeViewsById.Values) view.SetErrorBorder(false);
         }
 
-        /// <summary>校验错误标红：错误消息以 'nodeId' 引用节点，命中的节点加红边框。</summary>
-        public void MarkErrorNodes(List<string> errors)
+        /// <summary>按结构化诊断明确给出的节点 ID 标记错误边框。</summary>
+        public void MarkErrorNodes(IEnumerable<string> nodeIds)
         {
+            var marked = new HashSet<string>(
+                nodeIds ?? Array.Empty<string>(),
+                StringComparer.Ordinal);
             foreach (var pair in _nodeViewsById)
-            {
-                var quoted = "'" + pair.Key + "'";
-                var hasError = false;
-                foreach (var error in errors)
-                {
-                    if (error.Contains(quoted)) { hasError = true; break; }
-                }
-                pair.Value.SetErrorBorder(hasError);
-            }
+                pair.Value.SetErrorBorder(marked.Contains(pair.Key));
         }
 
         private BtAuthoringNodeView? FindNodeView(string nodeId)

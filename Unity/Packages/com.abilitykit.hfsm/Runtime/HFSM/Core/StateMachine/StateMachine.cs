@@ -156,8 +156,13 @@ namespace UnityHFSM
 		public bool IsActive => activeState != null;
 
 		public TStateId PendingStateName => pendingTransition.targetState;
-		public StateBase<TStateId> PendingState => GetState(PendingStateName);
+		public StateBase<TStateId> PendingState =>
+			pendingTransition.isPending && !pendingTransition.isExitTransition
+				? GetState(PendingStateName)
+				: null;
 		public bool HasPendingTransition => pendingTransition.isPending;
+		public bool IsPendingExitTransition =>
+			pendingTransition.isPending && pendingTransition.isExitTransition;
 
 		public IStateTimingManager ParentFsm => fsm;
 

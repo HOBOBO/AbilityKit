@@ -20,6 +20,12 @@ namespace UnityHFSM
 		TStateId PendingStateName { get; }
 
 		/// <summary>
+		/// Whether the pending delayed transition exits this machine vertically
+		/// instead of entering another state in this machine.
+		/// </summary>
+		bool IsPendingExitTransition { get; }
+
+		/// <summary>
 		/// The currently active state of the state machine.
 		/// </summary>
 		/// <remarks>

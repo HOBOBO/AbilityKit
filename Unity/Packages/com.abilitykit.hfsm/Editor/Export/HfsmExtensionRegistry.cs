@@ -277,6 +277,75 @@ namespace UnityHFSM.Editor.Export
         }
     }
 
+    /// <summary>
+    /// Stable UI action exposed by the HFSM export menu. The action model keeps
+    /// menu composition separate from exporter execution and allows registered
+    /// legacy exporters to contribute without changing the editor window.
+    /// </summary>
+    public sealed class HfsmExportAction
+    {
+        public HfsmExportAction(
+            string id,
+            string label,
+            string description,
+            Action execute)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ArgumentException("A stable export action id is required.", nameof(id));
+            if (string.IsNullOrWhiteSpace(label))
+                throw new ArgumentException("An export action label is required.", nameof(label));
+
+            Id = id;
+            Label = label;
+            Description = description ?? string.Empty;
+            Execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        }
+
+        public string Id { get; }
+        public string Label { get; }
+        public string Description { get; }
+        public Action Execute { get; }
+    }
+
+    /// <summary>
+    /// Adapts the Next runtime export and the legacy exporter registry into one
+    /// deterministic menu model while preserving their distinct semantics.
+    /// </summary>
+    public static class HfsmExportActionRegistry
+    {
+        public static IReadOnlyList<HfsmExportAction> CreateActions(
+            Action exportNextDefinition,
+            Action<string> exportLegacy)
+        {
+            if (exportNextDefinition == null)
+                throw new ArgumentNullException(nameof(exportNextDefinition));
+            if (exportLegacy == null)
+                throw new ArgumentNullException(nameof(exportLegacy));
+
+            var actions = new List<HfsmExportAction>
+            {
+                new HfsmExportAction(
+                    "hfsm.export.next-definition",
+                    "Next Runtime Definition",
+                    "Validated deterministic runtime definition.",
+                    exportNextDefinition)
+            };
+
+            foreach (var exporter in HfsmExtensionRegistry.GetExporterInfos()
+                         .OrderBy(info => info.Name, StringComparer.Ordinal))
+            {
+                var exporterName = exporter.Name;
+                actions.Add(new HfsmExportAction(
+                    "hfsm.export.legacy." + exporterName.ToLowerInvariant(),
+                    "Legacy Archive/" + exporterName,
+                    exporter.Description,
+                    () => exportLegacy(exporterName)));
+            }
+
+            return actions.AsReadOnly();
+        }
+    }
+
     // ========================================================================
     // 图形扩展接口
     // ========================================================================

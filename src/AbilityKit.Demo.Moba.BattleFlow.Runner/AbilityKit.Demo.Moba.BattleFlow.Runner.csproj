@@ -15,5 +15,6 @@
     <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
     <ProjectReference Include="..\AbilityKit.Environment\AbilityKit.Environment.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Environment\AbilityKit.Demo.Moba.Environment.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance\AbilityKit.Demo.Moba.Acceptance.csproj" />
   </ItemGroup>
 </Project>

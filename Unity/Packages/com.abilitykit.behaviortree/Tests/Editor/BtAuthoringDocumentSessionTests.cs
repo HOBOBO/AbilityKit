@@ -1,5 +1,8 @@
 #if UNITY_EDITOR
+#nullable enable
+
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.Documents;
 using NUnit.Framework;
 
 namespace AbilityKit.BehaviorTree.Editor.Tests
@@ -62,6 +65,81 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
             Assert.That(session.Undo(), Is.True);
             Assert.That(session.Document.Metadata.Description, Is.EqualTo("1"));
             Assert.That(session.Undo(), Is.False);
+        }
+
+        [Test]
+        public void TrySwitch_CancelPreservesDirtyCurrentDocument()
+        {
+            var session = new BtAuthoringDocumentSession();
+            session.Open(CreateDocument("current"));
+            session.RecordChange();
+            session.Document.Metadata.Description = "dirty";
+
+            var switched = session.TrySwitch(
+                CreateDocument("next"),
+                decide: _ => EditorDocumentSwitchDecision.Cancel);
+
+            Assert.That(switched, Is.False);
+            Assert.That(session.Document.Metadata.Description, Is.EqualTo("dirty"));
+            Assert.That(session.IsDirty, Is.True);
+            Assert.That(session.CanUndo, Is.True);
+        }
+
+        [Test]
+        public void TrySwitch_DiscardOpensNextAndClearsHistory()
+        {
+            var session = new BtAuthoringDocumentSession();
+            session.Open(CreateDocument("current"));
+            session.RecordChange();
+            session.Document.Metadata.Description = "dirty";
+
+            var switched = session.TrySwitch(
+                CreateDocument("next"),
+                decide: _ => EditorDocumentSwitchDecision.Discard);
+
+            Assert.That(switched, Is.True);
+            Assert.That(session.Document.Metadata.Description, Is.EqualTo("next"));
+            Assert.That(session.IsDirty, Is.False);
+            Assert.That(session.CanUndo, Is.False);
+            Assert.That(session.CanRedo, Is.False);
+        }
+
+        [Test]
+        public void TrySwitch_SavePersistsCurrentThenOpensReadOnlyNext()
+        {
+            var session = new BtAuthoringDocumentSession();
+            session.Open(CreateDocument("current"));
+            session.RecordChange();
+            session.Document.Metadata.Description = "saved-before-switch";
+            string? savedDescription = null;
+
+            var switched = session.TrySwitch(
+                CreateDocument("observed"),
+                nextIsReadOnly: true,
+                decide: _ => EditorDocumentSwitchDecision.Save,
+                saveCurrent: document => savedDescription = document.Metadata.Description);
+
+            Assert.That(switched, Is.True);
+            Assert.That(savedDescription, Is.EqualTo("saved-before-switch"));
+            Assert.That(session.Document.Metadata.Description, Is.EqualTo("observed"));
+            Assert.That(session.IsReadOnly, Is.True);
+            Assert.That(session.IsDirty, Is.False);
+            Assert.That(session.CanUndo, Is.False);
+        }
+
+        [Test]
+        public void UndoRedo_ConvergesAgainstSavedBaseline()
+        {
+            var session = new BtAuthoringDocumentSession();
+            session.Open(CreateDocument("baseline"));
+            session.RecordChange();
+            session.Document.Metadata.Description = "changed";
+
+            Assert.That(session.IsDirty, Is.True);
+            Assert.That(session.Undo(), Is.True);
+            Assert.That(session.IsDirty, Is.False);
+            Assert.That(session.Redo(), Is.True);
+            Assert.That(session.IsDirty, Is.True);
         }
 
         private static BtAuthoringSourceDocument CreateDocument(string description)

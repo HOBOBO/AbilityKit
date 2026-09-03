@@ -144,6 +144,92 @@ namespace AbilityKit.Tests
         }
 
         [Test]
+        public void StronglyTypedProviderCapturesAnyAndForceTransitionMetadata()
+        {
+            var fsm = new StateMachine { RegisterForInspection = false };
+            fsm.AddState("idle", new State());
+            fsm.AddState("attack", new State());
+            fsm.AddTransitionFromAny(
+                new TransitionBase(string.Empty, "attack", forceInstantly: true));
+            fsm.Init();
+
+            var snapshot = new StateMachineVisualizationProvider(fsm).GetSnapshot();
+            var transition = snapshot.transitions.Single();
+
+            Assert.That(transition.isFromAny, Is.True);
+            Assert.That(transition.forceInstantly, Is.True);
+            Assert.That(transition.toPath, Is.EqualTo("attack"));
+        }
+
+        [Test]
+        public void StronglyTypedProviderCapturesAndClearsPendingStatePaths()
+        {
+            var fsm = new StateMachine { RegisterForInspection = false };
+            fsm.AddState(
+                "idle",
+                new State(
+                    canExit: _ => false,
+                    needsExitTime: true));
+            fsm.AddState("attack", new State());
+            fsm.SetStartState("idle");
+            fsm.Init();
+
+            var provider = new StateMachineVisualizationProvider(fsm);
+            fsm.RequestStateChange("attack");
+
+            var pendingSnapshot = provider.GetSnapshot();
+            Assert.That(pendingSnapshot.activeStatePaths, Does.Contain("idle"));
+            Assert.That(pendingSnapshot.exitingStatePaths, Does.Contain("idle"));
+            Assert.That(pendingSnapshot.pendingStatePaths, Does.Contain("attack"));
+            Assert.That(
+                pendingSnapshot.FindState("idle").Value.isExiting,
+                Is.True);
+            Assert.That(
+                pendingSnapshot.FindState("attack").Value.isEntering,
+                Is.True);
+
+            fsm.StateCanExit();
+
+            var completedSnapshot = provider.GetSnapshot();
+            Assert.That(completedSnapshot.activeStatePaths, Does.Contain("attack"));
+            Assert.That(completedSnapshot.exitingStatePaths, Is.Empty);
+            Assert.That(completedSnapshot.pendingStatePaths, Is.Empty);
+            Assert.That(
+                completedSnapshot.FindState("idle").Value.isExiting,
+                Is.False);
+            Assert.That(
+                completedSnapshot.FindState("attack").Value.isEntering,
+                Is.False);
+        }
+
+        [Test]
+        public void StronglyTypedProviderDoesNotInventPendingTargetForVerticalExit()
+        {
+            var fsm = new StateMachine(needsExitTime: true)
+            {
+                RegisterForInspection = false
+            };
+            fsm.AddState(
+                "idle",
+                new State(
+                    canExit: _ => false,
+                    needsExitTime: true));
+            fsm.SetStartState("idle");
+            fsm.Init();
+
+            var provider = new StateMachineVisualizationProvider(fsm);
+            fsm.RequestExit();
+
+            var snapshot = provider.GetSnapshot();
+            Assert.That(fsm.IsPendingExitTransition, Is.True);
+            Assert.That(fsm.PendingState, Is.Null);
+            Assert.That(snapshot.exitingStatePaths, Does.Contain("idle"));
+            Assert.That(snapshot.pendingStatePaths, Is.Empty);
+            Assert.That(snapshot.FindState("idle").Value.isExiting, Is.True);
+            Assert.That(snapshot.states.Any(state => state.isEntering), Is.False);
+        }
+
+        [Test]
         public void StateMachineLifecycleUsesTheSharedInspectionRegistry()
         {
             HfsmLiveRegistry.AutoRegisterEnabled = true;

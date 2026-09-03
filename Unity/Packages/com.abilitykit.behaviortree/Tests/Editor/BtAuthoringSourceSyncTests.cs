@@ -53,6 +53,28 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
         }
 
         [Test]
+        public void Inspect_ClassifiesUnboundAndMissingSourcesExplicitly()
+        {
+            var unbound = ScriptableObject.CreateInstance<BtAuthoringAsset>();
+            try
+            {
+                unbound.SaveDocument(BtAuthoringTemplates.BuildEmpty());
+                Assert.That(
+                    BtAuthoringSourceSync.Inspect(unbound).State,
+                    Is.EqualTo(BtAuthoringSyncState.Untracked));
+
+                File.Delete(_sourcePath);
+                Assert.That(
+                    BtAuthoringSourceSync.Inspect(_asset).State,
+                    Is.EqualTo(BtAuthoringSyncState.SourceMissing));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(unbound);
+            }
+        }
+
+        [Test]
         public void Inspect_TreatsEquivalentFormattingAndConvergedContentAsInSync()
         {
             SaveAssetDescription("same");
@@ -86,6 +108,74 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
             Assert.That(blocked.Success, Is.False);
             Assert.That(blocked.CanForce, Is.True);
             Assert.That(File.ReadAllText(_sourcePath), Is.EqualTo("not-json"));
+        }
+
+        [Test]
+        public void Inspect_ClassifiesInvalidSourceExplicitly()
+        {
+            File.WriteAllText(_sourcePath, "not-json");
+
+            var inspection = BtAuthoringSourceSync.Inspect(_asset);
+
+            Assert.That(inspection.State, Is.EqualTo(BtAuthoringSyncState.InvalidSource));
+        }
+
+        [Test]
+        public void Import_ConflictRequiresForceThenConvergesToSource()
+        {
+            SaveAssetDescription("local");
+            SaveFileDescription("external");
+
+            var blocked = BtAuthoringSourceSync.Import(_asset, _sourcePath);
+            Assert.That(blocked.Success, Is.False);
+            Assert.That(blocked.CanForce, Is.True);
+            Assert.That(_asset.LoadDocument().Metadata.Description, Is.EqualTo("local"));
+
+            var forced = BtAuthoringSourceSync.Import(_asset, _sourcePath, force: true);
+            Assert.That(forced.Success, Is.True);
+            Assert.That(_asset.LoadDocument().Metadata.Description, Is.EqualTo("external"));
+            Assert.That(BtAuthoringSourceSync.Inspect(_asset).State, Is.EqualTo(BtAuthoringSyncState.InSync));
+        }
+
+        [Test]
+        public void Import_UntrackedAuthoredAssetRequiresForceThenConverges()
+        {
+            var unbound = ScriptableObject.CreateInstance<BtAuthoringAsset>();
+            try
+            {
+                var document = BtAuthoringTemplates.BuildEmpty();
+                document.Metadata.Description = "local-authored";
+                unbound.SaveDocument(document);
+
+                var blocked = BtAuthoringSourceSync.Import(unbound, _sourcePath);
+                Assert.That(blocked.Success, Is.False);
+                Assert.That(blocked.CanForce, Is.True);
+                Assert.That(unbound.LoadDocument().Metadata.Description, Is.EqualTo("local-authored"));
+
+                var forced = BtAuthoringSourceSync.Import(unbound, _sourcePath, force: true);
+                Assert.That(forced.Success, Is.True);
+                Assert.That(
+                    BtAuthoringSourceSync.Inspect(unbound).State,
+                    Is.EqualTo(BtAuthoringSyncState.InSync));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(unbound);
+            }
+        }
+
+        [Test]
+        public void Export_ConflictForceConvergesAndLeavesNoTemporaryFiles()
+        {
+            SaveFileDescription("external");
+            SaveAssetDescription("local");
+
+            Assert.That(BtAuthoringSourceSync.Export(_asset, _sourcePath).Success, Is.False);
+            Assert.That(BtAuthoringSourceSync.Export(_asset, _sourcePath, force: true).Success, Is.True);
+            Assert.That(BtAuthoringSourceSync.Inspect(_asset).State, Is.EqualTo(BtAuthoringSyncState.InSync));
+            Assert.That(
+                Directory.GetFiles(_directory, "*.abilitykit.tmp.*", SearchOption.TopDirectoryOnly),
+                Is.Empty);
         }
 
         private void SaveAssetDescription(string value)

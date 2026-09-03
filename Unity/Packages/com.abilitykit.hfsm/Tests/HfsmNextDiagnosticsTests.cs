@@ -47,6 +47,35 @@ namespace AbilityKit.Tests
         }
 
         [Test]
+        public void PlatformDiagnosticsPreserveMetadataAndLocateAction()
+        {
+            var graph = CreateNestedGraph(out _, out var idle, out _, out _);
+            try
+            {
+                idle.NextBehaviorKey = "missing.state";
+                var snapshot = HfsmNextDiagnostics.Analyze(graph);
+                HfsmDiagnosticTarget located = default;
+
+                var diagnostics = snapshot.ToPlatformDiagnostics(target => located = target);
+                var diagnostic = diagnostics.Items.Single(item => item.Code == "HFSMNEXT001");
+
+                Assert.That(diagnostic.Severity,
+                    Is.EqualTo(AbilityKit.Editor.Platform.Diagnostics.EditorDiagnosticSeverity.Error));
+                Assert.That(diagnostic.Path, Does.Contain(idle.Id));
+                Assert.That(diagnostic.Message, Is.Not.Empty);
+                Assert.That(diagnostic.CanLocate, Is.True);
+
+                diagnostic.Locate.Invoke();
+                Assert.That(located.Kind, Is.EqualTo(HfsmDiagnosticTargetKind.Node));
+                Assert.That(located.Id, Is.EqualTo(idle.Id));
+            }
+            finally
+            {
+                Object.DestroyImmediate(graph);
+            }
+        }
+
+        [Test]
         public void ContextFocusNavigatesToNestedNodeAndOwnedTransition()
         {
             var graph = CreateNestedGraph(out var nested, out var idle, out _, out var edge);

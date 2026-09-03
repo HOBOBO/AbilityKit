@@ -57,6 +57,7 @@ public static class TestScenarioAdapter
                 Slot = s.slot,
                 Position = s.position is null ? null : new TestVector3(s.position.x, s.position.y, s.position.z),
                 Direction = s.direction is null ? null : new TestVector3(s.direction.x, s.direction.y, s.direction.z),
+                DurationMs = s.durationMs,
             }).ToArray() ?? Array.Empty<TestTimelineStep>(),
             Expectations = new TestExpectations
             {

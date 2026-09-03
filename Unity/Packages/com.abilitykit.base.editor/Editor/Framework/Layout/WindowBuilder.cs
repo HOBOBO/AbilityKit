@@ -5,8 +5,11 @@ using System.Collections.Generic;
 namespace AbilityKit.Editor.Framework
 {
     /// <summary>
-    /// 窗口构建器 - 链式 API
+    /// Legacy experimental window builder retained for source compatibility.
+    /// New editor modules should compose AbilityKit.Editor.Platform services directly.
     /// </summary>
+    [Obsolete("WindowBuilder is a legacy experimental compatibility API. Use AbilityKit.Editor.Platform composition for new editor windows.", false)]
+    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
     public class WindowBuilder<TData, TConfig>
         where TConfig : class, IWindowConfig, new()
     {

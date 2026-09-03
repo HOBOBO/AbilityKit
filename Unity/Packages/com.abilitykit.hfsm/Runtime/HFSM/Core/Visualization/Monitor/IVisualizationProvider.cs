@@ -123,6 +123,16 @@ namespace UnityHFSM.Visualization
         public string conditionDescription;
 
         /// <summary>
+        /// Whether this transition originates from the machine's any-state set.
+        /// </summary>
+        public bool isFromAny;
+
+        /// <summary>
+        /// Whether this transition bypasses the active state's exit-time requirement.
+        /// </summary>
+        public bool forceInstantly;
+
+        /// <summary>
         /// 是否可以发生
         /// </summary>
         public bool canTransition;
@@ -249,6 +259,16 @@ namespace UnityHFSM.Visualization
         public List<string> activeStatePaths;
 
         /// <summary>
+        /// States that are waiting to be entered after their current machine grants exit.
+        /// </summary>
+        public List<string> pendingStatePaths;
+
+        /// <summary>
+        /// Active states whose machines currently have a delayed transition pending.
+        /// </summary>
+        public List<string> exitingStatePaths;
+
+        /// <summary>
         /// 转换历史
         /// </summary>
         public List<StateTransitionRecord> history;
@@ -269,6 +289,8 @@ namespace UnityHFSM.Visualization
             transitions = new List<TransitionInfo>();
             parameters = new List<ParameterInfo>();
             activeStatePaths = new List<string>();
+            pendingStatePaths = new List<string>();
+            exitingStatePaths = new List<string>();
             history = new List<StateTransitionRecord>();
             behaviorNodes = new List<BehaviorNodeInfo>();
         }

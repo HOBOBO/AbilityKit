@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AbilityKit.Editor.Platform.Diagnostics;
 using AbilityKit.HFSM.Unity.Migration;
 using UnityHFSM.Editor.Export;
 using UnityHFSM.Graph;
@@ -60,6 +61,25 @@ namespace UnityHFSM.Editor.Diagnostics
         public string DefinitionHash { get; }
 
         public bool IsExportReady => ExportResult.IsSuccess;
+        public EditorDiagnosticCollection ToPlatformDiagnostics(Action<HfsmDiagnosticTarget> locate = null)
+        {
+            var diagnostics = new EditorDiagnosticCollection();
+            foreach (var issue in Issues)
+            {
+                var target = HfsmNextDiagnostics.ResolveTarget(issue.Path);
+                diagnostics.Add(new EditorDiagnostic(
+                    issue.Code,
+                    issue.Severity == HfsmLegacyImportSeverity.Error
+                        ? EditorDiagnosticSeverity.Error
+                        : EditorDiagnosticSeverity.Warning,
+                    issue.Message,
+                    issue.Path,
+                    locate: target.IsValid && locate != null
+                        ? () => locate(target)
+                        : (Action)null));
+            }
+            return diagnostics;
+        }
     }
 
     public static class HfsmNextDiagnostics

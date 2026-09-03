@@ -3,6 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.Export;
 using AbilityKit.Editor.Platform.Synchronization;
 
 namespace AbilityKit.BehaviorTree.Editor
@@ -14,6 +15,8 @@ namespace AbilityKit.BehaviorTree.Editor
         JsonChanged = 2,
         Conflict = 3,
         InvalidSource = 4,
+        Untracked = 5,
+        SourceMissing = 6,
     }
 
     /// <summary>授权资产 ↔ 外部授权 JSON 源文件的同步状态与操作结果。</summary>
@@ -64,15 +67,13 @@ namespace AbilityKit.BehaviorTree.Editor
             var assetHash = HashDocument(asset.LoadDocument());
             if (string.IsNullOrWhiteSpace(path))
             {
-                // An unbound asset has no external source to compare. Preserve the historical
-                // InSync compatibility state while still providing a complete platform inspection.
                 return CompleteInspection(
                     inspection,
                     assetHash,
-                    assetHash,
-                    assetHash,
-                    isTracked: true,
-                    sourceExists: true);
+                    string.Empty,
+                    string.Empty,
+                    isTracked: false,
+                    sourceExists: false);
             }
 
             string resolved;
@@ -151,7 +152,10 @@ namespace AbilityKit.BehaviorTree.Editor
             if (!File.Exists(resolved)) return BtAuthoringSyncResult.Fail($"Source file not found: {resolved}");
 
             var inspection = Inspect(asset, path);
-            var assessment = AssessOperation(inspection, EditorSourceSyncDirection.Import);
+            var assessment = AssessOperation(
+                inspection,
+                EditorSourceSyncDirection.Import,
+                HasAuthoredContent(asset.LoadDocument()));
             if (!force && assessment.RequiresForce)
             {
                 return BtAuthoringSyncResult.Fail(
@@ -204,9 +208,7 @@ namespace AbilityKit.BehaviorTree.Editor
             var json = BtAuthoringJson.Save(document);
             try
             {
-                var directory = Path.GetDirectoryName(resolved);
-                if (!string.IsNullOrEmpty(directory)) Directory.CreateDirectory(directory);
-                File.WriteAllText(resolved, json);
+                EditorAtomicFileWriter.WriteAllText(resolved, json);
             }
             catch (Exception ex)
             {
@@ -218,11 +220,25 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private static EditorSourceSyncOperationAssessment AssessOperation(
             BtAuthoringSyncInspection inspection,
-            EditorSourceSyncDirection direction)
+            EditorSourceSyncDirection direction,
+            bool localHasAuthoredContent = false)
         {
             return EditorSourceSyncOperationPolicy.Assess(
                 inspection.PlatformInspection,
-                direction);
+                direction,
+                localHasAuthoredContent);
+        }
+
+        private static bool HasAuthoredContent(BtAuthoringSourceDocument document)
+        {
+            if (document == null) return false;
+            return document.Tree?.Nodes?.Count > 0
+                || document.Tree?.Blackboard?.Keys?.Count > 0
+                || document.NodeMetadata?.Count > 0
+                || document.Layout?.Count > 0
+                || document.Groups?.Count > 0
+                || document.Notes?.Count > 0
+                || !string.IsNullOrWhiteSpace(document.Metadata?.Description);
         }
 
         private static BtAuthoringSyncInspection CompleteInspection(
@@ -257,10 +273,8 @@ namespace AbilityKit.BehaviorTree.Editor
                 EditorSourceSyncState.LocalChanged => BtAuthoringSyncState.AssetChanged,
                 EditorSourceSyncState.SourceChanged => BtAuthoringSyncState.JsonChanged,
                 EditorSourceSyncState.Conflict => BtAuthoringSyncState.Conflict,
-                // BT's public compatibility enum has no untracked/missing states. Historically,
-                // a differing source without a bound baseline was treated as a conflict.
-                EditorSourceSyncState.Untracked => BtAuthoringSyncState.Conflict,
-                EditorSourceSyncState.SourceMissing => BtAuthoringSyncState.InvalidSource,
+                EditorSourceSyncState.Untracked => BtAuthoringSyncState.Untracked,
+                EditorSourceSyncState.SourceMissing => BtAuthoringSyncState.SourceMissing,
                 EditorSourceSyncState.InvalidSource => BtAuthoringSyncState.InvalidSource,
                 _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown source sync state.")
             };

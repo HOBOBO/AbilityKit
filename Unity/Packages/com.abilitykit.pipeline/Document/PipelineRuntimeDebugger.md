@@ -152,7 +152,28 @@ Context 页以 `Field | Start | Current` 展示运行开始与当前/结束快�
 
 业务代码不应引用 `AbilityKit.Pipeline.Editor`。
 
-## 7. 性能与线程边界
+## 7. Authoring Graph 边界与 P3 裁定
+
+截至当前 P3 评估，Pipeline 包只有运行时组合 API（例如 `AbilityPipeline<TCtx>.AddPhase`）、纯 C# 配置接口和调试观测协议，尚不存在可稳定 round-trip 的统一 Pipeline 定义资产、节点描述符协议、版本迁移协议或 authoring exporter。`PipelineDebugSessionAsset` 保存的是单次 run 的只读观测快照，不能作为定义资产反向生成 Pipeline。
+
+因此当前阶段**不实施 Pipeline Authoring Graph**，也不得把增删节点、修改分支或保存定义等 authoring 行为加入 Runtime Debugger。Runtime Debugger 继续保持运行时观察与控制工具，其 Phases Graph 只消费运行时结构、状态和可选 authored layout：
+
+- 运行时 `IPipelineDebugGraphProvider` 的结构是执行真相。
+- `IPipelineDebugStateProvider` 只提供执行状态，不承载定义编辑。
+- `IPipelineDebugGraphLayoutProvider` 只提供与 `StructureId` 匹配的坐标，不拥有运行结构。
+- `PipelineDebugSessionAsset` 只用于离线诊断，不是 authoring definition、回放引擎或导入源。
+
+未来只有在稳定定义协议先行落地后，才进入 Authoring Graph 实施阶段。前置条件至少包括：
+
+1. 独立于任意业务 `TCtx` 的版本化定义资产或 DTO，以及明确的运行时构建适配器。
+2. 稳定节点类型标识、端口/子节点约束、属性 schema 和扩展注册机制。
+3. 定义资产与运行时结构之间可测试的 import/export round-trip 和迁移策略。
+4. 独立的校验、诊断定位、DocumentSession、Source Sync 与原子导出流程。
+5. 明确复合阶段、条件分支、共享 Phase ID 与稳定 `NodeKey` 的序列化语义。
+
+满足这些条件后的 Authoring Graph 必须作为独立产品建设，使用独立窗口、命令、会话和资产生命周期；它可以复用 Editor Platform 基础设施，但不与 Runtime Debugger 合并，也不得让调试快照覆盖项目定义资产。具体画布技术由 authoring 交互需求决定，不因 Runtime Debugger 当前图实现而被强制绑定。
+
+## 8. 性能与线程边界
 
 - 没有观察者时，DebugHooks 只做空委托判断。
 - 阶段树只在 run 开始且 Editor 观察者存在时读取。
@@ -160,7 +181,7 @@ Context 页以 `Field | Start | Current` 展示运行开始与当前/结束快�
 - Hook 可能从 Pipeline 所在线程触发；窗口只在 `EditorApplication.update` 主线程调用 Unity GUI API。
 - 默认采集适合开发调试，不是生产遥测或确定性回放格式。
 
-## 8. 文件入口
+## 9. 文件入口
 
 | 文件 | 作用 |
 |---|---|

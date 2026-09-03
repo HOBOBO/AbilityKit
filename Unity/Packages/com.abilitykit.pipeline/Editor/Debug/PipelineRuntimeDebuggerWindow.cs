@@ -18,22 +18,16 @@ namespace AbilityKit.Pipeline.Editor
         private const float MinRunPaneWidth = 220f;
         private const float MaxRunPaneWidth = 520f;
         private const float MinDetailPaneWidth = 360f;
-        private const float PhaseNodeWidth = 176f;
-        private const float PhaseNodeHeight = 68f;
-        private const float PhaseNodeGap = 34f;
-        private const float PhaseLevelGap = 54f;
 
         private readonly PipelineDebuggerWorkspaceState _workspaceState = new PipelineDebuggerWorkspaceState();
+        private readonly PipelineDebuggerToolbarModel _toolbarModel = new PipelineDebuggerToolbarModel();
         private readonly PipelineDebuggerRunListModel _runListModel = new PipelineDebuggerRunListModel();
         private readonly PipelineDebuggerDetailsModel _detailsModel = new PipelineDebuggerDetailsModel();
         private readonly PipelineDebuggerOverviewModel _overviewModel = new PipelineDebuggerOverviewModel();
         private readonly PipelineDebuggerTraceModel _traceModel = new PipelineDebuggerTraceModel();
         private readonly PipelineDebuggerContextModel _contextModel = new PipelineDebuggerContextModel();
+        private readonly PipelineDebuggerPhaseGraphModel _phaseGraphModel = new PipelineDebuggerPhaseGraphModel();
         private readonly Dictionary<string, bool> _phaseFoldouts = new Dictionary<string, bool>();
-        private readonly Dictionary<string, PipelinePhaseDebugState> _phaseStates = new Dictionary<string, PipelinePhaseDebugState>();
-        private readonly Dictionary<string, PipelinePhaseDebugNode> _phaseNodes = new Dictionary<string, PipelinePhaseDebugNode>();
-        private readonly Dictionary<string, Rect> _phaseNodeRects = new Dictionary<string, Rect>();
-        private readonly List<PipelinePhaseDebugNode> _phaseNodeOrder = new List<PipelinePhaseDebugNode>();
         private readonly List<EditorPipelineRegistry.DebugEntry> _visibleEntries = new List<EditorPipelineRegistry.DebugEntry>();
         private readonly List<PipelineDebuggerRunView> _runViews = new List<PipelineDebuggerRunView>();
 
@@ -56,14 +50,11 @@ namespace AbilityKit.Pipeline.Editor
         private bool _isPhaseGraphPanning;
         private float _runPaneWidth = 300f;
         private float _refreshIntervalSeconds = 0.1f;
-        private float _phaseGraphZoom = 1f;
-        private Vector2 _phaseGraphPan = new Vector2(24f, 24f);
         private Vector2 _phaseGraphDragMouse;
         private float _splitStartMouseX;
         private float _splitStartWidth;
         private int? _selectedRunId;
         private int? _selectedTraceSequence;
-        private string? _selectedPhaseNodeKey;
         private string? _phaseGraphFocusNodeKey;
 
         private GUIStyle? _runTitleStyle;
@@ -131,38 +122,50 @@ namespace AbilityKit.Pipeline.Editor
         {
             var registry = EditorPipelineRegistry.Instance;
             var stats = registry.GetStats();
+            var state = PipelineDebuggerUserState.instance;
+            _toolbarModel.Rebuild(
+                stats,
+                registry.IsCaptureEnabled,
+                _followLatest,
+                _relativeTraceTime,
+                _confirmInterrupt,
+                state.HistoryCapacity,
+                state.TraceCapacity,
+                _refreshIntervalSeconds);
+
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar, GUILayout.Height(23f));
 
             bool captureEnabled = GUILayout.Toggle(
-                registry.IsCaptureEnabled,
+                _toolbarModel.CaptureEnabled,
                 IconText(
-                    registry.IsCaptureEnabled ? "d_Record On" : "d_Record Off",
+                    _toolbarModel.CaptureEnabled ? "d_Record On" : "d_Record Off",
                     "Capture",
                     "Capture newly started pipeline runs"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(78f));
-            if (captureEnabled != registry.IsCaptureEnabled)
+            if (_toolbarModel.SetCaptureEnabled(captureEnabled))
             {
-                registry.IsCaptureEnabled = captureEnabled;
-                PipelineDebuggerUserState.instance.CaptureEnabled = captureEnabled;
-                PipelineDebuggerUserState.instance.SaveNow();
+                registry.IsCaptureEnabled = _toolbarModel.CaptureEnabled;
+                state.CaptureEnabled = _toolbarModel.CaptureEnabled;
+                state.SaveNow();
             }
 
             GUILayout.Label(
-                $"Runs {stats.Total}  |  Active {stats.Active}  |  Failed {stats.Failed}  |  Pinned {stats.Pinned}",
+                _toolbarModel.StatsText,
                 EditorStyles.miniLabel,
                 GUILayout.MinWidth(220f));
             GUILayout.FlexibleSpace();
 
             bool follow = GUILayout.Toggle(
-                _followLatest,
+                _toolbarModel.FollowLatest,
                 IconText("Animation.Play", "Follow", "Select the newest matching run"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(68f));
-            if (follow != _followLatest)
+            if (_toolbarModel.SetFollowLatest(follow))
             {
-                _followLatest = follow;
-                if (_followLatest && _visibleEntries.Count > 0) SelectRun(_visibleEntries[0].OwnerId);
+                _followLatest = _toolbarModel.FollowLatest;
+                if (_followLatest && _visibleEntries.Count > 0)
+                    SelectRun(_visibleEntries[0].OwnerId);
             }
 
             if (GUILayout.Button(
@@ -173,7 +176,7 @@ namespace AbilityKit.Pipeline.Editor
                 ShowOptionsMenu();
             }
 
-            using (new EditorGUI.DisabledScope(stats.History == 0))
+            using (new EditorGUI.DisabledScope(!_toolbarModel.CanClearHistory))
             {
                 if (GUILayout.Button(
                         IconOnly("TreeEditor.Trash", "Clear unpinned completed runs"),
@@ -709,7 +712,6 @@ namespace AbilityKit.Pipeline.Editor
             }
 
             BuildPhaseStates(entry);
-            BuildPhaseGraphLayout(entry);
             DrawPhaseToolbar(entry);
             if (entry.HasGraphLayoutMismatch)
             {
@@ -767,7 +769,9 @@ namespace AbilityKit.Pipeline.Editor
             GUILayout.Label(new GUIContent(layoutLabel, entry.Graph.StructureId), EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
 
-            if (_selectedPhaseNodeKey != null && _phaseNodes.TryGetValue(_selectedPhaseNodeKey, out var selectedNode))
+            if (_phaseGraphModel.SelectedNodeKey != null
+                && _phaseGraphModel.TryGetNode(_phaseGraphModel.SelectedNodeKey, out var selectedNode)
+                && selectedNode != null)
             {
                 GUILayout.Label(selectedNode.PhaseId.ToString(), EditorStyles.miniLabel, GUILayout.MaxWidth(130f));
                 if (GUILayout.Button(new GUIContent("Trace", "Filter Trace by this phase"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
@@ -780,11 +784,7 @@ namespace AbilityKit.Pipeline.Editor
 
         private void BuildPhaseStates(EditorPipelineRegistry.DebugEntry entry)
         {
-            _phaseStates.Clear();
-            for (int i = 0; i < entry.PhaseStates.Count; i++)
-            {
-                _phaseStates[entry.PhaseStates[i].NodeKey] = entry.PhaseStates[i];
-            }
+            _phaseGraphModel.Rebuild(entry.Graph, entry.GraphLayout, entry.PhaseStates);
         }
 
         private void DrawPhaseTree(EditorPipelineRegistry.DebugEntry entry)
@@ -893,71 +893,6 @@ namespace AbilityKit.Pipeline.Editor
             GUI.EndGroup();
         }
 
-        private void BuildPhaseGraphLayout(EditorPipelineRegistry.DebugEntry entry)
-        {
-            _phaseNodes.Clear();
-            _phaseNodeRects.Clear();
-            _phaseNodeOrder.Clear();
-
-            float cursorX = 24f;
-            for (int i = 0; i < entry.Graph.Roots.Count; i++)
-            {
-                var root = entry.Graph.Roots[i];
-                CollectPhaseNodes(root);
-                float width = GetPhaseSubtreeWidth(root);
-                LayoutPhaseSubtree(root, cursorX, 28f, width);
-                cursorX += width + PhaseNodeGap * 1.5f;
-            }
-
-            if (entry.GraphLayout == null) return;
-            for (int i = 0; i < entry.GraphLayout.Nodes.Count; i++)
-            {
-                var position = entry.GraphLayout.Nodes[i];
-                if (_phaseNodeRects.ContainsKey(position.NodeKey))
-                {
-                    _phaseNodeRects[position.NodeKey] = new Rect(position.X, position.Y, PhaseNodeWidth, PhaseNodeHeight);
-                }
-            }
-        }
-
-        private void CollectPhaseNodes(PipelinePhaseDebugNode node)
-        {
-            _phaseNodes[node.NodeKey] = node;
-            _phaseNodeOrder.Add(node);
-            for (int i = 0; i < node.Children.Count; i++) CollectPhaseNodes(node.Children[i]);
-        }
-
-        private float GetPhaseSubtreeWidth(PipelinePhaseDebugNode node)
-        {
-            if (node.Children.Count == 0) return PhaseNodeWidth;
-            float width = 0f;
-            for (int i = 0; i < node.Children.Count; i++)
-            {
-                if (i > 0) width += PhaseNodeGap;
-                width += GetPhaseSubtreeWidth(node.Children[i]);
-            }
-            return Mathf.Max(PhaseNodeWidth, width);
-        }
-
-        private void LayoutPhaseSubtree(PipelinePhaseDebugNode node, float left, float top, float width)
-        {
-            _phaseNodeRects[node.NodeKey] = new Rect(
-                left + (width - PhaseNodeWidth) * 0.5f,
-                top,
-                PhaseNodeWidth,
-                PhaseNodeHeight);
-            if (node.Children.Count == 0) return;
-
-            float childLeft = left;
-            float childTop = top + PhaseNodeHeight + PhaseLevelGap;
-            for (int i = 0; i < node.Children.Count; i++)
-            {
-                float childWidth = GetPhaseSubtreeWidth(node.Children[i]);
-                LayoutPhaseSubtree(node.Children[i], childLeft, childTop, childWidth);
-                childLeft += childWidth + PhaseNodeGap;
-            }
-        }
-
         private void HandlePhaseGraphInput(EditorPipelineRegistry.DebugEntry entry, Rect canvas)
         {
             var current = Event.current;
@@ -966,11 +901,8 @@ namespace AbilityKit.Pipeline.Editor
 
             if (inside && current.type == EventType.ScrollWheel)
             {
-                float oldZoom = _phaseGraphZoom;
                 float factor = Mathf.Pow(1.08f, -current.delta.y);
-                _phaseGraphZoom = Mathf.Clamp(oldZoom * factor, 0.45f, 1.6f);
-                Vector2 logical = (localMouse - _phaseGraphPan) / oldZoom;
-                _phaseGraphPan = localMouse - logical * _phaseGraphZoom;
+                _phaseGraphModel.ZoomAt(localMouse, factor);
                 current.Use();
                 Repaint();
                 return;
@@ -986,7 +918,7 @@ namespace AbilityKit.Pipeline.Editor
             }
             if (_isPhaseGraphPanning && current.type == EventType.MouseDrag)
             {
-                _phaseGraphPan += current.mousePosition - _phaseGraphDragMouse;
+                _phaseGraphModel.PanBy(current.mousePosition - _phaseGraphDragMouse);
                 _phaseGraphDragMouse = current.mousePosition;
                 current.Use();
                 Repaint();
@@ -1000,25 +932,21 @@ namespace AbilityKit.Pipeline.Editor
             }
 
             if (!inside || current.type != EventType.MouseDown || current.button != 0) return;
-            for (int i = _phaseNodeOrder.Count - 1; i >= 0; i--)
+            if (_phaseGraphModel.TrySelect(localMouse, out PipelinePhaseDebugNode? node)
+                && node != null
+                && current.clickCount == 2)
             {
-                var node = _phaseNodeOrder[i];
-                if (!TransformPhaseRect(_phaseNodeRects[node.NodeKey]).Contains(localMouse)) continue;
-                _selectedPhaseNodeKey = node.NodeKey;
-                if (current.clickCount == 2) GoToPhaseTrace(node);
-                current.Use();
-                Repaint();
-                return;
+                GoToPhaseTrace(node);
             }
-            _selectedPhaseNodeKey = null;
             current.Use();
+            Repaint();
         }
 
         private void DrawPhaseGraphGrid(Vector2 canvasSize)
         {
-            float step = Mathf.Max(12f, 24f * _phaseGraphZoom);
-            float startX = Mathf.Repeat(_phaseGraphPan.x, step);
-            float startY = Mathf.Repeat(_phaseGraphPan.y, step);
+            float step = Mathf.Max(12f, 24f * _phaseGraphModel.Zoom);
+            float startX = Mathf.Repeat(_phaseGraphModel.Pan.x, step);
+            float startY = Mathf.Repeat(_phaseGraphModel.Pan.y, step);
             Color color = EditorGUIUtility.isProSkin
                 ? new Color(1f, 1f, 1f, 0.045f)
                 : new Color(0f, 0f, 0f, 0.06f);
@@ -1035,10 +963,10 @@ namespace AbilityKit.Pipeline.Editor
             for (int i = 0; i < entry.Graph.Edges.Count; i++)
             {
                 var edge = entry.Graph.Edges[i];
-                if (!_phaseNodeRects.TryGetValue(edge.SourceNodeKey, out var sourceLogical)
-                    || !_phaseNodeRects.TryGetValue(edge.TargetNodeKey, out var targetLogical)) continue;
-                Rect source = TransformPhaseRect(sourceLogical);
-                Rect target = TransformPhaseRect(targetLogical);
+                if (!_phaseGraphModel.NodeRects.TryGetValue(edge.SourceNodeKey, out var sourceLogical)
+                    || !_phaseGraphModel.NodeRects.TryGetValue(edge.TargetNodeKey, out var targetLogical)) continue;
+                Rect source = _phaseGraphModel.Transform(sourceLogical);
+                Rect target = _phaseGraphModel.Transform(targetLogical);
                 bool flow = edge.Kind == EPipelineDebugEdgeKind.Flow;
                 Vector2 start = flow
                     ? new Vector2(source.xMax, source.center.y)
@@ -1056,7 +984,7 @@ namespace AbilityKit.Pipeline.Editor
                 Handles.DrawBezier(start, end, startTangent, endTangent, edgeColor, null, width);
                 DrawEdgeArrow(end, endTangent, edgeColor);
 
-                if (!string.IsNullOrEmpty(edge.Label) && _phaseGraphZoom >= 0.62f)
+                if (!string.IsNullOrEmpty(edge.Label) && _phaseGraphModel.Zoom >= 0.62f)
                 {
                     Vector2 center = (start + end) * 0.5f;
                     var label = new GUIContent(edge.Label, edge.Label);
@@ -1074,35 +1002,24 @@ namespace AbilityKit.Pipeline.Editor
 
         private Color ResolveEdgeColor(PipelinePhaseDebugEdge edge)
         {
-            if (_phaseStates.TryGetValue(edge.SourceNodeKey, out var source)
-                && edge.Kind == EPipelineDebugEdgeKind.Condition
-                && edge.ChildIndex >= 0)
+            return _phaseGraphModel.ResolveEdgeState(edge) switch
             {
-                if (source.SelectedChildIndex == edge.ChildIndex) return new Color(0.28f, 0.78f, 0.46f, 0.95f);
-                if (edge.ChildIndex < source.ChildConditions.Count
-                    && source.ChildConditions[edge.ChildIndex] == EPipelineDebugConditionResult.Rejected)
-                {
-                    return new Color(0.70f, 0.33f, 0.29f, 0.42f);
-                }
-            }
-            if (_phaseStates.TryGetValue(edge.TargetNodeKey, out var target)
-                && target.State == EPipelineDebugExecutionState.Active)
-            {
-                return new Color(0.93f, 0.66f, 0.20f, 0.95f);
-            }
-            return EditorGUIUtility.isProSkin
-                ? new Color(0.56f, 0.60f, 0.65f, 0.62f)
-                : new Color(0.28f, 0.31f, 0.35f, 0.65f);
+                PipelineDebuggerPhaseEdgeState.Selected => new Color(0.28f, 0.78f, 0.46f, 0.95f),
+                PipelineDebuggerPhaseEdgeState.Rejected => new Color(0.70f, 0.33f, 0.29f, 0.42f),
+                PipelineDebuggerPhaseEdgeState.Active => new Color(0.93f, 0.66f, 0.20f, 0.95f),
+                _ => EditorGUIUtility.isProSkin
+                    ? new Color(0.56f, 0.60f, 0.65f, 0.62f)
+                    : new Color(0.28f, 0.31f, 0.35f, 0.65f)
+            };
         }
 
         private float ResolveEdgeWidth(PipelinePhaseDebugEdge edge)
         {
-            if (_phaseStates.TryGetValue(edge.SourceNodeKey, out var source)
-                && edge.Kind == EPipelineDebugEdgeKind.Condition
-                && source.SelectedChildIndex == edge.ChildIndex) return 3f;
-            if (_phaseStates.TryGetValue(edge.TargetNodeKey, out var target)
-                && target.State == EPipelineDebugExecutionState.Active) return 3f;
-            return 1.5f;
+            PipelineDebuggerPhaseEdgeState state = _phaseGraphModel.ResolveEdgeState(edge);
+            return state == PipelineDebuggerPhaseEdgeState.Selected
+                   || state == PipelineDebuggerPhaseEdgeState.Active
+                ? 3f
+                : 1.5f;
         }
 
         private static void DrawEdgeArrow(Vector2 end, Vector2 tangent, Color color)
@@ -1119,10 +1036,10 @@ namespace AbilityKit.Pipeline.Editor
 
         private void DrawPhaseGraphNodes(EditorPipelineRegistry.DebugEntry entry, Vector2 canvasSize)
         {
-            for (int i = 0; i < _phaseNodeOrder.Count; i++)
+            for (int i = 0; i < _phaseGraphModel.NodeOrder.Count; i++)
             {
-                var node = _phaseNodeOrder[i];
-                Rect rect = TransformPhaseRect(_phaseNodeRects[node.NodeKey]);
+                var node = _phaseGraphModel.NodeOrder[i];
+                Rect rect = _phaseGraphModel.Transform(_phaseGraphModel.NodeRects[node.NodeKey]);
                 if (rect.xMax < 0f || rect.yMax < 0f || rect.xMin > canvasSize.x || rect.yMin > canvasSize.y) continue;
                 DrawPhaseGraphNode(entry, node, rect);
             }
@@ -1134,23 +1051,23 @@ namespace AbilityKit.Pipeline.Editor
             Rect rect)
         {
             EPipelineDebugExecutionState state = ResolvePhaseState(entry, node);
-            bool selected = _selectedPhaseNodeKey == node.NodeKey;
+            bool selected = _phaseGraphModel.SelectedNodeKey == node.NodeKey;
             Color background = EditorGUIUtility.isProSkin
                 ? new Color(0.18f, 0.19f, 0.21f, 0.98f)
                 : new Color(0.88f, 0.89f, 0.90f, 0.98f);
             EditorGUI.DrawRect(new Rect(rect.x + 2f, rect.y + 3f, rect.width, rect.height), new Color(0f, 0f, 0f, 0.28f));
             EditorGUI.DrawRect(rect, background);
-            float headerHeight = Mathf.Max(16f, 22f * _phaseGraphZoom);
+            float headerHeight = Mathf.Max(16f, 22f * _phaseGraphModel.Zoom);
             EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, headerHeight), KindColor(node.Kind));
-            EditorGUI.DrawRect(new Rect(rect.x, rect.y, Mathf.Max(3f, 4f * _phaseGraphZoom), rect.height), PhaseStateColor(state));
+            EditorGUI.DrawRect(new Rect(rect.x, rect.y, Mathf.Max(3f, 4f * _phaseGraphModel.Zoom), rect.height), PhaseStateColor(state));
 
             Color border = selected ? new Color(0.35f, 0.68f, 1f) : PhaseStateColor(state);
             float borderWidth = selected || state == EPipelineDebugExecutionState.Active || state == EPipelineDebugExecutionState.Failed ? 2f : 1f;
             DrawRectBorder(rect, border, borderWidth);
 
-            if (_phaseGraphZoom >= 0.58f)
+            if (_phaseGraphModel.Zoom >= 0.58f)
             {
-                float inset = Mathf.Max(6f, 8f * _phaseGraphZoom);
+                float inset = Mathf.Max(6f, 8f * _phaseGraphModel.Zoom);
                 DrawPhaseKindGlyph(node.Kind, new Rect(rect.x + inset, rect.y + 4f, 14f, headerHeight - 7f));
                 GUI.Label(
                     new Rect(rect.x + inset + 18f, rect.y + 2f, rect.width - inset - 74f, headerHeight - 3f),
@@ -1164,7 +1081,7 @@ namespace AbilityKit.Pipeline.Editor
                     new Rect(rect.x + inset, rect.y + headerHeight + 4f, rect.width - inset * 2f, 19f),
                     new GUIContent(node.PhaseId.ToString(), node.PhaseType),
                     _graphNodeTitleStyle);
-                if (_phaseGraphZoom >= 0.82f)
+                if (_phaseGraphModel.Zoom >= 0.82f)
                 {
                     GUI.Label(
                         new Rect(rect.x + inset, rect.y + headerHeight + 24f, rect.width - inset * 2f, 17f),
@@ -1207,95 +1124,29 @@ namespace AbilityKit.Pipeline.Editor
             Handles.EndGUI();
         }
 
-        private Rect TransformPhaseRect(Rect logical)
-        {
-            return new Rect(
-                _phaseGraphPan.x + logical.x * _phaseGraphZoom,
-                _phaseGraphPan.y + logical.y * _phaseGraphZoom,
-                logical.width * _phaseGraphZoom,
-                logical.height * _phaseGraphZoom);
-        }
-
         private void FitPhaseGraph(Vector2 canvasSize)
         {
-            if (!TryGetPhaseGraphBounds(out Rect bounds)) return;
-            float widthZoom = Mathf.Max(0.01f, (canvasSize.x - 56f) / bounds.width);
-            float heightZoom = Mathf.Max(0.01f, (canvasSize.y - 56f) / bounds.height);
-            _phaseGraphZoom = Mathf.Clamp(Mathf.Min(widthZoom, heightZoom), 0.45f, 1.15f);
-            _phaseGraphPan = canvasSize * 0.5f - bounds.center * _phaseGraphZoom;
+            _phaseGraphModel.Fit(canvasSize);
         }
 
         private void FocusPhaseNode(string nodeKey, Vector2 canvasSize)
         {
-            if (!_phaseNodeRects.TryGetValue(nodeKey, out var rect)) return;
-            _phaseGraphZoom = Mathf.Clamp(_phaseGraphZoom, 0.75f, 1.2f);
-            _phaseGraphPan = canvasSize * 0.5f - rect.center * _phaseGraphZoom;
-            _selectedPhaseNodeKey = nodeKey;
-        }
-
-        private bool TryGetPhaseGraphBounds(out Rect bounds)
-        {
-            bounds = default;
-            bool found = false;
-            foreach (var pair in _phaseNodeRects)
-            {
-                bounds = found ? UnionRect(bounds, pair.Value) : pair.Value;
-                found = true;
-            }
-            return found;
-        }
-
-        private static Rect UnionRect(Rect left, Rect right)
-        {
-            float xMin = Mathf.Min(left.xMin, right.xMin);
-            float yMin = Mathf.Min(left.yMin, right.yMin);
-            float xMax = Mathf.Max(left.xMax, right.xMax);
-            float yMax = Mathf.Max(left.yMax, right.yMax);
-            return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+            _phaseGraphModel.Focus(nodeKey, canvasSize);
         }
 
         private bool TryFindFocusPhaseNode(out string? nodeKey)
         {
-            foreach (var pair in _phaseStates)
-            {
-                if (pair.Value.State == EPipelineDebugExecutionState.Failed)
-                {
-                    nodeKey = pair.Key;
-                    return true;
-                }
-            }
-            foreach (var pair in _phaseStates)
-            {
-                if (pair.Value.State == EPipelineDebugExecutionState.Active)
-                {
-                    nodeKey = pair.Key;
-                    return true;
-                }
-            }
-            nodeKey = null;
-            return false;
+            return _phaseGraphModel.TryFindFocusNode(out nodeKey);
         }
 
         private EPipelineDebugExecutionState ResolvePhaseState(
             EditorPipelineRegistry.DebugEntry entry,
             PipelinePhaseDebugNode node)
         {
-            if (_phaseStates.TryGetValue(node.NodeKey, out var state)) return state.State;
-            for (int i = 0; i < entry.ActivePhases.Count; i++)
-            {
-                if (entry.ActivePhases[i] == node.PhaseId) return EPipelineDebugExecutionState.Active;
-            }
-
-            var trace = EditorPipelineRegistry.Instance.GetTraceSnapshot(entry.OwnerId);
-            EPipelineDebugExecutionState fallback = EPipelineDebugExecutionState.Pending;
-            for (int i = 0; i < trace.Count; i++)
-            {
-                if (trace[i].PhaseId != node.PhaseId) continue;
-                if (trace[i].Type == EPipelineTraceEventType.PhaseError) fallback = EPipelineDebugExecutionState.Failed;
-                else if (trace[i].Type == EPipelineTraceEventType.PhaseComplete
-                         && fallback != EPipelineDebugExecutionState.Failed) fallback = EPipelineDebugExecutionState.Completed;
-            }
-            return fallback;
+            return _phaseGraphModel.ResolveState(
+                node,
+                entry.ActivePhases,
+                EditorPipelineRegistry.Instance.GetTraceSnapshot(entry.OwnerId));
         }
 
         private static Color KindColor(EPipelineDebugNodeKind kind)
@@ -1581,7 +1432,7 @@ namespace AbilityKit.Pipeline.Editor
             if (_selectedRunId == runId) return;
             _selectedRunId = runId;
             _selectedTraceSequence = null;
-            _selectedPhaseNodeKey = null;
+            _phaseGraphModel.ClearSelection();
             _phaseGraphNeedsFit = true;
             _detailScroll = Vector2.zero;
             _traceScroll = Vector2.zero;
@@ -1653,35 +1504,32 @@ namespace AbilityKit.Pipeline.Editor
 
         private void ShowOptionsMenu()
         {
-            var state = PipelineDebuggerUserState.instance;
             var menu = new GenericMenu();
-            AddCapacityOptions(menu, "History capacity/", new[] { 32, 128, 512, 2048 }, state.HistoryCapacity, value =>
-            {
-                state.HistoryCapacity = value;
-                EditorPipelineRegistry.Instance.ConfigureStorage(state.HistoryCapacity, state.TraceCapacity);
-                state.SaveNow();
-            });
-            AddCapacityOptions(menu, "Trace capacity (new runs)/", new[] { 512, 2048, 8192, 32768 }, state.TraceCapacity, value =>
-            {
-                state.TraceCapacity = value;
-                EditorPipelineRegistry.Instance.ConfigureStorage(state.HistoryCapacity, state.TraceCapacity);
-                state.SaveNow();
-            });
+            AddCapacityOptions(
+                menu,
+                "History capacity/",
+                _toolbarModel.HistoryCapacities,
+                _toolbarModel.HistoryCapacity,
+                SetHistoryCapacity);
+            AddCapacityOptions(
+                menu,
+                "Trace capacity (new runs)/",
+                _toolbarModel.TraceCapacities,
+                _toolbarModel.TraceCapacity,
+                SetTraceCapacity);
             menu.AddSeparator(string.Empty);
-            menu.AddItem(new GUIContent("Relative trace time"), _relativeTraceTime, () =>
+            menu.AddItem(new GUIContent("Relative trace time"), _toolbarModel.RelativeTraceTime, () =>
             {
-                _relativeTraceTime = !_relativeTraceTime;
+                _relativeTraceTime = _toolbarModel.ToggleRelativeTraceTime();
                 Repaint();
             });
-            menu.AddItem(new GUIContent("Confirm interrupt"), _confirmInterrupt, () =>
+            menu.AddItem(new GUIContent("Confirm interrupt"), _toolbarModel.ConfirmInterrupt, () =>
             {
-                _confirmInterrupt = !_confirmInterrupt;
+                _confirmInterrupt = _toolbarModel.ToggleConfirmInterrupt();
                 Repaint();
             });
             menu.AddSeparator(string.Empty);
-            menu.AddItem(new GUIContent("Refresh/20 fps"), Mathf.Approximately(_refreshIntervalSeconds, 0.05f), () => SetRefreshInterval(0.05f));
-            menu.AddItem(new GUIContent("Refresh/10 fps"), Mathf.Approximately(_refreshIntervalSeconds, 0.1f), () => SetRefreshInterval(0.1f));
-            menu.AddItem(new GUIContent("Refresh/4 fps"), Mathf.Approximately(_refreshIntervalSeconds, 0.25f), () => SetRefreshInterval(0.25f));
+            AddRefreshOptions(menu);
             menu.AddSeparator(string.Empty);
             menu.AddItem(new GUIContent("Reset window state"), false, ResetWindowState);
             menu.ShowAsContext();
@@ -1701,9 +1549,46 @@ namespace AbilityKit.Pipeline.Editor
             }
         }
 
+        private void AddRefreshOptions(GenericMenu menu)
+        {
+            IReadOnlyList<float> values = _toolbarModel.RefreshIntervals;
+            for (int i = 0; i < values.Count; i++)
+            {
+                float value = values[i];
+                int framesPerSecond = Mathf.RoundToInt(1f / value);
+                menu.AddItem(
+                    new GUIContent("Refresh/" + framesPerSecond + " fps"),
+                    _toolbarModel.IsRefreshIntervalSelected(value),
+                    () => SetRefreshInterval(value));
+            }
+        }
+
+        private void SetHistoryCapacity(int value)
+        {
+            _toolbarModel.SetHistoryCapacity(value);
+            var state = PipelineDebuggerUserState.instance;
+            state.HistoryCapacity = _toolbarModel.HistoryCapacity;
+            EditorPipelineRegistry.Instance.ConfigureStorage(
+                state.HistoryCapacity,
+                state.TraceCapacity);
+            state.SaveNow();
+        }
+
+        private void SetTraceCapacity(int value)
+        {
+            _toolbarModel.SetTraceCapacity(value);
+            var state = PipelineDebuggerUserState.instance;
+            state.TraceCapacity = _toolbarModel.TraceCapacity;
+            EditorPipelineRegistry.Instance.ConfigureStorage(
+                state.HistoryCapacity,
+                state.TraceCapacity);
+            state.SaveNow();
+        }
+
         private void SetRefreshInterval(float value)
         {
-            _workspaceState.RefreshIntervalSeconds = value;
+            _toolbarModel.SetRefreshInterval(value);
+            _workspaceState.RefreshIntervalSeconds = _toolbarModel.RefreshIntervalSeconds;
             _workspaceState.ResetRefreshGate();
             _refreshIntervalSeconds = _workspaceState.RefreshIntervalSeconds;
             PersistUserState();
@@ -1712,11 +1597,12 @@ namespace AbilityKit.Pipeline.Editor
         private void ResetWindowState()
         {
             _workspaceState.Reset();
+            _toolbarModel.ResetOptions();
             ApplyWorkspaceState();
             _phaseGraphNeedsFit = true;
             var state = PipelineDebuggerUserState.instance;
-            state.HistoryCapacity = 128;
-            state.TraceCapacity = 2048;
+            state.HistoryCapacity = _toolbarModel.HistoryCapacity;
+            state.TraceCapacity = _toolbarModel.TraceCapacity;
             EditorPipelineRegistry.Instance.ConfigureStorage(state.HistoryCapacity, state.TraceCapacity);
             PersistUserState();
             Repaint();

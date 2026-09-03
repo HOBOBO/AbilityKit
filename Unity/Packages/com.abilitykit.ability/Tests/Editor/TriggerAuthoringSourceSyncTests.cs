@@ -142,6 +142,64 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void ForceExport_ResolvesConflictAndLeavesNoTemporaryFiles()
+        {
+            var path = GetSourcePath();
+            Assert.That(TriggerAuthoringSourceSync.Export(_asset, path).Success, Is.True);
+
+            _asset.Module.DisplayName = "Asset wins";
+            var source = TriggerAuthoringSourceCodec.ReadFile(path);
+            source.Metadata.Description = "Source loses";
+            TriggerAuthoringSourceCodec.WriteFileAtomic(path, source);
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.Conflict));
+
+            var result = TriggerAuthoringSourceSync.Export(_asset, path, force: true);
+
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.InSync));
+            Assert.That(
+                TriggerAuthoringSourceCodec.ReadFile(path).Module.DisplayName,
+                Is.EqualTo("Asset wins"));
+            AssertNoAtomicArtifacts();
+        }
+
+        [Test]
+        public void ForceImport_ResolvesConflictRecordsUndoAndLeavesNoTemporaryFiles()
+        {
+            var path = GetSourcePath();
+            Assert.That(TriggerAuthoringSourceSync.Export(_asset, path).Success, Is.True);
+
+            var originalDisplayName = _asset.Module.DisplayName;
+            _asset.Module.DisplayName = "Asset loses";
+            var source = TriggerAuthoringSourceCodec.ReadFile(path);
+            source.Module.DisplayName = "Source wins";
+            TriggerAuthoringSourceCodec.WriteFileAtomic(path, source);
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.Conflict));
+
+            var result = TriggerAuthoringSourceSync.Import(_asset, path, force: true);
+
+            Assert.That(result.Success, Is.True, result.Message);
+            Assert.That(_asset.Module.DisplayName, Is.EqualTo("Source wins"));
+            Assert.That(EditorUtility.IsDirty(_asset), Is.True);
+            Assert.That(
+                TriggerAuthoringSourceSync.Inspect(_asset, path).State,
+                Is.EqualTo(TriggerAuthoringSyncState.InSync));
+            AssertNoAtomicArtifacts();
+
+            Undo.PerformUndo();
+            Assert.That(_asset.Module.DisplayName, Is.EqualTo("Asset loses"));
+            Undo.PerformRedo();
+            Assert.That(_asset.Module.DisplayName, Is.EqualTo("Source wins"));
+            Assert.That(originalDisplayName, Is.Not.EqualTo("Source wins"));
+        }
+
+        [Test]
         public void Validator_ReportsDuplicateTriggerIdsAndMissingArguments()
         {
             _asset.Module.Triggers.Add(new TriggerDefinitionData
@@ -719,6 +777,22 @@ namespace AbilityKit.Ability.Editor.Tests
         private string GetSourcePath()
         {
             return Path.Combine(_temporaryDirectory, "skill.fireball.json");
+        }
+
+        private void AssertNoAtomicArtifacts()
+        {
+            Assert.That(
+                Directory.GetFiles(
+                    _temporaryDirectory,
+                    "*.abilitykit.tmp.*",
+                    SearchOption.AllDirectories),
+                Is.Empty);
+            Assert.That(
+                Directory.GetFiles(
+                    _temporaryDirectory,
+                    "*.abilitykit.bak.*",
+                    SearchOption.AllDirectories),
+                Is.Empty);
         }
 
         private static TriggerAuthoringModuleData CreateValidModule()

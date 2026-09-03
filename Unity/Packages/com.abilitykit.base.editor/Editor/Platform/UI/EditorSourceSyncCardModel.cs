@@ -1,5 +1,7 @@
 #if UNITY_EDITOR
 using System;
+using AbilityKit.Editor.Platform.Core;
+using AbilityKit.Editor.Platform.Localization;
 using AbilityKit.Editor.Platform.Synchronization;
 
 namespace AbilityKit.Editor.Platform.UI
@@ -16,18 +18,29 @@ namespace AbilityKit.Editor.Platform.UI
             Action export,
             Action copyPath = null,
             Action revealPath = null,
-            string title = "Source Sync")
+            string title = null,
+            IEditorLocalization localization = null)
         {
             Inspection = inspection ?? throw new ArgumentNullException(nameof(inspection));
             Import = import;
             Export = export;
             CopyPath = copyPath;
             RevealPath = revealPath;
-            Title = string.IsNullOrWhiteSpace(title) ? "Source Sync" : title;
+            Localization = localization ?? AbilityKitEditorPlatform.Localization;
+            CustomTitle = string.IsNullOrWhiteSpace(title) ? null : title;
         }
 
         public EditorSourceSyncInspection Inspection { get; }
-        public string Title { get; }
+        public IEditorLocalization Localization { get; }
+        public string CustomTitle { get; }
+        public string Title => CustomTitle ?? Localization.Get("abilitykit.editor.sourceSync.title");
+        public string StateLabel => Localization.Get("abilitykit.editor.sourceSync.state." + Inspection.State);
+        public string PathLabel => Localization.Get("abilitykit.editor.sourceSync.path");
+        public string UnboundLabel => Localization.Get("abilitykit.editor.sourceSync.unbound");
+        public string ImportLabel => Localization.Get("abilitykit.editor.sourceSync.import");
+        public string ExportLabel => Localization.Get("abilitykit.editor.sourceSync.export");
+        public string CopyPathLabel => Localization.Get("abilitykit.editor.sourceSync.copyPath");
+        public string RevealLabel => Localization.Get("abilitykit.editor.sourceSync.reveal");
         public Action Import { get; }
         public Action Export { get; }
         public Action CopyPath { get; }
@@ -44,19 +57,14 @@ namespace AbilityKit.Editor.Platform.UI
         {
             get
             {
-                return Inspection.State switch
+                if (Inspection.State == EditorSourceSyncState.InvalidSource
+                    && !string.IsNullOrEmpty(Error))
                 {
-                    EditorSourceSyncState.Untracked => "The source has no synchronized baseline.",
-                    EditorSourceSyncState.InSync => "Local and source content are synchronized.",
-                    EditorSourceSyncState.LocalChanged => "Local changes are ready to export.",
-                    EditorSourceSyncState.SourceChanged => "External changes are ready to import.",
-                    EditorSourceSyncState.Conflict => "Local and source content have diverged.",
-                    EditorSourceSyncState.SourceMissing => "The bound source file is missing.",
-                    EditorSourceSyncState.InvalidSource => string.IsNullOrEmpty(Error)
-                        ? "The source cannot be read."
-                        : Error,
-                    _ => throw new ArgumentOutOfRangeException()
-                };
+                    return Error;
+                }
+
+                return Localization.Get(
+                    "abilitykit.editor.sourceSync.message." + Inspection.State);
             }
         }
     }

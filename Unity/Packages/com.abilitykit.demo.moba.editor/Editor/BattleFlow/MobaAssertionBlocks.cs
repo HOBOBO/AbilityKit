@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using AbilityKit.BattleFlow;
+using AbilityKit.Demo.Moba.EnvironmentModel;
 
 namespace AbilityKit.Demo.Moba.Editor.BattleFlow
 {

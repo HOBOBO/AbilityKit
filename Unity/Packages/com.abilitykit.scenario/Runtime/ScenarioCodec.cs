@@ -17,6 +17,7 @@ namespace AbilityKit.Scenario
             Formatting = Formatting.Indented,
             ContractResolver = new CamelCasePropertyNamesContractResolver(),
             NullValueHandling = NullValueHandling.Ignore,
+            TypeNameHandling = TypeNameHandling.Auto,
         };
 
         /// <summary>序列化为 JSON。</summary>

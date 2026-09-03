@@ -178,12 +178,22 @@ static class BtDebugRegistry {
 - **授权资产**：`BtAuthoringAsset : ScriptableObject`，编辑态 JSON（节点显示信息/布局/分组/便签 + 运行时树结构）。编辑元数据通过 NodeId 旁挂，不进入 `BtNodeDefinition`。外部变更横幅、source sync 同模式。
 - **图编辑窗口**：GraphView；节点视图、端口数量、菜单分组、属性面板全部由 `BtNodeRegistry.Descriptors` 拉取驱动；通用类型化属性编辑器替代逐节点 Inspector 类。
 - **编辑器内部职责**：`BtAuthoringGraphWindow` 只编排窗口生命周期、模式、工具栏和保存/导出；`BtAuthoringGraphView` 管画布交互与连线投影，`BtAuthoringNodeView` 管单节点呈现，`BtNodeSearchProvider` 管节点创建目录，`BtAuthoringInspectorRenderer` 通过窄宿主接口渲染通用属性和观察详情。各层不持有领域节点实现。
-- **文档会话**：`BtAuthoringDocumentSession` 持有当前文档、只读标记、dirty 生命周期和有界 undo/redo；窗口不再分别维护互相依赖的状态集合，观察图从会话层拒绝写入。
-- **一键导出**：授权资产 → 运行时 IR JSON（剥离布局），输出路径可配置（Resources / Configs）；导出前强制跑 `BtTreeValidator`，错误不清空旧产物。
+- **文档会话**：`BtAuthoringDocumentSession` 以 Editor Platform `DocumentSession` 为基础，持有当前文档、只读标记、dirty 生命周期和有界 undo/redo；窗口不再分别维护互相依赖的状态集合，观察图从会话层拒绝写入。
+- **一键导出**：授权资产 → 运行时 IR JSON（剥离布局），输出路径可配置（Resources / Configs）；导出前强制跑 `BtTreeValidator`，错误不清空旧产物。导出结果适配 Platform Export Report，文件写入使用 canonical atomic writer，内容相同时报告 `Unchanged`。
 - **golden 测试**：示例授权资产导出结果与 golden JSON 比对；"加载→执行→快照"链路的端到端测试进 EditMode 测试目录。
 - **运行时观察窗口**：按第八节拉取注册中心，节点着色（Running/Success/Failure/Inactive）、当前路径高亮、黑板表格、快照 diff。
 
-编辑器代码仅存在于 `Editor/` asmdef；运行时零 Unity 依赖保证服务端/console 不受影响。
+### 10.1 Editor Platform 接入边界
+
+BT 编辑器渐进复用 `com.abilitykit.base.editor` 的 Editor Platform：
+
+- Localization 使用稳定 key、中英文资源、fallback 和 `LanguageChanged` 即时刷新，窗口销毁时对称退订；
+- Toolbar、菜单和快捷键复用稳定 command id 及 `CanExecute`，观察模式命令保持只读；
+- `BtTreeValidator` 的领域结果适配为 Platform Diagnostics，定位动作仍由 BT 根据 NodeId/黑板路径实现；
+- Source Sync 使用 Platform classifier/policy 统一 InSync、资产变更、JSON 变更、Conflict、Missing 和 Invalid 状态，BT codec、hash、Undo、dirty 和资产 baseline 仍由 BT 拥有；
+- Runtime export 使用 Platform Export Report 和 atomic writer，但运行时 IR schema、child → parent 边方向、descriptor-driven 节点目录及校验规则不进入 Platform。
+
+Platform 接入不替换 GraphView，也不创建万能图编辑器。编辑器代码仅存在于 `Editor/` asmdef；运行时零 Unity 依赖保证服务端/console 不受影响。
 
 ## 十一、MOBA 迁移映射
 
@@ -213,8 +223,11 @@ static class BtDebugRegistry {
 | E3 | `src/AbilityKit.BehaviorTree.Tests`（57 用例全绿）：执行语义（Sequence/Selector/Parallel/装饰器/超时冷却抢占/Self 中断）、生命周期（重复 Enable/Restart/RestartWhenComplete）、快照往返 + 定义哈希拒绝、确定性（同种子逐帧一致、概率模式跨种子区分、快照恢复后随机流精确续走）、校验负向集（结构/类型/属性/黑板）、JSON roundtrip 与 golden 稳定、注册中心与跨程序集扫描、调试注册中心、黑板类型读写 |
 | E3 | 确定性包：`DeterministicRandom` 状态捕获/恢复（77 用例全绿） |
 | E3 | MOBA 迁移后：既有 Behavior/Brain 测试与冒烟全绿 |
-| E4 | 编辑器 golden 导出 + EditMode 测试（Unity 侧） |
-| E5 | 挂 `core-stability`（P1）gate；MOBA 侧回归进既有 gate |
+| E3（本轮编译证据） | Localization、Commands、Diagnostics、DocumentSession、Source Sync 和 atomic export 的 Editor 回归源码已进入测试程序集并通过定向 `dotnet` 编译，0 errors |
+| E4（待执行） | 编辑器 golden、语言切换、同步冲突、Dirty、Undo/Redo、定位和导出测试必须由 Unity Test Runner 实际执行后才能计为通过 |
+| E5 | 挂 `core-stability`（P1）gate；MOBA 侧回归进既有 gate；Editor Platform 总体验收门禁待补齐 |
+
+`dotnet build` / `dotnet msbuild` 只证明 Unity 生成项目中的测试源码可以编译，不等于 Unity EditMode tests 已运行。本轮没有实际运行 Unity Test Runner，因此不能把新增编辑器回归声明为已通过。
 
 已知非目标：热重载/在线下发（缓存失效与版本协议另立设计）；行为树可视化图布局自动整理；服务端远程调试（注册中心先进程内）。
 
@@ -315,4 +328,4 @@ static class BtDebugRegistry {
 
 ---
 
-*文档版本：v1.4 | 最后更新：2026-08-20 | 状态：P0-P4 全部完成。P1 运行时+节点库（69 用例全绿，挂 core-stability gate）；P2 授权/导出管线 + 编辑器（Unity 编译已验证）；P3 MOBA 迁移（回归达标，MobaConsoleSmoke 10/10）；P4 退役已执行——thirdparty 包与 BTCore 投影删除、桥接层与 codegen 清单生成器清理、文档归档收口。遗留：图编辑器骨架级功能补全、LowerPriority 中断专项验证、Unity EditMode golden 测试待跑*
+*文档版本：v1.5 | 最后更新：2026-09-03 | 状态：P0-P4 领域实现已完成，并完成 Editor Platform 的 Localization、Commands、Diagnostics、DocumentSession、Source Sync 与 atomic export 渐进接入；相关测试源码已定向编译为 0 errors。本轮未运行 Unity Test Runner，Unity EditMode golden、语言切换、同步冲突、Dirty、Undo/Redo 与定位验收仍待实际执行。*

@@ -28,7 +28,9 @@ namespace AbilityKit.Pipeline.Editor
             Install();
         }
 
-        private static void Install()
+        internal static bool IsInstalled => _installed;
+
+        internal static void Install()
         {
             if (_installed) return;
             var registry = EditorPipelineRegistry.Instance;
@@ -42,13 +44,14 @@ namespace AbilityKit.Pipeline.Editor
             _installed = true;
         }
 
-        private static void Uninstall()
+        internal static void Uninstall()
         {
             if (!_installed) return;
             var registry = EditorPipelineRegistry.Instance;
             PipelineDebugHooks.OnRunStartedDetailed -= registry.CaptureRunStarted;
             PipelineDebugHooks.OnTrace -= registry.CaptureTrace;
             PipelineDebugHooks.OnRunEnded -= registry.CaptureRunEnded;
+            registry.Shutdown();
             _installed = false;
         }
 

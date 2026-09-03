@@ -430,13 +430,29 @@ namespace UnityHFSM.Editor.RuntimeMonitor
 
                 // 状态名称
                 var style = new GUIStyle(EditorStyles.label);
-                if (state.isActive)
+                if (state.isExiting)
+                {
+                    style.normal.textColor = new Color(1f, 0.65f, 0.25f);
+                    style.fontStyle = FontStyle.Bold;
+                }
+                else if (state.isEntering)
+                {
+                    style.normal.textColor = new Color(1f, 0.85f, 0.3f);
+                    style.fontStyle = FontStyle.Bold;
+                }
+                else if (state.isActive)
                 {
                     style.normal.textColor = new Color(0.3f, 0.8f, 0.3f);
                     style.fontStyle = FontStyle.Bold;
                 }
 
-                var label = state.isActive ? $"● {state.name}" : state.name;
+                var label = state.isExiting
+                    ? $"◐ {state.name} (Pending Exit)"
+                    : state.isEntering
+                        ? $"◑ {state.name} (Pending Enter)"
+                        : state.isActive
+                            ? $"● {state.name}"
+                            : state.name;
                 GUILayout.Label(label, style);
 
                 // 持续时间
@@ -580,19 +596,19 @@ namespace UnityHFSM.Editor.RuntimeMonitor
             // 节点矩形
             var rect = new Rect(x, y, width, height);
 
-            // 背景颜色
+            // 背景颜色。Pending 状态优先于 active，避免延迟退出被绿色覆盖。
             Color bgColor;
-            if (state.isActive)
+            if (state.isExiting)
             {
-                bgColor = new Color(0.2f, 0.6f, 0.2f, 0.9f); // 绿色（激活）
+                bgColor = new Color(0.6f, 0.3f, 0.2f, 0.9f); // 橙色（待退出）
             }
             else if (state.isEntering)
             {
-                bgColor = new Color(0.6f, 0.6f, 0.2f, 0.9f); // 黄色（进入）
+                bgColor = new Color(0.6f, 0.6f, 0.2f, 0.9f); // 黄色（待进入）
             }
-            else if (state.isExiting)
+            else if (state.isActive)
             {
-                bgColor = new Color(0.6f, 0.3f, 0.2f, 0.9f); // 橙色（退出）
+                bgColor = new Color(0.2f, 0.6f, 0.2f, 0.9f); // 绿色（激活）
             }
             else if (state.isStateMachine)
             {
@@ -611,9 +627,13 @@ namespace UnityHFSM.Editor.RuntimeMonitor
             EditorGUI.DrawRect(rect, bgColor);
 
             // 绘制边框
-            var borderColor = state.isActive
-                ? new Color(0.3f, 1f, 0.3f)
-                : new Color(0.5f, 0.5f, 0.5f);
+            var borderColor = state.isExiting
+                ? new Color(1f, 0.55f, 0.2f)
+                : state.isEntering
+                    ? new Color(1f, 0.85f, 0.25f)
+                    : state.isActive
+                        ? new Color(0.3f, 1f, 0.3f)
+                        : new Color(0.5f, 0.5f, 0.5f);
             EditorGUI.DrawRect(new Rect(rect.x, rect.y, rect.width, 1), borderColor);
             EditorGUI.DrawRect(new Rect(rect.x, rect.y + rect.height - 1, rect.width, 1), borderColor);
             EditorGUI.DrawRect(new Rect(rect.x, rect.y, 1, rect.height), borderColor);
@@ -717,8 +737,10 @@ namespace UnityHFSM.Editor.RuntimeMonitor
             // 绘制箭头
             DrawArrow(endX, endY, endX > startX ? 0 : (endX < startX ? 180 : (endY > startY ? 90 : 270)), lineColor);
 
-            // 绘制条件标签
-            if (!string.IsNullOrEmpty(transition.conditionDescription))
+            // 绘制条件和真实运行语义标签。Legacy runtime 没有 priority/definition hash，
+            // 因此这里只显示 provider 可以可靠读取的 Any 和 Force。
+            var transitionLabel = BuildTransitionLabel(transition);
+            if (!string.IsNullOrEmpty(transitionLabel))
             {
                 var midPoint = BezierUtility.BezierPoint(start, control1, control2, end, 0.5f);
                 var labelStyle = new GUIStyle(EditorStyles.miniLabel)
@@ -727,11 +749,19 @@ namespace UnityHFSM.Editor.RuntimeMonitor
                     alignment = TextAnchor.MiddleCenter
                 };
 
-                var labelContent = new GUIContent(transition.conditionDescription);
+                var labelContent = new GUIContent(transitionLabel);
                 var labelSize = labelStyle.CalcSize(labelContent);
                 GUI.Label(new Rect(midPoint.x - labelSize.x / 2, midPoint.y - labelSize.y / 2 - 10,
                     labelSize.x, labelSize.y), labelContent, labelStyle);
             }
+        }
+
+        private static string BuildTransitionLabel(TransitionInfo transition)
+        {
+            var prefix = transition.isFromAny ? "[Any] " : string.Empty;
+            if (transition.forceInstantly)
+                prefix += "[Force] ";
+            return prefix + (transition.conditionDescription ?? string.Empty);
         }
 
         private void DrawArrow(float x, float y, float angle, Color color)

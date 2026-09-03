@@ -2,144 +2,223 @@
 
 ## 一、文档定位
 
-本文是 `com.abilitykit.base.editor` 的 package canonical 文档。BaseEditor 是 Unity Editor-only 混合工具包，当前包含：
+本文是 `com.abilitykit.base.editor` 的 package canonical 文档。该包现在包含两条必须区分的编辑器基础设施路线：
 
-- 可插拔窗口框架与 Json/Csv 导出器；
-- Pool Monitor 诊断窗口；
-- ActionEditor 预览相关示例代码；
-- 历史 GameplayTag 编辑器和导出器。
+1. `Editor/Platform`：新建的统一 Editor Platform/Core，是行为树、HFSM、Pipeline、Trigger 等编辑器共享基础设施的正式入口；
+2. `Editor/Framework` 及其他历史目录：保留 `PlugableWindow<TData, TConfig>`、`WindowBuilder<TData, TConfig>`、旧导出器、Pool Monitor、ActionEditor 示例和 GameplayTag 遗留工具，用于兼容既有消费者。
 
-这些目录不是一个已经统一闭环的 Editor 平台。使用者应按具体子模块核对源码和成熟度，不应把包名或目录存在等同于所有工具都已生产化。
+Platform 统一的是编辑器工程能力，不统一领域模型、运行时语义或画布技术。行为树可继续使用 GraphView，HFSM 可继续使用既有分层画布，Pipeline Runtime Debugger 保持只读观察，Trigger authoring model 仍由 Ability 包拥有。
 
-## 二、职责边界
+## 二、程序集与依赖边界
 
-### 2.1 适合承担的职责
+`AbilityKit.Editor.Platform.asmdef` 是独立 Editor-only 程序集。它可以依赖 Unity Editor/UI 基础能力，但不得引用 BehaviorTree、HFSM、Pipeline、Trigger 或 Ability 的领域程序集。
 
-- 为 EditorWindow 提供列表、搜索、筛选、详情和插件扩展的基础骨架；
-- 在数据已经由窗口自身加载后，提供通用导出器接口；
-- 展示 Pool 调试快照，辅助 Play Mode 诊断；
-- 为 ActionEditor 示例提供项目侧初始化和预览入口。
+依赖方向固定为：
 
-### 2.2 明确不承担的职责
+```text
+领域 Editor 程序集 -> AbilityKit.Editor.Platform
+AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
+```
 
-- 不负责运行时业务数据查询、资产数据库同步或通用持久化；
-- 不提供自动完善的链式 Window Builder；
-- 不拥有独立 GameplayTags 包的权威模型和编辑器职责；
-- 不保证 ActionEditor 预览覆盖所有动画、音频、粒子或信号语义；
-- 不代表所有 Editor 工具都有自动测试、跨平台支持或发布门禁。
+领域诊断路径、节点类型、运行时快照和资产结构必须由消费方通过 adapter、callback 或贡献对象接入。Platform 不解析 `project.modules[i]`、BT NodeId、HFSM transition path 或 Pipeline PhaseKey 等领域协议。
 
-## 三、可插拔窗口框架
+历史 `Editor/Framework` 不等同于 Platform。新功能优先采用 Platform；Legacy API 在兼容期内保留，但不再作为跨编辑器治理的扩展中心。
 
-### 3.1 PlugableWindow
+## 三、Editor Platform 能力
 
-`PlugableWindow<TData, TConfig>` 提供以下基础行为：
+### 3.1 Core 与模块注册
 
-- `Initialize(dataSource, plugins)` 保存插件列表并触发刷新；
-- `RefreshData()` 通过可重写的 `LoadData()` 获取 `_allData`；
-- 工具栏搜索和配置筛选；
-- 列表项选择与详情区域；
-- `IWindowPlugin<TData>` 的插件回调；
-- Json/Csv Exporter 扩展点。
+Platform 提供服务注册表、模块描述符、模块注册表和显式贡献模型。模块可以注册服务、命令、菜单或面板贡献，并通过 `IDisposable` registration handle 对称注销。
 
-窗口实际数据来源是 `LoadData()` 虚方法。当前 `Initialize()` 接收的 `dataSource` 没有保存或使用，调用方不能据此认为传入集合会成为窗口数据源。要使用外部数据，必须在派生窗口中重写 `LoadData()` 或修改框架实现。
+生命周期约束：
 
-### 3.2 插件生命周期
+- 重复注册必须显式失败或由调用方先注销；
+- Domain Reload、窗口关闭和模块禁用时必须释放 registration handle；
+- Platform 只编排贡献，不反向了解领域对象；
+- 消费方负责 Unity 事件、运行时 registry 和窗口资源的完整退订。
 
-窗口销毁时会通知插件 `OnDestroy()`，但当前没有与之对称的通用 Initialize、Enable 或 Disable 回调契约。插件如果订阅 Editor 事件、持有资源或注册回调，必须自行管理完整生命周期，不能依赖 BaseEditor 自动清理。
+### 3.2 Localization
 
-### 3.3 导出器
+Localization 使用稳定文本 key 和模块化资源源，支持：
 
-`JsonExporter<T>` 和 `CsvExporter<T>` 接收窗口当前数据列表并写入指定路径。它们是格式转换工具，不负责：
+- 用户语言覆盖；
+- 项目默认语言；
+- 英文 fallback；
+- key fallback；
+- 参数格式化；
+- `LanguageChanged` 即时刷新通知；
+- registration handle 注销资源源。
 
-- 创建稳定文件名；
-- 版本标记和 schema 迁移；
-- 原子写入、权限处理或失败回滚；
-- 证明 `IList<T>` 中所有多态或接口类型可被 `JsonUtility` 正确序列化。
+语言偏好属于用户态或项目设置，不能写入运行时定义资产。消费窗口订阅 `LanguageChanged` 后必须在销毁时退订。
 
-尤其是 Json 导出直接使用 Unity 序列化能力，复杂泛型、接口、派生类型和引用图需要调用方单独验证。
+### 3.3 Diagnostics
 
-## 四、WindowBuilder 当前边界
+通用诊断模型包含：
 
-`WindowBuilder<TData, TConfig>` 暴露 Data、DrawDetail、Filter、Config、Plugins 等链式配置，但当前数据加载回调定义为 `Action<IEnumerable<TData>>`，而不是返回数据的 `Func<IEnumerable<TData>>`。
+- stable code；
+- severity；
+- message；
+- domain path；
+- 可选 Unity target；
+- 可选 locate/fix action；
+- collection 计数、过滤和搜索。
 
-`Build()` 中先创建空局部变量，再把它传给回调和 `PlugableWindow.Initialize()`。回调无法把数据写回该局部变量，且窗口初始化又不使用 data。因此 Builder 的 Data 配置当前不能形成有效的数据注入链；DrawDetail、Filter 和部分 Config 配置也不能据此宣称已接入窗口行为。
+Platform 提供 IMGUI/UI Toolkit 的诊断呈现基础能力。领域 validator 仍是诊断真相来源，领域 Editor 负责把 validator 结果适配成 Platform diagnostics，并决定路径如何定位到节点、资产或 Inspector。
 
-文档和消费者应将 WindowBuilder 视为实验性 API，避免在生产工具中依赖其未验证的链式语义。建议修复方向是：
+### 3.4 UserState 与 ProjectSettings
 
-1. 使用返回数据的函数或明确的可变数据容器；
-2. 在 `Initialize()` 中保存或消费数据源；
-3. 为 Builder 各字段增加最小执行验证；
-4. 以 Editor 测试锁定搜索、筛选、选择、插件和导出行为。
+状态分为两层：
 
-## 五、Pool Monitor
+- 用户态：使用命名空间化 `EditorPrefs`，保存窗口选择、折叠、筛选、布局等个人偏好；
+- 项目态：使用 `ProjectSettings` 资产保存团队应共享和版本控制的默认值，例如默认语言或 catalog 选择。
 
-`PoolMonitorWindow` 从 `Pools.GetDebugSnapshots()` 读取快照，仅在 Play Mode 展示 Pool 调试信息。
+运行时定义、authoring 内容和导出目标不能偷渡进用户态存储。
 
-当前实现特点：
+### 3.5 Commands
 
-- `OnEnable()` 订阅 `EditorApplication.update`；
-- `OnDisable()` 对称退订；
-- 默认约 0.5 秒刷新，最小刷新间隔约 0.1 秒；
-- 支持按搜索文本过滤快照；
-- 展示池名称、数量和运行状态等诊断行。
+命令系统使用稳定 command id、label key、执行回调和 `CanExecute`。Toolbar、菜单和快捷键应复用同一命令，而不是各自复制业务逻辑。
 
-这是包内相对完整的 Editor 诊断工具，但仍未确认专项自动测试、截图 artifact、性能预算或 CI 门禁。它读取调试快照，不改变 Pool 所有权，也不负责释放池内对象。
+命令 id 必须跨同一 registry 唯一；窗口销毁时释放所有 command registrations。命令层只表达用户意图，实际保存、导出、定位和运行时操作仍由领域服务完成。
 
-## 六、ActionEditor 项目侧示例
+### 3.6 UI 基元
 
-`Editor/ActionEditorImpl/Initializer.cs` 通过 `[InitializeOnLoadMethod]` 注册第三方 ActionEditor 回调和 Editor update，但 `OnEditorUpdate()` 当前为空。打开 ActionEditor 时还会尝试切换到 `Assets/Scenes/SampleScene.unity`。
+Platform 提供可组合而非强制统一的 UI Toolkit/IMGUI 基元，包括 Toolbar、Search、Splitter、Tabs、EmptyState、StatusBadge、DiagnosticsList 和 Source Sync Card model。
 
-该实现具有明显的 Sample/实验属性：
+这些控件不规定画布技术，也不要求领域窗口继承统一基类。窗口可以逐步接入，而无需重写现有 GraphView、IMGUI 或 UI Toolkit 交互层。
 
-- 可能改变用户当前编辑场景；
-- 未确认保存提示；
-- 未确认场景存在性检查；
-- 不是通用 BaseEditor 窗口初始化契约。
+### 3.7 DocumentSession
 
-`Preview/Sampler/AnimationSampler.cs` 当前为空类。其他 Preview/Sampler 的实现应逐个核对，不能把目录名描述成完整采样框架，也不能把 Editor 预览能力外推为运行时播放能力。
+通用 DocumentSession 管理：
 
-## 七、GameplayTag 遗留所有权
+- 当前文档与 serializer；
+- dirty 生命周期；
+- 只读保护；
+- 有界 undo/redo；
+- replace/load/save 后的 baseline；
+- 文档切换前的状态判断。
 
-`Editor/GamplayTag` 保留旧 GameplayTag 数据库、窗口、Exporter 和 TreeView，目录名本身还存在历史拼写错误。独立 `com.abilitykit.gameplaytags/Editor` 已提供新版同名编辑器，并且 BaseEditor 依赖该包。
+领域层负责定义文档复制、序列化和持久化语义。运行时观察会话必须设为只读，不能因为复用 DocumentSession 而获得 authoring 写权限。
 
-因此当前建议：
+### 3.8 Source Sync
 
-- 独立 GameplayTags 包拥有 authoritative model 和正式编辑器职责；
-- BaseEditor 中的 GameplayTag 工具标记为 legacy/兼容代码；
-- 新功能不要同时修改两套编辑器；
-- 迁移前明确菜单、资产格式、导出格式和用户数据兼容策略。
+Source Sync 提供规范化状态分类和操作策略，包括 InSync、LocalChanged、SourceChanged、Conflict、Untracked、SourceMissing、InvalidSource，以及 import/export 的 force 判定。
 
-## 八、采用证据与成熟度
+Platform 不读取领域 JSON，也不写 Unity 资产。消费方负责 hash、codec、Undo、dirty、资产 baseline 和刷新；Coordinator/Policy 只统一冲突决策，避免 BT、Trigger 等编辑器各自发明状态机。
 
-已确认的相邻消费者包括 Trace 包的 `TraceTreeWindow` 等 Editor 工具，它证明可插拔窗口模式在 Editor 侧存在采用；Pool Monitor 也有完整的 Editor update 订阅和刷新逻辑。
+### 3.9 Export、Report 与原子写盘
 
-当前未确认 BaseEditor 的统一测试套件、WindowBuilder 数据注入测试、Action Preview 验收或旧 GameplayTag 迁移计划。
+Export 基础设施提供 job/result/report 状态，用于统一 Exported、Unchanged、Skipped/Error 等结果表达。`EditorAtomicFileWriter` 是 canonical Editor-only 文件写入原语，提供：
+
+- UTF-8 no BOM 默认编码；
+- 内容一致时不改写并返回 `Unchanged`；
+- 临时文件写入；
+- `File.Replace`；
+- 不支持 replace 或发生 IO 异常时的 move + backup fallback；
+- finally 清理 `.abilitykit.tmp.*` 和 `.abilitykit.bak.*`。
+
+领域 exporter 负责 schema、路径、校验和产物语义。Legacy Json/Csv Exporter 不会自动获得上述 export pipeline 能力。
+
+## 四、Legacy 可插拔窗口框架
+
+### 4.1 PlugableWindow
+
+`PlugableWindow<TData, TConfig>` 提供列表、搜索、配置筛选、选择、详情、插件回调和 Json/Csv Exporter 扩展点。
+
+窗口实际数据来源仍是可重写的 `LoadData()`。`Initialize(dataSource, plugins)` 的 `dataSource` 当前没有成为窗口的 canonical 数据源；外部数据消费者必须重写 `LoadData()` 或使用自己的适配层。
+
+窗口销毁会通知插件 `OnDestroy()`，但没有与之对称的完整 Initialize/Enable/Disable 生命周期契约。插件订阅 Editor 事件或持有资源时仍需自行清理。
+
+### 4.2 WindowBuilder
+
+`WindowBuilder<TData, TConfig>` 保留链式 API 兼容，但标记为 Experimental/Legacy。其数据加载回调仍是 `Action<IEnumerable<TData>>`，不是返回数据的 `Func<IEnumerable<TData>>`；`Build()` 传入的局部数据无法形成可靠的数据注入链。
+
+当前兼容测试只锁定：
+
+- Fluent API 返回原 builder；
+- `Build()` 保持窗口泛型类型；
+- Config 创建与 Validate；
+- `PlugableWindow.Initialize()` 后仍由 `LoadData()` 提供数据；
+- 插件按 priority 收到数据加载通知。
+
+这些测试不代表 Data、DrawDetail、Filter 等链式语义已经生产化。新编辑器不得基于未验证语义扩展 WindowBuilder；若未来修复，必须保持兼容或提供显式迁移版本。
+
+### 4.3 Legacy 导出器
+
+`JsonExporter<T>` 和 `CsvExporter<T>` 是格式转换工具，不负责稳定文件名、schema migration、原子写入、失败回滚或多态序列化证明。需要正式内容管线的消费者应采用 Platform export/report/atomic writer，并保留领域 validator 和 codec。
+
+## 五、其他历史工具边界
+
+### 5.1 Pool Monitor
+
+`PoolMonitorWindow` 从 `Pools.GetDebugSnapshots()` 拉取只读快照，在 Play Mode 展示池状态。它具备对称的 Editor update 订阅/退订和节流刷新，但不改变 Pool 所有权，也不负责释放池内对象。
+
+### 5.2 ActionEditor 示例
+
+`Editor/ActionEditorImpl` 是项目侧示例和预览接入，不是 Platform 生命周期协议。其场景切换、Sampler 支持范围和第三方 ActionEditor 回调必须逐项验证，不能从目录存在推导为完整生产能力。
+
+### 5.3 GameplayTag 遗留所有权
+
+`Editor/GamplayTag` 是历史兼容目录。独立 `com.abilitykit.gameplaytags/Editor` 拥有 authoritative model 和正式编辑器职责；新功能不得同时修改两套实现，退役前需明确菜单、资产和导出格式兼容策略。
+
+## 六、已接入消费者与治理结论
+
+当前 Platform 的渐进消费者包括：
+
+- BehaviorTree：Localization、Commands、Diagnostics、DocumentSession、Source Sync、Export Report 和 atomic runtime export；
+- HFSM：UserState、Commands、Platform Diagnostics adapter、Export Action Registry；
+- Pipeline Runtime Debugger：通用编辑器状态/模型拆分能力，仍保持只读运行时观察；
+- Trigger Workspace：Commands、Localization、Diagnostics、Source Sync UI 和 atomic source/runtime export。
+
+统一基础设施不改变领域所有权：
+
+- BT 保持 descriptor-driven GraphView 和 child → parent 边语义；
+- HFSM Next Definition/Legacy importer 仍由 HFSM 拥有；
+- Pipeline Authoring Graph 在稳定定义和 round-trip 协议出现前不实施；
+- Trigger authoring assets、validator、codec 和 runtime exporter 当前仍由 Ability 包拥有，模型下沉前不把完整 UI 强迁到 Triggering Editor。
+
+## 七、测试证据与限制
+
+当前已有：
+
+- `AbilityKit.Editor.Platform.Tests`：覆盖服务/模块注册、Localization fallback、Diagnostics、Commands、State、UI model、DocumentSession、Source Sync、Export/atomic writer 等源码；
+- `AbilityKit.Base.Editor.Tests`：覆盖 Legacy `WindowBuilder` / `PlugableWindow` 的兼容边界；
+- BehaviorTree、HFSM、Pipeline、Trigger 各自的 Editor 测试源码和定向程序集编译门禁。
+
+本轮相关项目已通过定向 `dotnet build` / `dotnet msbuild` 源码编译且为 0 errors；仍可能存在既有程序集冲突、deprecated 或未使用字段 warnings。
+
+重要限制：`dotnet build` 只证明生成的 C# 项目可编译，不等于 Unity Test Runner 已执行。新增 EditMode/NUnit 测试在 Unity Test Runner 实际运行前，只能称为“测试源码已编译”，不能称为“测试通过”。Domain Reload、语言即时切换、布局恢复、Unity Undo/Redo、诊断定位和真实 AssetDatabase 导入仍需 Unity 侧验收。
 
 | 等级 | 状态 | 说明 |
 |---|---|---|
-| E0 | 已具备 | 窗口框架、导出器、Pool Monitor 和示例代码存在 |
-| E1 | 已具备 | Editor 窗口和插件扩展可被调用 |
-| E2 | 局部具备 | Trace 等相邻 Editor 工具采用窗口模式 |
-| E3 | 未确认 | 未找到 BaseEditor 专项自动测试 |
-| E4 | 未确认 | 未找到 Editor Smoke 或可复现截图/导出 artifact |
-| E5 | 未具备 | 未接入统一 CI、版本发布和回滚责任 |
+| E0 | 已具备 | Platform 与 Legacy 源码、asmdef 和文档存在 |
+| E1 | 已具备 | Platform 服务、命令、诊断、状态、UI、会话、同步和导出 API 可被领域编辑器调用 |
+| E2 | 已具备 | BT、HFSM、Pipeline、Trigger 已按领域边界渐进接入 |
+| E3 | 部分具备 | 专项测试源码和定向编译存在；本轮未执行 Unity Test Runner |
+| E4 | 部分具备 | 领域侧存在 golden/export 测试；总体验收矩阵仍待 Unity 执行 |
+| E5 | 待建立 | 最终 CI、Unity 批量测试、发布与回滚责任仍需正式门禁 |
 
-## 九、源码阅读路径
+## 八、源码阅读路径
 
-1. [PlugableWindow.cs](../Editor/Framework/Core/PlugableWindow.cs)：窗口数据、插件和导出器；
-2. [WindowBuilder.cs](../Editor/Framework/Layout/WindowBuilder.cs)：Builder 数据链及当前断点；
-3. [PoolMonitorWindow.cs](../Editor/PoolExtension/PoolMonitorWindow.cs)：Pool 诊断窗口生命周期；
-4. [Initializer.cs](../Editor/ActionEditorImpl/Initializer.cs)：ActionEditor 项目侧初始化；
-5. [AnimationSampler.cs](../Editor/ActionEditorImpl/Preview/Sampler/AnimationSampler.cs)：当前空采样器；
-6. [GamplayTag](../Editor/GamplayTag)：遗留 GameplayTag 编辑器；
-7. `com.abilitykit.gameplaytags/Editor`：新版 GameplayTag 权威编辑器实现。
+1. `Editor/Platform/AbilityKit.Editor.Platform.asmdef`：独立 Platform 程序集边界；
+2. `Editor/Platform/Core/`：服务、模块、贡献和平台上下文；
+3. `Editor/Platform/Localization/`：本地化服务和资源源；
+4. `Editor/Platform/Diagnostics/`：结构化诊断；
+5. `Editor/Platform/State/`：用户态与项目态存储；
+6. `Editor/Platform/Commands/`：稳定命令注册与执行；
+7. `Editor/Platform/UI/`：IMGUI/UI Toolkit 组合基元；
+8. `Editor/Platform/Documents/`：DocumentSession；
+9. `Editor/Platform/Synchronization/`：Source Sync 分类和策略；
+10. `Editor/Platform/Export/`：Export Report/Job 和 atomic writer；
+11. `Tests/Editor/EditorPlatformCoreTests.cs`：Platform 测试源码；
+12. `Editor/Framework/Core/PlugableWindow.cs` 与 `Editor/Framework/Layout/WindowBuilder.cs`：Legacy API；
+13. `Tests/Framework/WindowBuilderCompatibilityTests.cs`：Legacy 兼容测试源码。
 
-## 十、后续治理顺序
+## 九、后续治理顺序
 
-1. 修复 WindowBuilder 到 PlugableWindow 的数据注入和配置接线；
-2. 为窗口和插件增加对称生命周期，并测试事件退订；
-3. 为导出器补充复杂类型、失败路径和文件写入策略；
-4. 将 ActionEditor 示例的场景切换改为显式、可配置且有保存检查的行为；
-5. 明确 Preview/Sampler 的支持矩阵，删除或标记空实现；
-6. 制定旧 GameplayTag 编辑器迁移和下线计划；
-7. 建立 Editor Smoke、导出 artifact 和 CI 责任后，再提高 E3-E5。
+1. 由 Unity 正式刷新新增源码、asmdef reference 和 `.meta`，移除临时 csproj validation target；
+2. 执行 Platform 与四类编辑器相关 Unity EditMode tests；
+3. 建立依赖无环、Domain Reload、语言即时切换、布局恢复、诊断定位、同步冲突和原子导出的总体验收门禁；
+4. 完成 `git diff --check`、相关项目定向构建和 `dotnet build Unity.sln --no-restore -m:1`，保持 0 errors；
+5. 继续减少硬编码 UI 文本，但不以本地化为由改写领域语义；
+6. 仅在有消费者和迁移测试时修复 Legacy WindowBuilder，不把它重新定义为 Platform；
+7. 为旧 GameplayTag、ActionEditor 示例和空 Preview/Sampler 单独制定迁移或退役计划。

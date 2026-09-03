@@ -64,12 +64,14 @@ namespace AbilityKit.BattleFlow.Editor
             EditorGUILayout.LabelField("积木调色板", EditorStyles.boldLabel);
             _paletteScroll = EditorGUILayout.BeginScrollView(_paletteScroll);
 
-            if (GUILayout.Button("设置环境")) _timeline.Add(new SetEnvironmentBlock { DisplayName = "设置环境" });
-            if (GUILayout.Button("生成角色")) _timeline.Add(new SpawnActorBlock { DisplayName = "生成角色" });
-            if (GUILayout.Button("时间线步骤")) _timeline.Add(new TimelineStepBlock { DisplayName = "时间线步骤" });
-
-            EditorGUILayout.Space();
-            EditorGUILayout.HelpBox("复合积木（项目注册到 BattleBlockLibrary）待接入调色板。", MessageType.None);
+            foreach (var template in BattleBlockPalette.Templates)
+            {
+                if (GUILayout.Button(template.DisplayName))
+                {
+                    // 复合积木是可复用宏，直接加入；原子积木克隆成可编辑实例。
+                    _timeline.Add(template is BattleCompositeBlock ? template : template.Clone());
+                }
+            }
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.EndVertical();
@@ -121,29 +123,51 @@ namespace AbilityKit.BattleFlow.Editor
             _timeline.Insert(to, item);
         }
 
+        private static readonly string[] SkillActions = { "cast_skill", "wait", "move_to", "cancel", "press", "release", "hold" };
+
         private static void DrawBlockFields(BattleBlock block)
         {
             switch (block)
             {
                 case SetEnvironmentBlock env:
                     env.ProfileId = EditorGUILayout.TextField("ProfileId", env.ProfileId);
-                    break;
+                    return;
                 case SpawnActorBlock spawn:
                     spawn.Alias = EditorGUILayout.TextField("Alias", spawn.Alias);
+                    spawn.PlayerId = EditorGUILayout.TextField("PlayerId", spawn.PlayerId);
                     spawn.HeroId = EditorGUILayout.IntField("HeroId", spawn.HeroId);
                     spawn.TeamId = EditorGUILayout.IntField("TeamId", spawn.TeamId);
-                    break;
+                    return;
                 case TimelineStepBlock step:
                     step.AtMs = EditorGUILayout.IntField("AtMs", step.AtMs);
-                    step.Action = EditorGUILayout.TextField("Action", step.Action);
+                    var actionIndex = System.Array.IndexOf(SkillActions, step.Action);
+                    if (actionIndex < 0) actionIndex = 0;
+                    actionIndex = EditorGUILayout.Popup("Action", actionIndex, SkillActions);
+                    step.Action = SkillActions[actionIndex];
                     step.ActorAlias = EditorGUILayout.TextField("ActorAlias", step.ActorAlias);
                     step.TargetAlias = EditorGUILayout.TextField("TargetAlias", step.TargetAlias);
                     step.Slot = EditorGUILayout.IntField("Slot", step.Slot);
-                    break;
+                    return;
+                case WaitBlock wait:
+                    wait.AtMs = EditorGUILayout.IntField("AtMs", wait.AtMs);
+                    wait.DurationMs = EditorGUILayout.IntField("DurationMs", wait.DurationMs);
+                    return;
+                case MoveToBlock move:
+                    move.AtMs = EditorGUILayout.IntField("AtMs", move.AtMs);
+                    move.ActorAlias = EditorGUILayout.TextField("ActorAlias", move.ActorAlias);
+                    return;
+                case PlaceObstacleBlock obstacle:
+                    obstacle.Id = EditorGUILayout.TextField("Id", obstacle.Id);
+                    obstacle.Shape = EditorGUILayout.TextField("Shape", obstacle.Shape);
+                    return;
                 case BattleCompositeBlock composite:
                     EditorGUILayout.LabelField($"复合积木（{composite.Children.Count} 个子积木）");
-                    break;
+                    return;
             }
+
+            // 未知积木（项目自定义，如断言积木）：用 Odin PropertyTree 画 inspect 风格字段
+            var tree = Sirenix.OdinInspector.Editor.PropertyTree.Create(block);
+            tree.Draw(false);
         }
 
         private void DrawResult()

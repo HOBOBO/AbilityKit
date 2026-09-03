@@ -1,4 +1,7 @@
 #if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
+using System.IO;
 using AbilityKit.BehaviorTree.Authoring;
 using NUnit.Framework;
 
@@ -55,6 +58,57 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
             Assert.That(
                 loaded.Tree.ComputeDefinitionHash(),
                 Is.EqualTo(document.Tree.ComputeDefinitionHash()));
+        }
+
+        [Test]
+        public void ProjectAndDirectExport_ProduceIdenticalRuntimeBytesAndIncrementalUnchanged()
+        {
+            var root = Path.Combine(
+                Path.GetTempPath(),
+                "AbilityKit.BtGolden." + Guid.NewGuid().ToString("N"));
+            var sourceDirectory = Path.Combine(root, "source");
+            var directDirectory = Path.Combine(root, "direct");
+            var projectDirectory = Path.Combine(root, "project");
+            Directory.CreateDirectory(sourceDirectory);
+
+            try
+            {
+                var document = BtAuthoringGoldenExamples.BuildHeroCombat();
+                var treeId = document.Tree.TreeId;
+                File.WriteAllText(
+                    Path.Combine(sourceDirectory, treeId + ".json"),
+                    BtAuthoringJson.Save(document));
+
+                var registry = BuiltinRegistry();
+                var directReport = BtAuthoringExportPipeline.ExportAll(
+                    new[] { new KeyValuePair<string, BtAuthoringSourceDocument>(treeId, document) },
+                    new[] { directDirectory },
+                    registry,
+                    root);
+                var manifest = new BtAuthoringProjectManifest
+                {
+                    SourceDirectory = sourceDirectory,
+                    SourceKind = BtAuthoringSourceKind.AuthoringDocument,
+                    Trees = new List<string> { treeId },
+                    ExportTargets = new List<string> { projectDirectory }
+                };
+                var projectReport = BtAuthoringExportPipeline.ExportProject(manifest, registry, root);
+
+                Assert.That(directReport, Has.Count.EqualTo(1));
+                Assert.That(projectReport, Has.Count.EqualTo(1));
+                Assert.That(directReport[0].Status, Is.EqualTo(BtExportStatus.Exported));
+                Assert.That(projectReport[0].Status, Is.EqualTo(BtExportStatus.Exported));
+                Assert.That(
+                    File.ReadAllBytes(Path.Combine(directDirectory, treeId + ".json")),
+                    Is.EqualTo(File.ReadAllBytes(Path.Combine(projectDirectory, treeId + ".json"))));
+
+                var repeated = BtAuthoringExportPipeline.ExportProject(manifest, registry, root);
+                Assert.That(repeated[0].Status, Is.EqualTo(BtExportStatus.Unchanged));
+            }
+            finally
+            {
+                if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+            }
         }
     }
 }

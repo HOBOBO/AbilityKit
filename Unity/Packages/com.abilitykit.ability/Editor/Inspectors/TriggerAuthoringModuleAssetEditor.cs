@@ -5,6 +5,8 @@ using System.IO;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
 using AbilityKit.Ability.Editor.Windows;
+using AbilityKit.Editor.Platform.Commands;
+using AbilityKit.Editor.Platform.Diagnostics;
 using Sirenix.OdinInspector.Editor;
 using Sirenix.Utilities.Editor;
 using UnityEditor;
@@ -17,19 +19,22 @@ namespace AbilityKit.Ability.Editor.Inspectors
     /// 模块资产的共享绘制器：Module Inspector 与 TriggerAuthoringWorkspaceWindow 共用同一份编辑 UI。
     /// 纯 IMGUI 类，不持有 Editor 生命周期；宿主通过 RepaintRequested 订阅重绘。
     /// </summary>
-    internal sealed class TriggerAuthoringModuleDrawer
+    internal sealed class TriggerAuthoringModuleDrawer : IDisposable
     {
         private const float SplitThreshold = 680f;
         private const float TriggerListWidth = 220f;
 
         internal event Action RepaintRequested;
 
+        private readonly EditorCommandRegistry _commands = new EditorCommandRegistry();
+        private readonly List<IDisposable> _commandRegistrations = new List<IDisposable>();
         private TriggerAuthoringModuleAsset _asset;
         private TriggerTypeDescriptorCatalog _types;
         private TriggerEventDescriptorCatalog _events;
         private TriggerGlobalBlackboardDescriptorCatalog _globalBlackboard;
         private TriggerTemplateDescriptorCatalog _templates;
         private List<TriggerAuthoringDiagnostic> _diagnostics = new List<TriggerAuthoringDiagnostic>();
+        private EditorDiagnosticCollection _platformDiagnostics = new EditorDiagnosticCollection();
         private Vector2 _triggerScroll;
         private string _triggerSearch = string.Empty;
         private Vector2 _detailScroll;
@@ -53,6 +58,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         public TriggerAuthoringModuleDrawer(TriggerAuthoringModuleAsset asset)
         {
+            RegisterCommands();
             SetAsset(asset);
         }
 
@@ -67,6 +73,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EnsureSelection();
             RefreshDiagnostics();
             _dismissedSyncBannerState = null;
+        }
+
+        public void Dispose()
+        {
+            for (var i = 0; i < _commandRegistrations.Count; i++)
+                _commandRegistrations[i].Dispose();
+            _commandRegistrations.Clear();
+            RepaintRequested = null;
         }
 
         public void Draw()
@@ -114,15 +128,38 @@ namespace AbilityKit.Ability.Editor.Inspectors
             GUI.color = oldColor;
             GUILayout.FlexibleSpace();
 
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Import", "Import Source JSON into this asset")))
-                ImportSource();
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Export", "Export this asset to Source JSON")))
-                ExportSource();
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Runtime", "Compile and export Runtime Plan JSON")))
-                ExportRuntime();
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Validate", "Refresh validation diagnostics")))
-                RefreshDiagnostics();
+            DrawCommandButton(TriggerAuthoringCommandIds.Import);
+            DrawCommandButton(TriggerAuthoringCommandIds.ExportSource);
+            DrawCommandButton(TriggerAuthoringCommandIds.ExportRuntime);
+            DrawCommandButton(TriggerAuthoringCommandIds.Validate);
             SirenixEditorGUI.EndHorizontalToolbar();
+        }
+
+        private void RegisterCommands()
+        {
+            var commands = TriggerAuthoringCommandFactory.CreateModule(
+                ImportSource,
+                ExportSource,
+                ExportRuntime,
+                RefreshDiagnostics,
+                () => _asset != null);
+            for (var i = 0; i < commands.Count; i++)
+                _commandRegistrations.Add(_commands.Register(commands[i]));
+        }
+
+        private void DrawCommandButton(string commandId)
+        {
+            if (!_commands.TryGet(commandId, out var command)) return;
+            var context = new EditorCommandContext(this, _asset);
+            var previousEnabled = GUI.enabled;
+            GUI.enabled = command.CanExecute(context);
+            var localization = TriggerAuthoringEditorIntegration.Localization;
+            var content = new GUIContent(
+                localization.Get(command.LabelKey),
+                localization.Get(command.TooltipKey));
+            var pressed = SirenixEditorGUI.ToolbarButton(content);
+            GUI.enabled = previousEnabled;
+            if (pressed) command.TryExecute(context);
         }
 
         private void DrawExternalChangeBanner()
@@ -1338,7 +1375,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             _showDiagnostics = EditorGUILayout.Foldout(
                 _showDiagnostics,
-                $"Diagnostics ({_diagnostics.Count})",
+                $"Diagnostics ({_platformDiagnostics.Items.Count})",
                 true);
             if (!_showDiagnostics) return;
 
@@ -1353,24 +1390,26 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 }
                 EditorGUILayout.EndHorizontal();
             }
-            if (_diagnostics.Count == 0)
+            if (_platformDiagnostics.Items.Count == 0)
             {
                 EditorGUILayout.HelpBox("No diagnostics.", MessageType.Info);
                 return;
             }
 
             _diagnosticScroll = EditorGUILayout.BeginScrollView(_diagnosticScroll, GUILayout.MaxHeight(190f));
-            for (var i = 0; i < _diagnostics.Count; i++)
+            for (var i = 0; i < _platformDiagnostics.Items.Count; i++)
             {
-                var diagnostic = _diagnostics[i];
-                var icon = diagnostic.Severity == TriggerAuthoringDiagnosticSeverity.Error
+                var diagnostic = _platformDiagnostics.Items[i];
+                var icon = diagnostic.Severity == EditorDiagnosticSeverity.Error
                     ? EditorGUIUtility.IconContent("console.erroricon.sml")
-                    : EditorGUIUtility.IconContent("console.warnicon.sml");
+                    : diagnostic.Severity == EditorDiagnosticSeverity.Warning
+                        ? EditorGUIUtility.IconContent("console.warnicon.sml")
+                        : EditorGUIUtility.IconContent("console.infoicon.sml");
                 var content = new GUIContent(
                     $"{diagnostic.Code}  {diagnostic.Path}\n{diagnostic.Message}",
                     icon != null ? icon.image : null);
                 if (GUILayout.Button(content, EditorStyles.helpBox, GUILayout.MinHeight(38f)))
-                    FocusDiagnostic(diagnostic.Path);
+                    diagnostic.Locate?.Invoke();
             }
             EditorGUILayout.EndScrollView();
         }
@@ -1735,6 +1774,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _diagnostics = TriggerAuthoringValidator.Validate(
                 _asset.Module,
                 TriggerAuthoringValidationContext.Create(_asset));
+            _platformDiagnostics = TriggerAuthoringDiagnosticAdapter.Adapt(
+                _diagnostics,
+                _asset,
+                FocusDiagnostic);
             RequestRepaint();
         }
 
@@ -2028,6 +2071,18 @@ namespace AbilityKit.Ability.Editor.Inspectors
             {
                 _drawer.SetAsset(target as TriggerAuthoringModuleAsset);
             }
+        }
+
+        protected override void OnDisable()
+        {
+            if (_drawer != null)
+            {
+                _drawer.RepaintRequested -= Repaint;
+                _drawer.Dispose();
+                _drawer = null;
+            }
+
+            base.OnDisable();
         }
 
         public override void OnInspectorGUI()

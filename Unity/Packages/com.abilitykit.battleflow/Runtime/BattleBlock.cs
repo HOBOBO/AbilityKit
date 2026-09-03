@@ -14,6 +14,9 @@ namespace AbilityKit.BattleFlow
 
         /// <summary>可选说明。</summary>
         public string? Description { get; init; }
+
+        /// <summary>浅克隆（供编辑器调色板从模板生成一个可编辑实例；原子积木字段为值类型/string，浅克隆足够）。</summary>
+        public BattleBlock Clone() => (BattleBlock)MemberwiseClone();
     }
 
     /// <summary>原子积木（叶子）：编译成一个 IR 构件。框架提供映射 IR 的内置积木，项目可继承定义自定义积木。</summary>

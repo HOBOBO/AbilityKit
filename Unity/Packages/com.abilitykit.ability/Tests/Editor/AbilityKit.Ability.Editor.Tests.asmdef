@@ -5,6 +5,7 @@
         "AbilityKit.Ability",
         "AbilityKit.Ability.Editor",
         "AbilityKit.Triggering",
+        "AbilityKit.Editor.Platform",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

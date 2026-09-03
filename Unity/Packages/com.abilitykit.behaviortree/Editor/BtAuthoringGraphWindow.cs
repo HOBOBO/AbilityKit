@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.Commands;
+using AbilityKit.Editor.Platform.Diagnostics;
 using AbilityKit.Editor.Platform.Export;
+using AbilityKit.Editor.Platform.Localization;
 using UnityEditor;
 using UnityEditor.Experimental.GraphView;
 using UnityEngine;
@@ -19,6 +22,10 @@ namespace AbilityKit.BehaviorTree.Editor
     {
         private BtAuthoringAsset? _asset;
         private readonly BtAuthoringDocumentSession _documentSession = new();
+        private readonly EditorCommandRegistry _commands = new();
+        private readonly List<IDisposable> _commandRegistrations = new();
+        private readonly EditorDiagnosticCollection _diagnostics = new();
+        private IEditorLocalization _localization = null!;
         private BtAuthoringSourceDocument _document => _documentSession.Document;
         private BtAuthoringGraphView _graphView = null!;
         private BtAuthoringInspectorRenderer _inspectorRenderer = null!;
@@ -123,6 +130,9 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void OnEnable()
         {
+            _localization = BtEditorLocalization.Localization;
+            _localization.LanguageChanged += OnLanguageChanged;
+            RegisterCommands();
             _graphView = new BtAuthoringGraphView(this);
             BuildUi();
             _graphView.RegisterCallback<KeyDownEvent>(OnGraphKeyDown);
@@ -133,13 +143,61 @@ namespace AbilityKit.BehaviorTree.Editor
             rootVisualElement.schedule.Execute(ObservationTick).Every(150);
         }
 
+        private void OnDisable()
+        {
+            if (_localization != null)
+                _localization.LanguageChanged -= OnLanguageChanged;
+            foreach (var registration in _commandRegistrations)
+                registration.Dispose();
+            _commandRegistrations.Clear();
+        }
+
+        private void OnLanguageChanged()
+        {
+            BuildUi();
+            RebuildGraph();
+        }
+
+        private void RegisterCommands()
+        {
+            if (_commandRegistrations.Count > 0) return;
+            var commands = BtEditorCommandFactory.Create(
+                Close,
+                ToggleObservationPause,
+                CopyObservationSnapshot,
+                Save,
+                ExportRuntime,
+                PerformUndo,
+                PerformRedo,
+                AddRoot,
+                AddGroupFromSelection,
+                AddCanvasNote,
+                AutoLayout,
+                () => _graphView.FrameAll(),
+                ValidateOnGraph,
+                () => IsObservation,
+                () => _documentSession.CanUndo,
+                () => _documentSession.CanRedo);
+            foreach (var command in commands)
+                _commandRegistrations.Add(_commands.Register(command));
+        }
+
+        private bool ExecuteCommand(string id)
+        {
+            var executed = _commands.Execute(id, new EditorCommandContext(this, _selectedNode));
+            RefreshChrome();
+            return executed;
+        }
+
         private void BuildUi()
         {
             rootVisualElement.Clear();
 
             var toolbar = new UnityEditor.UIElements.Toolbar();
             toolbar.style.minHeight = 27f;
-            _modeLabel = new Label(IsObservation ? "观察模式（只读）" : "Behavior Tree")
+            _modeLabel = new Label(L(IsObservation
+                ? "abilitykit.behaviortree.mode.observation"
+                : "abilitykit.behaviortree.mode.edit"))
             {
                 style =
                 {
@@ -152,30 +210,30 @@ namespace AbilityKit.BehaviorTree.Editor
             toolbar.Add(_modeLabel);
             if (IsObservation)
             {
-                toolbar.Add(ToolbarButton("关闭", "关闭当前观察图", Close));
-                _observationPauseButton = ToolbarButton("冻结", "冻结显示，运行时继续推进", ToggleObservationPause);
+                toolbar.Add(CommandButton(BtEditorCommandIds.Close, "close"));
+                _observationPauseButton = CommandButton(BtEditorCommandIds.PauseObservation, "pause");
                 toolbar.Add(_observationPauseButton);
-                toolbar.Add(ToolbarButton("复制快照", "复制当前运行状态 JSON", CopyObservationSnapshot));
+                toolbar.Add(CommandButton(BtEditorCommandIds.CopySnapshot, "copy-snapshot"));
                 toolbar.Add(ToolbarSeparator());
-                toolbar.Add(ToolbarButton("适应画布", "显示全部节点", () => _graphView.FrameAll()));
+                toolbar.Add(CommandButton(BtEditorCommandIds.FrameAll, "frame-all"));
             }
             else
             {
-                toolbar.Add(ToolbarButton("保存", "保存授权文档 (Ctrl+S)", Save));
-                toolbar.Add(ToolbarButton("导出", "保存并导出纯运行时 IR (Ctrl+Shift+E)", ExportRuntime));
+                toolbar.Add(CommandButton(BtEditorCommandIds.Save, "save"));
+                toolbar.Add(CommandButton(BtEditorCommandIds.Export, "export"));
                 toolbar.Add(ToolbarSeparator());
-                _undoButton = ToolbarButton("撤销", "撤销上一步 (Ctrl+Z)", PerformUndo);
-                _redoButton = ToolbarButton("重做", "重做下一步 (Ctrl+Y)", PerformRedo);
+                _undoButton = CommandButton(BtEditorCommandIds.Undo, "undo");
+                _redoButton = CommandButton(BtEditorCommandIds.Redo, "redo");
                 toolbar.Add(_undoButton);
                 toolbar.Add(_redoButton);
                 toolbar.Add(ToolbarSeparator());
-                toolbar.Add(ToolbarButton("添加根", "为空树创建可直接运行的根节点", AddRoot));
-                toolbar.Add(ToolbarButton("分组", "将当前选中节点放入新分组", AddGroupFromSelection));
-                toolbar.Add(ToolbarButton("注释", "在画布中心添加不参与运行时导出的说明", AddCanvasNote));
-                toolbar.Add(ToolbarButton("自动布局", "按父子层级整理全部节点 (Ctrl+L)", AutoLayout));
-                toolbar.Add(ToolbarButton("适应画布", "显示全部节点", () => _graphView.FrameAll()));
+                toolbar.Add(CommandButton(BtEditorCommandIds.AddRoot, "add-root"));
+                toolbar.Add(CommandButton(BtEditorCommandIds.Group, "group"));
+                toolbar.Add(CommandButton(BtEditorCommandIds.Note, "note"));
+                toolbar.Add(CommandButton(BtEditorCommandIds.AutoLayout, "auto-layout"));
+                toolbar.Add(CommandButton(BtEditorCommandIds.FrameAll, "frame-all"));
                 toolbar.Add(ToolbarSeparator());
-                toolbar.Add(ToolbarButton("校验", "校验结构、属性和黑板引用", ValidateOnGraph));
+                toolbar.Add(CommandButton(BtEditorCommandIds.Validate, "validate"));
                 _dirtyLabel = new Label { style = { marginLeft = 8f, opacity = 0.75f } };
                 toolbar.Add(_dirtyLabel);
             }
@@ -184,7 +242,7 @@ namespace AbilityKit.BehaviorTree.Editor
 
             _nodeSearchField = new UnityEditor.UIElements.ToolbarSearchField
             {
-                tooltip = "按显示名、节点 ID 或类型查找 (Ctrl+F)",
+                tooltip = L("abilitykit.behaviortree.search.tooltip"),
             };
             _nodeSearchField.style.width = 170f;
             _nodeSearchField.style.marginRight = 6f;
@@ -225,14 +283,22 @@ namespace AbilityKit.BehaviorTree.Editor
             RefreshChrome();
         }
 
-        private static Button ToolbarButton(string text, string tooltip, Action action)
+        private Button CommandButton(string commandId, string keySuffix)
         {
-            var button = new Button(action) { text = text, tooltip = tooltip };
+            var button = new Button(() => ExecuteCommand(commandId))
+            {
+                text = L("abilitykit.behaviortree.command." + keySuffix),
+                tooltip = L("abilitykit.behaviortree.command." + keySuffix + ".tooltip")
+            };
             button.style.height = 22f;
             button.style.marginLeft = 1f;
             button.style.marginRight = 1f;
+            if (_commands.TryGet(commandId, out var command))
+                button.SetEnabled(command.CanExecute(new EditorCommandContext(this, _selectedNode)));
             return button;
         }
+
+        private string L(string key) => _localization.Get(key);
 
         private static VisualElement ToolbarSeparator()
         {
@@ -267,27 +333,27 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             else if (evt.keyCode == UnityEngine.KeyCode.S)
             {
-                Save();
+                ExecuteCommand(BtEditorCommandIds.Save);
                 evt.StopPropagation();
             }
             else if (evt.keyCode == UnityEngine.KeyCode.E && evt.shiftKey)
             {
-                ExportRuntime();
+                ExecuteCommand(BtEditorCommandIds.Export);
                 evt.StopPropagation();
             }
             else if (evt.keyCode == UnityEngine.KeyCode.L)
             {
-                AutoLayout();
+                ExecuteCommand(BtEditorCommandIds.AutoLayout);
                 evt.StopPropagation();
             }
             else if (evt.keyCode == UnityEngine.KeyCode.Z)
             {
-                PerformUndo();
+                ExecuteCommand(BtEditorCommandIds.Undo);
                 evt.StopPropagation();
             }
             else if (evt.keyCode == UnityEngine.KeyCode.Y)
             {
-                PerformRedo();
+                ExecuteCommand(BtEditorCommandIds.Redo);
                 evt.StopPropagation();
             }
         }
@@ -356,7 +422,9 @@ namespace AbilityKit.BehaviorTree.Editor
                     ? "Behavior Tree"
                     : _document.Tree.TreeId;
             if (_dirtyLabel != null)
-                _dirtyLabel.text = _isDirty ? "未保存" : "已保存";
+                _dirtyLabel.text = L(_isDirty
+                    ? "abilitykit.behaviortree.state.dirty"
+                    : "abilitykit.behaviortree.state.saved");
             hasUnsavedChanges = _documentSession.IsDirty;
             _undoButton?.SetEnabled(_documentSession.CanUndo);
             _redoButton?.SetEnabled(_documentSession.CanRedo);
@@ -365,64 +433,65 @@ namespace AbilityKit.BehaviorTree.Editor
                 : (_isDirty ? "BT Authoring *" : "BT Authoring"));
         }
 
-        /// <summary>图上校验：右栏列出错误，错误涉及的节点标红边框。</summary>
+        /// <summary>图上校验：右栏列出结构化诊断，节点定位由诊断动作显式提供。</summary>
         private void ValidateOnGraph()
         {
-            var errors = BtTreeValidator.Validate(_document.Tree, BtEditorNodeCatalog.Registry);
+            _diagnostics.Replace(BtEditorDiagnostics.Analyze(
+                _document.Tree,
+                BtEditorNodeCatalog.Registry,
+                nodeId => _graphView.FocusNode(nodeId)).Items);
             if (_validationLabel == null || _validationPanel == null) return;
             _validationPanel.Clear();
             _validationPanel.style.display = DisplayStyle.Flex;
-            if (errors.Count == 0)
+            if (!_diagnostics.HasErrors)
             {
-                _validationLabel.text = "✔ 校验通过";
+                _validationLabel.text = L("abilitykit.behaviortree.validation.success");
                 _validationLabel.style.color = new Color(0.55f, 0.9f, 0.62f);
                 _validationPanel.Add(_validationLabel);
                 _graphView.ClearErrorNodes();
+                return;
             }
-            else
+
+            _validationLabel.text = _localization.Format(
+                "abilitykit.behaviortree.validation.errors",
+                _diagnostics.ErrorCount);
+            _validationLabel.style.color = new Color(0.95f, 0.5f, 0.45f);
+            _validationPanel.Add(_validationLabel);
+            foreach (var diagnostic in _diagnostics.Items)
             {
-                _validationLabel.text = "✘ " + errors.Count + " 个错误";
-                _validationLabel.style.color = new Color(0.95f, 0.5f, 0.45f);
-                _validationPanel.Add(_validationLabel);
-                foreach (var error in errors)
+                if (!diagnostic.CanLocate)
                 {
-                    var nodeId = FindErrorNodeId(error);
-                    if (nodeId == null)
+                    _validationPanel.Add(new Label(diagnostic.Message)
                     {
-                        _validationPanel.Add(new Label(error)
-                        {
-                            style = { whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal },
-                        });
-                        continue;
-                    }
-
-                    var focusError = new Button(() => _graphView.FocusNode(nodeId))
-                    {
-                        text = error,
-                        tooltip = "定位节点 " + nodeId,
-                    };
-                    focusError.style.unityTextAlign = TextAnchor.MiddleLeft;
-                    focusError.style.whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal;
-                    _validationPanel.Add(focusError);
+                        style = { whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal },
+                    });
+                    continue;
                 }
-                _graphView.MarkErrorNodes(errors);
-            }
-        }
 
-        private string? FindErrorNodeId(string error)
-        {
-            foreach (var node in _document.Tree.Nodes.OrderByDescending(n => n.Id.Length))
-            {
-                if (error.Contains("'" + node.Id + "'")) return node.Id;
+                var nodeId = diagnostic.Path.Substring("nodes/".Length);
+                var focusError = new Button(() => diagnostic.Locate?.Invoke())
+                {
+                    text = diagnostic.Message,
+                    tooltip = _localization.Format(
+                        "abilitykit.behaviortree.validation.locate",
+                        nodeId),
+                };
+                focusError.style.unityTextAlign = TextAnchor.MiddleLeft;
+                focusError.style.whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal;
+                _validationPanel.Add(focusError);
             }
-            return null;
+            _graphView.MarkErrorNodes(_diagnostics.Items
+                .Where(item => item.CanLocate)
+                .Select(item => item.Path.Substring("nodes/".Length)));
         }
 
         private void ToggleObservationPause()
         {
             _observationPaused = !_observationPaused;
             if (_observationPauseButton != null)
-                _observationPauseButton.text = _observationPaused ? "继续" : "冻结";
+                _observationPauseButton.text = L(_observationPaused
+                    ? "abilitykit.behaviortree.command.resume"
+                    : "abilitykit.behaviortree.command.pause");
         }
 
         private void CopyObservationSnapshot()
@@ -431,12 +500,14 @@ namespace AbilityKit.BehaviorTree.Editor
             try
             {
                 EditorGUIUtility.systemCopyBuffer = BtTreeJson.SaveSnapshot(_observedView.CaptureState());
-                ShowNotification(new GUIContent("运行快照已复制"));
+                ShowNotification(new GUIContent(L(
+                    "abilitykit.behaviortree.observation.snapshot-copied")));
             }
             catch (Exception ex)
             {
                 Debug.LogWarning("[BtObservation] 无法复制运行快照: " + ex.Message);
-                ShowNotification(new GUIContent("快照复制失败"));
+                ShowNotification(new GUIContent(L(
+                    "abilitykit.behaviortree.observation.snapshot-failed")));
             }
         }
 
@@ -452,7 +523,8 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             if (!alive)
             {
-                if (_modeLabel != null) _modeLabel.text = "观察模式（实例已停止）";
+                if (_modeLabel != null)
+                    _modeLabel.text = L("abilitykit.behaviortree.observation.stopped");
                 return;
             }
 
@@ -465,8 +537,11 @@ namespace AbilityKit.BehaviorTree.Editor
                 _inspectorRenderer.RefreshRuntimeDetails();
             }
             if (_modeLabel != null)
-                _modeLabel.text = "观察模式  frame " + _observationFrame
-                    + (_observationPaused ? "（已冻结）" : "");
+                _modeLabel.text = _localization.Format(
+                    _observationPaused
+                        ? "abilitykit.behaviortree.observation.frame-frozen"
+                        : "abilitykit.behaviortree.observation.frame",
+                    _observationFrame);
         }
 
         private void UpdateSelectedInspector()

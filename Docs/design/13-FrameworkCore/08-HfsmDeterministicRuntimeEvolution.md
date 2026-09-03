@@ -149,6 +149,18 @@ P0 固定以下契约：
 - 已接入 Graph Inspector 的 Next binding/trigger/raw duration 字段，并将 Export 菜单区分 Next Runtime Definition 与 Legacy Archive。
 - Definition -> JSON -> Definition、Graph -> Definition -> JSON round-trip 和未知 binding 阻断均有 EditMode/.NET 测试覆盖。
 
+#### Editor Platform 渐进接入
+
+HFSM 继续拥有 Graph、Next Definition、Legacy importer、binding catalog 和 runtime observation 语义，只复用 `com.abilitykit.base.editor` 的通用编辑器基础设施：
+
+- Graph Editor 使用命名空间化 UserState 保存个人窗口偏好，不把 Definition 或团队 catalog 配置写入 `EditorPrefs`；
+- Toolbar/Menu 通过稳定 command id 执行 Validate、Next Export 等动作，并在窗口销毁时对称释放 registrations；
+- importer/catalog/Definition issues 适配为 Platform Diagnostics，嵌套 state、machine、transition 的路径解析和定位仍由 HFSM 实现；
+- Next Definition 与 Legacy Archive 通过 `HfsmExportActionRegistry` 暴露独立 export actions，避免 UI 层以条件分支复制 exporter 逻辑；
+- Runtime Monitor/Explorer 补充 active path、pending、最近 transition、frame/time raw 和 definition hash，但保持只读，不反向修改 Graph 或 Definition。
+
+该接入不重写 HFSM 画布，也不让 Platform 引用 `UnityHFSM` 或 HFSM Next Core。
+
 ### P2：Legacy 适配与首个战斗消费者
 
 - Graph importer 第一版已实现；Profile importer 仍待实现，新 Runtime 未反向依赖 `UnityHFSM`。
@@ -178,8 +190,11 @@ P0 固定以下契约：
 | 层级执行/trigger/pending/force | `.NET` 聚焦测试 | E3，含原版延迟退出帧内顺序 |
 | Fixed64 时间门槛 | raw 值测试 | E3，不依赖墙钟 |
 | snapshot/restore/fault/observer | `.NET` 聚焦测试 | E3，状态载荷与失败边界已覆盖 |
-| Unity Graph 导出新 IR | Unity EditMode 最近一次 49/49 | E3，等价子集导入、binding 校验、canonical JSON、版本化 catalog asset、聚合诊断和嵌套目标定位已覆盖；Validate/Next Export 使用同一分析结果 |
+| Unity Graph 导出新 IR | 历史 Unity EditMode 最近一次 49/49 | E3，等价子集导入、binding 校验、canonical JSON、版本化 catalog asset、聚合诊断和嵌套目标定位已覆盖；这是既有执行证据，不代表本轮重跑 |
+| Editor Platform 接入 | UserState、Commands、Diagnostics、Export Action Registry 和 Runtime Explorer 测试源码 + 定向编译 | 0 errors；本轮未执行 Unity Test Runner，不能声明新增回归已通过 |
 | 真实 MOBA/Shooter 消费 | 尚未迁移 | Legacy 仍是生产消费者 |
 | 大规模性能/Unity 平台 | 尚未执行 | 不能宣称 production-ready |
+
+`dotnet build` / `dotnet msbuild` 仅证明 Unity 生成项目中的源码可编译。Domain Reload、窗口状态恢复、诊断定位、export action 和 Runtime Explorer 的 Unity 行为仍需 Unity Test Runner/人工 smoke 实际执行。
 
 当前目标仍是建立可演进且可验证的替换路径，不是宣布 Legacy 已退役或新编辑器已经完成。

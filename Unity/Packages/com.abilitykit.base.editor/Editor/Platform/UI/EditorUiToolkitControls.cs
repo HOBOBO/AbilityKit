@@ -382,7 +382,7 @@ namespace AbilityKit.Editor.Platform.UI
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
             title.style.flexGrow = 1f;
 
-            var status = new Label(_model.Inspection.State.ToString())
+            var status = new Label(_model.StateLabel)
             {
                 name = "source-sync-status"
             };
@@ -409,12 +409,12 @@ namespace AbilityKit.Editor.Platform.UI
         private VisualElement CreatePath()
         {
             var row = CreateRow("abilitykit-source-sync-card__path");
-            row.Add(new Label("Path")
+            row.Add(new Label(_model.PathLabel)
             {
                 name = "source-sync-path-label"
             });
 
-            var path = new Label(_model.SourcePath ?? string.Empty)
+            var path = new Label(_model.HasSourcePath ? _model.SourcePath : _model.UnboundLabel)
             {
                 name = "source-sync-path"
             };
@@ -429,8 +429,8 @@ namespace AbilityKit.Editor.Platform.UI
         {
             var row = CreateRow("abilitykit-source-sync-card__actions");
             row.style.marginTop = 4f;
-            row.Add(CreateButton("Import", "source-sync-import", _model.Import, _model.CanImport));
-            row.Add(CreateButton("Export", "source-sync-export", _model.Export, _model.CanExport));
+            row.Add(CreateButton(_model.ImportLabel, "source-sync-import", _model.Import, _model.CanImport));
+            row.Add(CreateButton(_model.ExportLabel, "source-sync-export", _model.Export, _model.CanExport));
             return row;
         }
 
@@ -438,8 +438,8 @@ namespace AbilityKit.Editor.Platform.UI
         {
             var row = CreateRow("abilitykit-source-sync-card__path-actions");
             row.style.marginTop = 2f;
-            row.Add(CreateButton("Copy Path", "source-sync-copy-path", _model.CopyPath, _model.CanCopyPath));
-            row.Add(CreateButton("Reveal", "source-sync-reveal-path", _model.RevealPath, _model.CanRevealPath));
+            row.Add(CreateButton(_model.CopyPathLabel, "source-sync-copy-path", _model.CopyPath, _model.CanCopyPath));
+            row.Add(CreateButton(_model.RevealLabel, "source-sync-reveal-path", _model.RevealPath, _model.CanRevealPath));
             return row;
         }
 

@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using AbilityKit.BattleFlow;
+using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Scenario;
 using UnityEngine;
 

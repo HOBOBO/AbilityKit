@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 using AbilityKit.Ability.Config.Authoring;
+using AbilityKit.Editor.Platform.Export;
 using AbilityKit.Triggering.Blackboard;
 using Newtonsoft.Json;
 using RuntimeStableStringId = AbilityKit.Triggering.Eventing.StableStringId;
@@ -1192,21 +1193,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void WriteFileAtomic(string path, string content)
         {
-            var fullPath = Path.GetFullPath(path);
-            var directory = Path.GetDirectoryName(fullPath);
-            if (string.IsNullOrEmpty(directory)) throw new InvalidOperationException("Runtime Plan directory could not be resolved.");
-            Directory.CreateDirectory(directory);
-            var temporaryPath = Path.Combine(directory, "." + Path.GetFileName(fullPath) + "." + Guid.NewGuid().ToString("N") + ".tmp");
-            try
-            {
-                File.WriteAllText(temporaryPath, content, Utf8WithoutBom);
-                if (File.Exists(fullPath)) File.Replace(temporaryPath, fullPath, null);
-                else File.Move(temporaryPath, fullPath);
-            }
-            finally
-            {
-                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
-            }
+            EditorAtomicFileWriter.WriteAllText(path, content, Utf8WithoutBom);
         }
     }
 }
