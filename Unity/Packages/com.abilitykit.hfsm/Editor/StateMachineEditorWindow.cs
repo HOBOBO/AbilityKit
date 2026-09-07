@@ -24,11 +24,6 @@ namespace AbilityKit.HFSM.Editor
         private const string LastPanXStateKey = "last-pan-x";
         private const string LastPanYStateKey = "last-pan-y";
         private const string DiagnosticsVisibleStateKey = "diagnostics-visible";
-        private const string LegacyLastGraphGuidKey = "HfsmEditor_LastGraphGuid";
-        private const string LegacyLastZoomKey = "HfsmEditor_LastZoom";
-        private const string LegacyLastPanXKey = "HfsmEditor_LastPanX";
-        private const string LegacyLastPanYKey = "HfsmEditor_LastPanY";
-        private const string LegacyDiagnosticsVisibleKey = "HfsmEditor_DiagnosticsVisible";
 
         private readonly IEditorUserStateStore _userState =
             new EditorPrefsUserStateStore("hfsm", "graph-editor");
@@ -83,7 +78,6 @@ namespace AbilityKit.HFSM.Editor
 
         private void OnEnable()
         {
-            MigrateLegacyUserState();
             RegisterCommands();
             _context = new EditorContext();
             _context.OnContextChanged += OnContextChanged;
@@ -114,44 +108,6 @@ namespace AbilityKit.HFSM.Editor
             RestoreLastGraph();
         }
 
-        private void MigrateLegacyUserState()
-        {
-            MigrateLegacyString(LegacyLastGraphGuidKey, LastGraphGuidStateKey);
-            MigrateLegacyFloat(LegacyLastZoomKey, LastZoomStateKey);
-            MigrateLegacyFloat(LegacyLastPanXKey, LastPanXStateKey);
-            MigrateLegacyFloat(LegacyLastPanYKey, LastPanYStateKey);
-            MigrateLegacyBool(LegacyDiagnosticsVisibleKey, DiagnosticsVisibleStateKey);
-        }
-
-        private void MigrateLegacyString(string legacyKey, string stateKey)
-        {
-            if (EditorPrefs.HasKey(legacyKey))
-            {
-                if (!_userState.HasKey(stateKey))
-                    _userState.SetString(stateKey, EditorPrefs.GetString(legacyKey));
-                EditorPrefs.DeleteKey(legacyKey);
-            }
-        }
-
-        private void MigrateLegacyFloat(string legacyKey, string stateKey)
-        {
-            if (EditorPrefs.HasKey(legacyKey))
-            {
-                if (!_userState.HasKey(stateKey))
-                    _userState.SetFloat(stateKey, EditorPrefs.GetFloat(legacyKey));
-                EditorPrefs.DeleteKey(legacyKey);
-            }
-        }
-
-        private void MigrateLegacyBool(string legacyKey, string stateKey)
-        {
-            if (EditorPrefs.HasKey(legacyKey))
-            {
-                if (!_userState.HasKey(stateKey))
-                    _userState.SetBool(stateKey, EditorPrefs.GetBool(legacyKey));
-                EditorPrefs.DeleteKey(legacyKey);
-            }
-        }
 
         private void RestoreLastGraph()
         {
@@ -239,7 +195,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Load UXML template
             var visualTree = AssetDatabase.LoadAssetAtPath<VisualTreeAsset>(
-                "Packages/com.abilitykit.hfsm/Editor/Resources/HfsmEditorLayout.uxml");
+                "Packages/com.abilitykit.hfsm/Editor/Resources/EditorLayout.uxml");
 
             if (visualTree != null)
             {
@@ -248,7 +204,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Load stylesheet
             var styleSheet = AssetDatabase.LoadAssetAtPath<StyleSheet>(
-                "Packages/com.abilitykit.hfsm/Editor/Resources/HfsmEditorStyles.uss");
+                "Packages/com.abilitykit.hfsm/Editor/Resources/EditorStyles.uss");
 
             if (styleSheet != null)
             {

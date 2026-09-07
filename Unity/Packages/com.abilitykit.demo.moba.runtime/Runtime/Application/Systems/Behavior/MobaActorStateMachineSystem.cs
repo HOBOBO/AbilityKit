@@ -106,7 +106,7 @@ namespace AbilityKit.Demo.Moba.Systems
                 var actor = entities[i];
                 if (actor.hasActorStateMachine) continue;
 
-                if (TryResolveHfsmBinding(actor, out var binding)
+                if (TryResolveStateMachineBinding(actor, out var binding)
                     && !IsFailedBinding(actor, in binding))
                 {
                     TryAttach(actor, in binding);
@@ -131,14 +131,14 @@ namespace AbilityKit.Demo.Moba.Systems
                 return;
             }
 
-            if (!TryResolveHfsmBinding(actor, out var binding))
+            if (!TryResolveStateMachineBinding(actor, out var binding))
             {
                 _failedBindings.Remove(actor);
                 actor.RemoveActorStateMachine();
                 return;
             }
 
-            _brainService?.ReleaseBehavior(actor, "HfsmOwnership");
+            _brainService?.ReleaseBehavior(actor, "StateMachineOwnership");
 
             var component = actor.actorStateMachine;
             if (component.Runtime != null
@@ -153,7 +153,7 @@ namespace AbilityKit.Demo.Moba.Systems
             if (_factory != null && !IsFailedBinding(actor, in binding)) TryAttach(actor, in binding);
         }
 
-        private bool TryResolveHfsmBinding(
+        private bool TryResolveStateMachineBinding(
             global::ActorEntity actor,
             out MobaActorStateMachineBinding binding)
         {
@@ -164,7 +164,7 @@ namespace AbilityKit.Demo.Moba.Systems
             if (!_brains.TryGet(brainId, out var definition)
                 || !string.Equals(
                     definition.DriverKind,
-                    MobaBrainDriverKeys.Hfsm,
+                    MobaBrainDriverKeys.StateMachine,
                     StringComparison.Ordinal))
             {
                 return false;
@@ -173,7 +173,7 @@ namespace AbilityKit.Demo.Moba.Systems
             // A registered HFSM decision driver owns a BehaviorRuntime controller. Only the
             // compatibility path without such a driver attaches the logic state-machine runtime.
             if (_brainService != null
-                && _brainService.DecisionDrivers.Contains(MobaBrainDriverKeys.Hfsm))
+                && _brainService.DecisionDrivers.Contains(MobaBrainDriverKeys.StateMachine))
             {
                 return false;
             }
@@ -185,7 +185,7 @@ namespace AbilityKit.Demo.Moba.Systems
         private void TryAttach(global::ActorEntity actor, in MobaActorStateMachineBinding binding)
         {
             if (_factory == null) return;
-            _brainService?.ReleaseBehavior(actor, "HfsmOwnership");
+            _brainService?.ReleaseBehavior(actor, "StateMachineOwnership");
 
             try
             {
@@ -222,7 +222,7 @@ namespace AbilityKit.Demo.Moba.Systems
             {
                 if (pair.Key != null
                     && pair.Key.isEnabled
-                    && TryResolveHfsmBinding(pair.Key, out var binding)
+                    && TryResolveStateMachineBinding(pair.Key, out var binding)
                     && binding.Equals(pair.Value))
                 {
                     continue;

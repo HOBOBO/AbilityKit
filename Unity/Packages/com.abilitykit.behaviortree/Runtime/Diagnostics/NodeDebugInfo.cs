@@ -43,19 +43,5 @@ namespace AbilityKit.BehaviorTree.Diagnostics
             RunningChildIndex = runningChildIndex;
             SourceTreeId = sourceTreeId;
         }
-
-        internal NodeDebugInfo(AbilityKit.BehaviorTree.BtNodeDebugInfo source)
-            : this(
-                source.NodeId,
-                source.Name,
-                source.TypeId,
-                source.Kind.ToApi(),
-                source.State.ToApi(),
-                source.Depth,
-                source.OnStackCount,
-                source.RunningChildIndex,
-                source.SourceTreeId)
-        {
-        }
     }
 }

@@ -15,7 +15,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     public static class MobaBrainDriverKeys
     {
         public const string BehaviorTree = "behaviorTree";
-        public const string Hfsm = "hfsm";
+        public const string StateMachine = "state-machine";
         public const string MachineLearning = "machineLearning";
 
         public static string FromLegacy(MobaBrainDriverKind kind)
@@ -23,7 +23,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
             return kind switch
             {
                 MobaBrainDriverKind.BTree => BehaviorTree,
-                MobaBrainDriverKind.Hfsm => Hfsm,
+                MobaBrainDriverKind.StateMachine => StateMachine,
                 MobaBrainDriverKind.MachineLearning => MachineLearning,
                 _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unsupported legacy brain driver kind."),
             };
@@ -34,7 +34,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     public enum MobaBrainDriverKind
     {
         BTree = 0,
-        Hfsm = 1,
+        StateMachine = 1,
         MachineLearning = 2,
     }
 

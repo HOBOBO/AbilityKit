@@ -108,26 +108,4 @@ namespace AbilityKit.BehaviorTree.Authoring
         }
     }
 
-    [System.Obsolete("Use AbilityKit.BehaviorTree.Authoring.AuthoringTemplates.", false)]
-    public static class BtAuthoringTemplates
-    {
-#pragma warning disable CS0618
-        public const string EmptyId = AuthoringTemplates.EmptyId;
-        public const string ReactiveLoopId = AuthoringTemplates.ReactiveLoopId;
-        public const string GoldenHeroCombatId = AuthoringTemplates.GoldenHeroCombatId;
-
-        public static List<(string DisplayName, Func<BtAuthoringSourceDocument> Build)> Catalog() => new()
-        {
-            (EmptyId, BuildEmpty),
-            (ReactiveLoopId, BuildReactiveLoop),
-            (GoldenHeroCombatId, BtAuthoringGoldenExamples.BuildHeroCombat),
-        };
-
-        public static BtAuthoringSourceDocument BuildEmpty()
-            => AuthoringCompatibility.ToLegacy(AuthoringTemplates.BuildEmpty());
-
-        public static BtAuthoringSourceDocument BuildReactiveLoop()
-            => AuthoringCompatibility.ToLegacy(AuthoringTemplates.BuildReactiveLoop());
-#pragma warning restore CS0618
-    }
 }

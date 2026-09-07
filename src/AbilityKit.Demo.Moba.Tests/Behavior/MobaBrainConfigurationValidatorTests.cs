@@ -33,9 +33,9 @@ public sealed class MobaBrainConfigurationValidatorTests
         var profiles = new MobaActorStateMachineProfileCatalog();
         MobaActorStateMachineProfileJsonLoader.LoadJson(profileJson, profiles);
         var brains = new MobaActorBrainCatalog();
-        var missingHfsm = new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "missing-profile");
+        var missingStateMachine = new MobaActorBrainDefinition(1, MobaBrainDriverKeys.StateMachine, "missing-profile");
         var missingBtree = new MobaActorBrainDefinition(2, MobaBrainDriverKeys.BehaviorTree, "missing-tree");
-        brains.Register(in missingHfsm);
+        brains.Register(in missingStateMachine);
         brains.Register(in missingBtree);
 
         var error = Assert.Throws<InvalidOperationException>(() => MobaBrainConfigurationValidator.Validate(

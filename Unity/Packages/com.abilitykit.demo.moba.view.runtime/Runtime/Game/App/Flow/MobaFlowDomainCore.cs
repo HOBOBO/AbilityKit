@@ -146,7 +146,7 @@ namespace AbilityKit.Game.Flow
                 });
             _battleFsm = smBuilder.BuildBattleStateMachine();
             _root = smBuilder.BuildRootStateMachine(_battleFsm);
-            _runner = new HfsmFlowRunner<string, MobaRootState, MobaRootEvent>(_flowContext, _root, _rootEvents);
+            _runner = new StateMachineFlowRunner<string, MobaRootState, MobaRootEvent>(_flowContext, _root, _rootEvents);
         }
 
         public LayeredJsonSettingsStore Settings { get; } = new LayeredJsonSettingsStore();
@@ -154,7 +154,7 @@ namespace AbilityKit.Game.Flow
         private readonly FlowContext _flowContext;
         private readonly FlowEventQueue<MobaRootEvent> _rootEvents;
         private readonly StateMachine<string, MobaRootState, MobaRootEvent> _root;
-        private readonly HfsmFlowRunner<string, MobaRootState, MobaRootEvent> _runner;
+        private readonly StateMachineFlowRunner<string, MobaRootState, MobaRootEvent> _runner;
 
         public MobaRootState CurrentPhase => _activeRoot;
         public MobaBattleState CurrentBattlePhase => _activeBattle;

@@ -81,40 +81,4 @@ namespace AbilityKit.BehaviorTree.Authoring
         }
     }
 
-    [System.Obsolete("Use AbilityKit.BehaviorTree.Authoring.KeyReferenceIndex.", false)]
-    public static class BtKeyReferenceIndex
-    {
-#pragma warning disable CS0618
-        public static List<(string NodeId, string PropertyName)> FindReferences(
-            BtTreeDefinition definition,
-            BtNodeRegistry registry,
-            string keyName)
-            => KeyReferenceIndex.FindReferences(
-                AuthoringCompatibility.ToModel(definition),
-                AbilityKit.BehaviorTree.Registry.NodeRegistry.FromLegacy(registry),
-                keyName);
-
-        public static List<(string NodeId, string PropertyName)> RenameKey(
-            BtTreeDefinition definition,
-            BtNodeRegistry registry,
-            string oldName,
-            string newName)
-        {
-            var model = AuthoringCompatibility.ToModel(definition);
-            var affected = KeyReferenceIndex.RenameKey(
-                model,
-                AbilityKit.BehaviorTree.Registry.NodeRegistry.FromLegacy(registry),
-                oldName,
-                newName);
-
-            var migrated = AuthoringCompatibility.ToLegacy(model);
-            definition.Blackboard = migrated.Blackboard;
-            definition.Nodes = migrated.Nodes;
-            definition.RootNodeId = migrated.RootNodeId;
-            definition.FormatVersion = migrated.FormatVersion;
-            definition.TreeId = migrated.TreeId;
-            return affected;
-        }
-#pragma warning restore CS0618
-    }
 }

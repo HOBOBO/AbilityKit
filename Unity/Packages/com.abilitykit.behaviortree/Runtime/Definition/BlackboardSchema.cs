@@ -21,24 +21,8 @@ namespace AbilityKit.BehaviorTree.Definition
             return false;
         }
 
-        internal AbilityKit.BehaviorTree.BtBlackboardSchema ToLegacy()
-        {
-            var schema = new AbilityKit.BehaviorTree.BtBlackboardSchema();
-            foreach (var key in Keys)
-            {
-                schema.Keys.Add(key.ToLegacy());
-            }
-            return schema;
-        }
 
-        internal static BlackboardSchema FromLegacy(AbilityKit.BehaviorTree.BtBlackboardSchema source)
-        {
-            var schema = new BlackboardSchema();
-            foreach (var key in source.Keys)
-            {
-                schema.Keys.Add(BlackboardKeyDefinition.FromLegacy(key));
-            }
-            return schema;
-        }
+
+
     }
 }

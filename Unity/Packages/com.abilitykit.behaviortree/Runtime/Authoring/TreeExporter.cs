@@ -58,23 +58,4 @@ namespace AbilityKit.BehaviorTree.Authoring
         }
     }
 
-    [System.Obsolete("Use AbilityKit.BehaviorTree.Authoring.TreeExporter.", false)]
-    public static class BtTreeExporter
-    {
-#pragma warning disable CS0618
-        public static BtTreeDefinition ToRuntimeDefinition(BtAuthoringSourceDocument document)
-            => AuthoringCompatibility.ToLegacy(TreeExporter.ToRuntimeDefinition(AuthoringCompatibility.ToModel(document)));
-
-        public static string? Export(BtAuthoringSourceDocument document, BtNodeRegistry registry, out List<string> errors)
-            => TreeExporter.Export(
-                AuthoringCompatibility.ToModel(document),
-                AbilityKit.BehaviorTree.Registry.NodeRegistry.FromLegacy(registry),
-                out errors);
-
-        public static BtAuthoringSourceDocument Import(BtTreeDefinition definition, BtNodeRegistry? registry = null)
-            => AuthoringCompatibility.ToLegacy(TreeExporter.Import(
-                AuthoringCompatibility.ToModel(definition),
-                registry == null ? null : AbilityKit.BehaviorTree.Registry.NodeRegistry.FromLegacy(registry)));
-#pragma warning restore CS0618
-    }
 }

@@ -159,7 +159,7 @@ public sealed class MobaActorStateMachineRuntimeTests
         var catalog = new MobaActorStateMachineProfileCatalog();
         Assert.Equal(1, MobaActorStateMachineProfileJsonLoader.LoadJson(json, catalog));
         Assert.True(catalog.TryGet("composite", out var profile));
-        var root = Assert.IsType<BehaviourSpec<MobaHfsmActionSpec>>(
+        var root = Assert.IsType<BehaviourSpec<MobaActionSpec>>(
             profile.States[0].BehaviourRoot);
         Assert.Equal(BehaviourKind.Sequence, root.Kind);
         Assert.Equal(7, root.Children.Count);
@@ -620,7 +620,7 @@ public readonly partial struct LegacyStateMachineRollbackEntry
     [MemoryPackOrder(2)] public readonly string ProfileId;
     [MemoryPackOrder(3)] public readonly float DeltaTime;
     [MemoryPackOrder(4)] public readonly MobaActorStateMachineRollbackState State;
-    [MemoryPackOrder(5)] public readonly MobaHfsmSnapshotNode Root;
+    [MemoryPackOrder(5)] public readonly MobaSnapshotNode Root;
 
     public LegacyStateMachineRollbackEntry(
         int actorId,
@@ -628,7 +628,7 @@ public readonly partial struct LegacyStateMachineRollbackEntry
         string profileId,
         float deltaTime,
         MobaActorStateMachineRollbackState state,
-        MobaHfsmSnapshotNode root)
+        MobaSnapshotNode root)
     {
         ActorId = actorId;
         HasRuntime = hasRuntime;

@@ -234,7 +234,7 @@ namespace AbilityKit.Tests
         [Test]
         public void StateMachineLifecycleUsesTheSharedInspectionRegistry()
         {
-            RuntimeRegistry.AutoRegisterEnabled = true;
+            LiveRegistry.AutoRegisterEnabled = true;
             var fsm = new StateMachine();
             fsm.AddState("idle", new State());
             fsm.SetStartState("idle");

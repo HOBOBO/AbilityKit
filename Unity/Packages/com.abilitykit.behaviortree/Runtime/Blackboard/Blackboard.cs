@@ -120,10 +120,6 @@ namespace AbilityKit.BehaviorTree.Blackboard
             RestoreValuesCore(snapshot);
         }
 
-        internal AbilityKit.BehaviorTree.BtBlackboard Inner => AbilityKit.BehaviorTree.BtBlackboard.Wrap(this);
-
-        internal static Blackboard FromLegacy(AbilityKit.BehaviorTree.BtBlackboard inner) => inner.Canonical;
-
         private int SlotOf(string key, ValueType expected)
         {
             if (!_slots.TryGetValue(key, out var slot))

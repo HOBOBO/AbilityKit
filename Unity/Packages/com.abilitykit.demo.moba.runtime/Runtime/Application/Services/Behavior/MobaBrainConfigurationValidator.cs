@@ -40,7 +40,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
 
                 if (string.Equals(
                         definition.DriverKind,
-                        MobaBrainDriverKeys.Hfsm,
+                        MobaBrainDriverKeys.StateMachine,
                         StringComparison.Ordinal))
                 {
                     if (!profiles.TryGet(definition.DecisionName, out _))
@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         }
 
         private static void ValidateProfile(
-            HierarchicalProfile<MobaHfsmActionSpec> profile,
+            HierarchicalProfile<MobaActionSpec> profile,
             MobaActorStateMachineRuntimeRegistry runtimeRegistry,
             List<string> errors)
         {
@@ -86,14 +86,14 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         private static void ValidateStateMachine(
             string path,
             string startState,
-            IReadOnlyList<NodeSpec<MobaHfsmActionSpec>> states,
+            IReadOnlyList<NodeSpec<MobaActionSpec>> states,
             IReadOnlyList<TransitionSpec> transitions,
             MobaActorStateMachineRuntimeRegistry runtimeRegistry,
             List<string> errors)
         {
             var stateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var actionStateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            states ??= Array.Empty<NodeSpec<MobaHfsmActionSpec>>();
+            states ??= Array.Empty<NodeSpec<MobaActionSpec>>();
             transitions ??= Array.Empty<TransitionSpec>();
 
             if (states.Count == 0) errors.Add($"HFSM '{path}' contains no states.");
@@ -164,7 +164,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
 
         private static void ValidateBehaviour(
             string path,
-            BehaviourSpec<MobaHfsmActionSpec> behaviour,
+            BehaviourSpec<MobaActionSpec> behaviour,
             MobaActorStateMachineRuntimeRegistry runtimeRegistry,
             List<string> errors)
         {

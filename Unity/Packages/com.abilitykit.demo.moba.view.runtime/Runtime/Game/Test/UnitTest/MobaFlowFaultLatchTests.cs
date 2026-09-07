@@ -10,7 +10,7 @@ namespace AbilityKit.Game.Test.UnitTest
     public sealed class MobaFlowFaultLatchTests
     {
         [Test]
-        public void Tick_WhenHfsmStepFails_LatchesFaultAndSkipsFeatureDispatch()
+        public void Tick_WhenStateMachineStepFails_LatchesFaultAndSkipsFeatureDispatch()
         {
             var countingFeature = new CountingFeature("demo_lobby");
             var faultFeature = new ControlledAttachFeature(throwOnAttachCount: 2);

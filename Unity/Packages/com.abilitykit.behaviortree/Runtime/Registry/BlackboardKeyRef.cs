@@ -13,9 +13,8 @@ namespace AbilityKit.BehaviorTree.Registry
             Type = type;
         }
 
-        internal AbilityKit.BehaviorTree.BtBlackboardKeyRef ToLegacy() => new(Key, Type.ToLegacy());
 
-        internal static BlackboardKeyRef FromLegacy(AbilityKit.BehaviorTree.BtBlackboardKeyRef source)
-            => new(source.Key, source.Type.ToApi());
+
+
     }
 }

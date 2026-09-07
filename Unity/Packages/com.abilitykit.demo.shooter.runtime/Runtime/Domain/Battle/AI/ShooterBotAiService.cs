@@ -240,7 +240,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public StateMachine<string> Build(IActionTimeSource timeSource, ShooterBotAiBlackboard blackboard, ShooterBotAiConfig config)
         {
-            return _builder.Build(timeSource, blackboard, config.ToHfsmRuntimeProfile());
+            return _builder.Build(timeSource, blackboard, config.ToRuntimeProfile());
         }
     }
 
@@ -429,7 +429,7 @@ namespace AbilityKit.Demo.Shooter.Runtime
 
         public IReadOnlyList<ShooterBotAiTransitionConfig> Transitions { get; }
 
-        public HierarchicalProfile<ShooterBotAiActionConfig> ToHfsmRuntimeProfile()
+        public HierarchicalProfile<ShooterBotAiActionConfig> ToRuntimeProfile()
         {
             var states = new NodeSpec<ShooterBotAiActionConfig>[States.Count];
             for (var i = 0; i < States.Count; i++)

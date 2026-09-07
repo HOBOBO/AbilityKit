@@ -86,7 +86,7 @@ Phase5: HFSM                    (com.abilitykit.hfsm)
 
 **需求**: 角色行为状态：Idle → Combat → Dead，支持状态转换。
 
-**框架模块**: `com.abilitykit.hfsm` 的 `StateMachine` (UnityHFSM)。
+**框架模块**: `com.abilitykit.hfsm` 的 `StateMachine` (AbilityKit.HFSM)。
 
 **配置**: 嵌入的 `Phase5Config` JSON 定义状态和转换。
 

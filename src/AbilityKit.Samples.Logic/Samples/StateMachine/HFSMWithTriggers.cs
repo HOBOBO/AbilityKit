@@ -8,7 +8,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
     /// <summary>
     /// 演示 Triggering 事件如何桥接到 AbilityKit.HFSM 的 trigger transition。
     /// </summary>
-    [Sample(532, "hfsm", "trigger", "bridge", "package-api", "web", "deterministic")]
+    [Sample(532, "state-machine", "trigger", "bridge", "package-api", "web", "deterministic")]
     public sealed class HFSMWithTriggers : SampleBase
     {
         public override string Title => "HFSM Trigger Bridge";
@@ -23,7 +23,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             var damageKey = new EventKey<DamageEvent>("damage-taken");
             var commandKey = new EventKey<CommandEvent>("command-issued");
 
-            using var bridge = new HfsmEventBridge(eventBus, fsm, actor, damageKey, commandKey, Log, KeyValue);
+            using var bridge = new StateMachineEventBridge(eventBus, fsm, actor, damageKey, commandKey, Log, KeyValue);
 
             Section("初始化状态机与事件桥");
             fsm.Init();
@@ -184,7 +184,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             public float DeltaTime { get; set; }
         }
 
-        private sealed class HfsmEventBridge : System.IDisposable
+        private sealed class StateMachineEventBridge : System.IDisposable
         {
             private readonly System.IDisposable _damageSubscription;
             private readonly System.IDisposable _commandSubscription;
@@ -194,7 +194,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
 
             private readonly System.Action<string, string> _keyValue;
 
-            public HfsmEventBridge(
+            public StateMachineEventBridge(
                 EventBus eventBus,
                 StateMachine<string, string, string> fsm,
                 ActorState actor,

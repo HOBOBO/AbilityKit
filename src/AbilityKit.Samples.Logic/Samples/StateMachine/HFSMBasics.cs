@@ -6,7 +6,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
     /// <summary>
     /// 演示 AbilityKit.HFSM 如何管理角色 Idle、Casting、Dead 三个基础状态。
     /// </summary>
-    [Sample(531, "hfsm", "basic", "state", "package-api", "web", "deterministic")]
+    [Sample(531, "state-machine", "basic", "state", "package-api", "web", "deterministic")]
     public sealed class HFSMBasics : SampleBase
     {
         public override string Title => "HFSM Basic State";

@@ -119,36 +119,8 @@ namespace AbilityKit.BehaviorTree.Definition
             return hash;
         }
 
-        internal AbilityKit.BehaviorTree.BtTreeDefinition ToLegacy()
-        {
-            var definition = new AbilityKit.BehaviorTree.BtTreeDefinition
-            {
-                TreeId = TreeId,
-                FormatVersion = FormatVersion,
-                RootNodeId = RootNodeId,
-                Blackboard = Blackboard.ToLegacy(),
-            };
-            foreach (var node in Nodes)
-            {
-                definition.Nodes.Add(node.ToLegacy());
-            }
-            return definition;
-        }
 
-        internal static TreeDefinition FromLegacy(AbilityKit.BehaviorTree.BtTreeDefinition source)
-        {
-            var definition = new TreeDefinition
-            {
-                TreeId = source.TreeId,
-                FormatVersion = source.FormatVersion,
-                RootNodeId = source.RootNodeId,
-                Blackboard = BlackboardSchema.FromLegacy(source.Blackboard),
-            };
-            foreach (var node in source.Nodes)
-            {
-                definition.Nodes.Add(NodeDefinition.FromLegacy(node));
-            }
-            return definition;
-        }
+
+
     }
 }

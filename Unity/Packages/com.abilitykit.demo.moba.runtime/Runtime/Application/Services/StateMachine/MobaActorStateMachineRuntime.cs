@@ -84,9 +84,9 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         }
     }
 
-    public readonly struct MobaHfsmActionSpec
+    public readonly struct MobaActionSpec
     {
-        public MobaHfsmActionSpec(string type, string argument = null)
+        public MobaActionSpec(string type, string argument = null)
         {
             Type = type ?? string.Empty;
             Argument = argument ?? string.Empty;
@@ -112,31 +112,31 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
     public interface IMobaActorStateMachineProfileCatalog : IService
     {
-        IReadOnlyList<HierarchicalProfile<MobaHfsmActionSpec>> Profiles { get; }
+        IReadOnlyList<HierarchicalProfile<MobaActionSpec>> Profiles { get; }
 
-        bool TryGet(string profileId, out HierarchicalProfile<MobaHfsmActionSpec> profile);
+        bool TryGet(string profileId, out HierarchicalProfile<MobaActionSpec> profile);
 
         bool TryGetContentHash(string profileId, out string contentHash);
     }
 
     public sealed class MobaActorStateMachineProfileCatalog : IMobaActorStateMachineProfileCatalog
     {
-        private readonly Dictionary<string, HierarchicalProfile<MobaHfsmActionSpec>> _profiles =
-            new Dictionary<string, HierarchicalProfile<MobaHfsmActionSpec>>(StringComparer.Ordinal);
+        private readonly Dictionary<string, HierarchicalProfile<MobaActionSpec>> _profiles =
+            new Dictionary<string, HierarchicalProfile<MobaActionSpec>>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _contentHashes =
             new Dictionary<string, string>(StringComparer.Ordinal);
 
-        public IReadOnlyList<HierarchicalProfile<MobaHfsmActionSpec>> Profiles
+        public IReadOnlyList<HierarchicalProfile<MobaActionSpec>> Profiles
         {
             get
             {
-                var profiles = new List<HierarchicalProfile<MobaHfsmActionSpec>>(_profiles.Values);
+                var profiles = new List<HierarchicalProfile<MobaActionSpec>>(_profiles.Values);
                 profiles.Sort((left, right) => StringComparer.Ordinal.Compare(left.Id, right.Id));
                 return profiles;
             }
         }
 
-        public void Register(HierarchicalProfile<MobaHfsmActionSpec> profile)
+        public void Register(HierarchicalProfile<MobaActionSpec> profile)
         {
             if (profile == null) throw new ArgumentNullException(nameof(profile));
             if (string.IsNullOrWhiteSpace(profile.Id))
@@ -148,7 +148,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             _contentHashes.Add(profile.Id, MobaActorStateMachineProfileContentHash.Compute(profile));
         }
 
-        public bool TryGet(string profileId, out HierarchicalProfile<MobaHfsmActionSpec> profile)
+        public bool TryGet(string profileId, out HierarchicalProfile<MobaActionSpec> profile)
         {
             profile = null;
             return !string.IsNullOrWhiteSpace(profileId) && _profiles.TryGetValue(profileId, out profile);
@@ -168,37 +168,37 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         }
     }
 
-    public delegate IActionBehaviour MobaHfsmActionFactory(
+    public delegate IActionBehaviour MobaActionFactory(
         MobaActorStateMachineBlackboard blackboard,
         string argument);
 
-    public delegate bool MobaHfsmConditionEvaluator(
+    public delegate bool MobaConditionEvaluator(
         MobaActorStateMachineBlackboard blackboard,
         string argument);
 
     [WorldService(typeof(MobaActorStateMachineRuntimeRegistry))]
     public sealed class MobaActorStateMachineRuntimeRegistry : IService
     {
-        private readonly Dictionary<string, MobaHfsmActionFactory> _actions =
-            new Dictionary<string, MobaHfsmActionFactory>(StringComparer.Ordinal);
-        private readonly Dictionary<string, MobaHfsmConditionEvaluator> _conditions =
-            new Dictionary<string, MobaHfsmConditionEvaluator>(StringComparer.Ordinal);
+        private readonly Dictionary<string, MobaActionFactory> _actions =
+            new Dictionary<string, MobaActionFactory>(StringComparer.Ordinal);
+        private readonly Dictionary<string, MobaConditionEvaluator> _conditions =
+            new Dictionary<string, MobaConditionEvaluator>(StringComparer.Ordinal);
 
         public MobaActorStateMachineRuntimeRegistry()
         {
             RegisterAction("noop", (_, __) => new CallbackBehaviour(null));
             RegisterCondition("always", (_, __) => true);
             RegisterCondition("never", (_, __) => false);
-            MobaProjectileHfsmActions.Register(this);
+            MobaProjectileActions.Register(this);
         }
 
-        public void RegisterAction(string type, MobaHfsmActionFactory factory)
+        public void RegisterAction(string type, MobaActionFactory factory)
         {
             if (string.IsNullOrWhiteSpace(type)) throw new ArgumentException("An action type is required.", nameof(type));
             _actions[type] = factory ?? throw new ArgumentNullException(nameof(factory));
         }
 
-        public void RegisterCondition(string type, MobaHfsmConditionEvaluator evaluator)
+        public void RegisterCondition(string type, MobaConditionEvaluator evaluator)
         {
             if (string.IsNullOrWhiteSpace(type)) throw new ArgumentException("A condition type is required.", nameof(type));
             _conditions[type] = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
@@ -215,7 +215,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             return !string.IsNullOrWhiteSpace(type) && _conditions.ContainsKey(type);
         }
 
-        public IActionBehaviour CreateAction(MobaActorStateMachineBlackboard blackboard, MobaHfsmActionSpec spec)
+        public IActionBehaviour CreateAction(MobaActorStateMachineBlackboard blackboard, MobaActionSpec spec)
         {
             if (!_actions.TryGetValue(spec.Type ?? string.Empty, out var factory))
                 throw new InvalidOperationException($"MOBA HFSM action '{spec.Type}' is not registered.");
@@ -263,7 +263,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
     public static class MobaActorStateMachineProfileContentHash
     {
-        public static string Compute(HierarchicalProfile<MobaHfsmActionSpec> profile)
+        public static string Compute(HierarchicalProfile<MobaActionSpec> profile)
         {
             if (profile == null) throw new ArgumentNullException(nameof(profile));
 
@@ -285,7 +285,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
         private static void AppendStates(
             StringBuilder target,
-            IReadOnlyList<NodeSpec<MobaHfsmActionSpec>> states)
+            IReadOnlyList<NodeSpec<MobaActionSpec>> states)
         {
             target.Append(states?.Count ?? 0).Append(';');
             if (states == null) return;
@@ -330,7 +330,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
         private static void AppendBehaviour(
             StringBuilder target,
-            BehaviourSpec<MobaHfsmActionSpec> behaviour)
+            BehaviourSpec<MobaActionSpec> behaviour)
         {
             if (behaviour == null)
             {
@@ -451,7 +451,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 ProfileContentHash,
                 _timeSource.DeltaTime,
                 _state,
-                RuntimeSnapshotUtility.Capture(StateMachine));
+                StateMachineTreeSnapshotUtility.Capture(StateMachine));
         }
 
         public void RestoreSnapshot(MobaActorStateMachineRuntimeSnapshot snapshot)
@@ -470,7 +470,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                     $"State-machine snapshot profile '{snapshot.ProfileId}' content hash does not match the runtime profile.");
             }
 
-            RuntimeSnapshotUtility.Restore(StateMachine, snapshot.Root);
+            StateMachineTreeSnapshotUtility.Restore(StateMachine, snapshot.Root);
             _timeSource.DeltaTime = snapshot.DeltaTime;
             _state = snapshot.State;
         }
@@ -530,7 +530,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             string profileContentHash,
             float deltaTime,
             MobaActorStateMachineState state,
-            RuntimeSnapshot root)
+            StateMachineTreeSnapshot root)
         {
             ProfileId = profileId ?? string.Empty;
             ProfileContentHash = profileContentHash ?? string.Empty;
@@ -543,7 +543,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
         public string ProfileContentHash { get; }
         public float DeltaTime { get; }
         public MobaActorStateMachineState State { get; }
-        public RuntimeSnapshot Root { get; }
+        public StateMachineTreeSnapshot Root { get; }
     }
 
     [WorldService(typeof(MobaActorStateMachineFactory), WorldLifetime.Scoped)]
@@ -577,7 +577,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
 
             var blackboard = new MobaActorStateMachineBlackboard(actor, _services);
             var timeSource = new MobaActorStateMachineTimeSource();
-            var builder = new HierarchicalProfileBuilder<MobaActorStateMachineBlackboard, MobaHfsmActionSpec>(
+            var builder = new HierarchicalProfileBuilder<MobaActorStateMachineBlackboard, MobaActionSpec>(
                 _registry.CreateAction,
                 _registry.EvaluateCondition);
 

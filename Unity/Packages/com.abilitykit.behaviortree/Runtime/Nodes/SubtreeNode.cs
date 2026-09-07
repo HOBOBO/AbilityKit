@@ -24,7 +24,7 @@ namespace AbilityKit.BehaviorTree.Nodes
         {
             throw new InvalidOperationException(
                 $"Subtree node '{NodeId}' (treeId='{_treeId}') reached runtime: " +
-                "it must be expanded by BtTreeCompiler before execution.");
+                "it must be expanded by TreeCompiler before execution.");
         }
     }
 }

@@ -202,12 +202,12 @@ namespace AbilityKit.Demo.Moba.Rollback
                 state.DurationSeconds);
         }
 
-        private static MobaHfsmSnapshotNode ToSerializable(RuntimeSnapshot snapshot)
+        private static MobaSnapshotNode ToSerializable(StateMachineTreeSnapshot snapshot)
         {
-            var children = new MobaHfsmSnapshotNode[snapshot.Children.Count];
+            var children = new MobaSnapshotNode[snapshot.Children.Count];
             for (var i = 0; i < children.Length; i++) children[i] = ToSerializable(snapshot.Children[i]);
 
-            return new MobaHfsmSnapshotNode(
+            return new MobaSnapshotNode(
                 (int)snapshot.Kind,
                 snapshot.StateId,
                 snapshot.IsActive,
@@ -238,14 +238,14 @@ namespace AbilityKit.Demo.Moba.Rollback
                 children);
         }
 
-        private static RuntimeSnapshot FromSerializable(in MobaHfsmSnapshotNode snapshot)
+        private static StateMachineTreeSnapshot FromSerializable(in MobaSnapshotNode snapshot)
         {
-            var sourceChildren = snapshot.Children ?? Array.Empty<MobaHfsmSnapshotNode>();
-            var children = new RuntimeSnapshot[sourceChildren.Length];
+            var sourceChildren = snapshot.Children ?? Array.Empty<MobaSnapshotNode>();
+            var children = new StateMachineTreeSnapshot[sourceChildren.Length];
             for (var i = 0; i < children.Length; i++) children[i] = FromSerializable(sourceChildren[i]);
 
             var kind = (SnapshotNodeKind)snapshot.Kind;
-            return new RuntimeSnapshot(
+            return new StateMachineTreeSnapshot(
                 kind,
                 snapshot.StateId,
                 snapshot.IsActive,
@@ -302,7 +302,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(2)] public readonly string ProfileId;
         [MemoryPackOrder(3)] public readonly float DeltaTime;
         [MemoryPackOrder(4)] public readonly MobaActorStateMachineRollbackState State;
-        [MemoryPackOrder(5)] public readonly MobaHfsmSnapshotNode Root;
+        [MemoryPackOrder(5)] public readonly MobaSnapshotNode Root;
         [MemoryPackOrder(6)] public readonly string ProfileContentHash;
         [MemoryPackOrder(7)] public readonly int OwnerKind;
 
@@ -314,7 +314,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             string profileContentHash,
             float deltaTime,
             MobaActorStateMachineRollbackState state,
-            MobaHfsmSnapshotNode root)
+            MobaSnapshotNode root)
         {
             ActorId = actorId;
             HasRuntime = hasRuntime;
@@ -352,7 +352,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     }
 
     [MemoryPackable]
-    public readonly partial struct MobaHfsmSnapshotNode
+    public readonly partial struct MobaSnapshotNode
     {
         [MemoryPackOrder(0)] public readonly int Kind;
         [MemoryPackOrder(1)] public readonly string StateId;
@@ -360,16 +360,16 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(3)] public readonly string ActiveStateId;
         [MemoryPackOrder(4)] public readonly string RememberedStartStateId;
         [MemoryPackOrder(5)] public readonly MobaCompositeActionSnapshot ActionState;
-        [MemoryPackOrder(6)] public readonly MobaHfsmSnapshotNode[] Children;
+        [MemoryPackOrder(6)] public readonly MobaSnapshotNode[] Children;
 
-        public MobaHfsmSnapshotNode(
+        public MobaSnapshotNode(
             int kind,
             string stateId,
             bool isActive,
             string activeStateId,
             string rememberedStartStateId,
             MobaCompositeActionSnapshot actionState,
-            MobaHfsmSnapshotNode[] children)
+            MobaSnapshotNode[] children)
         {
             Kind = kind;
             StateId = stateId ?? string.Empty;
@@ -377,7 +377,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             ActiveStateId = activeStateId ?? string.Empty;
             RememberedStartStateId = rememberedStartStateId ?? string.Empty;
             ActionState = actionState;
-            Children = children ?? Array.Empty<MobaHfsmSnapshotNode>();
+            Children = children ?? Array.Empty<MobaSnapshotNode>();
         }
     }
 

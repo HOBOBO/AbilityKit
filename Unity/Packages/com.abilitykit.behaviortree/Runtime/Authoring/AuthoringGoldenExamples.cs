@@ -87,25 +87,4 @@ namespace AbilityKit.BehaviorTree.Authoring
         public static List<AuthoringSourceDocument> BuildAll() => new() { BuildHeroCombat() };
     }
 
-    [System.Obsolete("Use AbilityKit.BehaviorTree.Authoring.AuthoringGoldenExamples.", false)]
-    public static class BtAuthoringGoldenExamples
-    {
-#pragma warning disable CS0618
-        public const string HeroCombatTreeId = AuthoringGoldenExamples.HeroCombatTreeId;
-
-        public static BtAuthoringSourceDocument BuildHeroCombat()
-            => AuthoringCompatibility.ToLegacy(AuthoringGoldenExamples.BuildHeroCombat());
-
-        public static List<BtAuthoringSourceDocument> BuildAll()
-        {
-            var documents = AuthoringGoldenExamples.BuildAll();
-            var result = new List<BtAuthoringSourceDocument>(documents.Count);
-            foreach (var document in documents)
-            {
-                result.Add(AuthoringCompatibility.ToLegacy(document));
-            }
-            return result;
-        }
-#pragma warning restore CS0618
-    }
 }

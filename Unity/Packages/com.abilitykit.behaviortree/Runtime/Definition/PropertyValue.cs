@@ -40,23 +40,9 @@ namespace AbilityKit.BehaviorTree.Definition
             value = default!; return false;
         }
 
-        internal AbilityKit.BehaviorTree.BtPropertyValue ToLegacy() => Type switch
-        {
-            ValueType.Bool => AbilityKit.BehaviorTree.BtPropertyValue.Of(BoolValue),
-            ValueType.Int64 => AbilityKit.BehaviorTree.BtPropertyValue.Of(Int64Value),
-            ValueType.Fixed64 => AbilityKit.BehaviorTree.BtPropertyValue.Of(Fixed64.FromRaw(Fixed64Raw)),
-            ValueType.String => AbilityKit.BehaviorTree.BtPropertyValue.Of(StringValue),
-            _ => throw new InvalidOperationException($"Unsupported behavior tree value type '{Type}'."),
-        };
 
-        internal static PropertyValue FromLegacy(AbilityKit.BehaviorTree.BtPropertyValue value) => value.Type switch
-        {
-            AbilityKit.BehaviorTree.BtValueType.Bool => Of(value.BoolValue),
-            AbilityKit.BehaviorTree.BtValueType.Int64 => Of(value.Int64Value),
-            AbilityKit.BehaviorTree.BtValueType.Fixed64 => Of(Fixed64.FromRaw(value.Fixed64Raw)),
-            AbilityKit.BehaviorTree.BtValueType.String => Of(value.StringValue),
-            _ => throw new InvalidOperationException($"Unsupported behavior tree value type '{value.Type}'."),
-        };
+
+
 
         public override string ToString() => Type switch
         {

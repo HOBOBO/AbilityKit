@@ -1069,7 +1069,7 @@ namespace AbilityKit.BehaviorTree.Execution
         }
 
         // ------------------------------------------------------------------
-        // IBtTreeDebugView（供编辑器拉取运行时调试状态）
+        // TreeDebugView（供编辑器拉取运行时调试状态）
         // ------------------------------------------------------------------
 
         string TreeDebugView.TreeId => _definition.TreeId;

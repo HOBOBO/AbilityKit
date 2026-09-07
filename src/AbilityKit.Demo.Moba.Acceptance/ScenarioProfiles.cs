@@ -18,7 +18,7 @@ public sealed record CollisionProfile(
 public enum BehaviorProfileKind
 {
     BehaviorTree,
-    Hfsm,
+    StateMachine,
     Scripted,
 }
 

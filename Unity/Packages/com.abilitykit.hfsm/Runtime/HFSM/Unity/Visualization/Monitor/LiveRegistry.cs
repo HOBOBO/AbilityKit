@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using AbilityKit.HFSM.Inspection;
+using UnityEditor;
 
 namespace AbilityKit.HFSM.Visualization
 {
@@ -662,6 +663,31 @@ namespace AbilityKit.HFSM.Visualization
         public IEnumerable<TransitionInfo> GetTransitions() => Provider?.GetTransitions() ?? Array.Empty<TransitionInfo>();
         public void RecordTransition(string fromPath, string toPath, string trigger) => Provider?.RecordTransition(fromPath, toPath, trigger);
         public IEnumerable<StateTransitionRecord> GetHistory(int maxCount = 50) => Provider?.GetHistory(maxCount) ?? Array.Empty<StateTransitionRecord>();
+    }
+
+    [InitializeOnLoad]
+    internal static class RuntimeInspectionRegistryInstaller
+    {
+        private static IDisposable _installation;
+
+        static RuntimeInspectionRegistryInstaller()
+        {
+            EnsureInstalled();
+        }
+
+        internal static void EnsureInstalled()
+        {
+            if (RuntimeInspectionHub.Backend is UnityLiveRegistryBackend)
+                return;
+            _installation?.Dispose();
+            _installation = RuntimeInspectionHub.InstallBackend(new UnityLiveRegistryBackend());
+        }
+
+        private sealed class UnityLiveRegistryBackend : IRuntimeInspectionRegistryBackend
+        {
+            public void AutoRegister(object runtime) => LiveRegistry.AutoRegister(runtime);
+            public void Unregister(object runtime) => LiveRegistry.Unregister(runtime);
+        }
     }
 }
 

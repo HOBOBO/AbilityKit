@@ -8,7 +8,7 @@ using UnityEngine;
 namespace AbilityKit.HFSM.Editor
 {
 
-    [FilePath("ProjectSettings/AbilityKitHfsmSettings.asset", FilePathAttribute.Location.ProjectFolder)]
+    [FilePath("ProjectSettings/EditorProjectSettings.asset", FilePathAttribute.Location.ProjectFolder)]
     internal sealed class EditorProjectSettings : ScriptableSingleton<EditorProjectSettings>
     {
         [SerializeField] private string catalogAssetGuid = string.Empty;

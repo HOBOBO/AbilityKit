@@ -193,20 +193,20 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
     /// 由外部状态机图或业务状态机注册的决策创建函数。
     /// 返回的决策实例应独占其状态，不能在多个 Actor 之间共享。
     /// </summary>
-    public delegate IBehaviorDecision MobaHfsmDecisionFactory(in MobaBrainDecisionCreateContext context);
+    public delegate IBehaviorDecision MobaDecisionFactory(in MobaBrainDecisionCreateContext context);
 
     /// <summary>
     /// HFSM 驱动器。通过定义键选择已注册的状态机工厂，使状态机实现不依赖 Brain 服务。
     /// </summary>
-    public sealed class MobaHfsmBrainDecisionDriver :
+    public sealed class MobaBrainDecisionDriver :
         IMobaBrainDecisionDriver,
         IMobaBrainDecisionDriverValidator
     {
-        private readonly Dictionary<string, MobaHfsmDecisionFactory> _factories = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, MobaDecisionFactory> _factories = new(StringComparer.Ordinal);
 
-        public string Kind => MobaBrainDriverKeys.Hfsm;
+        public string Kind => MobaBrainDriverKeys.StateMachine;
 
-        public void Register(string definitionName, MobaHfsmDecisionFactory factory)
+        public void Register(string definitionName, MobaDecisionFactory factory)
         {
             if (string.IsNullOrWhiteSpace(definitionName))
                 throw new ArgumentException("A state-machine definition name is required.", nameof(definitionName));

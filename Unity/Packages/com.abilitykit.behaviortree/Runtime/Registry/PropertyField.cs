@@ -48,26 +48,8 @@ namespace AbilityKit.BehaviorTree.Registry
         public static PropertyField KeyRef(string name, string tooltip = "", int order = 0)
             => new(name, ValueType.String, PropertyValue.Of(""), tooltip, PropertyFieldKind.BlackboardKeyRef, order: order);
 
-        internal AbilityKit.BehaviorTree.BtPropertyField ToLegacy() => new(
-            Name,
-            Type.ToLegacy(),
-            Default?.ToLegacy(),
-            Tooltip,
-            (AbilityKit.BehaviorTree.BtPropertyFieldKind)(int)Kind,
-            Options,
-            Min,
-            Max,
-            Order);
 
-        internal static PropertyField FromLegacy(AbilityKit.BehaviorTree.BtPropertyField source) => new(
-            source.Name,
-            source.Type.ToApi(),
-            source.Default == null ? null : PropertyValue.FromLegacy(source.Default),
-            source.Tooltip,
-            (PropertyFieldKind)(int)source.Kind,
-            source.Options,
-            source.Min,
-            source.Max,
-            source.Order);
+
+
     }
 }

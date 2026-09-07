@@ -97,10 +97,10 @@ namespace AbilityKit.Demo.Moba.Services
                 return null;
             }
 
-            if (IsLogicHfsm(in definition))
+            if (IsLogicStateMachine(in definition))
             {
                 _failedCreations.Remove(ownerActorId);
-                ReleaseBehavior(actor, "HfsmOwnership");
+                ReleaseBehavior(actor, "StateMachineOwnership");
                 StopMovement(actor);
                 return null;
             }
@@ -145,7 +145,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            if (IsLogicHfsm(in definition))
+            if (IsLogicStateMachine(in definition))
             {
                 if (_stateMachineProfiles == null
                     || !_stateMachineProfiles.TryGet(definition.DecisionName, out _))
@@ -280,13 +280,13 @@ namespace AbilityKit.Demo.Moba.Services
             actor.RemoveActorStateMachine();
         }
 
-        private bool IsLogicHfsm(in MobaActorBrainDefinition definition)
+        private bool IsLogicStateMachine(in MobaActorBrainDefinition definition)
         {
             return string.Equals(
                     definition.DriverKind,
-                    MobaBrainDriverKeys.Hfsm,
+                    MobaBrainDriverKeys.StateMachine,
                     StringComparison.Ordinal)
-                && !_decisionDrivers.Contains(MobaBrainDriverKeys.Hfsm);
+                && !_decisionDrivers.Contains(MobaBrainDriverKeys.StateMachine);
         }
 
         private bool TryCreateBehaviorRuntime(

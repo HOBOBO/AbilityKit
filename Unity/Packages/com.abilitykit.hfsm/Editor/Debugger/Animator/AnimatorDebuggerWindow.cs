@@ -29,7 +29,7 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 		int _selectedIndex = -1;
 		string _outputFolderPath = "Assets/DebugAnimators";
-		string _animatorName = "HfsmLivePreview.controller";
+		string _animatorName = "LivePreview.controller";
 
 		double _lastTickTime;
 		float _tickInterval = 0.1f;
@@ -37,13 +37,13 @@ namespace AbilityKit.HFSM.Editor.Debugger
 		void OnEnable()
 		{
 			EditorApplication.update += OnEditorUpdate;
-			RuntimeRegistry.Changed += Repaint;
+			LiveRegistry.Changed += Repaint;
 		}
 
 		void OnDisable()
 		{
 			EditorApplication.update -= OnEditorUpdate;
-			RuntimeRegistry.Changed -= Repaint;
+			LiveRegistry.Changed -= Repaint;
 			CleanupPreviewObjects();
 		}
 
@@ -81,7 +81,7 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 		void DrawRegistrySelection()
 		{
-			var entries = RuntimeRegistry.GetEntries();
+			var entries = LiveRegistry.GetEntries();
 			var names = BuildEntryNames(entries);
 
 			if (names.Length == 0)
@@ -95,7 +95,7 @@ namespace AbilityKit.HFSM.Editor.Debugger
 			_selectedIndex = EditorGUILayout.Popup("Running HFSM", _selectedIndex, names);
 		}
 
-		static string[] BuildEntryNames(IReadOnlyList<RuntimeRegistry.Entry> entries)
+		static string[] BuildEntryNames(IReadOnlyList<LiveRegistry.Entry> entries)
 		{
 			var list = new List<string>(entries.Count);
 			for (var i = 0; i < entries.Count; i++)
@@ -143,7 +143,7 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 		void BindSelected()
 		{
-			var entries = RuntimeRegistry.GetEntries();
+			var entries = LiveRegistry.GetEntries();
 			if (_selectedIndex < 0 || _selectedIndex >= entries.Count)
 				return;
 

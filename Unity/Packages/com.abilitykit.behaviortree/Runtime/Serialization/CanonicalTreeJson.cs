@@ -35,7 +35,7 @@ namespace AbilityKit.BehaviorTree.Serialization
                 || root.Property("nodeMetadata", StringComparison.OrdinalIgnoreCase) != null)
             {
                 throw new JsonSerializationException(
-                    "BT authoring JSON cannot be loaded as a runtime definition. Export it with BtTreeExporter first.");
+                    "BT authoring JSON cannot be loaded as a runtime definition. Export it with TreeExporter first.");
             }
 
             var definition = JsonConvert.DeserializeObject<TreeDefinition>(json, DefinitionSettings);

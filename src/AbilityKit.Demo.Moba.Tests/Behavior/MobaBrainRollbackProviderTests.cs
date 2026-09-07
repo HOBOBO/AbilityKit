@@ -21,7 +21,7 @@ public sealed class MobaBrainRollbackProviderTests
         actor.AddActorBrain(1, 99, 7, 8, 123L);
         actors.Register(201, actor);
 
-        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle"));
+        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.StateMachine, "idle"));
         var profiles = new MobaActorStateMachineProfileCatalog();
         MobaActorStateMachineProfileJsonLoader.LoadJson("""
             [{
@@ -86,7 +86,7 @@ public sealed class MobaBrainRollbackProviderTests
         var actor = new ActorContext().CreateEntity();
         actor.AddActorId(401);
         actors.Register(401, actor);
-        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.Hfsm, "idle"));
+        var catalog = new TestBrainCatalog(new MobaActorBrainDefinition(1, MobaBrainDriverKeys.StateMachine, "idle"));
         var profiles = new MobaActorStateMachineProfileCatalog();
         MobaActorStateMachineProfileJsonLoader.LoadJson("""
             [{"id":"idle","startState":"idle","states":[{"id":"idle","kind":"actionState","behaviorRoot":{"kind":"action","type":"noop"}}]}]

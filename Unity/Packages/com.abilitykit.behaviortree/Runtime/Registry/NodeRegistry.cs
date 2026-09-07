@@ -56,31 +56,6 @@ namespace AbilityKit.BehaviorTree.Registry
 
             foreach (var type in assembly.GetTypes())
             {
-                // 兼容扫描 legacy BtNodeTypeAttribute：直接转换单个 descriptor，避免整 registry 往返
-                var legacyAttribute = type.GetCustomAttribute<AbilityKit.BehaviorTree.BtNodeTypeAttribute>();
-                if (legacyAttribute != null && !type.IsAbstract)
-                {
-                    if (!typeof(NodeBase).IsAssignableFrom(type))
-                        throw new InvalidOperationException(
-                            $"BT node type '{type.FullName}' carries BtNodeType but does not derive from NodeBase.");
-
-                    NodeDescriptor legacyDescriptor;
-                    if (Activator.CreateInstance(type) is AbilityKit.BehaviorTree.BtNodeDescriptorProvider legacyProvider)
-                    {
-                        legacyDescriptor = NodeDescriptor.FromLegacy(legacyProvider.BuildDescriptor(legacyAttribute));
-                    }
-                    else
-                    {
-                        var (legacyMin, legacyMax) = DefaultChildCounts(legacyAttribute.Kind.ToApi());
-                        legacyDescriptor = new NodeDescriptor(
-                            legacyAttribute.NodeTypeId, legacyAttribute.DisplayName, legacyAttribute.Category, legacyAttribute.Kind.ToApi(),
-                            legacyMin, legacyMax,
-                            () => (NodeBase)Activator.CreateInstance(type)!);
-                    }
-                    RegisterOrReplace(legacyDescriptor);
-                    count++;
-                }
-
                 var attribute = type.GetCustomAttribute<NodeTypeAttribute>();
                 if (attribute == null || type.IsAbstract) continue;
                 if (!typeof(NodeBase).IsAssignableFrom(type))
@@ -106,33 +81,7 @@ namespace AbilityKit.BehaviorTree.Registry
             return count;
         }
 
-        internal AbilityKit.BehaviorTree.BtNodeRegistry ToLegacy()
-        {
-            var registry = new AbilityKit.BehaviorTree.BtNodeRegistry();
-            foreach (var descriptor in _descriptors.Values)
-            {
-                registry.RegisterOrReplace(descriptor.ToLegacy());
-            }
-            return registry;
-        }
 
-        internal void ReplaceWithLegacy(AbilityKit.BehaviorTree.BtNodeRegistry source)
-        {
-            if (source == null) throw new ArgumentNullException(nameof(source));
-            _descriptors.Clear();
-            foreach (var descriptor in source.Descriptors)
-            {
-                var canonical = NodeDescriptor.FromLegacy(descriptor);
-                _descriptors[canonical.TypeId] = canonical;
-            }
-        }
-
-        internal static NodeRegistry FromLegacy(AbilityKit.BehaviorTree.BtNodeRegistry source)
-        {
-            var registry = new NodeRegistry();
-            registry.ReplaceWithLegacy(source);
-            return registry;
-        }
 
         private static void ValidateDescriptor(NodeDescriptor descriptor)
         {

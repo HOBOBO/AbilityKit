@@ -81,16 +81,16 @@ public sealed class MobaBrainDecisionDriverRegistryTests
     }
 
     [Fact]
-    public void Hfsm_driver_creates_registered_state_machine_decision()
+    public void StateMachine_driver_creates_registered_state_machine_decision()
     {
-        var driver = new MobaHfsmBrainDecisionDriver();
+        var driver = new MobaBrainDecisionDriver();
         driver.Register("combat", static (in MobaBrainDecisionCreateContext context) =>
-            new DelegateDecision("CombatHfsm", (behaviorContext, world) =>
+            new DelegateDecision("CombatStateMachine", (behaviorContext, world) =>
                 DecisionResult.Continue("Combat")));
 
         var definition = new MobaActorBrainDefinition(
             brainId: 8,
-            MobaBrainDriverKeys.Hfsm,
+            MobaBrainDriverKeys.StateMachine,
             decisionName: "combat");
         var context = new MobaBrainDecisionCreateContext(
             in definition,
@@ -104,7 +104,7 @@ public sealed class MobaBrainDecisionDriverRegistryTests
 
         Assert.True(created);
         Assert.NotNull(decision);
-        Assert.Equal("CombatHfsm", decision.DecisionType);
+        Assert.Equal("CombatStateMachine", decision.DecisionType);
     }
 
     [Fact]
@@ -114,7 +114,7 @@ public sealed class MobaBrainDecisionDriverRegistryTests
         registry.Register(new TestDriver());
         var definition = new MobaActorBrainDefinition(
             brainId: 9,
-            MobaBrainDriverKeys.Hfsm,
+            MobaBrainDriverKeys.StateMachine,
             decisionName: "test");
         var context = new MobaBrainDecisionCreateContext(
             in definition,
@@ -135,7 +135,7 @@ public sealed class MobaBrainDecisionDriverRegistryTests
     public void Registered_hfsm_driver_is_used_as_behavior_controller()
     {
         var catalog = new MobaActorBrainCatalog();
-        catalog.Register(new MobaActorBrainDefinition(12, MobaBrainDriverKeys.Hfsm, "test"));
+        catalog.Register(new MobaActorBrainDefinition(12, MobaBrainDriverKeys.StateMachine, "test"));
         var registry = new MobaBrainDecisionDriverRegistry(new[] { new TestDriver() });
         var service = new MobaBrainService(new MobaActorRegistry(), catalog, null, registry);
         var actor = new ActorContext().CreateEntity();
@@ -155,7 +155,7 @@ public sealed class MobaBrainDecisionDriverRegistryTests
     {
         var definition = new MobaActorBrainDefinition(
             brainId: 10,
-            MobaBrainDriverKeys.Hfsm,
+            MobaBrainDriverKeys.StateMachine,
             decisionName: "combat");
         var context = new MobaBrainDecisionCreateContext(
             in definition,
@@ -230,7 +230,7 @@ public sealed class MobaBrainDecisionDriverRegistryTests
 
     private sealed class TestDriver : IMobaBrainDecisionDriver
     {
-        public string Kind => MobaBrainDriverKeys.Hfsm;
+        public string Kind => MobaBrainDriverKeys.StateMachine;
 
         public bool TryCreate(in MobaBrainDecisionCreateContext context, out IBehaviorDecision decision)
         {
