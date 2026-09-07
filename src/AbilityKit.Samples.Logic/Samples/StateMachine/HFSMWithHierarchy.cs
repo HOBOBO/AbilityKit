@@ -1,5 +1,5 @@
 using System;
-using UnityHFSM;
+using AbilityKit.HFSM;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.StateMachine

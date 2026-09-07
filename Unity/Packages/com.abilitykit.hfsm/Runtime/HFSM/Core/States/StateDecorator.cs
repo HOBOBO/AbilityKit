@@ -1,6 +1,6 @@
 using System;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// A helper class that helps you decorate multiple states with the same user code.

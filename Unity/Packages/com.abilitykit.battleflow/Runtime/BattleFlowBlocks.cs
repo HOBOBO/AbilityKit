@@ -24,6 +24,12 @@ namespace AbilityKit.BattleFlow
         /// <summary>英雄/模板 id（不透明 int，项目语义）。</summary>
         public int HeroId { get; set; }
 
+        /// <summary>属性模板 id（决定英雄的属性+技能 loadout）。</summary>
+        public int AttributeTemplateId { get; set; }
+
+        /// <summary>技能 id 列表（信息性，真实技能由属性模板的 ActiveSkills/PassiveSkills 解析）。</summary>
+        public int[] SkillIds { get; set; } = System.Array.Empty<int>();
+
         /// <summary>阵营。</summary>
         public int TeamId { get; set; }
 
@@ -36,6 +42,8 @@ namespace AbilityKit.BattleFlow
             Alias = Alias,
             PlayerId = PlayerId,
             HeroId = HeroId,
+            AttributeTemplateId = AttributeTemplateId,
+            SkillIds = SkillIds,
             TeamId = TeamId,
             Position = Position,
         });
@@ -44,6 +52,9 @@ namespace AbilityKit.BattleFlow
     /// <summary>一条时间线步骤（通用：Action 决定语义，如 cast_skill/wait/move_to）。项目可继承或复合成「施放技能」等语义积木。</summary>
     public sealed class TimelineStepBlock : BattleAtomicBlock
     {
+        /// <inheritdoc/>
+        public override BattleBlockSection Section => BattleBlockSection.Timeline;
+
         /// <summary>触发时刻（毫秒）。</summary>
         public int AtMs { get; set; }
 
@@ -73,6 +84,9 @@ namespace AbilityKit.BattleFlow
     /// <summary>等待一段时间（wait）。</summary>
     public sealed class WaitBlock : BattleAtomicBlock
     {
+        /// <inheritdoc/>
+        public override BattleBlockSection Section => BattleBlockSection.Timeline;
+
         /// <summary>触发时刻（毫秒）。</summary>
         public int AtMs { get; set; }
 
@@ -91,6 +105,9 @@ namespace AbilityKit.BattleFlow
     /// <summary>把 actor 移动到某位置（move_to）。</summary>
     public sealed class MoveToBlock : BattleAtomicBlock
     {
+        /// <inheritdoc/>
+        public override BattleBlockSection Section => BattleBlockSection.Timeline;
+
         /// <summary>触发时刻（毫秒）。</summary>
         public int AtMs { get; set; }
 

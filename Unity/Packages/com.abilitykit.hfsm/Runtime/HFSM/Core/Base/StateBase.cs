@@ -1,7 +1,7 @@
 
-using UnityHFSM.Inspection;
+using AbilityKit.HFSM.Inspection;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// The base class of all states.

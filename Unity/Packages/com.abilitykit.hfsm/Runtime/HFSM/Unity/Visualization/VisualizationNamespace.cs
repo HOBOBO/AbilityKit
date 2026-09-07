@@ -1,4 +1,4 @@
-namespace UnityHFSM.Visualization
+namespace AbilityKit.HFSM.Visualization
 {
 	// Weirdly, when Unity builds a project and a namespace contains no classes (e.g. because of preprocessor
 	// directives that remove code from the build), the namespace no longer exists. This can cause build problems
@@ -7,7 +7,7 @@ namespace UnityHFSM.Visualization
 	// guard to their code when they reference this namespace.
 
 	/// <summary>
-	/// Helper class to keep the <see cref="UnityHFSM.Visualization"/> namespace available when building the project.
+	/// Helper class to keep the <see cref="AbilityKit.HFSM.Visualization"/> namespace available when building the project.
 	/// </summary>
 	internal class _VisualizationNamespacePlaceholder
 	{

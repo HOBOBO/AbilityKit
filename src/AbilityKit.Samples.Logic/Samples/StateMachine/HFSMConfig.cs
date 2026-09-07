@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using UnityHFSM;
+using AbilityKit.HFSM;
 
 namespace AbilityKit.Samples.Logic.Samples.StateMachine
 {
@@ -164,9 +164,9 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
 
         public HFSMParameterManager Parameters => _parameters;
 
-        public UnityHFSM.StateMachine Build()
+        public AbilityKit.HFSM.StateMachine Build()
         {
-            var fsm = new UnityHFSM.StateMachine();
+            var fsm = new AbilityKit.HFSM.StateMachine();
 
             // 1. 鍒涘缓鎵€鏈夌姸鎬?
             foreach (var stateConfig in _config.States)
@@ -254,7 +254,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
             }
         }
 
-        private void CreateTransition(UnityHFSM.StateMachine fsm, TransitionConfig config)
+        private void CreateTransition(AbilityKit.HFSM.StateMachine fsm, TransitionConfig config)
         {
             // 鍒ゆ柇鏄櫘閫氳浆鎹㈣繕鏄欢杩熻浆鎹?
             if (config.Delay > 0)

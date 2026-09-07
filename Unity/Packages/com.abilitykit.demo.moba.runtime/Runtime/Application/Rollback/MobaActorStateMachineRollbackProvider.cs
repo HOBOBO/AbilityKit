@@ -8,7 +8,7 @@ using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using MemoryPack;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM.Extension;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
@@ -202,7 +202,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 state.DurationSeconds);
         }
 
-        private static MobaHfsmSnapshotNode ToSerializable(HfsmRuntimeSnapshot snapshot)
+        private static MobaHfsmSnapshotNode ToSerializable(RuntimeSnapshot snapshot)
         {
             var children = new MobaHfsmSnapshotNode[snapshot.Children.Count];
             for (var i = 0; i < children.Length; i++) children[i] = ToSerializable(snapshot.Children[i]);
@@ -238,20 +238,20 @@ namespace AbilityKit.Demo.Moba.Rollback
                 children);
         }
 
-        private static HfsmRuntimeSnapshot FromSerializable(in MobaHfsmSnapshotNode snapshot)
+        private static RuntimeSnapshot FromSerializable(in MobaHfsmSnapshotNode snapshot)
         {
             var sourceChildren = snapshot.Children ?? Array.Empty<MobaHfsmSnapshotNode>();
-            var children = new HfsmRuntimeSnapshot[sourceChildren.Length];
+            var children = new RuntimeSnapshot[sourceChildren.Length];
             for (var i = 0; i < children.Length; i++) children[i] = FromSerializable(sourceChildren[i]);
 
-            var kind = (HfsmRuntimeSnapshotNodeKind)snapshot.Kind;
-            return new HfsmRuntimeSnapshot(
+            var kind = (SnapshotNodeKind)snapshot.Kind;
+            return new RuntimeSnapshot(
                 kind,
                 snapshot.StateId,
                 snapshot.IsActive,
                 snapshot.ActiveStateId,
                 snapshot.RememberedStartStateId,
-                kind == HfsmRuntimeSnapshotNodeKind.CompositeActionState
+                kind == SnapshotNodeKind.CompositeActionState
                     ? FromSerializable(snapshot.ActionState)
                     : null,
                 children);

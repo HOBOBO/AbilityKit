@@ -1,8 +1,8 @@
 
 using System.Collections.Generic;
-using UnityHFSM;
+using AbilityKit.HFSM;
 
-namespace UnityHFSM.Inspection
+namespace AbilityKit.HFSM.Inspection
 {
 	/// <summary>
 	/// Utility class for methods that traverse a hierarchical state machine.

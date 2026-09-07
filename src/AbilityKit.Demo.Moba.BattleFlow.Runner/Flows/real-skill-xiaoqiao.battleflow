@@ -1,0 +1,10 @@
+{
+  "caseId": "real-skill-xiaoqiao",
+  "blocks": [
+    { "$type": "AbilityKit.BattleFlow.SpawnActorBlock, AbilityKit.BattleFlow", "alias": "caster", "heroId": 1002, "attributeTemplateId": 1002, "playerId": "player_1", "position": { "x": 0.0, "y": 0.0, "z": 0.0 } },
+    { "$type": "AbilityKit.BattleFlow.SpawnActorBlock, AbilityKit.BattleFlow", "alias": "target", "heroId": 1002, "attributeTemplateId": 1002, "teamId": 2, "position": { "x": 6.0, "y": 0.0, "z": 0.0 } },
+    { "$type": "AbilityKit.BattleFlow.TimelineStepBlock, AbilityKit.BattleFlow", "atMs": 100, "action": "cast_skill", "actorAlias": "caster", "targetAlias": "target", "slot": 1 },
+    { "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertTraceBlock, AbilityKit.Demo.Moba.Environment", "kind": "SkillCast", "configId": 10020101 },
+    { "$type": "AbilityKit.Demo.Moba.EnvironmentModel.AssertStateBlock, AbilityKit.Demo.Moba.Environment", "alias": "target", "property": "maxhp", "comparator": "gt", "expectedValue": "1" }
+  ]
+}

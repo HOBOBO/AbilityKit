@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using UnityHFSM;
+using AbilityKit.HFSM;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.Modifiers
@@ -9,40 +9,40 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
     /// HFSMWithModifierIntegration - 修饰器驱动的 HFSM 参数状态切换
     /// 
     /// 本示例展示：
-    /// 1. 使用 UnityHFSM 框架的 StateMachine 和 Transition
+    /// 1. 使用 AbilityKit.HFSM 框架的 StateMachine 和 Transition
     /// 2. 实现类似 Unity Animator 的参数系统
     /// 3. 修饰器修改参数，参数变化触发条件判断
     /// 4. 条件满足时状态机自动切换状态
     /// 
     /// 使用的框架类型:
-    /// - StateMachine<TStateId, TEvent>: 状态机 (UnityHFSM)
-    /// - State<TStateId, TEvent>: 状态 (UnityHFSM)
-    /// - Transition<TStateId>: 转换 (UnityHFSM)
+    /// - StateMachine<TStateId, TEvent>: 状态机 (AbilityKit.HFSM)
+    /// - State<TStateId, TEvent>: 状态 (AbilityKit.HFSM)
+    /// - Transition<TStateId>: 转换 (AbilityKit.HFSM)
     /// </summary>
     [Sample]
     public sealed class HFSMWithModifierIntegration : SampleBase
     {
         public override string Title => "修饰器驱动 HFSM 参数切换";
-        public override string Description => "使用 UnityHFSM 框架的参数化状态机";
+        public override string Description => "使用 AbilityKit.HFSM 框架的参数化状态机";
         public override SampleCategory Category => SampleCategory.Modifiers;
 
         protected override void OnRun()
         {
             Log("================================================================================");
-            Log("===    修饰器驱动 HFSM 参数状态切换 (使用 UnityHFSM 框架)       ===");
+            Log("===    修饰器驱动 HFSM 参数状态切换 (使用 AbilityKit.HFSM 框架)       ===");
             Log("================================================================================");
             Output.Divider();
             
             // 架构说明
             Log("【1】核心概念 (类似 Unity Animator)");
-            Output.Bullet("StateMachine: UnityHFSM 状态机");
-            Output.Bullet("Transition: UnityHFSM 状态转换");
+            Output.Bullet("StateMachine: AbilityKit.HFSM 状态机");
+            Output.Bullet("Transition: AbilityKit.HFSM 状态转换");
             Output.Bullet("HFSMParameters: 参数容器，类似 Animator.parameters");
             Output.Bullet("ModifierSystem: 修饰器系统，修改参数触发状态切换");
             Log("");
             
             // 使用的框架类型
-            Log("【2】使用的框架类型 (UnityHFSM)");
+            Log("【2】使用的框架类型 (AbilityKit.HFSM)");
             Output.Bullet("StateMachine<string, string>: 状态机");
             Output.Bullet("State<string, string>: 状态 (带 onEnter/onLogic/onExit)");
             Output.Bullet("Transition<string>: 状态转换 (带条件判断)");
@@ -166,7 +166,7 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
             Log("");
             
             Output.Divider();
-            Log("【总结】使用 UnityHFSM 框架实现参数驱动的状态机控制");
+            Log("【总结】使用 AbilityKit.HFSM 框架实现参数驱动的状态机控制");
             Output.Divider();
         }
     }
@@ -360,17 +360,17 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
     }
     
     // ============================================
-    // 战士状态机实现 (使用 UnityHFSM 框架)
+    // 战士状态机实现 (使用 AbilityKit.HFSM 框架)
     // ============================================
     
     /// <summary>
-    /// 战士状态机 - 使用 UnityHFSM 框架
+    /// 战士状态机 - 使用 AbilityKit.HFSM 框架
     /// </summary>
     public class WarriorWithHFSM
     {
         private readonly Action<string> _log;
         
-        // UnityHFSM 核心组件
+        // AbilityKit.HFSM 核心组件
         private StateMachine<string, string> _fsm;
         private HFSMParameters _parameters;
         
@@ -439,7 +439,7 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
             _fsm.AddState("Rage", rageState);
             _fsm.AddState("Dead", deadState);
             
-            // ===== 添加转换 (使用 UnityHFSM Transition) =====
+            // ===== 添加转换 (使用 AbilityKit.HFSM Transition) =====
             
             // Idle -> Combat: IsCombat == true
             _fsm.AddTransition(new Transition<string>(
@@ -505,7 +505,7 @@ namespace AbilityKit.Samples.Logic.Samples.Modifiers
             _fsm.SetStartState("Idle");
             _fsm.Init();
             
-            _log("  状态机已初始化 (UnityHFSM)");
+            _log("  状态机已初始化 (AbilityKit.HFSM)");
         }
         
         /// <summary>

@@ -5,7 +5,7 @@
 using System;
 using UnityEngine;
 
-namespace UnityHFSM.Editor.Export
+namespace AbilityKit.HFSM.Editor.Export
 {
     /// <summary>
     /// Unity 内置 JsonUtility 序列化器

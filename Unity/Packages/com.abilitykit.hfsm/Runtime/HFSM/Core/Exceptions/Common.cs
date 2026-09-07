@@ -1,7 +1,7 @@
 
-using UnityHFSM.Inspection;
+using AbilityKit.HFSM.Inspection;
 
-namespace UnityHFSM.Exceptions
+namespace AbilityKit.HFSM.Exceptions
 {
 	public static class Common
 	{

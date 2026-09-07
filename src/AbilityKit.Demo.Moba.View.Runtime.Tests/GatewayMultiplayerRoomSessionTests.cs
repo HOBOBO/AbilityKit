@@ -544,6 +544,8 @@ public sealed class GatewayMultiplayerRoomSessionTests
     {
         public const uint RoomPushOpCode = 777u;
 
+        public void Dispose() { }
+
         public readonly Queue<ClientRoomSnapshot> Snapshots = new();
         public readonly Queue<ClientRoomSnapshot> PushSnapshots = new();
         public int GetSnapshotCalls { get; private set; }

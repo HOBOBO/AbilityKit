@@ -1,6 +1,6 @@
-using UnityHFSM;
+using AbilityKit.HFSM;
 
-namespace UnityHFSM.Inspection
+namespace AbilityKit.HFSM.Inspection
 {
 	/// <summary>
 	/// Interface for objects that recursively traverse the states of a state machine

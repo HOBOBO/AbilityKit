@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
-using UnityHFSM;
-using UnityHFSM.Actions;
-using UnityHFSM.Graph;
+using AbilityKit.HFSM;
+using AbilityKit.HFSM.Actions;
+using AbilityKit.HFSM.Graph;
 
+using AbilityKit.HFSM.Definition;
+using AbilityKit.HFSM.Runtime;
 namespace AbilityKit.Tests
 {
     /// <summary>
@@ -50,12 +52,12 @@ namespace AbilityKit.Tests
         }
 
         /// <summary>
-        /// Test that behavior actions can be created from HfsmBehaviorItem
+        /// Test that behavior actions can be created from BehaviorItem
         /// </summary>
         [Test]
-        public void HfsmBehaviorItem_CanCreateWaitAction()
+        public void BehaviorItem_CanCreateWaitAction()
         {
-            var item = new HfsmBehaviorItem("Wait");
+            var item = new BehaviorItem("Wait");
             item.SetParameter("duration", 1f);
 
             Assert.AreEqual("Wait", item.TypeName);
@@ -63,12 +65,12 @@ namespace AbilityKit.Tests
         }
 
         /// <summary>
-        /// Test that HfsmBehaviorItem Clone works correctly
+        /// Test that BehaviorItem Clone works correctly
         /// </summary>
         [Test]
-        public void HfsmBehaviorItem_CloneCreatesNewId()
+        public void BehaviorItem_CloneCreatesNewId()
         {
-            var original = new HfsmBehaviorItem("Wait");
+            var original = new BehaviorItem("Wait");
             original.SetParameter("duration", 2f);
 
             var clone = original.Clone();
@@ -79,9 +81,9 @@ namespace AbilityKit.Tests
         }
 
         [Test]
-        public void HfsmBehaviorItem_CustomTypeNameSurvivesCloneAndSerialization()
+        public void BehaviorItem_CustomTypeNameSurvivesCloneAndSerialization()
         {
-            var original = new HfsmBehaviorItem("Package.CustomComposite");
+            var original = new BehaviorItem("Package.CustomComposite");
 
             var clone = original.Clone();
             var json = JsonUtility.ToJson(original);
@@ -92,9 +94,9 @@ namespace AbilityKit.Tests
         }
 
         [Test]
-        public void HfsmParameter_UsesTypedDefaultValue()
+        public void Parameter_UsesTypedDefaultValue()
         {
-            var parameter = new HfsmParameter("speed", HfsmParameterType.Float)
+            var parameter = new Parameter("speed", ParameterValueType.Float)
             {
                 DefaultFloatValue = 3.5f
             };
@@ -108,14 +110,14 @@ namespace AbilityKit.Tests
         }
 
         /// <summary>
-        /// Test that HfsmStateNode can hold behavior items
+        /// Test that StateNode can hold behavior items
         /// </summary>
         [Test]
-        public void HfsmStateNode_CanHoldBehaviorItems()
+        public void StateNode_CanHoldBehaviorItems()
         {
-            var stateNode = new HfsmStateNode("TestState");
+            var stateNode = new StateNode("TestState");
 
-            var behaviorItem = new HfsmBehaviorItem("Wait");
+            var behaviorItem = new BehaviorItem("Wait");
             behaviorItem.SetParameter("duration", 1f);
 
             stateNode.AddBehaviorItem(behaviorItem);
@@ -129,12 +131,12 @@ namespace AbilityKit.Tests
         /// Test that root behavior items can be retrieved
         /// </summary>
         [Test]
-        public void HfsmStateNode_GetRootBehaviorItems()
+        public void StateNode_GetRootBehaviorItems()
         {
-            var stateNode = new HfsmStateNode("TestState");
+            var stateNode = new StateNode("TestState");
 
-            var behavior1 = new HfsmBehaviorItem("Wait");
-            var behavior2 = new HfsmBehaviorItem("Log");
+            var behavior1 = new BehaviorItem("Wait");
+            var behavior2 = new BehaviorItem("Log");
 
             stateNode.AddBehaviorItem(behavior1);
             stateNode.AddBehaviorItem(behavior2);
@@ -148,13 +150,13 @@ namespace AbilityKit.Tests
         /// Test that child behavior items can be retrieved
         /// </summary>
         [Test]
-        public void HfsmStateNode_GetBehaviorChildren()
+        public void StateNode_GetBehaviorChildren()
         {
-            var stateNode = new HfsmStateNode("TestState");
+            var stateNode = new StateNode("TestState");
 
-            var parent = new HfsmBehaviorItem("Sequence");
-            var child1 = new HfsmBehaviorItem("Wait");
-            var child2 = new HfsmBehaviorItem("Log");
+            var parent = new BehaviorItem("Sequence");
+            var child1 = new BehaviorItem("Wait");
+            var child2 = new BehaviorItem("Log");
 
             parent.childIds.Add(child1.id);
             parent.childIds.Add(child2.id);
@@ -174,11 +176,11 @@ namespace AbilityKit.Tests
         /// Test that behavior item removal works correctly
         /// </summary>
         [Test]
-        public void HfsmStateNode_RemoveBehaviorItem()
+        public void StateNode_RemoveBehaviorItem()
         {
-            var stateNode = new HfsmStateNode("TestState");
+            var stateNode = new StateNode("TestState");
 
-            var behavior = new HfsmBehaviorItem("Wait");
+            var behavior = new BehaviorItem("Wait");
             stateNode.AddBehaviorItem(behavior);
 
             Assert.IsTrue(stateNode.HasBehaviors);
@@ -194,9 +196,9 @@ namespace AbilityKit.Tests
         [Test]
         public void BehaviorTreeBuilder_BuildFromEditorItems()
         {
-            var items = new List<HfsmBehaviorItem>();
+            var items = new List<BehaviorItem>();
 
-            var waitItem = new HfsmBehaviorItem("Wait");
+            var waitItem = new BehaviorItem("Wait");
             waitItem.SetParameter("duration", 0.1f);
             items.Add(waitItem);
 
@@ -212,12 +214,12 @@ namespace AbilityKit.Tests
         [Test]
         public void BehaviorTreeBuilder_BuildCompositeActions()
         {
-            var items = new List<HfsmBehaviorItem>();
+            var items = new List<BehaviorItem>();
 
-            var sequenceItem = new HfsmBehaviorItem("Sequence");
-            var waitItem1 = new HfsmBehaviorItem("Wait");
+            var sequenceItem = new BehaviorItem("Sequence");
+            var waitItem1 = new BehaviorItem("Wait");
             waitItem1.SetParameter("duration", 0.1f);
-            var waitItem2 = new HfsmBehaviorItem("Wait");
+            var waitItem2 = new BehaviorItem("Wait");
             waitItem2.SetParameter("duration", 0.2f);
 
             sequenceItem.childIds.Add(waitItem1.id);
@@ -242,23 +244,23 @@ namespace AbilityKit.Tests
         public void BehaviorTreeBuilder_BuildsRegisteredExternalComposite()
         {
             const string typeName = "Tests.CustomComposite";
-            if (!HfsmBehaviorTypeRegistry.IsInitialized)
-                HfsmBehaviorTypeRegistry.Initialize();
-            if (!HfsmBehaviorTypeRegistry.IsRegistered(typeName))
+            if (!BehaviorTypeRegistry.IsInitialized)
+                BehaviorTypeRegistry.Initialize();
+            if (!BehaviorTypeRegistry.IsRegistered(typeName))
             {
-                HfsmBehaviorTypeRegistry.RegisterExternal<CustomCompositeAction>(
+                BehaviorTypeRegistry.RegisterExternal<CustomCompositeAction>(
                     typeName,
                     "Custom Composite",
                     BehaviorCategory.Composite);
             }
 
-            var root = new HfsmBehaviorItem(typeName);
-            var child = new HfsmBehaviorItem("Wait");
+            var root = new BehaviorItem(typeName);
+            var child = new BehaviorItem("Wait");
             root.childIds.Add(child.id);
             child.parentId = root.id;
 
             var action = BehaviorTreeBuilder.BuildFromEditorItems(
-                new List<HfsmBehaviorItem> { root, child },
+                new List<BehaviorItem> { root, child },
                 root.id);
 
             var composite = (CustomCompositeAction)action;
@@ -269,22 +271,22 @@ namespace AbilityKit.Tests
         [Test]
         public void BehaviorTreeBuilder_RejectsUnknownType()
         {
-            var item = new HfsmBehaviorItem("Tests.UnknownBehavior");
+            var item = new BehaviorItem("Tests.UnknownBehavior");
 
             Assert.Throws<InvalidOperationException>(() =>
-                BehaviorTreeBuilder.BuildFromEditorItems(new List<HfsmBehaviorItem> { item }, item.id));
+                BehaviorTreeBuilder.BuildFromEditorItems(new List<BehaviorItem> { item }, item.id));
         }
 
         [Test]
         public void BehaviorTreeBuilder_ConnectsDecoratorChild()
         {
-            var root = new HfsmBehaviorItem("Invert");
-            var child = new HfsmBehaviorItem("Log");
+            var root = new BehaviorItem("Invert");
+            var child = new BehaviorItem("Log");
             root.childIds.Add(child.id);
             child.parentId = root.id;
 
             var action = BehaviorTreeBuilder.BuildFromEditorItems(
-                new List<HfsmBehaviorItem> { root, child },
+                new List<BehaviorItem> { root, child },
                 root.id);
 
             Assert.IsInstanceOf<LogAction>(((InvertAction)action).child);
@@ -293,8 +295,8 @@ namespace AbilityKit.Tests
         [Test]
         public void ActionBehaviorState_StartsOnFirstLogicAndCompletesOnlyOnce()
         {
-            var node = new HfsmStateNode("ActionState");
-            var behavior = new HfsmBehaviorItem("Log");
+            var node = new StateNode("ActionState");
+            var behavior = new BehaviorItem("Log");
             node.AddBehaviorItem(behavior);
             var state = new ActionBehaviorState<string, string>(
                 node,
@@ -528,12 +530,12 @@ namespace AbilityKit.Tests
         }
 
         /// <summary>
-        /// Test HfsmBehaviorItem GetDescription
+        /// Test BehaviorItem GetDescription
         /// </summary>
         [Test]
-        public void HfsmBehaviorItem_GetDescription_Wait()
+        public void BehaviorItem_GetDescription_Wait()
         {
-            var item = new HfsmBehaviorItem("Wait");
+            var item = new BehaviorItem("Wait");
             item.SetParameter("duration", 1.5f);
 
             var description = item.GetDescription();
@@ -542,12 +544,12 @@ namespace AbilityKit.Tests
         }
 
         /// <summary>
-        /// Test HfsmBehaviorItem GetDescription SetFloat
+        /// Test BehaviorItem GetDescription SetFloat
         /// </summary>
         [Test]
-        public void HfsmBehaviorItem_GetDescription_SetFloat()
+        public void BehaviorItem_GetDescription_SetFloat()
         {
-            var item = new HfsmBehaviorItem("SetFloat");
+            var item = new BehaviorItem("SetFloat");
             item.SetParameter("variableName", "health");
             item.SetParameter("value", 100f);
 
@@ -557,24 +559,24 @@ namespace AbilityKit.Tests
         }
 
         /// <summary>
-        /// Test HfsmBehaviorItem IsComposite check
+        /// Test BehaviorItem IsComposite check
         /// </summary>
         [Test]
-        public void HfsmBehaviorItem_IsComposite_TrueForSequence()
+        public void BehaviorItem_IsComposite_TrueForSequence()
         {
-            var item = new HfsmBehaviorItem("Sequence");
+            var item = new BehaviorItem("Sequence");
 
             Assert.IsTrue(item.IsComposite);
             Assert.IsFalse(item.IsDecorator);
         }
 
         /// <summary>
-        /// Test HfsmBehaviorItem IsDecorator check
+        /// Test BehaviorItem IsDecorator check
         /// </summary>
         [Test]
-        public void HfsmBehaviorItem_IsDecorator_TrueForRepeat()
+        public void BehaviorItem_IsDecorator_TrueForRepeat()
         {
-            var item = new HfsmBehaviorItem("Repeat");
+            var item = new BehaviorItem("Repeat");
 
             Assert.IsFalse(item.IsComposite);
             Assert.IsTrue(item.IsDecorator);

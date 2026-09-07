@@ -1,5 +1,5 @@
 using System;
-using UnityHFSM;
+using AbilityKit.HFSM;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
@@ -9,7 +9,7 @@ namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
     ///
     /// 需求: 角色行为状态：Idle → Combat → Dead，支持状态转换。
     ///
-    /// 框架能力: com.abilitykit.hfsm 的 StateMachine (UnityHFSM)。
+    /// 框架能力: com.abilitykit.hfsm 的 StateMachine (AbilityKit.HFSM)。
     /// 从 Phase5_HFSM.json 加载配置数据。
     /// 展示如何用 HFSM 管理角色行为状态，以及如何与 Pipeline/Triggering 协作。
     /// </summary>
@@ -36,8 +36,8 @@ namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
             Log("");
 
             // 构建状态机
-            Log("【2】构建状态机 (框架 UnityHFSM)");
-            var fsm = new UnityHFSM.StateMachine();
+            Log("【2】构建状态机 (框架 AbilityKit.HFSM)");
+            var fsm = new AbilityKit.HFSM.StateMachine();
             BuildStates(fsm, Log);
             fsm.Init();
 
@@ -100,7 +100,7 @@ namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
 
             // 重置并重新运行
             Log("【4】重置状态机");
-            fsm = new UnityHFSM.StateMachine();
+            fsm = new AbilityKit.HFSM.StateMachine();
             BuildStates(fsm, Log);
             fsm.Init();
             Log($"  已重置，初始状态: {fsm.ActiveStateName}");
@@ -151,7 +151,7 @@ namespace AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill
             Output.Divider();
         }
 
-        private void BuildStates(UnityHFSM.StateMachine fsm, Action<string> log)
+        private void BuildStates(AbilityKit.HFSM.StateMachine fsm, Action<string> log)
         {
             // Idle 状态
             fsm.AddState("Idle", new State(

@@ -12,5 +12,6 @@
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.battleflow/Runtime/**/*.cs" />
     <ProjectReference Include="..\AbilityKit.Scenario\AbilityKit.Scenario.csproj" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 </Project>

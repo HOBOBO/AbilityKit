@@ -1,5 +1,5 @@
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// The base class of all transitions.

@@ -6,8 +6,8 @@ using AbilityKit.Protocol.Shooter;
 using AbilityKit.World.Svelto;
 using Svelto.DataStructures;
 using Svelto.ECS;
-using UnityHFSM;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM;
+using AbilityKit.HFSM.Extension;
 
 namespace AbilityKit.Demo.Shooter.Runtime
 {

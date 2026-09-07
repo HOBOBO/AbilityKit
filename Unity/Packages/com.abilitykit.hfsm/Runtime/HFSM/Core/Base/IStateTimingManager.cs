@@ -1,4 +1,4 @@
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// An abstraction layer that provides a subset of features that every parent

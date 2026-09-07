@@ -1,4 +1,6 @@
-namespace UnityHFSM.Extension
+
+
+namespace AbilityKit.HFSM.Extension
 {
     public enum ActionStateCompletionPolicy
     {
@@ -178,25 +180,6 @@ namespace UnityHFSM.Extension
         public ActionStateCompletionPolicy CompletionPolicy => _completionPolicy;
     }
 
-    public sealed class CompositeActionStateSnapshot
-    {
-        public CompositeActionStateSnapshot(
-            bool exitRequested,
-            bool completed,
-            ActionBehaviourStatus lastStatus,
-            ActionBehaviourSnapshot root)
-        {
-            ExitRequested = exitRequested;
-            Completed = completed;
-            LastStatus = lastStatus;
-            Root = root ?? throw new System.ArgumentNullException(nameof(root));
-        }
-
-        public bool ExitRequested { get; }
-        public bool Completed { get; }
-        public ActionBehaviourStatus LastStatus { get; }
-        public ActionBehaviourSnapshot Root { get; }
-    }
 
     public sealed class CompositeActionState<TStateId> : CompositeActionState<TStateId, string>
     {
@@ -205,6 +188,7 @@ namespace UnityHFSM.Extension
         {
         }
     }
+
 
     public sealed class CompositeActionState : CompositeActionState<string, string>
     {

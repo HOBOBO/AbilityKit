@@ -1,5 +1,5 @@
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// Interface for states that support custom actions. Actions are like the

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM.Extension;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.StateMachine;
@@ -12,25 +12,25 @@ public sealed class HfsmCompositeBehaviourTests
     {
         var blackboard = new TestBlackboard();
         var time = new TestTimeSource { DeltaTime = 0.1f };
-        var root = HfsmRuntimeBehaviourSpec<string>.Sequence(
-            HfsmRuntimeBehaviourSpec<string>.Task("begin"),
-            HfsmRuntimeBehaviourSpec<string>.Task("delay"),
-            HfsmRuntimeBehaviourSpec<string>.Task("end"));
+        var root = BehaviourSpec<string>.Sequence(
+            BehaviourSpec<string>.Task("begin"),
+            BehaviourSpec<string>.Task("delay"),
+            BehaviourSpec<string>.Task("end"));
         var fsm = Build(
             time,
             blackboard,
             new[]
             {
-                new HfsmRuntimeNodeSpec<string>("work", root),
+                new NodeSpec<string>("work", root),
                 HoldState("done", "done"),
             },
             new[]
             {
-                new HfsmRuntimeTransitionSpec(
+                new TransitionSpec(
                     "work",
                     "done",
                     string.Empty,
-                    HfsmRuntimeTransitionMode.OnSucceeded),
+                    TransitionMode.OnSucceeded),
             });
 
         fsm.OnLogic();
@@ -61,11 +61,11 @@ public sealed class HfsmCompositeBehaviourTests
             },
             new[]
             {
-                new HfsmRuntimeTransitionSpec(
+                new TransitionSpec(
                     "work",
                     "fallback",
                     string.Empty,
-                    HfsmRuntimeTransitionMode.OnFailed),
+                    TransitionMode.OnFailed),
             });
 
         fsm.OnLogic();
@@ -81,22 +81,22 @@ public sealed class HfsmCompositeBehaviourTests
     {
         var blackboard = new TestBlackboard();
         var time = new TestTimeSource { DeltaTime = 0.1f };
-        var selector = HfsmRuntimeBehaviourSpec<string>.Selector(
-            HfsmRuntimeBehaviourSpec<string>.Task("fail"),
-            HfsmRuntimeBehaviourSpec<string>.Task("selected"));
-        var root = HfsmRuntimeBehaviourSpec<string>.Parallel(
+        var selector = BehaviourSpec<string>.Selector(
+            BehaviourSpec<string>.Task("fail"),
+            BehaviourSpec<string>.Task("selected"));
+        var root = BehaviourSpec<string>.Parallel(
             new[]
             {
                 selector,
-                HfsmRuntimeBehaviourSpec<string>.Task("probe"),
+                BehaviourSpec<string>.Task("probe"),
             },
             ParallelSuccessPolicy.Any,
             ParallelFailurePolicy.Any);
         var fsm = Build(
             time,
             blackboard,
-            new[] { new HfsmRuntimeNodeSpec<string>("work", root) },
-            Array.Empty<HfsmRuntimeTransitionSpec>());
+            new[] { new NodeSpec<string>("work", root) },
+            Array.Empty<TransitionSpec>());
 
         fsm.OnLogic();
         var state = Assert.IsAssignableFrom<CompositeActionState<string, string>>(fsm.GetState("work"));
@@ -118,13 +118,13 @@ public sealed class HfsmCompositeBehaviourTests
             blackboard,
             new[]
             {
-                new HfsmRuntimeNodeSpec<string>(
+                new NodeSpec<string>(
                     "work",
-                    HfsmRuntimeBehaviourSpec<string>.Task("delay"),
+                    BehaviourSpec<string>.Task("delay"),
                     needsExitTime: true),
                 HoldState("done", "done"),
             },
-            new[] { new HfsmRuntimeTransitionSpec("work", "done", "leave") });
+            new[] { new TransitionSpec("work", "done", "leave") });
 
         fsm.OnLogic();
         Assert.Equal("work", fsm.ActiveStateName);
@@ -143,17 +143,17 @@ public sealed class HfsmCompositeBehaviourTests
             blackboard,
             new[]
             {
-                new HfsmRuntimeNodeSpec<string>(
+                new NodeSpec<string>(
                     "work",
-                    HfsmRuntimeBehaviourSpec<string>.Task("probe"),
+                    BehaviourSpec<string>.Task("probe"),
                     needsExitTime: true),
                 HoldState("normal", "normal"),
                 HoldState("urgent", "urgent"),
             },
             new[]
             {
-                new HfsmRuntimeTransitionSpec("work", "normal", "leave", priority: 10),
-                new HfsmRuntimeTransitionSpec(
+                new TransitionSpec("work", "normal", "leave", priority: 10),
+                new TransitionSpec(
                     "work",
                     "urgent",
                     "leave",
@@ -179,10 +179,10 @@ public sealed class HfsmCompositeBehaviourTests
         var probe = new ProbeBehaviour();
         var targetEntered = false;
         var work = new CompositeActionState<string>(needsExitTime: true).SetRoot(probe);
-        var fsm = new UnityHFSM.StateMachine<string>();
+        var fsm = new AbilityKit.HFSM.StateMachine<string>();
         fsm.AddState("work", work);
-        fsm.AddState("target", new UnityHFSM.State<string>(onEnter: _ => targetEntered = true));
-        fsm.AddTransition(new UnityHFSM.Transition<string>("work", "target"));
+        fsm.AddState("target", new AbilityKit.HFSM.State<string>(onEnter: _ => targetEntered = true));
+        fsm.AddTransition(new AbilityKit.HFSM.Transition<string>("work", "target"));
         fsm.SetStartState("work");
         fsm.OnEnter();
 
@@ -236,26 +236,26 @@ public sealed class HfsmCompositeBehaviourTests
         Assert.Equal(1, probe.AbortCount);
     }
 
-    private static UnityHFSM.StateMachine<string> Build(
+    private static AbilityKit.HFSM.StateMachine<string> Build(
         TestTimeSource time,
         TestBlackboard blackboard,
-        IReadOnlyList<HfsmRuntimeNodeSpec<string>> states,
-        IReadOnlyList<HfsmRuntimeTransitionSpec> transitions)
+        IReadOnlyList<NodeSpec<string>> states,
+        IReadOnlyList<TransitionSpec> transitions)
     {
-        var builder = new HfsmHierarchicalRuntimeProfileBuilder<TestBlackboard, string>(
+        var builder = new HierarchicalProfileBuilder<TestBlackboard, string>(
             CreateAction,
             (bb, condition) => condition == "leave" && bb.Leave);
         return builder.Build(
             time,
             blackboard,
-            new HfsmHierarchicalRuntimeProfile<string>("test", states[0].Id, states, transitions));
+            new HierarchicalProfile<string>("test", states[0].Id, states, transitions));
     }
 
-    private static HfsmRuntimeNodeSpec<string> HoldState(string id, string action)
+    private static NodeSpec<string> HoldState(string id, string action)
     {
-        return new HfsmRuntimeNodeSpec<string>(
+        return new NodeSpec<string>(
             id,
-            HfsmRuntimeBehaviourSpec<string>.Task(action),
+            BehaviourSpec<string>.Task(action),
             ActionStateCompletionPolicy.Hold);
     }
 

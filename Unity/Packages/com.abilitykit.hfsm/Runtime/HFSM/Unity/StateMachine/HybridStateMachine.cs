@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// A StateMachine that is also like a normal <see cref="State"/> in the sense that it allows you to run

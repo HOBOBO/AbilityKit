@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using AbilityKit.Demo.Moba.Services.StateMachine;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM.Extension;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior
 {
@@ -64,7 +64,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         }
 
         private static void ValidateProfile(
-            HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec> profile,
+            HierarchicalProfile<MobaHfsmActionSpec> profile,
             MobaActorStateMachineRuntimeRegistry runtimeRegistry,
             List<string> errors)
         {
@@ -86,15 +86,15 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
         private static void ValidateStateMachine(
             string path,
             string startState,
-            IReadOnlyList<HfsmRuntimeNodeSpec<MobaHfsmActionSpec>> states,
-            IReadOnlyList<HfsmRuntimeTransitionSpec> transitions,
+            IReadOnlyList<NodeSpec<MobaHfsmActionSpec>> states,
+            IReadOnlyList<TransitionSpec> transitions,
             MobaActorStateMachineRuntimeRegistry runtimeRegistry,
             List<string> errors)
         {
             var stateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var actionStateIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            states ??= Array.Empty<HfsmRuntimeNodeSpec<MobaHfsmActionSpec>>();
-            transitions ??= Array.Empty<HfsmRuntimeTransitionSpec>();
+            states ??= Array.Empty<NodeSpec<MobaHfsmActionSpec>>();
+            transitions ??= Array.Empty<TransitionSpec>();
 
             if (states.Count == 0) errors.Add($"HFSM '{path}' contains no states.");
             for (var i = 0; i < states.Count; i++)
@@ -118,7 +118,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                     continue;
                 }
 
-                if (state.Kind == HfsmRuntimeNodeKind.StateMachine)
+                if (state.Kind == NodeKind.StateMachine)
                 {
                     ValidateStateMachine(
                         path + "/" + state.Id,
@@ -147,7 +147,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
                     errors.Add($"HFSM '{path}' transition[{i}] source '{transition.From}' does not exist.");
                 if (!stateIds.Contains(transition.To))
                     errors.Add($"HFSM '{path}' transition[{i}] target '{transition.To}' does not exist.");
-                if (transition.Mode != HfsmRuntimeTransitionMode.Condition
+                if (transition.Mode != TransitionMode.Condition
                     && !actionStateIds.Contains(transition.From))
                 {
                     errors.Add(
@@ -164,7 +164,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
 
         private static void ValidateBehaviour(
             string path,
-            HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec> behaviour,
+            BehaviourSpec<MobaHfsmActionSpec> behaviour,
             MobaActorStateMachineRuntimeRegistry runtimeRegistry,
             List<string> errors)
         {
@@ -176,32 +176,32 @@ namespace AbilityKit.Demo.Moba.Services.Behavior
 
             switch (behaviour.Kind)
             {
-                case HfsmRuntimeBehaviourKind.Action:
+                case BehaviourKind.Action:
                     if (!runtimeRegistry.ContainsAction(behaviour.Action.Type))
                     {
                         errors.Add(
                             $"HFSM behavior '{path}' action '{behaviour.Action.Type}' is not registered.");
                     }
                     break;
-                case HfsmRuntimeBehaviourKind.Condition:
+                case BehaviourKind.Condition:
                     if (!runtimeRegistry.ContainsCondition(behaviour.Condition))
                     {
                         errors.Add(
                             $"HFSM behavior '{path}' condition '{behaviour.Condition}' is not registered.");
                     }
                     break;
-                case HfsmRuntimeBehaviourKind.Invert:
-                case HfsmRuntimeBehaviourKind.Repeat:
-                case HfsmRuntimeBehaviourKind.Timeout:
+                case BehaviourKind.Invert:
+                case BehaviourKind.Repeat:
+                case BehaviourKind.Timeout:
                     if (behaviour.Children.Count != 1)
                     {
                         errors.Add(
                             $"HFSM behavior '{path}' decorator '{behaviour.Kind}' requires exactly one child.");
                     }
                     break;
-                case HfsmRuntimeBehaviourKind.Sequence:
-                case HfsmRuntimeBehaviourKind.Selector:
-                case HfsmRuntimeBehaviourKind.Parallel:
+                case BehaviourKind.Sequence:
+                case BehaviourKind.Selector:
+                case BehaviourKind.Parallel:
                     if (behaviour.Children.Count == 0)
                     {
                         errors.Add(

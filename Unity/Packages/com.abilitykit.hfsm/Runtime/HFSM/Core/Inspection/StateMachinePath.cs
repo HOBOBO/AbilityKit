@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace UnityHFSM.Inspection
+namespace AbilityKit.HFSM.Inspection
 {
 	/// <summary>
 	/// Light-weight, hashable and equatable type that represents the path to a state within a hierarchical

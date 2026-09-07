@@ -8,9 +8,9 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
-using UnityHFSM.Inspection;
+using AbilityKit.HFSM.Inspection;
 
-namespace UnityHFSM.Visualization
+namespace AbilityKit.HFSM.Visualization
 {
     /// <summary>
     /// 运行时 FSM 注册表

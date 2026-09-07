@@ -29,6 +29,7 @@
     <ProjectReference Include="..\AbilityKit.Context\AbilityKit.Context.csproj" />
     <ProjectReference Include="..\AbilityKit.Combat.Navigation\AbilityKit.Combat.Navigation.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance\AbilityKit.Demo.Moba.Acceptance.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance.LiveSim\AbilityKit.Demo.Moba.Acceptance.LiveSim.csproj" />
     <ProjectReference Include="..\AbilityKit.Trace\AbilityKit.Trace.csproj" />
   </ItemGroup>
 

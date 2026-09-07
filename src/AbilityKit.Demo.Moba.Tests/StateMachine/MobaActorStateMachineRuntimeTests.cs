@@ -4,7 +4,7 @@ using MemoryPack;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateMachine;
 using Newtonsoft.Json;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM.Extension;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.StateMachine;
@@ -87,7 +87,7 @@ public sealed class MobaActorStateMachineRuntimeTests
         Assert.Equal(ActionStateCompletionPolicy.Hold, state.CompletionPolicy);
 
         var transition = Assert.Single(profile.Transitions);
-        Assert.Equal(HfsmRuntimeTransitionMode.OnSucceeded, transition.Mode);
+        Assert.Equal(TransitionMode.OnSucceeded, transition.Mode);
         Assert.Equal(42, transition.Priority);
         Assert.True(transition.ForceInstantly);
     }
@@ -159,9 +159,9 @@ public sealed class MobaActorStateMachineRuntimeTests
         var catalog = new MobaActorStateMachineProfileCatalog();
         Assert.Equal(1, MobaActorStateMachineProfileJsonLoader.LoadJson(json, catalog));
         Assert.True(catalog.TryGet("composite", out var profile));
-        var root = Assert.IsType<HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>>(
+        var root = Assert.IsType<BehaviourSpec<MobaHfsmActionSpec>>(
             profile.States[0].BehaviourRoot);
-        Assert.Equal(HfsmRuntimeBehaviourKind.Sequence, root.Kind);
+        Assert.Equal(BehaviourKind.Sequence, root.Kind);
         Assert.Equal(7, root.Children.Count);
         Assert.Equal(ParallelSuccessPolicy.All, root.Children[3].ParallelSuccessPolicy);
         Assert.Equal(ParallelFailurePolicy.Any, root.Children[3].ParallelFailurePolicy);

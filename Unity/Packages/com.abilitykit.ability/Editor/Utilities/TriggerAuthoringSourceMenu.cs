@@ -12,6 +12,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private const string ImportMenu = "Assets/AbilityKit/Trigger Authoring/Import Source JSON";
         private const string ValidateMenu = "Assets/AbilityKit/Trigger Authoring/Validate";
         private const string ExportProjectRuntimeMenu = "Assets/AbilityKit/Trigger Authoring/Export Project Runtime Plans";
+        private const string ExportSchemasMenu = "Tools/AbilityKit/Trigger Authoring/Export Source Schemas";
 
         [MenuItem(ExportMenu)]
         private static void Export()
@@ -93,15 +94,16 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
 
-            var result = TriggerAuthoringSourceSync.Import(asset, path);
+            var preview = TriggerAuthoringSourceSync.PreviewImport(asset, path);
+            if (!TriggerAuthoringSourceImportPreviewDialog.Confirm(preview)) return;
+
+            var result = TriggerAuthoringSourceSync.Import(asset, path, preview.RequiresForce);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
                     "Trigger Asset Conflict",
                     result.Message + "\n\nForce import and overwrite Asset content?",
                     "Force Import",
                     "Cancel"))
-            {
                 result = TriggerAuthoringSourceSync.Import(asset, path, true);
-            }
 
             ShowResult("Import", result);
             if (result.Success) AssetDatabase.SaveAssets();
@@ -124,6 +126,26 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static bool CanExportProjectRuntime()
         {
             return Selection.activeObject is TriggerAuthoringProjectAsset;
+        }
+
+        [MenuItem(ExportSchemasMenu)]
+        private static void ExportSchemas()
+        {
+            var directory = EditorUtility.OpenFolderPanel(
+                "Export Trigger Authoring Source Schemas",
+                Application.dataPath,
+                string.Empty);
+            if (string.IsNullOrWhiteSpace(directory)) return;
+
+            var result = TriggerAuthoringSourceSchema.ExportAll(directory);
+            AssetDatabase.Refresh();
+            Debug.Log(
+                $"[TriggerAuthoring] Source schema export completed. directory='{result.DirectoryPath}', " +
+                $"written={result.WrittenPaths.Count}, unchanged={result.UnchangedPaths.Count}.");
+            EditorUtility.DisplayDialog(
+                "Trigger Source Schema Export",
+                $"Exported {result.TotalCount} schema file(s).\nWritten: {result.WrittenPaths.Count}\nUnchanged: {result.UnchangedPaths.Count}",
+                "OK");
         }
 
         [MenuItem(ValidateMenu)]
@@ -206,7 +228,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                     TriggerSourceCodecs.TemplateDefault.FileExtension);
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
-            var result = TriggerAuthoringTemplateSourceSync.Import(asset, path);
+            var preview = TriggerAuthoringTemplateSourceSync.PreviewImport(asset, path);
+            if (!TriggerAuthoringSourceImportPreviewDialog.Confirm(preview)) return;
+
+            var result = TriggerAuthoringTemplateSourceSync.Import(asset, path, preview.RequiresForce);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
                     "Trigger Template Asset Conflict",
                     result.Message + "\n\nForce import and overwrite Asset content?",

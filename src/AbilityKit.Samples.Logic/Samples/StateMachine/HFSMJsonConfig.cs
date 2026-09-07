@@ -1,5 +1,5 @@
 using System;
-using UnityHFSM;
+using AbilityKit.HFSM;
 using AbilityKit.Samples.Abstractions;
 using AbilityKit.Samples.Logic.Infrastructure.Config;
 using Newtonsoft.Json;
@@ -18,7 +18,7 @@ namespace AbilityKit.Samples.Logic.Samples.StateMachine
 
         private HFSMConfig _config;
         private HFSMConfigBuilder _builder;
-        private UnityHFSM.StateMachine _fsm;
+        private AbilityKit.HFSM.StateMachine _fsm;
 
         protected override void OnRun()
         {

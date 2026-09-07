@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace UnityHFSM.Editor
+namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
     /// Layer that renders the grid background of the graph view.

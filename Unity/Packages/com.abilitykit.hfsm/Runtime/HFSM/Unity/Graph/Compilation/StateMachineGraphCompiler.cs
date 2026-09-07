@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityHFSM.Graph.Conditions;
+using AbilityKit.HFSM.Graph.Conditions;
 
-namespace UnityHFSM.Graph.Compilation
+namespace AbilityKit.HFSM.Graph.Compilation
 {
     public sealed class StateMachineGraphCompiler
     {
         private readonly List<GraphCompilationDiagnostic> _diagnostics = new List<GraphCompilationDiagnostic>();
-        private readonly Dictionary<string, HfsmNodeBase> _nodes = new Dictionary<string, HfsmNodeBase>(StringComparer.Ordinal);
-        private readonly Dictionary<string, HfsmTransitionEdge> _edges = new Dictionary<string, HfsmTransitionEdge>(StringComparer.Ordinal);
+        private readonly Dictionary<string, NodeBase> _nodes = new Dictionary<string, NodeBase>(StringComparer.Ordinal);
+        private readonly Dictionary<string, TransitionEdge> _edges = new Dictionary<string, TransitionEdge>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _nodeOwners = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly Dictionary<string, EdgeOwner> _edgeOwners = new Dictionary<string, EdgeOwner>(StringComparer.Ordinal);
         private readonly Dictionary<string, string> _resolvedDefaults = new Dictionary<string, string>(StringComparer.Ordinal);
 
-        public StateMachineGraphProgram Compile(HfsmGraphAsset graph)
+        public StateMachineGraphProgram Compile(GraphAsset graph)
         {
             if (graph == null)
                 throw new ArgumentNullException(nameof(graph));
@@ -40,7 +40,7 @@ namespace UnityHFSM.Graph.Compilation
             _resolvedDefaults.Clear();
         }
 
-        private void IndexElements(HfsmGraphAsset graph)
+        private void IndexElements(GraphAsset graph)
         {
             foreach (var node in graph.Nodes)
             {
@@ -79,7 +79,7 @@ namespace UnityHFSM.Graph.Compilation
             }
         }
 
-        private void ValidateRoot(HfsmGraphAsset graph)
+        private void ValidateRoot(GraphAsset graph)
         {
             if (string.IsNullOrEmpty(graph.RootStateMachineId))
             {
@@ -93,13 +93,13 @@ namespace UnityHFSM.Graph.Compilation
                 return;
             }
 
-            if (!(root is HfsmStateMachineNode))
+            if (!(root is StateMachineNode))
                 Error("ROOT_NOT_MACHINE", "The root node must be a state machine.", root.Id);
             if (!string.IsNullOrEmpty(root.ParentStateMachineId))
                 Error("ROOT_HAS_PARENT", "The root state machine cannot have a parent.", root.Id);
         }
 
-        private void ValidateParameters(HfsmGraphAsset graph)
+        private void ValidateParameters(GraphAsset graph)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
             foreach (var parameter in graph.Parameters)
@@ -117,9 +117,9 @@ namespace UnityHFSM.Graph.Compilation
             }
         }
 
-        private void ValidateHierarchy(HfsmGraphAsset graph)
+        private void ValidateHierarchy(GraphAsset graph)
         {
-            foreach (var machine in _nodes.Values.OfType<HfsmStateMachineNode>())
+            foreach (var machine in _nodes.Values.OfType<StateMachineNode>())
             {
                 var runtimeNames = new HashSet<string>(StringComparer.Ordinal);
                 var markedDefaults = new List<string>();
@@ -194,11 +194,11 @@ namespace UnityHFSM.Graph.Compilation
                 return;
             }
 
-            if (_nodes.TryGetValue(machineId, out var node) && node is HfsmStateMachineNode machine)
+            if (_nodes.TryGetValue(machineId, out var node) && node is StateMachineNode machine)
             {
                 foreach (var childId in machine.ChildNodeIds)
                 {
-                    if (_nodes.TryGetValue(childId, out var child) && child is HfsmStateMachineNode)
+                    if (_nodes.TryGetValue(childId, out var child) && child is StateMachineNode)
                         VisitMachine(childId, visiting, visited);
                 }
             }
@@ -207,9 +207,9 @@ namespace UnityHFSM.Graph.Compilation
             visited.Add(machineId);
         }
 
-        private void ValidateEdgeOwnership(HfsmGraphAsset graph)
+        private void ValidateEdgeOwnership(GraphAsset graph)
         {
-            foreach (var machine in _nodes.Values.OfType<HfsmStateMachineNode>())
+            foreach (var machine in _nodes.Values.OfType<StateMachineNode>())
             {
                 foreach (var edgeId in machine.TransitionIds)
                     RegisterEdgeOwner(machine, edgeId, false);
@@ -224,7 +224,7 @@ namespace UnityHFSM.Graph.Compilation
             }
         }
 
-        private void RegisterEdgeOwner(HfsmStateMachineNode machine, string edgeId, bool isFromAnyState)
+        private void RegisterEdgeOwner(StateMachineNode machine, string edgeId, bool isFromAnyState)
         {
             if (!_edges.TryGetValue(edgeId, out var edge))
             {
@@ -242,7 +242,7 @@ namespace UnityHFSM.Graph.Compilation
             var childIds = new HashSet<string>(machine.ChildNodeIds, StringComparer.Ordinal);
             if (isFromAnyState)
             {
-                if (!string.Equals(edge.SourceNodeId, HfsmSpecialNodeIds.AnyState, StringComparison.Ordinal))
+                if (!string.Equals(edge.SourceNodeId, SpecialNodeIds.AnyState, StringComparison.Ordinal))
                     Error("ANY_STATE_SOURCE_INVALID", "An AnyState transition must use the AnyState pseudo node as its source.", edge.Id);
             }
             else if (!childIds.Contains(edge.SourceNodeId))
@@ -257,7 +257,7 @@ namespace UnityHFSM.Graph.Compilation
                 Error("EDGE_TARGET_NOT_FOUND", "The transition target does not exist.", edge.Id);
         }
 
-        private void ValidateReachability(HfsmGraphAsset graph)
+        private void ValidateReachability(GraphAsset graph)
         {
             var reachable = new HashSet<string>(StringComparer.Ordinal);
             CollectReachable(graph.RootStateMachineId, reachable);
@@ -272,22 +272,22 @@ namespace UnityHFSM.Graph.Compilation
         {
             if (string.IsNullOrEmpty(nodeId) || !reachable.Add(nodeId))
                 return;
-            if (_nodes.TryGetValue(nodeId, out var node) && node is HfsmStateMachineNode machine)
+            if (_nodes.TryGetValue(nodeId, out var node) && node is StateMachineNode machine)
             {
                 foreach (var childId in machine.ChildNodeIds)
                     CollectReachable(childId, reachable);
             }
         }
 
-        private StateMachineGraphProgram BuildProgram(HfsmGraphAsset graph)
+        private StateMachineGraphProgram BuildProgram(GraphAsset graph)
         {
             var programs = new Dictionary<string, GraphNodeProgram>(StringComparer.Ordinal);
             var machines = new Dictionary<string, MachineProgram>(StringComparer.Ordinal);
 
-            foreach (var state in _nodes.Values.OfType<HfsmStateNode>())
+            foreach (var state in _nodes.Values.OfType<StateNode>())
                 programs.Add(state.Id, new StateProgram(state.Id, state.GetName(), CreateStateTemplate(state)));
 
-            foreach (var machine in _nodes.Values.OfType<HfsmStateMachineNode>())
+            foreach (var machine in _nodes.Values.OfType<StateMachineNode>())
             {
                 var transitions = BuildTransitions(machine);
                 var program = new MachineProgram(
@@ -311,9 +311,9 @@ namespace UnityHFSM.Graph.Compilation
             return new StateMachineGraphProgram(graph.GraphName, graph.RootStateMachineId, programs, machines, parameters);
         }
 
-        private static HfsmStateNode CreateStateTemplate(HfsmStateNode source)
+        private static StateNode CreateStateTemplate(StateNode source)
         {
-            var template = (HfsmStateNode)source.Clone();
+            var template = (StateNode)source.Clone();
             for (var index = 0; index < source.BehaviorItems.Count; index++)
             {
                 var sourceItem = source.BehaviorItems[index];
@@ -326,17 +326,17 @@ namespace UnityHFSM.Graph.Compilation
             return template;
         }
 
-        private IReadOnlyList<TransitionProgram> BuildTransitions(HfsmStateMachineNode machine)
+        private IReadOnlyList<TransitionProgram> BuildTransitions(StateMachineNode machine)
         {
             var ownedIds = machine.TransitionIds.Concat(machine.AnyStateTransitionIds);
             var result = new List<TransitionProgram>();
             foreach (var edgeId in ownedIds)
             {
                 var edge = _edges[edgeId];
-                var conditions = new List<HfsmTransitionCondition>();
+                var conditions = new List<TransitionCondition>();
                 try
                 {
-                    foreach (var condition in HfsmConditionSerializer.DeserializeStrict(edge.ConditionConfigJson))
+                    foreach (var condition in ConditionSerializer.DeserializeStrict(edge.ConditionConfigJson))
                     {
                         if (condition == null)
                             throw new InvalidOperationException("A transition condition is null.");

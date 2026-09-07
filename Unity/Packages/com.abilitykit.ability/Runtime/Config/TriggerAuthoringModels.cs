@@ -35,7 +35,8 @@ namespace AbilityKit.Ability.Config.Authoring
         Entity = 5,
         ObjectId = 6,
         IntegerList = 7,
-        Vector3 = 8
+        Vector3 = 8,
+        Object = 9
     }
 
     public enum TriggerValueSource
@@ -121,6 +122,8 @@ namespace AbilityKit.Ability.Config.Authoring
     {
         public int Id;
         public string Name;
+        public string GroupPath;
+        public List<string> Tags = new List<string>();
         public bool Enabled = true;
         public string Event;
         public string Phase = "immediate";
@@ -141,6 +144,7 @@ namespace AbilityKit.Ability.Config.Authoring
     [Serializable]
     public sealed class TriggerNodeData
     {
+        public bool Enabled = true;
         public TriggerNodeKind Kind;
         public string GroupReference;
         public string Type;
@@ -167,6 +171,7 @@ namespace AbilityKit.Ability.Config.Authoring
         public string StringValue;
         public List<long> IntegerListValue = new List<long>();
         public TriggerVector3Data Vector3Value = new TriggerVector3Data();
+        public List<TriggerArgumentData> Fields = new List<TriggerArgumentData>();
         public string Path;
         public string Expression;
     }

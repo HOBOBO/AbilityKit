@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace UnityHFSM.Actions
+namespace AbilityKit.HFSM.Actions
 {
     public static class BehaviorTreeBuilder
     {
         public static IAction BuildFromEditorItems(
-            IReadOnlyList<UnityHFSM.HfsmBehaviorItem> items,
+            IReadOnlyList<AbilityKit.HFSM.BehaviorItem> items,
             string rootId)
         {
             return BuildFromEditorItems(items, rootId, null);
@@ -18,7 +18,7 @@ namespace UnityHFSM.Actions
         /// The default builder remains unwrapped for compatibility with existing callers.
         /// </summary>
         public static IAction BuildInstrumentedFromEditorItems(
-            IReadOnlyList<UnityHFSM.HfsmBehaviorItem> items,
+            IReadOnlyList<AbilityKit.HFSM.BehaviorItem> items,
             string rootId,
             IDictionary<string, IActionRuntimeStateSource> runtimeStates)
         {
@@ -26,7 +26,7 @@ namespace UnityHFSM.Actions
         }
 
         private static IAction BuildFromEditorItems(
-            IReadOnlyList<UnityHFSM.HfsmBehaviorItem> items,
+            IReadOnlyList<AbilityKit.HFSM.BehaviorItem> items,
             string rootId,
             IDictionary<string, IActionRuntimeStateSource> runtimeStates)
         {
@@ -37,7 +37,7 @@ namespace UnityHFSM.Actions
 
             EnsureRegistryInitialized();
 
-            var itemMap = new Dictionary<string, UnityHFSM.HfsmBehaviorItem>(StringComparer.Ordinal);
+            var itemMap = new Dictionary<string, AbilityKit.HFSM.BehaviorItem>(StringComparer.Ordinal);
             var actionMap = new Dictionary<string, IAction>(StringComparer.Ordinal);
             foreach (var item in items)
             {
@@ -48,7 +48,7 @@ namespace UnityHFSM.Actions
                 if (!itemMap.TryAdd(item.id, item))
                     throw new InvalidOperationException($"Duplicate behavior node ID '{item.id}'.");
 
-                var action = HfsmBehaviorTypeRegistry.CreateAndConfigure(item.TypeName, item);
+                var action = BehaviorTypeRegistry.CreateAndConfigure(item.TypeName, item);
                 action.Name = item.displayName;
                 actionMap.Add(item.id, action);
             }
@@ -77,7 +77,7 @@ namespace UnityHFSM.Actions
             foreach (var item in items)
             {
                 var action = actionMap[item.id];
-                var category = HfsmBehaviorTypeRegistry.GetCategory(item.TypeName);
+                var category = BehaviorTypeRegistry.GetCategory(item.TypeName);
                 ValidateChildCount(item, category);
 
                 foreach (var childId in item.childIds)
@@ -106,7 +106,7 @@ namespace UnityHFSM.Actions
             return actionMap[rootId];
         }
 
-        public static IAction BuildFromEditorItems(IReadOnlyList<UnityHFSM.HfsmBehaviorItem> items)
+        public static IAction BuildFromEditorItems(IReadOnlyList<AbilityKit.HFSM.BehaviorItem> items)
         {
             if (items == null || items.Count == 0)
                 throw new ArgumentException("A behavior tree must contain at least one node.", nameof(items));
@@ -128,9 +128,9 @@ namespace UnityHFSM.Actions
             return BuildFromEditorItems(items, rootId);
         }
 
-        private static void ValidateChildCount(UnityHFSM.HfsmBehaviorItem item, BehaviorCategory category)
+        private static void ValidateChildCount(AbilityKit.HFSM.BehaviorItem item, BehaviorCategory category)
         {
-            var definition = HfsmBehaviorTypeRegistry.GetDefinition(item.TypeName);
+            var definition = BehaviorTypeRegistry.GetDefinition(item.TypeName);
             var count = item.childIds.Count;
             var min = definition?.minChildren ?? (category == BehaviorCategory.Primitive ? 0 : 1);
             var max = definition?.maxChildren ?? (category == BehaviorCategory.Composite ? -1 : 1);
@@ -142,7 +142,7 @@ namespace UnityHFSM.Actions
 
         private static void Visit(
             string id,
-            IReadOnlyDictionary<string, UnityHFSM.HfsmBehaviorItem> items,
+            IReadOnlyDictionary<string, AbilityKit.HFSM.BehaviorItem> items,
             ISet<string> visited,
             ISet<string> activePath)
         {
@@ -158,8 +158,8 @@ namespace UnityHFSM.Actions
 
         private static void EnsureRegistryInitialized()
         {
-            if (!HfsmBehaviorTypeRegistry.IsInitialized)
-                HfsmBehaviorTypeRegistry.Initialize();
+            if (!BehaviorTypeRegistry.IsInitialized)
+                BehaviorTypeRegistry.Initialize();
         }
 
         private sealed class ObservedAction : IAction, ICompositeAction, IDecoratorAction, IActionRuntimeStateSource
@@ -239,9 +239,9 @@ namespace UnityHFSM.Actions
     }
 }
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
-    public enum HfsmBehaviorParameterType
+    public enum BehaviorParameterType
     {
         Float,
         Int,
@@ -254,14 +254,14 @@ namespace UnityHFSM
     }
 
     [Serializable]
-    public sealed class HfsmBehaviorParameter
+    public sealed class BehaviorParameter
     {
         public string name;
 
         [SerializeField]
-        private HfsmBehaviorParameterType valueType;
+        private BehaviorParameterType valueType;
 
-        public HfsmBehaviorParameterType ValueType
+        public BehaviorParameterType ValueType
         {
             get => valueType;
             set => valueType = value;
@@ -276,64 +276,64 @@ namespace UnityHFSM
         public Vector3 vector3Value;
         public Color colorValue;
 
-        public HfsmBehaviorParameter()
+        public BehaviorParameter()
         {
         }
 
-        public HfsmBehaviorParameter(string name, float value)
+        public BehaviorParameter(string name, float value)
         {
             this.name = name;
             floatValue = value;
-            ValueType = HfsmBehaviorParameterType.Float;
+            ValueType = BehaviorParameterType.Float;
         }
 
-        public HfsmBehaviorParameter(string name, int value)
+        public BehaviorParameter(string name, int value)
         {
             this.name = name;
             intValue = value;
-            ValueType = HfsmBehaviorParameterType.Int;
+            ValueType = BehaviorParameterType.Int;
         }
 
-        public HfsmBehaviorParameter(string name, bool value)
+        public BehaviorParameter(string name, bool value)
         {
             this.name = name;
             boolValue = value;
-            ValueType = HfsmBehaviorParameterType.Bool;
+            ValueType = BehaviorParameterType.Bool;
         }
 
-        public HfsmBehaviorParameter(string name, string value)
+        public BehaviorParameter(string name, string value)
         {
             this.name = name;
             stringValue = value;
-            ValueType = HfsmBehaviorParameterType.String;
+            ValueType = BehaviorParameterType.String;
         }
 
-        public HfsmBehaviorParameter(string name, UnityEngine.Object value)
+        public BehaviorParameter(string name, UnityEngine.Object value)
         {
             this.name = name;
             objectValue = value;
-            ValueType = HfsmBehaviorParameterType.Object;
+            ValueType = BehaviorParameterType.Object;
         }
 
-        public HfsmBehaviorParameter(string name, Vector3 value)
+        public BehaviorParameter(string name, Vector3 value)
         {
             this.name = name;
             vector3Value = value;
-            ValueType = HfsmBehaviorParameterType.Vector3;
+            ValueType = BehaviorParameterType.Vector3;
         }
 
         public T GetValue<T>()
         {
             object value = ValueType switch
             {
-                HfsmBehaviorParameterType.Float => floatValue,
-                HfsmBehaviorParameterType.Int => intValue,
-                HfsmBehaviorParameterType.Bool => boolValue,
-                HfsmBehaviorParameterType.String => stringValue,
-                HfsmBehaviorParameterType.Object => objectValue,
-                HfsmBehaviorParameterType.Vector2 => vector2Value,
-                HfsmBehaviorParameterType.Vector3 => vector3Value,
-                HfsmBehaviorParameterType.Color => colorValue,
+                BehaviorParameterType.Float => floatValue,
+                BehaviorParameterType.Int => intValue,
+                BehaviorParameterType.Bool => boolValue,
+                BehaviorParameterType.String => stringValue,
+                BehaviorParameterType.Object => objectValue,
+                BehaviorParameterType.Vector2 => vector2Value,
+                BehaviorParameterType.Vector3 => vector3Value,
+                BehaviorParameterType.Color => colorValue,
                 _ => throw new ArgumentOutOfRangeException()
             };
 
@@ -352,21 +352,21 @@ namespace UnityHFSM
         {
             return ValueType switch
             {
-                HfsmBehaviorParameterType.Float => floatValue,
-                HfsmBehaviorParameterType.Int => intValue,
-                HfsmBehaviorParameterType.Bool => boolValue,
-                HfsmBehaviorParameterType.String => stringValue,
-                HfsmBehaviorParameterType.Object => objectValue,
-                HfsmBehaviorParameterType.Vector2 => vector2Value,
-                HfsmBehaviorParameterType.Vector3 => vector3Value,
-                HfsmBehaviorParameterType.Color => colorValue,
+                BehaviorParameterType.Float => floatValue,
+                BehaviorParameterType.Int => intValue,
+                BehaviorParameterType.Bool => boolValue,
+                BehaviorParameterType.String => stringValue,
+                BehaviorParameterType.Object => objectValue,
+                BehaviorParameterType.Vector2 => vector2Value,
+                BehaviorParameterType.Vector3 => vector3Value,
+                BehaviorParameterType.Color => colorValue,
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
     }
 
     [Serializable]
-    public sealed class HfsmBehaviorItem
+    public sealed class BehaviorItem
     {
         public string id;
         public string displayName;
@@ -386,16 +386,16 @@ namespace UnityHFSM
 
         public string parentId;
         public List<string> childIds = new List<string>();
-        public List<HfsmBehaviorParameter> parameters = new List<HfsmBehaviorParameter>();
+        public List<BehaviorParameter> parameters = new List<BehaviorParameter>();
         public bool isExpanded = true;
 
-        public HfsmBehaviorItem()
+        public BehaviorItem()
         {
             id = Guid.NewGuid().ToString();
             displayName = "New Behavior";
         }
 
-        public HfsmBehaviorItem(string typeName, string displayName = null)
+        public BehaviorItem(string typeName, string displayName = null)
         {
             id = Guid.NewGuid().ToString();
             TypeName = typeName;
@@ -403,22 +403,22 @@ namespace UnityHFSM
             SetupDefaultParameters(typeName);
         }
 
-        public HfsmBehaviorParameter GetParameter(string parameterName)
+        public BehaviorParameter GetParameter(string parameterName)
         {
             return parameters.Find(parameter => parameter.name == parameterName);
         }
 
         public void SetParameter(string parameterName, float value) =>
-            SetParameter(parameterName, HfsmBehaviorParameterType.Float, parameter => parameter.floatValue = value);
+            SetParameter(parameterName, BehaviorParameterType.Float, parameter => parameter.floatValue = value);
 
         public void SetParameter(string parameterName, int value) =>
-            SetParameter(parameterName, HfsmBehaviorParameterType.Int, parameter => parameter.intValue = value);
+            SetParameter(parameterName, BehaviorParameterType.Int, parameter => parameter.intValue = value);
 
         public void SetParameter(string parameterName, bool value) =>
-            SetParameter(parameterName, HfsmBehaviorParameterType.Bool, parameter => parameter.boolValue = value);
+            SetParameter(parameterName, BehaviorParameterType.Bool, parameter => parameter.boolValue = value);
 
         public void SetParameter(string parameterName, string value) =>
-            SetParameter(parameterName, HfsmBehaviorParameterType.String, parameter => parameter.stringValue = value);
+            SetParameter(parameterName, BehaviorParameterType.String, parameter => parameter.stringValue = value);
 
         public bool IsComposite => GetCategory() == BehaviorCategory.Composite;
 
@@ -450,9 +450,9 @@ namespace UnityHFSM
             };
         }
 
-        public HfsmBehaviorItem Clone()
+        public BehaviorItem Clone()
         {
-            var clone = new HfsmBehaviorItem
+            var clone = new BehaviorItem
             {
                 id = Guid.NewGuid().ToString(),
                 displayName = displayName,
@@ -462,7 +462,7 @@ namespace UnityHFSM
 
             foreach (var parameter in parameters)
             {
-                clone.parameters.Add(new HfsmBehaviorParameter
+                clone.parameters.Add(new BehaviorParameter
                 {
                     name = parameter.name,
                     ValueType = parameter.ValueType,
@@ -482,8 +482,8 @@ namespace UnityHFSM
 
         private void SetParameter(
             string parameterName,
-            HfsmBehaviorParameterType parameterType,
-            Action<HfsmBehaviorParameter> setValue)
+            BehaviorParameterType parameterType,
+            Action<BehaviorParameter> setValue)
         {
             var parameter = GetParameter(parameterName);
             if (parameter == null)
@@ -496,19 +496,19 @@ namespace UnityHFSM
         private static string GetDefaultDisplayName(string behaviorTypeName)
         {
             EnsureRegistryInitialized();
-            return HfsmBehaviorTypeRegistry.GetDefinition(behaviorTypeName)?.displayName ?? behaviorTypeName;
+            return BehaviorTypeRegistry.GetDefinition(behaviorTypeName)?.displayName ?? behaviorTypeName;
         }
 
         private void SetupDefaultParameters(string behaviorTypeName)
         {
             EnsureRegistryInitialized();
-            var definition = HfsmBehaviorTypeRegistry.GetDefinition(behaviorTypeName);
+            var definition = BehaviorTypeRegistry.GetDefinition(behaviorTypeName);
             if (definition == null)
                 return;
 
             foreach (var parameterDefinition in definition.parameters)
             {
-                var parameter = new HfsmBehaviorParameter
+                var parameter = new BehaviorParameter
                 {
                     name = parameterDefinition.name,
                     ValueType = parameterDefinition.valueType
@@ -521,13 +521,13 @@ namespace UnityHFSM
         private BehaviorCategory GetCategory()
         {
             EnsureRegistryInitialized();
-            return HfsmBehaviorTypeRegistry.GetCategory(TypeName);
+            return BehaviorTypeRegistry.GetCategory(TypeName);
         }
 
         private static void EnsureRegistryInitialized()
         {
-            if (!HfsmBehaviorTypeRegistry.IsInitialized)
-                HfsmBehaviorTypeRegistry.Initialize();
+            if (!BehaviorTypeRegistry.IsInitialized)
+                BehaviorTypeRegistry.Initialize();
         }
     }
 }

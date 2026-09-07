@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace UnityHFSM.Editor
+namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
     /// Utility methods for IMGUI drawing operations.
@@ -26,7 +26,7 @@ namespace UnityHFSM.Editor
         /// <summary>
         /// Gets the center point of a node in content coordinates.
         /// </summary>
-        public static Vector2 GetNodeCenter(Graph.HfsmNodeBase node)
+        public static Vector2 GetNodeCenter(Graph.NodeBase node)
         {
             return node.Position + node.Size * 0.5f;
         }

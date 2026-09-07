@@ -1,0 +1,17 @@
+{
+  "name": "AbilityKit.BehaviorTree.CompleteRuntimeObservation",
+  "rootNamespace": "AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation",
+  "references": [
+    "AbilityKit.BehaviorTree",
+    "AbilityKit.Deterministic"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

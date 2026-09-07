@@ -1,7 +1,12 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Behavior;
-using AbilityKit.BehaviorTree;
+using AbilityKit.BehaviorTree.Blackboard;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Diagnostics;
+using AbilityKit.BehaviorTree.Execution;
+using AbilityKit.BehaviorTree.Registry;
+using AbilityKit.BehaviorTree.Serialization;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Deterministic;
@@ -19,7 +24,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// </summary>
     internal sealed class MobaBTreeDecision : IBehaviorDecision, IBehaviorRuntimeSnapshot, IDisposable
     {
-        private readonly BtTreeRuntime _tree;
+        private readonly TreeRuntime _tree;
         private readonly MobaBTreeRuntimeContext _runtimeContext;
         private bool _reportedRunningRoot;
         private bool _disposed;
@@ -27,10 +32,10 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         public string DecisionType => "MobaBTree";
         public string SnapshotType => "MobaBTree.Runtime.v2";
         public string CurrentState { get; private set; } = "Running";
-        internal BtBlackboard Blackboard => _tree.Blackboard;
+        internal Blackboard Blackboard => _tree.Blackboard;
 
         private MobaBTreeDecision(
-            BtTreeRuntime tree,
+            TreeRuntime tree,
             MobaBTreeRuntimeContext runtimeContext)
         {
             _tree = tree;
@@ -49,7 +54,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         {
             if (string.IsNullOrEmpty(json)) return null;
 
-            BtTreeDefinition definition;
+            TreeDefinition definition;
             try
             {
                 definition = DeserializeAndValidate(json);
@@ -66,16 +71,16 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 searchTargets,
                 currentTimeMsProvider,
                 skillSelectionPolicy);
-            var services = new BtServiceResolver().Add(runtimeContext);
+            var services = new DefaultServiceResolver().Add(runtimeContext);
 
             // DebugName 非空才登记进 BtDebugRegistry，编辑器观察窗口按需拉取；
             // Dispose 时自动注销
-            var options = new BtTreeRunOptions
+            var options = new TreeRunOptions
             {
                 DebugName = string.IsNullOrEmpty(debugName) ? null : debugName,
                 DebugOwnerLabel = debugOwnerLabel,
             };
-            var tree = BtTreeRuntime.Create(definition, MobaBTreeCatalog.Registry, services, options, new MobaBTreeAssetResolver());
+            var tree = TreeRuntime.Create(definition, MobaBTreeCatalog.Registry, services, options, new MobaBTreeAssetResolver());
             tree.Enable(0, Fixed64.Zero);
             return new MobaBTreeDecision(tree, runtimeContext);
         }
@@ -84,9 +89,9 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         /// 子树引用解析器：从同目录（Resources/Configs 的 moba/bt）按 treeId 读兄弟树 JSON。
         /// 使 MOBA 树可用 builtin.subtree 跨树组合。
         /// </summary>
-        private sealed class MobaBTreeAssetResolver : IBtTreeDefinitionResolver
+        private sealed class MobaBTreeAssetResolver : TreeDefinitionResolver
         {
-            public bool TryResolve(string treeId, out BtTreeDefinition definition)
+            public bool TryResolve(string treeId, out TreeDefinition definition)
             {
                 definition = null!;
                 if (string.IsNullOrEmpty(treeId) || !MobaBTreeAssetLoader.TryLoad(null, treeId, out var json))
@@ -94,7 +99,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                     return false;
                 }
 
-                definition = BtTreeJson.Load(json);
+                definition = TreeJson.Load(json);
                 MobaBTreeBlackboard.EnsureStandardSchema(definition);
                 return true;
             }
@@ -105,14 +110,14 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             DeserializeAndValidate(json);
         }
 
-        private static BtTreeDefinition DeserializeAndValidate(string json)
+        private static TreeDefinition DeserializeAndValidate(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
                 throw new ArgumentException("MOBA behavior-tree JSON is required.", nameof(json));
 
-            var definition = BtTreeJson.Load(json);
+            var definition = TreeJson.Load(json);
             MobaBTreeBlackboard.EnsureStandardSchema(definition);
-            var errors = BtTreeValidator.Validate(definition, MobaBTreeCatalog.Registry);
+            var errors = TreeValidator.Validate(definition, MobaBTreeCatalog.Registry);
             if (errors.Count > 0)
             {
                 throw new InvalidOperationException(
@@ -133,11 +138,11 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             _tree.Update((int)context.CurrentFrame, Fixed64.FromRatio(nowMs, 1000L));
 
             var rootState = _tree.RootNodeState;
-            if (rootState == BtNodeState.Success || rootState == BtNodeState.Failure)
+            if (rootState == NodeState.Success || rootState == NodeState.Failure)
             {
                 _tree.Restart();
             }
-            else if (rootState == BtNodeState.Running && !_reportedRunningRoot)
+            else if (rootState == NodeState.Running && !_reportedRunningRoot)
             {
                 _reportedRunningRoot = true;
                 Log.Warning("[MobaBTreeDecision] root is Running. A running MOBA node must refresh " +
@@ -192,18 +197,18 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         {
             if (_disposed) return Array.Empty<byte>();
             return System.Text.Encoding.UTF8.GetBytes(
-                BtTreeJson.SaveSnapshot(_tree.CaptureState()));
+                TreeJson.SaveSnapshot(_tree.CaptureState()));
         }
 
         public void RestoreSnapshot(byte[] payload)
         {
             if (_disposed || payload == null || payload.Length == 0) return;
             var json = System.Text.Encoding.UTF8.GetString(payload);
-            _tree.RestoreState(BtTreeJson.LoadSnapshot(json));
+            _tree.RestoreState(TreeJson.LoadSnapshot(json));
             _reportedRunningRoot = false;
         }
 
-        private static void SyncFrameFacts(BtBlackboard bb, IBehaviorContext context, IWorldQuery world)
+        private static void SyncFrameFacts(Blackboard bb, IBehaviorContext context, IWorldQuery world)
         {
             var ownerPosition = world.GetPosition(context.OwnerId);
             bb.SetInt64(MobaBTreeKeys.OwnerId, context.OwnerId.Value);

@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace UnityHFSM.Editor
+namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
     /// Layer that handles pan and zoom navigation.

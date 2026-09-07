@@ -3,6 +3,19 @@ using System.Collections.Generic;
 
 namespace AbilityKit.BattleFlow
 {
+    /// <summary>积木所属的流程段：编辑器按它把积木分到对应区块（构建前置 / 流程驱动 / 验收断言）。</summary>
+    public enum BattleBlockSection
+    {
+        /// <summary>构建前置：声明世界（环境/角色/障碍/setup 动作），非时间序。</summary>
+        Setup,
+
+        /// <summary>流程驱动：真正随时间发生的动作序列。</summary>
+        Timeline,
+
+        /// <summary>验收断言：跑完之后才判定的检查。</summary>
+        Assertion,
+    }
+
     /// <summary>积木基类：战斗流程的最小组合单元。粒度项目可选——框架给原子积木，项目用复合积木聚合。</summary>
     public abstract class BattleBlock
     {
@@ -14,6 +27,9 @@ namespace AbilityKit.BattleFlow
 
         /// <summary>可选说明。</summary>
         public string? Description { get; init; }
+
+        /// <summary>所属流程段（默认构建前置）。时间线积木覆写为 Timeline，断言积木覆写为 Assertion。</summary>
+        public virtual BattleBlockSection Section => BattleBlockSection.Setup;
 
         /// <summary>浅克隆（供编辑器调色板从模板生成一个可编辑实例；原子积木字段为值类型/string，浅克隆足够）。</summary>
         public BattleBlock Clone() => (BattleBlock)MemberwiseClone();

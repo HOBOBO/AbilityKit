@@ -1,7 +1,10 @@
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.Behavior.BTree;
 using AbilityKit.Demo.Moba.Services.StateMachine;
-using AbilityKit.BehaviorTree;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Diagnostics;
+using AbilityKit.BehaviorTree.Registry;
+using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Behavior;
@@ -50,39 +53,39 @@ public sealed class MobaBrainConfigurationValidatorTests
     [Fact]
     public void Blackboard_initialize_rejects_empty_declared_key()
     {
-        var definition = new BtTreeDefinition();
-        definition.Nodes.Add(new BtNodeDefinition { Id = "root", Type = "builtin.succeed" });
+        var definition = new TreeDefinition();
+        definition.Nodes.Add(new NodeDefinition { Id = "root", Type = "builtin.succeed" });
         definition.RootNodeId = "root";
-        definition.Blackboard.Keys.Add(new BtBlackboardKeyDefinition { Name = "", Type = BtValueType.Int64 });
+        definition.Blackboard.Keys.Add(new BlackboardKeyDefinition { Name = "", Type = ValueType.Int64 });
 
-        var errors = BtTreeValidator.Validate(definition, new BtNodeRegistry());
+        var errors = TreeValidator.Validate(definition, new NodeRegistry());
         Assert.Contains(errors, e => e.Contains("must not be empty"));
     }
 
     [Fact]
     public void Blackboard_initialize_rejects_duplicate_declared_key()
     {
-        var definition = new BtTreeDefinition();
-        definition.Nodes.Add(new BtNodeDefinition { Id = "root", Type = "builtin.succeed" });
+        var definition = new TreeDefinition();
+        definition.Nodes.Add(new NodeDefinition { Id = "root", Type = "builtin.succeed" });
         definition.RootNodeId = "root";
-        definition.Blackboard.Keys.Add(new BtBlackboardKeyDefinition { Name = "custom.value", Type = BtValueType.Int64 });
-        definition.Blackboard.Keys.Add(new BtBlackboardKeyDefinition { Name = "custom.value", Type = BtValueType.Bool });
+        definition.Blackboard.Keys.Add(new BlackboardKeyDefinition { Name = "custom.value", Type = ValueType.Int64 });
+        definition.Blackboard.Keys.Add(new BlackboardKeyDefinition { Name = "custom.value", Type = ValueType.Bool });
 
-        var errors = BtTreeValidator.Validate(definition, new BtNodeRegistry());
+        var errors = TreeValidator.Validate(definition, new NodeRegistry());
         Assert.Contains(errors, e => e.Contains("duplicated") && e.Contains("custom.value"));
     }
 
     [Fact]
     public void Blackboard_initialize_rejects_reserved_key_with_wrong_type()
     {
-        var definition = new BtTreeDefinition();
-        definition.Blackboard.Keys.Add(new BtBlackboardKeyDefinition
-            { Name = MobaBTreeKeys.OwnerX, Type = BtValueType.Int64 });
+        var definition = new TreeDefinition();
+        definition.Blackboard.Keys.Add(new BlackboardKeyDefinition
+            { Name = MobaBTreeKeys.OwnerX, Type = ValueType.Int64 });
 
         var error = Assert.Throws<InvalidOperationException>(
             () => MobaBTreeBlackboard.EnsureStandardSchema(definition));
 
         Assert.Contains(MobaBTreeKeys.OwnerX, error.Message);
-        Assert.Contains(BtValueType.Fixed64.ToString(), error.Message);
+        Assert.Contains(ValueType.Fixed64.ToString(), error.Message);
     }
 }

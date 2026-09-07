@@ -12,5 +12,6 @@
   <ItemGroup>
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.environment/Runtime/**/*.cs" />
     <ProjectReference Include="..\AbilityKit.Environment\AbilityKit.Environment.csproj" />
+    <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
   </ItemGroup>
 </Project>

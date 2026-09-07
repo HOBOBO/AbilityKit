@@ -1,4 +1,4 @@
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
     /// <summary>
     /// Timer interface for tracking elapsed time.

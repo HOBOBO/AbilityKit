@@ -339,20 +339,25 @@ namespace AbilityKit.Ability.Editor.Utilities
             ICollection<TriggerAuthoringDiagnostic> diagnostics,
             ICollection<TriggerAuthoringRuntimeBoolNodeDto> output)
         {
-            if (node == null) return;
+            if (node == null || !node.Enabled) return;
             var type = (node.Type ?? string.Empty).Trim().ToLowerInvariant();
             switch (type)
             {
                 case "all":
                 case "any":
+                    var emitted = 0;
                     for (var i = 0; i < node.Children.Count; i++)
                     {
+                        if (node.Children[i] == null || !node.Children[i].Enabled) continue;
                         CompileConditionNode(compileContext, node.Children[i], $"{path}.children[{i}]", context, strings, diagnostics, output);
-                        if (i > 0) output.Add(new TriggerAuthoringRuntimeBoolNodeDto { Kind = type == "all" ? "And" : "Or" });
+                        if (emitted > 0) output.Add(new TriggerAuthoringRuntimeBoolNodeDto { Kind = type == "all" ? "And" : "Or" });
+                        emitted++;
                     }
                     return;
                 case "not":
-                    CompileConditionNode(compileContext, node.Children[0], path + ".children[0]", context, strings, diagnostics, output);
+                    var childIndex = FirstEnabledChildIndex(node.Children);
+                    if (childIndex < 0) return;
+                    CompileConditionNode(compileContext, node.Children[childIndex], $"{path}.children[{childIndex}]", context, strings, diagnostics, output);
                     output.Add(new TriggerAuthoringRuntimeBoolNodeDto { Kind = "Not" });
                     return;
                 case "always_true":
@@ -432,13 +437,61 @@ namespace AbilityKit.Ability.Editor.Utilities
             ICollection<TriggerAuthoringDiagnostic> diagnostics,
             ICollection<TriggerAuthoringRuntimeBoolNodeDto> output)
         {
-            var buffId = CompileValue(compileContext, FindArgument(node, "buff_id")?.Value, path + ".arguments.buff_id", context, strings, diagnostics, false);
-            var checkStack = CompileValue(compileContext, FindArgument(node, "check_stack")?.Value, path + ".arguments.check_stack", context, strings, diagnostics, false) ?? Const(0);
-            var targetMode = FindArgument(node, "target_mode")?.Value;
+            var buffIdMatch = TriggerAuthoringArgumentPathResolver.FindValue(
+                diagnostics,
+                node,
+                path,
+                true,
+                "TRG2080",
+                "Runtime Plan export can read Object fields only when the Object value is a constant field container.",
+                "buff_id",
+                "buff.id",
+                "buff.buff_id",
+                "options.id",
+                "options.buff_id");
+            var checkStackMatch = TriggerAuthoringArgumentPathResolver.FindValue(
+                diagnostics,
+                node,
+                path,
+                true,
+                "TRG2080",
+                "Runtime Plan export can read Object fields only when the Object value is a constant field container.",
+                "check_stack",
+                "options.check_stack");
+            var targetModeMatch = TriggerAuthoringArgumentPathResolver.FindValue(
+                diagnostics,
+                node,
+                path,
+                true,
+                "TRG2080",
+                "Runtime Plan export can read Object fields only when the Object value is a constant field container.",
+                "target_mode",
+                "options.target_mode",
+                "target.mode",
+                "target.target_mode");
+            var buffId = CompileValue(
+                compileContext,
+                buffIdMatch?.Value,
+                path + (buffIdMatch?.PathSuffix ?? ".arguments.buff_id"),
+                context,
+                strings,
+                diagnostics,
+                false);
+            var checkStack = checkStackMatch == null
+                ? Const(0)
+                : CompileValue(
+                    compileContext,
+                    checkStackMatch.Value,
+                    path + checkStackMatch.PathSuffix,
+                    context,
+                    strings,
+                    diagnostics,
+                    false) ?? Const(0);
+            var targetMode = targetModeMatch?.Value;
             if (targetMode != null && (targetMode.Source != TriggerValueSource.Constant ||
                                       targetMode.Type != TriggerValueType.Integer && targetMode.Type != TriggerValueType.Number))
             {
-                AddError(diagnostics, "TRG2021", path + ".arguments.target_mode", "has_buff target_mode must be a constant so the runtime predicate can be selected.");
+                AddError(diagnostics, "TRG2021", path + (targetModeMatch?.PathSuffix ?? ".arguments.target_mode"), "has_buff target_mode must be a constant so the runtime predicate can be selected.");
                 return;
             }
             var owner = targetMode != null && (targetMode.Type == TriggerValueType.Integer ? targetMode.IntegerValue : targetMode.NumberValue) != 0d;
@@ -520,11 +573,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             ICollection<TriggerAuthoringDiagnostic> diagnostics,
             ICollection<TriggerAuthoringRuntimeActionDto> output)
         {
-            if (node == null) return;
+            if (node == null || !node.Enabled) return;
             if (string.Equals(node.Type, "seq", StringComparison.OrdinalIgnoreCase))
             {
                 for (var i = 0; i < node.Children.Count; i++)
+                {
+                    if (node.Children[i] == null || !node.Children[i].Enabled) continue;
                     CompileActions(compileContext, node.Children[i], $"{path}.children[{i}]", context, strings, diagnostics, output);
+                }
                 return;
             }
 
@@ -564,7 +620,26 @@ namespace AbilityKit.Ability.Editor.Utilities
                         continue;
                     }
                     for (var valueIndex = 0; valueIndex < values.Count; valueIndex++)
-                        action.Args[argument.Name + valueIndex.ToString(CultureInfo.InvariantCulture)] = Const(values[valueIndex]);
+                        AddRuntimeActionArgument(
+                            diagnostics,
+                            action.Args,
+                            argument.Name + valueIndex.ToString(CultureInfo.InvariantCulture),
+                            Const(values[valueIndex]),
+                            argumentPath);
+                    continue;
+                }
+
+                if (argument.Value != null && argument.Value.Type == TriggerValueType.Object)
+                {
+                    CompileObjectActionArgument(
+                        compileContext,
+                        argument.Name,
+                        argument.Value,
+                        argumentPath,
+                        context,
+                        strings,
+                        diagnostics,
+                        action.Args);
                     continue;
                 }
 
@@ -580,10 +655,110 @@ namespace AbilityKit.Ability.Editor.Utilities
                     true,
                     writeTarget,
                     typedActionValue);
-                if (valueRef != null) action.Args[argument.Name] = valueRef;
+                if (valueRef != null)
+                    AddRuntimeActionArgument(diagnostics, action.Args, argument.Name, valueRef, argumentPath);
             }
             action.Arity = Math.Min(2, action.Args.Count);
             output.Add(action);
+        }
+
+        private static void CompileObjectActionArgument(
+            RuntimeTriggerCompileContext compileContext,
+            string rootName,
+            TriggerValueRefData value,
+            string path,
+            TriggerAuthoringValidationContext context,
+            SortedDictionary<int, string> strings,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            IDictionary<string, TriggerAuthoringRuntimeValueRefDto> output)
+        {
+            if (value == null)
+            {
+                AddError(diagnostics, "TRG2050", path, "Value is required for Runtime Plan export.");
+                return;
+            }
+            if (value.Source != TriggerValueSource.Constant)
+            {
+                AddError(diagnostics, "TRG2080", path + ".source",
+                    "Runtime Plan export can flatten Object arguments only when the Object value is a constant field container.");
+                return;
+            }
+
+            var fields = new List<TriggerArgumentData>(value.Fields ?? new List<TriggerArgumentData>());
+            fields.Sort((left, right) => string.Compare(left?.Name, right?.Name, StringComparison.Ordinal));
+            for (var i = 0; i < fields.Count; i++)
+            {
+                var field = fields[i];
+                if (field == null || string.IsNullOrWhiteSpace(field.Name)) continue;
+                var fieldPath = path + ".fields." + field.Name;
+                var runtimeName = TriggerAuthoringArgumentPathResolver.ComposeRuntimeArgumentName(rootName, field.Name);
+                if (field.Value != null && field.Value.Source == TriggerValueSource.Constant &&
+                    field.Value.Type == TriggerValueType.IntegerList)
+                {
+                    var values = field.Value.IntegerListValue;
+                    if (values == null || values.Count == 0)
+                    {
+                        AddError(diagnostics, "TRG2031", fieldPath, "IntegerList constants must contain at least one value for Runtime Plan export.");
+                        continue;
+                    }
+                    for (var valueIndex = 0; valueIndex < values.Count; valueIndex++)
+                        AddRuntimeActionArgument(
+                            diagnostics,
+                            output,
+                            runtimeName + valueIndex.ToString(CultureInfo.InvariantCulture),
+                            Const(values[valueIndex]),
+                            fieldPath);
+                    continue;
+                }
+
+                if (field.Value != null && field.Value.Type == TriggerValueType.Object)
+                {
+                    CompileObjectActionArgument(
+                        compileContext,
+                        runtimeName,
+                        field.Value,
+                        fieldPath,
+                        context,
+                        strings,
+                        diagnostics,
+                        output);
+                    continue;
+                }
+
+                var valueRef = CompileValue(
+                    compileContext,
+                    field.Value,
+                    fieldPath,
+                    context,
+                    strings,
+                    diagnostics,
+                    true);
+                if (valueRef != null)
+                    AddRuntimeActionArgument(diagnostics, output, runtimeName, valueRef, fieldPath);
+            }
+        }
+
+        private static void AddRuntimeActionArgument(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            IDictionary<string, TriggerAuthoringRuntimeValueRefDto> output,
+            string name,
+            TriggerAuthoringRuntimeValueRefDto value,
+            string path)
+        {
+            if (output.ContainsKey(name))
+            {
+                AddError(diagnostics, "TRG2081", path, $"Runtime argument '{name}' is produced more than once.");
+                return;
+            }
+            output[name] = value;
+        }
+
+        private static int FirstEnabledChildIndex(IReadOnlyList<TriggerNodeData> children)
+        {
+            if (children == null) return -1;
+            for (var i = 0; i < children.Count; i++)
+                if (children[i] != null && children[i].Enabled) return i;
+            return -1;
         }
 
         private static TriggerAuthoringRuntimeTemplateBindingDto CompileTemplate(
@@ -659,7 +834,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 AddError(diagnostics, "TRG2059", path + ".source", "Blackboard write targets must reference a Local or Global Blackboard key.");
                 return null;
             }
-            if (value.Type == TriggerValueType.Vector3 || value.Type == TriggerValueType.IntegerList)
+            if (value.Type == TriggerValueType.Vector3 ||
+                value.Type == TriggerValueType.IntegerList ||
+                value.Type == TriggerValueType.Object)
             {
                 AddError(diagnostics, "TRG2051", path + ".type", $"{value.Type} cannot be represented by a single Runtime numeric value reference.");
                 return null;
@@ -782,15 +959,29 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return null;
             }
 
+            if (!TriggerAuthoringLocalBlackboardPath.TryParse(value.Path, out var scope, out var key))
+            {
+                AddError(diagnostics, "TRG2070", path + ".path", $"Local Blackboard key was not found: {value.Path ?? string.Empty}.");
+                return null;
+            }
+
             var triggerVariables = compileContext.Trigger?.Blackboard;
-            var variableIndex = FindBlackboardVariable(triggerVariables, value.Path, out var variable);
-            var isTriggerLocal = variableIndex >= 0;
-            var variables = triggerVariables;
+            IReadOnlyList<TriggerBlackboardVariableData> variables = null;
+            var variableIndex = -1;
+            TriggerBlackboardVariableData variable = null;
+            var isTriggerLocal = false;
             var declarationPath = "module.triggers[" + FindTriggerIndex(compileContext.Module, compileContext.Trigger) + "].blackboard";
             string boardName;
             string ownerId;
+            if (scope != TriggerAuthoringLocalBlackboardScope.Module)
+            {
+                variableIndex = FindBlackboardVariable(triggerVariables, key, out variable);
+                isTriggerLocal = variableIndex >= 0;
+            }
+
             if (isTriggerLocal)
             {
+                variables = triggerVariables;
                 boardName = "local.trigger:" + compileContext.Module.ModuleId + ":" +
                             compileContext.Trigger.Id.ToString(CultureInfo.InvariantCulture);
                 ownerId = compileContext.Module.ModuleId + ":" +
@@ -799,7 +990,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             else
             {
                 variables = compileContext.Module?.Blackboard;
-                variableIndex = FindBlackboardVariable(variables, value.Path, out variable);
+                variableIndex = scope == TriggerAuthoringLocalBlackboardScope.Trigger
+                    ? -1
+                    : FindBlackboardVariable(variables, key, out variable);
                 declarationPath = "module.blackboard";
                 boardName = "local.module:" + compileContext.Module?.ModuleId;
                 ownerId = compileContext.Module?.ModuleId;
@@ -910,13 +1103,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static TriggerArgumentData FindArgument(TriggerNodeData node, string name)
         {
-            if (node?.Arguments == null) return null;
-            for (var i = 0; i < node.Arguments.Count; i++)
-            {
-                var argument = node.Arguments[i];
-                if (argument != null && string.Equals(argument.Name, name, StringComparison.Ordinal)) return argument;
-            }
-            return null;
+            return TriggerAuthoringArgumentPathResolver.FindArgument(node, name);
         }
 
         private static List<BlackboardInitializationPlan> CompileGlobalBlackboards(
@@ -1025,6 +1212,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     return true;
                 case TriggerValueType.IntegerList:
                 case TriggerValueType.Vector3:
+                case TriggerValueType.Object:
                     key = null;
                     return false;
                 default:

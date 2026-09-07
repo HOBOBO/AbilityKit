@@ -1,8 +1,10 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using AbilityKit.Ability.Config.Authoring;
+using AbilityKit.Editor.Platform.Synchronization;
 using UnityEditor;
 using UnityEngine;
 
@@ -67,6 +69,66 @@ namespace AbilityKit.Ability.Editor.Utilities
 
     internal static class TriggerAuthoringTemplateSourceSync
     {
+        public static TriggerAuthoringSourceImportPreview PreviewImport(
+            TriggerAuthoringTemplateAsset asset,
+            string sourcePath = null)
+        {
+            if (asset == null) throw new ArgumentNullException(nameof(asset));
+            sourcePath = ResolveSourcePath(asset, sourcePath);
+            if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
+                return TriggerAuthoringSourceImportPreview.Failed(
+                    TriggerAuthoringSourcePreviewKind.Template,
+                    TriggerAuthoringSyncState.SourceMissing,
+                    sourcePath,
+                    "Source JSON file does not exist.");
+
+            TriggerAuthoringTemplateSourceDocument document;
+            try
+            {
+                document = TriggerAuthoringTemplateSourceCodec.ReadFile(sourcePath);
+            }
+            catch (Exception ex)
+            {
+                return TriggerAuthoringSourceImportPreview.Failed(
+                    TriggerAuthoringSourcePreviewKind.Template,
+                    TriggerAuthoringSyncState.InvalidSource,
+                    sourcePath,
+                    ex.Message);
+            }
+
+            var preview = CreateTemplatePreview(asset, document.Template, sourcePath);
+            var currentId = asset.Template != null ? asset.Template.TemplateId : null;
+            var incomingId = document.Template.TemplateId;
+            if (!string.IsNullOrWhiteSpace(currentId) && !string.Equals(currentId, incomingId, StringComparison.Ordinal))
+            {
+                preview.Message = $"Template identity mismatch. Asset='{currentId}', Source='{incomingId ?? string.Empty}'.";
+                return preview;
+            }
+
+            preview.Diagnostics = TriggerAuthoringTemplateValidator.Validate(
+                document.Template,
+                TriggerAuthoringValidationContext.Create(asset));
+            if (TriggerAuthoringValidator.HasErrors(preview.Diagnostics))
+            {
+                preview.State = TriggerAuthoringSyncState.InvalidSource;
+                preview.Message = TriggerAuthoringTemplateValidator.BuildMessage(preview.Diagnostics);
+                return preview;
+            }
+
+            var inspection = Inspect(asset, sourcePath);
+            var assessment = EditorSourceSyncOperationPolicy.Assess(
+                inspection.PlatformInspection,
+                EditorSourceSyncDirection.Import,
+                HasAuthoredContent(asset.Template));
+            preview.State = inspection.State;
+            preview.CanImport = assessment.CanExecute;
+            preview.RequiresForce = assessment.RequiresForce;
+            preview.Success = preview.CanImport;
+            if (!preview.CanImport)
+                preview.Message = inspection.Error ?? "Template Source JSON cannot be imported in the current sync state.";
+            return preview;
+        }
+
         public static TriggerAuthoringSyncInspection Inspect(TriggerAuthoringTemplateAsset asset, string sourcePath = null)
         {
             if (asset == null) throw new ArgumentNullException(nameof(asset));
@@ -82,34 +144,33 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             if (string.IsNullOrWhiteSpace(sourcePath)) return inspection;
             inspection.SourceExists = File.Exists(sourcePath);
-            if (!inspection.SourceExists)
-            {
-                inspection.State = string.IsNullOrEmpty(asset.LastSynchronizedHash)
-                    ? TriggerAuthoringSyncState.Untracked
-                    : TriggerAuthoringSyncState.SourceMissing;
-                return inspection;
-            }
-
+            var sourceIsValid = true;
             try
             {
-                inspection.SourceHash = TriggerAuthoringTemplateSourceCodec.ComputeContentHash(
-                    TriggerAuthoringTemplateSourceCodec.ReadFile(sourcePath));
+                if (inspection.SourceExists)
+                {
+                    inspection.SourceHash = TriggerAuthoringTemplateSourceCodec.ComputeContentHash(
+                        TriggerAuthoringTemplateSourceCodec.ReadFile(sourcePath));
+                }
             }
             catch (Exception ex)
             {
-                inspection.State = TriggerAuthoringSyncState.InvalidSource;
+                sourceIsValid = false;
                 inspection.Error = ex.Message;
-                return inspection;
             }
 
-            var baseline = asset.LastSynchronizedHash;
-            if (string.IsNullOrEmpty(baseline)) return inspection;
-            var assetChanged = !string.Equals(assetHash, baseline, StringComparison.Ordinal);
-            var sourceChanged = !string.Equals(inspection.SourceHash, baseline, StringComparison.Ordinal);
-            if (assetChanged && sourceChanged) inspection.State = TriggerAuthoringSyncState.Conflict;
-            else if (assetChanged) inspection.State = TriggerAuthoringSyncState.AssetChanged;
-            else if (sourceChanged) inspection.State = TriggerAuthoringSyncState.JsonChanged;
-            else inspection.State = TriggerAuthoringSyncState.InSync;
+            var platformInspection = EditorSourceSyncClassifier.Inspect(
+                new EditorSourceSyncSnapshot(
+                    assetHash,
+                    inspection.SourceHash ?? string.Empty,
+                    asset.LastSynchronizedHash ?? string.Empty,
+                    isTracked: inspection.SourceExists || !string.IsNullOrEmpty(asset.LastSynchronizedHash),
+                    sourceExists: inspection.SourceExists,
+                    sourceIsValid: sourceIsValid,
+                    sourcePath: sourcePath,
+                    error: inspection.Error));
+            inspection.PlatformInspection = platformInspection;
+            inspection.State = MapState(platformInspection.State);
             return inspection;
         }
 
@@ -132,12 +193,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                     TriggerAuthoringTemplateValidator.BuildMessage(diagnostics));
 
             var inspection = Inspect(asset, sourcePath);
-            if (!force && inspection.State == TriggerAuthoringSyncState.Untracked && inspection.SourceExists)
-                return TriggerAuthoringSyncResult.Failed(inspection.State, "Existing untracked Source JSON would be overwritten.", true);
-            if (!force && (inspection.State == TriggerAuthoringSyncState.JsonChanged ||
-                           inspection.State == TriggerAuthoringSyncState.Conflict ||
-                           inspection.State == TriggerAuthoringSyncState.InvalidSource))
-                return TriggerAuthoringSyncResult.Failed(inspection.State, inspection.Error ?? "Source JSON contains changes that would be overwritten.", true);
+            var assessment = EditorSourceSyncOperationPolicy.Assess(
+                inspection.PlatformInspection,
+                EditorSourceSyncDirection.Export);
+            if (!force && assessment.RequiresForce)
+                return TriggerAuthoringSyncResult.Failed(
+                    inspection.State,
+                    inspection.Error ?? "Source JSON contains changes that would be overwritten.",
+                    true);
 
             var document = TriggerAuthoringTemplateSourceCodec.CreateDocument(asset);
             TriggerAuthoringTemplateSourceCodec.WriteFileAtomic(sourcePath, document);
@@ -183,10 +246,15 @@ namespace AbilityKit.Ability.Editor.Utilities
                     TriggerAuthoringTemplateValidator.BuildMessage(diagnostics));
 
             var inspection = Inspect(asset, sourcePath);
-            if (!force && inspection.State == TriggerAuthoringSyncState.Untracked && HasAuthoredContent(asset.Template))
-                return TriggerAuthoringSyncResult.Failed(inspection.State, "Untracked Template Asset content would be overwritten.", true);
-            if (!force && (inspection.State == TriggerAuthoringSyncState.AssetChanged || inspection.State == TriggerAuthoringSyncState.Conflict))
-                return TriggerAuthoringSyncResult.Failed(inspection.State, "Template Asset contains changes that would be overwritten.", true);
+            var assessment = EditorSourceSyncOperationPolicy.Assess(
+                inspection.PlatformInspection,
+                EditorSourceSyncDirection.Import,
+                HasAuthoredContent(asset.Template));
+            if (!force && assessment.RequiresForce)
+                return TriggerAuthoringSyncResult.Failed(
+                    inspection.State,
+                    "Template Asset contains changes that would be overwritten.",
+                    true);
 
             Undo.RecordObject(asset, "Import Trigger Template Source JSON");
             asset.Metadata = document.Metadata ?? new TriggerAuthoringSourceMetadata();
@@ -197,12 +265,53 @@ namespace AbilityKit.Ability.Editor.Utilities
             return TriggerAuthoringSyncResult.Succeeded(TriggerAuthoringSyncState.InSync, hash);
         }
 
+        private static TriggerAuthoringSyncState MapState(EditorSourceSyncState state)
+        {
+            return state switch
+            {
+                EditorSourceSyncState.Untracked => TriggerAuthoringSyncState.Untracked,
+                EditorSourceSyncState.InSync => TriggerAuthoringSyncState.InSync,
+                EditorSourceSyncState.LocalChanged => TriggerAuthoringSyncState.AssetChanged,
+                EditorSourceSyncState.SourceChanged => TriggerAuthoringSyncState.JsonChanged,
+                EditorSourceSyncState.Conflict => TriggerAuthoringSyncState.Conflict,
+                EditorSourceSyncState.SourceMissing => TriggerAuthoringSyncState.SourceMissing,
+                EditorSourceSyncState.InvalidSource => TriggerAuthoringSyncState.InvalidSource,
+                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown source sync state.")
+            };
+        }
+
         private static bool HasAuthoredContent(TriggerAuthoringTemplateData template)
         {
             return template != null &&
                    (!string.IsNullOrWhiteSpace(template.TemplateId) ||
                     (template.Parameters != null && template.Parameters.Count > 0) ||
                     template.Condition != null || template.Actions != null);
+        }
+
+        private static TriggerAuthoringSourceImportPreview CreateTemplatePreview(
+            TriggerAuthoringTemplateAsset asset,
+            TriggerAuthoringTemplateData source,
+            string sourcePath)
+        {
+            var local = asset.Template ?? new TriggerAuthoringTemplateData();
+            return new TriggerAuthoringSourceImportPreview
+            {
+                Kind = TriggerAuthoringSourcePreviewKind.Template,
+                SourcePath = sourcePath ?? string.Empty,
+                State = TriggerAuthoringSyncState.Conflict,
+                AssetIdentity = local.TemplateId,
+                SourceIdentity = source != null ? source.TemplateId : string.Empty,
+                AssetDisplayName = local.DisplayName,
+                SourceDisplayName = source != null ? source.DisplayName : string.Empty,
+                AssetTemplateParameterCount = Count(local.Parameters),
+                SourceTemplateParameterCount = Count(source != null ? source.Parameters : null),
+                Changes = TriggerAuthoringSourceImportDiff.Compare(local, source)
+            };
+        }
+
+        private static int Count<T>(ICollection<T> values)
+        {
+            return values != null ? values.Count : 0;
         }
 
         private static string ResolveSourcePath(TriggerAuthoringTemplateAsset asset, string sourcePath)

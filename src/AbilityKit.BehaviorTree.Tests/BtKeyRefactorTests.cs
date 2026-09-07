@@ -1,35 +1,39 @@
-using AbilityKit.BehaviorTree.Authoring;
+﻿using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Nodes;
+using AbilityKit.BehaviorTree.Registry;
+using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 using Xunit;
 using static AbilityKit.BehaviorTree.Tests.TestNodeTypes;
 
 namespace AbilityKit.BehaviorTree.Tests
 {
-    /// <summary>黑板 key 引用索引与重命名重构。</summary>
+    /// <summary>榛戞澘 key 寮曠敤绱㈠紩涓庨噸鍛藉悕閲嶆瀯銆?/summary>
     public sealed class BtKeyRefactorTests
     {
-        private static BtNodeRegistry BuiltinRegistry()
+        private static NodeRegistry BuiltinRegistry()
         {
-            var registry = new BtNodeRegistry();
-            BtBuiltInNodes.RegisterAll(registry);
+            var registry = new NodeRegistry();
+            BuiltInNodes.RegisterAll(registry);
             return registry;
         }
 
-        private static BtTreeDefinition TreeWithReferences()
+        private static TreeDefinition TreeWithReferences()
         {
             // Sequence[ SetBlackboard(key=out.hold), BlackboardCompare(leftKey=self.hp) ]
-            var definition = new TreeBuilder()
-                .Blackboard("out.hold", BtValueType.Bool)
-                .Blackboard("self.hp", BtValueType.Int64)
-                .Node("root", BtBuiltInNodeTypes.Sequence, "write", "check")
-                .Node("write", BtBuiltInNodeTypes.SetBlackboard)
-                .Node("check", BtBuiltInNodeTypes.BlackboardCompare)
+            var definition = new ApiTreeBuilder()
+                .Blackboard("out.hold", ValueType.Bool)
+                .Blackboard("self.hp", ValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Sequence, "write", "check")
+                .Node("write", BuiltInNodeTypes.SetBlackboard)
+                .Node("check", BuiltInNodeTypes.BlackboardCompare)
                 .Root("root");
-            definition.Nodes[1].Properties.Set(BtSetBlackboardNode.KeyProperty, BtPropertyValue.Of("out.hold"));
-            definition.Nodes[1].Properties.Set(BtSetBlackboardNode.ValueKindProperty, BtPropertyValue.Of(0L));
-            definition.Nodes[1].Properties.Set(BtSetBlackboardNode.ConstBoolProperty, BtPropertyValue.Of(true));
-            definition.Nodes[2].Properties.Set(BtBlackboardCompareNode.LeftKeyProperty, BtPropertyValue.Of("self.hp"));
-            definition.Nodes[2].Properties.Set(BtBlackboardCompareNode.OpProperty, BtPropertyValue.Of(0L));
-            definition.Nodes[2].Properties.Set(BtBlackboardCompareNode.RightInt64Property, BtPropertyValue.Of(0L));
+            definition.Nodes[1].Properties.Set("key", PropertyValue.Of("out.hold"));
+            definition.Nodes[1].Properties.Set("valueKind", PropertyValue.Of(0L));
+            definition.Nodes[1].Properties.Set("constBool", PropertyValue.Of(true));
+            definition.Nodes[2].Properties.Set("leftKey", PropertyValue.Of("self.hp"));
+            definition.Nodes[2].Properties.Set("op", PropertyValue.Of(0L));
+            definition.Nodes[2].Properties.Set("rightInt64", PropertyValue.Of(0L));
             return definition;
         }
 
@@ -39,15 +43,15 @@ namespace AbilityKit.BehaviorTree.Tests
             var definition = TreeWithReferences();
             var registry = BuiltinRegistry();
 
-            var holdRefs = BtKeyReferenceIndex.FindReferences(definition, registry, "out.hold");
+            var holdRefs = KeyReferenceIndex.FindReferences(definition, registry, "out.hold");
             Assert.Single(holdRefs);
-            Assert.Equal(("write", BtSetBlackboardNode.KeyProperty), holdRefs[0]);
+            Assert.Equal(("write", "key"), holdRefs[0]);
 
-            var hpRefs = BtKeyReferenceIndex.FindReferences(definition, registry, "self.hp");
+            var hpRefs = KeyReferenceIndex.FindReferences(definition, registry, "self.hp");
             Assert.Single(hpRefs);
-            Assert.Equal(("check", BtBlackboardCompareNode.LeftKeyProperty), hpRefs[0]);
+            Assert.Equal(("check", "leftKey"), hpRefs[0]);
 
-            Assert.Empty(BtKeyReferenceIndex.FindReferences(definition, registry, "no.such.key"));
+            Assert.Empty(KeyReferenceIndex.FindReferences(definition, registry, "no.such.key"));
         }
 
         [Fact]
@@ -56,14 +60,13 @@ namespace AbilityKit.BehaviorTree.Tests
             var definition = TreeWithReferences();
             var registry = BuiltinRegistry();
 
-            var affected = BtKeyReferenceIndex.RenameKey(definition, registry, "self.hp", "self.health");
+            var affected = KeyReferenceIndex.RenameKey(definition, registry, "self.hp", "self.health");
 
             Assert.Single(affected);
-            Assert.Equal(("check", BtBlackboardCompareNode.LeftKeyProperty), affected[0]);
+            Assert.Equal(("check", "leftKey"), affected[0]);
             Assert.False(definition.Blackboard.TryGetType("self.hp", out _));
             Assert.True(definition.Blackboard.TryGetType("self.health", out _));
-            // 引用已同步
-            Assert.True(definition.Nodes[2].Properties.TryGet(BtBlackboardCompareNode.LeftKeyProperty, out var value));
+            Assert.True(definition.Nodes[2].Properties.TryGet("leftKey", out var value));
             Assert.Equal("self.health", value.StringValue);
         }
 
@@ -72,7 +75,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = TreeWithReferences();
             Assert.Throws<System.InvalidOperationException>(
-                () => BtKeyReferenceIndex.RenameKey(definition, BuiltinRegistry(), "self.hp", "out.hold"));
+                () => KeyReferenceIndex.RenameKey(definition, BuiltinRegistry(), "self.hp", "out.hold"));
         }
 
         [Fact]
@@ -80,15 +83,16 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = TreeWithReferences();
             Assert.Throws<System.InvalidOperationException>(
-                () => BtKeyReferenceIndex.RenameKey(definition, BuiltinRegistry(), "nope", "x"));
+                () => KeyReferenceIndex.RenameKey(definition, BuiltinRegistry(), "nope", "x"));
         }
 
         [Fact]
         public void RenameKey_SameName_IsNoOp()
         {
             var definition = TreeWithReferences();
-            var affected = BtKeyReferenceIndex.RenameKey(definition, BuiltinRegistry(), "self.hp", "self.hp");
+            var affected = KeyReferenceIndex.RenameKey(definition, BuiltinRegistry(), "self.hp", "self.hp");
             Assert.Empty(affected);
         }
     }
 }
+

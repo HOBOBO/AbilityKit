@@ -1,0 +1,323 @@
+{
+  "schema": "abilitykit-bt-authoring",
+  "version": "2.0",
+  "metadata": {
+    "author": "AbilityKit",
+    "description": "完整运行时观察示例：通过 Inspector 修改感知输入，在 Graph Editor 与 Runtime Observation 中查看节点路径和 typed blackboard。"
+  },
+  "tree": {
+    "treeId": "sample.complete_runtime_observation",
+    "formatVersion": 1,
+    "rootNodeId": "root",
+    "nodes": [
+      {
+        "id": "root",
+        "type": "builtin.selector",
+        "properties": {
+          "abortType": { "type": "Int64", "value": 3 }
+        },
+        "childIds": [ "emergency", "combat", "patrol" ]
+      },
+      {
+        "id": "emergency",
+        "type": "builtin.sequence",
+        "properties": {
+          "abortType": { "type": "Int64", "value": 3 }
+        },
+        "childIds": [ "lowHealth", "setRetreatMode", "setBusyRetreat", "retreatLog", "retreatWait", "clearBusyRetreat" ]
+      },
+      {
+        "id": "lowHealth",
+        "type": "builtin.blackboardCompare",
+        "properties": {
+          "leftKey": { "type": "String", "value": "self.health" },
+          "op": { "type": "Int64", "value": 3 },
+          "rightKind": { "type": "Int64", "value": 0 },
+          "rightInt64": { "type": "Int64", "value": 30 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "setRetreatMode",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.mode" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constString": { "type": "String", "value": "Retreat" }
+        },
+        "childIds": []
+      },
+      {
+        "id": "setBusyRetreat",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.busy" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constBool": { "type": "Bool", "value": true }
+        },
+        "childIds": []
+      },
+      {
+        "id": "retreatLog",
+        "type": "builtin.log",
+        "properties": {
+          "message": { "type": "String", "value": "生命值过低，进入撤退分支" },
+          "level": { "type": "Int64", "value": 2 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "retreatWait",
+        "type": "builtin.timeout",
+        "properties": {
+          "durationSeconds": { "type": "Fixed64", "value": 12884901888 }
+        },
+        "childIds": [ "retreatMoveWait" ]
+      },
+      {
+        "id": "retreatMoveWait",
+        "type": "builtin.wait",
+        "properties": {
+          "mode": { "type": "Int64", "value": 1 },
+          "durationFrames": { "type": "Int64", "value": 90 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "clearBusyRetreat",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.busy" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constBool": { "type": "Bool", "value": false }
+        },
+        "childIds": []
+      },
+      {
+        "id": "combat",
+        "type": "builtin.sequence",
+        "properties": {
+          "abortType": { "type": "Int64", "value": 3 }
+        },
+        "childIds": [ "hasTarget", "canAct", "targetInRange", "setAttackMode", "setBusyAttack", "attackCooldown", "clearBusyAttack" ]
+      },
+      {
+        "id": "hasTarget",
+        "type": "builtin.blackboardCompare",
+        "properties": {
+          "leftKey": { "type": "String", "value": "self.hasTarget" },
+          "op": { "type": "Int64", "value": 0 },
+          "rightKind": { "type": "Int64", "value": 0 },
+          "rightBool": { "type": "Bool", "value": true }
+        },
+        "childIds": []
+      },
+      {
+        "id": "canAct",
+        "type": "builtin.blackboardCompare",
+        "properties": {
+          "leftKey": { "type": "String", "value": "self.canAct" },
+          "op": { "type": "Int64", "value": 0 },
+          "rightKind": { "type": "Int64", "value": 0 },
+          "rightBool": { "type": "Bool", "value": true }
+        },
+        "childIds": []
+      },
+      {
+        "id": "targetInRange",
+        "type": "builtin.blackboardCompare",
+        "properties": {
+          "leftKey": { "type": "String", "value": "self.targetDistance" },
+          "op": { "type": "Int64", "value": 3 },
+          "rightKind": { "type": "Int64", "value": 0 },
+          "rightFixed64Raw": { "type": "Fixed64", "value": 25769803776 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "setAttackMode",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.mode" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constString": { "type": "String", "value": "Attack" }
+        },
+        "childIds": []
+      },
+      {
+        "id": "setBusyAttack",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.busy" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constBool": { "type": "Bool", "value": true }
+        },
+        "childIds": []
+      },
+      {
+        "id": "attackCooldown",
+        "type": "builtin.cooldown",
+        "properties": {
+          "cooldownSeconds": { "type": "Fixed64", "value": 4294967296 },
+          "resultOnCooldown": { "type": "Int64", "value": 1 }
+        },
+        "childIds": [ "attackWait" ]
+      },
+      {
+        "id": "attackWait",
+        "type": "builtin.wait",
+        "properties": {
+          "mode": { "type": "Int64", "value": 1 },
+          "durationFrames": { "type": "Int64", "value": 30 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "clearBusyAttack",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.busy" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constBool": { "type": "Bool", "value": false }
+        },
+        "childIds": []
+      },
+      {
+        "id": "patrol",
+        "type": "builtin.sequence",
+        "properties": {
+          "abortType": { "type": "Int64", "value": 3 }
+        },
+        "childIds": [ "setPatrolMode", "setBusyPatrol", "patrolVariant", "patrolWait", "clearBusyPatrol" ]
+      },
+      {
+        "id": "setPatrolMode",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.mode" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constString": { "type": "String", "value": "Patrol" }
+        },
+        "childIds": []
+      },
+      {
+        "id": "setBusyPatrol",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.busy" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constBool": { "type": "Bool", "value": true }
+        },
+        "childIds": []
+      },
+      {
+        "id": "patrolVariant",
+        "type": "builtin.randomSelector",
+        "properties": {
+          "abortType": { "type": "Int64", "value": 0 }
+        },
+        "childIds": [ "patrolLeftLog", "patrolRightLog" ]
+      },
+      {
+        "id": "patrolLeftLog",
+        "type": "builtin.log",
+        "properties": {
+          "message": { "type": "String", "value": "巡逻：选择左侧路线" },
+          "level": { "type": "Int64", "value": 0 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "patrolRightLog",
+        "type": "builtin.log",
+        "properties": {
+          "message": { "type": "String", "value": "巡逻：选择右侧路线" },
+          "level": { "type": "Int64", "value": 0 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "patrolWait",
+        "type": "builtin.wait",
+        "properties": {
+          "mode": { "type": "Int64", "value": 0 },
+          "durationSeconds": { "type": "Fixed64", "value": 6442450944 }
+        },
+        "childIds": []
+      },
+      {
+        "id": "clearBusyPatrol",
+        "type": "builtin.setBlackboard",
+        "properties": {
+          "key": { "type": "String", "value": "out.busy" },
+          "valueKind": { "type": "Int64", "value": 0 },
+          "constBool": { "type": "Bool", "value": false }
+        },
+        "childIds": []
+      }
+    ],
+    "blackboard": {
+      "keys": [
+        { "name": "self.health", "type": "Int64", "default": { "type": "Int64", "value": 100 } },
+        { "name": "self.hasTarget", "type": "Bool", "default": { "type": "Bool", "value": false } },
+        { "name": "self.canAct", "type": "Bool", "default": { "type": "Bool", "value": true } },
+        { "name": "self.targetDistance", "type": "Fixed64", "default": { "type": "Fixed64", "value": 34359738368 } },
+        { "name": "self.stance", "type": "String", "default": { "type": "String", "value": "Guard" } },
+        { "name": "out.mode", "type": "String", "default": { "type": "String", "value": "Boot" } },
+        { "name": "out.busy", "type": "Bool", "default": { "type": "Bool", "value": false } }
+      ]
+    }
+  },
+  "nodeMetadata": [
+    { "nodeId": "root", "displayName": "AI 决策入口", "comment": "优先级：撤退 > 战斗 > 巡逻；条件中断允许运行中切换。" },
+    { "nodeId": "emergency", "displayName": "紧急撤退", "comment": "生命值不高于 30 时抢占其他分支。" },
+    { "nodeId": "lowHealth", "displayName": "生命值 <= 30", "comment": "在 Sample Inspector 中调整 Health 观察抢占。" },
+    { "nodeId": "retreatWait", "displayName": "撤退超时保护", "comment": "展示 Timeout 装饰器。" },
+    { "nodeId": "retreatMoveWait", "displayName": "撤退移动 90 帧", "comment": "按确定性帧等待。" },
+    { "nodeId": "combat", "displayName": "目标战斗", "comment": "目标存在、可行动并且距离不超过 6。" },
+    { "nodeId": "targetInRange", "displayName": "目标距离 <= 6", "comment": "展示 Fixed64 黑板比较。" },
+    { "nodeId": "attackCooldown", "displayName": "攻击冷却 1 秒", "comment": "冷却中按 Success 返回，便于持续观察。" },
+    { "nodeId": "attackWait", "displayName": "攻击前摇 30 帧", "comment": "运行态会持续高亮约 30 tick。" },
+    { "nodeId": "patrol", "displayName": "默认巡逻", "comment": "没有更高优先级决策时执行。" },
+    { "nodeId": "patrolVariant", "displayName": "随机巡逻路线", "comment": "使用运行选项 Seed 派生确定性随机顺序。" },
+    { "nodeId": "patrolWait", "displayName": "巡逻等待 1.5 秒", "comment": "展示基于宿主注入 Fixed64 时间的等待。" }
+  ],
+  "layout": [
+    { "nodeId": "root", "x": 760.0, "y": 40.0 },
+    { "nodeId": "emergency", "x": 160.0, "y": 190.0 },
+    { "nodeId": "lowHealth", "x": 20.0, "y": 350.0 },
+    { "nodeId": "setRetreatMode", "x": 20.0, "y": 500.0 },
+    { "nodeId": "setBusyRetreat", "x": 20.0, "y": 650.0 },
+    { "nodeId": "retreatLog", "x": 20.0, "y": 800.0 },
+    { "nodeId": "retreatWait", "x": 20.0, "y": 950.0 },
+    { "nodeId": "retreatMoveWait", "x": 20.0, "y": 1100.0 },
+    { "nodeId": "clearBusyRetreat", "x": 20.0, "y": 1250.0 },
+    { "nodeId": "combat", "x": 760.0, "y": 190.0 },
+    { "nodeId": "hasTarget", "x": 560.0, "y": 350.0 },
+    { "nodeId": "canAct", "x": 560.0, "y": 500.0 },
+    { "nodeId": "targetInRange", "x": 560.0, "y": 650.0 },
+    { "nodeId": "setAttackMode", "x": 560.0, "y": 800.0 },
+    { "nodeId": "setBusyAttack", "x": 560.0, "y": 950.0 },
+    { "nodeId": "attackCooldown", "x": 560.0, "y": 1100.0 },
+    { "nodeId": "attackWait", "x": 760.0, "y": 1250.0 },
+    { "nodeId": "clearBusyAttack", "x": 560.0, "y": 1400.0 },
+    { "nodeId": "patrol", "x": 1320.0, "y": 190.0 },
+    { "nodeId": "setPatrolMode", "x": 1200.0, "y": 350.0 },
+    { "nodeId": "setBusyPatrol", "x": 1200.0, "y": 500.0 },
+    { "nodeId": "patrolVariant", "x": 1200.0, "y": 650.0 },
+    { "nodeId": "patrolLeftLog", "x": 1080.0, "y": 820.0 },
+    { "nodeId": "patrolRightLog", "x": 1380.0, "y": 820.0 },
+    { "nodeId": "patrolWait", "x": 1200.0, "y": 990.0 },
+    { "nodeId": "clearBusyPatrol", "x": 1200.0, "y": 1140.0 }
+  ],
+  "groups": [
+    { "id": "group.emergency", "title": "P0 紧急撤退", "x": -30.0, "y": 130.0, "width": 430.0, "height": 1320.0, "nodeIds": [ "emergency", "lowHealth", "setRetreatMode", "setBusyRetreat", "retreatLog", "retreatWait", "retreatMoveWait", "clearBusyRetreat" ] },
+    { "id": "group.combat", "title": "P1 战斗决策", "x": 500.0, "y": 130.0, "width": 520.0, "height": 1480.0, "nodeIds": [ "combat", "hasTarget", "canAct", "targetInRange", "setAttackMode", "setBusyAttack", "attackCooldown", "attackWait", "clearBusyAttack" ] },
+    { "id": "group.patrol", "title": "P2 默认巡逻", "x": 1050.0, "y": 130.0, "width": 600.0, "height": 1220.0, "nodeIds": [ "patrol", "setPatrolMode", "setBusyPatrol", "patrolVariant", "patrolLeftLog", "patrolRightLog", "patrolWait", "clearBusyPatrol" ] }
+  ],
+  "notes": [
+    { "id": "note.inputs", "text": "运行时输入\n- self.health: Int64\n- self.hasTarget: Bool\n- self.canAct: Bool\n- self.targetDistance: Fixed64\n- self.stance: String\n\n在 RuntimeObservationSample Inspector 中实时修改。", "x": 1700.0, "y": 180.0, "width": 330.0, "height": 260.0 },
+    { "id": "note.observe", "text": "观察步骤\n1. 运行场景\n2. 打开 AbilityKit/Behavior Tree/Runtime Observation\n3. 选择 Complete Runtime Observation\n4. 冻结、scrub 或打开 Graph Observation\n5. 修改 Health / Has Target / Distance 观察抢占", "x": 1700.0, "y": 500.0, "width": 360.0, "height": 260.0 },
+    { "id": "note.outputs", "text": "树输出\n- out.mode: Boot / Retreat / Attack / Patrol\n- out.busy: 当前长耗时动作是否执行中", "x": 1700.0, "y": 820.0, "width": 330.0, "height": 170.0 }
+  ]
+}

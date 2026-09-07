@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config;
 using Newtonsoft.Json;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM.Extension;
 
 namespace AbilityKit.Demo.Moba.Services.StateMachine
 {
@@ -42,27 +42,27 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             return definitions.Count;
         }
 
-        private static HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec> ConvertProfile(ProfileDefinition definition)
+        private static HierarchicalProfile<MobaHfsmActionSpec> ConvertProfile(ProfileDefinition definition)
         {
             if (string.IsNullOrWhiteSpace(definition.Id))
                 throw new InvalidOperationException("MOBA actor state-machine profile requires a non-empty 'id'.");
             if (string.IsNullOrWhiteSpace(definition.StartState))
                 throw new InvalidOperationException($"MOBA actor state-machine profile '{definition.Id}' requires 'startState'.");
 
-            return new HfsmHierarchicalRuntimeProfile<MobaHfsmActionSpec>(
+            return new HierarchicalProfile<MobaHfsmActionSpec>(
                 definition.Id,
                 definition.StartState,
                 ConvertNodes(definition.States),
                 ConvertTransitions(definition.Transitions));
         }
 
-        private static IReadOnlyList<HfsmRuntimeNodeSpec<MobaHfsmActionSpec>> ConvertNodes(
+        private static IReadOnlyList<NodeSpec<MobaHfsmActionSpec>> ConvertNodes(
             IReadOnlyList<NodeDefinition> definitions)
         {
             if (definitions == null || definitions.Count == 0)
-                return Array.Empty<HfsmRuntimeNodeSpec<MobaHfsmActionSpec>>();
+                return Array.Empty<NodeSpec<MobaHfsmActionSpec>>();
 
-            var nodes = new HfsmRuntimeNodeSpec<MobaHfsmActionSpec>[definitions.Count];
+            var nodes = new NodeSpec<MobaHfsmActionSpec>[definitions.Count];
             for (var i = 0; i < definitions.Count; i++)
             {
                 var definition = definitions[i]
@@ -82,7 +82,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                         throw new InvalidOperationException(
                             $"MOBA nested state-machine node '{definition.Id}' requires non-empty 'states'.");
 
-                    nodes[i] = new HfsmRuntimeNodeSpec<MobaHfsmActionSpec>(
+                    nodes[i] = new NodeSpec<MobaHfsmActionSpec>(
                         definition.Id,
                         definition.StartState,
                         ConvertNodes(definition.States),
@@ -104,7 +104,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                     throw new InvalidOperationException(
                         $"MOBA action-state node '{definition.Id}' cannot define nested states or transitions.");
 
-                nodes[i] = new HfsmRuntimeNodeSpec<MobaHfsmActionSpec>(
+                nodes[i] = new NodeSpec<MobaHfsmActionSpec>(
                     definition.Id,
                     ConvertBehaviour(definition.BehaviorRoot, $"state '{definition.Id}' behaviorRoot"),
                     ParseCompletionPolicy(
@@ -116,7 +116,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             return nodes;
         }
 
-        private static HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec> ConvertBehaviour(
+        private static BehaviourSpec<MobaHfsmActionSpec> ConvertBehaviour(
             BehaviourDefinition definition,
             string path)
         {
@@ -130,57 +130,57 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                     RequireLeaf(definition, path, kind);
                     if (string.IsNullOrWhiteSpace(definition.Type))
                         throw new InvalidOperationException($"MOBA HFSM action at {path} requires a non-empty 'type'.");
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Task(
+                    return BehaviourSpec<MobaHfsmActionSpec>.Task(
                         new MobaHfsmActionSpec(definition.Type, definition.Argument));
 
                 case "condition":
                     RequireLeaf(definition, path, kind);
                     if (string.IsNullOrWhiteSpace(definition.Condition))
                         throw new InvalidOperationException($"MOBA HFSM condition at {path} requires a non-empty 'condition'.");
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.ConditionNode(definition.Condition);
+                    return BehaviourSpec<MobaHfsmActionSpec>.ConditionNode(definition.Condition);
 
                 case "delay":
                     RequireLeaf(definition, path, kind);
                     RequireNonNegativeDuration(definition.DurationSeconds, path, kind);
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Delay(
+                    return BehaviourSpec<MobaHfsmActionSpec>.Delay(
                         definition.DurationSeconds,
                         definition.UseUnscaledTime);
 
                 case "sequence":
                     var sequenceChildren = RequireCompositeChildren(definition, path, kind);
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Sequence(
+                    return BehaviourSpec<MobaHfsmActionSpec>.Sequence(
                         ConvertBehaviourChildren(sequenceChildren, path));
 
                 case "selector":
                     var selectorChildren = RequireCompositeChildren(definition, path, kind);
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Selector(
+                    return BehaviourSpec<MobaHfsmActionSpec>.Selector(
                         ConvertBehaviourChildren(selectorChildren, path));
 
                 case "parallel":
                     var parallelChildren = RequireCompositeChildren(definition, path, kind);
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Parallel(
+                    return BehaviourSpec<MobaHfsmActionSpec>.Parallel(
                         ConvertBehaviourChildren(parallelChildren, path),
                         ParseParallelSuccessPolicy(definition.SuccessPolicy),
                         ParseParallelFailurePolicy(definition.FailurePolicy));
 
                 case "invert":
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Decorate(
-                        HfsmRuntimeBehaviourKind.Invert,
+                    return BehaviourSpec<MobaHfsmActionSpec>.Decorate(
+                        BehaviourKind.Invert,
                         ConvertSingleBehaviourChild(definition, path, kind));
 
                 case "repeat":
                     var repeatCount = definition.RepeatCount ?? -1;
                     if (repeatCount < -1)
                         throw new InvalidOperationException($"MOBA HFSM repeat at {path} has invalid repeatCount '{repeatCount}'.");
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Decorate(
-                        HfsmRuntimeBehaviourKind.Repeat,
+                    return BehaviourSpec<MobaHfsmActionSpec>.Decorate(
+                        BehaviourKind.Repeat,
                         ConvertSingleBehaviourChild(definition, path, kind),
                         repeatCount: repeatCount);
 
                 case "timeout":
                     RequireNonNegativeDuration(definition.DurationSeconds, path, kind);
-                    return HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>.Decorate(
-                        HfsmRuntimeBehaviourKind.Timeout,
+                    return BehaviourSpec<MobaHfsmActionSpec>.Decorate(
+                        BehaviourKind.Timeout,
                         ConvertSingleBehaviourChild(definition, path, kind),
                         durationSeconds: definition.DurationSeconds,
                         useUnscaledTime: definition.UseUnscaledTime);
@@ -203,11 +203,11 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             return definition.Children;
         }
 
-        private static HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>[] ConvertBehaviourChildren(
+        private static BehaviourSpec<MobaHfsmActionSpec>[] ConvertBehaviourChildren(
             IReadOnlyList<BehaviourDefinition> definitions,
             string parentPath)
         {
-            var children = new HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec>[definitions.Count];
+            var children = new BehaviourSpec<MobaHfsmActionSpec>[definitions.Count];
             for (var i = 0; i < definitions.Count; i++)
             {
                 children[i] = ConvertBehaviour(definitions[i], $"{parentPath}.children[{i}]");
@@ -216,7 +216,7 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             return children;
         }
 
-        private static HfsmRuntimeBehaviourSpec<MobaHfsmActionSpec> ConvertSingleBehaviourChild(
+        private static BehaviourSpec<MobaHfsmActionSpec> ConvertSingleBehaviourChild(
             BehaviourDefinition definition,
             string path,
             string kind)
@@ -243,17 +243,17 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
                 throw new InvalidOperationException($"MOBA HFSM {kind} at {path} has negative durationSeconds '{duration}'.");
         }
 
-        private static IReadOnlyList<HfsmRuntimeTransitionSpec> ConvertTransitions(
+        private static IReadOnlyList<TransitionSpec> ConvertTransitions(
             IReadOnlyList<TransitionDefinition> definitions)
         {
-            if (definitions == null || definitions.Count == 0) return Array.Empty<HfsmRuntimeTransitionSpec>();
+            if (definitions == null || definitions.Count == 0) return Array.Empty<TransitionSpec>();
 
-            var transitions = new HfsmRuntimeTransitionSpec[definitions.Count];
+            var transitions = new TransitionSpec[definitions.Count];
             for (var i = 0; i < definitions.Count; i++)
             {
                 var definition = definitions[i]
                     ?? throw new InvalidOperationException($"MOBA actor state-machine transition at index {i} is null.");
-                transitions[i] = new HfsmRuntimeTransitionSpec(
+                transitions[i] = new TransitionSpec(
                     definition.From,
                     definition.To,
                     definition.Condition,
@@ -265,15 +265,15 @@ namespace AbilityKit.Demo.Moba.Services.StateMachine
             return transitions;
         }
 
-        private static HfsmRuntimeTransitionMode ParseTransitionMode(string mode)
+        private static TransitionMode ParseTransitionMode(string mode)
         {
-            if (string.IsNullOrWhiteSpace(mode)) return HfsmRuntimeTransitionMode.Condition;
+            if (string.IsNullOrWhiteSpace(mode)) return TransitionMode.Condition;
             return mode.Trim().ToLowerInvariant() switch
             {
-                "condition" => HfsmRuntimeTransitionMode.Condition,
-                "onsucceeded" => HfsmRuntimeTransitionMode.OnSucceeded,
-                "onfailed" => HfsmRuntimeTransitionMode.OnFailed,
-                "onfinished" => HfsmRuntimeTransitionMode.OnFinished,
+                "condition" => TransitionMode.Condition,
+                "onsucceeded" => TransitionMode.OnSucceeded,
+                "onfailed" => TransitionMode.OnFailed,
+                "onfinished" => TransitionMode.OnFinished,
                 _ => throw new InvalidOperationException($"Unsupported HFSM transition mode '{mode}'."),
             };
         }

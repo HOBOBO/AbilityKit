@@ -1,9 +1,9 @@
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// Default timer that calculates the elapsed time using system time.
 	/// This is the core implementation without Unity dependencies.
-	/// For Unity integration, use UnityHFSM.Timer in the Unity layer.
+	/// For Unity integration, use AbilityKit.HFSM.Timer in the Unity layer.
 	/// </summary>
 	public class Timer : ITimer
 	{

@@ -1,8 +1,10 @@
 using System.Linq;
 using NUnit.Framework;
-using UnityHFSM;
-using UnityHFSM.Visualization;
+using AbilityKit.HFSM;
+using AbilityKit.HFSM.Visualization;
 
+using AbilityKit.HFSM.Definition;
+using AbilityKit.HFSM.Runtime;
 namespace AbilityKit.Tests
 {
     public sealed class LiveRegistryTests
@@ -232,7 +234,7 @@ namespace AbilityKit.Tests
         [Test]
         public void StateMachineLifecycleUsesTheSharedInspectionRegistry()
         {
-            HfsmLiveRegistry.AutoRegisterEnabled = true;
+            RuntimeRegistry.AutoRegisterEnabled = true;
             var fsm = new StateMachine();
             fsm.AddState("idle", new State());
             fsm.SetStartState("idle");

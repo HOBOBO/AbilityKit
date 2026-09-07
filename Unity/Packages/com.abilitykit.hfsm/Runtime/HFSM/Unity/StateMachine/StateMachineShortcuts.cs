@@ -1,6 +1,6 @@
 using System;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	public static class StateMachineShortcuts
 	{

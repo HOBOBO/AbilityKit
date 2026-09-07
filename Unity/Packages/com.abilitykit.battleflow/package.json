@@ -14,6 +14,7 @@
     "name": "AbilityKit"
   },
   "dependencies": {
-    "com.abilitykit.scenario": "0.1.0"
+    "com.abilitykit.scenario": "0.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
   }
 }

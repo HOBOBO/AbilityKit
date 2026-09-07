@@ -1229,12 +1229,12 @@ namespace ET.AbilityKit.Demo.ET.App
                 if (!HasLocalManaResource)
                 {
                     HasLocalManaResource = true;
-                    LocalInitialMana = mana;
-                    LocalMinMana = mana;
+                    LocalInitialMana = (float)mana;
+                    LocalMinMana = (float)mana;
                     return;
                 }
 
-                LocalMinMana = Math.Min(LocalMinMana, mana);
+                LocalMinMana = Math.Min(LocalMinMana, (float)mana);
                 LocalMaxManaSpent = Math.Max(LocalMaxManaSpent, LocalInitialMana - LocalMinMana);
             }
 

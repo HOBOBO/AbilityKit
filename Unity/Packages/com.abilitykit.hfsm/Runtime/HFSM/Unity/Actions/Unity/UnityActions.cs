@@ -7,7 +7,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-namespace UnityHFSM.Actions
+namespace AbilityKit.HFSM.Actions
 {
     /// <summary>
     /// 播放 Animator 动画

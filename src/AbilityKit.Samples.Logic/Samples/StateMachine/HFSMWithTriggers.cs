@@ -1,12 +1,12 @@
 using AbilityKit.Core.Eventing;
 using AbilityKit.Samples.Abstractions;
 using AbilityKit.Triggering.Eventing;
-using UnityHFSM;
+using AbilityKit.HFSM;
 
 namespace AbilityKit.Samples.Logic.Samples.StateMachine
 {
     /// <summary>
-    /// 演示 Triggering 事件如何桥接到 UnityHFSM 的 trigger transition。
+    /// 演示 Triggering 事件如何桥接到 AbilityKit.HFSM 的 trigger transition。
     /// </summary>
     [Sample(532, "hfsm", "trigger", "bridge", "package-api", "web", "deterministic")]
     public sealed class HFSMWithTriggers : SampleBase

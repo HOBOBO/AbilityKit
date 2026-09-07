@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AbilityKit.BattleFlow;
 using AbilityKit.Scenario;
 using Xunit;
@@ -80,6 +81,32 @@ public sealed class BattleFlowCompilerTests
         });
 
         Assert.Same(payload, scenario.Expectations);
+    }
+
+    [Fact]
+    public void Codec_RoundTripsBlockTree()
+    {
+        var doc = new BattleFlowDocument
+        {
+            CaseId = "case-flow",
+            Blocks = new List<BattleBlock>
+            {
+                new SetEnvironmentBlock { ProfileId = "jungle-camp" },
+                new SpawnActorBlock { Alias = "caster", HeroId = 1001 },
+                new TimelineStepBlock { AtMs = 100, Action = "cast_skill", ActorAlias = "caster" },
+                new BattleCompositeBlock { Id = "macro", Children = new List<BattleBlock> { new WaitBlock { AtMs = 200 } } },
+            },
+        };
+
+        var json = BattleFlowCodec.Serialize(doc);
+        var back = BattleFlowCodec.Parse(json);
+
+        Assert.Equal("case-flow", back.CaseId);
+        Assert.Equal(4, back.Blocks.Count);
+        Assert.IsType<SetEnvironmentBlock>(back.Blocks[0]);
+        Assert.IsType<SpawnActorBlock>(back.Blocks[1]);
+        Assert.IsType<TimelineStepBlock>(back.Blocks[2]);
+        Assert.IsType<BattleCompositeBlock>(back.Blocks[3]);
     }
 
     /// <summary>模拟项目自定义的断言积木：把 opaque 断言对象塞进 Expectations。</summary>

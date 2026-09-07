@@ -1,0 +1,20 @@
+{
+  "name": "AbilityKit.BehaviorTree.CompleteRuntimeObservation.Editor",
+  "rootNamespace": "AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation.Editor",
+  "references": [
+    "AbilityKit.BehaviorTree",
+    "AbilityKit.BehaviorTree.Editor",
+    "AbilityKit.BehaviorTree.CompleteRuntimeObservation"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

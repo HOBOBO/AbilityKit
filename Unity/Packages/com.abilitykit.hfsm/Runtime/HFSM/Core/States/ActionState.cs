@@ -1,6 +1,6 @@
 using System;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// Base class of states that support custom actions.

@@ -1,4 +1,4 @@
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// A ReverseTransition wraps another transition, but reverses it. The "from"

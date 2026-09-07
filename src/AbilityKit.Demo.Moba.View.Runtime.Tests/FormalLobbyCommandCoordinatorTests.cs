@@ -25,6 +25,7 @@ public sealed class FormalLobbyCommandCoordinatorTests
         var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             coordinator.PrepareDefaultLoadoutAsync(
                 Loadout(heroId: 1001),
+                Loadout(heroId: 1002),
                 CurrentContext(runtime)));
 
         Assert.Equal("loadout rejected", error.Message);

@@ -1,4 +1,4 @@
-namespace UnityHFSM.Inspection
+namespace AbilityKit.HFSM.Inspection
 {
     /// <summary>
     /// Marker for runtime state machines that expose the public visitor-based inspection surface.

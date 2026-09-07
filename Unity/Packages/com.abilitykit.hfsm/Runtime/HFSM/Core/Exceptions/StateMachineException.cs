@@ -1,6 +1,6 @@
 using System;
 
-namespace UnityHFSM.Exceptions
+namespace AbilityKit.HFSM.Exceptions
 {
 	[Serializable]
 	public class StateMachineException : Exception

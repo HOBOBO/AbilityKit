@@ -35,6 +35,7 @@
     "AbilityKit.Ability.Explain",
     "AbilityKit.Ability.Explain.Editor",
     "AbilityKit.BattleFlow",
+    "AbilityKit.BattleFlow.Editor",
     "AbilityKit.Scenario",
     "AbilityKit.Demo.Moba.Environment"
   ],

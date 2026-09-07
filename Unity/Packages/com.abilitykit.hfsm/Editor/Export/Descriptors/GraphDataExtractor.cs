@@ -6,9 +6,9 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityHFSM.Graph.Descriptor;
+using AbilityKit.HFSM.Graph.Descriptor;
 
-namespace UnityHFSM.Editor.Export
+namespace AbilityKit.HFSM.Editor.Export
 {
     /// <summary>
     /// HFSM 数据提取器实现 - 使用描述器接口

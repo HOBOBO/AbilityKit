@@ -1,6 +1,6 @@
-using UnityHFSM;
+using AbilityKit.HFSM;
 
-namespace UnityHFSM.Inspection
+namespace AbilityKit.HFSM.Inspection
 {
 	/// <summary>
 	/// Defines the interface for a visitor that can perform operations on different states

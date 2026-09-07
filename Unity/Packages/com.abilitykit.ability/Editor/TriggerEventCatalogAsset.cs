@@ -4,6 +4,7 @@ using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
 using Sirenix.OdinInspector;
 using Sirenix.Serialization;
+using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Editor
@@ -18,6 +19,19 @@ namespace AbilityKit.Ability.Editor
         private void LoadMobaDefaults()
         {
             Events = TriggerAuthoringProjectDefaults.CreateMobaEvents();
+        }
+
+        [Button("Scan Assemblies")]
+        private void ScanAssemblies()
+        {
+            Events = Events ?? new List<TriggerEventDefinitionData>();
+            var scan = TriggerEventCatalogAssemblyScanner.ScanLoadedAssemblies();
+            var merge = TriggerEventCatalogAssemblyScanner.MergeInto(Events, scan.Events);
+            EditorUtility.SetDirty(this);
+            EditorUtility.DisplayDialog(
+                "Scan Trigger Events",
+                $"Scanned {scan.ScannedAttributeCount} event attributes.\nAdded {merge.AddedCount}, updated {merge.UpdatedCount}.",
+                "OK");
         }
     }
 }

@@ -472,6 +472,9 @@ namespace AbilityKit.Demo.Moba.Console
             _context.LogicTimeSeconds = _totalTime;
             _context.LastFrame++;
 
+            // 步进帧时钟：投射物/持续行为依赖 IFrameTime.DeltaTime（不步进则 DeltaTime 恒 0，投射物发射会被拒）。
+            StepFrameTime((float)elapsed);
+
             // 由 PhaseHost -> InMatchPhase -> FeatureHost 管理 Features
             _flow.Tick((float)elapsed);
             _hostNetwork?.Tick();
@@ -502,6 +505,15 @@ namespace AbilityKit.Demo.Moba.Console
             {
                 RecordCurrentSnapshot();
             }
+        }
+
+        /// <summary>把世界帧时钟步进到当前帧。验收 harness 的 TickWorld 也这么做（frameTime.StepTo(Frame+1, delta)）。</summary>
+        private void StepFrameTime(float deltaTime)
+        {
+            var services = _runtimeWorld?.Services;
+            if (services == null) return;
+            if (!services.TryResolve<IFrameTime>(out var frameTime) || frameTime is not FrameTime concrete) return;
+            concrete.StepTo(new FrameIndex(_context.LastFrame), deltaTime);
         }
 
         private void RecordCurrentSnapshot()

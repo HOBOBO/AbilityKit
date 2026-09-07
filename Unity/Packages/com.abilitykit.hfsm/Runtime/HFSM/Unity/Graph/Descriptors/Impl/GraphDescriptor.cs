@@ -1,21 +1,21 @@
 // ============================================================================
 // Graph Descriptor Implementation - 图描述器实现
-// 将 HfsmGraphAsset 适配到 IGraphDescriptor 接口
+// 将 GraphAsset 适配到 IGraphDescriptor 接口
 // ============================================================================
 
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace UnityHFSM.Graph.Descriptor.Impl
+namespace AbilityKit.HFSM.Graph.Descriptor.Impl
 {
     /// <summary>
-    /// 图描述器实现 - 适配 HfsmGraphAsset 到 IGraphDescriptor 接口
-    /// 这是将现有 HfsmGraphAsset 与描述器系统集成的桥梁
+    /// 图描述器实现 - 适配 GraphAsset 到 IGraphDescriptor 接口
+    /// 这是将现有 GraphAsset 与描述器系统集成的桥梁
     /// </summary>
     public class GraphDescriptor : IGraphDescriptor
     {
-        private readonly HfsmGraphAsset _asset;
+        private readonly GraphAsset _asset;
 
         // 缓存
         private List<INodeDescriptor> _nodeDescriptors;
@@ -26,7 +26,7 @@ namespace UnityHFSM.Graph.Descriptor.Impl
         private GraphEditorDataDescriptor _editorDataDescriptor;
         private Dictionary<string, NodeEditorDataDescriptor> _nodeEditorDataDescriptors;
 
-        public GraphDescriptor(HfsmGraphAsset asset)
+        public GraphDescriptor(GraphAsset asset)
         {
             _asset = asset ?? throw new ArgumentNullException(nameof(asset));
         }
@@ -34,7 +34,7 @@ namespace UnityHFSM.Graph.Descriptor.Impl
         /// <summary>
         /// 获取底层资产引用
         /// </summary>
-        public HfsmGraphAsset Asset => _asset;
+        public GraphAsset Asset => _asset;
 
         public string Name => _asset.GraphName;
         public string RootStateMachineId => _asset.RootStateMachineId;
@@ -95,10 +95,10 @@ namespace UnityHFSM.Graph.Descriptor.Impl
             if (typeof(T) == typeof(INodeDescriptor))
                 return (T)(INodeDescriptor)NodeDescriptorFactory.Create(node);
 
-            if (typeof(T) == typeof(IStateNodeDescriptor) && node is HfsmStateNode stateNode)
+            if (typeof(T) == typeof(IStateNodeDescriptor) && node is StateNode stateNode)
                 return (T)(INodeDescriptor)new StateNodeDescriptor(stateNode);
 
-            if (typeof(T) == typeof(IStateMachineNodeDescriptor) && node is HfsmStateMachineNode smNode)
+            if (typeof(T) == typeof(IStateMachineNodeDescriptor) && node is StateMachineNode smNode)
                 return (T)(INodeDescriptor)new StateMachineNodeDescriptor(smNode);
 
             return default;
@@ -179,7 +179,7 @@ namespace UnityHFSM.Graph.Descriptor.Impl
                     foreach (var data in _asset.EditorData.GetAllNodeEditorData())
                     {
                         _nodeEditorDataDescriptors[data.NodeId] = new NodeEditorDataDescriptor(
-                            new HfsmNodeEditorData(data.NodeId, data.Position, data.Size)
+                            new NodeEditorData(data.NodeId, data.Position, data.Size)
                             {
                                 IsExpanded = data.IsExpanded,
                                 CustomColor = data.CustomColor
@@ -195,9 +195,9 @@ namespace UnityHFSM.Graph.Descriptor.Impl
         /// </summary>
         private class NodePositionSizeDescriptor : INodeEditorDataDescriptor
         {
-            private readonly HfsmNodeBase _node;
+            private readonly NodeBase _node;
 
-            public NodePositionSizeDescriptor(HfsmNodeBase node)
+            public NodePositionSizeDescriptor(NodeBase node)
             {
                 _node = node;
             }
@@ -245,14 +245,4 @@ namespace UnityHFSM.Graph.Descriptor.Impl
     /// <summary>
     /// 图描述器工厂
     /// </summary>
-    public static class GraphDescriptorFactory
-    {
-        /// <summary>
-        /// 从 HfsmGraphAsset 创建图描述器
-        /// </summary>
-        public static IGraphDescriptor Create(HfsmGraphAsset asset)
-        {
-            return new GraphDescriptor(asset);
-        }
-    }
 }

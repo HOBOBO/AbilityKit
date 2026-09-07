@@ -6,17 +6,17 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityHFSM.Actions;
-using UnityHFSM.Actions.Runtime;
-using UnityHFSM.Graph;
-using UnityHFSM.Graph.Compilation;
-using UnityHFSM.Graph.Conditions;
+using AbilityKit.HFSM.Actions;
+using AbilityKit.HFSM.Actions.Runtime;
+using AbilityKit.HFSM.Graph;
+using AbilityKit.HFSM.Graph.Compilation;
+using AbilityKit.HFSM.Graph.Conditions;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
     /// <summary>
     /// 支持行为树执行的状态机。
-    /// 可以从 HfsmGraphAsset 初始化，并自动执行状态中的行为。
+    /// 可以从 GraphAsset 初始化，并自动执行状态中的行为。
     /// </summary>
     public class ActionStateMachine<TStateId, TEvent> : StateMachine<TStateId, TEvent>, IActionable<TEvent>, Visualization.IVisualizationParameterSource
     {
@@ -26,7 +26,7 @@ namespace UnityHFSM
         private object userData;
 
         public StateMachineGraphProgram GraphProgram { get; private set; }
-        public HfsmParameterStore Parameters { get; } = new HfsmParameterStore();
+        public ParameterStore Parameters { get; } = new ParameterStore();
 
         public IEnumerable<Visualization.ParameterInfo> GetVisualizationParameters()
         {
@@ -38,25 +38,25 @@ namespace UnityHFSM
                 var info = new Visualization.ParameterInfo
                 {
                     name = parameter.Name,
-                    isTrigger = parameter.ParameterType == HfsmParameterType.Trigger,
-                    type = parameter.ParameterType == HfsmParameterType.Bool
+                    isTrigger = parameter.ParameterType == ParameterValueType.Trigger,
+                    type = parameter.ParameterType == ParameterValueType.Bool
                         ? Visualization.ParameterType.Bool
-                        : parameter.ParameterType == HfsmParameterType.Int
+                        : parameter.ParameterType == ParameterValueType.Int
                             ? Visualization.ParameterType.Int
-                            : parameter.ParameterType == HfsmParameterType.Float
+                            : parameter.ParameterType == ParameterValueType.Float
                                 ? Visualization.ParameterType.Float
                                 : Visualization.ParameterType.Trigger
                 };
 
                 switch (parameter.ParameterType)
                 {
-                    case HfsmParameterType.Bool:
+                    case ParameterValueType.Bool:
                         info.boolValue = Parameters.GetBool(parameter.Name);
                         break;
-                    case HfsmParameterType.Int:
+                    case ParameterValueType.Int:
                         info.intValue = Parameters.GetInt(parameter.Name);
                         break;
-                    case HfsmParameterType.Float:
+                    case ParameterValueType.Float:
                         info.floatValue = Parameters.GetFloat(parameter.Name);
                         break;
                 }
@@ -105,16 +105,16 @@ namespace UnityHFSM
         }
 
         /// <summary>
-        /// 从 HfsmGraphAsset 初始化状态机
+        /// 从 GraphAsset 初始化状态机
         /// </summary>
-        public void InitializeFromGraph(HfsmGraphAsset graph, MonoBehaviour mono)
+        public void InitializeFromGraph(GraphAsset graph, MonoBehaviour mono)
         {
             monoBehaviour = mono;
             InitializeFromGraph(graph);
         }
 
         public void InitializeFromGraph(
-            HfsmGraphAsset graph,
+            GraphAsset graph,
             MonoBehaviour mono,
             StateMachineGraphBinding<TStateId, TEvent> binding)
         {
@@ -123,15 +123,15 @@ namespace UnityHFSM
         }
 
         /// <summary>
-        /// 从 HfsmGraphAsset 初始化状态机（无 MonoBehaviour）
+        /// 从 GraphAsset 初始化状态机（无 MonoBehaviour）
         /// </summary>
-        public void InitializeFromGraph(HfsmGraphAsset graph)
+        public void InitializeFromGraph(GraphAsset graph)
         {
             InitializeFromGraph(graph, StateMachineGraphBinding<TStateId, TEvent>.CreateNameBinding(Parameters));
         }
 
         public void InitializeFromGraph(
-            HfsmGraphAsset graph,
+            GraphAsset graph,
             StateMachineGraphBinding<TStateId, TEvent> binding)
         {
             if (graph == null)
@@ -275,7 +275,7 @@ namespace UnityHFSM
                 runtimeMachine.AddTransition(transition);
         }
 
-        private static Func<bool> CreateCondition(TransitionProgram program, IHfsmEvaluationContext context)
+        private static Func<bool> CreateCondition(TransitionProgram program, IEvaluationContext context)
         {
             if (program.Conditions.Count == 0)
                 return null;
@@ -390,7 +390,7 @@ namespace UnityHFSM
     /// </summary>
     public class ActionBehaviorState<TStateId, TEvent> : State<TStateId>, IActionable<TEvent>, IActionRuntimeStateProvider
     {
-        private readonly HfsmStateNode node;
+        private readonly StateNode node;
         private readonly MonoBehaviour mono;
         private readonly object userData;
         private readonly object parentFsm;
@@ -411,7 +411,7 @@ namespace UnityHFSM
         public IEnumerable<IActionRuntimeStateSource> GetActionRuntimeStates() => runtimeStates.Values;
 
         public ActionBehaviorState(
-            HfsmStateNode node,
+            StateNode node,
             bool needsExitTime,
             bool isGhostState,
             MonoBehaviour mono,
@@ -444,7 +444,7 @@ namespace UnityHFSM
             }
         }
 
-        private IAction CreateActionTree(HfsmStateNode stateNode)
+        private IAction CreateActionTree(StateNode stateNode)
         {
             if (stateNode.BehaviorItems == null || stateNode.BehaviorItems.Count == 0)
                 return null;

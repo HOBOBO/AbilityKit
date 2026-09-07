@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityHFSM.Actions;
-using UnityHFSM.Inspection;
+using AbilityKit.HFSM.Actions;
+using AbilityKit.HFSM.Inspection;
 
-namespace UnityHFSM.Visualization
+namespace AbilityKit.HFSM.Visualization
 {
     /// <summary>
     /// Optional parameter adapter for runtime types that own a parameter context.

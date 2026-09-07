@@ -1,6 +1,6 @@
-using UnityHFSM.Inspection;
+using AbilityKit.HFSM.Inspection;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	public interface IVisitableState
 	{

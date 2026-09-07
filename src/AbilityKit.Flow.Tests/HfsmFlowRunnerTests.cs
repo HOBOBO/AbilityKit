@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Flow;
-using UnityHFSM;
+using AbilityKit.HFSM;
 using Xunit;
 
 namespace AbilityKit.Flow.Tests;

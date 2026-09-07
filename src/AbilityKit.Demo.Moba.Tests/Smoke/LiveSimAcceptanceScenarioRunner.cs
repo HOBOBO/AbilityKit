@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Demo.Moba.Acceptance;
+using AbilityKit.Demo.Moba.Acceptance.LiveSim;
 using AbilityKit.Scenario;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;

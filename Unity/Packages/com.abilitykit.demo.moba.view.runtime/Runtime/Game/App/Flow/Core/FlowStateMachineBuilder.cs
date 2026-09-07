@@ -2,7 +2,7 @@ using System;
 using AbilityKit.Ability.Flow;
 using AbilityKit.Core.Logging;
 using AbilityKit.Game.View.Flow;
-using UnityHFSM;
+using AbilityKit.HFSM;
 
 namespace AbilityKit.Game.Flow
 {

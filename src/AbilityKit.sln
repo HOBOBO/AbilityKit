@@ -27,8 +27,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Protocol", "Abil
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Diagnostics", "AbilityKit.Diagnostics\AbilityKit.Diagnostics.csproj", "{A1000013-0013-0013-0013-000000000013}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.CodeGen", "AbilityKit.CodeGen\AbilityKit.CodeGen.csproj", "{A1000014-0014-0014-0014-000000000014}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.GameFramework", "AbilityKit.GameFramework\AbilityKit.GameFramework.csproj", "{A1000015-0015-0015-0015-000000000015}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Host", "AbilityKit.Host\AbilityKit.Host.csproj", "{A1000016-0016-0016-0016-000000000016}"
@@ -80,8 +78,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Flow", "AbilityKit.Flow\AbilityKit.Flow.csproj", "{A1000040-0040-0040-0040-000000000040}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Protocol.Moba", "AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj", "{A1000041-0041-0041-0041-000000000041}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Game.Battle.Transport.Runtime", "AbilityKit.Game.Battle.Transport.Runtime\AbilityKit.Game.Battle.Transport.Runtime.csproj", "{A1000042-0042-0042-0042-000000000042}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Combat.Projectile", "AbilityKit.Combat.Projectile\AbilityKit.Combat.Projectile.csproj", "{A1000043-0043-0043-0043-000000000043}"
 EndProject
@@ -261,6 +257,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.BattleFlow.Tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.Moba.BattleFlow.Runner", "AbilityKit.Demo.Moba.BattleFlow.Runner\AbilityKit.Demo.Moba.BattleFlow.Runner.csproj", "{66E574E1-2E49-48AE-826F-F953C595DA8A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AbilityKit.Demo.Moba.Acceptance.LiveSim", "AbilityKit.Demo.Moba.Acceptance.LiveSim\AbilityKit.Demo.Moba.Acceptance.LiveSim.csproj", "{6954BE00-54CD-45A6-AA70-FE458371069B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -415,18 +413,6 @@ Global
 		{A1000013-0013-0013-0013-000000000013}.Release|x64.Build.0 = Release|Any CPU
 		{A1000013-0013-0013-0013-000000000013}.Release|x86.ActiveCfg = Release|Any CPU
 		{A1000013-0013-0013-0013-000000000013}.Release|x86.Build.0 = Release|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Debug|x64.Build.0 = Debug|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Debug|x86.Build.0 = Debug|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Release|x64.ActiveCfg = Release|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Release|x64.Build.0 = Release|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Release|x86.ActiveCfg = Release|Any CPU
-		{A1000014-0014-0014-0014-000000000014}.Release|x86.Build.0 = Release|Any CPU
 		{A1000015-0015-0015-0015-000000000015}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A1000015-0015-0015-0015-000000000015}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1000015-0015-0015-0015-000000000015}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -739,18 +725,6 @@ Global
 		{A1000041-0041-0041-0041-000000000041}.Release|x64.Build.0 = Release|Any CPU
 		{A1000041-0041-0041-0041-000000000041}.Release|x86.ActiveCfg = Release|Any CPU
 		{A1000041-0041-0041-0041-000000000041}.Release|x86.Build.0 = Release|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Debug|x64.ActiveCfg = Debug|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Debug|x64.Build.0 = Debug|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Debug|x86.ActiveCfg = Debug|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Debug|x86.Build.0 = Debug|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Release|x64.ActiveCfg = Release|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Release|x64.Build.0 = Release|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Release|x86.ActiveCfg = Release|Any CPU
-		{A1000042-0042-0042-0042-000000000042}.Release|x86.Build.0 = Release|Any CPU
 		{A1000043-0043-0043-0043-000000000043}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{A1000043-0043-0043-0043-000000000043}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A1000043-0043-0043-0043-000000000043}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -1819,6 +1793,18 @@ Global
 		{66E574E1-2E49-48AE-826F-F953C595DA8A}.Release|x64.Build.0 = Release|Any CPU
 		{66E574E1-2E49-48AE-826F-F953C595DA8A}.Release|x86.ActiveCfg = Release|Any CPU
 		{66E574E1-2E49-48AE-826F-F953C595DA8A}.Release|x86.Build.0 = Release|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Debug|x64.Build.0 = Debug|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Debug|x86.Build.0 = Debug|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Release|x64.ActiveCfg = Release|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Release|x64.Build.0 = Release|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Release|x86.ActiveCfg = Release|Any CPU
+		{6954BE00-54CD-45A6-AA70-FE458371069B}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

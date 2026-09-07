@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    headless live-sim 验收执行层：boot console 真实逻辑世界 → 装配 actor（完整 loadout）→ 执行 setup 动作
+    → 跑完整时间线语义 → 采 trace + 状态观测 → 出真 verdict。
+    从 src/AbilityKit.Demo.Moba.Tests/Smoke/ 提升而来（去掉 Xunit 依赖，改成抛异常），
+    供 battleflow runner 与测试工程共用。判定层（AcceptanceVerifier）留在 AbilityKit.Demo.Moba.Acceptance（纯判定）。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>AbilityKit.Demo.Moba.Acceptance.LiveSim</RootNamespace>
+    <AssemblyName>AbilityKit.Demo.Moba.Acceptance.LiveSim</AssemblyName>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Console\AbilityKit.Demo.Moba.Console.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.Scenario\AbilityKit.Scenario.csproj" />
+    <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Environment\AbilityKit.Demo.Moba.Environment.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance\AbilityKit.Demo.Moba.Acceptance.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using UnityHFSM;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM;
+using AbilityKit.HFSM.Extension;
 using AbilityKit.Samples.Abstractions;
 
 namespace AbilityKit.Samples.Logic.Samples.StateMachine

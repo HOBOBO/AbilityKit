@@ -2,7 +2,8 @@
   "name": "AbilityKit.Demo.Moba.Environment",
   "rootNamespace": "AbilityKit.Demo.Moba.EnvironmentModel",
   "references": [
-    "AbilityKit.Environment"
+    "AbilityKit.Environment",
+    "AbilityKit.BattleFlow"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

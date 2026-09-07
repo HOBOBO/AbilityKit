@@ -1,9 +1,12 @@
+using System.Collections.Generic;
 using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Console;
 using AbilityKit.Demo.Moba.Console.Battle.Config;
 using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EnvironmentModel;
+using AbilityKit.EnvironmentModel;
 using Xunit;
 
 namespace AbilityKit.Demo.Moba.Tests.Smoke;
@@ -33,6 +36,58 @@ public sealed class MobaEnvironmentProfileBinderTests
         var lookup = bootstrapper.RuntimeServices!.Resolve<MobaActorLookupService>();
         Assert.True(lookup.TryGetActorEntity(actorId, out var entity));
         Assert.NotNull(entity);
+    }
+
+    [Fact]
+    public void Bind_SpawnWithComponents_AppliesHpOverride()
+    {
+        using var bootstrapper = Boot();
+
+        // 显式原语：生成一只 boss 怪并把血量压到 500（自由构建战斗世界的数值覆盖）。
+        var catalog = new EnvironmentProfileCatalog();
+        catalog.AddProfile(new EnvironmentProfile
+        {
+            Id = "custom-boss",
+            Primitives = new EnvironmentPrimitive[]
+            {
+                new SpawnPrimitive
+                {
+                    EntityKind = "Monster",
+                    Alias = "boss",
+                    Count = 1,
+                    Components = new Dictionary<string, string> { ["hp"] = "500" },
+                },
+            },
+        });
+
+        var expander = new MobaEnvironmentGroupExpander();
+        Assert.True(catalog.TryResolve("custom-boss", expander, out var resolved));
+
+        var binder = new MobaEnvironmentProfileBinder(bootstrapper.RuntimeServices!);
+        var result = binder.Bind(in resolved);
+
+        Assert.True(result.TryGetHandle("boss", out var actorId));
+        Assert.True(actorId > 0);
+
+        var lookup = bootstrapper.RuntimeServices!.Resolve<MobaActorLookupService>();
+        Assert.True(lookup.TryGetActorEntity(actorId, out var entity));
+        Assert.Equal(500f, new MobaAttrs(entity).Hp);
+    }
+
+    [Fact]
+    public void PlaceObstacle_AddsColliderToWorld()
+    {
+        using var bootstrapper = Boot();
+        var binder = new MobaEnvironmentProfileBinder(bootstrapper.RuntimeServices!);
+
+        var id = binder.PlaceObstacle(new ObstaclePrimitive
+        {
+            Shape = "box",
+            Position = new EnvironmentVector3(5, 0, 0),
+            Size = new EnvironmentVector3(2, 2, 2),
+        });
+
+        Assert.True(id.Value > 0, "障碍物应返回有效碰撞体 id");
     }
 
     private static ConsoleBattleBootstrapper Boot()

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using UnityHFSM.Inspection;
+using AbilityKit.HFSM.Inspection;
 
 /**
  * Hierarchical Finite State Machine for Unity
@@ -11,7 +11,7 @@ using UnityHFSM.Inspection;
  * Version: 2.2.0
  */
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// Main finite state machine class. It can be used as a child state of another state machine
@@ -197,7 +197,7 @@ namespace UnityHFSM
 		private void EnsureIsInitializedFor(string context)
 		{
 			if (activeState == null)
-				throw UnityHFSM.Exceptions.Common.NotInitialized(this, context);
+				throw AbilityKit.HFSM.Exceptions.Common.NotInitialized(this, context);
 		}
 
 		/// <summary>
@@ -253,7 +253,7 @@ namespace UnityHFSM
 
 			if (!stateBundlesByName.TryGetValue(name, out bundle) || bundle.state == null)
 			{
-				throw UnityHFSM.Exceptions.Common.StateNotFound(this, name.ToString(), context: "Switching states");
+				throw AbilityKit.HFSM.Exceptions.Common.StateNotFound(this, name.ToString(), context: "Switching states");
 			}
 
 			activeTransitions = bundle.transitions ?? noTransitions;
@@ -427,12 +427,12 @@ namespace UnityHFSM
 		{
 			if (IsRootFsm && RegisterForInspection)
 			{
-				UnityHFSM.Inspection.RuntimeInspectionHub.AutoRegister(this);
+				AbilityKit.HFSM.Inspection.RuntimeInspectionHub.AutoRegister(this);
 			}
 
 			if (!startState.hasState)
 			{
-				throw UnityHFSM.Exceptions.Common.MissingStartState(this, context: "Initializing the state machine");
+				throw AbilityKit.HFSM.Exceptions.Common.MissingStartState(this, context: "Initializing the state machine");
 			}
 
 			// Clear any previous pending transition from the last run.
@@ -477,7 +477,7 @@ namespace UnityHFSM
 		{
 			if (IsRootFsm && RegisterForInspection)
 			{
-				UnityHFSM.Inspection.RuntimeInspectionHub.Unregister(this);
+				AbilityKit.HFSM.Inspection.RuntimeInspectionHub.Unregister(this);
 			}
 
 			if (activeState == null)
@@ -522,7 +522,7 @@ namespace UnityHFSM
 			if (!stateBundlesByName.TryGetValue(rememberedStartStateName, out rememberedBundle)
 				|| rememberedBundle.state == null)
 			{
-				throw UnityHFSM.Exceptions.Common.StateNotFound(
+				throw AbilityKit.HFSM.Exceptions.Common.StateNotFound(
 					this,
 					rememberedStartStateName?.ToString(),
 					context: "Restoring the remembered start state");
@@ -542,7 +542,7 @@ namespace UnityHFSM
 			StateBundle activeBundle;
 			if (!stateBundlesByName.TryGetValue(activeStateName, out activeBundle) || activeBundle.state == null)
 			{
-				throw UnityHFSM.Exceptions.Common.StateNotFound(
+				throw AbilityKit.HFSM.Exceptions.Common.StateNotFound(
 					this,
 					activeStateName?.ToString(),
 					context: "Restoring the active state");
@@ -855,7 +855,7 @@ namespace UnityHFSM
 
 			if (!stateBundlesByName.TryGetValue(name, out bundle) || bundle.state == null)
 			{
-				throw UnityHFSM.Exceptions.Common.StateNotFound(this, name.ToString(), context: "Getting a state");
+				throw AbilityKit.HFSM.Exceptions.Common.StateNotFound(this, name.ToString(), context: "Getting a state");
 			}
 
 			return bundle.state;
@@ -874,7 +874,7 @@ namespace UnityHFSM
 
 				if (subFsm == null)
 				{
-					throw UnityHFSM.Exceptions.Common.QuickIndexerMisusedForGettingState(this, name.ToString());
+					throw AbilityKit.HFSM.Exceptions.Common.QuickIndexerMisusedForGettingState(this, name.ToString());
 				}
 
 				return subFsm;
@@ -917,7 +917,7 @@ namespace UnityHFSM
 		{
 			if (!startState.hasState)
 			{
-				throw UnityHFSM.Exceptions.Common.MissingStartState(
+				throw AbilityKit.HFSM.Exceptions.Common.MissingStartState(
 					this,
 					context: "Getting the start state",
 					solution: "Make sure that there is at least one state in the state machine before running "

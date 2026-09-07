@@ -247,6 +247,12 @@
           "kind": "dotnet-test",
           "project": "src/AbilityKit.Demo.Moba.Acceptance.Tests/AbilityKit.Demo.Moba.Acceptance.Tests.csproj",
           "filter": "Gate=MobaAcceptanceDotnet"
+        },
+        {
+          "name": "Battle flow regression",
+          "kind": "dotnet-test",
+          "project": "src/AbilityKit.Demo.Moba.Tests/AbilityKit.Demo.Moba.Tests.csproj",
+          "filter": "Gate=BattleFlow"
         }
       ]
     },

@@ -1,35 +1,34 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace AbilityKit.BehaviorTree.Tests
 {
     /// <summary>
-    /// 测试用脚本节点：行为完全由黑板驱动（resultKey/condKey），无静态可变状态，
-    /// 兼容 xunit 并行。定义在测试程序集中，同时验证包外扩展（ScanAssembly + 属性 schema）。
-    /// </summary>
-    public sealed class ScriptedResultActionNode : BtActionNodeBase
+    /// 娴嬭瘯鐢ㄨ剼鏈妭鐐癸細琛屼负瀹屽叏鐢遍粦鏉块┍鍔紙resultKey/condKey锛夛紝鏃犻潤鎬佸彲鍙樼姸鎬侊紝
+    /// 鍏煎 xunit 骞惰銆傚畾涔夊湪娴嬭瘯绋嬪簭闆嗕腑锛屽悓鏃堕獙璇佸寘澶栨墿灞曪紙ScanAssembly + 灞炴€?schema锛夈€?    /// </summary>
+    public sealed class ScriptedResultActionNode : ActionNodeBase
     {
         public const string ResultKeyProperty = "resultKey";
         private string _resultKey = "test.result";
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _resultKey = context.Properties.GetString(ResultKeyProperty, "test.result");
         }
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             context.Blackboard.TryGetInt64(_resultKey, out var result);
             return result switch
             {
-                1 => BtNodeState.Success,
-                2 => BtNodeState.Running,
-                _ => BtNodeState.Failure,
+                1 => NodeState.Success,
+                2 => NodeState.Running,
+                _ => NodeState.Failure,
             };
         }
     }
 
-    /// <summary>测试用计数动作：Start/Stop 各自累加黑板计数，用于验证执行顺序与中止行为。</summary>
-    public sealed class CountingActionNode : BtActionNodeBase
+    /// <summary>娴嬭瘯鐢ㄨ鏁板姩浣滐細Start/Stop 鍚勮嚜绱姞榛戞澘璁℃暟锛岀敤浜庨獙璇佹墽琛岄『搴忎笌涓琛屼负銆?/summary>
+    public sealed class CountingActionNode : ActionNodeBase
     {
         public const string ResultKeyProperty = "resultKey";
         public const string StartCounterKeyProperty = "startCounterKey";
@@ -39,23 +38,22 @@ namespace AbilityKit.BehaviorTree.Tests
         private string _startCounterKey = "test.startCount";
         private string _stopCounterKey = "test.stopCount";
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _resultKey = context.Properties.GetString(ResultKeyProperty, "test.result");
             _startCounterKey = context.Properties.GetString(StartCounterKeyProperty, "test.startCount");
             _stopCounterKey = context.Properties.GetString(StopCounterKeyProperty, "test.stopCount");
         }
 
-        public override void OnStart(BtExecutionContext context)
+        public override void OnStart(ExecutionContext context)
         {
-            // 计数 key 未声明时跳过（测试辅助容错），声明后按黑板类型累加
             if (context.Blackboard.TryGetInt64(_startCounterKey, out var count))
             {
                 context.Blackboard.SetInt64(_startCounterKey, count + 1);
             }
         }
 
-        public override void OnStop(BtExecutionContext context)
+        public override void OnStop(ExecutionContext context)
         {
             if (context.Blackboard.TryGetInt64(_stopCounterKey, out var count))
             {
@@ -63,30 +61,30 @@ namespace AbilityKit.BehaviorTree.Tests
             }
         }
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             context.Blackboard.TryGetInt64(_resultKey, out var result);
             return result switch
             {
-                1 => BtNodeState.Success,
-                2 => BtNodeState.Running,
-                _ => BtNodeState.Failure,
+                1 => NodeState.Success,
+                2 => NodeState.Running,
+                _ => NodeState.Failure,
             };
         }
     }
 
-    /// <summary>测试用脚本条件：读黑板 bool key。</summary>
-    public sealed class ScriptedConditionNode : BtConditionNodeBase
+    /// <summary>娴嬭瘯鐢ㄨ剼鏈潯浠讹細璇婚粦鏉?bool key銆?/summary>
+    public sealed class ScriptedConditionNode : ConditionNodeBase
     {
         public const string CondKeyProperty = "condKey";
         private string _condKey = "test.cond";
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _condKey = context.Properties.GetString(CondKeyProperty, "test.cond");
         }
 
-        protected override bool Validate(BtExecutionContext context)
+        protected override bool Validate(ExecutionContext context)
         {
             return context.Blackboard.TryGetBool(_condKey, out var value) && value;
         }
@@ -98,40 +96,68 @@ namespace AbilityKit.BehaviorTree.Tests
         public const string CountingAction = "test.countingAction";
         public const string ScriptedCondition = "test.scriptedCondition";
 
-        /// <summary>注册测试节点目录（含属性 schema）。</summary>
-        public static BtNodeRegistry CreateRegistry()
+        /// <summary>娉ㄥ唽娴嬭瘯鑺傜偣鐩綍锛堝惈灞炴€?schema锛夈€?/summary>
+        public static NodeRegistry CreateRegistry()
         {
-            var registry = new BtNodeRegistry();
-            BtBuiltInNodes.RegisterAll(registry);
+            var registry = new NodeRegistry();
+            BuiltInNodes.RegisterAll(registry);
 
-            registry.Register(new BtNodeDescriptor(
-                ScriptedAction, "脚本动作", "测试", BtNodeKind.Action, 0, 0,
+            registry.Register(new NodeDescriptor(
+                ScriptedAction, "鑴氭湰鍔ㄤ綔", "娴嬭瘯", NodeKind.Action, 0, 0,
                 () => new ScriptedResultActionNode(),
-                new[] { new BtPropertyField(ScriptedResultActionNode.ResultKeyProperty, BtValueType.String) }));
+                new[] { new PropertyField(ScriptedResultActionNode.ResultKeyProperty, TreeValueType.String) }));
 
-            registry.Register(new BtNodeDescriptor(
-                CountingAction, "计数动作", "测试", BtNodeKind.Action, 0, 0,
+            registry.Register(new NodeDescriptor(
+                CountingAction, "璁℃暟鍔ㄤ綔", "娴嬭瘯", NodeKind.Action, 0, 0,
                 () => new CountingActionNode(),
                 new[]
                 {
-                    new BtPropertyField(CountingActionNode.ResultKeyProperty, BtValueType.String),
-                    new BtPropertyField(CountingActionNode.StartCounterKeyProperty, BtValueType.String),
-                    new BtPropertyField(CountingActionNode.StopCounterKeyProperty, BtValueType.String),
+                    new PropertyField(CountingActionNode.ResultKeyProperty, TreeValueType.String),
+                    new PropertyField(CountingActionNode.StartCounterKeyProperty, TreeValueType.String),
+                    new PropertyField(CountingActionNode.StopCounterKeyProperty, TreeValueType.String),
                 }));
 
-            registry.Register(new BtNodeDescriptor(
-                ScriptedCondition, "脚本条件", "测试", BtNodeKind.Condition, 0, 0,
+            registry.Register(new NodeDescriptor(
+                ScriptedCondition, "鑴氭湰鏉′欢", "娴嬭瘯", NodeKind.Condition, 0, 0,
                 () => new ScriptedConditionNode(),
-                new[] { new BtPropertyField(ScriptedConditionNode.CondKeyProperty, BtValueType.String) }));
+                new[] { new PropertyField(ScriptedConditionNode.CondKeyProperty, TreeValueType.String) }));
+
+            return registry;
+        }
+
+        public static AbilityKit.BehaviorTree.Registry.NodeRegistry CreateApiRegistry()
+        {
+            var registry = new AbilityKit.BehaviorTree.Registry.NodeRegistry();
+            AbilityKit.BehaviorTree.Nodes.BuiltInNodes.RegisterAll(registry);
+
+            registry.Register(new AbilityKit.BehaviorTree.Registry.NodeDescriptor(
+                ScriptedAction, "鑴氭湰鍔ㄤ綔", "娴嬭瘯", AbilityKit.BehaviorTree.Definition.NodeKind.Action, 0, 0,
+                () => new ScriptedResultActionNode(),
+                new[] { new AbilityKit.BehaviorTree.Registry.PropertyField(ScriptedResultActionNode.ResultKeyProperty, AbilityKit.BehaviorTree.Definition.ValueType.String) }));
+
+            registry.Register(new AbilityKit.BehaviorTree.Registry.NodeDescriptor(
+                CountingAction, "璁℃暟鍔ㄤ綔", "娴嬭瘯", AbilityKit.BehaviorTree.Definition.NodeKind.Action, 0, 0,
+                () => new CountingActionNode(),
+                new[]
+                {
+                    new AbilityKit.BehaviorTree.Registry.PropertyField(CountingActionNode.ResultKeyProperty, AbilityKit.BehaviorTree.Definition.ValueType.String),
+                    new AbilityKit.BehaviorTree.Registry.PropertyField(CountingActionNode.StartCounterKeyProperty, AbilityKit.BehaviorTree.Definition.ValueType.String),
+                    new AbilityKit.BehaviorTree.Registry.PropertyField(CountingActionNode.StopCounterKeyProperty, AbilityKit.BehaviorTree.Definition.ValueType.String),
+                }));
+
+            registry.Register(new AbilityKit.BehaviorTree.Registry.NodeDescriptor(
+                ScriptedCondition, "鑴氭湰鏉′欢", "娴嬭瘯", AbilityKit.BehaviorTree.Definition.NodeKind.Condition, 0, 0,
+                () => new ScriptedConditionNode(),
+                new[] { new AbilityKit.BehaviorTree.Registry.PropertyField(ScriptedConditionNode.CondKeyProperty, AbilityKit.BehaviorTree.Definition.ValueType.String) }));
 
             return registry;
         }
     }
 
-    /// <summary>建树 DSL：快速组装 BtTreeDefinition。</summary>
+    /// <summary>寤烘爲 DSL锛氬揩閫熺粍瑁呮爲瀹氫箟銆?/summary>
     public sealed class TreeBuilder
     {
-        private readonly BtTreeDefinition _definition = new() { TreeId = "test.tree" };
+        private readonly TreeDefinition _definition = new() { TreeId = "test.tree" };
 
         public static TreeBuilder Create(string treeId = "test.tree") => new() { _definition = { TreeId = treeId } };
 
@@ -139,7 +165,7 @@ namespace AbilityKit.BehaviorTree.Tests
 
         public TreeBuilder Node(string id, string type, params string[] childIds)
         {
-            var node = new BtNodeDefinition { Id = id, Type = type };
+            var node = new NodeDefinition { Id = id, Type = type };
             node.ChildIds.AddRange(childIds);
             _definition.Nodes.Add(node);
             return this;
@@ -148,19 +174,65 @@ namespace AbilityKit.BehaviorTree.Tests
         public TreeBuilder Node(string id, string type, long abortType, params string[] childIds)
         {
             Node(id, type, childIds);
-            LastNode.Properties.Set(BtCompositeNode.AbortTypeProperty, BtPropertyValue.Of(abortType));
+            LastNode.Properties.Set(CompositeNode.AbortTypeProperty, PropertyValue.Of(abortType));
             return this;
         }
 
-        public BtNodeDefinition LastNode => _definition.Nodes[_definition.Nodes.Count - 1];
+        public NodeDefinition LastNode => _definition.Nodes[_definition.Nodes.Count - 1];
 
-        public TreeBuilder Blackboard(string key, BtValueType type, BtPropertyValue? @default = null)
+        public TreeBuilder Blackboard(string key, TreeValueType type, PropertyValue? @default = null)
         {
-            _definition.Blackboard.Keys.Add(new BtBlackboardKeyDefinition { Name = key, Type = type, Default = @default });
+            _definition.Blackboard.Keys.Add(new BlackboardKeyDefinition { Name = key, Type = type, Default = @default });
             return this;
         }
 
-        public BtTreeDefinition Root(string rootId)
+        public TreeDefinition Root(string rootId)
+        {
+            _definition.RootNodeId = rootId;
+            return _definition;
+        }
+    }
+
+    public sealed class ApiTreeBuilder
+    {
+        private readonly AbilityKit.BehaviorTree.Definition.TreeDefinition _definition = new() { TreeId = "test.tree" };
+
+        public static ApiTreeBuilder Create(string treeId = "test.tree") => new() { _definition = { TreeId = treeId } };
+
+        public ApiTreeBuilder() { }
+
+        public ApiTreeBuilder Node(string id, string type, params string[] childIds)
+        {
+            var node = new AbilityKit.BehaviorTree.Definition.NodeDefinition { Id = id, Type = type };
+            node.ChildIds.AddRange(childIds);
+            _definition.Nodes.Add(node);
+            return this;
+        }
+
+        public ApiTreeBuilder Node(string id, string type, long abortType, params string[] childIds)
+        {
+            Node(id, type, childIds);
+            LastNode.Properties.Set(CompositeNode.AbortTypeProperty, AbilityKit.BehaviorTree.Definition.PropertyValue.Of(abortType));
+            return this;
+        }
+
+        public AbilityKit.BehaviorTree.Definition.NodeDefinition LastNode => _definition.Nodes[_definition.Nodes.Count - 1];
+
+        public ApiTreeBuilder Blackboard(
+            string key,
+            AbilityKit.BehaviorTree.Definition.ValueType type,
+            AbilityKit.BehaviorTree.Definition.PropertyValue? @default = null)
+        {
+            _definition.Blackboard.Keys.Add(new AbilityKit.BehaviorTree.Definition.BlackboardKeyDefinition
+            {
+                Name = key,
+                Type = type,
+                Default = @default,
+            });
+            return this;
+        }
+
+        public AbilityKit.BehaviorTree.Definition.TreeDefinition Root(string rootId)
         {
             _definition.RootNodeId = rootId;
             return _definition;

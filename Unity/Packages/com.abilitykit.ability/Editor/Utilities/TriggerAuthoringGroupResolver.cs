@@ -47,6 +47,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (node == null) return null;
             var clone = new TriggerNodeData
             {
+                Enabled = node.Enabled,
                 Kind = node.Kind,
                 GroupReference = node.GroupReference,
                 Type = node.Type,
@@ -117,6 +118,17 @@ namespace AbilityKit.Ability.Editor.Utilities
             expanded = null;
             failure = null;
             if (node == null) return true;
+            if (!node.Enabled)
+            {
+                expanded = new TriggerNodeData
+                {
+                    Enabled = false,
+                    Kind = kind,
+                    Arguments = new List<TriggerArgumentData>(),
+                    Children = new List<TriggerNodeData>()
+                };
+                return true;
+            }
 
             if (!string.IsNullOrWhiteSpace(node.GroupReference))
             {
@@ -158,6 +170,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             expanded = new TriggerNodeData
             {
+                Enabled = node.Enabled,
                 Kind = node.Kind,
                 Type = node.Type,
                 Note = node.Note,
@@ -231,9 +244,28 @@ namespace AbilityKit.Ability.Editor.Utilities
                         Y = value.Vector3Value.Y,
                         Z = value.Vector3Value.Z
                     },
+                Fields = CloneArguments(value.Fields),
                 Path = value.Path,
                 Expression = value.Expression
             };
+        }
+
+        private static List<TriggerArgumentData> CloneArguments(IReadOnlyList<TriggerArgumentData> arguments)
+        {
+            var clone = new List<TriggerArgumentData>();
+            if (arguments == null) return clone;
+            for (var i = 0; i < arguments.Count; i++)
+            {
+                var argument = arguments[i];
+                clone.Add(argument == null
+                    ? null
+                    : new TriggerArgumentData
+                    {
+                        Name = argument.Name,
+                        Value = CloneValue(argument.Value)
+                    });
+            }
+            return clone;
         }
     }
 }

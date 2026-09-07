@@ -6,7 +6,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace UnityHFSM.Visualization
+namespace AbilityKit.HFSM.Visualization
 {
     /// <summary>
     /// 状态节点信息

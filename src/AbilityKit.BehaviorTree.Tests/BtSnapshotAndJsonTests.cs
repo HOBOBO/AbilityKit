@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using AbilityKit.BehaviorTree.Authoring;
+using ApiTreeJson = AbilityKit.BehaviorTree.Serialization.TreeJson;
 using AbilityKit.Deterministic;
 using Newtonsoft.Json;
 using Xunit;
@@ -7,40 +8,38 @@ using static AbilityKit.BehaviorTree.Tests.TestNodeTypes;
 
 namespace AbilityKit.BehaviorTree.Tests
 {
-    /// <summary>快照往返、定义哈希拒绝、JSON roundtrip 与 golden 稳定性。</summary>
+    /// <summary>蹇収寰€杩斻€佸畾涔夊搱甯屾嫆缁濄€丣SON roundtrip 涓?golden 绋冲畾鎬с€?/summary>
     public sealed class BtSnapshotAndJsonTests
     {
-        private static BtTreeDefinition RunningTree()
+        private static TreeDefinition RunningTree()
         {
             var definition = new TreeBuilder()
-                .Blackboard("test.result", BtValueType.Int64)
-                .Blackboard("test.startCount", BtValueType.Int64)
-                .Node("root", BtBuiltInNodeTypes.Sequence, "wait", "counter")
-                .Node("wait", BtBuiltInNodeTypes.Wait)
+                .Blackboard("test.result", TreeValueType.Int64)
+                .Blackboard("test.startCount", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Sequence, "wait", "counter")
+                .Node("wait", BuiltInNodeTypes.Wait)
                 .Node("counter", CountingAction)
                 .Root("root");
-            definition.Nodes[1].Properties.Set("durationSeconds", BtPropertyValue.Of(Fixed64.FromInt32(2)));
-            definition.Nodes[2].Properties.Set("startCounterKey", BtPropertyValue.Of("test.startCount"));
-            definition.Nodes[2].Properties.Set("resultKey", BtPropertyValue.Of("test.result"));
+            definition.Nodes[1].Properties.Set("durationSeconds", PropertyValue.Of(Fixed64.FromInt32(2)));
+            definition.Nodes[2].Properties.Set("startCounterKey", PropertyValue.Of("test.startCount"));
+            definition.Nodes[2].Properties.Set("resultKey", PropertyValue.Of("test.result"));
             return definition;
         }
 
         [Fact]
         public void SnapshotRoundtrip_ContinuesIdentically()
         {
-            var options = new BtTreeRunOptions { Seed = 42 };
-            var original = BtTreeRuntime.Create(RunningTree(), CreateRegistry(), null, options);
+            var options = new TreeRunOptions { Seed = 42 };
+            var original = TreeRuntime.Create(RunningTree(), CreateRegistry(), null, options);
             original.Enable(0, Fixed64.Zero);
             original.Blackboard.SetInt64("test.result", 2);
             original.Update(1, Fixed64.Zero);
             original.Update(2, Fixed64.One);
 
-            var snapshotJson = BtTreeJson.SaveSnapshot(original.CaptureState());
-            var restored = BtTreeRuntime.Create(RunningTree(), CreateRegistry(), null, options);
+            var snapshotJson = TreeJson.SaveSnapshot(original.CaptureState());
+            var restored = TreeRuntime.Create(RunningTree(), CreateRegistry(), null, options);
             restored.Enable(0, Fixed64.Zero);
-            restored.RestoreState(BtTreeJson.LoadSnapshot(snapshotJson));
-
-            // 双实例继续执行相同序列，黑板演化一致
+            restored.RestoreState(TreeJson.LoadSnapshot(snapshotJson));
             for (var frame = 3; frame <= 6; frame++)
             {
                 var time = Fixed64.FromInt32(frame - 2);
@@ -49,13 +48,11 @@ namespace AbilityKit.BehaviorTree.Tests
                 Assert.Equal(original.RootNodeState, restored.RootNodeState);
                 Assert.Equal(original.TreeState, restored.TreeState);
             }
-
-            // 放开运行中的动作，双实例都应完成，计数一致
             original.Blackboard.SetInt64("test.result", 1);
             restored.Blackboard.SetInt64("test.result", 1);
             original.Update(7, Fixed64.FromInt32(5));
             restored.Update(7, Fixed64.FromInt32(5));
-            Assert.Equal(BtNodeState.Success, original.RootNodeState);
+            Assert.Equal(NodeState.Success, original.RootNodeState);
             Assert.Equal(original.RootNodeState, restored.RootNodeState);
             Assert.Equal(original.Blackboard.GetInt64("test.startCount"), restored.Blackboard.GetInt64("test.startCount"));
         }
@@ -63,14 +60,14 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void Restore_RejectsModifiedDefinition()
         {
-            var original = BtTreeRuntime.Create(RunningTree(), CreateRegistry());
+            var original = TreeRuntime.Create(RunningTree(), CreateRegistry());
             original.Enable();
             var snapshot = original.CaptureState();
 
             var modified = RunningTree();
-            modified.Nodes[1].Properties.Set("durationSeconds", BtPropertyValue.Of(Fixed64.FromInt32(5)));
+            modified.Nodes[1].Properties.Set("durationSeconds", PropertyValue.Of(Fixed64.FromInt32(5)));
 
-            var other = BtTreeRuntime.Create(modified, CreateRegistry());
+            var other = TreeRuntime.Create(modified, CreateRegistry());
             other.Enable();
             Assert.Throws<System.InvalidOperationException>(() => other.RestoreState(snapshot));
         }
@@ -78,7 +75,7 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void Restore_RejectsVersionMismatch()
         {
-            var original = BtTreeRuntime.Create(RunningTree(), CreateRegistry());
+            var original = TreeRuntime.Create(RunningTree(), CreateRegistry());
             original.Enable();
             var snapshot = original.CaptureState();
             snapshot.SnapshotVersion = 99;
@@ -88,7 +85,7 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void Capture_RequiresEnable()
         {
-            var runtime = BtTreeRuntime.Create(RunningTree(), CreateRegistry());
+            var runtime = TreeRuntime.Create(RunningTree(), CreateRegistry());
             Assert.Throws<System.InvalidOperationException>(() => runtime.CaptureState());
         }
 
@@ -96,40 +93,40 @@ namespace AbilityKit.BehaviorTree.Tests
         public void JsonRoundtrip_PreservesDefinitionAndBehavior()
         {
             var definition = RunningTree();
-            var json = BtTreeJson.Save(definition);
-            var loaded = BtTreeJson.Load(json);
+            var json = TreeJson.Save(definition);
+            var loaded = TreeJson.Load(json);
 
             Assert.Equal(definition.ComputeDefinitionHash(), loaded.ComputeDefinitionHash());
             Assert.Equal(definition.RootNodeId, loaded.RootNodeId);
             Assert.Equal(2, loaded.Blackboard.Keys.Count);
 
-            var runtime = BtTreeRuntime.Create(loaded, CreateRegistry());
+            var runtime = TreeRuntime.Create(loaded, CreateRegistry());
             runtime.Enable();
             runtime.Blackboard.SetInt64("test.result", 1);
             runtime.Update(1, Fixed64.Zero);
             runtime.Update(2, Fixed64.FromInt32(2));
-            Assert.Equal(BtNodeState.Success, runtime.RootNodeState);
+            Assert.Equal(NodeState.Success, runtime.RootNodeState);
             Assert.Equal(1, runtime.Blackboard.GetInt64("test.startCount"));
         }
 
         [Fact]
         public void JsonSave_IsStableAcrossSaves()
         {
-            var first = BtTreeJson.Save(RunningTree());
-            var second = BtTreeJson.Save(BtTreeJson.Load(first));
+            var first = TreeJson.Save(RunningTree());
+            var second = TreeJson.Save(TreeJson.Load(first));
             Assert.Equal(first, second);
         }
 
         [Fact]
         public void JsonFormat_UsesStableCamelCaseAndNoClrTypes()
         {
-            var json = BtTreeJson.Save(RunningTree());
+            var json = TreeJson.Save(RunningTree());
             Assert.Contains("\"formatVersion\"", json);
             Assert.Contains("\"rootNodeId\"", json);
             Assert.Contains("\"builtin.sequence\"", json);
             Assert.DoesNotContain("$type", json);
             Assert.DoesNotContain("\"comment\"", json);
-            Assert.DoesNotContain("AbilityKit.BehaviorTree.Bt", json);   // 无 CLR 类型名
+            Assert.DoesNotContain("AbilityKit.BehaviorTree.Bt", json);
             foreach (var node in (Newtonsoft.Json.Linq.JArray)Newtonsoft.Json.Linq.JObject.Parse(json)["nodes"]!)
             {
                 Assert.Null(node["name"]);
@@ -149,9 +146,9 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void RuntimeJson_RejectsAuthoringDocument()
         {
-            var document = BtTreeExporter.Import(RunningTree());
+            var document = TreeExporter.Import(ApiTreeJson.Load(TreeJson.Save(RunningTree())));
             var exception = Assert.Throws<JsonSerializationException>(
-                () => BtTreeJson.Load(BtAuthoringJson.Save(document)));
+                () => TreeJson.Load(AuthoringJson.Save(document)));
             Assert.Contains("authoring JSON", exception.Message);
         }
 
@@ -159,10 +156,10 @@ namespace AbilityKit.BehaviorTree.Tests
         public void Runtime_OwnsDefinitionSnapshot()
         {
             var source = RunningTree();
-            var runtime = BtTreeRuntime.Create(source, CreateRegistry());
+            var runtime = TreeRuntime.Create(source, CreateRegistry());
             var originalHash = runtime.Definition.ComputeDefinitionHash();
 
-            source.Nodes[1].Properties.Set("durationSeconds", BtPropertyValue.Of(Fixed64.FromInt32(99)));
+            source.Nodes[1].Properties.Set("durationSeconds", PropertyValue.Of(Fixed64.FromInt32(99)));
             source.RootNodeId = "counter";
             var exposedCopy = runtime.Definition;
             exposedCopy.RootNodeId = "counter";
@@ -174,7 +171,7 @@ namespace AbilityKit.BehaviorTree.Tests
             runtime.Blackboard.SetInt64("test.result", 1);
             runtime.Update(1, Fixed64.Zero);
             runtime.Update(2, Fixed64.FromInt32(2));
-            Assert.Equal(BtNodeState.Success, runtime.RootNodeState);
+            Assert.Equal(NodeState.Success, runtime.RootNodeState);
         }
 
         [Fact]
@@ -182,7 +179,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var a = RunningTree();
             var b = RunningTree();
-            b.Nodes[1].Properties.Set("durationSeconds", BtPropertyValue.Of(Fixed64.FromInt32(9)));
+            b.Nodes[1].Properties.Set("durationSeconds", PropertyValue.Of(Fixed64.FromInt32(9)));
             Assert.NotEqual(a.ComputeDefinitionHash(), b.ComputeDefinitionHash());
         }
 
@@ -190,14 +187,14 @@ namespace AbilityKit.BehaviorTree.Tests
         public void BlackboardSnapshot_RestoresAllTypes()
         {
             var definition = new TreeBuilder()
-                .Blackboard("b", BtValueType.Bool)
-                .Blackboard("i", BtValueType.Int64)
-                .Blackboard("f", BtValueType.Fixed64)
-                .Blackboard("s", BtValueType.String)
-                .Node("root", BtBuiltInNodeTypes.Succeed)
+                .Blackboard("b", TreeValueType.Bool)
+                .Blackboard("i", TreeValueType.Int64)
+                .Blackboard("f", TreeValueType.Fixed64)
+                .Blackboard("s", TreeValueType.String)
+                .Node("root", BuiltInNodeTypes.Succeed)
                 .Root("root");
 
-            var runtime = BtTreeRuntime.Create(definition, CreateRegistry());
+            var runtime = TreeRuntime.Create(definition, CreateRegistry());
             runtime.Enable();
             runtime.Blackboard.SetBool("b", true);
             runtime.Blackboard.SetInt64("i", -7);

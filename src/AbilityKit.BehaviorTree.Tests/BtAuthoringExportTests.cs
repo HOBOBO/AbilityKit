@@ -1,43 +1,49 @@
-using AbilityKit.BehaviorTree.Authoring;
+﻿using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.BehaviorTree.Authoring.Model;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Execution;
+using AbilityKit.BehaviorTree.Nodes;
+using AbilityKit.BehaviorTree.Serialization;
+using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 using Newtonsoft.Json.Linq;
 using Xunit;
 using static AbilityKit.BehaviorTree.Tests.TestNodeTypes;
 
 namespace AbilityKit.BehaviorTree.Tests
 {
-    /// <summary>授权文档 → 运行时 IR 的导出管线：布局剥离、golden 稳定、校验门禁、roundtrip。</summary>
+    /// <summary>鎺堟潈鏂囨。 鈫?杩愯鏃?IR 鐨勫鍑虹绾匡細甯冨眬鍓ョ銆乬olden 绋冲畾銆佹牎楠岄棬绂併€乺oundtrip銆?/summary>
     public sealed class BtAuthoringExportTests
     {
-        private static BtAuthoringSourceDocument AuthoringDocument()
+        private static AuthoringSourceDocument AuthoringDocument()
         {
-            var definition = new TreeBuilder()
-                .Blackboard("test.result", BtValueType.Int64)
-                .Node("root", BtBuiltInNodeTypes.Sequence, "a", "b")
+            var definition = new ApiTreeBuilder()
+                .Blackboard("test.result", ValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Sequence, "a", "b")
                 .Node("a", ScriptedAction)
-                .Node("b", BtBuiltInNodeTypes.Succeed)
+                .Node("b", BuiltInNodeTypes.Succeed)
                 .Root("root");
 
-            var document = new BtAuthoringSourceDocument { Tree = definition };
+            var document = new AuthoringSourceDocument { Tree = definition };
             document.Metadata.Author = "hobobo";
-            document.NodeMetadata.Add(new BtAuthoringNodeMetadata
+            document.NodeMetadata.Add(new AuthoringNodeMetadata
                 { NodeId = "root", DisplayName = "Root Sequence", Comment = "editor only" });
-            document.Layout.Add(new BtNodeLayoutData { NodeId = "root", X = 10, Y = 20 });
-            document.Layout.Add(new BtNodeLayoutData { NodeId = "a", X = 100, Y = 30 });
-            document.Layout.Add(new BtNodeLayoutData { NodeId = "b", X = 200, Y = 40 });
-            document.Groups.Add(new BtAuthoringGroupData
+            document.Layout.Add(new NodeLayoutData { NodeId = "root", X = 10, Y = 20 });
+            document.Layout.Add(new NodeLayoutData { NodeId = "a", X = 100, Y = 30 });
+            document.Layout.Add(new NodeLayoutData { NodeId = "b", X = 200, Y = 40 });
+            document.Groups.Add(new AuthoringGroupData
             {
                 Id = "g1",
-                Title = "战斗意图",
+                Title = "鎴樻枟鎰忓浘",
                 X = 0,
                 Y = 0,
                 Width = 300,
                 Height = 200,
                 NodeIds = { "a", "b" },
             });
-            document.Notes.Add(new BtAuthoringNoteData
+            document.Notes.Add(new AuthoringNoteData
             {
                 Id = "note-1",
-                Text = "仅供策划阅读",
+                Text = "浠呬緵绛栧垝闃呰",
                 X = 24,
                 Y = 48,
                 Width = 220,
@@ -49,18 +55,17 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void Export_StripsLayoutFromRuntimeIr()
         {
-            var json = BtTreeExporter.Export(AuthoringDocument(), CreateRegistry(), out var errors);
+            var json = TreeExporter.Export(AuthoringDocument(), CreateApiRegistry(), out var errors);
             Assert.Empty(errors);
 
-            // 运行时 IR 不含布局/分组，也不含授权元数据
-            Assert.DoesNotContain("\"layout\"", json);
+            // 杩愯鏃?IR 涓嶅惈甯冨眬/鍒嗙粍锛屼篃涓嶅惈鎺堟潈鍏冩暟鎹?            Assert.DoesNotContain("\"layout\"", json);
             Assert.DoesNotContain("\"groups\"", json);
             Assert.DoesNotContain("\"notes\"", json);
             Assert.DoesNotContain("\"author\"", json);
             Assert.DoesNotContain("\"nodeMetadata\"", json);
             Assert.DoesNotContain("\"displayName\"", json);
             Assert.DoesNotContain("\"comment\"", json);
-            Assert.DoesNotContain("仅供策划阅读", json);
+            Assert.DoesNotContain("浠呬緵绛栧垝闃呰", json);
             Assert.DoesNotContain("\"x\"", json);
             Assert.DoesNotContain("abilitykit-bt-authoring", json);
             foreach (var node in (JArray)JObject.Parse(json)["nodes"]!)
@@ -73,8 +78,8 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void Export_ProducesStableGoldenOutput()
         {
-            var first = BtTreeExporter.Export(AuthoringDocument(), CreateRegistry(), out _);
-            var second = BtTreeExporter.Export(AuthoringDocument(), CreateRegistry(), out _);
+            var first = TreeExporter.Export(AuthoringDocument(), CreateApiRegistry(), out _);
+            var second = TreeExporter.Export(AuthoringDocument(), CreateApiRegistry(), out _);
             Assert.Equal(first, second);
         }
 
@@ -84,7 +89,7 @@ namespace AbilityKit.BehaviorTree.Tests
             var document = AuthoringDocument();
             document.Tree.RootNodeId = "missing";
 
-            var json = BtTreeExporter.Export(document, CreateRegistry(), out var errors);
+            var json = TreeExporter.Export(document, CreateApiRegistry(), out var errors);
             Assert.Null(json);
             Assert.Contains(errors, e => e.Contains("Root node"));
         }
@@ -95,7 +100,7 @@ namespace AbilityKit.BehaviorTree.Tests
             var document = AuthoringDocument();
             document.Tree.Nodes[1].Type = "nope.unknown";
 
-            var json = BtTreeExporter.Export(document, CreateRegistry(), out var errors);
+            var json = TreeExporter.Export(document, CreateApiRegistry(), out var errors);
             Assert.Null(json);
             Assert.Contains(errors, e => e.Contains("unknown type"));
         }
@@ -104,10 +109,9 @@ namespace AbilityKit.BehaviorTree.Tests
         public void ToRuntimeDefinition_ReturnsDetachedCopy()
         {
             var document = AuthoringDocument();
-            var definition = BtTreeExporter.ToRuntimeDefinition(document);
+            var definition = TreeExporter.ToRuntimeDefinition(document);
 
-            // 修改返回值不影响编辑态文档
-            definition.Nodes[1].Type = "polluted.type";
+            // 淇敼杩斿洖鍊间笉褰卞搷缂栬緫鎬佹枃妗?            definition.Nodes[1].Type = "polluted.type";
             Assert.NotEqual("polluted.type", document.Tree.Nodes[1].Type);
         }
 
@@ -115,14 +119,14 @@ namespace AbilityKit.BehaviorTree.Tests
         public void AuthoringJson_Roundtrip_PreservesLayout()
         {
             var document = AuthoringDocument();
-            var json = BtAuthoringJson.Save(document);
-            var loaded = BtAuthoringJson.Load(json);
+            var json = AuthoringJson.Save(document);
+            var loaded = AuthoringJson.Load(json);
 
             Assert.Equal(3, loaded.Layout.Count);
             Assert.Single(loaded.Groups);
             Assert.Single(loaded.Notes);
-            Assert.Equal("战斗意图", loaded.Groups[0].Title);
-            Assert.Equal("仅供策划阅读", loaded.Notes[0].Text);
+            Assert.Equal("鎴樻枟鎰忓浘", loaded.Groups[0].Title);
+            Assert.Equal("浠呬緵绛栧垝闃呰", loaded.Notes[0].Text);
             Assert.Equal(24f, loaded.Notes[0].X);
             Assert.Equal(10f, loaded.Layout[0].X);
             Assert.Equal("Root Sequence", loaded.NodeMetadata[0].DisplayName);
@@ -133,20 +137,20 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void AuthoringJson_MigratesLegacyNodeNameAndComment()
         {
-            var root = JObject.Parse(BtAuthoringJson.Save(AuthoringDocument()));
-            root["version"] = BtAuthoringSchema.LegacyVersion;
+            var root = JObject.Parse(AuthoringJson.Save(AuthoringDocument()));
+            root["version"] = AuthoringSchema.LegacyVersion;
             root.Remove("nodeMetadata");
             var node = (JObject)root["tree"]!["nodes"]![0]!;
             node["name"] = "Legacy Root";
             node["comment"] = "legacy note";
 
-            var loaded = BtAuthoringJson.Load(root.ToString());
-            Assert.Equal(BtAuthoringSchema.Version, loaded.Version);
+            var loaded = AuthoringJson.Load(root.ToString());
+            Assert.Equal(AuthoringSchema.Version, loaded.Version);
             Assert.True(loaded.TryGetNodeMetadata("root", out var metadata));
             Assert.Equal("Legacy Root", metadata.DisplayName);
             Assert.Equal("legacy note", metadata.Comment);
 
-            var upgraded = BtAuthoringJson.Save(loaded);
+            var upgraded = AuthoringJson.Save(loaded);
             Assert.Contains("\"nodeMetadata\"", upgraded);
             var upgradedRoot = JObject.Parse(upgraded);
             Assert.Null(upgradedRoot["tree"]!["nodes"]![0]!["name"]);
@@ -156,11 +160,11 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void Import_ProducesEditableDocumentWithEmptyLayout()
         {
-            var definition = new TreeBuilder()
-                .Node("root", BtBuiltInNodeTypes.Succeed)
+            var definition = new ApiTreeBuilder()
+                .Node("root", BuiltInNodeTypes.Succeed)
                 .Root("root");
 
-            var document = BtTreeExporter.Import(definition);
+            var document = TreeExporter.Import(definition);
             Assert.Single(document.Tree.Nodes);
             Assert.Single(document.Layout);
             Assert.Single(document.NodeMetadata);
@@ -172,20 +176,20 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void ExportedJson_LoadsAndRuns()
         {
-            var json = BtTreeExporter.Export(AuthoringDocument(), CreateRegistry(), out _);
-            var runtime = BtTreeRuntime.Create(BtTreeJson.Load(json), CreateRegistry());
+            var json = TreeExporter.Export(AuthoringDocument(), CreateApiRegistry(), out _);
+            var runtime = TreeRuntime.Create(TreeJson.Load(json), CreateApiRegistry());
             runtime.Enable();
             runtime.Blackboard.SetInt64("test.result", 1);
             runtime.Update(1, AbilityKit.Deterministic.Fixed64.Zero);
-            Assert.Equal(BtNodeState.Success, runtime.RootNodeState);
+            Assert.Equal(NodeState.Success, runtime.RootNodeState);
         }
 
         [Fact]
         public void GoldenExamples_ValidateCleanAndExport()
         {
-            foreach (var document in BtAuthoringGoldenExamples.BuildAll())
+            foreach (var document in AuthoringGoldenExamples.BuildAll())
             {
-                var json = BtTreeExporter.Export(document, CreateRegistry(), out var errors);
+                var json = TreeExporter.Export(document, CreateApiRegistry(), out var errors);
                 Assert.Empty(errors);
                 Assert.NotNull(json);
                 Assert.Contains("\"golden.hero_combat\"", json);
@@ -195,10 +199,10 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void GoldenExamples_ExportIsStable()
         {
-            foreach (var document in BtAuthoringGoldenExamples.BuildAll())
+            foreach (var document in AuthoringGoldenExamples.BuildAll())
             {
-                var first = BtTreeExporter.Export(document, CreateRegistry(), out _);
-                var second = BtTreeExporter.Export(document, CreateRegistry(), out _);
+                var first = TreeExporter.Export(document, CreateApiRegistry(), out _);
+                var second = TreeExporter.Export(document, CreateApiRegistry(), out _);
                 Assert.Equal(first, second);
             }
         }
@@ -206,20 +210,22 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void GoldenHeroCombat_RunsAndCompletesCast()
         {
-            var document = BtAuthoringGoldenExamples.BuildHeroCombat();
-            var json = BtTreeExporter.Export(document, CreateRegistry(), out _);
+            var document = AuthoringGoldenExamples.BuildHeroCombat();
+            var json = TreeExporter.Export(document, CreateApiRegistry(), out _);
 
-            var runtime = BtTreeRuntime.Create(BtTreeJson.Load(json), CreateRegistry());
+            var runtime = TreeRuntime.Create(TreeJson.Load(json), CreateApiRegistry());
             runtime.Enable();
             runtime.Blackboard.SetBool("self.hasTarget", true);
             runtime.Blackboard.SetBool("self.canCast", true);
 
             runtime.Update(1, AbilityKit.Deterministic.Fixed64.Zero);
-            Assert.Equal(BtNodeState.Running, runtime.RootNodeState);   // castWait 等待中
+            Assert.Equal(NodeState.Running, runtime.RootNodeState);
             runtime.Update(2, AbilityKit.Deterministic.Fixed64.FromRatio(1, 2));
-            Assert.Equal(BtNodeState.Success, runtime.RootNodeState);
-            // castWait 成功 → Selector 完成 → hold 未运行，out.hold 保持默认 true
+            Assert.Equal(NodeState.Success, runtime.RootNodeState);
+            // castWait 鎴愬姛 鈫?Selector 瀹屾垚 鈫?hold 鏈繍琛岋紝out.hold 淇濇寔榛樿 true
             Assert.True(runtime.Blackboard.GetBool("out.hold"));
         }
     }
 }
+
+

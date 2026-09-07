@@ -1,5 +1,7 @@
-using UnityHFSM;
-using UnityHFSM.Inspection;
+using AbilityKit.HFSM;
+using AbilityKit.HFSM.Runtime;
+using AbilityKit.HFSM.Definition;
+using AbilityKit.HFSM.Inspection;
 using Xunit;
 
 namespace AbilityKit.HFSM.Core.Tests;

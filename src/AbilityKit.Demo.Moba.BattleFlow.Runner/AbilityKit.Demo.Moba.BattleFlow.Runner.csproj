@@ -9,12 +9,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AbilityKit.Demo.Moba.Console\AbilityKit.Demo.Moba.Console.csproj" />
-    <ProjectReference Include="..\AbilityKit.Demo.Moba.Core\AbilityKit.Demo.Moba.Core.csproj" />
+    <!-- 内核已抽到 AbilityKit.Demo.Moba.Acceptance.LiveSim；这里只剩 CLI 壳（序列化场景 + 调内核 + 写结果）。 -->
     <ProjectReference Include="..\AbilityKit.Scenario\AbilityKit.Scenario.csproj" />
-    <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
-    <ProjectReference Include="..\AbilityKit.Environment\AbilityKit.Environment.csproj" />
-    <ProjectReference Include="..\AbilityKit.Demo.Moba.Environment\AbilityKit.Demo.Moba.Environment.csproj" />
-    <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance\AbilityKit.Demo.Moba.Acceptance.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance.LiveSim\AbilityKit.Demo.Moba.Acceptance.LiveSim.csproj" />
   </ItemGroup>
 </Project>

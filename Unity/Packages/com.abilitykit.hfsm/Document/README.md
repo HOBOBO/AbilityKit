@@ -4,7 +4,7 @@
 
 HFSM 回答的问题是："实体的状态是什么，以及如何在不同状态间切换？"
 
-基于 UnityHFSM（Inspiaaa），HFSM 提供 StateMachine 容器和 State 基类。每个 State 有 `OnEnter`/`OnLogic`/`OnExit` 生命周期，Transition 支持条件谓词和时间延迟。ITriggerable<TEvent> 接口让状态可以订阅事件并触发转换，实现事件驱动的状态切换。
+基于 UnityHFSM（Inspiaaa），HFSM 提供 StateMachine 容器和 State 基类。每个 State 有 `OnEnter`/`OnLogic`/`OnExit` 生命周期，Transition 支持条件谓词和时间延迟。ITriggerable<TEvent> 接口让状态可以订阅事件并触发转换，实现事件驱动的状态切换。核心原语统一收敛到 `AbilityKit.HFSM` 命名空间（子命名空间如 `AbilityKit.HFSM.Extension`、`AbilityKit.HFSM.Definition`、`AbilityKit.HFSM.Runtime` 承载扩展、数据驱动定义与确定性运行时）。
 
 **与 Flow 的关系**：`HfsmFlowRunner` 将 HFSM 作为 Flow 节点嵌入，使状态机可以被 Flow 的组合器（Sequence、Parallel、Timeout）管理。
 

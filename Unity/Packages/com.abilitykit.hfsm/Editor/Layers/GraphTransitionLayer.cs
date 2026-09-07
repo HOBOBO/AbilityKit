@@ -1,9 +1,9 @@
 using System;
 using UnityEditor;
 using UnityEngine;
-using UnityHFSM.Graph;
+using AbilityKit.HFSM.Graph;
 
-namespace UnityHFSM.Editor
+namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
     /// Layer that renders and handles transition edges between states.
@@ -151,7 +151,7 @@ namespace UnityHFSM.Editor
             }
         }
 
-        private void ShowTransitionContextMenu(HfsmTransitionEdge edge, Vector2 position)
+        private void ShowTransitionContextMenu(TransitionEdge edge, Vector2 position)
         {
             GenericMenu menu = new GenericMenu();
 
@@ -164,7 +164,7 @@ namespace UnityHFSM.Editor
             menu.ShowAsContext();
         }
 
-        private bool IsMouseOverTransition(Vector2 mousePos, HfsmTransitionEdge edge)
+        private bool IsMouseOverTransition(Vector2 mousePos, TransitionEdge edge)
         {
             var sourceNode = Context.GraphAsset.GetNodeById(edge.SourceNodeId);
             var targetNode = Context.GraphAsset.GetNodeById(edge.TargetNodeId);
@@ -200,7 +200,7 @@ namespace UnityHFSM.Editor
             return Vector2.Distance(point, projection);
         }
 
-        private void DrawTransition(HfsmTransitionEdge edge)
+        private void DrawTransition(TransitionEdge edge)
         {
             var sourceNode = Context.GraphAsset.GetNodeById(edge.SourceNodeId);
             var targetNode = Context.GraphAsset.GetNodeById(edge.TargetNodeId);
@@ -244,7 +244,7 @@ namespace UnityHFSM.Editor
             DrawArrowLine(start, end, PreviewColor);
         }
 
-        private void CalculateEdgePositions(HfsmNodeBase source, HfsmNodeBase target, string sourceId, string targetId, out Vector2 start, out Vector2 end)
+        private void CalculateEdgePositions(NodeBase source, NodeBase target, string sourceId, string targetId, out Vector2 start, out Vector2 end)
         {
             Vector2 sourceCenter = GetNodeCenter(source);
             Vector2 targetCenter = GetNodeCenter(target);
@@ -270,12 +270,12 @@ namespace UnityHFSM.Editor
             }
         }
 
-        private Vector2 GetNodeCenter(HfsmNodeBase node)
+        private Vector2 GetNodeCenter(NodeBase node)
         {
             return node.Position + node.Size * 0.5f;
         }
 
-        private Vector2 GetNodeEdgePoint(HfsmNodeBase node, Vector2 targetPoint)
+        private Vector2 GetNodeEdgePoint(NodeBase node, Vector2 targetPoint)
         {
             Vector2 center = GetNodeCenter(node);
             Vector2 direction = (targetPoint - center).normalized;
@@ -333,7 +333,7 @@ namespace UnityHFSM.Editor
             Handles.DrawLine(new Vector2(p3.x, p3.y), p1);
         }
 
-        private void DrawConditionLabel(Vector2 from, Vector2 to, HfsmTransitionEdge edge, Color lineColor, bool isBidirectional, int edgeIndex)
+        private void DrawConditionLabel(Vector2 from, Vector2 to, TransitionEdge edge, Color lineColor, bool isBidirectional, int edgeIndex)
         {
             // Calculate midpoint
             Vector2 midPoint = Vector2.Lerp(from, to, 0.5f);

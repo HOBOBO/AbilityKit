@@ -1,4 +1,4 @@
-namespace UnityHFSM.Extension
+namespace AbilityKit.HFSM.Extension
 {
     public interface IActionTimeSource
     {

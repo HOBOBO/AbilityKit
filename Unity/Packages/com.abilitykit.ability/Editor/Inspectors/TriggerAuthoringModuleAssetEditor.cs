@@ -7,6 +7,7 @@ using AbilityKit.Ability.Editor.Utilities;
 using AbilityKit.Ability.Editor.Windows;
 using AbilityKit.Editor.Platform.Commands;
 using AbilityKit.Editor.Platform.Diagnostics;
+using AbilityKit.Editor.Platform.UI;
 using Sirenix.OdinInspector.Editor;
 using Sirenix.Utilities.Editor;
 using UnityEditor;
@@ -15,6 +16,64 @@ using UnityEngine;
 
 namespace AbilityKit.Ability.Editor.Inspectors
 {
+    internal interface ITriggerAuthoringNodeContextMenuContributor
+    {
+        void Populate(TriggerAuthoringNodeContextMenuContext context);
+    }
+
+    internal sealed class TriggerAuthoringNodeContextMenuContext
+    {
+        public GenericMenu Menu;
+        public TriggerNodeKind Kind;
+        public TriggerNodeData Node;
+        public TriggerTypeDescriptor Descriptor;
+        public bool CanPasteChild;
+        public bool CanAddChild;
+        public Action Copy;
+        public Action PasteChild;
+        public Action ChangeType;
+        public Action SelectGroup;
+        public Action ToggleEnabled;
+        public Action AddDebugLogChild;
+        public Action InsertDebugLogBefore;
+        public Action InsertDebugLogAfter;
+        public Action Remove;
+    }
+
+    internal sealed class TriggerAuthoringDefaultNodeContextMenuContributor :
+        ITriggerAuthoringNodeContextMenuContributor
+    {
+        public void Populate(TriggerAuthoringNodeContextMenuContext context)
+        {
+            var menu = context.Menu;
+            menu.AddItem(new GUIContent("Copy"), false, () => context.Copy?.Invoke());
+            AddOptional(menu, "Paste As Child", context.CanPasteChild, context.PasteChild);
+            menu.AddSeparator(string.Empty);
+            AddOptional(menu, context.Node != null && context.Node.Enabled ? "Disable Node" : "Enable Node", true, context.ToggleEnabled);
+            AddOptional(menu, "Change Type", true, context.ChangeType);
+            AddOptional(menu, "Replace With Group", true, context.SelectGroup);
+            menu.AddSeparator(string.Empty);
+            if (context.Kind == TriggerNodeKind.Action)
+            {
+                AddOptional(menu, "Debug Log/Add Child", context.CanAddChild, context.AddDebugLogChild);
+                AddOptional(menu, "Debug Log/Insert Before", context.InsertDebugLogBefore != null, context.InsertDebugLogBefore);
+                AddOptional(menu, "Debug Log/Insert After", context.InsertDebugLogAfter != null, context.InsertDebugLogAfter);
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("Debug Log/Only available for actions"));
+            }
+            menu.AddSeparator(string.Empty);
+            AddOptional(menu, "Remove", context.Remove != null, context.Remove);
+        }
+
+        private static void AddOptional(GenericMenu menu, string label, bool enabled, Action action)
+        {
+            if (enabled && action != null) menu.AddItem(new GUIContent(label), false, () => action());
+            else menu.AddDisabledItem(new GUIContent(label));
+        }
+    }
+
     /// <summary>
     /// 模块资产的共享绘制器：Module Inspector 与 TriggerAuthoringWorkspaceWindow 共用同一份编辑 UI。
     /// 纯 IMGUI 类，不持有 Editor 生命周期；宿主通过 RepaintRequested 订阅重绘。
@@ -36,7 +95,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private List<TriggerAuthoringDiagnostic> _diagnostics = new List<TriggerAuthoringDiagnostic>();
         private EditorDiagnosticCollection _platformDiagnostics = new EditorDiagnosticCollection();
         private Vector2 _triggerScroll;
-        private string _triggerSearch = string.Empty;
+        private readonly EditorSearchState _triggerSearch = new EditorSearchState();
+        private TriggerAuthoringTriggerGroupMode _triggerGroupMode = TriggerAuthoringTriggerGroupMode.Event;
+        private TriggerAuthoringTriggerQuickFilter _triggerQuickFilter = TriggerAuthoringTriggerQuickFilter.All;
+        private readonly HashSet<string> _expandedTriggerGroups = new HashSet<string>(StringComparer.Ordinal);
+        private bool _triggerGroupsInitialized;
         private Vector2 _detailScroll;
         private Vector2 _diagnosticScroll;
         private int _selectedTriggerIndex = -1;
@@ -51,6 +114,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private bool _showDiagnostics = true;
         private readonly HashSet<string> _expandedGroupEditors = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _expandedGroupPreviews = new HashSet<string>(StringComparer.Ordinal);
+        private readonly List<ITriggerAuthoringNodeContextMenuContributor> _nodeContextMenuContributors =
+            new List<ITriggerAuthoringNodeContextMenuContributor>
+            {
+                new TriggerAuthoringDefaultNodeContextMenuContributor()
+            };
         private double _nextSyncInspectionAt;
         private TriggerAuthoringSyncInspection _syncInspection;
         private TriggerAuthoringSyncState? _dismissedSyncBannerState;
@@ -73,6 +141,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EnsureSelection();
             RefreshDiagnostics();
             _dismissedSyncBannerState = null;
+            _expandedTriggerGroups.Clear();
+            _triggerGroupsInitialized = false;
         }
 
         public void Dispose()
@@ -220,10 +290,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             _showModuleBlackboard = EditorGUILayout.Foldout(
                 _showModuleBlackboard,
-                $"Module Blackboard ({Count(module.Blackboard)})",
+                $"Module Local Vars ({Count(module.Blackboard)})",
                 true);
             if (_showModuleBlackboard)
-                DrawBlackboard(module.Blackboard, "Module Blackboard");
+                DrawBlackboard(module.Blackboard, "Module Local Vars", TriggerAuthoringLocalBlackboardScope.Module, null);
 
             _showGroups = EditorGUILayout.Foldout(
                 _showGroups,
@@ -244,41 +314,66 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 AddTrigger();
             EditorGUILayout.EndHorizontal();
 
+            EditorImGuiControls.DrawSearch(_triggerSearch, new GUIContent("Search"));
             EditorGUILayout.BeginHorizontal();
-            _triggerSearch = EditorGUILayout.TextField(_triggerSearch ?? string.Empty, EditorStyles.toolbarSearchField);
-            if (GUILayout.Button("x", EditorStyles.toolbarButton, GUILayout.Width(20f)) &&
-                !string.IsNullOrEmpty(_triggerSearch))
+            GUILayout.Label("Group", EditorStyles.miniLabel, GUILayout.Width(42f));
+            var nextGroupMode = (TriggerAuthoringTriggerGroupMode)EditorGUILayout.EnumPopup(
+                _triggerGroupMode,
+                EditorStyles.toolbarPopup);
+            if (nextGroupMode != _triggerGroupMode)
             {
-                _triggerSearch = string.Empty;
+                _triggerGroupMode = nextGroupMode;
+                _expandedTriggerGroups.Clear();
+                _triggerGroupsInitialized = false;
+            }
+            if (GUILayout.Button(new GUIContent("All", "Expand all trigger groups"), EditorStyles.toolbarButton, GUILayout.Width(34f)))
+                ExpandVisibleTriggerGroups();
+            if (GUILayout.Button(new GUIContent("None", "Collapse all trigger groups"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
+            {
+                _expandedTriggerGroups.Clear();
+                _triggerGroupsInitialized = true;
+            }
+            EditorGUILayout.EndHorizontal();
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("Filter", EditorStyles.miniLabel, GUILayout.Width(42f));
+            var nextQuickFilter = (TriggerAuthoringTriggerQuickFilter)EditorGUILayout.EnumPopup(
+                _triggerQuickFilter,
+                EditorStyles.toolbarPopup);
+            if (nextQuickFilter != _triggerQuickFilter)
+            {
+                _triggerQuickFilter = nextQuickFilter;
+                _expandedTriggerGroups.Clear();
+                _triggerGroupsInitialized = false;
+            }
+            if (_triggerQuickFilter != TriggerAuthoringTriggerQuickFilter.All &&
+                GUILayout.Button(new GUIContent("Clear", "Clear quick filter"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
+            {
+                _triggerQuickFilter = TriggerAuthoringTriggerQuickFilter.All;
+                _expandedTriggerGroups.Clear();
+                _triggerGroupsInitialized = false;
                 GUI.FocusControl(null);
             }
             EditorGUILayout.EndHorizontal();
 
-            _triggerScroll = EditorGUILayout.BeginScrollView(_triggerScroll, GUILayout.MinHeight(90f), GUILayout.MaxHeight(360f));
             var triggers = _asset.Module.Triggers ?? (_asset.Module.Triggers = new List<TriggerDefinitionData>());
-            var filter = (_triggerSearch ?? string.Empty).Trim();
-            for (var i = 0; i < triggers.Count; i++)
-            {
-                var trigger = triggers[i];
-                if (trigger != null && filter.Length > 0 && !MatchesTriggerSearch(trigger, filter)) continue;
-                var label = BuildTriggerRowLabel(trigger, i);
-                var oldBackground = GUI.backgroundColor;
-                if (i == _selectedTriggerIndex) GUI.backgroundColor = new Color(0.42f, 0.66f, 0.92f);
-                if (GUILayout.Button(label, EditorStyles.miniButton, GUILayout.Height(25f)))
-                {
-                    _selectedTriggerIndex = i;
-                    _focusedDiagnosticPath = null;
-                }
-                else if (Event.current.type == EventType.ContextClick &&
-                         GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
-                {
-                    _selectedTriggerIndex = i;
-                    _focusedDiagnosticPath = null;
-                    ShowTriggerContextMenu(triggers, i);
-                    Event.current.Use();
-                }
-                GUI.backgroundColor = oldBackground;
-            }
+            var groups = TriggerAuthoringTriggerIndex.Build(
+                triggers,
+                _diagnostics,
+                _events,
+                _triggerGroupMode,
+                _triggerSearch.Text,
+                _triggerQuickFilter);
+            var visibleIndices = TriggerAuthoringTriggerBatchOperations.CollectVisibleTriggerIndices(groups);
+            DrawTriggerBatchToolbar(triggers, visibleIndices);
+            DrawSelectedTriggerVisibilityHint(triggers, visibleIndices);
+
+            _triggerScroll = EditorGUILayout.BeginScrollView(_triggerScroll, GUILayout.MinHeight(90f), GUILayout.MaxHeight(360f));
+            EnsureInitialTriggerGroupExpansion(groups);
+            if (groups.Count == 0)
+                EditorGUILayout.HelpBox("No triggers match the current search.", MessageType.Info);
+            for (var i = 0; i < groups.Count; i++)
+                DrawTriggerGroup(groups[i], triggers);
             EditorGUILayout.EndScrollView();
 
             using (new EditorGUI.DisabledScope(_selectedTriggerIndex < 0 || _selectedTriggerIndex >= triggers.Count))
@@ -295,47 +390,261 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.EndVertical();
         }
 
-        private string BuildTriggerRowLabel(TriggerDefinitionData trigger, int index)
+        private void DrawTriggerBatchToolbar(
+            List<TriggerDefinitionData> triggers,
+            IReadOnlyList<int> visibleIndices)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label("Visible " + Count(visibleIndices), EditorStyles.miniLabel);
+            GUILayout.FlexibleSpace();
+            using (new EditorGUI.DisabledScope(Count(visibleIndices) == 0))
+            {
+                if (GUILayout.Button(new GUIContent("Batch", "Batch edit currently visible triggers"), EditorStyles.toolbarDropDown))
+                    ShowTriggerBatchMenu(triggers, visibleIndices);
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawSelectedTriggerVisibilityHint(
+            IReadOnlyList<TriggerDefinitionData> triggers,
+            IReadOnlyList<int> visibleIndices)
+        {
+            if (_selectedTriggerIndex < 0 ||
+                triggers == null ||
+                _selectedTriggerIndex >= triggers.Count ||
+                TriggerAuthoringTriggerBatchOperations.ContainsVisibleTriggerIndex(visibleIndices, _selectedTriggerIndex))
+                return;
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
+            GUILayout.Label("Selected trigger is hidden by current search or filter.", EditorStyles.miniLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button(new GUIContent("Show", "Clear trigger search and quick filter"), EditorStyles.miniButton, GUILayout.Width(48f)))
+                ShowSelectedTriggerInList();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void ShowSelectedTriggerInList()
+        {
+            _triggerSearch.Clear();
+            _triggerQuickFilter = TriggerAuthoringTriggerQuickFilter.All;
+            _expandedTriggerGroups.Clear();
+            _triggerGroupsInitialized = false;
+            GUI.FocusControl(null);
+            RequestRepaint();
+        }
+
+        private void ShowTriggerBatchMenu(
+            List<TriggerDefinitionData> triggers,
+            IReadOnlyList<int> visibleIndices)
+        {
+            var indices = visibleIndices != null ? new List<int>(visibleIndices) : new List<int>();
+            var menu = new GenericMenu();
+            if (indices.Count == 0)
+            {
+                menu.AddDisabledItem(new GUIContent("No Visible Triggers"));
+                menu.ShowAsContext();
+                return;
+            }
+
+            var count = indices.Count;
+            menu.AddItem(new GUIContent("Select First Visible"), false, () =>
+            {
+                SelectTrigger(indices[0]);
+                RequestRepaint();
+            });
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(new GUIContent("Enable Visible"), false, () =>
+                ConfirmAndApplyVisibleTriggerBatch(
+                    "Enable Visible Triggers",
+                    "Enable " + count + " visible triggers?",
+                    "Enable",
+                    "Enable Visible Triggers",
+                    () => TriggerAuthoringTriggerBatchOperations.SetEnabled(triggers, indices, true),
+                    "Enabled visible triggers"));
+            menu.AddItem(new GUIContent("Disable Visible"), false, () =>
+                ConfirmAndApplyVisibleTriggerBatch(
+                    "Disable Visible Triggers",
+                    "Disable " + count + " visible triggers?",
+                    "Disable",
+                    "Disable Visible Triggers",
+                    () => TriggerAuthoringTriggerBatchOperations.SetEnabled(triggers, indices, false),
+                    "Disabled visible triggers"));
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(new GUIContent("Group Path/Set Visible..."), false, () =>
+                TriggerAuthoringTextPrompt.Open(
+                    "Set Visible Group Path",
+                    "Group Path",
+                    GuessVisibleGroupPath(triggers, indices),
+                    value => ApplyVisibleTriggerBatch(
+                        "Set Visible Trigger Group Path",
+                        () => TriggerAuthoringTriggerBatchOperations.SetGroupPath(triggers, indices, value),
+                        "Updated visible group paths")));
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(new GUIContent("Tags/Add To Visible..."), false, () =>
+                TriggerAuthoringTextPrompt.Open(
+                    "Add Tags To Visible Triggers",
+                    "Tags, comma separated",
+                    string.Empty,
+                    value => ApplyVisibleTriggerBatch(
+                        "Add Visible Trigger Tags",
+                        () => TriggerAuthoringTriggerBatchOperations.AddTags(triggers, indices, value),
+                        "Added visible trigger tags")));
+            menu.AddItem(new GUIContent("Tags/Remove From Visible..."), false, () =>
+                TriggerAuthoringTextPrompt.Open(
+                    "Remove Tags From Visible Triggers",
+                    "Tags, comma separated",
+                    string.Empty,
+                    value => ApplyVisibleTriggerBatch(
+                        "Remove Visible Trigger Tags",
+                        () => TriggerAuthoringTriggerBatchOperations.RemoveTags(triggers, indices, value),
+                        "Removed visible trigger tags")));
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(new GUIContent("Copy Visible Trigger Ids"), false, () =>
+            {
+                EditorGUIUtility.systemCopyBuffer =
+                    TriggerAuthoringTriggerBatchOperations.BuildTriggerIdList(triggers, indices);
+                ShowNotification("Copied visible trigger ids");
+            });
+            menu.ShowAsContext();
+        }
+
+        private void ConfirmAndApplyVisibleTriggerBatch(
+            string title,
+            string message,
+            string ok,
+            string undoName,
+            Func<int> operation,
+            string notification)
+        {
+            if (!EditorUtility.DisplayDialog(title, message, ok, "Cancel")) return;
+            ApplyVisibleTriggerBatch(undoName, operation, notification);
+        }
+
+        private void ApplyVisibleTriggerBatch(
+            string undoName,
+            Func<int> operation,
+            string notification)
+        {
+            var changed = 0;
+            Edit(undoName, () => changed = operation != null ? operation() : 0);
+            ShowNotification(notification + ": " + changed);
+        }
+
+        private string GuessVisibleGroupPath(
+            IReadOnlyList<TriggerDefinitionData> triggers,
+            IReadOnlyList<int> indices)
+        {
+            if (triggers == null || indices == null) return string.Empty;
+            if (_selectedTriggerIndex >= 0 &&
+                _selectedTriggerIndex < triggers.Count &&
+                ContainsIndex(indices, _selectedTriggerIndex))
+                return triggers[_selectedTriggerIndex] != null ? triggers[_selectedTriggerIndex].GroupPath : string.Empty;
+
+            for (var i = 0; i < indices.Count; i++)
+            {
+                var index = indices[i];
+                if (index < 0 || index >= triggers.Count || triggers[index] == null) continue;
+                if (!string.IsNullOrWhiteSpace(triggers[index].GroupPath)) return triggers[index].GroupPath;
+            }
+            return string.Empty;
+        }
+
+        private static bool ContainsIndex(IReadOnlyList<int> indices, int index)
+        {
+            return TriggerAuthoringTriggerBatchOperations.ContainsVisibleTriggerIndex(indices, index);
+        }
+
+        private void DrawTriggerGroup(
+            TriggerAuthoringTriggerIndex.Group group,
+            List<TriggerDefinitionData> triggers)
+        {
+            if (group == null) return;
+            if (_triggerGroupMode == TriggerAuthoringTriggerGroupMode.Flat)
+            {
+                for (var i = 0; i < group.Entries.Count; i++)
+                    DrawTriggerRow(group.Entries[i], triggers);
+                return;
+            }
+
+            var expanded = _triggerSearch.IsEmpty
+                ? _expandedTriggerGroups.Contains(group.Key)
+                : true;
+            var nextExpanded = EditorGUILayout.Foldout(
+                expanded,
+                group.Label + " (" + group.Entries.Count + ")",
+                true);
+            if (nextExpanded) _expandedTriggerGroups.Add(group.Key);
+            else _expandedTriggerGroups.Remove(group.Key);
+            if (!nextExpanded) return;
+
+            EditorGUI.indentLevel++;
+            for (var i = 0; i < group.Entries.Count; i++)
+                DrawTriggerRow(group.Entries[i], triggers);
+            EditorGUI.indentLevel--;
+        }
+
+        private void DrawTriggerRow(
+            TriggerAuthoringTriggerIndex.Entry entry,
+            List<TriggerDefinitionData> triggers)
+        {
+            var label = BuildTriggerRowLabel(entry.Trigger, entry.Index, entry.Diagnostics);
+            var oldBackground = GUI.backgroundColor;
+            if (entry.Index == _selectedTriggerIndex) GUI.backgroundColor = new Color(0.42f, 0.66f, 0.92f);
+            if (GUILayout.Button(label, EditorStyles.miniButton, GUILayout.Height(25f)))
+                SelectTrigger(entry.Index);
+            else if (Event.current.type == EventType.ContextClick &&
+                     GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+            {
+                SelectTrigger(entry.Index);
+                ShowTriggerContextMenu(triggers, entry.Index);
+                Event.current.Use();
+            }
+            GUI.backgroundColor = oldBackground;
+        }
+
+        private string BuildTriggerRowLabel(
+            TriggerDefinitionData trigger,
+            int index,
+            TriggerAuthoringTriggerIndex.DiagnosticSummary diagnostics)
         {
             if (trigger == null) return (index + 1) + ". <null>";
-            int errors;
-            int warnings;
-            CountTriggerDiagnostics(index, out errors, out warnings);
-            var suffix = errors > 0 ? "  (E" + errors + (warnings > 0 ? " W" + warnings : string.Empty) + ")"
-                : warnings > 0 ? "  (W" + warnings + ")"
+            var suffix = diagnostics.Errors > 0 ? "  (E" + diagnostics.Errors + (diagnostics.Warnings > 0 ? " W" + diagnostics.Warnings : string.Empty) + ")"
+                : diagnostics.Warnings > 0 ? "  (W" + diagnostics.Warnings + ")"
                 : string.Empty;
             var eventName = string.IsNullOrWhiteSpace(trigger.Event) ? string.Empty : "  " + trigger.Event;
             return $"{(trigger.Enabled ? "+" : "-")} {trigger.Id}  {DisplayTriggerName(trigger)}{eventName}{suffix}";
         }
 
-        private void CountTriggerDiagnostics(int triggerIndex, out int errors, out int warnings)
+        private void SelectTrigger(int index)
         {
-            errors = 0;
-            warnings = 0;
-            if (_diagnostics == null) return;
-            var prefix = "module.triggers[" + triggerIndex + "]";
-            for (var i = 0; i < _diagnostics.Count; i++)
-            {
-                var path = _diagnostics[i].Path;
-                if (path == null) continue;
-                if (!string.Equals(path, prefix, StringComparison.Ordinal) &&
-                    !path.StartsWith(prefix + ".", StringComparison.Ordinal)) continue;
-                if (_diagnostics[i].Severity == TriggerAuthoringDiagnosticSeverity.Error) errors++;
-                else if (_diagnostics[i].Severity == TriggerAuthoringDiagnosticSeverity.Warning) warnings++;
-            }
+            _selectedTriggerIndex = index;
+            _focusedDiagnosticPath = null;
         }
 
-        private static bool MatchesTriggerSearch(TriggerDefinitionData trigger, string filter)
+        private void ExpandVisibleTriggerGroups()
         {
-            return ContainsText(trigger.Id.ToString(), filter) ||
-                   ContainsText(trigger.Name, filter) ||
-                   ContainsText(trigger.Event, filter);
+            var triggers = _asset != null && _asset.Module != null
+                ? _asset.Module.Triggers
+                : null;
+            var groups = TriggerAuthoringTriggerIndex.Build(
+                triggers,
+                _diagnostics,
+                _events,
+                _triggerGroupMode,
+                _triggerSearch.Text,
+                _triggerQuickFilter);
+            for (var i = 0; i < groups.Count; i++)
+                _expandedTriggerGroups.Add(groups[i].Key);
+            _triggerGroupsInitialized = true;
         }
 
-        private static bool ContainsText(string value, string filter)
+        private void EnsureInitialTriggerGroupExpansion(IReadOnlyList<TriggerAuthoringTriggerIndex.Group> groups)
         {
-            return !string.IsNullOrEmpty(value) &&
-                   value.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0;
+            if (_triggerGroupsInitialized || groups == null) return;
+            for (var i = 0; i < groups.Count; i++)
+                if (groups[i] != null)
+                    _expandedTriggerGroups.Add(groups[i].Key);
+            _triggerGroupsInitialized = true;
         }
 
         private void ShowTriggerContextMenu(List<TriggerDefinitionData> triggers, int index)
@@ -344,6 +653,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var trigger = triggers[index];
             menu.AddItem(new GUIContent("Move Up"), false, () => MoveSelectedTrigger(triggers, -1));
             menu.AddItem(new GUIContent("Move Down"), false, () => MoveSelectedTrigger(triggers, 1));
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(new GUIContent("Locate/Copy Trigger Path"), false, () =>
+                EditorGUIUtility.systemCopyBuffer = "module.triggers[" + index + "]");
+            menu.AddItem(new GUIContent("Locate/Ping Module Asset"), false, () =>
+            {
+                Selection.activeObject = _asset;
+                EditorGUIUtility.PingObject(_asset);
+            });
             menu.AddSeparator(string.Empty);
             menu.AddItem(new GUIContent("Duplicate"), false, DuplicateSelectedTrigger);
             menu.AddItem(new GUIContent("Delete"), false, DeleteSelectedTrigger);
@@ -428,6 +745,13 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     EditorStyles.miniLabel);
             }
 
+            trigger.GroupPath = EditorGUILayout.TextField(
+                new GUIContent("Group Path", "Business grouping path used by the trigger management list and Source JSON."),
+                trigger.GroupPath);
+            trigger.Tags = TriggerAuthoringTriggerBatchOperations.ParseTags(EditorGUILayout.TextField(
+                new GUIContent("Tags", "Comma separated search tags stored in Source JSON."),
+                FormatTags(trigger.Tags)));
+
             DrawTemplateBinding(trigger);
 
             _showAdvanced = EditorGUILayout.Foldout(_showAdvanced, "Execution", true);
@@ -460,9 +784,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             _showTriggerBlackboard = EditorGUILayout.Foldout(
                 _showTriggerBlackboard,
-                $"Trigger Blackboard ({Count(trigger.Blackboard)})",
+                $"Trigger Local Vars ({Count(trigger.Blackboard)})",
                 true);
-            if (_showTriggerBlackboard) DrawBlackboard(trigger.Blackboard, "Trigger Blackboard");
+            if (_showTriggerBlackboard)
+                DrawBlackboard(
+                    trigger.Blackboard,
+                    "Trigger Local Vars",
+                    TriggerAuthoringLocalBlackboardScope.Trigger,
+                    _asset.Module != null ? _asset.Module.Blackboard : null);
         }
 
         private void DrawTemplateBinding(TriggerDefinitionData trigger)
@@ -722,7 +1051,17 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return null;
             }
 
-            node = DrawNode(node, kind, trigger, 0, true, nodePath, null, null);
+            node = DrawNode(
+                node,
+                kind,
+                trigger,
+                0,
+                true,
+                nodePath,
+                null,
+                null,
+                created => SetRootNode(trigger, kind, created),
+                () => SetRootNode(trigger, kind, null));
             SirenixEditorGUI.EndBox();
             return node;
         }
@@ -745,7 +1084,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
             bool root,
             string nodePath,
             Action onMoveUp,
-            Action onMoveDown)
+            Action onMoveDown,
+            Action<TriggerNodeData> replaceNode = null,
+            Action removeNode = null,
+            Action<TriggerNodeData> insertBefore = null,
+            Action<TriggerNodeData> insertAfter = null)
         {
             if (node == null) return null;
             var oldBackground = GUI.backgroundColor;
@@ -753,7 +1096,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.BeginVertical(depth == 0 ? EditorStyles.helpBox : SirenixGUIStyles.BoxContainer);
             if (!string.IsNullOrWhiteSpace(node.GroupReference))
             {
-                var groupNode = DrawGroupReferenceNode(node, kind, depth);
+                var groupNode = DrawGroupReferenceNode(node, kind, depth, nodePath, replaceNode, removeNode, insertBefore, insertAfter);
                 GUI.backgroundColor = oldBackground;
                 return groupNode;
             }
@@ -764,9 +1107,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var canPasteChild = maxChildren != 0 &&
                                 (maxChildren < 0 || children.Count < maxChildren) &&
                                 TriggerAuthoringNodeClipboard.HasNode();
+            var canAddChild = maxChildren != 0 && (maxChildren < 0 || children.Count < maxChildren);
 
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label(node.Type ?? "<type>", EditorStyles.boldLabel);
+            GUILayout.Label((node.Enabled ? string.Empty : "[Disabled] ") + (node.Type ?? "<type>"), EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
             var hasMoveButtons = onMoveUp != null || onMoveDown != null;
             if (onMoveUp != null && GUILayout.Button(new GUIContent("↑", "Move node up"), EditorStyles.miniButtonLeft, GUILayout.Width(22f)))
@@ -786,6 +1130,23 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 ShowGroupMenu(kind, groupId => ApplyGroupReference(node, kind, groupId));
             var remove = GUILayout.Button(new GUIContent("x", "Remove node"), EditorStyles.miniButtonRight, GUILayout.Width(25f));
             EditorGUILayout.EndHorizontal();
+            var headerRect = GUILayoutUtility.GetLastRect();
+            if (ShouldOpenContextMenu(headerRect))
+            {
+                ShowNodeContextMenu(
+                    node,
+                    kind,
+                    descriptor,
+                    children,
+                    canPasteChild,
+                    canAddChild,
+                    replaceNode,
+                    removeNode,
+                    insertBefore,
+                    insertAfter,
+                    headerRect);
+                Event.current.Use();
+            }
             if (remove)
             {
                 EditorGUILayout.EndVertical();
@@ -793,6 +1154,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return null;
             }
 
+            if (!node.Enabled)
+                EditorGUILayout.HelpBox("Disabled nodes stay in source JSON but are ignored by validation and Runtime Plan export.", MessageType.Info);
             DrawNodeArguments(node, descriptor, trigger);
 
             if (maxChildren != 0)
@@ -817,7 +1180,19 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     Action moveDown = index < children.Count - 1
                         ? () => Edit("Reorder Trigger Nodes", () => SwapNodes(children, index, index + 1))
                         : null;
-                    var child = DrawNode(children[i], kind, trigger, depth + 1, false, childPath, moveUp, moveDown);
+                    var child = DrawNode(
+                        children[i],
+                        kind,
+                        trigger,
+                        depth + 1,
+                        false,
+                        childPath,
+                        moveUp,
+                        moveDown,
+                        created => children[index] = created,
+                        () => children.RemoveAt(index),
+                        created => children.Insert(index, created),
+                        created => children.Insert(index + 1, created));
                     if (child == null)
                     {
                         Edit("Remove Trigger Node", () => children.RemoveAt(i));
@@ -842,6 +1217,77 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return;
             }
             Edit("Paste Trigger Node", () => children.Add(pasted));
+        }
+
+        private static bool ShouldOpenContextMenu(Rect rect)
+        {
+            var current = Event.current;
+            return current != null &&
+                   current.type == EventType.ContextClick &&
+                   rect.Contains(current.mousePosition);
+        }
+
+        private void ShowNodeContextMenu(
+            TriggerNodeData node,
+            TriggerNodeKind kind,
+            TriggerTypeDescriptor descriptor,
+            List<TriggerNodeData> children,
+            bool canPasteChild,
+            bool canAddChild,
+            Action<TriggerNodeData> replaceNode,
+            Action removeNode,
+            Action<TriggerNodeData> insertBefore,
+            Action<TriggerNodeData> insertAfter,
+            Rect activator)
+        {
+            if (node == null) return;
+            var menu = new GenericMenu();
+            var context = new TriggerAuthoringNodeContextMenuContext
+            {
+                Menu = menu,
+                Kind = kind,
+                Node = node,
+                Descriptor = descriptor,
+                CanPasteChild = canPasteChild,
+                CanAddChild = canAddChild,
+                Copy = () => TriggerAuthoringNodeClipboard.Copy(node, kind),
+                PasteChild = () => PasteNodeAsChild(children, kind),
+                ChangeType = () => ShowNodeTypeMenu(kind, selected => ApplyDescriptor(node, selected), activator),
+                SelectGroup = () => ShowGroupMenu(kind, groupId => ApplyGroupReference(node, kind, groupId)),
+                ToggleEnabled = () => Edit(node.Enabled ? "Disable Trigger Node" : "Enable Trigger Node", () => node.Enabled = !node.Enabled),
+                AddDebugLogChild = () => Edit("Add Debug Log Node", () => children.Add(CreateDebugLogNode("debug"))),
+                InsertDebugLogBefore = insertBefore == null
+                    ? null
+                    : (Action)(() => Edit("Insert Debug Log Node", () => insertBefore(CreateDebugLogNode("before")))),
+                InsertDebugLogAfter = insertAfter == null
+                    ? null
+                    : (Action)(() => Edit("Insert Debug Log Node", () => insertAfter(CreateDebugLogNode("after")))),
+                Remove = removeNode == null ? null : (Action)(() => Edit("Remove Trigger Node", removeNode))
+            };
+
+            for (var i = 0; i < _nodeContextMenuContributors.Count; i++)
+                _nodeContextMenuContributors[i]?.Populate(context);
+            menu.ShowAsContext();
+        }
+
+        private TriggerNodeData CreateDebugLogNode(string message)
+        {
+            var node = CreateNode(_types.TryGet(TriggerNodeKind.Action, "debug_log", out var debugLog) ? debugLog : null);
+            node.Kind = TriggerNodeKind.Action;
+            node.Type = "debug_log";
+            var argument = FindArgument(node.Arguments, "message");
+            if (argument == null)
+            {
+                argument = new TriggerArgumentData { Name = "message" };
+                node.Arguments.Add(argument);
+            }
+            argument.Value = new TriggerValueRefData
+            {
+                Source = TriggerValueSource.Constant,
+                Type = TriggerValueType.String,
+                StringValue = message ?? string.Empty
+            };
+            return node;
         }
 
         private static void SwapNodes(List<TriggerNodeData> children, int first, int second)
@@ -935,52 +1381,16 @@ namespace AbilityKit.Ability.Editor.Inspectors
             TriggerParameterDescriptor parameter,
             TriggerDefinitionData trigger)
         {
-            var allowed = parameter != null ? parameter.AllowedSources : TriggerValueSourceMask.All;
-            var sources = GetAllowedSources(allowed);
-            var sourceNames = new List<string>(sources.Count + 1);
-            var selectedSource = -1;
-            for (var i = 0; i < sources.Count; i++)
-            {
-                sourceNames.Add(GetSourceName(sources[i]));
-                if (sources[i] == value.Source) selectedSource = i;
-            }
-            if (selectedSource < 0)
-            {
-                sourceNames.Add(GetSourceName(value.Source) + "  [unavailable]");
-                selectedSource = sourceNames.Count - 1;
-            }
-
-            var nextSource = EditorGUILayout.Popup("Source", selectedSource, sourceNames.ToArray());
-            if (nextSource != selectedSource && nextSource < sources.Count)
-                value.Source = sources[nextSource];
-
-            var expectedType = parameter != null ? parameter.Type : TriggerValueType.None;
-            if (expectedType == TriggerValueType.None)
-                value.Type = (TriggerValueType)EditorGUILayout.EnumPopup("Type", value.Type);
-            else
-                EditorGUILayout.LabelField("Type", expectedType.ToString());
-
-            switch (value.Source)
-            {
-                case TriggerValueSource.Constant:
-                    DrawConstant(value, expectedType != TriggerValueType.None ? expectedType : value.Type, parameter);
-                    break;
-                case TriggerValueSource.Payload:
-                    DrawPayloadPath(value, trigger, expectedType);
-                    break;
-                case TriggerValueSource.LocalBlackboard:
-                    DrawLocalBlackboardPath(value, trigger, expectedType, parameter != null && parameter.Access == TriggerParameterAccess.Write);
-                    break;
-                case TriggerValueSource.GlobalBlackboard:
-                    DrawGlobalBlackboardPath(value, expectedType, parameter != null && parameter.Access == TriggerParameterAccess.Write);
-                    break;
-                case TriggerValueSource.Expression:
-                    value.Expression = EditorGUILayout.TextField("Expression", value.Expression);
-                    break;
-                default:
-                    value.Path = EditorGUILayout.TextField("Path", value.Path);
-                    break;
-            }
+            TriggerAuthoringValueRefEditor.Draw(
+                value,
+                parameter,
+                new TriggerAuthoringValueRefEditorContext
+                {
+                    Module = _asset != null ? _asset.Module : null,
+                    Trigger = trigger,
+                    Events = _events,
+                    GlobalBlackboard = _globalBlackboard
+                });
         }
 
         private static void DrawConstant(
@@ -1026,10 +1436,71 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     value.Vector3Value.Z = EditorGUILayout.DoubleField(value.Vector3Value.Z);
                     EditorGUILayout.EndHorizontal();
                     break;
+                case TriggerValueType.Object:
+                    DrawConstantObject(value);
+                    break;
                 default:
                     EditorGUILayout.HelpBox("Choose a value type.", MessageType.Info);
                     break;
             }
+        }
+
+        private static void DrawConstantObject(TriggerValueRefData value)
+        {
+            value.Fields = value.Fields ?? new List<TriggerArgumentData>();
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("Fields", EditorStyles.miniBoldLabel);
+            for (var i = 0; i < value.Fields.Count; i++)
+            {
+                var index = i;
+                var field = value.Fields[i] ?? (value.Fields[i] = new TriggerArgumentData());
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                field.Name = EditorGUILayout.TextField(field.Name);
+                var remove = GUILayout.Button("x", EditorStyles.miniButton, GUILayout.Width(22f));
+                EditorGUILayout.EndHorizontal();
+                field.Value = field.Value ?? CreateValue(TriggerValueType.Number);
+                var nextType = (TriggerValueType)EditorGUILayout.EnumPopup("Type", field.Value.Type);
+                if (nextType != field.Value.Type) field.Value = CreateValue(nextType);
+                DrawConstant(field.Value, field.Value.Type, null);
+                EditorGUILayout.EndVertical();
+                if (remove)
+                {
+                    value.Fields.RemoveAt(index);
+                    i--;
+                }
+            }
+
+            if (GUILayout.Button("Add Field", EditorStyles.miniButton))
+                value.Fields.Add(new TriggerArgumentData
+                {
+                    Name = CreateUniqueObjectFieldName(value.Fields),
+                    Value = CreateValue(TriggerValueType.Number)
+                });
+            EditorGUILayout.EndVertical();
+        }
+
+        private static string CreateUniqueObjectFieldName(IReadOnlyList<TriggerArgumentData> fields)
+        {
+            var suffix = 1;
+            var name = "field";
+            while (ContainsObjectFieldName(fields, name))
+            {
+                suffix++;
+                name = "field" + suffix;
+            }
+            return name;
+        }
+
+        private static bool ContainsObjectFieldName(IReadOnlyList<TriggerArgumentData> fields, string name)
+        {
+            if (fields == null) return false;
+            for (var i = 0; i < fields.Count; i++)
+            {
+                var field = fields[i];
+                if (field != null && string.Equals(field.Name, name, StringComparison.Ordinal)) return true;
+            }
+            return false;
         }
 
         private static void DrawIntegerChoice(
@@ -1133,15 +1604,29 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
         }
 
-        private void DrawBlackboard(List<TriggerBlackboardVariableData> variables, string undoName)
+        private void DrawBlackboard(
+            List<TriggerBlackboardVariableData> variables,
+            string undoName,
+            TriggerAuthoringLocalBlackboardScope scope,
+            IReadOnlyList<TriggerBlackboardVariableData> inheritedVariables)
         {
             if (variables == null) return;
+            var duplicates = FindDuplicateLocalVarKeys(variables);
+            var scopeLabel = scope == TriggerAuthoringLocalBlackboardScope.Module ? "module" : "trigger";
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(scopeLabel + " scope", EditorStyles.miniBoldLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button(new GUIContent("+", "Add local variable"), EditorStyles.miniButton, GUILayout.Width(26f)))
+                ShowLocalVarCreationMenu(variables, undoName, GUILayoutUtility.GetLastRect());
+            EditorGUILayout.EndHorizontal();
+
             for (var i = 0; i < variables.Count; i++)
             {
                 var index = i;
                 var variable = variables[i] ?? (variables[i] = new TriggerBlackboardVariableData());
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(scopeLabel, EditorStyles.miniLabel, GUILayout.Width(44f));
                 variable.Key = EditorGUILayout.TextField(variable.Key);
                 var nextType = (TriggerValueType)EditorGUILayout.EnumPopup(variable.Type, GUILayout.Width(100f));
                 if (nextType != variable.Type)
@@ -1154,7 +1639,23 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 EditorGUILayout.EndHorizontal();
                 variable.Description = EditorGUILayout.TextField("Description", variable.Description);
                 variable.DefaultValue = variable.DefaultValue ?? CreateValue(variable.Type);
+                EditorGUILayout.LabelField("Default Value", EditorStyles.miniBoldLabel);
                 DrawConstant(variable.DefaultValue, variable.Type, null);
+                if (string.IsNullOrWhiteSpace(variable.Key))
+                {
+                    EditorGUILayout.HelpBox("Local var key is required.", MessageType.Error);
+                }
+                else
+                {
+                    if (duplicates.Contains(variable.Key))
+                        EditorGUILayout.HelpBox("Duplicate local var key in this scope.", MessageType.Error);
+                    if (ContainsLocalVarKey(inheritedVariables, variable.Key))
+                        EditorGUILayout.HelpBox("This trigger local var shadows a module local var with the same key.", MessageType.Info);
+                    EditorGUILayout.SelectableLabel(
+                        TriggerAuthoringLocalBlackboardPath.Format(scope, variable.Key),
+                        EditorStyles.miniLabel,
+                        GUILayout.Height(EditorGUIUtility.singleLineHeight));
+                }
                 EditorGUILayout.EndVertical();
                 if (remove)
                 {
@@ -1162,12 +1663,83 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     i--;
                 }
             }
-            if (GUILayout.Button("Add Key", EditorStyles.miniButton))
+        }
+
+        private void ShowLocalVarCreationMenu(
+            List<TriggerBlackboardVariableData> variables,
+            string undoName,
+            Rect activator)
+        {
+            var menu = new GenericMenu();
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.Number);
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.Integer);
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.Boolean);
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.String);
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.Vector3);
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.IntegerList);
+            menu.DropDown(activator);
+        }
+
+        private void AddLocalVarType(
+            GenericMenu menu,
+            List<TriggerBlackboardVariableData> variables,
+            string undoName,
+            TriggerValueType type)
+        {
+            menu.AddItem(new GUIContent(type.ToString()), false, () =>
                 Edit("Add " + undoName + " Key", () => variables.Add(new TriggerBlackboardVariableData
                 {
-                    Type = TriggerValueType.Number,
-                    DefaultValue = CreateValue(TriggerValueType.Number)
-                }));
+                    Key = CreateUniqueLocalVarKey(variables, type),
+                    Type = type,
+                    DefaultValue = CreateValue(type)
+                })));
+        }
+
+        private static HashSet<string> FindDuplicateLocalVarKeys(IReadOnlyList<TriggerBlackboardVariableData> variables)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var duplicates = new HashSet<string>(StringComparer.Ordinal);
+            if (variables == null) return duplicates;
+            for (var i = 0; i < variables.Count; i++)
+            {
+                var key = variables[i]?.Key;
+                if (string.IsNullOrWhiteSpace(key)) continue;
+                if (!seen.Add(key)) duplicates.Add(key);
+            }
+            return duplicates;
+        }
+
+        private static bool ContainsLocalVarKey(
+            IReadOnlyList<TriggerBlackboardVariableData> variables,
+            string key)
+        {
+            if (variables == null || string.IsNullOrWhiteSpace(key)) return false;
+            for (var i = 0; i < variables.Count; i++)
+            {
+                var variable = variables[i];
+                if (variable != null && string.Equals(variable.Key, key, StringComparison.Ordinal)) return true;
+            }
+            return false;
+        }
+
+        private static string CreateUniqueLocalVarKey(
+            IReadOnlyList<TriggerBlackboardVariableData> variables,
+            TriggerValueType type)
+        {
+            var prefix = type == TriggerValueType.Integer ? "intValue" :
+                type == TriggerValueType.Boolean ? "flag" :
+                type == TriggerValueType.String ? "text" :
+                type == TriggerValueType.Vector3 ? "position" :
+                type == TriggerValueType.IntegerList ? "ids" :
+                "number";
+            var suffix = 1;
+            var key = prefix;
+            while (ContainsLocalVarKey(variables, key))
+            {
+                suffix++;
+                key = prefix + suffix;
+            }
+            return key;
         }
 
         private void DrawGroups(TriggerAuthoringModuleData module)
@@ -1252,7 +1824,17 @@ namespace AbilityKit.Ability.Editor.Inspectors
                             var groupPath = "module." +
                                             (kind == TriggerNodeKind.Condition ? "conditionGroups" : "actionGroups") +
                                             "[" + i + "].root";
-                            group.Root = DrawNode(group.Root, kind, null, 0, true, groupPath, null, null);
+                            group.Root = DrawNode(
+                                group.Root,
+                                kind,
+                                null,
+                                0,
+                                true,
+                                groupPath,
+                                null,
+                                null,
+                                created => group.Root = created,
+                                () => group.Root = null);
                         }
                         SirenixEditorGUI.EndBox();
                     }
@@ -1272,11 +1854,16 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private TriggerNodeData DrawGroupReferenceNode(
             TriggerNodeData node,
             TriggerNodeKind kind,
-            int depth)
+            int depth,
+            string nodePath,
+            Action<TriggerNodeData> replaceNode,
+            Action removeNode,
+            Action<TriggerNodeData> insertBefore,
+            Action<TriggerNodeData> insertAfter)
         {
             var previewKey = ((int)kind) + ":" + depth + ":" + (node.GroupReference ?? string.Empty);
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Group: " + node.GroupReference, EditorStyles.boldLabel);
+            GUILayout.Label((node.Enabled ? string.Empty : "[Disabled] ") + "Group: " + node.GroupReference, EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
             if (GUILayout.Button(new GUIContent("Select", "Select another reusable group"), EditorStyles.miniButtonLeft, GUILayout.Width(48f)))
                 ShowGroupMenu(kind, groupId => ApplyGroupReference(node, kind, groupId));
@@ -1284,11 +1871,31 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 LocalizeGroupReference(node, kind);
             var remove = GUILayout.Button(new GUIContent("x", "Remove node"), EditorStyles.miniButtonRight, GUILayout.Width(25f));
             EditorGUILayout.EndHorizontal();
+            var headerRect = GUILayoutUtility.GetLastRect();
+            if (ShouldOpenContextMenu(headerRect))
+            {
+                ShowNodeContextMenu(
+                    node,
+                    kind,
+                    null,
+                    null,
+                    false,
+                    false,
+                    replaceNode,
+                    removeNode,
+                    insertBefore,
+                    insertAfter,
+                    headerRect);
+                Event.current.Use();
+            }
             if (remove)
             {
                 EditorGUILayout.EndVertical();
                 return null;
             }
+
+            if (!node.Enabled)
+                EditorGUILayout.HelpBox("Disabled group references stay in source JSON but are ignored by validation and Runtime Plan export.", MessageType.Info);
 
             var showPreview = _expandedGroupPreviews.Contains(previewKey);
             var nextPreview = EditorGUILayout.Foldout(showPreview, "Expanded Preview", true);
@@ -1529,9 +2136,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
             {
                 Id = NextTriggerId(),
                 Name = "New Trigger",
+                GroupPath = "Drafts",
                 Enabled = true,
                 Actions = CreateNode(_types.TryGet(TriggerNodeKind.Action, "seq", out var seq) ? seq : null)
             };
+        }
+
+        private static string FormatTags(IReadOnlyList<string> tags)
+        {
+            return tags != null ? string.Join(", ", tags) : string.Empty;
         }
 
         private static TriggerNodeData CreateNode(TriggerTypeDescriptor descriptor)
@@ -1560,13 +2173,13 @@ namespace AbilityKit.Ability.Editor.Inspectors
             return new TriggerArgumentData
             {
                 Name = parameter.Name,
-                Value = CreateValue(parameter.Type)
+                Value = TriggerAuthoringValueRefEditor.CreateDefaultValue(parameter)
             };
         }
 
         private static TriggerValueRefData CreateValue(TriggerValueType type)
         {
-            return new TriggerValueRefData { Source = TriggerValueSource.Constant, Type = type };
+            return TriggerAuthoringValueRefEditor.CreateDefaultValue(type);
         }
 
         private static void ApplyDescriptor(TriggerNodeData node, TriggerTypeDescriptor descriptor)
@@ -1698,7 +2311,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
 
-            var result = TriggerAuthoringSourceSync.Import(_asset, path);
+            var preview = TriggerAuthoringSourceSync.PreviewImport(_asset, path);
+            if (!TriggerAuthoringSourceImportPreviewDialog.Confirm(preview)) return;
+
+            var result = TriggerAuthoringSourceSync.Import(_asset, path, preview.RequiresForce);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
                     "Trigger Asset Conflict", result.Message + "\n\nOverwrite Asset content?", "Force Import", "Cancel"))
                 result = TriggerAuthoringSourceSync.Import(_asset, path, true);

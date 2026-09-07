@@ -1,5 +1,5 @@
 
-namespace UnityHFSM.Exceptions
+namespace AbilityKit.HFSM.Exceptions
 {
 	public static class ExceptionFormatter
 	{

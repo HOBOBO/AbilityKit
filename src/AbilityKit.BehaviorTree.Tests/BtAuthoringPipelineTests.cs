@@ -1,18 +1,24 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.BehaviorTree.Authoring.Model;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Nodes;
+using AbilityKit.BehaviorTree.Registry;
+using AbilityKit.BehaviorTree.Serialization;
+using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 using Xunit;
 using static AbilityKit.BehaviorTree.Tests.TestNodeTypes;
 
 namespace AbilityKit.BehaviorTree.Tests
 {
-    /// <summary>内容管线：模板、批量扇出导出、增量跳过、校验门禁与 TreeId 唯一性。</summary>
+    /// <summary>鍐呭绠＄嚎锛氭ā鏉裤€佹壒閲忔墖鍑哄鍑恒€佸閲忚烦杩囥€佹牎楠岄棬绂佷笌 TreeId 鍞竴鎬с€?/summary>
     public sealed class BtAuthoringPipelineTests
     {
-        private static BtNodeRegistry BuiltinRegistry()
+        private static NodeRegistry BuiltinRegistry()
         {
-            var registry = new BtNodeRegistry();
-            BtBuiltInNodes.RegisterAll(registry);
+            var registry = new NodeRegistry();
+            BuiltInNodes.RegisterAll(registry);
             return registry;
         }
 
@@ -21,12 +27,12 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var registry = BuiltinRegistry();
             var index = 0;
-            foreach (var (displayName, build) in BtAuthoringTemplates.Catalog())
+            foreach (var (displayName, build) in AuthoringTemplates.Catalog())
             {
                 var document = build();
                 document.Tree.TreeId = "tpl_" + index++;
-                var json = BtTreeExporter.Export(document, registry, out var errors);
-                Assert.True(errors.Count == 0, $"模板 '{displayName}' 校验失败: {string.Join("; ", errors)}");
+                var json = TreeExporter.Export(document, registry, out var errors);
+                Assert.True(errors.Count == 0, $"妯℃澘 '{displayName}' 鏍￠獙澶辫触: {string.Join("; ", errors)}");
                 Assert.NotNull(json);
             }
         }
@@ -40,31 +46,31 @@ namespace AbilityKit.BehaviorTree.Tests
             try
             {
                 var registry = BuiltinRegistry();
-                var document = BtAuthoringTemplates.BuildReactiveLoop();
+                var document = AuthoringTemplates.BuildReactiveLoop();
                 document.Tree.TreeId = "pipeline_demo";
-                var trees = new List<KeyValuePair<string, BtAuthoringSourceDocument>> { new("pipeline_demo", document) };
+                var trees = new List<KeyValuePair<string, AuthoringSourceDocument>> { new("pipeline_demo", document) };
 
-                var report = BtAuthoringExportPipeline.ExportAll(trees, new[] { targetA, targetB }, registry, root);
+                var report = ExportPipeline.ExportAll(trees, new[] { targetA, targetB }, registry, root);
                 Assert.Equal(2, report.Count);
-                Assert.All(report, e => Assert.Equal(BtExportStatus.Exported, e.Status));
+                Assert.All(report, e => Assert.Equal(ExportStatus.Exported, e.Status));
                 Assert.True(File.Exists(Path.Combine(targetA, "pipeline_demo.json")));
                 Assert.True(File.Exists(Path.Combine(targetB, "pipeline_demo.json")));
 
-                // 二次导出：内容一致 -> Unchanged，不重写
-                var report2 = BtAuthoringExportPipeline.ExportAll(trees, new[] { targetA, targetB }, registry, root);
-                Assert.All(report2, e => Assert.Equal(BtExportStatus.Unchanged, e.Status));
+                // 浜屾瀵煎嚭锛氬唴瀹逛竴鑷?-> Unchanged锛屼笉閲嶅啓
+                var report2 = ExportPipeline.ExportAll(trees, new[] { targetA, targetB }, registry, root);
+                Assert.All(report2, e => Assert.Equal(ExportStatus.Unchanged, e.Status));
 
-                // 只改编辑态显示信息：运行时产物不变 -> Unchanged
-                document.GetOrCreateNodeMetadata("root").DisplayName = "改名";
-                var report3 = BtAuthoringExportPipeline.ExportAll(trees, new[] { targetA }, registry, root);
-                Assert.All(report3, e => Assert.Equal(BtExportStatus.Unchanged, e.Status));
+                // 鍙敼缂栬緫鎬佹樉绀轰俊鎭細杩愯鏃朵骇鐗╀笉鍙?-> Unchanged
+                document.GetOrCreateNodeMetadata("root").DisplayName = "鏀瑰悕";
+                var report3 = ExportPipeline.ExportAll(trees, new[] { targetA }, registry, root);
+                Assert.All(report3, e => Assert.Equal(ExportStatus.Unchanged, e.Status));
 
-                // 修改运行时属性后重导 -> Exported
+                // 淇敼杩愯鏃跺睘鎬у悗閲嶅 -> Exported
                 var action = document.Tree.Nodes.Find(n => n.Id == "act")!;
-                action.Properties.Set(BtWaitNode.DurationSecondsProperty,
-                    BtPropertyValue.Of(AbilityKit.Deterministic.Fixed64.One));
-                var report4 = BtAuthoringExportPipeline.ExportAll(trees, new[] { targetA }, registry, root);
-                Assert.All(report4, e => Assert.Equal(BtExportStatus.Exported, e.Status));
+                action.Properties.Set("durationSeconds",
+                    PropertyValue.Of(AbilityKit.Deterministic.Fixed64.One));
+                var report4 = ExportPipeline.ExportAll(trees, new[] { targetA }, registry, root);
+                Assert.All(report4, e => Assert.Equal(ExportStatus.Exported, e.Status));
             }
             finally
             {
@@ -80,22 +86,21 @@ namespace AbilityKit.BehaviorTree.Tests
             try
             {
                 var registry = BuiltinRegistry();
-                var document = BtAuthoringTemplates.BuildEmpty();
+                var document = AuthoringTemplates.BuildEmpty();
                 document.Tree.TreeId = "bad_tree";
 
-                // 先导出一份有效内容
-                BtAuthoringExportPipeline.ExportAll(
-                    new List<KeyValuePair<string, BtAuthoringSourceDocument>> { new("bad_tree", document) },
+                ExportPipeline.ExportAll(
+                    new List<KeyValuePair<string, AuthoringSourceDocument>> { new("bad_tree", document) },
                     new[] { target }, registry, root);
                 var filePath = Path.Combine(target, "bad_tree.json");
                 var goodJson = File.ReadAllText(filePath);
 
-                // 破坏结构再导：Error 且旧产物未被清空
+                // 鐮村潖缁撴瀯鍐嶅锛欵rror 涓旀棫浜х墿鏈娓呯┖
                 document.Tree.RootNodeId = "missing";
-                var report = BtAuthoringExportPipeline.ExportAll(
-                    new List<KeyValuePair<string, BtAuthoringSourceDocument>> { new("bad_tree", document) },
+                var report = ExportPipeline.ExportAll(
+                    new List<KeyValuePair<string, AuthoringSourceDocument>> { new("bad_tree", document) },
                     new[] { target }, registry, root);
-                Assert.Equal(BtExportStatus.Error, report[0].Status);
+                Assert.Equal(ExportStatus.Error, report[0].Status);
                 Assert.Equal(goodJson, File.ReadAllText(filePath));
             }
             finally
@@ -108,32 +113,32 @@ namespace AbilityKit.BehaviorTree.Tests
         public void ExportAll_NoTargets_IsSkipped()
         {
             var registry = BuiltinRegistry();
-            var document = BtAuthoringTemplates.BuildEmpty();
+            var document = AuthoringTemplates.BuildEmpty();
             document.Tree.TreeId = "orphan";
 
-            var report = BtAuthoringExportPipeline.ExportAll(
-                new List<KeyValuePair<string, BtAuthoringSourceDocument>> { new("orphan", document) },
+            var report = ExportPipeline.ExportAll(
+                new List<KeyValuePair<string, AuthoringSourceDocument>> { new("orphan", document) },
                 new string[0], registry, ".");
             Assert.Single(report);
-            Assert.Equal(BtExportStatus.SkippedNoTargets, report[0].Status);
+            Assert.Equal(ExportStatus.SkippedNoTargets, report[0].Status);
         }
 
         [Fact]
         public void RelativeTargets_ResolveAgainstRepositoryRoot()
         {
-            var resolved = BtAuthoringExportPipeline.ResolveDirectory("Configs/moba/bt", "C:/repo/root");
+            var resolved = ExportPipeline.ResolveDirectory("Configs/moba/bt", "C:/repo/root");
             Assert.Equal(Path.GetFullPath("C:/repo/root/Configs/moba/bt"), resolved);
 
-            var absolute = BtAuthoringExportPipeline.ResolveDirectory("C:/elsewhere", "C:/repo/root");
+            var absolute = ExportPipeline.ResolveDirectory("C:/elsewhere", "C:/repo/root");
             Assert.Equal(Path.GetFullPath("C:/elsewhere"), absolute);
         }
 
         [Fact]
         public void DuplicateTreeIds_AreDetected()
         {
-            var errors = BtAuthoringExportPipeline.ValidateUniqueTreeIds(new[] { "a", "b", "a", "" });
-            Assert.Contains(errors, e => e.Contains("'a' 重复"));
-            Assert.Contains(errors, e => e.Contains("空 TreeId"));
+            var errors = ExportPipeline.ValidateUniqueTreeIds(new[] { "a", "b", "a", "" });
+            Assert.Contains(errors, e => e.Contains("'a'") && e.Contains("重复"));
+            Assert.Contains(errors, e => e.Contains("TreeId"));
         }
 
         [Fact]
@@ -148,30 +153,28 @@ namespace AbilityKit.BehaviorTree.Tests
                 Directory.CreateDirectory(sourceDir);
                 var registry = BuiltinRegistry();
 
-                // 源：一份授权文档的运行时导出（模拟"从 JSON 目录导入再导出"）
-                var document = BtAuthoringTemplates.BuildReactiveLoop();
+                var document = AuthoringTemplates.BuildReactiveLoop();
                 document.Tree.TreeId = "project_tree";
                 File.WriteAllText(Path.Combine(sourceDir, "project_tree.json"),
-                    BtTreeExporter.Export(document, registry, out _)!);
+                    TreeExporter.Export(document, registry, out _)!);
 
-                var manifest = new BtAuthoringProjectManifest
+                var manifest = new ProjectManifest
                 {
                     Trees = { "project_tree" },
                     SourceDirectory = sourceDir,
                     ExportTargets = { targetA, targetB },
                 };
 
-                var report = BtAuthoringExportPipeline.ExportProject(manifest, registry, root);
+                var report = ExportPipeline.ExportProject(manifest, registry, root);
                 Assert.Equal(2, report.Count);
-                Assert.All(report, e => Assert.Equal(BtExportStatus.Exported, e.Status));
+                Assert.All(report, e => Assert.Equal(ExportStatus.Exported, e.Status));
 
-                // 导出结果与源定义哈希一致（round-trip 等价）
-                var exported = BtTreeJson.Load(File.ReadAllText(Path.Combine(targetA, "project_tree.json")));
+                var exported = TreeJson.Load(File.ReadAllText(Path.Combine(targetA, "project_tree.json")));
                 Assert.Equal(document.Tree.ComputeDefinitionHash(), exported.ComputeDefinitionHash());
 
-                // 二次导出：Unchanged（增量）
-                var report2 = BtAuthoringExportPipeline.ExportProject(manifest, registry, root);
-                Assert.All(report2, e => Assert.Equal(BtExportStatus.Unchanged, e.Status));
+                // 浜屾瀵煎嚭锛歎nchanged锛堝閲忥級
+                var report2 = ExportPipeline.ExportProject(manifest, registry, root);
+                Assert.All(report2, e => Assert.Equal(ExportStatus.Unchanged, e.Status));
             }
             finally
             {
@@ -186,15 +189,15 @@ namespace AbilityKit.BehaviorTree.Tests
             var target = Path.Combine(root, "out");
             try
             {
-                var manifest = new BtAuthoringProjectManifest
+                var manifest = new ProjectManifest
                 {
                     Trees = { "missing_tree" },
                     SourceDirectory = Path.Combine(root, "none"),
                     ExportTargets = { target },
                 };
-                var report = BtAuthoringExportPipeline.ExportProject(manifest, BuiltinRegistry(), root);
+                var report = ExportPipeline.ExportProject(manifest, BuiltinRegistry(), root);
                 Assert.Single(report);
-                Assert.Equal(BtExportStatus.Error, report[0].Status);
+                Assert.Equal(ExportStatus.Error, report[0].Status);
                 Assert.Contains("源文件不存在", report[0].Message);
             }
             finally
@@ -212,30 +215,30 @@ namespace AbilityKit.BehaviorTree.Tests
             try
             {
                 Directory.CreateDirectory(sourceDir);
-                var document = BtAuthoringTemplates.BuildEmpty();
+                var document = AuthoringTemplates.BuildEmpty();
                 document.Tree.TreeId = "authored_tree";
-                document.GetOrCreateNodeMetadata("root").DisplayName = "策划显示名";
-                document.GetOrCreateNodeMetadata("root").Comment = "仅编辑器可见";
-                File.WriteAllText(Path.Combine(sourceDir, "authored_tree.json"), BtAuthoringJson.Save(document));
+                document.GetOrCreateNodeMetadata("root").DisplayName = "Designer Display";
+                document.GetOrCreateNodeMetadata("root").Comment = "editor only";
+                File.WriteAllText(Path.Combine(sourceDir, "authored_tree.json"), AuthoringJson.Save(document));
 
-                var manifest = new BtAuthoringProjectManifest
+                var manifest = new ProjectManifest
                 {
                     SourceDirectory = sourceDir,
-                    SourceKind = BtAuthoringSourceKind.AuthoringDocument,
+                    SourceKind = SourceKind.AuthoringDocument,
                     Trees = { "authored_tree" },
                     ExportTargets = { target },
                 };
 
-                var report = BtAuthoringExportPipeline.ExportProject(manifest, BuiltinRegistry(), root);
+                var report = ExportPipeline.ExportProject(manifest, BuiltinRegistry(), root);
                 Assert.Single(report);
-                Assert.Equal(BtExportStatus.Exported, report[0].Status);
+                Assert.Equal(ExportStatus.Exported, report[0].Status);
 
                 var source = File.ReadAllText(Path.Combine(sourceDir, "authored_tree.json"));
                 var runtime = File.ReadAllText(Path.Combine(target, "authored_tree.json"));
-                Assert.Contains("策划显示名", source);
-                Assert.Contains("仅编辑器可见", source);
-                Assert.DoesNotContain("策划显示名", runtime);
-                Assert.DoesNotContain("仅编辑器可见", runtime);
+                Assert.Contains("Designer Display", source);
+                Assert.Contains("editor only", source);
+                Assert.DoesNotContain("Designer Display", runtime);
+                Assert.DoesNotContain("editor only", runtime);
                 Assert.DoesNotContain("nodeMetadata", runtime);
             }
             finally
@@ -247,9 +250,8 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void GoldenHeroCombatTemplate_MatchesGoldenExample()
         {
-            // golden 模板与 golden 例子同源：定义哈希一致（模板漂移哨兵）
-            var fromTemplate = BtAuthoringTemplates.Catalog()[2].Build();
-            var fromGolden = BtAuthoringGoldenExamples.BuildHeroCombat();
+            var fromTemplate = AuthoringTemplates.Catalog()[2].Build();
+            var fromGolden = AuthoringGoldenExamples.BuildHeroCombat();
             Assert.Equal(
                 fromGolden.Tree.ComputeDefinitionHash(),
                 fromTemplate.Tree.ComputeDefinitionHash());
@@ -258,36 +260,37 @@ namespace AbilityKit.BehaviorTree.Tests
         [Fact]
         public void GraphOperations_RejectCyclesMultipleParentsAndCapacityOverflow()
         {
-            var tree = new TreeBuilder()
-                .Node("root", BtBuiltInNodeTypes.Sequence, "left", "right")
-                .Node("left", BtBuiltInNodeTypes.Sequence, "leaf")
-                .Node("right", BtBuiltInNodeTypes.Sequence)
-                .Node("leaf", BtBuiltInNodeTypes.Succeed)
-                .Node("orphan", BtBuiltInNodeTypes.Succeed)
+            var tree = new ApiTreeBuilder()
+                .Node("root", BuiltInNodeTypes.Sequence, "left", "right")
+                .Node("left", BuiltInNodeTypes.Sequence, "leaf")
+                .Node("right", BuiltInNodeTypes.Sequence)
+                .Node("leaf", BuiltInNodeTypes.Succeed)
+                .Node("orphan", BuiltInNodeTypes.Succeed)
                 .Root("root");
 
-            Assert.False(BtAuthoringGraphOperations.CanConnect(tree, "leaf", "root", -1, out var cycle));
-            Assert.Contains("形成环", cycle);
-            Assert.False(BtAuthoringGraphOperations.CanConnect(tree, "right", "leaf", -1, out var multipleParents));
-            Assert.Contains("已属于父节点", multipleParents);
-            Assert.False(BtAuthoringGraphOperations.CanConnect(tree, "right", "root", 0, out var capacity));
-            Assert.Contains("最多允许", capacity);
-            Assert.True(BtAuthoringGraphOperations.CanConnect(tree, "right", "orphan", -1, out _));
+            Assert.False(GraphOperations.CanConnect(tree, "leaf", "root", -1, out var cycle));
+            Assert.False(string.IsNullOrWhiteSpace(cycle));
+            Assert.False(GraphOperations.CanConnect(tree, "right", "leaf", -1, out var multipleParents));
+            Assert.False(string.IsNullOrWhiteSpace(multipleParents));
+            Assert.False(GraphOperations.CanConnect(tree, "right", "root", 0, out var capacity));
+            Assert.False(string.IsNullOrWhiteSpace(capacity));
+            Assert.True(GraphOperations.CanConnect(tree, "right", "orphan", -1, out _));
         }
 
         [Fact]
         public void GraphOperations_MoveChildChangesExecutionOrderOnly()
         {
-            var tree = new TreeBuilder()
-                .Node("root", BtBuiltInNodeTypes.Sequence, "a", "b", "c")
-                .Node("a", BtBuiltInNodeTypes.Succeed)
-                .Node("b", BtBuiltInNodeTypes.Succeed)
-                .Node("c", BtBuiltInNodeTypes.Succeed)
+            var tree = new ApiTreeBuilder()
+                .Node("root", BuiltInNodeTypes.Sequence, "a", "b", "c")
+                .Node("a", BuiltInNodeTypes.Succeed)
+                .Node("b", BuiltInNodeTypes.Succeed)
+                .Node("c", BuiltInNodeTypes.Succeed)
                 .Root("root");
 
-            Assert.True(BtAuthoringGraphOperations.MoveChild(tree, "root", 2, 0));
+            Assert.True(GraphOperations.MoveChild(tree, "root", 2, 0));
             Assert.Equal(new[] { "c", "a", "b" }, tree.Nodes[0].ChildIds);
-            Assert.False(BtAuthoringGraphOperations.MoveChild(tree, "root", 0, -1));
+            Assert.False(GraphOperations.MoveChild(tree, "root", 0, -1));
         }
     }
 }
+

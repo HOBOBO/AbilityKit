@@ -1,6 +1,6 @@
 {
     "name": "AbilityKit.HFSM.Core",
-    "rootNamespace": "UnityHFSM",
+    "rootNamespace": "AbilityKit.HFSM",
     "references": [
         "AbilityKit.Core",
         "AbilityKit.Deterministic"

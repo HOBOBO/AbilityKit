@@ -5,7 +5,7 @@
 #if HFSM_UNITY
 using UnityEngine;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// Built-in keyboard-related transition types to increase readability and reduce boilerplate.

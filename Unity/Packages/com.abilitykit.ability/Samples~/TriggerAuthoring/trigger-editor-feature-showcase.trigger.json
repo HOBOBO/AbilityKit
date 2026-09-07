@@ -1,0 +1,422 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit",
+    "description": "Editor feature showcase for Trigger Authoring: source JSON sync, local vars, payload refs, context refs, expressions, composite condition arguments, composite target arguments, disabled nodes, groups, and debug logs."
+  },
+  "module": {
+    "moduleId": "sample.trigger_editor.feature_showcase",
+    "displayName": "Trigger Editor Feature Showcase",
+    "kind": "Ability",
+    "blackboard": [
+      {
+        "key": "damage_bonus",
+        "type": "Number",
+        "readOnly": false,
+        "description": "Module scoped numeric var used by varnumber editing.",
+        "defaultValue": {
+          "source": "Constant",
+          "type": "Number",
+          "numberValue": 0.15
+        }
+      },
+      {
+        "key": "required_stack",
+        "type": "Integer",
+        "readOnly": false,
+        "description": "Stack threshold shared by trigger conditions.",
+        "defaultValue": {
+          "source": "Constant",
+          "type": "Integer",
+          "integerValue": 2
+        }
+      },
+      {
+        "key": "debug_enabled",
+        "type": "Boolean",
+        "readOnly": false,
+        "description": "Boolean local var shown by the local variable editor.",
+        "defaultValue": {
+          "source": "Constant",
+          "type": "Boolean",
+          "booleanValue": true
+        }
+      }
+    ],
+    "conditionGroups": [
+      {
+        "id": "condition.has_buff_from_payload",
+        "displayName": "Has Buff From Payload",
+        "description": "Composite has_buff arguments are authored as options/target objects and exported to the legacy runtime predicate shape.",
+        "root": {
+          "enabled": true,
+          "kind": "Condition",
+          "type": "has_buff",
+          "arguments": [
+            {
+              "name": "buff_id",
+              "value": {
+                "source": "Payload",
+                "type": "Integer",
+                "path": "buff_id"
+              }
+            },
+            {
+              "name": "options",
+              "value": {
+                "source": "Constant",
+                "type": "Object",
+                "fields": [
+                  {
+                    "name": "check_stack",
+                    "value": {
+                      "source": "Constant",
+                      "type": "Boolean",
+                      "booleanValue": true
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "name": "target",
+              "value": {
+                "source": "Constant",
+                "type": "Object",
+                "fields": [
+                  {
+                    "name": "mode",
+                    "value": {
+                      "source": "Constant",
+                      "type": "Integer",
+                      "integerValue": 0
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "actionGroups": [
+      {
+        "id": "action.log_payload",
+        "displayName": "Log Payload",
+        "description": "Reusable debug action group used from multiple triggers.",
+        "root": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "debug_log",
+          "arguments": [
+            {
+              "name": "message",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "stringValue": "trigger showcase: payload/context/local refs are active"
+              }
+            },
+            {
+              "name": "dump_args",
+              "value": {
+                "source": "Constant",
+                "type": "Boolean",
+                "booleanValue": true
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "triggers": [
+      {
+        "id": 910001,
+        "name": "Buff Apply Composite Damage",
+        "groupPath": "MOBA/Buff/OnApply",
+        "tags": ["buff", "damage", "composite", "varnumber"],
+        "enabled": true,
+        "event": "buff.apply",
+        "phase": "immediate",
+        "priority": 10,
+        "scope": "owner",
+        "allowExternal": false,
+        "condition": {
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "groupReference": "condition.has_buff_from_payload"
+            },
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gte",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Integer",
+                    "path": "stack_count"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "LocalBlackboard",
+                    "type": "Integer",
+                    "path": "module:required_stack"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "groupReference": "action.log_payload"
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_num_var",
+              "arguments": [
+                {
+                  "name": "target",
+                  "value": {
+                    "source": "LocalBlackboard",
+                    "type": "Number",
+                    "path": "module:damage_bonus"
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Expression",
+                    "type": "Number",
+                    "expression": "payload.stack_count * 0.25"
+                  }
+                }
+              ]
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Expression",
+                    "type": "Number",
+                    "expression": "120 + blackboard.damage_bonus * 100"
+                  }
+                },
+                {
+                  "name": "target",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Object",
+                    "fields": [
+                      {
+                        "name": "actor_id",
+                        "value": {
+                          "source": "Payload",
+                          "type": "Integer",
+                          "path": "target_actor_id"
+                        }
+                      },
+                      {
+                        "name": "radius",
+                        "value": {
+                          "source": "Context",
+                          "type": "Number",
+                          "path": "filter.param"
+                        }
+                      },
+                      {
+                        "name": "self",
+                        "value": {
+                          "source": "Constant",
+                          "type": "Boolean",
+                          "booleanValue": false
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 3
+                  }
+                }
+              ]
+            },
+            {
+              "enabled": false,
+              "kind": "Action",
+              "type": "debug_log",
+              "note": "Disabled node: visible in the editor and preserved by Source JSON, ignored by runtime export.",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "GlobalBlackboard",
+                    "type": "Integer",
+                    "path": "skill.hitCount"
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "blackboard": [
+          {
+            "key": "trigger_hit_count",
+            "type": "Integer",
+            "readOnly": false,
+            "description": "Trigger scoped local var used to demonstrate module/trigger path disambiguation.",
+            "defaultValue": {
+              "source": "Constant",
+              "type": "Integer",
+              "integerValue": 0
+            }
+          }
+        ],
+        "note": "Main showcase trigger for composite conditions/actions and varnumber sources."
+      },
+      {
+        "id": 910002,
+        "name": "Skill Cast Targeted Buff",
+        "groupPath": "MOBA/Skill/Cast",
+        "tags": ["skill", "buff", "integer-list"],
+        "enabled": true,
+        "event": "skill.cast.start",
+        "phase": "immediate",
+        "priority": 20,
+        "scope": "owner",
+        "allowExternal": false,
+        "condition": {
+          "enabled": true,
+          "kind": "Condition",
+          "type": "any",
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_lt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "path": "caster.mana.percent"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.35
+                  }
+                }
+              ]
+            },
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "not",
+              "children": [
+                {
+                  "enabled": true,
+                  "kind": "Condition",
+                  "type": "always_false"
+                }
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "skill cast showcase"
+                  }
+                }
+              ]
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_buff",
+              "arguments": [
+                {
+                  "name": "buff_ids",
+                  "value": {
+                    "source": "Constant",
+                    "type": "IntegerList",
+                    "integerListValue": [21001, 21002]
+                  }
+                },
+                {
+                  "name": "target",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Object",
+                    "fields": [
+                      {
+                        "name": "actor_id",
+                        "value": {
+                          "source": "Payload",
+                          "type": "Integer",
+                          "path": "caster.actor_id"
+                        }
+                      },
+                      {
+                        "name": "self",
+                        "value": {
+                          "source": "Constant",
+                          "type": "Boolean",
+                          "booleanValue": true
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        "blackboard": [],
+        "note": "Shows any/not composite conditions and IntegerList action export."
+      }
+    ]
+  }
+}

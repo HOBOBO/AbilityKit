@@ -1,7 +1,7 @@
 using UnityEditor;
 using UnityEngine;
 
-namespace UnityHFSM.Editor
+namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
     /// Base class for all graph layers.
@@ -9,10 +9,10 @@ namespace UnityHFSM.Editor
     /// </summary>
     public abstract class GraphLayer
     {
-        protected HfsmEditorContext Context => _context;
+        protected EditorContext Context => _context;
         protected EditorWindow EditorWindow => _editorWindow;
 
-        private HfsmEditorContext _context;
+        private EditorContext _context;
         private readonly EditorWindow _editorWindow;
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace UnityHFSM.Editor
         /// <summary>
         /// Called when the layer is set up with a context.
         /// </summary>
-        public virtual void Initialize(HfsmEditorContext context)
+        public virtual void Initialize(EditorContext context)
         {
             _context = context;
         }

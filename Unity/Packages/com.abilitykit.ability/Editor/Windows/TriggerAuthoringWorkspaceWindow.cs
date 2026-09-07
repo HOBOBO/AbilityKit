@@ -191,7 +191,10 @@ namespace AbilityKit.Ability.Editor.Windows
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
 
-            var result = TriggerAuthoringSourceSync.Import(asset, path);
+            var preview = TriggerAuthoringSourceSync.PreviewImport(asset, path);
+            if (!TriggerAuthoringSourceImportPreviewDialog.Confirm(preview)) return;
+
+            var result = TriggerAuthoringSourceSync.Import(asset, path, preview.RequiresForce);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
                     "Trigger Asset Conflict",
                     result.Message + "\n\nForce import and overwrite Asset content?",

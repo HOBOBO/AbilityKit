@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using UnityHFSM;
-using UnityHFSM.Actions;
-using UnityHFSM.Graph;
+using AbilityKit.HFSM;
+using AbilityKit.HFSM.Actions;
+using AbilityKit.HFSM.Graph;
 
-namespace UnityHFSM.Editor
+namespace AbilityKit.HFSM.Editor
 {
     /// <summary>
     /// Layer that renders and handles state nodes.
@@ -31,7 +31,7 @@ namespace UnityHFSM.Editor
         private const float DoubleClickTime = 0.3f;
 
         private float _lastClickTime = -1f;
-        private HfsmNodeBase _lastClickedNode;
+        private NodeBase _lastClickedNode;
 
         public GraphStateLayer(EditorWindow editorWindow) : base(editorWindow)
         {
@@ -62,7 +62,7 @@ namespace UnityHFSM.Editor
             HandleKeyInput();
         }
 
-        private void DrawNode(HfsmNodeBase node)
+        private void DrawNode(NodeBase node)
         {
             Vector2 screenPos = ContentPosToScreen(node.Position);
             Rect screenRect = new Rect(screenPos, node.Size * Context.ZoomFactor);
@@ -79,7 +79,7 @@ namespace UnityHFSM.Editor
             DrawNodeContent(screenRect, node);
 
             // Draw state machine indicator
-            if (node.NodeType == HfsmNodeType.StateMachine)
+            if (node.NodeType == GraphNodeType.StateMachine)
             {
                 DrawStateMachineIndicator(screenRect);
             }
@@ -91,9 +91,9 @@ namespace UnityHFSM.Editor
             }
         }
 
-        private Color GetNodeBackgroundColor(HfsmNodeBase node)
+        private Color GetNodeBackgroundColor(NodeBase node)
         {
-            if (node.NodeType == HfsmNodeType.StateMachine)
+            if (node.NodeType == GraphNodeType.StateMachine)
             {
                 return StateMachineColor;
             }
@@ -106,7 +106,7 @@ namespace UnityHFSM.Editor
             return DefaultColor;
         }
 
-        private Color GetNodeBorderColor(HfsmNodeBase node)
+        private Color GetNodeBorderColor(NodeBase node)
         {
             bool isSelected = Context.IsSelected(node);
 
@@ -115,7 +115,7 @@ namespace UnityHFSM.Editor
                 return SelectedBorderColor;
             }
 
-            if (node.NodeType == HfsmNodeType.StateMachine)
+            if (node.NodeType == GraphNodeType.StateMachine)
             {
                 return StateMachineBorderColor;
             }
@@ -160,7 +160,7 @@ namespace UnityHFSM.Editor
             }
         }
 
-        private void DrawNodeContent(Rect rect, HfsmNodeBase node)
+        private void DrawNodeContent(Rect rect, NodeBase node)
         {
             // Calculate text area
             Rect textRect = rect;
@@ -187,7 +187,7 @@ namespace UnityHFSM.Editor
             float baseHeight = labelStyle.fontSize + 4;
             string behaviorSummary = "";
 
-            if (node is HfsmStateNode stateNode && stateNode.BehaviorItems.Count > 0)
+            if (node is StateNode stateNode && stateNode.BehaviorItems.Count > 0)
             {
                 behaviorSummary = GenerateBehaviorSummary(stateNode, Context.GraphAsset);
             }
@@ -248,14 +248,14 @@ namespace UnityHFSM.Editor
             GUI.Label(typeRect, node.GetNodeTypeDescription(), typeStyle);
         }
 
-        private string GenerateBehaviorSummary(HfsmStateNode stateNode, HfsmGraphAsset graph)
+        private string GenerateBehaviorSummary(StateNode stateNode, GraphAsset graph)
         {
             var items = stateNode.BehaviorItems;
             if (items.Count == 0)
                 return "";
 
             // Get root items
-            var rootItems = new List<UnityHFSM.HfsmBehaviorItem>();
+            var rootItems = new List<AbilityKit.HFSM.BehaviorItem>();
             foreach (var item in items)
             {
                 if (string.IsNullOrEmpty(item.parentId))
@@ -281,12 +281,12 @@ namespace UnityHFSM.Editor
             return summary;
         }
 
-        private string GetBehaviorDisplayText(UnityHFSM.HfsmBehaviorItem item, HfsmStateNode stateNode, int depth)
+        private string GetBehaviorDisplayText(AbilityKit.HFSM.BehaviorItem item, StateNode stateNode, int depth)
         {
             string typeName = GetBehaviorTypeShortName(item.TypeName);
 
             // 获取子行为
-            var childItems = new List<UnityHFSM.HfsmBehaviorItem>();
+            var childItems = new List<AbilityKit.HFSM.BehaviorItem>();
             foreach (var childId in item.childIds)
             {
                 var child = stateNode.GetBehaviorItem(childId);
@@ -338,7 +338,7 @@ namespace UnityHFSM.Editor
             return typeName;
         }
 
-        private string GetBehaviorParamBrief(UnityHFSM.HfsmBehaviorItem item)
+        private string GetBehaviorParamBrief(AbilityKit.HFSM.BehaviorItem item)
         {
             switch (item.TypeName)
             {
@@ -433,7 +433,7 @@ namespace UnityHFSM.Editor
             Vector2 mousePos = Event.current.mousePosition;
 
             // Find clicked node
-            HfsmNodeBase clickedNode = null;
+            NodeBase clickedNode = null;
             foreach (var node in Context.CurrentChildNodes)
             {
                 Rect screenRect = new Rect(ContentPosToScreen(node.Position), node.Size * Context.ZoomFactor);
@@ -456,9 +456,9 @@ namespace UnityHFSM.Editor
                 if (isDoubleClick)
                 {
                     // Double click - navigate into state machine
-                    if (clickedNode.NodeType == HfsmNodeType.StateMachine)
+                    if (clickedNode.NodeType == GraphNodeType.StateMachine)
                     {
-                        Context.NavigateInto((HfsmStateMachineNode)clickedNode);
+                        Context.NavigateInto((StateMachineNode)clickedNode);
                     }
                 }
                 else
@@ -510,7 +510,7 @@ namespace UnityHFSM.Editor
             Vector2 mousePos = Event.current.mousePosition;
 
             // Find clicked node
-            HfsmNodeBase clickedNode = null;
+            NodeBase clickedNode = null;
             foreach (var node in Context.CurrentChildNodes)
             {
                 Rect screenRect = new Rect(ContentPosToScreen(node.Position), node.Size * Context.ZoomFactor);
@@ -533,7 +533,7 @@ namespace UnityHFSM.Editor
             Event.current.Use();
         }
 
-        private void ShowNodeContextMenu(HfsmNodeBase node, Vector2 position)
+        private void ShowNodeContextMenu(NodeBase node, Vector2 position)
         {
             GenericMenu menu = new GenericMenu();
 
@@ -554,7 +554,7 @@ namespace UnityHFSM.Editor
             menu.AddSeparator("");
 
             // Set as default
-            if (!node.isDefault && node.NodeType != HfsmNodeType.StateMachine)
+            if (!node.isDefault && node.NodeType != GraphNodeType.StateMachine)
             {
                 menu.AddItem(new GUIContent("Set as Default State"), false, () =>
                 {
@@ -563,11 +563,11 @@ namespace UnityHFSM.Editor
             }
 
             // Navigate into (for state machines)
-            if (node.NodeType == HfsmNodeType.StateMachine)
+            if (node.NodeType == GraphNodeType.StateMachine)
             {
                 menu.AddItem(new GUIContent("Open"), false, () =>
                 {
-                    Context.NavigateInto((HfsmStateMachineNode)node);
+                    Context.NavigateInto((StateMachineNode)node);
                 });
             }
 
@@ -588,7 +588,7 @@ namespace UnityHFSM.Editor
             menu.ShowAsContext();
         }
 
-        private void ShowRenameDialog(HfsmNodeBase node)
+        private void ShowRenameDialog(NodeBase node)
         {
             if (node == null || Context.GraphAsset == null)
                 return;
@@ -604,18 +604,18 @@ namespace UnityHFSM.Editor
             });
         }
 
-        private void DuplicateNode(HfsmNodeBase node)
+        private void DuplicateNode(NodeBase node)
         {
             if (node == null || Context.GraphAsset == null)
                 return;
 
             Vector2 offset = new Vector2(30, 30);
 
-            if (node is HfsmStateNode)
+            if (node is StateNode)
             {
                 Context.CreateState(node.DisplayName + "_copy", node.Position + offset);
             }
-            else if (node is HfsmStateMachineNode)
+            else if (node is StateMachineNode)
             {
                 Context.CreateStateMachine(node.DisplayName + "_copy", node.Position + offset);
             }

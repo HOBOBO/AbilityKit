@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>UnityHFSM</RootNamespace>
+    <RootNamespace>AbilityKit.HFSM</RootNamespace>
     <AssemblyName>AbilityKit.HFSM.Core</AssemblyName>
     <LangVersion>latest</LangVersion>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>

@@ -1,11 +1,17 @@
 using System;
 using System.Collections.Generic;
-using AbilityKit.BehaviorTree;
+using AbilityKit.BehaviorTree.Blackboard;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Execution;
+using AbilityKit.BehaviorTree.Nodes;
+using AbilityKit.BehaviorTree.Registry;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.Services.Search;
 using AbilityKit.Demo.Moba.Share.Config;
+using ExecutionContext = AbilityKit.BehaviorTree.Execution.ExecutionContext;
+using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 
 namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
 {
@@ -32,8 +38,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// Thin behavior-tree adapter over the shared target-search pipeline. Query composition remains
     /// in SearchTargetService; this node only selects a query and commits its first result.
     /// </summary>
-    [BtNodeType(MobaBTreeNodeTypes.SelectNearestEnemy, "选取最近敌人", "MOBA", BtNodeKind.Action)]
-    public sealed class MobaSelectNearestEnemyNode : BtActionNodeBase, BtNodeDescriptorProvider
+    [NodeType(MobaBTreeNodeTypes.SelectNearestEnemy, "选取最近敌人", "MOBA", NodeKind.Action)]
+    public sealed class MobaSelectNearestEnemyNode : ActionNodeBase, NodeDescriptorProvider
     {
         public const string QueryTemplateIdProperty = "queryTemplateId";
         public const string SearchRadiusProperty = "searchRadius";
@@ -45,25 +51,25 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         private Fixed64 _searchRadius = Fixed64.FromInt32(1000);
         private SearchTargetService _fallbackSearch;
 
-        public BtNodeDescriptor BuildDescriptor(BtNodeTypeAttribute attribute) => new(
-            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, BtNodeKind.Action, 0, 0,
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
             () => new MobaSelectNearestEnemyNode(),
             new[]
             {
-                new BtPropertyField(QueryTemplateIdProperty, BtValueType.Int64,
-                    BtPropertyValue.Of(0L), "搜索模板 id；0 = 用 searchRadius 构造默认圆形查询"),
-                new BtPropertyField(SearchRadiusProperty, BtValueType.Fixed64,
-                    BtPropertyValue.Of(Fixed64.FromInt32(1000)), "默认查询半径"),
+                new PropertyField(QueryTemplateIdProperty, ValueType.Int64,
+                    PropertyValue.Of(0L), "搜索模板 id；0 = 用 searchRadius 构造默认圆形查询"),
+                new PropertyField(SearchRadiusProperty, ValueType.Fixed64,
+                    PropertyValue.Of(Fixed64.FromInt32(1000)), "默认查询半径"),
             });
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _runtime = context.Context.Services.Resolve<MobaBTreeRuntimeContext>();
             _queryTemplateId = context.Properties.GetInt64(QueryTemplateIdProperty, 0);
             _searchRadius = context.Properties.GetFixed64(SearchRadiusProperty, Fixed64.FromInt32(1000));
         }
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
             MobaBTreeBlackboard.ClearTarget(bb);
@@ -73,7 +79,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             var registry = _runtime.Registry;
             if (behavior == null || world == null || registry == null
                 || behavior.OwnerId.Value <= 0 || behavior.OwnerId.Value > int.MaxValue)
-                return BtNodeState.Success;
+                return NodeState.Success;
 
             var search = _runtime.SearchTargets
                          ?? (_fallbackSearch ??= new SearchTargetService(registry, _runtime.Config));
@@ -85,10 +91,10 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 ? search.TrySearchActorIds((int)_queryTemplateId, ownerId, in ownerPosition, 0, _results)
                 : search.TrySearchActorIds(CreateDefaultQuery(_searchRadius.ToSingle()), ownerId, in ownerPosition, 0, _results);
 
-            if (!found || _results.Count == 0) return BtNodeState.Success;
+            if (!found || _results.Count == 0) return NodeState.Success;
             var targetId = _results[0];
             if (!registry.TryGet(targetId, out var target) || target == null || !target.hasTransform)
-                return BtNodeState.Success;
+                return NodeState.Success;
 
             var targetPosition = target.transform.Value.Position;
             bb.SetInt64(MobaBTreeKeys.TargetId, targetId);
@@ -99,7 +105,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 Fixed64.FromSingle(world.GetDistanceToPosition(behavior.OwnerId, targetPosition)));
             bb.SetInt64(MobaBTreeKeys.TargetSelectedFrame, bb.GetInt64(MobaBTreeKeys.EvaluationFrame));
             bb.SetBool(MobaBTreeKeys.TargetValid, true);
-            return BtNodeState.Success;
+            return NodeState.Success;
         }
 
         private static SearchQueryTemplateMO CreateDefaultQuery(float radius)
@@ -137,8 +143,8 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// Selects a cooldown-ready skill candidate. Range and cast-state checks are intentionally
     /// separate conditions so the same candidate can drive cast, approach, or hold branches.
     /// </summary>
-    [BtNodeType(MobaBTreeNodeTypes.SelectReadySkill, "选取就绪技能", "MOBA", BtNodeKind.Action)]
-    public sealed class MobaSelectReadySkillNode : BtActionNodeBase, BtNodeDescriptorProvider
+    [NodeType(MobaBTreeNodeTypes.SelectReadySkill, "选取就绪技能", "MOBA", NodeKind.Action)]
+    public sealed class MobaSelectReadySkillNode : ActionNodeBase, NodeDescriptorProvider
     {
         internal const float DefaultApproachRange = 0.5f;
         public const string SkillIdProperty = "skillId";
@@ -148,25 +154,25 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         private long _requiredSkillId;
         private long _requiredTag;
 
-        public BtNodeDescriptor BuildDescriptor(BtNodeTypeAttribute attribute) => new(
-            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, BtNodeKind.Action, 0, 0,
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
             () => new MobaSelectReadySkillNode(),
             new[]
             {
-                new BtPropertyField(SkillIdProperty, BtValueType.Int64,
-                    BtPropertyValue.Of(0L), "限定技能 id；0 = 任意"),
-                new BtPropertyField(RequiredTagProperty, BtValueType.Int64,
-                    BtPropertyValue.Of(0L), "限定技能标签；0 = 任意"),
+                new PropertyField(SkillIdProperty, ValueType.Int64,
+                    PropertyValue.Of(0L), "限定技能 id；0 = 任意"),
+                new PropertyField(RequiredTagProperty, ValueType.Int64,
+                    PropertyValue.Of(0L), "限定技能标签；0 = 任意"),
             });
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _runtime = context.Context.Services.Resolve<MobaBTreeRuntimeContext>();
             _requiredSkillId = context.Properties.GetInt64(SkillIdProperty, 0);
             _requiredTag = context.Properties.GetInt64(RequiredTagProperty, 0);
         }
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
             MobaBTreeBlackboard.ClearSkill(bb, Fixed64.FromSingle(DefaultApproachRange));
@@ -176,13 +182,13 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             var config = _runtime.Config;
             if (behavior == null || registry == null || config == null
                 || behavior.OwnerId.Value <= 0 || behavior.OwnerId.Value > int.MaxValue)
-                return BtNodeState.Success;
+                return NodeState.Success;
             if (!registry.TryGet((int)behavior.OwnerId.Value, out var owner)
                 || owner == null || !owner.hasSkillLoadout)
-                return BtNodeState.Success;
+                return NodeState.Success;
 
             var skills = owner.skillLoadout.ActiveSkills;
-            if (skills == null || skills.Length == 0) return BtNodeState.Success;
+            if (skills == null || skills.Length == 0) return NodeState.Success;
 
             var nowMs = _runtime.GetCurrentTimeMs();
             var maxConfiguredRange = 0f;
@@ -219,12 +225,12 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 bb.SetInt64(MobaBTreeKeys.SkillType, (long)selectedSkill.SkillType);
                 bb.SetInt64(MobaBTreeKeys.SkillTargetQueryId, selectedSkill.RequiredTargetQueryId);
                 bb.SetBool(MobaBTreeKeys.SkillValid, true);
-                return BtNodeState.Success;
+                return NodeState.Success;
             }
 
             if (maxConfiguredRange > 0f)
                 bb.SetFixed64(MobaBTreeKeys.SkillApproachRange, Fixed64.FromSingle(maxConfiguredRange));
-            return BtNodeState.Success;
+            return NodeState.Success;
         }
 
         private static bool HasTag(SkillMO skill, long requiredTag)
@@ -240,16 +246,16 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     }
 
     /// <summary>依据当前目标解析瞄准点与朝向。</summary>
-    [BtNodeType(MobaBTreeNodeTypes.ResolveTargetAim, "解析目标瞄准", "MOBA", BtNodeKind.Action)]
-    public sealed class MobaResolveTargetAimNode : BtActionNodeBase
+    [NodeType(MobaBTreeNodeTypes.ResolveTargetAim, "解析目标瞄准", "MOBA", NodeKind.Action)]
+    public sealed class MobaResolveTargetAimNode : ActionNodeBase
     {
         private static readonly Fixed64 MinLength = Fixed64.FromSingle(0.0001f);
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
             if (!bb.GetBool(MobaBTreeKeys.TargetValid))
-                return BtNodeState.Failure;
+                return NodeState.Failure;
 
             var dx = bb.GetFixed64(MobaBTreeKeys.TargetX) - bb.GetFixed64(MobaBTreeKeys.OwnerX);
             var dy = bb.GetFixed64(MobaBTreeKeys.TargetY) - bb.GetFixed64(MobaBTreeKeys.OwnerY);
@@ -264,35 +270,35 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.AimDirectionY, length > MinLength ? dy / length : Fixed64.Zero);
             bb.SetFixed64(MobaBTreeKeys.AimDirectionZ, length > MinLength ? dz / length : Fixed64.One);
             bb.SetBool(MobaBTreeKeys.AimValid, true);
-            return BtNodeState.Success;
+            return NodeState.Success;
         }
     }
 
     /// <summary>发布施法意图（intent.cast.*）。</summary>
-    [BtNodeType(MobaBTreeNodeTypes.CastSelectedSkill, "发布施法意图", "MOBA", BtNodeKind.Action)]
-    public sealed class MobaCastSelectedSkillNode : BtActionNodeBase, BtNodeDescriptorProvider
+    [NodeType(MobaBTreeNodeTypes.CastSelectedSkill, "发布施法意图", "MOBA", NodeKind.Action)]
+    public sealed class MobaCastSelectedSkillNode : ActionNodeBase, NodeDescriptorProvider
     {
         public const string PriorityProperty = "priority";
         public const long DefaultPriority = 100;
 
         private long _priority = DefaultPriority;
 
-        public BtNodeDescriptor BuildDescriptor(BtNodeTypeAttribute attribute) => new(
-            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, BtNodeKind.Action, 0, 0,
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
             () => new MobaCastSelectedSkillNode(),
-            new[] { new BtPropertyField(PriorityProperty, BtValueType.Int64,
-                BtPropertyValue.Of(DefaultPriority), "施法意图优先级") });
+            new[] { new PropertyField(PriorityProperty, ValueType.Int64,
+                PropertyValue.Of(DefaultPriority), "施法意图优先级") });
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _priority = context.Properties.GetInt64(PriorityProperty, DefaultPriority);
         }
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
             if (!bb.GetBool(MobaBTreeKeys.SkillValid) || !bb.GetBool(MobaBTreeKeys.AimValid))
-                return BtNodeState.Failure;
+                return NodeState.Failure;
 
             bb.SetInt64(MobaBTreeKeys.CastRequestPriority, _priority);
             bb.SetInt64(MobaBTreeKeys.CastRequestSkillId, bb.GetInt64(MobaBTreeKeys.SkillId));
@@ -305,35 +311,35 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionY, bb.GetFixed64(MobaBTreeKeys.AimDirectionY));
             bb.SetFixed64(MobaBTreeKeys.CastRequestDirectionZ, bb.GetFixed64(MobaBTreeKeys.AimDirectionZ));
             bb.SetBool(MobaBTreeKeys.CastRequestValid, true);
-            return BtNodeState.Success;
+            return NodeState.Success;
         }
     }
 
     /// <summary>发布移动意图（intent.move.*），目标为当前目标位置。</summary>
-    [BtNodeType(MobaBTreeNodeTypes.MoveToEnemy, "发布移动意图", "MOBA", BtNodeKind.Action)]
-    public sealed class MobaMoveToEnemyNode : BtActionNodeBase, BtNodeDescriptorProvider
+    [NodeType(MobaBTreeNodeTypes.MoveToEnemy, "发布移动意图", "MOBA", NodeKind.Action)]
+    public sealed class MobaMoveToEnemyNode : ActionNodeBase, NodeDescriptorProvider
     {
         public const string PriorityProperty = "priority";
         public const long DefaultPriority = 50;
 
         private long _priority = DefaultPriority;
 
-        public BtNodeDescriptor BuildDescriptor(BtNodeTypeAttribute attribute) => new(
-            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, BtNodeKind.Action, 0, 0,
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
             () => new MobaMoveToEnemyNode(),
-            new[] { new BtPropertyField(PriorityProperty, BtValueType.Int64,
-                BtPropertyValue.Of(DefaultPriority), "移动意图优先级") });
+            new[] { new PropertyField(PriorityProperty, ValueType.Int64,
+                PropertyValue.Of(DefaultPriority), "移动意图优先级") });
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _priority = context.Properties.GetInt64(PriorityProperty, DefaultPriority);
         }
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
             if (!bb.GetBool(MobaBTreeKeys.TargetValid))
-                return BtNodeState.Failure;
+                return NodeState.Failure;
 
             bb.SetInt64(MobaBTreeKeys.MoveRequestPriority, _priority);
             bb.SetFixed64(MobaBTreeKeys.MoveRequestX, bb.GetFixed64(MobaBTreeKeys.TargetX));
@@ -341,36 +347,36 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.MoveRequestZ, bb.GetFixed64(MobaBTreeKeys.TargetZ));
             bb.SetFixed64(MobaBTreeKeys.MoveRequestStopRange, bb.GetFixed64(MobaBTreeKeys.SkillApproachRange));
             bb.SetBool(MobaBTreeKeys.MoveRequestValid, true);
-            return BtNodeState.Success;
+            return NodeState.Success;
         }
     }
 
     /// <summary>发布保持意图（intent.hold.*）。</summary>
-    [BtNodeType(MobaBTreeNodeTypes.HoldPosition, "发布保持意图", "MOBA", BtNodeKind.Action)]
-    public sealed class MobaHoldPositionNode : BtActionNodeBase, BtNodeDescriptorProvider
+    [NodeType(MobaBTreeNodeTypes.HoldPosition, "发布保持意图", "MOBA", NodeKind.Action)]
+    public sealed class MobaHoldPositionNode : ActionNodeBase, NodeDescriptorProvider
     {
         public const string PriorityProperty = "priority";
         public const long DefaultPriority = 0;
 
         private long _priority = DefaultPriority;
 
-        public BtNodeDescriptor BuildDescriptor(BtNodeTypeAttribute attribute) => new(
-            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, BtNodeKind.Action, 0, 0,
+        public NodeDescriptor BuildDescriptor(NodeTypeAttribute attribute) => new(
+            attribute.NodeTypeId, attribute.DisplayName, attribute.Category, NodeKind.Action, 0, 0,
             () => new MobaHoldPositionNode(),
-            new[] { new BtPropertyField(PriorityProperty, BtValueType.Int64,
-                BtPropertyValue.Of(DefaultPriority), "保持意图优先级") });
+            new[] { new PropertyField(PriorityProperty, ValueType.Int64,
+                PropertyValue.Of(DefaultPriority), "保持意图优先级") });
 
-        public override void OnInit(in BtNodeInitContext context)
+        public override void OnInit(in NodeInitContext context)
         {
             _priority = context.Properties.GetInt64(PriorityProperty, DefaultPriority);
         }
 
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
             bb.SetInt64(MobaBTreeKeys.HoldRequestPriority, _priority);
             bb.SetBool(MobaBTreeKeys.HoldRequestValid, true);
-            return BtNodeState.Success;
+            return NodeState.Success;
         }
     }
 
@@ -378,10 +384,10 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     /// The only node allowed to publish out.*. Candidate branches can be combined or run in
     /// parallel without relying on their execution order to resolve conflicts.
     /// </summary>
-    [BtNodeType(MobaBTreeNodeTypes.ArbitrateCombatIntent, "仲裁战斗意图", "MOBA", BtNodeKind.Action)]
-    public sealed class MobaArbitrateCombatIntentNode : BtActionNodeBase
+    [NodeType(MobaBTreeNodeTypes.ArbitrateCombatIntent, "仲裁战斗意图", "MOBA", NodeKind.Action)]
+    public sealed class MobaArbitrateCombatIntentNode : ActionNodeBase
     {
-        public override BtNodeState OnTick(BtExecutionContext context)
+        public override NodeState OnTick(ExecutionContext context)
         {
             var bb = context.Blackboard;
             bb.SetInt64(MobaBTreeKeys.OutputKind, (long)MobaBTreeIntentKind.Hold);
@@ -404,10 +410,10 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
                 PublishMove(bb);
             }
 
-            return BtNodeState.Success;
+            return NodeState.Success;
         }
 
-        private static void PublishCast(BtBlackboard bb)
+        private static void PublishCast(Blackboard bb)
         {
             bb.SetInt64(MobaBTreeKeys.OutputKind, (long)MobaBTreeIntentKind.Cast);
             bb.SetBool(MobaBTreeKeys.HasCast, true);
@@ -422,7 +428,7 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
             bb.SetFixed64(MobaBTreeKeys.CastDirectionZ, bb.GetFixed64(MobaBTreeKeys.CastRequestDirectionZ));
         }
 
-        private static void PublishMove(BtBlackboard bb)
+        private static void PublishMove(Blackboard bb)
         {
             bb.SetInt64(MobaBTreeKeys.OutputKind, (long)MobaBTreeIntentKind.Move);
             bb.SetBool(MobaBTreeKeys.HasMove, true);
@@ -436,38 +442,38 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
     // 条件节点
     // ------------------------------------------------------------------
 
-    [BtNodeType(MobaBTreeNodeTypes.HasEnemy, "有目标", "MOBA", BtNodeKind.Condition)]
-    public sealed class MobaHasEnemyNode : BtConditionNodeBase
+    [NodeType(MobaBTreeNodeTypes.HasEnemy, "有目标", "MOBA", NodeKind.Condition)]
+    public sealed class MobaHasEnemyNode : ConditionNodeBase
     {
-        protected override bool Validate(BtExecutionContext context)
+        protected override bool Validate(ExecutionContext context)
             => context.Blackboard.GetBool(MobaBTreeKeys.TargetValid);
     }
 
-    [BtNodeType(MobaBTreeNodeTypes.HasSelectedSkill, "有技能候选", "MOBA", BtNodeKind.Condition)]
-    public sealed class MobaHasSelectedSkillNode : BtConditionNodeBase
+    [NodeType(MobaBTreeNodeTypes.HasSelectedSkill, "有技能候选", "MOBA", NodeKind.Condition)]
+    public sealed class MobaHasSelectedSkillNode : ConditionNodeBase
     {
-        protected override bool Validate(BtExecutionContext context)
+        protected override bool Validate(ExecutionContext context)
             => context.Blackboard.GetBool(MobaBTreeKeys.SkillValid);
     }
 
-    [BtNodeType(MobaBTreeNodeTypes.CanCast, "可施法", "MOBA", BtNodeKind.Condition)]
-    public sealed class MobaCanCastNode : BtConditionNodeBase
+    [NodeType(MobaBTreeNodeTypes.CanCast, "可施法", "MOBA", NodeKind.Condition)]
+    public sealed class MobaCanCastNode : ConditionNodeBase
     {
-        protected override bool Validate(BtExecutionContext context)
+        protected override bool Validate(ExecutionContext context)
             => context.Blackboard.GetBool(MobaBTreeKeys.OwnerCanCast);
     }
 
-    [BtNodeType(MobaBTreeNodeTypes.CanMove, "可移动", "MOBA", BtNodeKind.Condition)]
-    public sealed class MobaCanMoveNode : BtConditionNodeBase
+    [NodeType(MobaBTreeNodeTypes.CanMove, "可移动", "MOBA", NodeKind.Condition)]
+    public sealed class MobaCanMoveNode : ConditionNodeBase
     {
-        protected override bool Validate(BtExecutionContext context)
+        protected override bool Validate(ExecutionContext context)
             => context.Blackboard.GetBool(MobaBTreeKeys.OwnerCanMove);
     }
 
-    [BtNodeType(MobaBTreeNodeTypes.SelectedSkillInRange, "技能射程内", "MOBA", BtNodeKind.Condition)]
-    public sealed class MobaSelectedSkillInRangeNode : BtConditionNodeBase
+    [NodeType(MobaBTreeNodeTypes.SelectedSkillInRange, "技能射程内", "MOBA", NodeKind.Condition)]
+    public sealed class MobaSelectedSkillInRangeNode : ConditionNodeBase
     {
-        protected override bool Validate(BtExecutionContext context)
+        protected override bool Validate(ExecutionContext context)
         {
             var bb = context.Blackboard;
             if (!bb.GetBool(MobaBTreeKeys.TargetValid) || !bb.GetBool(MobaBTreeKeys.SkillValid))
@@ -478,12 +484,12 @@ namespace AbilityKit.Demo.Moba.Services.Behavior.BTree
         }
     }
 
-    [BtNodeType(MobaBTreeNodeTypes.ShouldApproachEnemy, "需要接近", "MOBA", BtNodeKind.Condition)]
-    public sealed class MobaShouldApproachEnemyNode : BtConditionNodeBase
+    [NodeType(MobaBTreeNodeTypes.ShouldApproachEnemy, "需要接近", "MOBA", NodeKind.Condition)]
+    public sealed class MobaShouldApproachEnemyNode : ConditionNodeBase
     {
         private static readonly Fixed64 DefaultApproachRange = Fixed64.FromSingle(0.5f);
 
-        protected override bool Validate(BtExecutionContext context)
+        protected override bool Validate(ExecutionContext context)
         {
             var bb = context.Blackboard;
             if (!bb.GetBool(MobaBTreeKeys.TargetValid)) return false;

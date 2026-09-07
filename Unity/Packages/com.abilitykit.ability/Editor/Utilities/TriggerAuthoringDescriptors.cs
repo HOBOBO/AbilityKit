@@ -40,6 +40,27 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerParameterAccess access = TriggerParameterAccess.Read,
             string requiredGroup = null,
             params TriggerParameterOption[] options)
+            : this(
+                name,
+                type,
+                required,
+                allowedSources,
+                access,
+                requiredGroup,
+                (IReadOnlyList<TriggerParameterDescriptor>)null,
+                options)
+        {
+        }
+
+        public TriggerParameterDescriptor(
+            string name,
+            TriggerValueType type,
+            bool required,
+            TriggerValueSourceMask allowedSources,
+            TriggerParameterAccess access,
+            string requiredGroup,
+            IReadOnlyList<TriggerParameterDescriptor> fields,
+            params TriggerParameterOption[] options)
         {
             Name = name ?? string.Empty;
             Type = type;
@@ -47,6 +68,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             AllowedSources = allowedSources;
             Access = access;
             RequiredGroup = requiredGroup ?? string.Empty;
+            Fields = fields ?? Array.Empty<TriggerParameterDescriptor>();
             Options = options ?? Array.Empty<TriggerParameterOption>();
         }
 
@@ -56,6 +78,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public TriggerValueSourceMask AllowedSources { get; }
         public TriggerParameterAccess Access { get; }
         public string RequiredGroup { get; }
+        public IReadOnlyList<TriggerParameterDescriptor> Fields { get; }
         public IReadOnlyList<TriggerParameterOption> Options { get; }
     }
 
@@ -184,7 +207,13 @@ namespace AbilityKit.Ability.Editor.Utilities
             catalog.Register(Condition("has_buff", "Has Buff", "Condition/Combat",
                 Required("buff_id", TriggerValueType.Integer),
                 Optional("check_stack", TriggerValueType.Boolean),
-                Choice("target_mode", false, Option(0, "Target"), Option(1, "Source"))));
+                Choice("target_mode", false, Option(0, "Target"), Option(1, "Source")),
+                ObjectParameter("options", false,
+                    Optional("check_stack", TriggerValueType.Boolean),
+                    Choice("target_mode", false, Option(0, "Target"), Option(1, "Source"))),
+                ObjectParameter("target", false,
+                    Choice("mode", false, Option(0, "Target"), Option(1, "Source")),
+                    Choice("target_mode", false, Option(0, "Target"), Option(1, "Source")))));
             catalog.Register(Condition("health_percent", "Health Percent", "Condition/Combat",
                 Required("threshold", TriggerValueType.Number),
                 Choice("compare_type", false, Option(0, "Less Than"), Option(1, "Greater Than"))));
@@ -495,6 +524,21 @@ namespace AbilityKit.Ability.Editor.Utilities
                 name, type, false, TriggerValueSourceMask.All, TriggerParameterAccess.Read, group);
         }
 
+        private static TriggerParameterDescriptor ObjectParameter(
+            string name,
+            bool required,
+            params TriggerParameterDescriptor[] fields)
+        {
+            return new TriggerParameterDescriptor(
+                name,
+                TriggerValueType.Object,
+                required,
+                TriggerValueSourceMask.All,
+                TriggerParameterAccess.Read,
+                null,
+                fields);
+        }
+
         private static TriggerParameterDescriptor Choice(
             string name,
             bool required,
@@ -539,6 +583,32 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             return Append(parameters, new[]
             {
+                ObjectParameter("target", false,
+                    Optional("query_template_id", TriggerValueType.Integer),
+                    Optional("actor_id", TriggerValueType.Integer),
+                    Optional("payload_field_id", TriggerValueType.Integer),
+                    Choice("source", false,
+                        Option(3, "Context Target"), Option(4, "Self"), Option(2, "Explicit Actor"),
+                        Option(1, "All Actors"), Option(5, "Same Team"), Option(6, "Enemy Team"),
+                        Option(7, "Main Type"), Option(8, "Unit Subtype"), Option(1000, "Query Template")),
+                    Optional("source_param", TriggerValueType.Integer),
+                    Choice("filter", false,
+                        Option(0, "None"), Option(0x0204, "Require Valid Id"),
+                        Option(0x0205, "Require Position"), Option(0x0101, "Circle"),
+                        Option(0x0102, "Sector"), Option(0x0301, "Exclude Caster"),
+                        Option(0x0302, "Exclude Context Target"), Option(0x0201, "Whitelist"),
+                        Option(0x0202, "Blacklist")),
+                    Optional("filter_param", TriggerValueType.Integer),
+                    Optional("radius", TriggerValueType.Number),
+                    Optional("half_angle_deg", TriggerValueType.Number),
+                    Choice("order", false,
+                        Option(0, "None"), Option(0x2001, "Zero"), Option(0x2002, "Random"),
+                        Option(0x2004, "Distance To Caster"), Option(0x2005, "Distance To Context Target")),
+                    Optional("order_param", TriggerValueType.Integer),
+                    Choice("select", false,
+                        Option(0x1001, "Top K"), Option(0x1002, "Streaming Top K")),
+                    Optional("max_count", TriggerValueType.Integer),
+                    Optional("self", TriggerValueType.Boolean)),
                 Optional("query_template_id", TriggerValueType.Integer),
                 Optional("target_actor_id", TriggerValueType.Integer),
                 Optional("target_payload_field_id", TriggerValueType.Integer),
@@ -664,7 +734,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (context.Events == null)
                 AddWarning(diagnostics, "TRG1402", "module", "No Event Catalog is assigned; event and Payload validation is limited.");
 
-            var moduleKeys = ValidateBlackboard(diagnostics, module.Blackboard, "module.blackboard");
+            var moduleKeys = ValidateBlackboard(
+                diagnostics,
+                module.Blackboard,
+                "module.blackboard",
+                TriggerAuthoringLocalBlackboardScope.Module);
             ValidateGroups(
                 diagnostics,
                 module,
@@ -715,7 +789,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
 
                 var triggerKeys = new Dictionary<string, BlackboardSymbol>(moduleKeys, StringComparer.Ordinal);
-                var declaredTriggerKeys = ValidateBlackboard(diagnostics, trigger.Blackboard, path + ".blackboard");
+                var declaredTriggerKeys = ValidateBlackboard(
+                    diagnostics,
+                    trigger.Blackboard,
+                    path + ".blackboard",
+                    TriggerAuthoringLocalBlackboardScope.Trigger);
                 foreach (var pair in declaredTriggerKeys) triggerKeys[pair.Key] = pair.Value;
                 ValidateTemplateReference(diagnostics, trigger, path, context, eventDefinition, triggerKeys);
                 if (trigger.Template == null || trigger.Condition != null)
@@ -910,6 +988,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             string path)
         {
             if (node == null) return;
+            if (!node.Enabled) return;
             if (!string.IsNullOrWhiteSpace(node.GroupReference))
             {
                 if (node.Kind != expectedKind)
@@ -936,12 +1015,14 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             public TriggerValueType Type;
             public bool ReadOnly;
+            public TriggerAuthoringLocalBlackboardScope Scope;
         }
 
         private static Dictionary<string, BlackboardSymbol> ValidateBlackboard(
             ICollection<TriggerAuthoringDiagnostic> diagnostics,
             IReadOnlyList<TriggerBlackboardVariableData> variables,
-            string path)
+            string path,
+            TriggerAuthoringLocalBlackboardScope scope)
         {
             var keys = new Dictionary<string, BlackboardSymbol>(StringComparer.Ordinal);
             if (variables == null) return keys;
@@ -957,7 +1038,16 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (keys.ContainsKey(variable.Key))
                     AddError(diagnostics, "TRG1101", itemPath + ".key", $"Duplicate Blackboard key: {variable.Key}.");
                 else
-                    keys.Add(variable.Key, new BlackboardSymbol { Type = variable.Type, ReadOnly = variable.ReadOnly });
+                {
+                    var symbol = new BlackboardSymbol
+                    {
+                        Type = variable.Type,
+                        ReadOnly = variable.ReadOnly,
+                        Scope = scope
+                    };
+                    keys.Add(variable.Key, symbol);
+                    keys.Add(TriggerAuthoringLocalBlackboardPath.Format(scope, variable.Key), symbol);
+                }
                 if (variable.Type == TriggerValueType.None)
                     AddError(diagnostics, "TRG1102", itemPath + ".type", "Blackboard value type is required.");
             }
@@ -980,6 +1070,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     AddError(diagnostics, "TRG1200", path, "Action root is required.");
                 return;
             }
+            if (!node.Enabled) return;
             if (node.Kind != expectedKind)
                 AddError(diagnostics, "TRG1201", path + ".kind", $"Expected {expectedKind}, got {node.Kind}.");
             if (string.IsNullOrWhiteSpace(node.Type))
@@ -994,9 +1085,10 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             var children = node.Children ?? new List<TriggerNodeData>();
-            if (children.Count < descriptor.MinChildren)
+            var enabledChildCount = CountEnabledChildren(children);
+            if (enabledChildCount < descriptor.MinChildren)
                 AddError(diagnostics, "TRG1204", path + ".children", $"Node requires at least {descriptor.MinChildren} child nodes.");
-            if (descriptor.MaxChildren >= 0 && children.Count > descriptor.MaxChildren)
+            if (descriptor.MaxChildren >= 0 && enabledChildCount > descriptor.MaxChildren)
                 AddError(diagnostics, "TRG1205", path + ".children", $"Node allows at most {descriptor.MaxChildren} child nodes.");
 
             var arguments = new Dictionary<string, TriggerArgumentData>(StringComparer.Ordinal);
@@ -1076,7 +1168,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             for (var i = 0; i < children.Count; i++)
+            {
+                if (children[i] == null || !children[i].Enabled) continue;
                 ValidateNode(diagnostics, children[i], expectedKind, $"{path}.children[{i}]", catalog, localKeys, eventDefinition, globalBlackboard);
+            }
+        }
+
+        private static int CountEnabledChildren(IReadOnlyList<TriggerNodeData> children)
+        {
+            if (children == null) return 0;
+            var count = 0;
+            for (var i = 0; i < children.Count; i++)
+                if (children[i] != null && children[i].Enabled) count++;
+            return count;
         }
 
         private static void ValidateSetVariableTypes(
@@ -1142,6 +1246,17 @@ namespace AbilityKit.Ability.Editor.Utilities
                 AddError(diagnostics, "TRG1301", path + ".type", $"Expected {parameter.Type}, got {value.Type}.");
             if ((parameter.AllowedSources & ToMask(value.Source)) == 0)
                 AddError(diagnostics, "TRG1302", path + ".source", $"Source {value.Source} is not allowed.");
+            if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.Object)
+            {
+                ValidateObjectFields(
+                    diagnostics,
+                    value.Fields,
+                    parameter,
+                    path + ".fields",
+                    localKeys,
+                    eventDefinition,
+                    globalBlackboard);
+            }
 
             switch (value.Source)
             {
@@ -1175,6 +1290,92 @@ namespace AbilityKit.Ability.Editor.Utilities
                         AddError(diagnostics, "TRG1306", path + ".expression", "Expression is required.");
                     break;
             }
+        }
+
+        private static void ValidateObjectFields(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            IReadOnlyList<TriggerArgumentData> fields,
+            TriggerParameterDescriptor parameter,
+            string path,
+            IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
+            TriggerEventDefinitionData eventDefinition,
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            var fieldDescriptors = BuildFieldDescriptorMap(parameter);
+            fields = fields ?? Array.Empty<TriggerArgumentData>();
+            for (var i = 0; i < fields.Count; i++)
+            {
+                var field = fields[i];
+                var fieldPath = $"{path}[{i}]";
+                if (field == null || string.IsNullOrWhiteSpace(field.Name))
+                {
+                    AddError(diagnostics, "TRG1320", fieldPath + ".name", "Object field name is required.");
+                    continue;
+                }
+                if (!names.Add(field.Name))
+                    AddError(diagnostics, "TRG1321", fieldPath + ".name", $"Duplicate Object field: {field.Name}.");
+                var fieldParameter = fieldDescriptors != null && fieldDescriptors.TryGetValue(field.Name, out var descriptor)
+                    ? descriptor
+                    : new TriggerParameterDescriptor(field.Name, TriggerValueType.None);
+                if (fieldDescriptors != null && !fieldDescriptors.ContainsKey(field.Name))
+                    AddWarning(diagnostics, "TRG1323", fieldPath + ".name",
+                        $"Unknown Object field '{field.Name}' is preserved but ignored by the authoring Schema.");
+                ValidateValue(
+                    diagnostics,
+                    field.Value,
+                    fieldParameter,
+                    fieldPath + ".value",
+                    localKeys,
+                    eventDefinition,
+                    globalBlackboard);
+            }
+
+            if (fieldDescriptors == null) return;
+            for (var i = 0; i < parameter.Fields.Count; i++)
+            {
+                var field = parameter.Fields[i];
+                if (field == null || string.IsNullOrWhiteSpace(field.Name) || !field.Required) continue;
+                if (!names.Contains(field.Name))
+                    AddError(diagnostics, "TRG1322", path, $"Required Object field is missing: {field.Name}.");
+            }
+
+            var requiredGroups = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < parameter.Fields.Count; i++)
+            {
+                var field = parameter.Fields[i];
+                if (field != null && !string.IsNullOrEmpty(field.RequiredGroup))
+                    requiredGroups.Add(field.RequiredGroup);
+            }
+            foreach (var group in requiredGroups)
+            {
+                var found = false;
+                var choices = new List<string>();
+                for (var i = 0; i < parameter.Fields.Count; i++)
+                {
+                    var field = parameter.Fields[i];
+                    if (field == null || !string.Equals(field.RequiredGroup, group, StringComparison.Ordinal)) continue;
+                    choices.Add(field.Name);
+                    if (names.Contains(field.Name)) found = true;
+                }
+                if (!found)
+                    AddError(diagnostics, "TRG1324", path,
+                        $"At least one Object field is required for '{group}': {string.Join(", ", choices)}.");
+            }
+        }
+
+        private static Dictionary<string, TriggerParameterDescriptor> BuildFieldDescriptorMap(
+            TriggerParameterDescriptor parameter)
+        {
+            if (parameter == null || parameter.Fields == null || parameter.Fields.Count == 0) return null;
+            var result = new Dictionary<string, TriggerParameterDescriptor>(StringComparer.Ordinal);
+            for (var i = 0; i < parameter.Fields.Count; i++)
+            {
+                var field = parameter.Fields[i];
+                if (field == null || string.IsNullOrWhiteSpace(field.Name) || result.ContainsKey(field.Name)) continue;
+                result.Add(field.Name, field);
+            }
+            return result;
         }
 
         private static void ValidatePayloadValue(

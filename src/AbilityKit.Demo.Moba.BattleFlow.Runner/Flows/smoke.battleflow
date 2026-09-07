@@ -1,0 +1,8 @@
+{
+  "caseId": "smoke",
+  "blocks": [
+    { "$type": "AbilityKit.BattleFlow.SpawnActorBlock, AbilityKit.BattleFlow", "alias": "caster", "heroId": 1001, "playerId": "player_1" },
+    { "$type": "AbilityKit.BattleFlow.SpawnActorBlock, AbilityKit.BattleFlow", "alias": "target", "heroId": 1001, "teamId": 2 },
+    { "$type": "AbilityKit.BattleFlow.TimelineStepBlock, AbilityKit.BattleFlow", "atMs": 100, "action": "cast_skill", "actorAlias": "caster", "targetAlias": "target", "slot": 1 }
+  ]
+}

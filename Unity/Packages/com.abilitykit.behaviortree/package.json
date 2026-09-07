@@ -14,6 +14,13 @@
   "author": {
     "name": "AbilityKit"
   },
+  "samples": [
+    {
+      "displayName": "Complete Runtime Observation",
+      "description": "完整 authoring JSON、ScriptableObject 反写工具，以及可交互的 Play Mode 节点/黑板观察宿主。",
+      "path": "Samples~/CompleteRuntimeObservation"
+    }
+  ],
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
     "com.abilitykit.deterministic": "0.1.0"

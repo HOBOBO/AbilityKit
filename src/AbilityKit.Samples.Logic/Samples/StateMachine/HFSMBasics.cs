@@ -1,10 +1,10 @@
 using AbilityKit.Samples.Abstractions;
-using UnityHFSM;
+using AbilityKit.HFSM;
 
 namespace AbilityKit.Samples.Logic.Samples.StateMachine
 {
     /// <summary>
-    /// 演示 UnityHFSM 如何管理角色 Idle、Casting、Dead 三个基础状态。
+    /// 演示 AbilityKit.HFSM 如何管理角色 Idle、Casting、Dead 三个基础状态。
     /// </summary>
     [Sample(531, "hfsm", "basic", "state", "package-api", "web", "deterministic")]
     public sealed class HFSMBasics : SampleBase

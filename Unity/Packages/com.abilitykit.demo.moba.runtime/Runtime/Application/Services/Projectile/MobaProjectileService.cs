@@ -235,7 +235,8 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     return ProjectileCollisionResponse.Ignore;
                 }
 
-                if (hitEntity == null) return ProjectileCollisionResponse.Ignore;
+                // 不在 actor 注册表里的 collider 是静态世界/障碍物（墙体），应挡住投射物而非穿透。
+                if (hitEntity == null) return ProjectileCollisionResponse.Block;
 
                 // 不命中自身。
                 if (hitEntity.hasActorId && hitEntity.actorId.Value == ownerId) return ProjectileCollisionResponse.Ignore;

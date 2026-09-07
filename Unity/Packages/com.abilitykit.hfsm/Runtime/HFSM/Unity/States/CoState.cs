@@ -2,7 +2,7 @@ using System.Collections;
 using UnityEngine;
 using System;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// A state that can run a Unity coroutine as its <c>OnLogic</c> method.

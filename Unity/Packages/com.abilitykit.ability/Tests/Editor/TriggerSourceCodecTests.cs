@@ -4,6 +4,7 @@ using System.IO;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using NUnit.Framework;
 
 namespace AbilityKit.Ability.Editor.Tests
@@ -74,6 +75,8 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(restored.Module.ModuleId, Is.EqualTo("module.codec_fixture"));
             Assert.That(restored.Module.Kind, Is.EqualTo(TriggerModuleKind.Buff));
             Assert.That(restored.Module.Triggers[0].Id, Is.EqualTo(7));
+            Assert.That(restored.Module.Triggers[0].GroupPath, Is.EqualTo("Combat/Reactions"));
+            Assert.That(restored.Module.Triggers[0].Tags, Is.EquivalentTo(new[] { "combat", "reaction" }));
             Assert.That(restored.Module.Triggers[0].Actions.Children[0].Arguments[0].Value.StringValue,
                 Is.EqualTo("hello"));
             Assert.That(restored.Module.Triggers[0].Condition.GroupReference, Is.EqualTo("condition_group_1"));
@@ -141,6 +144,48 @@ namespace AbilityKit.Ability.Editor.Tests
                 Is.EqualTo(TriggerAuthoringSourceCodec.ComputeContentHash(document)));
         }
 
+        [Test]
+        public void SourceSchema_SerializesModuleAndTemplateContracts()
+        {
+            var module = JObject.Parse(TriggerAuthoringSourceSchema.Serialize(TriggerAuthoringSourceSchemaKind.Module));
+            var template = JObject.Parse(TriggerAuthoringSourceSchema.Serialize(TriggerAuthoringSourceSchemaKind.Template));
+
+            Assert.That((string)module["$schema"], Is.EqualTo("http://json-schema.org/draft-07/schema#"));
+            Assert.That((string)module["properties"]["schema"]["const"], Is.EqualTo(TriggerAuthoringSchema.Id));
+            Assert.That((string)module["properties"]["version"]["const"], Is.EqualTo(TriggerAuthoringSchema.Version));
+            Assert.That(module["properties"]["module"], Is.Not.Null);
+            Assert.That(module["properties"]["template"], Is.Null);
+            Assert.That(
+                module["definitions"]["triggerAuthoringModule"]["properties"]["triggers"]["items"]["$ref"].ToString(),
+                Is.EqualTo("#/definitions/triggerDefinition"));
+            Assert.That(module["definitions"]["triggerDefinition"]["properties"]["groupPath"], Is.Not.Null);
+            Assert.That(module["definitions"]["triggerDefinition"]["properties"]["tags"], Is.Not.Null);
+
+            Assert.That((string)template["properties"]["schema"]["const"], Is.EqualTo(TriggerAuthoringSchema.Id));
+            Assert.That((string)template["properties"]["version"]["const"], Is.EqualTo("2.2"));
+            Assert.That(template["properties"]["template"], Is.Not.Null);
+            Assert.That(template["properties"]["module"], Is.Null);
+            Assert.That(
+                template["definitions"]["triggerAuthoringTemplate"]["properties"]["parameters"]["items"]["$ref"].ToString(),
+                Is.EqualTo("#/definitions/templateParameter"));
+        }
+
+        [Test]
+        public void SourceSchema_ExportsBothSchemasAtomically()
+        {
+            var result = TriggerAuthoringSourceSchema.ExportAll(_tempDirectory);
+
+            Assert.That(result.TotalCount, Is.EqualTo(2));
+            Assert.That(File.Exists(Path.Combine(_tempDirectory, TriggerAuthoringSourceSchema.ModuleSchemaFileName)), Is.True);
+            Assert.That(File.Exists(Path.Combine(_tempDirectory, TriggerAuthoringSourceSchema.TemplateSchemaFileName)), Is.True);
+            AssertNoAtomicArtifacts();
+
+            var second = TriggerAuthoringSourceSchema.ExportAll(_tempDirectory);
+            Assert.That(second.WrittenPaths, Is.Empty);
+            Assert.That(second.UnchangedPaths.Count, Is.EqualTo(2));
+            AssertNoAtomicArtifacts();
+        }
+
         private static TriggerAuthoringSourceDocument BuildModuleDocument()
         {
             return new TriggerAuthoringSourceDocument
@@ -187,6 +232,8 @@ namespace AbilityKit.Ability.Editor.Tests
                         {
                             Id = 7,
                             Name = "Vengeance",
+                            GroupPath = "Combat/Reactions",
+                            Tags = { "combat", "reaction" },
                             Event = "combat.damage_taken",
                             Phase = "early",
                             Priority = 20,
@@ -266,6 +313,22 @@ namespace AbilityKit.Ability.Editor.Tests
                     }
                 }
             };
+        }
+
+        private void AssertNoAtomicArtifacts()
+        {
+            Assert.That(
+                Directory.GetFiles(
+                    _tempDirectory,
+                    "*.abilitykit.tmp.*",
+                    SearchOption.AllDirectories),
+                Is.Empty);
+            Assert.That(
+                Directory.GetFiles(
+                    _tempDirectory,
+                    "*.abilitykit.bak.*",
+                    SearchOption.AllDirectories),
+                Is.Empty);
         }
 
         /// <summary>

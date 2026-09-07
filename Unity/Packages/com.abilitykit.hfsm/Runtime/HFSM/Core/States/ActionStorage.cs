@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using UnityHFSM.Exceptions;
+using AbilityKit.HFSM.Exceptions;
 
-namespace UnityHFSM
+namespace AbilityKit.HFSM
 {
 	/// <summary>
 	/// Class that can store and run actions.

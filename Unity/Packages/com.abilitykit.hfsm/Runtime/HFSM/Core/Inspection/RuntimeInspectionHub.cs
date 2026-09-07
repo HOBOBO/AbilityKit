@@ -1,6 +1,6 @@
 using System;
 
-namespace UnityHFSM.Inspection
+namespace AbilityKit.HFSM.Inspection
 {
     public interface IRuntimeInspectionRegistryBackend
     {

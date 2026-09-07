@@ -97,7 +97,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.scenario": "0.1.0"
+        "com.abilitykit.scenario": "0.1.0",
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
       }
     },
     "com.abilitykit.behavior": {
@@ -279,7 +280,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "com.abilitykit.environment": "0.1.0"
+        "com.abilitykit.environment": "0.1.0",
+        "com.abilitykit.battleflow": "0.1.0"
       }
     },
     "com.abilitykit.demo.moba.host": {

@@ -3,7 +3,7 @@ using System.Globalization;
 using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Services.StateMachine;
-using UnityHFSM.Extension;
+using AbilityKit.HFSM.Extension;
 
 namespace AbilityKit.Demo.Moba.Services.Projectile
 {
