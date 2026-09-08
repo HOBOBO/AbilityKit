@@ -337,6 +337,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         }
     }
 
+    [Serializable]
     public readonly struct BattleDiagnosticRuntimeObjectKey :
         IEquatable<BattleDiagnosticRuntimeObjectKey>
     {
@@ -376,6 +377,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             BattleDiagnosticRuntimeObjectKey right) => !left.Equals(right);
     }
 
+    [Serializable]
     public readonly struct BattleDiagnosticRuntimeObjectReference :
         IEquatable<BattleDiagnosticRuntimeObjectReference>
     {
@@ -442,6 +444,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             BattleDiagnosticRuntimeObjectReference right) => !left.Equals(right);
     }
 
+    [Serializable]
     public readonly struct BattleDiagnosticRuntimeObject
     {
         public BattleDiagnosticRuntimeObject(

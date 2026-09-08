@@ -158,7 +158,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorTag> tags,
             BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect> effects,
             BattleDiagnosticObjectCatalogSnapshot objects = null,
-            BattleDiagnosticMetricTrackSnapshot frameMetrics = null)
+            BattleDiagnosticMetricTrackSnapshot frameMetrics = null,
+            BattleDiagnosticDefinitionCatalogSnapshot definitions = null)
         {
             SessionInfo = sessionInfo;
             CapturedAtTimestamp = capturedAtTimestamp;
@@ -171,6 +172,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             Effects = effects ?? throw new ArgumentNullException(nameof(effects));
             Objects = objects ?? BattleDiagnosticObjectCatalogSnapshot.Empty(sessionInfo.Scope);
             FrameMetrics = frameMetrics ?? BattleDiagnosticMetricTrackSnapshot.Empty;
+            Definitions = definitions ?? BattleDiagnosticDefinitionCatalogSnapshot.Empty(sessionInfo.Scope);
             RuntimeObjectEventCoverage =
                 BattleDiagnosticRuntimeObjectEventCoverageSummary.Create(
                     Events.Events,
@@ -188,6 +190,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorEffect> Effects { get; }
         public BattleDiagnosticObjectCatalogSnapshot Objects { get; }
         public BattleDiagnosticMetricTrackSnapshot FrameMetrics { get; }
+        public BattleDiagnosticDefinitionCatalogSnapshot Definitions { get; }
         public BattleDiagnosticRuntimeObjectEventCoverageSummary RuntimeObjectEventCoverage { get; }
 
         public bool LatestStateFramesAligned

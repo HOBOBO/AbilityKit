@@ -325,6 +325,8 @@ namespace AbilityKit.Demo.Moba.Services
                     throw new InvalidOperationException($"[MobaEffectExecutionService] Failed to create formal effect trace scope. effectConfigId={effectConfigId}, triggerId={triggerId}, sourceActorId={lineageInput.SourceActorId}, targetActorId={lineageInput.TargetActorId}, parentContextId={lineageInput.ParentContextId}, rootContextId={lineageInput.RootContextId}");
                 }
 
+                Trace.TrySetEffectTrigger(scope.EffectContextId, triggerId);
+
                 _traceScopes.Push(scope);
                 return scope;
             }

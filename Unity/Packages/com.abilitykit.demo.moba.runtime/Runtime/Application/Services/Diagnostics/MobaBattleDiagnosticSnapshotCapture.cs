@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
@@ -32,6 +33,9 @@ namespace AbilityKit.Demo.Moba.Services
 
         [WorldInject(required: false)]
         private IBattleDiagnosticMetricSnapshotSource _frameMetrics = null;
+
+        [WorldInject(required: false)]
+        private IBattleDiagnosticDefinitionCatalogSnapshotSource _definitions = null;
 
         public MobaBattleDiagnosticSnapshotCapture(
             IBattleDiagnosticReadOnlySession session,
@@ -96,7 +100,21 @@ namespace AbilityKit.Demo.Moba.Services
             var buffs = _buffs.CaptureBuffSnapshot();
             var tags = _tags.CaptureTagSnapshot();
             var effects = _effects.CaptureEffectSnapshot();
-            var sessionInfo = _session.SessionInfo;
+            var sourceSessionInfo = _session.SessionInfo;
+            var effectiveCapabilities = _definitions != null
+                ? sourceSessionInfo.Capabilities | BattleDiagnosticCapabilities.Definitions
+                : sourceSessionInfo.Capabilities & ~BattleDiagnosticCapabilities.Definitions;
+            var sessionInfo = effectiveCapabilities == sourceSessionInfo.Capabilities
+                ? sourceSessionInfo
+                : new BattleDiagnosticSessionInfo(
+                    sourceSessionInfo.Scope,
+                    sourceSessionInfo.DisplayName,
+                    sourceSessionInfo.BuildId,
+                    sourceSessionInfo.SchemaVersion,
+                    sourceSessionInfo.MonotonicTimestampFrequency,
+                    effectiveCapabilities,
+                    sourceSessionInfo.ConnectionState,
+                    sourceSessionInfo.CaptureState);
             var objects = _objects != null
                 ? _objects.CaptureObjectCatalogSnapshot()
                 : BattleDiagnosticObjectCatalogSnapshot.Empty(sessionInfo.Scope);
@@ -106,6 +124,12 @@ namespace AbilityKit.Demo.Moba.Services
                 : BattleDiagnosticMetricTrackSnapshot.Empty;
             if (_frameMetrics != null)
                 EnsureScope(sessionInfo.Scope, _frameMetrics.Scope, nameof(_frameMetrics));
+            var definitions = _definitions != null
+                ? _definitions.CaptureDefinitionCatalogSnapshot(
+                    sessionInfo.Scope,
+                    CollectDefinitionReferences(events, state, trace, buffs, objects))
+                : BattleDiagnosticDefinitionCatalogSnapshot.Empty(sessionInfo.Scope);
+            EnsureScope(sessionInfo.Scope, definitions.Scope, nameof(_definitions));
 
             return new BattleDiagnosticSessionSnapshot(
                 in sessionInfo,
@@ -118,7 +142,80 @@ namespace AbilityKit.Demo.Moba.Services
                 tags,
                 effects,
                 objects,
-                frameMetrics);
+                frameMetrics,
+                definitions);
+        }
+
+        private static IReadOnlyList<BattleDiagnosticDefinitionReference>
+            CollectDefinitionReferences(
+                BattleDiagnosticEventTrackSnapshot events,
+                BattleDiagnosticStateTrackSnapshot state,
+                BattleDiagnosticTraceTrackSnapshot trace,
+                BattleDiagnosticLatestTrackSnapshot<BattleDiagnosticActorBuff> buffs,
+                BattleDiagnosticObjectCatalogSnapshot objects)
+        {
+            var result = new List<BattleDiagnosticDefinitionReference>();
+            var seen = new HashSet<BattleDiagnosticDefinitionReference>();
+            for (var i = 0; i < state.Actors.Count; i++)
+                AddDefinition(
+                    result,
+                    seen,
+                    BattleDiagnosticDefinitionKind.Actor,
+                    state.Actors[i].ConfigId);
+            for (var i = 0; i < events.Events.Count; i++)
+            {
+                var item = events.Events[i];
+                AddDefinition(result, seen, item.DefinitionKind, item.ConfigId);
+                if (item.Payload.TryGetTriggerAnalysis(out var triggerPayload))
+                    AddDefinition(
+                        result,
+                        seen,
+                        BattleDiagnosticDefinitionKind.Trigger,
+                        triggerPayload.TriggerId);
+            }
+            for (var i = 0; i < trace.Nodes.Count; i++)
+            {
+                var item = trace.Nodes[i];
+                AddDefinition(result, seen, item.Definition);
+                AddDefinition(result, seen, item.TriggerDefinition);
+                AddDefinition(result, seen, item.SkillDefinition);
+            }
+            for (var i = 0; i < buffs.Items.Count; i++)
+                AddDefinition(
+                    result,
+                    seen,
+                    BattleDiagnosticDefinitionKind.Buff,
+                    buffs.Items[i].BuffId);
+            for (var i = 0; i < objects.Items.Count; i++)
+                AddDefinition(
+                    result,
+                    seen,
+                    objects.Items[i].DefinitionKind,
+                    objects.Items[i].DefinitionId);
+            return result;
+        }
+
+        private static void AddDefinition(
+            List<BattleDiagnosticDefinitionReference> result,
+            HashSet<BattleDiagnosticDefinitionReference> seen,
+            BattleDiagnosticDefinitionKind kind,
+            int definitionId)
+        {
+            AddDefinition(
+                result,
+                seen,
+                BattleDiagnosticDefinitionReference.Create(kind, definitionId));
+        }
+
+        private static void AddDefinition(
+            List<BattleDiagnosticDefinitionReference> result,
+            HashSet<BattleDiagnosticDefinitionReference> seen,
+            BattleDiagnosticDefinitionReference reference)
+        {
+            if (!reference.HasDefinitionId ||
+                reference.Kind == BattleDiagnosticDefinitionKind.Unknown ||
+                !seen.Add(reference)) return;
+            result.Add(reference);
         }
 
         public void Dispose()

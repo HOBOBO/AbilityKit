@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using AbilityKit.BattleFlow;
+using AbilityKit.Editor.Platform.Export;
 using AbilityKit.Scenario;
 using UnityEditor;
 using UnityEngine;
@@ -550,7 +551,7 @@ namespace AbilityKit.BattleFlow.Editor
         {
             var path = EditorUtility.SaveFilePanel("保存战斗流程", _flowDirectory, _caseId + ".battleflow", "battleflow");
             if (string.IsNullOrEmpty(path)) return;
-            BattleFlowCodec.Save(path, new BattleFlowDocument { CaseId = _caseId, Blocks = AllBlocks() });
+            EditorAtomicFileWriter.WriteAllText(path, BattleFlowCodec.Serialize(new BattleFlowDocument { CaseId = _caseId, Blocks = AllBlocks() }));
             _result = "已保存: " + path;
         }
 

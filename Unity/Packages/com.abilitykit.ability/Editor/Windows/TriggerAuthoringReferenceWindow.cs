@@ -33,7 +33,7 @@ namespace AbilityKit.Ability.Editor.Windows
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             if (_references.Count == 0)
             {
-                EditorGUILayout.HelpBox("No references found in this project.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("no-references"), MessageType.Info);
             }
             for (var i = 0; i < _references.Count; i++)
             {
@@ -41,7 +41,7 @@ namespace AbilityKit.Ability.Editor.Windows
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 GUILayout.Label(reference.BuildLabel(), EditorStyles.miniBoldLabel);
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Select", EditorStyles.miniButton, GUILayout.Width(52f)))
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("select"), EditorStyles.miniButton, GUILayout.Width(52f)))
                 {
                     Selection.activeObject = reference.Module;
                     EditorGUIUtility.PingObject(reference.Module);

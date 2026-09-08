@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Game.Editor;
 using NUnit.Framework;
@@ -1502,6 +1503,50 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TraceFocusSelectedFlow_KeepsAncestorsAndSelectedSubtreeAndBuildsSummary()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "SkillCast", BattleDiagnosticTraceNodeState.Ended),
+                    TraceNode(100, 110, 100, "SkillPhase", BattleDiagnosticTraceNodeState.Ended),
+                    TraceNode(100, 111, 110, "EffectExecution", BattleDiagnosticTraceNodeState.Ended, 7, 9, 701),
+                    TraceNode(100, 112, 111, "EffectAction", BattleDiagnosticTraceNodeState.Failed, 7, 9),
+                    TraceNode(100, 120, 100, "Unrelated", BattleDiagnosticTraceNodeState.Active)
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+
+            Assert.That(viewModel.Summary.NodeCount, Is.EqualTo(5));
+            Assert.That(viewModel.Summary.EffectCount, Is.EqualTo(1));
+            Assert.That(viewModel.Summary.ActionCount, Is.EqualTo(1));
+            Assert.That(viewModel.Summary.IssueCount, Is.EqualTo(1));
+            Assert.That(viewModel.Summary.ActiveCount, Is.EqualTo(1));
+
+            viewModel.SelectContext(111);
+            viewModel.SetFocusSelectedFlow(true);
+
+            Assert.That(
+                viewModel.VisibleRows.Select(row => row.Node.ContextId),
+                Is.EqualTo(new long[] { 100, 110, 111, 112 }));
+            Assert.That(viewModel.IsOnSelectedPath(100), Is.True);
+            Assert.That(viewModel.IsOnSelectedPath(111), Is.True);
+            Assert.That(viewModel.IsOnSelectedPath(112), Is.False);
+            Assert.That(viewModel.GetChildCount(111), Is.EqualTo(1));
+
+            viewModel.SetSearchText("701");
+            Assert.That(viewModel.SearchMatchCount, Is.EqualTo(1));
+            Assert.That(viewModel.VisibleRows.Select(row => row.Node.ContextId),
+                Is.EqualTo(new long[] { 100, 110, 111 }));
+            viewModel.SetSearchText(string.Empty);
+
+            viewModel.SelectContext(100);
+            Assert.That(viewModel.VisibleRows.Count, Is.EqualTo(5));
+        }
+
+        [Test]
         public void TracePin_ReturnsToPinnedNode_AndReportsEvictedNodeUnavailable()
         {
             var session = new RecordingSession
@@ -2188,7 +2233,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             long rootContextId,
             long contextId,
             long parentContextId,
-            string kind)
+            string kind,
+            BattleDiagnosticTraceNodeState state = BattleDiagnosticTraceNodeState.Active,
+            long sourceActorId = 0,
+            long targetActorId = 0,
+            int triggerId = 0)
         {
             return new BattleDiagnosticTraceNodeSummary(
                 RecordingSession.Scope,
@@ -2197,8 +2246,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 parentContextId,
                 1,
                 -1,
-                BattleDiagnosticTraceNodeState.Active,
-                kind: kind);
+                state,
+                actorId: sourceActorId,
+                kind: kind,
+                targetActorId: targetActorId,
+                triggerId: triggerId);
         }
 
         private sealed class RuntimeObjectCatalogSession :

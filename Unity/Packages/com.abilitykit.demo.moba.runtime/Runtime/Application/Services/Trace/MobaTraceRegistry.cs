@@ -121,6 +121,18 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
+        public bool TrySetEffectTrigger(long contextId, int triggerId)
+        {
+            if (contextId == 0 || !TryGetNodeSnapshot(contextId, out var snapshot) ||
+                !(snapshot.Metadata is MobaTraceMetadata metadata))
+            {
+                return false;
+            }
+
+            metadata.TriggerId = triggerId;
+            return true;
+        }
+
         public override string GetKindName(int kind)
         {
             return ((MobaTraceKind)kind).ToString();
@@ -290,7 +302,7 @@ namespace AbilityKit.Demo.Moba.Services
                 definitionKind: ResolveDefinitionKind(traceKind));
         }
 
-        private static BattleDiagnosticDefinitionKind ResolveDefinitionKind(int traceKind)
+        internal static BattleDiagnosticDefinitionKind ResolveDefinitionKind(int traceKind)
         {
             switch ((MobaTraceKind)traceKind)
             {

@@ -33,7 +33,10 @@ namespace AbilityKit.Game.Editor
         private long _pendingContextId;
         private Vector2 _treeScroll;
         private Vector2 _waterfallScroll;
-        private const float TraceRowHeight = 21f;
+        private const float TraceRowHeight = 24f;
+        private const float TreeIndentWidth = 14f;
+        private const float FoldoutWidth = 18f;
+        private const float StateRailWidth = 4f;
         private readonly IBattleDebugWidget[] _widgets;
         private readonly List<BattleDebugWaterfallItem> _waterfallItems =
             new List<BattleDebugWaterfallItem>(256);
@@ -46,7 +49,7 @@ namespace AbilityKit.Game.Editor
             new BattleDebugLegendItem("Active", new Color(0.65f, 0.9f, 1f)),
             new BattleDebugLegendItem("Failed", new Color(1f, 0.55f, 0.55f)),
             new BattleDebugLegendItem("Force Ended", new Color(1f, 0.8f, 0.45f)),
-            new BattleDebugLegendItem("Ended / Truncated", Color.white)
+            new BattleDebugLegendItem("Ended", new Color(0.48f, 0.76f, 0.52f))
         };
 
         public BattleDebugDiagnosticTracePanel()
@@ -127,6 +130,7 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.Warning);
             }
 
+            DrawFlowSummary();
             DrawTree(in ctx);
             DrawSelectionDetails(in ctx);
         }
@@ -223,6 +227,7 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.HelpBox(_viewModel.StatusMessage, MessageType.Warning);
             }
 
+            DrawFlowSummary();
             return true;
         }
 
@@ -336,6 +341,43 @@ namespace AbilityKit.Game.Editor
                 _viewModel.ClearPin();
             }
             EditorGUI.EndDisabledGroup();
+
+            var focusSelectedFlow = GUILayout.Toggle(
+                _viewModel.FocusSelectedFlow,
+                "聚焦所选流程",
+                EditorStyles.toolbarButton,
+                GUILayout.Width(96));
+            if (focusSelectedFlow != _viewModel.FocusSelectedFlow)
+            {
+                _viewModel.SetFocusSelectedFlow(focusSelectedFlow);
+                ScrollToSelection();
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawFlowSummary()
+        {
+            var summary = _viewModel.Summary;
+            if (summary.NodeCount == 0) return;
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label($"Root #{_viewModel.RootContextId}", EditorStyles.miniBoldLabel, GUILayout.Width(100));
+            GUILayout.Label($"节点 {summary.NodeCount}", EditorStyles.miniLabel, GUILayout.Width(52));
+            GUILayout.Label($"效果 {summary.EffectCount}", EditorStyles.miniLabel, GUILayout.Width(52));
+            GUILayout.Label($"动作 {summary.ActionCount}", EditorStyles.miniLabel, GUILayout.Width(52));
+            var oldColor = GUI.color;
+            if (summary.IssueCount > 0) GUI.color = new Color(1f, 0.62f, 0.58f);
+            GUILayout.Label($"异常 {summary.IssueCount}", EditorStyles.miniBoldLabel, GUILayout.Width(52));
+            GUI.color = oldColor;
+            if (summary.ActiveCount > 0)
+            {
+                GUI.color = new Color(0.65f, 0.9f, 1f);
+                GUILayout.Label($"活跃 {summary.ActiveCount}", EditorStyles.miniBoldLabel, GUILayout.Width(52));
+                GUI.color = oldColor;
+            }
+            GUILayout.Label($"最大深度 {summary.MaximumDepth}", EditorStyles.miniLabel, GUILayout.Width(72));
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(BuildSummaryFrameText(in summary), EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
         }
 
@@ -346,6 +388,8 @@ namespace AbilityKit.Game.Editor
                 _treeScroll,
                 GUILayout.MinHeight(180),
                 GUILayout.MaxHeight(360));
+
+            DrawTraceHeader();
 
             var rows = _viewModel.VisibleRows;
             if (rows.Count == 0 && _viewModel.Rows.Count > 0)
@@ -400,7 +444,9 @@ namespace AbilityKit.Game.Editor
                 _waterfallItems.Add(new BattleDebugWaterfallItem(
                     node.ContextId,
                     $"{node.Kind} #{node.ContextId}",
-                    $"Actor={node.ActorId}, Config={node.ConfigId}, State={node.State}\n" +
+                    $"Source={node.SourceActorId}, Target={node.TargetActorId}, " +
+                    $"Config={node.ConfigId}, Trigger={node.TriggerId}\n" +
+                    $"State={BuildResultText(in node)}\n" +
                     $"F{node.StartFrame} -> " +
                     (node.EndFrame >= 0 ? $"F{node.EndFrame}" : "active"),
                     node.StartFrame,
@@ -568,6 +614,36 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.HelpBox(message, messageType);
         }
 
+        private static void DrawTraceHeader()
+        {
+            var rect = GUILayoutUtility.GetRect(0f, 18f, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(rect, new Color(0f, 0f, 0f, 0.12f));
+            }
+            GUI.Label(
+                new Rect(rect.x + 8f, rect.y, Mathf.Max(100f, rect.width * 0.32f), rect.height),
+                "流程节点",
+                EditorStyles.miniBoldLabel);
+            if (rect.width < 720f)
+            {
+                GUI.Label(
+                    new Rect(rect.xMax - 176f, rect.y, 168f, rect.height),
+                    "配置 / 实体 / 帧 / 结果",
+                    EditorStyles.miniLabel);
+                return;
+            }
+
+            var contentX = rect.x + Mathf.Clamp(rect.width * 0.30f, 210f, 310f);
+            GUI.Label(new Rect(contentX, rect.y, 140f, rect.height), "配置 / Trigger", EditorStyles.miniLabel);
+            contentX += 140f;
+            GUI.Label(new Rect(contentX, rect.y, 150f, rect.height), "Source -> Target", EditorStyles.miniLabel);
+            contentX += Mathf.Clamp(rect.width * 0.22f, 135f, 190f);
+            GUI.Label(new Rect(contentX, rect.y, 112f, rect.height), "帧区间", EditorStyles.miniLabel);
+            contentX += 112f;
+            GUI.Label(new Rect(contentX, rect.y, 90f, rect.height), "结果", EditorStyles.miniLabel);
+        }
+
         private void DrawTraceRow(
             in BattleDebugContext ctx,
             in BattleDebugDiagnosticTraceRow row)
@@ -577,42 +653,113 @@ namespace AbilityKit.Game.Editor
             var pinned = node.ContextId == _viewModel.PinnedContextId;
             var searchMatch = _viewModel.IsSearchMatch(node.ContextId);
             var hasChildren = _viewModel.HasChildren(node.ContextId);
-            var oldColor = GUI.color;
-
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(row.Depth * 16f);
-            EditorGUI.BeginDisabledGroup(!hasChildren || !string.IsNullOrEmpty(_viewModel.SearchText));
-            if (GUILayout.Button(
-                    hasChildren ? (_viewModel.IsCollapsed(node.ContextId) ? "+" : "-") : string.Empty,
-                    EditorStyles.miniButton,
-                    GUILayout.Width(20),
-                    GUILayout.Height(20)))
+            var rect = GUILayoutUtility.GetRect(0f, TraceRowHeight, GUILayout.ExpandWidth(true));
+            var onSelectedPath = _viewModel.IsOnSelectedPath(node.ContextId);
+            if (Event.current.type == EventType.Repaint)
             {
-                _viewModel.ToggleCollapsed(node.ContextId);
-            }
-            EditorGUI.EndDisabledGroup();
+                if (selected)
+                {
+                    EditorGUI.DrawRect(rect, new Color(0.18f, 0.43f, 0.68f, 0.35f));
+                }
+                else if (searchMatch)
+                {
+                    EditorGUI.DrawRect(rect, new Color(0.78f, 0.62f, 0.12f, 0.22f));
+                }
+                else if (onSelectedPath)
+                {
+                    EditorGUI.DrawRect(rect, new Color(0.22f, 0.48f, 0.66f, 0.10f));
+                }
 
-            GUI.color = searchMatch
-                ? new Color(1f, 0.9f, 0.45f)
-                : GetStateColor(node.State);
-            var label = (pinned ? "[PIN] " : string.Empty) + BuildNodeLabel(in row);
-            var style = selected ? EditorStyles.toolbarButton : EditorStyles.miniButton;
-            if (GUILayout.Button(label, style, GUILayout.Height(20)))
-            {
-                _viewModel.SelectContext(node.ContextId);
-                var selectionKind = node.ContextId == node.RootContextId
-                    ? BattleDiagnosticSelectionKind.TraceRoot
-                    : BattleDiagnosticSelectionKind.TraceNode;
-                ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
-                    node.Scope,
-                    selectionKind,
-                    node.ContextId,
-                    node.StartFrame,
-                    node.RootContextId));
-                ctx.RequestRepaint?.Invoke();
+                var connectorColor = new Color(0.45f, 0.48f, 0.52f, onSelectedPath ? 0.75f : 0.38f);
+                for (var depth = 0; depth < row.Depth; depth++)
+                {
+                    var x = rect.x + depth * TreeIndentWidth + TreeIndentWidth * 0.5f;
+                    EditorGUI.DrawRect(new Rect(x, rect.y, 1f, rect.height), connectorColor);
+                }
+                if (row.Depth > 0)
+                {
+                    var branchX = rect.x + (row.Depth - 1) * TreeIndentWidth + TreeIndentWidth * 0.5f;
+                    var branchY = rect.y + rect.height * 0.5f;
+                    EditorGUI.DrawRect(
+                        new Rect(branchX, branchY, TreeIndentWidth * 0.5f, 1f),
+                        connectorColor);
+                }
             }
-            GUI.color = oldColor;
-            EditorGUILayout.EndHorizontal();
+
+            var xPosition = rect.x + row.Depth * TreeIndentWidth;
+            var foldoutRect = new Rect(xPosition, rect.y + 2f, FoldoutWidth, rect.height - 4f);
+            if (hasChildren && string.IsNullOrEmpty(_viewModel.SearchText))
+            {
+                if (GUI.Button(
+                        foldoutRect,
+                        _viewModel.IsCollapsed(node.ContextId) ? ">" : "v",
+                        EditorStyles.miniButton))
+                {
+                    _viewModel.ToggleCollapsed(node.ContextId);
+                }
+            }
+            else if (row.IsOrphan)
+            {
+                GUI.Label(foldoutRect, "!", EditorStyles.miniBoldLabel);
+            }
+
+            xPosition = foldoutRect.xMax + 2f;
+            var stateColor = GetStateColor(node.State);
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(
+                    new Rect(xPosition, rect.y + 3f, StateRailWidth, rect.height - 6f),
+                    stateColor);
+            }
+            xPosition += StateRailWidth + 5f;
+
+            var contentRect = new Rect(xPosition, rect.y, Mathf.Max(0f, rect.xMax - xPosition), rect.height);
+            if (GUI.Button(
+                    contentRect,
+                    new GUIContent(string.Empty, BuildNodeTooltip(in row)),
+                    GUIStyle.none))
+            {
+                SelectNode(in ctx, in node);
+            }
+
+            var compact = contentRect.width < 720f;
+            var labelStyle = selected ? EditorStyles.miniBoldLabel : EditorStyles.miniLabel;
+            var kindLabel = (pinned ? "[PIN] " : string.Empty) + node.Kind + "  #" + node.ContextId;
+            if (hasChildren) kindLabel += "  (" + _viewModel.GetChildCount(node.ContextId) + ")";
+            if (row.IsOrphan) kindLabel += "  [orphan]";
+
+            if (compact)
+            {
+                var firstLine = new Rect(contentRect.x + 3f, contentRect.y, contentRect.width, contentRect.height * 0.55f);
+                var secondLine = new Rect(contentRect.x + 3f, contentRect.y + 10f, contentRect.width, contentRect.height * 0.45f);
+                GUI.Label(firstLine, kindLabel, labelStyle);
+                GUI.Label(
+                    secondLine,
+                    $"{BuildConfigText(in node)}   {BuildActorRoute(in node)}   " +
+                    $"{BuildFrameSpan(in node)}   {BuildResultText(in node)}",
+                    EditorStyles.miniLabel);
+                return;
+            }
+
+            var kindWidth = Mathf.Clamp(contentRect.width * 0.30f, 170f, 270f);
+            var configWidth = 140f;
+            var actorWidth = Mathf.Clamp(contentRect.width * 0.22f, 135f, 190f);
+            var frameWidth = 112f;
+            var resultWidth = Mathf.Max(80f, contentRect.width - kindWidth - configWidth - actorWidth - frameWidth);
+            var column = new Rect(contentRect.x + 3f, contentRect.y + 2f, kindWidth - 3f, contentRect.height - 4f);
+            GUI.Label(column, new GUIContent(kindLabel, BuildNodeTooltip(in row)), labelStyle);
+            column.x += kindWidth;
+            column.width = configWidth;
+            GUI.Label(column, BuildConfigText(in node), EditorStyles.miniLabel);
+            column.x += configWidth;
+            column.width = actorWidth;
+            GUI.Label(column, BuildActorRoute(in node), EditorStyles.miniLabel);
+            column.x += actorWidth;
+            column.width = frameWidth;
+            GUI.Label(column, BuildFrameSpan(in node), EditorStyles.miniLabel);
+            column.x += frameWidth;
+            column.width = resultWidth;
+            DrawResultBadge(column, in node, stateColor);
         }
 
         private void DrawSelectionDetails(in BattleDebugContext ctx)
@@ -622,17 +769,31 @@ namespace AbilityKit.Game.Editor
 
             var selected = path[path.Count - 1];
             EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Selected Node", EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("Context", selected.ContextId.ToString());
-            EditorGUILayout.LabelField("Parent", selected.ParentContextId.ToString());
-            EditorGUILayout.LabelField("Kind", selected.Kind);
-            EditorGUILayout.LabelField("State", selected.State.ToString());
+            EditorGUILayout.LabelField("所选流程节点", EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
-                "Frames",
-                selected.EndFrame >= 0
-                    ? $"{selected.StartFrame} -> {selected.EndFrame}"
-                    : $"{selected.StartFrame} -> active");
-            EditorGUILayout.LabelField("Actor / Config", $"{selected.ActorId} / {selected.ConfigId}");
+                "位置 / 类型",
+                $"{path.Count}/{_viewModel.Summary.MaximumDepth + 1}   {selected.Kind} #{selected.ContextId}");
+            EditorGUILayout.LabelField(
+                "结果",
+                BuildResultText(in selected));
+            EditorGUILayout.LabelField("帧区间 / 持续", BuildFrameSpan(in selected));
+            EditorGUILayout.LabelField("配置", BuildConfigText(in selected));
+            if (selected.TriggerId != 0)
+            {
+                EditorGUILayout.LabelField("Trigger Plan", selected.TriggerId.ToString());
+            }
+            EditorGUILayout.LabelField(
+                "父节点 / 子节点",
+                $"{FormatId(selected.ParentContextId)} / {_viewModel.GetChildCount(selected.ContextId)}");
+            if (selected.SkillId != 0 || selected.CastFlowId != 0 || !string.IsNullOrEmpty(selected.PhaseId))
+            {
+                EditorGUILayout.LabelField(
+                    "技能 / CastFlow / 阶段",
+                    $"{FormatId(selected.SkillId)} / {FormatId(selected.CastFlowId)} / " +
+                    (string.IsNullOrEmpty(selected.PhaseId) ? "-" : selected.PhaseId));
+            }
+
+            DrawActorRoute(in ctx, in selected);
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginDisabledGroup(!BattleDiagnosticFrames.IsValid(selected.StartFrame));
             if (GUILayout.Button("定位起始帧", GUILayout.Width(88)))
@@ -669,11 +830,68 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.LabelField("End Reason", selected.EndReason);
             }
 
+            EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("Root Path", EditorStyles.boldLabel);
+            if (GUILayout.Button("复制链路", GUILayout.Width(72)))
+            {
+                EditorGUIUtility.systemCopyBuffer = BuildPathText(path);
+            }
+            EditorGUILayout.EndHorizontal();
+            var pathText = BuildPathText(path);
+            var pathWidth = Mathf.Max(200f, EditorGUIUtility.currentViewWidth - 36f);
+            var pathHeight = Mathf.Clamp(
+                EditorStyles.textArea.CalcHeight(new GUIContent(pathText), pathWidth),
+                EditorGUIUtility.singleLineHeight,
+                80f);
             EditorGUILayout.SelectableLabel(
-                BuildPathText(path),
-                EditorStyles.textField,
-                GUILayout.Height(EditorGUIUtility.singleLineHeight));
+                pathText,
+                EditorStyles.textArea,
+                GUILayout.Height(pathHeight));
+        }
+
+        private static void DrawActorRoute(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticTraceNodeSummary node)
+        {
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.PrefixLabel("Source -> Target");
+            DrawActorButton(in ctx, node.SourceActorId, "source");
+            GUILayout.Label("->", GUILayout.Width(18));
+            DrawActorButton(in ctx, node.TargetActorId, "target");
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private static void DrawActorButton(
+            in BattleDebugContext ctx,
+            long actorId,
+            string role)
+        {
+            EditorGUI.BeginDisabledGroup(actorId <= 0 || ctx.SelectActor == null);
+            if (GUILayout.Button(
+                    actorId > 0 ? $"{role} #{actorId}" : $"{role} -",
+                    GUILayout.Width(112)))
+            {
+                ctx.SelectActor?.Invoke(actorId);
+            }
+            EditorGUI.EndDisabledGroup();
+        }
+
+        private void SelectNode(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticTraceNodeSummary node)
+        {
+            _viewModel.SelectContext(node.ContextId);
+            var selectionKind = node.ContextId == node.RootContextId
+                ? BattleDiagnosticSelectionKind.TraceRoot
+                : BattleDiagnosticSelectionKind.TraceNode;
+            ctx.WorkspaceState?.Select(new BattleDiagnosticSelection(
+                node.Scope,
+                selectionKind,
+                node.ContextId,
+                node.StartFrame,
+                node.RootContextId));
+            ctx.RequestRepaint?.Invoke();
         }
 
         private static void NavigateToFrame(in BattleDebugContext ctx, int frame)
@@ -708,13 +926,82 @@ namespace AbilityKit.Game.Editor
             }
         }
 
-        private static string BuildNodeLabel(in BattleDebugDiagnosticTraceRow row)
+        private static string BuildNodeTooltip(in BattleDebugDiagnosticTraceRow row)
         {
             var node = row.Node;
-            var orphan = row.IsOrphan ? " [orphan]" : string.Empty;
-            var actor = node.ActorId != 0 ? $"  actor={node.ActorId}" : string.Empty;
-            var config = node.ConfigId != 0 ? $"  config={node.ConfigId}" : string.Empty;
-            return $"{node.Kind}  #{node.ContextId}  [{node.State}]{actor}{config}{orphan}";
+            return $"{node.Kind} #{node.ContextId}\n" +
+                   $"Parent #{node.ParentContextId}, depth {row.Depth}\n" +
+                   $"{BuildConfigText(in node)}, trigger {FormatId(node.TriggerId)}\n" +
+                   $"{BuildActorRoute(in node)}\n" +
+                   $"{BuildFrameSpan(in node)}, {BuildResultText(in node)}";
+        }
+
+        private static string BuildActorRoute(in BattleDiagnosticTraceNodeSummary node)
+        {
+            return $"src {FormatId(node.SourceActorId)} -> tgt {FormatId(node.TargetActorId)}";
+        }
+
+        private static string BuildConfigText(in BattleDiagnosticTraceNodeSummary node)
+        {
+            if (string.Equals(node.Kind, "EffectExecution", System.StringComparison.Ordinal) ||
+                string.Equals(node.Kind, "SkillEffect", System.StringComparison.Ordinal))
+            {
+                return node.TriggerId > 0
+                    ? $"effect {FormatId(node.ConfigId)} / trig {node.TriggerId}"
+                    : $"effect {FormatId(node.ConfigId)}";
+            }
+            if (string.Equals(node.Kind, "EffectAction", System.StringComparison.Ordinal))
+            {
+                return $"action {FormatId(node.ConfigId)}";
+            }
+            if (string.Equals(node.Kind, "SkillCast", System.StringComparison.Ordinal) ||
+                string.Equals(node.Kind, "SkillPhase", System.StringComparison.Ordinal))
+            {
+                return $"skill {FormatId(node.SkillId != 0 ? node.SkillId : node.ConfigId)}";
+            }
+            return "cfg " + FormatId(node.ConfigId);
+        }
+
+        private static string BuildFrameSpan(in BattleDiagnosticTraceNodeSummary node)
+        {
+            return node.EndFrame >= 0
+                ? $"F{node.StartFrame} - F{node.EndFrame}  [{node.EndFrame - node.StartFrame}f]"
+                : $"F{node.StartFrame} - active";
+        }
+
+        private static string BuildResultText(in BattleDiagnosticTraceNodeSummary node)
+        {
+            if (node.State == BattleDiagnosticTraceNodeState.Active) return "ACTIVE";
+            if (!string.IsNullOrEmpty(node.EndReason)) return node.EndReason;
+            return node.State.ToString();
+        }
+
+        private static string BuildSummaryFrameText(in BattleDebugDiagnosticTraceSummary summary)
+        {
+            if (summary.ActiveCount > 0) return $"F{summary.FirstFrame} -> active";
+            return summary.LastFrame >= summary.FirstFrame
+                ? $"F{summary.FirstFrame} -> F{summary.LastFrame}  [{summary.LastFrame - summary.FirstFrame}f]"
+                : $"F{summary.FirstFrame}";
+        }
+
+        private static string FormatId(long value) => value > 0 ? value.ToString() : "-";
+
+        private static void DrawResultBadge(
+            Rect rect,
+            in BattleDiagnosticTraceNodeSummary node,
+            Color stateColor)
+        {
+            var badge = new Rect(rect.x + 2f, rect.y + 3f, Mathf.Max(0f, rect.width - 4f), rect.height - 6f);
+            if (Event.current.type == EventType.Repaint)
+            {
+                var background = stateColor;
+                background.a = 0.20f;
+                EditorGUI.DrawRect(badge, background);
+            }
+            GUI.Label(
+                new Rect(badge.x + 4f, rect.y + 2f, Mathf.Max(0f, badge.width - 6f), rect.height - 4f),
+                BuildResultText(in node),
+                EditorStyles.miniBoldLabel);
         }
 
         private static string BuildPathText(
@@ -741,7 +1028,7 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticTraceNodeState.ForceEnded:
                     return new Color(1f, 0.8f, 0.45f);
                 default:
-                    return Color.white;
+                    return new Color(0.48f, 0.76f, 0.52f);
             }
         }
     }

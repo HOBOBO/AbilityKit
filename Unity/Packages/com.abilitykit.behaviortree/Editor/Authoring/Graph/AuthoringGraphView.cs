@@ -22,16 +22,11 @@ using AbilityKit.BehaviorTree.Serialization;
 using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 namespace AbilityKit.BehaviorTree.Editor
 {
-    internal interface IAuthoringGraphHost
+    internal interface IAuthoringGraphHost : IAuthoringWorkspaceHost
     {
-        AuthoringSourceDocument Document { get; }
-        bool IsReadOnly { get; }
         void OnGraphSelectionChanged(NodeDefinition? node);
-        void RecordChange();
-        void RecordChange(string beforeChangeSnapshot);
         bool CanConnect(string childId, string parentId, out string error);
         void SetConnected(string childId, string parentId, bool connected);
-        string ResolveNodeDisplayName(NodeDefinition node);
         int ResolveChildOrder(string nodeId);
         Vector2 ScreenToGraphPosition(Vector2 screenPosition);
         void AddNode(NodeDescriptor descriptor, Vector2 graphPosition);

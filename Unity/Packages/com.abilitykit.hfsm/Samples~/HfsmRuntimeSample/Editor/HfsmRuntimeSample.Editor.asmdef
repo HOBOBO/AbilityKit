@@ -1,0 +1,19 @@
+{
+  "name": "AbilityKit.HFSM.Samples.HfsmRuntimeSample.Editor",
+  "rootNamespace": "AbilityKit.HFSM.Samples.HfsmRuntimeSample.Editor",
+  "references": [
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.HFSM.Samples.HfsmRuntimeSample"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

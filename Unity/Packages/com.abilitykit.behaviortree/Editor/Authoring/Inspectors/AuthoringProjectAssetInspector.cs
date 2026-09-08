@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
+using AbilityKit.Editor.Platform.UI;
 using UnityEditor;
 using UnityEngine;
 
@@ -124,11 +125,7 @@ namespace AbilityKit.BehaviorTree.Editor
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("校验", EditorStyles.miniButtonLeft))
             {
-                var errors = project.Validate();
-                EditorUtility.DisplayDialog(
-                    "项目校验",
-                    errors.Count == 0 ? "校验通过。" : string.Join("\n", errors),
-                    "OK");
+                EditorDiagnosticsWindow.Show("Behavior Tree 项目校验", EditorDiagnostics.AnalyzeProject(project));
             }
             if (GUILayout.Button("导出全部", EditorStyles.miniButtonRight))
             {
@@ -167,9 +164,6 @@ namespace AbilityKit.BehaviorTree.Editor
     {
         public static string RepositoryRoot =>
             Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
-
-        [MenuItem("Assets/AbilityKit/Behavior Tree/Create Tree Wizard")]
-        private static void OpenWizard() => AuthoringCreateWizard.Open();
 
         [MenuItem("Assets/AbilityKit/Behavior Tree/Create Project Asset")]
         private static void CreateProject()
@@ -225,22 +219,7 @@ namespace AbilityKit.BehaviorTree.Editor
         [MenuItem("Assets/AbilityKit/Behavior Tree/Validate All")]
         private static void ValidateAll()
         {
-            var projects = FindAllProjects();
-            var failures = new List<string>();
-            var registered = new HashSet<AuthoringAsset>();
-            foreach (var project in projects)
-            {
-                registered.UnionWith(project.Trees.Where(t => t != null));
-                var errors = project.Validate();
-                if (errors.Count > 0)
-                {
-                    failures.Add(project.name + ":\n  " + string.Join("\n  ", errors));
-                }
-            }
-            EditorUtility.DisplayDialog(
-                "项目校验",
-                failures.Count == 0 ? "全部通过。" : string.Join("\n", failures),
-                "OK");
+            EditorDiagnosticsWindow.Show("Behavior Tree Validate All", EditorDiagnostics.AnalyzeProjects(FindAllProjects()));
         }
 
         public static List<AuthoringProjectAsset> FindAllProjects()

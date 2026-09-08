@@ -1,0 +1,52 @@
+{
+  "formatVersion": 1,
+  "definitionId": "hfsm-sample",
+  "rootMachineId": "root",
+  "machines": [
+    {
+      "id": "root",
+      "initialStateId": "Idle",
+      "rememberLastState": false,
+      "states": [
+        {
+          "id": "Idle",
+          "behaviorKey": "log",
+          "childMachineId": "",
+          "requiresExitApproval": false
+        },
+        {
+          "id": "Active",
+          "behaviorKey": "log",
+          "childMachineId": "",
+          "requiresExitApproval": false
+        }
+      ],
+      "transitions": [
+        {
+          "id": "idle_to_active",
+          "fromAnyState": false,
+          "fromStateId": "Idle",
+          "toStateId": "Active",
+          "triggerId": "go",
+          "conditionKey": "always",
+          "actionKey": "log",
+          "priority": 0,
+          "forceImmediate": true,
+          "minimumActiveDurationRaw": 0
+        },
+        {
+          "id": "active_to_idle",
+          "fromAnyState": false,
+          "fromStateId": "Active",
+          "toStateId": "Idle",
+          "triggerId": "back",
+          "conditionKey": "",
+          "actionKey": "",
+          "priority": 0,
+          "forceImmediate": true,
+          "minimumActiveDurationRaw": 0
+        }
+      ]
+    }
+  ]
+}

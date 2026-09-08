@@ -29,6 +29,18 @@ public sealed class MobaTraceRegistrySmokeTests
     }
 
     [Fact]
+    public void Effect_trigger_is_preserved_on_trace_metadata()
+    {
+        using var registry = new MobaTraceRegistry();
+        var rootId = registry.CreateRootContext(MobaTraceKind.EffectExecution, 2001, 1, 2);
+
+        Assert.True(registry.TrySetEffectTrigger(rootId, 7001));
+        Assert.True(registry.TryGetNodeSnapshot(rootId, out var snapshot));
+        var metadata = Assert.IsType<MobaTraceMetadata>(snapshot.Metadata);
+        Assert.Equal(7001, metadata.TriggerId);
+    }
+
+    [Fact]
     public void Pipeline_recorder_creates_and_completes_real_skill_phase_trace()
     {
         using var registry = new MobaTraceRegistry();

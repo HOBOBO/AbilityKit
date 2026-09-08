@@ -34,12 +34,12 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button("Cancel", GUILayout.Width(80f)))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("cancel"), GUILayout.Width(80f)))
             {
                 Close();
                 return;
             }
-            if (GUILayout.Button("OK", GUILayout.Width(80f)))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("ok"), GUILayout.Width(80f)))
                 Confirm();
             EditorGUILayout.EndHorizontal();
 

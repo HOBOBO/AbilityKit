@@ -36,5 +36,31 @@ namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation
                     DebugOwnerLabel = ownerLabel ?? "",
                 });
         }
+
+        /// <summary>从编辑器导出的运行时 IR JSON 直接创建运行实例，验证「导出 → 运行时加载」正式链路。</summary>
+        public static TreeRuntime CreateFromRuntimeJson(
+            string runtimeJson,
+            ObservationRuntimeSettings settings,
+            string ownerLabel)
+        {
+            if (string.IsNullOrWhiteSpace(runtimeJson))
+                throw new ArgumentException("Runtime JSON cannot be empty.", nameof(runtimeJson));
+            if (settings == null) throw new ArgumentNullException(nameof(settings));
+
+            var registry = new NodeRegistry();
+            BuiltInNodes.RegisterAll(registry);
+            var definition = TreeJson.Load(runtimeJson);
+
+            return TreeRuntime.Create(
+                definition,
+                registry,
+                options: new TreeRunOptions
+                {
+                    Seed = settings.Seed,
+                    RestartWhenComplete = false,
+                    DebugName = "Complete Runtime Observation (Runtime JSON)",
+                    DebugOwnerLabel = ownerLabel ?? "",
+                });
+        }
     }
 }

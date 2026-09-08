@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Editor.Platform.Commands;
 using AbilityKit.Editor.Platform.Export;
 using AbilityKit.Editor.Platform.State;
+using AbilityKit.Editor.Platform.UI;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -334,12 +335,15 @@ namespace AbilityKit.HFSM.Editor
                 "Choose where to save the validated runtime definition");
             if (string.IsNullOrEmpty(path)) return;
 
-            EditorAtomicFileWriter.WriteAllText(path, result.Json);
-            AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog(
-                "Next Export Successful",
-                $"Validated runtime definition exported to:\n{path}\n\nDefinition hash: {diagnostics.DefinitionHash}",
-                "OK");
+            var report = EditorExportExecutor.Execute(new[]
+            {
+                new EditorExportJob(
+                    "hfsm.export.next-definition",
+                    path,
+                    "json",
+                    () => ExportText("hfsm.export.next-definition", "json", path, result.Json, "Definition hash: " + diagnostics.DefinitionHash))
+            });
+            EditorExportReportWindow.Show("HFSM Export", report);
         }
 
         private void ExportLegacyArchive(string exporterName)
@@ -366,34 +370,40 @@ namespace AbilityKit.HFSM.Editor
             if (string.IsNullOrEmpty(path))
                 return;
 
-            try
+            var jobId = "hfsm.export.legacy." + exporterName.ToLowerInvariant();
+            var report = EditorExportExecutor.Execute(new[]
             {
-                // Create graph descriptor from the asset
-                var graphDescriptor = Graph.Descriptor.Impl.GraphDescriptorFactory.Create(_context.GraphAsset);
-                var options = ExportOptions.ForRuntime;
-                var result = exporter.Export(graphDescriptor, options);
+                new EditorExportJob(jobId, path, exporter.FileExtension, () =>
+                {
+                    try
+                    {
+                        // Create graph descriptor from the asset
+                        var graphDescriptor = Graph.Descriptor.Impl.GraphDescriptorFactory.Create(_context.GraphAsset);
+                        var options = ExportOptions.ForRuntime;
+                        var result = exporter.Export(graphDescriptor, options);
+                        if (!result.success)
+                            return EditorExportReportEntry.Failed(jobId, path, result.errorMessage);
+                        return ExportText(jobId, exporter.FileExtension, path, result.data);
+                    }
+                    catch (Exception e)
+                    {
+                        return EditorExportReportEntry.Failed(jobId, path, e.Message);
+                    }
+                })
+            });
+            EditorExportReportWindow.Show("HFSM Export", report);
+        }
 
-                if (result.success)
-                {
-                    EditorAtomicFileWriter.WriteAllText(path, result.data);
-                    EditorUtility.DisplayDialog("Export Successful",
-                        $"Graph exported to:\n{path}\n\nElapsed time: {result.elapsedMilliseconds}ms\nSize: {result.data.Length} bytes",
-                        "OK");
-                    AssetDatabase.Refresh();
-                }
-                else
-                {
-                    EditorUtility.DisplayDialog("Export Failed",
-                        $"Failed to export graph:\n{result.errorMessage}",
-                        "OK");
-                }
-            }
-            catch (System.Exception e)
-            {
-                EditorUtility.DisplayDialog("Export Failed",
-                    $"Failed to export graph:\n{e.Message}",
-                    "OK");
-            }
+        private static EditorExportReportEntry ExportText(string jobId, string format, string path, string content, params string[] messages)
+        {
+            var status = EditorAtomicFileWriter.WriteAllText(path, content);
+            AssetDatabase.Refresh();
+            return new EditorExportReportEntry(
+                jobId,
+                path,
+                status == EditorAtomicWriteStatus.Unchanged ? EditorExportStatus.Unchanged : EditorExportStatus.Exported,
+                new[] { new EditorExportArtifact(path, format) },
+                messages);
         }
 
         // Panels

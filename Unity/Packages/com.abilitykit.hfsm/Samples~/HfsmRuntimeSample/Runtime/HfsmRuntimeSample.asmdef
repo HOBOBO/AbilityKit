@@ -1,0 +1,18 @@
+{
+  "name": "AbilityKit.HFSM.Samples.HfsmRuntimeSample",
+  "rootNamespace": "AbilityKit.HFSM.Samples.HfsmRuntimeSample",
+  "references": [
+    "AbilityKit.HFSM.Core",
+    "AbilityKit.HFSM.Unity",
+    "AbilityKit.Deterministic"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

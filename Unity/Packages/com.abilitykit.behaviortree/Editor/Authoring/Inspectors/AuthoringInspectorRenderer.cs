@@ -24,16 +24,11 @@ using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 
 namespace AbilityKit.BehaviorTree.Editor
 {
-    internal interface IAuthoringInspectorHost
+    internal interface IAuthoringInspectorHost : IAuthoringWorkspaceHost
     {
-        AuthoringSourceDocument Document { get; }
-        bool IsReadOnly { get; }
         ObservationSnapshot? DisplayedObservationSnapshot { get; }
         ObservationSnapshot? PreviousObservationSnapshot { get; }
         ObservationDiff? DisplayedObservationDiff { get; }
-        string ResolveNodeDisplayName(NodeDefinition node);
-        void RecordChange();
-        void RecordChange(string beforeChangeSnapshot);
         void RefreshNodeTitles();
         void RebuildGraph();
         void RefreshChrome();

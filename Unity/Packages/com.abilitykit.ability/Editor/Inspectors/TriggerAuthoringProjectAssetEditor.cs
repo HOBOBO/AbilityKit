@@ -110,9 +110,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             SirenixEditorGUI.BeginBox("Runtime Export");
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Output Root", GUILayout.Width(78f));
+            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("output-root"), GUILayout.Width(78f));
             var root = EditorGUILayout.TextField(_asset.RuntimeOutputRoot ?? string.Empty);
-            if (GUILayout.Button("Browse", EditorStyles.miniButton, GUILayout.Width(52f)))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("browse"), EditorStyles.miniButton, GUILayout.Width(52f)))
             {
                 var resolved = TriggerAuthoringProjectExport.ResolveOutputRoot(root);
                 var picked = EditorUtility.OpenFolderPanel(
@@ -129,7 +129,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 EditorUtility.SetDirty(_asset);
             }
 
-            if (GUILayout.Button("Export All Runtime Plans", EditorStyles.miniButton))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("export-all-runtime-plans"), EditorStyles.miniButton))
             {
                 var result = TriggerAuthoringProjectExport.ExportAll(_asset);
                 var message = "[TriggerAuthoring] Project '" + _asset.name + "' runtime export: " + result.BuildMessage();

@@ -91,6 +91,7 @@
     <PackageReference Include="Entitas" Version="1.14.2" />
     <PackageReference Include="Entitas.CodeGeneration.Attributes" Version="1.14.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="MemoryPack" Version="1.21.0" />
   </ItemGroup>
 
 </Project>

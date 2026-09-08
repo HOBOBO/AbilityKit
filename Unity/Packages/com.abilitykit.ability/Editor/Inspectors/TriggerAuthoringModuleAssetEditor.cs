@@ -190,7 +190,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             RefreshSyncInspectionIfNeeded();
             SirenixEditorGUI.BeginHorizontalToolbar();
-            GUILayout.Label("Source", GUILayout.Width(44f));
+            GUILayout.Label(TriggerAuthoringEditorIntegration.T("source"), GUILayout.Width(44f));
             var state = _syncInspection != null ? _syncInspection.State.ToString() : "Unknown";
             var oldColor = GUI.color;
             GUI.color = GetSyncColor(_syncInspection != null ? _syncInspection.State : TriggerAuthoringSyncState.Untracked);
@@ -248,9 +248,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.HelpBox(message, MessageType.Warning);
             EditorGUILayout.BeginHorizontal();
             if (state == TriggerAuthoringSyncState.JsonChanged &&
-                GUILayout.Button("Import", EditorStyles.miniButtonLeft, GUILayout.Width(64f)))
+                GUILayout.Button(TriggerAuthoringEditorIntegration.T("import"), EditorStyles.miniButtonLeft, GUILayout.Width(64f)))
                 ImportSource();
-            if (GUILayout.Button("Dismiss", EditorStyles.miniButtonRight, GUILayout.Width(64f)))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("dismiss"), EditorStyles.miniButtonRight, GUILayout.Width(64f)))
             {
                 _dismissedSyncBannerState = state;
                 RequestRepaint();
@@ -282,11 +282,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _asset.Metadata = _asset.Metadata ?? new TriggerAuthoringSourceMetadata();
             _asset.Module = _asset.Module ?? new TriggerAuthoringModuleData();
             var module = _asset.Module;
-            module.ModuleId = EditorGUILayout.TextField("Module Id", module.ModuleId);
-            module.DisplayName = EditorGUILayout.TextField("Display Name", module.DisplayName);
-            module.Kind = (TriggerModuleKind)EditorGUILayout.EnumPopup("Kind", module.Kind);
-            _asset.Metadata.Author = EditorGUILayout.TextField("Author", _asset.Metadata.Author);
-            _asset.Metadata.Description = EditorGUILayout.TextField("Description", _asset.Metadata.Description);
+            module.ModuleId = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("module-id"), module.ModuleId);
+            module.DisplayName = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("display-name"), module.DisplayName);
+            module.Kind = (TriggerModuleKind)EditorGUILayout.EnumPopup(TriggerAuthoringEditorIntegration.T("kind"), module.Kind);
+            _asset.Metadata.Author = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("author"), _asset.Metadata.Author);
+            _asset.Metadata.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("description"), _asset.Metadata.Description);
 
             _showModuleBlackboard = EditorGUILayout.Foldout(
                 _showModuleBlackboard,
@@ -316,7 +316,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             EditorImGuiControls.DrawSearch(_triggerSearch, new GUIContent("Search"));
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Group", EditorStyles.miniLabel, GUILayout.Width(42f));
+            GUILayout.Label(TriggerAuthoringEditorIntegration.T("group"), EditorStyles.miniLabel, GUILayout.Width(42f));
             var nextGroupMode = (TriggerAuthoringTriggerGroupMode)EditorGUILayout.EnumPopup(
                 _triggerGroupMode,
                 EditorStyles.toolbarPopup);
@@ -336,7 +336,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("Filter", EditorStyles.miniLabel, GUILayout.Width(42f));
+            GUILayout.Label(TriggerAuthoringEditorIntegration.T("filter"), EditorStyles.miniLabel, GUILayout.Width(42f));
             var nextQuickFilter = (TriggerAuthoringTriggerQuickFilter)EditorGUILayout.EnumPopup(
                 _triggerQuickFilter,
                 EditorStyles.toolbarPopup);
@@ -347,7 +347,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 _triggerGroupsInitialized = false;
             }
             if (_triggerQuickFilter != TriggerAuthoringTriggerQuickFilter.All &&
-                GUILayout.Button(new GUIContent("Clear", "Clear quick filter"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
+                GUILayout.Button(new GUIContent(TriggerAuthoringEditorIntegration.T("clear"), "Clear quick filter"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
             {
                 _triggerQuickFilter = TriggerAuthoringTriggerQuickFilter.All;
                 _expandedTriggerGroups.Clear();
@@ -371,7 +371,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _triggerScroll = EditorGUILayout.BeginScrollView(_triggerScroll, GUILayout.MinHeight(90f), GUILayout.MaxHeight(360f));
             EnsureInitialTriggerGroupExpansion(groups);
             if (groups.Count == 0)
-                EditorGUILayout.HelpBox("No triggers match the current search.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("no-triggers-match"), MessageType.Info);
             for (var i = 0; i < groups.Count; i++)
                 DrawTriggerGroup(groups[i], triggers);
             EditorGUILayout.EndScrollView();
@@ -383,8 +383,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     MoveSelectedTrigger(triggers, -1);
                 if (GUILayout.Button(new GUIContent("↓", "Move trigger down"), EditorStyles.miniButtonMid, GUILayout.Width(24f)))
                     MoveSelectedTrigger(triggers, 1);
-                if (GUILayout.Button("Duplicate", EditorStyles.miniButtonMid)) DuplicateSelectedTrigger();
-                if (GUILayout.Button("Delete", EditorStyles.miniButtonRight)) DeleteSelectedTrigger();
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("duplicate"), EditorStyles.miniButtonMid)) DuplicateSelectedTrigger();
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("delete"), EditorStyles.miniButtonRight)) DeleteSelectedTrigger();
                 EditorGUILayout.EndHorizontal();
             }
             EditorGUILayout.EndVertical();
@@ -395,7 +395,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             IReadOnlyList<int> visibleIndices)
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Visible " + Count(visibleIndices), EditorStyles.miniLabel);
+            GUILayout.Label(TriggerAuthoringEditorIntegration.F("visible", Count(visibleIndices)), EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             using (new EditorGUI.DisabledScope(Count(visibleIndices) == 0))
             {
@@ -416,7 +416,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return;
 
             EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
-            GUILayout.Label("Selected trigger is hidden by current search or filter.", EditorStyles.miniLabel);
+            GUILayout.Label(TriggerAuthoringEditorIntegration.T("hidden-by-filter"), EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             if (GUILayout.Button(new GUIContent("Show", "Clear trigger search and quick filter"), EditorStyles.miniButton, GUILayout.Width(48f)))
                 ShowSelectedTriggerInList();
@@ -662,8 +662,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 EditorGUIUtility.PingObject(_asset);
             });
             menu.AddSeparator(string.Empty);
-            menu.AddItem(new GUIContent("Duplicate"), false, DuplicateSelectedTrigger);
-            menu.AddItem(new GUIContent("Delete"), false, DeleteSelectedTrigger);
+            menu.AddItem(new GUIContent(TriggerAuthoringEditorIntegration.T("duplicate")), false, DuplicateSelectedTrigger);
+            menu.AddItem(new GUIContent(TriggerAuthoringEditorIntegration.T("delete")), false, DeleteSelectedTrigger);
             if (trigger != null)
             {
                 menu.AddSeparator(string.Empty);
@@ -695,15 +695,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var triggers = _asset.Module.Triggers;
             if (triggers == null || _selectedTriggerIndex < 0 || _selectedTriggerIndex >= triggers.Count)
             {
-                EditorGUILayout.HelpBox("Select or add a trigger.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("select-or-add-trigger"), MessageType.Info);
                 return;
             }
 
             var trigger = triggers[_selectedTriggerIndex];
             if (trigger == null)
             {
-                if (GUILayout.Button("Create Trigger"))
-                    Edit("Create Trigger", () => triggers[_selectedTriggerIndex] = CreateTrigger());
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("create-trigger")))
+                    Edit(TriggerAuthoringEditorIntegration.T("create-trigger"), () => triggers[_selectedTriggerIndex] = CreateTrigger());
                 return;
             }
 
@@ -724,7 +724,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal();
-            trigger.Event = EditorGUILayout.TextField("Event", trigger.Event);
+            trigger.Event = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("event"), trigger.Event);
             if (GUILayout.Button(new GUIContent("Select", "Choose from Event Catalog"), GUILayout.Width(58f)))
                 ShowEventMenu(trigger);
             using (new EditorGUI.DisabledScope(string.IsNullOrWhiteSpace(trigger.Event) || _asset.Project == null))
@@ -761,11 +761,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 trigger.Scope = DrawConstrainedOption("Scope", trigger.Scope, ScopeOptions);
                 trigger.Priority = EditorGUILayout.IntField("Priority", trigger.Priority);
                 trigger.InterruptPriority = EditorGUILayout.IntField("Interrupt Priority", trigger.InterruptPriority);
-                trigger.AllowExternal = EditorGUILayout.Toggle("Allow External", trigger.AllowExternal);
-                trigger.Note = EditorGUILayout.TextField("Note", trigger.Note);
+                trigger.AllowExternal = EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("allow-external"), trigger.AllowExternal);
+                trigger.Note = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("note"), trigger.Note);
 
                 trigger.Cue = trigger.Cue ?? new TriggerCueData();
-                trigger.Cue.CueId = EditorGUILayout.TextField("Cue Id", trigger.Cue.CueId);
+                trigger.Cue.CueId = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("cue-id"), trigger.Cue.CueId);
 
                 trigger.Schedule = trigger.Schedule ?? new TriggerScheduleData();
                 trigger.Schedule.Mode = DrawConstrainedOption("Schedule Mode", trigger.Schedule.Mode, ScheduleModeOptions);
@@ -777,9 +777,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 trigger.ExecutionControl.InterruptPolicy = DrawConstrainedOption(
                     "Interrupt Policy", trigger.ExecutionControl.InterruptPolicy, InterruptPolicyOptions);
                 trigger.ExecutionControl.StopPropagationOnSuccess =
-                    EditorGUILayout.Toggle("Stop On Success", trigger.ExecutionControl.StopPropagationOnSuccess);
+                    EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("stop-on-success"), trigger.ExecutionControl.StopPropagationOnSuccess);
                 trigger.ExecutionControl.StopPropagationOnFailure =
-                    EditorGUILayout.Toggle("Stop On Failure", trigger.ExecutionControl.StopPropagationOnFailure);
+                    EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("stop-on-failure"), trigger.ExecutionControl.StopPropagationOnFailure);
             }
 
             _showTriggerBlackboard = EditorGUILayout.Foldout(
@@ -834,7 +834,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     EditorStyles.miniLabel);
                 if (current == null)
                 {
-                    EditorGUILayout.HelpBox("Template reference is missing or ambiguous in the project catalog.", MessageType.Error);
+                    EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("template-ref-missing"), MessageType.Error);
                     DrawRawTemplateBindings(reference.Bindings, trigger);
                 }
                 else
@@ -916,7 +916,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var bindings = reference.Bindings;
             if (bindings == null)
             {
-                EditorGUILayout.HelpBox("Template bindings collection is null.", MessageType.Error);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("template-bindings-null"), MessageType.Error);
                 return;
             }
             var parameters = template?.Parameters ?? new List<TriggerAuthoringTemplateParameterData>();
@@ -931,7 +931,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 GUILayout.FlexibleSpace();
                 if (binding == null)
                 {
-                    var label = parameter.HasDefault ? "Override" : "Add";
+                    var label = parameter.HasDefault ? "Override" : TriggerAuthoringEditorIntegration.T("add");
                     if (GUILayout.Button(label, EditorStyles.miniButton, GUILayout.Width(58f)))
                     {
                         var captured = parameter;
@@ -952,7 +952,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 if (binding != null)
                 {
                     if (binding.Value == null)
-                        EditorGUILayout.HelpBox("Binding value is null.", MessageType.Error);
+                        EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("binding-value-null"), MessageType.Error);
                     else
                         DrawValueRef(
                             binding.Value,
@@ -965,11 +965,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 }
                 else if (parameter.HasDefault)
                 {
-                    EditorGUILayout.LabelField("Using template default", EditorStyles.miniLabel);
+                    EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("using-template-default"), EditorStyles.miniLabel);
                 }
                 else if (parameter.Required)
                 {
-                    EditorGUILayout.HelpBox("Required binding is missing.", MessageType.Error);
+                    EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("required-binding-missing"), MessageType.Error);
                 }
                 EditorGUILayout.EndVertical();
             }
@@ -991,7 +991,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 if (binding == null) continue;
                 EditorGUILayout.LabelField(binding.Name ?? "<unnamed>", EditorStyles.miniBoldLabel);
                 if (binding.Value == null)
-                    EditorGUILayout.HelpBox("Binding value is null.", MessageType.Error);
+                    EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("binding-value-null"), MessageType.Error);
                 else
                     DrawValueRef(binding.Value, null, trigger);
             }
@@ -1039,11 +1039,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (node == null)
             {
                 EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Add " + title))
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.F("add-format", title)))
                     ShowNodeCreationMenu(kind, created => SetRootNode(trigger, kind, created), GUILayoutUtility.GetLastRect());
                 using (new EditorGUI.DisabledScope(!TriggerAuthoringNodeClipboard.HasNode()))
                 {
-                    if (GUILayout.Button("Paste " + title, EditorStyles.miniButton))
+                    if (GUILayout.Button(TriggerAuthoringEditorIntegration.F("paste-format", title), EditorStyles.miniButton))
                         PasteNodeAsRoot(trigger, kind, title);
                 }
                 EditorGUILayout.EndHorizontal();
@@ -1124,9 +1124,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 if (GUILayout.Button(new GUIContent("Paste", "Paste clipboard node as a child"), EditorStyles.miniButtonMid, GUILayout.Width(40f)))
                     PasteNodeAsChild(children, kind);
             }
-            if (GUILayout.Button(new GUIContent("Type", "Change node type"), EditorStyles.miniButtonMid, GUILayout.Width(42f)))
+            if (GUILayout.Button(new GUIContent(TriggerAuthoringEditorIntegration.T("type"), "Change node type"), EditorStyles.miniButtonMid, GUILayout.Width(42f)))
                 ShowNodeTypeMenu(kind, descriptor => ApplyDescriptor(node, descriptor), GUILayoutUtility.GetLastRect());
-            if (GUILayout.Button(new GUIContent("Group", "Replace with a reusable group reference"), EditorStyles.miniButtonMid, GUILayout.Width(48f)))
+            if (GUILayout.Button(new GUIContent(TriggerAuthoringEditorIntegration.T("group"), "Replace with a reusable group reference"), EditorStyles.miniButtonMid, GUILayout.Width(48f)))
                 ShowGroupMenu(kind, groupId => ApplyGroupReference(node, kind, groupId));
             var remove = GUILayout.Button(new GUIContent("x", "Remove node"), EditorStyles.miniButtonRight, GUILayout.Width(25f));
             EditorGUILayout.EndHorizontal();
@@ -1155,7 +1155,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
 
             if (!node.Enabled)
-                EditorGUILayout.HelpBox("Disabled nodes stay in source JSON but are ignored by validation and Runtime Plan export.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("disabled-nodes-note"), MessageType.Info);
             DrawNodeArguments(node, descriptor, trigger);
 
             if (maxChildren != 0)
@@ -1305,7 +1305,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var arguments = node.Arguments ?? (node.Arguments = new List<TriggerArgumentData>());
             if (descriptor == null)
             {
-                EditorGUILayout.HelpBox("Unknown node descriptor. Existing arguments are preserved.", MessageType.Error);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("unknown-node-descriptor"), MessageType.Error);
                 DrawRawArguments(arguments, trigger);
                 return;
             }
@@ -1321,7 +1321,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                         EditorGUILayout.BeginHorizontal();
                         GUILayout.Label(parameter.Name, EditorStyles.miniLabel);
                         GUILayout.FlexibleSpace();
-                        if (GUILayout.Button("Add", EditorStyles.miniButton, GUILayout.Width(42f)))
+                        if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add"), EditorStyles.miniButton, GUILayout.Width(42f)))
                             Edit("Add Trigger Argument", () => arguments.Add(CreateArgument(parameter)));
                         EditorGUILayout.EndHorizontal();
                     }
@@ -1372,7 +1372,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     i--;
                 }
             }
-            if (GUILayout.Button("Add Raw Argument", EditorStyles.miniButton))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-raw-argument"), EditorStyles.miniButton))
                 arguments.Add(new TriggerArgumentData());
         }
 
@@ -1406,31 +1406,31 @@ namespace AbilityKit.Ability.Editor.Inspectors
                         DrawIntegerChoice(value, parameter.Options);
                         break;
                     }
-                    value.IntegerValue = EditorGUILayout.LongField("Value", value.IntegerValue);
+                    value.IntegerValue = EditorGUILayout.LongField(TriggerAuthoringEditorIntegration.T("value"), value.IntegerValue);
                     break;
                 case TriggerValueType.Entity:
                 case TriggerValueType.ObjectId:
-                    value.IntegerValue = EditorGUILayout.LongField("Value", value.IntegerValue);
+                    value.IntegerValue = EditorGUILayout.LongField(TriggerAuthoringEditorIntegration.T("value"), value.IntegerValue);
                     break;
                 case TriggerValueType.Number:
-                    value.NumberValue = EditorGUILayout.DoubleField("Value", value.NumberValue);
+                    value.NumberValue = EditorGUILayout.DoubleField(TriggerAuthoringEditorIntegration.T("value"), value.NumberValue);
                     break;
                 case TriggerValueType.Boolean:
-                    value.BooleanValue = EditorGUILayout.Toggle("Value", value.BooleanValue);
+                    value.BooleanValue = EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("value"), value.BooleanValue);
                     break;
                 case TriggerValueType.String:
-                    value.StringValue = EditorGUILayout.TextField("Value", value.StringValue);
+                    value.StringValue = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("value"), value.StringValue);
                     break;
                 case TriggerValueType.IntegerList:
                     var current = value.IntegerListValue != null ? string.Join(",", value.IntegerListValue) : string.Empty;
-                    var next = EditorGUILayout.TextField("Values", current);
+                    var next = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("values"), current);
                     if (!string.Equals(current, next, StringComparison.Ordinal))
                         value.IntegerListValue = ParseIntegerList(next);
                     break;
                 case TriggerValueType.Vector3:
                     value.Vector3Value = value.Vector3Value ?? new TriggerVector3Data();
                     EditorGUILayout.BeginHorizontal();
-                    GUILayout.Label("Value", GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
+                    GUILayout.Label(TriggerAuthoringEditorIntegration.T("value"), GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
                     value.Vector3Value.X = EditorGUILayout.DoubleField(value.Vector3Value.X);
                     value.Vector3Value.Y = EditorGUILayout.DoubleField(value.Vector3Value.Y);
                     value.Vector3Value.Z = EditorGUILayout.DoubleField(value.Vector3Value.Z);
@@ -1440,7 +1440,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     DrawConstantObject(value);
                     break;
                 default:
-                    EditorGUILayout.HelpBox("Choose a value type.", MessageType.Info);
+                    EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("choose-value-type"), MessageType.Info);
                     break;
             }
         }
@@ -1449,7 +1449,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             value.Fields = value.Fields ?? new List<TriggerArgumentData>();
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("Fields", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("fields"), EditorStyles.miniBoldLabel);
             for (var i = 0; i < value.Fields.Count; i++)
             {
                 var index = i;
@@ -1460,7 +1460,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 var remove = GUILayout.Button("x", EditorStyles.miniButton, GUILayout.Width(22f));
                 EditorGUILayout.EndHorizontal();
                 field.Value = field.Value ?? CreateValue(TriggerValueType.Number);
-                var nextType = (TriggerValueType)EditorGUILayout.EnumPopup("Type", field.Value.Type);
+                var nextType = (TriggerValueType)EditorGUILayout.EnumPopup(TriggerAuthoringEditorIntegration.T("type"), field.Value.Type);
                 if (nextType != field.Value.Type) field.Value = CreateValue(nextType);
                 DrawConstant(field.Value, field.Value.Type, null);
                 EditorGUILayout.EndVertical();
@@ -1471,7 +1471,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 }
             }
 
-            if (GUILayout.Button("Add Field", EditorStyles.miniButton))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-field"), EditorStyles.miniButton))
                 value.Fields.Add(new TriggerArgumentData
                 {
                     Name = CreateUniqueObjectFieldName(value.Fields),
@@ -1521,7 +1521,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 selected = names.Count - 1;
             }
 
-            var next = EditorGUILayout.Popup("Value", selected, names.ToArray());
+            var next = EditorGUILayout.Popup(TriggerAuthoringEditorIntegration.T("value"), selected, names.ToArray());
             if (next != selected && next < options.Count)
                 value.IntegerValue = options[next].Value;
         }
@@ -1637,20 +1637,20 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 variable.ReadOnly = GUILayout.Toggle(variable.ReadOnly, "Read Only", GUILayout.Width(76f));
                 var remove = GUILayout.Button("x", EditorStyles.miniButton, GUILayout.Width(22f));
                 EditorGUILayout.EndHorizontal();
-                variable.Description = EditorGUILayout.TextField("Description", variable.Description);
+                variable.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("description"), variable.Description);
                 variable.DefaultValue = variable.DefaultValue ?? CreateValue(variable.Type);
-                EditorGUILayout.LabelField("Default Value", EditorStyles.miniBoldLabel);
+                EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("default-value"), EditorStyles.miniBoldLabel);
                 DrawConstant(variable.DefaultValue, variable.Type, null);
                 if (string.IsNullOrWhiteSpace(variable.Key))
                 {
-                    EditorGUILayout.HelpBox("Local var key is required.", MessageType.Error);
+                    EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("local-var-key-required"), MessageType.Error);
                 }
                 else
                 {
                     if (duplicates.Contains(variable.Key))
-                        EditorGUILayout.HelpBox("Duplicate local var key in this scope.", MessageType.Error);
+                        EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("duplicate-local-var"), MessageType.Error);
                     if (ContainsLocalVarKey(inheritedVariables, variable.Key))
-                        EditorGUILayout.HelpBox("This trigger local var shadows a module local var with the same key.", MessageType.Info);
+                        EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("shadows-module-var"), MessageType.Info);
                     EditorGUILayout.SelectableLabel(
                         TriggerAuthoringLocalBlackboardPath.Format(scope, variable.Key),
                         EditorStyles.miniLabel,
@@ -1810,13 +1810,13 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
                     if (nextOpen)
                     {
-                        group.Id = EditorGUILayout.TextField("Id", group.Id);
-                        group.DisplayName = EditorGUILayout.TextField("Display Name", group.DisplayName);
-                        group.Description = EditorGUILayout.TextField("Description", group.Description);
+                        group.Id = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("id"), group.Id);
+                        group.DisplayName = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("display-name"), group.DisplayName);
+                        group.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("description"), group.Description);
                         SirenixEditorGUI.BeginBox("Root");
                         if (group.Root == null)
                         {
-                            if (GUILayout.Button("Add Root"))
+                            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-root")))
                                 ShowNodeCreationMenu(kind, created => group.Root = created, GUILayoutUtility.GetLastRect());
                         }
                         else
@@ -1895,7 +1895,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
 
             if (!node.Enabled)
-                EditorGUILayout.HelpBox("Disabled group references stay in source JSON but are ignored by validation and Runtime Plan export.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("disabled-groups-note"), MessageType.Info);
 
             var showPreview = _expandedGroupPreviews.Contains(previewKey);
             var nextPreview = EditorGUILayout.Foldout(showPreview, "Expanded Preview", true);
@@ -1989,8 +1989,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (!string.IsNullOrEmpty(_focusedDiagnosticPath))
             {
                 EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.HelpBox("Focused: " + _focusedDiagnosticPath, MessageType.Info);
-                if (GUILayout.Button("Clear", EditorStyles.miniButton, GUILayout.Width(44f)))
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.F("focused-format", _focusedDiagnosticPath), MessageType.Info);
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("clear"), EditorStyles.miniButton, GUILayout.Width(44f)))
                 {
                     _focusedDiagnosticPath = null;
                     RequestRepaint();
@@ -1999,7 +1999,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
             if (_platformDiagnostics.Items.Count == 0)
             {
-                EditorGUILayout.HelpBox("No diagnostics.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("no-diagnostics"), MessageType.Info);
                 return;
             }
 
@@ -2122,7 +2122,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             var triggers = _asset.Module.Triggers;
             if (triggers == null || _selectedTriggerIndex < 0 || _selectedTriggerIndex >= triggers.Count) return;
-            if (!EditorUtility.DisplayDialog("Delete Trigger", "Delete the selected trigger?", "Delete", "Cancel")) return;
+            if (!EditorUtility.DisplayDialog("Delete Trigger", "Delete the selected trigger?", TriggerAuthoringEditorIntegration.T("delete"), "Cancel")) return;
             Edit("Delete Trigger", () =>
             {
                 triggers.RemoveAt(_selectedTriggerIndex);
@@ -2318,7 +2318,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
                     "Trigger Asset Conflict", result.Message + "\n\nOverwrite Asset content?", "Force Import", "Cancel"))
                 result = TriggerAuthoringSourceSync.Import(_asset, path, true);
-            ShowSyncResult("Import", result);
+            ShowSyncResult(TriggerAuthoringEditorIntegration.T("import"), result);
             if (result.Success)
             {
                 EnsureSelection();

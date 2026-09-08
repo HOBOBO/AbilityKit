@@ -477,6 +477,75 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         BattleDiagnosticResolvedMetricProfile MetricProfile { get; }
     }
 
+    public readonly struct BattleDiagnosticDefinitionFilter :
+        IEquatable<BattleDiagnosticDefinitionFilter>
+    {
+        public BattleDiagnosticDefinitionFilter(
+            BattleDiagnosticDefinitionKind kind = BattleDiagnosticDefinitionKind.Unknown,
+            BattleDiagnosticDefinitionResolution resolution =
+                BattleDiagnosticDefinitionResolution.Unknown)
+        {
+            if (!Enum.IsDefined(typeof(BattleDiagnosticDefinitionKind), kind))
+                throw new ArgumentOutOfRangeException(nameof(kind));
+            if (!Enum.IsDefined(typeof(BattleDiagnosticDefinitionResolution), resolution))
+                throw new ArgumentOutOfRangeException(nameof(resolution));
+            Kind = kind;
+            Resolution = resolution;
+        }
+
+        public BattleDiagnosticDefinitionKind Kind { get; }
+        public BattleDiagnosticDefinitionResolution Resolution { get; }
+
+        public bool Matches(BattleDiagnosticDefinition item)
+        {
+            return item != null &&
+                   (Kind == BattleDiagnosticDefinitionKind.Unknown || item.Kind == Kind) &&
+                   (Resolution == BattleDiagnosticDefinitionResolution.Unknown ||
+                    item.Resolution == Resolution);
+        }
+
+        public bool Equals(BattleDiagnosticDefinitionFilter other) =>
+            Kind == other.Kind && Resolution == other.Resolution;
+
+        public override bool Equals(object obj) =>
+            obj is BattleDiagnosticDefinitionFilter other && Equals(other);
+
+        public override int GetHashCode() => ((int)Kind * 397) ^ (int)Resolution;
+    }
+
+    public readonly struct BattleDiagnosticDefinitionQuery
+    {
+        public BattleDiagnosticDefinitionQuery(
+            long requestId,
+            BattleDiagnosticDefinitionFilter filter,
+            BattleDiagnosticPageRequest page)
+        {
+            if (requestId <= 0L) throw new ArgumentOutOfRangeException(nameof(requestId));
+            if (page.Limit <= 0) throw new ArgumentException(
+                "A valid page request is required.",
+                nameof(page));
+            RequestId = requestId;
+            Filter = filter;
+            Page = page;
+        }
+
+        public long RequestId { get; }
+        public BattleDiagnosticDefinitionFilter Filter { get; }
+        public BattleDiagnosticPageRequest Page { get; }
+    }
+
+    public interface IBattleDiagnosticDefinitionCatalogSession
+    {
+        long DefinitionStoreRevision { get; }
+
+        BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinition(
+            long requestId,
+            in BattleDiagnosticDefinitionReference reference);
+
+        BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinitions(
+            BattleDiagnosticDefinitionQuery query);
+    }
+
     public interface IBattleDiagnosticRuntimeObjectReadStore
     {
         BattleDiagnosticSessionScope Scope { get; }

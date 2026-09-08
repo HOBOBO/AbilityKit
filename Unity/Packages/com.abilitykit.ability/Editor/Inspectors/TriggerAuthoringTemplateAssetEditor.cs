@@ -68,7 +68,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             RefreshInspection();
             SirenixEditorGUI.BeginHorizontalToolbar();
-            GUILayout.Label("Source", GUILayout.Width(44f));
+            GUILayout.Label(TriggerAuthoringEditorIntegration.T("source"), GUILayout.Width(44f));
             var state = _inspection != null ? _inspection.State.ToString() : "Unknown";
             var oldColor = GUI.color;
             GUI.color = GetSyncColor(_inspection != null ? _inspection.State : TriggerAuthoringSyncState.Untracked);
@@ -88,15 +88,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var template = _asset.Template;
 
             SirenixEditorGUI.BeginBox("Template");
-            template.TemplateId = EditorGUILayout.TextField("Template Id", template.TemplateId);
-            template.TemplateVersion = EditorGUILayout.TextField("Version", template.TemplateVersion);
-            template.DisplayName = EditorGUILayout.TextField("Display Name", template.DisplayName);
-            template.Description = EditorGUILayout.TextField("Description", template.Description);
-            _asset.Metadata.Author = EditorGUILayout.TextField("Author", _asset.Metadata.Author);
-            _asset.Metadata.Description = EditorGUILayout.TextField("Source Note", _asset.Metadata.Description);
+            template.TemplateId = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("template-id"), template.TemplateId);
+            template.TemplateVersion = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("version"), template.TemplateVersion);
+            template.DisplayName = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("display-name"), template.DisplayName);
+            template.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("description"), template.Description);
+            _asset.Metadata.Author = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("author"), _asset.Metadata.Author);
+            _asset.Metadata.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("source-note"), _asset.Metadata.Description);
 
             EditorGUILayout.BeginHorizontal();
-            template.Event = EditorGUILayout.TextField("Event", template.Event);
+            template.Event = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("event"), template.Event);
             if (GUILayout.Button(new GUIContent("Select", "Choose from Event Catalog"), GUILayout.Width(58f)))
                 ShowEventMenu(template);
             EditorGUILayout.EndHorizontal();
@@ -133,8 +133,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 parameter.AllowedSources = (TriggerTemplateValueSourceMask)EditorGUILayout.EnumFlagsField(
                     "Instance Sources",
                     parameter.AllowedSources);
-                parameter.Description = EditorGUILayout.TextField("Description", parameter.Description);
-                parameter.HasDefault = EditorGUILayout.Toggle("Has Default", parameter.HasDefault);
+                parameter.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("description"), parameter.Description);
+                parameter.HasDefault = EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("has-default"), parameter.HasDefault);
                 if (parameter.HasDefault)
                 {
                     parameter.DefaultValue = parameter.DefaultValue ?? CreateValue(parameter.Type);
@@ -156,7 +156,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 i--;
             }
 
-            if (GUILayout.Button("Add Parameter", EditorStyles.miniButton))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-parameter"), EditorStyles.miniButton))
             {
                 Undo.RecordObject(_asset, "Add Template Parameter");
                 template.Parameters.Add(new TriggerAuthoringTemplateParameterData
@@ -181,7 +181,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             GUILayout.FlexibleSpace();
             if (root == null)
             {
-                if (GUILayout.Button("Add Root", EditorStyles.miniButton, GUILayout.Width(70f)))
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-root"), EditorStyles.miniButton, GUILayout.Width(70f)))
                     ShowNodeCreationMenu(kind, created => SetTemplateRoot(kind, created), GUILayoutUtility.GetLastRect());
             }
             else
@@ -226,9 +226,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.BeginVertical(depth == 0 ? EditorStyles.helpBox : SirenixGUIStyles.BoxContainer);
             if (!string.IsNullOrWhiteSpace(node.GroupReference))
             {
-                EditorGUILayout.HelpBox("Template trees cannot reference module-local groups.", MessageType.Error);
-                node.GroupReference = EditorGUILayout.TextField("Group Reference", node.GroupReference);
-                if (GUILayout.Button("Clear Group Reference", EditorStyles.miniButton))
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("template-trees-note"), MessageType.Error);
+                node.GroupReference = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("group-reference"), node.GroupReference);
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("clear-group-reference"), EditorStyles.miniButton))
                     node.GroupReference = string.Empty;
                 EditorGUILayout.EndVertical();
                 return node;
@@ -263,7 +263,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (maxChildren != 0)
             {
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Label("Children (" + children.Count + ")", EditorStyles.miniBoldLabel);
+                GUILayout.Label(TriggerAuthoringEditorIntegration.F("children-format", children.Count), EditorStyles.miniBoldLabel);
                 GUILayout.FlexibleSpace();
                 using (new EditorGUI.DisabledScope(maxChildren > 0 && children.Count >= maxChildren))
                 {
@@ -295,7 +295,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var arguments = node.Arguments ?? (node.Arguments = new List<TriggerArgumentData>());
             if (descriptor == null)
             {
-                EditorGUILayout.HelpBox("Unknown node descriptor. Existing arguments are preserved.", MessageType.Error);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("unknown-node-descriptor"), MessageType.Error);
                 DrawRawArguments(arguments);
                 return;
             }
@@ -311,7 +311,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                         EditorGUILayout.BeginHorizontal();
                         GUILayout.Label(parameter.Name, EditorStyles.miniLabel);
                         GUILayout.FlexibleSpace();
-                        if (GUILayout.Button("Add", EditorStyles.miniButton, GUILayout.Width(42f)))
+                        if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add"), EditorStyles.miniButton, GUILayout.Width(42f)))
                             arguments.Add(CreateArgument(parameter));
                         EditorGUILayout.EndHorizontal();
                     }
@@ -339,7 +339,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             {
                 var argument = arguments[i];
                 if (argument == null || HasParameter(descriptor, argument.Name)) continue;
-                EditorGUILayout.HelpBox("Unknown argument '" + argument.Name + "' is preserved.", MessageType.Warning);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.F("unknown-argument-format", argument.Name), MessageType.Warning);
                 TriggerAuthoringValueRefEditor.Draw(argument.Value ?? (argument.Value = new TriggerValueRefData()), null, BuildValueContext());
             }
         }
@@ -360,7 +360,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 arguments.RemoveAt(i);
                 i--;
             }
-            if (GUILayout.Button("Add Raw Argument", EditorStyles.miniButton))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-raw-argument"), EditorStyles.miniButton))
                 arguments.Add(new TriggerArgumentData());
         }
 
@@ -373,7 +373,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 TriggerAuthoringValidationContext.Create(_asset));
             if (diagnostics.Count == 0)
             {
-                EditorGUILayout.HelpBox("No diagnostics.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("no-diagnostics"), MessageType.Info);
                 return;
             }
             for (var i = 0; i < diagnostics.Count; i++)

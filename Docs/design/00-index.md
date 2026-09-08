@@ -338,6 +338,7 @@ flowchart TB
 | [06-Shooter RVO 与 Jobs 加速](13-FrameworkCore/06-ShooterRvoAndJobsAcceleration.md) | Shooter 项目避障 | Managed RVO 语义基线、Jobs 仅邻居收集、同步回退、Native 生命周期、速度同步、Runtime E3/E5 与 Jobs/性能证据缺口 |
 | [07-行为树包设计](13-FrameworkCore/07-BehaviorTreePackageDesign.md) | 自研行为树包 | 运行时 IR/编辑配置分离、节点描述符注册与编辑器拉取、确定性执行与快照、调试注册中心、内置节点库与 BTCore 退役路线 |
 | [08-HFSM 确定性内核与渐进迁移](13-FrameworkCore/08-HfsmDeterministicRuntimeEvolution.md) | HFSM canonical 演进 | 自研 Definition/Runtime、定点 Tick、层级语义、快照协议、UnityHFSM 兼容边界与分阶段迁移路线 |
+| [09-编辑器平台收敛与统一入口设计](13-FrameworkCore/09-EditorPlatformConvergence.md) | 编辑器底座收敛 + 演进计划 | Editor Platform 七个关注点的共享/域内边界判定、采纳地图、重复证据、统一入口（Hub）设计与分阶段收敛顺序 |
 
 ---
 
@@ -484,6 +485,8 @@ flowchart TB
 | 2026-08-17 | 2.86 | HotReload 运行时所有权与失败收敛：Apply 按候选 Install/Initialize、旧版本 Uninstall/TearDown、最终提交分阶段执行；world 状态改为实例弱键，补显式与 world TearDown 自动释放、跨 world 单飞与重入拒绝门禁；删除无效 Static Attribute 与未消费 proxy helper，新增 HotReload 专项测试 `13/13`，Editor/Unity/程序集卸载仍保持 E1/未验证边界 |
 | 2026-08-17 | 2.87 | Dataflow 与 Damage 运行时语义收敛：修复末阶段 Abort、保留中止/失败部分输出与失败阶段身份，执行期采用 Processor 快照，批量追加与 Builder 改为原子校验/结构快照；Context 使用 `(name,type)` 槽位键并统一 Clear/Reset，Composite 恢复兼容回灌；移除越界通用领域槽位与 Damage Processor 共享 `_result`，新增 Dataflow `20/20`、Damage `5/5` 契约测试；仅证明 Runtime 局部 E3，Unity/Smoke/性能与集合并发仍未验证 |
 | 2026-08-19 | 2.88 | Shooter 千单位性能专题：记录 AOI 未变化抑制与周期刷新、插值/输入背压、codec/Mapper/Projection 稳态零分配、GPU stable slot/局部上传、端到端指标、2K allocation gate、历史 AOI 扇出结果和真实双客户端 GPU E4 缺口 |
+| 2026-09-07 | 2.89 | 编辑器平台收敛与统一入口设计：新增 `13-FrameworkCore/09-EditorPlatformConvergence.md`，按源码核校 Editor Platform 的采纳地图（BT/HFSM/Ability 部分接入、Pipeline/BattleFlow/Protocol/Trace 未接）、七个关注点共享/域内边界、重复实现证据、Hub 统一入口与五阶段收敛顺序；纠正包内 canonical 把 Pipeline 误列为 Platform 消费者；仅改 Markdown |
+| 2026-09-07 | 2.90 | 编辑器平台收敛收尾：判定运行时调试骨架不下沉（四 debugger 机制/快照各异、无稳定契约，按能力下沉五条否决），更新 `09-EditorPlatformConvergence.md` §三/§6.2（v1.2）；同步落地删除 pipeline 死代码 `EditorPipelineTraceRecorder`（未使用单例，保留 `EditorPipelineRunTrace`） |
 
 ---
 

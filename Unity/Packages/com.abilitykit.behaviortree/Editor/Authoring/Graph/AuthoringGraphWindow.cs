@@ -48,8 +48,7 @@ namespace AbilityKit.BehaviorTree.Editor
         private NodeDefinition? _selectedNode;
         private Label? _modeLabel;
         private Label? _dirtyLabel;
-        private Label? _validationLabel;
-        private VisualElement? _validationPanel;
+        private AuthoringValidationPanel? _validationPanel;
         private UnityEditor.UIElements.ToolbarSearchField? _nodeSearchField;
         private AuthoringOverviewPanel? _overviewPanel;
         private Button? _undoButton;
@@ -68,17 +67,25 @@ namespace AbilityKit.BehaviorTree.Editor
         /// <summary>观察模式：绑定一个运行中实例，把实时节点状态着色到画布（只读）。</summary>
         private TreeDebugView? _observedView;
 
+        /// <summary>观察模式工具栏的实例切换下拉；与 <see cref="_instancePopupIds"/> 平行。</summary>
+        private PopupField<string>? _instancePopup;
+        private readonly List<long> _instancePopupIds = new();
+        private string _instancePopupFingerprint = "";
+        private ObservationEventTimelinePanel? _eventTimelinePanel;
+        private TreePreviewSession? _previewSession;
+        private string _configTreeId = "";
+
         public AuthoringGraphWindow()
         {
             _presenter = new AuthoringWorkspacePresenter(_workspace);
         }
 
-        internal bool IsObservation => _documentSession.IsReadOnly;
+        internal bool IsObservation => _workspace != null && _documentSession.IsReadOnly;
 
         public static void Open(AuthoringAsset asset)
         {
             var window = Resources.FindObjectsOfTypeAll<AuthoringGraphWindow>()
-                .FirstOrDefault(candidate => !candidate.IsObservation);
+                .FirstOrDefault(candidate => candidate._workspace != null && !candidate.IsObservation);
             if (window != null && ReferenceEquals(window._asset, asset))
             {
                 window.Show();
@@ -99,7 +106,7 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             if (view == null) return;
             var window = Resources.FindObjectsOfTypeAll<AuthoringGraphWindow>()
-                .FirstOrDefault(candidate => ReferenceEquals(candidate._observedView, view))
+                .FirstOrDefault(candidate => candidate._workspace != null && ReferenceEquals(candidate._observedView, view))
                 ?? CreateWindow<AuthoringGraphWindow>();
             window.titleContent = new GUIContent("BT Observation Graph");
             window.minSize = new Vector2(900f, 560f);
@@ -152,7 +159,7 @@ namespace AbilityKit.BehaviorTree.Editor
             ObservationDiff initialDiff = null)
         {
             _observedView = view;
-            _asset = null;
+            _configTreeId = _asset != null ? _document.Tree.TreeId : "";
             _workspace.State.SetDocumentScope("observation." + (view.TreeId ?? "unknown"));
             _selectedNode = null;
             _observationController.Reset();
@@ -199,6 +206,8 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void OnEnable()
         {
+            // 幽灵窗口（构造函数未执行、readonly 字段为 null，FindObjectsOfTypeAll/布局恢复会造出）无可初始化状态。
+            if (_commandRegistrations == null) return;
             _localization = EditorLocalization.Localization;
             _localization.LanguageChanged += OnLanguageChanged;
             RegisterCommands();
@@ -214,8 +223,10 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void OnDisable()
         {
+            StopPreview();
             if (_localization != null)
                 _localization.LanguageChanged -= OnLanguageChanged;
+            if (_commandRegistrations == null) return;
             foreach (var registration in _commandRegistrations)
                 registration.Dispose();
             _commandRegistrations.Clear();
@@ -274,6 +285,14 @@ namespace AbilityKit.BehaviorTree.Editor
 
             var toolbar = new UnityEditor.UIElements.Toolbar();
             toolbar.style.minHeight = 27f;
+            toolbar.Add(ModeToggleButton("编辑", !IsObservation, () =>
+            {
+                if (IsObservation) BackToEdit();
+            }));
+            toolbar.Add(ModeToggleButton("调试", IsObservation, () =>
+            {
+                if (!IsObservation) EnterDebugMode();
+            }));
             _modeLabel = new Label(L(IsObservation
                 ? "abilitykit.behaviortree.mode.observation"
                 : "abilitykit.behaviortree.mode.edit"))
@@ -294,12 +313,25 @@ namespace AbilityKit.BehaviorTree.Editor
                 toolbar.Add(_observationPauseButton);
                 toolbar.Add(CommandButton(EditorCommandIds.CopySnapshot, "copy-snapshot"));
                 toolbar.Add(ToolbarSeparator());
+                _instancePopup = new PopupField<string>
+                {
+                    tooltip = "切换到其它运行中的行为树实例",
+                };
+                _instancePopup.style.width = 230f;
+                _instancePopup.RegisterValueChangedCallback(evt => OnInstancePopupChanged(evt.newValue));
+                toolbar.Add(_instancePopup);
+                toolbar.Add(ToolbarSeparator());
                 toolbar.Add(CommandButton(EditorCommandIds.FrameAll, "frame-all"));
             }
             else
             {
                 toolbar.Add(CommandButton(EditorCommandIds.Save, "save"));
                 toolbar.Add(CommandButton(EditorCommandIds.Export, "export"));
+                var previewButton = new Button(StartPreview) { text = "预览" };
+                previewButton.style.height = 22f;
+                previewButton.style.marginLeft = 1f;
+                previewButton.style.marginRight = 1f;
+                toolbar.Add(previewButton);
                 toolbar.Add(ToolbarSeparator());
                 _undoButton = CommandButton(EditorCommandIds.Undo, "undo");
                 _redoButton = CommandButton(EditorCommandIds.Redo, "redo");
@@ -359,25 +391,23 @@ namespace AbilityKit.BehaviorTree.Editor
             inspectorScroll.style.flexGrow = 1f;
             _inspectorRenderer = new AuthoringInspectorRenderer(inspectorScroll, this);
             rightPane.Add(inspectorScroll);
-            _validationPanel = new ScrollView
+            if (IsObservation)
             {
-                style =
-                {
-                    display = _workspace.State.GetPanelVisible("validation", false)
-                        ? DisplayStyle.Flex
-                        : DisplayStyle.None,
-                    maxHeight = 190f,
-                    paddingTop = 6f,
-                    borderTopWidth = 1f,
-                    borderTopColor = new Color(0.3f, 0.3f, 0.3f),
-                },
-            };
-            _validationLabel = new Label { style = { whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal } };
-            _validationPanel.Add(_validationLabel);
+                _eventTimelinePanel = new ObservationEventTimelinePanel(
+                    _observationController,
+                    _observationContributors);
+                rightPane.Add(_eventTimelinePanel);
+            }
+            _validationPanel = new AuthoringValidationPanel(
+                _workspace.State.GetPanelVisible("validation", false),
+                _localization,
+                ids => _graphView.MarkErrorNodes(ids),
+                _graphView.ClearErrorNodes);
             rightPane.Add(_validationPanel);
             split.Add(rightPane);
             rootVisualElement.Add(split);
             RefreshChrome();
+            RefreshInstancePopup();
         }
 
         private Button CommandButton(string commandId, string keySuffix)
@@ -392,6 +422,17 @@ namespace AbilityKit.BehaviorTree.Editor
             button.style.marginRight = 1f;
             if (_commands.TryGet(commandId, out var command))
                 button.SetEnabled(command.CanExecute(new EditorCommandContext(this, _selectedNode)));
+            return button;
+        }
+
+        private Button ModeToggleButton(string label, bool active, Action onClick)
+        {
+            var button = new Button(onClick) { text = label };
+            button.style.height = 22f;
+            button.style.marginLeft = 1f;
+            button.style.marginRight = 1f;
+            button.style.unityFontStyleAndWeight = active ? FontStyle.Bold : FontStyle.Normal;
+            button.style.backgroundColor = active ? new Color(0.32f, 0.55f, 0.82f) : new Color(0f, 0f, 0f, 0f);
             return button;
         }
 
@@ -594,57 +635,16 @@ namespace AbilityKit.BehaviorTree.Editor
             RefreshOverview();
         }
 
-        /// <summary>图上校验：右栏列出结构化诊断，节点定位由诊断动作显式提供。</summary>
+        /// <summary>图上校验：分析文档并把结构化诊断交给校验面板渲染。</summary>
         private void ValidateOnGraph()
         {
             _diagnostics.Replace(EditorDiagnostics.Analyze(
                 _document,
                 EditorNodeCatalog.Registry,
                 nodeId => _graphView.FocusNode(nodeId)).Items);
-            if (_validationLabel == null || _validationPanel == null) return;
-            _validationPanel.Clear();
-            _validationPanel.style.display = DisplayStyle.Flex;
+            if (_validationPanel == null) return;
             _workspace.State.SetPanelVisible("validation", true);
-            if (!_diagnostics.HasErrors)
-            {
-                _validationLabel.text = L("abilitykit.behaviortree.validation.success");
-                _validationLabel.style.color = new Color(0.55f, 0.9f, 0.62f);
-                _validationPanel.Add(_validationLabel);
-                _graphView.ClearErrorNodes();
-                return;
-            }
-
-            _validationLabel.text = _localization.Format(
-                "abilitykit.behaviortree.validation.errors",
-                _diagnostics.ErrorCount);
-            _validationLabel.style.color = new Color(0.95f, 0.5f, 0.45f);
-            _validationPanel.Add(_validationLabel);
-            foreach (var diagnostic in _diagnostics.Items)
-            {
-                if (!diagnostic.CanLocate)
-                {
-                    _validationPanel.Add(new Label(diagnostic.Message)
-                    {
-                        style = { whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal },
-                    });
-                    continue;
-                }
-
-                var nodeId = diagnostic.Path.Substring("nodes/".Length);
-                var focusError = new Button(() => diagnostic.Locate?.Invoke())
-                {
-                    text = diagnostic.Message,
-                    tooltip = _localization.Format(
-                        "abilitykit.behaviortree.validation.locate",
-                        nodeId),
-                };
-                focusError.style.unityTextAlign = TextAnchor.MiddleLeft;
-                focusError.style.whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal;
-                _validationPanel.Add(focusError);
-            }
-            _graphView.MarkErrorNodes(_diagnostics.Items
-                .Where(item => item.CanLocate)
-                .Select(item => item.Path.Substring("nodes/".Length)));
+            _validationPanel.Render(_diagnostics);
         }
 
         private void ToggleObservationPause()
@@ -705,6 +705,8 @@ namespace AbilityKit.BehaviorTree.Editor
             }
 
             RefreshObservationModeLabel();
+            RefreshInstancePopup();
+            _eventTimelinePanel?.Refresh();
         }
 
         private bool TryBindObservationView(TreeDebugView view)
@@ -750,6 +752,67 @@ namespace AbilityKit.BehaviorTree.Editor
                         ? "abilitykit.behaviortree.observation.frame-frozen"
                         : "abilitykit.behaviortree.observation.frame",
                     _observationFrame);
+        }
+
+        private void RefreshInstancePopup()
+        {
+            if (_instancePopup == null) return;
+
+            var entries = _observationController.Entries;
+            var fingerprint = "";
+            foreach (var entry in entries) fingerprint += entry.Id + ",";
+            fingerprint += "|" + _observationController.SelectedInstanceId;
+            if (fingerprint == _instancePopupFingerprint) return;
+            _instancePopupFingerprint = fingerprint;
+
+            _instancePopupIds.Clear();
+            var labels = new List<string>();
+            var selectedIndex = -1;
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var view = entries[i].View;
+                if (view == null) continue;
+                if (!string.IsNullOrEmpty(_configTreeId)
+                    && !string.Equals(view.TreeId, _configTreeId, StringComparison.Ordinal))
+                    continue;
+                var label = "#" + entries[i].Id + " · " + view.DisplayName
+                            + (string.IsNullOrEmpty(view.OwnerLabel) ? "" : " · " + view.OwnerLabel)
+                            + "  [" + view.TreeId + "]";
+                labels.Add(label);
+                _instancePopupIds.Add(entries[i].Id);
+                if (entries[i].Id == _observationController.SelectedInstanceId)
+                    selectedIndex = _instancePopupIds.Count - 1;
+            }
+
+            if (labels.Count == 0)
+            {
+                labels.Add(string.IsNullOrEmpty(_configTreeId)
+                    ? "(无运行中的实例)"
+                    : "(没有使用当前配置的实例)");
+                _instancePopupIds.Add(0);
+                selectedIndex = 0;
+            }
+
+            _instancePopup.choices = labels;
+            _instancePopup.SetValueWithoutNotify(selectedIndex >= 0 ? labels[selectedIndex] : labels[0]);
+        }
+
+        private void OnInstancePopupChanged(string newValue)
+        {
+            if (_instancePopup == null) return;
+            var index = _instancePopup.choices != null ? _instancePopup.choices.IndexOf(newValue) : -1;
+            if (index < 0 || index >= _instancePopupIds.Count) return;
+            var id = _instancePopupIds[index];
+            if (id == 0 || id == _observationController.SelectedInstanceId) return;
+            if (!_observationController.SelectInstance(id)) return;
+
+            _displayedObservationSnapshot = null;
+            _previousObservationSnapshot = null;
+            _displayedObservationDiff = null;
+            _selectedNode = null;
+            _graphView?.ClearNodeStates();
+            _inspectorRenderer?.Render(null);
+            RefreshObservationModeLabel();
         }
 
         void IAuthoringGraphHost.OnGraphSelectionChanged(NodeDefinition? selected)
@@ -877,6 +940,65 @@ namespace AbilityKit.BehaviorTree.Editor
                 "OK");
         }
 
+        /// <summary>把当前编辑中的文档编译为无头预览实例并切到观察画布；不改动资产。</summary>
+        private void StartPreview()
+        {
+            if (IsObservation) return;
+
+            var debugName = "Preview: " + (_asset != null ? _asset.name : (_document.Tree.TreeId ?? "behavior tree"));
+            if (!TreePreviewSession.TryStart(
+                    _document,
+                    EditorNodeCatalog.Registry,
+                    debugName,
+                    out var session,
+                    out var error))
+            {
+                EditorUtility.DisplayDialog("预览失败", error ?? "未知错误", "确定");
+                return;
+            }
+
+            _previewSession = session;
+            EnterObservationMode(session.Runtime);
+        }
+
+        /// <summary>结束预览并回到编辑模式（重新加载同一资产）。</summary>
+        private void BackToEdit()
+        {
+            var asset = _asset;
+            StopPreview();
+            EnterEditMode(asset);
+        }
+
+        private void StopPreview()
+        {
+            if (_previewSession != null)
+            {
+                _previewSession.Dispose();
+                _previewSession = null;
+            }
+        }
+
+        /// <summary>进入调试（观察）模式：优先观察正在使用当前配置的运行时实例，否则启动无头预览。</summary>
+        private void EnterDebugMode()
+        {
+            if (IsObservation) return;
+            var configTreeId = _document.Tree.TreeId;
+            TreeDebugView? target = null;
+            if (!string.IsNullOrEmpty(configTreeId))
+            {
+                foreach (var entry in DebugRegistry.GetEntries())
+                {
+                    if (entry.View != null && string.Equals(entry.View.TreeId, configTreeId, StringComparison.Ordinal))
+                    {
+                        target = entry.View;
+                        break;
+                    }
+                }
+            }
+            if (target != null) EnterObservationMode(target);
+            else StartPreview();
+        }
+
         private void AddRoot()
         {
             if (IsObservation) return;
@@ -978,17 +1100,18 @@ namespace AbilityKit.BehaviorTree.Editor
             if (!string.IsNullOrWhiteSpace(error)) Debug.LogWarning("[BtAuthoring] " + error);
         }
 
-        AuthoringSourceDocument IAuthoringGraphHost.Document => _document;
-        bool IAuthoringGraphHost.IsReadOnly => IsObservation;
-        void IAuthoringGraphHost.RecordChange() => PushUndo();
-        void IAuthoringGraphHost.RecordChange(string beforeChangeSnapshot)
+        AuthoringSourceDocument IAuthoringWorkspaceHost.Document => _document;
+        bool IAuthoringWorkspaceHost.IsReadOnly => IsObservation;
+        string IAuthoringWorkspaceHost.ResolveNodeDisplayName(NodeDefinition node)
+            => ResolveNodeDisplayName(node);
+        void IAuthoringWorkspaceHost.RecordChange() => PushUndo();
+        void IAuthoringWorkspaceHost.RecordChange(string beforeChangeSnapshot)
             => PushUndoSnapshot(beforeChangeSnapshot);
+
         bool IAuthoringGraphHost.CanConnect(string childId, string parentId, out string error)
             => CanConnect(childId, parentId, out error);
         void IAuthoringGraphHost.SetConnected(string childId, string parentId, bool connected)
             => OnEdgeChanged(childId, parentId, connected);
-        string IAuthoringGraphHost.ResolveNodeDisplayName(NodeDefinition node)
-            => ResolveNodeDisplayName(node);
         int IAuthoringGraphHost.ResolveChildOrder(string nodeId) => ResolveChildOrder(nodeId);
         Vector2 IAuthoringGraphHost.ScreenToGraphPosition(Vector2 screenPosition)
         {
@@ -1000,16 +1123,9 @@ namespace AbilityKit.BehaviorTree.Editor
         void IAuthoringGraphHost.AddNode(NodeDescriptor descriptor, Vector2 graphPosition)
             => AddNodeFromDescriptor(descriptor, graphPosition);
 
-        AuthoringSourceDocument IAuthoringInspectorHost.Document => _document;
-        bool IAuthoringInspectorHost.IsReadOnly => IsObservation;
         ObservationSnapshot? IAuthoringInspectorHost.DisplayedObservationSnapshot => _displayedObservationSnapshot;
         ObservationSnapshot? IAuthoringInspectorHost.PreviousObservationSnapshot => _previousObservationSnapshot;
         ObservationDiff? IAuthoringInspectorHost.DisplayedObservationDiff => _displayedObservationDiff;
-        string IAuthoringInspectorHost.ResolveNodeDisplayName(NodeDefinition node)
-            => ResolveNodeDisplayName(node);
-        void IAuthoringInspectorHost.RecordChange() => PushUndo();
-        void IAuthoringInspectorHost.RecordChange(string beforeChangeSnapshot)
-            => PushUndoSnapshot(beforeChangeSnapshot);
         void IAuthoringInspectorHost.RefreshNodeTitles() => _graphView.RefreshNodeTitles();
         void IAuthoringInspectorHost.RebuildGraph() => RebuildGraph();
         void IAuthoringInspectorHost.RefreshChrome() => RefreshChrome();

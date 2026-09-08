@@ -4,6 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using AbilityKit.ProtocolEditor.Schema;
+using AbilityKit.Editor.Platform.Diagnostics;
+using AbilityKit.Editor.Platform.UI;
 using UnityEditor;
 using UnityEngine;
 
@@ -291,6 +293,13 @@ namespace AbilityKit.ProtocolEditor.UI
                     SaveSelected();
                 if (GUILayout.Button("Compile Catalogs", EditorStyles.toolbarButton, GUILayout.Width(112f)))
                     CompileCatalogs();
+                GUILayout.Space(8f);
+                using (new EditorGUI.DisabledScope(_workspace == null || _workspace.diagnostics.Length == 0))
+                {
+                    var diagnosticCount = _workspace == null ? 0 : _workspace.diagnostics.Length;
+                    if (GUILayout.Button("Diagnostics (" + diagnosticCount + ")", EditorStyles.toolbarButton, GUILayout.Width(110f)))
+                        ShowDiagnostics();
+                }
                 GUILayout.Space(8f);
                 GUILayout.Label(WorkspaceSummary(), EditorStyles.miniLabel);
                 GUILayout.FlexibleSpace();
@@ -888,6 +897,42 @@ namespace AbilityKit.ProtocolEditor.UI
                 _workspace.catalogs.Sum(value => value.messages.Length),
                 _workspace.wireSchemas.Length,
                 _workspace.diagnostics.Length);
+
+        private void ShowDiagnostics()
+        {
+            if (_workspace == null) return;
+            var collection = new EditorDiagnosticCollection();
+            foreach (var diagnostic in _workspace.diagnostics)
+            {
+                if (diagnostic == null) continue;
+                var code = string.IsNullOrEmpty(diagnostic.code) ? "PROTO000" : diagnostic.code;
+                var message = string.IsNullOrWhiteSpace(diagnostic.message) ? code : diagnostic.message;
+                collection.Add(new EditorDiagnostic(
+                    code,
+                    ToSeverity(diagnostic.severity),
+                    message,
+                    ToDiagnosticPath(diagnostic)));
+            }
+            EditorDiagnosticsWindow.Show("Protocol Diagnostics", collection);
+        }
+
+        private static EditorDiagnosticSeverity ToSeverity(string severity)
+        {
+            if (string.IsNullOrEmpty(severity)) return EditorDiagnosticSeverity.Info;
+            if (severity.IndexOf("error", StringComparison.OrdinalIgnoreCase) >= 0) return EditorDiagnosticSeverity.Error;
+            if (severity.IndexOf("warn", StringComparison.OrdinalIgnoreCase) >= 0) return EditorDiagnosticSeverity.Warning;
+            return EditorDiagnosticSeverity.Info;
+        }
+
+        private static string ToDiagnosticPath(ProtocolDiagnosticDto diagnostic)
+        {
+            var catalog = diagnostic.catalogId ?? string.Empty;
+            var messageId = diagnostic.messageId ?? string.Empty;
+            if (catalog.Length == 0 && messageId.Length == 0) return string.Empty;
+            if (catalog.Length == 0) return messageId;
+            if (messageId.Length == 0) return catalog;
+            return catalog + "/" + messageId;
+        }
 
         private static string Popup(string label, string value, string[] options)
         {

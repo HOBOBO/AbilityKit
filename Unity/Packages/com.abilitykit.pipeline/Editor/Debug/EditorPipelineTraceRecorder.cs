@@ -8,69 +8,6 @@ using System.Collections.Generic;
 namespace AbilityKit.Pipeline.Editor
 {
     /// <summary>
-    /// 管线追踪记录器 Editor 完整实现
-    /// 提供完整的调试追踪功能
-    /// </summary>
-    public sealed class EditorPipelineTraceRecorder : IPipelineTraceRecorder
-    {
-        public static readonly EditorPipelineTraceRecorder Instance = new EditorPipelineTraceRecorder();
-
-        private readonly Dictionary<int, EditorPipelineRunTrace> _traces = new Dictionary<int, EditorPipelineRunTrace>(64);
-        private readonly object _lock = new object();
-
-        public bool IsEnabled => true;
-
-        public void Record(IPipelineLifeOwner owner, PipelineTraceData data)
-        {
-            if (owner == null) return;
-
-            lock (_lock)
-            {
-                if (!_traces.TryGetValue(owner.OwnerId, out var trace))
-                {
-                    trace = new EditorPipelineRunTrace(2048);
-                    _traces[owner.OwnerId] = trace;
-                }
-                trace.AddTrace(data);
-            }
-        }
-
-        public IPipelineRunTrace? GetTrace(int ownerId)
-        {
-            lock (_lock)
-            {
-                return _traces.TryGetValue(ownerId, out var trace) ? trace : null;
-            }
-        }
-
-        public IReadOnlyList<PipelineTraceEvent> GetSnapshot(int ownerId)
-        {
-            lock (_lock)
-            {
-                return _traces.TryGetValue(ownerId, out var trace)
-                    ? trace.GetSnapshot()
-                    : Array.Empty<PipelineTraceEvent>();
-            }
-        }
-
-        public void Clear()
-        {
-            lock (_lock)
-            {
-                _traces.Clear();
-            }
-        }
-
-        public void RemoveTrace(int ownerId)
-        {
-            lock (_lock)
-            {
-                _traces.Remove(ownerId);
-            }
-        }
-    }
-
-    /// <summary>
     /// 管线追踪记录 Editor 实现（Ring Buffer）
     /// </summary>
     public sealed class EditorPipelineRunTrace : IPipelineRunTrace

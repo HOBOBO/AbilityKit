@@ -2,8 +2,7 @@
     "name": "AbilityKit.Trace.Editor",
     "rootNamespace": "AbilityKit.Trace.Editor",
     "references": [
-        "AbilityKit.Trace",
-        "AbilityKit.Base.Editor"
+        "AbilityKit.Trace"
     ],
     "includePlatforms": [
         "Editor"

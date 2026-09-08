@@ -3,7 +3,8 @@
   "rootNamespace": "AbilityKit.BattleFlow.Editor",
   "references": [
     "AbilityKit.BattleFlow",
-    "AbilityKit.Scenario"
+    "AbilityKit.Scenario",
+    "AbilityKit.Editor.Platform"
   ],
   "includePlatforms": [
     "Editor"

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
 using AbilityKit.Editor.Platform.Diagnostics;
+using UnityEditor;
 
 using AbilityKit.BehaviorTree.Editor.Authoring.Extensions;
 using AbilityKit.BehaviorTree.Editor.Debugging.Observation;
@@ -31,6 +32,7 @@ namespace AbilityKit.BehaviorTree.Editor
         public const string ValidationErrorCode = "BTVAL001";
         public const string ObservationInfoCode = "BTOBS001";
         public const string ObservationWarningCode = "BTOBS002";
+        public const string ProjectValidationErrorCode = "BTPRJ001";
 
         public static EditorDiagnosticCollection Analyze(
             TreeDefinition definition,
@@ -132,6 +134,36 @@ namespace AbilityKit.BehaviorTree.Editor
                     "observation/settings/timelineCapacity"));
             }
 
+            return diagnostics;
+        }
+
+        public static EditorDiagnosticCollection AnalyzeProject(AuthoringProjectAsset project)
+        {
+            if (project == null) throw new ArgumentNullException(nameof(project));
+            var diagnostics = new EditorDiagnosticCollection();
+            var path = AssetDatabase.GetAssetPath(project);
+            foreach (var message in project.Validate())
+            {
+                if (string.IsNullOrWhiteSpace(message)) continue;
+                diagnostics.Add(new EditorDiagnostic(
+                    ProjectValidationErrorCode,
+                    EditorDiagnosticSeverity.Error,
+                    message,
+                    path,
+                    target: project));
+            }
+            return diagnostics;
+        }
+
+        public static EditorDiagnosticCollection AnalyzeProjects(IEnumerable<AuthoringProjectAsset> projects)
+        {
+            if (projects == null) throw new ArgumentNullException(nameof(projects));
+            var diagnostics = new EditorDiagnosticCollection();
+            foreach (var project in projects)
+            {
+                if (project == null) continue;
+                diagnostics.AddRange(AnalyzeProject(project).Items);
+            }
             return diagnostics;
         }
     }

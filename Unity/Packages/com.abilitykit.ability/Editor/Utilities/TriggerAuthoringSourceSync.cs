@@ -535,19 +535,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                     ? "Import Trigger Module Source JSON"
                     : "Import Trigger Template Source JSON",
                 EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("Sync State", _preview.State.ToString(), EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("sync-state"), _preview.State.ToString(), EditorStyles.miniBoldLabel);
             if (!string.IsNullOrWhiteSpace(_preview.SourcePath))
             {
                 EditorGUILayout.SelectableLabel(_preview.SourcePath, EditorStyles.miniLabel, GUILayout.Height(18f));
                 EditorGUILayout.BeginHorizontal();
-                if (GUILayout.Button("Open Source JSON", EditorStyles.miniButtonLeft))
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("open-source-json"), EditorStyles.miniButtonLeft))
                     EditorUtility.OpenWithDefaultApp(_preview.SourcePath);
-                if (GUILayout.Button("Reveal Source", EditorStyles.miniButtonRight))
+                if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("reveal-source"), EditorStyles.miniButtonRight))
                     EditorUtility.RevealInFinder(_preview.SourcePath);
                 EditorGUILayout.EndHorizontal();
             }
             if (_preview.RequiresForce)
-                EditorGUILayout.HelpBox("This import will overwrite local asset changes.", MessageType.Warning);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("overwrite-warning"), MessageType.Warning);
             if (!_preview.CanImport)
                 EditorGUILayout.HelpBox(string.IsNullOrWhiteSpace(_preview.Message)
                     ? "Source JSON cannot be imported."
@@ -559,7 +559,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private void DrawSummary()
         {
-            EditorGUILayout.LabelField("Summary", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("summary"), EditorStyles.boldLabel);
             _summaryScroll = EditorGUILayout.BeginScrollView(_summaryScroll, EditorStyles.helpBox, GUILayout.Height(110f));
             DrawValueRow("Identity", _preview.AssetIdentity, _preview.SourceIdentity);
             DrawValueRow("Display Name", _preview.AssetDisplayName, _preview.SourceDisplayName);
@@ -585,7 +585,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             _changeScroll = EditorGUILayout.BeginScrollView(_changeScroll, EditorStyles.helpBox, GUILayout.MinHeight(120f));
             if (_preview.Changes == null || _preview.Changes.Count == 0)
             {
-                EditorGUILayout.HelpBox("No structural changes detected.", MessageType.Info);
+                EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("no-structural-changes"), MessageType.Info);
             }
             else
             {

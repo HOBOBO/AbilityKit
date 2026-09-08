@@ -167,6 +167,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
         private readonly AuthoringDocumentSession _session;
         private readonly EditorDiagnosticCollection _diagnostics;
         private string? _selectedNodeId;
+        private bool _selectedNodeIdLoaded;
 
         public AuthoringWorkspaceController(
             AuthoringDocumentSession? session = null,
@@ -176,7 +177,6 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             _session = session ?? new AuthoringDocumentSession();
             _diagnostics = diagnostics ?? new EditorDiagnosticCollection();
             State = state ?? new AuthoringWorkspaceState();
-            _selectedNodeId = State.SelectedNodeId;
         }
 
         public event Action? DocumentChanged;
@@ -191,7 +191,14 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
         public bool IsDirty => _session.IsDirty;
         public bool CanUndo => _session.CanUndo;
         public bool CanRedo => _session.CanRedo;
-        public string? SelectedNodeId => _selectedNodeId;
+        public string? SelectedNodeId
+        {
+            get
+            {
+                EnsureSelectedNodeIdLoaded();
+                return _selectedNodeId;
+            }
+        }
 
         public void Open(AuthoringSourceDocument document, bool isReadOnly = false)
         {
@@ -500,11 +507,19 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
 
         public void SetSelection(string? nodeId)
         {
+            EnsureSelectedNodeIdLoaded();
             var normalized = string.IsNullOrWhiteSpace(nodeId) ? null : nodeId;
             if (string.Equals(_selectedNodeId, normalized, StringComparison.Ordinal)) return;
             _selectedNodeId = normalized;
             State.SelectedNodeId = normalized ?? string.Empty;
             SelectionChanged?.Invoke();
+        }
+
+        private void EnsureSelectedNodeIdLoaded()
+        {
+            if (_selectedNodeIdLoaded) return;
+            _selectedNodeId = State.SelectedNodeId;
+            _selectedNodeIdLoaded = true;
         }
 
         public void ReplaceDiagnostics(EditorDiagnosticCollection diagnostics)

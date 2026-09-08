@@ -31,10 +31,6 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private readonly List<DebugRegistryEntry> _entries = new();
         private readonly Dictionary<string, NodeDebugInfo> _liveNodes = new();
-        private readonly HashSet<string> _collapsedNodes = new();
-        private readonly Dictionary<string, string> _parentOf = new();
-        private readonly Dictionary<string, string> _subtreeRootTree = new();
-        private readonly Dictionary<string, AuthoringNodeMetadata> _authoredMetadata = new();
         private readonly ObservationController _controller = new();
         private readonly ObservationContributorRegistry _contributors =
             ObservationContributorRegistry.Default;
@@ -44,12 +40,9 @@ namespace AbilityKit.BehaviorTree.Editor
         private Vector2 _eventScroll;
         private TreeDefinition _displayDefinition;
         private string _instanceFilter = "";
-        private string _nodeFilter = "";
+        private object _autoOpenedFor;
         private string _blackboardFilter = "";
         private long _selectedId;
-        private string _focusNodeId = "";
-        private string _selectedNodeId = "";
-        private bool _showRunningPathOnly;
         private bool _showEventHistory = true;
         private int _historyIndex = -1;
         private int _compareIndexA = -1;
@@ -58,14 +51,6 @@ namespace AbilityKit.BehaviorTree.Editor
         private ObservationOfflineReplay _offlineReplay;
         private string _lastRecordingPath = "";
         private double _lastReplayTickSeconds;
-
-        [MenuItem("Window/AbilityKit/Behavior Tree Observation")]
-        private static void Open()
-        {
-            var window = GetWindow<DebugObservationWindow>();
-            window.titleContent = new GUIContent("BT Observation");
-            window.minSize = new Vector2(640f, 420f);
-        }
 
         private void OnGUI()
         {
@@ -123,12 +108,6 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void ResetObservedState()
         {
-            _focusNodeId = "";
-            _selectedNodeId = "";
-            _collapsedNodes.Clear();
-            _parentOf.Clear();
-            _subtreeRootTree.Clear();
-            _authoredMetadata.Clear();
             _displayDefinition = null;
             _liveNodes.Clear();
             _historyIndex = -1;
@@ -139,31 +118,12 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             if (_displayDefinition != null) return;
             _displayDefinition = view.TreeDefinition;
-            LoadAuthoringMetadata(view);
         }
 
         private void CaptureSelected(TreeDebugView view)
         {
             PrepareSelectedView(view);
             if (_controller.Latest == null) _controller.Sample();
-        }
-
-        private void LoadAuthoringMetadata(TreeDebugView view)
-        {
-            AuthoringSourceDocument document;
-            try
-            {
-                document = AuthoringDocumentCatalog.BuildObservationDocument(view, EditorNodeCatalog.Registry);
-            }
-            catch (System.Exception ex)
-            {
-                Debug.LogWarning("[BtObservation] 无法加载 authoring 元数据: " + ex.Message);
-                return;
-            }
-            foreach (var metadata in document.NodeMetadata)
-            {
-                _authoredMetadata[metadata.NodeId] = metadata;
-            }
         }
 
         private TreeDebugView SelectedView
@@ -410,6 +370,14 @@ namespace AbilityKit.BehaviorTree.Editor
                 + (_historyIndex >= 0 ? "   [历史采样]" : ""),
                 EditorStyles.miniLabel);
 
+            // 选中运行实例后，自动打开节点图（GraphView 观察模式）作为主视图；
+            // 本面板保留黑板与事件时间线，节点树结构交由节点图展示。
+            if (view != null && !ReferenceEquals(_autoOpenedFor, view))
+            {
+                _autoOpenedFor = view;
+                AuthoringGraphWindow.OpenObservation(view);
+            }
+
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("在图中查看", EditorStyles.miniButton))
             {
@@ -420,36 +388,14 @@ namespace AbilityKit.BehaviorTree.Editor
                     DisplayedDiff);
             }
             if (GUILayout.Button("复制运行快照", EditorStyles.miniButton)) CopyRuntimeSnapshot(snapshot);
-            if (GUILayout.Button("全部展开", EditorStyles.miniButton)) _collapsedNodes.Clear();
-            if (GUILayout.Button("全部收起", EditorStyles.miniButton))
-            {
-                foreach (var node in _displayDefinition?.Nodes ?? EmptyNodes)
-                {
-                    if (node.ChildIds.Count > 0) _collapsedNodes.Add(node.Id);
-                }
-            }
-            EditorGUILayout.EndHorizontal();
-
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("节点", EditorStyles.miniLabel, GUILayout.Width(28f));
-            var nextNodeFilter = EditorGUILayout.TextField(
-                _nodeFilter ?? "", EditorStyles.toolbarSearchField, GUILayout.Width(220f));
-            if (!string.Equals(nextNodeFilter, _nodeFilter, System.StringComparison.Ordinal))
-            {
-                _nodeFilter = nextNodeFilter;
-                FocusFirstNodeMatch();
-            }
-            _showRunningPathOnly = GUILayout.Toggle(
-                _showRunningPathOnly, "仅运行路径", EditorStyles.miniButton, GUILayout.Width(84f));
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
 
             _rightScroll = EditorGUILayout.BeginScrollView(_rightScroll);
 
-            DrawBreadcrumb();
-            GUILayout.Space(2f);
-            DrawNodeTree();
-            DrawSelectedNodeDetail();
+            EditorGUILayout.HelpBox(
+                "节点树结构在节点图窗口（BT Observation Graph）中展示。此面板保留黑板与事件时间线。",
+                MessageType.Info);
 
             GUILayout.Space(6f);
             DrawBlackboard(snapshot);
@@ -587,38 +533,6 @@ namespace AbilityKit.BehaviorTree.Editor
                 _displayDefinition = new ObservationSnapshotDebugView(snapshot).TreeDefinition;
             }
 
-            // 父子映射来自定义（跳子树/面包屑用）；树定义不可变，缓存到切换实例或首次
-            if (_parentOf.Count == 0 && _displayDefinition != null)
-            {
-                foreach (var node in _displayDefinition.Nodes)
-                {
-                    foreach (var childId in node.ChildIds)
-                    {
-                        _parentOf[childId] = node.Id;
-                    }
-                }
-            }
-
-            // 子树实例（内联根 -> 被引用 treeId），供节点树标记子树边界
-            if (_subtreeRootTree.Count == 0 && view != null && view.SubtreeInstances != null)
-            {
-                foreach (var instance in view.SubtreeInstances)
-                {
-                    _subtreeRootTree[instance.InlinedRootNodeId] = instance.ReferencedTreeId;
-                }
-            }
-            if (_subtreeRootTree.Count == 0)
-            {
-                foreach (var pair in snapshot.SourceTree)
-                {
-                    _subtreeRootTree[pair.Key] = pair.Value;
-                }
-            }
-
-            if (string.IsNullOrEmpty(_focusNodeId) && _displayDefinition != null)
-            {
-                _focusNodeId = _displayDefinition.RootNodeId;
-            }
         }
 
         private static string DescribeRootState(IReadOnlyList<NodeDebugInfo> nodes)
@@ -626,220 +540,8 @@ namespace AbilityKit.BehaviorTree.Editor
             return nodes.Count > 0 ? nodes[0].State.ToString() : "?";
         }
 
-        /// <summary>面包屑：根 → … → 聚焦节点，点击任意层级跳回。</summary>
-        private void DrawBreadcrumb()
-        {
-            var definition = _displayDefinition;
-            if (definition == null || string.IsNullOrEmpty(_focusNodeId)) return;
 
-            var chain = new List<string>();
-            var current = _focusNodeId;
-            var guard = 0;
-            while (!string.IsNullOrEmpty(current) && guard++ < 4096)
-            {
-                chain.Add(current);
-                current = _parentOf.TryGetValue(current, out var parent) ? parent : null;
-            }
-            chain.Reverse();
 
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("子树:", EditorStyles.miniLabel, GUILayout.Width(30f));
-            for (var i = 0; i < chain.Count; i++)
-            {
-                if (i > 0) GUILayout.Label("›", EditorStyles.miniLabel);
-                var nodeId = chain[i];
-                var name = NodeDisplayName(nodeId);
-                var isFocus = i == chain.Count - 1;
-                var style = isFocus ? EditorStyles.boldLabel : EditorStyles.miniButton;
-                var oldBackground = GUI.backgroundColor;
-                if (!isFocus) GUI.backgroundColor = new Color(0.85f, 0.9f, 1f);
-                if (GUILayout.Button(name, style, GUILayout.MaxWidth(160f)))
-                {
-                    _focusNodeId = nodeId;
-                }
-                GUI.backgroundColor = oldBackground;
-            }
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
-        }
-
-        private string NodeDisplayName(string nodeId)
-        {
-            if (_authoredMetadata.TryGetValue(nodeId, out var metadata)
-                && !string.IsNullOrWhiteSpace(metadata.DisplayName)) return metadata.DisplayName;
-            if (_liveNodes.TryGetValue(nodeId, out var info)
-                && !string.IsNullOrEmpty(info.Name)) return info.Name;
-            return nodeId;
-        }
-
-        private void DrawNodeTree()
-        {
-            var definition = _displayDefinition;
-            if (definition == null || string.IsNullOrEmpty(_focusNodeId)) return;
-            DrawNodeRecursive(definition, _focusNodeId, 0);
-        }
-
-        private void DrawNodeRecursive(TreeDefinition definition, string nodeId, int depth)
-        {
-            _liveNodes.TryGetValue(nodeId, out var info);
-            var children = ChildIdsOf(definition, nodeId);
-            if (_showRunningPathOnly && !NodeOrDescendantIsRunning(definition, nodeId)) return;
-            if (info != null && _contributors.Filters.Count > 0
-                && !_contributors.AnyFilterMatches(ObservationFilterContext.ForNode(
-                    DisplayedSnapshot, info, DisplayedDiff))) return;
-            var collapsed = _collapsedNodes.Contains(nodeId);
-
-            EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(6 + depth * 16);
-
-            // 折叠开关（仅父节点）
-            if (children.Count > 0)
-            {
-                if (GUILayout.Button(collapsed ? "▸" : "▾", EditorStyles.miniButton, GUILayout.Width(18f)))
-                {
-                    if (collapsed) _collapsedNodes.Remove(nodeId);
-                    else _collapsedNodes.Add(nodeId);
-                }
-            }
-            else
-            {
-                GUILayout.Space(20f);
-            }
-
-            var state = info?.State ?? NodeState.Inactive;
-            var oldColor = GUI.color;
-            GUI.color = StateColor(state);
-            GUILayout.Label(state.ToString().PadRight(8), EditorStyles.miniLabel, GUILayout.Width(52f));
-            GUI.color = oldColor;
-
-            var label = NodeDisplayName(nodeId);
-            var display = (string.IsNullOrEmpty(info?.TypeId) ? label : label + "  [" + info.TypeId + "]");
-            // 子树内联根：标记来源树（跨树边界可视化）
-            if (_subtreeRootTree.TryGetValue(nodeId, out var sourceTree))
-            {
-                display += $"  ↳ {sourceTree}";
-            }
-            if (children.Count > 0)
-            {
-                display += collapsed ? $"  ({children.Count})" : "";
-            }
-            if (info != null)
-            {
-                var overlays = _contributors.CollectOverlays(new ObservationOverlayContext(
-                    _selectedId, DisplayedSnapshot, info));
-                foreach (var overlay in overlays)
-                {
-                    if (!string.Equals(overlay.NodeId, nodeId, System.StringComparison.Ordinal)) continue;
-                    if (overlay.Kind == ObservationOverlayKind.Badge
-                        || overlay.Kind == ObservationOverlayKind.Marker)
-                        display += "  · " + overlay.Text;
-                }
-            }
-
-            var rowStyle = (info?.OnStackCount ?? 0) > 0 ? EditorStyles.boldLabel : EditorStyles.miniLabel;
-            var rect = GUILayoutUtility.GetRect(new GUIContent(display), rowStyle, GUILayout.ExpandWidth(true));
-            if (string.Equals(_selectedNodeId, nodeId, System.StringComparison.Ordinal))
-            {
-                EditorGUI.DrawRect(rect, new Color(0.25f, 0.5f, 0.85f, 0.22f));
-            }
-            GUI.Label(rect, display, rowStyle);
-
-            // 单击查看详情，双击父节点聚焦其子树；运行中的父节点显示当前子游标
-            if (Event.current.type == EventType.MouseDown
-                && rect.Contains(Event.current.mousePosition))
-            {
-                _selectedNodeId = nodeId;
-                if (Event.current.clickCount == 2 && children.Count > 0)
-                {
-                    _focusNodeId = nodeId;
-                }
-                Event.current.Use();
-            }
-            if (children.Count > 0 && info is { RunningChildIndex: >= 0 })
-            {
-                GUILayout.Label("→" + (info.RunningChildIndex + 1) + "/" + children.Count, EditorStyles.miniLabel);
-            }
-            GUILayout.FlexibleSpace();
-            EditorGUILayout.EndHorizontal();
-
-            if (collapsed) return;
-            foreach (var childId in children)
-            {
-                DrawNodeRecursive(definition, childId, depth + 1);
-            }
-        }
-
-        private bool NodeOrDescendantIsRunning(TreeDefinition definition, string nodeId)
-        {
-            if (_liveNodes.TryGetValue(nodeId, out var info) && info.OnStackCount > 0) return true;
-            foreach (var childId in ChildIdsOf(definition, nodeId))
-            {
-                if (NodeOrDescendantIsRunning(definition, childId)) return true;
-            }
-            return false;
-        }
-
-        private void FocusFirstNodeMatch()
-        {
-            if (string.IsNullOrWhiteSpace(_nodeFilter)) return;
-            foreach (var node in DisplayedSnapshot?.Nodes ?? System.Array.Empty<NodeDebugInfo>())
-            {
-                if (node.NodeId.IndexOf(_nodeFilter, System.StringComparison.OrdinalIgnoreCase) < 0
-                    && NodeDisplayName(node.NodeId).IndexOf(
-                        _nodeFilter, System.StringComparison.OrdinalIgnoreCase) < 0
-                    && node.TypeId.IndexOf(_nodeFilter, System.StringComparison.OrdinalIgnoreCase) < 0)
-                {
-                    continue;
-                }
-                _focusNodeId = node.NodeId;
-                _selectedNodeId = node.NodeId;
-                return;
-            }
-        }
-
-        private void DrawSelectedNodeDetail()
-        {
-            if (string.IsNullOrEmpty(_selectedNodeId)
-                || !_liveNodes.TryGetValue(_selectedNodeId, out var info)) return;
-
-            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField(NodeDisplayName(info.NodeId), EditorStyles.boldLabel);
-            EditorGUILayout.LabelField("Node ID", info.NodeId, EditorStyles.miniLabel);
-            EditorGUILayout.LabelField("Type", info.TypeId, EditorStyles.miniLabel);
-            EditorGUILayout.LabelField("State", info.State.ToString(), EditorStyles.miniLabel);
-            EditorGUILayout.LabelField("Depth / Stack", info.Depth + " / " + info.OnStackCount, EditorStyles.miniLabel);
-            if (info.RunningChildIndex >= 0)
-                EditorGUILayout.LabelField("Running Child", (info.RunningChildIndex + 1).ToString(), EditorStyles.miniLabel);
-            if (!string.IsNullOrEmpty(info.SourceTreeId))
-                EditorGUILayout.LabelField("Source Tree", info.SourceTreeId, EditorStyles.miniLabel);
-            if (_authoredMetadata.TryGetValue(info.NodeId, out var metadata)
-                && !string.IsNullOrWhiteSpace(metadata.Comment))
-            {
-                EditorGUILayout.HelpBox(metadata.Comment, MessageType.None);
-            }
-
-            var sections = _contributors.CollectSections(new ObservationDetailContext(
-                _selectedId, DisplayedSnapshot, info.NodeId));
-            foreach (var section in sections)
-            {
-                EditorGUILayout.Space(3f);
-                EditorGUILayout.LabelField(section.Title, EditorStyles.boldLabel);
-                foreach (var row in section.Rows)
-                    EditorGUILayout.LabelField(row.Label, row.Value, EditorStyles.miniLabel);
-            }
-            EditorGUILayout.EndVertical();
-        }
-
-        private static List<string> ChildIdsOf(TreeDefinition definition, string nodeId)
-        {
-            foreach (var node in definition.Nodes)
-            {
-                if (string.Equals(node.Id, nodeId, System.StringComparison.Ordinal)) return node.ChildIds;
-            }
-            return EmptyChildIds;
-        }
-
-        private static readonly List<string> EmptyChildIds = new();
         private static readonly List<NodeDefinition> EmptyNodes = new();
 
         // ------------------------------------------------------------------

@@ -63,8 +63,12 @@ namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation
             StopRuntime();
             if (_authoringJson == null)
             {
+                _authoringJson = Resources.Load<TextAsset>("complete_runtime_observation");
+            }
+            if (_authoringJson == null)
+            {
                 Debug.LogError(
-                    "Assign complete_runtime_observation.authoring.json to Authoring Json.",
+                    "Assign complete_runtime_observation.json to Authoring Json.",
                     this);
                 return;
             }

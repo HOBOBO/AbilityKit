@@ -55,3 +55,7 @@ crashlytics-build.properties
 /[Aa]ssets/Res/Hot/Code
 /[Aa]ssets/Res/HybridCLR/*.dll.bytes
 /[Aa]ssets/Res/HybridCLR/*.dll.bytes.meta
+
+# Imported package samples (regenerated from Samples~ via Package Manager import)
+/[Aa]ssets/[Ss]amples/
+

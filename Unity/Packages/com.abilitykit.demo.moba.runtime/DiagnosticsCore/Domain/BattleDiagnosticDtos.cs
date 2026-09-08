@@ -89,6 +89,112 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         }
     }
 
+    [Serializable]
+    public readonly struct BattleDiagnosticDefinitionReference :
+        IEquatable<BattleDiagnosticDefinitionReference>
+    {
+        public BattleDiagnosticDefinitionReference(
+            BattleDiagnosticDefinitionKind kind,
+            int definitionId)
+        {
+            if (definitionId == 0) throw new ArgumentOutOfRangeException(nameof(definitionId));
+            Kind = kind;
+            DefinitionId = definitionId;
+        }
+
+        public BattleDiagnosticDefinitionKind Kind { get; }
+        public int DefinitionId { get; }
+        public bool HasDefinitionId => DefinitionId != 0;
+        public bool IsResolved => HasDefinitionId && Kind != BattleDiagnosticDefinitionKind.Unknown;
+
+        public bool Equals(BattleDiagnosticDefinitionReference other)
+        {
+            return Kind == other.Kind && DefinitionId == other.DefinitionId;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is BattleDiagnosticDefinitionReference other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return ((int)Kind * 397) ^ DefinitionId;
+        }
+
+        public override string ToString()
+        {
+            if (!HasDefinitionId) return "<none>";
+            return Kind + ":" + DefinitionId;
+        }
+
+        public static BattleDiagnosticDefinitionReference Create(
+            BattleDiagnosticDefinitionKind kind,
+            int definitionId)
+        {
+            return definitionId == 0
+                ? default
+                : new BattleDiagnosticDefinitionReference(kind, definitionId);
+        }
+
+        public static bool operator ==(
+            BattleDiagnosticDefinitionReference left,
+            BattleDiagnosticDefinitionReference right) => left.Equals(right);
+
+        public static bool operator !=(
+            BattleDiagnosticDefinitionReference left,
+            BattleDiagnosticDefinitionReference right) => !left.Equals(right);
+    }
+
+    [Serializable]
+    public readonly struct BattleDiagnosticTraceContextReference :
+        IEquatable<BattleDiagnosticTraceContextReference>
+    {
+        public BattleDiagnosticTraceContextReference(long contextId)
+        {
+            if (contextId == 0L) throw new ArgumentOutOfRangeException(nameof(contextId));
+            ContextId = contextId;
+        }
+
+        public long ContextId { get; }
+        public bool IsValid => ContextId != 0L;
+
+        public bool Equals(BattleDiagnosticTraceContextReference other)
+        {
+            return ContextId == other.ContextId;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is BattleDiagnosticTraceContextReference other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return ContextId.GetHashCode();
+        }
+
+        public override string ToString()
+        {
+            return IsValid ? "TraceContext:" + ContextId : "<none>";
+        }
+
+        public static BattleDiagnosticTraceContextReference Create(long contextId)
+        {
+            return contextId == 0L
+                ? default
+                : new BattleDiagnosticTraceContextReference(contextId);
+        }
+
+        public static bool operator ==(
+            BattleDiagnosticTraceContextReference left,
+            BattleDiagnosticTraceContextReference right) => left.Equals(right);
+
+        public static bool operator !=(
+            BattleDiagnosticTraceContextReference left,
+            BattleDiagnosticTraceContextReference right) => !left.Equals(right);
+    }
+
     public enum BattleDiagnosticEventOutcome
     {
         None = 0,
@@ -905,7 +1011,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             string endReason = "",
             int skillId = 0,
             int castFlowId = 0,
-            string phaseId = "")
+            string phaseId = "",
+            long targetActorId = 0,
+            int triggerId = 0,
+            int sourceActorGeneration = 0,
+            int targetActorGeneration = 0,
+            BattleDiagnosticDefinitionKind definitionKind = BattleDiagnosticDefinitionKind.Unknown)
         {
             if (rootContextId == 0) throw new ArgumentOutOfRangeException(nameof(rootContextId));
             if (contextId == 0) throw new ArgumentOutOfRangeException(nameof(contextId));
@@ -914,35 +1025,61 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 throw new ArgumentOutOfRangeException(nameof(endFrame));
 
             Scope = scope;
-            RootContextId = rootContextId;
-            ContextId = contextId;
-            ParentContextId = parentContextId;
+            RootContext = BattleDiagnosticTraceContextReference.Create(rootContextId);
+            Context = BattleDiagnosticTraceContextReference.Create(contextId);
+            ParentContext = BattleDiagnosticTraceContextReference.Create(parentContextId);
             StartFrame = startFrame;
             EndFrame = endFrame;
             State = state;
-            ActorId = actorId;
-            ConfigId = configId;
+            SourceObject = BattleDiagnosticRuntimeObjectReference.Create(
+                BattleDiagnosticRuntimeObjectKind.Actor,
+                actorId,
+                sourceActorGeneration);
+            TargetObject = BattleDiagnosticRuntimeObjectReference.Create(
+                BattleDiagnosticRuntimeObjectKind.Actor,
+                targetActorId,
+                targetActorGeneration);
+            Definition = BattleDiagnosticDefinitionReference.Create(definitionKind, configId);
+            TriggerDefinition = BattleDiagnosticDefinitionReference.Create(
+                BattleDiagnosticDefinitionKind.Trigger,
+                triggerId);
+            SkillDefinition = BattleDiagnosticDefinitionReference.Create(
+                BattleDiagnosticDefinitionKind.Skill,
+                skillId);
             Kind = kind ?? string.Empty;
             EndReason = endReason ?? string.Empty;
-            SkillId = skillId;
             CastFlowId = castFlowId;
             PhaseId = phaseId ?? string.Empty;
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
-        public long RootContextId { get; }
-        public long ContextId { get; }
-        public long ParentContextId { get; }
+        public BattleDiagnosticTraceContextReference RootContext { get; }
+        public BattleDiagnosticTraceContextReference Context { get; }
+        public BattleDiagnosticTraceContextReference ParentContext { get; }
+        public BattleDiagnosticRuntimeObjectReference SourceObject { get; }
+        public BattleDiagnosticRuntimeObjectReference TargetObject { get; }
+        public BattleDiagnosticDefinitionReference Definition { get; }
+        public BattleDiagnosticDefinitionReference TriggerDefinition { get; }
+        public BattleDiagnosticDefinitionReference SkillDefinition { get; }
+        public long RootContextId => RootContext.ContextId;
+        public long ContextId => Context.ContextId;
+        public long ParentContextId => ParentContext.ContextId;
         public int StartFrame { get; }
         public int EndFrame { get; }
         public BattleDiagnosticTraceNodeState State { get; }
-        public long ActorId { get; }
-        public int ConfigId { get; }
+        public long ActorId => SourceObject.RuntimeId;
+        public int ConfigId => Definition.DefinitionId;
+        public BattleDiagnosticDefinitionKind DefinitionKind => Definition.Kind;
         public string Kind { get; }
         public string EndReason { get; }
-        public int SkillId { get; }
+        public int SkillId => SkillDefinition.DefinitionId;
         public int CastFlowId { get; }
         public string PhaseId { get; }
+        public long SourceActorId => ActorId;
+        public int SourceActorGeneration => SourceObject.Generation;
+        public long TargetActorId => TargetObject.RuntimeId;
+        public int TargetActorGeneration => TargetObject.Generation;
+        public int TriggerId => TriggerDefinition.DefinitionId;
         public bool IsActive => State == BattleDiagnosticTraceNodeState.Active;
 
         public bool Equals(BattleDiagnosticTraceNodeSummary other)
@@ -954,7 +1091,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    string.Equals(Kind, other.Kind, StringComparison.Ordinal) &&
                    string.Equals(EndReason, other.EndReason, StringComparison.Ordinal) &&
                    SkillId == other.SkillId && CastFlowId == other.CastFlowId &&
-                   string.Equals(PhaseId, other.PhaseId, StringComparison.Ordinal);
+                   string.Equals(PhaseId, other.PhaseId, StringComparison.Ordinal) &&
+                   TargetActorId == other.TargetActorId && TriggerId == other.TriggerId &&
+                   SourceObject.Equals(other.SourceObject) &&
+                   TargetObject.Equals(other.TargetObject) &&
+                   Definition.Equals(other.Definition);
         }
 
         public override bool Equals(object obj) => obj is BattleDiagnosticTraceNodeSummary other && Equals(other);
@@ -977,6 +1118,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ SkillId;
                 hashCode = (hashCode * 397) ^ CastFlowId;
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(PhaseId ?? string.Empty);
+                hashCode = (hashCode * 397) ^ TargetActorId.GetHashCode();
+                hashCode = (hashCode * 397) ^ TriggerId;
+                hashCode = (hashCode * 397) ^ SourceObject.GetHashCode();
+                hashCode = (hashCode * 397) ^ TargetObject.GetHashCode();
+                hashCode = (hashCode * 397) ^ Definition.GetHashCode();
                 return hashCode;
             }
         }

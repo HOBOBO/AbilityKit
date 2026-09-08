@@ -2,14 +2,13 @@
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
-using AbilityKit.Editor.Framework;
 
 namespace AbilityKit.Trace.Editor.Windows
 {
     /// <summary>
     /// 树可视化插件 - 在详情区域绘制树形结构
     /// </summary>
-    public class TreeVisualizationPlugin : BaseWindowPlugin<TraceRootViewData>
+    public class TreeVisualizationPlugin
     {
         private TraceTreeViewModel _viewModel;
         private Vector2 _scrollPosition;
@@ -24,25 +23,18 @@ namespace AbilityKit.Trace.Editor.Windows
             _viewModel = viewModel;
         }
 
-        public override int Priority => 10;
-
-        public override void OnDetailGUI(TraceRootViewData item)
+        public void Draw(TraceRootViewData item)
         {
             if (item == null) return;
 
             DrawTreeVisualization(item);
         }
 
-        public override void OnSelectionChanged(TraceRootViewData previous, TraceRootViewData current)
+        public void ResetSelection()
         {
             _selectedNodeId = 0;
             _scrollPosition = Vector2.zero;
             _panOffset = Vector2.zero;
-        }
-
-        public override void OnDestroy()
-        {
-            // 清理资源
         }
 
         private void DrawTreeVisualization(TraceRootViewData rootData)

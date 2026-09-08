@@ -201,11 +201,11 @@ namespace AbilityKit.Ability.Editor.Windows
 
             EditorGUILayout.LabelField(project.name, EditorStyles.miniBoldLabel);
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button("Validate", EditorStyles.miniButtonLeft))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("validate"), EditorStyles.miniButtonLeft))
                 commands.Execute(
                     TriggerAuthoringCommandIds.ValidateProject,
                     new EditorCommandContext(commandOwner, project));
-            if (GUILayout.Button("Export Runtime", EditorStyles.miniButtonRight))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("export-runtime"), EditorStyles.miniButtonRight))
                 commands.Execute(
                     TriggerAuthoringCommandIds.ExportProject,
                     new EditorCommandContext(commandOwner, project));
@@ -238,7 +238,7 @@ namespace AbilityKit.Ability.Editor.Windows
             }
             else
             {
-                EditorGUILayout.LabelField("Not validated yet.", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("not-validated-yet"), EditorStyles.miniLabel);
             }
 
             SirenixEditorGUI.EndBox();

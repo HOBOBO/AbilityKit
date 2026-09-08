@@ -251,10 +251,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                     DrawPathPopup(value, CollectPathOptions(TriggerValueSource.TemplateParameter, effectiveType, access, context), "Template Parameter");
                     break;
                 case TriggerValueSource.Expression:
-                    value.Expression = EditorGUILayout.TextField("Expression", value.Expression);
+                    value.Expression = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("expression"), value.Expression);
                     break;
                 default:
-                    value.Path = EditorGUILayout.TextField("Path", value.Path);
+                    value.Path = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("path"), value.Path);
                     break;
             }
         }
@@ -448,7 +448,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 selectedSource = sourceNames.Count - 1;
             }
 
-            var nextSource = EditorGUILayout.Popup("Source", selectedSource, sourceNames.ToArray());
+            var nextSource = EditorGUILayout.Popup(TriggerAuthoringEditorIntegration.T("source"), selectedSource, sourceNames.ToArray());
             if (nextSource != selectedSource && nextSource < sources.Count)
                 value.Source = sources[nextSource];
         }
@@ -456,11 +456,11 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void DrawType(TriggerValueRefData value, TriggerValueType expectedType)
         {
             if (expectedType == TriggerValueType.None)
-                value.Type = (TriggerValueType)EditorGUILayout.EnumPopup("Type", value.Type);
+                value.Type = (TriggerValueType)EditorGUILayout.EnumPopup(TriggerAuthoringEditorIntegration.T("type"), value.Type);
             else
             {
                 value.Type = expectedType;
-                EditorGUILayout.LabelField("Type", expectedType.ToString());
+                EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("type"), expectedType.ToString());
             }
         }
 
@@ -478,31 +478,31 @@ namespace AbilityKit.Ability.Editor.Utilities
                         DrawIntegerChoice(value, parameter.Options);
                         break;
                     }
-                    value.IntegerValue = EditorGUILayout.LongField("Value", value.IntegerValue);
+                    value.IntegerValue = EditorGUILayout.LongField(TriggerAuthoringEditorIntegration.T("value"), value.IntegerValue);
                     break;
                 case TriggerValueType.Entity:
                 case TriggerValueType.ObjectId:
-                    value.IntegerValue = EditorGUILayout.LongField("Value", value.IntegerValue);
+                    value.IntegerValue = EditorGUILayout.LongField(TriggerAuthoringEditorIntegration.T("value"), value.IntegerValue);
                     break;
                 case TriggerValueType.Number:
-                    value.NumberValue = EditorGUILayout.DoubleField("Value", value.NumberValue);
+                    value.NumberValue = EditorGUILayout.DoubleField(TriggerAuthoringEditorIntegration.T("value"), value.NumberValue);
                     break;
                 case TriggerValueType.Boolean:
-                    value.BooleanValue = EditorGUILayout.Toggle("Value", value.BooleanValue);
+                    value.BooleanValue = EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("value"), value.BooleanValue);
                     break;
                 case TriggerValueType.String:
-                    value.StringValue = EditorGUILayout.TextField("Value", value.StringValue);
+                    value.StringValue = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("value"), value.StringValue);
                     break;
                 case TriggerValueType.IntegerList:
                     var current = value.IntegerListValue != null ? string.Join(",", value.IntegerListValue) : string.Empty;
-                    var next = EditorGUILayout.TextField("Values", current);
+                    var next = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("values"), current);
                     if (!string.Equals(current, next, System.StringComparison.Ordinal))
                         value.IntegerListValue = ParseIntegerList(next);
                     break;
                 case TriggerValueType.Vector3:
                     value.Vector3Value = value.Vector3Value ?? new TriggerVector3Data();
                     EditorGUILayout.BeginHorizontal();
-                    GUILayout.Label("Value", GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
+                    GUILayout.Label(TriggerAuthoringEditorIntegration.T("value"), GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
                     value.Vector3Value.X = EditorGUILayout.DoubleField(value.Vector3Value.X);
                     value.Vector3Value.Y = EditorGUILayout.DoubleField(value.Vector3Value.Y);
                     value.Vector3Value.Z = EditorGUILayout.DoubleField(value.Vector3Value.Z);
@@ -512,7 +512,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     DrawObjectFields(value, parameter, context);
                     break;
                 default:
-                    EditorGUILayout.HelpBox("Choose a value type.", MessageType.Info);
+                    EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("choose-value-type"), MessageType.Info);
                     break;
             }
         }
@@ -530,7 +530,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("Fields", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("fields"), EditorStyles.miniBoldLabel);
             for (var i = 0; i < value.Fields.Count; i++)
             {
                 var index = i;
@@ -550,7 +550,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
 
-            if (GUILayout.Button("Add Field", EditorStyles.miniButton))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-field"), EditorStyles.miniButton))
                 value.Fields.Add(new TriggerArgumentData
                 {
                     Name = CreateUniqueFieldName(value.Fields),
@@ -569,7 +569,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringValueRefEditorContext context)
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField("Fields", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("fields"), EditorStyles.miniBoldLabel);
 
             for (var i = 0; i < parameter.Fields.Count; i++)
             {
@@ -581,7 +581,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     EditorGUILayout.BeginHorizontal();
                     GUILayout.Label(fieldParameter.Name, fieldParameter.Required ? EditorStyles.miniBoldLabel : EditorStyles.miniLabel);
                     GUILayout.FlexibleSpace();
-                    if (GUILayout.Button("Add", EditorStyles.miniButton, GUILayout.Width(42f)))
+                    if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add"), EditorStyles.miniButton, GUILayout.Width(42f)))
                     {
                         value.Fields.Add(new TriggerArgumentData
                         {
@@ -629,7 +629,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
 
-            if (GUILayout.Button("Add Extra Field", EditorStyles.miniButton))
+            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-extra-field"), EditorStyles.miniButton))
                 value.Fields.Add(new TriggerArgumentData
                 {
                     Name = CreateUniqueFieldName(value.Fields),
@@ -712,7 +712,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 selected = names.Count - 1;
             }
 
-            var next = EditorGUILayout.Popup("Value", selected, names.ToArray());
+            var next = EditorGUILayout.Popup(TriggerAuthoringEditorIntegration.T("value"), selected, names.ToArray());
             if (next != selected && next < options.Count)
                 value.IntegerValue = options[next].Value;
         }

@@ -1,8 +1,11 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Core.Observability;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Observability;
 using AbilityKit.Trace;
 using NUnit.Framework;
 
@@ -27,12 +30,20 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             frameTime.Reset(new FrameIndex(10), 0f, 0.02f);
             registry.AttachFrameTime(frameTime);
             var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
+            WorldTestInjector.Inject(
+                store,
+                new Dictionary<Type, object>
+                {
+                    [typeof(IMobaRuntimeObjectKeyResolver)] =
+                        new FixedRuntimeObjectKeyResolver(7, 3, 21, 5)
+                });
 
             var rootId = registry.CreateRootContext(MobaTraceKind.SkillCast, 501, 7, 21);
             frameTime.StepTo(new FrameIndex(11), 0.02f);
             var firstChildId = registry.CreateChildContext(rootId, MobaTraceKind.SkillPhase, 502, 7, 21);
             registry.TrySetSkillPhaseLocation(firstChildId, 501, 7001, "cast.release");
             var secondChildId = registry.CreateChildContext(rootId, MobaTraceKind.EffectExecution, 503, 8, 22);
+            registry.TrySetEffectTrigger(secondChildId, 7003);
             frameTime.StepTo(new FrameIndex(12), 0.02f);
             var grandChildId = registry.CreateChildContext(firstChildId, MobaTraceKind.EffectAction, 504, 9, 23);
             frameTime.StepTo(new FrameIndex(15), 0.02f);
@@ -61,9 +72,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(result.Items[2].State, Is.EqualTo(BattleDiagnosticTraceNodeState.Ended));
             Assert.That(result.Items[2].EndReason, Is.EqualTo(nameof(TraceLifecycleReason.Completed)));
             Assert.That(result.Items[2].ActorId, Is.EqualTo(9));
+            Assert.That(result.Items[2].SourceActorId, Is.EqualTo(9));
+            Assert.That(result.Items[2].TargetActorId, Is.EqualTo(23));
             Assert.That(result.Items[2].ConfigId, Is.EqualTo(504));
             Assert.That(result.Items[3].State, Is.EqualTo(BattleDiagnosticTraceNodeState.Active));
             Assert.That(result.Items[3].EndFrame, Is.EqualTo(BattleDiagnosticFrames.Invalid));
+            Assert.That(result.Items[3].TriggerId, Is.EqualTo(7003));
+            Assert.That(result.Items[0].RootContext.ContextId, Is.EqualTo(rootId));
+            Assert.That(result.Items[2].ParentContext.ContextId, Is.EqualTo(firstChildId));
+            Assert.That(result.Items[0].SourceObject.Kind,
+                Is.EqualTo(BattleDiagnosticRuntimeObjectKind.Actor));
+            Assert.That(result.Items[0].SourceActorGeneration, Is.EqualTo(3));
+            Assert.That(result.Items[0].TargetActorGeneration, Is.EqualTo(5));
+            Assert.That(result.Items[0].Definition.Kind,
+                Is.EqualTo(BattleDiagnosticDefinitionKind.Skill));
+            Assert.That(result.Items[2].Definition.Kind,
+                Is.EqualTo(BattleDiagnosticDefinitionKind.Effect));
+            Assert.That(result.Items[3].TriggerDefinition.Kind,
+                Is.EqualTo(BattleDiagnosticDefinitionKind.Trigger));
         }
 
         [Test]
@@ -234,6 +260,47 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 16,
                 () => 0,
                 () => 0L);
+        }
+
+        private sealed class FixedRuntimeObjectKeyResolver : IMobaRuntimeObjectKeyResolver
+        {
+            private readonly long _sourceActorId;
+            private readonly int _sourceGeneration;
+            private readonly long _targetActorId;
+            private readonly int _targetGeneration;
+
+            public FixedRuntimeObjectKeyResolver(
+                long sourceActorId,
+                int sourceGeneration,
+                long targetActorId,
+                int targetGeneration)
+            {
+                _sourceActorId = sourceActorId;
+                _sourceGeneration = sourceGeneration;
+                _targetActorId = targetActorId;
+                _targetGeneration = targetGeneration;
+            }
+
+            public bool TryResolve(
+                MobaRuntimeObjectKind kind,
+                long runtimeId,
+                int frame,
+                out RuntimeObjectKey key)
+            {
+                if (kind == MobaRuntimeObjectKind.Actor && runtimeId == _sourceActorId)
+                {
+                    key = new RuntimeObjectKey(runtimeId, _sourceGeneration);
+                    return true;
+                }
+                if (kind == MobaRuntimeObjectKind.Actor && runtimeId == _targetActorId)
+                {
+                    key = new RuntimeObjectKey(runtimeId, _targetGeneration);
+                    return true;
+                }
+
+                key = default;
+                return false;
+            }
         }
     }
 }

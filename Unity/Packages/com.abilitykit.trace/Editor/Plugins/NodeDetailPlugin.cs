@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
-using AbilityKit.Editor.Framework;
 
 namespace AbilityKit.Trace.Editor.Windows
 {
     /// <summary>
     /// 节点详情插件 - 显示选中节点的详细信息
     /// </summary>
-    public class NodeDetailPlugin : BaseWindowPlugin<TraceRootViewData>
+    public class NodeDetailPlugin
     {
         private TraceTreeViewModel _viewModel;
         private Vector2 _scrollPosition;
@@ -20,9 +19,7 @@ namespace AbilityKit.Trace.Editor.Windows
             _viewModel = viewModel;
         }
 
-        public override int Priority => 5;
-
-        public override void OnDetailHeaderGUI()
+        public void DrawHeader()
         {
             var selectedNode = _viewModel.SelectedNode;
             if (selectedNode != null)
@@ -36,7 +33,7 @@ namespace AbilityKit.Trace.Editor.Windows
             }
         }
 
-        public override void OnDetailGUI(TraceRootViewData item)
+        public void Draw(TraceRootViewData item)
         {
             var selectedNode = _viewModel.SelectedNode;
             if (selectedNode == null)

@@ -21,6 +21,38 @@ namespace AbilityKit.Game.Editor
         public bool IsOrphan { get; }
     }
 
+    internal readonly struct BattleDebugDiagnosticTraceSummary
+    {
+        public BattleDebugDiagnosticTraceSummary(
+            int nodeCount,
+            int effectCount,
+            int actionCount,
+            int issueCount,
+            int activeCount,
+            int maximumDepth,
+            int firstFrame,
+            int lastFrame)
+        {
+            NodeCount = nodeCount;
+            EffectCount = effectCount;
+            ActionCount = actionCount;
+            IssueCount = issueCount;
+            ActiveCount = activeCount;
+            MaximumDepth = maximumDepth;
+            FirstFrame = firstFrame;
+            LastFrame = lastFrame;
+        }
+
+        public int NodeCount { get; }
+        public int EffectCount { get; }
+        public int ActionCount { get; }
+        public int IssueCount { get; }
+        public int ActiveCount { get; }
+        public int MaximumDepth { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+    }
+
     internal sealed class BattleDebugDiagnosticTraceViewModel
     {
         private long _lastRequestId;
@@ -36,6 +68,8 @@ namespace AbilityKit.Game.Editor
             Array.Empty<BattleDiagnosticTraceNodeSummary>();
         private Dictionary<long, BattleDiagnosticTraceNodeSummary> _nodesById =
             new Dictionary<long, BattleDiagnosticTraceNodeSummary>();
+        private Dictionary<long, int> _childCounts = new Dictionary<long, int>();
+        private readonly HashSet<long> _selectedPathIds = new HashSet<long>();
         private readonly HashSet<long> _collapsedContextIds = new HashSet<long>();
         private string _searchText = string.Empty;
 
@@ -53,6 +87,8 @@ namespace AbilityKit.Game.Editor
         public string SearchText => _searchText;
         public int SearchMatchCount { get; private set; }
         public int CollapsedBranchCount => _collapsedContextIds.Count;
+        public bool FocusSelectedFlow { get; private set; }
+        public BattleDebugDiagnosticTraceSummary Summary { get; private set; }
 
         public void InvalidateCache()
         {
@@ -68,12 +104,16 @@ namespace AbilityKit.Game.Editor
             _visibleRows = Array.Empty<BattleDebugDiagnosticTraceRow>();
             _selectedPath = Array.Empty<BattleDiagnosticTraceNodeSummary>();
             _nodesById = new Dictionary<long, BattleDiagnosticTraceNodeSummary>();
+            _childCounts = new Dictionary<long, int>();
+            _selectedPathIds.Clear();
             _collapsedContextIds.Clear();
             _searchText = string.Empty;
             _lastRootContextId = 0;
             SelectedContextId = 0;
             PinnedContextId = 0;
             SearchMatchCount = 0;
+            FocusSelectedFlow = false;
+            Summary = default;
             QueryStatus = default;
             StatusMessage = string.Empty;
             InvalidateCache();
@@ -111,6 +151,9 @@ namespace AbilityKit.Game.Editor
                 _rows = Array.Empty<BattleDebugDiagnosticTraceRow>();
                 _visibleRows = Array.Empty<BattleDebugDiagnosticTraceRow>();
                 _nodesById = new Dictionary<long, BattleDiagnosticTraceNodeSummary>();
+                _childCounts = new Dictionary<long, int>();
+                _selectedPathIds.Clear();
+                Summary = default;
                 SelectedContextId = 0;
                 _selectedPath = Array.Empty<BattleDiagnosticTraceNodeSummary>();
                 SearchMatchCount = 0;
@@ -141,7 +184,15 @@ namespace AbilityKit.Game.Editor
 
             SelectedContextId = contextId;
             RebuildSelectedPath();
+            if (FocusSelectedFlow) RebuildVisibleRows();
             return true;
+        }
+
+        public void SetFocusSelectedFlow(bool value)
+        {
+            if (FocusSelectedFlow == value) return;
+            FocusSelectedFlow = value;
+            RebuildVisibleRows();
         }
 
         public void SetSearchText(string searchText)
@@ -187,13 +238,15 @@ namespace AbilityKit.Game.Editor
 
         public bool HasChildren(long contextId)
         {
-            for (var i = 0; i < _rows.Count; i++)
-            {
-                if (_rows[i].Node.ParentContextId == contextId) return true;
-            }
-
-            return false;
+            return GetChildCount(contextId) > 0;
         }
+
+        public int GetChildCount(long contextId)
+        {
+            return _childCounts.TryGetValue(contextId, out var count) ? count : 0;
+        }
+
+        public bool IsOnSelectedPath(long contextId) => _selectedPathIds.Contains(contextId);
 
         public bool IsCollapsed(long contextId) => _collapsedContextIds.Contains(contextId);
 
@@ -260,18 +313,25 @@ namespace AbilityKit.Game.Editor
         private void ProjectRows(IReadOnlyList<BattleDiagnosticTraceNodeSummary> nodes)
         {
             _nodesById = new Dictionary<long, BattleDiagnosticTraceNodeSummary>(nodes?.Count ?? 0);
+            _childCounts = new Dictionary<long, int>();
             if (nodes != null)
             {
                 for (var i = 0; i < nodes.Count; i++)
                 {
                     var node = nodes[i];
                     _nodesById[node.ContextId] = node;
+                    if (node.ParentContextId != 0)
+                    {
+                        _childCounts.TryGetValue(node.ParentContextId, out var childCount);
+                        _childCounts[node.ParentContextId] = childCount + 1;
+                    }
                 }
             }
 
             if (nodes == null || nodes.Count == 0)
             {
                 _rows = Array.Empty<BattleDebugDiagnosticTraceRow>();
+                Summary = default;
                 return;
             }
 
@@ -286,6 +346,7 @@ namespace AbilityKit.Game.Editor
             }
 
             _rows = rows;
+            Summary = BuildSummary(rows);
         }
 
         private int ResolveDepth(
@@ -313,6 +374,7 @@ namespace AbilityKit.Game.Editor
             if (SelectedContextId == 0 || !_nodesById.ContainsKey(SelectedContextId))
             {
                 _selectedPath = Array.Empty<BattleDiagnosticTraceNodeSummary>();
+                _selectedPathIds.Clear();
                 return;
             }
 
@@ -329,6 +391,11 @@ namespace AbilityKit.Game.Editor
 
             reversed.Reverse();
             _selectedPath = reversed;
+            _selectedPathIds.Clear();
+            for (var i = 0; i < reversed.Count; i++)
+            {
+                _selectedPathIds.Add(reversed[i].ContextId);
+            }
         }
 
         private void RebuildVisibleRows()
@@ -378,6 +445,7 @@ namespace AbilityKit.Game.Editor
                     continue;
                 }
 
+                if (FocusSelectedFlow && !IsInSelectedFlow(row.Node.ContextId)) continue;
                 if (!HasCollapsedAncestor(row.Node.ParentContextId)) visible.Add(row);
             }
 
@@ -398,6 +466,22 @@ namespace AbilityKit.Game.Editor
             return false;
         }
 
+        private bool IsInSelectedFlow(long contextId)
+        {
+            if (SelectedContextId == 0 || _selectedPathIds.Contains(contextId)) return true;
+
+            var visited = new HashSet<long>();
+            while (contextId != 0 &&
+                   visited.Add(contextId) &&
+                   _nodesById.TryGetValue(contextId, out var node))
+            {
+                if (contextId == SelectedContextId) return true;
+                contextId = node.ParentContextId;
+            }
+
+            return false;
+        }
+
         private bool MatchesSearch(in BattleDiagnosticTraceNodeSummary node)
         {
             if (string.IsNullOrEmpty(_searchText)) return false;
@@ -406,8 +490,55 @@ namespace AbilityKit.Game.Editor
                    Contains(node.State.ToString(), _searchText) ||
                    Contains(node.EndReason, _searchText) ||
                    Contains(node.ContextId.ToString(), _searchText) ||
-                   Contains(node.ActorId.ToString(), _searchText) ||
-                   Contains(node.ConfigId.ToString(), _searchText);
+                   (node.ActorId != 0 && Contains(node.ActorId.ToString(), _searchText)) ||
+                   (node.TargetActorId != 0 && Contains(node.TargetActorId.ToString(), _searchText)) ||
+                   (node.ConfigId != 0 && Contains(node.ConfigId.ToString(), _searchText)) ||
+                   (node.TriggerId != 0 && Contains(node.TriggerId.ToString(), _searchText)) ||
+                   (node.SkillId != 0 && Contains(node.SkillId.ToString(), _searchText)) ||
+                   (node.CastFlowId != 0 && Contains(node.CastFlowId.ToString(), _searchText)) ||
+                   Contains(node.PhaseId, _searchText);
+        }
+
+        private static BattleDebugDiagnosticTraceSummary BuildSummary(
+            IReadOnlyList<BattleDebugDiagnosticTraceRow> rows)
+        {
+            var effects = 0;
+            var actions = 0;
+            var issues = 0;
+            var active = 0;
+            var maximumDepth = 0;
+            var firstFrame = rows[0].Node.StartFrame;
+            var lastFrame = rows[0].Node.EndFrame;
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var row = rows[i];
+                var node = row.Node;
+                if (string.Equals(node.Kind, "SkillEffect", StringComparison.Ordinal) ||
+                    string.Equals(node.Kind, "EffectExecution", StringComparison.Ordinal))
+                {
+                    effects++;
+                }
+                if (string.Equals(node.Kind, "EffectAction", StringComparison.Ordinal)) actions++;
+                if (node.State == BattleDiagnosticTraceNodeState.Failed ||
+                    node.State == BattleDiagnosticTraceNodeState.ForceEnded)
+                {
+                    issues++;
+                }
+                if (node.State == BattleDiagnosticTraceNodeState.Active) active++;
+                if (row.Depth > maximumDepth) maximumDepth = row.Depth;
+                if (node.StartFrame < firstFrame) firstFrame = node.StartFrame;
+                if (node.EndFrame > lastFrame) lastFrame = node.EndFrame;
+            }
+
+            return new BattleDebugDiagnosticTraceSummary(
+                rows.Count,
+                effects,
+                actions,
+                issues,
+                active,
+                maximumDepth,
+                firstFrame,
+                lastFrame);
         }
 
         private static bool Contains(string value, string searchText)

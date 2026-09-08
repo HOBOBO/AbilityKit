@@ -6,6 +6,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
     public sealed class BattleDiagnosticOfflineSession :
         IBattleDiagnosticReadOnlySession,
         IBattleDiagnosticRuntimeObjectCatalogSession,
+        IBattleDiagnosticDefinitionCatalogSession,
         IBattleDiagnosticMetricSession,
         IBattleDiagnosticMetricProfileSession,
         IDisposable
@@ -44,6 +45,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public long ActorTagStoreRevision => _snapshot.Tags.Revision;
         public long ActorEffectStoreRevision => _snapshot.Effects.Revision;
         public long RuntimeObjectStoreRevision => _snapshot.Objects.Revision;
+        public long DefinitionStoreRevision => _snapshot.Definitions.Revision;
         public long MetricStoreRevision => _snapshot.FrameMetrics.Revision;
         public BattleDiagnosticResolvedMetricProfile MetricProfile { get; }
         public long StoreRevision => EventStoreRevision;
@@ -178,6 +180,70 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 _snapshot.Objects.Truncated
                     ? "The runtime object may have been evicted from the bounded catalog."
                     : "The runtime object was not captured.");
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinition(
+            long requestId,
+            in BattleDiagnosticDefinitionReference reference)
+        {
+            ValidateRequest(requestId);
+            if (!reference.HasDefinitionId) throw new ArgumentException(
+                "A definition reference with an ID is required.",
+                nameof(reference));
+            if (!SessionInfo.Supports(BattleDiagnosticCapabilities.Definitions))
+                return Unavailable<BattleDiagnosticDefinition>(
+                    requestId,
+                    DefinitionStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This artifact does not provide a definition catalog.");
+            if (_snapshot.Definitions.TryResolve(in reference, out var definition))
+                return Ready(requestId, DefinitionStoreRevision, new[] { definition });
+
+            return Unavailable<BattleDiagnosticDefinition>(
+                requestId,
+                DefinitionStoreRevision,
+                BattleDiagnosticDataAvailability.NotCaptured,
+                "The definition was not captured.");
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinitions(
+            BattleDiagnosticDefinitionQuery query)
+        {
+            if (!SessionInfo.Supports(BattleDiagnosticCapabilities.Definitions))
+                return Unavailable<BattleDiagnosticDefinition>(
+                    query.RequestId,
+                    DefinitionStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This artifact does not provide a definition catalog.");
+            if (query.Page.StoreRevision > 0L &&
+                query.Page.StoreRevision != DefinitionStoreRevision)
+                return Unavailable<BattleDiagnosticDefinition>(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    BattleDiagnosticDataAvailability.Evicted,
+                    "The requested definition catalog revision is not present in this artifact.");
+
+            var results = new List<BattleDiagnosticDefinition>(query.Page.Limit);
+            var skipped = 0;
+            var hasMore = false;
+            for (var i = 0; i < _snapshot.Definitions.Items.Count; i++)
+            {
+                var item = _snapshot.Definitions.Items[i];
+                if (!query.Filter.Matches(item)) continue;
+                if (skipped++ < query.Page.Offset) continue;
+                if (results.Count == query.Page.Limit)
+                {
+                    hasMore = true;
+                    break;
+                }
+                results.Add(item);
+            }
+
+            return BattleDiagnosticQueryResult<BattleDiagnosticDefinition>.FromItems(
+                query.RequestId,
+                DefinitionStoreRevision,
+                results,
+                hasMore);
         }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticRuntimeObject> QueryRuntimeObjects(

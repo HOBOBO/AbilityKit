@@ -20,6 +20,7 @@ namespace AbilityKit.Diagnostics.Analysis
         public AnalysisBattleDiagnosticTagTrack Tags { get; set; } = new AnalysisBattleDiagnosticTagTrack();
         public AnalysisBattleDiagnosticEffectTrack Effects { get; set; } = new AnalysisBattleDiagnosticEffectTrack();
         public AnalysisBattleDiagnosticObjectTrack Objects { get; set; } = new AnalysisBattleDiagnosticObjectTrack();
+        public AnalysisBattleDiagnosticDefinitionTrack Definitions { get; set; } = new AnalysisBattleDiagnosticDefinitionTrack();
         public AnalysisBattleDiagnosticMetricTrack FrameMetrics { get; set; } = new AnalysisBattleDiagnosticMetricTrack();
         public AnalysisBattleDiagnosticMetricProfile FrameMetricProfile { get; set; }
     }
@@ -182,6 +183,14 @@ namespace AbilityKit.Diagnostics.Analysis
 
     public sealed class AnalysisBattleDiagnosticTraceNode
     {
+        public AnalysisBattleDiagnosticTraceContextReference RootContext { get; set; }
+        public AnalysisBattleDiagnosticTraceContextReference Context { get; set; }
+        public AnalysisBattleDiagnosticTraceContextReference ParentContext { get; set; }
+        public AnalysisBattleDiagnosticRuntimeObjectReference SourceObject { get; set; }
+        public AnalysisBattleDiagnosticRuntimeObjectReference TargetObject { get; set; }
+        public AnalysisBattleDiagnosticDefinitionReference Definition { get; set; }
+        public AnalysisBattleDiagnosticDefinitionReference TriggerDefinition { get; set; }
+        public AnalysisBattleDiagnosticDefinitionReference SkillDefinition { get; set; }
         public long RootContextId { get; set; }
         public long ContextId { get; set; }
         public long ParentContextId { get; set; }
@@ -189,12 +198,35 @@ namespace AbilityKit.Diagnostics.Analysis
         public int EndFrame { get; set; } = -1;
         public int State { get; set; }
         public long ActorId { get; set; }
+        public int SourceActorGeneration { get; set; }
+        public long TargetActorId { get; set; }
+        public int TargetActorGeneration { get; set; }
+        public int TriggerId { get; set; }
         public int ConfigId { get; set; }
+        public int DefinitionKind { get; set; }
         public string Kind { get; set; } = string.Empty;
         public string EndReason { get; set; } = string.Empty;
         public int SkillId { get; set; }
         public int CastFlowId { get; set; }
         public string PhaseId { get; set; } = string.Empty;
+    }
+
+    public sealed class AnalysisBattleDiagnosticTraceContextReference
+    {
+        public long ContextId { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticRuntimeObjectReference
+    {
+        public int Kind { get; set; }
+        public long RuntimeId { get; set; }
+        public int Generation { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticDefinitionReference
+    {
+        public int Kind { get; set; }
+        public int DefinitionId { get; set; }
     }
 
     public sealed class AnalysisBattleDiagnosticAttributeTrack
@@ -339,6 +371,37 @@ namespace AbilityKit.Diagnostics.Analysis
         public AnalysisBattleDiagnosticObjectEventCoverage EventCoverage { get; set; } =
             new AnalysisBattleDiagnosticObjectEventCoverage();
         public List<AnalysisBattleDiagnosticRuntimeObject> Items { get; set; } = new List<AnalysisBattleDiagnosticRuntimeObject>();
+    }
+
+    public sealed class AnalysisBattleDiagnosticDefinitionTrack
+    {
+        public long Revision { get; set; }
+        public int UnresolvedCount { get; set; }
+        public List<AnalysisBattleDiagnosticDefinition> Items { get; set; } =
+            new List<AnalysisBattleDiagnosticDefinition>();
+    }
+
+    public sealed class AnalysisBattleDiagnosticDefinition
+    {
+        public int Kind { get; set; }
+        public int DefinitionId { get; set; }
+        public string DisplayName { get; set; } = string.Empty;
+        public string Revision { get; set; } = string.Empty;
+        public string ContentHash { get; set; } = string.Empty;
+        public string SourcePath { get; set; } = string.Empty;
+        public int Resolution { get; set; }
+        public List<AnalysisBattleDiagnosticDefinitionMetadataEntry> Metadata { get; set; } =
+            new List<AnalysisBattleDiagnosticDefinitionMetadataEntry>();
+    }
+
+    public sealed class AnalysisBattleDiagnosticDefinitionMetadataEntry
+    {
+        public string Key { get; set; } = string.Empty;
+        public int ValueKind { get; set; }
+        public string StringValue { get; set; } = string.Empty;
+        public long IntegerValue { get; set; }
+        public double NumberValue { get; set; }
+        public bool BooleanValue { get; set; }
     }
 
     public sealed class AnalysisBattleDiagnosticObjectSummary

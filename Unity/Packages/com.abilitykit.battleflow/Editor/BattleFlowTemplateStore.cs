@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using AbilityKit.BattleFlow;
+using AbilityKit.Editor.Platform.Export;
 using UnityEditor;
 
 namespace AbilityKit.BattleFlow.Editor
@@ -44,7 +45,7 @@ namespace AbilityKit.BattleFlow.Editor
         {
             Directory.CreateDirectory(DirectoryPath);
             var path = Path.Combine(DirectoryPath, name + ".json");
-            BattleFlowCodec.Save(path, new BattleFlowDocument { CaseId = name, Blocks = new List<BattleBlock>(blocks) });
+            EditorAtomicFileWriter.WriteAllText(path, BattleFlowCodec.Serialize(new BattleFlowDocument { CaseId = name, Blocks = new List<BattleBlock>(blocks) }));
         }
     }
 }

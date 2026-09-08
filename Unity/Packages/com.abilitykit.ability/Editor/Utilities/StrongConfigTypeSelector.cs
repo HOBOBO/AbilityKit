@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Sirenix.OdinInspector;
 using Sirenix.Utilities.Editor;
+using AbilityKit.Ability.Editor.Utilities;
 using UnityEditor;
 using UnityEngine;
 
@@ -92,7 +93,7 @@ namespace AbilityKit.Ability.Editor
                 if (_items == null) return;
 
                 SirenixEditorGUI.BeginHorizontalToolbar();
-                GUILayout.Label("Search", GUILayout.Width(45));
+                GUILayout.Label(TriggerAuthoringEditorIntegration.T("search"), GUILayout.Width(45));
                 _search = SirenixEditorGUI.ToolbarSearchField(_search);
                 SirenixEditorGUI.EndHorizontalToolbar();
 

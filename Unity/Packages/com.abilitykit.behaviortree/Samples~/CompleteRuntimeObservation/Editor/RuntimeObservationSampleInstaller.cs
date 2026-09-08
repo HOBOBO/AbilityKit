@@ -2,8 +2,11 @@ using System;
 using System.IO;
 using AbilityKit.BehaviorTree.Authoring;
 using AbilityKit.BehaviorTree.Editor;
+using AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation.Editor
 {
@@ -11,7 +14,7 @@ namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation.Editor
     public static class RuntimeObservationSampleInstaller
     {
         private const string MenuRoot = "AbilityKit/Behavior Tree/Samples/Complete Runtime Observation/";
-        private const string JsonFileName = "complete_runtime_observation.authoring.json";
+        private const string JsonFileName = "complete_runtime_observation.json";
         private const string DefaultAssetPath = "Assets/BehaviorTreeSamples/CompleteRuntimeObservation.asset";
 
         [MenuItem(MenuRoot + "Create Or Refresh Authoring Asset")]
@@ -59,6 +62,48 @@ namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation.Editor
             EditorWindow.GetWindow<DebugObservationWindow>().Show();
         }
 
+        [MenuItem(MenuRoot + "Create Sample GameObject")]
+        public static void CreateSampleGameObject()
+        {
+            var jsonPath = FindImportedSampleJsonPath();
+            if (jsonPath.Length == 0)
+            {
+                EditorUtility.DisplayDialog(
+                    "BehaviorTree Sample",
+                    $"未找到 {JsonFileName}。请先从 Package Manager 导入 Complete Runtime Observation sample。",
+                    "OK");
+                return;
+            }
+
+            var textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(jsonPath);
+            if (textAsset == null)
+            {
+                EditorUtility.DisplayDialog("BehaviorTree Sample", "无法加载示例 authoring JSON。", "OK");
+                return;
+            }
+
+            var scene = SceneManager.GetActiveScene();
+            if (!scene.IsValid() || string.IsNullOrEmpty(scene.path))
+            {
+                scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
+            }
+
+            var go = new GameObject("RuntimeObservationSample");
+            var sample = go.AddComponent<RuntimeObservationSample>();
+            var serialized = new SerializedObject(sample);
+            serialized.FindProperty("_authoringJson").objectReferenceValue = textAsset;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            EditorSceneManager.MarkSceneDirty(scene);
+            Selection.activeObject = go;
+            EditorGUIUtility.PingObject(go);
+
+            EditorUtility.DisplayDialog(
+                "BehaviorTree Sample",
+                "已创建示例 GameObject 并绑定 authoring JSON。\n进入 Play Mode 后右键该组件 Start Runtime，再打开 Window > AbilityKit > Behavior Tree Observation 观察。",
+                "OK");
+        }
+
         internal static string FindImportedSampleJsonPath()
         {
             foreach (var guid in AssetDatabase.FindAssets(Path.GetFileNameWithoutExtension(JsonFileName)))
@@ -69,10 +114,10 @@ namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation.Editor
             return "";
         }
 
-        private static string ToAbsolutePath(string assetPath)
+        internal static string ToAbsolutePath(string assetPath)
             => Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), assetPath));
 
-        private static void EnsureAssetDirectory(string assetPath)
+        internal static void EnsureAssetDirectory(string assetPath)
         {
             var directory = Path.GetDirectoryName(assetPath)?.Replace('\\', '/');
             if (string.IsNullOrEmpty(directory) || AssetDatabase.IsValidFolder(directory)) return;

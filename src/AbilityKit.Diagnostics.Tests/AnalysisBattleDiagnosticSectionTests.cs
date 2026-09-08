@@ -47,6 +47,11 @@ public sealed class AnalysisBattleDiagnosticSectionTests
         Assert.Equal(-1, new AnalysisBattleDiagnosticTraceNode().EndFrame);
         Assert.Equal(0, new AnalysisBattleDiagnosticTraceNode().StartFrame);
         Assert.Equal(string.Empty, new AnalysisBattleDiagnosticTraceNode().EndReason);
+        Assert.Equal(0L, new AnalysisBattleDiagnosticTraceNode().TargetActorId);
+        Assert.Equal(0, new AnalysisBattleDiagnosticTraceNode().TriggerId);
+        Assert.Null(new AnalysisBattleDiagnosticTraceNode().Context);
+        Assert.Null(new AnalysisBattleDiagnosticTraceNode().SourceObject);
+        Assert.Null(new AnalysisBattleDiagnosticTraceNode().Definition);
     }
 
     [Fact]
