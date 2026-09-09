@@ -80,13 +80,13 @@ namespace AbilityKit.Game.Editor
             if (!attributeStatus.CanDisplayResults &&
                 attributeStatus.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"属性数据不可用：{attributeStatus.Availability} {attributeStatus.Message}";
+                return $"属性数据不可用：{BattleDebugDisplayText.Availability(attributeStatus.Availability)} {attributeStatus.Message}";
             }
 
             if (!modifierStatus.CanDisplayResults &&
                 modifierStatus.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"属性修改器不可用：{modifierStatus.Availability} {modifierStatus.Message}";
+                return $"属性修改器不可用：{BattleDebugDisplayText.Availability(modifierStatus.Availability)} {modifierStatus.Message}";
             }
 
             return string.Empty;

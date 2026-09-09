@@ -21,6 +21,10 @@ namespace AbilityKit.HFSM.Graph.Descriptor
         /// <summary>是否记住最后状态</summary>
         bool RememberLastState { get; }
 
+        bool NeedsExitTime { get; }
+
+        bool IsGhostState { get; }
+
         /// <summary>子节点 ID 列表</summary>
         IReadOnlyList<string> GetChildNodeIds();
 

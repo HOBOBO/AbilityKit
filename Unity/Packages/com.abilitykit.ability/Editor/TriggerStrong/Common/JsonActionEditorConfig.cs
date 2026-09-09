@@ -17,13 +17,13 @@ namespace AbilityKit.Ability.Editor
         [ShowInInspector]
         public override string Type => TypeValue;
 
-        [LabelText("Args")]
+        [LabelText("参数")]
         [OdinSerialize]
         public Dictionary<string, object> Args;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
-        [LabelText("Items")]
+        [LabelText("子行为")]
         [ListDrawerSettings(Expanded = true, ListElementLabelName = "DisplayTitle")]
         public List<ActionEditorConfigBase> Items;
 
@@ -76,9 +76,9 @@ namespace AbilityKit.Ability.Editor
         {
             var hasArgs = Args != null && Args.Count > 0;
             var hasItems = Items != null && Items.Count > 0;
-            if (hasArgs && hasItems) return $"args={Args.Count}, items={Items.Count}";
-            if (hasArgs) return $"args={Args.Count}";
-            if (hasItems) return $"items={Items.Count}";
+            if (hasArgs && hasItems) return $"参数={Args.Count}，子行为={Items.Count}";
+            if (hasArgs) return $"参数={Args.Count}";
+            if (hasItems) return $"子行为={Items.Count}";
             return null;
         }
     }

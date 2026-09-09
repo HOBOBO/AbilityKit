@@ -163,17 +163,17 @@ namespace AbilityKit.Game.Editor
         {
             if (!actorStatus.CanDisplayResults && actorStatus.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"Actor 状态不可用：{actorStatus.Availability} {actorStatus.Message}";
+                return $"Actor 状态不可用：{BattleDebugDisplayText.Availability(actorStatus.Availability)} {actorStatus.Message}";
             }
 
             if (!tagStatus.CanDisplayResults && tagStatus.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"标签数据不可用：{tagStatus.Availability} {tagStatus.Message}";
+                return $"标签数据不可用：{BattleDebugDisplayText.Availability(tagStatus.Availability)} {tagStatus.Message}";
             }
 
             if (!effectStatus.CanDisplayResults && effectStatus.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"Effect 数据不可用：{effectStatus.Availability} {effectStatus.Message}";
+                return $"效果数据不可用：{BattleDebugDisplayText.Availability(effectStatus.Availability)} {effectStatus.Message}";
             }
 
             return string.Empty;

@@ -985,8 +985,10 @@ namespace AbilityKit.Ability.Editor.Tests
                 Assert.That(restored.Version, Is.EqualTo("2.2"));
                 Assert.That(restored.Template.TemplateId, Is.EqualTo("template.log"));
                 Assert.That(restored.Template.Parameters[0].Name, Is.EqualTo("message"));
-                Assert.That(restored.Template.Actions.Arguments[0].Value.Source,
-                    Is.EqualTo(TriggerValueSource.TemplateParameter));
+                Assert.That(restored.Template.Definition.Actions.Arguments[0].Value.Source,
+                    Is.EqualTo(TriggerValueSource.LocalBlackboard));
+                Assert.That(restored.Template.Definition.Actions.Arguments[0].Value.Path,
+                    Is.EqualTo("trigger:message"));
                 StringAssert.DoesNotContain("instanceID", json);
                 StringAssert.DoesNotContain("assetGuid", json);
             }
@@ -1107,11 +1109,35 @@ namespace AbilityKit.Ability.Editor.Tests
         public void Validator_RejectsUnknownTemplateParameterReference()
         {
             var template = CreateLogTemplate("template.log", "1.0.0");
-            template.Actions.Arguments[0].Value.Path = "missing";
+            template.Definition.Actions.Arguments[0].Value.Source = TriggerValueSource.TemplateParameter;
+            template.Definition.Actions.Arguments[0].Value.Path = "missing";
 
             var diagnostics = TriggerAuthoringTemplateValidator.Validate(template);
 
             Assert.That(diagnostics.Exists(d => d.Code == "TRG1618"), Is.True, FormatDiagnostics(diagnostics));
+            Assert.That(diagnostics.Exists(d => d.Path == "template.definition.actions.arguments[0].value.source"),
+                Is.True,
+                FormatDiagnostics(diagnostics));
+        }
+
+        [Test]
+        public void TemplateValidator_DoesNotRepeatMissingEntryAndActionDiagnostics()
+        {
+            var template = new TriggerAuthoringTemplateData
+            {
+                TemplateId = "template.invalid",
+                Definition = new TriggerDefinitionData
+                {
+                    EntryMode = TriggerEntryMode.Event
+                }
+            };
+
+            var diagnostics = TriggerAuthoringTemplateValidator.Validate(template);
+
+            Assert.That(diagnostics.Exists(d => d.Code == "TRG1612"), Is.True, FormatDiagnostics(diagnostics));
+            Assert.That(diagnostics.Exists(d => d.Code == "TRG1616"), Is.True, FormatDiagnostics(diagnostics));
+            Assert.That(diagnostics.Exists(d => d.Code == "TRG1005"), Is.False, FormatDiagnostics(diagnostics));
+            Assert.That(diagnostics.Exists(d => d.Code == "TRG1200"), Is.False, FormatDiagnostics(diagnostics));
         }
 
         [Test]
@@ -1249,31 +1275,35 @@ namespace AbilityKit.Ability.Editor.Tests
             {
                 TemplateId = id,
                 TemplateVersion = version,
-                Event = "skill.cast",
                 Parameters =
                 {
                     new TriggerAuthoringTemplateParameterData
                     {
                         Name = "message",
+                        LocalVariableKey = "message",
                         Type = TriggerValueType.String,
                         Required = true,
                         AllowedSources = TriggerTemplateValueSourceMask.Constant
                     }
                 },
-                Actions = new TriggerNodeData
+                Definition = new TriggerDefinitionData
                 {
-                    Kind = TriggerNodeKind.Action,
-                    Type = "debug_log",
-                    Arguments =
+                    Event = "skill.cast",
+                    Actions = new TriggerNodeData
                     {
-                        new TriggerArgumentData
+                        Kind = TriggerNodeKind.Action,
+                        Type = "debug_log",
+                        Arguments =
                         {
-                            Name = "message",
-                            Value = new TriggerValueRefData
+                            new TriggerArgumentData
                             {
-                                Source = TriggerValueSource.TemplateParameter,
-                                Type = TriggerValueType.String,
-                                Path = "message"
+                                Name = "message",
+                                Value = new TriggerValueRefData
+                                {
+                                    Source = TriggerValueSource.LocalBlackboard,
+                                    Type = TriggerValueType.String,
+                                    Path = "trigger:message"
+                                }
                             }
                         }
                     }

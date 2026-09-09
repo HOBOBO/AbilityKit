@@ -31,37 +31,37 @@ namespace AbilityKit.Game.Editor
     public sealed class BattleDiagnosticMetricThresholdOverrideConfig
     {
         [ValueDropdown(nameof(MetricOptions))]
-        [LabelText("Metric")]
+        [LabelText("指标")]
         public string Metric = string.Empty;
 
         [HorizontalGroup("Thresholds")]
-        [LabelText("Warning")]
+        [LabelText("警告阈值")]
         public double WarningThreshold;
 
         [HorizontalGroup("Thresholds")]
-        [LabelText("Critical")]
+        [LabelText("严重阈值")]
         public double CriticalThreshold;
 
-        [ToggleLeft]
+        [ToggleLeft, LabelText("覆盖建议范围")]
         public bool OverrideSuggestedRange;
 
         [HorizontalGroup("Range")]
         [ShowIf(nameof(OverrideSuggestedRange))]
-        [LabelText("Minimum")]
+        [LabelText("最小值")]
         public double SuggestedMinimum;
 
         [HorizontalGroup("Range")]
         [ShowIf(nameof(OverrideSuggestedRange))]
-        [LabelText("Maximum")]
+        [LabelText("最大值")]
         public double SuggestedMaximum = 1d;
 
         public string DisplayLabel
         {
             get
             {
-                if (string.IsNullOrEmpty(Metric)) return "Unassigned Metric";
+                if (string.IsNullOrEmpty(Metric)) return "未指定指标";
                 return BattleDiagnosticFrameMetricCatalog.TryGet(Metric, out var descriptor)
-                    ? descriptor.DisplayName
+                    ? BattleDebugDisplayText.MetricName(descriptor.Metric, descriptor.DisplayName)
                     : Metric;
             }
         }
@@ -75,7 +75,7 @@ namespace AbilityKit.Game.Editor
                     var descriptor = BattleDiagnosticFrameMetricCatalog.All[i];
                     if (!descriptor.HasAssessment) continue;
                     yield return new ValueDropdownItem<string>(
-                        descriptor.DisplayName + "  (" + descriptor.Metric + ")",
+                        BattleDebugDisplayText.MetricName(descriptor.Metric, descriptor.DisplayName) + "  (" + descriptor.Metric + ")",
                         descriptor.Metric);
                 }
             }
@@ -85,57 +85,65 @@ namespace AbilityKit.Game.Editor
     [Serializable]
     public sealed class BattleDiagnosticMetricProfileLayerConfig
     {
-        [ToggleLeft]
+        [ToggleLeft, LabelText("启用")]
         public bool Enabled = true;
 
         [Required]
-        public string Name = "New Layer";
+        [LabelText("名称")]
+        public string Name = "新层";
 
+        [LabelText("优先级")]
         public int Priority;
 
-        [FoldoutGroup("Selectors")]
+        [FoldoutGroup("选择条件"), LabelText("项目")]
         public string Project = string.Empty;
 
-        [FoldoutGroup("Selectors")]
+        [FoldoutGroup("选择条件"), LabelText("游戏模式")]
         public string GameMode = string.Empty;
 
-        [FoldoutGroup("Selectors")]
+        [FoldoutGroup("选择条件"), LabelText("网络模式")]
         public string NetworkMode = string.Empty;
 
-        [FoldoutGroup("Selectors")]
+        [FoldoutGroup("选择条件"), LabelText("设备等级")]
         public string DeviceTier = string.Empty;
 
         [ListDrawerSettings(
             ShowFoldout = true,
             DefaultExpandedState = true,
             ListElementLabelName = nameof(BattleDiagnosticMetricThresholdOverrideConfig.DisplayLabel))]
+        [LabelText("阈值覆盖")]
         public List<BattleDiagnosticMetricThresholdOverrideConfig> Overrides =
             new List<BattleDiagnosticMetricThresholdOverrideConfig>();
 
-        public string DisplayLabel => string.IsNullOrWhiteSpace(Name) ? "Unnamed Layer" : Name;
+        public string DisplayLabel => string.IsNullOrWhiteSpace(Name) ? "未命名层" : Name;
 
     }
 
     [CreateAssetMenu(
-        menuName = "AbilityKit/Moba/Diagnostics/Metric Profile",
+        menuName = "AbilityKit/Moba/诊断/指标配置",
         fileName = "MobaMetricProfile")]
     public sealed class BattleDiagnosticMetricProfileAsset : ScriptableObject
     {
-        [Title("Activation")]
-        [ToggleLeft]
+        [Title("启用状态")]
+        [ToggleLeft, LabelText("启用此配置")]
         public bool IsActive = true;
 
-        [Title("Analysis Context")]
+        [Title("分析上下文")]
+        [LabelText("项目")]
         public string Project = "AbilityKit.Demo.Moba";
+        [LabelText("游戏模式")]
         public string GameMode = string.Empty;
+        [LabelText("网络模式")]
         public string NetworkMode = string.Empty;
+        [LabelText("设备等级")]
         public string DeviceTier = string.Empty;
 
-        [Title("Threshold Layers")]
+        [Title("阈值层")]
         [ListDrawerSettings(
             ShowFoldout = true,
             DefaultExpandedState = true,
             ListElementLabelName = nameof(BattleDiagnosticMetricProfileLayerConfig.DisplayLabel))]
+        [LabelText("配置层")]
         public List<BattleDiagnosticMetricProfileLayerConfig> Layers =
             new List<BattleDiagnosticMetricProfileLayerConfig>();
 
@@ -156,20 +164,20 @@ namespace AbilityKit.Game.Editor
                 var layer = layers[i];
                 if (layer == null)
                 {
-                    AddError(issues, "Layer " + (i + 1) + " is null.");
+                    AddError(issues, "第 " + (i + 1) + " 层为空。");
                     continue;
                 }
                 if (!layer.Enabled) continue;
                 var layerName = layer.Name?.Trim() ?? string.Empty;
                 if (string.IsNullOrEmpty(layerName))
-                    AddError(issues, "Layer " + (i + 1) + " requires a name.");
+                    AddError(issues, "第 " + (i + 1) + " 层需要名称。");
                 else if (!layerNames.Add(layerName))
-                    AddError(issues, "Layer name is duplicated: " + layerName + ".");
+                    AddError(issues, "层名称重复：" + layerName + "。");
 
                 var overrides = layer.Overrides ??
                                 new List<BattleDiagnosticMetricThresholdOverrideConfig>();
                 if (overrides.Count == 0)
-                    AddWarning(issues, "Layer '" + layer.DisplayLabel + "' has no threshold overrides.");
+                    AddWarning(issues, "层“" + layer.DisplayLabel + "”没有阈值覆盖项。");
                 var metrics = new HashSet<string>(StringComparer.Ordinal);
                 for (var j = 0; j < overrides.Count; j++)
                     ValidateOverride(issues, layer.DisplayLabel, j, overrides[j], metrics);
@@ -228,7 +236,7 @@ namespace AbilityKit.Game.Editor
                 : null;
         }
 
-        [Button("Apply to BattleDebug", ButtonSizes.Medium)]
+        [Button("应用到战斗调试器", ButtonSizes.Medium)]
         public void ApplyToBattleDebug()
         {
             BattleDiagnosticMetricProfileAssetSync.Refresh(force: true);
@@ -246,28 +254,28 @@ namespace AbilityKit.Game.Editor
             BattleDiagnosticMetricThresholdOverrideConfig item,
             HashSet<string> metrics)
         {
-            var prefix = "Layer '" + layerName + "', override " + (index + 1) + ": ";
+            var prefix = "层“" + layerName + "”的第 " + (index + 1) + " 个覆盖项：";
             if (item == null)
             {
-                AddError(issues, prefix + "entry is null.");
+                AddError(issues, prefix + "条目为空。");
                 return;
             }
             var metric = item.Metric?.Trim() ?? string.Empty;
             if (string.IsNullOrEmpty(metric))
             {
-                AddError(issues, prefix + "metric is required.");
+                AddError(issues, prefix + "必须指定指标。");
                 return;
             }
-            if (!metrics.Add(metric)) AddError(issues, prefix + "metric is duplicated: " + metric + ".");
+            if (!metrics.Add(metric)) AddError(issues, prefix + "指标重复：" + metric + "。");
             if (!BattleDiagnosticFrameMetricCatalog.TryGet(metric, out var descriptor) || !descriptor.HasAssessment)
-                AddError(issues, prefix + "metric is unknown or has no assessment rule: " + metric + ".");
-            if (!IsFinite(item.WarningThreshold)) AddError(issues, prefix + "warning threshold must be finite.");
+                AddError(issues, prefix + "指标未知或没有评估规则：" + metric + "。");
+            if (!IsFinite(item.WarningThreshold)) AddError(issues, prefix + "警告阈值必须是有限数值。");
             if (!IsFinite(item.CriticalThreshold) || item.CriticalThreshold < item.WarningThreshold)
-                AddError(issues, prefix + "critical threshold must be finite and not lower than warning.");
+                AddError(issues, prefix + "严重阈值必须是有限数值，且不能低于警告阈值。");
             if (item.OverrideSuggestedRange &&
                 (!IsFinite(item.SuggestedMinimum) || !IsFinite(item.SuggestedMaximum) ||
                  item.SuggestedMaximum <= item.SuggestedMinimum))
-                AddError(issues, prefix + "suggested range must contain finite increasing bounds.");
+                AddError(issues, prefix + "建议范围必须包含有限且递增的边界值。");
         }
 
         private static bool IsFinite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
@@ -335,8 +343,8 @@ namespace AbilityKit.Game.Editor
             if (!force && string.Equals(fingerprint, _lastFingerprint, StringComparison.Ordinal)) return;
             if (!asset.TryBuild(out var context, out var layers, out var issues))
             {
-                Debug.LogWarning("BattleDebug metric profile was not applied because it contains " +
-                                 CountErrors(issues) + " validation error(s).", asset);
+                Debug.LogWarning("战斗调试指标配置未应用，因为其中包含 " +
+                                 CountErrors(issues) + " 个验证错误。", asset);
                 return;
             }
 
@@ -344,8 +352,8 @@ namespace AbilityKit.Game.Editor
             _lastFingerprint = fingerprint;
             _hasApplied = true;
             if (activeAssets.Count > 1)
-                Debug.LogWarning("Multiple active BattleDebug metric profile assets were found. Using '" +
-                                 AssetDatabase.GetAssetPath(asset) + "'.", asset);
+                Debug.LogWarning("发现多个已启用的战斗调试指标配置资源。当前使用“" +
+                                 AssetDatabase.GetAssetPath(asset) + "”。", asset);
         }
 
         public static void OpenOrCreateAsset()
@@ -354,7 +362,7 @@ namespace AbilityKit.Game.Editor
             if (ActiveAsset == null)
             {
                 var path = EditorUtility.SaveFilePanelInProject(
-                    "Create BattleDebug Metric Profile",
+                    "创建战斗调试指标配置",
                     "MobaMetricProfile",
                     "asset",
                     string.Empty);

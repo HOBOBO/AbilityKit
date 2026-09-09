@@ -147,7 +147,7 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Contributors
         public static IObservationFilter Text(string query, string id = "builtin.text")
         {
             var q = query ?? "";
-            return new ObservationFilter(id, "Text", ctx =>
+            return new ObservationFilter(id, "文本", ctx =>
             {
                 if (q.Length == 0) return true;
                 if (ctx.Entry != null)
@@ -177,7 +177,7 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Contributors
         public static IObservationFilter RunningPath(string id = "builtin.running-path") =>
             new ObservationFilter(
                 id,
-                "Running Path",
+                "运行路径",
                 ctx => ctx.Node != null && ctx.Node.OnStackCount > 0,
                 ObservationFilterScope.Node);
 
@@ -185,13 +185,13 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Contributors
         public static IObservationFilter NodeState(NodeState state, string id = "builtin.node-state") =>
             new ObservationFilter(
                 id,
-                "State " + state,
+                "状态：" + EditorDisplayText.NodeState(state),
                 ctx => ctx.Node != null && ctx.Node.State == state,
                 ObservationFilterScope.Node);
 
         /// <summary>仅变化项：匹配出现在 <see cref="ObservationDiff"/> 中的节点/key；无差异信息时不匹配。</summary>
         public static IObservationFilter ChangedOnly(string id = "builtin.changed-only") =>
-            new ObservationFilter(id, "Changed Only", ctx =>
+            new ObservationFilter(id, "仅变化项", ctx =>
             {
                 if (ctx.Diff == null) return false;
                 if (ctx.Node != null) return ctx.Diff.ContainsChangedNode(ctx.Node.NodeId);
@@ -200,13 +200,13 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Contributors
             }, ObservationFilterScope.Node, ObservationFilterScope.Blackboard);
 
         public static IObservationFilter And(IObservationFilter a, IObservationFilter b, string id = "composite.and") =>
-            new ObservationFilter(id, "And", ctx => a.Matches(ctx) && b.Matches(ctx));
+            new ObservationFilter(id, "并且", ctx => a.Matches(ctx) && b.Matches(ctx));
 
         public static IObservationFilter Or(IObservationFilter a, IObservationFilter b, string id = "composite.or") =>
-            new ObservationFilter(id, "Or", ctx => a.Matches(ctx) || b.Matches(ctx));
+            new ObservationFilter(id, "或者", ctx => a.Matches(ctx) || b.Matches(ctx));
 
         public static IObservationFilter Not(IObservationFilter a, string id = "composite.not") =>
-            new ObservationFilter(id, "Not", ctx => !a.Matches(ctx));
+            new ObservationFilter(id, "非", ctx => !a.Matches(ctx));
 
         private static bool Contains(string value, string query) =>
             value != null && value.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;

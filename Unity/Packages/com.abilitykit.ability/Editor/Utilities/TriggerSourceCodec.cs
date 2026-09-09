@@ -101,9 +101,9 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (codec == null) throw new ArgumentNullException(nameof(codec));
             if (string.IsNullOrWhiteSpace(codec.FormatId))
-                throw new ArgumentException("Codec FormatId is required.", nameof(codec));
+                throw new ArgumentException("编解码器必须指定 FormatId。", nameof(codec));
             if (string.IsNullOrWhiteSpace(codec.FileExtension) || codec.FileExtension.Contains("."))
-                throw new ArgumentException("Codec FileExtension must not be empty or contain dots.", nameof(codec));
+                throw new ArgumentException("编解码器的 FileExtension 不能为空，也不能包含点号。", nameof(codec));
         }
 
         private static string GetExtension(string path)
@@ -147,7 +147,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static void WriteTextAtomic(string path, string content)
         {
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
             EditorAtomicFileWriter.WriteAllText(path, content, Utf8WithoutBom);
         }
     }

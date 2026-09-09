@@ -111,9 +111,9 @@ namespace AbilityKit.BehaviorTree.Editor
             diagnostics.Add(new EditorDiagnostic(
                 ObservationInfoCode,
                 EditorDiagnosticSeverity.Info,
-                "Observation samples=" + controller.Timeline.Count
-                + ", capacity=" + controller.TimelineCapacity
-                + ", intervalSeconds=" + controller.SampleIntervalSeconds.ToString("0.###"),
+                "观察采样数=" + controller.Timeline.Count
+                + "，容量=" + controller.TimelineCapacity
+                + "，采样间隔（秒）=" + controller.SampleIntervalSeconds.ToString("0.###"),
                 "observation"));
 
             if (controller.State == ObservationSessionState.Disconnected)
@@ -121,7 +121,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 diagnostics.Add(new EditorDiagnostic(
                     ObservationWarningCode,
                     EditorDiagnosticSeverity.Warning,
-                    "Selected behavior tree instance is disconnected; retained samples are offline-only.",
+                    "选中的行为树实例已断开；保留的采样只能离线查看。",
                     "observation/connection"));
             }
 
@@ -130,7 +130,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 diagnostics.Add(new EditorDiagnostic(
                     ObservationWarningCode,
                     EditorDiagnosticSeverity.Warning,
-                    "Observation timeline capacity is at the package maximum; export recordings before long captures.",
+                    "观察时间线容量已达到包上限；长时间采集前请先导出记录。",
                     "observation/settings/timelineCapacity"));
             }
 

@@ -21,15 +21,25 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string BuildMessage()
         {
             if (Diagnostics.Count == 0)
-                return $"Validated {ModuleCount} module(s) and {TemplateCount} template(s).";
+                return $"已校验 {ModuleCount} 个模块和 {TemplateCount} 个模板。";
 
             var lines = new List<string>();
             for (var i = 0; i < Diagnostics.Count; i++)
             {
                 var diagnostic = Diagnostics[i];
-                lines.Add($"{diagnostic.Severity} {diagnostic.Code} {diagnostic.Path}: {diagnostic.Message}");
+                lines.Add($"{SeverityLabel(diagnostic.Severity)} {diagnostic.Code} {diagnostic.Path}: {diagnostic.Message}");
             }
             return string.Join(Environment.NewLine, lines);
+        }
+
+        private static string SeverityLabel(TriggerAuthoringDiagnosticSeverity severity)
+        {
+            switch (severity)
+            {
+                case TriggerAuthoringDiagnosticSeverity.Error: return "错误";
+                case TriggerAuthoringDiagnosticSeverity.Warning: return "警告";
+                default: return "信息";
+            }
         }
     }
 
@@ -40,16 +50,16 @@ namespace AbilityKit.Ability.Editor.Utilities
             var result = new TriggerAuthoringProjectValidationResult();
             if (project == null)
             {
-                AddError(result, "TRG3000", "project", "Trigger Authoring Project is null.");
+                AddError(result, "TRG3000", "project", "触发器项目为空。");
                 return result;
             }
 
             if (project.EventCatalog == null)
-                AddError(result, "TRG3001", "project.eventCatalog", "Event Catalog is required.");
+                AddError(result, "TRG3001", "project.eventCatalog", "必须分配事件目录。");
             if (project.GlobalBlackboardCatalog == null)
-                AddError(result, "TRG3002", "project.globalBlackboardCatalog", "Global Blackboard Catalog is required.");
+                AddError(result, "TRG3002", "project.globalBlackboardCatalog", "必须分配全局黑板目录。");
             if (project.TemplateCatalog == null)
-                AddError(result, "TRG3003", "project.templateCatalog", "Template Catalog is required.");
+                AddError(result, "TRG3003", "project.templateCatalog", "必须分配模板目录。");
 
             ValidateEventCatalog(project, result);
             ValidateGlobalBlackboardCatalog(project, result);
@@ -71,11 +81,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var path = $"project.eventCatalog.events[{i}]";
                 if (definition == null || string.IsNullOrWhiteSpace(definition.Id))
                 {
-                    AddError(result, "TRG3010", path + ".id", "Event ID is required.");
+                    AddError(result, "TRG3010", path + ".id", "必须填写事件 ID。");
                     continue;
                 }
                 if (!ids.Add(definition.Id))
-                    AddError(result, "TRG3011", path + ".id", $"Duplicate Event ID: {definition.Id}.");
+                    AddError(result, "TRG3011", path + ".id", $"事件 ID 重复：{definition.Id}。");
             }
         }
 
@@ -92,19 +102,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var path = $"project.globalBlackboardCatalog.keys[{i}]";
                 if (key == null || string.IsNullOrWhiteSpace(key.Key))
                 {
-                    AddError(result, "TRG3020", path + ".key", "Global Blackboard key is required.");
+                    AddError(result, "TRG3020", path + ".key", "必须填写全局黑板 Key。");
                     continue;
                 }
                 if (!names.Add(key.Key))
-                    AddError(result, "TRG3021", path + ".key", $"Duplicate Global Blackboard key: {key.Key}.");
+                    AddError(result, "TRG3021", path + ".key", $"全局黑板 Key 重复：{key.Key}。");
                 if (string.IsNullOrWhiteSpace(key.Domain))
-                    AddError(result, "TRG3022", path + ".domain", "Global Blackboard domain is required.");
+                    AddError(result, "TRG3022", path + ".domain", "必须填写全局黑板域。");
                 if (key.Type == TriggerValueType.None)
-                    AddError(result, "TRG3023", path + ".type", "Global Blackboard type is required.");
+                    AddError(result, "TRG3023", path + ".type", "必须设置全局黑板类型。");
                 if (key.DefaultValue == null || key.DefaultValue.Source != TriggerValueSource.Constant)
-                    AddError(result, "TRG3024", path + ".defaultValue", "Global Blackboard default must be a constant value.");
+                    AddError(result, "TRG3024", path + ".defaultValue", "全局黑板默认值必须是常量。");
                 else if (key.DefaultValue.Type != key.Type)
-                    AddError(result, "TRG3025", path + ".defaultValue.type", $"Default type must be {key.Type}, got {key.DefaultValue.Type}.");
+                    AddError(result, "TRG3025", path + ".defaultValue.type", $"默认值类型必须为 {key.Type}，当前为 {key.DefaultValue.Type}。");
             }
         }
 
@@ -121,16 +131,16 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var path = $"project.templates[{i}]";
                 if (asset == null)
                 {
-                    AddError(result, "TRG3030", path, "Template Asset reference is missing.");
+                    AddError(result, "TRG3030", path, "模板资产引用缺失。");
                     continue;
                 }
 
                 result.TemplateCount++;
                 if (asset.Project != project)
-                    AddError(result, "TRG3031", path + ".project", $"Template Asset '{asset.name}' is assigned to a different project.");
+                    AddError(result, "TRG3031", path + ".project", $"模板资产“{asset.name}”已分配到其他项目。");
                 var id = asset.Template != null ? asset.Template.TemplateId : null;
                 if (!string.IsNullOrWhiteSpace(id) && !ids.Add(id))
-                    AddError(result, "TRG3032", path + ".templateId", $"Duplicate Template ID: {id}.");
+                    AddError(result, "TRG3032", path + ".templateId", $"Template ID 重复：{id}。");
                 AddDiagnostics(result, path, TriggerAuthoringTemplateValidator.Validate(
                     asset.Template,
                     TriggerAuthoringValidationContext.Create(asset)));
@@ -144,12 +154,13 @@ namespace AbilityKit.Ability.Editor.Utilities
             var modules = project.Modules;
             if (modules == null || modules.Count == 0)
             {
-                AddWarning(result, "TRG3040", "project.modules", "Project contains no Module Assets.");
+                AddWarning(result, "TRG3040", "project.modules", "项目中没有模块资产。");
                 return;
             }
 
             var assets = new HashSet<TriggerAuthoringModuleAsset>();
             var moduleIds = new HashSet<string>(StringComparer.Ordinal);
+            var triggerIdOwners = new Dictionary<int, string>();
             var runtimeDocuments = new List<TriggerPlanAggregateCompiler.SourceDocument>();
             for (var i = 0; i < modules.Count; i++)
             {
@@ -157,21 +168,40 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var path = $"project.modules[{i}]";
                 if (asset == null)
                 {
-                    AddError(result, "TRG3041", path, "Module Asset reference is missing.");
+                    AddError(result, "TRG3041", path, "模块资产引用缺失。");
                     continue;
                 }
                 if (!assets.Add(asset))
                 {
-                    AddError(result, "TRG3042", path, $"Duplicate Module Asset reference: {asset.name}.");
+                    AddError(result, "TRG3042", path, $"模块资产引用重复：{asset.name}。");
                     continue;
                 }
 
                 result.ModuleCount++;
                 if (asset.Project != project)
-                    AddError(result, "TRG3043", path + ".project", $"Module Asset '{asset.name}' is assigned to a different project.");
+                    AddError(result, "TRG3043", path + ".project", $"模块资产“{asset.name}”已分配到其他项目。");
                 var moduleId = asset.Module != null ? asset.Module.ModuleId : null;
                 if (!string.IsNullOrWhiteSpace(moduleId) && !moduleIds.Add(moduleId))
-                    AddError(result, "TRG3044", path + ".moduleId", $"Duplicate Module ID: {moduleId}.");
+                    AddError(result, "TRG3044", path + ".moduleId", $"模块 ID 重复：{moduleId}。");
+                var triggers = asset.Module?.Triggers;
+                if (triggers != null)
+                    for (var triggerIndex = 0; triggerIndex < triggers.Count; triggerIndex++)
+                    {
+                        var triggerId = triggers[triggerIndex] != null ? triggers[triggerIndex].Id : 0;
+                        if (triggerId <= 0) continue;
+                        if (triggerIdOwners.TryGetValue(triggerId, out var owner))
+                        {
+                            AddError(
+                                result,
+                                "TRG3045",
+                                path + ".triggers[" + triggerIndex + "].id",
+                                $"项目 TriggerId 重复：{triggerId}，首次出现在 {owner}。");
+                        }
+                        else
+                        {
+                            triggerIdOwners.Add(triggerId, path + ".triggers[" + triggerIndex + "]");
+                        }
+                    }
 
                 var compile = TriggerAuthoringRuntimeExporter.Build(asset);
                 AddDiagnostics(result, path, compile.Diagnostics);
@@ -230,13 +260,13 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             var failures = TriggerAuthoringProjectValidationMenu.ValidateAllProjects(logResults: true);
             if (failures.Count > 0)
-                throw new BuildFailedException("Trigger Authoring project validation failed." + Environment.NewLine + string.Join(Environment.NewLine, failures));
+                throw new BuildFailedException("触发器项目校验失败。" + Environment.NewLine + string.Join(Environment.NewLine, failures));
         }
     }
 
     internal static class TriggerAuthoringProjectValidationMenu
     {
-        private const string ValidateSelectedMenu = "Assets/AbilityKit/Trigger Authoring/Validate Project";
+        private const string ValidateSelectedMenu = "Assets/AbilityKit/触发器编辑/校验项目";
 
         [MenuItem(ValidateSelectedMenu)]
         private static void ValidateSelected()
@@ -246,9 +276,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             var result = TriggerAuthoringProjectValidator.Validate(project);
             Log(project, result);
             EditorUtility.DisplayDialog(
-                "Trigger Authoring Project Validation",
+                "触发器项目校验",
                 result.BuildMessage(),
-                "OK");
+                "确定");
         }
 
         [MenuItem(ValidateSelectedMenu, true)]
@@ -257,14 +287,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             return Selection.activeObject is TriggerAuthoringProjectAsset;
         }
 
-        [MenuItem("Tools/AbilityKit/Trigger Authoring/Validate All Projects")]
+        [MenuItem("Tools/AbilityKit/触发器编辑/校验全部项目")]
         private static void ValidateAll()
         {
             var failures = ValidateAllProjects(logResults: true);
             EditorUtility.DisplayDialog(
-                "Trigger Authoring Project Validation",
-                failures.Count == 0 ? "All Trigger Authoring projects are valid." : string.Join(Environment.NewLine, failures),
-                "OK");
+                "触发器项目校验",
+                failures.Count == 0 ? "全部触发器项目均已通过校验。" : string.Join(Environment.NewLine, failures),
+                "确定");
         }
 
         internal static List<string> ValidateAllProjects(bool logResults)

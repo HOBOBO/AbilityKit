@@ -79,6 +79,12 @@ namespace AbilityKit.Game.Editor
                 return TryCreate(BattleDebugConfigKind.TriggerPlan, trigger.TriggerId, out reference);
             }
 
+            if (diagnosticEvent.Kind == BattleDiagnosticEventKind.TriggerAnalysisAggregate &&
+                diagnosticEvent.Payload.TryGetTriggerAnalysisAggregate(out var aggregate))
+            {
+                return TryCreate(BattleDebugConfigKind.TriggerPlan, aggregate.TriggerId, out reference);
+            }
+
             var kind = MapEventKind(diagnosticEvent.Kind);
             return TryCreate(kind, diagnosticEvent.ConfigId, out reference);
         }
@@ -142,6 +148,7 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticEventKind.EffectEnded:
                     return BattleDebugConfigKind.Effect;
                 case BattleDiagnosticEventKind.TriggerAnalysis:
+                case BattleDiagnosticEventKind.TriggerAnalysisAggregate:
                     return BattleDebugConfigKind.TriggerPlan;
                 default:
                     return BattleDebugConfigKind.Unknown;

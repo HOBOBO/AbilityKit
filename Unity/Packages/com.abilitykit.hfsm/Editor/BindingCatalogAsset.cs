@@ -8,8 +8,8 @@ namespace AbilityKit.HFSM.Editor
 {
     public sealed class BindingCatalogAsset : ScriptableObject
     {
-        [SerializeField] private int formatVersion = 1;
-        [SerializeField] private List<BindingCatalogEntry> entries =
+        [SerializeField, InspectorName("格式版本")] private int formatVersion = 1;
+        [SerializeField, InspectorName("绑定条目")] private List<BindingCatalogEntry> entries =
             new List<BindingCatalogEntry>();
 
         public int FormatVersion => formatVersion;
@@ -32,7 +32,7 @@ namespace AbilityKit.HFSM.Editor
                     "HFSMBIND002",
                     BindingKind.State,
                     string.Empty,
-                    $"Unsupported binding catalog format version {formatVersion}; expected 1."));
+                    $"不支持绑定目录格式版本 {formatVersion}；预期版本为 1。"));
                 return catalog;
             }
 
@@ -46,7 +46,7 @@ namespace AbilityKit.HFSM.Editor
                 {
                     catalog.AddIssue(new BindingCatalogIssue(
                         "HFSMBIND003", BindingKind.State, string.Empty,
-                        $"Binding catalog entry at index {index} is null."));
+                        $"索引 {index} 处的绑定目录条目为空。"));
                     continue;
                 }
 
@@ -54,7 +54,7 @@ namespace AbilityKit.HFSM.Editor
                 {
                     catalog.AddIssue(new BindingCatalogIssue(
                         "HFSMBIND004", entry.Kind, entry.Key,
-                        $"Binding catalog entry at index {index} has an empty stable key."));
+                        $"索引 {index} 处的绑定目录条目缺少稳定键。"));
                     continue;
                 }
 
@@ -70,7 +70,8 @@ namespace AbilityKit.HFSM.Editor
                 catch (InvalidOperationException exception)
                 {
                     catalog.AddIssue(new BindingCatalogIssue(
-                        "HFSMBIND001", entry.Kind, entry.Key, exception.Message));
+                        "HFSMBIND001", entry.Kind, entry.Key,
+                        $"绑定键“{entry.Key}”重复。"));
                 }
             }
 

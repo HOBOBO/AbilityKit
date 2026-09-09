@@ -317,6 +317,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 return true;
             }
 
+            if (diagnosticEvent.Payload.TryGetTriggerAnalysisAggregate(out var aggregate) &&
+                MatchesTriggerAggregateSearch(in aggregate, searchText))
+            {
+                return true;
+            }
+
             if (diagnosticEvent.Payload.TryGetSkillFailure(out var skillFailure) &&
                 MatchesSkillFailureSearch(in skillFailure, searchText))
             {
@@ -345,32 +351,45 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             BattleDiagnosticFilter filter)
         {
             if (!filter.HasTriggerAnalysisFilter) return true;
-            if (!diagnosticEvent.Payload.TryGetTriggerAnalysis(out var trigger)) return false;
-            if (filter.TriggerStage != BattleDiagnosticTriggerAnalysisStage.Unknown &&
-                trigger.Stage != filter.TriggerStage)
+            if (diagnosticEvent.Payload.TryGetTriggerAnalysisAggregate(out var aggregate))
+            {
+                return MatchesTriggerFields(
+                    aggregate.Stage,
+                    aggregate.Result,
+                    aggregate.ContextKind,
+                    aggregate.OriginKind,
+                    filter);
+            }
+
+            if (!diagnosticEvent.Payload.TryGetTriggerAnalysis(out var trigger))
+            {
+                return !filter.HasTriggerDetailFilter;
+            }
+            if (!filter.HasTriggerDetailFilter &&
+                filter.TriggerValue == BattleDiagnosticTriggerValueFilter.Valuable &&
+                !BattleDiagnosticTriggerValue.IsValuable(in trigger))
             {
                 return false;
             }
+            return MatchesTriggerFields(
+                trigger.Stage,
+                trigger.Result,
+                trigger.ContextKind,
+                trigger.OriginKind,
+                filter);
+        }
 
-            if (filter.TriggerResult != BattleDiagnosticTriggerAnalysisResult.Unknown &&
-                trigger.Result != filter.TriggerResult)
-            {
-                return false;
-            }
-
-            if (filter.TriggerContextKind != 0 &&
-                trigger.ContextKind != filter.TriggerContextKind)
-            {
-                return false;
-            }
-
-            if (filter.TriggerOriginKind != 0 &&
-                trigger.OriginKind != filter.TriggerOriginKind)
-            {
-                return false;
-            }
-
-            return true;
+        private static bool MatchesTriggerFields(
+            BattleDiagnosticTriggerAnalysisStage stage,
+            BattleDiagnosticTriggerAnalysisResult result,
+            int contextKind,
+            int originKind,
+            BattleDiagnosticFilter filter)
+        {
+            return (filter.TriggerStage == BattleDiagnosticTriggerAnalysisStage.Unknown || filter.TriggerStage == stage) &&
+                   (filter.TriggerResult == BattleDiagnosticTriggerAnalysisResult.Unknown || filter.TriggerResult == result) &&
+                   (filter.TriggerContextKind == 0 || filter.TriggerContextKind == contextKind) &&
+                   (filter.TriggerOriginKind == 0 || filter.TriggerOriginKind == originKind);
         }
 
         private static bool MatchesSkillFailureSearch(
@@ -400,6 +419,26 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    MatchesNumber(trigger.CurrentFrameCount, searchText) ||
                    MatchesNumber(trigger.CurrentRootCount, searchText) ||
                    MatchesNumber(trigger.CurrentSameTriggerCount, searchText);
+        }
+
+        private static bool MatchesTriggerAggregateSearch(
+            in BattleDiagnosticTriggerAnalysisAggregatePayload aggregate,
+            string searchText)
+        {
+            return aggregate.Stage.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   aggregate.Result.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   aggregate.FailureKey.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   aggregate.SampleReason.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   MatchesNumber(aggregate.TriggerId, searchText) ||
+                   MatchesNumber(aggregate.ContextKind, searchText) ||
+                   MatchesNumber(aggregate.OriginKind, searchText) ||
+                   MatchesNumber(aggregate.OccurrenceCount, searchText) ||
+                   MatchesNumber(aggregate.FirstFrame, searchText) ||
+                   MatchesNumber(aggregate.LastFrame, searchText) ||
+                   MatchesNumber(aggregate.FirstContextId, searchText) ||
+                   MatchesNumber(aggregate.LastContextId, searchText) ||
+                   MatchesNumber(aggregate.FirstRootContextId, searchText) ||
+                   MatchesNumber(aggregate.LastRootContextId, searchText);
         }
 
         private static bool MatchesBuffLifecycleSearch(

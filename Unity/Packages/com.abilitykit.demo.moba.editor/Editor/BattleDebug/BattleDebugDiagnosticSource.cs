@@ -63,7 +63,7 @@ namespace AbilityKit.Game.Editor
             if (artifact.BattleDiagnostics == null)
                 throw new MobaBattleDiagnosticArtifactException(
                     "BattleDiagnostics.Missing",
-                    "Analysis artifact does not contain a battleDiagnostics section.");
+                    "分析 Artifact 不包含战斗诊断数据段。被打开的文件可能不是战斗诊断产物。");
             var snapshot = MobaBattleDiagnosticArtifactCodec.FromSection(artifact.BattleDiagnostics);
             var metricProfile = MobaBattleDiagnosticArtifactCodec.FromMetricProfile(
                 artifact.BattleDiagnostics.FrameMetricProfile);

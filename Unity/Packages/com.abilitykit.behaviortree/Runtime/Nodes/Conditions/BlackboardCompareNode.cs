@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AbilityKit.Deterministic;
 
 using AbilityKit.BehaviorTree.Blackboard;
@@ -9,7 +10,7 @@ namespace AbilityKit.BehaviorTree.Nodes
 {
     /// <summary>
     /// 比较黑板值与常量或另一黑板值，比较类型由左key schema 决定    /// </summary>
-    public class BlackboardCompareNode : ConditionNodeBase
+    public class BlackboardCompareNode : ConditionNodeBase, ConditionDependencyProvider
     {
         public const string LeftKeyProperty = "leftKey";
         public const string OpProperty = "op";
@@ -29,6 +30,9 @@ namespace AbilityKit.BehaviorTree.Nodes
         private long _rightInt64;
         private long _rightFixed64Raw;
         private string _rightString = "";
+        private string[] _blackboardDependencies = Array.Empty<string>();
+
+        public IReadOnlyList<string> BlackboardDependencies => _blackboardDependencies;
 
         public override void OnInit(in NodeInitContext context)
         {
@@ -36,20 +40,23 @@ namespace AbilityKit.BehaviorTree.Nodes
             _op = context.Properties.GetInt32(OpProperty, 0);
             _rightIsKey = context.Properties.GetInt64(RightKindProperty, 0) == 1;
             _rightKey = context.Properties.GetString(RightKeyProperty, "");
+            _blackboardDependencies = _rightIsKey
+                ? new[] { _leftKey, _rightKey }
+                : new[] { _leftKey };
 
             if (string.IsNullOrEmpty(_leftKey))
-                throw new InvalidOperationException($"BT node '{context.Definition.Id}': blackboard compare requires leftKey.");
+                throw new InvalidOperationException($"行为树节点 '{context.Definition.Id}'：黑板值比较必须指定左侧黑板键。");
             if (_op is < 0 or > 5)
-                throw new InvalidOperationException($"BT node '{context.Definition.Id}': invalid compare op {_op}.");
+                throw new InvalidOperationException($"行为树节点 '{context.Definition.Id}'：比较运算符 {_op} 无效。");
             if (_rightIsKey && string.IsNullOrEmpty(_rightKey))
-                throw new InvalidOperationException($"BT node '{context.Definition.Id}': rightKind=key requires rightKey.");
+                throw new InvalidOperationException($"行为树节点 '{context.Definition.Id}'：右操作数来自黑板时必须指定右侧黑板键。");
             if (!_contextBlackboard(context).Schema.TryGetType(_leftKey, out _type))
-                throw new InvalidOperationException($"BT node '{context.Definition.Id}': left key '{_leftKey}' not declared.");
+                throw new InvalidOperationException($"行为树节点 '{context.Definition.Id}'：左侧黑板键 '{_leftKey}' 未声明。");
             if (_rightIsKey)
             {
                 if (!_contextBlackboard(context).Schema.TryGetType(_rightKey, out var rightType) || rightType != _type)
                     throw new InvalidOperationException(
-                        $"BT node '{context.Definition.Id}': right key '{_rightKey}' missing or type mismatch.");
+                        $"行为树节点 '{context.Definition.Id}'：右侧黑板键 '{_rightKey}' 不存在或类型不匹配。");
             }
             else
             {

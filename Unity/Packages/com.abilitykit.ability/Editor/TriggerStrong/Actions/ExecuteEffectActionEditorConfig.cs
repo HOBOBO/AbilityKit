@@ -11,7 +11,7 @@ namespace AbilityKit.Ability.Editor
     {
         public override string Type => TriggerActionTypes.EffectExecute;
 
-        [LabelText("效果Id")]
+        [LabelText("效果 ID")]
         public int EffectId;
 
         protected override string GetTitleSuffix()

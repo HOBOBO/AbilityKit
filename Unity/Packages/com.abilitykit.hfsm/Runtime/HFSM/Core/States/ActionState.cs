@@ -67,6 +67,8 @@ namespace AbilityKit.HFSM
 		/// <typeparam name="TData">Type of the data parameter.</typeparam>
 		public void OnAction<TData>(TEvent trigger, TData data)
 			=> actionStorage?.RunAction<TData>(trigger, data);
+
+		public bool HasAction(TEvent trigger) => actionStorage?.HasAction(trigger) ?? false;
 	}
 
 	/// <inheritdoc />

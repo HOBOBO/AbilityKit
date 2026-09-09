@@ -89,5 +89,7 @@ namespace AbilityKit.HFSM
 		/// <typeparam name="TData">Type of the data parameter.</typeparam>
 		public void RunAction<TData>(TEvent trigger, TData data)
 			=> TryGetAndCastAction<Action<TData>>(trigger)?.Invoke(data);
+
+		public bool HasAction(TEvent trigger) => actionsByEvent.ContainsKey(trigger);
 	}
 }

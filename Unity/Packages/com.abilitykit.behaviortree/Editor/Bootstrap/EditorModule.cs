@@ -35,19 +35,19 @@ namespace AbilityKit.BehaviorTree.Editor.Bootstrap
         {
             if (context == null) throw new ArgumentNullException(nameof(context));
             if (_registrations.Count != 0)
-                throw new InvalidOperationException("Behavior Tree editor module is already registered.");
+                throw new InvalidOperationException("行为树编辑器模块已经注册。");
 
             try
             {
                 _registrations.Add(EditorLocalization.RegisterSource());
                 _registrations.Add(context.Menus.Register(new EditorMenuContribution(
                     ObservationMenuId,
-                    "Window/AbilityKit/Behavior Tree Observation",
+                    "Window/AbilityKit/行为树/运行时观察",
                     OpenObservation,
                     order: 200)));
                 _registrations.Add(context.Menus.Register(new EditorMenuContribution(
                     CreateMenuId,
-                    "Assets/AbilityKit/Behavior Tree/Create Tree Wizard",
+                    "Assets/Create/AbilityKit/行为树/新建行为树...",
                     AuthoringCreateWizard.Open,
                     order: 210)));
                 _registrations.Add(context.Panels.Register(new EditorPanelContribution(
@@ -81,10 +81,11 @@ namespace AbilityKit.BehaviorTree.Editor.Bootstrap
             _registrations.Clear();
         }
 
+        [MenuItem("Window/AbilityKit/行为树运行时观察", false, 201)]
         private static void OpenObservation()
         {
             var window = EditorWindow.GetWindow<DebugObservationWindow>();
-            window.titleContent = new GUIContent("BT Observation");
+            window.titleContent = new GUIContent("行为树运行时观察");
             window.minSize = new Vector2(640f, 420f);
             window.Show();
         }

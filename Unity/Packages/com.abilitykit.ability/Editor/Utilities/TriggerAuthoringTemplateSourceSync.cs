@@ -19,6 +19,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public static TriggerAuthoringTemplateSourceDocument CreateDocument(TriggerAuthoringTemplateAsset asset)
         {
             if (asset == null) throw new ArgumentNullException(nameof(asset));
+            TriggerAuthoringTemplateDefinition.Normalize(asset.Template);
             return new TriggerAuthoringTemplateSourceDocument
             {
                 Schema = TriggerAuthoringSchema.Id,
@@ -40,7 +41,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static TriggerAuthoringTemplateSourceDocument ReadFile(string path)
         {
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
             return ResolveCodec(path).Deserialize(File.ReadAllText(path, Encoding.UTF8));
         }
 
@@ -52,7 +53,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static void WriteFileAtomic(string path, TriggerAuthoringTemplateSourceDocument document)
         {
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
             TriggerSourceCanonical.WriteTextAtomic(path, ResolveCodec(path).Serialize(document));
         }
 
@@ -60,9 +61,9 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (!TriggerSourceCodecs.TryResolveTemplate(path, out var codec))
                 throw new InvalidDataException(
-                    "No Trigger Source codec is registered for extension '" +
+                    "没有为扩展名“" +
                     (Path.GetExtension(path) ?? string.Empty) +
-                    "'. Supported: " + TriggerSourceCodecs.DescribeTemplateExtensions() + ".");
+                    "”注册触发器 Source 编解码器。支持的格式：" + TriggerSourceCodecs.DescribeTemplateExtensions() + "。");
             return codec;
         }
     }
@@ -80,7 +81,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     TriggerAuthoringSourcePreviewKind.Template,
                     TriggerAuthoringSyncState.SourceMissing,
                     sourcePath,
-                    "Source JSON file does not exist.");
+                    "Source JSON 文件不存在。");
 
             TriggerAuthoringTemplateSourceDocument document;
             try
@@ -101,7 +102,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             var incomingId = document.Template.TemplateId;
             if (!string.IsNullOrWhiteSpace(currentId) && !string.Equals(currentId, incomingId, StringComparison.Ordinal))
             {
-                preview.Message = $"Template identity mismatch. Asset='{currentId}', Source='{incomingId ?? string.Empty}'.";
+                preview.Message = $"模板标识不匹配。资产='{currentId}'，Source='{incomingId ?? string.Empty}'。";
                 return preview;
             }
 
@@ -125,7 +126,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             preview.RequiresForce = assessment.RequiresForce;
             preview.Success = preview.CanImport;
             if (!preview.CanImport)
-                preview.Message = inspection.Error ?? "Template Source JSON cannot be imported in the current sync state.";
+                preview.Message = inspection.Error ?? "当前同步状态下无法导入模板 Source JSON。";
             return preview;
         }
 
@@ -182,7 +183,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (asset == null) throw new ArgumentNullException(nameof(asset));
             sourcePath = ResolveSourcePath(asset, sourcePath);
             if (string.IsNullOrWhiteSpace(sourcePath))
-                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.Untracked, "Source JSON path is required.");
+                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.Untracked, "必须提供 Source JSON 路径。");
 
             var diagnostics = TriggerAuthoringTemplateValidator.Validate(
                 asset.Template,
@@ -199,7 +200,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!force && assessment.RequiresForce)
                 return TriggerAuthoringSyncResult.Failed(
                     inspection.State,
-                    inspection.Error ?? "Source JSON contains changes that would be overwritten.",
+                    inspection.Error ?? "Source JSON 包含将被覆盖的改动。",
                     true);
 
             var document = TriggerAuthoringTemplateSourceCodec.CreateDocument(asset);
@@ -218,7 +219,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (asset == null) throw new ArgumentNullException(nameof(asset));
             sourcePath = ResolveSourcePath(asset, sourcePath);
             if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
-                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.SourceMissing, "Source JSON file does not exist.");
+                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.SourceMissing, "Source JSON 文件不存在。");
 
             TriggerAuthoringTemplateSourceDocument document;
             try
@@ -235,7 +236,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!string.IsNullOrWhiteSpace(currentId) && !string.Equals(currentId, incomingId, StringComparison.Ordinal))
                 return TriggerAuthoringSyncResult.Failed(
                     TriggerAuthoringSyncState.Conflict,
-                    $"Template identity mismatch. Asset='{currentId}', Source='{incomingId ?? string.Empty}'.");
+                    $"模板标识不匹配。资产='{currentId}'，Source='{incomingId ?? string.Empty}'。");
 
             var diagnostics = TriggerAuthoringTemplateValidator.Validate(
                 document.Template,
@@ -253,10 +254,10 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!force && assessment.RequiresForce)
                 return TriggerAuthoringSyncResult.Failed(
                     inspection.State,
-                    "Template Asset contains changes that would be overwritten.",
+                    "模板资产包含将被覆盖的改动。",
                     true);
 
-            Undo.RecordObject(asset, "Import Trigger Template Source JSON");
+            Undo.RecordObject(asset, "导入触发器模板 Source JSON");
             asset.Metadata = document.Metadata ?? new TriggerAuthoringSourceMetadata();
             asset.Template = document.Template;
             var hash = TriggerAuthoringTemplateSourceCodec.ComputeContentHash(document);
@@ -276,16 +277,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                 EditorSourceSyncState.Conflict => TriggerAuthoringSyncState.Conflict,
                 EditorSourceSyncState.SourceMissing => TriggerAuthoringSyncState.SourceMissing,
                 EditorSourceSyncState.InvalidSource => TriggerAuthoringSyncState.InvalidSource,
-                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown source sync state.")
+                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "未知的 Source 同步状态。")
             };
         }
 
         private static bool HasAuthoredContent(TriggerAuthoringTemplateData template)
         {
+            TriggerAuthoringTemplateDefinition.Normalize(template);
+            var definition = template?.Definition;
             return template != null &&
                    (!string.IsNullOrWhiteSpace(template.TemplateId) ||
                     (template.Parameters != null && template.Parameters.Count > 0) ||
-                    template.Condition != null || template.Actions != null);
+                    definition?.Condition != null || definition?.Actions != null ||
+                    definition?.Blackboard != null && definition.Blackboard.Count > 0);
         }
 
         private static TriggerAuthoringSourceImportPreview CreateTemplatePreview(

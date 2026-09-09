@@ -71,6 +71,34 @@ namespace AbilityKit.BehaviorTree.Tests
         }
 
         [Fact]
+        public void RenameKey_UpdatesSubtreeParentBindings()
+        {
+            var definition = TreeWithReferences();
+            var subtree = new NodeDefinition
+            {
+                Id = "sub",
+                Type = BuiltInNodeTypes.Subtree,
+                SubtreeBlackboard = new SubtreeBlackboardConfiguration
+                {
+                    Bindings = new System.Collections.Generic.List<SubtreeBlackboardBinding>
+                    {
+                        new() { SubtreeKey = "input", ParentKey = "self.hp" },
+                    },
+                },
+            };
+            subtree.Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("child"));
+            definition.Nodes.Add(subtree);
+
+            var references = KeyReferenceIndex.FindReferences(definition, BuiltinRegistry(), "self.hp");
+            Assert.Equal(2, references.Count);
+            var affected = KeyReferenceIndex.RenameKey(
+                definition, BuiltinRegistry(), "self.hp", "self.health");
+
+            Assert.Equal(2, affected.Count);
+            Assert.Equal("self.health", subtree.SubtreeBlackboard.Bindings[0].ParentKey);
+        }
+
+        [Fact]
         public void RenameKey_Collision_Throws()
         {
             var definition = TreeWithReferences();

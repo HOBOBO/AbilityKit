@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace AbilityKit.Ability.Editor
 {
-    [CreateAssetMenu(fileName = "TriggerAuthoringTemplate", menuName = "AbilityKit/Trigger Authoring/Template")]
+    [CreateAssetMenu(fileName = "TriggerAuthoringTemplate", menuName = "AbilityKit/触发器编辑/模板")]
     public sealed class TriggerAuthoringTemplateAsset : SerializedScriptableObject
     {
         [SerializeField]

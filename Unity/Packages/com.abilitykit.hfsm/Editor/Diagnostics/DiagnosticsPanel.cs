@@ -79,7 +79,7 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
             DrawToolbar();
             if (_context?.GraphAsset == null)
             {
-                EditorGUILayout.HelpBox("No graph loaded.", MessageType.Info);
+                EditorGUILayout.HelpBox("尚未加载状态机图。", MessageType.Info);
                 return;
             }
 
@@ -97,7 +97,7 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
         private void DrawToolbar()
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Next Diagnostics", EditorStyles.boldLabel, GUILayout.Width(95));
+            GUILayout.Label("Next 诊断", EditorStyles.boldLabel, GUILayout.Width(95));
 
             var configured = EditorBindingCatalog.ConfiguredAsset;
             EditorGUI.BeginChangeCheck();
@@ -113,9 +113,9 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
             }
 
             GUILayout.FlexibleSpace();
-            _showErrors = GUILayout.Toggle(_showErrors, "Errors", EditorStyles.toolbarButton, GUILayout.Width(45));
-            _showWarnings = GUILayout.Toggle(_showWarnings, "Warnings", EditorStyles.toolbarButton, GUILayout.Width(60));
-            if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(52)))
+            _showErrors = GUILayout.Toggle(_showErrors, "错误", EditorStyles.toolbarButton, GUILayout.Width(45));
+            _showWarnings = GUILayout.Toggle(_showWarnings, "警告", EditorStyles.toolbarButton, GUILayout.Width(45));
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(45)))
                 Refresh();
             EditorGUILayout.EndHorizontal();
         }
@@ -123,15 +123,15 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
         private void DrawSummary()
         {
             EditorGUILayout.BeginHorizontal();
-            var status = _snapshot.IsExportReady ? "Ready" : "Blocked";
+            var status = _snapshot.IsExportReady ? "就绪" : "已阻止";
             GUILayout.Label(status, EditorStyles.boldLabel, GUILayout.Width(55));
-            GUILayout.Label($"Errors {_diagnostics?.ErrorCount ?? 0}", GUILayout.Width(65));
-            GUILayout.Label($"Warnings {_diagnostics?.WarningCount ?? 0}", GUILayout.Width(85));
-            GUILayout.Label("Catalog: " + _snapshot.CatalogSource, GUILayout.MinWidth(80));
+            GUILayout.Label($"错误 {_diagnostics?.ErrorCount ?? 0}", GUILayout.Width(65));
+            GUILayout.Label($"警告 {_diagnostics?.WarningCount ?? 0}", GUILayout.Width(65));
+            GUILayout.Label("目录：" + _snapshot.CatalogSource, GUILayout.MinWidth(80));
             EditorGUILayout.EndHorizontal();
             if (!string.IsNullOrEmpty(_snapshot.DefinitionHash))
                 EditorGUILayout.SelectableLabel(
-                    "Hash: " + _snapshot.DefinitionHash,
+                    "哈希：" + _snapshot.DefinitionHash,
                     EditorStyles.miniLabel,
                     GUILayout.Height(EditorGUIUtility.singleLineHeight));
         }
@@ -146,7 +146,7 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
             if (issues.Length == 0)
             {
                 EditorGUILayout.HelpBox(
-                    _snapshot.IsExportReady ? "Next runtime definition is export-ready." : "No diagnostics match the active filters.",
+                    _snapshot.IsExportReady ? "Next Runtime 定义已可导出。" : "没有符合当前筛选条件的诊断项。",
                     _snapshot.IsExportReady ? MessageType.Info : MessageType.None);
                 return;
             }
@@ -156,7 +156,7 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
             {
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 GUILayout.Label(
-                    issue.Severity == EditorDiagnosticSeverity.Error ? "Error" : "Warning",
+                    issue.Severity == EditorDiagnosticSeverity.Error ? "错误" : "警告",
                     EditorStyles.boldLabel,
                     GUILayout.Width(55));
                 GUILayout.Label(issue.Code, GUILayout.Width(90));
@@ -166,7 +166,7 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
                     GUILayout.MinHeight(30));
 
                 EditorGUI.BeginDisabledGroup(!issue.CanLocate);
-                if (GUILayout.Button("Focus", GUILayout.Width(52), GUILayout.Height(22)))
+                if (GUILayout.Button("定位", GUILayout.Width(52), GUILayout.Height(22)))
                     issue.Locate?.Invoke();
                 EditorGUI.EndDisabledGroup();
                 EditorGUILayout.EndHorizontal();

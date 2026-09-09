@@ -33,6 +33,9 @@ namespace AbilityKit.HFSM.Editor.Export
         public bool needsExitTime;
         public bool isGhostState;
         public bool hasBehaviors;
+        public string nextBehaviorKey;
+        public List<string> nextParallelBehaviorKeys = new List<string>();
+        public string nextParallelExitPolicy;
         public List<ExportBehaviorData> behaviors = new List<ExportBehaviorData>();
 
         // 状态机节点属性

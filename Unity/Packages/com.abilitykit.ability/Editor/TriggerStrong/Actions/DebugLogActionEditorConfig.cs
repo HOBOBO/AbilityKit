@@ -16,7 +16,7 @@ namespace AbilityKit.Ability.Editor
         [TextArea]
         public string Message;
 
-        [LabelText("输出 Args")]
+        [LabelText("输出参数")]
         public bool DumpArgs;
 
         protected override string GetTitleSuffix()

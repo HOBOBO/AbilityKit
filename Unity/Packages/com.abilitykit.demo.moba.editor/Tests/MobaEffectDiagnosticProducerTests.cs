@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Observability;
 using AbilityKit.Diagnostics;
 using AbilityKit.Trace;
 using NUnit.Framework;
@@ -190,6 +192,83 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(payload.FailureKey, Is.EqualTo("DepthLimit"));
         }
 
+        [Test]
+        public void TriggerObservationAdapter_AggregatesRepeatedConditionFailuresUntilTransition()
+        {
+            var recorder = new DiagnosticDraftRecorder();
+            var adapter = new MobaBattleObservationRecorderAdapter(recorder);
+            var hook = (IMobaTriggerAnalysisHook)adapter;
+
+            Observe(hook, 1, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 101, 201);
+            for (var frame = 2; frame <= 10; frame++)
+            {
+                Observe(hook, frame, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 100 + frame, 200 + frame);
+            }
+
+            Assert.That(recorder.Drafts, Has.Count.EqualTo(1));
+            Observe(hook, 10, MobaTriggerAnalysisStage.Plan, MobaTriggerAnalysisResult.Passed, 110, 210);
+
+            Assert.That(recorder.Drafts, Has.Count.EqualTo(3));
+            Assert.That(recorder.Drafts[0].Kind, Is.EqualTo(BattleDiagnosticEventKind.TriggerAnalysis));
+            Assert.That(recorder.Drafts[1].Kind, Is.EqualTo(BattleDiagnosticEventKind.TriggerAnalysisAggregate));
+            Assert.That(recorder.Drafts[1].Payload.TryGetTriggerAnalysisAggregate(out var aggregate), Is.True);
+            Assert.That(aggregate.OccurrenceCount, Is.EqualTo(9));
+            Assert.That(aggregate.FirstFrame, Is.EqualTo(2));
+            Assert.That(aggregate.LastFrame, Is.EqualTo(10));
+            Assert.That(aggregate.FirstContextId, Is.EqualTo(102));
+            Assert.That(aggregate.LastRootContextId, Is.EqualTo(210));
+            Assert.That(recorder.Drafts[2].Payload.TryGetTriggerAnalysis(out var transition), Is.True);
+            Assert.That(transition.Stage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Plan));
+        }
+
+        [Test]
+        public void TriggerObservationAdapter_FlushesBoundedWindowAndPendingDataOnDispose()
+        {
+            var recorder = new DiagnosticDraftRecorder();
+            var adapter = new MobaBattleObservationRecorderAdapter(recorder);
+            var hook = (IMobaTriggerAnalysisHook)adapter;
+
+            Observe(hook, 1, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 101, 201);
+            for (var frame = 2; frame <= 61; frame++)
+            {
+                Observe(hook, frame, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 100 + frame, 200 + frame);
+            }
+
+            Assert.That(recorder.Drafts, Has.Count.EqualTo(2));
+            Assert.That(recorder.Drafts[1].Payload.TryGetTriggerAnalysisAggregate(out var window), Is.True);
+            Assert.That(window.OccurrenceCount, Is.EqualTo(60));
+            Assert.That(window.FirstFrame, Is.EqualTo(2));
+            Assert.That(window.LastFrame, Is.EqualTo(61));
+
+            Observe(hook, 62, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 162, 262);
+            adapter.Dispose();
+
+            Assert.That(recorder.Drafts, Has.Count.EqualTo(3));
+            Assert.That(recorder.Drafts[2].Payload.TryGetTriggerAnalysisAggregate(out var pending), Is.True);
+            Assert.That(pending.OccurrenceCount, Is.EqualTo(1));
+            Assert.That(pending.FirstFrame, Is.EqualTo(62));
+        }
+
+        [Test]
+        public void TriggerObservationAdapter_FlushesPendingAggregateWhenFailureKeyChanges()
+        {
+            var recorder = new DiagnosticDraftRecorder();
+            var adapter = new MobaBattleObservationRecorderAdapter(recorder);
+            var hook = (IMobaTriggerAnalysisHook)adapter;
+
+            Observe(hook, 1, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 101, 201, "failureA");
+            Observe(hook, 2, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 102, 202, "failureA");
+            Observe(hook, 3, MobaTriggerAnalysisStage.Conditions, MobaTriggerAnalysisResult.Failed, 103, 203, "failureB");
+
+            Assert.That(recorder.Drafts, Has.Count.EqualTo(3));
+            Assert.That(recorder.Drafts[1].Payload.TryGetTriggerAnalysisAggregate(out var aggregate), Is.True);
+            Assert.That(aggregate.FailureKey, Is.EqualTo("failureA"));
+            Assert.That(aggregate.OccurrenceCount, Is.EqualTo(1));
+            Assert.That(aggregate.FirstFrame, Is.EqualTo(2));
+            Assert.That(recorder.Drafts[2].Payload.TryGetTriggerAnalysis(out var nextFailure), Is.True);
+            Assert.That(nextFailure.FailureKey, Is.EqualTo("failureB"));
+        }
+
         // ===== Collector 流转 =====
 
         [Test]
@@ -341,6 +420,43 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             SetMember(service, "Trace", trace);
             SetMember(service, "_diagnostics", diagnostics);
             return service;
+        }
+
+        private static void Observe(
+            IMobaTriggerAnalysisHook hook,
+            int frame,
+            MobaTriggerAnalysisStage stage,
+            MobaTriggerAnalysisResult result,
+            long contextId,
+            long rootContextId,
+            string failureKey = "predicateMiss")
+        {
+            var observation = new MobaTriggerAnalysisObservation(
+                triggerId: 900001,
+                contextKind: 2,
+                originKind: 3,
+                stage,
+                result,
+                sourceActorId: 7,
+                targetActorId: 9,
+                contextId: contextId,
+                rootContextId: rootContextId,
+                failureKey: result == MobaTriggerAnalysisResult.Failed ? failureKey : string.Empty,
+                reason: result == MobaTriggerAnalysisResult.Failed ? "Time limit not reached." : string.Empty,
+                frame: frame);
+            hook.OnObserved(in observation);
+        }
+
+        private sealed class DiagnosticDraftRecorder : IMobaBattleDiagnosticEventSink
+        {
+            public List<MobaBattleDiagnosticEventDraft> Drafts { get; } =
+                new List<MobaBattleDiagnosticEventDraft>();
+
+            public bool TryCollect(in MobaBattleDiagnosticEventDraft draft)
+            {
+                Drafts.Add(draft);
+                return true;
+            }
         }
 
         private static void BeginEffectScope(MobaEffectExecutionService service)

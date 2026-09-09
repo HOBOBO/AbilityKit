@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Editor
 {
     [BattleDebugModule(
         BattleDebugModuleIds.FrameSyncRollback,
-        "Frame Sync",
+        "帧同步",
         Sources = BattleDebugModuleSourceSupport.All,
         Selections = BattleDebugModuleSelectionSupport.Frame)]
     internal sealed class BattleDebugFrameSyncRollbackPanel : IBattleDebugPanel, IBattleDebugPanelLayout
@@ -32,22 +32,22 @@ namespace AbilityKit.Game.Editor
             var hasHistory = BattleDebugFrameMetricHistory.Draw(
                 in ctx,
                 BattleDiagnosticMetricCategory.Rollback,
-                "Rollback History");
+                "回滚历史");
             var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
                 if (hasHistory) return;
-                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;
             }
 
             if (flowCtx.PredictionStats == null)
             {
-                EditorGUILayout.HelpBox("PredictionStats 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("预测统计为空。", MessageType.Info);
                 return;
             }
 
-            EditorGUILayout.LabelField("是否正在回放", flowCtx.PredictionStats.IsReplaying.ToString());
+            EditorGUILayout.LabelField("是否正在回放", BattleDebugDisplayText.Bool(flowCtx.PredictionStats.IsReplaying));
             EditorGUILayout.LabelField("回放到帧", flowCtx.PredictionStats.ReplayToFrame.Value.ToString());
             EditorGUILayout.LabelField("最近回滚帧", flowCtx.PredictionStats.LastRollbackFrame.Value.ToString());
             EditorGUILayout.LabelField("回滚次数（总）", flowCtx.PredictionStats.TotalRollbackCount.ToString());

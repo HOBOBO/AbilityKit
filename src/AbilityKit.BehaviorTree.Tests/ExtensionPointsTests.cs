@@ -38,8 +38,8 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Root("root");
             definition.Nodes[0].Properties.Set(CompositeNode.AbortTypeProperty, PropertyValue.Of(99L));
 
-            var errors = TreeValidator.Validate(definition, registry);
-            Assert.Contains(errors, e => e.Contains("enum index out of range"));
+            var diagnostics = TreeValidator.ValidateDiagnostics(definition, registry);
+            Assert.Contains(diagnostics, d => d.Code == "BT0501");
         }
 
         [Fact]
@@ -54,8 +54,8 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Root("root");
             definition.Nodes[0].Properties.Set(SetBlackboardNode.KeyProperty, PropertyValue.Of("undeclared.key"));
 
-            var errors = TreeValidator.Validate(definition, registry);
-            Assert.Contains(errors, e => e.Contains("undeclared blackboard key 'undeclared.key'"));
+            var diagnostics = TreeValidator.ValidateDiagnostics(definition, registry);
+            Assert.Contains(diagnostics, d => d.Code == "BT0502" && d.BlackboardKey == "undeclared.key");
         }
 
         [Fact]

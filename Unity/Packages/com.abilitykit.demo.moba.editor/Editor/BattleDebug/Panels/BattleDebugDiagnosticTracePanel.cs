@@ -8,7 +8,7 @@ namespace AbilityKit.Game.Editor
 {
     [BattleDebugModule(
         BattleDebugModuleIds.DiagnosticTrace,
-        "Investigation",
+        "调查",
         RequiredCapabilities = BattleDiagnosticCapabilities.Trace,
         Selections = BattleDebugModuleSelectionSupport.Frame |
                      BattleDebugModuleSelectionSupport.Actor |
@@ -46,10 +46,17 @@ namespace AbilityKit.Game.Editor
             new BattleDebugTimelineOverviewBuffer();
         private readonly BattleDebugLegendItem[] _waterfallLegend =
         {
-            new BattleDebugLegendItem("Active", new Color(0.65f, 0.9f, 1f)),
-            new BattleDebugLegendItem("Failed", new Color(1f, 0.55f, 0.55f)),
-            new BattleDebugLegendItem("Force Ended", new Color(1f, 0.8f, 0.45f)),
-            new BattleDebugLegendItem("Ended", new Color(0.48f, 0.76f, 0.52f))
+            new BattleDebugLegendItem("进行中", new Color(0.65f, 0.9f, 1f)),
+            new BattleDebugLegendItem("失败", new Color(1f, 0.55f, 0.55f)),
+            new BattleDebugLegendItem("强制结束", new Color(1f, 0.8f, 0.45f)),
+            new BattleDebugLegendItem("已结束", new Color(0.48f, 0.76f, 0.52f))
+        };
+        private static readonly string[] TraceViewModeNames =
+        {
+            "流程",
+            "问题",
+            "效果",
+            "进行中"
         };
 
         public BattleDebugDiagnosticTracePanel()
@@ -71,7 +78,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -103,7 +110,7 @@ namespace AbilityKit.Game.Editor
                     requiresSelection: true,
                     hasSelection: false,
                     subject: "Trace 树",
-                    selectionSubject: "Root Context"));
+                    selectionSubject: "根上下文"));
                 return;
             }
 
@@ -114,7 +121,7 @@ namespace AbilityKit.Game.Editor
                 ScrollToSelection();
             }
             EditorGUILayout.LabelField(
-                $"TraceStoreRevision={_viewModel.StoreRevision}  " +
+                $"Trace 存储版本={_viewModel.StoreRevision}  " +
                 $"节点={_viewModel.Rows.Count}  可见={_viewModel.VisibleRows.Count}",
                 EditorStyles.miniLabel);
 
@@ -152,7 +159,7 @@ namespace AbilityKit.Game.Editor
             if (!TryPrepareWidget(in ctx, drawToolbar: false)) return;
             if (_viewModel.SelectedPath.Count == 0)
             {
-                EditorGUILayout.HelpBox("Select a node from Trace Tree or Waterfall.", MessageType.Info);
+                EditorGUILayout.HelpBox("请从 Trace 树或帧瀑布图中选择一个节点。", MessageType.Info);
                 return;
             }
 
@@ -164,7 +171,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "Battle Diagnostics session is unavailable.",
+                    "战斗诊断会话不可用。",
                     MessageType.Info);
                 return false;
             }
@@ -198,8 +205,8 @@ namespace AbilityKit.Game.Editor
                     default,
                     requiresSelection: true,
                     hasSelection: false,
-                    subject: "Trace root",
-                    selectionSubject: "Root Context"));
+                    subject: "Trace 根节点",
+                    selectionSubject: "根上下文"));
                 return false;
             }
 
@@ -210,8 +217,8 @@ namespace AbilityKit.Game.Editor
                 ScrollToSelection();
             }
             EditorGUILayout.LabelField(
-                $"TraceStoreRevision={_viewModel.StoreRevision}  " +
-                $"Nodes={_viewModel.Rows.Count}  Visible={_viewModel.VisibleRows.Count}",
+                $"Trace 存储版本={_viewModel.StoreRevision}  " +
+                $"节点={_viewModel.Rows.Count}  可见={_viewModel.VisibleRows.Count}",
                 EditorStyles.miniLabel);
 
             if (_viewModel.Rows.Count == 0)
@@ -219,7 +226,7 @@ namespace AbilityKit.Game.Editor
                 DrawEmptyState(BattleDebugEmptyStateProjector.Project(
                     _viewModel.QueryStatus,
                     hasActiveFilter: !string.IsNullOrEmpty(_viewModel.SearchText),
-                    subject: "Trace nodes"));
+                    subject: "Trace 节点"));
                 return false;
             }
             if (!string.IsNullOrEmpty(_viewModel.StatusMessage))
@@ -235,32 +242,34 @@ namespace AbilityKit.Game.Editor
             in BattleDebugContext ctx,
             IBattleDiagnosticReadOnlySession session)
         {
+            _viewModel.RefreshRootIndexIfNeeded(session);
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Root Context", GUILayout.Width(80));
+            DrawRootPicker(in ctx, session);
+            GUILayout.Space(8f);
+            GUILayout.Label("根 ID", GUILayout.Width(48));
             _rootContextIdText = GUILayout.TextField(
                 _rootContextIdText ?? string.Empty,
-                GUILayout.MinWidth(100));
+                GUILayout.Width(100));
 
             var hasValidRoot = long.TryParse(_rootContextIdText, out var rootContextId) &&
                                rootContextId > 0;
             EditorGUI.BeginDisabledGroup(!hasValidRoot);
-            if (GUILayout.Button("加载", EditorStyles.toolbarButton, GUILayout.Width(50)))
+            if (GUILayout.Button("加载", EditorStyles.toolbarButton, GUILayout.Width(44)))
             {
-                _viewModel.InvalidateCache();
-                _viewModel.RefreshIfNeeded(session, rootContextId);
+                LoadRoot(in ctx, session, rootContextId);
                 GUI.FocusControl(null);
-                ctx.RequestRepaint?.Invoke();
             }
             EditorGUI.EndDisabledGroup();
 
             GUILayout.FlexibleSpace();
             EditorGUI.BeginDisabledGroup(_viewModel.RootContextId == 0);
-            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(50)))
+            if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(56)))
             {
                 _viewModel.InvalidateCache();
+                _viewModel.InvalidateRootIndex();
                 ctx.RequestRepaint?.Invoke();
             }
-            if (GUILayout.Button("清除", EditorStyles.toolbarButton, GUILayout.Width(50)))
+            if (GUILayout.Button("清除", EditorStyles.toolbarButton, GUILayout.Width(44)))
             {
                 _viewModel.Clear();
                 _rootContextIdText = string.Empty;
@@ -272,7 +281,19 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("搜索", GUILayout.Width(35));
+            var viewMode = (BattleDebugTraceViewMode)GUILayout.Toolbar(
+                (int)_viewModel.ViewMode,
+                TraceViewModeNames,
+                EditorStyles.toolbarButton,
+                GUILayout.Width(230));
+            if (viewMode != _viewModel.ViewMode)
+            {
+                _viewModel.SetViewMode(viewMode);
+                _treeScroll = Vector2.zero;
+                _waterfallScroll = Vector2.zero;
+            }
+            GUILayout.Space(8f);
+            GUILayout.Label("搜索", GUILayout.Width(44));
             var searchText = GUILayout.TextField(
                 _viewModel.SearchText,
                 GUI.skin.textField,
@@ -321,14 +342,14 @@ namespace AbilityKit.Game.Editor
             EditorGUI.EndDisabledGroup();
             EditorGUI.EndDisabledGroup();
             EditorGUI.BeginDisabledGroup(_viewModel.SelectedContextId == 0);
-            if (GUILayout.Button("Pin", EditorStyles.toolbarButton, GUILayout.Width(38)))
+            if (GUILayout.Button("固定", EditorStyles.toolbarButton, GUILayout.Width(42)))
             {
                 _viewModel.PinSelection();
             }
             EditorGUI.EndDisabledGroup();
 
             EditorGUI.BeginDisabledGroup(!_viewModel.IsPinnedContextAvailable);
-            if (GUILayout.Button("返回 Pin", EditorStyles.toolbarButton, GUILayout.Width(60)))
+            if (GUILayout.Button("返回固定", EditorStyles.toolbarButton, GUILayout.Width(64)))
             {
                 _viewModel.SelectPinned();
                 ScrollToSelection();
@@ -336,7 +357,7 @@ namespace AbilityKit.Game.Editor
             EditorGUI.EndDisabledGroup();
 
             EditorGUI.BeginDisabledGroup(_viewModel.PinnedContextId == 0);
-            if (GUILayout.Button("清除 Pin", EditorStyles.toolbarButton, GUILayout.Width(60)))
+            if (GUILayout.Button("清除固定", EditorStyles.toolbarButton, GUILayout.Width(64)))
             {
                 _viewModel.ClearPin();
             }
@@ -355,35 +376,91 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndHorizontal();
         }
 
+        private void DrawRootPicker(
+            in BattleDebugContext ctx,
+            IBattleDiagnosticReadOnlySession session)
+        {
+            var roots = _viewModel.RootSummaries;
+            if (roots.Count == 0)
+            {
+                EditorGUI.BeginDisabledGroup(true);
+                EditorGUILayout.Popup(0, new[] { "没有保留的 Trace 根节点" }, GUILayout.Width(260));
+                EditorGUI.EndDisabledGroup();
+                return;
+            }
+
+            var labels = new string[roots.Count + 1];
+            labels[0] = "选择最近的 Trace 根节点";
+            var selectedIndex = 0;
+            for (var i = 0; i < roots.Count; i++)
+            {
+                var root = roots[i];
+                labels[i + 1] = BuildRootLabel(in root);
+                if (root.RootContextId == _viewModel.RootContextId) selectedIndex = i + 1;
+            }
+
+            var nextIndex = EditorGUILayout.Popup(selectedIndex, labels, GUILayout.Width(320));
+            if (nextIndex > 0 && nextIndex != selectedIndex)
+            {
+                LoadRoot(in ctx, session, roots[nextIndex - 1].RootContextId);
+            }
+        }
+
+        private void LoadRoot(
+            in BattleDebugContext ctx,
+            IBattleDiagnosticReadOnlySession session,
+            long rootContextId)
+        {
+            _rootContextIdText = rootContextId.ToString();
+            _treeScroll = Vector2.zero;
+            _waterfallScroll = Vector2.zero;
+            _viewModel.InvalidateCache();
+            _viewModel.RefreshIfNeeded(session, rootContextId);
+            ctx.RequestRepaint?.Invoke();
+        }
+
+        private static string BuildRootLabel(in BattleDiagnosticTraceRootSummary root)
+        {
+            var marker = root.HasIssues ? "[!]" : root.IsActive ? "[*]" : "[正常]";
+            var value = root.HasIssues
+                ? $"{root.IssueCount} 个问题"
+                : root.IsActive
+                    ? $"{root.ActiveCount} 个进行中"
+                    : $"{root.EffectCount} 个效果";
+            return $"{marker} {BattleDebugDisplayText.TraceKind(root.Root.Kind)} #{root.RootContextId} | {value} | " +
+                   $"{root.NodeCount} 个节点 | F{root.Root.StartFrame}-F{root.LastFrame}";
+        }
+
         private void DrawFlowSummary()
         {
             var summary = _viewModel.Summary;
+            var visible = _viewModel.VisibleSummary;
             if (summary.NodeCount == 0) return;
 
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label($"Root #{_viewModel.RootContextId}", EditorStyles.miniBoldLabel, GUILayout.Width(100));
-            GUILayout.Label($"节点 {summary.NodeCount}", EditorStyles.miniLabel, GUILayout.Width(52));
-            GUILayout.Label($"效果 {summary.EffectCount}", EditorStyles.miniLabel, GUILayout.Width(52));
-            GUILayout.Label($"动作 {summary.ActionCount}", EditorStyles.miniLabel, GUILayout.Width(52));
+            GUILayout.Label($"根节点 #{_viewModel.RootContextId}", EditorStyles.miniBoldLabel, GUILayout.Width(100));
+            GUILayout.Label($"节点 {visible.NodeCount}/{summary.NodeCount}", EditorStyles.miniLabel, GUILayout.Width(86));
+            GUILayout.Label($"效果 {visible.EffectCount}/{summary.EffectCount}", EditorStyles.miniLabel, GUILayout.Width(76));
+            GUILayout.Label($"动作 {visible.ActionCount}/{summary.ActionCount}", EditorStyles.miniLabel, GUILayout.Width(76));
             var oldColor = GUI.color;
-            if (summary.IssueCount > 0) GUI.color = new Color(1f, 0.62f, 0.58f);
-            GUILayout.Label($"异常 {summary.IssueCount}", EditorStyles.miniBoldLabel, GUILayout.Width(52));
+            if (visible.IssueCount > 0) GUI.color = new Color(1f, 0.62f, 0.58f);
+            GUILayout.Label($"问题 {visible.IssueCount}/{summary.IssueCount}", EditorStyles.miniBoldLabel, GUILayout.Width(72));
             GUI.color = oldColor;
-            if (summary.ActiveCount > 0)
+            if (visible.ActiveCount > 0)
             {
                 GUI.color = new Color(0.65f, 0.9f, 1f);
-                GUILayout.Label($"活跃 {summary.ActiveCount}", EditorStyles.miniBoldLabel, GUILayout.Width(52));
+                GUILayout.Label($"进行中 {visible.ActiveCount}/{summary.ActiveCount}", EditorStyles.miniBoldLabel, GUILayout.Width(72));
                 GUI.color = oldColor;
             }
-            GUILayout.Label($"最大深度 {summary.MaximumDepth}", EditorStyles.miniLabel, GUILayout.Width(72));
+            GUILayout.Label($"深度 {visible.MaximumDepth}", EditorStyles.miniLabel, GUILayout.Width(58));
             GUILayout.FlexibleSpace();
-            GUILayout.Label(BuildSummaryFrameText(in summary), EditorStyles.miniLabel);
+            if (visible.NodeCount > 0) GUILayout.Label(BuildSummaryFrameText(in visible), EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
         }
 
         private void DrawTree(in BattleDebugContext ctx)
         {
-            EditorGUILayout.LabelField("Trace Tree", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Trace 树", EditorStyles.boldLabel);
             _treeScroll = EditorGUILayout.BeginScrollView(
                 _treeScroll,
                 GUILayout.MinHeight(180),
@@ -417,12 +494,12 @@ namespace AbilityKit.Game.Editor
 
         private void DrawWaterfall(in BattleDebugContext ctx)
         {
-            EditorGUILayout.LabelField("Trace Frame Waterfall", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Trace 帧瀑布图", EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
-                "Bars represent frame spans, not CPU duration.",
+                "条带表示帧跨度，不代表 CPU 耗时。",
                 EditorStyles.miniLabel);
 
-            var rows = _viewModel.Rows;
+            var rows = _viewModel.VisibleRows;
             if (rows.Count == 0) return;
 
             var cursorFrame = ctx.WorkspaceState?.FrameCursor.Frame ?? BattleDiagnosticFrames.Invalid;
@@ -443,12 +520,12 @@ namespace AbilityKit.Game.Editor
                         : node.StartFrame;
                 _waterfallItems.Add(new BattleDebugWaterfallItem(
                     node.ContextId,
-                    $"{node.Kind} #{node.ContextId}",
-                    $"Source={node.SourceActorId}, Target={node.TargetActorId}, " +
-                    $"Config={node.ConfigId}, Trigger={node.TriggerId}\n" +
-                    $"State={BuildResultText(in node)}\n" +
+                    $"{BattleDebugDisplayText.TraceKind(node.Kind)} #{node.ContextId}",
+                    $"来源={node.SourceActorId}，目标={node.TargetActorId}，" +
+                    $"配置={node.ConfigId}，触发器={node.TriggerId}\n" +
+                    $"状态={BuildResultText(in node)}\n" +
                     $"F{node.StartFrame} -> " +
-                    (node.EndFrame >= 0 ? $"F{node.EndFrame}" : "active"),
+                    (node.EndFrame >= 0 ? $"F{node.EndFrame}" : "进行中"),
                     node.StartFrame,
                     effectiveEnd,
                     row.Depth,
@@ -571,10 +648,10 @@ namespace AbilityKit.Game.Editor
                     ? BattleDebugWidgetIds.TraceWaterfall
                     : BattleDebugWidgetIds.TraceDetails;
             public string DisplayName => _kind == TraceWidgetKind.Tree
-                ? "Trace Tree"
+                ? "Trace 树"
                 : _kind == TraceWidgetKind.Waterfall
-                    ? "Frame Waterfall"
-                    : "Trace Details";
+                    ? "帧瀑布图"
+                    : "Trace 详情";
             public bool OwnsScrollView => _kind != TraceWidgetKind.Details;
 
             public bool IsAvailable(in BattleDebugContext context)
@@ -635,9 +712,9 @@ namespace AbilityKit.Game.Editor
             }
 
             var contentX = rect.x + Mathf.Clamp(rect.width * 0.30f, 210f, 310f);
-            GUI.Label(new Rect(contentX, rect.y, 140f, rect.height), "配置 / Trigger", EditorStyles.miniLabel);
+            GUI.Label(new Rect(contentX, rect.y, 140f, rect.height), "配置 / 触发器", EditorStyles.miniLabel);
             contentX += 140f;
-            GUI.Label(new Rect(contentX, rect.y, 150f, rect.height), "Source -> Target", EditorStyles.miniLabel);
+            GUI.Label(new Rect(contentX, rect.y, 150f, rect.height), "来源 -> 目标", EditorStyles.miniLabel);
             contentX += Mathf.Clamp(rect.width * 0.22f, 135f, 190f);
             GUI.Label(new Rect(contentX, rect.y, 112f, rect.height), "帧区间", EditorStyles.miniLabel);
             contentX += 112f;
@@ -724,9 +801,9 @@ namespace AbilityKit.Game.Editor
 
             var compact = contentRect.width < 720f;
             var labelStyle = selected ? EditorStyles.miniBoldLabel : EditorStyles.miniLabel;
-            var kindLabel = (pinned ? "[PIN] " : string.Empty) + node.Kind + "  #" + node.ContextId;
+            var kindLabel = (pinned ? "[固定] " : string.Empty) + BattleDebugDisplayText.TraceKind(node.Kind) + "  #" + node.ContextId;
             if (hasChildren) kindLabel += "  (" + _viewModel.GetChildCount(node.ContextId) + ")";
-            if (row.IsOrphan) kindLabel += "  [orphan]";
+            if (row.IsOrphan) kindLabel += "  [孤立节点]";
 
             if (compact)
             {
@@ -747,7 +824,7 @@ namespace AbilityKit.Game.Editor
             var frameWidth = 112f;
             var resultWidth = Mathf.Max(80f, contentRect.width - kindWidth - configWidth - actorWidth - frameWidth);
             var column = new Rect(contentRect.x + 3f, contentRect.y + 2f, kindWidth - 3f, contentRect.height - 4f);
-            GUI.Label(column, new GUIContent(kindLabel, BuildNodeTooltip(in row)), labelStyle);
+            GUI.Label(column, new GUIContent(kindLabel, null, BuildNodeTooltip(in row)), labelStyle);
             column.x += kindWidth;
             column.width = configWidth;
             GUI.Label(column, BuildConfigText(in node), EditorStyles.miniLabel);
@@ -772,7 +849,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("所选流程节点", EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
                 "位置 / 类型",
-                $"{path.Count}/{_viewModel.Summary.MaximumDepth + 1}   {selected.Kind} #{selected.ContextId}");
+                $"{path.Count}/{_viewModel.Summary.MaximumDepth + 1}   {BattleDebugDisplayText.TraceKind(selected.Kind)} #{selected.ContextId}");
             EditorGUILayout.LabelField(
                 "结果",
                 BuildResultText(in selected));
@@ -780,7 +857,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("配置", BuildConfigText(in selected));
             if (selected.TriggerId != 0)
             {
-                EditorGUILayout.LabelField("Trigger Plan", selected.TriggerId.ToString());
+                EditorGUILayout.LabelField("触发计划", selected.TriggerId.ToString());
             }
             EditorGUILayout.LabelField(
                 "父节点 / 子节点",
@@ -788,7 +865,7 @@ namespace AbilityKit.Game.Editor
             if (selected.SkillId != 0 || selected.CastFlowId != 0 || !string.IsNullOrEmpty(selected.PhaseId))
             {
                 EditorGUILayout.LabelField(
-                    "技能 / CastFlow / 阶段",
+                    "技能 / 施法流程 / 阶段",
                     $"{FormatId(selected.SkillId)} / {FormatId(selected.CastFlowId)} / " +
                     (string.IsNullOrEmpty(selected.PhaseId) ? "-" : selected.PhaseId));
             }
@@ -820,18 +897,18 @@ namespace AbilityKit.Game.Editor
             if (_viewModel.PinnedContextId != 0)
             {
                 EditorGUILayout.LabelField(
-                    "Pinned Context",
+                    "固定上下文",
                     _viewModel.IsPinnedContextAvailable
                         ? _viewModel.PinnedContextId.ToString()
                         : $"{_viewModel.PinnedContextId}（当前 Trace 中不可用）");
             }
             if (!string.IsNullOrEmpty(selected.EndReason))
             {
-                EditorGUILayout.LabelField("End Reason", selected.EndReason);
+                EditorGUILayout.LabelField("结束原因", selected.EndReason);
             }
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Root Path", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("根节点路径", EditorStyles.boldLabel);
             if (GUILayout.Button("复制链路", GUILayout.Width(72)))
             {
                 EditorGUIUtility.systemCopyBuffer = BuildPathText(path);
@@ -854,10 +931,10 @@ namespace AbilityKit.Game.Editor
             in BattleDiagnosticTraceNodeSummary node)
         {
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.PrefixLabel("Source -> Target");
-            DrawActorButton(in ctx, node.SourceActorId, "source");
+            EditorGUILayout.PrefixLabel("来源 -> 目标");
+            DrawActorButton(in ctx, node.SourceActorId, "来源");
             GUILayout.Label("->", GUILayout.Width(18));
-            DrawActorButton(in ctx, node.TargetActorId, "target");
+            DrawActorButton(in ctx, node.TargetActorId, "目标");
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
         }
@@ -929,16 +1006,16 @@ namespace AbilityKit.Game.Editor
         private static string BuildNodeTooltip(in BattleDebugDiagnosticTraceRow row)
         {
             var node = row.Node;
-            return $"{node.Kind} #{node.ContextId}\n" +
-                   $"Parent #{node.ParentContextId}, depth {row.Depth}\n" +
-                   $"{BuildConfigText(in node)}, trigger {FormatId(node.TriggerId)}\n" +
+            return $"{BattleDebugDisplayText.TraceKind(node.Kind)} #{node.ContextId}\n" +
+                   $"父节点 #{node.ParentContextId}，深度 {row.Depth}\n" +
+                   $"{BuildConfigText(in node)}，触发器 {FormatId(node.TriggerId)}\n" +
                    $"{BuildActorRoute(in node)}\n" +
                    $"{BuildFrameSpan(in node)}, {BuildResultText(in node)}";
         }
 
         private static string BuildActorRoute(in BattleDiagnosticTraceNodeSummary node)
         {
-            return $"src {FormatId(node.SourceActorId)} -> tgt {FormatId(node.TargetActorId)}";
+            return $"来源 {FormatId(node.SourceActorId)} -> 目标 {FormatId(node.TargetActorId)}";
         }
 
         private static string BuildConfigText(in BattleDiagnosticTraceNodeSummary node)
@@ -947,40 +1024,40 @@ namespace AbilityKit.Game.Editor
                 string.Equals(node.Kind, "SkillEffect", System.StringComparison.Ordinal))
             {
                 return node.TriggerId > 0
-                    ? $"effect {FormatId(node.ConfigId)} / trig {node.TriggerId}"
-                    : $"effect {FormatId(node.ConfigId)}";
+                    ? $"效果 {FormatId(node.ConfigId)} / 触发器 {node.TriggerId}"
+                    : $"效果 {FormatId(node.ConfigId)}";
             }
             if (string.Equals(node.Kind, "EffectAction", System.StringComparison.Ordinal))
             {
-                return $"action {FormatId(node.ConfigId)}";
+                return $"动作 {FormatId(node.ConfigId)}";
             }
             if (string.Equals(node.Kind, "SkillCast", System.StringComparison.Ordinal) ||
                 string.Equals(node.Kind, "SkillPhase", System.StringComparison.Ordinal))
             {
-                return $"skill {FormatId(node.SkillId != 0 ? node.SkillId : node.ConfigId)}";
+                return $"技能 {FormatId(node.SkillId != 0 ? node.SkillId : node.ConfigId)}";
             }
-            return "cfg " + FormatId(node.ConfigId);
+            return "配置 " + FormatId(node.ConfigId);
         }
 
         private static string BuildFrameSpan(in BattleDiagnosticTraceNodeSummary node)
         {
             return node.EndFrame >= 0
-                ? $"F{node.StartFrame} - F{node.EndFrame}  [{node.EndFrame - node.StartFrame}f]"
-                : $"F{node.StartFrame} - active";
+                ? $"F{node.StartFrame} - F{node.EndFrame}  [{node.EndFrame - node.StartFrame} 帧]"
+                : $"F{node.StartFrame} - 进行中";
         }
 
         private static string BuildResultText(in BattleDiagnosticTraceNodeSummary node)
         {
-            if (node.State == BattleDiagnosticTraceNodeState.Active) return "ACTIVE";
+            if (node.State == BattleDiagnosticTraceNodeState.Active) return "进行中";
             if (!string.IsNullOrEmpty(node.EndReason)) return node.EndReason;
-            return node.State.ToString();
+            return BattleDebugDisplayText.TraceState(node.State);
         }
 
         private static string BuildSummaryFrameText(in BattleDebugDiagnosticTraceSummary summary)
         {
-            if (summary.ActiveCount > 0) return $"F{summary.FirstFrame} -> active";
+            if (summary.ActiveCount > 0) return $"F{summary.FirstFrame} -> 进行中";
             return summary.LastFrame >= summary.FirstFrame
-                ? $"F{summary.FirstFrame} -> F{summary.LastFrame}  [{summary.LastFrame - summary.FirstFrame}f]"
+                ? $"F{summary.FirstFrame} -> F{summary.LastFrame}  [{summary.LastFrame - summary.FirstFrame} 帧]"
                 : $"F{summary.FirstFrame}";
         }
 
@@ -1011,7 +1088,7 @@ namespace AbilityKit.Game.Editor
             for (var i = 0; i < path.Count; i++)
             {
                 var node = path[i];
-                parts[i] = $"{node.Kind}#{node.ContextId}";
+                parts[i] = $"{BattleDebugDisplayText.TraceKind(node.Kind)}#{node.ContextId}";
             }
 
             return string.Join(" > ", parts);

@@ -36,7 +36,7 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
                             ? LegacyImportSeverity.Error
                             : LegacyImportSeverity.Warning,
                         BuildGraphPath(diagnostic.ElementId, diagnostic.Code),
-                        diagnostic.Message));
+                        GetGraphDiagnosticMessage(diagnostic.Code)));
                 }
             }
 
@@ -47,7 +47,47 @@ namespace AbilityKit.HFSM.Editor.Diagnostics
 
             return new DiagnosticSnapshot(
                 export,
-                catalogAsset != null ? catalogAsset.name : "Assembly scan");
+                catalogAsset != null ? catalogAsset.name : "程序集扫描");
+        }
+
+        private static string GetGraphDiagnosticMessage(string code)
+        {
+            switch (code)
+            {
+                case "NODE_NULL": return "状态机图中包含空节点。";
+                case "NODE_ID_EMPTY": return "节点 ID 不能为空。";
+                case "NODE_ID_DUPLICATE": return "节点 ID 不唯一。";
+                case "EDGE_NULL": return "状态机图中包含空转换。";
+                case "EDGE_ID_EMPTY": return "转换 ID 不能为空。";
+                case "EDGE_ID_DUPLICATE": return "转换 ID 不唯一。";
+                case "ROOT_MISSING": return "状态机图未指定根状态机。";
+                case "ROOT_NOT_FOUND": return "根节点不存在。";
+                case "ROOT_NOT_MACHINE": return "根节点必须是状态机。";
+                case "ROOT_HAS_PARENT": return "根状态机不能包含父节点。";
+                case "PARAMETER_NULL": return "状态机图中包含空参数。";
+                case "PARAMETER_NAME_EMPTY": return "参数名称不能为空。";
+                case "PARAMETER_NAME_DUPLICATE": return "参数名称不唯一。";
+                case "CHILD_NOT_FOUND": return "子节点不存在。";
+                case "CHILD_MULTIPLE_OWNERS": return "节点同时属于多个状态机。";
+                case "PARENT_MISMATCH": return "节点记录的父状态机与实际所属状态机不一致。";
+                case "RUNTIME_NAME_EMPTY": return "子节点的运行时名称不能为空。";
+                case "RUNTIME_NAME_DUPLICATE": return "同一状态机内存在重复的运行时名称。";
+                case "DEFAULT_NOT_CHILD": return "默认状态必须是当前状态机的直接子节点。";
+                case "DEFAULT_MULTIPLE": return "一个状态机只能有一个默认状态。";
+                case "DEFAULT_CONFLICT": return "显式默认状态与标记为默认的子状态冲突。";
+                case "NODE_ORPHANED": return "节点不属于任何状态机。";
+                case "HIERARCHY_CYCLE": return "状态机层级中存在循环引用。";
+                case "EDGE_ORPHANED": return "转换不属于任何状态机。";
+                case "EDGE_NOT_FOUND": return "状态机引用的转换不存在。";
+                case "EDGE_MULTIPLE_OWNERS": return "转换同时属于多个状态机。";
+                case "ANY_STATE_SOURCE_INVALID": return "任意状态转换必须以任意状态伪节点为来源。";
+                case "EDGE_SOURCE_OUTSIDE_OWNER": return "转换来源必须是所属状态机的直接子节点。";
+                case "EDGE_TARGET_OUTSIDE_OWNER": return "转换目标必须是所属状态机的直接子节点。";
+                case "EDGE_TARGET_NOT_FOUND": return "转换目标不存在。";
+                case "NODE_UNREACHABLE": return "无法从根状态机到达该节点。";
+                case "CONDITION_CONFIG_INVALID": return "转换条件配置无效。";
+                default: return "状态机图校验失败。";
+            }
         }
 
         private static string BuildGraphPath(string elementId, string code)

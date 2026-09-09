@@ -8,7 +8,7 @@ using UnityEngine;
 namespace AbilityKit.Ability.Editor
 {
     [Serializable]
-    [TriggerConditionType(TriggerConditionTypes.Not, "取反(NOT)", "条件/复合", 20)]
+    [TriggerConditionType(TriggerConditionTypes.Not, "结果取反", "条件/复合", 20)]
     public sealed class NotConditionEditorConfig : ConditionEditorConfigBase
     {
         public override string Type => TriggerConditionTypes.Not;

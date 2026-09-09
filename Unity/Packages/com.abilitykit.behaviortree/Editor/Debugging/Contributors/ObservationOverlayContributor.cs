@@ -88,9 +88,10 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Contributors
                     AbilityKit.BehaviorTree.Definition.NodeState.Running => ObservationOverlayKind.Border,
                     AbilityKit.BehaviorTree.Definition.NodeState.Success => ObservationOverlayKind.Badge,
                     AbilityKit.BehaviorTree.Definition.NodeState.Failure => ObservationOverlayKind.Badge,
+                    AbilityKit.BehaviorTree.Definition.NodeState.Faulted => ObservationOverlayKind.Badge,
                     _ => ObservationOverlayKind.Marker,
                 };
-                return new[] { new ObservationOverlay(context.Node.NodeId, kind, context.Node.State.ToString(), (int)context.Node.State) };
+                return new[] { new ObservationOverlay(context.Node.NodeId, kind, EditorDisplayText.NodeState(context.Node.State), (int)context.Node.State) };
             }
         }
     }

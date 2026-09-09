@@ -7,18 +7,18 @@ using Sirenix.OdinInspector;
 namespace AbilityKit.Ability.Editor
 {
     [Serializable]
-    [TriggerActionType(TriggerActionTypes.SpawnSummon, "创造召唤物", "行为/Combat", 0)]
+    [TriggerActionType(TriggerActionTypes.SpawnSummon, "创建召唤物", "行为/战斗", 0)]
     public sealed class SpawnSummonActionEditorConfig : ActionEditorConfigBase
     {
         public override string Type => TriggerActionTypes.SpawnSummon;
 
-        [LabelText("模板Id(可选)")]
+        [LabelText("模板 ID（可选）")]
         public int TemplateId;
 
         [LabelText("启用覆盖")]
         public bool EnableOverrides;
 
-        [LabelText("召唤物Id")]
+        [LabelText("召唤物 ID")]
         public int SummonId;
 
         [LabelText("目标模式")]
@@ -30,7 +30,7 @@ namespace AbilityKit.Ability.Editor
         [LabelText("朝向模式")]
         public SpawnSummonRotationMode RotationMode = SpawnSummonRotationMode.Caster;
 
-        [LabelText("OwnerKey模式")]
+        [LabelText("所有者键模式")]
         public SpawnSummonOwnerKeyMode OwnerKeyMode = SpawnSummonOwnerKeyMode.CasterActorId;
 
         [LabelText("阵列模式")]
@@ -51,7 +51,7 @@ namespace AbilityKit.Ability.Editor
         [LabelText("弧形角度")]
         public float ArcAngleDeg;
 
-        [LabelText("Yaw偏移")]
+        [LabelText("偏航角偏移")]
         public float YawOffsetDeg;
 
         [LabelText("随机种子")]
@@ -63,22 +63,22 @@ namespace AbilityKit.Ability.Editor
         [LabelText("随机半径最大")]
         public float RandomRadiusMax;
 
-        [LabelText("Grid行")]
+        [LabelText("网格行数")]
         public int GridRows;
 
-        [LabelText("Grid列")]
+        [LabelText("网格列数")]
         public int GridCols;
 
-        [LabelText("Grid间距X")]
+        [LabelText("网格 X 轴间距")]
         public float GridSpacingX;
 
-        [LabelText("Grid间距Z")]
+        [LabelText("网格 Z 轴间距")]
         public float GridSpacingZ;
 
         [LabelText("每点朝向")]
         public SpawnSummonPerPointRotationMode PerPointRotationMode = SpawnSummonPerPointRotationMode.Inherit;
 
-        [LabelText("每点Yaw偏移")]
+        [LabelText("每点偏航角偏移")]
         public float PerPointYawOffsetDeg;
 
         [LabelText("间隔毫秒")]
@@ -90,27 +90,27 @@ namespace AbilityKit.Ability.Editor
         [LabelText("总次数")]
         public int TotalCount;
 
-        [LabelText("CasterKey(可选)")]
+        [LabelText("施法者键（可选）")]
         public string CasterKey;
 
-        [LabelText("TargetKey(可选)")]
+        [LabelText("目标键（可选）")]
         public string TargetKey;
 
-        [LabelText("查询模板Id(可选)")]
+        [LabelText("查询模板 ID（可选）")]
         public int QueryTemplateId;
 
-        [LabelText("AimPosKey(可选)")]
+        [LabelText("瞄准位置键（可选）")]
         public string AimPosKey;
 
-        [LabelText("FixedPosKey(可选)")]
+        [LabelText("固定位置键（可选）")]
         public string FixedPosKey;
 
-        [LabelText("FixedPosFallback")]
+        [LabelText("固定位置回退值")]
         public Vec3 FixedPosFallback;
 
         protected override string GetTitleSuffix()
         {
-            if (TemplateId > 0) return "tpl=" + TemplateId;
+            if (TemplateId > 0) return "模板=" + TemplateId;
             return SummonId > 0 ? SummonId.ToString() : null;
         }
 

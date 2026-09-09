@@ -141,7 +141,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
             if (string.IsNullOrWhiteSpace(descriptor.Type))
-                throw new ArgumentException("Descriptor type is required.", nameof(descriptor));
+                throw new ArgumentException("描述符必须指定节点类型。", nameof(descriptor));
 
             _entries[BuildKey(descriptor.Kind, descriptor.Type)] = descriptor;
         }
@@ -183,43 +183,43 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void RegisterCompleteConditions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Condition, "all", "All", "Condition/Composite", 1, -1));
-            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Condition, "any", "Any", "Condition/Composite", 1, -1));
-            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Condition, "not", "Not", "Condition/Composite", 1, 1));
-            catalog.Register(Condition("always_true", "Always True", "Condition/Constant"));
-            catalog.Register(Condition("always_false", "Always False", "Condition/Constant"));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Condition, "all", "全部满足", "Condition/Composite", 1, -1));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Condition, "any", "任一满足", "Condition/Composite", 1, -1));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Condition, "not", "结果取反", "Condition/Composite", 1, 1));
+            catalog.Register(Condition("always_true", "始终满足", "Condition/Constant"));
+            catalog.Register(Condition("always_false", "始终不满足", "Condition/Constant"));
 
-            catalog.Register(Condition("arg_eq", "Equals", "Condition/Compare",
+            catalog.Register(Condition("arg_eq", "参数等于", "Condition/Compare",
                 Required("left", TriggerValueType.None), Required("right", TriggerValueType.None)));
-            catalog.Register(Condition("arg_neq", "Not Equals", "Condition/Compare",
+            catalog.Register(Condition("arg_neq", "参数不等于", "Condition/Compare",
                 Required("left", TriggerValueType.None), Required("right", TriggerValueType.None)));
-            RegisterNumericComparison(catalog, "arg_gt", "Greater Than");
-            RegisterNumericComparison(catalog, "arg_gte", "Greater Than Or Equal");
-            RegisterNumericComparison(catalog, "arg_geq", "Greater Than Or Equal (Alias)");
-            RegisterNumericComparison(catalog, "arg_lt", "Less Than");
-            RegisterNumericComparison(catalog, "arg_lte", "Less Than Or Equal");
-            RegisterNumericComparison(catalog, "arg_leq", "Less Than Or Equal (Alias)");
+            RegisterNumericComparison(catalog, "arg_gt", "参数大于");
+            RegisterNumericComparison(catalog, "arg_gte", "参数大于或等于");
+            RegisterNumericComparison(catalog, "arg_geq", "参数大于或等于（别名）");
+            RegisterNumericComparison(catalog, "arg_lt", "参数小于");
+            RegisterNumericComparison(catalog, "arg_lte", "参数小于或等于");
+            RegisterNumericComparison(catalog, "arg_leq", "参数小于或等于（别名）");
 
-            RegisterNumericVariableComparison(catalog, "num_var_gt", "Numeric Variable Greater Than");
-            RegisterNumericVariableComparison(catalog, "num_var_lt", "Numeric Variable Less Than");
-            RegisterNumericVariableComparison(catalog, "num_var_eq", "Numeric Variable Equals");
+            RegisterNumericVariableComparison(catalog, "num_var_gt", "数值变量大于");
+            RegisterNumericVariableComparison(catalog, "num_var_lt", "数值变量小于");
+            RegisterNumericVariableComparison(catalog, "num_var_eq", "数值变量等于");
 
-            catalog.Register(Condition("has_buff", "Has Buff", "Condition/Combat",
+            catalog.Register(Condition("has_buff", "拥有增益效果", "Condition/Combat",
                 Required("buff_id", TriggerValueType.Integer),
                 Optional("check_stack", TriggerValueType.Boolean),
-                Choice("target_mode", false, Option(0, "Target"), Option(1, "Source")),
+                Choice("target_mode", false, Option(0, "目标"), Option(1, "来源")),
                 ObjectParameter("options", false,
                     Optional("check_stack", TriggerValueType.Boolean),
-                    Choice("target_mode", false, Option(0, "Target"), Option(1, "Source"))),
+                    Choice("target_mode", false, Option(0, "目标"), Option(1, "来源"))),
                 ObjectParameter("target", false,
-                    Choice("mode", false, Option(0, "Target"), Option(1, "Source")),
-                    Choice("target_mode", false, Option(0, "Target"), Option(1, "Source")))));
-            catalog.Register(Condition("health_percent", "Health Percent", "Condition/Combat",
+                    Choice("mode", false, Option(0, "目标"), Option(1, "来源")),
+                    Choice("target_mode", false, Option(0, "目标"), Option(1, "来源")))));
+            catalog.Register(Condition("health_percent", "生命值百分比", "Condition/Combat",
                 Required("threshold", TriggerValueType.Number),
-                Choice("compare_type", false, Option(0, "Less Than"), Option(1, "Greater Than"))));
-            catalog.Register(Condition("owner_matches_payload_source", "Owner Matches Payload Source", "Condition/Context"));
-            catalog.Register(Condition("owner_matches_payload_target", "Owner Matches Payload Target", "Condition/Context"));
-            catalog.Register(Condition("target_is_flying_projectile", "Target Is Flying Projectile", "Condition/Context"));
+                Choice("compare_type", false, Option(0, "小于"), Option(1, "大于"))));
+            catalog.Register(Condition("owner_matches_payload_source", "所有者匹配事件来源", "Condition/Context"));
+            catalog.Register(Condition("owner_matches_payload_target", "所有者匹配事件目标", "Condition/Context"));
+            catalog.Register(Condition("target_is_flying_projectile", "目标是飞行投射物", "Condition/Context"));
         }
 
         private static void RegisterNumericComparison(
@@ -245,17 +245,31 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void RegisterCompleteActions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "seq", "Sequence", "Action/Flow", 1, -1));
-            catalog.Register(Action("debug_log", "Debug Log", "Action/Debug",
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "seq", "顺序执行", "Action/Flow", 1, -1, true));
+            catalog.Register(Action("execute_trigger", "执行触发效果", "Action/Flow",
+                new TriggerParameterDescriptor(
+                    "trigger_id",
+                    TriggerValueType.Integer,
+                    true,
+                    TriggerValueSourceMask.Constant)));
+            catalog.Register(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "conditional",
+                "条件分支",
+                "Action/Flow",
+                1,
+                -1,
+                true));
+            catalog.Register(Action("debug_log", "输出调试日志", "Action/Debug",
                 Required("message", TriggerValueType.String),
                 Optional("dump_args", TriggerValueType.Boolean)));
-            catalog.Register(Action("set_var", "Set Variable", "Action/Variable",
+            catalog.Register(Action("set_var", "设置变量", "Action/Variable",
                 Writable("target", TriggerValueType.None), Required("value", TriggerValueType.None)));
-            catalog.Register(Action("set_num_var", "Set Numeric Variable", "Action/Variable",
+            catalog.Register(Action("set_num_var", "设置数值变量", "Action/Variable",
                 Writable("target", TriggerValueType.Number), Required("value", TriggerValueType.Number)));
-            catalog.Register(Action("add_num_var", "Add Numeric Variable", "Action/Variable",
+            catalog.Register(Action("add_num_var", "增加数值变量", "Action/Variable",
                 Writable("target", TriggerValueType.Number), Required("value", TriggerValueType.Number)));
-            catalog.Register(AuthoringOnlyAction("attr_effect_duration", "Attribute Effect Duration", "Action/Attribute",
+            catalog.Register(AuthoringOnlyAction("attr_effect_duration", "添加限时属性效果", "Action/Attribute",
                 Required("attr", TriggerValueType.String),
                 Required("op", TriggerValueType.String),
                 Required("value", TriggerValueType.Number),
@@ -272,14 +286,14 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void RegisterCombatActions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(Action("give_damage", "Give Damage", "Action/Combat", WithTargets(
+            catalog.Register(Action("give_damage", "造成伤害", "Action/Combat", WithTargets(
                 OneOf("damage_amount", "damage_value", TriggerValueType.Number),
                 OneOf("damage_amount", "source_attack_ratio", TriggerValueType.Number),
                 DamageType("damage_type"),
                 DamageReason("reason_kind"),
                 Optional("reason_param", TriggerValueType.Integer),
-                Choice("attribute_source", false, Option(0, "Attribution Actor"), Option(1, "Trigger Owner")))));
-            catalog.Register(Action("adjust_damage_number", "Adjust Damage Number", "Action/Combat",
+                Choice("attribute_source", false, Option(0, "归属实体"), Option(1, "触发器所有者")))));
+            catalog.Register(Action("adjust_damage_number", "调整伤害数值", "Action/Combat",
                 OneOf("damage_modifier", "value", TriggerValueType.Number),
                 OneOf("damage_modifier", "repeat_target_decay_factor", TriggerValueType.Number),
                 OneOf("damage_modifier", "target_missing_hp_ratio_coefficient", TriggerValueType.Number),
@@ -291,10 +305,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("require_skill_runtime", TriggerValueType.Boolean),
                 Optional("skip_first_hit", TriggerValueType.Boolean),
                 Optional("target_hit_count_key_base", TriggerValueType.Integer)));
-            catalog.Register(Action("take_damage", "Take Damage", "Action/Combat",
+            catalog.Register(Action("take_damage", "承受伤害", "Action/Combat",
                 Optional("rate", TriggerValueType.Number),
                 Optional("reason_param", TriggerValueType.Integer)));
-            catalog.Register(Action("heal", "Heal", "Action/Combat", WithTargets(
+            catalog.Register(Action("heal", "治疗", "Action/Combat", WithTargets(
                 Required("amount", TriggerValueType.Number),
                 DamageType("heal_type"),
                 DamageReason("reason_kind"),
@@ -303,16 +317,16 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void RegisterBuffAndShieldActions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(Action("add_buff", "Add Buff", "Action/Buff", WithTargets(
+            catalog.Register(Action("add_buff", "添加增益效果", "Action/Buff", WithTargets(
                 Required("buff_ids", TriggerValueType.IntegerList))));
-            catalog.Register(Action("remove_buff", "Remove Buff", "Action/Buff", WithTargets(
+            catalog.Register(Action("remove_buff", "移除增益效果", "Action/Buff", WithTargets(
                 Optional("buff_id", TriggerValueType.Integer),
                 Optional("source_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean),
                 Optional("remove_slow", TriggerValueType.Boolean),
                 Optional("reason", TriggerValueType.Integer))));
 
-            catalog.Register(Action("add_shield", "Add Shield", "Action/Shield", WithTargets(
+            catalog.Register(Action("add_shield", "添加护盾", "Action/Shield", WithTargets(
                 Optional("shield_id", TriggerValueType.Integer),
                 Required("shield_value", TriggerValueType.Number),
                 Optional("absorb_ratio", TriggerValueType.Number),
@@ -321,12 +335,12 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("duration_frames", TriggerValueType.Integer),
                 Optional("duration_ms", TriggerValueType.Integer),
                 Choice("stacking_policy", false,
-                    Option(0, "Independent"), Option(1, "Merge Same Shield/Source"),
-                    Option(2, "Refresh Same Shield/Source"), Option(3, "Replace Lower Priority")),
+                    Option(0, "独立叠加"), Option(1, "合并同护盾与来源"),
+                    Option(2, "刷新同护盾与来源"), Option(3, "替换较低优先级")),
                 Choice("consume_policy", false,
-                    Option(0, "Priority Then Oldest"), Option(1, "Priority Then Newest"),
-                    Option(2, "Oldest First"), Option(3, "Newest First")))));
-            catalog.Register(Action("remove_shield", "Remove Shield", "Action/Shield", WithTargets(
+                    Option(0, "优先级后按最早"), Option(1, "优先级后按最新"),
+                    Option(2, "最早优先"), Option(3, "最新优先")))));
+            catalog.Register(Action("remove_shield", "移除护盾", "Action/Shield", WithTargets(
                 OneOf("shield_identity", "shield_id", TriggerValueType.Integer),
                 OneOf("shield_identity", "instance_id", TriggerValueType.Integer),
                 Optional("source_actor_id", TriggerValueType.Integer),
@@ -335,14 +349,14 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void RegisterResourceActions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(Action("modify_resource", "Modify Resource", "Action/Resource", WithTargets(
+            catalog.Register(Action("modify_resource", "修改资源", "Action/Resource", WithTargets(
                 Required("amount", TriggerValueType.Number),
                 ResourceType("resource_type"),
                 Optional("min", TriggerValueType.Number),
                 Optional("max", TriggerValueType.Number))));
-            catalog.Register(Action("consume_resource", "Consume Resource", "Action/Resource",
+            catalog.Register(Action("consume_resource", "消耗资源", "Action/Resource",
                 Optional("amount", TriggerValueType.Number), ResourceType("resource_type")));
-            catalog.Register(Action("convert_resource_to_heal", "Convert Resource To Heal", "Action/Resource", WithTargets(
+            catalog.Register(Action("convert_resource_to_heal", "将资源转为治疗", "Action/Resource", WithTargets(
                 Required("amount", TriggerValueType.Number),
                 ResourceType("resource_type"),
                 Optional("heal_ratio", TriggerValueType.Number),
@@ -354,14 +368,14 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void RegisterSpawnAndSkillActions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(Action("shoot_projectile", "Shoot Projectile", "Action/Projectile", WithTargets(
+            catalog.Register(Action("shoot_projectile", "发射投射物", "Action/Projectile", WithTargets(
                 Required("launcher_id", TriggerValueType.Integer),
                 Required("projectile_id", TriggerValueType.Integer),
                 Optional("continuous_process_id", TriggerValueType.Integer),
                 Optional("track_target", TriggerValueType.Boolean))));
-            catalog.Register(Action("remove_projectile", "Remove Projectile", "Action/Projectile"));
+            catalog.Register(Action("remove_projectile", "移除投射物", "Action/Projectile"));
 
-            catalog.Register(Action("spawn_summon", "Spawn Summon", "Action/Summon",
+            catalog.Register(Action("spawn_summon", "生成召唤物", "Action/Summon",
                 Required("summon_id", TriggerValueType.Integer),
                 Optional("position_mode", TriggerValueType.Integer),
                 Optional("rotation_mode", TriggerValueType.Integer),
@@ -370,14 +384,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("total_count", TriggerValueType.Integer),
                 Optional("query_template_id", TriggerValueType.Integer),
                 Optional("target_mode", TriggerValueType.Integer)));
-            catalog.Register(Action("remove_summon", "Remove Summon", "Action/Summon", WithTargets(
+            catalog.Register(Action("remove_summon", "移除召唤物", "Action/Summon", WithTargets(
                 Optional("summon_id", TriggerValueType.Integer),
                 Optional("summon_actor_id", TriggerValueType.Integer),
                 Optional("root_owner_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean),
                 Optional("reason", TriggerValueType.Integer))));
 
-            catalog.Register(Action("spawn_area", "Spawn Area", "Action/Area", WithTargets(
+            catalog.Register(Action("spawn_area", "生成区域", "Action/Area", WithTargets(
                 Required("area_id", TriggerValueType.Integer),
                 Optional("position_mode", TriggerValueType.Integer),
                 Optional("radius", TriggerValueType.Number),
@@ -388,35 +402,35 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("offset_x", TriggerValueType.Number),
                 Optional("offset_y", TriggerValueType.Number),
                 Optional("offset_z", TriggerValueType.Number))));
-            catalog.Register(Action("remove_area", "Remove Area", "Action/Area", WithTargets(
+            catalog.Register(Action("remove_area", "移除区域", "Action/Area", WithTargets(
                 OneOf("area_identity", "area_id", TriggerValueType.Integer),
                 OneOf("area_identity", "template_id", TriggerValueType.Integer),
                 OneOf("area_identity", "owner_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean))));
 
-            catalog.Register(Action("cancel_skill", "Cancel Skill", "Action/Skill", WithTargets(
-                Choice("mode", false, Option(0, "Auto"), Option(1, "All"), Option(2, "Slot"), Option(3, "Skill Id")),
+            catalog.Register(Action("cancel_skill", "取消技能", "Action/Skill", WithTargets(
+                Choice("mode", false, Option(0, "自动"), Option(1, "全部"), Option(2, "技能槽位"), Option(3, "技能 ID")),
                 Optional("skill_id", TriggerValueType.Integer),
                 Optional("skill_slot", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean))));
-            catalog.Register(Action("start_cooldown", "Start Cooldown", "Action/Skill",
+            catalog.Register(Action("start_cooldown", "开始冷却", "Action/Skill",
                 Optional("skill_id", TriggerValueType.Integer),
                 Optional("skill_slot", TriggerValueType.Integer),
                 Required("cooldown_ms", TriggerValueType.Integer)));
-            catalog.Register(Action("reset_cooldown", "Reset Cooldown", "Action/Skill", WithTargets(
+            catalog.Register(Action("reset_cooldown", "重置冷却", "Action/Skill", WithTargets(
                 OneOf("skill_identity", "skill_id", TriggerValueType.Integer),
                 OneOf("skill_identity", "skill_slot", TriggerValueType.Integer))));
         }
 
         private static void RegisterMotionActions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(Action("blink", "Blink", "Action/Motion",
+            catalog.Register(Action("blink", "闪现", "Action/Motion",
                 Optional("distance", TriggerValueType.Number),
                 Optional("direction_mode", TriggerValueType.Integer),
                 Optional("priority", TriggerValueType.Integer),
                 Optional("apply_to_caster", TriggerValueType.Boolean),
                 Optional("pass_through_walls", TriggerValueType.Boolean)));
-            catalog.Register(Action("dash", "Dash", "Action/Motion", WithContinuous(
+            catalog.Register(Action("dash", "冲刺", "Action/Motion", WithContinuous(
                 Optional("speed", TriggerValueType.Number),
                 Optional("duration_ms", TriggerValueType.Number),
                 Optional("direction_mode", TriggerValueType.Integer),
@@ -426,14 +440,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("motion_group_id", TriggerValueType.Integer),
                 Optional("move_to_aim_position", TriggerValueType.Boolean),
                 Optional("pass_through_walls", TriggerValueType.Boolean))));
-            catalog.Register(Action("jump", "Jump", "Action/Motion", WithContinuous(
+            catalog.Register(Action("jump", "跳跃", "Action/Motion", WithContinuous(
                 Optional("height", TriggerValueType.Number),
                 Optional("duration_ms", TriggerValueType.Number),
                 Optional("priority", TriggerValueType.Integer),
                 Optional("apply_to_caster", TriggerValueType.Boolean),
                 Optional("motion_group_id", TriggerValueType.Integer),
                 Optional("landing_trigger_ids", TriggerValueType.IntegerList))));
-            catalog.Register(Action("pull", "Pull", "Action/Motion", WithTargets(WithContinuous(
+            catalog.Register(Action("pull", "拉拽", "Action/Motion", WithTargets(WithContinuous(
                 Optional("speed", TriggerValueType.Number),
                 Optional("duration_ms", TriggerValueType.Number),
                 Optional("direction_mode", TriggerValueType.Integer),
@@ -444,7 +458,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static void RegisterPresentationAndGameplayActions(TriggerTypeDescriptorCatalog catalog)
         {
-            catalog.Register(Action("play_presentation", "Play Presentation", "Action/Presentation",
+            catalog.Register(Action("play_presentation", "播放表现", "Action/Presentation",
                 Required("template_id", TriggerValueType.Integer),
                 Optional("target_mode", TriggerValueType.Integer),
                 Optional("duration_ms", TriggerValueType.Integer),
@@ -454,21 +468,21 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("z", TriggerValueType.Number),
                 Optional("scale", TriggerValueType.Number),
                 Optional("radius", TriggerValueType.Number)));
-            catalog.Register(Action("emit", "Emit Presentation Event", "Action/Presentation",
+            catalog.Register(Action("emit", "发送表现事件", "Action/Presentation",
                 Required("emitter_id", TriggerValueType.Integer)));
 
-            catalog.Register(Action("set_gameplay_var", "Set Gameplay Variable", "Action/Gameplay",
+            catalog.Register(Action("set_gameplay_var", "设置玩法变量", "Action/Gameplay",
                 Required("key_id", TriggerValueType.Integer), Optional("value", TriggerValueType.Number)));
-            catalog.Register(Action("add_gameplay_var", "Add Gameplay Variable", "Action/Gameplay",
+            catalog.Register(Action("add_gameplay_var", "增加玩法变量", "Action/Gameplay",
                 Required("key_id", TriggerValueType.Integer), Optional("delta", TriggerValueType.Number)));
-            catalog.Register(Action("advance_gameplay_counter", "Advance Gameplay Counter", "Action/Gameplay",
+            catalog.Register(Action("advance_gameplay_counter", "推进玩法计数器", "Action/Gameplay",
                 Required("key_id", TriggerValueType.Integer),
                 Required("scope_payload_field_id", TriggerValueType.Integer),
                 Required("threshold", TriggerValueType.Number),
                 Optional("delta", TriggerValueType.Number),
                 Optional("reset_value", TriggerValueType.Number),
                 Required("trigger_id", TriggerValueType.Integer)));
-            catalog.Register(Action("end_game", "End Game", "Action/Gameplay",
+            catalog.Register(Action("end_game", "结束游戏", "Action/Gameplay",
                 Optional("reason_id", TriggerValueType.Integer),
                 Optional("win_team_id", TriggerValueType.Integer)));
         }
@@ -562,21 +576,21 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static TriggerParameterDescriptor DamageType(string name)
         {
             return Choice(name, false,
-                Option(0, "None"), Option(1, "Physical"), Option(2, "Magic"), Option(4, "True"));
+                Option(0, "无"), Option(1, "物理"), Option(2, "魔法"), Option(4, "真实"));
         }
 
         private static TriggerParameterDescriptor DamageReason(string name)
         {
             return Choice(name, false,
-                Option(0, "None"), Option(1, "Skill"), Option(2, "Basic Attack"),
-                Option(3, "Buff"), Option(4, "Item"), Option(5, "Environment"));
+                Option(0, "无"), Option(1, "技能"), Option(2, "普通攻击"),
+                Option(3, "增益效果"), Option(4, "道具"), Option(5, "环境"));
         }
 
         private static TriggerParameterDescriptor ResourceType(string name)
         {
             return Choice(name, false,
-                Option(0, "None"), Option(1, "HP"), Option(2, "Mana"), Option(3, "Rage"),
-                Option(4, "Energy"), Option(5, "Ammo"), Option(6, "Combo Point"));
+                Option(0, "无"), Option(1, "生命值"), Option(2, "法力"), Option(3, "怒气"),
+                Option(4, "能量"), Option(5, "弹药"), Option(6, "连击点"));
         }
 
         private static TriggerParameterDescriptor[] WithTargets(params TriggerParameterDescriptor[] parameters)
@@ -588,50 +602,50 @@ namespace AbilityKit.Ability.Editor.Utilities
                     Optional("actor_id", TriggerValueType.Integer),
                     Optional("payload_field_id", TriggerValueType.Integer),
                     Choice("source", false,
-                        Option(3, "Context Target"), Option(4, "Self"), Option(2, "Explicit Actor"),
-                        Option(1, "All Actors"), Option(5, "Same Team"), Option(6, "Enemy Team"),
-                        Option(7, "Main Type"), Option(8, "Unit Subtype"), Option(1000, "Query Template")),
+                        Option(3, "上下文目标"), Option(4, "自身"), Option(2, "指定实体"),
+                        Option(1, "全部实体"), Option(5, "同队实体"), Option(6, "敌方实体"),
+                        Option(7, "主类型"), Option(8, "单位子类型"), Option(1000, "查询模板")),
                     Optional("source_param", TriggerValueType.Integer),
                     Choice("filter", false,
-                        Option(0, "None"), Option(0x0204, "Require Valid Id"),
-                        Option(0x0205, "Require Position"), Option(0x0101, "Circle"),
-                        Option(0x0102, "Sector"), Option(0x0301, "Exclude Caster"),
-                        Option(0x0302, "Exclude Context Target"), Option(0x0201, "Whitelist"),
-                        Option(0x0202, "Blacklist")),
+                        Option(0, "无"), Option(0x0204, "要求有效 ID"),
+                        Option(0x0205, "要求位置信息"), Option(0x0101, "圆形范围"),
+                        Option(0x0102, "扇形范围"), Option(0x0301, "排除施法者"),
+                        Option(0x0302, "排除上下文目标"), Option(0x0201, "白名单"),
+                        Option(0x0202, "黑名单")),
                     Optional("filter_param", TriggerValueType.Integer),
                     Optional("radius", TriggerValueType.Number),
                     Optional("half_angle_deg", TriggerValueType.Number),
                     Choice("order", false,
-                        Option(0, "None"), Option(0x2001, "Zero"), Option(0x2002, "Random"),
-                        Option(0x2004, "Distance To Caster"), Option(0x2005, "Distance To Context Target")),
+                        Option(0, "无"), Option(0x2001, "固定为零"), Option(0x2002, "随机"),
+                        Option(0x2004, "距施法者距离"), Option(0x2005, "距上下文目标距离")),
                     Optional("order_param", TriggerValueType.Integer),
                     Choice("select", false,
-                        Option(0x1001, "Top K"), Option(0x1002, "Streaming Top K")),
+                        Option(0x1001, "前 K 个"), Option(0x1002, "流式选择前 K 个")),
                     Optional("max_count", TriggerValueType.Integer),
                     Optional("self", TriggerValueType.Boolean)),
                 Optional("query_template_id", TriggerValueType.Integer),
                 Optional("target_actor_id", TriggerValueType.Integer),
                 Optional("target_payload_field_id", TriggerValueType.Integer),
                 Choice("target_source", false,
-                    Option(3, "Context Target"), Option(4, "Self"), Option(2, "Explicit Actor"),
-                    Option(1, "All Actors"), Option(5, "Same Team"), Option(6, "Enemy Team"),
-                    Option(7, "Main Type"), Option(8, "Unit Subtype"), Option(1000, "Query Template")),
+                    Option(3, "上下文目标"), Option(4, "自身"), Option(2, "指定实体"),
+                    Option(1, "全部实体"), Option(5, "同队实体"), Option(6, "敌方实体"),
+                    Option(7, "主类型"), Option(8, "单位子类型"), Option(1000, "查询模板")),
                 Optional("target_source_param", TriggerValueType.Integer),
                 Choice("target_filter", false,
-                    Option(0, "None"), Option(0x0204, "Require Valid Id"),
-                    Option(0x0205, "Require Position"), Option(0x0101, "Circle"),
-                    Option(0x0102, "Sector"), Option(0x0301, "Exclude Caster"),
-                    Option(0x0302, "Exclude Context Target"), Option(0x0201, "Whitelist"),
-                    Option(0x0202, "Blacklist")),
+                    Option(0, "无"), Option(0x0204, "要求有效 ID"),
+                    Option(0x0205, "要求位置信息"), Option(0x0101, "圆形范围"),
+                    Option(0x0102, "扇形范围"), Option(0x0301, "排除施法者"),
+                    Option(0x0302, "排除上下文目标"), Option(0x0201, "白名单"),
+                    Option(0x0202, "黑名单")),
                 Optional("target_filter_param", TriggerValueType.Integer),
                 Optional("target_radius", TriggerValueType.Number),
                 Optional("target_half_angle_deg", TriggerValueType.Number),
                 Choice("target_order", false,
-                    Option(0, "None"), Option(0x2001, "Zero"), Option(0x2002, "Random"),
-                    Option(0x2004, "Distance To Caster"), Option(0x2005, "Distance To Context Target")),
+                    Option(0, "无"), Option(0x2001, "固定为零"), Option(0x2002, "随机"),
+                    Option(0x2004, "距施法者距离"), Option(0x2005, "距上下文目标距离")),
                 Optional("target_order_param", TriggerValueType.Integer),
                 Choice("target_select", false,
-                    Option(0x1001, "Top K"), Option(0x1002, "Streaming Top K")),
+                    Option(0x1001, "前 K 个"), Option(0x1002, "流式选择前 K 个")),
                 Optional("target_max_count", TriggerValueType.Integer),
                 Optional("target_self", TriggerValueType.Boolean)
             });
@@ -724,15 +738,15 @@ namespace AbilityKit.Ability.Editor.Utilities
             var diagnostics = new List<TriggerAuthoringDiagnostic>();
             if (module == null)
             {
-                AddError(diagnostics, "TRG1000", "module", "Module is null.");
+                AddError(diagnostics, "TRG1000", "module", "模块为空。");
                 return diagnostics;
             }
 
             if (string.IsNullOrWhiteSpace(module.ModuleId))
-                AddError(diagnostics, "TRG1001", "module.moduleId", "ModuleId is required.");
+                AddError(diagnostics, "TRG1001", "module.moduleId", "必须填写模块 ID。");
 
             if (context.Events == null)
-                AddWarning(diagnostics, "TRG1402", "module", "No Event Catalog is assigned; event and Payload validation is limited.");
+                AddWarning(diagnostics, "TRG1402", "module", "尚未分配事件目录，事件和 Payload 校验能力受限。");
 
             var moduleKeys = ValidateBlackboard(
                 diagnostics,
@@ -765,44 +779,170 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var path = $"module.triggers[{i}]";
                 if (trigger == null)
                 {
-                    AddError(diagnostics, "TRG1002", path, "Trigger is null.");
+                    AddError(diagnostics, "TRG1002", path, "触发器为空。");
                     continue;
                 }
 
                 if (trigger.Id <= 0)
-                    AddError(diagnostics, "TRG1003", path + ".id", "Trigger Id must be greater than zero.");
+                    AddError(diagnostics, "TRG1003", path + ".id", "触发器 ID 必须大于零。");
                 else if (!triggerIds.Add(trigger.Id))
-                    AddError(diagnostics, "TRG1004", path + ".id", $"Duplicate Trigger Id: {trigger.Id}.");
+                    AddError(diagnostics, "TRG1004", path + ".id", $"触发器 ID 重复：{trigger.Id}。");
 
-                if (string.IsNullOrWhiteSpace(trigger.Event))
-                    AddError(diagnostics, "TRG1005", path + ".event", "Event is required.");
+                var effectiveTrigger = trigger;
+                if (trigger.Template != null)
+                    effectiveTrigger = TriggerAuthoringTemplateDefinition.ResolveEffective(trigger, context.Templates);
+
+                if (effectiveTrigger.EntryMode == TriggerEntryMode.Event && string.IsNullOrWhiteSpace(effectiveTrigger.Event))
+                    AddError(diagnostics, "TRG1005", path + ".event", "必须设置事件。");
 
                 TriggerEventDefinitionData eventDefinition = null;
-                if (!string.IsNullOrWhiteSpace(trigger.Event) && context.Events != null &&
-                    !context.Events.TryResolve(trigger.Event, out eventDefinition))
+                if (effectiveTrigger.EntryMode == TriggerEntryMode.Event &&
+                    !string.IsNullOrWhiteSpace(effectiveTrigger.Event) && context.Events != null &&
+                    !context.Events.TryResolve(effectiveTrigger.Event, out eventDefinition))
                 {
-                    AddError(diagnostics, "TRG1400", path + ".event", $"Unknown event: {trigger.Event}.");
+                    AddError(diagnostics, "TRG1400", path + ".event", $"未知事件：{effectiveTrigger.Event}。");
                 }
-                else if (eventDefinition != null && trigger.AllowExternal && !eventDefinition.AllowExternal)
+                else if (eventDefinition != null && effectiveTrigger.AllowExternal && !eventDefinition.AllowExternal)
                 {
-                    AddError(diagnostics, "TRG1401", path + ".allowExternal", $"Event '{trigger.Event}' does not allow external dispatch.");
+                    AddError(diagnostics, "TRG1401", path + ".allowExternal", $"事件“{effectiveTrigger.Event}”不允许外部派发。");
                 }
 
                 var triggerKeys = new Dictionary<string, BlackboardSymbol>(moduleKeys, StringComparer.Ordinal);
                 var declaredTriggerKeys = ValidateBlackboard(
                     diagnostics,
-                    trigger.Blackboard,
+                    effectiveTrigger.Blackboard,
                     path + ".blackboard",
                     TriggerAuthoringLocalBlackboardScope.Trigger);
                 foreach (var pair in declaredTriggerKeys) triggerKeys[pair.Key] = pair.Value;
-                ValidateTemplateReference(diagnostics, trigger, path, context, eventDefinition, triggerKeys);
+                ValidateTemplateReference(diagnostics, trigger, path, context, eventDefinition, moduleKeys);
                 if (trigger.Template == null || trigger.Condition != null)
-                    ValidateResolvedNode(diagnostics, module, trigger.Condition, TriggerNodeKind.Condition, path + ".condition", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
+                    ValidateResolvedNode(diagnostics, module, effectiveTrigger.Condition, TriggerNodeKind.Condition, path + ".condition", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
                 if (trigger.Template == null || trigger.Actions != null)
-                    ValidateResolvedNode(diagnostics, module, trigger.Actions, TriggerNodeKind.Action, path + ".actions", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
+                    ValidateResolvedNode(diagnostics, module, effectiveTrigger.Actions, TriggerNodeKind.Action, path + ".actions", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
             }
 
+            ValidateTriggerReferences(diagnostics, module);
+
             return diagnostics;
+        }
+
+        private static void ValidateTriggerReferences(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerAuthoringModuleData module)
+        {
+            var triggers = module?.Triggers;
+            if (triggers == null) return;
+            for (var i = 0; i < triggers.Count; i++)
+            {
+                var trigger = triggers[i];
+                if (trigger == null || trigger.Actions == null) continue;
+                if (!TriggerAuthoringGroupResolver.TryExpand(
+                        module,
+                        trigger.Actions,
+                        TriggerNodeKind.Action,
+                        out var actions,
+                        out _)) continue;
+                ValidateTriggerReferenceNode(
+                    diagnostics,
+                    module,
+                    trigger,
+                    actions,
+                    $"module.triggers[{i}].actions");
+            }
+        }
+
+        private static void ValidateTriggerReferenceNode(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerAuthoringModuleData module,
+            TriggerDefinitionData owner,
+            TriggerNodeData node,
+            string path)
+        {
+            if (node == null || !node.Enabled) return;
+            if (TriggerAuthoringTriggerReuse.IsReference(node))
+            {
+                if (!TriggerAuthoringTriggerReuse.TryGetReferencedTriggerId(node, out var targetId))
+                {
+                    AddError(diagnostics, "TRG1701", path + ".arguments.trigger_id", "必须设置有效的触发器 ID。");
+                }
+                else
+                {
+                    var target = TriggerAuthoringTriggerReuse.FindTrigger(module, targetId);
+                    if (target == null)
+                        AddError(diagnostics, "TRG1702", path + ".arguments.trigger_id", $"未找到触发器：{targetId}。");
+                    else if (owner != null && ReferencesTrigger(module, target, owner.Id, new HashSet<int>()))
+                        AddError(diagnostics, "TRG1703", path + ".arguments.trigger_id", $"触发器引用形成循环：{owner.Id} -> {targetId}。");
+                }
+            }
+
+            ValidateTriggerReferenceNode(diagnostics, module, owner, node.Condition, path + ".condition");
+            ValidateTriggerReferenceChildren(diagnostics, module, owner, node.Children, path + ".children");
+            ValidateTriggerReferenceChildren(diagnostics, module, owner, node.ElseChildren, path + ".elseChildren");
+        }
+
+        private static void ValidateTriggerReferenceChildren(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerAuthoringModuleData module,
+            TriggerDefinitionData owner,
+            IReadOnlyList<TriggerNodeData> children,
+            string path)
+        {
+            if (children == null) return;
+            for (var i = 0; i < children.Count; i++)
+                ValidateTriggerReferenceNode(diagnostics, module, owner, children[i], path + "[" + i + "]");
+        }
+
+        private static bool ReferencesTrigger(
+            TriggerAuthoringModuleData module,
+            TriggerDefinitionData current,
+            int soughtId,
+            ISet<int> visiting)
+        {
+            if (current == null || !visiting.Add(current.Id)) return false;
+            try
+            {
+                if (!TriggerAuthoringGroupResolver.TryExpand(
+                        module,
+                        current.Actions,
+                        TriggerNodeKind.Action,
+                        out var actions,
+                        out _)) return false;
+                return NodeReferencesTrigger(module, actions, soughtId, visiting);
+            }
+            finally
+            {
+                visiting.Remove(current.Id);
+            }
+        }
+
+        private static bool NodeReferencesTrigger(
+            TriggerAuthoringModuleData module,
+            TriggerNodeData node,
+            int soughtId,
+            ISet<int> visiting)
+        {
+            if (node == null || !node.Enabled) return false;
+            if (TriggerAuthoringTriggerReuse.TryGetReferencedTriggerId(node, out var targetId))
+            {
+                if (targetId == soughtId) return true;
+                var target = TriggerAuthoringTriggerReuse.FindTrigger(module, targetId);
+                if (target != null && ReferencesTrigger(module, target, soughtId, visiting)) return true;
+            }
+            if (NodeReferencesTrigger(module, node.Condition, soughtId, visiting)) return true;
+            if (ChildrenReferenceTrigger(module, node.Children, soughtId, visiting)) return true;
+            return ChildrenReferenceTrigger(module, node.ElseChildren, soughtId, visiting);
+        }
+
+        private static bool ChildrenReferenceTrigger(
+            TriggerAuthoringModuleData module,
+            IReadOnlyList<TriggerNodeData> children,
+            int soughtId,
+            ISet<int> visiting)
+        {
+            if (children == null) return false;
+            for (var i = 0; i < children.Count; i++)
+                if (NodeReferencesTrigger(module, children[i], soughtId, visiting)) return true;
+            return false;
         }
 
         private static void ValidateTemplateReference(
@@ -833,29 +973,29 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var bindingPath = $"{path}.template.bindings[{i}]";
                 if (binding == null || string.IsNullOrWhiteSpace(binding.Name))
                 {
-                    AddError(diagnostics, "TRG1605", bindingPath + ".name", "Template binding name is required.");
+                    AddError(diagnostics, "TRG1605", bindingPath + ".name", "必须填写模板绑定名称。");
                     continue;
                 }
                 if (!seen.Add(binding.Name))
                 {
-                    AddError(diagnostics, "TRG1606", bindingPath + ".name", $"Duplicate template binding: {binding.Name}.");
+                    AddError(diagnostics, "TRG1606", bindingPath + ".name", $"模板绑定重复：{binding.Name}。");
                     continue;
                 }
                 if (!parameters.TryGetValue(binding.Name, out var parameter))
                 {
-                    AddError(diagnostics, "TRG1605", bindingPath + ".name", $"Unknown template parameter: {binding.Name}.");
+                    AddError(diagnostics, "TRG1605", bindingPath + ".name", $"未知模板参数：{binding.Name}。");
                     continue;
                 }
                 if (binding.Value == null)
                 {
-                    AddError(diagnostics, "TRG1607", bindingPath + ".value", "Template binding value is required.");
+                    AddError(diagnostics, "TRG1607", bindingPath + ".value", "必须设置模板绑定值。");
                     continue;
                 }
                 if (!TriggerAuthoringTemplateValidator.IsTypeCompatible(parameter.Type, binding.Value.Type))
-                    AddError(diagnostics, "TRG1608", bindingPath + ".value.type", $"Template parameter '{parameter.Name}' expects {parameter.Type}, got {binding.Value.Type}.");
+                    AddError(diagnostics, "TRG1608", bindingPath + ".value.type", $"模板参数“{parameter.Name}”需要 {parameter.Type}，当前为 {binding.Value.Type}。");
                 var sourceMask = (TriggerTemplateValueSourceMask)(1 << (int)binding.Value.Source);
                 if ((parameter.AllowedSources & sourceMask) == 0)
-                    AddError(diagnostics, "TRG1609", bindingPath + ".value.source", $"Source {binding.Value.Source} is not allowed for template parameter '{parameter.Name}'.");
+                    AddError(diagnostics, "TRG1609", bindingPath + ".value.source", $"模板参数“{parameter.Name}”不允许使用来源 {binding.Value.Source}。");
                 ValidateValue(
                     diagnostics,
                     binding.Value,
@@ -878,7 +1018,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     diagnostics,
                     "TRG1607",
                     path + ".template.bindings",
-                    $"Required template parameter has no binding: {parameter.Name}.");
+                    $"必填模板参数尚未绑定：{parameter.Name}。");
             }
         }
 
@@ -911,18 +1051,18 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var groupPath = $"{path}[{i}]";
                 if (group == null)
                 {
-                    AddError(diagnostics, "TRG1500", groupPath, $"{kind} group is null.");
+                    AddError(diagnostics, "TRG1500", groupPath, $"{KindLabel(kind)}分组为空。");
                     continue;
                 }
                 if (string.IsNullOrWhiteSpace(group.Id))
-                    AddError(diagnostics, "TRG1501", groupPath + ".id", $"{kind} group id is required.");
+                    AddError(diagnostics, "TRG1501", groupPath + ".id", $"必须填写{KindLabel(kind)}分组 ID。");
                 else if (!ids.Add(group.Id))
                 {
                     duplicateIds.Add(group.Id);
-                    AddError(diagnostics, "TRG1502", groupPath + ".id", $"Duplicate {kind} group id: {group.Id}.");
+                    AddError(diagnostics, "TRG1502", groupPath + ".id", $"{KindLabel(kind)}分组 ID 重复：{group.Id}。");
                 }
                 if (group.Root == null)
-                    AddError(diagnostics, "TRG1503", groupPath + ".root", $"{kind} group root is required.");
+                    AddError(diagnostics, "TRG1503", groupPath + ".root", $"{KindLabel(kind)}分组必须包含根节点。");
             }
 
             if (duplicateIds.Count > 0) return;
@@ -966,7 +1106,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     diagnostics,
                     failure != null ? failure.Code : "TRG1505",
                     path + ".groupReference",
-                    failure != null ? failure.Message : $"Unable to resolve {expectedKind} group reference.");
+                    failure != null ? failure.Message : $"无法解析{KindLabel(expectedKind)}分组引用。");
                 return;
             }
 
@@ -979,6 +1119,18 @@ namespace AbilityKit.Ability.Editor.Utilities
                 localKeys,
                 eventDefinition,
                 globalBlackboard);
+            if (expectedKind == TriggerNodeKind.Action)
+            {
+                ValidateEmbeddedActionFlow(
+                    diagnostics,
+                    module,
+                    expanded,
+                    path,
+                    catalog,
+                    localKeys,
+                    eventDefinition,
+                    globalBlackboard);
+            }
         }
 
         private static void ValidateReferenceShape(
@@ -992,23 +1144,116 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!string.IsNullOrWhiteSpace(node.GroupReference))
             {
                 if (node.Kind != expectedKind)
-                    AddError(diagnostics, "TRG1201", path + ".kind", $"Expected {expectedKind}, got {node.Kind}.");
+                    AddError(diagnostics, "TRG1201", path + ".kind", $"节点应为{KindLabel(expectedKind)}，当前为{KindLabel(node.Kind)}。");
                 if (!string.IsNullOrWhiteSpace(node.Type) ||
                     node.Arguments != null && node.Arguments.Count > 0 ||
-                    node.Children != null && node.Children.Count > 0)
+                    node.Condition != null ||
+                    node.Children != null && node.Children.Count > 0 ||
+                    node.ElseChildren != null && node.ElseChildren.Count > 0)
                 {
                     AddError(
                         diagnostics,
                         "TRG1507",
                         path,
-                        "A group reference node cannot also contain a type, arguments, or children.");
+                        "分组引用节点不能同时包含类型、参数或子节点。");
                 }
                 return;
+            }
+
+            if (expectedKind == TriggerNodeKind.Action &&
+                string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+            {
+                ValidateReferenceShape(
+                    diagnostics,
+                    node.Condition,
+                    TriggerNodeKind.Condition,
+                    path + ".condition");
+                var elseChildren = node.ElseChildren;
+                if (elseChildren != null)
+                {
+                    for (var i = 0; i < elseChildren.Count; i++)
+                        ValidateReferenceShape(
+                            diagnostics,
+                            elseChildren[i],
+                            TriggerNodeKind.Action,
+                            $"{path}.elseChildren[{i}]");
+                }
             }
 
             if (node.Children == null) return;
             for (var i = 0; i < node.Children.Count; i++)
                 ValidateReferenceShape(diagnostics, node.Children[i], expectedKind, $"{path}.children[{i}]");
+        }
+
+        private static void ValidateEmbeddedActionFlow(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerAuthoringModuleData module,
+            TriggerNodeData node,
+            string path,
+            TriggerTypeDescriptorCatalog catalog,
+            IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
+            TriggerEventDefinitionData eventDefinition,
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+        {
+            if (node == null || !node.Enabled) return;
+            if (string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+            {
+                if (node.Condition == null || !node.Condition.Enabled)
+                {
+                    AddError(diagnostics, "TRG1230", path + ".condition", "条件分支必须配置并启用判断条件。");
+                }
+                else
+                {
+                    ValidateResolvedNode(
+                        diagnostics,
+                        module,
+                        node.Condition,
+                        TriggerNodeKind.Condition,
+                        path + ".condition",
+                        catalog,
+                        localKeys,
+                        eventDefinition,
+                        globalBlackboard);
+                }
+
+                var elseChildren = node.ElseChildren ?? new List<TriggerNodeData>();
+                for (var i = 0; i < elseChildren.Count; i++)
+                {
+                    var child = elseChildren[i];
+                    if (child == null || !child.Enabled) continue;
+                    ValidateNode(
+                        diagnostics,
+                        child,
+                        TriggerNodeKind.Action,
+                        $"{path}.elseChildren[{i}]",
+                        catalog,
+                        localKeys,
+                        eventDefinition,
+                        globalBlackboard);
+                    ValidateEmbeddedActionFlow(
+                        diagnostics,
+                        module,
+                        child,
+                        $"{path}.elseChildren[{i}]",
+                        catalog,
+                        localKeys,
+                        eventDefinition,
+                        globalBlackboard);
+                }
+            }
+
+            var children = node.Children;
+            if (children == null) return;
+            for (var i = 0; i < children.Count; i++)
+                ValidateEmbeddedActionFlow(
+                    diagnostics,
+                    module,
+                    children[i],
+                    $"{path}.children[{i}]",
+                    catalog,
+                    localKeys,
+                    eventDefinition,
+                    globalBlackboard);
         }
 
         private sealed class BlackboardSymbol
@@ -1032,11 +1277,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var itemPath = $"{path}[{i}]";
                 if (variable == null || string.IsNullOrWhiteSpace(variable.Key))
                 {
-                    AddError(diagnostics, "TRG1100", itemPath + ".key", "Blackboard key is required.");
+                    AddError(diagnostics, "TRG1100", itemPath + ".key", "必须填写黑板 Key。");
                     continue;
                 }
                 if (keys.ContainsKey(variable.Key))
-                    AddError(diagnostics, "TRG1101", itemPath + ".key", $"Duplicate Blackboard key: {variable.Key}.");
+                    AddError(diagnostics, "TRG1101", itemPath + ".key", $"黑板 Key 重复：{variable.Key}。");
                 else
                 {
                     var symbol = new BlackboardSymbol
@@ -1049,7 +1294,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     keys.Add(TriggerAuthoringLocalBlackboardPath.Format(scope, variable.Key), symbol);
                 }
                 if (variable.Type == TriggerValueType.None)
-                    AddError(diagnostics, "TRG1102", itemPath + ".type", "Blackboard value type is required.");
+                    AddError(diagnostics, "TRG1102", itemPath + ".type", "必须设置黑板值类型。");
             }
             return keys;
         }
@@ -1067,29 +1312,29 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (node == null)
             {
                 if (expectedKind == TriggerNodeKind.Action)
-                    AddError(diagnostics, "TRG1200", path, "Action root is required.");
+                    AddError(diagnostics, "TRG1200", path, "必须包含行为根节点。");
                 return;
             }
             if (!node.Enabled) return;
             if (node.Kind != expectedKind)
-                AddError(diagnostics, "TRG1201", path + ".kind", $"Expected {expectedKind}, got {node.Kind}.");
+                AddError(diagnostics, "TRG1201", path + ".kind", $"节点应为{KindLabel(expectedKind)}，当前为{KindLabel(node.Kind)}。");
             if (string.IsNullOrWhiteSpace(node.Type))
             {
-                AddError(diagnostics, "TRG1202", path + ".type", "Node type is required.");
+                AddError(diagnostics, "TRG1202", path + ".type", "必须设置节点类型。");
                 return;
             }
             if (!catalog.TryGet(expectedKind, node.Type, out var descriptor))
             {
-                AddError(diagnostics, "TRG1203", path + ".type", $"Unknown {expectedKind} type: {node.Type}.");
+                AddError(diagnostics, "TRG1203", path + ".type", $"未知{KindLabel(expectedKind)}类型：{node.Type}。");
                 return;
             }
 
             var children = node.Children ?? new List<TriggerNodeData>();
             var enabledChildCount = CountEnabledChildren(children);
             if (enabledChildCount < descriptor.MinChildren)
-                AddError(diagnostics, "TRG1204", path + ".children", $"Node requires at least {descriptor.MinChildren} child nodes.");
+                AddError(diagnostics, "TRG1204", path + ".children", $"节点至少需要 {descriptor.MinChildren} 个子节点。");
             if (descriptor.MaxChildren >= 0 && enabledChildCount > descriptor.MaxChildren)
-                AddError(diagnostics, "TRG1205", path + ".children", $"Node allows at most {descriptor.MaxChildren} child nodes.");
+                AddError(diagnostics, "TRG1205", path + ".children", $"节点最多允许 {descriptor.MaxChildren} 个子节点。");
 
             var arguments = new Dictionary<string, TriggerArgumentData>(StringComparer.Ordinal);
             var nodeArguments = node.Arguments ?? new List<TriggerArgumentData>();
@@ -1099,11 +1344,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var argumentPath = $"{path}.arguments[{i}]";
                 if (argument == null || string.IsNullOrWhiteSpace(argument.Name))
                 {
-                    AddError(diagnostics, "TRG1210", argumentPath + ".name", "Argument name is required.");
+                    AddError(diagnostics, "TRG1210", argumentPath + ".name", "必须填写参数名称。");
                     continue;
                 }
                 if (arguments.ContainsKey(argument.Name))
-                    AddError(diagnostics, "TRG1211", argumentPath + ".name", $"Duplicate argument: {argument.Name}.");
+                    AddError(diagnostics, "TRG1211", argumentPath + ".name", $"参数重复：{argument.Name}。");
                 else
                 {
                     arguments.Add(argument.Name, argument);
@@ -1119,7 +1364,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     }
                     if (!known)
                         AddWarning(diagnostics, "TRG1214", argumentPath + ".name",
-                            $"Unknown argument '{argument.Name}' is preserved but ignored by the authoring Schema.");
+                            $"未知参数“{argument.Name}”会继续保留，但编辑 Schema 将忽略该参数。");
                 }
             }
 
@@ -1129,7 +1374,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (!arguments.TryGetValue(parameter.Name, out var argument))
                 {
                     if (parameter.Required)
-                        AddError(diagnostics, "TRG1212", path + ".arguments", $"Required argument is missing: {parameter.Name}.");
+                        AddError(diagnostics, "TRG1212", path + ".arguments", $"缺少必填参数：{parameter.Name}。");
                     continue;
                 }
                 ValidateValue(
@@ -1164,7 +1409,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
                 if (!found)
                     AddError(diagnostics, "TRG1213", path + ".arguments",
-                        $"At least one argument is required for '{group}': {string.Join(", ", choices)}.");
+                        $"参数组“{group}”至少需要设置一项：{string.Join(", ", choices)}。");
             }
 
             for (var i = 0; i < children.Count; i++)
@@ -1201,18 +1446,18 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!IsSetVariableType(targetType))
             {
                 AddError(diagnostics, "TRG1315", path + ".arguments.target.type",
-                    $"set_var target type must be numeric, Boolean, or String; got {targetType}.");
+                    $"set_var 目标类型必须是数值、Boolean 或 String，当前为 {targetType}。");
                 return;
             }
             if (!IsSetVariableType(valueType))
             {
                 AddError(diagnostics, "TRG1315", path + ".arguments.value.type",
-                    $"set_var value type must be numeric, Boolean, or String; got {valueType}.");
+                    $"set_var 值类型必须是数值、Boolean 或 String，当前为 {valueType}。");
                 return;
             }
             if (!IsSetVariableTypeCompatible(targetType, valueType))
                 AddError(diagnostics, "TRG1315", path + ".arguments.value.type",
-                    $"set_var target type {targetType} does not match value type {valueType}.");
+                    $"set_var 目标类型 {targetType} 与值类型 {valueType} 不匹配。");
         }
 
         private static bool IsSetVariableType(TriggerValueType type)
@@ -1239,13 +1484,13 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (value == null)
             {
-                AddError(diagnostics, "TRG1300", path, "Value is required.");
+                AddError(diagnostics, "TRG1300", path, "必须设置值。");
                 return;
             }
             if (parameter.Type != TriggerValueType.None && !IsTypeCompatible(parameter.Type, value.Type))
-                AddError(diagnostics, "TRG1301", path + ".type", $"Expected {parameter.Type}, got {value.Type}.");
+                AddError(diagnostics, "TRG1301", path + ".type", $"值类型应为 {parameter.Type}，当前为 {value.Type}。");
             if ((parameter.AllowedSources & ToMask(value.Source)) == 0)
-                AddError(diagnostics, "TRG1302", path + ".source", $"Source {value.Source} is not allowed.");
+                AddError(diagnostics, "TRG1302", path + ".source", $"不允许使用值来源 {value.Source}。");
             if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.Object)
             {
                 ValidateObjectFields(
@@ -1263,31 +1508,31 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case TriggerValueSource.Context:
                 case TriggerValueSource.TemplateParameter:
                     if (string.IsNullOrWhiteSpace(value.Path))
-                        AddError(diagnostics, "TRG1303", path + ".path", "Reference path is required.");
+                        AddError(diagnostics, "TRG1303", path + ".path", "必须填写引用路径。");
                     break;
                 case TriggerValueSource.Payload:
                     ValidatePayloadValue(diagnostics, value, path, eventDefinition);
                     break;
                 case TriggerValueSource.LocalBlackboard:
                     if (string.IsNullOrWhiteSpace(value.Path) || !localKeys.TryGetValue(value.Path, out var local))
-                        AddError(diagnostics, "TRG1304", path + ".path", $"Unknown local Blackboard key: {value.Path ?? string.Empty}.");
+                        AddError(diagnostics, "TRG1304", path + ".path", $"未知局部黑板 Key：{value.Path ?? string.Empty}。");
                     else
                     {
                         if (!IsTypeCompatible(local.Type, value.Type))
-                            AddError(diagnostics, "TRG1309", path + ".type", $"Local Blackboard key '{value.Path}' is {local.Type}, got {value.Type}.");
+                            AddError(diagnostics, "TRG1309", path + ".type", $"局部黑板 Key“{value.Path}”的类型为 {local.Type}，当前值类型为 {value.Type}。");
                         if (parameter.Access == TriggerParameterAccess.Write && local.ReadOnly)
-                            AddError(diagnostics, "TRG1314", path + ".path", $"Local Blackboard key '{value.Path}' is read-only.");
+                            AddError(diagnostics, "TRG1314", path + ".path", $"局部黑板 Key“{value.Path}”为只读。");
                     }
                     break;
                 case TriggerValueSource.GlobalBlackboard:
                     if (string.IsNullOrWhiteSpace(value.Path))
-                        AddError(diagnostics, "TRG1305", path + ".path", "Global Blackboard key is required.");
+                        AddError(diagnostics, "TRG1305", path + ".path", "必须填写全局黑板 Key。");
                     else if (globalBlackboard != null)
                         ValidateGlobalBlackboardValue(diagnostics, value, parameter.Access, path, globalBlackboard);
                     break;
                 case TriggerValueSource.Expression:
                     if (string.IsNullOrWhiteSpace(value.Expression))
-                        AddError(diagnostics, "TRG1306", path + ".expression", "Expression is required.");
+                        AddError(diagnostics, "TRG1306", path + ".expression", "必须填写表达式。");
                     break;
             }
         }
@@ -1310,17 +1555,17 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var fieldPath = $"{path}[{i}]";
                 if (field == null || string.IsNullOrWhiteSpace(field.Name))
                 {
-                    AddError(diagnostics, "TRG1320", fieldPath + ".name", "Object field name is required.");
+                    AddError(diagnostics, "TRG1320", fieldPath + ".name", "必须填写对象字段名称。");
                     continue;
                 }
                 if (!names.Add(field.Name))
-                    AddError(diagnostics, "TRG1321", fieldPath + ".name", $"Duplicate Object field: {field.Name}.");
+                    AddError(diagnostics, "TRG1321", fieldPath + ".name", $"对象字段重复：{field.Name}。");
                 var fieldParameter = fieldDescriptors != null && fieldDescriptors.TryGetValue(field.Name, out var descriptor)
                     ? descriptor
                     : new TriggerParameterDescriptor(field.Name, TriggerValueType.None);
                 if (fieldDescriptors != null && !fieldDescriptors.ContainsKey(field.Name))
                     AddWarning(diagnostics, "TRG1323", fieldPath + ".name",
-                        $"Unknown Object field '{field.Name}' is preserved but ignored by the authoring Schema.");
+                        $"未知对象字段“{field.Name}”会继续保留，但编辑 Schema 将忽略该字段。");
                 ValidateValue(
                     diagnostics,
                     field.Value,
@@ -1337,7 +1582,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var field = parameter.Fields[i];
                 if (field == null || string.IsNullOrWhiteSpace(field.Name) || !field.Required) continue;
                 if (!names.Contains(field.Name))
-                    AddError(diagnostics, "TRG1322", path, $"Required Object field is missing: {field.Name}.");
+                    AddError(diagnostics, "TRG1322", path, $"缺少必填对象字段：{field.Name}。");
             }
 
             var requiredGroups = new HashSet<string>(StringComparer.Ordinal);
@@ -1360,7 +1605,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
                 if (!found)
                     AddError(diagnostics, "TRG1324", path,
-                        $"At least one Object field is required for '{group}': {string.Join(", ", choices)}.");
+                        $"对象字段组“{group}”至少需要设置一项：{string.Join(", ", choices)}。");
             }
         }
 
@@ -1386,7 +1631,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (string.IsNullOrWhiteSpace(value.Path))
             {
-                AddError(diagnostics, "TRG1303", path + ".path", "Reference path is required.");
+                AddError(diagnostics, "TRG1303", path + ".path", "必须填写引用路径。");
                 return;
             }
             if (eventDefinition == null) return;
@@ -1408,11 +1653,11 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             if (field == null)
             {
-                AddError(diagnostics, "TRG1307", path + ".path", $"Event '{eventDefinition.Id}' has no Payload field '{value.Path}'.");
+                AddError(diagnostics, "TRG1307", path + ".path", $"事件“{eventDefinition.Id}”中不存在 Payload 字段“{value.Path}”。");
                 return;
             }
             if (!IsTypeCompatible(field.Type, value.Type))
-                AddError(diagnostics, "TRG1308", path + ".type", $"Payload field '{value.Path}' is {field.Type}, got {value.Type}.");
+                AddError(diagnostics, "TRG1308", path + ".type", $"Payload 字段“{value.Path}”的类型为 {field.Type}，当前值类型为 {value.Type}。");
         }
 
         private static void ValidateGlobalBlackboardValue(
@@ -1424,15 +1669,15 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (!catalog.TryGet(value.Path, out var key))
             {
-                AddError(diagnostics, "TRG1310", path + ".path", $"Unknown global Blackboard key: {value.Path}.");
+                AddError(diagnostics, "TRG1310", path + ".path", $"未知全局黑板 Key：{value.Path}。");
                 return;
             }
             if (!IsTypeCompatible(key.Type, value.Type))
-                AddError(diagnostics, "TRG1313", path + ".type", $"Global Blackboard key '{value.Path}' is {key.Type}, got {value.Type}.");
+                AddError(diagnostics, "TRG1313", path + ".type", $"全局黑板 Key“{value.Path}”的类型为 {key.Type}，当前值类型为 {value.Type}。");
             if (access == TriggerParameterAccess.Read && !key.CanRead)
-                AddError(diagnostics, "TRG1311", path + ".path", $"Global Blackboard key '{value.Path}' is not readable.");
+                AddError(diagnostics, "TRG1311", path + ".path", $"全局黑板 Key“{value.Path}”不可读。");
             if (access == TriggerParameterAccess.Write && !key.CanWrite)
-                AddError(diagnostics, "TRG1312", path + ".path", $"Global Blackboard key '{value.Path}' is read-only.");
+                AddError(diagnostics, "TRG1312", path + ".path", $"全局黑板 Key“{value.Path}”为只读。");
         }
 
         private static bool IsTypeCompatible(TriggerValueType expected, TriggerValueType actual)
@@ -1444,6 +1689,11 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static TriggerValueSourceMask ToMask(TriggerValueSource source)
         {
             return (TriggerValueSourceMask)(1 << (int)source);
+        }
+
+        private static string KindLabel(TriggerNodeKind kind)
+        {
+            return kind == TriggerNodeKind.Condition ? "条件" : "行为";
         }
 
         private static void AddError(

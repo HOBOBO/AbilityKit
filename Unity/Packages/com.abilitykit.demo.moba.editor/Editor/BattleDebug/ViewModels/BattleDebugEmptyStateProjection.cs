@@ -111,7 +111,7 @@ namespace AbilityKit.Game.Editor
                         BattleDebugEmptyStateReason.Evicted,
                         BattleDebugEmptyStateSeverity.Warning,
                         $"{subject}已被淘汰",
-                        $"缩小时间范围或提高 Store 容量。{detail}".Trim());
+                        $"缩小时间范围或提高存储容量。{detail}".Trim());
                 case BattleDiagnosticDataAvailability.Truncated:
                     return Create(
                         BattleDebugEmptyStateReason.Truncated,

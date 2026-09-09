@@ -18,7 +18,16 @@
         "defaultValue": {
           "source": "Constant",
           "type": "Number",
-          "numberValue": 0.15
+          "integerValue": 0,
+          "numberValue": 0.15,
+          "booleanValue": false,
+          "integerListValue": [],
+          "vector3Value": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "fields": []
         }
       },
       {
@@ -29,7 +38,16 @@
         "defaultValue": {
           "source": "Constant",
           "type": "Integer",
-          "integerValue": 2
+          "integerValue": 2,
+          "numberValue": 0.0,
+          "booleanValue": false,
+          "integerListValue": [],
+          "vector3Value": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "fields": []
         }
       },
       {
@@ -40,7 +58,16 @@
         "defaultValue": {
           "source": "Constant",
           "type": "Boolean",
-          "booleanValue": true
+          "integerValue": 0,
+          "numberValue": 0.0,
+          "booleanValue": true,
+          "integerListValue": [],
+          "vector3Value": {
+            "x": 0.0,
+            "y": 0.0,
+            "z": 0.0
+          },
+          "fields": []
         }
       }
     ],
@@ -59,6 +86,16 @@
               "value": {
                 "source": "Payload",
                 "type": "Integer",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": [],
                 "path": "buff_id"
               }
             },
@@ -67,13 +104,31 @@
               "value": {
                 "source": "Constant",
                 "type": "Object",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
                 "fields": [
                   {
                     "name": "check_stack",
                     "value": {
                       "source": "Constant",
                       "type": "Boolean",
-                      "booleanValue": true
+                      "integerValue": 0,
+                      "numberValue": 0.0,
+                      "booleanValue": true,
+                      "integerListValue": [],
+                      "vector3Value": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                      },
+                      "fields": []
                     }
                   }
                 ]
@@ -84,19 +139,38 @@
               "value": {
                 "source": "Constant",
                 "type": "Object",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
                 "fields": [
                   {
                     "name": "mode",
                     "value": {
                       "source": "Constant",
                       "type": "Integer",
-                      "integerValue": 0
+                      "integerValue": 0,
+                      "numberValue": 0.0,
+                      "booleanValue": false,
+                      "integerListValue": [],
+                      "vector3Value": {
+                        "x": 0.0,
+                        "y": 0.0,
+                        "z": 0.0
+                      },
+                      "fields": []
                     }
                   }
                 ]
               }
             }
-          ]
+          ],
+          "children": []
         }
       }
     ],
@@ -115,7 +189,17 @@
               "value": {
                 "source": "Constant",
                 "type": "String",
-                "stringValue": "trigger showcase: payload/context/local refs are active"
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "stringValue": "trigger showcase: payload/context/local refs are active",
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
               }
             },
             {
@@ -123,69 +207,39 @@
               "value": {
                 "source": "Constant",
                 "type": "Boolean",
-                "booleanValue": true
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": true,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
               }
             }
-          ]
+          ],
+          "children": []
         }
-      }
-    ],
-    "triggers": [
+      },
       {
-        "id": 910001,
-        "name": "Buff Apply Composite Damage",
-        "groupPath": "MOBA/Buff/OnApply",
-        "tags": ["buff", "damage", "composite", "varnumber"],
-        "enabled": true,
-        "event": "buff.apply",
-        "phase": "immediate",
-        "priority": 10,
-        "scope": "owner",
-        "allowExternal": false,
-        "condition": {
-          "enabled": true,
-          "kind": "Condition",
-          "type": "all",
-          "children": [
-            {
-              "enabled": true,
-              "kind": "Condition",
-              "groupReference": "condition.has_buff_from_payload"
-            },
-            {
-              "enabled": true,
-              "kind": "Condition",
-              "type": "arg_gte",
-              "arguments": [
-                {
-                  "name": "left",
-                  "value": {
-                    "source": "Payload",
-                    "type": "Integer",
-                    "path": "stack_count"
-                  }
-                },
-                {
-                  "name": "right",
-                  "value": {
-                    "source": "LocalBlackboard",
-                    "type": "Integer",
-                    "path": "module:required_stack"
-                  }
-                }
-              ]
-            }
-          ]
-        },
-        "actions": {
+        "id": "910006",
+        "displayName": "顺序执行分组",
+        "description": "从内嵌节点提取",
+        "root": {
           "enabled": true,
           "kind": "Action",
           "type": "seq",
+          "arguments": [],
           "children": [
             {
               "enabled": true,
               "kind": "Action",
-              "groupReference": "action.log_payload"
+              "groupReference": "action.log_payload",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
             },
             {
               "enabled": true,
@@ -197,6 +251,16 @@
                   "value": {
                     "source": "LocalBlackboard",
                     "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
                     "path": "module:damage_bonus"
                   }
                 },
@@ -205,10 +269,22 @@
                   "value": {
                     "source": "Expression",
                     "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
                     "expression": "payload.stack_count * 0.25"
                   }
                 }
-              ]
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
               "enabled": true,
@@ -220,6 +296,16 @@
                   "value": {
                     "source": "Expression",
                     "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
                     "expression": "120 + blackboard.damage_bonus * 100"
                   }
                 },
@@ -228,12 +314,31 @@
                   "value": {
                     "source": "Constant",
                     "type": "Object",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
                     "fields": [
                       {
                         "name": "actor_id",
                         "value": {
                           "source": "Payload",
                           "type": "Integer",
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": false,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": [],
                           "path": "target_actor_id"
                         }
                       },
@@ -241,7 +346,17 @@
                         "name": "radius",
                         "value": {
                           "source": "Context",
-                          "type": "Number",
+                          "type": "Integer",
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": false,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": [],
                           "path": "filter.param"
                         }
                       },
@@ -250,7 +365,16 @@
                         "value": {
                           "source": "Constant",
                           "type": "Boolean",
-                          "booleanValue": false
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": false,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": []
                         }
                       }
                     ]
@@ -261,10 +385,21 @@
                   "value": {
                     "source": "Constant",
                     "type": "Integer",
-                    "integerValue": 3
+                    "integerValue": 3,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
                   }
                 }
-              ]
+              ],
+              "children": [],
+              "elseChildren": []
             },
             {
               "enabled": false,
@@ -276,79 +411,116 @@
                   "name": "message",
                   "value": {
                     "source": "GlobalBlackboard",
-                    "type": "Integer",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
                     "path": "skill.hitCount"
                   }
                 }
-              ]
+              ],
+              "children": [],
+              "elseChildren": []
             }
-          ]
-        },
-        "blackboard": [
-          {
-            "key": "trigger_hit_count",
-            "type": "Integer",
-            "readOnly": false,
-            "description": "Trigger scoped local var used to demonstrate module/trigger path disambiguation.",
-            "defaultValue": {
-              "source": "Constant",
-              "type": "Integer",
-              "integerValue": 0
-            }
-          }
-        ],
-        "note": "Main showcase trigger for composite conditions/actions and varnumber sources."
-      },
+          ],
+          "elseChildren": []
+        }
+      }
+    ],
+    "triggers": [
       {
-        "id": 910002,
-        "name": "Skill Cast Targeted Buff",
-        "groupPath": "MOBA/Skill/Cast",
-        "tags": ["skill", "buff", "integer-list"],
+        "id": 910001,
+        "name": "Buff Apply Composite Damage",
+        "groupPath": "AAA配置",
+        "tags": [
+          "buff",
+          "damage",
+          "composite",
+          "varnumber"
+        ],
         "enabled": true,
-        "event": "skill.cast.start",
+        "entryMode": "Event",
+        "event": "buff.apply",
         "phase": "immediate",
-        "priority": 20,
+        "priority": 10,
+        "interruptPriority": 0,
         "scope": "owner",
         "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
         "condition": {
           "enabled": true,
           "kind": "Condition",
-          "type": "any",
+          "type": "all",
+          "arguments": [],
           "children": [
             {
               "enabled": true,
               "kind": "Condition",
-              "type": "arg_lt",
+              "groupReference": "condition.has_buff_from_payload",
+              "arguments": [],
+              "children": []
+            },
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gte",
               "arguments": [
                 {
                   "name": "left",
                   "value": {
                     "source": "Payload",
                     "type": "Number",
-                    "path": "caster.mana.percent"
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "stack_count"
                   }
                 },
                 {
                   "name": "right",
                   "value": {
-                    "source": "Constant",
-                    "type": "Number",
-                    "numberValue": 0.35
+                    "source": "LocalBlackboard",
+                    "type": "Integer",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "module:required_stack"
                   }
                 }
-              ]
-            },
-            {
-              "enabled": true,
-              "kind": "Condition",
-              "type": "not",
-              "children": [
-                {
-                  "enabled": true,
-                  "kind": "Condition",
-                  "type": "always_false"
-                }
-              ]
+              ],
+              "children": []
             }
           ]
         },
@@ -356,6 +528,7 @@
           "enabled": true,
           "kind": "Action",
           "type": "seq",
+          "arguments": [],
           "children": [
             {
               "enabled": true,
@@ -367,10 +540,530 @@
                   "value": {
                     "source": "Constant",
                     "type": "String",
-                    "stringValue": "skill cast showcase"
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "trigger showcase: payload/context/local refs are active",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                },
+                {
+                  "name": "dump_args",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": true,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
                   }
                 }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "set_num_var",
+              "arguments": [
+                {
+                  "name": "target",
+                  "value": {
+                    "source": "LocalBlackboard",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "module:damage_bonus"
+                  }
+                },
+                {
+                  "name": "value",
+                  "value": {
+                    "source": "Expression",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "expression": "payload.stack_count * 0.25"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "give_damage",
+              "arguments": [
+                {
+                  "name": "damage_value",
+                  "value": {
+                    "source": "Expression",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "expression": "120 + blackboard.damage_bonus * 100"
+                  }
+                },
+                {
+                  "name": "target",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Object",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [
+                      {
+                        "name": "actor_id",
+                        "value": {
+                          "source": "Payload",
+                          "type": "Integer",
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": false,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": [],
+                          "path": "target_actor_id"
+                        }
+                      },
+                      {
+                        "name": "radius",
+                        "value": {
+                          "source": "Context",
+                          "type": "Integer",
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": false,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": [],
+                          "path": "filter.param"
+                        }
+                      },
+                      {
+                        "name": "self",
+                        "value": {
+                          "source": "Constant",
+                          "type": "Boolean",
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": false,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": []
+                        }
+                      }
+                    ]
+                  }
+                },
+                {
+                  "name": "reason_kind",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 3,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": false,
+              "kind": "Action",
+              "type": "debug_log",
+              "note": "Disabled node: visible in the editor and preserved by Source JSON, ignored by runtime export.",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "GlobalBlackboard",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "skill.hitCount"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [
+          {
+            "key": "trigger_hit_count",
+            "type": "Integer",
+            "readOnly": false,
+            "description": "Trigger scoped local var used to demonstrate module/trigger path disambiguation.",
+            "defaultValue": {
+              "source": "Constant",
+              "type": "Integer",
+              "integerValue": 0,
+              "numberValue": 0.0,
+              "booleanValue": false,
+              "integerListValue": [],
+              "vector3Value": {
+                "x": 0.0,
+                "y": 0.0,
+                "z": 0.0
+              },
+              "fields": []
+            }
+          }
+        ],
+        "note": "Main showcase trigger for composite conditions/actions and varnumber sources."
+      },
+      {
+        "id": 910003,
+        "name": "新建事件规则",
+        "groupPath": "AAA配置",
+        "tags": [],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "buff.apply",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "enabled": true,
+          "kind": "Condition",
+          "type": "has_buff",
+          "arguments": [
+            {
+              "name": "buff_id",
+              "value": {
+                "source": "Constant",
+                "type": "Integer",
+                "integerValue": 1000,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "groupReference": "",
+          "type": "attr_effect_duration",
+          "arguments": [
+            {
+              "name": "attr",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "op",
+              "value": {
+                "source": "Constant",
+                "type": "String",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            },
+            {
+              "name": "value",
+              "value": {
+                "source": "Constant",
+                "type": "Number",
+                "integerValue": 0,
+                "numberValue": 0.0,
+                "booleanValue": false,
+                "integerListValue": [],
+                "vector3Value": {
+                  "x": 0.0,
+                  "y": 0.0,
+                  "z": 0.0
+                },
+                "fields": []
+              }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": []
+      },
+      {
+        "id": 910005,
+        "name": "新建事件规则",
+        "groupPath": "AAA配置",
+        "tags": [],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "buff.apply",
+        "phase": "immediate",
+        "priority": 0,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "groupReference": "action.log_payload",
+          "arguments": [],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": []
+      },
+      {
+        "id": 910002,
+        "name": "Skill Cast Targeted Buff",
+        "groupPath": "MOBA/Skill/Cast",
+        "tags": [
+          "skill",
+          "buff",
+          "integer-list"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "skill.cast.start",
+        "phase": "immediate",
+        "priority": 20,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "enabled": true,
+          "kind": "Condition",
+          "type": "any",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_lt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": [],
+                    "path": "caster.mana.percent"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "integerValue": 0,
+                    "numberValue": 0.35,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": []
+            },
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "not",
+              "arguments": [],
+              "children": [
+                {
+                  "enabled": true,
+                  "kind": "Condition",
+                  "type": "always_false",
+                  "arguments": [],
+                  "children": []
+                }
               ]
+            }
+          ]
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "stringValue": "skill cast showcase",
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
+                  }
+                }
+              ],
+              "children": []
             },
             {
               "enabled": true,
@@ -382,7 +1075,19 @@
                   "value": {
                     "source": "Constant",
                     "type": "IntegerList",
-                    "integerListValue": [21001, 21002]
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [
+                      21001,
+                      21002
+                    ],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
+                    "fields": []
                   }
                 },
                 {
@@ -390,12 +1095,31 @@
                   "value": {
                     "source": "Constant",
                     "type": "Object",
+                    "integerValue": 0,
+                    "numberValue": 0.0,
+                    "booleanValue": false,
+                    "integerListValue": [],
+                    "vector3Value": {
+                      "x": 0.0,
+                      "y": 0.0,
+                      "z": 0.0
+                    },
                     "fields": [
                       {
                         "name": "actor_id",
                         "value": {
                           "source": "Payload",
                           "type": "Integer",
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": false,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": [],
                           "path": "caster.actor_id"
                         }
                       },
@@ -404,13 +1128,23 @@
                         "value": {
                           "source": "Constant",
                           "type": "Boolean",
-                          "booleanValue": true
+                          "integerValue": 0,
+                          "numberValue": 0.0,
+                          "booleanValue": true,
+                          "integerListValue": [],
+                          "vector3Value": {
+                            "x": 0.0,
+                            "y": 0.0,
+                            "z": 0.0
+                          },
+                          "fields": []
                         }
                       }
                     ]
                   }
                 }
-              ]
+              ],
+              "children": []
             }
           ]
         },

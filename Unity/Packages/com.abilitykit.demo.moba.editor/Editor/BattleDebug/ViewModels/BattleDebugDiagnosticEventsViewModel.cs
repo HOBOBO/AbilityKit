@@ -63,10 +63,136 @@ namespace AbilityKit.Game.Editor
         public BattleDiagnosticTriggerAnalysisResult TriggerResult { get; }
     }
 
+    internal readonly struct BattleDebugTriggerStageSummary
+    {
+        public BattleDebugTriggerStageSummary(
+            BattleDiagnosticTriggerAnalysisStage stage,
+            int eventCount,
+            int occurrenceCount,
+            int passedCount,
+            int failedCount,
+            int blockedCount,
+            int skippedCount,
+            int firstFrame,
+            int lastFrame,
+            BattleDiagnosticTriggerAnalysisResult latestResult,
+            long latestSequence,
+            long latestContextId,
+            string failureKey,
+            string reason)
+        {
+            Stage = stage;
+            EventCount = eventCount;
+            OccurrenceCount = occurrenceCount;
+            PassedCount = passedCount;
+            FailedCount = failedCount;
+            BlockedCount = blockedCount;
+            SkippedCount = skippedCount;
+            FirstFrame = firstFrame;
+            LastFrame = lastFrame;
+            LatestResult = latestResult;
+            LatestSequence = latestSequence;
+            LatestContextId = latestContextId;
+            FailureKey = failureKey ?? string.Empty;
+            Reason = reason ?? string.Empty;
+        }
+
+        public BattleDiagnosticTriggerAnalysisStage Stage { get; }
+        public int EventCount { get; }
+        public int OccurrenceCount { get; }
+        public int PassedCount { get; }
+        public int FailedCount { get; }
+        public int BlockedCount { get; }
+        public int SkippedCount { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+        public BattleDiagnosticTriggerAnalysisResult LatestResult { get; }
+        public long LatestSequence { get; }
+        public long LatestContextId { get; }
+        public string FailureKey { get; }
+        public string Reason { get; }
+        public bool IsObserved => EventCount > 0;
+    }
+
+    internal readonly struct BattleDebugTriggerFlow
+    {
+        public BattleDebugTriggerFlow(
+            string key,
+            int triggerId,
+            long rootContextId,
+            long firstRootContextId,
+            long lastRootContextId,
+            long sourceActorId,
+            long targetActorId,
+            int firstFrame,
+            int lastFrame,
+            long latestSequence,
+            long latestContextId,
+            BattleDebugTriggerStageSummary budget,
+            BattleDebugTriggerStageSummary conditions,
+            BattleDebugTriggerStageSummary plan,
+            BattleDebugTriggerStageSummary execution)
+        {
+            Key = key ?? string.Empty;
+            TriggerId = triggerId;
+            RootContextId = rootContextId;
+            FirstRootContextId = firstRootContextId;
+            LastRootContextId = lastRootContextId;
+            SourceActorId = sourceActorId;
+            TargetActorId = targetActorId;
+            FirstFrame = firstFrame;
+            LastFrame = lastFrame;
+            LatestSequence = latestSequence;
+            LatestContextId = latestContextId;
+            Budget = budget;
+            Conditions = conditions;
+            Plan = plan;
+            Execution = execution;
+        }
+
+        public string Key { get; }
+        public int TriggerId { get; }
+        public long RootContextId { get; }
+        public long FirstRootContextId { get; }
+        public long LastRootContextId { get; }
+        public bool SpansMultipleRoots =>
+            FirstRootContextId != 0 &&
+            LastRootContextId != 0 &&
+            FirstRootContextId != LastRootContextId;
+        public long SourceActorId { get; }
+        public long TargetActorId { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+        public long LatestSequence { get; }
+        public long LatestContextId { get; }
+        public BattleDebugTriggerStageSummary Budget { get; }
+        public BattleDebugTriggerStageSummary Conditions { get; }
+        public BattleDebugTriggerStageSummary Plan { get; }
+        public BattleDebugTriggerStageSummary Execution { get; }
+
+        public BattleDebugTriggerStageSummary GetStage(BattleDiagnosticTriggerAnalysisStage stage)
+        {
+            switch (stage)
+            {
+                case BattleDiagnosticTriggerAnalysisStage.Budget:
+                    return Budget;
+                case BattleDiagnosticTriggerAnalysisStage.Conditions:
+                    return Conditions;
+                case BattleDiagnosticTriggerAnalysisStage.Plan:
+                    return Plan;
+                case BattleDiagnosticTriggerAnalysisStage.Execution:
+                    return Execution;
+                default:
+                    return default;
+            }
+        }
+    }
+
     internal sealed class BattleDebugDiagnosticEventsViewModel
     {
         private const int DisplayLimit = 200;
         private const int IssueGroupLimit = 6;
+        private const int TriggerFlowLimit = 12;
 
         private long _lastRequestId;
         private long _lastStoreRevision = -1;
@@ -81,6 +207,7 @@ namespace AbilityKit.Game.Editor
         private BattleDiagnosticTriggerAnalysisResult _lastTriggerResult;
         private int _lastTriggerContextKind;
         private int _lastTriggerOriginKind;
+        private BattleDiagnosticTriggerValueFilter _lastTriggerValueFilter;
         private int _lastConfigId;
         private long _lastRootContextId;
         private long _lastContextId;
@@ -92,6 +219,7 @@ namespace AbilityKit.Game.Editor
         private int _nextPageOffset;
         private IReadOnlyList<BattleDiagnosticEvent> _cachedItems;
         private IReadOnlyList<BattleDebugDiagnosticIssueGroup> _issueGroups;
+        private IReadOnlyList<BattleDebugTriggerFlow> _triggerFlows;
 
         /// <summary>最近一次事件查询的结构化状态。</summary>
         public BattleDiagnosticQueryStatus QueryStatus { get; private set; }
@@ -134,6 +262,8 @@ namespace AbilityKit.Game.Editor
         public BattleDiagnosticTriggerAnalysisResult TriggerResult { get; set; } = BattleDiagnosticTriggerAnalysisResult.Unknown;
         public int TriggerContextKind { get; set; }
         public int TriggerOriginKind { get; set; }
+        public BattleDiagnosticTriggerValueFilter TriggerValueFilter { get; set; } =
+            BattleDiagnosticTriggerValueFilter.Valuable;
 
         /// <summary>按技能、效果或触发配置 ID 收敛事件；0 表示不过滤。</summary>
         public int ConfigId { get; set; }
@@ -154,10 +284,10 @@ namespace AbilityKit.Game.Editor
         {
             get
             {
-                if (RootContextId != 0) return $"Root Trace={RootContextId}";
-                if (SkillRuntimeId != 0) return $"Skill Runtime={SkillRuntimeId}";
-                if (AttackId != 0) return $"Attack={AttackId}";
-                if (ContextId != 0) return $"Context={ContextId}";
+                if (RootContextId != 0) return $"根 Trace={RootContextId}";
+                if (SkillRuntimeId != 0) return $"技能运行时={SkillRuntimeId}";
+                if (AttackId != 0) return $"攻击={AttackId}";
+                if (ContextId != 0) return $"上下文={ContextId}";
                 return string.Empty;
             }
         }
@@ -167,6 +297,9 @@ namespace AbilityKit.Game.Editor
 
         /// <summary>当前结果中按根因归并的失败簇，按次数与最近帧排序。</summary>
         public IReadOnlyList<BattleDebugDiagnosticIssueGroup> IssueGroups => _issueGroups;
+
+        /// <summary>当前工作集中按 Root 和 Trigger 归并的触发阶段流程。</summary>
+        public IReadOnlyList<BattleDebugTriggerFlow> TriggerFlows => _triggerFlows;
 
         /// <summary>最近一次查询的状态消息（空字符串表示无特殊状态）。</summary>
         public string StatusMessage { get; private set; } = string.Empty;
@@ -188,6 +321,7 @@ namespace AbilityKit.Game.Editor
         {
             _cachedItems = null;
             _issueGroups = null;
+            _triggerFlows = null;
             QueryStatus = default;
             _lastStoreRevision = -1;
             _worksetRevision = -1;
@@ -248,6 +382,7 @@ namespace AbilityKit.Game.Editor
             TriggerResult = BattleDiagnosticTriggerAnalysisResult.Unknown;
             TriggerContextKind = 0;
             TriggerOriginKind = 0;
+            TriggerValueFilter = BattleDiagnosticTriggerValueFilter.Valuable;
             ConfigId = 0;
             RootContextId = 0;
             ContextId = 0;
@@ -307,6 +442,17 @@ namespace AbilityKit.Game.Editor
             EventScope = BattleDebugDiagnosticEventScope.Triggers;
             TriggerStage = BattleDiagnosticTriggerAnalysisStage.Conditions;
             TriggerResult = BattleDiagnosticTriggerAnalysisResult.Failed;
+            TriggerValueFilter = BattleDiagnosticTriggerValueFilter.All;
+            InvalidateCache();
+        }
+
+        public void FocusTriggerFlows()
+        {
+            FailuresOnly = false;
+            EventScope = BattleDebugDiagnosticEventScope.Triggers;
+            TriggerStage = BattleDiagnosticTriggerAnalysisStage.Unknown;
+            TriggerResult = BattleDiagnosticTriggerAnalysisResult.Unknown;
+            TriggerValueFilter = BattleDiagnosticTriggerValueFilter.Valuable;
             InvalidateCache();
         }
 
@@ -350,6 +496,7 @@ namespace AbilityKit.Game.Editor
                 _lastTriggerResult == TriggerResult &&
                 _lastTriggerContextKind == TriggerContextKind &&
                 _lastTriggerOriginKind == TriggerOriginKind &&
+                _lastTriggerValueFilter == TriggerValueFilter &&
                 _lastConfigId == ConfigId &&
                 _lastRootContextId == RootContextId &&
                 _lastContextId == ContextId &&
@@ -387,6 +534,7 @@ namespace AbilityKit.Game.Editor
             _lastTriggerResult = TriggerResult;
             _lastTriggerContextKind = TriggerContextKind;
             _lastTriggerOriginKind = TriggerOriginKind;
+            _lastTriggerValueFilter = TriggerValueFilter;
             _lastConfigId = ConfigId;
             _lastRootContextId = RootContextId;
             _lastContextId = ContextId;
@@ -404,6 +552,7 @@ namespace AbilityKit.Game.Editor
             {
                 _cachedItems = result.Items;
                 _issueGroups = BuildIssueGroups(result.Items);
+                _triggerFlows = BuildTriggerFlows(result.Items);
                 StatusMessage = result.Status.HasMore
                     ? $"已加载 {result.Items.Count} 条（仍有更多）"
                     : string.Empty;
@@ -412,9 +561,10 @@ namespace AbilityKit.Game.Editor
             {
                 _cachedItems = result.Items;
                 _issueGroups = Array.Empty<BattleDebugDiagnosticIssueGroup>();
+                _triggerFlows = Array.Empty<BattleDebugTriggerFlow>();
                 StatusMessage = result.Status.Phase == BattleDiagnosticQueryPhase.Empty
                     ? BuildEmptyMessage(hasSelection)
-                    : $"查询不可用：{result.Status.Availability} {result.Status.Message}";
+                    : $"查询不可用：{BattleDebugDisplayText.Availability(result.Status.Availability)} {result.Status.Message}";
             }
 
             return _cachedItems;
@@ -475,7 +625,7 @@ namespace AbilityKit.Game.Editor
                 {
                     HasMore = false;
                     PagingStatusMessage =
-                        $"固定快照 revision {_worksetRevision} 已被淘汰；已保留 {_cachedItems.Count} 条调查结果。";
+                        $"固定快照版本 {_worksetRevision} 已被淘汰；已保留 {_cachedItems.Count} 条调查结果。";
                 }
                 else if (result.Status.Phase == BattleDiagnosticQueryPhase.Empty)
                 {
@@ -485,7 +635,7 @@ namespace AbilityKit.Game.Editor
                 else
                 {
                     PagingStatusMessage =
-                        $"加载更多失败：{result.Status.Availability} {result.Status.Message}";
+                        $"加载更多失败：{BattleDebugDisplayText.Availability(result.Status.Availability)} {result.Status.Message}";
                 }
 
                 return false;
@@ -493,12 +643,13 @@ namespace AbilityKit.Game.Editor
 
             _cachedItems = AppendDistinct(_cachedItems, result.Items);
             _issueGroups = BuildIssueGroups(_cachedItems);
+            _triggerFlows = BuildTriggerFlows(_cachedItems);
             _nextPageOffset += DisplayLimit;
             HasMore = result.Status.HasMore;
             StatusMessage = string.Empty;
             PagingStatusMessage = HasMore
-                ? $"已加载 {_cachedItems.Count} 条，快照 revision {_worksetRevision} 仍有更多。"
-                : $"已加载全部 {_cachedItems.Count} 条，快照 revision {_worksetRevision}。";
+                ? $"已加载 {_cachedItems.Count} 条，快照版本 {_worksetRevision} 仍有更多。"
+                : $"已加载全部 {_cachedItems.Count} 条，快照版本 {_worksetRevision}。";
             return true;
         }
 
@@ -518,6 +669,7 @@ namespace AbilityKit.Game.Editor
                    _lastTriggerResult == TriggerResult &&
                    _lastTriggerContextKind == TriggerContextKind &&
                    _lastTriggerOriginKind == TriggerOriginKind &&
+                   _lastTriggerValueFilter == TriggerValueFilter &&
                    _lastConfigId == ConfigId &&
                    _lastRootContextId == RootContextId &&
                    _lastContextId == ContextId &&
@@ -568,7 +720,7 @@ namespace AbilityKit.Game.Editor
                 return "当前历史窗口和过滤条件下没有匹配事件。";
             }
 
-            return "事件存储当前为空。请施放技能或检查顶部数据源中的 Event revision 是否递增。";
+            return "事件存储当前为空。请施放技能或检查顶部数据源中的事件版本是否递增。";
         }
 
         public BattleDiagnosticFilter BuildEffectiveFilter(
@@ -627,7 +779,10 @@ namespace AbilityKit.Game.Editor
                     : TriggerContextKind,
                 triggerOriginKind: shared.TriggerOriginKind != 0
                     ? shared.TriggerOriginKind
-                    : TriggerOriginKind);
+                    : TriggerOriginKind,
+                triggerValue: shared.TriggerValue != BattleDiagnosticTriggerValueFilter.All
+                    ? shared.TriggerValue
+                    : TriggerValueFilter);
         }
 
 
@@ -652,7 +807,17 @@ namespace AbilityKit.Game.Editor
                     builders.Add(descriptor.Key, builder);
                 }
 
-                builder.Add(in diagnosticEvent);
+                if (diagnosticEvent.Payload.TryGetTriggerAnalysisAggregate(out var aggregate))
+                {
+                    builder.Add(
+                        aggregate.OccurrenceCount,
+                        aggregate.FirstFrame,
+                        aggregate.LastFrame);
+                }
+                else
+                {
+                    builder.Add(in diagnosticEvent);
+                }
             }
 
             var groups = new List<BattleDebugDiagnosticIssueGroup>(builders.Count);
@@ -679,6 +844,344 @@ namespace AbilityKit.Game.Editor
             return groups;
         }
 
+        internal static IReadOnlyList<BattleDebugTriggerFlow> BuildTriggerFlows(
+            IReadOnlyList<BattleDiagnosticEvent> events)
+        {
+            if (events == null || events.Count == 0)
+            {
+                return Array.Empty<BattleDebugTriggerFlow>();
+            }
+
+            var builders = new Dictionary<string, TriggerFlowBuilder>(StringComparer.Ordinal);
+            for (var i = 0; i < events.Count; i++)
+            {
+                var diagnosticEvent = events[i];
+                if (diagnosticEvent.Payload.TryGetTriggerAnalysis(out var trigger))
+                {
+                    var rootContextId = diagnosticEvent.RootContextId;
+                    var key = BuildTriggerFlowKey(
+                        trigger.TriggerId,
+                        rootContextId,
+                        diagnosticEvent.ContextId,
+                        diagnosticEvent.Sequence,
+                        spansMultipleRoots: false);
+                    if (!builders.TryGetValue(key, out var builder))
+                    {
+                        builder = new TriggerFlowBuilder(
+                            key,
+                            trigger.TriggerId,
+                            rootContextId,
+                            rootContextId,
+                            rootContextId,
+                            diagnosticEvent.SourceActorId,
+                            diagnosticEvent.TargetActorId);
+                        builders.Add(key, builder);
+                    }
+
+                    builder.Add(
+                        trigger.Stage,
+                        trigger.Result,
+                        occurrenceCount: 1,
+                        diagnosticEvent.Frame,
+                        diagnosticEvent.Frame,
+                        diagnosticEvent.Sequence,
+                        diagnosticEvent.ContextId,
+                        trigger.FailureKey,
+                        trigger.Reason);
+                    continue;
+                }
+
+                if (!diagnosticEvent.Payload.TryGetTriggerAnalysisAggregate(out var aggregate))
+                {
+                    continue;
+                }
+
+                var spansMultipleRoots = aggregate.FirstRootContextId != 0 &&
+                                         aggregate.LastRootContextId != 0 &&
+                                         aggregate.FirstRootContextId != aggregate.LastRootContextId;
+                var aggregateRootContextId = spansMultipleRoots
+                    ? 0L
+                    : aggregate.LastRootContextId != 0
+                        ? aggregate.LastRootContextId
+                        : aggregate.FirstRootContextId != 0
+                            ? aggregate.FirstRootContextId
+                            : diagnosticEvent.RootContextId;
+                var aggregateKey = BuildTriggerFlowKey(
+                    aggregate.TriggerId,
+                    aggregateRootContextId,
+                    aggregate.LastContextId,
+                    diagnosticEvent.Sequence,
+                    spansMultipleRoots);
+                if (!builders.TryGetValue(aggregateKey, out var aggregateBuilder))
+                {
+                    aggregateBuilder = new TriggerFlowBuilder(
+                        aggregateKey,
+                        aggregate.TriggerId,
+                        aggregateRootContextId,
+                        aggregate.FirstRootContextId,
+                        aggregate.LastRootContextId,
+                        diagnosticEvent.SourceActorId,
+                        diagnosticEvent.TargetActorId);
+                    builders.Add(aggregateKey, aggregateBuilder);
+                }
+
+                aggregateBuilder.Add(
+                    aggregate.Stage,
+                    aggregate.Result,
+                    aggregate.OccurrenceCount,
+                    aggregate.FirstFrame,
+                    aggregate.LastFrame,
+                    diagnosticEvent.Sequence,
+                    aggregate.LastContextId,
+                    aggregate.FailureKey,
+                    aggregate.SampleReason);
+            }
+
+            if (builders.Count == 0) return Array.Empty<BattleDebugTriggerFlow>();
+
+            var flows = new List<BattleDebugTriggerFlow>(builders.Count);
+            foreach (var pair in builders)
+            {
+                flows.Add(pair.Value.Build());
+            }
+
+            flows.Sort((left, right) =>
+            {
+                var frameComparison = right.LastFrame.CompareTo(left.LastFrame);
+                return frameComparison != 0
+                    ? frameComparison
+                    : right.LatestSequence.CompareTo(left.LatestSequence);
+            });
+            if (flows.Count > TriggerFlowLimit)
+            {
+                flows.RemoveRange(TriggerFlowLimit, flows.Count - TriggerFlowLimit);
+            }
+
+            return flows;
+        }
+
+        private static string BuildTriggerFlowKey(
+            int triggerId,
+            long rootContextId,
+            long contextId,
+            long sequence,
+            bool spansMultipleRoots)
+        {
+            if (spansMultipleRoots) return $"window|{sequence}";
+            if (rootContextId != 0) return $"root|{rootContextId}|trigger|{triggerId}";
+            if (contextId != 0) return $"context|{contextId}|trigger|{triggerId}";
+            return $"event|{sequence}";
+        }
+
+        private sealed class TriggerFlowBuilder
+        {
+            private readonly string _key;
+            private readonly int _triggerId;
+            private readonly long _rootContextId;
+            private readonly long _firstRootContextId;
+            private readonly long _lastRootContextId;
+            private readonly long _sourceActorId;
+            private readonly long _targetActorId;
+            private readonly Dictionary<BattleDiagnosticTriggerAnalysisStage, TriggerStageBuilder> _stages =
+                new Dictionary<BattleDiagnosticTriggerAnalysisStage, TriggerStageBuilder>();
+            private int _firstFrame = BattleDiagnosticFrames.Invalid;
+            private int _lastFrame = BattleDiagnosticFrames.Invalid;
+            private long _latestSequence;
+            private long _latestContextId;
+
+            public TriggerFlowBuilder(
+                string key,
+                int triggerId,
+                long rootContextId,
+                long firstRootContextId,
+                long lastRootContextId,
+                long sourceActorId,
+                long targetActorId)
+            {
+                _key = key;
+                _triggerId = triggerId;
+                _rootContextId = rootContextId;
+                _firstRootContextId = firstRootContextId;
+                _lastRootContextId = lastRootContextId;
+                _sourceActorId = sourceActorId;
+                _targetActorId = targetActorId;
+            }
+
+            public void Add(
+                BattleDiagnosticTriggerAnalysisStage stage,
+                BattleDiagnosticTriggerAnalysisResult result,
+                int occurrenceCount,
+                int firstFrame,
+                int lastFrame,
+                long sequence,
+                long contextId,
+                string failureKey,
+                string reason)
+            {
+                if (stage == BattleDiagnosticTriggerAnalysisStage.Unknown || occurrenceCount <= 0) return;
+                if (!_stages.TryGetValue(stage, out var stageBuilder))
+                {
+                    stageBuilder = new TriggerStageBuilder(stage);
+                    _stages.Add(stage, stageBuilder);
+                }
+
+                stageBuilder.Add(
+                    result,
+                    occurrenceCount,
+                    firstFrame,
+                    lastFrame,
+                    sequence,
+                    contextId,
+                    failureKey,
+                    reason);
+                var isLatest = _lastFrame == BattleDiagnosticFrames.Invalid ||
+                               lastFrame > _lastFrame ||
+                               (lastFrame == _lastFrame && sequence >= _latestSequence);
+                if (_firstFrame == BattleDiagnosticFrames.Invalid || firstFrame < _firstFrame)
+                {
+                    _firstFrame = firstFrame;
+                }
+                if (_lastFrame == BattleDiagnosticFrames.Invalid || lastFrame > _lastFrame)
+                {
+                    _lastFrame = lastFrame;
+                }
+                if (isLatest)
+                {
+                    _latestSequence = sequence;
+                    _latestContextId = contextId;
+                }
+            }
+
+            public BattleDebugTriggerFlow Build()
+            {
+                return new BattleDebugTriggerFlow(
+                    _key,
+                    _triggerId,
+                    _rootContextId,
+                    _firstRootContextId,
+                    _lastRootContextId,
+                    _sourceActorId,
+                    _targetActorId,
+                    _firstFrame,
+                    _lastFrame,
+                    _latestSequence,
+                    _latestContextId,
+                    GetStage(BattleDiagnosticTriggerAnalysisStage.Budget),
+                    GetStage(BattleDiagnosticTriggerAnalysisStage.Conditions),
+                    GetStage(BattleDiagnosticTriggerAnalysisStage.Plan),
+                    GetStage(BattleDiagnosticTriggerAnalysisStage.Execution));
+            }
+
+            private BattleDebugTriggerStageSummary GetStage(BattleDiagnosticTriggerAnalysisStage stage)
+            {
+                return _stages.TryGetValue(stage, out var builder)
+                    ? builder.Build()
+                    : new BattleDebugTriggerStageSummary(
+                        stage,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        BattleDiagnosticFrames.Invalid,
+                        BattleDiagnosticFrames.Invalid,
+                        BattleDiagnosticTriggerAnalysisResult.Unknown,
+                        0,
+                        0,
+                        string.Empty,
+                        string.Empty);
+            }
+        }
+
+        private sealed class TriggerStageBuilder
+        {
+            private readonly BattleDiagnosticTriggerAnalysisStage _stage;
+            private int _eventCount;
+            private int _occurrenceCount;
+            private int _passedCount;
+            private int _failedCount;
+            private int _blockedCount;
+            private int _skippedCount;
+            private int _firstFrame = BattleDiagnosticFrames.Invalid;
+            private int _lastFrame = BattleDiagnosticFrames.Invalid;
+            private BattleDiagnosticTriggerAnalysisResult _latestResult;
+            private long _latestSequence;
+            private long _latestContextId;
+            private string _failureKey = string.Empty;
+            private string _reason = string.Empty;
+
+            public TriggerStageBuilder(BattleDiagnosticTriggerAnalysisStage stage)
+            {
+                _stage = stage;
+            }
+
+            public void Add(
+                BattleDiagnosticTriggerAnalysisResult result,
+                int occurrenceCount,
+                int firstFrame,
+                int lastFrame,
+                long sequence,
+                long contextId,
+                string failureKey,
+                string reason)
+            {
+                _eventCount++;
+                _occurrenceCount += occurrenceCount;
+                switch (result)
+                {
+                    case BattleDiagnosticTriggerAnalysisResult.Passed:
+                        _passedCount += occurrenceCount;
+                        break;
+                    case BattleDiagnosticTriggerAnalysisResult.Failed:
+                        _failedCount += occurrenceCount;
+                        break;
+                    case BattleDiagnosticTriggerAnalysisResult.Blocked:
+                        _blockedCount += occurrenceCount;
+                        break;
+                    case BattleDiagnosticTriggerAnalysisResult.Skipped:
+                        _skippedCount += occurrenceCount;
+                        break;
+                }
+
+                if (_firstFrame == BattleDiagnosticFrames.Invalid || firstFrame < _firstFrame)
+                {
+                    _firstFrame = firstFrame;
+                }
+
+                var isLatest = _lastFrame == BattleDiagnosticFrames.Invalid ||
+                               lastFrame > _lastFrame ||
+                               (lastFrame == _lastFrame && sequence >= _latestSequence);
+                if (lastFrame > _lastFrame) _lastFrame = lastFrame;
+                if (!isLatest) return;
+
+                _latestResult = result;
+                _latestSequence = sequence;
+                _latestContextId = contextId;
+                if (!string.IsNullOrEmpty(failureKey)) _failureKey = failureKey;
+                if (!string.IsNullOrEmpty(reason)) _reason = reason;
+            }
+
+            public BattleDebugTriggerStageSummary Build()
+            {
+                return new BattleDebugTriggerStageSummary(
+                    _stage,
+                    _eventCount,
+                    _occurrenceCount,
+                    _passedCount,
+                    _failedCount,
+                    _blockedCount,
+                    _skippedCount,
+                    _firstFrame,
+                    _lastFrame,
+                    _latestResult,
+                    _latestSequence,
+                    _latestContextId,
+                    _failureKey,
+                    _reason);
+            }
+        }
+
         private static bool IsIssue(in BattleDiagnosticEvent diagnosticEvent)
         {
             if (diagnosticEvent.IsFailure) return true;
@@ -696,7 +1199,7 @@ namespace AbilityKit.Game.Editor
                 var reason = string.IsNullOrEmpty(failureKey)
                     ? trigger.Reason
                     : failureKey;
-                var label = $"触发 {trigger.TriggerId}  {trigger.Stage}/{trigger.Result}";
+                var label = $"触发 {trigger.TriggerId}  {BattleDebugDisplayText.TriggerStage(trigger.Stage)}/{BattleDebugDisplayText.TriggerResult(trigger.Result)}";
                 if (!string.IsNullOrEmpty(reason)) label += $"  {TrimLabel(reason, 42)}";
                 return new IssueGroupDescriptor(
                     key,
@@ -707,12 +1210,30 @@ namespace AbilityKit.Game.Editor
                     trigger.Result);
             }
 
+            if (diagnosticEvent.Payload.TryGetTriggerAnalysisAggregate(out var aggregate))
+            {
+                var failureKey = aggregate.FailureKey ?? string.Empty;
+                var key = $"trigger|{aggregate.TriggerId}|{aggregate.Stage}|{aggregate.Result}|{failureKey}";
+                var reason = string.IsNullOrEmpty(failureKey)
+                    ? aggregate.SampleReason
+                    : failureKey;
+                var label = $"触发 {aggregate.TriggerId}  {BattleDebugDisplayText.TriggerStage(aggregate.Stage)}/{BattleDebugDisplayText.TriggerResult(aggregate.Result)}";
+                if (!string.IsNullOrEmpty(reason)) label += $"  {TrimLabel(reason, 42)}";
+                return new IssueGroupDescriptor(
+                    key,
+                    label,
+                    diagnosticEvent.ConfigId,
+                    failureKey,
+                    aggregate.Stage,
+                    aggregate.Result);
+            }
+
             if (diagnosticEvent.Payload.TryGetSkillFailure(out var skillFailure))
             {
                 var stableCode = skillFailure.Code ?? string.Empty;
                 var key = $"skill|{stableCode}|{skillFailure.Source}|{skillFailure.Stage}";
                 var label = string.IsNullOrEmpty(stableCode)
-                    ? $"技能失败  {skillFailure.Source}/{skillFailure.Stage}"
+                    ? $"技能失败  {BattleDebugDisplayText.SkillFailureSource(skillFailure.Source)}/{BattleDebugDisplayText.SkillFailureStage(skillFailure.Stage)}"
                     : $"技能失败  {stableCode}";
                 var searchText = string.IsNullOrEmpty(stableCode)
                     ? skillFailure.Message
@@ -729,8 +1250,8 @@ namespace AbilityKit.Game.Editor
             var summary = diagnosticEvent.Summary ?? string.Empty;
             var genericKey = $"event|{diagnosticEvent.Kind}|{diagnosticEvent.ConfigId}|{summary}";
             var genericLabel = diagnosticEvent.ConfigId != 0
-                ? $"{diagnosticEvent.Kind}  cfg={diagnosticEvent.ConfigId}"
-                : diagnosticEvent.Kind.ToString();
+                ? $"{BattleDebugDisplayText.EventKind(diagnosticEvent.Kind)}  配置={diagnosticEvent.ConfigId}"
+                : BattleDebugDisplayText.EventKind(diagnosticEvent.Kind);
             if (!string.IsNullOrEmpty(summary)) genericLabel += $"  {TrimLabel(summary, 42)}";
             return new IssueGroupDescriptor(
                 genericKey,
@@ -787,14 +1308,18 @@ namespace AbilityKit.Game.Editor
 
             public void Add(in BattleDiagnosticEvent diagnosticEvent)
             {
-                _count++;
-                if (_firstFrame == BattleDiagnosticFrames.Invalid ||
-                    diagnosticEvent.Frame < _firstFrame)
+                Add(1, diagnosticEvent.Frame, diagnosticEvent.Frame);
+            }
+
+            public void Add(int count, int firstFrame, int latestFrame)
+            {
+                _count += count;
+                if (_firstFrame == BattleDiagnosticFrames.Invalid || firstFrame < _firstFrame)
                 {
-                    _firstFrame = diagnosticEvent.Frame;
+                    _firstFrame = firstFrame;
                 }
 
-                if (diagnosticEvent.Frame > _latestFrame) _latestFrame = diagnosticEvent.Frame;
+                if (latestFrame > _latestFrame) _latestFrame = latestFrame;
             }
 
             public BattleDebugDiagnosticIssueGroup ToGroup()

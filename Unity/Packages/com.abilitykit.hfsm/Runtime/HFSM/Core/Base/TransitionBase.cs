@@ -9,7 +9,7 @@ namespace AbilityKit.HFSM
 		public readonly TStateId from;
 		public readonly TStateId to;
 
-		public readonly bool forceInstantly;
+		public bool forceInstantly;
 		public bool isExitTransition;
 
 		public IStateMachine<TStateId> fsm;

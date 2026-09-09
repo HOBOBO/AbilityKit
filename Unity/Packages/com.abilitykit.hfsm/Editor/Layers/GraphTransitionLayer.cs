@@ -2,6 +2,7 @@ using System;
 using UnityEditor;
 using UnityEngine;
 using AbilityKit.HFSM.Graph;
+using AbilityKit.HFSM.Graph.Conditions;
 
 namespace AbilityKit.HFSM.Editor
 {
@@ -155,7 +156,7 @@ namespace AbilityKit.HFSM.Editor
         {
             GenericMenu menu = new GenericMenu();
 
-            menu.AddItem(new GUIContent("Delete"), false, () =>
+            menu.AddItem(new GUIContent("删除"), false, () =>
             {
                 Context.SelectEdge(edge);
                 Context.DeleteSelectedEdge();
@@ -351,7 +352,7 @@ namespace AbilityKit.HFSM.Editor
             Vector2 labelOffset = perpendicular * ConditionLabelOffset * offsetMultiplier * Context.ZoomFactor;
 
             // Draw background for label
-            string labelText = edge.GetConditionSummary();
+            string labelText = GetConditionSummary(edge);
             GUIStyle labelStyle = new GUIStyle(GUI.skin.box)
             {
                 alignment = TextAnchor.MiddleCenter,
@@ -372,6 +373,47 @@ namespace AbilityKit.HFSM.Editor
 
             // Draw rotated label text using GUI.matrix
             DrawRotatedLabel(labelRect, angle, labelText, labelStyle);
+        }
+
+        private static string GetConditionSummary(TransitionEdge edge)
+        {
+            var conditions = edge.Conditions;
+            if (conditions == null || conditions.Count == 0)
+                return "始终";
+            if (conditions.Count > 1)
+                return $"{conditions.Count} 个条件（{(edge.UseAndLogic ? "AND" : "OR")}）";
+
+            var condition = conditions[0];
+            if (condition is ParameterCondition parameter)
+            {
+                if (parameter.ParameterType == ParameterValueType.Bool)
+                    return $"{parameter.ParameterName} = {(parameter.BoolValue ? "真" : "假")}";
+                if (parameter.ParameterType == ParameterValueType.Trigger)
+                    return $"{parameter.ParameterName} 已触发";
+                var value = parameter.ParameterType == ParameterValueType.Float
+                    ? parameter.FloatValue.ToString()
+                    : parameter.IntValue.ToString();
+                return $"{parameter.ParameterName} {GetOperatorSymbol(parameter.Operator)} {value}";
+            }
+            if (condition is TimeElapsedCondition elapsed)
+                return $"时间 {GetOperatorSymbol(elapsed.Operator)} {elapsed.Duration:F2} 秒";
+            if (condition is BehaviorCompleteCondition)
+                return "所有行为均已完成";
+            return condition.GetDescription();
+        }
+
+        private static string GetOperatorSymbol(CompareOperator value)
+        {
+            switch (value)
+            {
+                case CompareOperator.Equal: return "==";
+                case CompareOperator.NotEqual: return "!=";
+                case CompareOperator.GreaterThan: return ">";
+                case CompareOperator.LessThan: return "<";
+                case CompareOperator.GreaterOrEqual: return ">=";
+                case CompareOperator.LessOrEqual: return "<=";
+                default: return "?";
+            }
         }
 
         private Texture2D MakeTex(Color lineColor)

@@ -149,7 +149,7 @@ namespace AbilityKit.BehaviorTree.Tests
             var document = TreeExporter.Import(ApiTreeJson.Load(TreeJson.Save(RunningTree())));
             var exception = Assert.Throws<JsonSerializationException>(
                 () => TreeJson.Load(AuthoringJson.Save(document)));
-            Assert.Contains("authoring JSON", exception.Message);
+            Assert.Contains("TreeExporter", exception.Message);
         }
 
         [Fact]

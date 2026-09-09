@@ -75,7 +75,7 @@ namespace AbilityKit.BehaviorTree.Editor
                     isTracked: true,
                     sourceExists: true,
                     sourceIsValid: false,
-                    error: "Asset is null.");
+                    error: "行为树资产为空。");
             }
 
             var assetHash = HashDocument(asset.LoadDocument());
@@ -153,7 +153,7 @@ namespace AbilityKit.BehaviorTree.Editor
 
         public static AuthoringSyncResult Import(AuthoringAsset asset, string path, bool force = false)
         {
-            if (asset == null) return AuthoringSyncResult.Fail("Asset is null.");
+            if (asset == null) return AuthoringSyncResult.Fail("行为树资产为空。");
             string resolved;
             try
             {
@@ -161,9 +161,9 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             catch (Exception ex)
             {
-                return AuthoringSyncResult.Fail($"Invalid source path: {ex.Message}");
+                return AuthoringSyncResult.Fail($"源文件路径无效：{ex.Message}");
             }
-            if (!File.Exists(resolved)) return AuthoringSyncResult.Fail($"Source file not found: {resolved}");
+            if (!File.Exists(resolved)) return AuthoringSyncResult.Fail($"未找到源文件：{resolved}");
 
             var inspection = Inspect(asset, path);
             var assessment = AssessOperation(
@@ -173,7 +173,7 @@ namespace AbilityKit.BehaviorTree.Editor
             if (!force && assessment.RequiresForce)
             {
                 return AuthoringSyncResult.Fail(
-                    "The asset contains changes that are not present in the source. Force import will overwrite them.",
+                    "资产中包含尚未写入源文件的修改。强制导入会覆盖这些修改。",
                     canForce: true);
             }
 
@@ -185,17 +185,17 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             catch (Exception ex)
             {
-                return AuthoringSyncResult.Fail($"Invalid source JSON: {ex.Message}");
+                return AuthoringSyncResult.Fail($"源文件 JSON 无效：{ex.Message}");
             }
 
             asset.SaveDocument(document);
             asset.MarkSynchronized(path, HashDocument(document));
-            return AuthoringSyncResult.Ok("Imported.");
+            return AuthoringSyncResult.Ok("导入完成。");
         }
 
         public static AuthoringSyncResult Export(AuthoringAsset asset, string path, bool force = false)
         {
-            if (asset == null) return AuthoringSyncResult.Fail("Asset is null.");
+            if (asset == null) return AuthoringSyncResult.Fail("行为树资产为空。");
             string resolved;
             try
             {
@@ -203,7 +203,7 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             catch (Exception ex)
             {
-                return AuthoringSyncResult.Fail($"Invalid source path: {ex.Message}");
+                return AuthoringSyncResult.Fail($"源文件路径无效：{ex.Message}");
             }
 
             if (!force && File.Exists(resolved))
@@ -213,7 +213,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 if (assessment.RequiresForce)
                 {
                     return AuthoringSyncResult.Fail(
-                        "The source contains changes that are not present in the asset. Force export will overwrite them.",
+                        "源文件中包含尚未导入资产的修改。强制导出会覆盖这些修改。",
                         canForce: true);
                 }
             }
@@ -226,10 +226,10 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             catch (Exception ex)
             {
-                return AuthoringSyncResult.Fail($"Unable to write source JSON: {ex.Message}");
+                return AuthoringSyncResult.Fail($"无法写入源文件 JSON：{ex.Message}");
             }
             asset.MarkSynchronized(path, HashDocument(document));
-            return AuthoringSyncResult.Ok("Exported.");
+            return AuthoringSyncResult.Ok("导出完成。");
         }
 
         private static EditorSourceSyncOperationAssessment AssessOperation(
@@ -290,7 +290,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 EditorSourceSyncState.Untracked => AuthoringSyncState.Untracked,
                 EditorSourceSyncState.SourceMissing => AuthoringSyncState.SourceMissing,
                 EditorSourceSyncState.InvalidSource => AuthoringSyncState.InvalidSource,
-                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown source sync state.")
+                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "未知的源文件同步状态。")
             };
         }
 

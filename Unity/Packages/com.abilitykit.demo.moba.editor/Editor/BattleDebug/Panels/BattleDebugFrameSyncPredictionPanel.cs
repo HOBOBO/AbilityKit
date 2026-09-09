@@ -9,7 +9,7 @@ namespace AbilityKit.Game.Editor
 {
     [BattleDebugModule(
         BattleDebugModuleIds.FrameSyncPrediction,
-        "Frame Sync",
+        "帧同步",
         Sources = BattleDebugModuleSourceSupport.All,
         Selections = BattleDebugModuleSelectionSupport.Frame)]
     internal sealed class BattleDebugFrameSyncPredictionPanel : IBattleDebugPanel, IBattleDebugPanelLayout
@@ -68,25 +68,25 @@ namespace AbilityKit.Game.Editor
             var hasHistory = BattleDebugFrameMetricHistory.Draw(
                 in ctx,
                 BattleDiagnosticMetricCategory.Prediction,
-                "Prediction History");
+                "预测历史");
             var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
                 if (hasHistory) return;
-                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;
             }
 
-            EditorGUILayout.LabelField("启用客户端预测", flowCtx.Plan.Authority.EnableClientPrediction.ToString());
+            EditorGUILayout.LabelField("启用客户端预测", BattleDebugDisplayText.Bool(flowCtx.Plan.Authority.EnableClientPrediction));
 
             if (!flowCtx.Plan.Authority.EnableClientPrediction)
             {
-                EditorGUILayout.HelpBox("当前为关闭预测模式：仍会驱动远程世界（消费权威输入），但不会进行客户端预测/回滚/对账。此时 predicted≈confirmed 属于预期行为。", MessageType.Info);
+                EditorGUILayout.HelpBox("当前已关闭预测：仍会驱动远程世界（消费权威输入），但不会进行客户端预测、回滚和对账。此时预测帧约等于确认帧，属于预期行为。", MessageType.Info);
             }
 
             if (flowCtx.PredictionStats == null)
             {
-                EditorGUILayout.HelpBox("PredictionStats 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("预测统计为空。", MessageType.Info);
                 return;
             }
 
@@ -168,17 +168,17 @@ namespace AbilityKit.Game.Editor
             {
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("帧位置对比（已确认/权威最新/本地预测）", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("当前没有世界上下文，无法获取 confirmed/predicted 帧。", MessageType.Info);
+                EditorGUILayout.HelpBox("当前没有世界上下文，无法获取确认帧和预测帧。", MessageType.Info);
             }
 
             if (flowCtx.PredictionStats.TryGetPredictionWindowStats(wid, out var backlogRaw, out var backlogEwma, out var window, out var stalled))
             {
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("预测窗口/积压", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField("积压（raw）", backlogRaw.ToString());
-                EditorGUILayout.LabelField("积压（ewma）", backlogEwma.ToString("F2"));
+            EditorGUILayout.LabelField("积压（原始）", backlogRaw.ToString());
+                EditorGUILayout.LabelField("积压（EWMA）", backlogEwma.ToString("F2"));
                 EditorGUILayout.LabelField("当前预测窗口", window.ToString());
-                EditorGUILayout.LabelField("预测窗口是否阻塞", stalled.ToString());
+                EditorGUILayout.LabelField("预测窗口是否阻塞", BattleDebugDisplayText.Bool(stalled));
 
                 var denom = window > 0 ? window : 1;
                 var ratio = Mathf.Clamp01(backlogRaw / (float)denom);
@@ -194,10 +194,10 @@ namespace AbilityKit.Game.Editor
             {
                 EditorGUILayout.Space();
                 EditorGUILayout.LabelField("预测窗口/积压", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField("积压（raw）", flowCtx.PredictionStats.CurrentBacklogRaw.ToString());
-                EditorGUILayout.LabelField("积压（ewma）", flowCtx.PredictionStats.CurrentBacklogEwma.ToString("F2"));
+            EditorGUILayout.LabelField("积压（原始）", flowCtx.PredictionStats.CurrentBacklogRaw.ToString());
+                EditorGUILayout.LabelField("积压（EWMA）", flowCtx.PredictionStats.CurrentBacklogEwma.ToString("F2"));
                 EditorGUILayout.LabelField("当前预测窗口", flowCtx.PredictionStats.CurrentPredictionWindow.ToString());
-                EditorGUILayout.LabelField("预测窗口是否阻塞", flowCtx.PredictionStats.IsPredictionStalledByWindow.ToString());
+                EditorGUILayout.LabelField("预测窗口是否阻塞", BattleDebugDisplayText.Bool(flowCtx.PredictionStats.IsPredictionStalledByWindow));
 
                 var denom = flowCtx.PredictionStats.CurrentPredictionWindow > 0 ? flowCtx.PredictionStats.CurrentPredictionWindow : 1;
                 var ratio = Mathf.Clamp01(flowCtx.PredictionStats.CurrentBacklogRaw / (float)denom);
@@ -209,13 +209,13 @@ namespace AbilityKit.Game.Editor
 
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("理想帧上限", flowCtx.PredictionStats.CurrentIdealFrameLimit.ToString());
-            EditorGUILayout.LabelField("是否因理想帧阻塞", flowCtx.PredictionStats.IsPredictionStalledByIdealFrame.ToString());
+            EditorGUILayout.LabelField("是否因理想帧阻塞", BattleDebugDisplayText.Bool(flowCtx.PredictionStats.IsPredictionStalledByIdealFrame));
             EditorGUILayout.LabelField("理想帧阻塞次数（全局）", flowCtx.PredictionStats.TotalIdealFrameStalls.ToString());
 
             if (flowCtx.PredictionStats.TryGetIdealFrameStallStats(wid, out var idealLimitWorld, out var idealStalledWorld, out var idealStallsTotalWorld))
             {
                 EditorGUILayout.LabelField("理想帧上限（世界）", idealLimitWorld.ToString());
-                EditorGUILayout.LabelField("是否因理想帧阻塞（世界）", idealStalledWorld.ToString());
+                EditorGUILayout.LabelField("是否因理想帧阻塞（世界）", BattleDebugDisplayText.Bool(idealStalledWorld));
                 EditorGUILayout.LabelField("理想帧阻塞次数（世界）", idealStallsTotalWorld.ToString());
             }
 

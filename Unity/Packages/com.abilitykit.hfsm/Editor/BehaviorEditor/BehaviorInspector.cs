@@ -39,7 +39,7 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.Space(5);
 
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Behaviors", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("行为", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
 
             // Help button
@@ -74,7 +74,7 @@ namespace AbilityKit.HFSM.Editor
         {
             if (targetState.BehaviorItems.Count == 0)
             {
-                EditorGUILayout.HelpBox("No behaviors. Click '+ Add' to add one.\nDrag behaviors to reorder.", MessageType.Info);
+                EditorGUILayout.HelpBox("暂无行为。单击“添加行为”创建行为，可通过拖拽调整顺序。", MessageType.Info);
                 return;
             }
 
@@ -155,7 +155,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Display name
             EditorGUI.BeginChangeCheck();
-            string newName = EditorGUILayout.TextField(item.displayName, GUILayout.Width(80));
+            string newName = EditorGUILayout.TextField(GetVisibleDisplayName(item), GUILayout.Width(80));
             if (EditorGUI.EndChangeCheck())
             {
                 item.displayName = newName;
@@ -182,7 +182,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Delete button
             GUI.backgroundColor = new Color(1f, 0.5f, 0.5f);
-            if (GUILayout.Button(new GUIContent("X", "Delete"), EditorStyles.miniButton, GUILayout.Width(20)))
+            if (GUILayout.Button(new GUIContent("X", "删除行为"), EditorStyles.miniButton, GUILayout.Width(20)))
             {
                 DeleteBehaviorItem(item);
                 EditorGUILayout.EndHorizontal();
@@ -217,7 +217,7 @@ namespace AbilityKit.HFSM.Editor
                 GUILayout.Space(2);
                 EditorGUILayout.BeginHorizontal();
                 GUILayout.Space((depth + 2) * INDENT_WIDTH);
-                if (GUILayout.Button("+ Add Child", EditorStyles.miniButton))
+                if (GUILayout.Button("+ 添加子行为", EditorStyles.miniButton))
                 {
                     ShowAddChildMenu(item);
                 }
@@ -421,7 +421,7 @@ namespace AbilityKit.HFSM.Editor
             {
                 EditorGUILayout.BeginHorizontal();
 
-                EditorGUILayout.LabelField(param.name, GUILayout.Width(80));
+                EditorGUILayout.LabelField(GetParameterDisplayName(item.TypeName, param.name), GUILayout.Width(80));
 
                 switch (param.ValueType)
                 {
@@ -536,7 +536,7 @@ namespace AbilityKit.HFSM.Editor
             string customName = child.displayName;
 
             // 如果有自定义名称且与类型默认名不同，显示自定义名
-            if (!string.IsNullOrEmpty(customName) && customName != GetDefaultDisplayName(child.TypeName))
+            if (!string.IsNullOrEmpty(customName) && !IsDefaultDisplayName(child.TypeName, customName))
             {
                 // 尝试获取参数摘要
                 string paramBrief = GetParameterBrief(child);
@@ -562,7 +562,7 @@ namespace AbilityKit.HFSM.Editor
             switch (item.TypeName)
             {
                 case "Wait":
-                    return $"{item.GetParamValue<float>("duration")}s";
+                    return $"{item.GetParamValue<float>("duration")}秒";
                 case "Log":
                     string msg = item.GetParamValue<string>("message");
                     if (msg.Length > 15) msg = msg.Substring(0, 12) + "...";
@@ -577,11 +577,11 @@ namespace AbilityKit.HFSM.Editor
                     return item.GetParamValue<string>("stateName") ?? "?";
                 case "Repeat":
                     int count = item.GetParamValue<int>("count");
-                    return count < 0 ? "inf" : count.ToString();
+                    return count < 0 ? "无限" : count.ToString();
                 case "TimeLimit":
-                    return $"{item.GetParamValue<float>("timeLimit")}s";
+                    return $"{item.GetParamValue<float>("timeLimit")}秒";
                 case "Cooldown":
-                    return $"{item.GetParamValue<float>("cooldownDuration")}s";
+                    return $"{item.GetParamValue<float>("cooldownDuration")}秒";
                 case "If":
                     return "?";
                 case "Sequence":
@@ -600,41 +600,51 @@ namespace AbilityKit.HFSM.Editor
             switch (item.TypeName)
             {
                 case "Wait":
-                    return $"Duration: {item.GetParamValue<float>("duration")}s";
+                    return $"持续时间：{item.GetParamValue<float>("duration")} 秒";
                 case "Log":
                     string msg = item.GetParamValue<string>("message");
-                    if (string.IsNullOrEmpty(msg)) return "Message: (empty)";
+                    if (string.IsNullOrEmpty(msg)) return "消息：（空）";
                     if (msg.Length > 30) msg = msg.Substring(0, 27) + "...";
-                    return $"Message: \"{msg}\"";
+                    return $"消息：\"{msg}\"";
                 case "SetFloat":
-                    return $"Var: {item.GetParamValue<string>("variableName")}, Value: {item.GetParamValue<float>("value")}";
+                    return $"变量：{item.GetParamValue<string>("variableName")}，值：{item.GetParamValue<float>("value")}";
                 case "SetBool":
-                    return $"Var: {item.GetParamValue<string>("variableName")}, Value: {item.GetParamValue<bool>("value")}";
+                    return $"变量：{item.GetParamValue<string>("variableName")}，值：{(item.GetParamValue<bool>("value") ? "真" : "假")}";
                 case "SetInt":
-                    return $"Var: {item.GetParamValue<string>("variableName")}, Value: {item.GetParamValue<int>("value")}";
+                    return $"变量：{item.GetParamValue<string>("variableName")}，值：{item.GetParamValue<int>("value")}";
                 case "PlayAnimation":
-                    return $"State: {item.GetParamValue<string>("stateName")}, CrossFade: {item.GetParamValue<float>("crossFadeDuration")}s";
+                    return $"状态：{item.GetParamValue<string>("stateName")}，交叉淡化：{item.GetParamValue<float>("crossFadeDuration")} 秒";
                 case "SetActive":
                     bool active = item.GetParamValue<bool>("active");
-                    return active ? "Set Active" : "Set Inactive";
+                    return active ? "设为激活" : "设为未激活";
                 case "MoveTo":
                     var dest = item.GetParamValue<UnityEngine.Vector3>("destination");
-                    return $"To ({dest.x:F1}, {dest.y:F1}, {dest.z:F1}) @ {item.GetParamValue<float>("speed")}m/s";
+                    return $"目标（{dest.x:F1}, {dest.y:F1}, {dest.z:F1}），速度 {item.GetParamValue<float>("speed")} 米/秒";
                 case "Repeat":
                     int count = item.GetParamValue<int>("count");
-                    return count < 0 ? "Repeat: Infinite" : $"Repeat: {count} times";
+                    return count < 0 ? "重复：无限" : $"重复：{count} 次";
                 case "TimeLimit":
-                    return $"Time Limit: {item.GetParamValue<float>("timeLimit")}s";
+                    return $"时间限制：{item.GetParamValue<float>("timeLimit")} 秒";
                 case "Cooldown":
-                    return $"Cooldown: {item.GetParamValue<float>("cooldownDuration")}s";
+                    return $"冷却时间：{item.GetParamValue<float>("cooldownDuration")} 秒";
                 case "Invert":
-                    return "Invert result";
+                    return "反转执行结果";
                 case "UntilSuccess":
-                    return "Until Success";
+                    return "重复直到成功";
                 case "UntilFailure":
-                    return "Until Failure";
+                    return "重复直到失败";
                 case "If":
-                    return "Conditional branch";
+                    return "条件分支";
+                case "Sequence":
+                    return "按顺序执行子行为";
+                case "Selector":
+                    return "执行子行为直到其中一个成功";
+                case "Parallel":
+                    return "并行执行所有子行为";
+                case "RandomSelector":
+                    return "随机选择子行为执行";
+                case "RandomSequence":
+                    return "以随机顺序执行子行为";
                 default:
                     return "";
             }
@@ -642,12 +652,56 @@ namespace AbilityKit.HFSM.Editor
 
         private string GetShortTypeName(string typeName)
         {
-            return typeName;
+            return GetDefaultDisplayName(typeName);
         }
 
         private string GetDefaultDisplayName(string typeName)
         {
+            if (!BehaviorTypeRegistry.IsInitialized)
+                BehaviorTypeRegistry.Initialize();
             return BehaviorTypeRegistry.GetDefinition(typeName)?.displayName ?? typeName;
+        }
+
+        private string GetVisibleDisplayName(BehaviorItem item)
+        {
+            return IsDefaultDisplayName(item.TypeName, item.displayName)
+                ? GetDefaultDisplayName(item.TypeName)
+                : item.displayName;
+        }
+
+        private bool IsDefaultDisplayName(string typeName, string displayName)
+        {
+            if (displayName == GetDefaultDisplayName(typeName) || displayName == typeName)
+                return true;
+            return typeName switch
+            {
+                "SetFloat" => displayName == "Set Float",
+                "SetBool" => displayName == "Set Bool",
+                "SetInt" => displayName == "Set Int",
+                "PlayAnimation" => displayName == "Play Animation",
+                "SetActive" => displayName == "Set Active",
+                "MoveTo" => displayName == "Move To",
+                "RandomSelector" => displayName == "Random Selector",
+                "RandomSequence" => displayName == "Random Sequence",
+                "TimeLimit" => displayName == "Time Limit",
+                "UntilSuccess" => displayName == "Until Success",
+                "UntilFailure" => displayName == "Until Failure",
+                _ => false
+            };
+        }
+
+        private static string GetParameterDisplayName(string typeName, string parameterName)
+        {
+            if (!BehaviorTypeRegistry.IsInitialized)
+                BehaviorTypeRegistry.Initialize();
+            var definition = BehaviorTypeRegistry.GetDefinition(typeName);
+            if (definition != null)
+            {
+                foreach (var parameter in definition.parameters)
+                    if (parameter.name == parameterName)
+                        return parameter.displayName;
+            }
+            return parameterName;
         }
 
         private List<BehaviorItem> GetChildren(BehaviorItem parent)
@@ -669,12 +723,12 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
 
-            if (GUILayout.Button("+ Add Behavior", GUILayout.Width(120)))
+            if (GUILayout.Button("+ 添加行为", GUILayout.Width(120)))
             {
                 ShowAddRootMenu();
             }
 
-            if (GUILayout.Button("+ Add Sequence", GUILayout.Width(100)))
+            if (GUILayout.Button("+ 添加序列", GUILayout.Width(100)))
             {
                 AddBehavior("Sequence", null);
             }
@@ -685,48 +739,48 @@ namespace AbilityKit.HFSM.Editor
         private void ShowHelpMenu()
         {
             var menu = new GenericMenu();
-            menu.AddItem(new GUIContent("About Behaviors"), false, ShowAbout);
-            menu.AddItem(new GUIContent("Behavior Types"), false, ShowBehaviorTypes);
+            menu.AddItem(new GUIContent("关于行为系统"), false, ShowAbout);
+            menu.AddItem(new GUIContent("行为类型说明"), false, ShowBehaviorTypes);
             menu.ShowAsContext();
         }
 
         private void ShowAbout()
         {
-            EditorUtility.DisplayDialog("HFSM Behavior System",
-                "HFSM Behavior System v1.0\n\n" +
-                "Build complex behaviors using a visual node-based editor.\n\n" +
-                "Features:\n" +
-                "- Primitive actions (Wait, Log, Set Variables)\n" +
-                "- Composite actions (Sequence, Selector, Parallel)\n" +
-                "- Decorator actions (Repeat, Invert, TimeLimit)\n\n" +
-                "Drag behaviors to reorder. Use the drag handle on the left.",
-                "OK");
+            EditorUtility.DisplayDialog("HFSM 行为系统",
+                "HFSM 行为系统 v1.0\n\n" +
+                "使用可视化节点编辑器构建复杂行为。\n\n" +
+                "功能：\n" +
+                "- 基础行为（等待、日志、设置变量）\n" +
+                "- 复合行为（序列、选择器、并行）\n" +
+                "- 修饰行为（重复、反转、时间限制）\n\n" +
+                "拖拽行为可调整顺序，拖拽手柄位于每项左侧。",
+                "确定");
         }
 
         private void ShowBehaviorTypes()
         {
-            EditorUtility.DisplayDialog("Behavior Types",
-                "Primitive Actions:\n" +
-                "- Wait: Wait for specified duration\n" +
-                "- Log: Output a message\n" +
-                "- Set Float/Bool/Int: Set a variable\n" +
-                "- Play Animation: Play an Animator state\n" +
-                "- Set Active: Enable/disable GameObject\n" +
-                "- Move To: Move transform to position\n\n" +
-                "Composite Actions:\n" +
-                "- Sequence: Execute children in order\n" +
-                "- Selector: Execute until one succeeds\n" +
-                "- Parallel: Execute all children\n" +
-                "- Random Selector: Random child selection\n" +
-                "- Random Sequence: Random order execution\n\n" +
-                "Decorator Actions:\n" +
-                "- Repeat: Repeat child N times\n" +
-                "- Invert: Invert child result\n" +
-                "- TimeLimit: Limit execution time\n" +
-                "- Until Success: Repeat until success\n" +
-                "- Until Failure: Repeat until failure\n" +
-                "- Cooldown: Wait between executions",
-                "OK");
+            EditorUtility.DisplayDialog("行为类型说明",
+                "基础行为：\n" +
+                "- 等待：等待指定时长\n" +
+                "- 日志：输出一条消息\n" +
+                "- 设置浮点/布尔/整数：设置变量值\n" +
+                "- 播放动画：播放 Animator 状态\n" +
+                "- 设置激活：启用或禁用 GameObject\n" +
+                "- 移动至：将 Transform 移动到指定位置\n\n" +
+                "复合行为：\n" +
+                "- 序列：按顺序执行子行为\n" +
+                "- 选择器：执行到某个子行为成功为止\n" +
+                "- 并行：执行所有子行为\n" +
+                "- 随机选择器：随机选择子行为\n" +
+                "- 随机序列：以随机顺序执行\n\n" +
+                "修饰行为：\n" +
+                "- 重复：将子行为重复指定次数\n" +
+                "- 反转：反转子行为结果\n" +
+                "- 时间限制：限制执行时间\n" +
+                "- 直到成功：重复执行直到成功\n" +
+                "- 直到失败：重复执行直到失败\n" +
+                "- 冷却：在两次执行之间等待",
+                "确定");
         }
 
         private void ShowAddRootMenu()
@@ -751,7 +805,14 @@ namespace AbilityKit.HFSM.Editor
             foreach (var definition in BehaviorTypeRegistry.AllTypes)
             {
                 var typeName = definition.typeName;
-                var path = $"{definition.categoryName}/{definition.displayName}";
+                var category = definition.category switch
+                {
+                    BehaviorCategory.Primitive => "基础行为",
+                    BehaviorCategory.Composite => "复合行为",
+                    BehaviorCategory.Decorator => "修饰器",
+                    _ => definition.categoryName
+                };
+                var path = $"{category}/{definition.displayName}";
                 menu.AddItem(new GUIContent(path), false, () => AddBehavior(typeName, parent));
             }
         }

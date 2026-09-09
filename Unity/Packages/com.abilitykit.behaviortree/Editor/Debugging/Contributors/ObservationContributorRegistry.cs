@@ -149,7 +149,7 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Contributors
         {
             if (contributor == null) throw new ArgumentNullException(nameof(contributor));
             if (ContainsId(contributor))
-                throw new ArgumentException($"A contributor with id '{ContributorId(contributor)}' is already registered.", nameof(contributor));
+                throw new ArgumentException($"ID 为 '{ContributorId(contributor)}' 的贡献器已注册。", nameof(contributor));
             add(contributor);
             return new Handle(this, kind, contributor);
         }

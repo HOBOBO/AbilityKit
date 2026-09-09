@@ -14,6 +14,8 @@ namespace AbilityKit.BehaviorTree.Blackboard
         private readonly long[] _int64s;
         private readonly long[] _fixedRaw;
         private readonly string?[] _strings;
+        private readonly ulong[] _keyVersions;
+        private ulong _version;
 
         private Blackboard(BlackboardSchema schema)
         {
@@ -23,6 +25,7 @@ namespace AbilityKit.BehaviorTree.Blackboard
             _int64s = new long[_schema.Keys.Count];
             _fixedRaw = new long[_schema.Keys.Count];
             _strings = new string?[_schema.Keys.Count];
+            _keyVersions = new ulong[_schema.Keys.Count];
 
             for (var i = 0; i < _schema.Keys.Count; i++)
             {
@@ -31,6 +34,9 @@ namespace AbilityKit.BehaviorTree.Blackboard
         }
 
         public BlackboardSchema Schema => CloneSchema(_schema);
+
+        /// <summary>任意黑板值实际变化时递增的全局版本。</summary>
+        public ulong Version => _version;
 
         public static Blackboard Create(BlackboardSchema schema)
         {
@@ -91,13 +97,45 @@ namespace AbilityKit.BehaviorTree.Blackboard
             return false;
         }
 
-        public void SetBool(string key, bool value) => _bools[SlotOf(key, ValueType.Bool)] = value;
+        public ulong GetKeyVersion(string key)
+        {
+            if (!_slots.TryGetValue(key, out var slot))
+                throw new KeyNotFoundException($"BT blackboard key '{key}' is not declared in the tree schema.");
+            return _keyVersions[slot];
+        }
 
-        public void SetInt64(string key, long value) => _int64s[SlotOf(key, ValueType.Int64)] = value;
+        public void SetBool(string key, bool value)
+        {
+            var slot = SlotOf(key, ValueType.Bool);
+            if (_bools[slot] == value) return;
+            _bools[slot] = value;
+            MarkChanged(slot);
+        }
 
-        public void SetFixed64(string key, Fixed64 value) => _fixedRaw[SlotOf(key, ValueType.Fixed64)] = value.RawValue;
+        public void SetInt64(string key, long value)
+        {
+            var slot = SlotOf(key, ValueType.Int64);
+            if (_int64s[slot] == value) return;
+            _int64s[slot] = value;
+            MarkChanged(slot);
+        }
 
-        public void SetString(string key, string value) => _strings[SlotOf(key, ValueType.String)] = value;
+        public void SetFixed64(string key, Fixed64 value)
+        {
+            var slot = SlotOf(key, ValueType.Fixed64);
+            if (_fixedRaw[slot] == value.RawValue) return;
+            _fixedRaw[slot] = value.RawValue;
+            MarkChanged(slot);
+        }
+
+        public void SetString(string key, string value)
+        {
+            var slot = SlotOf(key, ValueType.String);
+            value ??= "";
+            if (string.Equals(_strings[slot] ?? "", value, StringComparison.Ordinal)) return;
+            _strings[slot] = value;
+            MarkChanged(slot);
+        }
 
         public BlackboardValueSnapshot CaptureValues()
         {
@@ -162,10 +200,31 @@ namespace AbilityKit.BehaviorTree.Blackboard
         {
             ValidateValues(snapshot);
 
-            for (var i = 0; i < _bools.Length; i++) _bools[i] = snapshot.BoolValues[i];
-            for (var i = 0; i < _int64s.Length; i++) _int64s[i] = snapshot.Int64Values[i];
-            for (var i = 0; i < _fixedRaw.Length; i++) _fixedRaw[i] = snapshot.Fixed64RawValues[i];
-            for (var i = 0; i < _strings.Length; i++) _strings[i] = snapshot.StringValues[i];
+            for (var i = 0; i < _schema.Keys.Count; i++)
+            {
+                var changed = _schema.Keys[i].Type switch
+                {
+                    ValueType.Bool => _bools[i] != snapshot.BoolValues[i],
+                    ValueType.Int64 => _int64s[i] != snapshot.Int64Values[i],
+                    ValueType.Fixed64 => _fixedRaw[i] != snapshot.Fixed64RawValues[i],
+                    ValueType.String => !string.Equals(
+                        _strings[i] ?? "", snapshot.StringValues[i] ?? "", StringComparison.Ordinal),
+                    _ => false,
+                };
+
+                _bools[i] = snapshot.BoolValues[i];
+                _int64s[i] = snapshot.Int64Values[i];
+                _fixedRaw[i] = snapshot.Fixed64RawValues[i];
+                _strings[i] = snapshot.StringValues[i];
+                if (changed) MarkChanged(i);
+            }
+        }
+
+        private void MarkChanged(int slot)
+        {
+            _version = unchecked(_version + 1);
+            if (_version == 0) _version = 1;
+            _keyVersions[slot] = _version;
         }
 
         internal void ValidateValues(BlackboardValueSnapshot snapshot)

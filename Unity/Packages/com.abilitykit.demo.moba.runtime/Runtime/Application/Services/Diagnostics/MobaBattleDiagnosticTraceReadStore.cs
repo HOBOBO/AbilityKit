@@ -10,9 +10,11 @@ using AbilityKit.Trace;
 namespace AbilityKit.Demo.Moba.Services
 {
     [WorldService(typeof(IBattleDiagnosticTraceReadStore), WorldLifetime.Scoped)]
+    [WorldService(typeof(IBattleDiagnosticTraceRootReadStore), WorldLifetime.Scoped)]
     [WorldService(typeof(IBattleDiagnosticTraceSnapshotSource), WorldLifetime.Scoped)]
     public sealed class MobaBattleDiagnosticTraceReadStore :
         IBattleDiagnosticTraceReadStore,
+        IBattleDiagnosticTraceRootReadStore,
         IBattleDiagnosticTraceSnapshotSource,
         IService
     {
@@ -120,6 +122,59 @@ namespace AbilityKit.Demo.Moba.Services
                     requestId,
                     Revision,
                     "QueryTrace.Exception",
+                    ex.Message);
+            }
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary> QueryTraceRoots(
+            BattleDiagnosticTraceRootQuery query)
+        {
+            var revision = Revision;
+            if (query.Page.StoreRevision > 0L && query.Page.StoreRevision != revision)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary>.Unavailable(
+                    query.RequestId,
+                    query.Page.StoreRevision,
+                    BattleDiagnosticDataAvailability.Evicted,
+                    "The requested trace root index revision is no longer retained.");
+            }
+
+            try
+            {
+                var snapshot = CaptureTraceSnapshot();
+                var roots = BattleDiagnosticTraceRootProjection.Project(snapshot.Nodes);
+                var items = new List<BattleDiagnosticTraceRootSummary>(
+                    Math.Min(query.Page.Limit, roots.Count));
+                var end = Math.Min(roots.Count, query.Page.Offset + query.Page.Limit);
+                for (var i = query.Page.Offset; i < end; i++) items.Add(roots[i]);
+
+                if (snapshot.Truncated || !snapshot.IsStable)
+                {
+                    var message = !snapshot.IsStable
+                        ? "Trace roots changed while the root index was captured."
+                        : "One or more trace roots were truncated during export.";
+                    return new BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary>(
+                        BattleDiagnosticQueryStatus.Partial(
+                            query.RequestId,
+                            snapshot.Revision,
+                            items.Count,
+                            BattleDiagnosticDataAvailability.Truncated,
+                            message),
+                        items);
+                }
+
+                return BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary>.FromItems(
+                    query.RequestId,
+                    snapshot.Revision,
+                    items,
+                    end < roots.Count);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary>.Failed(
+                    query.RequestId,
+                    revision,
+                    "QueryTraceRoots.Exception",
                     ex.Message);
             }
         }

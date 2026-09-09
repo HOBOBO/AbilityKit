@@ -6,15 +6,15 @@ using Sirenix.OdinInspector;
 namespace AbilityKit.Ability.Editor
 {
     [Serializable]
-    [TriggerActionType(TriggerActionTypes.ShootProjectile, "发射子弹", "行为/Projectile", 0)]
+    [TriggerActionType(TriggerActionTypes.ShootProjectile, "发射投射物", "行为/投射物", 0)]
     public sealed class ShootProjectileActionEditorConfig : ActionEditorConfigBase
     {
         public override string Type => TriggerActionTypes.ShootProjectile;
 
-        [LabelText("发射器Id")]
+        [LabelText("发射器 ID")]
         public int LauncherId;
 
-        [LabelText("子弹Id")]
+        [LabelText("投射物 ID")]
         public int ProjectileId;
 
         protected override string GetTitleSuffix()

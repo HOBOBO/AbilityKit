@@ -41,6 +41,24 @@ namespace AbilityKit.Ability.Editor.Tests
             return project;
         }
 
+        private TriggerAuthoringProjectAsset CreateProjectWithTemplateCatalog()
+        {
+            var project = CreateProject();
+            var catalog = ScriptableObject.CreateInstance<TriggerAuthoringTemplateCatalogAsset>();
+            _tracked.Add(catalog);
+            project.SetCatalogs(null, null, catalog);
+            return project;
+        }
+
+        private TriggerAuthoringTemplateAsset CreateTemplate(string templateId = "template_test")
+        {
+            var template = ScriptableObject.CreateInstance<TriggerAuthoringTemplateAsset>();
+            template.name = "TestTemplate";
+            template.Template = new TriggerAuthoringTemplateData { TemplateId = templateId };
+            _tracked.Add(template);
+            return template;
+        }
+
         [Test]
         public void Assign_RegistersModuleInProjectAndSetsBackReference()
         {
@@ -135,6 +153,47 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(project.RemoveModule(module), Is.True);
             Assert.That(project.RemoveModule(module), Is.False);
             Assert.That(project.Modules, Is.Empty);
+        }
+
+        [Test]
+        public void TemplateAssign_RegistersCatalogAndBackReference()
+        {
+            var template = CreateTemplate();
+            var project = CreateProjectWithTemplateCatalog();
+
+            TriggerAuthoringTemplateMembership.Assign(template, project);
+            TriggerAuthoringTemplateMembership.Assign(template, project);
+
+            Assert.That(template.Project, Is.SameAs(project));
+            Assert.That(project.TemplateCatalog.Templates, Has.Count.EqualTo(1));
+            Assert.That(project.TemplateCatalog.Templates[0], Is.SameAs(template));
+        }
+
+        [Test]
+        public void TemplateAssign_MovesBetweenProjectCatalogs()
+        {
+            var template = CreateTemplate();
+            var first = CreateProjectWithTemplateCatalog();
+            var second = CreateProjectWithTemplateCatalog();
+            TriggerAuthoringTemplateMembership.Assign(template, first);
+
+            TriggerAuthoringTemplateMembership.Assign(template, second);
+
+            Assert.That(template.Project, Is.SameAs(second));
+            Assert.That(first.TemplateCatalog.Templates, Is.Empty);
+            Assert.That(second.TemplateCatalog.Templates, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void CreateUniqueTemplateId_AppendsSuffixForCatalogCollision()
+        {
+            var existing = CreateTemplate("template_damage_effect");
+
+            var templateId = TriggerAuthoringProjectSetup.CreateUniqueTemplateId(
+                "Damage Effect",
+                new[] { existing });
+
+            Assert.That(templateId, Is.EqualTo("template_damage_effect_2"));
         }
 
         [Test]

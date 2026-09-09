@@ -172,6 +172,12 @@ namespace AbilityKit.Demo.Moba.Services
                         seen,
                         BattleDiagnosticDefinitionKind.Trigger,
                         triggerPayload.TriggerId);
+                else if (item.Payload.TryGetTriggerAnalysisAggregate(out var triggerAggregate))
+                    AddDefinition(
+                        result,
+                        seen,
+                        BattleDiagnosticDefinitionKind.Trigger,
+                        triggerAggregate.TriggerId);
             }
             for (var i = 0; i < trace.Nodes.Count; i++)
             {

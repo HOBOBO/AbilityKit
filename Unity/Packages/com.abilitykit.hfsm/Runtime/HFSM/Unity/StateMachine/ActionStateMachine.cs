@@ -5,6 +5,7 @@
 #if HFSM_UNITY
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using AbilityKit.HFSM.Actions;
 using AbilityKit.HFSM.Actions.Runtime;
@@ -174,7 +175,10 @@ namespace AbilityKit.HFSM
                 mappedStateIds.Add(childNodeId, runtimeId);
                 if (child is MachineProgram childMachine)
                 {
-                    var subMachine = new HybridStateMachine<TStateId, TEvent>(rememberLastState: childMachine.RememberLastState);
+                    var subMachine = new HybridStateMachine<TStateId, TEvent>(
+                        needsExitTime: childMachine.NeedsExitTime,
+                        isGhostState: childMachine.IsGhostState,
+                        rememberLastState: childMachine.RememberLastState);
                     runtimeMachine.AddState(runtimeId, subMachine);
                     BuildMachine(program, childMachine, subMachine, binding, mappedStateIds);
                 }
@@ -401,6 +405,10 @@ namespace AbilityKit.HFSM
         private string behaviorRootId;
         private bool behaviorCompleted;
         private float elapsedTime;
+        private readonly Action[] entryActions;
+        private readonly Action[] logicActions;
+        private readonly Action[] exitActions;
+        private readonly Func<bool>[] canExitChecks;
 
         public bool BehaviorCompleted => behaviorCompleted;
         public float ElapsedTime => elapsedTime;
@@ -424,7 +432,92 @@ namespace AbilityKit.HFSM
             this.userData = userData;
             this.parentFsm = parentFsm;
 
+            entryActions = ResolveActions(node.EntryActionMethodNames, "entry");
+            logicActions = ResolveActions(node.LogicActionMethodNames, "logic");
+            exitActions = ResolveActions(node.ExitActionMethodNames, "exit");
+            canExitChecks = ResolveCanExitChecks(node.CanExitMethodNames);
             InitializeExecutor();
+        }
+
+        private Action[] ResolveActions(IReadOnlyList<string> methodNames, string phase)
+        {
+            if (methodNames == null || methodNames.Count == 0)
+                return Array.Empty<Action>();
+
+            EnsureLifecycleTarget(phase);
+            var actions = new Action[methodNames.Count];
+            for (var index = 0; index < methodNames.Count; index++)
+            {
+                var method = ResolveLifecycleMethod(methodNames[index], typeof(void), phase);
+                actions[index] = (Action)Delegate.CreateDelegate(typeof(Action), mono, method);
+            }
+            return actions;
+        }
+
+        private Func<bool>[] ResolveCanExitChecks(IReadOnlyList<string> methodNames)
+        {
+            if (methodNames == null || methodNames.Count == 0)
+                return Array.Empty<Func<bool>>();
+
+            EnsureLifecycleTarget("can-exit");
+            var checks = new Func<bool>[methodNames.Count];
+            for (var index = 0; index < methodNames.Count; index++)
+            {
+                var method = ResolveLifecycleMethod(methodNames[index], typeof(bool), "can-exit");
+                checks[index] = (Func<bool>)Delegate.CreateDelegate(typeof(Func<bool>), mono, method);
+            }
+            return checks;
+        }
+
+        private void EnsureLifecycleTarget(string phase)
+        {
+            if (mono == null)
+            {
+                throw new InvalidOperationException(
+                    $"State '{node.GetName()}' declares {phase} lifecycle methods, but no MonoBehaviour target was supplied.");
+            }
+        }
+
+        private MethodInfo ResolveLifecycleMethod(string methodName, Type returnType, string phase)
+        {
+            if (string.IsNullOrWhiteSpace(methodName))
+                throw new InvalidOperationException($"State '{node.GetName()}' contains an empty {phase} method name.");
+
+            var method = mono.GetType().GetMethod(
+                methodName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                binder: null,
+                types: Type.EmptyTypes,
+                modifiers: null);
+            if (method == null || method.ReturnType != returnType)
+            {
+                throw new InvalidOperationException(
+                    $"State '{node.GetName()}' {phase} method '{methodName}' must be an instance method " +
+                    $"with no parameters and return '{returnType.Name}'.");
+            }
+            return method;
+        }
+
+        private static void InvokeAll(Action[] actions)
+        {
+            for (var index = 0; index < actions.Length; index++)
+                actions[index]();
+        }
+
+        private bool CanExitNow()
+        {
+            if (canExitChecks.Length == 0)
+                return behaviorCompleted;
+            for (var index = 0; index < canExitChecks.Length; index++)
+                if (!canExitChecks[index]())
+                    return false;
+            return true;
+        }
+
+        private void TryApproveExit()
+        {
+            if (needsExitTime && fsm != null && fsm.HasPendingTransition && CanExitNow())
+                fsm.StateCanExit();
         }
 
         private void InitializeExecutor()
@@ -464,12 +557,14 @@ namespace AbilityKit.HFSM
             behaviorCompleted = false;
             elapsedTime = 0f;
             executor?.Reset();
+            InvokeAll(entryActions);
         }
 
         public override void OnLogic()
         {
             base.OnLogic();
             elapsedTime += Time.deltaTime;
+            InvokeAll(logicActions);
 
             if (executor != null && !behaviorCompleted)
             {
@@ -480,16 +575,22 @@ namespace AbilityKit.HFSM
                     OnBehaviorCompleted?.Invoke(behaviorRootId, status);
                     if (status == BehaviorStatus.Failure)
                         OnBehaviorFailed?.Invoke(behaviorRootId);
-                    if (needsExitTime)
-                        fsm?.StateCanExit();
                 }
             }
+
+            TryApproveExit();
+        }
+
+        public override void OnExitRequest()
+        {
+            TryApproveExit();
         }
 
         public override void OnExit()
         {
             behaviorCompleted = true;
             executor?.ForceEnd();
+            InvokeAll(exitActions);
             base.OnExit();
         }
 
@@ -506,6 +607,11 @@ namespace AbilityKit.HFSM
         public void OnAction<TData>(TEvent trigger, TData data)
         {
             actionStorage?.RunAction<TData>(trigger, data);
+        }
+
+        public bool HasAction(TEvent trigger)
+        {
+            return actionStorage?.HasAction(trigger) ?? false;
         }
 
         public ActionBehaviorState<TStateId, TEvent> AddAction(TEvent trigger, Action action)

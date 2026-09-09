@@ -30,7 +30,7 @@ namespace AbilityKit.Ability.Editor
         {
             if (owner != null)
             {
-                Undo.RecordObject(owner, "Add Local Var");
+                Undo.RecordObject(owner, "添加局部变量");
             }
 
             if (localVars == null)

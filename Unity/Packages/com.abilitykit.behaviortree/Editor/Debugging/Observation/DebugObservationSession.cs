@@ -73,7 +73,10 @@ namespace AbilityKit.BehaviorTree.Editor
                     if (_lastNodeStates.TryGetValue(node.NodeId, out var previous)
                         && previous != node.State)
                     {
-                        AddEvent(frame, node.NodeId, previous + " -> " + node.State);
+                        AddEvent(
+                            frame,
+                            node.NodeId,
+                            EditorDisplayText.NodeState(previous) + " -> " + EditorDisplayText.NodeState(node.State));
                     }
                 }
             }

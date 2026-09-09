@@ -16,10 +16,10 @@ namespace AbilityKit.HFSM.Editor.Debugger
 	/// </summary>
 	public sealed class AnimatorDebuggerWindow : EditorWindow
 	{
-		[MenuItem("Window/AbilityKit/HFSM Animator Debugger")]
+		[MenuItem("Window/AbilityKit/HFSM Animator 调试器")]
 		static void Open()
 		{
-			GetWindow<AnimatorDebuggerWindow>(utility: false, title: "HFSM Animator Debugger");
+			GetWindow<AnimatorDebuggerWindow>(utility: false, title: "HFSM Animator 调试器");
 		}
 
 		GameObject _previewGo;
@@ -69,14 +69,14 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 			if (!EditorApplication.isPlaying)
 			{
-				EditorGUILayout.HelpBox("Enter Play Mode to use the HFSM Animator Debugger.", MessageType.Info);
+				EditorGUILayout.HelpBox("请进入播放模式以使用 HFSM Animator 调试器。", MessageType.Info);
 			}
 		}
 
 		void DrawHeader()
 		{
-			EditorGUILayout.LabelField("HFSM Animator Debugger", EditorStyles.boldLabel);
-			EditorGUILayout.LabelField("Bind running HFSM to Unity Animator window", EditorStyles.miniLabel);
+			EditorGUILayout.LabelField("HFSM Animator 调试器", EditorStyles.boldLabel);
+			EditorGUILayout.LabelField("将运行中的 HFSM 绑定到 Unity Animator 窗口", EditorStyles.miniLabel);
 		}
 
 		void DrawRegistrySelection()
@@ -86,13 +86,13 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 			if (names.Length == 0)
 			{
-				EditorGUILayout.HelpBox("No registered state machines. Call LiveRegistry.Register(name, fsm) from your runtime code.", MessageType.Warning);
+				EditorGUILayout.HelpBox("暂无已注册的状态机。请在运行时代码中调用 LiveRegistry.Register(name, fsm)。", MessageType.Warning);
 				_selectedIndex = -1;
 				return;
 			}
 
 			_selectedIndex = Mathf.Clamp(_selectedIndex, 0, names.Length - 1);
-			_selectedIndex = EditorGUILayout.Popup("Running HFSM", _selectedIndex, names);
+			_selectedIndex = EditorGUILayout.Popup("运行中的 HFSM", _selectedIndex, names);
 		}
 
 		static string[] BuildEntryNames(IReadOnlyList<LiveRegistry.Entry> entries)
@@ -101,7 +101,7 @@ namespace AbilityKit.HFSM.Editor.Debugger
 			for (var i = 0; i < entries.Count; i++)
 			{
 				var e = entries[i];
-				var typeName = e.FsmType != null ? e.FsmType.Name : "<null>";
+				var typeName = e.FsmType != null ? e.FsmType.Name : "<空>";
 				list.Add($"{i}: {e.Name} ({typeName})");
 			}
 			return list.ToArray();
@@ -109,24 +109,24 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 		void DrawSettings()
 		{
-			EditorGUILayout.LabelField("Settings", EditorStyles.boldLabel);
-			_outputFolderPath = EditorGUILayout.TextField("Output Folder", _outputFolderPath);
-			_animatorName = EditorGUILayout.TextField("Animator Name", _animatorName);
-			_tickInterval = EditorGUILayout.Slider("Preview Tick (s)", _tickInterval, 0.02f, 1.0f);
+			EditorGUILayout.LabelField("设置", EditorStyles.boldLabel);
+			_outputFolderPath = EditorGUILayout.TextField("输出文件夹", _outputFolderPath);
+			_animatorName = EditorGUILayout.TextField("Animator 名称", _animatorName);
+			_tickInterval = EditorGUILayout.Slider("预览刷新间隔（秒）", _tickInterval, 0.02f, 1.0f);
 		}
 
 		void DrawActions()
 		{
-			EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
+			EditorGUILayout.LabelField("操作", EditorStyles.boldLabel);
 
 			using (new EditorGUILayout.HorizontalScope())
 			{
-				if (GUILayout.Button("Bind / Refresh"))
+				if (GUILayout.Button("绑定 / 刷新"))
 				{
 					BindSelected();
 				}
 
-				if (GUILayout.Button("Open Animator Window"))
+				if (GUILayout.Button("打开 Animator 窗口"))
 				{
 					OpenAnimatorWindow();
 				}
@@ -135,10 +135,10 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 		void DrawStatus()
 		{
-			EditorGUILayout.LabelField("Status", EditorStyles.boldLabel);
-			EditorGUILayout.LabelField("Controller", _controller != null ? _controller.name : "<none>");
-			EditorGUILayout.LabelField("Preview Animator", _previewAnimator != null ? _previewAnimator.name : "<none>");
-			EditorGUILayout.LabelField("Previewer", _previewer != null ? _previewer.GetType().Name : "<none>");
+			EditorGUILayout.LabelField("状态", EditorStyles.boldLabel);
+			EditorGUILayout.LabelField("控制器", _controller != null ? _controller.name : "<无>");
+			EditorGUILayout.LabelField("预览 Animator", _previewAnimator != null ? _previewAnimator.name : "<无>");
+			EditorGUILayout.LabelField("预览器", _previewer != null ? _previewer.GetType().Name : "<无>");
 		}
 
 		void BindSelected()
@@ -159,20 +159,20 @@ namespace AbilityKit.HFSM.Editor.Debugger
 
 			if (method == null)
 			{
-				Debug.LogError("Cannot find AnimatorGraph.CreateAnimatorFromStateMachine method.");
+				Debug.LogError("找不到 AnimatorGraph.CreateAnimatorFromStateMachine 方法。");
 				return;
 			}
 
 			if (!method.IsGenericMethodDefinition)
 			{
-				Debug.LogError("AnimatorGraph.CreateAnimatorFromStateMachine is not a generic method definition.");
+				Debug.LogError("AnimatorGraph.CreateAnimatorFromStateMachine 不是泛型方法定义。");
 				return;
 			}
 
 			var genericArgs = fsmType.GetGenericArguments();
 			if (genericArgs == null || genericArgs.Length != 3)
 			{
-				Debug.LogError($"Selected HFSM type {fsmType.FullName} does not have 3 generic arguments.");
+				Debug.LogError($"所选 HFSM 类型 {fsmType.FullName} 不包含 3 个泛型参数。");
 				return;
 			}
 
@@ -200,7 +200,7 @@ namespace AbilityKit.HFSM.Editor.Debugger
 			if (_previewGo != null && _previewAnimator != null)
 				return;
 
-			_previewGo = new GameObject("[HFSM Animator Preview]");
+			_previewGo = new GameObject("[HFSM Animator 预览]");
 			_previewGo.hideFlags = HideFlags.HideAndDontSave;
 
 			_previewAnimator = _previewGo.AddComponent<Animator>();

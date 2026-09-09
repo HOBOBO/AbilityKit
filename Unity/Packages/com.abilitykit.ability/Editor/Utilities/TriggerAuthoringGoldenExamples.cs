@@ -30,7 +30,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             return new TriggerAuthoringModuleData
             {
                 ModuleId = "module.golden_skill",
-                DisplayName = "Golden Skill",
+                DisplayName = "标准技能示例",
                 Kind = TriggerModuleKind.Ability,
                 Blackboard =
                 {
@@ -47,7 +47,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     new TriggerDefinitionData
                     {
                         Id = 101,
-                        Name = "OnCastCompleteDamage",
+                        Name = "施放完成后造成伤害",
                         Event = "skill.cast.complete",
                         Priority = 50,
                         Condition = new TriggerNodeData
@@ -74,17 +74,17 @@ namespace AbilityKit.Ability.Editor.Utilities
                                     Arg("reason_kind", ConstInt(1)),
                                     Arg("target_source", ConstInt(2)),
                                     Arg("target_actor_id", PayloadRef("target.actor_id", TriggerValueType.Integer))),
-                                Node(TriggerNodeKind.Action, "debug_log", Arg("message", ConstString("golden skill cast")))
+                                Node(TriggerNodeKind.Action, "debug_log", Arg("message", ConstString("标准技能已施放")))
                             }
                         }
                     },
                     new TriggerDefinitionData
                     {
                         Id = 102,
-                        Name = "OnPrecastFailLog",
+                        Name = "预施法失败日志",
                         Event = "skill.precast.fail",
                         Actions = Node(TriggerNodeKind.Action, "debug_log",
-                            Arg("message", ConstString("golden skill precast failed")))
+                            Arg("message", ConstString("标准技能预施法失败")))
                     }
                 }
             };
@@ -96,14 +96,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             return new TriggerAuthoringModuleData
             {
                 ModuleId = "module.golden_buff",
-                DisplayName = "Golden Buff",
+                DisplayName = "标准增益效果示例",
                 Kind = TriggerModuleKind.Buff,
                 Triggers =
                 {
                     new TriggerDefinitionData
                     {
                         Id = 201,
-                        Name = "OnStackChangedReapply",
+                        Name = "层数变化后重新应用",
                         Event = "buff.stack_changed",
                         Condition = Node(TriggerNodeKind.Condition, "has_buff",
                             Arg("buff_id", PayloadRef("buff_id", TriggerValueType.Integer)),
@@ -122,14 +122,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             return new TriggerAuthoringModuleData
             {
                 ModuleId = "module.golden_passive",
-                DisplayName = "Golden Passive",
+                DisplayName = "标准被动效果示例",
                 Kind = TriggerModuleKind.Passive,
                 ConditionGroups =
                 {
                     new TriggerNodeGroupData
                     {
                         Id = "condition_group_low_health",
-                        DisplayName = "Low Health",
+                        DisplayName = "低生命值",
                         Description = "持有者血量低于阈值",
                         Root = Node(TriggerNodeKind.Condition, "health_percent",
                             Arg("threshold", ConstNumber(0.3)),
@@ -141,7 +141,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     new TriggerDefinitionData
                     {
                         Id = 301,
-                        Name = "OnDamagedSelfHeal",
+                        Name = "受伤后自我治疗",
                         Event = "damage.apply.after",
                         Condition = new TriggerNodeData
                         {
@@ -158,7 +158,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                                     Arg("amount", ConstNumber(100)),
                                     Arg("target_source", ConstInt(4))),
                                 Node(TriggerNodeKind.Action, "debug_log",
-                                    Arg("message", ConstString("golden passive healed")))
+                                    Arg("message", ConstString("标准被动效果已触发治疗")))
                             }
                         }
                     }
@@ -167,7 +167,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         }
 
         /// <summary>把 golden 模块落成资产并登记到所选 Project（创建在 Project 资产同目录）。</summary>
-        [MenuItem("Assets/AbilityKit/Trigger Authoring/Create Golden Example Modules")]
+        [MenuItem("Assets/AbilityKit/触发器编辑/创建标准示例模块")]
         private static void CreateGoldenAssets()
         {
             var project = Selection.activeObject as TriggerAuthoringProjectAsset;
@@ -200,7 +200,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             Debug.Log($"[TriggerAuthoring] Created {created.Count} golden example module(s) in '{directory}'.");
         }
 
-        [MenuItem("Assets/AbilityKit/Trigger Authoring/Create Golden Example Modules", true)]
+        [MenuItem("Assets/AbilityKit/触发器编辑/创建标准示例模块", true)]
         private static bool CanCreateGoldenAssets()
         {
             return Selection.activeObject is TriggerAuthoringProjectAsset;

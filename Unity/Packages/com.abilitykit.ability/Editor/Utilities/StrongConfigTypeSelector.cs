@@ -20,7 +20,7 @@ namespace AbilityKit.Ability.Editor
             {
                 if (owner != null)
                 {
-                    Undo.RecordObject(owner, "Add Condition");
+                    Undo.RecordObject(owner, "添加条件");
                 }
                 var inst = (ConditionEditorConfigBase)Activator.CreateInstance(t);
                 target.Add(inst);
@@ -41,7 +41,7 @@ namespace AbilityKit.Ability.Editor
             {
                 if (owner != null)
                 {
-                    Undo.RecordObject(owner, "Add Action");
+                    Undo.RecordObject(owner, "添加行为");
                 }
                 var inst = (ActionEditorConfigBase)Activator.CreateInstance(t);
                 target.Add(inst);

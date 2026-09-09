@@ -11,7 +11,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         SyncSnapshotReceived = 1,
         TriggerAnalysis = 2,
         SkillFailure = 3,
-        BuffLifecycle = 4
+        BuffLifecycle = 4,
+        TriggerAnalysisAggregate = 5
     }
 
     public enum BattleDiagnosticBuffLifecycleStage
@@ -238,6 +239,114 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         }
     }
 
+    public readonly struct BattleDiagnosticTriggerAnalysisAggregatePayload :
+        IEquatable<BattleDiagnosticTriggerAnalysisAggregatePayload>
+    {
+        public const int CurrentSchemaVersion = 1;
+
+        public BattleDiagnosticTriggerAnalysisAggregatePayload(
+            int triggerId,
+            int contextKind,
+            int originKind,
+            BattleDiagnosticTriggerAnalysisStage stage,
+            BattleDiagnosticTriggerAnalysisResult result,
+            int detailCode,
+            int occurrenceCount,
+            int firstFrame,
+            int lastFrame,
+            long firstContextId,
+            long lastContextId,
+            long firstRootContextId,
+            long lastRootContextId,
+            string failureKey = "",
+            string sampleReason = "")
+        {
+            if (triggerId <= 0) throw new ArgumentOutOfRangeException(nameof(triggerId));
+            if (occurrenceCount <= 0) throw new ArgumentOutOfRangeException(nameof(occurrenceCount));
+            if (!BattleDiagnosticFrames.IsValid(firstFrame)) throw new ArgumentOutOfRangeException(nameof(firstFrame));
+            if (lastFrame < firstFrame) throw new ArgumentOutOfRangeException(nameof(lastFrame));
+
+            TriggerId = triggerId;
+            ContextKind = contextKind;
+            OriginKind = originKind;
+            Stage = stage;
+            Result = result;
+            DetailCode = detailCode;
+            OccurrenceCount = occurrenceCount;
+            FirstFrame = firstFrame;
+            LastFrame = lastFrame;
+            FirstContextId = firstContextId;
+            LastContextId = lastContextId;
+            FirstRootContextId = firstRootContextId;
+            LastRootContextId = lastRootContextId;
+            FailureKey = failureKey ?? string.Empty;
+            SampleReason = sampleReason ?? string.Empty;
+        }
+
+        public int TriggerId { get; }
+        public int ContextKind { get; }
+        public int OriginKind { get; }
+        public BattleDiagnosticTriggerAnalysisStage Stage { get; }
+        public BattleDiagnosticTriggerAnalysisResult Result { get; }
+        public int DetailCode { get; }
+        public int OccurrenceCount { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+        public int FrameSpan => LastFrame - FirstFrame;
+        public long FirstContextId { get; }
+        public long LastContextId { get; }
+        public long FirstRootContextId { get; }
+        public long LastRootContextId { get; }
+        public string FailureKey { get; }
+        public string SampleReason { get; }
+
+        public bool Equals(BattleDiagnosticTriggerAnalysisAggregatePayload other)
+        {
+            return TriggerId == other.TriggerId &&
+                   ContextKind == other.ContextKind &&
+                   OriginKind == other.OriginKind &&
+                   Stage == other.Stage &&
+                   Result == other.Result &&
+                   DetailCode == other.DetailCode &&
+                   OccurrenceCount == other.OccurrenceCount &&
+                   FirstFrame == other.FirstFrame &&
+                   LastFrame == other.LastFrame &&
+                   FirstContextId == other.FirstContextId &&
+                   LastContextId == other.LastContextId &&
+                   FirstRootContextId == other.FirstRootContextId &&
+                   LastRootContextId == other.LastRootContextId &&
+                   string.Equals(FailureKey, other.FailureKey, StringComparison.Ordinal) &&
+                   string.Equals(SampleReason, other.SampleReason, StringComparison.Ordinal);
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is BattleDiagnosticTriggerAnalysisAggregatePayload other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = TriggerId;
+                hashCode = (hashCode * 397) ^ ContextKind;
+                hashCode = (hashCode * 397) ^ OriginKind;
+                hashCode = (hashCode * 397) ^ (int)Stage;
+                hashCode = (hashCode * 397) ^ (int)Result;
+                hashCode = (hashCode * 397) ^ DetailCode;
+                hashCode = (hashCode * 397) ^ OccurrenceCount;
+                hashCode = (hashCode * 397) ^ FirstFrame;
+                hashCode = (hashCode * 397) ^ LastFrame;
+                hashCode = (hashCode * 397) ^ FirstContextId.GetHashCode();
+                hashCode = (hashCode * 397) ^ LastContextId.GetHashCode();
+                hashCode = (hashCode * 397) ^ FirstRootContextId.GetHashCode();
+                hashCode = (hashCode * 397) ^ LastRootContextId.GetHashCode();
+                hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(FailureKey ?? string.Empty);
+                return (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(SampleReason ?? string.Empty);
+            }
+        }
+    }
+
     public readonly struct BattleDiagnosticSkillFailurePayload :
         IEquatable<BattleDiagnosticSkillFailurePayload>
     {
@@ -309,6 +418,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         private readonly int _int32Value8;
         private readonly int _int32Value9;
         private readonly int _int32Value10;
+        private readonly long _int64Value;
+        private readonly long _int64Value2;
+        private readonly long _int64Value3;
+        private readonly long _int64Value4;
         private readonly string _stringValue;
         private readonly string _stringValue2;
         private readonly string _stringValue3;
@@ -328,6 +441,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             int int32Value8 = 0,
             int int32Value9 = 0,
             int int32Value10 = 0,
+            long int64Value = 0L,
+            long int64Value2 = 0L,
+            long int64Value3 = 0L,
+            long int64Value4 = 0L,
             string stringValue = "",
             string stringValue2 = "",
             string stringValue3 = "",
@@ -356,6 +473,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             _int32Value8 = int32Value8;
             _int32Value9 = int32Value9;
             _int32Value10 = int32Value10;
+            _int64Value = int64Value;
+            _int64Value2 = int64Value2;
+            _int64Value3 = int64Value3;
+            _int64Value4 = int64Value4;
             _stringValue = stringValue ?? string.Empty;
             _stringValue2 = stringValue2 ?? string.Empty;
             _stringValue3 = stringValue3 ?? string.Empty;
@@ -411,8 +532,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 payload.CurrentFrameCount,
                 payload.CurrentRootCount,
                 payload.CurrentSameTriggerCount,
-                payload.FailureKey,
-                payload.Reason);
+                stringValue: payload.FailureKey,
+                stringValue2: payload.Reason);
         }
 
         public bool TryGetTriggerAnalysis(
@@ -436,6 +557,59 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 _int32Value8,
                 _int32Value9,
                 _int32Value10,
+                _stringValue,
+                _stringValue2);
+            return true;
+        }
+
+        public static BattleDiagnosticEventPayload FromTriggerAnalysisAggregate(
+            in BattleDiagnosticTriggerAnalysisAggregatePayload payload)
+        {
+            return new BattleDiagnosticEventPayload(
+                BattleDiagnosticPayloadKind.TriggerAnalysisAggregate,
+                BattleDiagnosticTriggerAnalysisAggregatePayload.CurrentSchemaVersion,
+                payload.TriggerId,
+                0U,
+                payload.ContextKind,
+                payload.OriginKind,
+                (int)payload.Stage,
+                (int)payload.Result,
+                payload.DetailCode,
+                payload.OccurrenceCount,
+                payload.FirstFrame,
+                payload.LastFrame,
+                int64Value: payload.FirstContextId,
+                int64Value2: payload.LastContextId,
+                int64Value3: payload.FirstRootContextId,
+                int64Value4: payload.LastRootContextId,
+                stringValue: payload.FailureKey,
+                stringValue2: payload.SampleReason);
+        }
+
+        public bool TryGetTriggerAnalysisAggregate(
+            out BattleDiagnosticTriggerAnalysisAggregatePayload payload)
+        {
+            if (Kind != BattleDiagnosticPayloadKind.TriggerAnalysisAggregate ||
+                SchemaVersion != BattleDiagnosticTriggerAnalysisAggregatePayload.CurrentSchemaVersion)
+            {
+                payload = default;
+                return false;
+            }
+
+            payload = new BattleDiagnosticTriggerAnalysisAggregatePayload(
+                _int32Value,
+                _int32Value2,
+                _int32Value3,
+                (BattleDiagnosticTriggerAnalysisStage)_int32Value4,
+                (BattleDiagnosticTriggerAnalysisResult)_int32Value5,
+                _int32Value6,
+                _int32Value7,
+                _int32Value8,
+                _int32Value9,
+                _int64Value,
+                _int64Value2,
+                _int64Value3,
+                _int64Value4,
                 _stringValue,
                 _stringValue2);
             return true;
@@ -529,6 +703,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    _int32Value8 == other._int32Value8 &&
                    _int32Value9 == other._int32Value9 &&
                    _int32Value10 == other._int32Value10 &&
+                   _int64Value == other._int64Value &&
+                   _int64Value2 == other._int64Value2 &&
+                   _int64Value3 == other._int64Value3 &&
+                   _int64Value4 == other._int64Value4 &&
                    string.Equals(_stringValue, other._stringValue, StringComparison.Ordinal) &&
                    string.Equals(_stringValue2, other._stringValue2, StringComparison.Ordinal) &&
                    string.Equals(_stringValue3, other._stringValue3, StringComparison.Ordinal) &&
@@ -557,6 +735,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ _int32Value8;
                 hashCode = (hashCode * 397) ^ _int32Value9;
                 hashCode = (hashCode * 397) ^ _int32Value10;
+                hashCode = (hashCode * 397) ^ _int64Value.GetHashCode();
+                hashCode = (hashCode * 397) ^ _int64Value2.GetHashCode();
+                hashCode = (hashCode * 397) ^ _int64Value3.GetHashCode();
+                hashCode = (hashCode * 397) ^ _int64Value4.GetHashCode();
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue2 ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue3 ?? string.Empty);

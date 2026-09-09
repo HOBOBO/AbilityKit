@@ -157,7 +157,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 TriggerAuthoringDiagnosticSeverity.Error,
                 (nodePath ?? string.Empty) + pathSuffix + ".source",
                 string.IsNullOrWhiteSpace(diagnosticMessage)
-                    ? "Runtime Plan export can read Object fields only when the Object value is a constant field container."
+                    ? "仅当 Object 值为常量字段容器时，Runtime Plan 导出才能读取其字段。"
                     : diagnosticMessage));
         }
     }

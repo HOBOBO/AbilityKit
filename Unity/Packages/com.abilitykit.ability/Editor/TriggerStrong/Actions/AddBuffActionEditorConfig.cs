@@ -7,12 +7,12 @@ using Sirenix.OdinInspector;
 namespace AbilityKit.Ability.Editor
 {
     [Serializable]
-    [TriggerActionType(TriggerActionTypes.AddBuff, "添加Buff", "行为/Buff", 0)]
+    [TriggerActionType(TriggerActionTypes.AddBuff, "添加增益效果", "行为/增益效果", 0)]
     public sealed class AddBuffActionEditorConfig : ActionEditorConfigBase
     {
         public override string Type => TriggerActionTypes.AddBuff;
 
-        [LabelText("BuffId列表")]
+        [LabelText("增益效果 ID 列表")]
         [ListDrawerSettings(Expanded = true)]
         public List<int> BuffIds = new List<int>();
 

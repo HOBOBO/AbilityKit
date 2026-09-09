@@ -26,6 +26,18 @@ namespace AbilityKit.Tests
             Go
         }
 
+        private sealed class LifecycleHost : MonoBehaviour
+        {
+            public readonly List<string> Trace = new List<string>();
+            public bool AllowExit;
+
+            private void EnterState() => Trace.Add("enter");
+            private void TickState() => Trace.Add("tick");
+            private void ExitState() => Trace.Add("exit");
+            private bool CanExitState() => AllowExit;
+            private int InvalidEntry() => 0;
+        }
+
         private sealed class EvaluationContext : IEvaluationContext
         {
             public bool AllowTransition;
@@ -81,13 +93,17 @@ namespace AbilityKit.Tests
             var node = new StateNode("Idle")
             {
                 ParentStateMachineId = "parent",
-                isDefault = true
+                isDefault = true,
+                NextParallelExitPolicy = ParallelExitPolicy.All,
             };
+            node.NextParallelBehaviorKeysInternal.Add("movement");
 
             var restored = JsonUtility.FromJson<StateNode>(JsonUtility.ToJson(node));
 
             Assert.That(restored.ParentStateMachineId, Is.EqualTo("parent"));
             Assert.That(restored.isDefault, Is.True);
+            Assert.That(restored.NextParallelBehaviorKeys, Is.EqualTo(new[] { "movement" }));
+            Assert.That(restored.NextParallelExitPolicy, Is.EqualTo(ParallelExitPolicy.All));
         }
 
         [Test]
@@ -207,6 +223,101 @@ namespace AbilityKit.Tests
             }
             finally
             {
+                Object.DestroyImmediate(graph);
+            }
+        }
+
+        [Test]
+        public void NestedMachineSettingsSurviveCloneCompileAndRuntimeBuild()
+        {
+            var graph = CreateNestedGraph(out _, out var nested, out _, out _, out _);
+            nested.NeedsExitTime = true;
+            nested.IsGhostState = true;
+            nested.RememberLastState = true;
+            GraphAsset clone = null;
+            try
+            {
+                clone = graph.Clone();
+                var clonedNested = clone.Nodes.OfType<StateMachineNode>()
+                    .Single(node => node.DisplayName == nested.DisplayName);
+                Assert.That(clonedNested.NeedsExitTime, Is.True);
+                Assert.That(clonedNested.IsGhostState, Is.True);
+
+                var program = new StateMachineGraphCompiler().Compile(graph);
+                var machineProgram = program.GetMachine(nested.Id);
+                Assert.That(machineProgram.NeedsExitTime, Is.True);
+                Assert.That(machineProgram.IsGhostState, Is.True);
+                Assert.That(machineProgram.RememberLastState, Is.True);
+
+                var fsm = new ActionStateMachine { RegisterForInspection = false };
+                fsm.InitializeFromGraph(graph);
+                var runtime = (HybridStateMachine<string, string>)fsm.GetState("Combat");
+                Assert.That(runtime.needsExitTime, Is.True);
+                Assert.That(runtime.isGhostState, Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(graph);
+                if (clone != null) Object.DestroyImmediate(clone);
+            }
+        }
+
+        [Test]
+        public void GraphLifecycleMethodsRunAndGatePendingTransition()
+        {
+            var graph = CreateFlatGraph(out var root, out var idle, out var attack);
+            var hostObject = new GameObject("HFSM Lifecycle Host");
+            try
+            {
+                idle.NeedsExitTime = true;
+                idle.AddEntryAction("EnterState");
+                idle.AddLogicAction("TickState");
+                idle.AddExitAction("ExitState");
+                idle.AddCanExitMethod("CanExitState");
+                var edge = graph.CreateTransition(idle.Id, attack.Id);
+                edge.NextTriggerId = "go";
+                root.AddTransition(edge.Id);
+                var host = hostObject.AddComponent<LifecycleHost>();
+                var fsm = new ActionStateMachine { RegisterForInspection = false };
+                fsm.InitializeFromGraph(graph, host);
+                fsm.Init();
+                fsm.OnLogic();
+                fsm.Trigger("go");
+
+                Assert.That(fsm.ActiveStateName, Is.EqualTo("Idle"));
+                host.AllowExit = true;
+                fsm.OnLogic();
+
+                Assert.That(fsm.ActiveStateName, Is.EqualTo("Attack"));
+                Assert.That(host.Trace, Is.EqualTo(new[] { "enter", "tick", "tick", "exit" }));
+            }
+            finally
+            {
+                Object.DestroyImmediate(hostObject);
+                Object.DestroyImmediate(graph);
+            }
+        }
+
+        [Test]
+        public void GraphLifecycleBindingRejectsMissingHostAndInvalidSignature()
+        {
+            var graph = CreateFlatGraph(out _, out var idle, out _);
+            var hostObject = new GameObject("HFSM Invalid Lifecycle Host");
+            try
+            {
+                idle.AddEntryAction("EnterState");
+                Assert.Throws<InvalidOperationException>(() =>
+                    new ActionStateMachine().InitializeFromGraph(graph));
+
+                idle.ClearEntryActions();
+                idle.AddEntryAction("InvalidEntry");
+                var host = hostObject.AddComponent<LifecycleHost>();
+                Assert.Throws<InvalidOperationException>(() =>
+                    new ActionStateMachine().InitializeFromGraph(graph, host));
+            }
+            finally
+            {
+                Object.DestroyImmediate(hostObject);
                 Object.DestroyImmediate(graph);
             }
         }

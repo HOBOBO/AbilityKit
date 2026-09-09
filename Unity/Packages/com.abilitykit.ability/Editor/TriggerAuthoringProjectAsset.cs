@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace AbilityKit.Ability.Editor
 {
-    [CreateAssetMenu(fileName = "TriggerAuthoringProject", menuName = "AbilityKit/Trigger Authoring/Project")]
+    [CreateAssetMenu(fileName = "TriggerAuthoringProject", menuName = "AbilityKit/触发器编辑/项目")]
     public sealed class TriggerAuthoringProjectAsset : ScriptableObject
     {
         [SerializeField]

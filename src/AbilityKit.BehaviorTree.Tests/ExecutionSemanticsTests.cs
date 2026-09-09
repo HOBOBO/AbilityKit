@@ -488,5 +488,126 @@ namespace AbilityKit.BehaviorTree.Tests
             runtime.Update(2, Fixed64.Zero);
             Assert.Equal(2, runtime.Blackboard.GetInt64("test.startCount"));
         }
+
+        [Fact]
+        public void Parallel_ConditionalAbortStopsAllDescendantStacksBeforeRestart()
+        {
+            var definition = new TreeBuilder()
+                .Blackboard("test.cond", TreeValueType.Bool)
+                .Blackboard("test.result", TreeValueType.Int64)
+                .Blackboard("test.fallbackStart", TreeValueType.Int64)
+                .Blackboard("test.fallbackStop", TreeValueType.Int64)
+                .Blackboard("test.siblingStart", TreeValueType.Int64)
+                .Blackboard("test.siblingStop", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Parallel, (long)AbortType.Both, "branch", "sibling")
+                .Node("branch", BuiltInNodeTypes.Selector, "cond", "fallback")
+                .Node("cond", ScriptedCondition)
+                .Node("fallback", CountingAction)
+                .Node("sibling", CountingAction)
+                .Root("root");
+            definition.Nodes[2].Properties.Set("condKey", PropertyValue.Of("test.cond"));
+            definition.Nodes[3].Properties.Set("resultKey", PropertyValue.Of("test.result"));
+            definition.Nodes[3].Properties.Set("startCounterKey", PropertyValue.Of("test.fallbackStart"));
+            definition.Nodes[3].Properties.Set("stopCounterKey", PropertyValue.Of("test.fallbackStop"));
+            definition.Nodes[4].Properties.Set("resultKey", PropertyValue.Of("test.result"));
+            definition.Nodes[4].Properties.Set("startCounterKey", PropertyValue.Of("test.siblingStart"));
+            definition.Nodes[4].Properties.Set("stopCounterKey", PropertyValue.Of("test.siblingStop"));
+
+            var runtime = Build(definition);
+            runtime.Blackboard.SetInt64("test.result", 2);
+            runtime.Update(1, Fixed64.Zero);
+            Assert.Equal(NodeState.Running, runtime.TreeState);
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.fallbackStart"));
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.siblingStart"));
+
+            runtime.Blackboard.SetBool("test.cond", true);
+            runtime.Update(2, Fixed64.Zero);
+
+            Assert.Equal(NodeState.Running, runtime.TreeState);
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.fallbackStop"));
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.siblingStop"));
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.fallbackStart"));
+            Assert.Equal(2, runtime.Blackboard.GetInt64("test.siblingStart"));
+        }
+
+        [Fact]
+        public void ConditionalAbort_DeclaredDependenciesSkipUnchangedAndUnrelatedTicks()
+        {
+            var definition = new TreeBuilder()
+                .Blackboard("test.cond", TreeValueType.Bool)
+                .Blackboard("test.evalCount", TreeValueType.Int64)
+                .Blackboard("test.unrelated", TreeValueType.Int64)
+                .Blackboard("test.result", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Selector, (long)AbortType.Self, "cond", "hold")
+                .Node("cond", DependencyCountingCondition)
+                .Node("hold", CountingAction)
+                .Root("root");
+            definition.Nodes[2].Properties.Set("resultKey", PropertyValue.Of("test.result"));
+
+            var runtime = Build(definition);
+            runtime.Blackboard.SetInt64("test.result", 2);
+            runtime.Update(1, Fixed64.Zero);
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.evalCount"));
+
+            runtime.Update(2, Fixed64.Zero);
+            runtime.Blackboard.SetInt64("test.unrelated", 1);
+            runtime.Update(3, Fixed64.Zero);
+            runtime.Blackboard.SetBool("test.cond", false);
+            runtime.Update(4, Fixed64.Zero);
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.evalCount"));
+
+            runtime.Blackboard.SetBool("test.cond", true);
+            runtime.Update(5, Fixed64.Zero);
+            Assert.Equal(3, runtime.Blackboard.GetInt64("test.evalCount"));
+            Assert.Equal(NodeState.Success, runtime.TreeState);
+        }
+
+        [Fact]
+        public void ConditionalAbort_UndeclaredDependenciesKeepPollingEveryTick()
+        {
+            var definition = new TreeBuilder()
+                .Blackboard("test.cond", TreeValueType.Bool)
+                .Blackboard("test.evalCount", TreeValueType.Int64)
+                .Blackboard("test.result", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Selector, (long)AbortType.Self, "cond", "hold")
+                .Node("cond", PollingCountingCondition)
+                .Node("hold", CountingAction)
+                .Root("root");
+            definition.Nodes[2].Properties.Set("resultKey", PropertyValue.Of("test.result"));
+
+            var runtime = Build(definition);
+            runtime.Blackboard.SetInt64("test.result", 2);
+            runtime.Update(1, Fixed64.Zero);
+            runtime.Update(2, Fixed64.Zero);
+            runtime.Update(3, Fixed64.Zero);
+
+            Assert.Equal(3, runtime.Blackboard.GetInt64("test.evalCount"));
+        }
+
+        [Fact]
+        public void ConditionalAbort_RestoreEstablishesDependencyVersionBaseline()
+        {
+            var definition = new TreeBuilder()
+                .Blackboard("test.cond", TreeValueType.Bool)
+                .Blackboard("test.evalCount", TreeValueType.Int64)
+                .Blackboard("test.result", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Selector, (long)AbortType.Self, "cond", "hold")
+                .Node("cond", DependencyCountingCondition)
+                .Node("hold", CountingAction)
+                .Root("root");
+            definition.Nodes[2].Properties.Set("resultKey", PropertyValue.Of("test.result"));
+
+            var runtime = Build(definition);
+            runtime.Blackboard.SetInt64("test.result", 2);
+            runtime.Update(1, Fixed64.Zero);
+            var snapshot = runtime.CaptureState();
+
+            runtime.Blackboard.SetBool("test.cond", true);
+            runtime.RestoreState(snapshot);
+            runtime.Update(2, Fixed64.Zero);
+
+            Assert.Equal(1, runtime.Blackboard.GetInt64("test.evalCount"));
+            Assert.Equal(NodeState.Running, runtime.TreeState);
+        }
     }
 }

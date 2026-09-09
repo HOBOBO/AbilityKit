@@ -67,7 +67,7 @@ namespace AbilityKit.Game.Editor
         {
             if (!status.CanDisplayResults && status.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"标签数据不可用：{status.Availability} {status.Message}";
+                return $"标签数据不可用：{BattleDebugDisplayText.Availability(status.Availability)} {status.Message}";
             }
 
             return string.Empty;

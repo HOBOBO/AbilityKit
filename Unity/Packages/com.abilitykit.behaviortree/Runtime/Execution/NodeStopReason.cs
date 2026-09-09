@@ -11,5 +11,6 @@ namespace AbilityKit.BehaviorTree.Execution
         Preempted = 6,
         EnableFailed = 7,
         Restored = 8,
+        Faulted = 9,
     }
 }

@@ -26,9 +26,9 @@ namespace AbilityKit.HFSM.Editor.Export
             Action execute)
         {
             if (string.IsNullOrWhiteSpace(id))
-                throw new ArgumentException("A stable export action id is required.", nameof(id));
+                throw new ArgumentException("必须提供稳定的导出操作 ID。", nameof(id));
             if (string.IsNullOrWhiteSpace(label))
-                throw new ArgumentException("An export action label is required.", nameof(label));
+                throw new ArgumentException("必须提供导出操作名称。", nameof(label));
 
             Id = id;
             Label = label;

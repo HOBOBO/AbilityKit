@@ -10,9 +10,9 @@ namespace AbilityKit.BehaviorTree.Authoring
 {
     public static class AuthoringTemplates
     {
-        public const string EmptyId = "空树（Succeed 根）";
+        public const string EmptyId = "空树（成功根节点）";
         public const string ReactiveLoopId = "反应式决策骨架";
-        public const string GoldenHeroCombatId = "Golden：英雄战斗示例";
+        public const string GoldenHeroCombatId = "英雄战斗示例";
 
         public static List<(string DisplayName, Func<AuthoringSourceDocument> Build)> Catalog() => new()
         {
@@ -25,7 +25,7 @@ namespace AbilityKit.BehaviorTree.Authoring
         {
             var document = new AuthoringSourceDocument
             {
-                Metadata = { Description = "Empty tree: single succeed root." },
+                Metadata = { Description = "空行为树，仅包含一个返回成功的根节点。" },
             };
             Node(document, "root", BuiltInNodeTypes.Succeed);
             document.Tree.RootNodeId = "root";
@@ -37,7 +37,7 @@ namespace AbilityKit.BehaviorTree.Authoring
         {
             var document = new AuthoringSourceDocument
             {
-                Metadata = { Description = "Reactive loop skeleton: perceive, arbitrate, act or hold." },
+                Metadata = { Description = "反应式决策骨架：感知、仲裁、执行或等待。" },
             };
 
             document.Tree.Blackboard.Keys.Add(new BlackboardKeyDefinition

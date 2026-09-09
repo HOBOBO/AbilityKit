@@ -31,8 +31,8 @@ namespace AbilityKit.HFSM.Editor.Export
             {
                 new ExportAction(
                     "hfsm.export.next-definition",
-                    "Next Runtime Definition",
-                    "Validated deterministic runtime definition.",
+                    "Next Runtime 定义",
+                    "已校验的确定性运行时定义。",
                     exportNextDefinition)
             };
 
@@ -42,7 +42,7 @@ namespace AbilityKit.HFSM.Editor.Export
                 var exporterName = exporter.Name;
                 actions.Add(new ExportAction(
                     "hfsm.export.legacy." + exporterName.ToLowerInvariant(),
-                    "Legacy Archive/" + exporterName,
+                    "旧版归档/" + exporterName,
                     exporter.Description,
                     () => exportLegacy(exporterName)));
             }

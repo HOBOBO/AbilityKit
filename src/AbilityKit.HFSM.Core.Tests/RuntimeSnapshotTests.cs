@@ -52,6 +52,59 @@ public sealed class RuntimeSnapshotTests
     }
 
     [Fact]
+    public void RestoreRejectsPendingTransitionWhenActiveStateDoesNotRequireApproval()
+    {
+        var definition = Fixtures.Flat(Fixtures.State("idle"), Fixtures.State("done"));
+        definition.Machines[0].Transitions.Add(
+            Fixtures.Transition("go", "idle", "done", trigger: "go"));
+        var runtime = new StateMachineRuntime<TestOwner>(
+            new TestOwner(), definition, new RuntimeBindings<TestOwner>());
+        runtime.Initialize(0, Fixed64.Zero);
+        var snapshot = runtime.CaptureSnapshot();
+        snapshot.Machines[0].PendingTransitionId = "go";
+        snapshot.Machines[0].PendingTriggerId = "go";
+
+        Assert.Throws<InvalidOperationException>(() => runtime.RestoreSnapshot(snapshot));
+    }
+
+    [Fact]
+    public void RestoreRejectsOrphanedPendingExitTransition()
+    {
+        var definition = new StateMachineDefinition
+        {
+            DefinitionId = "nested",
+            RootMachineId = "root",
+            Machines =
+            {
+                new MachineDefinition
+                {
+                    Id = "root",
+                    InitialStateId = "active",
+                    States = { Fixtures.State("active", childMachine: "child") },
+                },
+                new MachineDefinition
+                {
+                    Id = "child",
+                    InitialStateId = "inside",
+                    States = { Fixtures.State("inside", requiresExitApproval: true) },
+                    Transitions =
+                    {
+                        Fixtures.Transition("exit", "inside", string.Empty, exitMachine: true),
+                    },
+                },
+            },
+        };
+        var runtime = new StateMachineRuntime<TestOwner>(
+            new TestOwner(), definition, new RuntimeBindings<TestOwner>());
+        runtime.Initialize(0, Fixed64.Zero);
+        var snapshot = runtime.CaptureSnapshot();
+        var child = snapshot.Machines.Single(item => item.MachineId == "child");
+        child.PendingTransitionId = "exit";
+
+        Assert.Throws<InvalidOperationException>(() => runtime.RestoreSnapshot(snapshot));
+    }
+
+    [Fact]
     public void DefinitionHashPreventsCrossDefinitionRestore()
     {
         var firstDefinition = Fixtures.Flat(Fixtures.State("idle"));

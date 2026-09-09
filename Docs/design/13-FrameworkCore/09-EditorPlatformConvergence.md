@@ -37,7 +37,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 | 模块 | 接入层 | 已接能力 | 未接/自造 |
 |---|---|---|---|
 | **BehaviorTree** | Platform（最深） | Module/Menu/Panel 注册、`EditorDocumentSession`（薄包装）、`EditorExport`+`EditorAtomicFileWriter`、`EditorSourceSync`、`EditorDiagnostic`、`EditorCommand`、本地化 | 运行时 observation 全套、GraphView、Editor Extension 注册表（自造 3 套） |
-| **HFSM** | Platform（部分） | `EditorAtomicFileWriter`、`EditorDiagnosticCollection`、`EditorPrefsUserStateStore`、`EditorCommandRegistry` | **自造一套平行 exporter 抽象**（`Editor/Export/Interfaces/*` + `Descriptors/*` + `ExtensionRegistry`）、不用 `EditorDocumentSession`、不用 Module/Menu/Panel 注册 |
+| **HFSM** | Platform（部分） | `IEditorModule`、Module/Menu/Panel 注册、`EditorAtomicFileWriter`、`EditorExportReportWindow`、`EditorDiagnosticCollection`、`EditorPrefsUserStateStore`、`EditorSplitter`、`EditorCommandRegistry` | Legacy Archive 仍保留平行 exporter 抽象（`Editor/Export/Interfaces/*` + `Descriptors/*` + `ExtensionRegistry`）；GraphAsset 编辑会话尚未迁入 `EditorDocumentSession` |
 | **Ability（Trigger Authoring 新子系统）** | Platform（部分） | `EditorAtomicFileWriter`、`EditorSourceSync`、`EditorDiagnostic` 适配、`EditorCommandRegistry`、本地化 | **旧导出链完全自造**（见 §4）；不用 `EditorExport` 报告模型、不用 `EditorDocumentSession` |
 | **Trace** | 无（独立窗口） | — | 2026-09-07 已从 `PlugableWindow` 迁为独立 `EditorWindow`，不再依赖 base.editor |
 | **Pipeline** | 无 | — | 全套自造；`PipelineRuntimeDebuggerWindow`（~1794 行 IMGUI）+ 自造 registry/ring buffer |
@@ -109,7 +109,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 ### 6.2 收敛顺序（按风险从低到高、收益从高到低）
 
 1. **做统一入口（Hub）**——消费已有注册表 + 反射发现散落窗口。零新概念，直接解决"乱"，并立下"新窗口必须注册"的规约。
-2. **BT 收尾 + 导出报告模型进 HFSM/Ability**——删 HFSM 平行 exporter 抽象、收敛 Ability 旧导出链；BT 清掉重复 `[MenuItem]` 和绕过 `EditorDiagnostic` 的 Validate All。
+2. **BT 收尾 + 导出报告模型进 HFSM/Ability**——HFSM 已接入统一入口、导出报告和运行时调试导航；后续在 golden/roundtrip 测试保护下删除 Legacy Archive 平行 exporter 抽象，并收敛 Ability 旧导出链。BT 清掉重复 `[MenuItem]` 和绕过 `EditorDiagnostic` 的 Validate All。
 3. **Pipeline/BattleFlow/Protocol 接基础件**——至少接 `EditorAtomicFileWriter` + `EditorDocumentSession`（替换 `BattleFlowCodec` 裸写、`_undoStack`、`_dirty` 对话框）+ `EditorDiagnostic`。纯减重复，不动各自画布和 IR。
 4. **下沉运行时调试骨架**——✅ 分析完成（2026-09-07），**决定不下沉**。四个 debugger 的运行时桥接机制、快照模型、订阅方式各不相同：hfsm `LiveRegistry`+`IVisualizationProvider`（注册表+provider 抽象）、BT `DebugRegistry`（薄 id 注册表、纯轮询）、pipeline `PipelineDebugHooks`（事件总线 push）、trace `TraceRegistryDirectory`（目录+事件）。共享部分只剩「观察运行时实例」这一抽象概念，无稳定契约；按「能力下沉五条」判定（语义不稳、无交叉验证）不下沉。四个 debugger 保持各自实现，已由 Hub 在导航层统一。落地动作仅是删除 pipeline 死代码 `EditorPipelineTraceRecorder`（未使用单例 + 重复 ring buffer，保留被 registry 使用的 `EditorPipelineRunTrace`）。
 5. **退役 Framework 层**——✅ 已完成（2026-09-07）：`trace` 迁为独立 `EditorWindow`（`TreeVisualizationPlugin`/`NodeDetailPlugin` 去 `BaseWindowPlugin` 基类），删除 `Editor/Framework/`（`PlugableWindow`/`WindowBuilder`/`WindowExamples`）与 `Tests/Framework/` 兼容测试。
@@ -131,7 +131,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 ## 八、事实状态与证据等级
 
 - **规范约束**：依赖方向 `领域 Editor -> Platform`、`Platform -X-> 领域`；导出/校验/同步/会话/命令/本地化的共享边界见 §三。
-- **当前实现**：Platform 底座 + BT/HFSM/Ability 部分接入（§2.2）；统一入口尚未实现（§5 为目标设计）。
+- **当前实现**：Platform Hub 统一入口已实现；BT 与 HFSM 已注册 Module/Menu/Panel，Ability 部分接入，Pipeline/BattleFlow/Protocol/Trace 仍主要通过散落窗口发现进入（§2.2、§5）。
 - **示例策略**：HFSM 的 `ExtensionRegistry` 导出抽象、Ability 旧导出链，都是"尚未收敛"的领域自造实现，不是底座能力。
 - **已知限制**：`dotnet build` 只证明可编译，不等于 Unity Test Runner 已执行；Domain Reload、语言切换、布局恢复、诊断定位、真实 AssetDatabase 导入仍需 Unity 侧验收。
 
@@ -139,7 +139,7 @@ AbilityKit.Editor.Platform -X-> 任一领域 Editor/Runtime 程序集
 |---|---|---|
 | E0 | 已具备 | Platform/Legacy 源码、asmdef、包内 canonical 存在 |
 | E1 | 已具备 | Platform 服务/命令/诊断/状态/会话/同步/导出 API 可被调用 |
-| E2 | 部分具备 | BT/HFSM/Ability 部分接入；Pipeline/BattleFlow/Protocol/Trace 未接 |
+| E2 | 部分具备 | Hub 与 BT/HFSM 正式入口已接；Ability 部分接入，Pipeline/BattleFlow/Protocol/Trace 未接 |
 | E3 | 部分具备 | Platform/领域 Editor 测试源码 + 定向编译存在；本轮未跑 Unity Test Runner |
 | E4 | 待建立 | Hub 与各领域导出/同步/诊断的 Unity 侧验收矩阵未建立 |
 | E5 | 待建立 | 统一入口与迁移门禁未挂 CI |

@@ -73,12 +73,21 @@ namespace AbilityKit.BehaviorTree.Editor
             var displayName = string.IsNullOrWhiteSpace(nodeMetadata.DisplayName)
                 ? fallbackName
                 : nodeMetadata.DisplayName;
+            AddInspectorHeader(
+                displayName,
+                nodeDescriptor == null
+                    ? node.Type
+                    : NodeKindLabel(nodeDescriptor.Kind) + "  ·  " + nodeDescriptor.Category);
 
             if (_host.IsReadOnly)
             {
-                _root.Add(new Label(displayName));
                 if (!string.IsNullOrWhiteSpace(nodeMetadata.Comment))
-                    _root.Add(new Label(nodeMetadata.Comment));
+                {
+                    _root.Add(new Label(nodeMetadata.Comment)
+                    {
+                        style = { whiteSpace = WhiteSpace.Normal, marginBottom = 6f },
+                    });
+                }
                 _runtimeNodeStateLabel = new Label
                 {
                     style =
@@ -117,6 +126,7 @@ namespace AbilityKit.BehaviorTree.Editor
                     multiline = true,
                     isDelayed = true,
                 };
+                commentField.style.minHeight = 58f;
                 commentField.RegisterValueChangedCallback(evt =>
                 {
                     _host.RecordChange();
@@ -126,17 +136,23 @@ namespace AbilityKit.BehaviorTree.Editor
 
                 if (!string.Equals(_host.Document.Tree.RootNodeId, node.Id, StringComparison.Ordinal))
                 {
-                    _root.Add(new Button(() =>
+                    var setRoot = new Button(() =>
                     {
                         _host.RecordChange();
                         _host.Document.Tree.RootNodeId = node.Id;
                         _host.RebuildGraph();
-                    }) { text = "设为根节点" });
+                    }) { text = "设为根节点" };
+                    setRoot.style.height = 24f;
+                    setRoot.style.marginTop = 4f;
+                    _root.Add(setRoot);
                 }
             }
 
-            _root.Add(new Label("Node ID: " + node.Id));
-            _root.Add(new Label("Type: " + node.Type) { tooltip = node.Type });
+            _root.Add(new Label(node.Id + "  ·  " + node.Type)
+            {
+                tooltip = node.Type,
+                style = { opacity = 0.6f, marginTop = 5f, whiteSpace = WhiteSpace.Normal },
+            });
 
             if (!EditorNodeCatalog.Registry.TryGetDescriptor(node.Type, out var descriptor))
             {
@@ -144,15 +160,29 @@ namespace AbilityKit.BehaviorTree.Editor
                 return;
             }
 
-            _root.Add(new Label("属性") { style = { paddingTop = 8f, unityFontStyleAndWeight = FontStyle.Bold } });
+            AddSectionLabel("属性");
             foreach (var field in descriptor.PropertySchema.OrderBy(f => f.Order))
             {
                 var fieldRow = new VisualElement
                 {
                     tooltip = field.Tooltip,
-                    style = { flexDirection = FlexDirection.Row, alignItems = Align.Center },
+                    style =
+                    {
+                        flexDirection = FlexDirection.Row,
+                        alignItems = Align.Center,
+                        minHeight = 25f,
+                        marginBottom = 2f,
+                    },
                 };
-                fieldRow.Add(new Label(field.Name) { style = { width = 140 } });
+                fieldRow.Add(new Label(EditorDisplayText.PropertyName(field.Name))
+                {
+                    style =
+                    {
+                        width = 112f,
+                        minWidth = 88f,
+                        whiteSpace = WhiteSpace.Normal,
+                    },
+                });
 
                 var current = node.Properties.TryGet(field.Name, out var existing)
                     ? existing
@@ -187,6 +217,7 @@ namespace AbilityKit.BehaviorTree.Editor
                     {
                         _host.RecordChange();
                         node.Properties.Set(field.Name, PropertyValue.Of((long)popup.index));
+                        _host.RefreshNodeTitles();
                     });
                     fieldRow.Add(popup);
                 }
@@ -204,6 +235,7 @@ namespace AbilityKit.BehaviorTree.Editor
                     {
                         _host.RecordChange();
                         node.Properties.Set(field.Name, PropertyValue.Of(evt.newValue));
+                        _host.RefreshNodeTitles();
                     });
                     fieldRow.Add(popup);
                 }
@@ -217,6 +249,7 @@ namespace AbilityKit.BehaviorTree.Editor
                             {
                                 _host.RecordChange();
                                 node.Properties.Set(field.Name, PropertyValue.Of(evt.newValue));
+                                _host.RefreshNodeTitles();
                             });
                             fieldRow.Add(toggle);
                             break;
@@ -232,6 +265,7 @@ namespace AbilityKit.BehaviorTree.Editor
                                 if (field.Max.HasValue) value = Math.Min(value, field.Max.Value);
                                 intField.SetValueWithoutNotify(value);
                                 node.Properties.Set(field.Name, PropertyValue.Of(value));
+                                _host.RefreshNodeTitles();
                             });
                             fieldRow.Add(intField);
                             break;
@@ -252,6 +286,7 @@ namespace AbilityKit.BehaviorTree.Editor
                                 fixedValue = AbilityKit.Deterministic.Fixed64.FromRaw(raw);
                                 fixedField.SetValueWithoutNotify(fixedValue.ToSingle());
                                 node.Properties.Set(field.Name, PropertyValue.Of(fixedValue));
+                                _host.RefreshNodeTitles();
                             });
                             fieldRow.Add(fixedField);
                             break;
@@ -263,6 +298,7 @@ namespace AbilityKit.BehaviorTree.Editor
                             {
                                 _host.RecordChange();
                                 node.Properties.Set(field.Name, PropertyValue.Of(evt.newValue));
+                                _host.RefreshNodeTitles();
                             });
                             fieldRow.Add(textField);
                             break;
@@ -277,6 +313,9 @@ namespace AbilityKit.BehaviorTree.Editor
 
                 _root.Add(fieldRow);
             }
+
+            if (node.Type == BuiltInNodeTypes.Subtree)
+                DrawSubtreeBlackboard(node);
 
             DrawChildOrder(node);
             DrawExtensionSections(node);
@@ -314,6 +353,7 @@ namespace AbilityKit.BehaviorTree.Editor
                         if (_host.IsReadOnly || value == null) return;
                         _host.RecordChange();
                         node.Properties.Set(field.Name, value);
+                        _host.RefreshNodeTitles();
                         _host.RefreshChrome();
                     }));
                 return editor != null;
@@ -376,7 +416,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 return;
             }
 
-            var detail = "运行状态：" + state.State
+            var detail = "运行状态：" + EditorDisplayText.NodeState(state.State)
                 + "\n执行路径：" + (state.OnStackCount > 0 ? "是" : "否")
                 + "  ·  深度 " + state.Depth;
             if (state.RunningChildIndex >= 0)
@@ -398,7 +438,7 @@ namespace AbilityKit.BehaviorTree.Editor
                     || !_selectedNode.Properties.TryGet(field.Name, out var property)
                     || !property.TryGetString(out var keyName)
                     || string.IsNullOrEmpty(keyName)) continue;
-                values.Add(field.Name + " -> " + keyName + " = " + FormatBlackboardValue(blackboardView, keyName));
+                values.Add(EditorDisplayText.PropertyName(field.Name) + " -> " + keyName + " = " + FormatBlackboardValue(blackboardView, keyName));
             }
             _runtimeBlackboardLabel.text = values.Count == 0
                 ? ""
@@ -414,17 +454,17 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private static string FormatBlackboardValue(ObservationBlackboardView view, string keyName)
         {
-            if (view == null || view.Count == 0) return "<no snapshot>";
-            if (!view.TryGetRow(keyName, out var row)) return "<missing>";
-            if (row.IsRemoved) return "<removed; previous " + row.PreviousValue + ">";
+            if (view == null || view.Count == 0) return "<无快照>";
+            if (!view.TryGetRow(keyName, out var row)) return "<未找到>";
+            if (row.IsRemoved) return "<已移除；前值 " + row.PreviousValue + ">";
             return row.HasPreviousValue && row.IsChanged
-                ? row.CurrentValue + " (prev " + row.PreviousValue + ")"
+                ? row.CurrentValue + "（前值 " + row.PreviousValue + "）"
                 : row.CurrentValue;
         }
 
         private void DrawRuntimeBlackboardPanel()
         {
-            _root.Add(new Label("Blackboard") { style = { paddingTop = 8f, unityFontStyleAndWeight = FontStyle.Bold } });
+            _root.Add(new Label("黑板") { style = { paddingTop = 8f, unityFontStyleAndWeight = FontStyle.Bold } });
             _runtimeBlackboardSearchField = new TextField
             {
                 value = _runtimeBlackboardSearch,
@@ -437,7 +477,7 @@ namespace AbilityKit.BehaviorTree.Editor
             });
             _root.Add(_runtimeBlackboardSearchField);
 
-            _runtimeBlackboardChangedOnlyToggle = new Toggle("Changed only")
+            _runtimeBlackboardChangedOnlyToggle = new Toggle("仅显示变化")
             {
                 value = _runtimeBlackboardChangedOnly,
             };
@@ -463,7 +503,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 _host.DisplayedObservationDiff);
             if (view.Count == 0)
             {
-                _runtimeTreeBlackboardContainer.Add(new Label("(empty)") { style = { opacity = 0.65f } });
+                _runtimeTreeBlackboardContainer.Add(new Label("（空）") { style = { opacity = 0.65f } });
                 return;
             }
 
@@ -487,10 +527,172 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private static string FormatBlackboardRow(ObservationBlackboardRow row)
         {
-            var current = row.HasCurrentValue ? row.CurrentValue : "<removed>";
+            var current = row.HasCurrentValue ? row.CurrentValue : "<已移除>";
             if (!row.HasPreviousValue) return row.Key + " [" + row.Type + "] = " + current;
             if (!row.IsChanged) return row.Key + " [" + row.Type + "] = " + current;
-            return row.Key + " [" + row.Type + "] = " + current + " (prev " + row.PreviousValue + ")";
+            return row.Key + " [" + row.Type + "] = " + current + "（前值 " + row.PreviousValue + "）";
+        }
+
+        private void DrawSubtreeBlackboard(NodeDefinition node)
+        {
+            AddSectionLabel("子树黑板");
+            var configuration = node.SubtreeBlackboard;
+
+            if (_host.IsReadOnly)
+            {
+                _root.Add(new Label(configuration?.IsolateUnmappedKeys == true
+                    ? "未映射键：实例隔离"
+                    : "未映射键：与父树共享"));
+                if (configuration != null)
+                {
+                    foreach (var binding in configuration.Bindings)
+                        _root.Add(new Label(binding.SubtreeKey + "  ->  " + binding.ParentKey));
+                }
+                return;
+            }
+
+            var isolate = new Toggle("隔离未映射键")
+            {
+                value = configuration?.IsolateUnmappedKeys == true,
+                tooltip = "每个子树实例为未绑定键使用独立命名空间",
+            };
+            isolate.RegisterValueChangedCallback(evt =>
+            {
+                _host.RecordChange();
+                EnsureSubtreeBlackboard(node).IsolateUnmappedKeys = evt.newValue;
+                _host.RefreshNodeTitles();
+            });
+            _root.Add(isolate);
+
+            var childKeys = ResolveReferencedBlackboardKeys(node);
+            var parentKeys = _host.Document.Tree.Blackboard.Keys.Select(key => key.Name).ToList();
+            if (configuration != null)
+            {
+                for (var i = 0; i < configuration.Bindings.Count; i++)
+                    AddSubtreeBindingRow(node, configuration.Bindings[i], i, childKeys, parentKeys);
+            }
+
+            var add = new Button(() =>
+            {
+                _host.RecordChange();
+                var target = EnsureSubtreeBlackboard(node);
+                target.Bindings.Add(new SubtreeBlackboardBinding
+                {
+                    SubtreeKey = FirstUnusedKey(childKeys, target.Bindings.Select(binding => binding.SubtreeKey)),
+                    ParentKey = parentKeys.Count > 0 ? parentKeys[0] : "",
+                });
+                Render(node);
+                _host.RefreshNodeTitles();
+            })
+            {
+                text = "+",
+                tooltip = "添加黑板输入/输出绑定",
+            };
+            add.style.width = 30f;
+            add.style.marginTop = 4f;
+            _root.Add(add);
+        }
+
+        private void AddSubtreeBindingRow(
+            NodeDefinition node,
+            SubtreeBlackboardBinding binding,
+            int index,
+            List<string> childKeys,
+            List<string> parentKeys)
+        {
+            var row = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Row,
+                    alignItems = Align.Center,
+                    minHeight = 26f,
+                    marginTop = 2f,
+                },
+            };
+
+            var child = new PopupField<string>(WithCurrentValue(childKeys, binding.SubtreeKey), binding.SubtreeKey)
+            {
+                tooltip = "子树键",
+            };
+            child.style.flexGrow = 1f;
+            child.RegisterValueChangedCallback(evt =>
+            {
+                _host.RecordChange();
+                binding.SubtreeKey = evt.newValue ?? "";
+                _host.RefreshNodeTitles();
+            });
+            row.Add(child);
+
+            row.Add(new Label("->")
+            {
+                style = { width = 28f, unityTextAlign = TextAnchor.MiddleCenter },
+            });
+
+            var parent = new PopupField<string>(WithCurrentValue(parentKeys, binding.ParentKey), binding.ParentKey)
+            {
+                tooltip = "父树键",
+            };
+            parent.style.flexGrow = 1f;
+            parent.RegisterValueChangedCallback(evt =>
+            {
+                _host.RecordChange();
+                binding.ParentKey = evt.newValue ?? "";
+                _host.RefreshNodeTitles();
+            });
+            row.Add(parent);
+
+            var remove = new Button(() =>
+            {
+                _host.RecordChange();
+                var current = node.SubtreeBlackboard;
+                if (current != null && index >= 0 && index < current.Bindings.Count)
+                    current.Bindings.RemoveAt(index);
+                Render(node);
+                _host.RefreshNodeTitles();
+            })
+            {
+                text = "-",
+                tooltip = "删除绑定",
+            };
+            remove.style.width = 28f;
+            row.Add(remove);
+            _root.Add(row);
+        }
+
+        private static SubtreeBlackboardConfiguration EnsureSubtreeBlackboard(NodeDefinition node)
+            => node.SubtreeBlackboard ??= new SubtreeBlackboardConfiguration();
+
+        private static List<string> WithCurrentValue(IEnumerable<string> source, string current)
+        {
+            var result = source.Where(value => !string.IsNullOrEmpty(value)).Distinct().ToList();
+            if (!string.IsNullOrEmpty(current) && !result.Contains(current)) result.Add(current);
+            if (result.Count == 0) result.Add(current ?? "");
+            return result;
+        }
+
+        private static string FirstUnusedKey(IEnumerable<string> choices, IEnumerable<string> used)
+        {
+            var usedSet = new HashSet<string>(used, StringComparer.Ordinal);
+            return choices.FirstOrDefault(key => !usedSet.Contains(key)) ?? "";
+        }
+
+        private static List<string> ResolveReferencedBlackboardKeys(NodeDefinition node)
+        {
+            if (!node.Properties.TryGet(SubtreeNode.TreeIdProperty, out var value)
+                || !value.TryGetString(out var treeId)
+                || string.IsNullOrEmpty(treeId))
+                return new List<string>();
+
+            foreach (var guid in AssetDatabase.FindAssets("t:AuthoringAsset"))
+            {
+                var asset = AssetDatabase.LoadAssetAtPath<AuthoringAsset>(AssetDatabase.GUIDToAssetPath(guid));
+                if (asset == null) continue;
+                var tree = asset.LoadDocument().Tree;
+                if (!string.Equals(tree.TreeId, treeId, StringComparison.Ordinal)) continue;
+                return tree.Blackboard.Keys.Select(key => key.Name).ToList();
+            }
+            return new List<string>();
         }
 
         private void DrawChildOrder(NodeDefinition parent)
@@ -570,17 +772,26 @@ namespace AbilityKit.BehaviorTree.Editor
         /// <summary>未选中节点时的树级面板：TreeId / 描述 / 黑板 schema 编辑。</summary>
         private void DrawTreePanel()
         {
-            _root.Add(new Label("Tree"));
-            _root.Add(new Label("（选中图上节点编辑其属性）") { style = { opacity = 0.6f } });
+            AddInspectorHeader(
+                string.IsNullOrWhiteSpace(_host.Document.Tree.TreeId)
+                    ? "行为树"
+                    : _host.Document.Tree.TreeId,
+                $"{_host.Document.Tree.Nodes.Count} 个节点  ·  " +
+                $"{_host.Document.Tree.Blackboard.Keys.Count} 个黑板键  ·  " +
+                $"{_host.Document.Groups.Count} 个分组");
 
             if (_host.IsReadOnly)
             {
-                _root.Add(new Label("TreeId: " + _host.Document.Tree.TreeId));
                 DrawRuntimeBlackboardPanel();
                 return;
             }
 
-            var treeIdField = new TextField("TreeId（=导出文件名）") { value = _host.Document.Tree.TreeId };
+            var treeIdField = new TextField("Tree ID")
+            {
+                value = _host.Document.Tree.TreeId,
+                isDelayed = true,
+                tooltip = "运行时 JSON 文件名",
+            };
             treeIdField.RegisterValueChangedCallback(evt =>
             {
                 _host.RecordChange();
@@ -589,7 +800,13 @@ namespace AbilityKit.BehaviorTree.Editor
             });
             _root.Add(treeIdField);
 
-            var descriptionField = new TextField("描述") { value = _host.Document.Metadata.Description };
+            var descriptionField = new TextField("描述")
+            {
+                value = _host.Document.Metadata.Description,
+                multiline = true,
+                isDelayed = true,
+            };
+            descriptionField.style.minHeight = 58f;
             descriptionField.RegisterValueChangedCallback(evt =>
             {
                 _host.RecordChange();
@@ -597,19 +814,26 @@ namespace AbilityKit.BehaviorTree.Editor
             });
             _root.Add(descriptionField);
 
-            _root.Add(new Label($"节点 {_host.Document.Tree.Nodes.Count} · 黑板 {_host.Document.Tree.Blackboard.Keys.Count} · 分组 {_host.Document.Groups.Count}")
-                { style = { opacity = 0.65f, paddingTop = 6f } });
-            _root.Add(new Label("Blackboard Schema") { style = { paddingTop = 8 } });
-            _root.Add(new Label("重命名会同步所有描述符声明的黑板 key 引用。")
-                { style = { opacity = 0.6f, whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal } });
+            AddSectionLabel("黑板");
 
             for (var i = 0; i < _host.Document.Tree.Blackboard.Keys.Count; i++)
             {
                 var index = i;
                 var oldName = _host.Document.Tree.Blackboard.Keys[index].Name;
-                var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+                var row = new VisualElement
+                {
+                    style =
+                    {
+                        flexDirection = FlexDirection.Row,
+                        alignItems = Align.Center,
+                        minHeight = 26f,
+                        marginBottom = 3f,
+                    },
+                };
 
                 var nameField = new TextField { value = oldName, isDelayed = true };
+                nameField.style.flexGrow = 1f;
+                nameField.style.minWidth = 90f;
                 nameField.RegisterValueChangedCallback(evt =>
                 {
                     var newName = evt.newValue;
@@ -630,11 +854,14 @@ namespace AbilityKit.BehaviorTree.Editor
                     {
                         Debug.LogWarning("[BtAuthoring] 黑板 key 重命名失败: " + ex.Message);
                     }
+                    _host.RefreshNodeTitles();
                     Render(_selectedNode);
                 });
                 row.Add(nameField);
 
                 var typeField = new EnumField(_host.Document.Tree.Blackboard.Keys[index].Type);
+                typeField.style.width = 82f;
+                typeField.style.marginLeft = 4f;
                 typeField.RegisterValueChangedCallback(evt =>
                 {
                     var nextType = (ValueType)evt.newValue;
@@ -654,8 +881,9 @@ namespace AbilityKit.BehaviorTree.Editor
                     if (impact.HasImpact)
                     {
                         Debug.LogWarning(
-                            $"[BtAuthoring] Blackboard key '{oldName}' type changed {impact.FromType} -> {impact.ToType}; {impact.Usages.Count} references need validation.");
+                            $"[BtAuthoring] 黑板键 '{oldName}' 的类型已从 {impact.FromType} 改为 {impact.ToType}；需要重新校验 {impact.Usages.Count} 处引用。");
                     }
+                    _host.RefreshNodeTitles();
                 });
                 row.Add(typeField);
 
@@ -663,7 +891,11 @@ namespace AbilityKit.BehaviorTree.Editor
                     _host.Document.Tree, EditorNodeCatalog.Registry, oldName).Count;
                 if (refCount > 0)
                 {
-                    row.Add(new Label(refCount + " 引用") { style = { opacity = 0.6f } });
+                    row.Add(new Label(refCount.ToString())
+                    {
+                        tooltip = refCount + " 处引用",
+                        style = { opacity = 0.6f, width = 24f, unityTextAlign = TextAnchor.MiddleCenter },
+                    });
                 }
 
                 var removeButton = new Button(() =>
@@ -674,7 +906,7 @@ namespace AbilityKit.BehaviorTree.Editor
                         ? $"确定删除黑板 Key '{oldName}'？"
                         : $"黑板 Key '{oldName}' 正被 {references.Count} 处节点属性引用。\n\n" +
                           "删除后这些引用会被清空，相关节点需要重新选择 Key。";
-                    if (!EditorUtility.DisplayDialog("删除 Blackboard Key", detail, "删除", "取消")) return;
+                    if (!EditorUtility.DisplayDialog("删除黑板键", detail, "删除", "取消")) return;
 
                     _host.RecordChange();
                     AuthoringMutationService.ClearBlackboardReferences(
@@ -682,13 +914,16 @@ namespace AbilityKit.BehaviorTree.Editor
                         EditorNodeCatalog.Registry,
                         oldName);
                     _host.Document.Tree.Blackboard.Keys.RemoveAt(index);
+                    _host.RefreshNodeTitles();
                     Render(_selectedNode);
-                }) { text = "-" };
+                }) { text = "-", tooltip = "删除黑板键" };
+                removeButton.style.width = 26f;
+                removeButton.style.marginLeft = 4f;
                 row.Add(removeButton);
                 _root.Add(row);
             }
 
-            _root.Add(new Button(() =>
+            var addKey = new Button(() =>
             {
                 _host.RecordChange();
                 _host.Document.Tree.Blackboard.Keys.Add(new BlackboardKeyDefinition
@@ -697,14 +932,28 @@ namespace AbilityKit.BehaviorTree.Editor
                     Type = ValueType.Int64,
                 });
                 Render(_selectedNode);
-            }) { text = "+ 添加 Key" });
+            }) { text = "添加黑板键" };
+            addKey.style.height = 24f;
+            addKey.style.marginTop = 3f;
+            _root.Add(addKey);
 
-            _root.Add(new Label("Groups") { style = { paddingTop = 8 } });
+            AddSectionLabel("分组");
             for (var i = 0; i < _host.Document.Groups.Count; i++)
             {
                 var index = i;
-                var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
+                var row = new VisualElement
+                {
+                    style =
+                    {
+                        flexDirection = FlexDirection.Row,
+                        alignItems = Align.Center,
+                        minHeight = 26f,
+                        marginBottom = 3f,
+                    },
+                };
                 var titleField = new TextField { value = _host.Document.Groups[index].Title, isDelayed = true };
+                titleField.style.flexGrow = 1f;
+                titleField.style.minWidth = 90f;
                 titleField.RegisterValueChangedCallback(evt =>
                 {
                     _host.RecordChange();
@@ -713,15 +962,71 @@ namespace AbilityKit.BehaviorTree.Editor
                 });
                 row.Add(titleField);
                 row.Add(new Label(_host.Document.Groups[index].NodeIds.Count + " 节点")
-                    { style = { opacity = 0.5f } });
-                row.Add(new Button(() =>
+                    { style = { opacity = 0.5f, width = 52f, unityTextAlign = TextAnchor.MiddleCenter } });
+                var removeGroup = new Button(() =>
                 {
                     _host.RecordChange();
                     _host.Document.Groups.RemoveAt(index);
                     _host.RebuildGraph();
-                }) { text = "-" });
+                }) { text = "-", tooltip = "删除分组" };
+                removeGroup.style.width = 26f;
+                row.Add(removeGroup);
                 _root.Add(row);
             }
+        }
+
+        private void AddInspectorHeader(string title, string subtitle)
+        {
+            _root.Add(new Label(title)
+            {
+                tooltip = title,
+                style =
+                {
+                    fontSize = 16f,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    whiteSpace = WhiteSpace.Normal,
+                    marginBottom = 2f,
+                },
+            });
+            _root.Add(new Label(subtitle)
+            {
+                tooltip = subtitle,
+                style =
+                {
+                    opacity = 0.62f,
+                    fontSize = 10f,
+                    whiteSpace = WhiteSpace.Normal,
+                    marginBottom = 8f,
+                },
+            });
+        }
+
+        private void AddSectionLabel(string title)
+        {
+            _root.Add(new Label(title)
+            {
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    marginTop = 12f,
+                    marginBottom = 5f,
+                    paddingBottom = 3f,
+                    borderBottomWidth = 1f,
+                    borderBottomColor = new Color(0.3f, 0.3f, 0.3f),
+                },
+            });
+        }
+
+        private static string NodeKindLabel(NodeKind kind)
+        {
+            return kind switch
+            {
+                NodeKind.Composite => "组合",
+                NodeKind.Decorator => "装饰",
+                NodeKind.Condition => "条件",
+                NodeKind.Action => "动作",
+                _ => "节点",
+            };
         }
 
         private static PropertyValue DefaultOf(ValueType type) => type switch

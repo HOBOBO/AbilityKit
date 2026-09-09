@@ -14,6 +14,8 @@ namespace AbilityKit.HFSM.Graph.Compilation
             string parentMachineId,
             string defaultChildNodeId,
             bool rememberLastState,
+            bool needsExitTime,
+            bool isGhostState,
             IReadOnlyList<string> childNodeIds,
             IReadOnlyList<TransitionProgram> transitions)
             : base(sourceNodeId, runtimeName)
@@ -21,6 +23,8 @@ namespace AbilityKit.HFSM.Graph.Compilation
             ParentMachineId = parentMachineId ?? string.Empty;
             DefaultChildNodeId = defaultChildNodeId ?? string.Empty;
             RememberLastState = rememberLastState;
+            NeedsExitTime = needsExitTime;
+            IsGhostState = isGhostState;
             ChildNodeIds = childNodeIds == null
                 ? Array.Empty<string>()
                 : new ReadOnlyCollection<string>(new List<string>(childNodeIds));
@@ -32,6 +36,8 @@ namespace AbilityKit.HFSM.Graph.Compilation
         public string ParentMachineId { get; }
         public string DefaultChildNodeId { get; }
         public bool RememberLastState { get; }
+        public bool NeedsExitTime { get; }
+        public bool IsGhostState { get; }
         public IReadOnlyList<string> ChildNodeIds { get; }
         public IReadOnlyList<TransitionProgram> Transitions { get; }
     }

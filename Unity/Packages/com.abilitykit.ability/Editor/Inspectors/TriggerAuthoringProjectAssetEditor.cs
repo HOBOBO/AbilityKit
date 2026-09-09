@@ -39,15 +39,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void DrawCatalogs()
         {
-            SirenixEditorGUI.BeginBox("Catalogs");
+            SirenixEditorGUI.BeginBox("目录");
             using (var scope = new EditorGUI.ChangeCheckScope())
             {
                 EditorGUILayout.PropertyField(
-                    serializedObject.FindProperty("_eventCatalog"), new GUIContent("Event Catalog"));
+                    serializedObject.FindProperty("_eventCatalog"), new GUIContent("事件目录"));
                 EditorGUILayout.PropertyField(
-                    serializedObject.FindProperty("_globalBlackboardCatalog"), new GUIContent("Global Blackboard Catalog"));
+                    serializedObject.FindProperty("_globalBlackboardCatalog"), new GUIContent("全局黑板目录"));
                 EditorGUILayout.PropertyField(
-                    serializedObject.FindProperty("_templateCatalog"), new GUIContent("Template Catalog"));
+                    serializedObject.FindProperty("_templateCatalog"), new GUIContent("模板目录"));
                 if (scope.changed) serializedObject.ApplyModifiedProperties();
             }
             SirenixEditorGUI.EndBox();
@@ -56,7 +56,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private void DrawModules()
         {
             var modules = _asset.Modules;
-            SirenixEditorGUI.BeginBox($"Modules ({modules.Count})");
+            SirenixEditorGUI.BeginBox($"模块（{modules.Count}）");
 
             for (var i = 0; i < modules.Count; i++)
             {
@@ -65,7 +65,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 if (module == null)
                 {
-                    GUILayout.Label("<missing module reference>", EditorStyles.miniBoldLabel);
+                    GUILayout.Label("<模块引用缺失>", EditorStyles.miniBoldLabel);
                 }
                 else
                 {
@@ -75,14 +75,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     GUILayout.Label(summary, EditorStyles.miniBoldLabel);
                     GUILayout.FlexibleSpace();
                     GUILayout.Label(
-                        module.Module != null ? module.Module.Kind.ToString() : string.Empty,
+                        module.Module != null ? TriggerAuthoringEditorLabels.ModuleKind(module.Module.Kind) : string.Empty,
                         EditorStyles.miniLabel,
                         GUILayout.Width(76f));
                     GUILayout.Label(
-                        (module.Module != null && module.Module.Triggers != null ? module.Module.Triggers.Count : 0) + " triggers",
+                        (module.Module != null && module.Module.Triggers != null ? module.Module.Triggers.Count : 0) + " 个触发器",
                         EditorStyles.miniLabel,
                         GUILayout.Width(70f));
-                    if (SirenixEditorGUI.ToolbarButton(new GUIContent("Open", "Select this module asset")))
+                    if (SirenixEditorGUI.ToolbarButton(new GUIContent("打开", "选择并定位此模块资产")))
                     {
                         Selection.activeObject = module;
                         EditorGUIUtility.PingObject(module);
@@ -96,10 +96,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
             GUILayout.Space(2f);
             EditorGUILayout.BeginHorizontal();
             var added = (TriggerAuthoringModuleAsset)EditorGUILayout.ObjectField(
-                "Add Existing", null, typeof(TriggerAuthoringModuleAsset), false);
+                "添加现有模块", null, typeof(TriggerAuthoringModuleAsset), false);
             if (added != null)
                 AddExistingModule(added);
-            if (GUILayout.Button(new GUIContent("Create", "Create a new module asset and register it in this project"), EditorStyles.miniButton, GUILayout.Width(52f)))
+            if (GUILayout.Button(new GUIContent("创建", "创建新模块资产并注册到当前项目"), EditorStyles.miniButton, GUILayout.Width(52f)))
                 CreateModule();
             EditorGUILayout.EndHorizontal();
 
@@ -108,7 +108,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void DrawRuntimeExport()
         {
-            SirenixEditorGUI.BeginBox("Runtime Export");
+            SirenixEditorGUI.BeginBox("运行时导出");
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("output-root"), GUILayout.Width(78f));
             var root = EditorGUILayout.TextField(_asset.RuntimeOutputRoot ?? string.Empty);
@@ -116,7 +116,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             {
                 var resolved = TriggerAuthoringProjectExport.ResolveOutputRoot(root);
                 var picked = EditorUtility.OpenFolderPanel(
-                    "Choose Runtime Output Root",
+                    "选择运行时输出根目录",
                     string.IsNullOrEmpty(resolved) ? Application.dataPath : resolved,
                     string.Empty);
                 if (!string.IsNullOrWhiteSpace(picked)) root = MakeRelativeIfInsideProject(picked);
@@ -124,7 +124,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.EndHorizontal();
             if (!string.Equals(root, _asset.RuntimeOutputRoot ?? string.Empty, StringComparison.Ordinal))
             {
-                Undo.RecordObject(_asset, "Set Runtime Output Root");
+                Undo.RecordObject(_asset, "设置运行时输出目录");
                 _asset.SetRuntimeOutputRoot(root);
                 EditorUtility.SetDirty(_asset);
             }
@@ -135,10 +135,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 var message = "[TriggerAuthoring] Project '" + _asset.name + "' runtime export: " + result.BuildMessage();
                 if (result.Success) Debug.Log(message, _asset);
                 else Debug.LogError(message, _asset);
-                EditorUtility.DisplayDialog("Project Runtime Export", result.BuildMessage(), "OK");
+                EditorUtility.DisplayDialog("项目运行时导出", result.BuildMessage(), "确定");
             }
             EditorGUILayout.HelpBox(
-                "Runs the full project gate before writing. Emits {moduleId}.runtime.json; the runtime loads the directory with merge-override.",
+                "写入前会执行完整的项目构建门禁。每个模块输出为 {moduleId}.runtime.json，运行时会以合并覆盖方式加载此目录。",
                 MessageType.None);
             SirenixEditorGUI.EndBox();
         }
@@ -155,15 +155,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void DrawValidation()
         {
-            SirenixEditorGUI.BeginBox("Validation");
+            SirenixEditorGUI.BeginBox("校验");
             EditorGUILayout.BeginHorizontal();
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Validate Project", "Run the full project build gate validation")))
+            if (SirenixEditorGUI.ToolbarButton(new GUIContent("校验项目", "执行完整的项目构建门禁校验")))
             {
                 var result = TriggerAuthoringProjectValidator.Validate(_asset);
                 var message = "[TriggerAuthoring] Project '" + _asset.name + "' validation: " + result.BuildMessage();
                 if (result.Success) Debug.Log(message, _asset);
                 else Debug.LogError(message, _asset);
-                EditorUtility.DisplayDialog("Trigger Authoring Project Validation", result.BuildMessage(), "OK");
+                EditorUtility.DisplayDialog("触发器项目校验", result.BuildMessage(), "确定");
             }
             EditorGUILayout.EndHorizontal();
             SirenixEditorGUI.EndBox();
@@ -172,10 +172,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private void RemoveModuleAt(int index)
         {
             var module = index >= 0 && index < _asset.Modules.Count ? _asset.Modules[index] : null;
-            Undo.RecordObject(_asset, "Remove Trigger Authoring Module");
+            Undo.RecordObject(_asset, "移除触发器模块");
             if (module != null)
             {
-                Undo.RecordObject(module, "Remove Trigger Authoring Module");
+                Undo.RecordObject(module, "移除触发器模块");
                 TriggerAuthoringProjectMembership.Detach(module);
                 EditorUtility.SetDirty(module);
             }
@@ -189,8 +189,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private void AddExistingModule(TriggerAuthoringModuleAsset module)
         {
             if (module == null) return;
-            Undo.RecordObject(_asset, "Add Trigger Authoring Module");
-            Undo.RecordObject(module, "Add Trigger Authoring Module");
+            Undo.RecordObject(_asset, "添加触发器模块");
+            Undo.RecordObject(module, "添加触发器模块");
             TriggerAuthoringProjectMembership.Assign(module, _asset);
             EditorUtility.SetDirty(_asset);
             EditorUtility.SetDirty(module);
@@ -203,10 +203,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 ? "Assets"
                 : Path.GetDirectoryName(projectPath)?.Replace('\\', '/') ?? "Assets";
             var path = EditorUtility.SaveFilePanelInProject(
-                "Create Trigger Authoring Module",
+                "创建触发器模块",
                 "TriggerAuthoringModule",
                 "asset",
-                "Choose where to create the module asset.",
+                "请选择模块资产的创建位置。",
                 projectDirectory);
             if (string.IsNullOrWhiteSpace(path)) return;
 

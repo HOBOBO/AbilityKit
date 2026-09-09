@@ -57,6 +57,7 @@ namespace AbilityKit.Game.Editor
     internal static class BattleDebugWidgetIds
     {
         public const string EventsOverview = "diagnostics.events.overview";
+        public const string EventsTriggerFlow = "diagnostics.events.trigger-flow";
         public const string EventsList = "diagnostics.events.list";
         public const string EventsDetails = "diagnostics.events.details";
         public const string TraceTree = "diagnostics.trace.tree";
@@ -258,6 +259,13 @@ namespace AbilityKit.Game.Editor
                 BattleDebugWidgetIds.EventsList,
                 BattleDebugModuleIds.DiagnosticTrace,
                 BattleDebugWidgetIds.TraceWaterfall),
+            new BattleDebugWorkspacePreset(
+                "trigger-investigation",
+                "触发调查",
+                BattleDebugModuleIds.DiagnosticEvents,
+                BattleDebugWidgetIds.EventsTriggerFlow,
+                BattleDebugModuleIds.DiagnosticEvents,
+                BattleDebugWidgetIds.EventsDetails),
             new BattleDebugWorkspacePreset(
                 "runtime-integrity",
                 "对象完整性",

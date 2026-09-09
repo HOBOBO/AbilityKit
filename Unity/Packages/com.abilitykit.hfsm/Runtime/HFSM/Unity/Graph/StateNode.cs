@@ -12,6 +12,7 @@ using Vector2 = UnityEngine.Vector2;
 #endif
 
 using AbilityKit.HFSM;
+using AbilityKit.HFSM.Definition;
 
 namespace AbilityKit.HFSM.Graph
 {
@@ -29,6 +30,12 @@ namespace AbilityKit.HFSM.Graph
 
         [SerializeField]
         private string _nextBehaviorKey;
+
+        [SerializeField]
+        private List<string> _nextParallelBehaviorKeys = new List<string>();
+
+        [SerializeField]
+        private ParallelExitPolicy _nextParallelExitPolicy = ParallelExitPolicy.Any;
 
         [SerializeField]
         private List<string> _entryActionMethodNames = new List<string>();
@@ -69,6 +76,16 @@ namespace AbilityKit.HFSM.Graph
         {
             get => _nextBehaviorKey;
             set => _nextBehaviorKey = value ?? string.Empty;
+        }
+
+        public IReadOnlyList<string> NextParallelBehaviorKeys => _nextParallelBehaviorKeys;
+
+        public List<string> NextParallelBehaviorKeysInternal => _nextParallelBehaviorKeys;
+
+        public ParallelExitPolicy NextParallelExitPolicy
+        {
+            get => _nextParallelExitPolicy;
+            set => _nextParallelExitPolicy = value;
         }
 
         public IReadOnlyList<string> EntryActionMethodNames => _entryActionMethodNames;
@@ -289,6 +306,8 @@ namespace AbilityKit.HFSM.Graph
             clone._needsExitTime = _needsExitTime;
             clone._isGhostState = _isGhostState;
             clone._nextBehaviorKey = _nextBehaviorKey;
+            clone._nextParallelBehaviorKeys = new List<string>(_nextParallelBehaviorKeys);
+            clone._nextParallelExitPolicy = _nextParallelExitPolicy;
             clone._entryActionMethodNames = new List<string>(_entryActionMethodNames);
             clone._logicActionMethodNames = new List<string>(_logicActionMethodNames);
             clone._exitActionMethodNames = new List<string>(_exitActionMethodNames);

@@ -24,6 +24,12 @@ namespace AbilityKit.HFSM.Graph.Descriptor
         /// <summary>是否有行为定义</summary>
         bool HasBehaviors { get; }
 
+        string NextBehaviorKey { get; }
+
+        IReadOnlyList<string> GetNextParallelBehaviorKeys();
+
+        AbilityKit.HFSM.Definition.ParallelExitPolicy NextParallelExitPolicy { get; }
+
         // 方法访问
         IReadOnlyList<string> GetEntryActionMethodNames();
         IReadOnlyList<string> GetLogicActionMethodNames();

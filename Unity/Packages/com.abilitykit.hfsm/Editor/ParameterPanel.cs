@@ -12,7 +12,7 @@ namespace AbilityKit.HFSM.Editor
     {
         private EditorContext _context;
         private Vector2 _scrollPosition;
-        private string _newParameterName = "New Parameter";
+        private string _newParameterName = "新参数";
         private ParameterValueType _newParameterType = ParameterValueType.Bool;
 
         public void Initialize(EditorContext context)
@@ -24,21 +24,24 @@ namespace AbilityKit.HFSM.Editor
         {
             if (_context == null || _context.GraphAsset == null)
             {
-                EditorGUILayout.HelpBox("No graph loaded.", MessageType.Info);
+                EditorGUILayout.HelpBox("尚未加载状态机图。", MessageType.Info);
                 return;
             }
 
             EditorGUILayout.Space(5);
 
             // Header
-            EditorGUILayout.LabelField("Parameters", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("参数", EditorStyles.boldLabel);
             EditorGUILayout.Space(3);
 
             // Add new parameter section
             EditorGUILayout.BeginHorizontal();
             _newParameterName = EditorGUILayout.TextField(_newParameterName, GUILayout.Width(130));
 
-            _newParameterType = (ParameterValueType)EditorGUILayout.EnumPopup(_newParameterType, GUILayout.Width(80));
+            _newParameterType = (ParameterValueType)EditorGUILayout.Popup(
+                (int)_newParameterType,
+                new[] { "布尔", "浮点", "整数", "触发器" },
+                GUILayout.Width(80));
 
             if (GUILayout.Button("+", GUILayout.Width(25)))
             {
@@ -61,7 +64,7 @@ namespace AbilityKit.HFSM.Editor
 
             if (parameters.Count == 0)
             {
-                EditorGUILayout.HelpBox("No parameters defined. Add parameters to use in transition conditions.", MessageType.None);
+                EditorGUILayout.HelpBox("暂无参数。添加参数后可在转换条件中使用。", MessageType.None);
             }
         }
 
@@ -74,7 +77,7 @@ namespace AbilityKit.HFSM.Editor
             string newName = EditorGUILayout.TextField(parameter.Name, GUILayout.Width(150));
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(_context.GraphAsset, "Rename Parameter");
+                Undo.RecordObject(_context.GraphAsset, "重命名参数");
                 parameter.Name = newName;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -87,7 +90,7 @@ namespace AbilityKit.HFSM.Editor
             GUILayout.FlexibleSpace();
 
             // Delete button
-            if (GUILayout.Button("X", GUILayout.Width(20)))
+            if (GUILayout.Button(new GUIContent("X", "删除参数"), GUILayout.Width(20)))
             {
                 DeleteParameter(parameter);
             }
@@ -113,7 +116,7 @@ namespace AbilityKit.HFSM.Editor
                     intValue = EditorGUILayout.IntField(intValue, GUILayout.Width(60));
                     break;
                 case ParameterValueType.Trigger:
-                    EditorGUILayout.LabelField("false", EditorStyles.miniLabel, GUILayout.Width(45));
+                    EditorGUILayout.LabelField("假", EditorStyles.miniLabel, GUILayout.Width(45));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
@@ -121,7 +124,7 @@ namespace AbilityKit.HFSM.Editor
 
             if (EditorGUI.EndChangeCheck())
             {
-                Undo.RecordObject(_context.GraphAsset, "Change Parameter Default");
+                Undo.RecordObject(_context.GraphAsset, "修改参数默认值");
                 parameter.DefaultBoolValue = boolValue;
                 parameter.DefaultFloatValue = floatValue;
                 parameter.DefaultIntValue = intValue;
@@ -133,10 +136,10 @@ namespace AbilityKit.HFSM.Editor
         {
             return type switch
             {
-                ParameterValueType.Bool => "Bool",
-                ParameterValueType.Float => "Float",
-                ParameterValueType.Int => "Int",
-                ParameterValueType.Trigger => "Trigger",
+                ParameterValueType.Bool => "布尔",
+                ParameterValueType.Float => "浮点",
+                ParameterValueType.Int => "整数",
+                ParameterValueType.Trigger => "触发器",
                 _ => type.ToString()
             };
         }
@@ -145,7 +148,7 @@ namespace AbilityKit.HFSM.Editor
         {
             if (string.IsNullOrWhiteSpace(_newParameterName))
             {
-                EditorUtility.DisplayDialog("Error", "Please enter a parameter name.", "OK");
+                EditorUtility.DisplayDialog("错误", "请输入参数名称。", "确定");
                 return;
             }
 
@@ -154,27 +157,27 @@ namespace AbilityKit.HFSM.Editor
             {
                 if (param.Name == _newParameterName)
                 {
-                    EditorUtility.DisplayDialog("Error", "A parameter with this name already exists.", "OK");
+                    EditorUtility.DisplayDialog("错误", "已存在同名参数。", "确定");
                     return;
                 }
             }
 
-            Undo.RecordObject(_context.GraphAsset, "Add Parameter");
+            Undo.RecordObject(_context.GraphAsset, "添加参数");
             var parameter = new Parameter(_newParameterName, _newParameterType);
             _context.GraphAsset.AddParameter(parameter);
             EditorUtility.SetDirty(_context.GraphAsset);
 
             // Reset and increment name for next parameter
-            _newParameterName = "New Parameter_" + (_context.GraphAsset.Parameters.Count + 1);
+            _newParameterName = "新参数_" + (_context.GraphAsset.Parameters.Count + 1);
         }
 
         private void DeleteParameter(Parameter parameter)
         {
-            if (EditorUtility.DisplayDialog("Delete Parameter",
-                $"Are you sure you want to delete the parameter '{parameter.Name}'?",
-                "Delete", "Cancel"))
+            if (EditorUtility.DisplayDialog("删除参数",
+                $"确定要删除参数“{parameter.Name}”吗？",
+                "删除", "取消"))
             {
-                Undo.RecordObject(_context.GraphAsset, "Delete Parameter");
+                Undo.RecordObject(_context.GraphAsset, "删除参数");
                 _context.GraphAsset.RemoveParameter(parameter);
                 EditorUtility.SetDirty(_context.GraphAsset);
             }

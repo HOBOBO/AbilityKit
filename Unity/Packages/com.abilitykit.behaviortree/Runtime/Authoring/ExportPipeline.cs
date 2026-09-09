@@ -136,7 +136,7 @@ namespace AbilityKit.BehaviorTree.Authoring
             {
                 return new List<ExportReportEntry>
                 {
-                    new("<manifest>", "<none>", ExportStatus.Error, "Manifest is null."),
+                    new("<manifest>", "<none>", ExportStatus.Error, "项目清单为空。"),
                 };
             }
 

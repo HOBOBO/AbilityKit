@@ -63,7 +63,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Extensions
         public InspectorSection(string title, Func<VisualElement> build, int order = 0)
         {
             Title = string.IsNullOrWhiteSpace(title)
-                ? throw new ArgumentException("A section title is required.", nameof(title))
+                ? throw new ArgumentException("区块标题不能为空。", nameof(title))
                 : title;
             Build = build ?? throw new ArgumentNullException(nameof(build));
             Order = order;
@@ -124,7 +124,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Extensions
             string? typeId = null)
         {
             FieldName = string.IsNullOrWhiteSpace(fieldName)
-                ? throw new ArgumentException("A field name is required.", nameof(fieldName))
+                ? throw new ArgumentException("字段名不能为空。", nameof(fieldName))
                 : fieldName;
             CreateEditor = createEditor ?? throw new ArgumentNullException(nameof(createEditor));
             TypeId = typeId ?? "";

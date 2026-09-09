@@ -41,7 +41,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -132,7 +132,7 @@ namespace AbilityKit.Game.Editor
             }
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.LabelField(
-                $"属性 {_viewModel.Attributes.Count} · 修改器 {_viewModel.Modifiers.Count} · Revision {_viewModel.StoreRevision}",
+                $"属性 {_viewModel.Attributes.Count} · 修改器 {_viewModel.Modifiers.Count} · 版本 {_viewModel.StoreRevision}",
                 EditorStyles.miniLabel);
         }
 
@@ -150,7 +150,7 @@ namespace AbilityKit.Game.Editor
             in BattleDiagnosticActorAttribute attribute)
         {
             var displayName = string.IsNullOrEmpty(attribute.Name)
-                ? $"Attribute {attribute.AttributeId}"
+                ? $"属性 {attribute.AttributeId}"
                 : $"{attribute.Name} ({attribute.AttributeId})";
             var expanded = _expandedAttributes.TryGetValue(attribute.AttributeId, out var saved)
                 ? saved
@@ -221,7 +221,7 @@ namespace AbilityKit.Game.Editor
                 EditorStyles.miniBoldLabel,
                 GUILayout.Width(100));
             EditorGUILayout.LabelField(
-                $"Op={modifier.Operation} · Priority {modifier.Priority} · MagnitudeType {modifier.MagnitudeType}",
+                $"操作={modifier.Operation} · 优先级 {modifier.Priority} · 数值类型 {modifier.MagnitudeType}",
                 EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
 
@@ -233,7 +233,7 @@ namespace AbilityKit.Game.Editor
                 var name = string.IsNullOrEmpty(buff.Name) ? $"Buff {buff.BuffId}" : buff.Name;
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField(
-                    $"来源: {name} ({buff.BuffId}) · Actor #{buff.SourceActorId} · Stack {buff.StackCount}",
+                    $"来源：{name} ({buff.BuffId}) · Actor #{buff.SourceActorId} · 层数 {buff.StackCount}",
                     EditorStyles.miniLabel);
                 EditorGUI.BeginDisabledGroup(ctx.OpenConfig == null);
                 if (GUILayout.Button("配置", EditorStyles.miniButton, GUILayout.Width(44)))
@@ -243,15 +243,15 @@ namespace AbilityKit.Game.Editor
                 EditorGUI.EndDisabledGroup();
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.LabelField(
-                    $"SourceId {modifier.SourceId} · SourceContext {buff.SourceContextId} · RootContext {buff.RootContextId}",
+                    $"来源 ID {modifier.SourceId} · 来源上下文 {buff.SourceContextId} · 根上下文 {buff.RootContextId}",
                     EditorStyles.miniLabel);
             }
             else
             {
                 EditorGUILayout.LabelField(
                     modifier.SourceId == 0
-                        ? "来源: 未提供 SourceId"
-                        : $"来源: 未解析的运行时来源 · SourceId {modifier.SourceId}",
+                        ? "来源：未提供来源 ID"
+                        : $"来源：未解析的运行时来源 · 来源 ID {modifier.SourceId}",
                     EditorStyles.miniLabel);
             }
             EditorGUILayout.EndVertical();
@@ -263,13 +263,13 @@ namespace AbilityKit.Game.Editor
             if (!modifier.HasExplanation)
             {
                 EditorGUILayout.LabelField(
-                    "Explain: 未采集（运行时服务不可用或旧 Artifact）",
+                    "计算说明：未采集（运行时服务不可用或旧 Artifact）",
                     EditorStyles.centeredGreyMiniLabel);
                 return;
             }
 
             EditorGUILayout.LabelField(
-                $"声明值 {modifier.DeclaredValue:0.#####} · 叠层值 {modifier.StackedValue:0.#####} · Stack {modifier.StackCount}",
+                $"声明值 {modifier.DeclaredValue:0.#####} · 叠层值 {modifier.StackedValue:0.#####} · 层数 {modifier.StackCount}",
                 EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
                 $"投影值 {modifier.ProjectedValue:0.#####} · 当前计算值 {FormatOptionalValue(modifier.CurrentValue, modifier.HasCurrentValue)} · 捕获值 {FormatOptionalValue(modifier.CapturedValue, modifier.HasCapturedValue)}",
@@ -287,7 +287,7 @@ namespace AbilityKit.Game.Editor
 
         private static string FormatOptionalValue(float value, bool hasValue)
         {
-            return hasValue ? value.ToString("0.#####") : "N/A";
+            return hasValue ? value.ToString("0.#####") : "不适用";
         }
 
         private static string ResolveEvaluationPolicy(int evaluationPolicy)
@@ -295,17 +295,17 @@ namespace AbilityKit.Game.Editor
             switch (evaluationPolicy)
             {
                 case 0:
-                    return "Realtime";
+                    return "实时计算";
                 case 1:
-                    return "OnApplySnapshot";
+                    return "应用时快照";
                 default:
-                    return $"Unknown({evaluationPolicy})";
+                    return $"未知（{evaluationPolicy}）";
             }
         }
 
         private static string ResolveCaptureMode(string captureMode)
         {
-            return string.IsNullOrEmpty(captureMode) ? "N/A" : captureMode;
+            return string.IsNullOrEmpty(captureMode) ? "不适用" : captureMode;
         }
 
         private static string ResolveOperationSymbol(int operation)

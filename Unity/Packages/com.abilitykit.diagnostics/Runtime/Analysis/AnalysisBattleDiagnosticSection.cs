@@ -122,6 +122,13 @@ namespace AbilityKit.Diagnostics.Analysis
         public int TriggerCurrentSameTriggerCount { get; set; }
         public string TriggerFailureKey { get; set; } = string.Empty;
         public string TriggerReason { get; set; } = string.Empty;
+        public int TriggerAggregateOccurrenceCount { get; set; }
+        public int TriggerAggregateFirstFrame { get; set; }
+        public int TriggerAggregateLastFrame { get; set; }
+        public long TriggerAggregateFirstContextId { get; set; }
+        public long TriggerAggregateLastContextId { get; set; }
+        public long TriggerAggregateFirstRootContextId { get; set; }
+        public long TriggerAggregateLastRootContextId { get; set; }
         public int SkillFailureSlot { get; set; }
         public string SkillFailureSource { get; set; } = string.Empty;
         public int BuffLifecycleStage { get; set; }

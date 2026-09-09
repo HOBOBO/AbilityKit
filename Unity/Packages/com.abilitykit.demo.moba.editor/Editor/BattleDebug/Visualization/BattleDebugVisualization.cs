@@ -166,9 +166,9 @@ namespace AbilityKit.Game.Editor
                     new GUIContent(
                         string.Empty,
                     enableZoomAndPan
-                        ? "Click to select a frame. Drag to select a range. " +
-                          "Use the wheel to zoom; Alt+drag or middle-drag to pan."
-                        : "Click to select a frame or drag to select a range."));
+                        ? "单击选择一帧，拖动选择帧范围。" +
+                          "滚轮缩放；Alt+拖动或中键拖动平移。"
+                        : "单击选择一帧，或拖动选择帧范围。"));
             }
 
             if (_activeControlId == controlId && currentEvent.type == EventType.Repaint)
@@ -409,10 +409,10 @@ namespace AbilityKit.Game.Editor
             var visibleCount = CountIntersecting(items, visibleRange);
             var totalCount = items?.Count ?? 0;
             var context = intersection.IsValid
-                ? $"Loaded F{loadedRange.FirstFrame}-F{loadedRange.LastFrame}  |  " +
-                  $"View {visiblePercent:0.#}%  |  Visible {visibleCount}/{totalCount}"
-                : $"Loaded F{loadedRange.FirstFrame}-F{loadedRange.LastFrame}  |  " +
-                  $"Current range is outside loaded data  |  Visible 0/{totalCount}";
+                ? $"已加载 F{loadedRange.FirstFrame}-F{loadedRange.LastFrame}  |  " +
+                  $"视图 {visiblePercent:0.#}%  |  可见 {visibleCount}/{totalCount}"
+                : $"已加载 F{loadedRange.FirstFrame}-F{loadedRange.LastFrame}  |  " +
+                  $"当前范围在已加载数据之外  |  可见 0/{totalCount}";
             GUI.Label(
                 new Rect(controlRect.x, plotRect.yMax + 2f, controlRect.width, 18f),
                 context,
@@ -433,7 +433,7 @@ namespace AbilityKit.Game.Editor
             out int peak)
         {
             if (!loadedRange.IsValid)
-                throw new ArgumentException("A valid loaded range is required.", nameof(loadedRange));
+                throw new ArgumentException("需要有效的已加载帧范围。", nameof(loadedRange));
             if (counts == null) throw new ArgumentNullException(nameof(counts));
             if (binCount <= 0 || binCount > counts.Length)
                 throw new ArgumentOutOfRangeException(nameof(binCount));
@@ -587,7 +587,7 @@ namespace AbilityKit.Game.Editor
             if (!visibleRange.IsValid || series == null || series.Count == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "No valid frame range is available for this chart.",
+                    "此图表没有可用的有效帧范围。",
                     MessageType.Info);
                 return default;
             }
@@ -690,7 +690,7 @@ namespace AbilityKit.Game.Editor
             var labelRect = new Rect(chartRect.x, plotRect.yMax + 3f, chartRect.width, 18f);
             GUI.Label(
                 labelRect,
-                $"F{visibleRange.FirstFrame}  ->  F{visibleRange.LastFrame}    Peak {maxBinTotal}/bin",
+                $"F{visibleRange.FirstFrame}  ->  F{visibleRange.LastFrame}    峰值 {maxBinTotal}/区间",
                 EditorStyles.miniLabel);
             return interaction;
         }
@@ -700,7 +700,7 @@ namespace AbilityKit.Game.Editor
             BattleDiagnosticFrameRange range,
             int binCount)
         {
-            if (!range.IsValid) throw new ArgumentException("A valid range is required.", nameof(range));
+            if (!range.IsValid) throw new ArgumentException("需要有效的帧范围。", nameof(range));
             if (!range.Contains(frame)) throw new ArgumentOutOfRangeException(nameof(frame));
             if (binCount <= 0) throw new ArgumentOutOfRangeException(nameof(binCount));
 
@@ -716,7 +716,7 @@ namespace AbilityKit.Game.Editor
             int total,
             IReadOnlyList<BattleDebugHistogramSeries> series)
         {
-            var tooltip = $"F{binStart}-F{binEnd}: {total}";
+            var tooltip = $"F{binStart}-F{binEnd}：{total}";
             for (var i = 0; i < series.Count; i++)
             {
                 tooltip += $"\n{series[i].Label}={series[i].Counts[bin]}";
@@ -788,7 +788,7 @@ namespace AbilityKit.Game.Editor
             if (!visibleRange.IsValid || items == null || items.Count == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "No trace spans intersect the current frame range.",
+                    "没有 Trace 跨度与当前帧范围相交。",
                     MessageType.Info);
                 return default;
             }
@@ -797,7 +797,7 @@ namespace AbilityKit.Game.Editor
             EditorGUI.DrawRect(rulerRect, new Color(0f, 0f, 0f, 0.12f));
             GUI.Label(
                 new Rect(rulerRect.x, rulerRect.y, labelWidth - 2f, rulerRect.height),
-                "Node",
+                "节点",
                 EditorStyles.miniBoldLabel);
             var rulerTimelineRect = new Rect(
                 rulerRect.x + labelWidth,
@@ -894,14 +894,14 @@ namespace AbilityKit.Game.Editor
             if (visibleItemCount == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "No trace spans intersect the current shared frame range. " +
-                    "Use the overview to select a loaded range.",
+                    "没有 Trace 跨度与当前共享帧范围相交。" +
+                    "请在概览中选择已加载的范围。",
                     MessageType.Info);
             }
             else if (visibleItemCount > rowLimit)
             {
                 EditorGUILayout.HelpBox(
-                    $"Waterfall is limited to the first {rowLimit} of {visibleItemCount} visible nodes.",
+                    $"瀑布图仅显示 {visibleItemCount} 个可见节点中的前 {rowLimit} 个。",
                     MessageType.Info);
             }
             return new BattleDebugWaterfallDrawResult(clickedId, timelineInteraction);
@@ -974,8 +974,8 @@ namespace AbilityKit.Game.Editor
         private const int DefaultFocusRadius = 60;
         private static readonly GUIContent[] ModeLabels =
         {
-            new GUIContent("Auto", "Use the complete range exposed by each visualization."),
-            new GUIContent("Fixed", "Use one shared frame range across diagnostics widgets.")
+            new GUIContent("自动", "使用各可视化提供的完整范围。"),
+            new GUIContent("固定", "在所有诊断组件之间使用同一个共享帧范围。")
         };
 
         public static void Draw(
@@ -993,7 +993,7 @@ namespace AbilityKit.Game.Editor
 
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label(
-                "Shared Range",
+                "共享范围",
                 EditorStyles.miniBoldLabel,
                 GUILayout.Width(78f));
             DrawHistoryButtons(workspaceState, requestRepaint);
@@ -1010,7 +1010,7 @@ namespace AbilityKit.Game.Editor
             Action requestRepaint)
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Range", EditorStyles.miniBoldLabel, GUILayout.Width(36f));
+            GUILayout.Label("范围", EditorStyles.miniBoldLabel, GUILayout.Width(36f));
             DrawHistoryButtons(workspaceState, requestRepaint, 20f);
             DrawMode(workspaceState, 76f, requestRepaint);
             GUILayout.FlexibleSpace();
@@ -1032,7 +1032,7 @@ namespace AbilityKit.Game.Editor
         {
             EditorGUI.BeginDisabledGroup(!workspaceState.CanGoBackTimeRange);
             if (GUILayout.Button(
-                    new GUIContent("↶", "Return to the previous shared frame range."),
+                    new GUIContent("↶", "返回上一个共享帧范围"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(buttonWidth)) &&
                 workspaceState.GoBackTimeRange())
@@ -1043,7 +1043,7 @@ namespace AbilityKit.Game.Editor
 
             EditorGUI.BeginDisabledGroup(!workspaceState.CanGoForwardTimeRange);
             if (GUILayout.Button(
-                    new GUIContent("↷", "Move forward to the next shared frame range."),
+                    new GUIContent("↷", "前进到下一个共享帧范围"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(buttonWidth)) &&
                 workspaceState.GoForwardTimeRange())
@@ -1122,7 +1122,7 @@ namespace AbilityKit.Game.Editor
                 : 0L;
             var panFrames = (int)Math.Max(1L, Math.Min(int.MaxValue, frameCount / 4L));
             if (GUILayout.Button(
-                    new GUIContent("←", "Pan left by one quarter of the current range."),
+                    new GUIContent("←", "向左平移当前范围的四分之一。"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(24f)) &&
                 workspaceState.PanTimeRange(-panFrames))
@@ -1130,7 +1130,7 @@ namespace AbilityKit.Game.Editor
                 requestRepaint?.Invoke();
             }
             if (GUILayout.Button(
-                    new GUIContent("→", "Pan right by one quarter of the current range."),
+                    new GUIContent("→", "向右平移当前范围的四分之一。"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(24f)) &&
                 workspaceState.PanTimeRange(panFrames))
@@ -1140,7 +1140,7 @@ namespace AbilityKit.Game.Editor
 
             var anchorFrame = ResolveZoomAnchor(workspaceState);
             if (GUILayout.Button(
-                    new GUIContent("-", "Zoom out around the frame cursor."),
+                    new GUIContent("-", "以帧游标为中心缩小。"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(24f)) &&
                 workspaceState.ZoomTimeRange(anchorFrame, 2d))
@@ -1148,7 +1148,7 @@ namespace AbilityKit.Game.Editor
                 requestRepaint?.Invoke();
             }
             if (GUILayout.Button(
-                    new GUIContent("+", "Zoom in around the frame cursor."),
+                    new GUIContent("+", "以帧游标为中心放大。"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(24f)) &&
                 workspaceState.ZoomTimeRange(anchorFrame, 0.5d))
@@ -1165,7 +1165,7 @@ namespace AbilityKit.Game.Editor
         {
             EditorGUI.BeginDisabledGroup(!workspaceState.FrameCursor.HasFrame);
             if (GUILayout.Button(
-                    new GUIContent(compact ? "Focus" : "Focus Cursor", "Center a 120-frame range on the current frame."),
+                    new GUIContent(compact ? "聚焦" : "聚焦游标", "以当前帧为中心显示 120 帧范围。"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(compact ? 40f : 82f)))
             {
@@ -1177,7 +1177,7 @@ namespace AbilityKit.Game.Editor
             EditorGUI.EndDisabledGroup();
             EditorGUI.BeginDisabledGroup(workspaceState.TimeRange.IsAuto);
             if (GUILayout.Button(
-                    new GUIContent("Reset", "Return all diagnostics widgets to their automatic data range."),
+                    new GUIContent("重置", "将所有诊断组件恢复为自动数据范围。"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(compact ? 40f : 44f)))
             {
@@ -1236,7 +1236,7 @@ namespace AbilityKit.Game.Editor
             var visibleRange = ResolveRange(in ctx);
             if (!visibleRange.IsValid)
             {
-                EditorGUILayout.HelpBox("No shared frame range is available for metric history.", MessageType.Info);
+                EditorGUILayout.HelpBox("指标历史没有可用的共享帧范围。", MessageType.Info);
                 return true;
             }
 
@@ -1251,7 +1251,7 @@ namespace AbilityKit.Game.Editor
             DrawProfileSummary(in ctx, session, cache.Profile);
             if (cache.AggregateCount == 0)
             {
-                EditorGUILayout.HelpBox("No metric samples intersect the shared frame range.", MessageType.Info);
+                EditorGUILayout.HelpBox("没有指标样本与共享帧范围相交。", MessageType.Info);
                 return true;
             }
 
@@ -1272,9 +1272,9 @@ namespace AbilityKit.Game.Editor
                 DrawSeries(in ctx, cache.Series[i], visibleRange, i);
             }
             if (cache.Series.Count > MaximumSeries)
-                EditorGUILayout.LabelField($"Showing {MaximumSeries} of {cache.Series.Count} metric series.", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField($"显示 {cache.Series.Count} 个指标序列中的前 {MaximumSeries} 个。", EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
-                $"{cache.SampleCount} samples  |  {cache.AggregateCount} visible buckets",
+                $"{cache.SampleCount} 个样本  |  {cache.AggregateCount} 个可见区间",
                 EditorStyles.miniLabel);
             EditorGUILayout.Space(4f);
             return true;
@@ -1286,10 +1286,10 @@ namespace AbilityKit.Game.Editor
             BattleDiagnosticResolvedMetricProfile effectiveProfile)
         {
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Threshold Profile", effectiveProfile.Name);
+            EditorGUILayout.LabelField("阈值配置", effectiveProfile.Name);
             var settings = EditorGUIUtility.IconContent(
                 "d_SettingsIcon",
-                "Open the active BattleDebug metric profile asset");
+                "打开当前生效的战斗调试指标配置资源");
             if (GUILayout.Button(settings, EditorStyles.iconButton, GUILayout.Width(22f), GUILayout.Height(18f)))
                 BattleDiagnosticMetricProfileAssetSync.OpenOrCreateAsset();
             EditorGUILayout.EndHorizontal();
@@ -1299,7 +1299,7 @@ namespace AbilityKit.Game.Editor
             {
                 if (ctx.IsOffline)
                     EditorGUILayout.HelpBox(
-                        "This artifact predates captured metric profiles. Findings use the current project profile.",
+                        "此 Artifact 创建时尚未捕获指标配置，分析结果将使用当前项目配置。",
                         MessageType.Info);
                 return;
             }
@@ -1320,22 +1320,22 @@ namespace AbilityKit.Game.Editor
             if (!_profileComparison.HasDifferences)
             {
                 EditorGUILayout.LabelField(
-                    "Current Project Profile",
-                    _profileComparison.Current.Name + "  (matches capture)",
+                    "当前项目配置",
+                    _profileComparison.Current.Name + "  （与捕获配置一致）",
                     EditorStyles.miniLabel);
                 return;
             }
 
             var contextDifference = _profileComparison.ContextMatches ? 0 : 1;
             EditorGUILayout.HelpBox(
-                "Capture uses '" + capturedProfile.Name + "'; current project resolves '" +
-                _profileComparison.Current.Name + "'. " +
+                "捕获时使用“" + capturedProfile.Name + "”，当前项目解析为“" +
+                _profileComparison.Current.Name + "”。检测到 " +
                 (_profileComparison.ThresholdDifferences.Count + contextDifference) +
-                " profile difference(s) detected. Historical findings still use the captured profile.",
+                " 项配置差异。历史分析仍使用捕获时配置。",
                 MessageType.Warning);
             _showProfileDifferences = EditorGUILayout.Foldout(
                 _showProfileDifferences,
-                "Profile Differences",
+                "配置差异",
                 true);
             if (!_showProfileDifferences) return;
 
@@ -1343,7 +1343,7 @@ namespace AbilityKit.Game.Editor
             if (!_profileComparison.ContextMatches)
             {
                 EditorGUILayout.LabelField(
-                    "Context",
+                    "上下文",
                     FormatContext(capturedProfile.Context) + "  ->  " +
                     FormatContext(_profileComparison.Current.Context),
                     EditorStyles.miniLabel);
@@ -1352,7 +1352,7 @@ namespace AbilityKit.Game.Editor
             {
                 var difference = _profileComparison.ThresholdDifferences[i];
                 EditorGUILayout.LabelField(
-                    difference.DisplayName,
+                    BattleDebugDisplayText.MetricName(difference.Metric, difference.DisplayName),
                     FormatDifference(in difference),
                     EditorStyles.miniLabel);
             }
@@ -1390,7 +1390,7 @@ namespace AbilityKit.Game.Editor
             if (difference.SuggestedRangeChanged)
             {
                 if (builder.Length > 0) builder.Append("  |  ");
-                builder.Append("Range ")
+                builder.Append("范围 ")
                     .Append(FormatRange(
                         difference.CapturedSuggestedMinimum,
                         difference.CapturedSuggestedMaximum,
@@ -1570,7 +1570,7 @@ namespace AbilityKit.Game.Editor
                 var compound = compounds[i];
                 if (displayed++ > 0) builder.AppendLine();
                 if (compound.Severity > severity) severity = compound.Severity;
-                builder.Append(compound.Rule.DisplayName);
+                builder.Append(BattleDebugDisplayText.CompoundMetricName(compound.Rule.Id, compound.Rule.DisplayName));
                 if (!string.IsNullOrEmpty(compound.Dimension))
                     builder.Append(" [").Append(compound.Dimension).Append(']');
                 builder.Append(" (F").Append(compound.FirstFrame)
@@ -1582,23 +1582,23 @@ namespace AbilityKit.Game.Editor
                 if (covered.Contains(assessment.Descriptor.Metric + "\n" + assessment.Dimension)) continue;
                 if (displayed++ > 0) builder.AppendLine();
                 if (assessment.Severity > severity) severity = assessment.Severity;
-                builder.Append(assessment.Descriptor.DisplayName);
+                builder.Append(BattleDebugDisplayText.MetricName(assessment.Descriptor.Metric, assessment.Descriptor.DisplayName));
                 if (!string.IsNullOrEmpty(assessment.Dimension))
                     builder.Append(" [").Append(assessment.Dimension).Append(']');
                 builder.Append(assessment.Descriptor.AssessmentMode == BattleDiagnosticMetricAssessmentMode.WindowDeltaHigh
-                    ? " increased by "
+                    ? " 增加了 "
                     : assessment.Descriptor.AssessmentMode == BattleDiagnosticMetricAssessmentMode.LatestHigh
-                        ? " is "
-                        : " peaked at ");
+                        ? " 当前为 "
+                        : " 峰值为 ");
                 builder.Append(FormatValue(assessment.ActualValue, assessment.Descriptor.Unit));
-                builder.Append(" (threshold ")
+                builder.Append("（阈值 ")
                     .Append(FormatValue(assessment.ActiveThreshold, assessment.Descriptor.Unit))
                     .Append(", F").Append(assessment.FirstFrame)
-                    .Append("-F").Append(assessment.LastFrame).Append(')');
+                    .Append("-F").Append(assessment.LastFrame).Append('）');
             }
             var remaining = totalFindings - displayed;
             if (remaining > 0)
-                builder.AppendLine().Append('+').Append(remaining).Append(" additional findings");
+                builder.AppendLine().Append('+').Append(remaining).Append(" 项其他发现");
             EditorGUILayout.HelpBox(
                 builder.ToString(),
                 severity == BattleDiagnosticMetricSeverity.Critical ? MessageType.Error : MessageType.Warning);
@@ -1606,8 +1606,8 @@ namespace AbilityKit.Game.Editor
 
         private static string FormatValue(double value, string unit)
         {
-            if (string.Equals(unit, "flag", StringComparison.Ordinal)) return value >= 0.5d ? "active" : "inactive";
-            return string.IsNullOrEmpty(unit) ? $"{value:0.###}" : $"{value:0.###} {unit}";
+            if (string.Equals(unit, "flag", StringComparison.Ordinal)) return value >= 0.5d ? "启用" : "停用";
+            return string.IsNullOrEmpty(unit) ? $"{value:0.###}" : $"{value:0.###} {BattleDebugDisplayText.MetricUnit(unit)}";
         }
 
         private static long NextRequestId()

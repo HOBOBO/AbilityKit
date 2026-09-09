@@ -49,12 +49,12 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.BeginHorizontal();
             GUILayout.FlexibleSpace();
 
-            if (GUILayout.Button("Cancel", GUILayout.Width(80)))
+            if (GUILayout.Button("取消", GUILayout.Width(80)))
             {
                 Close();
             }
 
-            if (GUILayout.Button("OK", GUILayout.Width(80)))
+            if (GUILayout.Button("确定", GUILayout.Width(80)))
             {
                 _onConfirm?.Invoke(_inputValue);
                 Close();

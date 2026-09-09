@@ -69,7 +69,7 @@ namespace AbilityKit.HFSM.Editor.Export
                 throw new ArgumentNullException(nameof(exporter));
 
             if (_exporters.ContainsKey(exporter.Name))
-                throw new InvalidOperationException($"Exporter with name '{exporter.Name}' is already registered");
+                throw new InvalidOperationException($"名为“{exporter.Name}”的导出器已注册。");
 
             _exporters[exporter.Name] = exporter;
         }
@@ -138,7 +138,7 @@ namespace AbilityKit.HFSM.Editor.Export
                 throw new ArgumentNullException(nameof(extractor));
 
             if (_dataExtractors.ContainsKey(extractor.Name))
-                throw new InvalidOperationException($"Data extractor with name '{extractor.Name}' is already registered");
+                throw new InvalidOperationException($"名为“{extractor.Name}”的数据提取器已注册。");
 
             _dataExtractors[extractor.Name] = extractor;
         }
@@ -213,7 +213,7 @@ namespace AbilityKit.HFSM.Editor.Export
         {
             var exporter = GetExporter("JSON") as JsonGraphExporter;
             if (exporter == null)
-                return ExportResult.Fail("JSON exporter not found");
+                return ExportResult.Fail("未找到 JSON 导出器");
 
             return exporter.Export(graph, options ?? ExportOptions.ForRuntime);
         }
@@ -225,7 +225,7 @@ namespace AbilityKit.HFSM.Editor.Export
         {
             var exporter = GetExporter(exporterName);
             if (exporter == null)
-                return ExportResult.Fail($"Exporter '{exporterName}' not found");
+                return ExportResult.Fail($"未找到导出器“{exporterName}”");
 
             return exporter.Export(graph, options ?? ExportOptions.Default);
         }
@@ -241,13 +241,13 @@ namespace AbilityKit.HFSM.Editor.Export
         {
             var lines = new List<string>
             {
-                "=== HFSM Extension Registry Diagnostics ===",
-                $"Initialized: {_initialized}",
-                $"Exporters: {_exporters.Count}",
-                $"Data Extractors: {_dataExtractors.Count}",
-                $"Extensions: {_extensions.Count}",
+                "=== HFSM 扩展注册表诊断 ===",
+                $"已初始化：{(_initialized ? "是" : "否")}",
+                $"导出器：{_exporters.Count}",
+                $"数据提取器：{_dataExtractors.Count}",
+                $"扩展：{_extensions.Count}",
                 "",
-                "Registered Exporters:"
+                "已注册的导出器："
             };
 
             foreach (var kvp in _exporters)
@@ -256,7 +256,7 @@ namespace AbilityKit.HFSM.Editor.Export
             }
 
             lines.Add("");
-            lines.Add("Registered Data Extractors:");
+            lines.Add("已注册的数据提取器：");
 
             foreach (var kvp in _dataExtractors)
             {

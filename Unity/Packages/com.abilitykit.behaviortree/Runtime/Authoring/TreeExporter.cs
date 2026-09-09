@@ -21,7 +21,7 @@ namespace AbilityKit.BehaviorTree.Authoring
         {
             if (document == null)
             {
-                errors = new List<string> { "Authoring document is null." };
+                errors = new List<string> { "行为树编辑文档为空。" };
                 return null;
             }
 

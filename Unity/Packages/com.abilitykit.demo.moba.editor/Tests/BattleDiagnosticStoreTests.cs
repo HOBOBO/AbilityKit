@@ -216,6 +216,69 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void RingStore_ValuableTriggerFilter_HidesConditionNoiseAndKeepsOtherEvents()
+        {
+            var store = new BattleDiagnosticEventRingStore(_scope, 8);
+            var conditionMiss = new BattleDiagnosticTriggerAnalysisPayload(
+                7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                failureKey: "predicateMiss");
+            var executedPlan = new BattleDiagnosticTriggerAnalysisPayload(
+                7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Plan,
+                BattleDiagnosticTriggerAnalysisResult.Passed);
+
+            store.TryAppend(TriggerEvent(_scope, 20, 1, in conditionMiss));
+            store.TryAppend(TriggerEvent(_scope, 21, 2, in executedPlan));
+            store.TryAppend(Event(
+                _scope,
+                22,
+                3,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                kind: BattleDiagnosticEventKind.Damage));
+
+            var filter = BattleDiagnosticFilter.Default.WithTriggerAnalysis(
+                BattleDiagnosticTriggerAnalysisStage.Unknown,
+                BattleDiagnosticTriggerAnalysisResult.Unknown,
+                value: BattleDiagnosticTriggerValueFilter.Valuable);
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                1,
+                filter,
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(result.Items.Select(item => item.Sequence), Is.EqualTo(new long[] { 2, 3 }));
+        }
+
+        [Test]
+        public void RingStore_ExplicitTriggerStage_OverridesValuablePreset()
+        {
+            var store = new BattleDiagnosticEventRingStore(_scope, 4);
+            var conditionMiss = new BattleDiagnosticTriggerAnalysisPayload(
+                7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed);
+            store.TryAppend(TriggerEvent(_scope, 20, 1, in conditionMiss));
+
+            var filter = BattleDiagnosticFilter.Default.WithTriggerAnalysis(
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                value: BattleDiagnosticTriggerValueFilter.Valuable);
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                1,
+                filter,
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(result.Items.Count, Is.EqualTo(1));
+        }
+
+        [Test]
         public void TriggerAnalysisPayload_RoundTripsEveryFieldAndRejectsWrongKind()
         {
             var trigger = new BattleDiagnosticTriggerAnalysisPayload(
@@ -244,6 +307,42 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 100L,
                 BattleDiagnosticEventKind.EffectStarted,
                 BattleDiagnosticEventChannel.Effect,
+                BattleDiagnosticEventOutcome.Failed,
+                payload: payload));
+        }
+
+        [Test]
+        public void TriggerAnalysisAggregatePayload_RoundTripsEveryField()
+        {
+            var aggregate = new BattleDiagnosticTriggerAnalysisAggregatePayload(
+                7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                detailCode: 4,
+                occurrenceCount: 59,
+                firstFrame: 10,
+                lastFrame: 68,
+                firstContextId: 101,
+                lastContextId: 159,
+                firstRootContextId: 201,
+                lastRootContextId: 259,
+                failureKey: "predicateMiss",
+                sampleReason: "Time limit not reached.");
+            var payload = BattleDiagnosticEventPayload.FromTriggerAnalysisAggregate(in aggregate);
+
+            Assert.That(payload.Kind, Is.EqualTo(BattleDiagnosticPayloadKind.TriggerAnalysisAggregate));
+            Assert.That(payload.TryGetTriggerAnalysisAggregate(out var restored), Is.True);
+            Assert.That(restored, Is.EqualTo(aggregate));
+            Assert.That(restored.FrameSpan, Is.EqualTo(58));
+            Assert.Throws<ArgumentException>(() => new BattleDiagnosticEvent(
+                _scope,
+                68,
+                1,
+                100L,
+                BattleDiagnosticEventKind.TriggerAnalysis,
+                BattleDiagnosticEventChannel.Trigger,
                 BattleDiagnosticEventOutcome.Failed,
                 payload: payload));
         }

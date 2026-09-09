@@ -1030,7 +1030,8 @@ namespace AbilityKit.Demo.Moba.Services
                     currentRootCount,
                     currentSameTriggerCount,
                     failureKey,
-                    reason);
+                    reason,
+                    frame: conditionContext.Frame);
                 _triggerAnalysisHook.OnObserved(in observation);
             }
             catch (Exception)

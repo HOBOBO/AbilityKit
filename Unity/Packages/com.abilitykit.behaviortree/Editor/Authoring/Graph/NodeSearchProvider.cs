@@ -180,7 +180,7 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             var entries = new List<SearchTreeEntry>
             {
-                new SearchTreeGroupEntry(new GUIContent("Create Node")),
+                new SearchTreeGroupEntry(new GUIContent("创建节点")),
             };
 
             var results = NodeSearchV2.Search(EditorNodeCatalog.Registry.Descriptors, _query, _options);
@@ -200,7 +200,7 @@ namespace AbilityKit.BehaviorTree.Editor
                     var label = result.IsFavorite
                         ? "* " + descriptor.DisplayName
                         : result.IsRecent
-                            ? "Recent " + descriptor.DisplayName
+                            ? "最近使用 / " + descriptor.DisplayName
                             : descriptor.DisplayName;
                     entries.Add(new SearchTreeEntry(new GUIContent(label))
                     {

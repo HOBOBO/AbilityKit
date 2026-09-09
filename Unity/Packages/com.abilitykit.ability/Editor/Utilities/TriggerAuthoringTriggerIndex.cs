@@ -35,7 +35,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerEventDescriptorCatalog events,
             TriggerAuthoringTriggerGroupMode groupMode,
             string searchText,
-            TriggerAuthoringTriggerQuickFilter quickFilter = TriggerAuthoringTriggerQuickFilter.All)
+            TriggerAuthoringTriggerQuickFilter quickFilter = TriggerAuthoringTriggerQuickFilter.All,
+            TriggerTemplateDescriptorCatalog templates = null)
         {
             var groups = new List<Group>();
             var byKey = new Dictionary<string, Group>(StringComparer.Ordinal);
@@ -44,12 +45,13 @@ namespace AbilityKit.Ability.Editor.Utilities
             for (var i = 0; i < count; i++)
             {
                 var trigger = triggers[i];
+                var effectiveTrigger = TriggerAuthoringTemplateDefinition.ResolveEffectiveView(trigger, templates);
                 var diagnosticSummary = CountDiagnostics(i, diagnostics);
-                var entry = new Entry(i, trigger, diagnosticSummary);
+                var entry = new Entry(i, trigger, effectiveTrigger, diagnosticSummary);
                 if (!MatchesQuickFilter(entry, quickFilter)) continue;
                 if (!Matches(entry, filter, diagnostics)) continue;
 
-                var keys = GetGroupKeys(trigger, diagnosticSummary, events, groupMode);
+                var keys = GetGroupKeys(effectiveTrigger, diagnosticSummary, events, groupMode);
                 for (var keyIndex = 0; keyIndex < keys.Count; keyIndex++)
                 {
                     var key = keys[keyIndex];
@@ -76,7 +78,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             var filter = (searchText ?? string.Empty).Trim();
             if (filter.Length == 0) return true;
-            var trigger = entry.Trigger;
+            var trigger = entry.EffectiveTrigger;
             if (trigger == null) return ContainsText("<null>", filter);
 
             if (ContainsText(trigger.Id.ToString(), filter) ||
@@ -116,7 +118,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             Entry entry,
             TriggerAuthoringTriggerQuickFilter quickFilter)
         {
-            var trigger = entry.Trigger;
+            var trigger = entry.EffectiveTrigger;
             switch (quickFilter)
             {
                 case TriggerAuthoringTriggerQuickFilter.Errors:
@@ -126,7 +128,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case TriggerAuthoringTriggerQuickFilter.Disabled:
                     return trigger != null && !trigger.Enabled;
                 case TriggerAuthoringTriggerQuickFilter.NoEvent:
-                    return trigger != null && string.IsNullOrWhiteSpace(trigger.Event);
+                    return trigger != null &&
+                           trigger.EntryMode == TriggerEntryMode.Event &&
+                           string.IsNullOrWhiteSpace(trigger.Event);
                 case TriggerAuthoringTriggerQuickFilter.NoGroup:
                     return trigger != null && string.IsNullOrWhiteSpace(trigger.GroupPath);
                 case TriggerAuthoringTriggerQuickFilter.Untagged:
@@ -157,11 +161,15 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
 
+            if (NodeMatches(node.Condition, filter)) return true;
             var children = node.Children;
-            if (children == null) return false;
-            for (var i = 0; i < children.Count; i++)
-                if (NodeMatches(children[i], filter))
-                    return true;
+            if (children != null)
+                for (var i = 0; i < children.Count; i++)
+                    if (NodeMatches(children[i], filter)) return true;
+            var elseChildren = node.ElseChildren;
+            if (elseChildren != null)
+                for (var i = 0; i < elseChildren.Count; i++)
+                    if (NodeMatches(elseChildren[i], filter)) return true;
             return false;
         }
 
@@ -273,6 +281,8 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string GetEventGroupKey(TriggerDefinitionData trigger, TriggerEventDescriptorCatalog events)
         {
+            if (trigger != null && trigger.EntryMode == TriggerEntryMode.Callable)
+                return "event:<callable>";
             var eventId = trigger != null ? trigger.Event : null;
             if (string.IsNullOrWhiteSpace(eventId)) return "event:<unassigned>";
             var category = string.Empty;
@@ -283,31 +293,34 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string GetGroupLabel(string key, TriggerAuthoringTriggerGroupMode groupMode)
         {
-            if (groupMode == TriggerAuthoringTriggerGroupMode.Flat) return "All Triggers";
+            if (groupMode == TriggerAuthoringTriggerGroupMode.Flat) return "全部触发器";
             var separator = key.IndexOf(':');
             var value = separator >= 0 ? key.Substring(separator + 1) : key;
+            value = value.Replace("<unassigned>", "未分配")
+                .Replace("<untagged>", "无关键词")
+                .Replace("<callable>", "仅供调用");
             switch (groupMode)
             {
                 case TriggerAuthoringTriggerGroupMode.Status:
                     switch (value)
                     {
-                        case "errors": return "Errors";
-                        case "warnings": return "Warnings";
-                        case "disabled": return "Disabled";
-                        case "ready": return "Ready";
-                        case "null": return "Invalid Rows";
+                        case "errors": return "存在错误";
+                        case "warnings": return "存在警告";
+                        case "disabled": return "已停用";
+                        case "ready": return "就绪";
+                        case "null": return "无效条目";
                     }
                     break;
                 case TriggerAuthoringTriggerGroupMode.Scope:
-                    return "Scope / " + value;
+                    return "作用域 / " + value;
                 case TriggerAuthoringTriggerGroupMode.Phase:
-                    return "Phase / " + value;
+                    return "阶段 / " + value;
                 case TriggerAuthoringTriggerGroupMode.Event:
-                    return "Event / " + value;
+                    return "事件 / " + value;
                 case TriggerAuthoringTriggerGroupMode.GroupPath:
-                    return "Group / " + value;
+                    return "分组 / " + value;
                 case TriggerAuthoringTriggerGroupMode.Tag:
-                    return "Tag / " + value;
+                    return "关键词 / " + value;
             }
             return value;
         }
@@ -338,8 +351,8 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static int CompareEntries(Entry left, Entry right)
         {
-            var priority = right.Trigger != null && left.Trigger != null
-                ? right.Trigger.Priority.CompareTo(left.Trigger.Priority)
+            var priority = right.EffectiveTrigger != null && left.EffectiveTrigger != null
+                ? right.EffectiveTrigger.Priority.CompareTo(left.EffectiveTrigger.Priority)
                 : 0;
             if (priority != 0) return priority;
             return left.Index.CompareTo(right.Index);
@@ -386,14 +399,25 @@ namespace AbilityKit.Ability.Editor.Utilities
         internal readonly struct Entry
         {
             public Entry(int index, TriggerDefinitionData trigger, DiagnosticSummary diagnostics)
+                : this(index, trigger, trigger, diagnostics)
+            {
+            }
+
+            public Entry(
+                int index,
+                TriggerDefinitionData trigger,
+                TriggerDefinitionData effectiveTrigger,
+                DiagnosticSummary diagnostics)
             {
                 Index = index;
                 Trigger = trigger;
+                EffectiveTrigger = effectiveTrigger ?? trigger;
                 Diagnostics = diagnostics;
             }
 
             public int Index { get; }
             public TriggerDefinitionData Trigger { get; }
+            public TriggerDefinitionData EffectiveTrigger { get; }
             public DiagnosticSummary Diagnostics { get; }
         }
 

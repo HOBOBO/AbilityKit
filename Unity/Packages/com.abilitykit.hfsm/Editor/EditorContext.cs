@@ -253,7 +253,7 @@ namespace AbilityKit.HFSM.Editor
         public string GetPathString()
         {
             if (StateMachinePath.Count == 0)
-                return "None";
+                return "无";
 
             var parts = new List<string>();
             foreach (var sm in StateMachinePath)
@@ -301,7 +301,7 @@ namespace AbilityKit.HFSM.Editor
                 return null;
             }
 
-            Undo.RecordObject(_graphAsset, "Create Transition");
+            Undo.RecordObject(_graphAsset, "创建转换");
             var edge = _graphAsset.CreateTransition(TransitionSourceNode.Id, TransitionTargetNode.Id);
 
             // Add transition to current state machine
@@ -411,7 +411,7 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null || CurrentStateMachine == null)
                 return null;
 
-            Undo.RecordObject(_graphAsset, "Create State");
+            Undo.RecordObject(_graphAsset, "创建状态");
             var state = _graphAsset.CreateState(name, position);
             CurrentStateMachine.AddChildNode(state.Id);
             state.ParentStateMachineId = CurrentStateMachine.Id;
@@ -429,7 +429,7 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null || CurrentStateMachine == null)
                 return null;
 
-            Undo.RecordObject(_graphAsset, "Create State Machine");
+            Undo.RecordObject(_graphAsset, "创建状态机");
             var sm = _graphAsset.CreateStateMachine(name, position);
             CurrentStateMachine.AddChildNode(sm.Id);
             sm.ParentStateMachineId = CurrentStateMachine.Id;
@@ -479,7 +479,7 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null || node == null)
                 return;
 
-            Undo.RecordObject(_graphAsset, "Delete Node");
+            Undo.RecordObject(_graphAsset, "删除节点");
 
             // Remove from parent state machine
             if (!string.IsNullOrEmpty(node.ParentStateMachineId))
@@ -502,7 +502,7 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null)
                 return;
 
-            Undo.RecordObject(_graphAsset, "Delete Selected Nodes");
+            Undo.RecordObject(_graphAsset, "删除所选节点");
 
             // Copy list to avoid modification during iteration
             var nodesToDelete = new List<NodeBase>(SelectedNodes);
@@ -530,7 +530,7 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null || edge == null)
                 return;
 
-            Undo.RecordObject(_graphAsset, "Delete Transition");
+            Undo.RecordObject(_graphAsset, "删除转换");
 
             // Remove from the owning machine even when the diagnostic navigated from another level.
             foreach (var machine in _graphAsset.GetNodesOfType<StateMachineNode>())
@@ -569,7 +569,7 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null || CurrentStateMachine == null || state == null)
                 return;
 
-            Undo.RecordObject(_graphAsset, "Set Default State");
+            Undo.RecordObject(_graphAsset, "设置默认状态");
 
             // Clear previous default
             foreach (var child in CurrentChildNodes)
@@ -602,7 +602,7 @@ namespace AbilityKit.HFSM.Editor
             if (_graphAsset == null || SelectedNodes.Count == 0)
                 return;
 
-            Undo.RecordObject(_graphAsset, "Move Nodes");
+            Undo.RecordObject(_graphAsset, "移动节点");
             foreach (var node in SelectedNodes)
             {
                 node.Position += delta;

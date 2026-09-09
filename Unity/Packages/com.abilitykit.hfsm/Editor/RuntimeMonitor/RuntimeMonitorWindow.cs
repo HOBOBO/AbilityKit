@@ -10,6 +10,8 @@ using UnityEngine;
 using UnityEditor;
 using UnityEngine.UIElements;
 using UnityEditor.UIElements;
+using AbilityKit.Editor.Platform.State;
+using AbilityKit.Editor.Platform.UI;
 using AbilityKit.HFSM.Visualization;
 using LiveRegistry = AbilityKit.HFSM.Visualization.LiveRegistry;
 
@@ -20,21 +22,44 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
     /// </summary>
     public class RuntimeMonitorWindow : EditorWindow
     {
-        [MenuItem("Window/AbilityKit/HFSM Runtime Monitor")]
+        private const string ShowParametersStateKey = "show-parameters";
+        private const string ShowHistoryStateKey = "show-history";
+        private const string ShowTreeStateKey = "show-tree";
+        private const string ShowGraphStateKey = "show-graph";
+        private const string SelectedFsmStateKey = "selected-fsm";
+
+        [MenuItem("Window/AbilityKit/HFSM 运行时监视器")]
         public static void OpenWindow()
         {
             var window = GetWindow<RuntimeMonitorWindow>();
             window.titleContent = new GUIContent(
-                "HFSM Runtime Monitor",
+                "HFSM 运行时监视器",
                 EditorGUIUtility.IconContent("AnimatorController Icon").image
             );
             window.minSize = new Vector2(800, 500);
         }
 
+        public static void OpenWindow(string preferredFsmName)
+        {
+            OpenWindow();
+            var window = GetWindow<RuntimeMonitorWindow>();
+            window._preferredFsmName = preferredFsmName ?? string.Empty;
+            window.RefreshFsmList();
+            window.Show();
+            window.Focus();
+        }
+
         // 数据
         private int _selectedFsmIndex = -1;
+        private readonly IEditorUserStateStore _userState =
+            new EditorPrefsUserStateStore("hfsm", "runtime-monitor");
+        private readonly List<object> _entryTargets = new List<object>();
+        private WeakReference _selectedFsm;
+        private string _preferredFsmName = string.Empty;
         private FsmSnapshot _currentSnapshot;
         private Vector2 _scrollPosition;
+        private Vector2 _parameterScrollPosition;
+        private Vector2 _historyScrollPosition;
         private bool _showParameters = true;
         private bool _showHistory = true;
         private bool _showTreeView = true;
@@ -45,11 +70,18 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
         // 视图元素
         private VisualElement _root;
+        private EditorSplitter _mainSplitter;
+        private PopupField<string> _fsmDropdown;
+        private VisualElement _playIndicator;
         private VisualElement _treeViewContainer;
         private VisualElement _graphViewContainer;
+        private IMGUIContainer _treeCanvas;
         private IMGUIContainer _graphCanvas;
         private VisualElement _parameterPanel;
+        private IMGUIContainer _parameterCanvas;
         private VisualElement _historyPanel;
+        private IMGUIContainer _historyCanvas;
+        private double _nextSnapshotRefreshTime;
 
         // 样式
         private const float kNodeWidth = 140f;
@@ -61,6 +93,12 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
         private void OnEnable()
         {
+            _showParameters = _userState.GetBool(ShowParametersStateKey, true);
+            _showHistory = _userState.GetBool(ShowHistoryStateKey, true);
+            _showTreeView = _userState.GetBool(ShowTreeStateKey, true);
+            _showGraphView = _userState.GetBool(ShowGraphStateKey, true);
+            _preferredFsmName = _userState.GetString(SelectedFsmStateKey, string.Empty);
+
             // 订阅事件
             LiveRegistry.Changed += OnRegistryChanged;
             LiveRegistry.SnapshotUpdated += OnSnapshotUpdated;
@@ -83,20 +121,23 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             LiveRegistry.Changed -= OnRegistryChanged;
             LiveRegistry.SnapshotUpdated -= OnSnapshotUpdated;
             EditorApplication.update -= OnEditorUpdate;
+            _mainSplitter?.Dispose();
+            _mainSplitter = null;
         }
 
         private void OnEditorUpdate()
         {
+            UpdatePlayIndicator();
             if (!EditorApplication.isPlaying)
             {
                 return;
             }
 
             // 在播放模式下定期更新快照
-            if (EditorApplication.timeSinceStartup % 0.5 < 0.1)
-            {
-                LiveRegistry.UpdateAllSnapshots();
-            }
+            var now = EditorApplication.timeSinceStartup;
+            if (now < _nextSnapshotRefreshTime) return;
+            _nextSnapshotRefreshTime = now + 0.25d;
+            LiveRegistry.UpdateAllSnapshots();
         }
 
         private void OnRegistryChanged()
@@ -106,21 +147,19 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
         private void OnSnapshotUpdated(object fsm)
         {
-            if (_selectedFsmIndex >= 0)
-            {
-                var entry = LiveRegistry.GetEntry(_selectedFsmIndex);
-                if (entry?.Target == fsm)
-                {
-                    _currentSnapshot = entry.Snapshot;
-                    UpdateLayout();
-                    Repaint();
-                }
-            }
+            if (_selectedFsm == null || !ReferenceEquals(_selectedFsm.Target, fsm)) return;
+            var entry = FindEntry(fsm);
+            if (entry == null) return;
+
+            _currentSnapshot = entry.Snapshot;
+            UpdateLayout();
+            RepaintViews();
         }
 
         private void CreateUI()
         {
             _root = rootVisualElement;
+            _root.Clear();
             _root.style.flexDirection = FlexDirection.Column;
 
             // 工具栏
@@ -141,71 +180,100 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             var toolbar = new Toolbar();
 
             // FSM 选择器
-            var fsmLabel = new Label("FSM:");
+            var fsmLabel = new Label("FSM：");
             fsmLabel.style.marginLeft = 5;
             fsmLabel.style.marginRight = 5;
             fsmLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
             fsmLabel.style.width = 40;
             toolbar.Add(fsmLabel);
 
-            var fsmDropdown = new ToolbarMenu { text = "Select FSM..." };
-            fsmDropdown.style.flexGrow = 1;
-            toolbar.Add(fsmDropdown);
+            _fsmDropdown = new PopupField<string>(
+                new List<string> { "无运行时实例" },
+                0);
+            _fsmDropdown.style.flexGrow = 1;
+            _fsmDropdown.RegisterValueChangedCallback(evt => SelectFsm(_fsmDropdown.index));
+            toolbar.Add(_fsmDropdown);
 
             // 刷新按钮
-            var refreshButton = new ToolbarButton(() => RefreshFsmList()) { text = "Refresh" };
+            var refreshButton = new ToolbarButton(() => RefreshFsmList()) { text = "刷新" };
             toolbar.Add(refreshButton);
 
             // 视图切换
-            var viewToggle = new ToolbarToggle { text = "Show Graph" };
+            var viewToggle = new ToolbarToggle { text = "显示图形" };
             viewToggle.value = _showGraphView;
             viewToggle.RegisterValueChangedCallback(evt =>
             {
                 _showGraphView = evt.newValue;
+                _userState.SetBool(ShowGraphStateKey, _showGraphView);
                 UpdateViewVisibility();
             });
             toolbar.Add(viewToggle);
 
-            var treeToggle = new ToolbarToggle { text = "Show Tree" };
+            var treeToggle = new ToolbarToggle { text = "显示状态树" };
             treeToggle.value = _showTreeView;
             treeToggle.RegisterValueChangedCallback(evt =>
             {
                 _showTreeView = evt.newValue;
+                _userState.SetBool(ShowTreeStateKey, _showTreeView);
                 UpdateViewVisibility();
             });
             toolbar.Add(treeToggle);
 
+            var parametersToggle = new ToolbarToggle { text = "参数", value = _showParameters };
+            parametersToggle.RegisterValueChangedCallback(evt =>
+            {
+                _showParameters = evt.newValue;
+                _userState.SetBool(ShowParametersStateKey, _showParameters);
+                UpdateViewVisibility();
+            });
+            toolbar.Add(parametersToggle);
+
+            var historyToggle = new ToolbarToggle { text = "转换历史", value = _showHistory };
+            historyToggle.RegisterValueChangedCallback(evt =>
+            {
+                _showHistory = evt.newValue;
+                _userState.SetBool(ShowHistoryStateKey, _showHistory);
+                UpdateViewVisibility();
+            });
+            toolbar.Add(historyToggle);
+
             // 播放状态指示
-            var playIndicator = new VisualElement();
-            playIndicator.style.width = 12;
-            playIndicator.style.height = 12;
-            playIndicator.style.borderTopLeftRadius = 6;
-            playIndicator.style.borderTopRightRadius = 6;
-            playIndicator.style.borderBottomLeftRadius = 6;
-            playIndicator.style.borderBottomRightRadius = 6;
-            playIndicator.style.marginLeft = 10;
-            playIndicator.style.backgroundColor = EditorApplication.isPlaying
-                ? new Color(0.2f, 0.8f, 0.2f)  // 绿色
-                : new Color(0.5f, 0.5f, 0.5f); // 灰色
-            playIndicator.tooltip = EditorApplication.isPlaying ? "Playing" : "Not Playing";
-            toolbar.Add(playIndicator);
+            _playIndicator = new VisualElement();
+            _playIndicator.style.width = 12;
+            _playIndicator.style.height = 12;
+            _playIndicator.style.borderTopLeftRadius = 6;
+            _playIndicator.style.borderTopRightRadius = 6;
+            _playIndicator.style.borderBottomLeftRadius = 6;
+            _playIndicator.style.borderBottomRightRadius = 6;
+            _playIndicator.style.marginLeft = 10;
+            _playIndicator.style.marginRight = 6;
+            toolbar.Add(_playIndicator);
+            UpdatePlayIndicator();
 
             _root.Add(toolbar);
         }
 
         private void CreateMainContent()
         {
-            var mainContent = new VisualElement();
-            mainContent.style.flexGrow = 1;
-            mainContent.style.flexDirection = FlexDirection.Row;
+            _mainSplitter?.Dispose();
+            _mainSplitter = new EditorSplitter(
+                new EditorSplitterState(
+                    220f,
+                    minimumPosition: 160f,
+                    maximumPosition: 420f,
+                    store: _userState,
+                    stateKey: "tree-splitter"));
 
             // 左侧树形视图
             _treeViewContainer = new VisualElement();
-            _treeViewContainer.style.width = 220;
+            _treeViewContainer.style.flexGrow = 1f;
             _treeViewContainer.style.backgroundColor = new Color(0.2f, 0.2f, 0.2f, 0.3f);
             _treeViewContainer.style.borderRightWidth = 1;
             _treeViewContainer.style.borderRightColor = new Color(0.3f, 0.3f, 0.3f);
-            mainContent.Add(_treeViewContainer);
+            _treeCanvas = new IMGUIContainer(DrawTreeView);
+            _treeCanvas.style.flexGrow = 1f;
+            _treeViewContainer.Add(_treeCanvas);
+            _mainSplitter.FirstPane.Add(_treeViewContainer);
 
             // 右侧图形视图
             var rightPanel = new VisualElement();
@@ -214,6 +282,9 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
             _graphViewContainer = new VisualElement();
             _graphViewContainer.style.flexGrow = 1;
+            _graphCanvas = new IMGUIContainer(DrawGraphView);
+            _graphCanvas.style.flexGrow = 1f;
+            _graphViewContainer.Add(_graphCanvas);
             rightPanel.Add(_graphViewContainer);
 
             // 参数面板（可折叠）
@@ -221,8 +292,8 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             _parameterPanel.style.height = 120;
             rightPanel.Add(_parameterPanel);
 
-            mainContent.Add(rightPanel);
-            _root.Add(mainContent);
+            _mainSplitter.SecondPane.Add(rightPanel);
+            _root.Add(_mainSplitter);
         }
 
         private VisualElement CreateParameterPanel()
@@ -240,23 +311,27 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             header.style.paddingBottom = 5;
             header.style.backgroundColor = new Color(0.1f, 0.1f, 0.1f);
 
-            var title = new Label("Parameters");
+            var title = new Label("参数");
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
             title.style.flexGrow = 1;
 
-            var toggle = new Label("▼");
+            var toggle = new Label(_showParameters ? "▼" : "▶");
             toggle.style.width = 20;
             toggle.style.cursor = StyleKeyword.Auto;
             toggle.RegisterCallback<ClickEvent>(evt =>
             {
                 _showParameters = !_showParameters;
                 toggle.text = _showParameters ? "▼" : "▶";
-                _parameterPanel.style.height = _showParameters ? 120 : 25;
+                _userState.SetBool(ShowParametersStateKey, _showParameters);
+                UpdateViewVisibility();
             });
 
             header.Add(title);
             header.Add(toggle);
             panel.Add(header);
+            _parameterCanvas = new IMGUIContainer(DrawParameterPanel);
+            _parameterCanvas.style.flexGrow = 1f;
+            panel.Add(_parameterCanvas);
 
             return panel;
         }
@@ -276,12 +351,25 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             header.style.paddingBottom = 5;
             header.style.backgroundColor = new Color(0.1f, 0.1f, 0.1f);
 
-            var title = new Label("History");
+            var title = new Label("转换历史");
             title.style.unityFontStyleAndWeight = FontStyle.Bold;
             title.style.flexGrow = 1;
 
             header.Add(title);
+            var toggle = new Label(_showHistory ? "▼" : "▶");
+            toggle.style.width = 20;
+            toggle.RegisterCallback<ClickEvent>(_ =>
+            {
+                _showHistory = !_showHistory;
+                toggle.text = _showHistory ? "▼" : "▶";
+                _userState.SetBool(ShowHistoryStateKey, _showHistory);
+                UpdateViewVisibility();
+            });
+            header.Add(toggle);
             panel.Add(header);
+            _historyCanvas = new IMGUIContainer(DrawHistoryPanel);
+            _historyCanvas.style.flexGrow = 1f;
+            panel.Add(_historyCanvas);
 
             return panel;
         }
@@ -290,8 +378,8 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
         {
             // 历史记录面板（可折叠）
             _historyPanel = CreateHistoryPanel();
-            _historyPanel.style.height = 100;
             _root.Add(_historyPanel);
+            UpdateViewVisibility();
         }
 
         private void UpdateViewVisibility()
@@ -301,33 +389,118 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
             if (_graphViewContainer != null)
                 _graphViewContainer.style.display = _showGraphView ? DisplayStyle.Flex : DisplayStyle.None;
+
+            if (_parameterPanel != null)
+            {
+                _parameterPanel.style.display = DisplayStyle.Flex;
+                _parameterPanel.style.height = _showParameters ? 120 : 25;
+            }
+            if (_parameterCanvas != null)
+                _parameterCanvas.style.display = _showParameters ? DisplayStyle.Flex : DisplayStyle.None;
+
+            if (_historyPanel != null)
+            {
+                _historyPanel.style.display = DisplayStyle.Flex;
+                _historyPanel.style.height = _showHistory ? 100 : 25;
+            }
+            if (_historyCanvas != null)
+                _historyCanvas.style.display = _showHistory ? DisplayStyle.Flex : DisplayStyle.None;
         }
 
         private void RefreshFsmList()
         {
             var entries = LiveRegistry.GetEntries();
+            var previousTarget = _selectedFsm?.Target;
+            var labels = new List<string>();
+            _entryTargets.Clear();
 
-            if (entries.Count == 0)
+            for (var index = 0; index < entries.Count; index++)
             {
+                var entry = entries[index];
+                var target = entry.Target;
+                if (target == null) continue;
+                labels.Add($"{entry.Name} ({entry.FsmType?.Name ?? "未知类型"})");
+                _entryTargets.Add(target);
+            }
+
+            if (_entryTargets.Count == 0)
+            {
+                _selectedFsmIndex = -1;
+                _selectedFsm = null;
+                _currentSnapshot = null;
+                _fsmDropdown.choices = new List<string> { "无运行时实例" };
+                _fsmDropdown.SetValueWithoutNotify(_fsmDropdown.choices[0]);
+                _fsmDropdown.SetEnabled(false);
+                RepaintViews();
                 return;
             }
 
-            // 验证当前选择是否有效
-            if (_selectedFsmIndex < 0 || _selectedFsmIndex >= entries.Count)
+            _fsmDropdown.choices = labels;
+            _fsmDropdown.SetEnabled(true);
+            _selectedFsmIndex = FindSelectionIndex(entries, previousTarget, _preferredFsmName);
+            _fsmDropdown.index = _selectedFsmIndex;
+            SelectFsm(_selectedFsmIndex);
+        }
+
+        private int FindSelectionIndex(
+            IReadOnlyList<LiveRegistry.Entry> entries,
+            object previousTarget,
+            string preferredName)
+        {
+            for (var index = 0; index < _entryTargets.Count; index++)
+                if (ReferenceEquals(_entryTargets[index], previousTarget)) return index;
+
+            if (!string.IsNullOrEmpty(preferredName))
             {
-                _selectedFsmIndex = 0;
+                for (var index = 0; index < entries.Count; index++)
+                    if (string.Equals(entries[index].Name, preferredName, StringComparison.OrdinalIgnoreCase))
+                        return index;
             }
 
-            // 更新快照
-            var entry = entries[_selectedFsmIndex];
+            return 0;
+        }
+
+        private void SelectFsm(int index)
+        {
+            if (index < 0 || index >= _entryTargets.Count) return;
+            _selectedFsmIndex = index;
+            var target = _entryTargets[index];
+            _selectedFsm = new WeakReference(target);
+            var entry = FindEntry(target);
             _currentSnapshot = entry?.Snapshot;
-
-            if (_currentSnapshot != null)
-            {
+            _preferredFsmName = entry?.Name ?? string.Empty;
+            _userState.SetString(SelectedFsmStateKey, _preferredFsmName);
+            if (EditorApplication.isPlaying)
+                LiveRegistry.UpdateSnapshot(target);
+            else
                 UpdateLayout();
-            }
+            RepaintViews();
+        }
 
+        private static LiveRegistry.Entry FindEntry(object target)
+        {
+            var entries = LiveRegistry.GetEntries();
+            for (var index = 0; index < entries.Count; index++)
+                if (ReferenceEquals(entries[index].Target, target)) return entries[index];
+            return null;
+        }
+
+        private void RepaintViews()
+        {
+            _treeCanvas?.MarkDirtyRepaint();
+            _graphCanvas?.MarkDirtyRepaint();
+            _parameterCanvas?.MarkDirtyRepaint();
+            _historyCanvas?.MarkDirtyRepaint();
             Repaint();
+        }
+
+        private void UpdatePlayIndicator()
+        {
+            if (_playIndicator == null) return;
+            _playIndicator.style.backgroundColor = EditorApplication.isPlaying
+                ? new Color(0.2f, 0.8f, 0.2f)
+                : new Color(0.5f, 0.5f, 0.5f);
+            _playIndicator.tooltip = EditorApplication.isPlaying ? "正在运行" : "未运行";
         }
 
         private void UpdateLayout()
@@ -345,46 +518,25 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             _layoutEngine.CalculateLayout(_currentSnapshot, canvasWidth, canvasHeight);
         }
 
-        private void OnGUI()
-        {
-            // 检查是否在播放模式
-            using (new EditorGUI.DisabledScope(!EditorApplication.isPlaying))
-            {
-                DrawPlayModeWarning();
-            }
-
-            DrawGraphView();
-            DrawTreeView();
-            DrawParameterPanel();
-            DrawHistoryPanel();
-        }
-
-        private void DrawPlayModeWarning()
-        {
-            if (!EditorApplication.isPlaying)
-            {
-                EditorGUILayout.HelpBox(
-                    "Enter Play Mode to monitor running state machines.\n" +
-                    "Call LiveRegistry.Register(name, fsm) from your code to register FSMs.",
-                    MessageType.Info);
-            }
-        }
-
         private void DrawTreeView()
         {
-            if (!_showTreeView || _currentSnapshot == null)
+            if (!_showTreeView)
                 return;
 
-            GUILayout.BeginArea(new Rect(0, 25, 220, position.height - 25 - 100));
+            if (_currentSnapshot == null)
+            {
+                EditorGUILayout.HelpBox("尚未选择运行时 FSM。", MessageType.Info);
+                return;
+            }
+
             _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
 
-            EditorGUILayout.LabelField("State Tree", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("状态树", EditorStyles.boldLabel);
             EditorGUILayout.Space(5);
 
             DrawStateTreeNode("", 0);
 
             GUILayout.EndScrollView();
-            GUILayout.EndArea();
         }
 
         private void DrawStateTreeNode(string parentPath, int indent)
@@ -447,9 +599,9 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                 }
 
                 var label = state.isExiting
-                    ? $"◐ {state.name} (Pending Exit)"
+                    ? $"◐ {state.name}（等待退出）"
                     : state.isEntering
-                        ? $"◑ {state.name} (Pending Enter)"
+                        ? $"◑ {state.name}（等待进入）"
                         : state.isActive
                             ? $"● {state.name}"
                             : state.name;
@@ -458,7 +610,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                 // 持续时间
                 if (state.isActive && state.activeDuration > 0)
                 {
-                    GUILayout.Label($"({state.activeDuration:F1}s)", EditorStyles.miniLabel);
+                    GUILayout.Label($"（{state.activeDuration:F1} 秒）", EditorStyles.miniLabel);
                 }
 
                 GUILayout.EndHorizontal();
@@ -489,10 +641,10 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                     fontStyle = behavior.isActive ? FontStyle.Bold : FontStyle.Normal
                 };
                 GUILayout.Label(GetBehaviorStatusGlyph(behavior.status), statusStyle, GUILayout.Width(14));
-                GUILayout.Label(string.IsNullOrEmpty(behavior.name) ? behavior.typeName : behavior.name, statusStyle);
+                GUILayout.Label(GetBehaviorDisplayName(behavior), statusStyle);
                 GUILayout.FlexibleSpace();
                 if (behavior.elapsedTime > 0f)
-                    GUILayout.Label($"{behavior.elapsedTime:F1}s", EditorStyles.miniLabel);
+                    GUILayout.Label($"{behavior.elapsedTime:F1} 秒", EditorStyles.miniLabel);
                 GUILayout.EndHorizontal();
             }
         }
@@ -531,15 +683,53 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             }
         }
 
+        private static string GetBehaviorDisplayName(BehaviorNodeInfo behavior)
+        {
+            var name = string.IsNullOrEmpty(behavior.name) ? behavior.typeName : behavior.name;
+            if (!IsDefaultBehaviorName(behavior.typeName, name)) return name;
+            if (!AbilityKit.HFSM.BehaviorTypeRegistry.IsInitialized)
+                AbilityKit.HFSM.BehaviorTypeRegistry.Initialize();
+            return AbilityKit.HFSM.BehaviorTypeRegistry.GetDefinition(behavior.typeName)?.displayName ?? name;
+        }
+
+        private static bool IsDefaultBehaviorName(string typeName, string name)
+        {
+            if (name == typeName) return true;
+            switch (typeName)
+            {
+                case "SetFloat": return name == "Set Float";
+                case "SetBool": return name == "Set Bool";
+                case "SetInt": return name == "Set Int";
+                case "PlayAnimation": return name == "Play Animation";
+                case "SetActive": return name == "Set Active";
+                case "MoveTo": return name == "Move To";
+                case "RandomSelector": return name == "Random Selector";
+                case "RandomSequence": return name == "Random Sequence";
+                case "TimeLimit": return name == "Time Limit";
+                case "UntilSuccess": return name == "Until Success";
+                case "UntilFailure": return name == "Until Failure";
+                default: return false;
+            }
+        }
+
         private void DrawGraphView()
         {
-            if (!_showGraphView || _currentSnapshot == null || _currentSnapshot.states.Count == 0)
+            if (!_showGraphView)
                 return;
 
+            if (_currentSnapshot == null || _currentSnapshot.states.Count == 0)
+            {
+                EditorGUILayout.HelpBox(
+                    EditorApplication.isPlaying
+                        ? "所选 FSM 暂无可用的运行时快照。"
+                        : "请进入播放模式，并通过 LiveRegistry.Register(name, fsm) 注册 FSM。",
+                    MessageType.Info);
+                return;
+            }
+
             // 图形画布
-            var graphRect = _showTreeView
-                ? new Rect(220, 25, position.width - 220, position.height - 25 - 100)
-                : new Rect(0, 25, position.width, position.height - 25 - 100);
+            var size = _graphCanvas?.contentRect.size ?? new Vector2(600f, 400f);
+            var graphRect = new Rect(Vector2.zero, size);
 
             GUI.BeginGroup(graphRect);
 
@@ -657,7 +847,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                 normal = { textColor = new Color(0.8f, 0.8f, 0.8f) }
             };
             GUI.Label(new Rect(5, 25, width - 10, 15),
-                state.isStateMachine ? "State Machine" : "State", typeStyle);
+                state.isStateMachine ? "状态机" : "状态", typeStyle);
 
             // 激活时长
             if (state.isActive && state.activeDuration > 0)
@@ -668,7 +858,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                     normal = { textColor = new Color(0.6f, 1f, 0.6f) }
                 };
                 GUI.Label(new Rect(5, 38, width - 10, 12),
-                    $"{state.activeDuration:F2}s", durationStyle);
+                    $"{state.activeDuration:F2} 秒", durationStyle);
             }
 
             GUI.EndGroup();
@@ -758,10 +948,12 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
         private static string BuildTransitionLabel(TransitionInfo transition)
         {
-            var prefix = transition.isFromAny ? "[Any] " : string.Empty;
+            var prefix = transition.isFromAny ? "[任意状态] " : string.Empty;
             if (transition.forceInstantly)
-                prefix += "[Force] ";
-            return prefix + (transition.conditionDescription ?? string.Empty);
+                prefix += "[强制] ";
+            var description = transition.conditionDescription ?? string.Empty;
+            description = description.Replace(" [trigger: ", " [触发器：");
+            return prefix + description;
         }
 
         private void DrawArrow(float x, float y, float angle, Color color)
@@ -784,10 +976,9 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             if (!_showParameters || _currentSnapshot == null)
                 return;
 
-            GUILayout.BeginArea(new Rect(0, position.height - 100, position.width, 100));
-            GUILayout.BeginScrollView(Vector2.zero);
+            _parameterScrollPosition = GUILayout.BeginScrollView(_parameterScrollPosition);
 
-            EditorGUILayout.LabelField("Parameters", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("参数", EditorStyles.boldLabel);
 
             if (_currentSnapshot.parameters.Count > 0)
             {
@@ -800,11 +991,10 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             }
             else
             {
-                EditorGUILayout.HelpBox("No parameters", MessageType.None);
+                EditorGUILayout.HelpBox("暂无参数", MessageType.None);
             }
 
             GUILayout.EndScrollView();
-            GUILayout.EndArea();
         }
 
         private void DrawParameter(ParameterInfo param)
@@ -817,7 +1007,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             switch (param.type)
             {
                 case ParameterType.Bool:
-                    valueStr = param.boolValue ? "True" : "False";
+                    valueStr = param.boolValue ? "真" : "假";
                     break;
                 case ParameterType.Int:
                     valueStr = param.intValue.ToString();
@@ -826,7 +1016,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                     valueStr = param.floatValue.ToString("F2");
                     break;
                 case ParameterType.Trigger:
-                    valueStr = "[Trigger]";
+                    valueStr = "[触发器]";
                     break;
                 default:
                     valueStr = "?";
@@ -843,10 +1033,9 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             if (!_showHistory || _currentSnapshot == null)
                 return;
 
-            GUILayout.BeginArea(new Rect(0, position.height - 100, position.width, 100));
-            GUILayout.BeginScrollView(Vector2.right);
+            _historyScrollPosition = GUILayout.BeginScrollView(_historyScrollPosition);
 
-            EditorGUILayout.LabelField("Recent Transitions", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("最近转换", EditorStyles.boldLabel);
 
             if (_currentSnapshot.history.Count > 0)
             {
@@ -856,18 +1045,17 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                 {
                     var record = _currentSnapshot.history[i];
                     EditorGUILayout.LabelField(
-                        $"[{record.timeAgo:F1}s] {record.fromPath} → {record.toPath}",
+                        $"[{record.timeAgo:F1} 秒] {record.fromPath} → {record.toPath}",
                         EditorStyles.miniLabel);
                 }
                 EditorGUILayout.EndVertical();
             }
             else
             {
-                EditorGUILayout.HelpBox("No transitions recorded", MessageType.None);
+                EditorGUILayout.HelpBox("暂无转换记录", MessageType.None);
             }
 
             GUILayout.EndScrollView();
-            GUILayout.EndArea();
         }
     }
 }

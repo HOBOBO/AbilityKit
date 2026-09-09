@@ -49,7 +49,7 @@ namespace AbilityKit.HFSM.Definition
                     Add(issues, "HFSM006", path + ".id", $"Duplicate machine id '{machine.Id}'.");
                 }
 
-                ValidateMachine(machine, path, issues);
+                ValidateMachine(machine, path, definition.RootMachineId, issues);
             }
 
             if (!string.IsNullOrWhiteSpace(definition.RootMachineId) &&
@@ -72,6 +72,7 @@ namespace AbilityKit.HFSM.Definition
         private static void ValidateMachine(
             MachineDefinition machine,
             string machinePath,
+            string rootMachineId,
             List<ValidationIssue> issues)
         {
             var states = machine.States ?? new List<StateDefinition>();
@@ -93,6 +94,33 @@ namespace AbilityKit.HFSM.Definition
                 else if (!stateIds.Add(state.Id))
                 {
                     Add(issues, "HFSM012", path + ".id", $"Duplicate state id '{state.Id}'.");
+                }
+
+                var parallelKeys = state.ParallelBehaviorKeys ?? new List<string>();
+                if (parallelKeys.Count > 0)
+                {
+                    if (!string.IsNullOrEmpty(state.BehaviorKey) || !string.IsNullOrEmpty(state.ChildMachineId))
+                    {
+                        Add(issues, "HFSM015", path + ".parallelBehaviorKeys",
+                            "A parallel state cannot also define behaviorKey or childMachineId.");
+                    }
+
+                    var uniqueKeys = new HashSet<string>(StringComparer.Ordinal);
+                    for (var keyIndex = 0; keyIndex < parallelKeys.Count; keyIndex++)
+                    {
+                        var key = parallelKeys[keyIndex];
+                        if (string.IsNullOrWhiteSpace(key) || !uniqueKeys.Add(key))
+                        {
+                            Add(issues, "HFSM016", $"{path}.parallelBehaviorKeys[{keyIndex}]",
+                                "Parallel behavior keys must be non-empty and unique.");
+                        }
+                    }
+                }
+
+                if (!Enum.IsDefined(typeof(ParallelExitPolicy), state.ParallelExitPolicy))
+                {
+                    Add(issues, "HFSM017", path + ".parallelExitPolicy",
+                        $"Unknown parallel exit policy '{state.ParallelExitPolicy}'.");
                 }
             }
 
@@ -135,7 +163,21 @@ namespace AbilityKit.HFSM.Definition
                         $"Source state '{transition.FromStateId}' does not exist in machine '{machine.Id}'.");
                 }
 
-                if (string.IsNullOrWhiteSpace(transition.ToStateId) || !stateIds.Contains(transition.ToStateId))
+                if (transition.ExitMachine)
+                {
+                    if (!string.IsNullOrEmpty(transition.ToStateId))
+                    {
+                        Add(issues, "HFSM026", path + ".toStateId",
+                            "An exit transition cannot define a target state.");
+                    }
+
+                    if (string.Equals(machine.Id, rootMachineId, StringComparison.Ordinal))
+                    {
+                        Add(issues, "HFSM027", path,
+                            "The root machine cannot contain exit transitions.");
+                    }
+                }
+                else if (string.IsNullOrWhiteSpace(transition.ToStateId) || !stateIds.Contains(transition.ToStateId))
                 {
                     Add(issues, "HFSM024", path + ".toStateId",
                         $"Target state '{transition.ToStateId}' does not exist in machine '{machine.Id}'.");

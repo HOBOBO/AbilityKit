@@ -95,18 +95,30 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string BuildLine()
         {
             var builder = new StringBuilder();
-            builder.Append(Kind).Append(" ");
+            builder.Append(ChangeKindLabel(Kind)).Append(" ");
             if (!string.IsNullOrWhiteSpace(Area)) builder.Append(Area).Append(" ");
             if (!string.IsNullOrWhiteSpace(Path)) builder.Append(Path).Append(": ");
             builder.Append(Summary ?? string.Empty);
             if (!string.IsNullOrWhiteSpace(Before) || !string.IsNullOrWhiteSpace(After))
-                builder.Append(" (").Append(Display(Before)).Append(" -> ").Append(Display(After)).Append(")");
+                builder.Append("（").Append(Display(Before)).Append(" -> ").Append(Display(After)).Append("）");
             return builder.ToString();
         }
 
         private static string Display(string value)
         {
-            return string.IsNullOrWhiteSpace(value) ? "<empty>" : value;
+            return string.IsNullOrWhiteSpace(value) ? "<空>" : value;
+        }
+
+        internal static string ChangeKindLabel(TriggerAuthoringSourceChangeKind kind)
+        {
+            switch (kind)
+            {
+                case TriggerAuthoringSourceChangeKind.Added: return "新增";
+                case TriggerAuthoringSourceChangeKind.Removed: return "删除";
+                case TriggerAuthoringSourceChangeKind.Modified: return "修改";
+                case TriggerAuthoringSourceChangeKind.Renamed: return "重命名";
+                default: return kind.ToString();
+            }
         }
     }
 
@@ -155,36 +167,36 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             var builder = new StringBuilder();
             builder.AppendLine(Kind == TriggerAuthoringSourcePreviewKind.Module
-                ? "Import Trigger Module Source JSON?"
-                : "Import Trigger Template Source JSON?");
+                ? "是否导入触发器模块 Source JSON？"
+                : "是否导入触发器模板 Source JSON？");
             builder.AppendLine();
             if (!string.IsNullOrWhiteSpace(SourcePath))
-                builder.AppendLine("Source: " + SourcePath);
-            builder.AppendLine("Sync State: " + State);
+                builder.AppendLine("源文件：" + SourcePath);
+            builder.AppendLine("同步状态：" + SyncStateLabel(State));
             if (RequiresForce)
-                builder.AppendLine("This import will overwrite local asset changes.");
+                builder.AppendLine("本次导入会覆盖本地资产改动。");
             if (!string.IsNullOrWhiteSpace(Message))
                 builder.AppendLine(Message);
             builder.AppendLine();
-            builder.AppendLine("Identity: " + Display(AssetIdentity) + " -> " + Display(SourceIdentity));
-            builder.AppendLine("Display Name: " + Display(AssetDisplayName) + " -> " + Display(SourceDisplayName));
+            builder.AppendLine("标识：" + Display(AssetIdentity) + " -> " + Display(SourceIdentity));
+            builder.AppendLine("显示名称：" + Display(AssetDisplayName) + " -> " + Display(SourceDisplayName));
 
             if (Kind == TriggerAuthoringSourcePreviewKind.Module)
             {
-                builder.AppendLine("Triggers: " + AssetTriggerCount + " -> " + SourceTriggerCount);
-                builder.AppendLine("Blackboard: " + AssetBlackboardCount + " -> " + SourceBlackboardCount);
-                builder.AppendLine("Condition Groups: " + AssetConditionGroupCount + " -> " + SourceConditionGroupCount);
-                builder.AppendLine("Action Groups: " + AssetActionGroupCount + " -> " + SourceActionGroupCount);
+                builder.AppendLine("触发器：" + AssetTriggerCount + " -> " + SourceTriggerCount);
+                builder.AppendLine("黑板变量：" + AssetBlackboardCount + " -> " + SourceBlackboardCount);
+                builder.AppendLine("条件分组：" + AssetConditionGroupCount + " -> " + SourceConditionGroupCount);
+                builder.AppendLine("行为分组：" + AssetActionGroupCount + " -> " + SourceActionGroupCount);
             }
             else
             {
-                builder.AppendLine("Parameters: " + AssetTemplateParameterCount + " -> " + SourceTemplateParameterCount);
+                builder.AppendLine("参数：" + AssetTemplateParameterCount + " -> " + SourceTemplateParameterCount);
             }
 
             if (Changes != null && Changes.Count > 0)
             {
                 builder.AppendLine();
-                builder.AppendLine("Changes:");
+                builder.AppendLine("变更：");
                 for (var i = 0; i < Changes.Count; i++)
                 {
                     var change = Changes[i];
@@ -192,7 +204,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     builder.AppendLine(change.BuildLine());
                     if (i >= 11 && Changes.Count > 12)
                     {
-                        builder.AppendLine("... " + (Changes.Count - i - 1) + " more");
+                        builder.AppendLine("... 还有 " + (Changes.Count - i - 1) + " 项");
                         break;
                     }
                 }
@@ -201,19 +213,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (Diagnostics != null && Diagnostics.Count > 0)
             {
                 builder.AppendLine();
-                builder.AppendLine("Diagnostics:");
+                builder.AppendLine("诊断：");
                 for (var i = 0; i < Diagnostics.Count; i++)
                 {
                     var diagnostic = Diagnostics[i];
                     if (diagnostic == null) continue;
                     builder.AppendLine(
-                        diagnostic.Severity + " " +
+                        DiagnosticSeverityLabel(diagnostic.Severity) + " " +
                         diagnostic.Code + " " +
                         diagnostic.Path + ": " +
                         diagnostic.Message);
                     if (i >= 7 && Diagnostics.Count > 8)
                     {
-                        builder.AppendLine("... " + (Diagnostics.Count - i - 1) + " more");
+                        builder.AppendLine("... 还有 " + (Diagnostics.Count - i - 1) + " 项");
                         break;
                     }
                 }
@@ -224,7 +236,32 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string Display(string value)
         {
-            return string.IsNullOrWhiteSpace(value) ? "<empty>" : value;
+            return string.IsNullOrWhiteSpace(value) ? "<空>" : value;
+        }
+
+        internal static string SyncStateLabel(TriggerAuthoringSyncState state)
+        {
+            switch (state)
+            {
+                case TriggerAuthoringSyncState.Untracked: return "未跟踪";
+                case TriggerAuthoringSyncState.InSync: return "已同步";
+                case TriggerAuthoringSyncState.AssetChanged: return "资产已修改";
+                case TriggerAuthoringSyncState.JsonChanged: return "源文件已修改";
+                case TriggerAuthoringSyncState.Conflict: return "存在冲突";
+                case TriggerAuthoringSyncState.SourceMissing: return "源文件缺失";
+                case TriggerAuthoringSyncState.InvalidSource: return "源文件无效";
+                default: return "未知";
+            }
+        }
+
+        private static string DiagnosticSeverityLabel(TriggerAuthoringDiagnosticSeverity severity)
+        {
+            switch (severity)
+            {
+                case TriggerAuthoringDiagnosticSeverity.Error: return "错误";
+                case TriggerAuthoringDiagnosticSeverity.Warning: return "警告";
+                default: return "信息";
+            }
         }
     }
 
@@ -238,48 +275,48 @@ namespace AbilityKit.Ability.Editor.Utilities
             local = local ?? new TriggerAuthoringModuleData();
             source = source ?? new TriggerAuthoringModuleData();
 
-            AddValueChange(changes, "Module", "module.displayName", "Display name changed", local.DisplayName, source.DisplayName);
-            AddValueChange(changes, "Module", "module.kind", "Kind changed", local.Kind.ToString(), source.Kind.ToString());
+            AddValueChange(changes, "模块", "module.displayName", "显示名称已更改", local.DisplayName, source.DisplayName);
+            AddValueChange(changes, "模块", "module.kind", "模块类型已更改", local.Kind.ToString(), source.Kind.ToString());
             AddListChanges(
                 changes,
-                "Trigger",
+                "触发器",
                 "module.triggers",
                 local.Triggers,
                 source.Triggers,
                 item => item.Id.ToString(),
                 item => string.IsNullOrWhiteSpace(item.Name) ? item.Event : item.Name,
                 item => item.Name,
-                item => "Trigger changed");
+                item => "触发器已更改");
             AddListChanges(
                 changes,
-                "Blackboard",
+                "黑板变量",
                 "module.blackboard",
                 local.Blackboard,
                 source.Blackboard,
                 item => item.Key,
                 item => item.Key,
                 item => item.Description,
-                item => "Blackboard variable changed");
+                item => "黑板变量已更改");
             AddListChanges(
                 changes,
-                "Condition Group",
+                "条件分组",
                 "module.conditionGroups",
                 local.ConditionGroups,
                 source.ConditionGroups,
                 item => item.Id,
                 item => string.IsNullOrWhiteSpace(item.DisplayName) ? item.Id : item.DisplayName,
                 item => item.DisplayName,
-                item => "Condition group changed");
+                item => "条件分组已更改");
             AddListChanges(
                 changes,
-                "Action Group",
+                "行为分组",
                 "module.actionGroups",
                 local.ActionGroups,
                 source.ActionGroups,
                 item => item.Id,
                 item => string.IsNullOrWhiteSpace(item.DisplayName) ? item.Id : item.DisplayName,
                 item => item.DisplayName,
-                item => "Action group changed");
+                item => "行为分组已更改");
             return changes;
         }
 
@@ -290,22 +327,32 @@ namespace AbilityKit.Ability.Editor.Utilities
             var changes = new List<TriggerAuthoringSourceImportChange>();
             local = local ?? new TriggerAuthoringTemplateData();
             source = source ?? new TriggerAuthoringTemplateData();
+            TriggerAuthoringTemplateDefinition.Normalize(local);
+            TriggerAuthoringTemplateDefinition.Normalize(source);
 
-            AddValueChange(changes, "Template", "template.displayName", "Display name changed", local.DisplayName, source.DisplayName);
-            AddValueChange(changes, "Template", "template.templateVersion", "Version changed", local.TemplateVersion, source.TemplateVersion);
-            AddValueChange(changes, "Template", "template.event", "Event changed", local.Event, source.Event);
+            AddValueChange(changes, "模板", "template.displayName", "显示名称已更改", local.DisplayName, source.DisplayName);
+            AddValueChange(changes, "模板", "template.templateVersion", "版本已更改", local.TemplateVersion, source.TemplateVersion);
+            AddValueChange(changes, "触发器原型", "template.definition.event", "事件已更改", local.Definition.Event, source.Definition.Event);
             AddListChanges(
                 changes,
-                "Parameter",
+                "参数",
                 "template.parameters",
                 local.Parameters,
                 source.Parameters,
                 item => item.Name,
                 item => item.Name,
                 item => item.Description,
-                item => "Template parameter changed");
-            AddNodeChange(changes, "Template", "template.condition", "Condition graph changed", local.Condition, source.Condition);
-            AddNodeChange(changes, "Template", "template.actions", "Action graph changed", local.Actions, source.Actions);
+                item => "模板参数已更改");
+            if (!ContentEquals(local.Definition, source.Definition))
+                changes.Add(new TriggerAuthoringSourceImportChange
+                {
+                    Kind = TriggerAuthoringSourceChangeKind.Modified,
+                    Area = "触发器原型",
+                    Path = "template.definition",
+                    Summary = "完整触发器配置已更改",
+                    Before = local.Definition.Name,
+                    After = source.Definition.Name
+                });
             return changes;
         }
 
@@ -373,7 +420,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         Kind = TriggerAuthoringSourceChangeKind.Added,
                         Area = area,
                         Path = pathPrefix + "[" + pair.Key + "]",
-                        Summary = "Added " + Display(labelSelector(pair.Value)),
+                        Summary = "新增“" + Display(labelSelector(pair.Value)) + "”",
                         After = labelSelector(pair.Value)
                     });
                     continue;
@@ -390,7 +437,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                             Kind = TriggerAuthoringSourceChangeKind.Renamed,
                             Area = area,
                             Path = pathPrefix + "[" + pair.Key + "]",
-                            Summary = "Renamed " + Display(labelSelector(pair.Value)),
+                            Summary = "重命名为“" + Display(labelSelector(pair.Value)) + "”",
                             Before = beforeName,
                             After = afterName
                         });
@@ -417,7 +464,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     Kind = TriggerAuthoringSourceChangeKind.Removed,
                     Area = area,
                     Path = pathPrefix + "[" + pair.Key + "]",
-                    Summary = "Removed " + Display(labelSelector(pair.Value)),
+                    Summary = "删除“" + Display(labelSelector(pair.Value)) + "”",
                     Before = labelSelector(pair.Value)
                 });
             }
@@ -460,7 +507,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string Display(string value)
         {
-            return string.IsNullOrWhiteSpace(value) ? "<empty>" : value;
+            return string.IsNullOrWhiteSpace(value) ? "<空>" : value;
         }
     }
 
@@ -500,8 +547,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             _diagnostics = TriggerAuthoringDiagnosticAdapter.Adapt(_preview.Diagnostics);
             _diagnosticSearch = new EditorSearchState();
             titleContent = new GUIContent(_preview.Kind == TriggerAuthoringSourcePreviewKind.Module
-                ? "Trigger Source Import Preview"
-                : "Trigger Template Import Preview");
+                ? "触发器源文件导入预览"
+                : "触发器模板导入预览");
             minSize = new Vector2(DefaultWidth, DefaultHeight);
             maxSize = new Vector2(1200f, 900f);
             position = new Rect(
@@ -532,10 +579,10 @@ namespace AbilityKit.Ability.Editor.Utilities
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.LabelField(
                 _preview.Kind == TriggerAuthoringSourcePreviewKind.Module
-                    ? "Import Trigger Module Source JSON"
-                    : "Import Trigger Template Source JSON",
+                    ? "导入触发器模块 Source JSON"
+                    : "导入触发器模板 Source JSON",
                 EditorStyles.boldLabel);
-            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("sync-state"), _preview.State.ToString(), EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("sync-state"), TriggerAuthoringSourceImportPreview.SyncStateLabel(_preview.State), EditorStyles.miniBoldLabel);
             if (!string.IsNullOrWhiteSpace(_preview.SourcePath))
             {
                 EditorGUILayout.SelectableLabel(_preview.SourcePath, EditorStyles.miniLabel, GUILayout.Height(18f));
@@ -550,7 +597,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("overwrite-warning"), MessageType.Warning);
             if (!_preview.CanImport)
                 EditorGUILayout.HelpBox(string.IsNullOrWhiteSpace(_preview.Message)
-                    ? "Source JSON cannot be imported."
+                    ? "无法导入 Source JSON。"
                     : _preview.Message, MessageType.Error);
             else if (!string.IsNullOrWhiteSpace(_preview.Message))
                 EditorGUILayout.HelpBox(_preview.Message, MessageType.Info);
@@ -561,18 +608,18 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("summary"), EditorStyles.boldLabel);
             _summaryScroll = EditorGUILayout.BeginScrollView(_summaryScroll, EditorStyles.helpBox, GUILayout.Height(110f));
-            DrawValueRow("Identity", _preview.AssetIdentity, _preview.SourceIdentity);
-            DrawValueRow("Display Name", _preview.AssetDisplayName, _preview.SourceDisplayName);
+            DrawValueRow("标识", _preview.AssetIdentity, _preview.SourceIdentity);
+            DrawValueRow("显示名称", _preview.AssetDisplayName, _preview.SourceDisplayName);
             if (_preview.Kind == TriggerAuthoringSourcePreviewKind.Module)
             {
-                DrawCountRow("Triggers", _preview.AssetTriggerCount, _preview.SourceTriggerCount);
-                DrawCountRow("Blackboard", _preview.AssetBlackboardCount, _preview.SourceBlackboardCount);
-                DrawCountRow("Condition Groups", _preview.AssetConditionGroupCount, _preview.SourceConditionGroupCount);
-                DrawCountRow("Action Groups", _preview.AssetActionGroupCount, _preview.SourceActionGroupCount);
+                DrawCountRow("触发器", _preview.AssetTriggerCount, _preview.SourceTriggerCount);
+                DrawCountRow("黑板变量", _preview.AssetBlackboardCount, _preview.SourceBlackboardCount);
+                DrawCountRow("条件分组", _preview.AssetConditionGroupCount, _preview.SourceConditionGroupCount);
+                DrawCountRow("行为分组", _preview.AssetActionGroupCount, _preview.SourceActionGroupCount);
             }
             else
             {
-                DrawCountRow("Parameters", _preview.AssetTemplateParameterCount, _preview.SourceTemplateParameterCount);
+                DrawCountRow("参数", _preview.AssetTemplateParameterCount, _preview.SourceTemplateParameterCount);
             }
             EditorGUILayout.EndScrollView();
         }
@@ -580,7 +627,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private void DrawChanges()
         {
             EditorGUILayout.LabelField(
-                "Changes (" + (_preview.Changes != null ? _preview.Changes.Count : 0) + ")",
+                "变更（" + (_preview.Changes != null ? _preview.Changes.Count : 0) + "）",
                 EditorStyles.boldLabel);
             _changeScroll = EditorGUILayout.BeginScrollView(_changeScroll, EditorStyles.helpBox, GUILayout.MinHeight(120f));
             if (_preview.Changes == null || _preview.Changes.Count == 0)
@@ -594,7 +641,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     var change = _preview.Changes[i];
                     if (change == null) continue;
                     EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-                    EditorGUILayout.LabelField(change.Kind + "  " + change.Area, EditorStyles.miniBoldLabel);
+                    EditorGUILayout.LabelField(TriggerAuthoringSourceImportChange.ChangeKindLabel(change.Kind) + "  " + change.Area, EditorStyles.miniBoldLabel);
                     EditorGUILayout.LabelField(change.Summary ?? string.Empty, EditorStyles.wordWrappedLabel);
                     if (!string.IsNullOrWhiteSpace(change.Path))
                         EditorGUILayout.SelectableLabel(change.Path, EditorStyles.miniLabel, GUILayout.Height(18f));
@@ -610,7 +657,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (_diagnostics == null || _diagnostics.Items.Count == 0) return;
             EditorGUILayout.LabelField(
-                "Diagnostics (E" + _diagnostics.ErrorCount + " W" + _diagnostics.WarningCount + ")",
+                "诊断（错误 " + _diagnostics.ErrorCount + "，警告 " + _diagnostics.WarningCount + "）",
                 EditorStyles.boldLabel);
             EditorImGuiControls.DrawDiagnostics(
                 _diagnostics,
@@ -626,14 +673,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             GUILayout.FlexibleSpace();
             if (_preview.CanImport)
             {
-                var label = _preview.RequiresForce ? "Force Import" : "Import";
+                var label = _preview.RequiresForce ? "强制导入" : "导入";
                 if (GUILayout.Button(label, EditorStyles.toolbarButton, GUILayout.Width(120f)))
                 {
                     _accepted = true;
                     Close();
                 }
             }
-            if (GUILayout.Button(_preview.CanImport ? "Cancel" : "Close", EditorStyles.toolbarButton, GUILayout.Width(100f)))
+            if (GUILayout.Button(_preview.CanImport ? "取消" : "关闭", EditorStyles.toolbarButton, GUILayout.Width(100f)))
             {
                 _accepted = false;
                 Close();
@@ -658,7 +705,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string Display(string value)
         {
-            return string.IsNullOrWhiteSpace(value) ? "<empty>" : value;
+            return string.IsNullOrWhiteSpace(value) ? "<空>" : value;
         }
     }
 
@@ -688,7 +735,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static TriggerAuthoringSourceDocument ReadFile(string path)
         {
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
             return ResolveCodec(path).Deserialize(File.ReadAllText(path, Encoding.UTF8));
         }
 
@@ -700,7 +747,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static void WriteFileAtomic(string path, TriggerAuthoringSourceDocument document)
         {
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Source path is required.", nameof(path));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
             TriggerSourceCanonical.WriteTextAtomic(path, ResolveCodec(path).Serialize(document));
         }
 
@@ -708,9 +755,9 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (!TriggerSourceCodecs.TryResolveModule(path, out var codec))
                 throw new InvalidDataException(
-                    "No Trigger Source codec is registered for extension '" +
+                    "没有为扩展名“" +
                     (Path.GetExtension(path) ?? string.Empty) +
-                    "'. Supported: " + TriggerSourceCodecs.DescribeModuleExtensions() + ".");
+                    "”注册触发器 Source 编解码器。支持的格式：" + TriggerSourceCodecs.DescribeModuleExtensions() + "。");
             return codec;
         }
     }
@@ -728,7 +775,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     TriggerAuthoringSourcePreviewKind.Module,
                     TriggerAuthoringSyncState.SourceMissing,
                     sourcePath,
-                    "Source JSON file does not exist.");
+                    "Source JSON 文件不存在。");
 
             TriggerAuthoringSourceDocument document;
             try
@@ -750,7 +797,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!string.IsNullOrWhiteSpace(currentModuleId) &&
                 !string.Equals(currentModuleId, incomingModuleId, StringComparison.Ordinal))
             {
-                preview.Message = $"Module identity mismatch. Asset='{currentModuleId}', Source='{incomingModuleId ?? string.Empty}'.";
+                preview.Message = $"模块标识不匹配。资产='{currentModuleId}'，Source='{incomingModuleId ?? string.Empty}'。";
                 return preview;
             }
 
@@ -774,7 +821,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             preview.CanImport = assessment.CanExecute;
             preview.Success = assessment.CanExecute;
             if (!assessment.CanExecute)
-                preview.Message = inspection.Error ?? "Source JSON cannot be imported in the current sync state.";
+                preview.Message = inspection.Error ?? "当前同步状态下无法导入 Source JSON。";
             return preview;
         }
 
@@ -830,7 +877,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (asset == null) throw new ArgumentNullException(nameof(asset));
             sourcePath = ResolveSourcePath(asset, sourcePath);
             if (string.IsNullOrWhiteSpace(sourcePath))
-                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.Untracked, "Source JSON path is required.");
+                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.Untracked, "必须提供 Source JSON 路径。");
 
             var diagnostics = TriggerAuthoringValidator.Validate(
                 asset.Module,
@@ -845,7 +892,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!force && assessment.RequiresForce)
                 return TriggerAuthoringSyncResult.Failed(
                     inspection.State,
-                    inspection.Error ?? "Source JSON contains changes that would be overwritten.",
+                    inspection.Error ?? "Source JSON 包含将被覆盖的改动。",
                     true);
 
             var document = TriggerAuthoringSourceCodec.CreateDocument(asset);
@@ -864,7 +911,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (asset == null) throw new ArgumentNullException(nameof(asset));
             sourcePath = ResolveSourcePath(asset, sourcePath);
             if (string.IsNullOrWhiteSpace(sourcePath) || !File.Exists(sourcePath))
-                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.SourceMissing, "Source JSON file does not exist.");
+                return TriggerAuthoringSyncResult.Failed(TriggerAuthoringSyncState.SourceMissing, "Source JSON 文件不存在。");
 
             TriggerAuthoringSourceDocument document;
             try
@@ -883,7 +930,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 return TriggerAuthoringSyncResult.Failed(
                     TriggerAuthoringSyncState.Conflict,
-                    $"Module identity mismatch. Asset='{currentModuleId}', Source='{incomingModuleId ?? string.Empty}'.");
+                    $"模块标识不匹配。资产='{currentModuleId}'，Source='{incomingModuleId ?? string.Empty}'。");
             }
 
             var diagnostics = TriggerAuthoringValidator.Validate(
@@ -900,10 +947,10 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!force && assessment.RequiresForce)
                 return TriggerAuthoringSyncResult.Failed(
                     inspection.State,
-                    "Asset contains changes that would be overwritten.",
+                    "资产包含将被覆盖的改动。",
                     true);
 
-            Undo.RecordObject(asset, "Import Trigger Authoring Source JSON");
+            Undo.RecordObject(asset, "导入触发器 Source JSON");
             asset.Metadata = document.Metadata ?? new TriggerAuthoringSourceMetadata();
             asset.Module = document.Module;
             var hash = TriggerAuthoringSourceCodec.ComputeContentHash(document);
@@ -923,7 +970,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 EditorSourceSyncState.Conflict => TriggerAuthoringSyncState.Conflict,
                 EditorSourceSyncState.SourceMissing => TriggerAuthoringSyncState.SourceMissing,
                 EditorSourceSyncState.InvalidSource => TriggerAuthoringSyncState.InvalidSource,
-                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "Unknown source sync state.")
+                _ => throw new ArgumentOutOfRangeException(nameof(state), state, "未知的 Source 同步状态。")
             };
         }
 
@@ -971,7 +1018,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string BuildValidationMessage(IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics)
         {
-            var builder = new StringBuilder("Trigger authoring validation failed:");
+            var builder = new StringBuilder("触发器编辑数据校验失败：");
             for (var i = 0; i < diagnostics.Count; i++)
             {
                 var diagnostic = diagnostics[i];

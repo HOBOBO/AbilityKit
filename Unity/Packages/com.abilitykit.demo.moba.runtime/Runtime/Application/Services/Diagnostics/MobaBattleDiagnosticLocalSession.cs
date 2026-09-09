@@ -14,6 +14,7 @@ namespace AbilityKit.Demo.Moba.Services
     [WorldService(typeof(IBattleDiagnosticReadOnlySession), WorldLifetime.Scoped)]
     public sealed class MobaBattleDiagnosticLocalSession :
         IBattleDiagnosticReadOnlySession,
+        IBattleDiagnosticTraceRootSession,
         IBattleDiagnosticRuntimeObjectCatalogSession,
         IBattleDiagnosticMetricSession,
         IService
@@ -462,6 +463,32 @@ namespace AbilityKit.Demo.Moba.Services
                     requestId,
                     TraceStoreRevision,
                     "QueryTrace.Exception",
+                    ex.Message);
+            }
+        }
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary> QueryTraceRoots(
+            BattleDiagnosticTraceRootQuery query)
+        {
+            if (!(_traceStore is IBattleDiagnosticTraceRootReadStore store))
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary>.Unavailable(
+                    query.RequestId,
+                    TraceStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "This session does not provide trace root discovery.");
+            }
+
+            try
+            {
+                return store.QueryTraceRoots(query);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticTraceRootSummary>.Failed(
+                    query.RequestId,
+                    TraceStoreRevision,
+                    "QueryTraceRoots.Exception",
                     ex.Message);
             }
         }

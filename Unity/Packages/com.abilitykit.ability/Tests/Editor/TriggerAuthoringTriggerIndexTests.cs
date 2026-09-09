@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
 using NUnit.Framework;
+using UnityEngine;
 
 namespace AbilityKit.Ability.Editor.Tests
 {
@@ -227,6 +228,56 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(noEvent[0].Entries.Exists(entry => entry.Index == 3), Is.True);
             Assert.That(noGroup[0].Entries[0].Index, Is.EqualTo(3));
             Assert.That(untagged[0].Entries[0].Index, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void Build_UsesCurrentTemplateDefinitionInsteadOfStaleInstanceEntryFields()
+        {
+            var templateAsset = ScriptableObject.CreateInstance<TriggerAuthoringTemplateAsset>();
+            try
+            {
+                templateAsset.Template = new TriggerAuthoringTemplateData
+                {
+                    TemplateId = "template.index",
+                    Definition = new TriggerDefinitionData
+                    {
+                        Event = "event.current",
+                        Priority = 99,
+                        Actions = new TriggerNodeData
+                        {
+                            Kind = TriggerNodeKind.Action,
+                            Type = "current_template_action"
+                        }
+                    }
+                };
+                var instance = new TriggerDefinitionData
+                {
+                    Id = 21,
+                    Event = "event.stale",
+                    Priority = -10,
+                    Template = new TriggerTemplateReferenceData { TemplateId = "template.index" }
+                };
+                var templates = new TriggerTemplateDescriptorCatalog(new[] { templateAsset });
+
+                var groups = TriggerAuthoringTriggerIndex.Build(
+                    new[] { instance },
+                    null,
+                    null,
+                    TriggerAuthoringTriggerGroupMode.Event,
+                    "current_template_action",
+                    TriggerAuthoringTriggerQuickFilter.All,
+                    templates);
+
+                Assert.That(groups, Has.Count.EqualTo(1));
+                Assert.That(groups[0].Key, Is.EqualTo("event:/event.current"));
+                Assert.That(groups[0].Entries[0].Trigger, Is.SameAs(instance));
+                Assert.That(groups[0].Entries[0].EffectiveTrigger.Event, Is.EqualTo("event.current"));
+                Assert.That(groups[0].Entries[0].EffectiveTrigger.Priority, Is.EqualTo(99));
+            }
+            finally
+            {
+                Object.DestroyImmediate(templateAsset);
+            }
         }
 
         private static List<TriggerDefinitionData> CreateTriggers()

@@ -296,6 +296,8 @@ namespace AbilityKit.HFSM.Graph.Compilation
                     machine.ParentStateMachineId,
                     _resolvedDefaults[machine.Id],
                     machine.RememberLastState,
+                    machine.NeedsExitTime,
+                    machine.IsGhostState,
                     machine.ChildNodeIds.ToArray(),
                     transitions);
                 programs.Add(machine.Id, program);

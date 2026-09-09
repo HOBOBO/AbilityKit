@@ -111,6 +111,37 @@ namespace AbilityKit.Demo.Moba.Services
                 payload: payload);
         }
 
+        public static MobaBattleDiagnosticEventDraft CreateTriggerAnalysisAggregateDraft(
+            in BattleDiagnosticTriggerAnalysisAggregatePayload aggregate,
+            int sourceActorId,
+            int targetActorId)
+        {
+            var payload = BattleDiagnosticEventPayload.FromTriggerAnalysisAggregate(in aggregate);
+            var resolvedRoot = aggregate.LastRootContextId != 0L
+                ? aggregate.LastRootContextId
+                : aggregate.LastContextId;
+            var summary =
+                $"triggerId={aggregate.TriggerId}, stage={aggregate.Stage}, result={aggregate.Result}, " +
+                $"repeated={aggregate.OccurrenceCount}, frames=F{aggregate.FirstFrame}-F{aggregate.LastFrame}";
+            if (!string.IsNullOrEmpty(aggregate.FailureKey))
+            {
+                summary += $", failureKey={aggregate.FailureKey}";
+            }
+
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.TriggerAnalysisAggregate,
+                BattleDiagnosticEventChannel.Trigger,
+                ResolveOutcome(aggregate.Result),
+                sourceActorId,
+                targetActorId,
+                aggregate.TriggerId,
+                resolvedRoot,
+                aggregate.LastContextId,
+                payloadVersion: BattleDiagnosticTriggerAnalysisAggregatePayload.CurrentSchemaVersion,
+                summary: summary,
+                payload: payload);
+        }
+
         private static BattleDiagnosticEventOutcome ResolveOutcome(
             BattleDiagnosticTriggerAnalysisResult result)
         {

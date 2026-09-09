@@ -68,6 +68,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             viewModel.RefreshIfNeeded(session, 11, false);
             Assert.That(session.EventQueryCount, Is.EqualTo(12));
+
+            viewModel.TriggerValueFilter = BattleDiagnosticTriggerValueFilter.All;
+            viewModel.RefreshIfNeeded(session, 11, false);
+            Assert.That(session.EventQueryCount, Is.EqualTo(13));
+            Assert.That(
+                session.LastEventQuery.Filter.TriggerValue,
+                Is.EqualTo(BattleDiagnosticTriggerValueFilter.All));
         }
 
         [Test]
@@ -259,6 +266,99 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(session.LastEventQuery.Filter.SearchText, Is.EqualTo("missingMana"));
             Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Conditions));
             Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
+        }
+
+        [Test]
+        public void EventsTriggerFlows_GroupStagesByRootAndExpandAggregateOccurrences()
+        {
+            var conditions = new BattleDiagnosticTriggerAnalysisAggregatePayload(
+                triggerId: 7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                detailCode: 11,
+                occurrenceCount: 60,
+                firstFrame: 11,
+                lastFrame: 70,
+                firstContextId: 902,
+                lastContextId: 961,
+                firstRootContextId: 900,
+                lastRootContextId: 900,
+                failureKey: "predicateMiss",
+                sampleReason: "Condition remained false.");
+            var events = new[]
+            {
+                TriggerFlowEvent(72, 4, 7001, 900, 904,
+                    BattleDiagnosticTriggerAnalysisStage.Execution,
+                    BattleDiagnosticTriggerAnalysisResult.Failed,
+                    "executionFailed"),
+                TriggerFlowEvent(71, 3, 7001, 900, 903,
+                    BattleDiagnosticTriggerAnalysisStage.Plan,
+                    BattleDiagnosticTriggerAnalysisResult.Passed),
+                TriggerAggregateEvent(70, 2, 7001, 900, 961, in conditions),
+                TriggerFlowEvent(10, 1, 7001, 900, 901,
+                    BattleDiagnosticTriggerAnalysisStage.Budget,
+                    BattleDiagnosticTriggerAnalysisResult.Passed)
+            };
+
+            var flows = BattleDebugDiagnosticEventsViewModel.BuildTriggerFlows(events);
+
+            Assert.That(flows, Has.Count.EqualTo(1));
+            var flow = flows[0];
+            Assert.That(flow.TriggerId, Is.EqualTo(7001));
+            Assert.That(flow.RootContextId, Is.EqualTo(900));
+            Assert.That(flow.FirstFrame, Is.EqualTo(10));
+            Assert.That(flow.LastFrame, Is.EqualTo(72));
+            Assert.That(flow.LatestSequence, Is.EqualTo(4));
+            Assert.That(flow.Budget.LatestResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Passed));
+            Assert.That(flow.Conditions.EventCount, Is.EqualTo(1));
+            Assert.That(flow.Conditions.OccurrenceCount, Is.EqualTo(60));
+            Assert.That(flow.Conditions.FailedCount, Is.EqualTo(60));
+            Assert.That(flow.Conditions.FirstFrame, Is.EqualTo(11));
+            Assert.That(flow.Conditions.LastFrame, Is.EqualTo(70));
+            Assert.That(flow.Plan.LatestResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Passed));
+            Assert.That(flow.Execution.LatestResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Failed));
+            Assert.That(flow.Execution.FailureKey, Is.EqualTo("executionFailed"));
+        }
+
+        [Test]
+        public void EventsTriggerFlows_KeepCrossRootAggregateSeparateFromSingleRootFlow()
+        {
+            var aggregate = new BattleDiagnosticTriggerAnalysisAggregatePayload(
+                triggerId: 7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                detailCode: 11,
+                occurrenceCount: 20,
+                firstFrame: 20,
+                lastFrame: 39,
+                firstContextId: 120,
+                lastContextId: 139,
+                firstRootContextId: 100,
+                lastRootContextId: 200,
+                failureKey: "predicateMiss");
+            var events = new[]
+            {
+                TriggerFlowEvent(40, 2, 7001, 200, 140,
+                    BattleDiagnosticTriggerAnalysisStage.Execution,
+                    BattleDiagnosticTriggerAnalysisResult.Passed),
+                TriggerAggregateEvent(39, 1, 7001, 200, 139, in aggregate)
+            };
+
+            var flows = BattleDebugDiagnosticEventsViewModel.BuildTriggerFlows(events);
+
+            Assert.That(flows, Has.Count.EqualTo(2));
+            Assert.That(flows[0].RootContextId, Is.EqualTo(200));
+            Assert.That(flows[0].SpansMultipleRoots, Is.False);
+            Assert.That(flows[1].RootContextId, Is.Zero);
+            Assert.That(flows[1].SpansMultipleRoots, Is.True);
+            Assert.That(flows[1].FirstRootContextId, Is.EqualTo(100));
+            Assert.That(flows[1].LastRootContextId, Is.EqualTo(200));
+            Assert.That(flows[1].Conditions.OccurrenceCount, Is.EqualTo(20));
+            Assert.That(flows[1].Execution.IsObserved, Is.False);
         }
 
         [Test]
@@ -518,6 +618,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Trigger));
             Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Budget));
             Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Blocked));
+
+            viewModel.FocusTriggerFlows();
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.Trigger));
+            Assert.That(session.LastEventQuery.Filter.FailuresOnly, Is.False);
+            Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Unknown));
+            Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Unknown));
+            Assert.That(session.LastEventQuery.Filter.TriggerValue, Is.EqualTo(BattleDiagnosticTriggerValueFilter.Valuable));
         }
 
         [Test]
@@ -744,7 +852,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.FocusRelated(in diagnosticEvent), Is.True);
             viewModel.RefreshIfNeeded(session, 99, true);
 
-            Assert.That(viewModel.CorrelationFocusLabel, Is.EqualTo("Root Trace=100"));
+            Assert.That(viewModel.CorrelationFocusLabel, Is.EqualTo("根 Trace=100"));
             Assert.That(viewModel.FilterBySelectedActor, Is.False);
             Assert.That(viewModel.FailuresOnly, Is.False);
             Assert.That(viewModel.EventScope, Is.EqualTo(BattleDebugDiagnosticEventScope.All));
@@ -1577,6 +1685,45 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TraceViewModes_PreserveAncestorsAndUpdateVisibleSummary()
+        {
+            var session = new RecordingSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(100, 100, 0, "Root", BattleDiagnosticTraceNodeState.Ended),
+                    TraceNode(100, 110, 100, "SkillPhase", BattleDiagnosticTraceNodeState.Ended),
+                    TraceNode(100, 111, 110, "EffectExecution", BattleDiagnosticTraceNodeState.Ended),
+                    TraceNode(100, 112, 111, "EffectAction", BattleDiagnosticTraceNodeState.Failed),
+                    TraceNode(100, 120, 100, "Tick", BattleDiagnosticTraceNodeState.Active),
+                    TraceNode(100, 130, 100, "Unrelated", BattleDiagnosticTraceNodeState.Ended)
+                }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+
+            viewModel.SetViewMode(BattleDebugTraceViewMode.Issues);
+            Assert.That(
+                viewModel.VisibleRows.Select(row => row.Node.ContextId),
+                Is.EqualTo(new long[] { 100, 110, 111, 112 }));
+            Assert.That(viewModel.VisibleSummary.NodeCount, Is.EqualTo(4));
+            Assert.That(viewModel.VisibleSummary.IssueCount, Is.EqualTo(1));
+
+            viewModel.SetViewMode(BattleDebugTraceViewMode.Active);
+            Assert.That(
+                viewModel.VisibleRows.Select(row => row.Node.ContextId),
+                Is.EqualTo(new long[] { 100, 120 }));
+            Assert.That(viewModel.VisibleSummary.ActiveCount, Is.EqualTo(1));
+
+            viewModel.SetViewMode(BattleDebugTraceViewMode.Effects);
+            Assert.That(
+                viewModel.VisibleRows.Select(row => row.Node.ContextId),
+                Is.EqualTo(new long[] { 100, 110, 111, 112 }));
+            Assert.That(viewModel.VisibleSummary.EffectCount, Is.EqualTo(1));
+            Assert.That(viewModel.VisibleSummary.ActionCount, Is.EqualTo(1));
+        }
+
+        [Test]
         public void SelectionInspector_ActorUsesSelectionFrameAndRevisionAwareCache()
         {
             var actor = new BattleDiagnosticActorSummary(
@@ -2227,6 +2374,68 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 payloadVersion: BattleDiagnosticTriggerAnalysisPayload.CurrentSchemaVersion,
                 summary: payload.Reason,
                 payload: BattleDiagnosticEventPayload.FromTriggerAnalysis(in payload));
+        }
+
+        private static BattleDiagnosticEvent TriggerFlowEvent(
+            int frame,
+            long sequence,
+            int triggerId,
+            long rootContextId,
+            long contextId,
+            BattleDiagnosticTriggerAnalysisStage stage,
+            BattleDiagnosticTriggerAnalysisResult result,
+            string failureKey = "")
+        {
+            var payload = new BattleDiagnosticTriggerAnalysisPayload(
+                triggerId,
+                contextKind: 2,
+                originKind: 3,
+                stage,
+                result,
+                failureKey: failureKey,
+                reason: failureKey);
+            return new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                frame,
+                sequence,
+                sequence,
+                BattleDiagnosticEventKind.TriggerAnalysis,
+                BattleDiagnosticEventChannel.Trigger,
+                result == BattleDiagnosticTriggerAnalysisResult.Passed
+                    ? BattleDiagnosticEventOutcome.Succeeded
+                    : BattleDiagnosticEventOutcome.Failed,
+                sourceActorId: 7,
+                targetActorId: 9,
+                configId: triggerId,
+                rootContextId: rootContextId,
+                contextId: contextId,
+                payloadVersion: BattleDiagnosticTriggerAnalysisPayload.CurrentSchemaVersion,
+                payload: BattleDiagnosticEventPayload.FromTriggerAnalysis(in payload));
+        }
+
+        private static BattleDiagnosticEvent TriggerAggregateEvent(
+            int frame,
+            long sequence,
+            int triggerId,
+            long rootContextId,
+            long contextId,
+            in BattleDiagnosticTriggerAnalysisAggregatePayload aggregate)
+        {
+            return new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                frame,
+                sequence,
+                sequence,
+                BattleDiagnosticEventKind.TriggerAnalysisAggregate,
+                BattleDiagnosticEventChannel.Trigger,
+                BattleDiagnosticEventOutcome.Failed,
+                sourceActorId: 7,
+                targetActorId: 9,
+                configId: triggerId,
+                rootContextId: rootContextId,
+                contextId: contextId,
+                payloadVersion: BattleDiagnosticTriggerAnalysisAggregatePayload.CurrentSchemaVersion,
+                payload: BattleDiagnosticEventPayload.FromTriggerAnalysisAggregate(in aggregate));
         }
 
         private static BattleDiagnosticTraceNodeSummary TraceNode(

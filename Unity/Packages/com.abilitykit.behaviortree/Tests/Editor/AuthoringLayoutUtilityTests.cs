@@ -131,6 +131,43 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
         }
 
         [Test]
+        public void ApplyLayout_SelectedNodes_OnlyMovesSelectionNearItsCurrentArea()
+        {
+            var document = Document(
+                Node("root", BuiltInNodeTypes.Sequence, "branch", "sibling"),
+                Node("branch", BuiltInNodeTypes.Sequence, "leaf-a", "leaf-b"),
+                Node("leaf-a", BuiltInNodeTypes.Succeed),
+                Node("leaf-b", BuiltInNodeTypes.Succeed),
+                Node("sibling", BuiltInNodeTypes.Succeed));
+            document.Layout.Add(new NodeLayoutData { NodeId = "root", X = 100f, Y = 40f });
+            document.Layout.Add(new NodeLayoutData { NodeId = "branch", X = 600f, Y = 300f });
+            document.Layout.Add(new NodeLayoutData { NodeId = "leaf-a", X = 900f, Y = 720f });
+            document.Layout.Add(new NodeLayoutData { NodeId = "leaf-b", X = 300f, Y = 760f });
+            document.Layout.Add(new NodeLayoutData { NodeId = "sibling", X = 1600f, Y = 300f });
+            var rootBefore = new AuthoringLayoutPosition(Layout(document, "root").X, Layout(document, "root").Y);
+            var siblingBefore = new AuthoringLayoutPosition(Layout(document, "sibling").X, Layout(document, "sibling").Y);
+            var selectedIds = new[] { "branch", "leaf-a", "leaf-b" };
+
+            var changed = AuthoringLayoutUtility.ApplyLayout(
+                document,
+                AuthoringGraphWindow.CreateSelectionLayoutOptions(document, selectedIds),
+                null,
+                out var result);
+
+            Assert.That(changed, Is.True);
+            Assert.That(result.NodePositions.Keys, Is.EquivalentTo(selectedIds));
+            Assert.That(Layout(document, "root").X, Is.EqualTo(rootBefore.X));
+            Assert.That(Layout(document, "root").Y, Is.EqualTo(rootBefore.Y));
+            Assert.That(Layout(document, "sibling").X, Is.EqualTo(siblingBefore.X));
+            Assert.That(Layout(document, "sibling").Y, Is.EqualTo(siblingBefore.Y));
+            Assert.That(Layout(document, "branch").Y, Is.EqualTo(300f));
+            Assert.That(Layout(document, "leaf-a").Y, Is.GreaterThan(Layout(document, "branch").Y));
+            Assert.That(Layout(document, "leaf-a").Y, Is.EqualTo(Layout(document, "leaf-b").Y));
+            Assert.That(Layout(document, "branch").X, Is.EqualTo(
+                (Layout(document, "leaf-a").X + Layout(document, "leaf-b").X) * 0.5f));
+        }
+
+        [Test]
         public void ApplyLayout_LocalSubtree_AnchorsSelectedRootAndLeavesUnscopedNodes()
         {
             var document = Document(

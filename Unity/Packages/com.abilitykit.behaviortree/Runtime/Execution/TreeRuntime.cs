@@ -22,13 +22,54 @@ namespace AbilityKit.BehaviorTree.Execution
             public int CompositeIndex;
             /// <summary>条件在中止组合节点下所属分支的相对子序号（LowerPriority 低优先级判定用）</summary>
             public int BranchIndex;
+            public readonly string[]? Dependencies;
+            public readonly ulong[]? DependencyVersions;
 
-            public ConditionalReevaluate(int index, NodeState state, int compositeIndex, int branchIndex)
+            public ConditionalReevaluate(
+                int index,
+                NodeState state,
+                int compositeIndex,
+                int branchIndex,
+                ConditionDependencyProvider? dependencyProvider,
+                AbilityKit.BehaviorTree.Blackboard.Blackboard blackboard)
             {
                 Index = index;
                 State = state;
                 CompositeIndex = compositeIndex;
                 BranchIndex = branchIndex;
+                if (dependencyProvider == null) return;
+
+                var declared = dependencyProvider.BlackboardDependencies
+                    ?? throw new InvalidOperationException("Condition dependency list cannot be null.");
+                Dependencies = new string[declared.Count];
+                DependencyVersions = new ulong[declared.Count];
+                for (var i = 0; i < declared.Count; i++)
+                {
+                    var key = declared[i];
+                    if (string.IsNullOrEmpty(key))
+                        throw new InvalidOperationException("Condition dependency key cannot be empty.");
+                    Dependencies[i] = key;
+                    DependencyVersions[i] = blackboard.GetKeyVersion(key);
+                }
+            }
+
+            public bool ShouldReevaluate(AbilityKit.BehaviorTree.Blackboard.Blackboard blackboard)
+            {
+                if (Dependencies == null || DependencyVersions == null) return true;
+                for (var i = 0; i < Dependencies.Length; i++)
+                {
+                    if (blackboard.GetKeyVersion(Dependencies[i]) != DependencyVersions[i]) return true;
+                }
+                return false;
+            }
+
+            public void CaptureDependencyVersions(AbilityKit.BehaviorTree.Blackboard.Blackboard blackboard)
+            {
+                if (Dependencies == null || DependencyVersions == null) return;
+                for (var i = 0; i < Dependencies.Length; i++)
+                {
+                    DependencyVersions[i] = blackboard.GetKeyVersion(Dependencies[i]);
+                }
             }
         }
 
@@ -70,6 +111,8 @@ namespace AbilityKit.BehaviorTree.Execution
         private NodeState _preState = NodeState.Inactive;
         private AbilityKit.BehaviorTree.Diagnostics.DebugHandle? _debugHandle;
         private bool _disposed;
+        private Exception? _lastFaultException;
+        private Exception? _pendingLifecycleException;
         private long _debugSequence;
         private long _lastDebugDeltaBaseSequence = -1;
         private NodeState[]? _lastDebugStates;
@@ -92,6 +135,10 @@ namespace AbilityKit.BehaviorTree.Execution
         public bool IsEnabled => _enabled;
         public NodeState TreeState => _treeState;
         public NodeState RootNodeState => _flatNodes.Length > 0 ? _flatNodes[0].State : NodeState.Inactive;
+        /// <summary>树是否因生命周期回调异常而停止。</summary>
+        public bool IsFaulted => _treeState == NodeState.Faulted;
+        /// <summary>最近一次令树进入 Faulted 状态的原始异常；重新 Enable 时清空。</summary>
+        public Exception? LastFaultException => _lastFaultException;
         public int NodeCount => _flatNodes.Length;
         public TreeTopology Topology => _topology;
         public IReadOnlyList<LifecycleExceptionRecord> LifecycleExceptions => _lifecycleExceptions;
@@ -162,7 +209,7 @@ namespace AbilityKit.BehaviorTree.Execution
         {
             if (subtreeResolver != null)
             {
-                var expansion = TreeCompiler.ExpandReferences(definition, subtreeResolver);
+                var expansion = TreeCompiler.ExpandReferences(definition, subtreeResolver, registry);
                 var runtime = new TreeRuntime(expansion.Definition, registry, services, options)
                 {
                     _nodeSourceTree = expansion.NodeSourceTree,
@@ -215,6 +262,8 @@ namespace AbilityKit.BehaviorTree.Execution
             if (_enabled) Disable();
             _context.BeginTick(frame, time ?? Fixed64.Zero);
             _lastFrame = frame;
+            _lastFaultException = null;
+            _pendingLifecycleException = null;
             ResetState();
 
             _runStacks.Add(new List<int>());
@@ -222,13 +271,17 @@ namespace AbilityKit.BehaviorTree.Execution
             try
             {
                 PushNode(0, 0);
+                _treeState = NodeState.Running;
                 MarkRuntimeChanged();
             }
-            catch
+            catch (Exception ex)
             {
-                try { DisableCore(NodeStopReason.EnableFailed); }
-                catch (Exception) { /* Preserve the original OnStart failure. */ }
-                throw;
+                var isLifecycleException = ReferenceEquals(ex, _pendingLifecycleException);
+                TransitionToFaulted(ex, NodeStopReason.EnableFailed);
+                if (_options.LifecycleExceptionPolicy == LifecycleExceptionPolicy.Throw || !isLifecycleException)
+                {
+                    throw;
+                }
             }
         }
 
@@ -264,7 +317,8 @@ namespace AbilityKit.BehaviorTree.Execution
                 {
                     var nodeIndex = stack[index];
                     if (!stopped.Add(nodeIndex)) continue;
-                    firstError ??= StopNode(nodeIndex, reason);
+                    var stopError = StopNode(nodeIndex, reason);
+                    firstError ??= stopError;
                     _flatNodes[nodeIndex].State = NodeState.Inactive;
                 }
             }
@@ -282,6 +336,7 @@ namespace AbilityKit.BehaviorTree.Execution
             catch (Exception ex)
             {
                 RecordLifecycleException(index, "OnStop", reason, ex);
+                _pendingLifecycleException = ex;
                 return _options.LifecycleExceptionPolicy == LifecycleExceptionPolicy.Throw ? ex : null;
             }
             finally
@@ -314,6 +369,34 @@ namespace AbilityKit.BehaviorTree.Execution
             {
                 node.State = NodeState.Inactive;
             }
+        }
+
+        private void TransitionToFaulted(Exception exception, NodeStopReason stopReason = NodeStopReason.Faulted)
+        {
+            _lastFaultException = exception;
+            try
+            {
+                StopRunningNodes(stopReason);
+            }
+            catch (Exception)
+            {
+                // The triggering exception remains authoritative; stop failures are recorded separately.
+            }
+
+            _enabled = false;
+            _conditionalReevaluates.Clear();
+            _index2ConditionalReevaluate.Clear();
+            _runStacks.Clear();
+            _preIndex = -1;
+            _preState = NodeState.Inactive;
+            foreach (var node in _flatNodes)
+            {
+                if (node.State == NodeState.Running) node.State = NodeState.Inactive;
+            }
+            if (_flatNodes.Length > 0) _flatNodes[0].State = NodeState.Faulted;
+            _treeState = NodeState.Faulted;
+            _pendingLifecycleException = null;
+            MarkRuntimeChanged();
         }
 
         private void BindTopology()
@@ -479,43 +562,75 @@ namespace AbilityKit.BehaviorTree.Execution
             if (!_enabled) return;
             _context.BeginTick(frame, time);
             _lastFrame = frame;
+            _pendingLifecycleException = null;
 
-            ReevaluateConditionalNodes();
-
-            for (var i = _runStacks.Count - 1; i >= 0; i--)
+            try
             {
-                if (i >= _runStacks.Count) continue;
-                var stack = _runStacks[i];
-                _preIndex = -1;
-                _preState = NodeState.Inactive;
+                ReevaluateConditionalNodes();
 
-                // A Running result stops additional same-frame advancement.
-                // Parallel branch stacks can be removed while this loop runs.
-                while (_preState != NodeState.Running && i < _runStacks.Count && stack.Count > 0)
+                for (var i = _runStacks.Count - 1; i >= 0; i--)
                 {
-                    if (TryPreemptDecorators(i)) break;
-                    var index = stack[stack.Count - 1];
-                    if (_preIndex == index) break;
+                    if (i >= _runStacks.Count) continue;
+                    var stack = _runStacks[i];
+                    _preIndex = -1;
+                    _preState = NodeState.Inactive;
 
-                    _preIndex = index;
-                    _preState = RunNode(index, i, _preState);
+                    // A Running result stops additional same-frame advancement.
+                    // Parallel branch stacks can be removed while this loop runs.
+                    while (_preState != NodeState.Running && i < _runStacks.Count && stack.Count > 0)
+                    {
+                        if (TryPreemptDecorators(i)) break;
+                        var index = stack[stack.Count - 1];
+                        if (_preIndex == index) break;
+
+                        _preIndex = index;
+                        _preState = RunNode(index, i, _preState);
+                    }
+                }
+                MarkRuntimeChanged();
+            }
+            catch (Exception ex)
+            {
+                var isLifecycleException = ReferenceEquals(ex, _pendingLifecycleException);
+                if (!IsFaulted) TransitionToFaulted(ex);
+                if (_options.LifecycleExceptionPolicy == LifecycleExceptionPolicy.Throw || !isLifecycleException)
+                {
+                    throw;
                 }
             }
-            MarkRuntimeChanged();
         }
 
         /// <summary>根节点完成后重新进入（响应式决策循环）。未启用时无操作</summary>
         public void Restart()
         {
             if (!_enabled) return;
+            _pendingLifecycleException = null;
             var stopError = StopRunningNodes(NodeStopReason.Restarted);
-            if (stopError != null) throw stopError;
+            if (stopError != null)
+            {
+                _runStacks.Clear();
+                TransitionToFaulted(stopError, NodeStopReason.Restarted);
+                throw stopError;
+            }
             RemoveChildConditionalReevaluate(-1);
             _runStacks.Clear();
             _runStacks.Add(new List<int>());
             _treeState = NodeState.Inactive;
-            PushNode(0, 0);
-            MarkRuntimeChanged();
+            try
+            {
+                PushNode(0, 0);
+                _treeState = NodeState.Running;
+                MarkRuntimeChanged();
+            }
+            catch (Exception ex)
+            {
+                var isLifecycleException = ReferenceEquals(ex, _pendingLifecycleException);
+                TransitionToFaulted(ex);
+                if (_options.LifecycleExceptionPolicy == LifecycleExceptionPolicy.Throw || !isLifecycleException)
+                {
+                    throw;
+                }
+            }
         }
 
         public bool TryGetNodeIndex(string nodeId, out int flatIndex)
@@ -539,6 +654,7 @@ namespace AbilityKit.BehaviorTree.Execution
             catch (Exception ex)
             {
                 RecordLifecycleException(index, "OnStart", NodeStopReason.None, ex);
+                _pendingLifecycleException = ex;
                 throw;
             }
             node.State = NodeState.Running;
@@ -557,7 +673,7 @@ namespace AbilityKit.BehaviorTree.Execution
             }
             else
             {
-                state = node.OnTick(_context);
+                state = TickNode(index);
                 node.State = state;
             }
 
@@ -567,6 +683,20 @@ namespace AbilityKit.BehaviorTree.Execution
             }
 
             return state;
+        }
+
+        private NodeState TickNode(int index)
+        {
+            try
+            {
+                return _flatNodes[index].OnTick(_context);
+            }
+            catch (Exception ex)
+            {
+                RecordLifecycleException(index, "OnTick", NodeStopReason.None, ex);
+                _pendingLifecycleException = ex;
+                throw;
+            }
         }
 
         private NodeState RunParentNode(int index, int stackIndex, NodeState preState)
@@ -648,10 +778,17 @@ namespace AbilityKit.BehaviorTree.Execution
                             reevaluate.CompositeIndex = abortComposite;
                             reevaluate.BranchIndex = branchIndex;
                             reevaluate.State = state;
+                            reevaluate.CaptureDependencyVersions(_context.Blackboard);
                         }
                         else
                         {
-                            reevaluate = new ConditionalReevaluate(index, state, abortComposite, branchIndex);
+                            reevaluate = new ConditionalReevaluate(
+                                index,
+                                state,
+                                abortComposite,
+                                branchIndex,
+                                node as ConditionDependencyProvider,
+                                _context.Blackboard);
                             _conditionalReevaluates.Add(reevaluate);
                             _index2ConditionalReevaluate.Add(index, reevaluate);
                         }
@@ -720,9 +857,11 @@ namespace AbilityKit.BehaviorTree.Execution
                 var record = _conditionalReevaluates[i];
                 if (record.CompositeIndex < 0) continue;
                 if (_flatNodes[record.CompositeIndex] is not CompositeNode composite) continue;
+                if (!record.ShouldReevaluate(_context.Blackboard)) continue;
 
                 var conditionNode = _flatNodes[record.Index];
-                var curState = conditionNode.OnTick(_context);
+                var curState = TickNode(record.Index);
+                record.CaptureDependencyVersions(_context.Blackboard);
                 conditionNode.State = curState;
                 if (curState == record.State) continue;
 
@@ -787,6 +926,12 @@ namespace AbilityKit.BehaviorTree.Execution
         /// <summary>把该组合节点之上的运行分支自顶向下弹出（Stop 沿途），组合节点保留在栈上</summary>
         private void AbortRunningBranch(int compositeIndex)
         {
+            if (_flatNodes[compositeIndex] is CompositeNode composite && composite.CanRunParallel())
+            {
+                AbortParallelDescendantStacks(compositeIndex);
+                return;
+            }
+
             for (var j = _runStacks.Count - 1; j >= 0; j--)
             {
                 var stack = _runStacks[j];
@@ -798,6 +943,28 @@ namespace AbilityKit.BehaviorTree.Execution
                     if (j >= _runStacks.Count || !ReferenceEquals(_runStacks[j], stack)) return;
                 }
                 return;
+            }
+        }
+
+        private void AbortParallelDescendantStacks(int compositeIndex)
+        {
+            for (var stackIndex = _runStacks.Count - 1; stackIndex >= 0; stackIndex--)
+            {
+                if (stackIndex >= _runStacks.Count) continue;
+                var stack = _runStacks[stackIndex];
+                if (stack.Count == 0
+                    || stack.IndexOf(compositeIndex) >= 0
+                    || !IsParentNode(compositeIndex, stack[stack.Count - 1]))
+                {
+                    continue;
+                }
+
+                while (stackIndex < _runStacks.Count
+                    && ReferenceEquals(_runStacks[stackIndex], stack)
+                    && stack.Count > 0)
+                {
+                    PopNode(stack[stack.Count - 1], stackIndex, NodeState.Failure, true, NodeStopReason.Aborted);
+                }
             }
         }
 
@@ -1053,18 +1220,24 @@ namespace AbilityKit.BehaviorTree.Execution
                 _runStacks.Add(new List<int>(stackSnapshot.NodeIndexes));
             }
 
+            if (snapshot.Blackboard != null)
+            {
+                _context.Blackboard.RestoreValues(snapshot.Blackboard);
+            }
+
             _conditionalReevaluates.Clear();
             _index2ConditionalReevaluate.Clear();
             foreach (var item in snapshot.ConditionalReevaluates)
             {
-                var reevaluate = new ConditionalReevaluate(item.Index, item.State, item.CompositeIndex, item.BranchIndex);
+                var reevaluate = new ConditionalReevaluate(
+                    item.Index,
+                    item.State,
+                    item.CompositeIndex,
+                    item.BranchIndex,
+                    _flatNodes[item.Index] as ConditionDependencyProvider,
+                    _context.Blackboard);
                 _conditionalReevaluates.Add(reevaluate);
                 _index2ConditionalReevaluate[item.Index] = reevaluate;
-            }
-
-            if (snapshot.Blackboard != null)
-            {
-                _context.Blackboard.RestoreValues(snapshot.Blackboard);
             }
         }
 

@@ -245,7 +245,7 @@ namespace AbilityKit.HFSM.Editor
             typeRect.y = typeY;
             typeRect.height = typeStyle.fontSize + 2;
 
-            GUI.Label(typeRect, node.GetNodeTypeDescription(), typeStyle);
+            GUI.Label(typeRect, node is StateMachineNode ? "状态机" : "叶状态", typeStyle);
         }
 
         private string GenerateBehaviorSummary(StateNode stateNode, GraphAsset graph)
@@ -343,10 +343,10 @@ namespace AbilityKit.HFSM.Editor
             switch (item.TypeName)
             {
                 case "Wait":
-                    return $"{item.GetParamValue<float>("duration")}s";
+                    return $"{item.GetParamValue<float>("duration")}秒";
                 case "Log":
                     string msg = item.GetParamValue<string>("message");
-                    if (string.IsNullOrEmpty(msg)) return "(empty)";
+                    if (string.IsNullOrEmpty(msg)) return "（空）";
                     if (msg.Length > 10) msg = msg.Substring(0, 7) + "...";
                     return $"\"{msg}\"";
                 case "SetFloat":
@@ -362,14 +362,14 @@ namespace AbilityKit.HFSM.Editor
                     return stateName;
                 case "Repeat":
                     int count = item.GetParamValue<int>("count");
-                    return count < 0 ? "inf" : count.ToString();
+                    return count < 0 ? "无限" : count.ToString();
                 case "TimeLimit":
-                    return $"{item.GetParamValue<float>("timeLimit")}s";
+                    return $"{item.GetParamValue<float>("timeLimit")}秒";
                 case "Cooldown":
-                    return $"{item.GetParamValue<float>("cooldownDuration")}s";
+                    return $"{item.GetParamValue<float>("cooldownDuration")}秒";
                 case "SetActive":
                     bool active = item.GetParamValue<bool>("active");
-                    return active ? "ON" : "OFF";
+                    return active ? "开" : "关";
                 default:
                     return "";
             }
@@ -377,7 +377,9 @@ namespace AbilityKit.HFSM.Editor
 
         private string GetBehaviorTypeShortName(string typeName)
         {
-            return typeName;
+            if (!AbilityKit.HFSM.BehaviorTypeRegistry.IsInitialized)
+                AbilityKit.HFSM.BehaviorTypeRegistry.Initialize();
+            return AbilityKit.HFSM.BehaviorTypeRegistry.GetDefinition(typeName)?.displayName ?? typeName;
         }
 
         private void DrawStateMachineIndicator(Rect rect)
@@ -538,7 +540,7 @@ namespace AbilityKit.HFSM.Editor
             GenericMenu menu = new GenericMenu();
 
             // Rename
-            menu.AddItem(new GUIContent("Rename"), false, () =>
+            menu.AddItem(new GUIContent("重命名"), false, () =>
             {
                 ShowRenameDialog(node);
             });
@@ -546,7 +548,7 @@ namespace AbilityKit.HFSM.Editor
             menu.AddSeparator("");
 
             // Transition option
-            menu.AddItem(new GUIContent("Make Transition"), false, () =>
+            menu.AddItem(new GUIContent("创建转换"), false, () =>
             {
                 Context.StartTransitionPreview(node);
             });
@@ -556,7 +558,7 @@ namespace AbilityKit.HFSM.Editor
             // Set as default
             if (!node.isDefault && node.NodeType != GraphNodeType.StateMachine)
             {
-                menu.AddItem(new GUIContent("Set as Default State"), false, () =>
+                menu.AddItem(new GUIContent("设为默认状态"), false, () =>
                 {
                     Context.SetDefaultState(node);
                 });
@@ -565,7 +567,7 @@ namespace AbilityKit.HFSM.Editor
             // Navigate into (for state machines)
             if (node.NodeType == GraphNodeType.StateMachine)
             {
-                menu.AddItem(new GUIContent("Open"), false, () =>
+                menu.AddItem(new GUIContent("打开"), false, () =>
                 {
                     Context.NavigateInto((StateMachineNode)node);
                 });
@@ -574,13 +576,13 @@ namespace AbilityKit.HFSM.Editor
             menu.AddSeparator("");
 
             // Duplicate
-            menu.AddItem(new GUIContent("Duplicate"), false, () =>
+            menu.AddItem(new GUIContent("复制"), false, () =>
             {
                 DuplicateNode(node);
             });
 
             // Delete
-            menu.AddItem(new GUIContent("Delete"), false, () =>
+            menu.AddItem(new GUIContent("删除"), false, () =>
             {
                 Context.DeleteNode(node);
             });
@@ -593,11 +595,11 @@ namespace AbilityKit.HFSM.Editor
             if (node == null || Context.GraphAsset == null)
                 return;
 
-            EditorInputDialog.Show("Rename Node", "Enter new name:", node.DisplayName, (newName) =>
+            EditorInputDialog.Show("重命名节点", "请输入新名称：", node.DisplayName, (newName) =>
             {
                 if (!string.IsNullOrWhiteSpace(newName) && newName != node.DisplayName)
                 {
-                    Undo.RecordObject(Context.GraphAsset, "Rename Node");
+                    Undo.RecordObject(Context.GraphAsset, "重命名节点");
                     node.DisplayName = newName.Trim();
                     EditorUtility.SetDirty(Context.GraphAsset);
                 }
@@ -613,11 +615,11 @@ namespace AbilityKit.HFSM.Editor
 
             if (node is StateNode)
             {
-                Context.CreateState(node.DisplayName + "_copy", node.Position + offset);
+                Context.CreateState(node.DisplayName + "_副本", node.Position + offset);
             }
             else if (node is StateMachineNode)
             {
-                Context.CreateStateMachine(node.DisplayName + "_copy", node.Position + offset);
+                Context.CreateStateMachine(node.DisplayName + "_副本", node.Position + offset);
             }
         }
 
@@ -628,15 +630,15 @@ namespace AbilityKit.HFSM.Editor
             Vector2 contentPos = ScreenPosToContent(position);
 
             // Create State
-            menu.AddItem(new GUIContent("Create State"), false, () =>
+            menu.AddItem(new GUIContent("创建状态"), false, () =>
             {
-                Context.CreateState("New State", contentPos);
+                Context.CreateState("新状态", contentPos);
             });
 
             // Create State Machine
-            menu.AddItem(new GUIContent("Create State Machine"), false, () =>
+            menu.AddItem(new GUIContent("创建状态机"), false, () =>
             {
-                Context.CreateStateMachine("New FSM", contentPos);
+                Context.CreateStateMachine("新状态机", contentPos);
             });
 
             menu.ShowAsContext();

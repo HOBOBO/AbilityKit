@@ -32,7 +32,7 @@ namespace AbilityKit.Game.Editor
             if (ctx.IsOffline)
             {
                 EditorGUILayout.HelpBox(
-                    "离线 Artifact 不包含可继续检查的活跃临时对象。请在实时会话暂停后查看投射物、AOE 和持续效果。",
+                    "离线 Artifact 不包含可继续检查的活跃临时对象。请在实时会话暂停后查看投射物、区域和持续效果。",
                     MessageType.Info);
                 return;
             }
@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Editor
                     out var continuous))
             {
                 EditorGUILayout.HelpBox(
-                    "当前实时 World 未就绪，无法解析活跃对象运行时服务。",
+                    "当前实时世界未就绪，无法解析活跃对象运行时服务。",
                     MessageType.Info);
                 return;
             }
@@ -101,7 +101,7 @@ namespace AbilityKit.Game.Editor
         private void DrawSummary()
         {
             EditorGUILayout.LabelField(
-                $"投射物={_projectiles.Count}  AOE={_areas.Count}  持续效果={_continuous.Count}",
+                $"投射物={_projectiles.Count}  区域={_areas.Count}  持续效果={_continuous.Count}",
                 EditorStyles.miniLabel);
 
             if (_projectiles.Count == 0 && _areas.Count == 0 && _continuous.Count == 0)
@@ -129,7 +129,7 @@ namespace AbilityKit.Game.Editor
                 var skillRuntimeHandle = source.SkillRuntimeHandle;
                 EditorGUILayout.BeginVertical(GUI.skin.box);
                 EditorGUILayout.LabelField(
-                    $"Projectile #{entry.ProjectileId.Value}  Actor #{entry.ActorId}  Config={source.ProjectileConfigId}",
+                    $"投射物 #{entry.ProjectileId.Value}  Actor #{entry.ActorId}  配置={source.ProjectileConfigId}",
                     EditorStyles.miniBoldLabel);
                 DrawLineage(
                     source.SourceActorId,
@@ -147,10 +147,10 @@ namespace AbilityKit.Game.Editor
         private void DrawAreas(in BattleDebugContext ctx)
         {
             EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("AOE", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("区域", EditorStyles.boldLabel);
             if (_areas.Count == 0)
             {
-                EditorGUILayout.LabelField("（无活跃 AOE）", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("（无活跃区域）", EditorStyles.miniLabel);
                 return;
             }
 
@@ -159,10 +159,10 @@ namespace AbilityKit.Game.Editor
                 var area = _areas[i];
                 EditorGUILayout.BeginVertical(GUI.skin.box);
                 EditorGUILayout.LabelField(
-                    $"Area #{area.AreaId}  Template={area.TemplateId}  Owner #{area.OwnerActorId}",
+                    $"区域 #{area.AreaId}  模板={area.TemplateId}  所有者 #{area.OwnerActorId}",
                     EditorStyles.miniBoldLabel);
                 EditorGUILayout.LabelField(
-                    $"Center={area.Center}  Radius={area.Radius:0.###}  Spawn={area.SpawnFrame}  Delay={area.DelayTriggerFrame}",
+                    $"中心={area.Center}  半径={area.Radius:0.###}  生成帧={area.SpawnFrame}  延迟触发帧={area.DelayTriggerFrame}",
                     EditorStyles.miniLabel);
                 var noSkillRuntime = default(MobaSkillCastRuntimeHandle);
                 DrawLineage(
@@ -195,10 +195,10 @@ namespace AbilityKit.Game.Editor
 
                 EditorGUILayout.BeginVertical(GUI.skin.box);
                 EditorGUILayout.LabelField(
-                    $"{runtime.Kind}  Id={runtime.Id}  Config={runtime.ConfigId}",
+                    $"{BattleDebugDisplayText.ContinuousKind(runtime.Kind)}  ID={runtime.Id}  配置={runtime.ConfigId}",
                     EditorStyles.miniBoldLabel);
                 EditorGUILayout.LabelField(
-                    $"State={runtime.State}  Active={runtime.IsActive}  Paused={runtime.IsPaused}  Elapsed={runtime.ElapsedSeconds:0.###}  Remaining={runtime.RemainingSeconds:0.###}",
+                    $"状态={BattleDebugDisplayText.ContinuousState(runtime.State)}  活跃={BattleDebugDisplayText.Bool(runtime.IsActive)}  已暂停={BattleDebugDisplayText.Bool(runtime.IsPaused)}  已持续={runtime.ElapsedSeconds:0.###}  剩余={runtime.RemainingSeconds:0.###}",
                     EditorStyles.miniLabel);
                 var skillRuntimeHandle = runtime.SkillRuntimeHandle;
                 DrawLineage(
@@ -223,7 +223,7 @@ namespace AbilityKit.Game.Editor
             in BattleDebugContext ctx)
         {
             EditorGUILayout.LabelField(
-                $"Trace: Source={sourceContextId}  Root={rootContextId}  Owner={ownerContextId}  SkillRuntime={FormatRuntime(in skillRuntimeHandle)}",
+                $"Trace：来源={sourceContextId}  根节点={rootContextId}  所有者={ownerContextId}  技能运行时={FormatRuntime(in skillRuntimeHandle)}",
                 EditorStyles.miniLabel);
             EditorGUILayout.BeginHorizontal();
             DrawActorButton("来源", sourceActorId, ctx.SelectActor);

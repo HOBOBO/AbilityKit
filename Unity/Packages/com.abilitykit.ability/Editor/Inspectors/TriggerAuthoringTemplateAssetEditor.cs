@@ -24,6 +24,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private Vector2 _scroll;
         private double _nextInspectionAt;
         private bool _showParameters = true;
+        private bool _showDefinition = true;
+        private bool _showBlackboard = true;
         private bool _showCondition = true;
         private bool _showActions = true;
         private bool _showDiagnostics = true;
@@ -32,6 +34,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             base.OnEnable();
             _asset = target as TriggerAuthoringTemplateAsset;
+            if (_asset != null && TriggerAuthoringTemplateDefinition.Normalize(_asset.Template))
+                EditorUtility.SetDirty(_asset);
             RebuildCatalogs();
         }
 
@@ -45,20 +49,23 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _scroll = EditorGUILayout.BeginScrollView(_scroll);
             DrawTemplateHeader();
             DrawParameters();
-            _asset.Template.Condition = DrawTemplateTree(
-                "Condition",
+            DrawTriggerDefinition();
+            var definition = TriggerAuthoringTemplateDefinition.Get(_asset.Template);
+            definition.Condition = DrawTemplateTree(
+                "触发条件",
                 TriggerNodeKind.Condition,
-                _asset.Template.Condition,
+                definition.Condition,
                 ref _showCondition);
-            _asset.Template.Actions = DrawTemplateTree(
-                "Actions",
+            definition.Actions = DrawTemplateTree(
+                "执行行为",
                 TriggerNodeKind.Action,
-                _asset.Template.Actions,
+                definition.Actions,
                 ref _showActions);
             DrawValidation();
             EditorGUILayout.EndScrollView();
             if (!EditorGUI.EndChangeCheck()) return;
 
+            TriggerAuthoringTemplateDefinition.Normalize(_asset.Template);
             EditorUtility.SetDirty(_asset);
             RebuildCatalogs();
             _nextInspectionAt = 0d;
@@ -69,15 +76,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
             RefreshInspection();
             SirenixEditorGUI.BeginHorizontalToolbar();
             GUILayout.Label(TriggerAuthoringEditorIntegration.T("source"), GUILayout.Width(44f));
-            var state = _inspection != null ? _inspection.State.ToString() : "Unknown";
+            var state = _inspection != null ? GetSyncStateLabel(_inspection.State) : "未知";
             var oldColor = GUI.color;
             GUI.color = GetSyncColor(_inspection != null ? _inspection.State : TriggerAuthoringSyncState.Untracked);
             GUILayout.Label(state, EditorStyles.boldLabel, GUILayout.Width(92f));
             GUI.color = oldColor;
             GUILayout.FlexibleSpace();
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Import", "Import Template Source JSON"))) Import();
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Export", "Export Template Source JSON"))) Export();
-            if (SirenixEditorGUI.ToolbarButton(new GUIContent("Validate", "Validate template schema and trees"))) Repaint();
+            if (SirenixEditorGUI.ToolbarButton(new GUIContent("导入", "导入模板 Source JSON"))) Import();
+            if (SirenixEditorGUI.ToolbarButton(new GUIContent("导出", "导出模板 Source JSON"))) Export();
+            if (SirenixEditorGUI.ToolbarButton(new GUIContent("校验", "校验模板 Schema 和节点树"))) Repaint();
             SirenixEditorGUI.EndHorizontalToolbar();
         }
 
@@ -87,7 +94,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _asset.Template = _asset.Template ?? new TriggerAuthoringTemplateData();
             var template = _asset.Template;
 
-            SirenixEditorGUI.BeginBox("Template");
+            SirenixEditorGUI.BeginBox("模板");
             template.TemplateId = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("template-id"), template.TemplateId);
             template.TemplateVersion = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("version"), template.TemplateVersion);
             template.DisplayName = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("display-name"), template.DisplayName);
@@ -95,12 +102,140 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _asset.Metadata.Author = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("author"), _asset.Metadata.Author);
             _asset.Metadata.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("source-note"), _asset.Metadata.Description);
 
-            EditorGUILayout.BeginHorizontal();
-            template.Event = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("event"), template.Event);
-            if (GUILayout.Button(new GUIContent("Select", "Choose from Event Catalog"), GUILayout.Width(58f)))
-                ShowEventMenu(template);
-            EditorGUILayout.EndHorizontal();
             SirenixEditorGUI.EndBox();
+        }
+
+        private void DrawTriggerDefinition()
+        {
+            var definition = TriggerAuthoringTemplateDefinition.Get(_asset.Template);
+            SirenixEditorGUI.BeginBox("完整触发器原型");
+            _showDefinition = EditorGUILayout.Foldout(_showDefinition, "入口与执行配置", true);
+            if (_showDefinition)
+            {
+                EditorGUILayout.HelpBox(
+                    "模板实例仅提供实例 ID、业务分组和调用输入；以下触发器配置由模板统一提供。",
+                    MessageType.Info);
+                definition.Name = EditorGUILayout.TextField("触发器名称", definition.Name);
+                definition.Enabled = EditorGUILayout.Toggle("默认启用", definition.Enabled);
+                definition.EntryMode = (TriggerEntryMode)EditorGUILayout.EnumPopup("入口模式", definition.EntryMode);
+                if (definition.EntryMode == TriggerEntryMode.Event)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                    definition.Event = EditorGUILayout.TextField("触发事件", definition.Event);
+                    if (GUILayout.Button(new GUIContent("选择", "从事件目录中选择"), GUILayout.Width(58f)))
+                        ShowEventMenu(definition);
+                    EditorGUILayout.EndHorizontal();
+                }
+                else
+                {
+                    definition.Event = string.Empty;
+                    EditorGUILayout.HelpBox("仅供调用的模板不会直接订阅 EventBus 事件。", MessageType.None);
+                }
+                definition.Phase = EditorGUILayout.TextField("执行阶段", definition.Phase);
+                definition.Scope = EditorGUILayout.TextField("作用域", definition.Scope);
+                definition.Priority = EditorGUILayout.IntField("优先级", definition.Priority);
+                definition.InterruptPriority = EditorGUILayout.IntField("中断优先级", definition.InterruptPriority);
+                definition.AllowExternal = EditorGUILayout.Toggle("允许外部触发", definition.AllowExternal);
+                definition.Note = EditorGUILayout.TextField("备注", definition.Note);
+
+                definition.Cue = definition.Cue ?? new TriggerCueData();
+                definition.Cue.CueId = EditorGUILayout.TextField("表现提示 ID", definition.Cue.CueId);
+                definition.Schedule = definition.Schedule ?? new TriggerScheduleData();
+                definition.Schedule.Mode = EditorGUILayout.TextField("调度模式", definition.Schedule.Mode);
+                definition.Schedule.DelayMilliseconds = EditorGUILayout.IntField("延迟（毫秒）", definition.Schedule.DelayMilliseconds);
+                definition.Schedule.IntervalMilliseconds = EditorGUILayout.IntField("间隔（毫秒）", definition.Schedule.IntervalMilliseconds);
+                definition.Schedule.RepeatCount = EditorGUILayout.IntField("重复次数", definition.Schedule.RepeatCount);
+                definition.ExecutionControl = definition.ExecutionControl ?? new TriggerExecutionControlData();
+                definition.ExecutionControl.InterruptPolicy = EditorGUILayout.TextField(
+                    "中断策略", definition.ExecutionControl.InterruptPolicy);
+                definition.ExecutionControl.StopPropagationOnSuccess = EditorGUILayout.Toggle(
+                    "成功后停止传播", definition.ExecutionControl.StopPropagationOnSuccess);
+                definition.ExecutionControl.StopPropagationOnFailure = EditorGUILayout.Toggle(
+                    "失败后停止传播", definition.ExecutionControl.StopPropagationOnFailure);
+            }
+
+            definition.Blackboard = definition.Blackboard ?? new List<TriggerBlackboardVariableData>();
+            _showBlackboard = EditorGUILayout.Foldout(
+                _showBlackboard,
+                "触发器 LocalVar（" + definition.Blackboard.Count + "）",
+                true);
+            if (_showBlackboard) DrawTemplateBlackboard(definition.Blackboard);
+            SirenixEditorGUI.EndBox();
+        }
+
+        private void DrawTemplateBlackboard(List<TriggerBlackboardVariableData> variables)
+        {
+            for (var i = 0; i < variables.Count; i++)
+            {
+                var index = i;
+                var variable = variables[i] ?? (variables[i] = new TriggerBlackboardVariableData());
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                variable.Key = EditorGUILayout.TextField("LocalVar Key", variable.Key);
+                var remove = GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(22f));
+                EditorGUILayout.EndHorizontal();
+                var nextType = DrawValueTypePopup(variable.Type);
+                if (nextType != variable.Type)
+                {
+                    variable.Type = nextType;
+                    variable.DefaultValue = CreateValue(nextType);
+                }
+                variable.ReadOnly = EditorGUILayout.Toggle(
+                    new GUIContent("只读", "模板调用输入对应的 LocalVar 必须保持只读"),
+                    variable.ReadOnly);
+                variable.Description = EditorGUILayout.TextField("说明", variable.Description);
+                variable.DefaultValue = variable.DefaultValue ?? CreateValue(variable.Type);
+                TriggerAuthoringValueRefEditor.Draw(
+                    variable.DefaultValue,
+                    new TriggerParameterDescriptor(
+                        "default",
+                        variable.Type,
+                        true,
+                        TriggerValueSourceMask.Constant),
+                    BuildValueContext());
+                if (IsTemplateInputVariable(variable.Key))
+                    EditorGUILayout.LabelField("由模板调用输入初始化", EditorStyles.centeredGreyMiniLabel);
+                EditorGUILayout.EndVertical();
+                if (!remove) continue;
+                variables.RemoveAt(index);
+                i--;
+            }
+
+            if (GUILayout.Button("+ 添加 LocalVar", EditorStyles.miniButton))
+            {
+                variables.Add(new TriggerBlackboardVariableData
+                {
+                    Key = CreateUniqueLocalVariableKey(variables),
+                    Type = TriggerValueType.Number,
+                    DefaultValue = CreateValue(TriggerValueType.Number)
+                });
+            }
+        }
+
+        private bool IsTemplateInputVariable(string key)
+        {
+            var parameters = _asset?.Template?.Parameters;
+            if (parameters == null) return false;
+            for (var i = 0; i < parameters.Count; i++)
+                if (parameters[i] != null && string.Equals(parameters[i].LocalVariableKey, key, StringComparison.Ordinal))
+                    return true;
+            return false;
+        }
+
+        private static string CreateUniqueLocalVariableKey(IReadOnlyList<TriggerBlackboardVariableData> variables)
+        {
+            var suffix = 1;
+            while (ContainsLocalVariable(variables, "local_" + suffix)) suffix++;
+            return "local_" + suffix;
+        }
+
+        private static bool ContainsLocalVariable(IReadOnlyList<TriggerBlackboardVariableData> variables, string key)
+        {
+            if (variables == null) return false;
+            for (var i = 0; i < variables.Count; i++)
+                if (variables[i] != null && string.Equals(variables[i].Key, key, StringComparison.Ordinal))
+                    return true;
+            return false;
         }
 
         private void DrawParameters()
@@ -109,7 +244,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             template.Parameters = template.Parameters ?? new List<TriggerAuthoringTemplateParameterData>();
             _showParameters = EditorGUILayout.Foldout(
                 _showParameters,
-                "Parameters (" + template.Parameters.Count + ")",
+                "调用输入（" + template.Parameters.Count + "）",
                 true);
             if (!_showParameters) return;
 
@@ -119,20 +254,23 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 var parameter = template.Parameters[i] ?? (template.Parameters[i] = new TriggerAuthoringTemplateParameterData());
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 EditorGUILayout.BeginHorizontal();
-                parameter.Name = EditorGUILayout.TextField(parameter.Name);
-                var nextType = (TriggerValueType)EditorGUILayout.EnumPopup(parameter.Type, GUILayout.Width(108f));
+                parameter.Name = EditorGUILayout.TextField(
+                    new GUIContent("输入名称", "模板实例对外暴露的调用参数名称"),
+                    parameter.Name);
+                var nextType = DrawValueTypePopup(parameter.Type, GUILayout.Width(108f));
                 if (nextType != parameter.Type)
                 {
                     parameter.Type = nextType;
                     parameter.DefaultValue = CreateValue(nextType);
                 }
-                parameter.Required = GUILayout.Toggle(parameter.Required, "Required", GUILayout.Width(72f));
-                var remove = GUILayout.Button("x", EditorStyles.miniButton, GUILayout.Width(22f));
+                parameter.Required = GUILayout.Toggle(parameter.Required, "调用必填", GUILayout.Width(68f));
+                var remove = GUILayout.Button("×", EditorStyles.miniButton, GUILayout.Width(22f));
                 EditorGUILayout.EndHorizontal();
 
-                parameter.AllowedSources = (TriggerTemplateValueSourceMask)EditorGUILayout.EnumFlagsField(
-                    "Instance Sources",
-                    parameter.AllowedSources);
+                DrawAllowedSources(parameter);
+                parameter.LocalVariableKey = EditorGUILayout.TextField(
+                    new GUIContent("写入 LocalVar", "调用模板时，此输入值会写入模板触发器的只读局部变量"),
+                    parameter.LocalVariableKey);
                 parameter.Description = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("description"), parameter.Description);
                 parameter.HasDefault = EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("has-default"), parameter.HasDefault);
                 if (parameter.HasDefault)
@@ -150,7 +288,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 EditorGUILayout.EndVertical();
 
                 if (!remove) continue;
-                Undo.RecordObject(_asset, "Remove Template Parameter");
+                Undo.RecordObject(_asset, "删除模板参数");
                 template.Parameters.RemoveAt(index);
                 EditorUtility.SetDirty(_asset);
                 i--;
@@ -158,13 +296,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-parameter"), EditorStyles.miniButton))
             {
-                Undo.RecordObject(_asset, "Add Template Parameter");
+                Undo.RecordObject(_asset, "添加模板参数");
                 template.Parameters.Add(new TriggerAuthoringTemplateParameterData
                 {
                     Name = CreateUniqueParameterName(template.Parameters),
+                    LocalVariableKey = CreateUniqueParameterName(template.Parameters),
                     Type = TriggerValueType.Number,
                     DefaultValue = CreateValue(TriggerValueType.Number)
                 });
+                TriggerAuthoringTemplateDefinition.Normalize(template);
                 EditorUtility.SetDirty(_asset);
             }
         }
@@ -186,11 +326,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
             else
             {
-                if (GUILayout.Button(new GUIContent("Copy", "Copy this tree to clipboard"), EditorStyles.miniButtonLeft, GUILayout.Width(42f)))
+                if (GUILayout.Button(new GUIContent("复制", "将此节点树复制到剪贴板"), EditorStyles.miniButtonLeft, GUILayout.Width(42f)))
                     TriggerAuthoringNodeClipboard.Copy(root, kind);
                 using (new EditorGUI.DisabledScope(!TriggerAuthoringNodeClipboard.HasNode()))
                 {
-                    if (GUILayout.Button(new GUIContent("Paste", "Replace root from clipboard"), EditorStyles.miniButtonMid, GUILayout.Width(44f)))
+                    if (GUILayout.Button(new GUIContent("粘贴", "使用剪贴板内容替换根节点"), EditorStyles.miniButtonMid, GUILayout.Width(44f)))
                     {
                         PasteRoot(kind, value => SetTemplateRoot(kind, value));
                         root = GetTemplateRoot(kind);
@@ -210,14 +350,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private TriggerNodeData GetTemplateRoot(TriggerNodeKind kind)
         {
             return kind == TriggerNodeKind.Condition
-                ? _asset.Template.Condition
-                : _asset.Template.Actions;
+                ? TriggerAuthoringTemplateDefinition.Get(_asset.Template).Condition
+                : TriggerAuthoringTemplateDefinition.Get(_asset.Template).Actions;
         }
 
         private void SetTemplateRoot(TriggerNodeKind kind, TriggerNodeData root)
         {
-            if (kind == TriggerNodeKind.Condition) _asset.Template.Condition = root;
-            else _asset.Template.Actions = root;
+            var definition = TriggerAuthoringTemplateDefinition.Get(_asset.Template);
+            if (kind == TriggerNodeKind.Condition) definition.Condition = root;
+            else definition.Actions = root;
         }
 
         private TriggerNodeData DrawNode(TriggerNodeData node, TriggerNodeKind kind, int depth, bool root)
@@ -242,16 +383,17 @@ namespace AbilityKit.Ability.Editor.Inspectors
                                 TriggerAuthoringNodeClipboard.HasNode();
 
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label(node.Type ?? "<type>", EditorStyles.boldLabel);
+            GUILayout.Label(TriggerAuthoringEditorLabels.Node(node.Type, descriptor != null ? descriptor.DisplayName : null), EditorStyles.boldLabel);
+            GUILayout.Label(node.Type ?? "<未选择类型>", EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             using (new EditorGUI.DisabledScope(!canPasteChild))
             {
-                if (GUILayout.Button(new GUIContent("Paste", "Paste clipboard node as a child"), EditorStyles.miniButtonLeft, GUILayout.Width(42f)))
+                if (GUILayout.Button(new GUIContent("粘贴", "将剪贴板节点粘贴为子节点"), EditorStyles.miniButtonLeft, GUILayout.Width(42f)))
                     PasteChild(children, kind);
             }
-            if (GUILayout.Button(new GUIContent("Type", "Change node type"), EditorStyles.miniButtonMid, GUILayout.Width(42f)))
+            if (GUILayout.Button(new GUIContent("类型", "更改节点类型"), EditorStyles.miniButtonMid, GUILayout.Width(42f)))
                 ShowNodeTypeMenu(kind, descriptor => ApplyDescriptor(node, descriptor), GUILayoutUtility.GetLastRect());
-            var remove = GUILayout.Button(new GUIContent("x", "Remove node"), EditorStyles.miniButtonRight, GUILayout.Width(25f));
+            var remove = GUILayout.Button(new GUIContent("x", "删除节点"), EditorStyles.miniButtonRight, GUILayout.Width(25f));
             EditorGUILayout.EndHorizontal();
             if (remove)
             {
@@ -260,6 +402,16 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
 
             DrawNodeArguments(node, descriptor);
+            if (kind == TriggerNodeKind.Action &&
+                string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+            {
+                DrawTemplateBranchCondition(node, depth + 1);
+                DrawTemplateActionBranch("条件成立时执行", node.Children, depth);
+                node.ElseChildren = node.ElseChildren ?? new List<TriggerNodeData>();
+                DrawTemplateActionBranch("条件不成立时执行", node.ElseChildren, depth);
+                EditorGUILayout.EndVertical();
+                return node;
+            }
             if (maxChildren != 0)
             {
                 EditorGUILayout.BeginHorizontal();
@@ -267,7 +419,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 GUILayout.FlexibleSpace();
                 using (new EditorGUI.DisabledScope(maxChildren > 0 && children.Count >= maxChildren))
                 {
-                    if (GUILayout.Button("+ Child", EditorStyles.miniButton, GUILayout.Width(64f)))
+                    if (GUILayout.Button("+ 子节点", EditorStyles.miniButton, GUILayout.Width(70f)))
                         ShowNodeCreationMenu(kind, children.Add, GUILayoutUtility.GetLastRect());
                 }
                 EditorGUILayout.EndHorizontal();
@@ -290,6 +442,41 @@ namespace AbilityKit.Ability.Editor.Inspectors
             return node;
         }
 
+        private void DrawTemplateBranchCondition(TriggerNodeData node, int depth)
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("判断条件", EditorStyles.miniBoldLabel);
+            GUILayout.FlexibleSpace();
+            if (node.Condition == null && GUILayout.Button("+ 添加条件", EditorStyles.miniButton, GUILayout.Width(82f)))
+                ShowNodeCreationMenu(TriggerNodeKind.Condition, created => node.Condition = created, GUILayoutUtility.GetLastRect());
+            EditorGUILayout.EndHorizontal();
+            if (node.Condition != null)
+                node.Condition = DrawNode(node.Condition, TriggerNodeKind.Condition, depth, false);
+        }
+
+        private void DrawTemplateActionBranch(string label, List<TriggerNodeData> actions, int depth)
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label(label + "（" + actions.Count + "）", EditorStyles.miniBoldLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("+ 添加行为", EditorStyles.miniButton, GUILayout.Width(82f)))
+                ShowNodeCreationMenu(TriggerNodeKind.Action, actions.Add, GUILayoutUtility.GetLastRect());
+            EditorGUILayout.EndHorizontal();
+            for (var i = 0; i < actions.Count; i++)
+            {
+                var child = DrawNode(actions[i], TriggerNodeKind.Action, depth + 1, false);
+                if (child == null)
+                {
+                    actions.RemoveAt(i);
+                    i--;
+                }
+                else
+                {
+                    actions[i] = child;
+                }
+            }
+        }
+
         private void DrawNodeArguments(TriggerNodeData node, TriggerTypeDescriptor descriptor)
         {
             var arguments = node.Arguments ?? (node.Arguments = new List<TriggerArgumentData>());
@@ -309,7 +496,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     if (!parameter.Required)
                     {
                         EditorGUILayout.BeginHorizontal();
-                        GUILayout.Label(parameter.Name, EditorStyles.miniLabel);
+                        GUILayout.Label(TriggerAuthoringEditorLabels.Parameter(parameter.Name), EditorStyles.miniLabel);
                         GUILayout.FlexibleSpace();
                         if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add"), EditorStyles.miniButton, GUILayout.Width(42f)))
                             arguments.Add(CreateArgument(parameter));
@@ -320,7 +507,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
                 EditorGUILayout.BeginVertical(EditorStyles.helpBox);
                 EditorGUILayout.BeginHorizontal();
-                GUILayout.Label(parameter.Name, EditorStyles.miniBoldLabel);
+                GUILayout.Label(TriggerAuthoringEditorLabels.Parameter(parameter.Name), EditorStyles.miniBoldLabel);
                 GUILayout.FlexibleSpace();
                 if (!parameter.Required && GUILayout.Button("x", EditorStyles.miniButton, GUILayout.Width(22f)))
                 {
@@ -366,7 +553,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void DrawValidation()
         {
-            _showDiagnostics = EditorGUILayout.Foldout(_showDiagnostics, "Diagnostics", true);
+            _showDiagnostics = EditorGUILayout.Foldout(_showDiagnostics, "诊断", true);
             if (!_showDiagnostics) return;
             var diagnostics = TriggerAuthoringTemplateValidator.Validate(
                 _asset.Template,
@@ -388,27 +575,27 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
         }
 
-        private void ShowEventMenu(TriggerAuthoringTemplateData template)
+        private void ShowEventMenu(TriggerDefinitionData prototype)
         {
             var menu = new GenericMenu();
             if (_events == null || _events.Definitions.Count == 0)
             {
-                menu.AddDisabledItem(new GUIContent("No Event Catalog"));
+                menu.AddDisabledItem(new GUIContent("没有事件目录"));
             }
             else
             {
                 var definitions = _events.Definitions;
                 for (var i = 0; i < definitions.Count; i++)
                 {
-                    var definition = definitions[i];
-                    if (definition == null) continue;
-                    var family = definition.MatchMode == TriggerEventMatchMode.Prefix ? "Event Families" : definition.Category;
-                    var label = family + "/" + (string.IsNullOrWhiteSpace(definition.DisplayName) ? definition.Id : definition.DisplayName);
-                    var captured = definition;
-                    menu.AddItem(new GUIContent(label), string.Equals(template.Event, definition.Id, StringComparison.Ordinal), () =>
+                    var eventDefinition = definitions[i];
+                    if (eventDefinition == null) continue;
+                    var family = eventDefinition.MatchMode == TriggerEventMatchMode.Prefix ? "事件族" : eventDefinition.Category;
+                    var label = family + "/" + (string.IsNullOrWhiteSpace(eventDefinition.DisplayName) ? eventDefinition.Id : eventDefinition.DisplayName);
+                    var captured = eventDefinition;
+                    menu.AddItem(new GUIContent(label), string.Equals(prototype.Event, captured.Id, StringComparison.Ordinal), () =>
                     {
-                        Undo.RecordObject(_asset, "Select Template Event");
-                        template.Event = captured.Id;
+                        Undo.RecordObject(_asset, "选择模板事件");
+                        TriggerAuthoringTemplateDefinition.Get(_asset.Template).Event = captured.Id;
                         EditorUtility.SetDirty(_asset);
                     });
                 }
@@ -420,7 +607,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             void OnType(TriggerTypeDescriptor descriptor)
             {
-                Undo.RecordObject(_asset, "Select Template Node Type");
+                Undo.RecordObject(_asset, "选择模板节点类型");
                 selected(descriptor);
                 EditorUtility.SetDirty(_asset);
             }
@@ -431,7 +618,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             void OnType(TriggerTypeDescriptor descriptor)
             {
-                Undo.RecordObject(_asset, "Add Template Node");
+                Undo.RecordObject(_asset, "添加模板节点");
                 selected(CreateNode(descriptor));
                 EditorUtility.SetDirty(_asset);
             }
@@ -442,10 +629,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             if (!TriggerAuthoringNodeClipboard.TryPaste(kind, out var pasted))
             {
-                EditorUtility.DisplayDialog("Paste Node", "Clipboard does not contain a matching node.", "OK");
+                EditorUtility.DisplayDialog("粘贴节点", "剪贴板中没有匹配的节点。", "确定");
                 return;
             }
-            Undo.RecordObject(_asset, "Paste Template Node");
+            Undo.RecordObject(_asset, "粘贴模板节点");
             selected(pasted);
             EditorUtility.SetDirty(_asset);
         }
@@ -454,10 +641,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             if (!TriggerAuthoringNodeClipboard.TryPaste(kind, out var pasted))
             {
-                EditorUtility.DisplayDialog("Paste Node", "Clipboard does not contain a matching node.", "OK");
+                EditorUtility.DisplayDialog("粘贴节点", "剪贴板中没有匹配的节点。", "确定");
                 return;
             }
-            Undo.RecordObject(_asset, "Paste Template Node");
+            Undo.RecordObject(_asset, "粘贴模板节点");
             children.Add(pasted);
             EditorUtility.SetDirty(_asset);
         }
@@ -466,11 +653,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             return new TriggerAuthoringValueRefEditorContext
             {
+                Trigger = TriggerAuthoringTemplateDefinition.Get(_asset.Template),
                 Events = _events,
-                GlobalBlackboard = _globalBlackboard,
-                TemplateParameters = _asset != null && _asset.Template != null
-                    ? _asset.Template.Parameters
-                    : null
+                GlobalBlackboard = _globalBlackboard
             };
         }
 
@@ -492,19 +677,19 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     ? _asset.Template.TemplateId
                     : _asset.name;
                 path = EditorUtility.SaveFilePanel(
-                    "Export Trigger Template Source JSON", Application.dataPath, name,
+                    "导出触发器模板 Source JSON", Application.dataPath, name,
                     TriggerSourceCodecs.TemplateDefault.FileExtension);
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
 
             var result = TriggerAuthoringTemplateSourceSync.Export(_asset, path);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
-                    "Trigger Template Source Conflict",
-                    result.Message + "\n\nForce export and overwrite Source JSON?",
-                    "Force Export",
-                    "Cancel"))
+                    "触发器模板源文件冲突",
+                    result.Message + "\n\n是否强制导出并覆盖 Source JSON？",
+                    "强制导出",
+                    "取消"))
                 result = TriggerAuthoringTemplateSourceSync.Export(_asset, path, true);
-            ShowResult("Export", result);
+            ShowResult("导出", result);
         }
 
         private void Import()
@@ -513,7 +698,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
                 path = EditorUtility.OpenFilePanel(
-                    "Import Trigger Template Source JSON", Application.dataPath,
+                    "导入触发器模板 Source JSON", Application.dataPath,
                     TriggerSourceCodecs.TemplateDefault.FileExtension);
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
@@ -523,12 +708,12 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             var result = TriggerAuthoringTemplateSourceSync.Import(_asset, path, preview.RequiresForce);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
-                    "Trigger Template Asset Conflict",
-                    result.Message + "\n\nForce import and overwrite Asset content?",
-                    "Force Import",
-                    "Cancel"))
+                    "触发器模板资产冲突",
+                    result.Message + "\n\n是否强制导入并覆盖资产内容？",
+                    "强制导入",
+                    "取消"))
                 result = TriggerAuthoringTemplateSourceSync.Import(_asset, path, true);
-            ShowResult("Import", result);
+            ShowResult("导入", result);
         }
 
         private void ShowResult(string operation, TriggerAuthoringSyncResult result)
@@ -537,10 +722,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
             {
                 AssetDatabase.SaveAssets();
                 _nextInspectionAt = 0d;
-                ShowNotification("Template " + operation.ToLowerInvariant() + " succeeded");
+                ShowNotification("模板" + operation + "成功");
                 return;
             }
-            EditorUtility.DisplayDialog("Trigger Template " + operation + " Failed", result.Message, "OK");
+            EditorUtility.DisplayDialog("触发器模板" + operation + "失败", result.Message, "确定");
         }
 
         private void RefreshInspection()
@@ -548,6 +733,108 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (_inspection != null && EditorApplication.timeSinceStartup < _nextInspectionAt) return;
             _inspection = TriggerAuthoringTemplateSourceSync.Inspect(_asset);
             _nextInspectionAt = EditorApplication.timeSinceStartup + 0.5d;
+        }
+
+        private static readonly TriggerValueType[] ValueTypeOptions =
+        {
+            TriggerValueType.None,
+            TriggerValueType.Integer,
+            TriggerValueType.Number,
+            TriggerValueType.Boolean,
+            TriggerValueType.String,
+            TriggerValueType.Entity,
+            TriggerValueType.ObjectId,
+            TriggerValueType.IntegerList,
+            TriggerValueType.Vector3,
+            TriggerValueType.Object
+        };
+
+        private static readonly string[] ValueSourceNames =
+        {
+            "常量", "事件参数", "运行上下文", "局部黑板", "全局黑板", "表达式"
+        };
+
+        private static readonly TriggerTemplateValueSourceMask[] ValueSourceMasks =
+        {
+            TriggerTemplateValueSourceMask.Constant,
+            TriggerTemplateValueSourceMask.Payload,
+            TriggerTemplateValueSourceMask.Context,
+            TriggerTemplateValueSourceMask.LocalBlackboard,
+            TriggerTemplateValueSourceMask.GlobalBlackboard,
+            TriggerTemplateValueSourceMask.Expression
+        };
+
+        private void DrawAllowedSources(TriggerAuthoringTemplateParameterData parameter)
+        {
+            var rect = EditorGUILayout.GetControlRect();
+            var fieldRect = EditorGUI.PrefixLabel(rect, new GUIContent("实例可用来源"));
+            if (!GUI.Button(fieldRect, BuildAllowedSourcesLabel(parameter.AllowedSources), EditorStyles.popup)) return;
+
+            var menu = new GenericMenu();
+            menu.AddItem(new GUIContent("全部"), parameter.AllowedSources == TriggerTemplateValueSourceMask.InstanceBinding,
+                () => SetAllowedSources(parameter, TriggerTemplateValueSourceMask.InstanceBinding));
+            menu.AddItem(new GUIContent("清除全部"), parameter.AllowedSources == TriggerTemplateValueSourceMask.None,
+                () => SetAllowedSources(parameter, TriggerTemplateValueSourceMask.None));
+            menu.AddSeparator(string.Empty);
+            for (var i = 0; i < ValueSourceMasks.Length; i++)
+            {
+                var mask = ValueSourceMasks[i];
+                var label = ValueSourceNames[i];
+                menu.AddItem(new GUIContent(label), (parameter.AllowedSources & mask) != 0, () =>
+                {
+                    var next = parameter.AllowedSources ^ mask;
+                    SetAllowedSources(parameter, next);
+                });
+            }
+            menu.DropDown(fieldRect);
+        }
+
+        private void SetAllowedSources(
+            TriggerAuthoringTemplateParameterData parameter,
+            TriggerTemplateValueSourceMask value)
+        {
+            Undo.RecordObject(_asset, "设置模板参数可用来源");
+            parameter.AllowedSources = value;
+            EditorUtility.SetDirty(_asset);
+            Repaint();
+        }
+
+        private static string BuildAllowedSourcesLabel(TriggerTemplateValueSourceMask value)
+        {
+            if (value == TriggerTemplateValueSourceMask.None) return "未选择";
+            if (value == TriggerTemplateValueSourceMask.InstanceBinding) return "全部";
+            var names = new List<string>();
+            for (var i = 0; i < ValueSourceMasks.Length; i++)
+                if ((value & ValueSourceMasks[i]) != 0)
+                    names.Add(ValueSourceNames[i]);
+            return names.Count > 0 ? string.Join("、", names.ToArray()) : "未选择";
+        }
+
+        private static TriggerValueType DrawValueTypePopup(TriggerValueType value, params GUILayoutOption[] options)
+        {
+            var names = new string[ValueTypeOptions.Length];
+            var selected = 0;
+            for (var i = 0; i < ValueTypeOptions.Length; i++)
+            {
+                names[i] = TriggerAuthoringEditorLabels.ValueType(ValueTypeOptions[i]);
+                if (ValueTypeOptions[i] == value) selected = i;
+            }
+            return ValueTypeOptions[EditorGUILayout.Popup(selected, names, options)];
+        }
+
+        private static string GetSyncStateLabel(TriggerAuthoringSyncState state)
+        {
+            switch (state)
+            {
+                case TriggerAuthoringSyncState.Untracked: return "未跟踪";
+                case TriggerAuthoringSyncState.InSync: return "已同步";
+                case TriggerAuthoringSyncState.AssetChanged: return "资产已修改";
+                case TriggerAuthoringSyncState.JsonChanged: return "源文件已修改";
+                case TriggerAuthoringSyncState.Conflict: return "存在冲突";
+                case TriggerAuthoringSyncState.SourceMissing: return "源文件缺失";
+                case TriggerAuthoringSyncState.InvalidSource: return "源文件无效";
+                default: return "未知";
+            }
         }
 
         private string ResolveSourcePath()
@@ -563,7 +850,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var current = Event.current;
             if (current == null) return;
             if (current.type == EventType.MouseDown || current.type == EventType.KeyDown)
-                Undo.RecordObject(_asset, "Edit Trigger Authoring Template");
+                Undo.RecordObject(_asset, "编辑触发器模板");
         }
 
         private static TriggerNodeData CreateNode(TriggerTypeDescriptor descriptor)
@@ -575,7 +862,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
             };
             if (descriptor == null) return node;
             AddDefaultArguments(node.Arguments, descriptor);
+            if (descriptor.Kind == TriggerNodeKind.Action &&
+                string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+                node.Condition = CreateDefaultEmbeddedCondition();
             return node;
+        }
+
+        private static TriggerNodeData CreateDefaultEmbeddedCondition()
+        {
+            return new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" };
         }
 
         private static void ApplyDescriptor(TriggerNodeData node, TriggerTypeDescriptor descriptor)
@@ -584,7 +879,12 @@ namespace AbilityKit.Ability.Editor.Inspectors
             node.GroupReference = string.Empty;
             node.Type = descriptor.Type;
             node.Arguments = new List<TriggerArgumentData>();
+            node.Condition = descriptor.Kind == TriggerNodeKind.Action &&
+                             string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase)
+                ? CreateDefaultEmbeddedCondition()
+                : null;
             node.Children = new List<TriggerNodeData>();
+            node.ElseChildren = new List<TriggerNodeData>();
             AddDefaultArguments(node.Arguments, descriptor);
         }
 

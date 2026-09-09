@@ -21,6 +21,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
     internal static class AuthoringMutationService
     {
         public const string ClipboardPrefix = "AbilityKit.BehaviorTree.Authoring.Subgraph:";
+        private const string SubtreeBindingProperty = "subtreeBlackboard.bindings.parentKey";
 
         public static string SerializeSubgraph(
             AuthoringSourceDocument document,
@@ -133,7 +134,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
                 target.Groups.Add(new AuthoringGroupData
                 {
                     Id = groupId,
-                    Title = string.IsNullOrWhiteSpace(group.Title) ? "Group Copy" : group.Title,
+                    Title = string.IsNullOrWhiteSpace(group.Title) ? "分组副本" : group.Title,
                     X = group.X + offset.x,
                     Y = group.Y + offset.y,
                     Width = group.Width,
@@ -403,6 +404,22 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
 
             foreach (var node in document.Tree.Nodes)
             {
+                if (node.SubtreeBlackboard != null)
+                {
+                    foreach (var binding in node.SubtreeBlackboard.Bindings)
+                    {
+                        if (!string.Equals(binding.ParentKey, keyName, StringComparison.Ordinal)) continue;
+                        result.Add(new BlackboardUsage(
+                            keyName,
+                            node.Id,
+                            node.Type,
+                            SubtreeBindingProperty,
+                            declaredType,
+                            AuthoringBlackboardAccess.ReadWrite,
+                            new AuthoringJumpTarget(node.Id, SubtreeBindingProperty)));
+                    }
+                }
+
                 if (!registry.TryGetDescriptor(node.Type, out var descriptor)) continue;
                 foreach (var field in descriptor.PropertySchema)
                 {
@@ -441,10 +458,10 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             impact.Usages.AddRange(FindBlackboardUsages(document, registry, keyName));
             if (fromType == toType) return impact;
             if (impact.Usages.Count > 0)
-                impact.Warnings.Add("Referenced nodes should be revalidated after this key type changes.");
+                impact.Warnings.Add("黑板键类型变更后，应重新校验引用它的节点。");
             var key = document.Tree.Blackboard.Keys.Find(item => string.Equals(item.Name, keyName, StringComparison.Ordinal));
             if (key?.Default != null && key.Default.Type != toType)
-                impact.Warnings.Add("The key default value type does not match the new type and should be reset.");
+                impact.Warnings.Add("黑板键默认值类型与新类型不匹配，应重新设置默认值。");
             return impact;
         }
 
@@ -457,7 +474,20 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             foreach (var reference in references)
             {
                 var node = document.Tree.Nodes.Find(item => string.Equals(item.Id, reference.NodeId, StringComparison.Ordinal));
-                node?.Properties.Set(reference.PropertyName, PropertyValue.Of(""));
+                if (node == null) continue;
+                if (string.Equals(reference.PropertyName, SubtreeBindingProperty, StringComparison.Ordinal)
+                    && node.SubtreeBlackboard != null)
+                {
+                    foreach (var binding in node.SubtreeBlackboard.Bindings)
+                    {
+                        if (string.Equals(binding.ParentKey, keyName, StringComparison.Ordinal))
+                            binding.ParentKey = "";
+                    }
+                }
+                else
+                {
+                    node.Properties.Set(reference.PropertyName, PropertyValue.Of(""));
+                }
             }
             return references.Count;
         }
@@ -486,7 +516,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
                 Metadata = new AuthoringMetadata
                 {
                     Author = document.Metadata.Author,
-                    Description = "Clipboard",
+                    Description = "剪贴板",
                 },
                 Tree =
                 {
@@ -572,10 +602,30 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             {
                 Id = source.Id,
                 Type = source.Type,
+                SubtreeBlackboard = CloneSubtreeBlackboard(source.SubtreeBlackboard),
             };
             foreach (var property in source.Properties.Values)
                 clone.Properties.Set(property.Key, CloneValue(property.Value));
             clone.ChildIds.AddRange(source.ChildIds);
+            return clone;
+        }
+
+        private static SubtreeBlackboardConfiguration? CloneSubtreeBlackboard(
+            SubtreeBlackboardConfiguration? source)
+        {
+            if (source == null) return null;
+            var clone = new SubtreeBlackboardConfiguration
+            {
+                IsolateUnmappedKeys = source.IsolateUnmappedKeys,
+            };
+            foreach (var binding in source.Bindings)
+            {
+                clone.Bindings.Add(new SubtreeBlackboardBinding
+                {
+                    SubtreeKey = binding.SubtreeKey,
+                    ParentKey = binding.ParentKey,
+                });
+            }
             return clone;
         }
 

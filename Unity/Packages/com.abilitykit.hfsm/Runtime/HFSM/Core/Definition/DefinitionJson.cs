@@ -83,8 +83,14 @@ namespace AbilityKit.HFSM.Definition
             var machines = ReadArray(root, "machines", "$");
             for (var index = 0; index < machines.Count; index++)
             {
-                definition.Machines.Add(ReadMachine(machines[index], $"$.machines[{index}]"));
+                definition.Machines.Add(ReadMachine(
+                    machines[index],
+                    $"$.machines[{index}]",
+                    definition.FormatVersion));
             }
+
+            if (definition.FormatVersion == 1)
+                definition.FormatVersion = StateMachineDefinition.CurrentFormatVersion;
 
             DefinitionValidator.ValidateOrThrow(definition);
             return definition;
@@ -105,6 +111,13 @@ namespace AbilityKit.HFSM.Definition
                 WriteValue(writer, "behaviorKey", state.BehaviorKey);
                 WriteValue(writer, "childMachineId", state.ChildMachineId);
                 WriteValue(writer, "requiresExitApproval", state.RequiresExitApproval);
+                WriteValue(writer, "isGhostState", state.IsGhostState);
+                writer.WritePropertyName("parallelBehaviorKeys");
+                writer.WriteStartArray();
+                foreach (var key in state.ParallelBehaviorKeys ?? new List<string>())
+                    writer.WriteValue(key ?? string.Empty);
+                writer.WriteEndArray();
+                WriteValue(writer, "parallelExitPolicy", state.ParallelExitPolicy.ToString());
                 writer.WriteEndObject();
             }
 
@@ -123,6 +136,7 @@ namespace AbilityKit.HFSM.Definition
                 WriteValue(writer, "actionKey", transition.ActionKey);
                 WriteValue(writer, "priority", transition.Priority);
                 WriteValue(writer, "forceImmediate", transition.ForceImmediate);
+                WriteValue(writer, "exitMachine", transition.ExitMachine);
                 WriteValue(writer, "minimumActiveDurationRaw", transition.MinimumActiveDurationRaw);
                 writer.WriteEndObject();
             }
@@ -131,7 +145,7 @@ namespace AbilityKit.HFSM.Definition
             writer.WriteEndObject();
         }
 
-        private static MachineDefinition ReadMachine(JToken token, string path)
+        private static MachineDefinition ReadMachine(JToken token, string path, int formatVersion)
         {
             var item = RequireObject(token, path, "Machine must be an object.");
             EnsureProperties(item, path, "id", "initialStateId", "rememberLastState", "states", "transitions");
@@ -147,47 +161,68 @@ namespace AbilityKit.HFSM.Definition
             var states = ReadArray(item, "states", path);
             for (var index = 0; index < states.Count; index++)
             {
-                machine.States.Add(ReadState(states[index], $"{path}.states[{index}]"));
+                machine.States.Add(ReadState(states[index], $"{path}.states[{index}]", formatVersion));
             }
 
             var transitions = ReadArray(item, "transitions", path);
             for (var index = 0; index < transitions.Count; index++)
             {
-                machine.Transitions.Add(ReadTransition(transitions[index], $"{path}.transitions[{index}]"));
+                machine.Transitions.Add(ReadTransition(
+                    transitions[index],
+                    $"{path}.transitions[{index}]",
+                    formatVersion));
             }
 
             return machine;
         }
 
-        private static StateDefinition ReadState(JToken token, string path)
+        private static StateDefinition ReadState(JToken token, string path, int formatVersion)
         {
             var item = RequireObject(token, path, "State must be an object.");
-            EnsureProperties(item, path, "id", "behaviorKey", "childMachineId", "requiresExitApproval");
-            return new StateDefinition
+            if (formatVersion == 1)
+            {
+                EnsureProperties(item, path, "id", "behaviorKey", "childMachineId", "requiresExitApproval");
+                return new StateDefinition
+                {
+                    Id = ReadString(item, "id", path),
+                    BehaviorKey = ReadString(item, "behaviorKey", path),
+                    ChildMachineId = ReadString(item, "childMachineId", path),
+                    RequiresExitApproval = ReadBoolean(item, "requiresExitApproval", path),
+                };
+            }
+
+            EnsureProperties(item, path,
+                "id", "behaviorKey", "childMachineId", "requiresExitApproval",
+                "isGhostState", "parallelBehaviorKeys", "parallelExitPolicy");
+            var state = new StateDefinition
             {
                 Id = ReadString(item, "id", path),
                 BehaviorKey = ReadString(item, "behaviorKey", path),
                 ChildMachineId = ReadString(item, "childMachineId", path),
                 RequiresExitApproval = ReadBoolean(item, "requiresExitApproval", path),
+                IsGhostState = ReadBoolean(item, "isGhostState", path),
+                ParallelExitPolicy = ReadParallelExitPolicy(item, "parallelExitPolicy", path),
             };
+            var keys = ReadArray(item, "parallelBehaviorKeys", path);
+            for (var index = 0; index < keys.Count; index++)
+            {
+                if (keys[index].Type != JTokenType.String)
+                    throw new DefinitionJsonException($"{path}.parallelBehaviorKeys[{index}]", "Expected a string.");
+                state.ParallelBehaviorKeys.Add(keys[index].Value<string>() ?? string.Empty);
+            }
+            return state;
         }
 
-        private static TransitionDefinition ReadTransition(JToken token, string path)
+        private static TransitionDefinition ReadTransition(JToken token, string path, int formatVersion)
         {
             var item = RequireObject(token, path, "Transition must be an object.");
-            EnsureProperties(
-                item,
-                path,
-                "id",
-                "fromAnyState",
-                "fromStateId",
-                "toStateId",
-                "triggerId",
-                "conditionKey",
-                "actionKey",
-                "priority",
-                "forceImmediate",
-                "minimumActiveDurationRaw");
+            var propertyNames = new List<string>
+            {
+                "id", "fromAnyState", "fromStateId", "toStateId", "triggerId",
+                "conditionKey", "actionKey", "priority", "forceImmediate", "minimumActiveDurationRaw",
+            };
+            if (formatVersion != 1) propertyNames.Add("exitMachine");
+            EnsureProperties(item, path, propertyNames.ToArray());
             return new TransitionDefinition
             {
                 Id = ReadString(item, "id", path),
@@ -199,8 +234,21 @@ namespace AbilityKit.HFSM.Definition
                 ActionKey = ReadString(item, "actionKey", path),
                 Priority = ReadInt32(item, "priority", path),
                 ForceImmediate = ReadBoolean(item, "forceImmediate", path),
+                ExitMachine = formatVersion != 1 && ReadBoolean(item, "exitMachine", path),
                 MinimumActiveDurationRaw = ReadInt64(item, "minimumActiveDurationRaw", path),
             };
+        }
+
+        private static ParallelExitPolicy ReadParallelExitPolicy(JObject item, string name, string path)
+        {
+            var value = ReadString(item, name, path);
+            if (Enum.TryParse(value, ignoreCase: false, out ParallelExitPolicy policy) &&
+                Enum.IsDefined(typeof(ParallelExitPolicy), policy))
+            {
+                return policy;
+            }
+
+            throw new DefinitionJsonException($"{path}.{name}", $"Unknown parallel exit policy '{value}'.");
         }
 
         private static void EnsureProperties(JObject item, string path, params string[] allowedNames)

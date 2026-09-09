@@ -33,7 +33,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -100,7 +100,7 @@ namespace AbilityKit.Game.Editor
             }
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.LabelField(
-                $"BuffStoreRevision={_viewModel.StoreRevision}  EventStoreRevision={_viewModel.EventStoreRevision}",
+                $"Buff 存储版本={_viewModel.StoreRevision}  事件存储版本={_viewModel.EventStoreRevision}",
                 EditorStyles.miniLabel);
         }
 
@@ -144,7 +144,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField(
-                $"F{diagnosticEvent.Frame}  {payload.Stage}",
+                $"F{diagnosticEvent.Frame}  {BattleDebugDisplayText.BuffLifecycleStage(payload.Stage)}",
                 EditorStyles.miniBoldLabel,
                 GUILayout.Width(150f));
             EditorGUILayout.LabelField(
@@ -154,7 +154,7 @@ namespace AbilityKit.Game.Editor
             GUILayout.FlexibleSpace();
             EditorGUI.BeginDisabledGroup(ctx.OpenEvent == null);
             if (GUILayout.Button(
-                    new GUIContent($"Seq {diagnosticEvent.Sequence}", "在诊断事件面板中查看完整事件"),
+                    new GUIContent($"序列 {diagnosticEvent.Sequence}", "在诊断事件面板中查看完整事件"),
                     EditorStyles.miniButton,
                     GUILayout.Width(90f)))
             {
@@ -169,17 +169,17 @@ namespace AbilityKit.Game.Editor
                     ? $"{payload.StackCount}/{payload.MaxStacks}"
                     : payload.StackCount.ToString();
             EditorGUILayout.LabelField(
-                $"Stack={stackText}  Duration={FormatMilliseconds(payload.DurationMilliseconds)}  " +
-                $"Remaining={FormatMilliseconds(payload.RemainingMilliseconds)}  " +
-                $"Interval={FormatMilliseconds(payload.IntervalRemainingMilliseconds)}",
+                $"层数={stackText}  时长={FormatMilliseconds(payload.DurationMilliseconds)}  " +
+                $"剩余={FormatMilliseconds(payload.RemainingMilliseconds)}  " +
+                $"周期剩余={FormatMilliseconds(payload.IntervalRemainingMilliseconds)}",
                 EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
-                $"SourceActor={diagnosticEvent.SourceActorId}  RootContext={diagnosticEvent.RootContextId}  " +
-                $"Context={diagnosticEvent.ContextId}  SkillRuntime={diagnosticEvent.SkillRuntime}",
+                $"来源 Actor={diagnosticEvent.SourceActorId}  根上下文={diagnosticEvent.RootContextId}  " +
+                $"上下文={diagnosticEvent.ContextId}  技能运行时={diagnosticEvent.SkillRuntime}",
                 EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
-                $"ModifierBindings={payload.ModifierBindingCount}  ModifierSource={payload.ModifierSourceId}" +
-                (payload.RemoveReason != 0 ? $"  RemoveReason={payload.RemoveReason}" : string.Empty),
+                $"修改器绑定数={payload.ModifierBindingCount}  修改器来源={payload.ModifierSourceId}" +
+                (payload.RemoveReason != 0 ? $"  移除原因={payload.RemoveReason}" : string.Empty),
                 EditorStyles.miniLabel);
             EditorGUILayout.EndVertical();
         }
@@ -204,19 +204,19 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField(displayName, EditorStyles.miniBoldLabel);
             GUILayout.FlexibleSpace();
-            EditorGUILayout.LabelField($"Stack={stack}", EditorStyles.miniLabel, GUILayout.Width(90));
+            EditorGUILayout.LabelField($"层数={stack}", EditorStyles.miniLabel, GUILayout.Width(90));
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.LabelField(
-                $"Remaining={buff.RemainingSeconds:0.###}  Interval={buff.IntervalRemainingSeconds:0.###}  " +
-                $"SourceActor={buff.SourceActorId}",
+                $"剩余={buff.RemainingSeconds:0.###}  周期剩余={buff.IntervalRemainingSeconds:0.###}  " +
+                $"来源 Actor={buff.SourceActorId}",
                 EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
-                $"SourceContext={buff.SourceContextId}  RuntimeContext={buff.RuntimeContextId}:{buff.RuntimeContextVersion}  " +
-                $"RootContext={buff.RootContextId}",
+                $"来源上下文={buff.SourceContextId}  运行时上下文={buff.RuntimeContextId}:{buff.RuntimeContextVersion}  " +
+                $"根上下文={buff.RootContextId}",
                 EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
-                $"SkillRuntime={buff.SkillRuntime}  ModifierBindings={buff.ModifierBindingCount}  " +
-                $"ModifierSource={buff.ModifierSourceId}",
+                $"技能运行时={buff.SkillRuntime}  修改器绑定数={buff.ModifierBindingCount}  " +
+                $"修改器来源={buff.ModifierSourceId}",
                 EditorStyles.miniLabel);
             EditorGUI.BeginDisabledGroup(buff.BuffId <= 0 || ctx.OpenConfig == null);
             if (GUILayout.Button("打开配置", GUILayout.Width(80)))

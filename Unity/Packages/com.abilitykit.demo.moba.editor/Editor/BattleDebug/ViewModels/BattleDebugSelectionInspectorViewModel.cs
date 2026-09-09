@@ -55,7 +55,7 @@ namespace AbilityKit.Game.Editor
         {
             if (!reference.IsValid)
             {
-                throw new ArgumentException("A valid configuration reference is required.", nameof(reference));
+                throw new ArgumentException("需要有效的配置引用。", nameof(reference));
             }
 
             if (_hasConfigSelection &&
@@ -178,7 +178,7 @@ namespace AbilityKit.Game.Editor
                     RefreshTrace(session, selection);
                     break;
                 default:
-                    StatusMessage = $"当前 Inspector 尚不支持 {selection.Kind} 选择。";
+                    StatusMessage = $"当前检查器尚不支持 {BattleDebugDisplayText.SelectionKind(selection.Kind)} 选择。";
                     break;
             }
         }
@@ -235,7 +235,7 @@ namespace AbilityKit.Game.Editor
 
                 if (!result.Status.HasMore)
                 {
-                    StatusMessage = BuildMissingMessage("Event", selection.Id, result.Status);
+                    StatusMessage = BuildMissingMessage("事件", selection.Id, result.Status);
                     return;
                 }
 
@@ -247,8 +247,8 @@ namespace AbilityKit.Game.Editor
                 session.EventStoreRevision,
                 0,
                 BattleDiagnosticDataAvailability.Truncated,
-                $"Inspector lookup is limited to {MaximumEventPages * EventPageSize} events.");
-            StatusMessage = $"未在最近 {MaximumEventPages * EventPageSize} 条同帧事件中找到 Event {selection.Id}。";
+                $"检查器查询最多扫描 {MaximumEventPages * EventPageSize} 条事件。");
+            StatusMessage = $"未在最近 {MaximumEventPages * EventPageSize} 条同帧事件中找到事件 {selection.Id}。";
         }
 
         private void RefreshTrace(
@@ -266,7 +266,7 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            StatusMessage = BuildMissingMessage("Trace Context", selection.Id, result.Status);
+            StatusMessage = BuildMissingMessage("Trace 上下文", selection.Id, result.Status);
         }
 
         private void ClearProjection()
@@ -352,8 +352,8 @@ namespace AbilityKit.Game.Editor
                 status.Phase == BattleDiagnosticQueryPhase.Partial)
             {
                 var detail = string.IsNullOrEmpty(status.Message)
-                    ? status.Availability.ToString()
-                    : $"{status.Availability} {status.Message}";
+                    ? BattleDebugDisplayText.Availability(status.Availability)
+                    : $"{BattleDebugDisplayText.Availability(status.Availability)} {status.Message}";
                 return $"{label} 数据不可用：{detail}";
             }
 

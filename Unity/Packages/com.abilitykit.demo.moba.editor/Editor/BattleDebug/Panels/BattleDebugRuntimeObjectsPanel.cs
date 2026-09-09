@@ -8,7 +8,7 @@ namespace AbilityKit.Game.Editor
 {
     [BattleDebugModule(
         BattleDebugModuleIds.RuntimeObjects,
-        "Runtime",
+        "运行时",
         RequiredCapabilities = BattleDiagnosticCapabilities.RuntimeObjects,
         Selections = BattleDebugModuleSelectionSupport.Frame |
                      BattleDebugModuleSelectionSupport.Actor |
@@ -18,15 +18,15 @@ namespace AbilityKit.Game.Editor
                      BattleDebugModuleSelectionSupport.Config)]
     internal sealed class BattleDebugRuntimeObjectsPanel : IBattleDebugPanel, IBattleDebugPanelLayout
     {
-        private static readonly string[] KindLabels = { "All kinds", "Actor", "Projectile", "Area", "Summon" };
-        private static readonly string[] StateLabels = { "All states", "Active", "Ended" };
-        private static readonly string[] CompletenessLabels = { "All completeness", "Complete", "Partial", "Unreliable" };
+        private static readonly string[] KindLabels = { "全部类型", "Actor", "投射物", "区域", "召唤物" };
+        private static readonly string[] StateLabels = { "全部状态", "活跃", "已结束" };
+        private static readonly string[] CompletenessLabels = { "全部完整度", "完整", "部分完整", "不可靠" };
 
         private readonly BattleDebugRuntimeObjectsViewModel _viewModel =
             new BattleDebugRuntimeObjectsViewModel();
         private Vector2 _listScroll;
 
-        public string Name => "Objects";
+        public string Name => "运行时对象";
         public int Order => 407;
         public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
         public bool OwnsScrollView => true;
@@ -38,7 +38,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "No diagnostic session is available. Start a battle or open a Battle Diagnostics artifact.",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -85,7 +85,7 @@ namespace AbilityKit.Game.Editor
         {
             var compact = contentWidth < 620f;
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Kind", GUILayout.Width(30f));
+            GUILayout.Label("类型", GUILayout.Width(30f));
             var kind = (BattleDiagnosticRuntimeObjectKind)EditorGUILayout.Popup(
                 (int)_viewModel.Kind,
                 KindLabels,
@@ -98,7 +98,7 @@ namespace AbilityKit.Game.Editor
                 _listScroll = Vector2.zero;
             }
 
-            GUILayout.Label("State", GUILayout.Width(34f));
+            GUILayout.Label("状态", GUILayout.Width(34f));
             var state = (BattleDiagnosticRuntimeObjectState)EditorGUILayout.Popup(
                 (int)_viewModel.State,
                 StateLabels,
@@ -111,7 +111,7 @@ namespace AbilityKit.Game.Editor
                 _listScroll = Vector2.zero;
             }
 
-            GUILayout.Label("Quality", GUILayout.Width(42f));
+            GUILayout.Label("完整度", GUILayout.Width(48f));
             var completeness = (BattleDiagnosticDataCompleteness)EditorGUILayout.Popup(
                 (int)_viewModel.Completeness,
                 CompletenessLabels,
@@ -143,7 +143,7 @@ namespace AbilityKit.Game.Editor
             var unreliableActive = _viewModel.Completeness == BattleDiagnosticDataCompleteness.Unreliable;
             var newUnreliableActive = GUILayout.Toggle(
                 unreliableActive,
-                "Unreliable",
+                "不可靠",
                 EditorStyles.toolbarButton,
                 GUILayout.Width(78f));
             if (newUnreliableActive != unreliableActive)
@@ -158,7 +158,7 @@ namespace AbilityKit.Game.Editor
             GUILayout.FlexibleSpace();
             EditorGUI.BeginDisabledGroup(!HasActiveFilter());
             if (GUILayout.Button(
-                    new GUIContent("Clear", "Clear all object catalog filters"),
+                    new GUIContent("清除", "清除所有对象目录过滤条件"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(44f)))
             {
@@ -167,7 +167,7 @@ namespace AbilityKit.Game.Editor
             }
             EditorGUI.EndDisabledGroup();
             if (GUILayout.Button(
-                    new GUIContent("Refresh", "Refresh the catalog at its latest revision"),
+                    new GUIContent("刷新", "按最新版本刷新对象目录"),
                     EditorStyles.toolbarButton,
                     GUILayout.Width(58f)))
             {
@@ -179,13 +179,13 @@ namespace AbilityKit.Game.Editor
         private void DrawPanelHeader()
         {
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Runtime Object Catalog", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("运行时对象目录", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
             var total = _viewModel.Summary.HasValue
                 ? _viewModel.Summary.Value.TotalCount.ToString()
                 : "?";
             GUILayout.Label(
-                $"Showing {_viewModel.LoadedCount} / {total}   rev {_viewModel.WorksetRevision}",
+                $"显示 {_viewModel.LoadedCount} / {total}   版本 {_viewModel.WorksetRevision}",
                 EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
         }
@@ -198,7 +198,7 @@ namespace AbilityKit.Game.Editor
                     _viewModel.SummaryQueryStatus.Phase == BattleDiagnosticQueryPhase.Error)
                 {
                     EditorGUILayout.HelpBox(
-                        "Object summary unavailable: " + _viewModel.SummaryQueryStatus.Message,
+                        "对象汇总不可用：" + _viewModel.SummaryQueryStatus.Message,
                         MessageType.Warning);
                 }
                 return;
@@ -208,7 +208,7 @@ namespace AbilityKit.Game.Editor
             var compact = contentWidth < 620f;
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             if (DrawSummaryButton(
-                    "Total",
+                    "全部",
                     summary.TotalCount,
                     !HasActiveFilter(),
                     Color.white,
@@ -217,7 +217,7 @@ namespace AbilityKit.Game.Editor
                 ClearFilters();
             }
             if (DrawSummaryButton(
-                    "Complete",
+                    "完整",
                     summary.CompleteCount,
                     _viewModel.Completeness == BattleDiagnosticDataCompleteness.Complete,
                     new Color(0.7f, 0.92f, 0.76f),
@@ -226,7 +226,7 @@ namespace AbilityKit.Game.Editor
                 ToggleCompleteness(BattleDiagnosticDataCompleteness.Complete);
             }
             if (DrawSummaryButton(
-                    "Partial",
+                    "部分",
                     summary.PartialCount,
                     _viewModel.Completeness == BattleDiagnosticDataCompleteness.Partial,
                     new Color(1f, 0.86f, 0.55f),
@@ -235,7 +235,7 @@ namespace AbilityKit.Game.Editor
                 ToggleCompleteness(BattleDiagnosticDataCompleteness.Partial);
             }
             if (DrawSummaryButton(
-                    "Unreliable",
+                    "不可靠",
                     summary.UnreliableCount,
                     _viewModel.Completeness == BattleDiagnosticDataCompleteness.Unreliable,
                     new Color(1f, 0.58f, 0.58f),
@@ -248,10 +248,10 @@ namespace AbilityKit.Game.Editor
                 GUILayout.FlexibleSpace();
                 EditorGUILayout.EndHorizontal();
                 EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-                GUILayout.Label("Lifecycle", EditorStyles.miniLabel, GUILayout.Width(58f));
+                GUILayout.Label("生命周期", EditorStyles.miniLabel, GUILayout.Width(58f));
             }
             if (DrawSummaryButton(
-                    "Active",
+                    "活跃",
                     summary.ActiveCount,
                     _viewModel.State == BattleDiagnosticRuntimeObjectState.Active,
                     new Color(0.65f, 0.88f, 1f),
@@ -260,7 +260,7 @@ namespace AbilityKit.Game.Editor
                 ToggleState(BattleDiagnosticRuntimeObjectState.Active);
             }
             if (DrawSummaryButton(
-                    "Ended",
+                    "已结束",
                     summary.EndedCount,
                     _viewModel.State == BattleDiagnosticRuntimeObjectState.Ended,
                     Color.white,
@@ -269,7 +269,7 @@ namespace AbilityKit.Game.Editor
                 ToggleState(BattleDiagnosticRuntimeObjectState.Ended);
             }
             GUILayout.FlexibleSpace();
-            GUILayout.Label($"Catalog {summary.Completeness}", EditorStyles.miniLabel);
+            GUILayout.Label($"目录 {BattleDebugDisplayText.Completeness(summary.Completeness)}", EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
         }
 
@@ -283,7 +283,7 @@ namespace AbilityKit.Game.Editor
             var oldColor = GUI.color;
             GUI.color = active ? color : Color.Lerp(Color.white, color, 0.42f);
             var clicked = GUILayout.Button(
-                new GUIContent($"{label} {count}", $"Filter by {label.ToLowerInvariant()} objects"),
+                new GUIContent($"{label} {count}", $"只显示{label}对象"),
                 active ? EditorStyles.toolbarButton : EditorStyles.miniButton,
                 GUILayout.Width(width),
                 GUILayout.Height(18f));
@@ -299,21 +299,21 @@ namespace AbilityKit.Game.Editor
                 if (summary.BackfillFailureCount > 0L)
                 {
                     EditorGUILayout.HelpBox(
-                        $"{summary.BackfillFailureCount} of {summary.BackfillAttemptCount} object backfills failed. " +
-                        "Some runtime IDs cannot be explained reliably.",
+                        $"{summary.BackfillAttemptCount} 次对象回填中有 {summary.BackfillFailureCount} 次失败。" +
+                        "部分运行时 ID 无法可靠溯源。",
                         MessageType.Error);
                 }
                 else if (summary.Truncated)
                 {
                     EditorGUILayout.HelpBox(
-                        "The runtime object catalog was truncated. Missing objects may have been evicted.",
+                        "运行时对象目录已截断，缺失对象可能已被淘汰。",
                         MessageType.Warning);
                 }
                 else if (summary.PartialCount > 0 || summary.UnreliableCount > 0)
                 {
                     EditorGUILayout.HelpBox(
-                        $"The catalog contains {summary.PartialCount} partial and " +
-                        $"{summary.UnreliableCount} unreliable objects.",
+                        $"目录包含 {summary.PartialCount} 个部分完整对象和 " +
+                        $"{summary.UnreliableCount} 个不可靠对象。",
                         MessageType.Warning);
                 }
             }
@@ -336,7 +336,7 @@ namespace AbilityKit.Game.Editor
             bool compact)
         {
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField("Objects", EditorStyles.boldLabel, GUILayout.Width(64f));
+            EditorGUILayout.LabelField("对象", EditorStyles.boldLabel, GUILayout.Width(64f));
             if (HasActiveFilter())
                 GUILayout.Label(BuildFilterLabel(), EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
@@ -364,13 +364,13 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label(
                 _viewModel.HasMore
-                    ? $"{_viewModel.LoadedCount} loaded, more available"
-                    : $"{_viewModel.LoadedCount} loaded",
+                    ? $"已加载 {_viewModel.LoadedCount} 个，还有更多"
+                    : $"已加载 {_viewModel.LoadedCount} 个",
                 EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             if (_viewModel.HasMore)
             {
-                if (GUILayout.Button("Load more", GUILayout.Width(100f)))
+                if (GUILayout.Button("加载更多", GUILayout.Width(100f)))
                 {
                     _viewModel.LoadMore(session);
                     ctx.RequestRepaint?.Invoke();
@@ -385,19 +385,19 @@ namespace AbilityKit.Game.Editor
         private static void DrawColumnHeader(bool compact)
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Kind", GUILayout.Width(compact ? 66f : 72f));
-            GUILayout.Label("Runtime ID", GUILayout.Width(compact ? 104f : 112f));
-            GUILayout.Label("Name", GUILayout.MinWidth(90f), GUILayout.MaxWidth(150f));
+            GUILayout.Label("类型", GUILayout.Width(compact ? 66f : 72f));
+            GUILayout.Label("运行时 ID", GUILayout.Width(compact ? 104f : 112f));
+            GUILayout.Label("名称", GUILayout.MinWidth(90f), GUILayout.MaxWidth(150f));
             if (!compact)
             {
-                GUILayout.Label("Definition", GUILayout.Width(125f));
+                GUILayout.Label("定义", GUILayout.Width(125f));
             }
-            GUILayout.Label("State", GUILayout.Width(62f));
-            GUILayout.Label("Quality", GUILayout.Width(78f));
+            GUILayout.Label("状态", GUILayout.Width(62f));
+            GUILayout.Label("完整度", GUILayout.Width(78f));
             if (!compact)
             {
-                GUILayout.Label("Frames", GUILayout.Width(104f));
-                GUILayout.Label("Source / Owner", GUILayout.Width(118f));
+                GUILayout.Label("帧范围", GUILayout.Width(104f));
+                GUILayout.Label("来源 / 所有者", GUILayout.Width(118f));
             }
             GUILayout.FlexibleSpace();
             EditorGUILayout.EndHorizontal();
@@ -415,11 +415,11 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.BeginHorizontal(
                 selected ? EditorStyles.helpBox : GUIStyle.none,
                 GUILayout.Height(22f));
-            GUILayout.Label(runtimeObject.Kind.ToString(), GUILayout.Width(compact ? 66f : 72f));
+            GUILayout.Label(BattleDebugDisplayText.RuntimeObjectKind(runtimeObject.Kind), GUILayout.Width(compact ? 66f : 72f));
             if (GUILayout.Button(
                     new GUIContent(
                         $"{runtimeObject.RuntimeId}:{runtimeObject.Generation}",
-                        "Select this runtime object"),
+                        "选择此运行时对象"),
                     selected ? EditorStyles.toolbarButton : EditorStyles.miniButton,
                     GUILayout.Width(compact ? 104f : 112f)))
             {
@@ -434,12 +434,12 @@ namespace AbilityKit.Game.Editor
             if (!compact)
             {
                 GUILayout.Label(
-                    $"{runtimeObject.DefinitionKind}:{runtimeObject.DefinitionId}",
+                    $"{BattleDebugDisplayText.DefinitionKind(runtimeObject.DefinitionKind)}:{runtimeObject.DefinitionId}",
                     EditorStyles.miniLabel,
                     GUILayout.Width(125f));
             }
-            GUILayout.Label(runtimeObject.State.ToString(), GUILayout.Width(62f));
-            GUILayout.Label(runtimeObject.Completeness.ToString(), GUILayout.Width(78f));
+            GUILayout.Label(BattleDebugDisplayText.RuntimeObjectState(runtimeObject.State), GUILayout.Width(62f));
+            GUILayout.Label(BattleDebugDisplayText.Completeness(runtimeObject.Completeness), GUILayout.Width(78f));
             if (!compact)
             {
                 GUILayout.Label(FormatFrames(in runtimeObject), EditorStyles.miniLabel, GUILayout.Width(104f));
@@ -461,48 +461,48 @@ namespace AbilityKit.Game.Editor
             var runtimeObject = _viewModel.Selected.Value;
             EditorGUILayout.Space(6f);
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            EditorGUILayout.LabelField("Selected Object", EditorStyles.boldLabel, GUILayout.Width(105f));
+            EditorGUILayout.LabelField("已选对象", EditorStyles.boldLabel, GUILayout.Width(105f));
             var selectedIndex = _viewModel.SelectedIndex;
             GUILayout.Label(
                 selectedIndex >= 0 ? $"{selectedIndex + 1} / {_viewModel.LoadedCount}" : string.Empty,
                 EditorStyles.miniLabel,
                 GUILayout.Width(58f));
             EditorGUI.BeginDisabledGroup(selectedIndex <= 0);
-            if (GUILayout.Button(new GUIContent("<", "Select previous object"), EditorStyles.toolbarButton, GUILayout.Width(24f)))
+            if (GUILayout.Button(new GUIContent("<", "选择上一个对象"), EditorStyles.toolbarButton, GUILayout.Width(24f)))
                 SelectAdjacent(in ctx, -1);
             EditorGUI.EndDisabledGroup();
             EditorGUI.BeginDisabledGroup(selectedIndex < 0 || selectedIndex >= _viewModel.LoadedCount - 1);
-            if (GUILayout.Button(new GUIContent(">", "Select next object"), EditorStyles.toolbarButton, GUILayout.Width(24f)))
+            if (GUILayout.Button(new GUIContent(">", "选择下一个对象"), EditorStyles.toolbarButton, GUILayout.Width(24f)))
                 SelectAdjacent(in ctx, 1);
             EditorGUI.EndDisabledGroup();
             GUILayout.FlexibleSpace();
-            if (GUILayout.Button(new GUIContent("Copy", "Copy all object diagnostic fields"), EditorStyles.toolbarButton, GUILayout.Width(42f)))
+            if (GUILayout.Button(new GUIContent("复制", "复制对象的全部诊断字段"), EditorStyles.toolbarButton, GUILayout.Width(42f)))
                 EditorGUIUtility.systemCopyBuffer = BuildClipboardText(in runtimeObject);
             EditorGUILayout.EndHorizontal();
 
-            EditorGUILayout.LabelField("Identity", runtimeObject.Reference.ToString());
-            EditorGUILayout.LabelField("Display name", EmptyAsDash(runtimeObject.DisplayName));
+            EditorGUILayout.LabelField("标识", runtimeObject.Reference.ToString());
+            EditorGUILayout.LabelField("显示名称", EmptyAsDash(runtimeObject.DisplayName));
             EditorGUILayout.LabelField(
-                "Definition",
-                $"{runtimeObject.DefinitionKind}:{runtimeObject.DefinitionId}");
-            EditorGUILayout.LabelField("State / quality", $"{runtimeObject.State} / {runtimeObject.Completeness}");
-            EditorGUILayout.LabelField("Discovery", runtimeObject.DiscoveryKind.ToString());
-            EditorGUILayout.LabelField("Frames", FormatFrames(in runtimeObject));
+                "定义",
+                $"{BattleDebugDisplayText.DefinitionKind(runtimeObject.DefinitionKind)}:{runtimeObject.DefinitionId}");
+            EditorGUILayout.LabelField("状态 / 完整度", $"{BattleDebugDisplayText.RuntimeObjectState(runtimeObject.State)} / {BattleDebugDisplayText.Completeness(runtimeObject.Completeness)}");
+            EditorGUILayout.LabelField("发现方式", BattleDebugDisplayText.DiscoveryKind(runtimeObject.DiscoveryKind));
+            EditorGUILayout.LabelField("帧范围", FormatFrames(in runtimeObject));
             if (runtimeObject.WasBackfilled)
-                EditorGUILayout.LabelField("Backfilled frame", runtimeObject.BackfilledFrame.ToString());
+                EditorGUILayout.LabelField("回填帧", runtimeObject.BackfilledFrame.ToString());
             EditorGUILayout.LabelField(
-                "Related / source / owner / target",
+                "关联 / 来源 / 所有者 / 目标",
                 $"{runtimeObject.RelatedActorId} / {runtimeObject.SourceActorId} / " +
                 $"{runtimeObject.OwnerActorId} / {runtimeObject.TargetActorId}");
             EditorGUILayout.LabelField(
-                "Root / context",
+                "根节点 / 上下文",
                 $"{runtimeObject.RootContextId} / {runtimeObject.ContextId}");
             if (runtimeObject.EndReason != 0)
-                EditorGUILayout.LabelField("End reason", runtimeObject.EndReason.ToString());
+                EditorGUILayout.LabelField("结束原因", runtimeObject.EndReason.ToString());
 
             EditorGUILayout.BeginHorizontal();
             EditorGUI.BeginDisabledGroup(ctx.OpenEvent == null);
-            if (GUILayout.Button("Related event", GUILayout.Width(100f)))
+            if (GUILayout.Button("关联事件", GUILayout.Width(100f)))
             {
                 if (_viewModel.TryFindRelatedEvent(session, in runtimeObject, out var diagnosticEvent))
                     ctx.OpenEvent?.Invoke(diagnosticEvent);
@@ -512,13 +512,13 @@ namespace AbilityKit.Game.Editor
 
             EditorGUI.BeginDisabledGroup(
                 ctx.OpenTrace == null || runtimeObject.RootContextId == 0L);
-            if (GUILayout.Button("Open Trace", GUILayout.Width(88f)))
+            if (GUILayout.Button("打开 Trace", GUILayout.Width(88f)))
                 ctx.OpenTrace?.Invoke(runtimeObject.RootContextId, runtimeObject.ContextId);
             EditorGUI.EndDisabledGroup();
 
             var actorId = _viewModel.GetPreferredActorId();
             EditorGUI.BeginDisabledGroup(ctx.SelectActor == null || actorId == 0L);
-            if (GUILayout.Button("Select Actor", GUILayout.Width(88f)))
+            if (GUILayout.Button("选择 Actor", GUILayout.Width(88f)))
                 ctx.SelectActor?.Invoke(actorId);
             EditorGUI.EndDisabledGroup();
 
@@ -551,16 +551,16 @@ namespace AbilityKit.Game.Editor
         {
             var text = new StringBuilder(64);
             if (_viewModel.Kind != BattleDiagnosticRuntimeObjectKind.Unknown)
-                text.Append(_viewModel.Kind);
+                text.Append(BattleDebugDisplayText.RuntimeObjectKind(_viewModel.Kind));
             if (_viewModel.State != BattleDiagnosticRuntimeObjectState.Unknown)
             {
                 if (text.Length > 0) text.Append(" / ");
-                text.Append(_viewModel.State);
+                text.Append(BattleDebugDisplayText.RuntimeObjectState(_viewModel.State));
             }
             if (_viewModel.Completeness != BattleDiagnosticDataCompleteness.Unknown)
             {
                 if (text.Length > 0) text.Append(" / ");
-                text.Append(_viewModel.Completeness);
+                text.Append(BattleDebugDisplayText.Completeness(_viewModel.Completeness));
             }
             return text.ToString();
         }
@@ -607,7 +607,7 @@ namespace AbilityKit.Game.Editor
                 : "?";
             var end = BattleDiagnosticFrames.IsValid(runtimeObject.DestroyedFrame)
                 ? runtimeObject.DestroyedFrame.ToString()
-                : runtimeObject.State == BattleDiagnosticRuntimeObjectState.Active ? "active" : "?";
+                : runtimeObject.State == BattleDiagnosticRuntimeObjectState.Active ? "进行中" : "?";
             return start + " -> " + end;
         }
 

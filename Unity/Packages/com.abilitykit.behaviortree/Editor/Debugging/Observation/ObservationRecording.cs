@@ -98,7 +98,7 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Observation
         {
             if (dto == null) throw new ArgumentNullException(nameof(dto));
             if (dto.FormatVersion <= 0 || dto.FormatVersion > FormatVersion)
-                throw new NotSupportedException("Unsupported behavior tree observation recording format: " + dto.FormatVersion);
+                throw new NotSupportedException("不支持的行为树观察记录格式版本：" + dto.FormatVersion);
 
             var requestedCapacity = dto.Settings?.TimelineCapacity
                 ?? Math.Max(dto.Samples?.Count ?? 0, ObservationSettings.DefaultTimelineCapacity);
@@ -151,13 +151,13 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Observation
 
         public static ObservationSnapshot SnapshotFromJson(string json)
         {
-            if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("JSON cannot be empty.", nameof(json));
+            if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("JSON 不能为空。", nameof(json));
             return SnapshotFromDto(JsonUtility.FromJson<ObservationSnapshotDto>(json));
         }
 
         public static ObservationTimeline TimelineFromJson(string json)
         {
-            if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("JSON cannot be empty.", nameof(json));
+            if (string.IsNullOrWhiteSpace(json)) throw new ArgumentException("JSON 不能为空。", nameof(json));
             return TimelineFromDto(JsonUtility.FromJson<ObservationRecordingDto>(json));
         }
 
@@ -166,13 +166,13 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Observation
 
         public static void ExportToFile(string path, ObservationTimeline timeline, ObservationController? controller = null)
         {
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Path cannot be empty.", nameof(path));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("文件路径不能为空。", nameof(path));
             File.WriteAllText(path, ToJson(timeline, controller));
         }
 
         public static ObservationTimeline ImportTimelineFromFile(string path)
         {
-            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Path cannot be empty.", nameof(path));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("文件路径不能为空。", nameof(path));
             return TimelineFromJson(File.ReadAllText(path));
         }
 

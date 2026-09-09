@@ -34,6 +34,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(combat.ShowsSecondary, Is.True);
 
             Assert.That(BattleDebugWorkspacePresets.TryGet(
+                "trigger-investigation",
+                out var triggering), Is.True);
+            Assert.That(triggering.PrimaryModuleId, Is.EqualTo(BattleDebugModuleIds.DiagnosticEvents));
+            Assert.That(triggering.PrimaryWidgetId, Is.EqualTo(BattleDebugWidgetIds.EventsTriggerFlow));
+            Assert.That(triggering.SecondaryModuleId, Is.EqualTo(BattleDebugModuleIds.DiagnosticEvents));
+            Assert.That(triggering.SecondaryWidgetId, Is.EqualTo(BattleDebugWidgetIds.EventsDetails));
+
+            Assert.That(BattleDebugWorkspacePresets.TryGet(
                 "frame-sync",
                 out var frameSync), Is.True);
             Assert.That(frameSync.PrimaryModuleId, Is.EqualTo(BattleDebugModuleIds.FrameSyncPrediction));
@@ -44,10 +52,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void EventsAndTrace_ExposeComposableWidgetsWithStableIds()
         {
             var events = (IBattleDebugWidgetProvider)new BattleDebugDiagnosticEventsPanel();
-            Assert.That(events.Widgets.Count, Is.EqualTo(3));
+            Assert.That(events.Widgets.Count, Is.EqualTo(4));
             Assert.That(events.Widgets[0].StableId, Is.EqualTo(BattleDebugWidgetIds.EventsOverview));
-            Assert.That(events.Widgets[1].StableId, Is.EqualTo(BattleDebugWidgetIds.EventsList));
-            Assert.That(events.Widgets[2].StableId, Is.EqualTo(BattleDebugWidgetIds.EventsDetails));
+            Assert.That(events.Widgets[1].StableId, Is.EqualTo(BattleDebugWidgetIds.EventsTriggerFlow));
+            Assert.That(events.Widgets[2].StableId, Is.EqualTo(BattleDebugWidgetIds.EventsList));
+            Assert.That(events.Widgets[3].StableId, Is.EqualTo(BattleDebugWidgetIds.EventsDetails));
 
             var trace = (IBattleDebugWidgetProvider)new BattleDebugDiagnosticTracePanel();
             Assert.That(trace.Widgets.Count, Is.EqualTo(3));

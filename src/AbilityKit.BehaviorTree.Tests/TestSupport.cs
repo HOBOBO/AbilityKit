@@ -90,11 +90,46 @@ namespace AbilityKit.BehaviorTree.Tests
         }
     }
 
+    public sealed class DependencyCountingConditionNode : ConditionNodeBase, ConditionDependencyProvider
+    {
+        private string _conditionKey = "test.cond";
+        private string _evaluationCountKey = "test.evalCount";
+        private string[] _dependencies = System.Array.Empty<string>();
+
+        public System.Collections.Generic.IReadOnlyList<string> BlackboardDependencies => _dependencies;
+
+        public override void OnInit(in NodeInitContext context)
+        {
+            _conditionKey = context.Properties.GetString("condKey", "test.cond");
+            _evaluationCountKey = context.Properties.GetString("evaluationCountKey", "test.evalCount");
+            _dependencies = new[] { _conditionKey };
+        }
+
+        protected override bool Validate(ExecutionContext context)
+        {
+            context.Blackboard.TryGetInt64(_evaluationCountKey, out var count);
+            context.Blackboard.SetInt64(_evaluationCountKey, count + 1);
+            return context.Blackboard.TryGetBool(_conditionKey, out var value) && value;
+        }
+    }
+
+    public sealed class PollingCountingConditionNode : ConditionNodeBase
+    {
+        protected override bool Validate(ExecutionContext context)
+        {
+            context.Blackboard.TryGetInt64("test.evalCount", out var count);
+            context.Blackboard.SetInt64("test.evalCount", count + 1);
+            return context.Blackboard.TryGetBool("test.cond", out var value) && value;
+        }
+    }
+
     public static class TestNodeTypes
     {
         public const string ScriptedAction = "test.scriptedAction";
         public const string CountingAction = "test.countingAction";
         public const string ScriptedCondition = "test.scriptedCondition";
+        public const string DependencyCountingCondition = "test.dependencyCountingCondition";
+        public const string PollingCountingCondition = "test.pollingCountingCondition";
 
         /// <summary>娉ㄥ唽娴嬭瘯鑺傜偣鐩綍锛堝惈灞炴€?schema锛夈€?/summary>
         public static NodeRegistry CreateRegistry()
@@ -121,6 +156,14 @@ namespace AbilityKit.BehaviorTree.Tests
                 ScriptedCondition, "鑴氭湰鏉′欢", "娴嬭瘯", NodeKind.Condition, 0, 0,
                 () => new ScriptedConditionNode(),
                 new[] { new PropertyField(ScriptedConditionNode.CondKeyProperty, TreeValueType.String) }));
+
+            registry.Register(new NodeDescriptor(
+                DependencyCountingCondition, "Dependency Counting Condition", "Test", NodeKind.Condition, 0, 0,
+                () => new DependencyCountingConditionNode()));
+
+            registry.Register(new NodeDescriptor(
+                PollingCountingCondition, "Polling Counting Condition", "Test", NodeKind.Condition, 0, 0,
+                () => new PollingCountingConditionNode()));
 
             return registry;
         }

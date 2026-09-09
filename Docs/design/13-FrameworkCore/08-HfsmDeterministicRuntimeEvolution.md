@@ -146,6 +146,7 @@ P0 固定以下契约：
 - 已建立旧 `HfsmGraphAsset` 到 Definition 的保守 importer，并接入编辑器导出 UI。
 - 主编辑器已增加可折叠 Next Diagnostics 面板，聚合 importer、binding catalog 和 Definition 校验结果，展示 error/warning、catalog 来源和 Definition hash；诊断可定位嵌套 state/machine/transition，Validate 与 Next Export 共用同一分析结果。
 - binding catalog 的项目选择已从本机 `EditorPrefs` 迁移到 `ProjectSettings/AbilityKitHfsmSettings.asset`，团队可版本控制同一配置；旧偏好会单次迁移。
+- HFSM 编辑器已注册到 Editor Platform Hub，统一暴露新建、图编辑和运行时调试入口；图编辑器提供显式保存、统一导出报告与一键调试，Runtime Monitor 支持稳定的实例选择、节流快照刷新及可持久化分栏/视图偏好。
 - 已接入 Graph Inspector 的 Next binding/trigger/raw duration 字段，并将 Export 菜单区分 Next Runtime Definition 与 Legacy Archive。
 - Definition -> JSON -> Definition、Graph -> Definition -> JSON round-trip 和未知 binding 阻断均有 EditMode/.NET 测试覆盖。
 

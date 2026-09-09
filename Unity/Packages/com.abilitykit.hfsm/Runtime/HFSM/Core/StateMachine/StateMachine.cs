@@ -8,7 +8,7 @@ using AbilityKit.HFSM.Inspection;
  * Hierarchical Finite State Machine for Unity
  * by Inspiaaa and contributors
  *
- * Version: 2.2.0
+ * Version: 2.3.0
  */
 
 namespace AbilityKit.HFSM
@@ -153,7 +153,10 @@ namespace AbilityKit.HFSM
 
 		public TStateId ActiveStateName => ActiveState.name;
 
-		public bool IsActive => activeState != null;
+		public bool IsInitialized => activeState != null;
+
+		/// <summary>Compatibility alias for <see cref="IsInitialized"/>.</summary>
+		public bool IsActive => IsInitialized;
 
 		public TStateId PendingStateName => pendingTransition.targetState;
 		public StateBase<TStateId> PendingState =>
@@ -847,6 +850,12 @@ namespace AbilityKit.HFSM
 		{
 			EnsureIsInitializedFor("Running OnAction of the active state");
 			(activeState as IActionable<TEvent>)?.OnAction<TData>(trigger, data);
+		}
+
+		public virtual bool HasAction(TEvent trigger)
+		{
+			EnsureIsInitializedFor("Checking actions of the active state");
+			return (activeState as IActionable<TEvent>)?.HasAction(trigger) ?? false;
 		}
 
 		public StateBase<TStateId> GetState(TStateId name)

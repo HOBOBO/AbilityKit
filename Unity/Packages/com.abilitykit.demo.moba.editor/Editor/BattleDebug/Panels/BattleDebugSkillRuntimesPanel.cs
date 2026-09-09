@@ -30,7 +30,7 @@ namespace AbilityKit.Game.Editor
             {
                 var message = ctx.IsOffline
                     ? "离线 Artifact 不包含活动技能运行时快照。可通过诊断事件查看已记录的技能生命周期。"
-                    : "当前 World 未解析到 MobaSkillCastRuntimeService；技能运行时面板无法读取实时施放状态。";
+                    : "当前世界未解析到技能运行时服务；技能运行时面板无法读取实时施放状态。";
                 EditorGUILayout.HelpBox(message, MessageType.Info);
                 return;
             }
@@ -109,7 +109,7 @@ namespace AbilityKit.Game.Editor
 
             EditorGUILayout.BeginVertical(GUI.skin.box);
             EditorGUILayout.BeginHorizontal();
-            var title = $"#{handle.RuntimeId}:{handle.Generation}  Skill {runtime.SkillId}  {runtime.Stage}";
+            var title = $"#{handle.RuntimeId}:{handle.Generation}  技能 {runtime.SkillId}  {BattleDebugDisplayText.SkillStage(runtime.Stage)}";
             if (GUILayout.Button(title, selected ? EditorStyles.toolbarButton : EditorStyles.miniButton))
             {
                 _selectedRuntime = selected ? default : handle;
@@ -121,13 +121,13 @@ namespace AbilityKit.Game.Editor
 
             EditorGUILayout.LabelField(
                 "技能",
-                $"ID={runtime.SkillId}  Slot={runtime.SkillSlot}  Level={runtime.SkillLevel}  Sequence={runtime.Sequence}");
+                $"ID={runtime.SkillId}  槽位={runtime.SkillSlot}  等级={runtime.SkillLevel}  序列={runtime.Sequence}");
             EditorGUILayout.LabelField(
                 "状态",
-                $"Stage={runtime.Stage}  PipelineEnded={runtime.PipelineEnded}  Ending={runtime.IsEnding}  Reason={runtime.EndReason}");
+                $"阶段={BattleDebugDisplayText.SkillStage(runtime.Stage)}  流水线结束={BattleDebugDisplayText.Bool(runtime.PipelineEnded)}  正在结束={BattleDebugDisplayText.Bool(runtime.IsEnding)}  原因={BattleDebugDisplayText.SkillRuntimeEndReason(runtime.EndReason)}");
             EditorGUILayout.LabelField(
                 "资源",
-                $"PendingChildren={runtime.PendingChildren}  Blackboard={runtime.BlackboardEntryCount}  RootTrace={handle.RootTraceContextId}");
+                $"待处理子对象={runtime.PendingChildren}  黑板项={runtime.BlackboardEntryCount}  根 Trace={handle.RootTraceContextId}");
 
             EditorGUILayout.BeginHorizontal();
             DrawActorButton("施法者", runtime.CasterActorId, ctx.SelectActor);
@@ -179,7 +179,7 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            EditorGUILayout.LabelField("输入", $"AimPos={detail.AimPos}  AimDir={detail.AimDir}");
+            EditorGUILayout.LabelField("输入", $"瞄准位置={detail.AimPos}  瞄准方向={detail.AimDir}");
             DrawBlackboard(detail.BlackboardEntries);
             DrawChildren(detail.Runtime.Children, openTrace);
         }
@@ -187,7 +187,7 @@ namespace AbilityKit.Game.Editor
         private static void DrawBlackboard(IReadOnlyList<MobaSkillRuntimeBlackboardEntryDiagnostics> entries)
         {
             EditorGUILayout.Space(2);
-            EditorGUILayout.LabelField("Blackboard", EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField("黑板", EditorStyles.miniBoldLabel);
             if (entries == null || entries.Count == 0)
             {
                 EditorGUILayout.LabelField("（无已写入条目）", EditorStyles.miniLabel);
@@ -200,13 +200,13 @@ namespace AbilityKit.Game.Editor
                 var key = entry.Key;
                 var entryValue = entry.Value;
                 var value = entry.IsCollection
-                    ? $"Count={entry.CollectionCount}"
+                    ? $"数量={entry.CollectionCount}"
                     : FormatValue(in entryValue);
                 EditorGUILayout.LabelField(
-                    $"{key.Name} [{key.ValueKind}] = {value}",
+                    $"{key.Name} [{BattleDebugDisplayText.SkillRuntimeValueKind(key.ValueKind)}] = {value}",
                     EditorStyles.miniLabel);
                 EditorGUILayout.LabelField(
-                    $"Scope={key.Scope}  Flags={key.Flags}  OwnerModule={key.OwnerModuleId}",
+                    $"作用域={BattleDebugDisplayText.SkillRuntimeBlackboardScope(key.Scope)}  标志={BattleDebugDisplayText.SkillRuntimeBlackboardFlags(key.Flags)}  所属模块={key.OwnerModuleId}",
                     EditorStyles.miniLabel);
             }
         }
@@ -224,7 +224,7 @@ namespace AbilityKit.Game.Editor
                 case MobaSkillRuntimeValueKind.Float:
                     return value.FloatValue.ToString("0.###");
                 case MobaSkillRuntimeValueKind.Bool:
-                    return value.BoolValue.ToString();
+                    return BattleDebugDisplayText.Bool(value.BoolValue);
                 case MobaSkillRuntimeValueKind.String:
                     return value.StringValue ?? string.Empty;
                 case MobaSkillRuntimeValueKind.Vec3:
@@ -249,7 +249,7 @@ namespace AbilityKit.Game.Editor
                 var child = children[i];
                 EditorGUILayout.BeginHorizontal();
                 EditorGUILayout.LabelField(
-                    $"{child.Kind}  ID={child.ChildId}  Config={child.ConfigId}  Trace={child.TraceContextId}",
+                    $"{BattleDebugDisplayText.SkillRuntimeChildKind(child.Kind)}  ID={child.ChildId}  配置={child.ConfigId}  Trace={child.TraceContextId}",
                     EditorStyles.miniLabel);
                 EditorGUI.BeginDisabledGroup(child.TraceContextId <= 0L || openTrace == null);
                 if (GUILayout.Button("Trace", EditorStyles.miniButton, GUILayout.Width(48)))

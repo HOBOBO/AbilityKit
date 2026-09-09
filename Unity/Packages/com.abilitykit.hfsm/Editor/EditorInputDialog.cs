@@ -27,7 +27,7 @@ namespace AbilityKit.HFSM.Editor
         /// </summary>
         public static bool Confirm(string title, string message)
         {
-            return EditorUtility.DisplayDialog(title, message, "Yes", "No");
+            return EditorUtility.DisplayDialog(title, message, "是", "否");
         }
 
         /// <summary>
@@ -35,7 +35,7 @@ namespace AbilityKit.HFSM.Editor
         /// </summary>
         public static void ShowMessage(string title, string message)
         {
-            EditorUtility.DisplayDialog(title, message, "OK");
+            EditorUtility.DisplayDialog(title, message, "确定");
         }
     }
 }

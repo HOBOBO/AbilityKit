@@ -69,20 +69,20 @@ namespace AbilityKit.HFSM.Editor
                 EditorProjectSettings.instance.SetCatalogAssetGuid(guid);
         }
 
-        [MenuItem("Assets/AbilityKit/HFSM/Use Selected Binding Catalog", true)]
+        [MenuItem("Assets/AbilityKit/HFSM/使用所选绑定目录", true)]
         private static bool ValidateUseSelectedAsset()
         {
             return Selection.activeObject is BindingCatalogAsset;
         }
 
-        [MenuItem("Assets/AbilityKit/HFSM/Use Selected Binding Catalog")]
+        [MenuItem("Assets/AbilityKit/HFSM/使用所选绑定目录")]
         private static void UseSelectedAsset()
         {
             SetConfiguredAsset(Selection.activeObject as BindingCatalogAsset);
             AssetDatabase.SaveAssets();
         }
 
-        [MenuItem("Assets/AbilityKit/HFSM/Clear Configured Binding Catalog")]
+        [MenuItem("Assets/AbilityKit/HFSM/清除已配置的绑定目录")]
         private static void ClearConfiguredAsset()
         {
             SetConfiguredAsset(null);

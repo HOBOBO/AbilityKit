@@ -204,5 +204,154 @@ namespace AbilityKit.BehaviorTree.Tests
             restored.RestoreState(snapshot);
             Assert.Equal(runtime.RootNodeState, restored.RootNodeState);
         }
+
+        [Fact]
+        public void Expand_BindsSubtreeInputsAndOutputs_AndIsolatesUnmappedKeys()
+        {
+            var child = new TreeBuilder()
+                .Blackboard("input", TreeValueType.Int64)
+                .Blackboard("output", TreeValueType.Int64)
+                .Blackboard("scratch", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Sequence, "check", "write")
+                .Node("check", BuiltInNodeTypes.BlackboardCompare)
+                .Node("write", BuiltInNodeTypes.SetBlackboard)
+                .Root("root");
+            child.TreeId = "bound_child";
+            child.Nodes[1].Properties.Set(BlackboardCompareNode.LeftKeyProperty, PropertyValue.Of("input"));
+            child.Nodes[1].Properties.Set(BlackboardCompareNode.OpProperty, PropertyValue.Of(0L));
+            child.Nodes[1].Properties.Set(BlackboardCompareNode.RightInt64Property, PropertyValue.Of(5L));
+            child.Nodes[2].Properties.Set(SetBlackboardNode.KeyProperty, PropertyValue.Of("output"));
+            child.Nodes[2].Properties.Set(SetBlackboardNode.ConstInt64Property, PropertyValue.Of(9L));
+
+            var parent = new TreeBuilder()
+                .Blackboard("request.value", TreeValueType.Int64)
+                .Blackboard("result.value", TreeValueType.Int64)
+                .Node("sub", BuiltInNodeTypes.Subtree)
+                .Root("sub");
+            parent.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("bound_child"));
+            parent.Nodes[0].SubtreeBlackboard = new SubtreeBlackboardConfiguration
+            {
+                IsolateUnmappedKeys = true,
+                Bindings = new List<SubtreeBlackboardBinding>
+                {
+                    new() { SubtreeKey = "input", ParentKey = "request.value" },
+                    new() { SubtreeKey = "output", ParentKey = "result.value" },
+                },
+            };
+
+            var resolver = new DictionaryResolver();
+            resolver.Add(child);
+            var registry = CreateRegistry();
+            var expansion = TreeCompiler.ExpandReferences(parent, resolver, registry);
+
+            Assert.Contains(expansion.Definition.Blackboard.Keys, k => k.Name == "request.value");
+            Assert.Contains(expansion.Definition.Blackboard.Keys, k => k.Name == "result.value");
+            Assert.Contains(expansion.Definition.Blackboard.Keys, k => k.Name == "sub.scratch");
+            Assert.DoesNotContain(expansion.Definition.Blackboard.Keys, k => k.Name == "input");
+            Assert.Equal(
+                "request.value",
+                expansion.Definition.Nodes.Find(n => n.Id == "sub.check")!
+                    .Properties.Values[BlackboardCompareNode.LeftKeyProperty].StringValue);
+            Assert.Equal(
+                "result.value",
+                expansion.Definition.Nodes.Find(n => n.Id == "sub.write")!
+                    .Properties.Values[SetBlackboardNode.KeyProperty].StringValue);
+
+            var runtime = TreeRuntime.Create(parent, registry, null, null, resolver);
+            runtime.Enable();
+            runtime.Blackboard.SetInt64("request.value", 5);
+            runtime.Update(1, Fixed64.Zero);
+            Assert.Equal(NodeState.Success, runtime.TreeState);
+            Assert.Equal(9, runtime.Blackboard.GetInt64("result.value"));
+        }
+
+        [Fact]
+        public void Expand_IsolatedSubtreeInstancesReceiveDistinctLocalKeys()
+        {
+            var child = new TreeBuilder()
+                .Blackboard("local", TreeValueType.Int64)
+                .Node("write", BuiltInNodeTypes.SetBlackboard)
+                .Root("write");
+            child.TreeId = "isolated_child";
+            child.Nodes[0].Properties.Set(SetBlackboardNode.KeyProperty, PropertyValue.Of("local"));
+
+            var parent = new TreeBuilder()
+                .Node("root", BuiltInNodeTypes.Sequence, "first", "second")
+                .Node("first", BuiltInNodeTypes.Subtree)
+                .Node("second", BuiltInNodeTypes.Subtree)
+                .Root("root");
+            foreach (var node in parent.Nodes.FindAll(n => n.Type == BuiltInNodeTypes.Subtree))
+            {
+                node.Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("isolated_child"));
+                node.SubtreeBlackboard = new SubtreeBlackboardConfiguration { IsolateUnmappedKeys = true };
+            }
+
+            var resolver = new DictionaryResolver();
+            resolver.Add(child);
+            var expansion = TreeCompiler.ExpandReferences(parent, resolver, CreateRegistry());
+
+            Assert.Contains(expansion.Definition.Blackboard.Keys, k => k.Name == "first.local");
+            Assert.Contains(expansion.Definition.Blackboard.Keys, k => k.Name == "second.local");
+            Assert.Equal(
+                "first.local",
+                expansion.Definition.Nodes.Find(n => n.Id == "first.write")!
+                    .Properties.Values[SetBlackboardNode.KeyProperty].StringValue);
+            Assert.Equal(
+                "second.local",
+                expansion.Definition.Nodes.Find(n => n.Id == "second.write")!
+                    .Properties.Values[SetBlackboardNode.KeyProperty].StringValue);
+        }
+
+        [Fact]
+        public void SubtreeBlackboardConfiguration_RoundTripsRuntimeJson()
+        {
+            var definition = new TreeBuilder()
+                .Node("sub", BuiltInNodeTypes.Subtree)
+                .Root("sub");
+            definition.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("child"));
+            definition.Nodes[0].SubtreeBlackboard = new SubtreeBlackboardConfiguration
+            {
+                IsolateUnmappedKeys = true,
+                Bindings = new List<SubtreeBlackboardBinding>
+                {
+                    new() { SubtreeKey = "input", ParentKey = "request" },
+                },
+            };
+
+            var restored = TreeJson.Load(TreeJson.Save(definition));
+            var configuration = Assert.IsType<SubtreeBlackboardConfiguration>(restored.Nodes[0].SubtreeBlackboard);
+            Assert.True(configuration.IsolateUnmappedKeys);
+            var binding = Assert.Single(configuration.Bindings);
+            Assert.Equal("input", binding.SubtreeKey);
+            Assert.Equal("request", binding.ParentKey);
+        }
+
+        [Fact]
+        public void Expand_RejectsBindingTypeMismatch()
+        {
+            var child = new TreeBuilder()
+                .Blackboard("value", TreeValueType.Bool)
+                .Node("leaf", BuiltInNodeTypes.Succeed)
+                .Root("leaf");
+            child.TreeId = "typed_child";
+
+            var parent = new TreeBuilder()
+                .Blackboard("value", TreeValueType.Int64)
+                .Node("sub", BuiltInNodeTypes.Subtree)
+                .Root("sub");
+            parent.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("typed_child"));
+            parent.Nodes[0].SubtreeBlackboard = new SubtreeBlackboardConfiguration
+            {
+                Bindings = new List<SubtreeBlackboardBinding>
+                {
+                    new() { SubtreeKey = "value", ParentKey = "value" },
+                },
+            };
+            var resolver = new DictionaryResolver();
+            resolver.Add(child);
+
+            Assert.Throws<System.InvalidOperationException>(
+                () => TreeCompiler.ExpandReferences(parent, resolver, CreateRegistry()));
+        }
     }
 }

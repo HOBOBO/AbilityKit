@@ -64,9 +64,32 @@ public sealed class DefinitionJsonTests
         Assert.Contains(exception.Issues, issue => issue.Code == "HFSM007");
     }
 
+    [Fact]
+    public void LoadMigratesVersionOneDefinitionsToCurrentDefaults()
+    {
+        var versionOne = GoldenJson
+            .Replace("\"formatVersion\": 2", "\"formatVersion\": 1")
+            .Replace("          \"isGhostState\": false,\n", string.Empty)
+            .Replace("          \"parallelBehaviorKeys\": [],\n", string.Empty)
+            .Replace("          \"parallelExitPolicy\": \"Any\"\n", string.Empty)
+            .Replace("          \"requiresExitApproval\": false,\n", "          \"requiresExitApproval\": false\n")
+            .Replace("          \"exitMachine\": false,\n", string.Empty);
+
+        var definition = DefinitionJson.Load(versionOne);
+
+        Assert.Equal(StateMachineDefinition.CurrentFormatVersion, definition.FormatVersion);
+        Assert.All(definition.Machines.SelectMany(machine => machine.States), state =>
+        {
+            Assert.False(state.IsGhostState);
+            Assert.Empty(state.ParallelBehaviorKeys);
+            Assert.Equal(ParallelExitPolicy.Any, state.ParallelExitPolicy);
+        });
+        Assert.False(definition.Machines[0].Transitions[0].ExitMachine);
+    }
+
     private const string GoldenJson = """
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
   "definitionId": "combat",
   "rootMachineId": "root",
   "machines": [
@@ -79,13 +102,19 @@ public sealed class DefinitionJsonTests
           "id": "a",
           "behaviorKey": "behavior",
           "childMachineId": "",
-          "requiresExitApproval": false
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
         },
         {
           "id": "z",
           "behaviorKey": "",
           "childMachineId": "",
-          "requiresExitApproval": false
+          "requiresExitApproval": false,
+          "isGhostState": false,
+          "parallelBehaviorKeys": [],
+          "parallelExitPolicy": "Any"
         }
       ],
       "transitions": [
@@ -99,6 +128,7 @@ public sealed class DefinitionJsonTests
           "actionKey": "",
           "priority": 7,
           "forceImmediate": true,
+          "exitMachine": false,
           "minimumActiveDurationRaw": 4294967296
         }
       ]

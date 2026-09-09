@@ -20,7 +20,6 @@ namespace AbilityKit.BehaviorTree.Editor
     /// 用普通 ScriptableObject + 字符串字段承载，不引入 Odin——资产内容与导出格式同构，
     /// 源同步（外部 JSON 文件）以路径 + 哈希比对实现。
     /// </summary>
-    [CreateAssetMenu(fileName = "BtAuthoring", menuName = "AbilityKit/Behavior Tree Authoring")]
     [MovedFrom(true, "AbilityKit.BehaviorTree.Editor", "AbilityKit.BehaviorTree.Editor", "BtAuthoringAsset")]
     public class AuthoringAsset : ScriptableObject
     {
@@ -59,7 +58,7 @@ namespace AbilityKit.BehaviorTree.Editor
         public void ImportJson(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
-                throw new ArgumentException("Authoring JSON must not be empty.", nameof(json));
+                throw new ArgumentException("行为树编辑 JSON 不能为空。", nameof(json));
             var document = AuthoringJson.Load(json);   // 反序列化校验
             _documentJson = AuthoringJson.Save(document);
             MarkDirty();

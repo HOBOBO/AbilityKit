@@ -102,13 +102,13 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         private static readonly TriggerPayloadFieldData[] BuiltInContextFields =
         {
-            new TriggerPayloadFieldData { Path = "query.id", Type = TriggerValueType.Integer, DisplayName = "Query Id" },
-            new TriggerPayloadFieldData { Path = "filter.param", Type = TriggerValueType.Integer, DisplayName = "Filter Param" },
-            new TriggerPayloadFieldData { Path = "owner.actor_id", Type = TriggerValueType.Integer, DisplayName = "Owner Actor Id" },
-            new TriggerPayloadFieldData { Path = "caster.actor_id", Type = TriggerValueType.Integer, DisplayName = "Caster Actor Id" },
-            new TriggerPayloadFieldData { Path = "target.actor_id", Type = TriggerValueType.Integer, DisplayName = "Target Actor Id" },
-            new TriggerPayloadFieldData { Path = "source.actor_id", Type = TriggerValueType.Integer, DisplayName = "Source Actor Id" },
-            new TriggerPayloadFieldData { Path = "delta_time", Type = TriggerValueType.Number, DisplayName = "Delta Time" }
+            new TriggerPayloadFieldData { Path = "query.id", Type = TriggerValueType.Integer, DisplayName = "查询 ID" },
+            new TriggerPayloadFieldData { Path = "filter.param", Type = TriggerValueType.Integer, DisplayName = "过滤参数" },
+            new TriggerPayloadFieldData { Path = "owner.actor_id", Type = TriggerValueType.Integer, DisplayName = "所有者实体 ID" },
+            new TriggerPayloadFieldData { Path = "caster.actor_id", Type = TriggerValueType.Integer, DisplayName = "施法者实体 ID" },
+            new TriggerPayloadFieldData { Path = "target.actor_id", Type = TriggerValueType.Integer, DisplayName = "目标实体 ID" },
+            new TriggerPayloadFieldData { Path = "source.actor_id", Type = TriggerValueType.Integer, DisplayName = "来源实体 ID" },
+            new TriggerPayloadFieldData { Path = "delta_time", Type = TriggerValueType.Number, DisplayName = "帧间隔时间" }
         };
 
         public TriggerAuthoringModuleData Module;
@@ -213,6 +213,262 @@ namespace AbilityKit.Ability.Editor.Utilities
         }
     }
 
+    internal static class TriggerAuthoringEditorLabels
+    {
+        public static string Source(TriggerValueSource source)
+        {
+            switch (source)
+            {
+                case TriggerValueSource.Constant: return "常量";
+                case TriggerValueSource.Payload: return "事件参数";
+                case TriggerValueSource.Context: return "运行上下文";
+                case TriggerValueSource.LocalBlackboard: return "局部黑板";
+                case TriggerValueSource.GlobalBlackboard: return "全局黑板";
+                case TriggerValueSource.TemplateParameter: return "模板参数";
+                case TriggerValueSource.Expression: return "表达式";
+                default: return source.ToString();
+            }
+        }
+
+        public static string ValueType(TriggerValueType type)
+        {
+            switch (type)
+            {
+                case TriggerValueType.None: return "自动推断";
+                case TriggerValueType.Integer: return "整数";
+                case TriggerValueType.Number: return "数值";
+                case TriggerValueType.Boolean: return "布尔值";
+                case TriggerValueType.String: return "文本";
+                case TriggerValueType.Entity: return "实体";
+                case TriggerValueType.ObjectId: return "对象 ID";
+                case TriggerValueType.IntegerList: return "整数列表";
+                case TriggerValueType.Vector3: return "三维向量";
+                case TriggerValueType.Object: return "对象";
+                default: return type.ToString();
+            }
+        }
+
+        public static string ModuleKind(TriggerModuleKind kind)
+        {
+            switch (kind)
+            {
+                case TriggerModuleKind.Ability: return "技能";
+                case TriggerModuleKind.Buff: return "增益效果";
+                case TriggerModuleKind.Passive: return "被动效果";
+                case TriggerModuleKind.Projectile: return "投射物";
+                case TriggerModuleKind.Summon: return "召唤物";
+                case TriggerModuleKind.Custom: return "自定义";
+                default: return kind.ToString();
+            }
+        }
+
+        public static string Node(string type, string fallback)
+        {
+            switch (type)
+            {
+                case "all": return "全部满足";
+                case "any": return "任一满足";
+                case "not": return "结果取反";
+                case "seq": return "顺序执行";
+                case "always_true": return "始终满足";
+                case "always_false": return "始终不满足";
+                case "arg_eq": return "参数等于";
+                case "arg_neq": return "参数不等于";
+                case "arg_gt": return "参数大于";
+                case "arg_gte":
+                case "arg_geq": return "参数大于或等于";
+                case "arg_lt": return "参数小于";
+                case "arg_lte":
+                case "arg_leq": return "参数小于或等于";
+                case "num_var_gt": return "数值变量大于";
+                case "num_var_lt": return "数值变量小于";
+                case "num_var_eq": return "数值变量等于";
+                case "has_buff": return "拥有增益效果";
+                case "health_percent": return "生命值百分比";
+                case "owner_matches_payload_source": return "所有者匹配事件来源";
+                case "owner_matches_payload_target": return "所有者匹配事件目标";
+                case "target_is_flying_projectile": return "目标是飞行投射物";
+                case "debug_log": return "输出调试日志";
+                case "set_var": return "设置变量";
+                case "set_num_var": return "设置数值变量";
+                case "add_num_var": return "增加数值变量";
+                case "attr_effect_duration": return "添加限时属性效果";
+                case "give_damage": return "造成伤害";
+                case "adjust_damage_number": return "调整伤害数值";
+                case "take_damage": return "承受伤害";
+                case "heal": return "治疗";
+                case "add_buff": return "添加增益效果";
+                case "remove_buff": return "移除增益效果";
+                case "add_shield": return "添加护盾";
+                case "remove_shield": return "移除护盾";
+                case "modify_resource": return "修改资源";
+                case "consume_resource": return "消耗资源";
+                case "convert_resource_to_heal": return "将资源转为治疗";
+                case "shoot_projectile": return "发射投射物";
+                case "remove_projectile": return "移除投射物";
+                case "spawn_summon": return "生成召唤物";
+                case "remove_summon": return "移除召唤物";
+                case "spawn_area": return "生成区域";
+                case "remove_area": return "移除区域";
+                case "cancel_skill": return "取消技能";
+                case "start_cooldown": return "开始冷却";
+                case "reset_cooldown": return "重置冷却";
+                case "blink": return "闪现";
+                case "dash": return "冲刺";
+                case "jump": return "跳跃";
+                case "pull": return "拉拽";
+                case "play_presentation": return "播放表现";
+                case "emit": return "发送表现事件";
+                case "set_gameplay_var": return "设置玩法变量";
+                case "add_gameplay_var": return "增加玩法变量";
+                case "advance_gameplay_counter": return "推进玩法计数器";
+                case "end_game": return "结束游戏";
+                default: return string.IsNullOrWhiteSpace(fallback) ? type ?? "未选择类型" : fallback;
+            }
+        }
+
+        public static string Parameter(string name)
+        {
+            switch (name)
+            {
+                case "left": return "左值";
+                case "right": return "右值";
+                case "value": return "值";
+                case "variable": return "变量";
+                case "target": return "目标";
+                case "message": return "消息";
+                case "threshold": return "阈值";
+                case "amount": return "数量";
+                case "delta": return "增量";
+                case "rate": return "倍率";
+                case "duration": return "持续时间";
+                case "priority": return "优先级";
+                case "reason": return "原因";
+                case "mode": return "模式";
+                case "options": return "选项";
+                case "buff_id": return "增益效果 ID";
+                case "buff_ids": return "增益效果 ID 列表";
+                case "skill_id": return "技能 ID";
+                case "skill_slot": return "技能槽位";
+                case "projectile_id": return "投射物 ID";
+                case "summon_id": return "召唤物 ID";
+                case "area_id": return "区域 ID";
+                case "source_id": return "来源 ID";
+                case "trigger_id": return "触发器 ID";
+                case "damage_type": return "伤害类型";
+                case "heal_type": return "治疗类型";
+                case "resource_type": return "资源类型";
+                case "duration_ms": return "持续时间（毫秒）";
+                case "duration_frames": return "持续帧数";
+                case "interval_ms": return "间隔（毫秒）";
+                case "cooldown_ms": return "冷却时间（毫秒）";
+                case "remove_all": return "全部移除";
+                case "check_stack": return "检查层数";
+                case "target_mode": return "目标模式";
+                case "direction_mode": return "方向模式";
+                case "position_mode": return "位置模式";
+                case "dump_args": return "输出全部参数";
+                case "absorb_ratio": return "吸收比例";
+                case "actor_id": return "实体 ID";
+                case "apply_to_caster": return "应用于施法者";
+                case "area_identity": return "区域标识";
+                case "attr": return "属性";
+                case "attribute_source": return "属性来源";
+                case "collision_layer_mask": return "碰撞层遮罩";
+                case "compare_type": return "比较方式";
+                case "consume_policy": return "消耗策略";
+                case "continuous_process_id": return "持续过程 ID";
+                case "continuous_tag_template_id": return "持续标签模板 ID";
+                case "damage_amount": return "伤害数值";
+                case "damage_value": return "伤害值";
+                case "damage_modifier": return "伤害修正";
+                case "damage_type_mask": return "伤害类型遮罩";
+                case "distance": return "距离";
+                case "emitter_id": return "发送者 ID";
+                case "filter": return "筛选规则";
+                case "filter_param": return "筛选参数";
+                case "half_angle_deg": return "半角（度）";
+                case "heal_ratio": return "治疗比例";
+                case "height": return "高度";
+                case "hit_trigger_plan_id": return "命中触发计划 ID";
+                case "interval_trigger_ids": return "间隔触发器 ID 列表";
+                case "instance_id": return "实例 ID";
+                case "key_id": return "变量键 ID";
+                case "landing_trigger_ids": return "落地触发器 ID 列表";
+                case "launcher_id": return "发射器 ID";
+                case "max": return "最大值";
+                case "max_count": return "最大数量";
+                case "min": return "最小值";
+                case "motion_group_id": return "位移分组 ID";
+                case "move_to_aim_position": return "移动到瞄准位置";
+                case "number_slot": return "数值槽位";
+                case "offset_x": return "X 轴偏移";
+                case "offset_y": return "Y 轴偏移";
+                case "offset_z": return "Z 轴偏移";
+                case "op": return "运算方式";
+                case "order": return "排序方式";
+                case "order_param": return "排序参数";
+                case "owner_actor_id": return "所有者实体 ID";
+                case "out_of_combat_seconds": return "脱战时间（秒）";
+                case "pass_through_walls": return "允许穿墙";
+                case "payload_field_id": return "事件参数字段 ID";
+                case "query_template_id": return "查询模板 ID";
+                case "radius": return "半径";
+                case "reason_id": return "原因 ID";
+                case "reason_param": return "原因参数";
+                case "repeat_target_decay_factor": return "重复目标衰减系数";
+                case "remove_slow": return "移除减速效果";
+                case "require_skill_runtime": return "要求技能运行时";
+                case "reset_value": return "重置值";
+                case "root_owner_actor_id": return "根所有者实体 ID";
+                case "rotation_mode": return "旋转模式";
+                case "scale": return "缩放";
+                case "scope_payload_field_id": return "作用域事件字段 ID";
+                case "select": return "选择方式";
+                case "self": return "包含自身";
+                case "shield_id": return "护盾 ID";
+                case "shield_identity": return "护盾标识";
+                case "shield_value": return "护盾值";
+                case "skill_identity": return "技能标识";
+                case "skip_first_hit": return "跳过首次命中";
+                case "source": return "来源";
+                case "source_actor_id": return "来源实体 ID";
+                case "source_attack_ratio": return "来源攻击力比例";
+                case "source_param": return "来源参数";
+                case "speed": return "速度";
+                case "stacking_policy": return "叠加策略";
+                case "stay_interval_frames": return "停留触发间隔帧数";
+                case "stop": return "停止播放";
+                case "summon_actor_id": return "召唤物实体 ID";
+                case "target_actor_id": return "目标实体 ID";
+                case "target_distance": return "目标距离";
+                case "target_filter": return "目标筛选规则";
+                case "target_filter_param": return "目标筛选参数";
+                case "target_half_angle_deg": return "目标半角（度）";
+                case "target_hit_count_key_base": return "目标命中计数键基值";
+                case "target_max_count": return "目标最大数量";
+                case "target_missing_hp_ratio_coefficient": return "目标已损生命比例系数";
+                case "target_order": return "目标排序方式";
+                case "target_order_param": return "目标排序参数";
+                case "target_payload_field_id": return "目标事件字段 ID";
+                case "target_radius": return "目标半径";
+                case "target_select": return "目标选择方式";
+                case "target_self": return "目标包含自身";
+                case "target_source": return "目标来源";
+                case "target_source_param": return "目标来源参数";
+                case "template_id": return "模板 ID";
+                case "total_count": return "总数量";
+                case "track_target": return "追踪目标";
+                case "trigger_ids": return "触发器 ID 列表";
+                case "win_team_id": return "获胜队伍 ID";
+                case "x": return "X 轴数值";
+                case "y": return "Y 轴数值";
+                case "z": return "Z 轴数值";
+                default: return string.IsNullOrWhiteSpace(name) ? "未命名参数" : name;
+            }
+        }
+    }
+
     internal static class TriggerAuthoringValueRefEditor
     {
         public static void Draw(
@@ -236,25 +492,25 @@ namespace AbilityKit.Ability.Editor.Utilities
                     DrawConstant(value, effectiveType, parameter, context);
                     break;
                 case TriggerValueSource.Payload:
-                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.Payload, effectiveType, access, context), "Payload Field");
+                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.Payload, effectiveType, access, context), "事件参数");
                     break;
                 case TriggerValueSource.Context:
-                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.Context, effectiveType, access, context), "Context Key", true);
+                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.Context, effectiveType, access, context), "运行上下文", true);
                     break;
                 case TriggerValueSource.LocalBlackboard:
-                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.LocalBlackboard, effectiveType, access, context), "Local Blackboard");
+                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.LocalBlackboard, effectiveType, access, context), "局部黑板");
                     break;
                 case TriggerValueSource.GlobalBlackboard:
-                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.GlobalBlackboard, effectiveType, access, context), "Global Blackboard");
+                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.GlobalBlackboard, effectiveType, access, context), "全局黑板");
                     break;
                 case TriggerValueSource.TemplateParameter:
-                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.TemplateParameter, effectiveType, access, context), "Template Parameter");
+                    DrawPathPopup(value, CollectPathOptions(TriggerValueSource.TemplateParameter, effectiveType, access, context), "模板参数");
                     break;
                 case TriggerValueSource.Expression:
-                    value.Expression = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("expression"), value.Expression);
+                    value.Expression = EditorGUILayout.TextField("表达式", value.Expression);
                     break;
                 default:
-                    value.Path = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("path"), value.Path);
+                    value.Path = EditorGUILayout.TextField("路径", value.Path);
                     break;
             }
         }
@@ -284,12 +540,12 @@ namespace AbilityKit.Ability.Editor.Utilities
                                 source,
                                 field.Path,
                                 field.Type,
-                                "Payload/" + (string.IsNullOrWhiteSpace(field.DisplayName) ? field.Path : field.DisplayName)));
+                                "事件参数/" + (string.IsNullOrWhiteSpace(field.DisplayName) ? field.Path : field.DisplayName)));
                         }
                     }
                     break;
                 case TriggerValueSource.Context:
-                    AddFieldOptions(result, source, context.ContextFields, expectedType, "Context");
+                    AddFieldOptions(result, source, context.ContextFields, expectedType, "运行上下文");
                     break;
                 case TriggerValueSource.LocalBlackboard:
                     AddLocalBlackboardOptions(
@@ -297,14 +553,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                         context.Trigger != null ? context.Trigger.Blackboard : null,
                         expectedType,
                         write,
-                        "Trigger Local",
+                        "触发器局部变量",
                         TriggerAuthoringLocalBlackboardScope.Trigger);
                     AddLocalBlackboardOptions(
                         result,
                         context.Module != null ? context.Module.Blackboard : null,
                         expectedType,
                         write,
-                        "Module Local",
+                        "模块局部变量",
                         TriggerAuthoringLocalBlackboardScope.Module);
                     break;
                 case TriggerValueSource.GlobalBlackboard:
@@ -321,7 +577,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                                 source,
                                 key.Key,
                                 key.Type,
-                                "Global/" + domain + "/" + (string.IsNullOrWhiteSpace(key.DisplayName) ? key.Key : key.DisplayName),
+                                "全局黑板/" + domain + "/" + (string.IsNullOrWhiteSpace(key.DisplayName) ? key.Key : key.DisplayName),
                                 key.CanRead,
                                 key.CanWrite));
                         }
@@ -341,7 +597,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                                 source,
                                 parameter.Name,
                                 parameter.Type,
-                                "Template/" + parameter.Name));
+                                "模板参数/" + parameter.Name));
                         }
                     }
                     break;
@@ -444,11 +700,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
             if (selectedSource < 0)
             {
-                sourceNames.Add(GetSourceName(value.Source) + "  [unavailable]");
+                sourceNames.Add(GetSourceName(value.Source) + "  [当前不可用]");
                 selectedSource = sourceNames.Count - 1;
             }
 
-            var nextSource = EditorGUILayout.Popup(TriggerAuthoringEditorIntegration.T("source"), selectedSource, sourceNames.ToArray());
+            var nextSource = EditorGUILayout.Popup("数据来源", selectedSource, sourceNames.ToArray());
             if (nextSource != selectedSource && nextSource < sources.Count)
                 value.Source = sources[nextSource];
         }
@@ -456,11 +712,21 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void DrawType(TriggerValueRefData value, TriggerValueType expectedType)
         {
             if (expectedType == TriggerValueType.None)
-                value.Type = (TriggerValueType)EditorGUILayout.EnumPopup(TriggerAuthoringEditorIntegration.T("type"), value.Type);
+            {
+                var values = (TriggerValueType[])System.Enum.GetValues(typeof(TriggerValueType));
+                var names = new string[values.Length];
+                var selected = 0;
+                for (var i = 0; i < values.Length; i++)
+                {
+                    names[i] = TriggerAuthoringEditorLabels.ValueType(values[i]);
+                    if (values[i] == value.Type) selected = i;
+                }
+                value.Type = values[EditorGUILayout.Popup("数据类型", selected, names)];
+            }
             else
             {
                 value.Type = expectedType;
-                EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("type"), expectedType.ToString());
+                EditorGUILayout.LabelField("数据类型", TriggerAuthoringEditorLabels.ValueType(expectedType));
             }
         }
 
@@ -478,31 +744,31 @@ namespace AbilityKit.Ability.Editor.Utilities
                         DrawIntegerChoice(value, parameter.Options);
                         break;
                     }
-                    value.IntegerValue = EditorGUILayout.LongField(TriggerAuthoringEditorIntegration.T("value"), value.IntegerValue);
+                    value.IntegerValue = EditorGUILayout.LongField("值", value.IntegerValue);
                     break;
                 case TriggerValueType.Entity:
                 case TriggerValueType.ObjectId:
-                    value.IntegerValue = EditorGUILayout.LongField(TriggerAuthoringEditorIntegration.T("value"), value.IntegerValue);
+                    value.IntegerValue = EditorGUILayout.LongField("值", value.IntegerValue);
                     break;
                 case TriggerValueType.Number:
-                    value.NumberValue = EditorGUILayout.DoubleField(TriggerAuthoringEditorIntegration.T("value"), value.NumberValue);
+                    value.NumberValue = EditorGUILayout.DoubleField("值", value.NumberValue);
                     break;
                 case TriggerValueType.Boolean:
-                    value.BooleanValue = EditorGUILayout.Toggle(TriggerAuthoringEditorIntegration.T("value"), value.BooleanValue);
+                    value.BooleanValue = EditorGUILayout.Toggle("值", value.BooleanValue);
                     break;
                 case TriggerValueType.String:
-                    value.StringValue = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("value"), value.StringValue);
+                    value.StringValue = EditorGUILayout.TextField("值", value.StringValue);
                     break;
                 case TriggerValueType.IntegerList:
                     var current = value.IntegerListValue != null ? string.Join(",", value.IntegerListValue) : string.Empty;
-                    var next = EditorGUILayout.TextField(TriggerAuthoringEditorIntegration.T("values"), current);
+                    var next = EditorGUILayout.TextField("值列表", current);
                     if (!string.Equals(current, next, System.StringComparison.Ordinal))
                         value.IntegerListValue = ParseIntegerList(next);
                     break;
                 case TriggerValueType.Vector3:
                     value.Vector3Value = value.Vector3Value ?? new TriggerVector3Data();
                     EditorGUILayout.BeginHorizontal();
-                    GUILayout.Label(TriggerAuthoringEditorIntegration.T("value"), GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
+                    GUILayout.Label("值", GUILayout.Width(EditorGUIUtility.labelWidth - 4f));
                     value.Vector3Value.X = EditorGUILayout.DoubleField(value.Vector3Value.X);
                     value.Vector3Value.Y = EditorGUILayout.DoubleField(value.Vector3Value.Y);
                     value.Vector3Value.Z = EditorGUILayout.DoubleField(value.Vector3Value.Z);
@@ -512,7 +778,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     DrawObjectFields(value, parameter, context);
                     break;
                 default:
-                    EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("choose-value-type"), MessageType.Info);
+                    EditorGUILayout.HelpBox("请选择数据类型。", MessageType.Info);
                     break;
             }
         }
@@ -530,7 +796,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("fields"), EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField("对象字段", EditorStyles.miniBoldLabel);
             for (var i = 0; i < value.Fields.Count; i++)
             {
                 var index = i;
@@ -550,7 +816,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
 
-            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-field"), EditorStyles.miniButton))
+            if (GUILayout.Button("添加字段", EditorStyles.miniButton))
                 value.Fields.Add(new TriggerArgumentData
                 {
                     Name = CreateUniqueFieldName(value.Fields),
@@ -569,7 +835,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringValueRefEditorContext context)
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            EditorGUILayout.LabelField(TriggerAuthoringEditorIntegration.T("fields"), EditorStyles.miniBoldLabel);
+            EditorGUILayout.LabelField("对象字段", EditorStyles.miniBoldLabel);
 
             for (var i = 0; i < parameter.Fields.Count; i++)
             {
@@ -581,7 +847,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     EditorGUILayout.BeginHorizontal();
                     GUILayout.Label(fieldParameter.Name, fieldParameter.Required ? EditorStyles.miniBoldLabel : EditorStyles.miniLabel);
                     GUILayout.FlexibleSpace();
-                    if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add"), EditorStyles.miniButton, GUILayout.Width(42f)))
+                    if (GUILayout.Button("添加", EditorStyles.miniButton, GUILayout.Width(42f)))
                     {
                         value.Fields.Add(new TriggerArgumentData
                         {
@@ -629,7 +895,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
 
-            if (GUILayout.Button(TriggerAuthoringEditorIntegration.T("add-extra-field"), EditorStyles.miniButton))
+            if (GUILayout.Button("添加扩展字段", EditorStyles.miniButton))
                 value.Fields.Add(new TriggerArgumentData
                 {
                     Name = CreateUniqueFieldName(value.Fields),
@@ -708,11 +974,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
             if (selected < 0)
             {
-                names.Add(value.IntegerValue + "  [unavailable]");
+                names.Add(value.IntegerValue + "  [当前不可用]");
                 selected = names.Count - 1;
             }
 
-            var next = EditorGUILayout.Popup(TriggerAuthoringEditorIntegration.T("value"), selected, names.ToArray());
+            var next = EditorGUILayout.Popup("值", selected, names.ToArray());
             if (next != selected && next < options.Count)
                 value.IntegerValue = options[next].Value;
         }
@@ -724,17 +990,17 @@ namespace AbilityKit.Ability.Editor.Utilities
             bool allowManualPath = false)
         {
             options = options ?? new List<TriggerAuthoringValuePathOption>();
-            var names = new List<string> { "<None>" };
+            var names = new List<string> { "<未选择>" };
             var selected = 0;
             for (var i = 0; i < options.Count; i++)
             {
-                names.Add(options[i].Label + "  [" + options[i].Path + ", " + options[i].Type + "]");
+                names.Add(options[i].Label + "  [" + options[i].Path + ", " + TriggerAuthoringEditorLabels.ValueType(options[i].Type) + "]");
                 if (string.Equals(options[i].Path, value.Path, System.StringComparison.Ordinal)) selected = i + 1;
                 else if (selected == 0 && options[i].MatchesPath(value.Path)) selected = i + 1;
             }
             if (selected == 0 && !string.IsNullOrWhiteSpace(value.Path))
             {
-                names.Add(value.Path + "  [unavailable]");
+                names.Add(value.Path + "  [当前不可用]");
                 selected = names.Count - 1;
             }
 
@@ -751,7 +1017,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             if (allowManualPath)
-                value.Path = EditorGUILayout.TextField(label + " Path", value.Path);
+                value.Path = EditorGUILayout.TextField(label + "路径", value.Path);
         }
 
         private static void AddFieldOptions(
@@ -813,13 +1079,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string GetSourceName(TriggerValueSource source)
         {
-            switch (source)
-            {
-                case TriggerValueSource.LocalBlackboard: return "Local Blackboard";
-                case TriggerValueSource.GlobalBlackboard: return "Global Blackboard";
-                case TriggerValueSource.TemplateParameter: return "Template Parameter";
-                default: return source.ToString();
-            }
+            return TriggerAuthoringEditorLabels.Source(source);
         }
     }
 }

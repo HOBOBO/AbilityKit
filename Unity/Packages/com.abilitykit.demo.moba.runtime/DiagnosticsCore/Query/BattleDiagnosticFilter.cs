@@ -32,6 +32,31 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         Either = 3
     }
 
+    public enum BattleDiagnosticTriggerValueFilter
+    {
+        All = 0,
+        Valuable = 1
+    }
+
+    public static class BattleDiagnosticTriggerValue
+    {
+        public static bool IsValuable(in BattleDiagnosticTriggerAnalysisPayload trigger)
+        {
+            switch (trigger.Stage)
+            {
+                case BattleDiagnosticTriggerAnalysisStage.Budget:
+                    return trigger.Result == BattleDiagnosticTriggerAnalysisResult.Blocked;
+                case BattleDiagnosticTriggerAnalysisStage.Plan:
+                case BattleDiagnosticTriggerAnalysisStage.Execution:
+                    return trigger.Result == BattleDiagnosticTriggerAnalysisResult.Passed ||
+                           trigger.Result == BattleDiagnosticTriggerAnalysisResult.Failed ||
+                           trigger.Result == BattleDiagnosticTriggerAnalysisResult.Blocked;
+                default:
+                    return false;
+            }
+        }
+    }
+
     public readonly struct BattleDiagnosticFrameFilter : IEquatable<BattleDiagnosticFrameFilter>
     {
         public BattleDiagnosticFrameFilter(int firstFrame, int lastFrame)
@@ -89,7 +114,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             BattleDiagnosticTriggerAnalysisStage triggerStage = BattleDiagnosticTriggerAnalysisStage.Unknown,
             BattleDiagnosticTriggerAnalysisResult triggerResult = BattleDiagnosticTriggerAnalysisResult.Unknown,
             int triggerContextKind = 0,
-            int triggerOriginKind = 0)
+            int triggerOriginKind = 0,
+            BattleDiagnosticTriggerValueFilter triggerValue = BattleDiagnosticTriggerValueFilter.All)
         {
             Frames = frames;
             Channels = channels;
@@ -107,6 +133,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             TriggerResult = triggerResult;
             TriggerContextKind = triggerContextKind;
             TriggerOriginKind = triggerOriginKind;
+            TriggerValue = triggerValue;
         }
 
         public BattleDiagnosticFrameFilter Frames { get; }
@@ -125,6 +152,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticTriggerAnalysisResult TriggerResult { get; }
         public int TriggerContextKind { get; }
         public int TriggerOriginKind { get; }
+        public BattleDiagnosticTriggerValueFilter TriggerValue { get; }
 
         public bool HasActorFilter => ActorId != 0;
         public bool HasCorrelationFilter =>
@@ -134,11 +162,14 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             AttackId != 0;
 
         public bool HasTextSearch => !string.IsNullOrEmpty(SearchText);
-        public bool HasTriggerAnalysisFilter =>
+        public bool HasTriggerDetailFilter =>
             TriggerStage != BattleDiagnosticTriggerAnalysisStage.Unknown ||
             TriggerResult != BattleDiagnosticTriggerAnalysisResult.Unknown ||
             TriggerContextKind != 0 ||
             TriggerOriginKind != 0;
+        public bool HasTriggerAnalysisFilter =>
+            HasTriggerDetailFilter ||
+            TriggerValue != BattleDiagnosticTriggerValueFilter.All;
 
         public int ActiveFilterCount
         {
@@ -160,6 +191,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 if (TriggerResult != BattleDiagnosticTriggerAnalysisResult.Unknown) count++;
                 if (TriggerContextKind != 0) count++;
                 if (TriggerOriginKind != 0) count++;
+                if (TriggerValue != BattleDiagnosticTriggerValueFilter.All) count++;
                 return count;
             }
         }
@@ -188,7 +220,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 TriggerStage,
                 TriggerResult,
                 TriggerContextKind,
-                TriggerOriginKind);
+                TriggerOriginKind,
+                TriggerValue);
         }
 
         public BattleDiagnosticFilter WithFrames(BattleDiagnosticFrameFilter frames)
@@ -209,7 +242,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 TriggerStage,
                 TriggerResult,
                 TriggerContextKind,
-                TriggerOriginKind);
+                TriggerOriginKind,
+                TriggerValue);
         }
 
         public BattleDiagnosticFilter WithSearchText(string searchText)
@@ -230,12 +264,28 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 TriggerStage,
                 TriggerResult,
                 TriggerContextKind,
-                TriggerOriginKind);
+                TriggerOriginKind,
+                TriggerValue);
         }
 
         public BattleDiagnosticFilter WithTriggerAnalysis(
             BattleDiagnosticTriggerAnalysisStage stage,
             BattleDiagnosticTriggerAnalysisResult result,
+            int contextKind = 0,
+            int originKind = 0)
+        {
+            return WithTriggerAnalysis(
+                stage,
+                result,
+                TriggerValue,
+                contextKind,
+                originKind);
+        }
+
+        public BattleDiagnosticFilter WithTriggerAnalysis(
+            BattleDiagnosticTriggerAnalysisStage stage,
+            BattleDiagnosticTriggerAnalysisResult result,
+            BattleDiagnosticTriggerValueFilter value,
             int contextKind = 0,
             int originKind = 0)
         {
@@ -255,7 +305,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 stage,
                 result,
                 contextKind,
-                originKind);
+                originKind,
+                value);
         }
 
         public bool Equals(BattleDiagnosticFilter other)
@@ -275,6 +326,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    TriggerResult == other.TriggerResult &&
                    TriggerContextKind == other.TriggerContextKind &&
                    TriggerOriginKind == other.TriggerOriginKind &&
+                   TriggerValue == other.TriggerValue &&
                    string.Equals(SearchText, other.SearchText, StringComparison.Ordinal);
         }
 
@@ -303,6 +355,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ (int)TriggerResult;
                 hashCode = (hashCode * 397) ^ TriggerContextKind;
                 hashCode = (hashCode * 397) ^ TriggerOriginKind;
+                hashCode = (hashCode * 397) ^ (int)TriggerValue;
                 return hashCode;
             }
         }

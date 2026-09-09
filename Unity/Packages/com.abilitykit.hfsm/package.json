@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "displayName": "AbilityKit HFSM",
   "unity": "2022.3",
-  "description": "Hierarchical FSM utilities.",
+  "description": "分层有限状态机运行时，支持状态机图编辑、确定性定义导出和实时编辑器调试。",
   "keywords": [
     "abilitykit",
     "hfsm",

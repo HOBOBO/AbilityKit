@@ -31,6 +31,12 @@ namespace AbilityKit.HFSM.Definition
 
         public bool ForceImmediate { get; set; }
 
+        /// <summary>
+        /// Exits this nested machine and approves the pending transition of its parent machine.
+        /// Exit transitions have no target state and are invalid on the root machine.
+        /// </summary>
+        public bool ExitMachine { get; set; }
+
         /// <summary>Minimum active-state duration encoded as a Q32.32 raw value.</summary>
         public long MinimumActiveDurationRaw { get; set; }
 

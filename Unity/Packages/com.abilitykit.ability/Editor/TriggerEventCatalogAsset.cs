@@ -9,19 +9,19 @@ using UnityEngine;
 
 namespace AbilityKit.Ability.Editor
 {
-    [CreateAssetMenu(fileName = "TriggerEventCatalog", menuName = "AbilityKit/Trigger Authoring/Event Catalog")]
+    [CreateAssetMenu(fileName = "TriggerEventCatalog", menuName = "AbilityKit/触发器编辑/事件目录")]
     public sealed class TriggerEventCatalogAsset : SerializedScriptableObject
     {
-        [OdinSerialize, NonSerialized, ListDrawerSettings(ShowIndexLabels = true)]
+        [OdinSerialize, NonSerialized, LabelText("事件定义"), ListDrawerSettings(ShowIndexLabels = true)]
         public List<TriggerEventDefinitionData> Events = new List<TriggerEventDefinitionData>();
 
-        [Button("Load MOBA Defaults")]
+        [Button("加载 MOBA 默认配置")]
         private void LoadMobaDefaults()
         {
             Events = TriggerAuthoringProjectDefaults.CreateMobaEvents();
         }
 
-        [Button("Scan Assemblies")]
+        [Button("扫描程序集")]
         private void ScanAssemblies()
         {
             Events = Events ?? new List<TriggerEventDefinitionData>();
@@ -29,9 +29,9 @@ namespace AbilityKit.Ability.Editor
             var merge = TriggerEventCatalogAssemblyScanner.MergeInto(Events, scan.Events);
             EditorUtility.SetDirty(this);
             EditorUtility.DisplayDialog(
-                "Scan Trigger Events",
-                $"Scanned {scan.ScannedAttributeCount} event attributes.\nAdded {merge.AddedCount}, updated {merge.UpdatedCount}.",
-                "OK");
+                "扫描触发器事件",
+                $"已扫描 {scan.ScannedAttributeCount} 个事件特性。\n新增 {merge.AddedCount} 个，更新 {merge.UpdatedCount} 个。",
+                "确定");
         }
     }
 }

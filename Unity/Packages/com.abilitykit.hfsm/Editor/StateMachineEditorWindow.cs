@@ -10,6 +10,7 @@ using UnityEngine.UIElements;
 using UnityEditor.UIElements;
 using AbilityKit.HFSM.Editor.Export;
 using AbilityKit.HFSM.Editor.Diagnostics;
+using AbilityKit.HFSM.Editor.RuntimeMonitor;
 using AbilityKit.HFSM.Graph.Descriptor;
 
 namespace AbilityKit.HFSM.Editor
@@ -50,25 +51,41 @@ namespace AbilityKit.HFSM.Editor
         private ToolbarButton _diagnosticsButton;
         private VisualElement _diagnosticsPane;
 
-        [MenuItem("Window/AbilityKit/HFSM Graph Editor")]
+        [MenuItem("Window/AbilityKit/HFSM 状态机编辑器")]
         public static void OpenWindow()
         {
             var window = GetWindow<StateMachineEditorWindow>();
-            window.titleContent = new GUIContent("HFSM Editor", EditorGUIUtility.IconContent("AnimatorStateMachine Icon").image);
+            window.titleContent = new GUIContent("HFSM 编辑器", EditorGUIUtility.IconContent("AnimatorStateMachine Icon").image);
             window.minSize = new Vector2(800, 600);
         }
 
-        [MenuItem("Assets/Edit HFSM Graph", true)]
+        public static void Open(Graph.GraphAsset graph)
+        {
+            OpenWindow();
+            var window = GetWindow<StateMachineEditorWindow>();
+            if (graph != null)
+                window.LoadGraph(graph);
+            window.Show();
+            window.Focus();
+        }
+
+        public static void CreateGraphAssetAndOpen()
+        {
+            OpenWindow();
+            GetWindow<StateMachineEditorWindow>().CreateNewGraph();
+        }
+
+        [MenuItem("Assets/编辑 HFSM 状态机图", true)]
         private static bool ValidateOpenGraphAsset()
         {
             return Selection.activeObject is Graph.GraphAsset;
         }
 
-        [MenuItem("Assets/Edit HFSM Graph")]
+        [MenuItem("Assets/编辑 HFSM 状态机图")]
         private static void OpenGraphAsset()
         {
             var window = GetWindow<StateMachineEditorWindow>();
-            window.titleContent = new GUIContent("HFSM Editor", EditorGUIUtility.IconContent("AnimatorStateMachine Icon").image);
+            window.titleContent = new GUIContent("HFSM 编辑器", EditorGUIUtility.IconContent("AnimatorStateMachine Icon").image);
             window.minSize = new Vector2(800, 600);
 
             if (Selection.activeObject is Graph.GraphAsset graph)
@@ -170,6 +187,7 @@ namespace AbilityKit.HFSM.Editor
             if (_commandRegistrations.Count > 0) return;
             RegisterCommand("hfsm.graph.new", "hfsm.command.new", _ => CreateNewGraph());
             RegisterCommand("hfsm.graph.load", "hfsm.command.load", _ => LoadGraphFromPicker());
+            RegisterCommand("hfsm.graph.save", "hfsm.command.save", _ => SaveCurrentGraph());
             RegisterCommand("hfsm.graph.back", "hfsm.command.back", _ => _context?.NavigateBack());
             RegisterCommand("hfsm.graph.validate-menu", "hfsm.command.validate", _ => ShowValidateMenu());
             RegisterCommand("hfsm.graph.validate-next", "hfsm.command.validate-next", _ => ValidateNextGraph());
@@ -178,6 +196,7 @@ namespace AbilityKit.HFSM.Editor
             RegisterCommand("hfsm.graph.toggle-diagnostics", "hfsm.command.diagnostics", _ => ToggleDiagnostics());
             RegisterCommand("hfsm.graph.export-menu", "hfsm.command.export", _ => ShowExportMenu());
             RegisterCommand("hfsm.graph.export-next", "hfsm.command.export-next", _ => ExportNextDefinition());
+            RegisterCommand("hfsm.graph.debug", "hfsm.command.debug", _ => OpenRuntimeDebugger());
         }
 
         private void RegisterCommand(string id, string labelKey, Action<EditorCommandContext> execute)
@@ -263,6 +282,10 @@ namespace AbilityKit.HFSM.Editor
             if (loadButton != null)
                 loadButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.load"));
 
+            ToolbarButton saveButton = _root.Q<ToolbarButton>("SaveButton");
+            if (saveButton != null)
+                saveButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.save"));
+
             ToolbarButton validateButton = _root.Q<ToolbarButton>("ValidateButton");
             if (validateButton != null)
                 validateButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.validate-menu"));
@@ -277,6 +300,10 @@ namespace AbilityKit.HFSM.Editor
 
             _diagnosticsPane = _root.Q<VisualElement>("DiagnosticsPane");
             SetDiagnosticsVisible(_userState.GetBool(DiagnosticsVisibleStateKey, true));
+
+            ToolbarButton debugButton = _root.Q<ToolbarButton>("DebugButton");
+            if (debugButton != null)
+                debugButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.debug"));
 
             ToolbarButton exportButton = _root.Q<ToolbarButton>("ExportButton");
             if (exportButton != null)
@@ -301,11 +328,11 @@ namespace AbilityKit.HFSM.Editor
         {
             var menu = new GenericMenu();
             menu.AddItem(
-                new GUIContent("Next Runtime"),
+                new GUIContent("Next Runtime 校验"),
                 false,
                 () => ExecuteCommand("hfsm.graph.validate-next"));
             menu.AddItem(
-                new GUIContent("Legacy Graph"),
+                new GUIContent("旧版状态机图校验"),
                 false,
                 () => ExecuteCommand("hfsm.graph.validate-legacy"));
             menu.ShowAsContext();
@@ -315,7 +342,7 @@ namespace AbilityKit.HFSM.Editor
         {
             if (_context.GraphAsset == null)
             {
-                EditorUtility.DisplayDialog("Export", "No graph loaded to export.", "OK");
+                EditorUtility.DisplayDialog("导出", "尚未加载可导出的状态机图。", "确定");
                 return;
             }
 
@@ -329,10 +356,10 @@ namespace AbilityKit.HFSM.Editor
             }
 
             var path = EditorUtility.SaveFilePanelInProject(
-                "Export HFSM Next Runtime Definition",
+                "导出 HFSM Next Runtime 定义",
                 _context.GraphAsset.GraphName + ".hfsm",
                 "json",
-                "Choose where to save the validated runtime definition");
+                "请选择已校验运行时定义的保存位置");
             if (string.IsNullOrEmpty(path)) return;
 
             var report = EditorExportExecutor.Execute(new[]
@@ -341,31 +368,31 @@ namespace AbilityKit.HFSM.Editor
                     "hfsm.export.next-definition",
                     path,
                     "json",
-                    () => ExportText("hfsm.export.next-definition", "json", path, result.Json, "Definition hash: " + diagnostics.DefinitionHash))
+                    () => ExportText("hfsm.export.next-definition", "json", path, result.Json, "定义哈希：" + diagnostics.DefinitionHash))
             });
-            EditorExportReportWindow.Show("HFSM Export", report);
+            EditorExportReportWindow.Show("HFSM 导出", report);
         }
 
         private void ExportLegacyArchive(string exporterName)
         {
             if (_context.GraphAsset == null)
             {
-                EditorUtility.DisplayDialog("Export", "No graph loaded to export.", "OK");
+                EditorUtility.DisplayDialog("导出", "尚未加载可导出的状态机图。", "确定");
                 return;
             }
 
             var exporter = ExtensionRegistry.GetExporter(exporterName);
             if (exporter == null)
             {
-                EditorUtility.DisplayDialog("Export", $"{exporterName} exporter not found.", "OK");
+                EditorUtility.DisplayDialog("导出", $"未找到导出器：{exporterName}。", "确定");
                 return;
             }
 
             string path = EditorUtility.SaveFilePanelInProject(
-                "Export HFSM Graph",
+                "导出 HFSM 状态机图",
                 _context.GraphAsset.GraphName + "_export",
                 exporter.FileExtension,
-                "Choose where to save the exported file");
+                "请选择导出文件的保存位置");
 
             if (string.IsNullOrEmpty(path))
                 return;
@@ -391,7 +418,7 @@ namespace AbilityKit.HFSM.Editor
                     }
                 })
             });
-            EditorExportReportWindow.Show("HFSM Export", report);
+            EditorExportReportWindow.Show("HFSM 导出", report);
         }
 
         private static EditorExportReportEntry ExportText(string jobId, string format, string path, string content, params string[] messages)
@@ -423,7 +450,7 @@ namespace AbilityKit.HFSM.Editor
 
             if (_graphContainer == null)
             {
-                Debug.LogError("HFSM Editor: Could not find graph-view IMGUIContainer in UXML");
+                Debug.LogError("HFSM 编辑器：无法在 UXML 中找到 graph-view IMGUIContainer。");
                 return;
             }
 
@@ -563,23 +590,23 @@ namespace AbilityKit.HFSM.Editor
             {
                 // Debug info
                 GUI.Label(new Rect(10, 10, 400, 100),
-                    $"Graph: {_context.GraphAsset.name}\n" +
-                    $"Nodes: {_context.CurrentChildNodes.Count}\n" +
-                    $"Pan: {_context.PanOffset}\n" +
-                    $"Zoom: {_context.ZoomFactor}\n" +
-                    $"ViewBounds: {_graphContainer.contentRect}",
+                    $"状态机图：{_context.GraphAsset.name}\n" +
+                    $"节点数：{_context.CurrentChildNodes.Count}\n" +
+                    $"平移：{_context.PanOffset}\n" +
+                    $"缩放：{_context.ZoomFactor}\n" +
+                    $"视图边界：{_graphContainer.contentRect}",
                     labelStyle);
             }
             else
             {
-                GUI.Label(messageRect, "No graph loaded.\nUse 'New' or 'Load' to create/open a graph.", labelStyle);
+                GUI.Label(messageRect, "未加载状态机图。\n请使用“新建”或“加载”来创建或打开状态机图。", labelStyle);
             }
         }
 
         private void DrawTransitionPreviewInfo(Rect rect)
         {
             Rect infoRect = new Rect(10, rect.height - 30, 300, 25);
-            GUI.Label(infoRect, "Creating transition... Click target state or press ESC to cancel.",
+            GUI.Label(infoRect, "正在创建转换……单击目标状态，或按 ESC 取消。",
                 EditorStyles.miniLabel);
         }
 
@@ -609,7 +636,7 @@ namespace AbilityKit.HFSM.Editor
         {
             if (_context.GraphAsset == null)
             {
-                _breadcrumbLabel.text = "No graph loaded";
+                _breadcrumbLabel.text = "未加载状态机图";
                 return;
             }
 
@@ -621,10 +648,10 @@ namespace AbilityKit.HFSM.Editor
         private void CreateNewGraph()
         {
             string path = EditorUtility.SaveFilePanelInProject(
-                "Create New HFSM Graph",
-                "New HFSM Graph",
+                "新建 HFSM 状态机图",
+                "新建 HFSM 状态机图",
                 "asset",
-                "Enter a name for the new HFSM graph");
+                "请输入新 HFSM 状态机图的名称");
 
             if (string.IsNullOrEmpty(path))
                 return;
@@ -633,11 +660,11 @@ namespace AbilityKit.HFSM.Editor
             graph.GraphName = System.IO.Path.GetFileNameWithoutExtension(path);
 
             // Create root state machine
-            var rootSM = graph.CreateStateMachine("Root", new Vector2(200, 100));
+            var rootSM = graph.CreateStateMachine("根状态机", new Vector2(200, 100));
             graph.SetRootStateMachine(rootSM);
 
             // Create initial state
-            var initialState = graph.CreateState("Initial", new Vector2(200, 250));
+            var initialState = graph.CreateState("初始状态", new Vector2(200, 250));
             rootSM.AddChildNode(initialState.Id);
             initialState.isDefault = true;
             rootSM.DefaultStateId = initialState.Id;
@@ -651,7 +678,7 @@ namespace AbilityKit.HFSM.Editor
         private void LoadGraphFromPicker()
         {
             string path = EditorUtility.OpenFilePanel(
-                "Load HFSM Graph",
+                "加载 HFSM 状态机图",
                 "Assets",
                 "asset");
 
@@ -667,8 +694,25 @@ namespace AbilityKit.HFSM.Editor
             }
             else
             {
-                EditorUtility.DisplayDialog("Error", "Selected file is not a valid HFSM Graph Asset.", "OK");
+                EditorUtility.DisplayDialog("错误", "所选文件不是有效的 HFSM 状态机图资源。", "确定");
             }
+        }
+
+        private void SaveCurrentGraph()
+        {
+            if (_context?.GraphAsset == null)
+            {
+                EditorUtility.DisplayDialog("保存 HFSM 状态机图", "尚未加载状态机图。", "确定");
+                return;
+            }
+
+            EditorUtility.SetDirty(_context.GraphAsset);
+            AssetDatabase.SaveAssetIfDirty(_context.GraphAsset);
+        }
+
+        private void OpenRuntimeDebugger()
+        {
+            RuntimeMonitorWindow.OpenWindow(_context?.GraphAsset?.GraphName);
         }
 
         public void LoadGraph(Graph.GraphAsset graph)
@@ -730,7 +774,7 @@ namespace AbilityKit.HFSM.Editor
         {
             if (_context.GraphAsset == null)
             {
-                EditorUtility.DisplayDialog("Validate Graph", "No graph loaded.", "OK");
+                EditorUtility.DisplayDialog("校验状态机图", "尚未加载状态机图。", "确定");
                 return;
             }
 
@@ -743,15 +787,15 @@ namespace AbilityKit.HFSM.Editor
         {
             if (_context.GraphAsset == null)
             {
-                EditorUtility.DisplayDialog("Validate Graph", "No graph loaded.", "OK");
+                EditorUtility.DisplayDialog("校验状态机图", "尚未加载状态机图。", "确定");
                 return;
             }
 
             var valid = _context.GraphAsset.Validate();
             EditorUtility.DisplayDialog(
-                "Legacy Graph Validation",
-                valid ? "Graph is valid." : "Graph has errors. Check the Console for details.",
-                "OK");
+                "旧版状态机图校验",
+                valid ? "状态机图校验通过。" : "状态机图存在错误，请在控制台中查看详情。",
+                "确定");
         }
 
         private DiagnosticSnapshot RunNextDiagnostics()

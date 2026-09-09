@@ -159,6 +159,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.Events.Events[4].RootContextId, Is.EqualTo(900));
             Assert.That(restored.Events.Events[4].ContextId, Is.EqualTo(903));
             Assert.That(restored.Events.Events[4].SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(700, 2)));
+            Assert.That(restored.Events.Events[5].Payload.TryGetTriggerAnalysisAggregate(out var triggerAggregate), Is.True);
+            Assert.That(triggerAggregate.OccurrenceCount, Is.EqualTo(59));
+            Assert.That(triggerAggregate.FirstFrame, Is.EqualTo(Frame - 58));
+            Assert.That(triggerAggregate.LastContextId, Is.EqualTo(962));
             StringAssert.Contains("\"buffLifecycleModifierSourceId\": 77", json);
             StringAssert.Contains("\"buffLifecycleRemoveReason\": 9", json);
         }
@@ -545,8 +549,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     new BattleDiagnosticPageRequest(0, 0, 10)));
 
                 Assert.That(filtered.Status.Phase, Is.EqualTo(BattleDiagnosticQueryPhase.Ready));
-                Assert.That(filtered.Items.Count, Is.EqualTo(1));
-                Assert.That(filtered.Items[0].Sequence, Is.EqualTo(3));
+                Assert.That(filtered.Items.Select(item => item.Sequence), Is.EqualTo(new long[] { 3, 6 }));
             }
         }
 
@@ -667,6 +670,23 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 failureKey: "missingMana",
                 reason: "Missing mana for trigger.");
             var triggerPayload = BattleDiagnosticEventPayload.FromTriggerAnalysis(in triggerData);
+            var triggerAggregateData = new BattleDiagnosticTriggerAnalysisAggregatePayload(
+                7001,
+                contextKind: 2,
+                originKind: 3,
+                BattleDiagnosticTriggerAnalysisStage.Conditions,
+                BattleDiagnosticTriggerAnalysisResult.Failed,
+                detailCode: 11,
+                occurrenceCount: 59,
+                firstFrame: Frame - 58,
+                lastFrame: Frame,
+                firstContextId: 904,
+                lastContextId: 962,
+                firstRootContextId: 900,
+                lastRootContextId: 960,
+                failureKey: "missingMana",
+                sampleReason: "Missing mana for trigger.");
+            var triggerAggregatePayload = BattleDiagnosticEventPayload.FromTriggerAnalysisAggregate(in triggerAggregateData);
             var failureData = new BattleDiagnosticSkillFailurePayload(
                 slot: 2,
                 source: "Cast",
@@ -765,7 +785,23 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
                     payloadVersion: BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion,
                     summary: "Buff removed",
-                    payload: buffPayload)
+                    payload: buffPayload),
+                new BattleDiagnosticEvent(
+                    _scope,
+                    Frame,
+                    6,
+                    1035,
+                    BattleDiagnosticEventKind.TriggerAnalysisAggregate,
+                    BattleDiagnosticEventChannel.Trigger,
+                    BattleDiagnosticEventOutcome.Failed,
+                    sourceActorId: 1,
+                    targetActorId: 2,
+                    configId: 7001,
+                    rootContextId: 960,
+                    contextId: 962,
+                    payloadVersion: BattleDiagnosticTriggerAnalysisAggregatePayload.CurrentSchemaVersion,
+                    summary: "Repeated trigger condition miss.",
+                    payload: triggerAggregatePayload)
             };
             var metrics = new BattleDiagnosticStoreMetrics(8, events.Length, EventRevision, 2, 0, 1, true);
             var actors = new[]

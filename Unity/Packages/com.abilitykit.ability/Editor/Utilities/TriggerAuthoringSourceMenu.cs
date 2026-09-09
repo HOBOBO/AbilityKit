@@ -7,12 +7,12 @@ namespace AbilityKit.Ability.Editor.Utilities
 {
     internal static class TriggerAuthoringSourceMenu
     {
-        private const string ExportMenu = "Assets/AbilityKit/Trigger Authoring/Export Source JSON";
-        private const string ExportRuntimeMenu = "Assets/AbilityKit/Trigger Authoring/Export Runtime Plan JSON";
-        private const string ImportMenu = "Assets/AbilityKit/Trigger Authoring/Import Source JSON";
-        private const string ValidateMenu = "Assets/AbilityKit/Trigger Authoring/Validate";
-        private const string ExportProjectRuntimeMenu = "Assets/AbilityKit/Trigger Authoring/Export Project Runtime Plans";
-        private const string ExportSchemasMenu = "Tools/AbilityKit/Trigger Authoring/Export Source Schemas";
+        private const string ExportMenu = "Assets/AbilityKit/触发器编辑/导出 Source JSON";
+        private const string ExportRuntimeMenu = "Assets/AbilityKit/触发器编辑/导出 Runtime Plan JSON";
+        private const string ImportMenu = "Assets/AbilityKit/触发器编辑/导入 Source JSON";
+        private const string ValidateMenu = "Assets/AbilityKit/触发器编辑/校验";
+        private const string ExportProjectRuntimeMenu = "Assets/AbilityKit/触发器编辑/导出项目 Runtime Plan";
+        private const string ExportSchemasMenu = "Tools/AbilityKit/触发器编辑/导出 Source Schema";
 
         [MenuItem(ExportMenu)]
         private static void Export()
@@ -31,22 +31,22 @@ namespace AbilityKit.Ability.Editor.Utilities
                     ? asset.Module.ModuleId
                     : asset.name;
                 path = EditorUtility.SaveFilePanel(
-                    "Export Trigger Source JSON", Application.dataPath, defaultName,
+                    "导出触发器 Source JSON", Application.dataPath, defaultName,
                     TriggerSourceCodecs.ModuleDefault.FileExtension);
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
 
             var result = TriggerAuthoringSourceSync.Export(asset, path);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
-                    "Trigger Source Conflict",
-                    result.Message + "\n\nForce export and overwrite Source JSON?",
-                    "Force Export",
-                    "Cancel"))
+                    "触发器源文件冲突",
+                    result.Message + "\n\n是否强制导出并覆盖 Source JSON？",
+                    "强制导出",
+                    "取消"))
             {
                 result = TriggerAuthoringSourceSync.Export(asset, path, true);
             }
 
-            ShowResult("Export", result);
+            ShowResult("导出", result);
             if (result.Success) AssetDatabase.SaveAssets();
         }
 
@@ -59,7 +59,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             var defaultName = asset.Module != null && !string.IsNullOrWhiteSpace(asset.Module.ModuleId)
                 ? asset.Module.ModuleId + ".runtime"
                 : asset.name + ".runtime";
-            var path = EditorUtility.SaveFilePanel("Export Runtime Plan JSON", Application.dataPath, defaultName, "json");
+            var path = EditorUtility.SaveFilePanel("导出 Runtime Plan JSON", Application.dataPath, defaultName, "json");
             if (string.IsNullOrWhiteSpace(path)) return;
 
             var result = TriggerAuthoringRuntimeExporter.Export(asset, path);
@@ -72,7 +72,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             var message = result.BuildMessage();
             Debug.LogError("[TriggerAuthoring] Runtime Plan export failed. " + message);
-            EditorUtility.DisplayDialog("Runtime Plan Export Failed", message, "OK");
+            EditorUtility.DisplayDialog("Runtime Plan 导出失败", message, "确定");
         }
 
         [MenuItem(ImportMenu)]
@@ -89,7 +89,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
                 path = EditorUtility.OpenFilePanel(
-                    "Import Trigger Source JSON", Application.dataPath,
+                    "导入触发器 Source JSON", Application.dataPath,
                     TriggerSourceCodecs.ModuleDefault.FileExtension);
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
@@ -99,13 +99,13 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             var result = TriggerAuthoringSourceSync.Import(asset, path, preview.RequiresForce);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
-                    "Trigger Asset Conflict",
-                    result.Message + "\n\nForce import and overwrite Asset content?",
-                    "Force Import",
-                    "Cancel"))
+                    "触发器资产冲突",
+                    result.Message + "\n\n是否强制导入并覆盖资产内容？",
+                    "强制导入",
+                    "取消"))
                 result = TriggerAuthoringSourceSync.Import(asset, path, true);
 
-            ShowResult("Import", result);
+            ShowResult("导入", result);
             if (result.Success) AssetDatabase.SaveAssets();
         }
 
@@ -119,7 +119,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                           (result.Success ? "succeeded. " : "failed. ") + result.BuildMessage();
             if (result.Success) Debug.Log(message, project);
             else Debug.LogError(message, project);
-            EditorUtility.DisplayDialog("Project Runtime Export", result.BuildMessage(), "OK");
+            EditorUtility.DisplayDialog("项目运行时导出", result.BuildMessage(), "确定");
         }
 
         [MenuItem(ExportProjectRuntimeMenu, true)]
@@ -132,7 +132,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void ExportSchemas()
         {
             var directory = EditorUtility.OpenFolderPanel(
-                "Export Trigger Authoring Source Schemas",
+                "导出触发器 Source Schema",
                 Application.dataPath,
                 string.Empty);
             if (string.IsNullOrWhiteSpace(directory)) return;
@@ -143,9 +143,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 $"[TriggerAuthoring] Source schema export completed. directory='{result.DirectoryPath}', " +
                 $"written={result.WrittenPaths.Count}, unchanged={result.UnchangedPaths.Count}.");
             EditorUtility.DisplayDialog(
-                "Trigger Source Schema Export",
-                $"Exported {result.TotalCount} schema file(s).\nWritten: {result.WrittenPaths.Count}\nUnchanged: {result.UnchangedPaths.Count}",
-                "OK");
+                "触发器 Source Schema 导出",
+                $"共导出 {result.TotalCount} 个 Schema 文件。\n已写入：{result.WrittenPaths.Count}\n未变化：{result.UnchangedPaths.Count}",
+                "确定");
         }
 
         [MenuItem(ValidateMenu)]
@@ -162,7 +162,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 TriggerAuthoringValidationContext.Create(asset));
             if (diagnostics.Count == 0)
             {
-                EditorUtility.DisplayDialog("Trigger Authoring Validation", "No diagnostics.", "OK");
+                EditorUtility.DisplayDialog("触发器数据校验", "暂无诊断。", "确定");
                 return;
             }
 
@@ -172,7 +172,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var diagnostic = diagnostics[i];
                 message += $"{diagnostic.Severity} {diagnostic.Code} {diagnostic.Path}: {diagnostic.Message}\n";
             }
-            EditorUtility.DisplayDialog("Trigger Authoring Validation", message, "OK");
+            EditorUtility.DisplayDialog("触发器数据校验", message, "确定");
         }
 
         [MenuItem(ExportMenu, true)]
@@ -201,18 +201,18 @@ namespace AbilityKit.Ability.Editor.Utilities
                     ? asset.Template.TemplateId
                     : asset.name;
                 path = EditorUtility.SaveFilePanel(
-                    "Export Trigger Template Source JSON", Application.dataPath, defaultName,
+                    "导出触发器模板 Source JSON", Application.dataPath, defaultName,
                     TriggerSourceCodecs.TemplateDefault.FileExtension);
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
             var result = TriggerAuthoringTemplateSourceSync.Export(asset, path);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
-                    "Trigger Template Source Conflict",
-                    result.Message + "\n\nForce export and overwrite Source JSON?",
-                    "Force Export",
-                    "Cancel"))
+                    "触发器模板源文件冲突",
+                    result.Message + "\n\n是否强制导出并覆盖 Source JSON？",
+                    "强制导出",
+                    "取消"))
                 result = TriggerAuthoringTemplateSourceSync.Export(asset, path, true);
-            ShowResult("Template Export", result);
+            ShowResult("模板导出", result);
             if (result.Success) AssetDatabase.SaveAssets();
         }
 
@@ -224,7 +224,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
             {
                 path = EditorUtility.OpenFilePanel(
-                    "Import Trigger Template Source JSON", Application.dataPath,
+                    "导入触发器模板 Source JSON", Application.dataPath,
                     TriggerSourceCodecs.TemplateDefault.FileExtension);
                 if (string.IsNullOrWhiteSpace(path)) return;
             }
@@ -233,12 +233,12 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             var result = TriggerAuthoringTemplateSourceSync.Import(asset, path, preview.RequiresForce);
             if (!result.Success && result.CanForce && EditorUtility.DisplayDialog(
-                    "Trigger Template Asset Conflict",
-                    result.Message + "\n\nForce import and overwrite Asset content?",
-                    "Force Import",
-                    "Cancel"))
+                    "触发器模板资产冲突",
+                    result.Message + "\n\n是否强制导入并覆盖资产内容？",
+                    "强制导入",
+                    "取消"))
                 result = TriggerAuthoringTemplateSourceSync.Import(asset, path, true);
-            ShowResult("Template Import", result);
+            ShowResult("模板导入", result);
             if (result.Success) AssetDatabase.SaveAssets();
         }
 
@@ -249,8 +249,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             var diagnostics = TriggerAuthoringTemplateValidator.Validate(
                 asset.Template,
                 TriggerAuthoringValidationContext.Create(asset));
-            var message = diagnostics.Count == 0 ? "No diagnostics." : TriggerAuthoringTemplateValidator.BuildMessage(diagnostics);
-            EditorUtility.DisplayDialog("Trigger Template Validation", message, "OK");
+            var message = diagnostics.Count == 0 ? "暂无诊断。" : TriggerAuthoringTemplateValidator.BuildMessage(diagnostics);
+            EditorUtility.DisplayDialog("触发器模板校验", message, "确定");
         }
 
         private static void ShowResult(string operation, TriggerAuthoringSyncResult result)
@@ -261,7 +261,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return;
             }
             Debug.LogError($"[TriggerAuthoring] {operation} failed. state={result.State}, message={result.Message}");
-            EditorUtility.DisplayDialog($"Trigger Source {operation} Failed", result.Message, "OK");
+            EditorUtility.DisplayDialog($"触发器源文件{operation}失败", result.Message, "确定");
         }
     }
 }

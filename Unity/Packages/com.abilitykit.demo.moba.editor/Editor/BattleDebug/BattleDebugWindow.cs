@@ -245,7 +245,7 @@ namespace AbilityKit.Game.Editor
             if (!isOffline && !hasLiveSession)
             {
                 var message = EditorApplication.isPlaying
-                    ? "当前没有活动中的 BattleLogicSession。可以启动战斗，或打开诊断 Artifact 进行离线浏览。"
+                    ? "当前没有活动中的战斗逻辑会话。可以启动战斗，或打开诊断 Artifact 进行离线浏览。"
                     : "当前处于编辑模式。打开诊断 Artifact 可离线浏览，或进入播放模式连接实时会话。";
                 EditorGUILayout.HelpBox(message, MessageType.Info);
                 return;
@@ -302,7 +302,7 @@ namespace AbilityKit.Game.Editor
                 GUILayout.Width(42));
             _showSelectionInspector = GUILayout.Toggle(
                 _showSelectionInspector,
-                new GUIContent("检查器", "显示或收起持久 Selection Inspector"),
+                new GUIContent("检查器", "显示或收起常驻选择检查器"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(54));
 
@@ -342,12 +342,12 @@ namespace AbilityKit.Game.Editor
 
             _renderReplayPresentation = GUILayout.Toggle(
                 _renderReplayPresentation,
-                new GUIContent("渲染表现", "关闭后 Replay 仅运行逻辑世界，不创建或驱动 View、HUD、VFX 和相机"),
+                new GUIContent("渲染表现", "关闭后回放仅运行逻辑世界，不创建或驱动画面、界面、特效和相机"),
                 EditorStyles.toolbarButton,
                 GUILayout.Width(68));
 
             EditorGUI.BeginDisabledGroup(!EditorApplication.isPlaying || _diagnosticSource.IsOffline && BattleReplayControlProvider.Current == null);
-            if (GUILayout.Button(new GUIContent("录像", "加载标准 FrameRecord 并驱动当前逻辑世界"), EditorStyles.toolbarButton, GUILayout.Width(44)))
+            if (GUILayout.Button(new GUIContent("录像", "加载标准帧录像并驱动当前逻辑世界"), EditorStyles.toolbarButton, GUILayout.Width(44)))
             {
                 OpenReplay();
             }
@@ -359,7 +359,7 @@ namespace AbilityKit.Game.Editor
             }
 
             EditorGUI.BeginDisabledGroup(!CanExportLiveSnapshot());
-            if (GUILayout.Button(new GUIContent("导出", "捕获并导出当前实时 Battle Diagnostics"), EditorStyles.toolbarButton, GUILayout.Width(44)))
+            if (GUILayout.Button(new GUIContent("导出", "捕获并导出当前实时战斗诊断"), EditorStyles.toolbarButton, GUILayout.Width(44)))
             {
                 ExportLiveArtifact();
             }
@@ -437,7 +437,7 @@ namespace AbilityKit.Game.Editor
             if (selection.IsValid)
             {
                 GUILayout.Label(
-                    $"{selection.Kind} #{selection.Id}",
+                    $"{BattleDebugDisplayText.SelectionKind(selection.Kind)} #{selection.Id}",
                     EditorStyles.miniLabel,
                     GUILayout.MinWidth(110));
             }
@@ -455,17 +455,17 @@ namespace AbilityKit.Game.Editor
 
             EditorGUI.BeginDisabledGroup(ctx.SeekReplayFrame == null || !cursor.HasFrame);
             if (GUILayout.Button(
-                    new GUIContent("定位 Replay", "暂停 Replay 并将逻辑世界定位到当前诊断帧游标"),
+                    new GUIContent("定位回放", "暂停回放并将逻辑世界定位到当前诊断帧游标"),
                     GUILayout.Width(82)))
             {
                 if (ctx.SeekReplayFrame != null && ctx.SeekReplayFrame(cursor.Frame))
                 {
-                    _fileStatus = $"Replay 已定位到诊断帧 F{cursor.Frame}。";
+                    _fileStatus = $"回放已定位到诊断帧 F{cursor.Frame}。";
                     _fileStatusType = MessageType.Info;
                 }
                 else
                 {
-                    _fileStatus = $"无法将 Replay 定位到诊断帧 F{cursor.Frame}；该帧可能超出录像范围。";
+                    _fileStatus = $"无法将回放定位到诊断帧 F{cursor.Frame}；该帧可能超出录像范围。";
                     _fileStatusType = MessageType.Warning;
                 }
             }
@@ -516,7 +516,7 @@ namespace AbilityKit.Game.Editor
                 GUILayout.Label(_diagnosticSource.DisplayName, EditorStyles.miniLabel);
                 var info = _diagnosticSource.Session.SessionInfo;
                 GUILayout.FlexibleSpace();
-                GUILayout.Label($"Session={info.Scope.SessionId}  World={info.Scope.WorldId}  {info.ConnectionState}/{info.CaptureState}", EditorStyles.miniLabel);
+                GUILayout.Label($"会话={info.Scope.SessionId}  世界={info.Scope.WorldId}  {BattleDebugDisplayText.ConnectionState(info.ConnectionState)}/{BattleDebugDisplayText.CaptureState(info.CaptureState)}", EditorStyles.miniLabel);
                 DrawDiagnosticRevisions(_diagnosticSource.Session, null, null, null);
             }
             else
@@ -561,7 +561,7 @@ namespace AbilityKit.Game.Editor
                     ? $"\n另有 {panelLoadErrors.Count - 1} 个面板加载失败。"
                     : string.Empty;
                 EditorGUILayout.HelpBox(
-                    "Battle Debug 面板加载失败: " + panelLoadErrors[0] + suffix,
+                    "战斗调试面板加载失败：" + panelLoadErrors[0] + suffix,
                     MessageType.Warning);
             }
 
@@ -583,7 +583,7 @@ namespace AbilityKit.Game.Editor
             if (panelLoadErrors != null && panelLoadErrors.Count > 0)
             {
                 EditorGUILayout.HelpBox(
-                    "Battle Debug 面板加载失败: " + panelLoadErrors[0],
+                    "战斗调试面板加载失败：" + panelLoadErrors[0],
                     MessageType.Warning);
             }
 
@@ -603,19 +603,19 @@ namespace AbilityKit.Game.Editor
 
             GUILayout.FlexibleSpace();
             GUILayout.Label(
-                $"Cap={session.SessionInfo.Capabilities}  E{session.EventStoreRevision} S{session.StateStoreRevision} T{session.TraceStoreRevision}",
+                $"能力={session.SessionInfo.Capabilities}  事件版本={session.EventStoreRevision} 状态版本={session.StateStoreRevision} Trace版本={session.TraceStoreRevision}",
                 EditorStyles.miniLabel);
             if (stateSampler != null || eventCollector != null)
             {
                 GUILayout.Label(
-                    $"Frame={stateSampler?.LastSuccessfulSampleFrame ?? BattleDiagnosticFrames.Invalid} Seq={eventCollector?.LastSequence ?? 0L} Fail={stateSampler?.SampleFailureCount ?? 0L}/{eventCollector?.CollectFailureCount ?? 0L}",
+                    $"帧={stateSampler?.LastSuccessfulSampleFrame ?? BattleDiagnosticFrames.Invalid} 序列={eventCollector?.LastSequence ?? 0L} 失败={stateSampler?.SampleFailureCount ?? 0L}/{eventCollector?.CollectFailureCount ?? 0L}",
                     EditorStyles.miniLabel);
             }
             if (skillRuntimeService != null)
             {
                 var scan = skillRuntimeService.ScanDiagnostics();
                 GUILayout.Label(
-                    $"Skill={scan.ActiveRuntimes} Waiting={scan.WaitingChildrenRuntimes} Child={scan.PendingChildren}",
+                    $"技能={scan.ActiveRuntimes} 等待={scan.WaitingChildrenRuntimes} 子对象={scan.PendingChildren}",
                     EditorStyles.miniLabel);
             }
         }
@@ -712,7 +712,7 @@ namespace AbilityKit.Game.Editor
             {
                 if (!replay.SeekToFrame(targetFrame))
                 {
-                    _fileStatus = $"跳转失败：无法将 Replay 世界定位到第 {targetFrame} 帧。";
+                    _fileStatus = $"跳转失败：无法将回放世界定位到第 {targetFrame} 帧。";
                     _fileStatusType = MessageType.Error;
                 }
                 RefreshEntities();
@@ -752,7 +752,7 @@ namespace AbilityKit.Game.Editor
         {
             if (action == null || !action())
             {
-                _fileStatus = $"{label}失败：Replay Session 未能推进到目标帧。";
+                _fileStatus = $"{label}失败：回放会话未能推进到目标帧。";
                 _fileStatusType = MessageType.Error;
             }
             RefreshEntities();
@@ -819,7 +819,7 @@ namespace AbilityKit.Game.Editor
                     {
                         var tags = unit.Tags?.Count ?? 0;
                         var effects = unit.Effects?.Active?.Count ?? 0;
-                        label = $"{label}  T{tags} E{effects}";
+                        label = $"{label}  标签 {tags} 效果 {effects}";
                     }
 
                     var style = selected ? EditorStyles.toolbarButton : EditorStyles.miniButton;
@@ -957,7 +957,7 @@ namespace AbilityKit.Game.Editor
         {
             EditorGUILayout.BeginVertical();
 
-            var workspaceNames = new[] { "Actor", "Diagnostics" };
+            var workspaceNames = new[] { "Actor", "诊断" };
             var nextWorkspace = (BattleDebugWorkspace)GUILayout.Toolbar(
                 (int)_workspace,
                 workspaceNames,
@@ -1231,7 +1231,7 @@ namespace AbilityKit.Game.Editor
             {
                 selectedIndex = DrawDiagnosticsShortcut<IBattleDebugEventsTarget>(
                     selectedIndex,
-                    "Events",
+                    "事件",
                     "打开诊断事件");
                 selectedIndex = DrawDiagnosticsShortcut<IBattleDebugTraceTarget>(
                     selectedIndex,
@@ -1239,7 +1239,7 @@ namespace AbilityKit.Game.Editor
                     "打开 Trace 调查");
                 selectedIndex = DrawDiagnosticsShortcut<BattleDebugRuntimeObjectsPanel>(
                     selectedIndex,
-                    "Objects",
+                    "对象",
                     "打开运行时对象目录");
             }
 
@@ -1410,7 +1410,7 @@ namespace AbilityKit.Game.Editor
             if (GUILayout.Button(
                     new GUIContent(label, tooltip),
                     active ? EditorStyles.toolbarButton : EditorStyles.miniButton,
-                    GUILayout.Width(label == "Objects" ? 58f : 48f),
+                    GUILayout.Width(label == "对象" ? 58f : 48f),
                     GUILayout.Height(18f)))
             {
                 return targetIndex;
@@ -1835,7 +1835,7 @@ namespace AbilityKit.Game.Editor
             var replay = BattleReplayControlProvider.Current;
             if (!EditorApplication.isPlaying || replay == null)
             {
-                _fileStatus = "加载录像需要处于播放模式且已有活动 Battle Session，以复用完整世界启动配置。";
+                _fileStatus = "加载录像需要处于播放模式且已有活动战斗会话，以复用完整世界启动配置。";
                 _fileStatusType = MessageType.Warning;
                 return;
             }
@@ -1843,7 +1843,7 @@ namespace AbilityKit.Game.Editor
             var initialDirectory = string.IsNullOrEmpty(replay.ReplayPath)
                 ? Application.dataPath
                 : Path.GetDirectoryName(replay.ReplayPath);
-            var path = EditorUtility.OpenFilePanel("加载 Battle FrameRecord", initialDirectory, string.Empty);
+            var path = EditorUtility.OpenFilePanel("加载战斗帧录像", initialDirectory, string.Empty);
             if (string.IsNullOrEmpty(path)) return;
 
             if (!replay.TryLoad(path, _renderReplayPresentation, out var error))
@@ -1867,7 +1867,7 @@ namespace AbilityKit.Game.Editor
             var initialDirectory = string.IsNullOrEmpty(_diagnosticSource.FilePath)
                 ? Application.dataPath
                 : Path.GetDirectoryName(_diagnosticSource.FilePath);
-            var path = EditorUtility.OpenFilePanel("打开 Battle Diagnostics Artifact", initialDirectory, "json");
+            var path = EditorUtility.OpenFilePanel("打开战斗诊断 Artifact", initialDirectory, "json");
             if (string.IsNullOrEmpty(path)) return;
 
             try
@@ -1910,7 +1910,7 @@ namespace AbilityKit.Game.Editor
             }
 
             var defaultName = $"battle-diagnostics-{DateTime.UtcNow:yyyyMMdd-HHmmss}.json";
-            var path = EditorUtility.SaveFilePanel("导出 Battle Diagnostics Artifact", string.Empty, defaultName, "json");
+            var path = EditorUtility.SaveFilePanel("导出战斗诊断 Artifact", string.Empty, defaultName, "json");
             if (string.IsNullOrEmpty(path)) return;
 
             try
@@ -2064,13 +2064,13 @@ namespace AbilityKit.Game.Editor
                 Selection.activeObject = asset;
                 EditorGUIUtility.PingObject(asset);
                 status = string.IsNullOrEmpty(reference.PhaseId)
-                    ? $"Selected SkillFlow #{flowId} in {assetPath}."
-                    : $"Selected SkillFlow #{flowId} / {reference.PhaseId} in {assetPath}.";
+                    ? $"已在 {assetPath} 中选择技能流程 #{flowId}。"
+                    : $"已在 {assetPath} 中选择技能流程 #{flowId} / {reference.PhaseId}。";
                 return true;
             }
 
             status = string.IsNullOrEmpty(resolutionError)
-                ? $"No SkillFlow asset contains flow #{flowId}."
+                ? $"没有技能流程资源包含流程 #{flowId}。"
                 : resolutionError;
             return false;
         }

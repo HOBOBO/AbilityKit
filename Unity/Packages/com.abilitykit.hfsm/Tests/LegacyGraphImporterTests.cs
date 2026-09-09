@@ -24,6 +24,9 @@ namespace AbilityKit.Tests
                 root.AddChildNode(attack.Id);
                 root.DefaultStateId = idle.Id;
                 root.RememberLastState = true;
+                attack.NextParallelBehaviorKeysInternal.Add("combat.move");
+                attack.NextParallelBehaviorKeysInternal.Add("combat.aim");
+                attack.NextParallelExitPolicy = ParallelExitPolicy.All;
 
                 idle.AddLogicAction("LegacyTick");
                 var direct = graph.CreateTransition(idle.Id, attack.Id);
@@ -48,6 +51,10 @@ namespace AbilityKit.Tests
                 Assert.That(machine.RememberLastState, Is.True);
                 Assert.That(machine.States.Single(state => state.Id == idle.Id).BehaviorKey,
                     Is.EqualTo("combat.idle"));
+                var importedAttack = machine.States.Single(state => state.Id == attack.Id);
+                Assert.That(importedAttack.ParallelBehaviorKeys,
+                    Is.EqualTo(new[] { "combat.move", "combat.aim" }));
+                Assert.That(importedAttack.ParallelExitPolicy, Is.EqualTo(ParallelExitPolicy.All));
                 var importedDirect = machine.Transitions.Single(transition => transition.Id == direct.Id);
                 Assert.That(importedDirect.ConditionKey, Is.EqualTo("combat.canAttack"));
                 Assert.That(importedDirect.Priority, Is.EqualTo(9));
@@ -62,33 +69,41 @@ namespace AbilityKit.Tests
         }
 
         [Test]
-        public void RejectsUnsupportedSemanticsWithoutMappings()
+        public void ImportsGhostNestedMachineAndVerticalExitSemantics()
         {
             var graph = ScriptableObject.CreateInstance<GraphAsset>();
             try
             {
                 var root = graph.CreateStateMachine("Root", Vector2.zero);
+                var nested = graph.CreateStateMachine("Nested", Vector2.zero);
+                var done = graph.CreateState("Done", Vector2.one);
                 var source = graph.CreateState("Source", Vector2.zero);
-                var target = graph.CreateState("Target", Vector2.zero);
-                root.AddChildNode(source.Id);
-                root.AddChildNode(target.Id);
-                root.DefaultStateId = source.Id;
-
+                root.AddChildNode(nested.Id);
+                root.AddChildNode(done.Id);
+                root.DefaultStateId = nested.Id;
+                nested.ParentStateMachineId = root.Id;
+                nested.NeedsExitTime = true;
+                nested.IsGhostState = true;
+                nested.AddChildNode(source.Id);
+                nested.DefaultStateId = source.Id;
+                source.ParentStateMachineId = nested.Id;
                 source.IsGhostState = true;
-                source.NeedsExitTime = true;
-                source.AddLogicAction("LegacyTick");
-                var edge = graph.CreateTransition(source.Id, target.Id);
+
+                var edge = graph.CreateTransition(source.Id, string.Empty);
                 edge.IsExitTransition = true;
-                edge.ConditionConfigJson = "{\"Conditions\":[{}]}";
-                root.AddTransition(edge.Id);
+                nested.AddTransition(edge.Id);
 
                 var result = LegacyGraphImporter.Import(graph);
 
-                Assert.That(result.IsSuccess, Is.False);
-                Assert.That(result.Definition, Is.Null);
-                Assert.That(result.Issues.Any(issue => issue.Code == "HFSMLEG012"), Is.True);
-                Assert.That(result.Issues.Any(issue => issue.Code == "HFSMLEG013"), Is.True);
-                Assert.That(result.Issues.Any(issue => issue.Code == "HFSMLEG022"), Is.True);
+                Assert.That(result.IsSuccess, Is.True, string.Join("\n", result.Issues));
+                var rootDefinition = result.Definition.Machines.Single(machine => machine.Id == root.Id);
+                var nestedState = rootDefinition.States.Single(state => state.Id == nested.Id);
+                Assert.That(nestedState.RequiresExitApproval, Is.True);
+                Assert.That(nestedState.IsGhostState, Is.True);
+                var nestedDefinition = result.Definition.Machines.Single(machine => machine.Id == nested.Id);
+                Assert.That(nestedDefinition.States.Single().IsGhostState, Is.True);
+                Assert.That(nestedDefinition.Transitions.Single().ExitMachine, Is.True);
+                Assert.That(nestedDefinition.Transitions.Single().ToStateId, Is.Empty);
             }
             finally
             {

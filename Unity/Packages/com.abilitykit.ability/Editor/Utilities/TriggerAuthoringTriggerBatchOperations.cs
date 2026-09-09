@@ -47,7 +47,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             IReadOnlyList<int> indices,
             string groupPath)
         {
-            var normalized = (groupPath ?? string.Empty).Trim();
+            var normalized = NormalizeGroupPath(groupPath);
             return Apply(triggers, indices, trigger =>
             {
                 if (string.Equals(trigger.GroupPath ?? string.Empty, normalized, StringComparison.Ordinal))
@@ -55,6 +55,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                 trigger.GroupPath = normalized;
                 return true;
             });
+        }
+
+        public static string NormalizeGroupPath(string groupPath)
+        {
+            if (string.IsNullOrWhiteSpace(groupPath)) return string.Empty;
+            var segments = groupPath.Replace('\\', '/').Split('/');
+            var normalized = new List<string>();
+            for (var i = 0; i < segments.Length; i++)
+            {
+                var segment = segments[i].Trim();
+                if (segment.Length > 0) normalized.Add(segment);
+            }
+            return string.Join("/", normalized);
         }
 
         public static int AddTags(

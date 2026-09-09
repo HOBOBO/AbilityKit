@@ -35,6 +35,12 @@ namespace AbilityKit.HFSM.Graph
         [SerializeField]
         private bool _rememberLastState;
 
+        [SerializeField]
+        private bool _needsExitTime;
+
+        [SerializeField]
+        private bool _isGhostState;
+
         /// <summary>
         /// The ID of the default (start) state for this state machine.
         /// </summary>
@@ -67,6 +73,20 @@ namespace AbilityKit.HFSM.Graph
         {
             get => _rememberLastState;
             set => _rememberLastState = value;
+        }
+
+        /// <summary>When nested, waits for an exit transition before the parent can leave.</summary>
+        public bool NeedsExitTime
+        {
+            get => _needsExitTime;
+            set => _needsExitTime = value;
+        }
+
+        /// <summary>When nested, immediately evaluates local transitions after entry.</summary>
+        public bool IsGhostState
+        {
+            get => _isGhostState;
+            set => _isGhostState = value;
         }
 
         public StateMachineNode()
@@ -170,6 +190,8 @@ namespace AbilityKit.HFSM.Graph
             clone._transitionIds = new List<string>(_transitionIds);
             clone._anyStateTransitionIds = new List<string>(_anyStateTransitionIds);
             clone._rememberLastState = _rememberLastState;
+            clone._needsExitTime = _needsExitTime;
+            clone._isGhostState = _isGhostState;
             return clone;
         }
 

@@ -147,6 +147,8 @@ namespace AbilityKit.HFSM.Migration
                 {
                     Id = source.Id,
                     ChildMachineId = childMachine.Id,
+                    RequiresExitApproval = childMachine.NeedsExitTime,
+                    IsGhostState = childMachine.IsGhostState,
                 };
             }
 
@@ -158,12 +160,6 @@ namespace AbilityKit.HFSM.Migration
 
             if (!bindings.TryGetState(state.Id, out var behaviorKey))
                 behaviorKey = state.NextBehaviorKey;
-            if (state.IsGhostState)
-            {
-                Error(issues, "HFSMLEG012", path + ".isGhostState",
-                    "Ghost-state chaining has no equivalent in the Next runtime.");
-            }
-
             var hasExecutablePayload = state.EntryActionMethodNames.Count > 0 ||
                                        state.LogicActionMethodNames.Count > 0 ||
                                        state.ExitActionMethodNames.Count > 0 ||
@@ -178,8 +174,13 @@ namespace AbilityKit.HFSM.Migration
             return new StateDefinition
             {
                 Id = state.Id,
-                BehaviorKey = behaviorKey ?? string.Empty,
+                BehaviorKey = state.NextParallelBehaviorKeys.Count == 0
+                    ? behaviorKey ?? string.Empty
+                    : string.Empty,
                 RequiresExitApproval = state.NeedsExitTime,
+                IsGhostState = state.IsGhostState,
+                ParallelBehaviorKeys = new List<string>(state.NextParallelBehaviorKeys),
+                ParallelExitPolicy = state.NextParallelExitPolicy,
             };
         }
 
@@ -239,14 +240,8 @@ namespace AbilityKit.HFSM.Migration
                     continue;
                 }
 
-                if (edge.IsExitTransition)
-                {
-                    Error(issues, "HFSMLEG022", $"$.edges['{edge.Id}'].isExitTransition",
-                        "Vertical exit transitions require an explicit migration design.");
-                    continue;
-                }
-
-                if (!childIds.Contains(edge.TargetNodeId) || !nodesById.ContainsKey(edge.TargetNodeId))
+                if (!edge.IsExitTransition &&
+                    (!childIds.Contains(edge.TargetNodeId) || !nodesById.ContainsKey(edge.TargetNodeId)))
                 {
                     Error(issues, "HFSMLEG023", $"$.edges['{edge.Id}'].targetNodeId",
                         "Transition target must be a direct child of its owning machine.");
@@ -271,12 +266,13 @@ namespace AbilityKit.HFSM.Migration
                     Id = edge.Id,
                     FromAnyState = fromAny,
                     FromStateId = fromAny ? string.Empty : edge.SourceNodeId,
-                    ToStateId = edge.TargetNodeId,
+                    ToStateId = edge.IsExitTransition ? string.Empty : edge.TargetNodeId,
                     TriggerId = edge.NextTriggerId,
                     ConditionKey = conditionKey ?? string.Empty,
                     ActionKey = edge.NextActionKey,
                     Priority = edge.Priority,
                     ForceImmediate = edge.ForceInstantly,
+                    ExitMachine = edge.IsExitTransition,
                     MinimumActiveDurationRaw = edge.NextMinimumActiveDurationRaw,
                 });
             }

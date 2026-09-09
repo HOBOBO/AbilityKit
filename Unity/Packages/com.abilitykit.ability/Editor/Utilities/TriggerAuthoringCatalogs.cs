@@ -167,7 +167,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 PayloadFields = BuildPayloadFields(argsType),
                 AllowExternal = false,
                 Deterministic = true,
-                Description = "Discovered from " + attributeType.FullName
+                Description = "自动发现自 " + attributeType.FullName
             };
             return true;
         }
@@ -353,9 +353,9 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         private static string BuildCategory(string id)
         {
-            if (string.IsNullOrWhiteSpace(id)) return "Events";
+            if (string.IsNullOrWhiteSpace(id)) return "事件";
             var index = id.IndexOf('.');
-            var category = index > 0 ? id.Substring(0, index) : "Events";
+            var category = index > 0 ? id.Substring(0, index) : "事件";
             return BuildDisplayName(category, false);
         }
 
@@ -377,7 +377,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 builder.Append(upperNext ? char.ToUpperInvariant(ch) : ch);
                 upperNext = false;
             }
-            if (prefix) builder.Append(" Family");
+            if (prefix) builder.Append(" 事件族");
             return builder.ToString();
         }
 

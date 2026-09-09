@@ -248,8 +248,15 @@ namespace AbilityKit.Game.Editor
             public void Add(in BattleDiagnosticEvent item)
             {
                 _evidence.Add(item);
-                if (item.Frame < _firstFrame) _firstFrame = item.Frame;
-                if (item.Frame > _lastFrame) _lastFrame = item.Frame;
+                var firstFrame = item.Frame;
+                var lastFrame = item.Frame;
+                if (item.Payload.TryGetTriggerAnalysisAggregate(out var aggregate))
+                {
+                    firstFrame = aggregate.FirstFrame;
+                    lastFrame = aggregate.LastFrame;
+                }
+                if (firstFrame < _firstFrame) _firstFrame = firstFrame;
+                if (lastFrame > _lastFrame) _lastFrame = lastFrame;
                 if (_rootContextId == 0) _rootContextId = item.RootContextId;
                 if (_contextId == 0) _contextId = item.ContextId;
                 if (_sourceActorId == 0) _sourceActorId = item.SourceActorId;
@@ -331,13 +338,27 @@ namespace AbilityKit.Game.Editor
                 for (var i = 0; i < evidence.Count; i++)
                 {
                     var item = evidence[i];
+                    if (!item.Payload.TryGetTriggerAnalysisAggregate(out var aggregate)) continue;
+
+                    return new Classification(
+                        BattleDebugInvestigationCause.TriggerConditionFailed,
+                        BattleDebugInvestigationConfidence.Confirmed,
+                        $"触发条件持续未通过（{aggregate.OccurrenceCount} 次）",
+                        string.IsNullOrEmpty(aggregate.SampleReason)
+                            ? aggregate.FailureKey
+                            : aggregate.SampleReason);
+                }
+
+                for (var i = 0; i < evidence.Count; i++)
+                {
+                    var item = evidence[i];
                     if (!item.Payload.TryGetSkillFailure(out var failure)) continue;
 
                     var conclusion = string.IsNullOrEmpty(failure.Code)
                         ? "技能请求失败"
                         : $"技能请求失败：{failure.Code}";
                     var reason = string.IsNullOrEmpty(failure.Message)
-                        ? $"{failure.Source}.{failure.Stage}".TrimEnd('.')
+                        ? $"{BattleDebugDisplayText.SkillFailureSource(failure.Source)}.{BattleDebugDisplayText.SkillFailureStage(failure.Stage)}".TrimEnd('.')
                         : failure.Message;
                     return new Classification(
                         BattleDebugInvestigationCause.SkillFailure,
@@ -381,8 +402,8 @@ namespace AbilityKit.Game.Editor
             {
                 var first = evidence.Count > 0 ? evidence[0] : default;
                 var summary = $"{evidence.Count} 条事件";
-                if (first.RootContextId > 0) summary += $"；Root Trace={first.RootContextId}";
-                if (first.ConfigId != 0) summary += $"；Cfg={first.ConfigId}";
+                if (first.RootContextId > 0) summary += $"；根 Trace={first.RootContextId}";
+                if (first.ConfigId != 0) summary += $"；配置={first.ConfigId}";
                 if (!string.IsNullOrEmpty(reason)) summary += $"；{reason}";
                 return summary;
             }

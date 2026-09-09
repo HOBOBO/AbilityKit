@@ -40,7 +40,7 @@ namespace AbilityKit.Ability.Editor.Tests
                 var result = TriggerAuthoringProjectValidator.Validate(fixture.Project);
 
                 Assert.That(result.Success, Is.False);
-                Assert.That(result.Diagnostics.Exists(item => item.Code == "TRG3050"), Is.True, result.BuildMessage());
+                Assert.That(result.Diagnostics.Exists(item => item.Code == "TRG3045"), Is.True, result.BuildMessage());
             }
             finally
             {

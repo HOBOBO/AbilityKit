@@ -15,7 +15,7 @@ namespace AbilityKit.BehaviorTree.Authoring
         {
             var document = new AuthoringSourceDocument
             {
-                Metadata = { Author = "golden", Description = "Golden example: reactive hero combat tree." },
+                Metadata = { Author = "golden", Description = "反应式英雄战斗行为树示例。" },
                 Tree = { TreeId = HeroCombatTreeId },
             };
 

@@ -53,6 +53,37 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
         }
 
         [Test]
+        public void PasteSubgraph_PreservesSubtreeBlackboardConfiguration()
+        {
+            var document = new AuthoringSourceDocument();
+            var subtree = new NodeDefinition
+            {
+                Id = "sub",
+                Type = BuiltInNodeTypes.Subtree,
+                SubtreeBlackboard = new SubtreeBlackboardConfiguration
+                {
+                    IsolateUnmappedKeys = true,
+                    Bindings = new System.Collections.Generic.List<SubtreeBlackboardBinding>
+                    {
+                        new() { SubtreeKey = "input", ParentKey = "request" },
+                    },
+                },
+            };
+            document.Tree.Nodes.Add(subtree);
+            document.Tree.RootNodeId = subtree.Id;
+
+            var serialized = AuthoringMutationService.SerializeSubgraph(
+                document, new[] { subtree.Id }, null, null);
+            Assert.That(AuthoringMutationService.TryDeserializeSubgraph(serialized, out var clipboard), Is.True);
+            var result = AuthoringMutationService.PasteSubgraph(document, clipboard);
+
+            var pasted = document.Tree.Nodes.Find(node => node.Id == result.NodeIdMap[subtree.Id]);
+            Assert.That(pasted, Is.Not.Null);
+            Assert.That(pasted!.SubtreeBlackboard!.IsolateUnmappedKeys, Is.True);
+            Assert.That(pasted.SubtreeBlackboard.Bindings.Single().ParentKey, Is.EqualTo("request"));
+        }
+
+        [Test]
         public void DeleteSelection_ReportsImpactAndRemovesOwnedModelData()
         {
             var document = CreateDocument();

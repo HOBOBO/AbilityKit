@@ -16,6 +16,7 @@ namespace AbilityKit.Ability.Triggering.Runtime
     public static class TriggerActionTypes
     {
         public const string Seq = "seq";
+        public const string ExecuteTrigger = "execute_trigger";
         public const string SetVar = "set_var";
         public const string SetNumVar = "set_num_var";
         public const string AttrEffectDuration = "attr_effect_duration";

@@ -34,16 +34,16 @@ namespace AbilityKit.BehaviorTree.Nodes
             _properties = context.Properties;
 
             if (string.IsNullOrEmpty(_key))
-                throw new InvalidOperationException($"BT node '{context.Definition.Id}': setBlackboard requires key.");
+                throw new InvalidOperationException($"行为树节点 '{context.Definition.Id}'：设置黑板值时必须指定目标键。");
             if (!context.Context.Blackboard.Schema.TryGetType(_key, out _type))
-                throw new InvalidOperationException($"BT node '{context.Definition.Id}': target key '{_key}' not declared.");
+                throw new InvalidOperationException($"行为树节点 '{context.Definition.Id}'：目标黑板键 '{_key}' 未声明。");
             if (_copyFrom)
             {
                 if (string.IsNullOrEmpty(_fromKey)
                     || !context.Context.Blackboard.Schema.TryGetType(_fromKey, out var fromType)
                     || fromType != _type)
                     throw new InvalidOperationException(
-                        $"BT node '{context.Definition.Id}': copy source key '{_fromKey}' missing or type mismatch.");
+                        $"行为树节点 '{context.Definition.Id}'：来源黑板键 '{_fromKey}' 不存在或类型不匹配。");
             }
         }
 

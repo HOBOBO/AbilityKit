@@ -220,7 +220,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
         public bool Mutate(string beforeChangeSnapshot, Action<AuthoringSourceDocument> mutation)
         {
             if (string.IsNullOrWhiteSpace(beforeChangeSnapshot))
-                throw new ArgumentException("A pre-mutation snapshot is required.", nameof(beforeChangeSnapshot));
+                throw new ArgumentException("修改前快照不能为空。", nameof(beforeChangeSnapshot));
             if (mutation == null) throw new ArgumentNullException(nameof(mutation));
             if (IsReadOnly) return false;
             mutation(Document);
@@ -472,7 +472,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             {
                 if (!EditorNodeCatalog.Registry.TryGetDescriptor(parent.Type, out var descriptor))
                 {
-                    error = $"Parent node '{parentId}' type is not registered.";
+                    error = $"父节点 '{parentId}' 的类型尚未注册。";
                     return false;
                 }
                 if (!GraphOperations.CanConnect(

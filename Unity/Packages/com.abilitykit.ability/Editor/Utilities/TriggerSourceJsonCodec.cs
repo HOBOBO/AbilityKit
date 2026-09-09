@@ -17,22 +17,22 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         public static void ValidateModuleHeader(TriggerAuthoringSourceDocument document)
         {
-            if (document == null) throw new InvalidDataException("Trigger authoring Source document is null.");
+            if (document == null) throw new InvalidDataException("触发器模块 Source 文档为空。");
             if (!string.Equals(document.Schema, TriggerAuthoringSchema.Id, StringComparison.Ordinal))
-                throw new InvalidDataException($"Unsupported trigger authoring schema: '{document.Schema ?? string.Empty}'.");
+                throw new InvalidDataException($"不支持的触发器 Schema：'{document.Schema ?? string.Empty}'。");
             if (!string.Equals(document.Version, TriggerAuthoringSchema.Version, StringComparison.Ordinal))
-                throw new InvalidDataException($"Unsupported trigger authoring version: '{document.Version ?? string.Empty}'.");
-            if (document.Module == null) throw new InvalidDataException("Trigger authoring Source document has no module.");
+                throw new InvalidDataException($"不支持的触发器版本：'{document.Version ?? string.Empty}'。");
+            if (document.Module == null) throw new InvalidDataException("触发器 Source 文档中缺少模块数据。");
         }
 
         public static void ValidateTemplateHeader(TriggerAuthoringTemplateSourceDocument document)
         {
-            if (document == null) throw new InvalidDataException("Trigger template Source document is null.");
+            if (document == null) throw new InvalidDataException("触发器模板 Source 文档为空。");
             if (!string.Equals(document.Schema, TriggerAuthoringSchema.Id, StringComparison.Ordinal))
-                throw new InvalidDataException($"Unsupported trigger authoring schema: '{document.Schema ?? string.Empty}'.");
+                throw new InvalidDataException($"不支持的触发器 Schema：'{document.Schema ?? string.Empty}'。");
             if (!string.Equals(document.Version, TriggerAuthoringSchema.Version, StringComparison.Ordinal))
-                throw new InvalidDataException($"Unsupported trigger authoring version: '{document.Version ?? string.Empty}'.");
-            if (document.Template == null) throw new InvalidDataException("Trigger template Source document has no template.");
+                throw new InvalidDataException($"不支持的触发器版本：'{document.Version ?? string.Empty}'。");
+            if (document.Template == null) throw new InvalidDataException("触发器模板 Source 文档中缺少模板数据。");
         }
     }
 
@@ -59,7 +59,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public static TDocument Read<TDocument>(string text, string documentLabel, string rootPropertyName)
         {
             if (string.IsNullOrWhiteSpace(text))
-                throw new InvalidDataException(documentLabel + " Source JSON is empty.");
+                throw new InvalidDataException(documentLabel + " Source JSON 为空。");
 
             TDocument document;
             try
@@ -72,7 +72,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
             catch (JsonException ex)
             {
-                throw new InvalidDataException(documentLabel + " Source JSON is invalid: " + ex.Message, ex);
+                throw new InvalidDataException(documentLabel + " Source JSON 无效：" + ex.Message, ex);
             }
 
             return document;
@@ -81,7 +81,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void RequireProperty(JObject root, string propertyName, string documentLabel)
         {
             if (root.Property(propertyName, StringComparison.Ordinal) == null)
-                throw new InvalidDataException($"{documentLabel} Source JSON requires property '{propertyName}'.");
+                throw new InvalidDataException($"{documentLabel} Source JSON 缺少必需属性 '{propertyName}'。");
         }
     }
 
@@ -101,7 +101,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public TriggerAuthoringSourceDocument Deserialize(string text)
         {
-            var document = TriggerSourceJson.Read<TriggerAuthoringSourceDocument>(text, "Trigger authoring", "module");
+            var document = TriggerSourceJson.Read<TriggerAuthoringSourceDocument>(text, "触发器模块", "module");
             TriggerSourceDocumentRules.ValidateModuleHeader(document);
             return document;
         }
@@ -118,13 +118,15 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string Serialize(TriggerAuthoringTemplateSourceDocument document)
         {
             TriggerSourceDocumentRules.ValidateTemplateHeader(document);
+            TriggerAuthoringTemplateDefinition.Normalize(document.Template);
             return JsonConvert.SerializeObject(document, WriteSettings) + Environment.NewLine;
         }
 
         public TriggerAuthoringTemplateSourceDocument Deserialize(string text)
         {
-            var document = TriggerSourceJson.Read<TriggerAuthoringTemplateSourceDocument>(text, "Trigger template", "template");
+            var document = TriggerSourceJson.Read<TriggerAuthoringTemplateSourceDocument>(text, "触发器模板", "template");
             TriggerSourceDocumentRules.ValidateTemplateHeader(document);
+            TriggerAuthoringTemplateDefinition.Normalize(document.Template);
             return document;
         }
     }
@@ -181,14 +183,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                         "template",
                         "triggerAuthoringTemplate");
                 default:
-                    throw new ArgumentOutOfRangeException(nameof(kind), kind, "Unknown Trigger Authoring Source schema kind.");
+                    throw new ArgumentOutOfRangeException(nameof(kind), kind, "未知的触发器 Source Schema 类型。");
             }
         }
 
         public static TriggerAuthoringSourceSchemaExportResult ExportAll(string directoryPath)
         {
             if (string.IsNullOrWhiteSpace(directoryPath))
-                throw new ArgumentException("Schema export directory is required.", nameof(directoryPath));
+                throw new ArgumentException("必须提供 Schema 导出目录。", nameof(directoryPath));
 
             var result = new TriggerAuthoringSourceSchemaExportResult
             {
@@ -259,6 +261,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         ["items"] = StringSchema()
                     }),
                     ("enabled", BooleanSchema()),
+                    ("entryMode", EnumSchema<TriggerEntryMode>()),
                     ("event", StringSchema()),
                     ("phase", StringSchema()),
                     ("priority", IntegerSchema()),
@@ -280,7 +283,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                     ("type", StringSchema()),
                     ("note", StringSchema()),
                     ("arguments", ArrayOf("triggerArgument")),
-                    ("children", ArrayOf("triggerNode"))),
+                    ("condition", NullableRef("triggerNode")),
+                    ("children", ArrayOf("triggerNode")),
+                    ("elseChildren", ArrayOf("triggerNode"))),
                 ["triggerArgument"] = ObjectSchema(
                     ("name", StringSchema()),
                     ("value", Ref("valueRef"))),
@@ -330,12 +335,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                     ("templateVersion", StringSchema()),
                     ("displayName", StringSchema()),
                     ("description", StringSchema()),
-                    ("event", StringSchema()),
-                    ("parameters", ArrayOf("templateParameter")),
-                    ("condition", NullableRef("triggerNode")),
-                    ("actions", NullableRef("triggerNode"))),
+                    ("definition", Ref("triggerDefinition")),
+                    ("parameters", ArrayOf("templateParameter"))),
                 ["templateParameter"] = ObjectSchema(
                     ("name", StringSchema()),
+                    ("localVariableKey", StringSchema()),
                     ("type", EnumSchema<TriggerValueType>()),
                     ("required", BooleanSchema()),
                     ("allowedSources", TemplateValueSourceMaskSchema()),

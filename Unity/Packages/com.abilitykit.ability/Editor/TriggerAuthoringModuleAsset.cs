@@ -8,7 +8,7 @@ namespace AbilityKit.Ability.Editor
 {
     [CreateAssetMenu(
         fileName = "TriggerAuthoringModule",
-        menuName = "AbilityKit/Trigger Authoring Module")]
+        menuName = "AbilityKit/触发器编辑/模块")]
     public sealed class TriggerAuthoringModuleAsset : SerializedScriptableObject
     {
         [SerializeField]

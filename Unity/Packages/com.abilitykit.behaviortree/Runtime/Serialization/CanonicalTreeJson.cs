@@ -25,7 +25,7 @@ namespace AbilityKit.BehaviorTree.Serialization
         public static TreeDefinition Load(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
-                throw new ArgumentException("BT runtime JSON must not be empty.", nameof(json));
+                throw new ArgumentException("行为树运行时 JSON 不能为空。", nameof(json));
 
             var root = JObject.Parse(json);
             if (root.Property("schema", StringComparison.OrdinalIgnoreCase) != null
@@ -35,12 +35,12 @@ namespace AbilityKit.BehaviorTree.Serialization
                 || root.Property("nodeMetadata", StringComparison.OrdinalIgnoreCase) != null)
             {
                 throw new JsonSerializationException(
-                    "BT authoring JSON cannot be loaded as a runtime definition. Export it with TreeExporter first.");
+                    "行为树编辑 JSON 不能直接作为运行时定义加载，请先通过 TreeExporter 导出。");
             }
 
             var definition = JsonConvert.DeserializeObject<TreeDefinition>(json, DefinitionSettings);
             if (definition == null)
-                throw new InvalidOperationException("BT tree JSON produced a null definition.");
+                throw new InvalidOperationException("行为树 JSON 未能生成有效定义。");
             ValidateRuntimeShape(definition);
             return definition;
         }
@@ -52,31 +52,31 @@ namespace AbilityKit.BehaviorTree.Serialization
         {
             var snapshot = JsonConvert.DeserializeObject<TreeRuntimeSnapshot>(json, SnapshotSettings);
             if (snapshot == null)
-                throw new InvalidOperationException("BT snapshot JSON produced a null snapshot.");
+                throw new InvalidOperationException("行为树快照 JSON 未能生成有效快照。");
             return snapshot;
         }
 
         private static void ValidateRuntimeShape(TreeDefinition definition)
         {
             if (definition.Nodes == null)
-                throw new JsonSerializationException("BT runtime definition requires a non-null 'nodes' array.");
+                throw new JsonSerializationException("行为树运行时定义缺少有效的 'nodes' 数组。");
             if (definition.Blackboard == null || definition.Blackboard.Keys == null)
-                throw new JsonSerializationException("BT runtime definition requires a non-null blackboard schema.");
+                throw new JsonSerializationException("行为树运行时定义缺少有效的黑板 Schema。");
 
             foreach (var node in definition.Nodes)
             {
                 if (node == null)
-                    throw new JsonSerializationException("BT runtime definition contains a null node.");
+                    throw new JsonSerializationException("行为树运行时定义包含空节点。");
                 if (node.Properties == null)
-                    throw new JsonSerializationException($"BT node '{node.Id}' requires a non-null 'properties' object.");
+                    throw new JsonSerializationException($"行为树节点 '{node.Id}' 缺少有效的 'properties' 对象。");
                 if (node.ChildIds == null)
-                    throw new JsonSerializationException($"BT node '{node.Id}' requires a non-null 'childIds' array.");
+                    throw new JsonSerializationException($"行为树节点 '{node.Id}' 缺少有效的 'childIds' 数组。");
             }
 
             foreach (var key in definition.Blackboard.Keys)
             {
                 if (key == null)
-                    throw new JsonSerializationException("BT blackboard schema contains a null key definition.");
+                    throw new JsonSerializationException("行为树黑板 Schema 包含空的键定义。");
             }
         }
 
@@ -137,12 +137,12 @@ namespace AbilityKit.BehaviorTree.Serialization
 
                 var token = JToken.Load(reader);
                 if (token is not JObject obj)
-                    throw new JsonSerializationException("BT property value must be an object.");
+                    throw new JsonSerializationException("行为树属性值必须是 JSON 对象。");
 
                 var typeName = obj["type"]?.Value<string>()
-                    ?? throw new JsonSerializationException("BT property value requires 'type'.");
+                    ?? throw new JsonSerializationException("行为树属性值缺少 'type' 字段。");
                 if (!Enum.TryParse<ValueType>(typeName, out var type))
-                    throw new JsonSerializationException($"Unknown BT property value type '{typeName}'.");
+                    throw new JsonSerializationException($"未知的行为树属性值类型 '{typeName}'。");
 
                 var valueToken = obj["value"];
                 return type switch
@@ -151,7 +151,7 @@ namespace AbilityKit.BehaviorTree.Serialization
                     ValueType.Int64 => PropertyValue.Of(valueToken?.Value<long>() ?? 0),
                     ValueType.Fixed64 => PropertyValue.Of(Fixed64.FromRaw(valueToken?.Value<long>() ?? 0)),
                     ValueType.String => PropertyValue.Of(valueToken?.Value<string>() ?? ""),
-                    _ => throw new JsonSerializationException($"Unknown BT property value type '{typeName}'."),
+                    _ => throw new JsonSerializationException($"未知的行为树属性值类型 '{typeName}'。"),
                 };
             }
         }
@@ -187,7 +187,7 @@ namespace AbilityKit.BehaviorTree.Serialization
                 var bag = existingValue ?? new PropertyBag();
                 var token = JToken.Load(reader);
                 if (token is not JObject obj)
-                    throw new JsonSerializationException("BT property bag must be an object.");
+                    throw new JsonSerializationException("行为树属性集合必须是 JSON 对象。");
 
                 foreach (var property in obj.Properties())
                 {

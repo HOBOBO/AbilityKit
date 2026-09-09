@@ -42,6 +42,7 @@ namespace AbilityKit.BehaviorTree.Tests
             Assert.Equal(1, (int)ApiNodeState.Running);
             Assert.Equal(2, (int)ApiNodeState.Success);
             Assert.Equal(3, (int)ApiNodeState.Failure);
+            Assert.Equal(4, (int)ApiNodeState.Faulted);
 
             Assert.Equal(0, (int)ApiNodeKind.Composite);
             Assert.Equal(1, (int)ApiNodeKind.Decorator);

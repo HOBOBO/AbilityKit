@@ -20,17 +20,17 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (Success)
             {
-                return $"Exported {ExportedFiles.Count} runtime plan file(s) for {ModuleCount} module(s) to '{string.Join("', '", ExportedFiles.ToArray())}'.";
+                return $"已为 {ModuleCount} 个模块导出 {ExportedFiles.Count} 个 Runtime Plan 文件：'{string.Join("', '", ExportedFiles.ToArray())}'。";
             }
 
-            var builder = new StringBuilder("Project runtime export failed:");
+            var builder = new StringBuilder("项目运行时导出失败：");
             for (var i = 0; i < Diagnostics.Count; i++)
             {
                 builder.AppendLine();
                 builder.Append(Diagnostics[i].Code).Append(' ').Append(Diagnostics[i].Path).Append(": ")
                     .Append(Diagnostics[i].Message);
             }
-            return builder.Length == 0 ? "Project runtime export failed." : builder.ToString();
+            return builder.Length == 0 ? "项目运行时导出失败。" : builder.ToString();
         }
     }
 
@@ -47,7 +47,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (project == null)
             {
                 result.Diagnostics.Add(new TriggerAuthoringDiagnostic(
-                    "TRG3100", TriggerAuthoringDiagnosticSeverity.Error, "project", "Trigger Authoring Project is null."));
+                    "TRG3100", TriggerAuthoringDiagnosticSeverity.Error, "project", "触发器项目为空。"));
                 return result;
             }
 
@@ -61,7 +61,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 result.Diagnostics.Add(new TriggerAuthoringDiagnostic(
                     "TRG3101", TriggerAuthoringDiagnosticSeverity.Error, "project.runtimeOutputRoot",
-                    "Runtime output root is not configured on the project."));
+                    "项目尚未配置运行时输出根目录。"));
                 return result;
             }
 

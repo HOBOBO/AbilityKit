@@ -48,6 +48,44 @@ namespace AbilityKit.BehaviorTree.Tests
             }
         }
 
+        private sealed class ThrowingTickNode : ActionNodeBase
+        {
+            public readonly List<NodeStopReason> StopReasons = new();
+
+            public override NodeState OnTick(ExecutionContext context)
+                => throw new InvalidOperationException("tick failed");
+
+            public override void OnStop(ExecutionContext context)
+                => StopReasons.Add(context.StopReason);
+        }
+
+        private sealed class ThrowingConditionNode : ConditionNodeBase
+        {
+            protected override bool Validate(ExecutionContext context)
+            {
+                if (context.Blackboard.GetBool("test.throw"))
+                    throw new InvalidOperationException("condition failed");
+                return context.Blackboard.GetBool("test.cond");
+            }
+        }
+
+        private sealed class RestartThrowingNode : ActionNodeBase
+        {
+            public int Starts;
+            public readonly List<NodeStopReason> StopReasons = new();
+
+            public override void OnStart(ExecutionContext context)
+            {
+                Starts++;
+                if (Starts == 2) throw new InvalidOperationException("restart start failed");
+            }
+
+            public override NodeState OnTick(ExecutionContext context) => NodeState.Running;
+
+            public override void OnStop(ExecutionContext context)
+                => StopReasons.Add(context.StopReason);
+        }
+
         private sealed class GeneratedModule : NodeRegistryModule
         {
             public void Register(NodeRegistry registry)
@@ -180,7 +218,132 @@ namespace AbilityKit.BehaviorTree.Tests
         }
 
         [Fact]
-        public void ValidatorDiagnostics_PreserveMessageCompatibility_AndExposeStructure()
+        public void Lifecycle_TickException_FaultsAndCleansUpBeforeRethrow()
+        {
+            var node = new ThrowingTickNode();
+            var registry = CreateRegistry();
+            registry.Register(new NodeDescriptor(
+                "test.throw.tick", "Throw Tick", "Test", NodeKind.Action, 0, 0, () => node));
+            var runtime = TreeRuntime.Create(
+                new TreeBuilder().Node("root", "test.throw.tick").Root("root"),
+                registry);
+            runtime.Enable();
+
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => runtime.Update(1, Fixed64.Zero));
+
+            Assert.Equal("tick failed", exception.Message);
+            Assert.False(runtime.IsEnabled);
+            Assert.True(runtime.IsFaulted);
+            Assert.Equal(NodeState.Faulted, runtime.TreeState);
+            Assert.Equal(NodeState.Faulted, runtime.RootNodeState);
+            Assert.Same(exception, runtime.LastFaultException);
+            Assert.Equal(NodeStopReason.Faulted, node.StopReasons.Single());
+            Assert.Equal("OnTick", runtime.LastLifecycleException!.Callback);
+        }
+
+        [Fact]
+        public void Lifecycle_CapturePolicySuppressesTickExceptionAfterFaultCleanup()
+        {
+            var node = new ThrowingTickNode();
+            var registry = CreateRegistry();
+            registry.Register(new NodeDescriptor(
+                "test.throw.tick.capture", "Throw Tick", "Test", NodeKind.Action, 0, 0, () => node));
+            var runtime = TreeRuntime.Create(
+                new TreeBuilder().Node("root", "test.throw.tick.capture").Root("root"),
+                registry,
+                options: new TreeRunOptions
+                {
+                    LifecycleExceptionPolicy = LifecycleExceptionPolicy.CaptureAndContinue,
+                });
+            runtime.Enable();
+
+            runtime.Update(1, Fixed64.Zero);
+
+            Assert.False(runtime.IsEnabled);
+            Assert.True(runtime.IsFaulted);
+            Assert.IsType<InvalidOperationException>(runtime.LastFaultException);
+            Assert.Equal(NodeStopReason.Faulted, node.StopReasons.Single());
+        }
+
+        [Fact]
+        public void Lifecycle_ConditionalReevaluationExceptionFaultsRuntime()
+        {
+            var registry = CreateRegistry();
+            registry.Register(new NodeDescriptor(
+                "test.throw.condition", "Throw Condition", "Test", NodeKind.Condition, 0, 0,
+                () => new ThrowingConditionNode()));
+            var definition = new TreeBuilder()
+                .Blackboard("test.throw", TreeValueType.Bool)
+                .Blackboard("test.cond", TreeValueType.Bool)
+                .Blackboard("test.result", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Selector, (long)AbortType.Self, "cond", "hold")
+                .Node("cond", "test.throw.condition")
+                .Node("hold", ScriptedAction)
+                .Root("root");
+            var runtime = TreeRuntime.Create(definition, registry);
+            runtime.Enable();
+            runtime.Blackboard.SetInt64("test.result", 2);
+            runtime.Update(1, Fixed64.Zero);
+            runtime.Blackboard.SetBool("test.throw", true);
+
+            Assert.Throws<InvalidOperationException>(() => runtime.Update(2, Fixed64.Zero));
+
+            Assert.True(runtime.IsFaulted);
+            Assert.Equal("cond", runtime.LastLifecycleException!.NodeId);
+            Assert.Equal("OnTick", runtime.LastLifecycleException.Callback);
+        }
+
+        [Fact]
+        public void Lifecycle_StopExceptionDoesNotSkipRemainingRunningNodes()
+        {
+            var healthy = new StopReasonNode();
+            var throwing = new StopReasonNode { ThrowOnStop = true };
+            var registry = CreateRegistry();
+            registry.Register(new NodeDescriptor(
+                "test.stop.healthy", "Healthy Stop", "Test", NodeKind.Action, 0, 0, () => healthy));
+            registry.Register(new NodeDescriptor(
+                "test.stop.throwing", "Throwing Stop", "Test", NodeKind.Action, 0, 0, () => throwing));
+            var definition = new TreeBuilder()
+                .Node("root", BuiltInNodeTypes.Parallel, "healthy", "throwing")
+                .Node("healthy", "test.stop.healthy")
+                .Node("throwing", "test.stop.throwing")
+                .Root("root");
+            var runtime = TreeRuntime.Create(definition, registry);
+            runtime.Enable();
+            runtime.Update(1, Fixed64.Zero);
+
+            Assert.Throws<InvalidOperationException>(() => runtime.Disable());
+
+            Assert.Equal(NodeStopReason.Disabled, throwing.Reasons.Single());
+            Assert.Equal(NodeStopReason.Disabled, healthy.Reasons.Single());
+            Assert.False(runtime.IsEnabled);
+        }
+
+        [Fact]
+        public void Lifecycle_RestartStartExceptionTransitionsToFaulted()
+        {
+            var node = new RestartThrowingNode();
+            var registry = CreateRegistry();
+            registry.Register(new NodeDescriptor(
+                "test.restart.throw", "Restart Throw", "Test", NodeKind.Action, 0, 0, () => node));
+            var runtime = TreeRuntime.Create(
+                new TreeBuilder().Node("root", "test.restart.throw").Root("root"),
+                registry);
+            runtime.Enable();
+
+            Assert.Throws<InvalidOperationException>(() => runtime.Restart());
+
+            Assert.True(runtime.IsFaulted);
+            Assert.False(runtime.IsEnabled);
+            Assert.Equal(
+                new[] { NodeStopReason.Restarted, NodeStopReason.Faulted },
+                node.StopReasons);
+            Assert.Equal("OnStart", runtime.LastLifecycleException!.Callback);
+        }
+
+        [Fact]
+        public void ValidatorDiagnostics_ProjectMessagesAndExposeStableStructure()
         {
             var definition = new TreeBuilder()
                 .Blackboard("test.result", TreeValueType.Int64)
@@ -191,7 +354,6 @@ namespace AbilityKit.BehaviorTree.Tests
             var messages = TreeValidator.Validate(definition, CreateRegistry());
             var diagnostics = TreeValidator.ValidateDiagnostics(definition, CreateRegistry());
 
-            Assert.Contains(messages, message => message.Contains("unknown property"));
             var diagnostic = Assert.Single(diagnostics);
             Assert.Equal("BT0503", diagnostic.Code);
             Assert.Equal("root", diagnostic.NodeId);

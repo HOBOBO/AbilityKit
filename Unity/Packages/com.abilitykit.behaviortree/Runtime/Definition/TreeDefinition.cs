@@ -30,6 +30,16 @@ namespace AbilityKit.BehaviorTree.Definition
                     hash = DeterministicHash.Combine(hash, HashString(childId));
                 }
 
+                if (node.SubtreeBlackboard != null)
+                {
+                    hash = DeterministicHash.Combine(hash, node.SubtreeBlackboard.IsolateUnmappedKeys ? 1L : 0L);
+                    foreach (var binding in node.SubtreeBlackboard.Bindings)
+                    {
+                        hash = DeterministicHash.Combine(hash, HashString(binding.SubtreeKey));
+                        hash = DeterministicHash.Combine(hash, HashString(binding.ParentKey));
+                    }
+                }
+
                 hash = DeterministicHash.Combine(hash, (long)node.Properties.Values.Count);
                 foreach (var pair in node.Properties.Values)
                 {
@@ -68,6 +78,7 @@ namespace AbilityKit.BehaviorTree.Definition
                 {
                     Id = node.Id,
                     Type = node.Type,
+                    SubtreeBlackboard = CloneSubtreeBlackboard(node.SubtreeBlackboard),
                 };
                 foreach (var property in node.Properties.Values)
                 {
@@ -88,6 +99,25 @@ namespace AbilityKit.BehaviorTree.Definition
                 });
             }
 
+            return clone;
+        }
+
+        private static SubtreeBlackboardConfiguration? CloneSubtreeBlackboard(
+            SubtreeBlackboardConfiguration? source)
+        {
+            if (source == null) return null;
+            var clone = new SubtreeBlackboardConfiguration
+            {
+                IsolateUnmappedKeys = source.IsolateUnmappedKeys,
+            };
+            foreach (var binding in source.Bindings)
+            {
+                clone.Bindings.Add(new SubtreeBlackboardBinding
+                {
+                    SubtreeKey = binding.SubtreeKey,
+                    ParentKey = binding.ParentKey,
+                });
+            }
             return clone;
         }
 

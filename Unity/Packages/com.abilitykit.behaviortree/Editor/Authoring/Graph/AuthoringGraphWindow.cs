@@ -34,7 +34,17 @@ namespace AbilityKit.BehaviorTree.Editor
     [MovedFrom(true, "AbilityKit.BehaviorTree.Editor", "AbilityKit.BehaviorTree.Editor", "BtAuthoringGraphWindow")]
     public class AuthoringGraphWindow : EditorWindow, IAuthoringGraphHost, IAuthoringInspectorHost
     {
+        internal const float MinimumWindowWidth = 900f;
+        internal const float MinimumWindowHeight = 560f;
+        internal const float MinimumInspectorWidth = 280f;
+        internal const string PrimaryToolbarName = "bt-primary-toolbar";
+        internal const string CommandToolbarName = "bt-command-toolbar";
+        internal const string InspectorPaneName = "bt-inspector-pane";
+        internal const string InspectorScrollName = "bt-inspector-scroll";
+        internal const float MinimumInspectorContentHeight = 140f;
+
         private AuthoringAsset? _asset;
+        private AuthoringProjectAsset? _project;
         private readonly AuthoringWorkspaceController _workspace = new();
         private readonly AuthoringWorkspacePresenter _presenter;
         private AuthoringDocumentSession _documentSession => _workspace.Session;
@@ -84,19 +94,25 @@ namespace AbilityKit.BehaviorTree.Editor
 
         public static void Open(AuthoringAsset asset)
         {
+            Open(asset, AuthoringMenuUtility.FindOwningProject(asset));
+        }
+
+        public static void Open(AuthoringAsset asset, AuthoringProjectAsset? project)
+        {
             var window = Resources.FindObjectsOfTypeAll<AuthoringGraphWindow>()
                 .FirstOrDefault(candidate => candidate._workspace != null && !candidate.IsObservation);
             if (window != null && ReferenceEquals(window._asset, asset))
             {
+                window._project = project;
                 window.Show();
                 window.Focus();
                 return;
             }
             if (window != null && !window.ConfirmAssetSwitch(asset)) return;
             window ??= CreateWindow<AuthoringGraphWindow>();
-            window.titleContent = new GUIContent("BT Authoring");
-            window.minSize = new Vector2(900f, 560f);
-            window.EnterEditMode(asset);
+            window.titleContent = new GUIContent("行为树编辑器");
+            window.minSize = new Vector2(MinimumWindowWidth, MinimumWindowHeight);
+            window.EnterEditMode(asset, project);
             window.Show();
             window.Focus();
         }
@@ -108,8 +124,8 @@ namespace AbilityKit.BehaviorTree.Editor
             var window = Resources.FindObjectsOfTypeAll<AuthoringGraphWindow>()
                 .FirstOrDefault(candidate => candidate._workspace != null && ReferenceEquals(candidate._observedView, view))
                 ?? CreateWindow<AuthoringGraphWindow>();
-            window.titleContent = new GUIContent("BT Observation Graph");
-            window.minSize = new Vector2(900f, 560f);
+            window.titleContent = new GUIContent("行为树观察图");
+            window.minSize = new Vector2(MinimumWindowWidth, MinimumWindowHeight);
             window.EnterObservationMode(view);
             window.Show();
             window.Focus();
@@ -123,8 +139,8 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             if (snapshot == null) return;
             var window = CreateWindow<AuthoringGraphWindow>();
-            window.titleContent = new GUIContent("BT Observation Graph");
-            window.minSize = new Vector2(900f, 560f);
+            window.titleContent = new GUIContent("行为树观察图");
+            window.minSize = new Vector2(MinimumWindowWidth, MinimumWindowHeight);
             window.EnterObservationMode(
                 new ObservationSnapshotDebugView(snapshot, definition),
                 snapshot,
@@ -134,10 +150,11 @@ namespace AbilityKit.BehaviorTree.Editor
             window.Focus();
         }
 
-        private void EnterEditMode(AuthoringAsset asset)
+        private void EnterEditMode(AuthoringAsset asset, AuthoringProjectAsset? project = null)
         {
             _observedView = null;
             _asset = asset;
+            _project = project;
             _workspace.State.SetDocumentScope(DocumentScopeForAsset(asset));
             _workspace.Open(asset != null ? asset.LoadDocument() : new AuthoringSourceDocument());
             _selectedNode = null;
@@ -208,6 +225,7 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             // 幽灵窗口（构造函数未执行、readonly 字段为 null，FindObjectsOfTypeAll/布局恢复会造出）无可初始化状态。
             if (_commandRegistrations == null) return;
+            minSize = new Vector2(MinimumWindowWidth, MinimumWindowHeight);
             _localization = EditorLocalization.Localization;
             _localization.LanguageChanged += OnLanguageChanged;
             RegisterCommands();
@@ -283,13 +301,16 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             rootVisualElement.Clear();
 
-            var toolbar = new UnityEditor.UIElements.Toolbar();
-            toolbar.style.minHeight = 27f;
-            toolbar.Add(ModeToggleButton("编辑", !IsObservation, () =>
+            var header = new UnityEditor.UIElements.Toolbar();
+            header.name = PrimaryToolbarName;
+            header.style.minHeight = 30f;
+            header.style.paddingLeft = 4f;
+            header.style.paddingRight = 4f;
+            header.Add(ModeToggleButton("编辑", !IsObservation, () =>
             {
                 if (IsObservation) BackToEdit();
             }));
-            toolbar.Add(ModeToggleButton("调试", IsObservation, () =>
+            header.Add(ModeToggleButton("调试", IsObservation, () =>
             {
                 if (!IsObservation) EnterDebugMode();
             }));
@@ -300,65 +321,36 @@ namespace AbilityKit.BehaviorTree.Editor
                 style =
                 {
                     unityFontStyleAndWeight = FontStyle.Bold,
-                    minWidth = 130f,
-                    marginLeft = 6f,
-                    marginRight = 6f,
+                    minWidth = 150f,
+                    marginLeft = 10f,
+                    marginRight = 8f,
+                    unityTextAlign = TextAnchor.MiddleLeft,
                 },
             };
-            toolbar.Add(_modeLabel);
-            if (IsObservation)
+            header.Add(_modeLabel);
+            if (!IsObservation)
             {
-                toolbar.Add(CommandButton(EditorCommandIds.Close, "close"));
-                _observationPauseButton = CommandButton(EditorCommandIds.PauseObservation, "pause");
-                toolbar.Add(_observationPauseButton);
-                toolbar.Add(CommandButton(EditorCommandIds.CopySnapshot, "copy-snapshot"));
-                toolbar.Add(ToolbarSeparator());
-                _instancePopup = new PopupField<string>
+                _dirtyLabel = new Label
                 {
-                    tooltip = "切换到其它运行中的行为树实例",
+                    style =
+                    {
+                        minWidth = 58f,
+                        unityTextAlign = TextAnchor.MiddleCenter,
+                        fontSize = 10f,
+                    },
                 };
-                _instancePopup.style.width = 230f;
-                _instancePopup.RegisterValueChangedCallback(evt => OnInstancePopupChanged(evt.newValue));
-                toolbar.Add(_instancePopup);
-                toolbar.Add(ToolbarSeparator());
-                toolbar.Add(CommandButton(EditorCommandIds.FrameAll, "frame-all"));
+                header.Add(_dirtyLabel);
             }
-            else
-            {
-                toolbar.Add(CommandButton(EditorCommandIds.Save, "save"));
-                toolbar.Add(CommandButton(EditorCommandIds.Export, "export"));
-                var previewButton = new Button(StartPreview) { text = "预览" };
-                previewButton.style.height = 22f;
-                previewButton.style.marginLeft = 1f;
-                previewButton.style.marginRight = 1f;
-                toolbar.Add(previewButton);
-                toolbar.Add(ToolbarSeparator());
-                _undoButton = CommandButton(EditorCommandIds.Undo, "undo");
-                _redoButton = CommandButton(EditorCommandIds.Redo, "redo");
-                toolbar.Add(_undoButton);
-                toolbar.Add(_redoButton);
-                toolbar.Add(ToolbarSeparator());
-                toolbar.Add(CommandButton(EditorCommandIds.AddRoot, "add-root"));
-                toolbar.Add(CommandButton(EditorCommandIds.Group, "group"));
-                toolbar.Add(CommandButton(EditorCommandIds.Note, "note"));
-                toolbar.Add(CommandButton(EditorCommandIds.AutoLayout, "auto-layout"));
-                toolbar.Add(LayoutMenu());
-                toolbar.Add(CommandButton(EditorCommandIds.FrameAll, "frame-all"));
-                toolbar.Add(ToolbarSeparator());
-                toolbar.Add(CommandButton(EditorCommandIds.Validate, "validate"));
-                _dirtyLabel = new Label { style = { marginLeft = 8f, opacity = 0.75f } };
-                toolbar.Add(_dirtyLabel);
-            }
-
-            toolbar.Add(new VisualElement { style = { flexGrow = 1f } });
+            header.Add(new VisualElement { style = { flexGrow = 1f } });
 
             _nodeSearchField = new UnityEditor.UIElements.ToolbarSearchField
             {
                 tooltip = L("abilitykit.behaviortree.search.tooltip"),
             };
             _nodeSearchField.SetValueWithoutNotify(_workspace.State.NodeSearch);
-            _nodeSearchField.style.width = 170f;
-            _nodeSearchField.style.marginRight = 6f;
+            _nodeSearchField.style.width = 220f;
+            _nodeSearchField.style.minWidth = 140f;
+            _nodeSearchField.style.marginRight = 4f;
             _nodeSearchField.RegisterValueChangedCallback(evt =>
             {
                 _workspace.State.NodeSearch = evt.newValue ?? string.Empty;
@@ -366,15 +358,70 @@ namespace AbilityKit.BehaviorTree.Editor
                     _graphView.FocusFirstMatch(evt.newValue);
                 RefreshOverview();
             });
-            toolbar.Add(_nodeSearchField);
-            rootVisualElement.Add(toolbar);
+            header.Add(_nodeSearchField);
+            rootVisualElement.Add(header);
+
+            var actions = new UnityEditor.UIElements.Toolbar();
+            actions.name = CommandToolbarName;
+            actions.style.minHeight = 28f;
+            actions.style.paddingLeft = 4f;
+            actions.style.paddingRight = 4f;
+            if (IsObservation)
+            {
+                actions.Add(CommandButton(EditorCommandIds.Close, "close"));
+                _observationPauseButton = CommandButton(EditorCommandIds.PauseObservation, "pause");
+                actions.Add(_observationPauseButton);
+                actions.Add(CommandButton(EditorCommandIds.CopySnapshot, "copy-snapshot"));
+                actions.Add(ToolbarSeparator());
+                _instancePopup = new PopupField<string>
+                {
+                    tooltip = "切换到其它运行中的行为树实例",
+                };
+                _instancePopup.style.width = 230f;
+                _instancePopup.RegisterValueChangedCallback(evt => OnInstancePopupChanged(evt.newValue));
+                actions.Add(_instancePopup);
+                actions.Add(ToolbarSeparator());
+                actions.Add(CommandButton(EditorCommandIds.FrameAll, "frame-all"));
+            }
+            else
+            {
+                actions.Add(CommandButton(EditorCommandIds.Save, "save"));
+                actions.Add(CommandButton(EditorCommandIds.Export, "export"));
+                var previewButton = new Button(StartPreview) { text = "预览" };
+                previewButton.style.height = 22f;
+                previewButton.style.marginLeft = 1f;
+                previewButton.style.marginRight = 1f;
+                actions.Add(previewButton);
+                actions.Add(ToolbarSeparator());
+                _undoButton = CommandButton(EditorCommandIds.Undo, "undo");
+                _redoButton = CommandButton(EditorCommandIds.Redo, "redo");
+                actions.Add(_undoButton);
+                actions.Add(_redoButton);
+                actions.Add(ToolbarSeparator());
+                actions.Add(CommandButton(EditorCommandIds.AddRoot, "add-root"));
+                actions.Add(CommandButton(EditorCommandIds.Group, "group"));
+                actions.Add(CommandButton(EditorCommandIds.Note, "note"));
+                actions.Add(ToolbarSeparator());
+                actions.Add(CommandButton(EditorCommandIds.AutoLayout, "auto-layout"));
+                actions.Add(LayoutMenu());
+                actions.Add(CommandButton(EditorCommandIds.FrameAll, "frame-all"));
+                actions.Add(ToolbarSeparator());
+                actions.Add(CommandButton(EditorCommandIds.Validate, "validate"));
+            }
+            actions.Add(new VisualElement { style = { flexGrow = 1f } });
+            rootVisualElement.Add(actions);
 
             // Keep the inspector at a readable width while allowing the graph canvas to use the remaining space.
             var split = new TwoPaneSplitView(1, _workspace.State.InspectorWidth, TwoPaneSplitViewOrientation.Horizontal);
+            split.style.flexGrow = 1f;
             split.Add(_graphView);
 
             var rightPane = new VisualElement();
+            rightPane.name = InspectorPaneName;
             rightPane.style.flexGrow = 1f;
+            rightPane.style.minWidth = MinimumInspectorWidth;
+            rightPane.style.overflow = Overflow.Hidden;
+            rightPane.style.backgroundColor = new Color(0.16f, 0.16f, 0.16f, 0.45f);
             rightPane.RegisterCallback<GeometryChangedEvent>(evt =>
             {
                 if (evt.newRect.width >= 240f)
@@ -384,11 +431,20 @@ namespace AbilityKit.BehaviorTree.Editor
                 _presenter,
                 _workspace.State,
                 nodeId => _graphView.FocusNode(nodeId),
-                AutoLayout,
+                AutoLayoutAll,
                 AutoLayoutWithSelectedFixed);
             rightPane.Add(_overviewPanel.Root);
             var inspectorScroll = new ScrollView();
+            inspectorScroll.name = InspectorScrollName;
+            inspectorScroll.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            inspectorScroll.verticalScrollerVisibility = ScrollerVisibility.Auto;
             inspectorScroll.style.flexGrow = 1f;
+            inspectorScroll.style.flexShrink = 1f;
+            inspectorScroll.style.minHeight = MinimumInspectorContentHeight;
+            inspectorScroll.style.paddingLeft = 10f;
+            inspectorScroll.style.paddingRight = 10f;
+            inspectorScroll.style.paddingTop = 8f;
+            inspectorScroll.style.paddingBottom = 10f;
             _inspectorRenderer = new AuthoringInspectorRenderer(inspectorScroll, this);
             rightPane.Add(inspectorScroll);
             if (IsObservation)
@@ -440,26 +496,32 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             var menu = new UnityEditor.UIElements.ToolbarMenu
             {
-                text = "Layout",
-                tooltip = "Adaptive layout operations",
+                text = "布局",
+                tooltip = "选择自动布局的作用范围",
             };
             menu.style.height = 22f;
             menu.style.marginLeft = 1f;
             menu.style.marginRight = 1f;
             menu.menu.AppendAction(
-                "All",
-                _ => AutoLayout(),
+                "全部节点",
+                _ => AutoLayoutAll(),
                 _ => IsObservation || _document.Tree.Nodes.Count == 0
                     ? DropdownMenuAction.Status.Disabled
                     : DropdownMenuAction.Status.Normal);
             menu.menu.AppendAction(
-                "Selected Subtree",
+                "选中节点",
+                _ => AutoLayoutSelectedNodes(),
+                _ => IsObservation || _graphView.GetSelectedNodeIds().Count < 2
+                    ? DropdownMenuAction.Status.Disabled
+                    : DropdownMenuAction.Status.Normal);
+            menu.menu.AppendAction(
+                "选中子树",
                 _ => AutoLayoutSelectedSubtree(),
                 _ => IsObservation || _selectedNode == null
                     ? DropdownMenuAction.Status.Disabled
                     : DropdownMenuAction.Status.Normal);
             menu.menu.AppendAction(
-                "All, Keep Selection Fixed",
+                "全部节点（固定选中项）",
                 _ => AutoLayoutWithSelectedFixed(),
                 _ => IsObservation || _graphView.GetSelectedNodeIds().Count == 0
                     ? DropdownMenuAction.Status.Disabled
@@ -620,18 +682,24 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             if (_modeLabel != null && !IsObservation)
                 _modeLabel.text = string.IsNullOrWhiteSpace(_document.Tree.TreeId)
-                    ? "Behavior Tree"
+                    ? "行为树"
                     : _document.Tree.TreeId;
             if (_dirtyLabel != null)
+            {
                 _dirtyLabel.text = L(_isDirty
                     ? "abilitykit.behaviortree.state.dirty"
                     : "abilitykit.behaviortree.state.saved");
+                _dirtyLabel.style.color = _isDirty
+                    ? new Color(1f, 0.72f, 0.28f)
+                    : new Color(0.5f, 0.82f, 0.58f);
+                _dirtyLabel.style.opacity = _isDirty ? 1f : 0.8f;
+            }
             hasUnsavedChanges = _documentSession.IsDirty;
             _undoButton?.SetEnabled(_documentSession.CanUndo);
             _redoButton?.SetEnabled(_documentSession.CanRedo);
             titleContent = new GUIContent(IsObservation
-                ? "BT Observation"
-                : (_isDirty ? "BT Authoring *" : "BT Authoring"));
+                ? "行为树观察"
+                : (_isDirty ? "行为树编辑器 *" : "行为树编辑器"));
             RefreshOverview();
         }
 
@@ -850,7 +918,72 @@ namespace AbilityKit.BehaviorTree.Editor
         private void AutoLayout()
         {
             if (IsObservation || _document.Tree.Nodes.Count == 0) return;
+            var selectedNodeIds = _graphView.GetSelectedNodeIds();
+            if (selectedNodeIds.Count > 1)
+            {
+                AutoLayoutSelectedNodes(selectedNodeIds);
+                return;
+            }
+
+            AutoLayoutAll();
+        }
+
+        private void AutoLayoutAll()
+        {
+            if (IsObservation || _document.Tree.Nodes.Count == 0) return;
             ApplyAutoLayout(AuthoringLayoutOptions.Full, frameAll: true);
+        }
+
+        private void AutoLayoutSelectedNodes()
+        {
+            AutoLayoutSelectedNodes(_graphView.GetSelectedNodeIds());
+        }
+
+        private void AutoLayoutSelectedNodes(IReadOnlyCollection<string> selectedNodeIds)
+        {
+            if (IsObservation || selectedNodeIds == null || selectedNodeIds.Count < 2) return;
+            ApplyAutoLayout(
+                CreateSelectionLayoutOptions(_document, selectedNodeIds),
+                frameAll: false);
+        }
+
+        internal static AuthoringLayoutOptions CreateSelectionLayoutOptions(
+            AuthoringSourceDocument document,
+            IReadOnlyCollection<string> selectedNodeIds)
+        {
+            if (document == null) throw new ArgumentNullException(nameof(document));
+            if (selectedNodeIds == null) throw new ArgumentNullException(nameof(selectedNodeIds));
+
+            var ids = selectedNodeIds
+                .Where(nodeId => !string.IsNullOrWhiteSpace(nodeId))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            var selected = new HashSet<string>(ids, StringComparer.Ordinal);
+            var originX = AuthoringLayoutOptions.DefaultOriginX;
+            var originY = AuthoringLayoutOptions.DefaultOriginY;
+            var hasExistingPosition = false;
+            foreach (var layout in document.Layout)
+            {
+                if (!selected.Contains(layout.NodeId)) continue;
+                if (!hasExistingPosition)
+                {
+                    originX = layout.X;
+                    originY = layout.Y;
+                    hasExistingPosition = true;
+                    continue;
+                }
+
+                originX = Math.Min(originX, layout.X);
+                originY = Math.Min(originY, layout.Y);
+            }
+
+            return new AuthoringLayoutOptions
+            {
+                LayoutNodeIds = ids,
+                OriginX = originX,
+                OriginY = originY,
+                PreserveUnscopedNodesAsObstacles = true,
+            };
         }
 
         private void AutoLayoutSelectedSubtree()
@@ -918,26 +1051,46 @@ namespace AbilityKit.BehaviorTree.Editor
             if (_asset == null) return;
             _asset.SaveDocument(_document);
             EditorUtility.SetDirty(_asset);
+            AssetDatabase.SaveAssets();
             _workspace.MarkSaved();
             RefreshChrome();
-            Debug.Log("[BtAuthoring] Saved.");
+            Debug.Log("[BtAuthoring] 已保存。");
         }
 
         private void ExportRuntime()
         {
             if (_asset == null) return;
             Save();
+
+            if (_project != null && _project.Trees.Contains(_asset))
+            {
+                var projectReport = _project.ExportTree(_asset, AuthoringMenuUtility.RepositoryRoot);
+                AssetDatabase.Refresh();
+                var projectErrors = projectReport
+                    .Where(entry => entry.Status == ExportStatus.Error)
+                    .ToList();
+                var projectMessage = projectErrors.Count == 0
+                    ? string.Join("\n", projectReport.Select(entry =>
+                        $"{EditorDisplayText.ExportStatus(entry.Status)}：{entry.TreeId} -> {entry.Target}"))
+                    : string.Join("\n", projectErrors.Select(entry => entry.Message));
+                EditorUtility.DisplayDialog(
+                    projectErrors.Count == 0 ? "运行时配置导出" : "运行时配置导出失败",
+                    projectMessage,
+                    "确定");
+                return;
+            }
+
             var report = AuthoringRuntimeExporter.Export(_asset);
             var outputs = report.Artifacts.Select(artifact => artifact.Path);
             var successMessage = report.ExportedCount > 0
-                ? "Exported:\n" + string.Join("\n", outputs)
-                : "Unchanged:\n" + string.Join("\n", outputs);
+                ? "已导出：\n" + string.Join("\n", outputs)
+                : "内容未变化：\n" + string.Join("\n", outputs);
             EditorUtility.DisplayDialog(
-                report.Success ? "Runtime Export" : "Runtime Export Failed",
+                report.Success ? "运行时配置导出" : "运行时配置导出失败",
                 report.Success
                     ? successMessage
                     : string.Join("\n", report.Messages),
-                "OK");
+                "确定");
         }
 
         /// <summary>把当前编辑中的文档编译为无头预览实例并切到观察画布；不改动资产。</summary>
@@ -945,7 +1098,7 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             if (IsObservation) return;
 
-            var debugName = "Preview: " + (_asset != null ? _asset.name : (_document.Tree.TreeId ?? "behavior tree"));
+            var debugName = "预览：" + (_asset != null ? _asset.name : (_document.Tree.TreeId ?? "行为树"));
             if (!TreePreviewSession.TryStart(
                     _document,
                     EditorNodeCatalog.Registry,
@@ -965,8 +1118,9 @@ namespace AbilityKit.BehaviorTree.Editor
         private void BackToEdit()
         {
             var asset = _asset;
+            var project = _project;
             StopPreview();
-            EnterEditMode(asset);
+            EnterEditMode(asset, project);
         }
 
         private void StopPreview()
@@ -1013,7 +1167,7 @@ namespace AbilityKit.BehaviorTree.Editor
             var node = new NodeDefinition { Id = id, Type = BuiltInNodeTypes.Succeed };
             _document.Tree.Nodes.Add(node);
             _document.Tree.RootNodeId = id;
-            _document.NodeMetadata.Add(new AuthoringNodeMetadata { NodeId = id, DisplayName = "Root" });
+            _document.NodeMetadata.Add(new AuthoringNodeMetadata { NodeId = id, DisplayName = "根节点" });
             _document.Layout.Add(new NodeLayoutData { NodeId = id, X = 400, Y = 40 });
             _graphView.AddNodeView(node);
             RefreshChrome();

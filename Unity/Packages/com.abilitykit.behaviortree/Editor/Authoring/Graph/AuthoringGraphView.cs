@@ -334,7 +334,8 @@ namespace AbilityKit.BehaviorTree.Editor
                 _host.ResolveNodeDisplayName(node),
                 string.Equals(node.Id, _host.Document.Tree.RootNodeId, StringComparison.Ordinal),
                 layout?.X ?? 0f,
-                layout?.Y ?? 0f);
+                layout?.Y ?? 0f,
+                _host.Document.Tree.Blackboard);
             _nodeViewsById[node.Id] = view;
             AddElement(view);
             RefreshNodeTitle(view);
@@ -347,6 +348,7 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void RefreshNodeTitle(AuthoringNodeView view)
         {
+            view.RefreshPropertySummary();
             var title = _host.ResolveNodeDisplayName(view.Node);
             var order = _host.ResolveChildOrder(view.Node.Id);
             if (order > 0) title = order + ". " + title;
@@ -396,7 +398,7 @@ namespace AbilityKit.BehaviorTree.Editor
             if (parent == null || child == null) return;
 
             if (parent.OutputPort == null || child.InputPort == null) return;
-            var edge = parent.OutputPort.ConnectTo(child.InputPort);
+            var edge = AuthoringTreeEdge.Connect(parent.OutputPort, child.InputPort);
             if (edge != null)
             {
                 _edgeViewsByKey[EdgeKey(childId, parentId)] = edge;

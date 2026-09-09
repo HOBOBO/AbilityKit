@@ -29,7 +29,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -73,7 +73,7 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.EndHorizontal();
 
             EditorGUILayout.LabelField(
-                $"StoreRevision={_viewModel.StoreRevision}",
+                $"存储版本={_viewModel.StoreRevision}",
                 EditorStyles.miniLabel);
         }
 
@@ -160,12 +160,12 @@ namespace AbilityKit.Game.Editor
                 ctx.SelectActor?.Invoke(actor.ActorId);
             }
             EditorGUI.EndDisabledGroup();
-            GUILayout.Label(actor.Kind.ToString(), GUILayout.Width(70));
+            GUILayout.Label(BattleDebugDisplayText.ActorKind(actor.Kind), GUILayout.Width(70));
             GUI.color = oldColor;
 
             GUILayout.Label(actor.DisplayName, GUILayout.Width(80));
-            GUILayout.Label($"HP {actor.Health:0}/{actor.MaximumHealth:0}", EditorStyles.miniLabel, GUILayout.Width(100));
-            GUILayout.Label($"team={actor.TeamId}", EditorStyles.miniLabel, GUILayout.Width(60));
+            GUILayout.Label($"生命 {actor.Health:0}/{actor.MaximumHealth:0}", EditorStyles.miniLabel, GUILayout.Width(100));
+            GUILayout.Label($"队伍={actor.TeamId}", EditorStyles.miniLabel, GUILayout.Width(60));
 
             GUILayout.FlexibleSpace();
 

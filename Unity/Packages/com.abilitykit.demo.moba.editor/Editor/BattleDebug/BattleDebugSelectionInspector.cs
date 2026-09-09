@@ -26,7 +26,7 @@ namespace AbilityKit.Game.Editor
         {
             EditorGUILayout.BeginVertical();
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Selection Inspector", EditorStyles.miniBoldLabel);
+            GUILayout.Label("选择检查器", EditorStyles.miniBoldLabel);
             GUILayout.FlexibleSpace();
             if (GUILayout.Button(new GUIContent("↻", "重新查询当前稳定选择"), EditorStyles.toolbarButton, GUILayout.Width(26f)))
             {
@@ -97,7 +97,7 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            EditorGUILayout.LabelField("类型 / ID", $"{selection.Kind} / {selection.Id}");
+            EditorGUILayout.LabelField("类型 / ID", $"{BattleDebugDisplayText.SelectionKind(selection.Kind)} / {selection.Id}");
             EditorGUILayout.LabelField(
                 "选择帧",
                 BattleDiagnosticFrames.IsValid(selection.Frame)
@@ -115,8 +115,8 @@ namespace AbilityKit.Game.Editor
             in BattleDiagnosticActorSummary actor)
         {
             EditorGUILayout.LabelField("名称", string.IsNullOrEmpty(actor.DisplayName) ? "（未命名）" : actor.DisplayName);
-            EditorGUILayout.LabelField("类型 / 队伍", $"{actor.Kind} / {actor.TeamId}");
-            EditorGUILayout.LabelField("Config", actor.ConfigId.ToString());
+            EditorGUILayout.LabelField("类型 / 队伍", $"{BattleDebugDisplayText.ActorKind(actor.Kind)} / {actor.TeamId}");
+            EditorGUILayout.LabelField("配置 ID", actor.ConfigId.ToString());
             EditorGUILayout.LabelField("帧", actor.Frame.ToString());
             EditorGUILayout.LabelField("生命", $"{actor.Health:0.##} / {actor.MaximumHealth:0.##}");
             EditorGUILayout.LabelField("存活", actor.IsAlive ? "是" : "否");
@@ -142,23 +142,25 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("序列 / 帧", $"{diagnosticEvent.Sequence} / {diagnosticEvent.Frame}");
             EditorGUILayout.LabelField(
                 "类型 / 通道 / 结果",
-                $"{diagnosticEvent.Kind} / {diagnosticEvent.Channel} / {diagnosticEvent.Outcome}");
+                $"{BattleDebugDisplayText.EventKind(diagnosticEvent.Kind)} / " +
+                $"{BattleDebugDisplayText.EventChannel(diagnosticEvent.Channel)} / " +
+                BattleDebugDisplayText.EventOutcome(diagnosticEvent.Outcome));
             EditorGUILayout.LabelField("Actor", $"{diagnosticEvent.SourceActorId} -> {diagnosticEvent.TargetActorId}");
             EditorGUILayout.LabelField(
-                "Source object",
+                "来源对象",
                 FormatRuntimeObject(diagnosticEvent.SourceActor, sourceActor));
             EditorGUILayout.LabelField(
-                "Target object",
+                "目标对象",
                 FormatRuntimeObject(diagnosticEvent.TargetActor, targetActor));
             if (diagnosticEvent.SubjectObject.HasRuntimeId)
             {
                 EditorGUILayout.LabelField(
-                    "Subject object",
+                    "主体对象",
                     FormatRuntimeObject(diagnosticEvent.SubjectObject, subjectObject));
             }
-            EditorGUILayout.LabelField("Root / Context", $"{diagnosticEvent.RootContextId} / {diagnosticEvent.ContextId}");
-            EditorGUILayout.LabelField("Config / Attack", $"{diagnosticEvent.ConfigId} / {diagnosticEvent.AttackId}");
-            EditorGUILayout.LabelField("Skill Runtime", diagnosticEvent.SkillRuntime.ToString());
+            EditorGUILayout.LabelField("根节点 / 上下文", $"{diagnosticEvent.RootContextId} / {diagnosticEvent.ContextId}");
+            EditorGUILayout.LabelField("配置 / 攻击", $"{diagnosticEvent.ConfigId} / {diagnosticEvent.AttackId}");
+            EditorGUILayout.LabelField("技能运行时", diagnosticEvent.SkillRuntime.ToString());
             EditorGUILayout.LabelField("摘要", diagnosticEvent.Summary);
 
             EditorGUILayout.BeginHorizontal();
@@ -204,15 +206,15 @@ namespace AbilityKit.Game.Editor
             var provenance = string.Empty;
             if (value.DiscoveryKind == BattleDiagnosticRuntimeObjectDiscoveryKind.ActiveBackfill)
             {
-                provenance = " [backfilled @ " + value.BackfilledFrame + "; earlier lifetime unknown]";
+                provenance = " [在第 " + value.BackfilledFrame + " 帧回填；更早生命周期未知]";
             }
             else if (value.DiscoveryKind == BattleDiagnosticRuntimeObjectDiscoveryKind.LifecycleEndedOnly)
             {
-                provenance = " [end observed; earlier lifetime unknown]";
+                provenance = " [仅观察到结束；更早生命周期未知]";
             }
             if (value.Completeness != BattleDiagnosticDataCompleteness.Complete)
             {
-                provenance += " [" + value.Completeness + "]";
+                provenance += " [" + BattleDebugDisplayText.Completeness(value.Completeness) + "]";
             }
             return label + " (" + reference + ")" + provenance;
         }
@@ -221,15 +223,15 @@ namespace AbilityKit.Game.Editor
             in BattleDebugContext ctx,
             in BattleDiagnosticTraceNodeSummary node)
         {
-            EditorGUILayout.LabelField("Context / Parent", $"{node.ContextId} / {node.ParentContextId}");
-            EditorGUILayout.LabelField("Root", node.RootContextId.ToString());
-            EditorGUILayout.LabelField("Kind / State", $"{node.Kind} / {node.State}");
+            EditorGUILayout.LabelField("上下文 / 父节点", $"{node.ContextId} / {node.ParentContextId}");
+            EditorGUILayout.LabelField("根节点", node.RootContextId.ToString());
+            EditorGUILayout.LabelField("类型 / 状态", $"{BattleDebugDisplayText.TraceKind(node.Kind)} / {BattleDebugDisplayText.TraceState(node.State)}");
             EditorGUILayout.LabelField(
-                "Frames",
+                "帧范围",
                 BattleDiagnosticFrames.IsValid(node.EndFrame)
                     ? $"{node.StartFrame} -> {node.EndFrame}"
-                    : $"{node.StartFrame} -> active");
-            EditorGUILayout.LabelField("Actor / Config", $"{node.ActorId} / {node.ConfigId}");
+                    : $"{node.StartFrame} -> 进行中");
+            EditorGUILayout.LabelField("Actor / 配置", $"{node.ActorId} / {node.ConfigId}");
             if (!string.IsNullOrEmpty(node.EndReason))
             {
                 EditorGUILayout.LabelField("结束原因", node.EndReason);
@@ -270,11 +272,11 @@ namespace AbilityKit.Game.Editor
         private void DrawConfig(in BattleDebugContext ctx)
         {
             var reference = _viewModel.ConfigReference;
-            EditorGUILayout.LabelField("类型 / ID", $"ConfigAsset / {reference.Id}");
-            EditorGUILayout.LabelField("配置类型", reference.Kind.ToString());
+            EditorGUILayout.LabelField("类型 / ID", $"配置资源 / {reference.Id}");
+            EditorGUILayout.LabelField("配置类型", BattleDebugDisplayText.ConfigKind(reference.Kind));
             if (!string.IsNullOrEmpty(reference.PhaseId))
             {
-                EditorGUILayout.LabelField("Phase", reference.PhaseId);
+                EditorGUILayout.LabelField("阶段", reference.PhaseId);
             }
 
             EditorGUILayout.Space(4f);

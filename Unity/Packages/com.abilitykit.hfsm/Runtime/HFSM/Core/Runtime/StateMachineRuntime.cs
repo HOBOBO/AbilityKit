@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Collections.Generic;
+using System.Text;
 using AbilityKit.Deterministic;
 
 using AbilityKit.HFSM.Definition;
@@ -19,6 +20,7 @@ namespace AbilityKit.HFSM.Runtime
         private readonly Dictionary<string, CompiledMachine> _machines;
         private readonly CompiledMachine _root;
         private readonly List<IRuntimeObserver> _observers = new List<IRuntimeObserver>();
+        private const int MaximumGhostTransitions = 1024;
         private bool _initialized;
         private bool _faulted;
         private int _currentFrame;
@@ -257,6 +259,7 @@ namespace AbilityKit.HFSM.Runtime
 
         private void TickMachine(CompiledMachine machine, in TickContext context)
         {
+            if (string.IsNullOrEmpty(machine.ActiveStateId)) return;
             var state = machine.StatesById[machine.ActiveStateId];
             if (!string.IsNullOrEmpty(machine.PendingTransitionId))
             {
@@ -264,6 +267,7 @@ namespace AbilityKit.HFSM.Runtime
                 if (forced != null)
                 {
                     PerformTransition(machine, state, forced, string.Empty, in context);
+                    if (string.IsNullOrEmpty(machine.ActiveStateId)) return;
                     state = machine.StatesById[machine.ActiveStateId];
                 }
                 else
@@ -273,7 +277,13 @@ namespace AbilityKit.HFSM.Runtime
                     state.Behavior.OnTick(_owner, in context);
                     if (state.ChildMachine != null) TickMachine(state.ChildMachine, in context);
 
-                    if (state.Behavior.CanExit(_owner, in context))
+                    if (!string.Equals(machine.ActiveStateId, state.Id, StringComparison.Ordinal) ||
+                        string.IsNullOrEmpty(machine.PendingTransitionId))
+                    {
+                        return;
+                    }
+
+                    if (state.ChildMachine == null && state.Behavior.CanExit(_owner, in context))
                     {
                         var pending = machine.TransitionsById[machine.PendingTransitionId];
                         PerformTransition(machine, state, pending, machine.PendingTriggerId, in context);
@@ -288,6 +298,7 @@ namespace AbilityKit.HFSM.Runtime
                 if (transition != null)
                 {
                     RequestTransition(machine, state, transition, string.Empty, in context);
+                    if (string.IsNullOrEmpty(machine.ActiveStateId)) return;
                     state = machine.StatesById[machine.ActiveStateId];
                 }
             }
@@ -347,6 +358,12 @@ namespace AbilityKit.HFSM.Runtime
             {
                 var transition = transitions[index];
                 if (forceOnly && !transition.Definition.ForceImmediate) continue;
+                if (transition.Definition.ExitMachine &&
+                    (machine.ParentMachine == null ||
+                     string.IsNullOrEmpty(machine.ParentMachine.PendingTransitionId)))
+                {
+                    continue;
+                }
 
                 var activeDurationRaw = checked(context.TimeRaw - machine.ActiveSinceRaw);
                 if (activeDurationRaw < transition.Definition.MinimumActiveDurationRaw) continue;
@@ -370,12 +387,13 @@ namespace AbilityKit.HFSM.Runtime
             CompiledState state,
             CompiledTransition transition,
             string triggerId,
-            in TickContext context)
+            in TickContext context,
+            bool resolveGhost = true)
         {
             if (transition.Definition.ForceImmediate ||
                 !state.Definition.RequiresExitApproval)
             {
-                PerformTransition(machine, state, transition, triggerId, in context);
+                PerformTransition(machine, state, transition, triggerId, in context, resolveGhost);
                 return;
             }
 
@@ -384,9 +402,13 @@ namespace AbilityKit.HFSM.Runtime
             Notify(RuntimeEventType.ExitRequested, in context, machine.Id, state.Id,
                 transition.Definition.Id, triggerId);
             state.Behavior.OnExitRequested(_owner, in context);
-            if (state.Behavior.CanExit(_owner, in context))
+            if (state.ChildMachine != null)
             {
-                PerformTransition(machine, state, transition, triggerId, in context);
+                RequestMachineExit(state.ChildMachine, in context);
+            }
+            else if (state.Behavior.CanExit(_owner, in context))
+            {
+                PerformTransition(machine, state, transition, triggerId, in context, resolveGhost);
             }
         }
 
@@ -395,7 +417,8 @@ namespace AbilityKit.HFSM.Runtime
             CompiledState source,
             CompiledTransition transition,
             string triggerId,
-            in TickContext context)
+            in TickContext context,
+            bool resolveGhost = true)
         {
             var transitionContext = new TransitionContext(
                 context,
@@ -404,6 +427,12 @@ namespace AbilityKit.HFSM.Runtime
                 transition.Definition,
                 triggerId,
                 machine.ActiveSinceRaw);
+
+            if (transition.Definition.ExitMachine)
+            {
+                PerformExitTransition(machine, source, transition, in transitionContext, in context);
+                return;
+            }
 
             transition.Action?.BeforeTransition(_owner, in transitionContext);
             if (source.ChildMachine != null) ExitMachine(source.ChildMachine, in context);
@@ -426,6 +455,76 @@ namespace AbilityKit.HFSM.Runtime
             transition.Action?.AfterTransition(_owner, in transitionContext);
             Notify(RuntimeEventType.TransitionCompleted, in context,
                 machine.Id, target.Id, transition.Definition.Id, triggerId);
+            if (resolveGhost) ResolveGhostTransitions(machine, in context);
+        }
+
+        private void PerformExitTransition(
+            CompiledMachine machine,
+            CompiledState source,
+            CompiledTransition transition,
+            in TransitionContext transitionContext,
+            in TickContext context)
+        {
+            var parent = machine.ParentMachine;
+            if (parent == null || string.IsNullOrEmpty(parent.PendingTransitionId)) return;
+
+            transition.Action?.BeforeTransition(_owner, in transitionContext);
+            machine.PendingTransitionId = string.Empty;
+            machine.PendingTriggerId = string.Empty;
+            CompletePendingTransition(parent, in context);
+            transition.Action?.AfterTransition(_owner, in transitionContext);
+            Notify(RuntimeEventType.TransitionCompleted, in context,
+                machine.Id, source.Id, transition.Definition.Id, transitionContext.TriggerId);
+        }
+
+        private void CompletePendingTransition(CompiledMachine machine, in TickContext context)
+        {
+            if (string.IsNullOrEmpty(machine.PendingTransitionId) ||
+                string.IsNullOrEmpty(machine.ActiveStateId))
+            {
+                return;
+            }
+
+            var transition = machine.TransitionsById[machine.PendingTransitionId];
+            var triggerId = machine.PendingTriggerId;
+            var source = machine.StatesById[machine.ActiveStateId];
+            machine.PendingTransitionId = string.Empty;
+            machine.PendingTriggerId = string.Empty;
+            PerformTransition(machine, source, transition, triggerId, in context);
+        }
+
+        private void RequestMachineExit(CompiledMachine machine, in TickContext context)
+        {
+            if (string.IsNullOrEmpty(machine.ActiveStateId)) return;
+            var state = machine.StatesById[machine.ActiveStateId];
+            if (!state.Definition.RequiresExitApproval) return;
+            state.Behavior.OnExitRequested(_owner, in context);
+            if (state.ChildMachine != null) RequestMachineExit(state.ChildMachine, in context);
+        }
+
+        private void ResolveGhostTransitions(CompiledMachine machine, in TickContext context)
+        {
+            var transitionCount = 0;
+            while (!string.IsNullOrEmpty(machine.ActiveStateId))
+            {
+                var state = machine.StatesById[machine.ActiveStateId];
+                if (!state.Definition.IsGhostState || !string.IsNullOrEmpty(machine.PendingTransitionId)) return;
+
+                var transition = SelectFromList(
+                    machine,
+                    state,
+                    state.TickTransitions,
+                    string.Empty,
+                    forceOnly: false,
+                    in context);
+                if (transition == null) return;
+                if (++transitionCount > MaximumGhostTransitions)
+                    throw new InvalidOperationException(
+                        $"HFSM ghost transition limit ({MaximumGhostTransitions}) exceeded in machine '{machine.Id}'.");
+
+                RequestTransition(machine, state, transition, string.Empty, in context, resolveGhost: false);
+                if (!string.IsNullOrEmpty(machine.PendingTransitionId)) return;
+            }
         }
 
         private void EnterMachine(CompiledMachine machine, in TickContext context)
@@ -443,6 +542,7 @@ namespace AbilityKit.HFSM.Runtime
             state.Behavior.OnEnter(_owner, in context);
             Notify(RuntimeEventType.StateEntered, in context, machine.Id, state.Id, string.Empty);
             if (state.ChildMachine != null) EnterMachine(state.ChildMachine, in context);
+            ResolveGhostTransitions(machine, in context);
         }
 
         private void ExitMachine(CompiledMachine machine, in TickContext context)
@@ -495,9 +595,14 @@ namespace AbilityKit.HFSM.Runtime
                     if (string.IsNullOrEmpty(item.ActiveStateId) ||
                         !runtime.TransitionsById.TryGetValue(item.PendingTransitionId, out var pending) ||
                         pending.Definition.ForceImmediate ||
+                        !runtime.StatesById[item.ActiveStateId].Definition.RequiresExitApproval ||
                         !string.Equals(pending.Definition.TriggerId, item.PendingTriggerId, StringComparison.Ordinal) ||
                         (!pending.Definition.FromAnyState &&
-                         !string.Equals(pending.Definition.FromStateId, item.ActiveStateId, StringComparison.Ordinal)))
+                         !string.Equals(pending.Definition.FromStateId, item.ActiveStateId, StringComparison.Ordinal)) ||
+                        (pending.Definition.ExitMachine &&
+                         (runtime.ParentMachine == null ||
+                          !machines.TryGetValue(runtime.ParentMachine.Id, out var parentSnapshot) ||
+                          string.IsNullOrEmpty(parentSnapshot.PendingTransitionId))))
                     {
                         throw new InvalidOperationException($"HFSM snapshot machine '{pair.Key}' has an invalid pending transition.");
                     }
@@ -640,7 +745,7 @@ namespace AbilityKit.HFSM.Runtime
                     var stateDefinition = machineDefinition.States[stateIndex];
                     machine.StatesById.Add(
                         stateDefinition.Id,
-                        new CompiledState(stateDefinition, bindings.CreateState(stateDefinition.BehaviorKey)));
+                        new CompiledState(stateDefinition, CreateStateBehavior(stateDefinition, bindings)));
                 }
             }
 
@@ -650,7 +755,12 @@ namespace AbilityKit.HFSM.Runtime
                 foreach (var statePair in machine.StatesById)
                 {
                     if (!string.IsNullOrEmpty(statePair.Value.Definition.ChildMachineId))
-                        statePair.Value.ChildMachine = machines[statePair.Value.Definition.ChildMachineId];
+                    {
+                        var child = machines[statePair.Value.Definition.ChildMachineId];
+                        statePair.Value.ChildMachine = child;
+                        child.ParentMachine = machine;
+                        child.ParentStateId = statePair.Key;
+                    }
                 }
 
                 for (var index = 0; index < machine.Definition.Transitions.Count; index++)
@@ -674,6 +784,19 @@ namespace AbilityKit.HFSM.Runtime
             }
 
             return machines;
+        }
+
+        private static IRuntimeState<TOwner> CreateStateBehavior(
+            StateDefinition definition,
+            RuntimeBindings<TOwner> bindings)
+        {
+            var keys = definition.ParallelBehaviorKeys ?? new List<string>();
+            if (keys.Count == 0) return bindings.CreateState(definition.BehaviorKey);
+
+            var states = new List<IRuntimeState<TOwner>>(keys.Count);
+            for (var index = 0; index < keys.Count; index++)
+                states.Add(bindings.CreateState(keys[index]));
+            return new ParallelRuntimeState(states, definition.ParallelExitPolicy);
         }
 
         private static void AddTransition(CompiledMachine machine, CompiledTransition transition)
@@ -735,6 +858,10 @@ namespace AbilityKit.HFSM.Runtime
                         BehaviorKey = state.BehaviorKey ?? string.Empty,
                         ChildMachineId = state.ChildMachineId ?? string.Empty,
                         RequiresExitApproval = state.RequiresExitApproval,
+                        IsGhostState = state.IsGhostState,
+                        ParallelBehaviorKeys = new List<string>(
+                            state.ParallelBehaviorKeys ?? new List<string>()),
+                        ParallelExitPolicy = state.ParallelExitPolicy,
                     });
                 }
 
@@ -752,6 +879,7 @@ namespace AbilityKit.HFSM.Runtime
                         ActionKey = transition.ActionKey ?? string.Empty,
                         Priority = transition.Priority,
                         ForceImmediate = transition.ForceImmediate,
+                        ExitMachine = transition.ExitMachine,
                         MinimumActiveDurationRaw = transition.MinimumActiveDurationRaw,
                     });
                 }
@@ -773,6 +901,8 @@ namespace AbilityKit.HFSM.Runtime
 
             public string Id => Definition.Id;
             public MachineDefinition Definition { get; }
+            public CompiledMachine? ParentMachine { get; set; }
+            public string ParentStateId { get; set; } = string.Empty;
             public Dictionary<string, CompiledState> StatesById { get; } =
                 new Dictionary<string, CompiledState>(StringComparer.Ordinal);
             public Dictionary<string, CompiledTransition> TransitionsById { get; } =
@@ -819,6 +949,163 @@ namespace AbilityKit.HFSM.Runtime
             public TransitionDefinition Definition { get; }
             public ITransitionCondition<TOwner>? Condition { get; }
             public ITransitionAction<TOwner>? Action { get; }
+        }
+
+        private sealed class ParallelRuntimeState : RuntimeStateBase<TOwner>, IStateSnapshotParticipant
+        {
+            private readonly List<IRuntimeState<TOwner>> _states;
+            private readonly ParallelExitPolicy _exitPolicy;
+
+            public ParallelRuntimeState(
+                List<IRuntimeState<TOwner>> states,
+                ParallelExitPolicy exitPolicy)
+            {
+                _states = states;
+                _exitPolicy = exitPolicy;
+            }
+
+            public int SnapshotVersion => 1;
+
+            public override void OnEnter(TOwner owner, in TickContext context)
+            {
+                for (var index = 0; index < _states.Count; index++)
+                    _states[index].OnEnter(owner, in context);
+            }
+
+            public override void OnTick(TOwner owner, in TickContext context)
+            {
+                for (var index = 0; index < _states.Count; index++)
+                    _states[index].OnTick(owner, in context);
+            }
+
+            public override void OnExitRequested(TOwner owner, in TickContext context)
+            {
+                for (var index = 0; index < _states.Count; index++)
+                    _states[index].OnExitRequested(owner, in context);
+            }
+
+            public override bool CanExit(TOwner owner, in TickContext context)
+            {
+                if (_exitPolicy == ParallelExitPolicy.All)
+                {
+                    for (var index = 0; index < _states.Count; index++)
+                        if (!_states[index].CanExit(owner, in context)) return false;
+                    return true;
+                }
+
+                for (var index = 0; index < _states.Count; index++)
+                    if (_states[index].CanExit(owner, in context)) return true;
+                return false;
+            }
+
+            public override void OnExit(TOwner owner, in TickContext context)
+            {
+                for (var index = 0; index < _states.Count; index++)
+                    _states[index].OnExit(owner, in context);
+            }
+
+            public string CaptureSnapshot()
+            {
+                var builder = new StringBuilder();
+                for (var index = 0; index < _states.Count; index++)
+                {
+                    if (index > 0) builder.Append(';');
+                    if (_states[index] is not IStateSnapshotParticipant participant)
+                    {
+                        builder.Append('-');
+                        continue;
+                    }
+
+                    var payload = participant.CaptureSnapshot() ?? string.Empty;
+                    builder.Append(participant.SnapshotVersion);
+                    builder.Append('|');
+                    builder.Append(Convert.ToBase64String(Encoding.UTF8.GetBytes(payload)));
+                }
+                return builder.ToString();
+            }
+
+            public void ValidateSnapshot(int version, string payload)
+            {
+                var entries = ParseSnapshot(version, payload);
+                for (var index = 0; index < _states.Count; index++)
+                {
+                    if (_states[index] is IStateSnapshotParticipant participant)
+                    {
+                        var entry = entries[index];
+                        participant.ValidateSnapshot(entry.Version, entry.Payload);
+                    }
+                }
+            }
+
+            public void RestoreSnapshot(int version, string payload)
+            {
+                var entries = ParseSnapshot(version, payload);
+                for (var index = 0; index < _states.Count; index++)
+                {
+                    if (_states[index] is IStateSnapshotParticipant participant)
+                    {
+                        var entry = entries[index];
+                        participant.RestoreSnapshot(entry.Version, entry.Payload);
+                    }
+                }
+            }
+
+            private List<ParallelSnapshotEntry> ParseSnapshot(int version, string payload)
+            {
+                if (version != SnapshotVersion)
+                    throw new InvalidOperationException("Unsupported parallel HFSM state snapshot version.");
+
+                var parts = (payload ?? string.Empty).Split(';');
+                if (parts.Length != _states.Count)
+                    throw new InvalidOperationException("Parallel HFSM state snapshot item count does not match.");
+
+                var result = new List<ParallelSnapshotEntry>(_states.Count);
+                for (var index = 0; index < parts.Length; index++)
+                {
+                    var participant = _states[index] as IStateSnapshotParticipant;
+                    if (participant == null)
+                    {
+                        if (!string.Equals(parts[index], "-", StringComparison.Ordinal))
+                            throw new InvalidOperationException("Parallel HFSM snapshot contains payload for a stateless child.");
+                        result.Add(default);
+                        continue;
+                    }
+
+                    var separator = parts[index].IndexOf('|');
+                    if (separator <= 0 || !int.TryParse(
+                            parts[index].Substring(0, separator),
+                            System.Globalization.NumberStyles.Integer,
+                            System.Globalization.CultureInfo.InvariantCulture,
+                            out var childVersion))
+                    {
+                        throw new InvalidOperationException("Parallel HFSM snapshot child header is invalid.");
+                    }
+
+                    try
+                    {
+                        var childPayload = Encoding.UTF8.GetString(
+                            Convert.FromBase64String(parts[index].Substring(separator + 1)));
+                        result.Add(new ParallelSnapshotEntry(childVersion, childPayload));
+                    }
+                    catch (FormatException exception)
+                    {
+                        throw new InvalidOperationException("Parallel HFSM snapshot child payload is invalid.", exception);
+                    }
+                }
+                return result;
+            }
+
+            private readonly struct ParallelSnapshotEntry
+            {
+                public ParallelSnapshotEntry(int version, string payload)
+                {
+                    Version = version;
+                    Payload = payload;
+                }
+
+                public int Version { get; }
+                public string Payload { get; }
+            }
         }
 
         private sealed class StatePayloadRestore

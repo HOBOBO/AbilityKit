@@ -7,45 +7,45 @@ using Sirenix.OdinInspector;
 namespace AbilityKit.Ability.Editor
 {
     [Serializable]
-    [TriggerActionType(TriggerActionTypes.PlayPresentation, "表现", "行为/Presentation", 0)]
+    [TriggerActionType(TriggerActionTypes.PlayPresentation, "表现", "行为/表现", 0)]
     public sealed class PlayPresentationActionEditorConfig : ActionEditorConfigBase
     {
         public override string Type => TriggerActionTypes.PlayPresentation;
 
-        [LabelText("模板Id")]
+        [LabelText("模板 ID")]
         public int TemplateId;
 
         [LabelText("目标模式")]
         public PresentationTargetMode TargetMode = PresentationTargetMode.Target;
 
-        [LabelText("Stop")]
+        [LabelText("停止")]
         public bool Stop;
 
-        [LabelText("查询模板Id(可选)")]
+        [LabelText("查询模板 ID（可选）")]
         public int QueryTemplateId;
 
-        [LabelText("显式目标(可选)")]
+        [LabelText("显式目标（可选）")]
         public object ExplicitTarget;
 
-        [LabelText("RequestKey(可选)")]
+        [LabelText("请求键（可选）")]
         public string RequestKey;
 
-        [LabelText("持续毫秒(覆盖,可选)")]
+        [LabelText("持续毫秒（覆盖，可选）")]
         public int DurationMs;
 
-        [LabelText("Scale(覆盖,可选)")]
+        [LabelText("缩放（覆盖，可选）")]
         public float Scale;
 
-        [LabelText("Radius(覆盖,可选)")]
+        [LabelText("半径（覆盖，可选）")]
         public float Radius;
 
-        [LabelText("Color(覆盖,可选)")]
+        [LabelText("颜色（覆盖，可选）")]
         public string Color;
 
-        [LabelText("PosKey(可选)")]
+        [LabelText("位置键（可选）")]
         public string PosKey;
 
-        [LabelText("Pos(可选)")]
+        [LabelText("位置（可选）")]
         public Vec3 Pos;
 
         protected override string GetTitleSuffix()

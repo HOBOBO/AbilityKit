@@ -27,6 +27,9 @@ namespace AbilityKit.HFSM.Graph.Descriptor.Impl
         public bool NeedsExitTime => _stateNode.NeedsExitTime;
         public bool IsGhostState => _stateNode.IsGhostState;
         public bool HasBehaviors => _stateNode.HasBehaviors;
+        public string NextBehaviorKey => _stateNode.NextBehaviorKey;
+        public AbilityKit.HFSM.Definition.ParallelExitPolicy NextParallelExitPolicy =>
+            _stateNode.NextParallelExitPolicy;
 
         public override string GetNodeTypeDescription() => _stateNode.GetNodeTypeDescription();
 
@@ -34,6 +37,7 @@ namespace AbilityKit.HFSM.Graph.Descriptor.Impl
         public IReadOnlyList<string> GetLogicActionMethodNames() => _stateNode.LogicActionMethodNames;
         public IReadOnlyList<string> GetExitActionMethodNames() => _stateNode.ExitActionMethodNames;
         public IReadOnlyList<string> GetCanExitMethodNames() => _stateNode.CanExitMethodNames;
+        public IReadOnlyList<string> GetNextParallelBehaviorKeys() => _stateNode.NextParallelBehaviorKeys;
 
         public IReadOnlyList<IBehaviorDescriptor> GetBehaviors()
         {

@@ -8,6 +8,7 @@ namespace AbilityKit.BehaviorTree.Definition
         public string Type { get; set; } = "";
         public PropertyBag Properties { get; set; } = new();
         public List<string> ChildIds { get; set; } = new();
+        public SubtreeBlackboardConfiguration? SubtreeBlackboard { get; set; }
 
 
 

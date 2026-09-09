@@ -28,7 +28,7 @@ namespace AbilityKit.BehaviorTree.Editor
         public static EditorExportReport Export(AuthoringAsset asset)
         {
             const string jobId = "behaviortree.runtime-json";
-            var target = asset == null ? "Behavior Tree" : asset.name;
+            var target = asset == null ? "行为树" : asset.name;
             var job = new EditorExportJob(
                 jobId,
                 target,
@@ -59,12 +59,12 @@ namespace AbilityKit.BehaviorTree.Editor
             string target)
         {
             if (asset == null)
-                return EditorExportReportEntry.Failed(jobId, target, "Asset is null.");
+                return EditorExportReportEntry.Failed(jobId, target, "行为树资产为空。");
 
             var document = asset.LoadDocument();
             var tree = document.Tree;
             if (string.IsNullOrWhiteSpace(tree.TreeId))
-                return EditorExportReportEntry.Failed(jobId, target, "TreeId must not be empty.");
+                return EditorExportReportEntry.Failed(jobId, target, "Tree ID 不能为空。");
 
             var json = TreeExporter.Export(
                 document,

@@ -53,19 +53,19 @@ namespace AbilityKit.Game.Editor.Diagnostics
                 switch (Phase)
                 {
                     case BattleDebugDiagnosticSessionResolutionPhase.Ready:
-                        return "Diagnostics 已连接。";
+                        return "诊断已连接。";
                     case BattleDebugDiagnosticSessionResolutionPhase.NotPlaying:
                         return "当前不在播放模式。";
                     case BattleDebugDiagnosticSessionResolutionPhase.FacadeUnavailable:
-                        return "Battle Debug Facade 不可用。";
+                        return "战斗调试入口不可用。";
                     case BattleDebugDiagnosticSessionResolutionPhase.LogicSessionUnavailable:
-                        return "没有活动中的 BattleLogicSession。";
+                        return "没有活动中的战斗逻辑会话。";
                     case BattleDebugDiagnosticSessionResolutionPhase.WorldUnavailable:
-                        return "BattleLogicSession 尚未提供 World。";
+                        return "战斗逻辑会话尚未提供世界。";
                     case BattleDebugDiagnosticSessionResolutionPhase.ServicesUnavailable:
-                        return "当前 World 未提供服务解析器。";
+                        return "当前世界未提供服务解析器。";
                     default:
-                        return "当前 World 未注册 IBattleDiagnosticReadOnlySession。";
+                        return "当前世界未注册诊断只读会话。";
                 }
             }
         }

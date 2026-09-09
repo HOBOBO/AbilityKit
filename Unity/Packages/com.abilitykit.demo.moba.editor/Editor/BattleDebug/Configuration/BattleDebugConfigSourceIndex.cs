@@ -35,20 +35,20 @@ namespace AbilityKit.Game.Editor
             location = default;
             if (!reference.IsValid)
             {
-                error = "Configuration reference is invalid.";
+                error = "配置引用无效。";
                 return false;
             }
 
             if (!TryGetDescriptor(reference.Kind, out var descriptor))
             {
-                error = $"No configuration source is registered for {reference.Kind}.";
+                error = $"未注册 {BattleDebugDisplayText.ConfigKind(reference.Kind)} 的配置源。";
                 return false;
             }
 
             var asset = AssetDatabase.LoadAssetAtPath<TextAsset>(descriptor.AssetPath);
             if (asset == null)
             {
-                error = $"Configuration source is missing: {descriptor.AssetPath}";
+                error = $"配置源文件不存在：{descriptor.AssetPath}";
                 return false;
             }
 
@@ -70,19 +70,19 @@ namespace AbilityKit.Game.Editor
             lineNumber = 0;
             if (!reference.IsValid)
             {
-                error = "Configuration reference is invalid.";
+                error = "配置引用无效。";
                 return false;
             }
 
             if (!TryGetDescriptor(reference.Kind, out var descriptor))
             {
-                error = $"No configuration source is registered for {reference.Kind}.";
+                error = $"未注册 {BattleDebugDisplayText.ConfigKind(reference.Kind)} 的配置源。";
                 return false;
             }
 
             if (string.IsNullOrWhiteSpace(json))
             {
-                error = $"Configuration source for {reference.Kind} is empty.";
+                error = $"{BattleDebugDisplayText.ConfigKind(reference.Kind)} 的配置源为空。";
                 return false;
             }
 
@@ -99,7 +99,7 @@ namespace AbilityKit.Game.Editor
             }
             catch (JsonException ex)
             {
-                error = $"Failed to parse {reference.Kind} configuration: {ex.Message}";
+                error = $"解析 {BattleDebugDisplayText.ConfigKind(reference.Kind)} 配置失败：{ex.Message}";
                 return false;
             }
 
@@ -109,8 +109,8 @@ namespace AbilityKit.Game.Editor
             if (entries == null)
             {
                 error = string.IsNullOrEmpty(descriptor.RootProperty)
-                    ? $"The {reference.Kind} configuration root must be an array."
-                    : $"The {reference.Kind} configuration is missing array '{descriptor.RootProperty}'.";
+                    ? $"{BattleDebugDisplayText.ConfigKind(reference.Kind)} 配置根节点必须是数组。"
+                    : $"{BattleDebugDisplayText.ConfigKind(reference.Kind)} 配置缺少数组“{descriptor.RootProperty}”。";
                 return false;
             }
 
@@ -129,7 +129,7 @@ namespace AbilityKit.Game.Editor
 
             if (matchingEntry == null)
             {
-                error = $"{reference.Kind} configuration #{reference.Id} was not found.";
+                error = $"未找到 {BattleDebugDisplayText.ConfigKind(reference.Kind)} 配置 #{reference.Id}。";
                 return false;
             }
 
@@ -137,14 +137,14 @@ namespace AbilityKit.Game.Editor
             {
                 if (reference.Kind != BattleDebugConfigKind.SkillFlow)
                 {
-                    error = $"Phase lookup is only supported for {BattleDebugConfigKind.SkillFlow}.";
+                    error = "只有技能流程配置支持按阶段定位。";
                     return false;
                 }
 
                 var phaseToken = FindPropertyValueRecursive(matchingEntry, "PhaseId", reference.PhaseId);
                 if (phaseToken == null)
                 {
-                    error = $"SkillFlow configuration #{reference.Id} has no phase '{reference.PhaseId}'.";
+                    error = $"技能流程配置 #{reference.Id} 中没有阶段“{reference.PhaseId}”。";
                     return false;
                 }
 

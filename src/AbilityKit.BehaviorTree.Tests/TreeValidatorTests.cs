@@ -16,6 +16,9 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Root("root");
         }
 
+        private static bool HasDiagnostic(TreeDefinition definition, string code)
+            => TreeValidator.ValidateDiagnostics(definition, CreateRegistry()).Any(d => d.Code == code);
+
         [Fact]
         public void ValidTree_Passes()
         {
@@ -23,12 +26,33 @@ namespace AbilityKit.BehaviorTree.Tests
         }
 
         [Fact]
+        public void SubtreeBindings_ValidateParentKeysAndDuplicates()
+        {
+            var definition = new TreeBuilder()
+                .Blackboard("parent.value", TreeValueType.Int64)
+                .Node("sub", BuiltInNodeTypes.Subtree)
+                .Root("sub");
+            definition.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("child"));
+            definition.Nodes[0].SubtreeBlackboard = new SubtreeBlackboardConfiguration
+            {
+                Bindings = new System.Collections.Generic.List<SubtreeBlackboardBinding>
+                {
+                    new() { SubtreeKey = "value", ParentKey = "parent.value" },
+                    new() { SubtreeKey = "value", ParentKey = "missing" },
+                },
+            };
+
+            var diagnostics = TreeValidator.ValidateDiagnostics(definition, CreateRegistry());
+            Assert.Contains(diagnostics, diagnostic => diagnostic.Code == "BT0553");
+            Assert.Contains(diagnostics, diagnostic => diagnostic.Code == "BT0554");
+        }
+
+        [Fact]
         public void UnknownNodeType_IsRejected()
         {
             var definition = ValidTree();
             definition.Nodes[1].Type = "nope.unknown";
-            Assert.Single(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("unknown type"));
+            Assert.True(HasDiagnostic(definition, "BT0400"));
         }
 
         [Fact]
@@ -36,8 +60,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = ValidTree();
             definition.RootNodeId = "missing";
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("Root node"));
+            Assert.True(HasDiagnostic(definition, "BT0202"));
         }
 
         [Fact]
@@ -47,8 +70,7 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Node("root", BuiltInNodeTypes.Sequence, "a")
                 .Node("a", BuiltInNodeTypes.Sequence, "root")
                 .Root("root");
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("Cycle"));
+            Assert.True(HasDiagnostic(definition, "BT0701"));
         }
 
         [Fact]
@@ -58,8 +80,7 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Node("root", BuiltInNodeTypes.Sequence, "a", "a")
                 .Node("a", ScriptedAction)
                 .Root("root");
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("multiple parents"));
+            Assert.True(HasDiagnostic(definition, "BT0700"));
         }
 
         [Fact]
@@ -67,8 +88,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = ValidTree();
             definition.Nodes.Add(new NodeDefinition { Id = "orphan", Type = ScriptedAction });
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("unreachable"));
+            Assert.True(HasDiagnostic(definition, "BT0702"));
         }
 
         [Fact]
@@ -76,8 +96,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = ValidTree();
             definition.Nodes.Add(new NodeDefinition { Id = "a", Type = ScriptedAction });
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("duplicated"));
+            Assert.True(HasDiagnostic(definition, "BT0201"));
         }
 
         [Fact]
@@ -88,8 +107,7 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Node("a", ScriptedAction)
                 .Node("b", ScriptedAction)
                 .Root("root");
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("children"));
+            Assert.True(HasDiagnostic(definition, "BT0401"));
         }
 
         [Fact]
@@ -99,8 +117,7 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Node("root", ScriptedAction, "a")
                 .Node("a", ScriptedAction)
                 .Root("root");
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("children"));
+            Assert.True(HasDiagnostic(definition, "BT0401"));
         }
 
         [Fact]
@@ -108,8 +125,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = ValidTree();
             definition.Nodes[1].Properties.Set("nope", PropertyValue.Of(1L));
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("unknown property"));
+            Assert.True(HasDiagnostic(definition, "BT0503"));
         }
 
         [Fact]
@@ -117,8 +133,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = ValidTree();
             definition.Nodes[1].Properties.Set(ScriptedResultActionNode.ResultKeyProperty, PropertyValue.Of(1L));
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("schema expects"));
+            Assert.True(HasDiagnostic(definition, "BT0500"));
         }
 
         [Fact]
@@ -126,8 +141,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = ValidTree();
             definition.Blackboard.Keys.Add(new BlackboardKeyDefinition { Name = "test.result", Type = TreeValueType.Bool });
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("duplicated"));
+            Assert.True(HasDiagnostic(definition, "BT0301"));
         }
 
         [Fact]
@@ -140,8 +154,7 @@ namespace AbilityKit.BehaviorTree.Tests
                 Type = TreeValueType.Int64,
                 Default = PropertyValue.Of(true),
             });
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("default value type"));
+            Assert.True(HasDiagnostic(definition, "BT0302"));
         }
 
         [Fact]
@@ -149,8 +162,7 @@ namespace AbilityKit.BehaviorTree.Tests
         {
             var definition = ValidTree();
             definition.Nodes[0].Properties.Set(CompositeNode.AbortTypeProperty, PropertyValue.Of(99L));
-            Assert.Contains(TreeValidator.Validate(definition, CreateRegistry()),
-                e => e.Contains("abortType"));
+            Assert.True(HasDiagnostic(definition, "BT0504"));
         }
 
         [Fact]

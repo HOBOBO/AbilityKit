@@ -79,6 +79,8 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(restored.Module.Triggers[0].Tags, Is.EquivalentTo(new[] { "combat", "reaction" }));
             Assert.That(restored.Module.Triggers[0].Actions.Children[0].Arguments[0].Value.StringValue,
                 Is.EqualTo("hello"));
+            Assert.That(restored.Module.Triggers[0].Actions.Children[1].Condition.Type, Is.EqualTo("always_true"));
+            Assert.That(restored.Module.Triggers[0].Actions.Children[1].ElseChildren[0].Type, Is.EqualTo("debug_log"));
             Assert.That(restored.Module.Triggers[0].Condition.GroupReference, Is.EqualTo("condition_group_1"));
         }
 
@@ -95,8 +97,23 @@ namespace AbilityKit.Ability.Editor.Tests
                 Is.EqualTo(TriggerSourceCanonical.ComputeContentHash(document)));
             Assert.That(restored.Template.TemplateId, Is.EqualTo("template.codec_fixture"));
             Assert.That(restored.Template.Parameters[0].Name, Is.EqualTo("message"));
-            Assert.That(restored.Template.Actions.Arguments[0].Value.Source,
-                Is.EqualTo(TriggerValueSource.TemplateParameter));
+            Assert.That(restored.Template.Definition.Actions.Arguments[0].Value.Source,
+                Is.EqualTo(TriggerValueSource.LocalBlackboard));
+            Assert.That(restored.Template.Definition.Actions.Arguments[0].Value.Path,
+                Is.EqualTo("trigger:message"));
+        }
+
+        [Test]
+        public void NewTemplateData_DefaultsToCallableFunctionWithActionRoot()
+        {
+            var template = new TriggerAuthoringTemplateData();
+
+            Assert.That(template.Definition, Is.Not.Null);
+            Assert.That(template.Definition.EntryMode, Is.EqualTo(TriggerEntryMode.Callable));
+            Assert.That(template.Definition.Event, Is.Empty);
+            Assert.That(template.Definition.Actions, Is.Not.Null);
+            Assert.That(template.Definition.Actions.Kind, Is.EqualTo(TriggerNodeKind.Action));
+            Assert.That(template.Definition.Actions.Type, Is.EqualTo("seq"));
         }
 
         [Test]
@@ -160,6 +177,8 @@ namespace AbilityKit.Ability.Editor.Tests
                 Is.EqualTo("#/definitions/triggerDefinition"));
             Assert.That(module["definitions"]["triggerDefinition"]["properties"]["groupPath"], Is.Not.Null);
             Assert.That(module["definitions"]["triggerDefinition"]["properties"]["tags"], Is.Not.Null);
+            Assert.That(module["definitions"]["triggerNode"]["properties"]["condition"], Is.Not.Null);
+            Assert.That(module["definitions"]["triggerNode"]["properties"]["elseChildren"], Is.Not.Null);
 
             Assert.That((string)template["properties"]["schema"]["const"], Is.EqualTo(TriggerAuthoringSchema.Id));
             Assert.That((string)template["properties"]["version"]["const"], Is.EqualTo("2.2"));
@@ -168,6 +187,12 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(
                 template["definitions"]["triggerAuthoringTemplate"]["properties"]["parameters"]["items"]["$ref"].ToString(),
                 Is.EqualTo("#/definitions/templateParameter"));
+            Assert.That(
+                template["definitions"]["triggerAuthoringTemplate"]["properties"]["definition"]["$ref"].ToString(),
+                Is.EqualTo("#/definitions/triggerDefinition"));
+            Assert.That(
+                template["definitions"]["templateParameter"]["properties"]["localVariableKey"],
+                Is.Not.Null);
         }
 
         [Test]
@@ -265,6 +290,38 @@ namespace AbilityKit.Ability.Editor.Tests
                                                 }
                                             }
                                         }
+                                    },
+                                    new TriggerNodeData
+                                    {
+                                        Kind = TriggerNodeKind.Action,
+                                        Type = "conditional",
+                                        Condition = new TriggerNodeData
+                                        {
+                                            Kind = TriggerNodeKind.Condition,
+                                            Type = "always_true"
+                                        },
+                                        Children = { new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "end_game" } },
+                                        ElseChildren =
+                                        {
+                                            new TriggerNodeData
+                                            {
+                                                Kind = TriggerNodeKind.Action,
+                                                Type = "debug_log",
+                                                Arguments =
+                                                {
+                                                    new TriggerArgumentData
+                                                    {
+                                                        Name = "message",
+                                                        Value = new TriggerValueRefData
+                                                        {
+                                                            Source = TriggerValueSource.Constant,
+                                                            Type = TriggerValueType.String,
+                                                            StringValue = "else"
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -284,29 +341,33 @@ namespace AbilityKit.Ability.Editor.Tests
                     TemplateId = "template.codec_fixture",
                     TemplateVersion = "1.0.0",
                     DisplayName = "Codec Template",
-                    Event = "combat.damage_taken",
                     Parameters =
                     {
                         new TriggerAuthoringTemplateParameterData
                         {
                             Name = "message",
+                            LocalVariableKey = "message",
                             Type = TriggerValueType.String
                         }
                     },
-                    Actions = new TriggerNodeData
+                    Definition = new TriggerDefinitionData
                     {
-                        Kind = TriggerNodeKind.Action,
-                        Type = "debug_log",
-                        Arguments =
+                        Event = "combat.damage_taken",
+                        Actions = new TriggerNodeData
                         {
-                            new TriggerArgumentData
+                            Kind = TriggerNodeKind.Action,
+                            Type = "debug_log",
+                            Arguments =
                             {
-                                Name = "message",
-                                Value = new TriggerValueRefData
+                                new TriggerArgumentData
                                 {
-                                    Source = TriggerValueSource.TemplateParameter,
-                                    Type = TriggerValueType.String,
-                                    Path = "message"
+                                    Name = "message",
+                                    Value = new TriggerValueRefData
+                                    {
+                                        Source = TriggerValueSource.LocalBlackboard,
+                                        Type = TriggerValueType.String,
+                                        Path = "trigger:message"
+                                    }
                                 }
                             }
                         }

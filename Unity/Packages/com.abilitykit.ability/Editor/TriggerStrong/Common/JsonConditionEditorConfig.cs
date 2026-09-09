@@ -18,19 +18,19 @@ namespace AbilityKit.Ability.Editor
         [ShowInInspector]
         public override string Type => TypeValue;
 
-        [LabelText("Args")]
+        [LabelText("参数")]
         [OdinSerialize]
         public Dictionary<string, object> Args;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
-        [LabelText("Items")]
+        [LabelText("子条件")]
         [ListDrawerSettings(Expanded = true, ListElementLabelName = "DisplayTitle")]
         public List<ConditionEditorConfigBase> Items;
 
         [SerializeReference]
         [HideReferenceObjectPicker]
-        [LabelText("Item")]
+        [LabelText("条件")]
         public ConditionEditorConfigBase Item;
 
         public override ConditionConfigBase ToRuntimeConfig()
@@ -88,15 +88,15 @@ namespace AbilityKit.Ability.Editor
         {
             if (string.Equals(TypeValue, TriggerConditionTypes.All, StringComparison.Ordinal) || string.Equals(TypeValue, TriggerConditionTypes.Any, StringComparison.Ordinal))
             {
-                return Items != null ? $"items={Items.Count}" : "items=0";
+                return Items != null ? $"子条件={Items.Count}" : "子条件=0";
             }
 
             if (string.Equals(TypeValue, TriggerConditionTypes.Not, StringComparison.Ordinal))
             {
-                return Item != null ? "item" : "item=null";
+                return Item != null ? "包含条件" : "条件为空";
             }
 
-            if (Args != null && Args.Count > 0) return $"args={Args.Count}";
+            if (Args != null && Args.Count > 0) return $"参数={Args.Count}";
             return null;
         }
     }

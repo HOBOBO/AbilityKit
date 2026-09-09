@@ -141,13 +141,13 @@ namespace AbilityKit.BehaviorTree.Editor
         private void DrawToolbar()
         {
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label("Behavior Tree Runtime", EditorStyles.boldLabel);
+            GUILayout.Label("行为树运行时观察", EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
-            GUILayout.Label(_offlineReplay != null ? "Offline Replay" : _controller.State.ToString(), EditorStyles.miniLabel);
-            GUILayout.Label(_entries.Count + " instance(s)", EditorStyles.miniLabel);
-            GUILayout.Label("Interval", EditorStyles.miniLabel);
+            GUILayout.Label(_offlineReplay != null ? "离线回放" : EditorDisplayText.ObservationState(_controller.State), EditorStyles.miniLabel);
+            GUILayout.Label(_entries.Count + " 个实例", EditorStyles.miniLabel);
+            GUILayout.Label("间隔", EditorStyles.miniLabel);
             var interval = EditorGUILayout.DoubleField(_sampleIntervalSeconds, GUILayout.Width(52f));
-            GUILayout.Label("Capacity", EditorStyles.miniLabel);
+            GUILayout.Label("容量", EditorStyles.miniLabel);
             var capacity = EditorGUILayout.IntField(_timelineCapacity, GUILayout.Width(58f));
             ApplyToolbarSettings(interval, capacity);
             if (GUILayout.Button(_controller.Paused ? "继续刷新" : "冻结视图", EditorStyles.toolbarButton))
@@ -155,14 +155,14 @@ namespace AbilityKit.BehaviorTree.Editor
                 if (_controller.Paused) _controller.Resume();
                 else _controller.Pause();
             }
-            if (GUILayout.Button(_controller.Paused ? "单步采样" : "Refresh", EditorStyles.toolbarButton))
+            if (GUILayout.Button(_controller.Paused ? "单步采样" : "立即刷新", EditorStyles.toolbarButton))
             {
                 _controller.Sample();
                 _historyIndex = -1;
             }
-            if (GUILayout.Button("Export Recording", EditorStyles.toolbarButton)) ExportRecording();
-            if (GUILayout.Button("Import Replay", EditorStyles.toolbarButton)) ImportReplay();
-            if (_offlineReplay != null && GUILayout.Button("Live", EditorStyles.toolbarButton))
+            if (GUILayout.Button("导出记录", EditorStyles.toolbarButton)) ExportRecording();
+            if (GUILayout.Button("导入回放", EditorStyles.toolbarButton)) ImportReplay();
+            if (_offlineReplay != null && GUILayout.Button("返回实时", EditorStyles.toolbarButton))
             {
                 _offlineReplay = null;
                 _lastReplayTickSeconds = 0d;
@@ -202,7 +202,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 ? ""
                 : System.IO.Path.GetDirectoryName(_lastRecordingPath);
             var path = EditorUtility.SaveFilePanel(
-                "Export Behavior Tree Observation Recording",
+                "导出行为树观察记录",
                 directory,
                 "bt-observation-recording",
                 "json");
@@ -212,12 +212,12 @@ namespace AbilityKit.BehaviorTree.Editor
             {
                 ObservationRecording.ExportToFile(path, _controller.Timeline, _controller);
                 _lastRecordingPath = path;
-                ShowNotification(new GUIContent("Observation recording exported"));
+                ShowNotification(new GUIContent("观察记录已导出"));
             }
             catch (System.Exception ex)
             {
-                Debug.LogWarning("[BtObservation] Recording export failed: " + ex.Message);
-                ShowNotification(new GUIContent("Recording export failed"));
+                Debug.LogWarning("[BtObservation] 观察记录导出失败：" + ex.Message);
+                ShowNotification(new GUIContent("观察记录导出失败"));
             }
         }
 
@@ -227,7 +227,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 ? ""
                 : System.IO.Path.GetDirectoryName(_lastRecordingPath);
             var path = EditorUtility.OpenFilePanel(
-                "Import Behavior Tree Observation Recording",
+                "导入行为树观察记录",
                 directory,
                 "json");
             if (string.IsNullOrEmpty(path)) return;
@@ -240,12 +240,12 @@ namespace AbilityKit.BehaviorTree.Editor
                 _historyIndex = -1;
                 _compareIndexA = -1;
                 ResetObservedState();
-                ShowNotification(new GUIContent("Observation replay loaded"));
+                ShowNotification(new GUIContent("观察回放已加载"));
             }
             catch (System.Exception ex)
             {
-                Debug.LogWarning("[BtObservation] Recording import failed: " + ex.Message);
-                ShowNotification(new GUIContent("Recording import failed"));
+                Debug.LogWarning("[BtObservation] 观察记录导入失败：" + ex.Message);
+                ShowNotification(new GUIContent("观察记录导入失败"));
             }
         }
 
@@ -263,8 +263,8 @@ namespace AbilityKit.BehaviorTree.Editor
             if (_entries.Count == 0)
             {
                 EditorGUILayout.HelpBox(
-                    "No running behavior trees registered.\n" +
-                    "A tree registers itself when created with a non-empty DebugName (TreeRunOptions).",
+                    "当前没有已登记的运行中行为树。\n" +
+                    "创建行为树实例时，请在 TreeRunOptions 中设置非空 DebugName 以启用观察。",
                     MessageType.Info);
             }
 
@@ -364,9 +364,9 @@ namespace AbilityKit.BehaviorTree.Editor
                 + (string.IsNullOrEmpty(snapshot.OwnerLabel) ? "" : $"  —  {snapshot.OwnerLabel}"),
                 EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
-                $"frame {snapshot.Frame}   nodes {snapshot.NodeCount}   state {DescribeRootState(nodes)}"
+                $"帧 {snapshot.Frame}   节点 {snapshot.NodeCount}   状态 {DescribeRootState(nodes)}"
                 + (_controller.Paused ? "   [视图已冻结]" : "")
-                + (_controller.State == ObservationSessionState.Disconnected ? "   [Disconnected]" : "")
+                + (_controller.State == ObservationSessionState.Disconnected ? "   [已断开]" : "")
                 + (_historyIndex >= 0 ? "   [历史采样]" : ""),
                 EditorStyles.miniLabel);
 
@@ -394,7 +394,7 @@ namespace AbilityKit.BehaviorTree.Editor
             _rightScroll = EditorGUILayout.BeginScrollView(_rightScroll);
 
             EditorGUILayout.HelpBox(
-                "节点树结构在节点图窗口（BT Observation Graph）中展示。此面板保留黑板与事件时间线。",
+                "节点树结构在“行为树观察图”窗口中展示。此面板保留黑板与事件时间线。",
                 MessageType.Info);
 
             GUILayout.Space(6f);
@@ -410,29 +410,29 @@ namespace AbilityKit.BehaviorTree.Editor
             var snapshot = _offlineReplay.Current;
             if (snapshot == null)
             {
-                EditorGUILayout.HelpBox("Imported observation recording has no samples.", MessageType.Info);
+                EditorGUILayout.HelpBox("导入的观察记录中没有采样。", MessageType.Info);
                 return;
             }
             RefreshDisplayState(snapshot, null);
 
             EditorGUILayout.LabelField(
-                $"Offline replay  {snapshot.DisplayName}  ({snapshot.TreeId})",
+                $"离线回放  {snapshot.DisplayName}  ({snapshot.TreeId})",
                 EditorStyles.boldLabel);
             EditorGUILayout.LabelField(
-                $"sample {_offlineReplay.CurrentIndex + 1}/{_offlineReplay.Count}   frame {snapshot.Frame}   nodes {snapshot.NodeCount}",
+                $"采样 {_offlineReplay.CurrentIndex + 1}/{_offlineReplay.Count}   帧 {snapshot.Frame}   节点 {snapshot.NodeCount}",
                 EditorStyles.miniLabel);
 
             EditorGUILayout.BeginHorizontal();
-            if (GUILayout.Button(_offlineReplay.IsPlaying ? "Pause" : "Play", EditorStyles.miniButton, GUILayout.Width(56f)))
+            if (GUILayout.Button(_offlineReplay.IsPlaying ? "暂停" : "播放", EditorStyles.miniButton, GUILayout.Width(56f)))
                 _offlineReplay.TogglePlayback();
             GUI.enabled = _offlineReplay.CurrentIndex > 0;
-            if (GUILayout.Button("Previous", EditorStyles.miniButton, GUILayout.Width(72f))) _offlineReplay.StepPrevious();
+            if (GUILayout.Button("上一个", EditorStyles.miniButton, GUILayout.Width(72f))) _offlineReplay.StepPrevious();
             GUI.enabled = _offlineReplay.CurrentIndex + 1 < _offlineReplay.Count;
-            if (GUILayout.Button("Next", EditorStyles.miniButton, GUILayout.Width(72f))) _offlineReplay.StepNext();
+            if (GUILayout.Button("下一个", EditorStyles.miniButton, GUILayout.Width(72f))) _offlineReplay.StepNext();
             GUI.enabled = _offlineReplay.Count > 0;
-            if (GUILayout.Button("Latest", EditorStyles.miniButton, GUILayout.Width(72f))) _offlineReplay.JumpToLatest();
+            if (GUILayout.Button("最新", EditorStyles.miniButton, GUILayout.Width(72f))) _offlineReplay.JumpToLatest();
             GUI.enabled = true;
-            GUILayout.Label("Speed", EditorStyles.miniLabel, GUILayout.Width(42f));
+            GUILayout.Label("速度", EditorStyles.miniLabel, GUILayout.Width(42f));
             _offlineReplay.PlaybackSpeed = EditorGUILayout.DoubleField(
                 _offlineReplay.PlaybackSpeed,
                 GUILayout.Width(44f));
@@ -446,9 +446,9 @@ namespace AbilityKit.BehaviorTree.Editor
                 0,
                 System.Math.Max(0, _offlineReplay.Count - 1));
             if (nextIndex != _offlineReplay.CurrentIndex) _offlineReplay.Seek(nextIndex);
-            if (GUILayout.Button("Set A", EditorStyles.miniButton, GUILayout.Width(52f))) _offlineReplay.MarkCompareA();
-            if (GUILayout.Button("Set B", EditorStyles.miniButton, GUILayout.Width(52f))) _offlineReplay.MarkCompareB();
-            if (GUILayout.Button("Graph", EditorStyles.miniButton, GUILayout.Width(56f)))
+            if (GUILayout.Button("设为 A", EditorStyles.miniButton, GUILayout.Width(52f))) _offlineReplay.MarkCompareA();
+            if (GUILayout.Button("设为 B", EditorStyles.miniButton, GUILayout.Width(52f))) _offlineReplay.MarkCompareB();
+            if (GUILayout.Button("查看图", EditorStyles.miniButton, GUILayout.Width(56f)))
                 AuthoringGraphWindow.OpenObservation(
                     _offlineReplay.Current,
                     _displayDefinition,
@@ -461,13 +461,13 @@ namespace AbilityKit.BehaviorTree.Editor
             {
                 var compare = _offlineReplay.CompareDiff;
                 EditorGUILayout.LabelField(
-                    $"A/B: sample {_offlineReplay.CompareIndexA} -> {_offlineReplay.CompareIndexB}; "
-                    + $"nodes {compare.ChangedNodeIds.Count}, keys {compare.ChangedBlackboardKeyIds.Count}",
+                    $"A/B：采样 {_offlineReplay.CompareIndexA} -> {_offlineReplay.CompareIndexB}；"
+                    + $"节点 {compare.ChangedNodeIds.Count}，黑板键 {compare.ChangedBlackboardKeyIds.Count}",
                     EditorStyles.miniLabel);
             }
 
             _rightScroll = EditorGUILayout.BeginScrollView(_rightScroll);
-            GUILayout.Label("Nodes", EditorStyles.boldLabel);
+            GUILayout.Label("节点", EditorStyles.boldLabel);
             for (var i = 0; i < snapshot.Nodes.Count; i++)
             {
                 var node = snapshot.Nodes[i];
@@ -475,7 +475,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 GUI.color = StateColor(node.State);
                 EditorGUILayout.LabelField(
                     node.NodeId,
-                    node.State + "  " + node.TypeId + (node.OnStackCount > 0 ? "  active" : ""),
+                    EditorDisplayText.NodeState(node.State) + "  " + node.TypeId + (node.OnStackCount > 0 ? "  执行中" : ""),
                     EditorStyles.miniLabel);
                 GUI.color = oldColor;
             }
@@ -490,16 +490,16 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             var timeline = _offlineReplay.Timeline;
             GUILayout.Space(6f);
-            GUILayout.Label("Replay Timeline (" + timeline.Count + ")", EditorStyles.boldLabel);
+            GUILayout.Label("回放时间线（" + timeline.Count + "）", EditorStyles.boldLabel);
             var changes = new List<ObservationChange>(timeline.EnumerateChanges());
             _eventScroll = EditorGUILayout.BeginScrollView(_eventScroll, GUILayout.MaxHeight(150f));
-            if (changes.Count == 0) EditorGUILayout.LabelField("No recorded changes.", EditorStyles.miniLabel);
+            if (changes.Count == 0) EditorGUILayout.LabelField("没有记录到变化。", EditorStyles.miniLabel);
             for (var i = changes.Count - 1; i >= 0; i--)
             {
                 var item = changes[i];
                 EditorGUILayout.LabelField(
-                    $"f{item.Frame}  {item.Kind}  {item.Target}",
-                    item.From + " -> " + item.To,
+                    $"帧 {item.Frame}  {EditorDisplayText.ChangeKind(item.Kind)}  {item.Target}",
+                    EditorDisplayText.ChangeValue(item.Kind, item.From) + " -> " + EditorDisplayText.ChangeValue(item.Kind, item.To),
                     EditorStyles.miniLabel);
             }
             EditorGUILayout.EndScrollView();
@@ -537,7 +537,7 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private static string DescribeRootState(IReadOnlyList<NodeDebugInfo> nodes)
         {
-            return nodes.Count > 0 ? nodes[0].State.ToString() : "?";
+            return nodes.Count > 0 ? EditorDisplayText.NodeState(nodes[0].State) : "?";
         }
 
 
@@ -550,7 +550,7 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void DrawBlackboard(ObservationSnapshot snapshot)
         {
-            GUILayout.Label("Blackboard", EditorStyles.boldLabel);
+            GUILayout.Label("黑板", EditorStyles.boldLabel);
 
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("过滤", EditorStyles.miniLabel, GUILayout.Width(28f));
@@ -560,7 +560,7 @@ namespace AbilityKit.BehaviorTree.Editor
             var blackboard = snapshot.Blackboard;
             if (blackboard == null || blackboard.Count == 0)
             {
-                EditorGUILayout.LabelField("(empty)", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("（空）", EditorStyles.miniLabel);
                 return;
             }
 
@@ -588,7 +588,7 @@ namespace AbilityKit.BehaviorTree.Editor
             var timeline = _controller.Timeline;
             GUILayout.Space(6f);
             _showEventHistory = EditorGUILayout.Foldout(
-                _showEventHistory, "结构化时间线 (" + timeline.Count + ")", true);
+                _showEventHistory, "结构化时间线（" + timeline.Count + "）", true);
             if (!_showEventHistory) return;
 
             EditorGUILayout.BeginHorizontal();
@@ -614,8 +614,8 @@ namespace AbilityKit.BehaviorTree.Editor
             {
                 var compare = timeline.Compare(_compareIndexA, EffectiveHistoryIndex);
                 EditorGUILayout.LabelField(
-                    $"A/B: sample {_compareIndexA} → {EffectiveHistoryIndex}; "
-                    + $"nodes {compare.ChangedNodeIds.Count}, keys {compare.ChangedBlackboardKeyIds.Count}",
+                    $"A/B：采样 {_compareIndexA} → {EffectiveHistoryIndex}；"
+                    + $"节点 {compare.ChangedNodeIds.Count}，黑板键 {compare.ChangedBlackboardKeyIds.Count}",
                     EditorStyles.miniLabel);
             }
 
@@ -628,8 +628,8 @@ namespace AbilityKit.BehaviorTree.Editor
                 if (_contributors.Filters.Count > 0
                     && !_contributors.AnyFilterMatches(ObservationFilterContext.ForChange(item))) continue;
                 EditorGUILayout.LabelField(
-                    $"f{item.Frame}  {item.Kind}  {item.Target}",
-                    item.From + " → " + item.To,
+                    $"帧 {item.Frame}  {EditorDisplayText.ChangeKind(item.Kind)}  {item.Target}",
+                    EditorDisplayText.ChangeValue(item.Kind, item.From) + " → " + EditorDisplayText.ChangeValue(item.Kind, item.To),
                     EditorStyles.miniLabel);
             }
             EditorGUILayout.EndScrollView();
@@ -664,6 +664,7 @@ namespace AbilityKit.BehaviorTree.Editor
             NodeState.Running => new Color(0.9f, 0.8f, 0.35f),
             NodeState.Success => new Color(0.45f, 0.85f, 0.5f),
             NodeState.Failure => new Color(0.95f, 0.5f, 0.45f),
+            NodeState.Faulted => new Color(0.95f, 0.3f, 0.2f),
             _ => Color.gray,
         };
 

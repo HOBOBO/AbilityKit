@@ -8,7 +8,7 @@ using UnityEngine;
 namespace AbilityKit.Ability.Editor
 {
     [Serializable]
-    [TriggerConditionType(TriggerConditionTypes.Any, "任意满足(OR)", "条件/复合", 10)]
+    [TriggerConditionType(TriggerConditionTypes.Any, "任一满足", "条件/复合", 10)]
     public sealed class AnyConditionEditorConfig : ConditionEditorConfigBase
     {
         public override string Type => TriggerConditionTypes.Any;

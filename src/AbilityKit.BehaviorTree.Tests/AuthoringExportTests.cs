@@ -91,7 +91,7 @@ namespace AbilityKit.BehaviorTree.Tests
 
             var json = TreeExporter.Export(document, CreateApiRegistry(), out var errors);
             Assert.Null(json);
-            Assert.Contains(errors, e => e.Contains("Root node"));
+            Assert.NotEmpty(errors);
         }
 
         [Fact]
@@ -102,7 +102,7 @@ namespace AbilityKit.BehaviorTree.Tests
 
             var json = TreeExporter.Export(document, CreateApiRegistry(), out var errors);
             Assert.Null(json);
-            Assert.Contains(errors, e => e.Contains("unknown type"));
+            Assert.NotEmpty(errors);
         }
 
         [Fact]

@@ -1,4 +1,5 @@
 using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Diagnostics;
 
 namespace AbilityKit.Demo.Moba.Services.Observability
 {
@@ -81,7 +82,8 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             int currentRootCount = 0,
             int currentSameTriggerCount = 0,
             string failureKey = "",
-            string reason = "")
+            string reason = "",
+            int frame = BattleDiagnosticFrames.Invalid)
         {
             TriggerId = triggerId;
             ContextKind = contextKind;
@@ -92,6 +94,7 @@ namespace AbilityKit.Demo.Moba.Services.Observability
             TargetActorId = targetActorId;
             ContextId = contextId;
             RootContextId = rootContextId;
+            Frame = frame;
             DetailCode = detailCode;
             CurrentDepth = currentDepth;
             CurrentFrameCount = currentFrameCount;
@@ -110,6 +113,7 @@ namespace AbilityKit.Demo.Moba.Services.Observability
         public int TargetActorId { get; }
         public long ContextId { get; }
         public long RootContextId { get; }
+        public int Frame { get; }
         public int DetailCode { get; }
         public int CurrentDepth { get; }
         public int CurrentFrameCount { get; }

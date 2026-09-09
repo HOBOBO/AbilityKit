@@ -12,7 +12,7 @@ namespace AbilityKit.HFSM.Definition
     /// </summary>
     public sealed class StateMachineDefinition
     {
-        public const int CurrentFormatVersion = 1;
+        public const int CurrentFormatVersion = 2;
 
         public string DefinitionId { get; set; } = string.Empty;
 
@@ -62,6 +62,12 @@ namespace AbilityKit.HFSM.Definition
                     hash = DeterministicHash.Combine(hash, HashString(state.BehaviorKey));
                     hash = DeterministicHash.Combine(hash, HashString(state.ChildMachineId));
                     hash = DeterministicHash.Combine(hash, state.RequiresExitApproval ? 1L : 0L);
+                    hash = DeterministicHash.Combine(hash, state.IsGhostState ? 1L : 0L);
+                    var parallelKeys = state.ParallelBehaviorKeys ?? new List<string>();
+                    hash = DeterministicHash.Combine(hash, (long)parallelKeys.Count);
+                    for (var keyIndex = 0; keyIndex < parallelKeys.Count; keyIndex++)
+                        hash = DeterministicHash.Combine(hash, HashString(parallelKeys[keyIndex]));
+                    hash = DeterministicHash.Combine(hash, (long)state.ParallelExitPolicy);
                 }
 
                 var transitions = new List<TransitionDefinition>(
@@ -86,6 +92,7 @@ namespace AbilityKit.HFSM.Definition
                     hash = DeterministicHash.Combine(hash, HashString(transition.ActionKey));
                     hash = DeterministicHash.Combine(hash, (long)transition.Priority);
                     hash = DeterministicHash.Combine(hash, transition.ForceImmediate ? 1L : 0L);
+                    hash = DeterministicHash.Combine(hash, transition.ExitMachine ? 1L : 0L);
                     hash = DeterministicHash.Combine(hash, transition.MinimumActiveDurationRaw);
                 }
             }

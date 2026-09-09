@@ -74,6 +74,22 @@ public sealed class DefinitionTests
         Assert.NotEqual(first.ComputeDefinitionHash(), reordered.ComputeDefinitionHash());
     }
 
+    [Fact]
+    public void ValidatorRejectsRootExitTransitionsAndAmbiguousParallelStates()
+    {
+        var definition = Fixtures.Flat(Fixtures.State("a"));
+        definition.Machines[0].Transitions.Add(
+            Fixtures.Transition("exit", "a", string.Empty, exitMachine: true));
+        definition.Machines[0].States[0].BehaviorKey = "single";
+        definition.Machines[0].States[0].ParallelBehaviorKeys.Add("parallel");
+
+        var result = DefinitionValidator.Validate(definition);
+
+        Assert.Contains(result.Issues, issue => issue.Code == "HFSM015");
+        Assert.Contains(result.Issues, issue => issue.Code == "HFSM027");
+        Assert.DoesNotContain(result.Issues, issue => issue.Code == "HFSM024");
+    }
+
     private static StateMachineDefinition CreateHashFixture(bool reverseLists)
     {
         var root = new MachineDefinition

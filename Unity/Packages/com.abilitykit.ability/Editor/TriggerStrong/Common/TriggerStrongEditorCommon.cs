@@ -47,7 +47,7 @@ namespace AbilityKit.Ability.Editor
     {
         public static string FormatArg(ArgRuntimeEntryCore e)
         {
-            if (e == null) return "null";
+            if (e == null) return "空";
 
             switch (e.Kind)
             {
@@ -56,16 +56,16 @@ namespace AbilityKit.Ability.Editor
                 case ArgValueKind.Float:
                     return Convert.ToSingle(e.Value).ToString("0.###");
                 case ArgValueKind.Bool:
-                    return Convert.ToBoolean(e.Value) ? "true" : "false";
+                    return Convert.ToBoolean(e.Value) ? "是" : "否";
                 case ArgValueKind.String:
                     var strVal = e.Value as string;
                     return QuoteAndTruncate(strVal, 32);
                 case ArgValueKind.Object:
-                    if (e.Value == null) return "null";
-                    if (e.Value is UnityEngine.Object uo) return uo != null ? uo.name : "null";
+                    if (e.Value == null) return "空";
+                    if (e.Value is UnityEngine.Object uo) return uo != null ? uo.name : "空";
                     return e.Value.ToString();
                 default:
-                    return "null";
+                    return "空";
             }
         }
 

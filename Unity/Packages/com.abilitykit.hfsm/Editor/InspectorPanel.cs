@@ -52,17 +52,17 @@ namespace AbilityKit.HFSM.Editor
 
         private void DrawNoSelection()
         {
-            EditorGUILayout.HelpBox("Select a node or transition to edit its properties.", MessageType.Info);
+            EditorGUILayout.HelpBox("请选择节点或转换以编辑其属性。", MessageType.Info);
         }
 
         private void DrawNodeInspector(NodeBase node)
         {
-            EditorGUILayout.LabelField("Node Inspector", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("节点检查器", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
             // Display name
             EditorGUI.BeginChangeCheck();
-            string newName = EditorGUILayout.TextField("Name", node.DisplayName);
+            string newName = EditorGUILayout.TextField("名称", node.DisplayName);
             if (EditorGUI.EndChangeCheck())
             {
                 node.DisplayName = newName;
@@ -70,10 +70,10 @@ namespace AbilityKit.HFSM.Editor
             }
 
             // Position
-            EditorGUILayout.LabelField("Position", $"{node.Position.x:F0}, {node.Position.y:F0}");
+            EditorGUILayout.LabelField("位置", $"{node.Position.x:F0}, {node.Position.y:F0}");
 
             // Node type (read only)
-            EditorGUILayout.LabelField("Type", node.GetNodeTypeDescription());
+            EditorGUILayout.LabelField("类型", node is StateMachineNode ? "状态机" : "叶状态");
 
             EditorGUILayout.Space();
 
@@ -94,17 +94,36 @@ namespace AbilityKit.HFSM.Editor
 
         private void DrawStateInspector(StateNode state)
         {
-            EditorGUILayout.LabelField("Next Runtime", EditorStyles.boldLabel);
-            DrawBindingField(
-                "Behavior",
-                BindingKind.State,
-                state.NextBehaviorKey,
-                value => state.NextBehaviorKey = value);
+            EditorGUILayout.LabelField("Next Runtime 绑定", EditorStyles.boldLabel);
+            var isParallel = state.NextParallelBehaviorKeys.Count > 0;
+            EditorGUI.BeginChangeCheck();
+            isParallel = EditorGUILayout.Toggle("并行状态", isParallel);
+            if (EditorGUI.EndChangeCheck())
+            {
+                if (isParallel)
+                    state.NextParallelBehaviorKeysInternal.Add(string.Empty);
+                else
+                    state.NextParallelBehaviorKeysInternal.Clear();
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
+
+            if (!isParallel)
+            {
+                DrawBindingField(
+                    "行为",
+                    BindingKind.State,
+                    state.NextBehaviorKey,
+                    value => state.NextBehaviorKey = value);
+            }
+            else
+            {
+                DrawParallelBehaviorBindings(state);
+            }
             EditorGUILayout.Space();
 
             // Needs exit time
             EditorGUI.BeginChangeCheck();
-            bool needsExitTime = EditorGUILayout.Toggle("Needs Exit Time", state.NeedsExitTime);
+            bool needsExitTime = EditorGUILayout.Toggle("需要退出时间", state.NeedsExitTime);
             if (EditorGUI.EndChangeCheck())
             {
                 state.NeedsExitTime = needsExitTime;
@@ -113,7 +132,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Ghost state
             EditorGUI.BeginChangeCheck();
-            bool isGhost = EditorGUILayout.Toggle("Ghost State", state.IsGhostState);
+            bool isGhost = EditorGUILayout.Toggle("幽灵状态", state.IsGhostState);
             if (EditorGUI.EndChangeCheck())
             {
                 state.IsGhostState = isGhost;
@@ -124,7 +143,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Default state toggle
             EditorGUI.BeginChangeCheck();
-            bool isDefault = EditorGUILayout.Toggle("Is Default", state.isDefault);
+            bool isDefault = EditorGUILayout.Toggle("设为默认状态", state.isDefault);
             if (EditorGUI.EndChangeCheck())
             {
                 if (isDefault && !state.isDefault)
@@ -146,7 +165,7 @@ namespace AbilityKit.HFSM.Editor
 
         private void DrawBehaviorEditorSection(StateNode state)
         {
-            EditorGUILayout.LabelField("Behavior Editor", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("行为编辑器", EditorStyles.boldLabel);
 
             // Initialize behavior inspector if needed
             if (_behaviorInspector == null || _lastInspectedState != state)
@@ -164,24 +183,83 @@ namespace AbilityKit.HFSM.Editor
 
         private void DrawStateMachineInspector(StateMachineNode stateMachine)
         {
-            EditorGUILayout.LabelField("State Machine Settings", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("状态机设置", EditorStyles.boldLabel);
 
             // Remember last state
             EditorGUI.BeginChangeCheck();
-            bool rememberLast = EditorGUILayout.Toggle("Remember Last State", stateMachine.RememberLastState);
+            bool rememberLast = EditorGUILayout.Toggle("记住上次状态", stateMachine.RememberLastState);
             if (EditorGUI.EndChangeCheck())
             {
                 stateMachine.RememberLastState = rememberLast;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
 
+            EditorGUI.BeginChangeCheck();
+            var needsExitTime = EditorGUILayout.Toggle("需要退出时间", stateMachine.NeedsExitTime);
+            if (EditorGUI.EndChangeCheck())
+            {
+                stateMachine.NeedsExitTime = needsExitTime;
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
+
+            EditorGUI.BeginChangeCheck();
+            var isGhostState = EditorGUILayout.Toggle("幽灵状态", stateMachine.IsGhostState);
+            if (EditorGUI.EndChangeCheck())
+            {
+                stateMachine.IsGhostState = isGhostState;
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
+
             EditorGUILayout.Space();
 
             // Default state selector
-            EditorGUILayout.LabelField("Default State", stateMachine.DefaultStateId ?? "None");
+            EditorGUILayout.LabelField("默认状态", stateMachine.DefaultStateId ?? "无");
 
             // Child count
-            EditorGUILayout.LabelField("Child States", stateMachine.ChildNodeIds.Count.ToString());
+            EditorGUILayout.LabelField("子状态数", stateMachine.ChildNodeIds.Count.ToString());
+        }
+
+        private void DrawParallelBehaviorBindings(StateNode state)
+        {
+            EditorGUI.BeginChangeCheck();
+            var policyIndex = EditorGUILayout.Popup(
+                "退出许可",
+                state.NextParallelExitPolicy == ParallelExitPolicy.All ? 1 : 0,
+                new[] { "任一行为允许", "全部行为允许" });
+            if (EditorGUI.EndChangeCheck())
+            {
+                state.NextParallelExitPolicy = policyIndex == 1
+                    ? ParallelExitPolicy.All
+                    : ParallelExitPolicy.Any;
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
+
+            for (var index = 0; index < state.NextParallelBehaviorKeys.Count; index++)
+            {
+                var bindingIndex = index;
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.BeginVertical();
+                DrawBindingField(
+                    $"并行行为 {index + 1}",
+                    BindingKind.State,
+                    state.NextParallelBehaviorKeys[bindingIndex],
+                    value => state.NextParallelBehaviorKeysInternal[bindingIndex] = value);
+                EditorGUILayout.EndVertical();
+                if (GUILayout.Button(new GUIContent("-", "移除此并行行为"), GUILayout.Width(24)))
+                {
+                    state.NextParallelBehaviorKeysInternal.RemoveAt(bindingIndex);
+                    EditorUtility.SetDirty(_context.GraphAsset);
+                    EditorGUILayout.EndHorizontal();
+                    break;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+
+            if (GUILayout.Button("+ 添加并行行为"))
+            {
+                state.NextParallelBehaviorKeysInternal.Add(string.Empty);
+                EditorUtility.SetDirty(_context.GraphAsset);
+            }
         }
 
         private void DrawActionSection(NodeBase node)
@@ -189,25 +267,25 @@ namespace AbilityKit.HFSM.Editor
             if (!(node is StateNode stateNode))
                 return;
 
-            EditorGUILayout.LabelField("Actions", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("动作", EditorStyles.boldLabel);
 
             // Entry actions
-            EditorGUILayout.LabelField("On Enter", EditorStyles.miniLabel);
-            DrawActionList(stateNode.EntryActionMethodNames, "Entry Actions");
+            EditorGUILayout.LabelField("进入时", EditorStyles.miniLabel);
+            DrawActionList(stateNode.EntryActionMethodNames, "进入动作");
 
             // Logic actions
-            EditorGUILayout.LabelField("On Logic", EditorStyles.miniLabel);
-            DrawActionList(stateNode.LogicActionMethodNames, "Logic Actions");
+            EditorGUILayout.LabelField("逻辑更新时", EditorStyles.miniLabel);
+            DrawActionList(stateNode.LogicActionMethodNames, "逻辑动作");
 
             // Exit actions
-            EditorGUILayout.LabelField("On Exit", EditorStyles.miniLabel);
-            DrawActionList(stateNode.ExitActionMethodNames, "Exit Actions");
+            EditorGUILayout.LabelField("退出时", EditorStyles.miniLabel);
+            DrawActionList(stateNode.ExitActionMethodNames, "退出动作");
 
             // Can exit methods
             if (stateNode.NeedsExitTime)
             {
-                EditorGUILayout.LabelField("Can Exit", EditorStyles.miniLabel);
-                DrawActionList(stateNode.CanExitMethodNames, "Can Exit Methods");
+                EditorGUILayout.LabelField("可退出判断", EditorStyles.miniLabel);
+                DrawActionList(stateNode.CanExitMethodNames, "可退出方法");
             }
         }
 
@@ -223,7 +301,7 @@ namespace AbilityKit.HFSM.Editor
 
             if (count == 0)
             {
-                EditorGUILayout.LabelField("(None)", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("（无）", EditorStyles.miniLabel);
             }
 
             EditorGUI.indentLevel--;
@@ -231,21 +309,21 @@ namespace AbilityKit.HFSM.Editor
 
         private void DrawEdgeInspector(TransitionEdge edge)
         {
-            EditorGUILayout.LabelField("Transition Inspector", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("转换检查器", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
             // Source and target
             var sourceNode = _context.GraphAsset.GetNodeById(edge.SourceNodeId);
             var targetNode = _context.GraphAsset.GetNodeById(edge.TargetNodeId);
 
-            EditorGUILayout.LabelField("From", sourceNode?.DisplayName ?? "Unknown");
-            EditorGUILayout.LabelField("To", targetNode?.DisplayName ?? "Unknown");
+            EditorGUILayout.LabelField("来源", sourceNode?.DisplayName ?? "未知");
+            EditorGUILayout.LabelField("目标", targetNode?.DisplayName ?? "未知");
 
             EditorGUILayout.Space();
 
             // Priority
             EditorGUI.BeginChangeCheck();
-            int priority = EditorGUILayout.IntField("Priority", edge.Priority);
+            int priority = EditorGUILayout.IntField("优先级", edge.Priority);
             if (EditorGUI.EndChangeCheck())
             {
                 edge.Priority = priority;
@@ -254,7 +332,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Force instantly
             EditorGUI.BeginChangeCheck();
-            bool forceInstantly = EditorGUILayout.Toggle("Force Instantly", edge.ForceInstantly);
+            bool forceInstantly = EditorGUILayout.Toggle("立即强制转换", edge.ForceInstantly);
             if (EditorGUI.EndChangeCheck())
             {
                 edge.ForceInstantly = forceInstantly;
@@ -263,7 +341,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Is exit transition
             EditorGUI.BeginChangeCheck();
-            bool isExit = EditorGUILayout.Toggle("Exit Transition", edge.IsExitTransition);
+            bool isExit = EditorGUILayout.Toggle("退出转换", edge.IsExitTransition);
             if (EditorGUI.EndChangeCheck())
             {
                 edge.IsExitTransition = isExit;
@@ -271,10 +349,10 @@ namespace AbilityKit.HFSM.Editor
             }
 
             EditorGUILayout.Space();
-            EditorGUILayout.LabelField("Next Runtime", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Next Runtime 绑定", EditorStyles.boldLabel);
 
             EditorGUI.BeginChangeCheck();
-            string triggerId = EditorGUILayout.TextField("Trigger ID", edge.NextTriggerId);
+            string triggerId = EditorGUILayout.TextField("触发器 ID", edge.NextTriggerId);
             if (EditorGUI.EndChangeCheck())
             {
                 edge.NextTriggerId = triggerId;
@@ -282,19 +360,19 @@ namespace AbilityKit.HFSM.Editor
             }
 
             DrawBindingField(
-                "Condition",
+                "条件",
                 BindingKind.Condition,
                 edge.NextConditionKey,
                 value => edge.NextConditionKey = value);
             DrawBindingField(
-                "Action",
+                "动作",
                 BindingKind.Action,
                 edge.NextActionKey,
                 value => edge.NextActionKey = value);
 
             EditorGUI.BeginChangeCheck();
             long minimumDurationRaw = EditorGUILayout.LongField(
-                new GUIContent("Min Duration Raw", "Q32.32 raw deterministic duration"),
+                new GUIContent("最短持续时间原始值", "Q32.32 确定性时长原始值"),
                 edge.NextMinimumActiveDurationRaw);
             if (EditorGUI.EndChangeCheck())
             {
@@ -310,7 +388,7 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.Space();
 
             // Delete button
-            if (GUILayout.Button("Delete Transition"))
+            if (GUILayout.Button("删除转换"))
             {
                 _context.DeleteEdge(edge);
             }
@@ -318,11 +396,11 @@ namespace AbilityKit.HFSM.Editor
 
         private void DrawConditionSection(TransitionEdge edge)
         {
-            EditorGUILayout.LabelField("Conditions", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("条件", EditorStyles.boldLabel);
 
             // Condition combination mode
             EditorGUI.BeginChangeCheck();
-            bool useAndLogic = EditorGUILayout.Toggle("Require All (AND)", edge.UseAndLogic);
+            bool useAndLogic = EditorGUILayout.Toggle("满足全部条件（AND）", edge.UseAndLogic);
             if (EditorGUI.EndChangeCheck())
             {
                 edge.UseAndLogic = useAndLogic;
@@ -343,14 +421,14 @@ namespace AbilityKit.HFSM.Editor
 
             // Add condition dropdown
             EditorGUILayout.Space();
-            if (EditorGUILayout.DropdownButton(new GUIContent("+ Add Condition"), FocusType.Passive))
+            if (EditorGUILayout.DropdownButton(new GUIContent("+ 添加条件"), FocusType.Passive))
             {
                 ShowAddConditionMenu(edge);
             }
 
             if (conditions == null || conditions.Count == 0)
             {
-                EditorGUILayout.LabelField("(Always transition)", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("（始终转换）", EditorStyles.miniLabel);
             }
         }
 
@@ -360,13 +438,13 @@ namespace AbilityKit.HFSM.Editor
 
             // 使用 Dummy 创建可点击区域
             EditorGUILayout.BeginHorizontal();
-            EditorGUILayout.LabelField(condition.DisplayName, EditorStyles.boldLabel, GUILayout.Width(100));
-            EditorGUILayout.LabelField(condition.GetDescription(), EditorStyles.miniLabel);
+            EditorGUILayout.LabelField(GetConditionDisplayName(condition), EditorStyles.boldLabel, GUILayout.Width(100));
+            EditorGUILayout.LabelField(GetConditionDescription(condition), EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
 
             // X 按钮删除 - 使用更明显的样式
             GUI.backgroundColor = new Color(1f, 0.4f, 0.4f, 1f);
-            if (GUILayout.Button(new GUIContent("X", "Delete condition"), EditorStyles.miniButton, GUILayout.Width(20), GUILayout.Height(16)))
+            if (GUILayout.Button(new GUIContent("X", "删除条件"), EditorStyles.miniButton, GUILayout.Width(20), GUILayout.Height(16)))
             {
                 EditorUtility.SetDirty(_context.GraphAsset);
                 edge.RemoveCondition(condition);
@@ -386,7 +464,7 @@ namespace AbilityKit.HFSM.Editor
                 if (lastRect.Contains(Event.current.mousePosition))
                 {
                     var menu = new GenericMenu();
-                    menu.AddItem(new GUIContent("Delete Condition"), false, () =>
+                    menu.AddItem(new GUIContent("删除条件"), false, () =>
                     {
                         EditorUtility.SetDirty(_context.GraphAsset);
                         edge.RemoveCondition(condition);
@@ -434,7 +512,7 @@ namespace AbilityKit.HFSM.Editor
             }
 
             EditorGUI.BeginChangeCheck();
-            selectedIndex = EditorGUILayout.Popup("Parameter", selectedIndex, parameterNames);
+            selectedIndex = EditorGUILayout.Popup("参数", selectedIndex, parameterNames);
             if (EditorGUI.EndChangeCheck() && selectedIndex >= 0)
             {
                 condition.ParameterName = parameterNames[selectedIndex];
@@ -444,7 +522,7 @@ namespace AbilityKit.HFSM.Editor
 
             // Parameter type
             EditorGUI.BeginChangeCheck();
-            ParameterValueType paramType = (ParameterValueType)EditorGUILayout.EnumPopup("Type", condition.ParameterType);
+            ParameterValueType paramType = DrawParameterTypePopup("类型", condition.ParameterType);
             if (EditorGUI.EndChangeCheck())
             {
                 condition.ParameterType = paramType;
@@ -455,7 +533,7 @@ namespace AbilityKit.HFSM.Editor
             if (condition.ParameterType == ParameterValueType.Float || condition.ParameterType == ParameterValueType.Int)
             {
                 EditorGUI.BeginChangeCheck();
-                CompareOperator op = (CompareOperator)EditorGUILayout.EnumPopup("Operator", condition.Operator);
+                CompareOperator op = DrawCompareOperatorPopup("运算符", condition.Operator);
                 if (EditorGUI.EndChangeCheck())
                 {
                     condition.Operator = op;
@@ -467,7 +545,7 @@ namespace AbilityKit.HFSM.Editor
             if (condition.ParameterType == ParameterValueType.Bool)
             {
                 EditorGUI.BeginChangeCheck();
-                bool boolValue = EditorGUILayout.Toggle("Value", condition.BoolValue);
+                bool boolValue = EditorGUILayout.Toggle("值", condition.BoolValue);
                 if (EditorGUI.EndChangeCheck())
                 {
                     condition.BoolValue = boolValue;
@@ -477,7 +555,7 @@ namespace AbilityKit.HFSM.Editor
             else if (condition.ParameterType == ParameterValueType.Float)
             {
                 EditorGUI.BeginChangeCheck();
-                float floatValue = EditorGUILayout.FloatField("Value", condition.FloatValue);
+                float floatValue = EditorGUILayout.FloatField("值", condition.FloatValue);
                 if (EditorGUI.EndChangeCheck())
                 {
                     condition.FloatValue = floatValue;
@@ -487,7 +565,7 @@ namespace AbilityKit.HFSM.Editor
             else if (condition.ParameterType == ParameterValueType.Int)
             {
                 EditorGUI.BeginChangeCheck();
-                int intValue = EditorGUILayout.IntField("Value", condition.IntValue);
+                int intValue = EditorGUILayout.IntField("值", condition.IntValue);
                 if (EditorGUI.EndChangeCheck())
                 {
                     condition.IntValue = intValue;
@@ -496,14 +574,14 @@ namespace AbilityKit.HFSM.Editor
             }
             else if (condition.ParameterType == ParameterValueType.Trigger)
             {
-                EditorGUILayout.LabelField("Condition", "Trigger is set", EditorStyles.miniLabel);
+                EditorGUILayout.LabelField("条件", "触发器已设置", EditorStyles.miniLabel);
             }
         }
 
         private void DrawTimeElapsedConditionFields(TransitionEdge edge, TimeElapsedCondition condition)
         {
             EditorGUI.BeginChangeCheck();
-            float duration = EditorGUILayout.FloatField("Duration (s)", condition.Duration);
+            float duration = EditorGUILayout.FloatField("持续时间（秒）", condition.Duration);
             if (EditorGUI.EndChangeCheck())
             {
                 condition.Duration = duration;
@@ -511,7 +589,7 @@ namespace AbilityKit.HFSM.Editor
             }
 
             EditorGUI.BeginChangeCheck();
-            CompareOperator op = (CompareOperator)EditorGUILayout.EnumPopup("Operator", condition.Operator);
+            CompareOperator op = DrawCompareOperatorPopup("运算符", condition.Operator);
             if (EditorGUI.EndChangeCheck())
             {
                 condition.Operator = op;
@@ -521,8 +599,8 @@ namespace AbilityKit.HFSM.Editor
 
         private void DrawBehaviorCompleteConditionFields(TransitionEdge edge, BehaviorCompleteCondition condition)
         {
-            EditorGUILayout.LabelField("Source", edge.SourceNodeId ?? "Self", EditorStyles.miniLabel);
-            EditorGUILayout.LabelField("Condition", "All behaviors completed", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("来源", edge.SourceNodeId ?? "自身", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("条件", "所有行为均已完成", EditorStyles.miniLabel);
         }
 
         private void ShowAddConditionMenu(TransitionEdge edge)
@@ -530,18 +608,18 @@ namespace AbilityKit.HFSM.Editor
             var menu = new GenericMenu();
 
             // Parameter conditions
-            menu.AddItem(new GUIContent("Parameter/Bool Compare"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Bool }));
-            menu.AddItem(new GUIContent("Parameter/Float Compare"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Float }));
-            menu.AddItem(new GUIContent("Parameter/Int Compare"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Int }));
-            menu.AddItem(new GUIContent("Parameter/Trigger"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Trigger }));
+            menu.AddItem(new GUIContent("参数/布尔比较"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Bool }));
+            menu.AddItem(new GUIContent("参数/浮点比较"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Float }));
+            menu.AddItem(new GUIContent("参数/整数比较"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Int }));
+            menu.AddItem(new GUIContent("参数/触发器"), false, () => AddCondition(edge, new ParameterCondition { ParameterType = ParameterValueType.Trigger }));
 
             menu.AddSeparator("");
 
             // Time condition
-            menu.AddItem(new GUIContent("Time/Elapsed"), false, () => AddCondition(edge, new TimeElapsedCondition { SourceNodeId = edge.SourceNodeId, Duration = 1f }));
+            menu.AddItem(new GUIContent("时间/经过时间"), false, () => AddCondition(edge, new TimeElapsedCondition { SourceNodeId = edge.SourceNodeId, Duration = 1f }));
 
             // Behavior condition
-            menu.AddItem(new GUIContent("Behavior Complete"), false, () => AddCondition(edge, new BehaviorCompleteCondition { SourceNodeId = edge.SourceNodeId }));
+            menu.AddItem(new GUIContent("行为完成"), false, () => AddCondition(edge, new BehaviorCompleteCondition { SourceNodeId = edge.SourceNodeId }));
 
             menu.ShowAsContext();
         }
@@ -562,8 +640,8 @@ namespace AbilityKit.HFSM.Editor
                 .Where(descriptor => descriptor.Kind == kind)
                 .ToArray();
             var options = new string[descriptors.Length + 2];
-            options[0] = "(None)";
-            options[1] = "Custom...";
+            options[0] = "（无）";
+            options[1] = "自定义...";
             var selected = string.IsNullOrEmpty(currentKey) ? 0 : 1;
             for (var index = 0; index < descriptors.Length; index++)
             {
@@ -586,7 +664,7 @@ namespace AbilityKit.HFSM.Editor
             {
                 EditorGUI.indentLevel++;
                 EditorGUI.BeginChangeCheck();
-                var custom = EditorGUILayout.TextField("Stable Key", currentKey ?? string.Empty);
+                var custom = EditorGUILayout.TextField("稳定键", currentKey ?? string.Empty);
                 if (EditorGUI.EndChangeCheck())
                 {
                     assign(custom);
@@ -594,8 +672,78 @@ namespace AbilityKit.HFSM.Editor
                 }
 
                 if (!string.IsNullOrEmpty(custom) && !EditorBindingCatalog.Catalog.Contains(kind, custom))
-                    EditorGUILayout.HelpBox("This key has no registered descriptor and will block Next export.", MessageType.Warning);
+                    EditorGUILayout.HelpBox("此键没有已注册的描述符，将阻止 Next Runtime 导出。", MessageType.Warning);
                 EditorGUI.indentLevel--;
+            }
+        }
+
+        private static ParameterValueType DrawParameterTypePopup(string label, ParameterValueType value)
+        {
+            var index = EditorGUILayout.Popup(label, (int)value, new[] { "布尔", "浮点", "整数", "触发器" });
+            return (ParameterValueType)index;
+        }
+
+        private static CompareOperator DrawCompareOperatorPopup(string label, CompareOperator value)
+        {
+            var index = EditorGUILayout.Popup(label, (int)value, new[]
+            {
+                "等于（==）",
+                "不等于（!=）",
+                "大于（>）",
+                "小于（<）",
+                "大于等于（>=）",
+                "小于等于（<=）"
+            });
+            return (CompareOperator)index;
+        }
+
+        private static string GetConditionDisplayName(TransitionCondition condition)
+        {
+            if (condition is ParameterCondition parameter)
+            {
+                switch (parameter.ParameterType)
+                {
+                    case ParameterValueType.Bool: return "布尔参数";
+                    case ParameterValueType.Float: return "浮点参数";
+                    case ParameterValueType.Int: return "整数参数";
+                    case ParameterValueType.Trigger: return "触发器参数";
+                }
+            }
+            if (condition is TimeElapsedCondition) return "经过时间";
+            if (condition is BehaviorCompleteCondition) return "行为完成";
+            return condition.DisplayName;
+        }
+
+        private static string GetConditionDescription(TransitionCondition condition)
+        {
+            if (condition is ParameterCondition parameter)
+            {
+                if (parameter.ParameterType == ParameterValueType.Bool)
+                    return $"{parameter.ParameterName} = {(parameter.BoolValue ? "真" : "假")}";
+                if (parameter.ParameterType == ParameterValueType.Trigger)
+                    return $"{parameter.ParameterName} 已触发";
+                var value = parameter.ParameterType == ParameterValueType.Float
+                    ? parameter.FloatValue.ToString()
+                    : parameter.IntValue.ToString();
+                return $"{parameter.ParameterName} {GetCompareOperatorSymbol(parameter.Operator)} {value}";
+            }
+            if (condition is TimeElapsedCondition elapsed)
+                return $"时间 {GetCompareOperatorSymbol(elapsed.Operator)} {elapsed.Duration:F2} 秒";
+            if (condition is BehaviorCompleteCondition) return "所有行为均已完成";
+            return condition.GetDescription();
+        }
+
+        private static string GetCompareOperatorSymbol(CompareOperator value)
+        {
+            switch (value)
+            {
+                case CompareOperator.Equal: return "==";
+                case CompareOperator.NotEqual: return "!=";
+                case CompareOperator.GreaterThan: return ">";
+                case CompareOperator.LessThan: return "<";
+                case CompareOperator.GreaterOrEqual: return ">=";
+                case CompareOperator.LessOrEqual: return "<=";
+                default: return "?";
             }
         }
 

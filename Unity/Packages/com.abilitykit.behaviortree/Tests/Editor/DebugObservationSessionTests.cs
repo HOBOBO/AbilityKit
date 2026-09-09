@@ -824,7 +824,7 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
             renderer.RefreshRuntimeDetails();
 
             var text = string.Join("\n", root.Query<Label>().ToList().Select(label => label.text));
-            Assert.That(text, Does.Contain("Running"));
+            Assert.That(text, Does.Contain("运行中"));
             Assert.That(text, Does.Contain("score = 10"));
             Assert.That(text, Does.Not.Contain("score = 99"));
         }

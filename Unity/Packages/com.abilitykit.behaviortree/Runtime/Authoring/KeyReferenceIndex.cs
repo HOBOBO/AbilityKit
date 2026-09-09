@@ -17,6 +17,15 @@ namespace AbilityKit.BehaviorTree.Authoring
 
             foreach (var node in definition.Nodes)
             {
+                if (node.SubtreeBlackboard != null)
+                {
+                    foreach (var binding in node.SubtreeBlackboard.Bindings)
+                    {
+                        if (string.Equals(binding.ParentKey, keyName, StringComparison.Ordinal))
+                            result.Add((node.Id, "subtreeBlackboard.bindings.parentKey"));
+                    }
+                }
+
                 if (!registry.TryGetDescriptor(node.Type, out var descriptor)) continue;
 
                 var keyRefFields = new HashSet<string>(StringComparer.Ordinal);
@@ -63,6 +72,16 @@ namespace AbilityKit.BehaviorTree.Authoring
             var affected = new List<(string, string)>();
             foreach (var node in definition.Nodes)
             {
+                if (node.SubtreeBlackboard != null)
+                {
+                    foreach (var binding in node.SubtreeBlackboard.Bindings)
+                    {
+                        if (!string.Equals(binding.ParentKey, oldName, StringComparison.Ordinal)) continue;
+                        binding.ParentKey = newName;
+                        affected.Add((node.Id, "subtreeBlackboard.bindings.parentKey"));
+                    }
+                }
+
                 if (!registry.TryGetDescriptor(node.Type, out var descriptor)) continue;
                 foreach (var field in descriptor.PropertySchema)
                 {

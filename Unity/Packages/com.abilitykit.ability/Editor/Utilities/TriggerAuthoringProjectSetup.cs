@@ -1,4 +1,6 @@
 #if UNITY_EDITOR
+using System;
+using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Config.Authoring;
 using UnityEditor;
@@ -8,14 +10,14 @@ namespace AbilityKit.Ability.Editor.Utilities
 {
     internal static class TriggerAuthoringProjectSetup
     {
-        [MenuItem("Assets/AbilityKit/Trigger Authoring/Create MOBA Project Setup")]
+        [MenuItem("Assets/AbilityKit/触发器编辑/创建 MOBA 项目配置")]
         private static void CreateMobaProjectSetup()
         {
             var projectPath = EditorUtility.SaveFilePanelInProject(
-                "Create Trigger Authoring Project",
+                "创建触发器项目",
                 "MobaTriggerAuthoringProject",
                 "asset",
-                "Choose where to create the project and its catalogs.");
+                "请选择项目及其目录资产的创建位置。");
             if (string.IsNullOrWhiteSpace(projectPath)) return;
 
             var directory = Path.GetDirectoryName(projectPath)?.Replace('\\', '/') ?? "Assets";
@@ -83,6 +85,105 @@ namespace AbilityKit.Ability.Editor.Utilities
             EditorUtility.SetDirty(module);
             AssetDatabase.SaveAssets();
             return module;
+        }
+
+        internal static TriggerAuthoringTemplateAsset CreateTemplateForProject(
+            TriggerAuthoringProjectAsset project)
+        {
+            if (project == null || project.TemplateCatalog == null)
+            {
+                EditorUtility.DisplayDialog("创建触发器模板", "所选项目尚未配置模板目录。", "确定");
+                return null;
+            }
+
+            var projectPath = AssetDatabase.GetAssetPath(project);
+            var directory = string.IsNullOrWhiteSpace(projectPath)
+                ? "Assets"
+                : Path.GetDirectoryName(projectPath)?.Replace('\\', '/') ?? "Assets";
+            var path = EditorUtility.SaveFilePanelInProject(
+                "创建触发器模板",
+                "NewTriggerTemplate",
+                "asset",
+                "请选择模板资产的创建位置。",
+                directory);
+            if (string.IsNullOrWhiteSpace(path)) return null;
+
+            return CreateTemplate(
+                Path.GetDirectoryName(path)?.Replace('\\', '/') ?? directory,
+                Path.GetFileNameWithoutExtension(path),
+                project,
+                path);
+        }
+
+        internal static TriggerAuthoringTemplateAsset CreateTemplate(
+            string directory,
+            string baseName,
+            TriggerAuthoringProjectAsset project,
+            string explicitPath = null)
+        {
+            if (project == null) throw new ArgumentNullException(nameof(project));
+            if (project.TemplateCatalog == null)
+                throw new InvalidOperationException("项目必须先配置模板目录。");
+
+            directory = string.IsNullOrWhiteSpace(directory) ? "Assets" : directory;
+            baseName = string.IsNullOrWhiteSpace(baseName) ? "TriggerTemplate" : baseName;
+            var asset = ScriptableObject.CreateInstance<TriggerAuthoringTemplateAsset>();
+            asset.Template = new TriggerAuthoringTemplateData
+            {
+                TemplateId = CreateUniqueTemplateId(baseName, project.TemplateCatalog.Templates),
+                TemplateVersion = "1.0.0",
+                DisplayName = baseName,
+                Parameters = new List<TriggerAuthoringTemplateParameterData>(),
+                Definition = new TriggerDefinitionData
+                {
+                    Name = baseName,
+                    Enabled = true,
+                    EntryMode = TriggerEntryMode.Callable,
+                    Event = string.Empty,
+                    Actions = new TriggerNodeData
+                    {
+                        Kind = TriggerNodeKind.Action,
+                        Type = "seq"
+                    }
+                }
+            };
+            var assetPath = string.IsNullOrWhiteSpace(explicitPath)
+                ? AssetDatabase.GenerateUniqueAssetPath(directory + "/" + baseName + ".Template.asset")
+                : explicitPath;
+            AssetDatabase.CreateAsset(asset, assetPath);
+            TriggerAuthoringTemplateMembership.Assign(asset, project);
+            EditorUtility.SetDirty(asset);
+            EditorUtility.SetDirty(project.TemplateCatalog);
+            AssetDatabase.SaveAssets();
+            return asset;
+        }
+
+        internal static string CreateUniqueTemplateId(
+            string baseName,
+            IReadOnlyList<TriggerAuthoringTemplateAsset> templates)
+        {
+            var stem = "template_" + SanitizeModuleId(
+                string.IsNullOrWhiteSpace(baseName) ? "trigger" : baseName);
+            var candidate = stem;
+            var suffix = 2;
+            while (ContainsTemplateId(templates, candidate))
+                candidate = stem + "_" + suffix++;
+            return candidate;
+        }
+
+        private static bool ContainsTemplateId(
+            IReadOnlyList<TriggerAuthoringTemplateAsset> templates,
+            string templateId)
+        {
+            if (templates == null) return false;
+            for (var i = 0; i < templates.Count; i++)
+            {
+                var template = templates[i]?.Template;
+                if (template != null &&
+                    string.Equals(template.TemplateId, templateId, StringComparison.Ordinal))
+                    return true;
+            }
+            return false;
         }
 
         private static string SanitizeModuleId(string value)

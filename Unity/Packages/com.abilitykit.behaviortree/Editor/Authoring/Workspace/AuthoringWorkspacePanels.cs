@@ -16,7 +16,11 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
         private readonly Action _layoutAll;
         private readonly Action _layoutSelectionLocked;
         private readonly VisualElement _root = new();
-        private readonly VisualElement _content = new();
+        internal const float MaximumExpandedHeight = 220f;
+        internal const string RootElementName = "bt-overview-panel";
+        internal const string ContentElementName = "bt-overview-content";
+
+        private readonly ScrollView _content = new(ScrollViewMode.Vertical);
         private Toggle? _visibleToggle;
 
         public AuthoringOverviewPanel(
@@ -47,16 +51,20 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             AddMetricRow(model);
             AddRootRow(model);
             AddLayoutRow();
-            AddNodeList("Orphans", model.OrphanNodeIds);
-            AddTextList("Subtrees", model.SubtreeReferences);
+            AddNodeList("未连接节点", model.OrphanNodeIds);
+            AddTextList("子树引用", model.SubtreeReferences);
             AddSearchHits(model.Search);
 
             if (!model.ClipboardAvailable)
-                AddMuted("Clipboard API: " + _presenter.Clipboard.Status);
+                AddMuted("剪贴板: " + _presenter.Clipboard.Status);
         }
 
         private void BuildShell()
         {
+            _root.name = RootElementName;
+            _root.style.maxHeight = MaximumExpandedHeight;
+            _root.style.flexShrink = 0f;
+            _root.style.overflow = Overflow.Hidden;
             _root.style.paddingLeft = 8f;
             _root.style.paddingRight = 8f;
             _root.style.paddingTop = 6f;
@@ -64,10 +72,10 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             _root.style.borderBottomWidth = 1f;
             _root.style.borderBottomColor = new Color(0.24f, 0.24f, 0.24f);
 
-            _visibleToggle = new Toggle("Overview")
+            _visibleToggle = new Toggle("概览")
             {
                 value = _state.GetPanelVisible(PanelId, true),
-                tooltip = "Show tree overview and layout controls",
+                tooltip = "显示树概览与布局操作",
             };
             _visibleToggle.style.unityFontStyleAndWeight = FontStyle.Bold;
             _visibleToggle.RegisterValueChangedCallback(evt =>
@@ -77,26 +85,32 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
                 _content.style.display = evt.newValue ? DisplayStyle.Flex : DisplayStyle.None;
             });
             _root.Add(_visibleToggle);
+            _content.name = ContentElementName;
+            _content.horizontalScrollerVisibility = ScrollerVisibility.Hidden;
+            _content.verticalScrollerVisibility = ScrollerVisibility.Auto;
+            _content.style.flexGrow = 1f;
+            _content.style.flexShrink = 1f;
+            _content.style.minHeight = 0f;
             _root.Add(_content);
         }
 
         private void AddMetricRow(AuthoringOverviewModel model)
         {
             AddMuted(
-                $"{model.NodeCount} nodes  {model.EdgeCount} edges  {model.BlackboardKeyCount} keys  {model.DiagnosticErrorCount} errors");
-            AddMuted($"{model.GroupCount} groups  {model.NoteCount} notes");
+                $"{model.NodeCount} 节点  ·  {model.EdgeCount} 连线  ·  {model.BlackboardKeyCount} 黑板键");
+            AddMuted($"{model.GroupCount} 分组  ·  {model.NoteCount} 注释  ·  {model.DiagnosticErrorCount} 错误");
         }
 
         private void AddRootRow(AuthoringOverviewModel model)
         {
             if (string.IsNullOrWhiteSpace(model.RootNodeId))
             {
-                AddMuted("Root: missing");
+                AddMuted("根节点缺失");
                 return;
             }
 
             _content.Add(NodeButton(
-                "Root: " + LabelFor(model.RootDisplayName, model.RootNodeId),
+                "根节点: " + LabelFor(model.RootDisplayName, model.RootNodeId),
                 model.RootNodeId));
         }
 
@@ -109,23 +123,25 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
                 else _layoutAll();
             })
             {
-                text = "Layout",
-                tooltip = "Run automatic layout",
+                text = "自动布局",
+                tooltip = "整理全部节点",
             };
             layout.style.height = 22f;
             layout.style.marginRight = 4f;
+            layout.style.flexGrow = 1f;
             row.Add(layout);
 
             var layoutLocked = new Button(_layoutSelectionLocked)
             {
-                text = "Keep Selected",
-                tooltip = "Run layout while keeping selected nodes fixed",
+                text = "保持选中",
+                tooltip = "固定选中节点后整理布局",
             };
             layoutLocked.style.height = 22f;
+            layoutLocked.style.flexGrow = 1f;
             row.Add(layoutLocked);
             _content.Add(row);
 
-            var lockSelection = new Toggle("Lock selected during panel layout")
+            var lockSelection = new Toggle("布局时固定选中节点")
             {
                 value = _state.GetFoldoutExpanded("layout.lock-selection", false),
             };
@@ -140,7 +156,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             AddSectionTitle(title);
             var max = Math.Min(8, nodeIds.Count);
             for (var i = 0; i < max; i++) _content.Add(NodeButton(nodeIds[i], nodeIds[i]));
-            if (nodeIds.Count > max) AddMuted("+" + (nodeIds.Count - max) + " more");
+            if (nodeIds.Count > max) AddMuted("另有 " + (nodeIds.Count - max) + " 项");
         }
 
         private void AddTextList(string title, System.Collections.Generic.IReadOnlyList<string> values)
@@ -149,16 +165,19 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
             AddSectionTitle(title);
             var max = Math.Min(8, values.Count);
             for (var i = 0; i < max; i++) AddMuted(values[i]);
-            if (values.Count > max) AddMuted("+" + (values.Count - max) + " more");
+            if (values.Count > max) AddMuted("另有 " + (values.Count - max) + " 项");
         }
 
         private void AddSearchHits(AuthoringSearchResult search)
         {
+            // The canvas already shows every node. The overview only needs a result list
+            // after the user enters a query; rendering all nodes here consumes the inspector.
+            if (string.IsNullOrWhiteSpace(search.Query)) return;
             if (search.Hits.Count == 0) return;
-            AddSectionTitle(string.IsNullOrWhiteSpace(search.Query) ? "Nodes" : "Search");
+            AddSectionTitle("搜索结果");
             foreach (var hit in search.Hits)
             {
-                var suffix = hit.IsRoot ? "  root" : hit.IsOrphan ? "  orphan" : string.Empty;
+                var suffix = hit.IsRoot ? "  根" : hit.IsOrphan ? "  未连接" : string.Empty;
                 _content.Add(NodeButton(LabelFor(hit.DisplayName, hit.NodeId) + suffix, hit.NodeId));
             }
         }

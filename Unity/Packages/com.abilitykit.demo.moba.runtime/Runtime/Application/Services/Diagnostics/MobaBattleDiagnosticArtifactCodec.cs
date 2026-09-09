@@ -364,6 +364,7 @@ namespace AbilityKit.Demo.Moba.Services
             var result = new AnalysisBattleDiagnosticEvent { Frame = item.Frame, Sequence = item.Sequence, MonotonicTimestamp = item.MonotonicTimestamp, Kind = (int)item.Kind, Channel = (int)item.Channel, Outcome = (int)item.Outcome, SourceActorId = item.SourceActorId, TargetActorId = item.TargetActorId, SourceActorGeneration = item.SourceActor.Generation, TargetActorGeneration = item.TargetActor.Generation, SubjectObjectKind = (int)item.SubjectObject.Kind, SubjectRuntimeId = item.SubjectObject.RuntimeId, SubjectGeneration = item.SubjectObject.Generation, ConfigId = item.ConfigId, DefinitionKind = (int)item.DefinitionKind, RootContextId = item.RootContextId, ContextId = item.ContextId, SkillRuntimeId = item.SkillRuntime.RuntimeId, SkillRuntimeGeneration = item.SkillRuntime.Generation, AttackId = item.AttackId, PayloadVersion = item.PayloadVersion, Summary = item.Summary };
             if (item.Payload.TryGetSyncSnapshotReceived(out var payload)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, AuthoritativeFrame = payload.AuthoritativeFrame, StateHash = payload.StateHash };
             else if (item.Payload.TryGetTriggerAnalysis(out var trigger)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, TriggerId = trigger.TriggerId, TriggerContextKind = trigger.ContextKind, TriggerOriginKind = trigger.OriginKind, TriggerStage = (int)trigger.Stage, TriggerResult = (int)trigger.Result, TriggerDetailCode = trigger.DetailCode, TriggerCurrentDepth = trigger.CurrentDepth, TriggerCurrentFrameCount = trigger.CurrentFrameCount, TriggerCurrentRootCount = trigger.CurrentRootCount, TriggerCurrentSameTriggerCount = trigger.CurrentSameTriggerCount, TriggerFailureKey = trigger.FailureKey, TriggerReason = trigger.Reason };
+            else if (item.Payload.TryGetTriggerAnalysisAggregate(out var aggregate)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, TriggerId = aggregate.TriggerId, TriggerContextKind = aggregate.ContextKind, TriggerOriginKind = aggregate.OriginKind, TriggerStage = (int)aggregate.Stage, TriggerResult = (int)aggregate.Result, TriggerDetailCode = aggregate.DetailCode, TriggerAggregateOccurrenceCount = aggregate.OccurrenceCount, TriggerAggregateFirstFrame = aggregate.FirstFrame, TriggerAggregateLastFrame = aggregate.LastFrame, TriggerAggregateFirstContextId = aggregate.FirstContextId, TriggerAggregateLastContextId = aggregate.LastContextId, TriggerAggregateFirstRootContextId = aggregate.FirstRootContextId, TriggerAggregateLastRootContextId = aggregate.LastRootContextId, TriggerFailureKey = aggregate.FailureKey, TriggerReason = aggregate.SampleReason };
             else if (item.Payload.TryGetSkillFailure(out var failure)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, SkillFailureSlot = failure.Slot, SkillFailureSource = failure.Source, SkillFailureStage = failure.Stage, SkillFailureCode = failure.Code, SkillFailureMessage = failure.Message };
             else if (item.Payload.TryGetBuffLifecycle(out var buff)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, BuffLifecycleStage = (int)buff.Stage, BuffLifecycleStackCount = buff.StackCount, BuffLifecyclePreviousStackCount = buff.PreviousStackCount, BuffLifecycleDurationMilliseconds = buff.DurationMilliseconds, BuffLifecycleRemainingMilliseconds = buff.RemainingMilliseconds, BuffLifecycleIntervalRemainingMilliseconds = buff.IntervalRemainingMilliseconds, BuffLifecycleMaxStacks = buff.MaxStacks, BuffLifecycleModifierBindingCount = buff.ModifierBindingCount, BuffLifecycleModifierSourceId = buff.ModifierSourceId, BuffLifecycleRemoveReason = buff.RemoveReason };
             return result;
@@ -395,6 +396,26 @@ namespace AbilityKit.Demo.Moba.Services
                         item.Payload.TriggerFailureKey,
                         item.Payload.TriggerReason);
                     payload = BattleDiagnosticEventPayload.FromTriggerAnalysis(in trigger);
+                }
+                else if (item.Payload.Kind == (int)BattleDiagnosticPayloadKind.TriggerAnalysisAggregate && item.Payload.SchemaVersion == BattleDiagnosticTriggerAnalysisAggregatePayload.CurrentSchemaVersion)
+                {
+                    var aggregate = new BattleDiagnosticTriggerAnalysisAggregatePayload(
+                        item.Payload.TriggerId,
+                        item.Payload.TriggerContextKind,
+                        item.Payload.TriggerOriginKind,
+                        (BattleDiagnosticTriggerAnalysisStage)item.Payload.TriggerStage,
+                        (BattleDiagnosticTriggerAnalysisResult)item.Payload.TriggerResult,
+                        item.Payload.TriggerDetailCode,
+                        item.Payload.TriggerAggregateOccurrenceCount,
+                        item.Payload.TriggerAggregateFirstFrame,
+                        item.Payload.TriggerAggregateLastFrame,
+                        item.Payload.TriggerAggregateFirstContextId,
+                        item.Payload.TriggerAggregateLastContextId,
+                        item.Payload.TriggerAggregateFirstRootContextId,
+                        item.Payload.TriggerAggregateLastRootContextId,
+                        item.Payload.TriggerFailureKey,
+                        item.Payload.TriggerReason);
+                    payload = BattleDiagnosticEventPayload.FromTriggerAnalysisAggregate(in aggregate);
                 }
                 else if (item.Payload.Kind == (int)BattleDiagnosticPayloadKind.BuffLifecycle && item.Payload.SchemaVersion == BattleDiagnosticBuffLifecyclePayload.CurrentSchemaVersion)
                 {

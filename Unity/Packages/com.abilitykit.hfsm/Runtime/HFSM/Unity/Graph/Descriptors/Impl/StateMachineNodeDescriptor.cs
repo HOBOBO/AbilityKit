@@ -26,6 +26,8 @@ namespace AbilityKit.HFSM.Graph.Descriptor.Impl
 
         public string DefaultStateId => _smNode.DefaultStateId;
         public bool RememberLastState => _smNode.RememberLastState;
+        public bool NeedsExitTime => _smNode.NeedsExitTime;
+        public bool IsGhostState => _smNode.IsGhostState;
 
         public override string GetNodeTypeDescription() => _smNode.GetNodeTypeDescription();
 

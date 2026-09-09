@@ -14,16 +14,16 @@ namespace AbilityKit.Ability.Editor.Utilities
         private const string OutputFolder = "Assets/AbilityKit/TriggerAuthoringSamples";
         private const string OutputAssetPath = OutputFolder + "/TriggerEditorFeatureShowcase.asset";
 
-        [MenuItem("Tools/AbilityKit/Framework/Ability/Trigger Authoring Samples/Create Feature Showcase Module")]
+        [MenuItem("Tools/AbilityKit/Framework/Ability/触发器示例/创建功能展示模块")]
         public static void CreateFeatureShowcaseModule()
         {
             var sourcePath = ResolveProjectPath(SampleSourcePath);
             if (!File.Exists(sourcePath))
             {
                 EditorUtility.DisplayDialog(
-                    "Trigger Authoring Sample",
-                    "Sample source JSON was not found:\n" + sourcePath,
-                    "OK");
+                    "触发器编辑示例",
+                    "未找到示例 Source JSON：\n" + sourcePath,
+                    "确定");
                 return;
             }
 
@@ -39,9 +39,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!result.Success)
             {
                 EditorUtility.DisplayDialog(
-                    "Trigger Authoring Sample",
-                    "Failed to import sample source JSON:\n" + result.Message,
-                    "OK");
+                    "触发器编辑示例",
+                    "导入示例 Source JSON 失败：\n" + result.Message,
+                    "确定");
                 return;
             }
 

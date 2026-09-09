@@ -26,14 +26,14 @@ namespace AbilityKit.Game.Editor
                     default,
                     requiresSelection: true,
                     hasSelection: false,
-                    subject: "实体 Effect"));
+                    subject: "实体效果"));
                 return;
             }
 
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -46,7 +46,7 @@ namespace AbilityKit.Game.Editor
                     BattleDiagnosticDataAvailability.Unsupported);
                 DrawEmptyState(BattleDebugEmptyStateProjector.Project(
                     in unsupported,
-                    subject: "实体 Effect"));
+                    subject: "实体效果"));
                 return;
             }
 
@@ -59,7 +59,7 @@ namespace AbilityKit.Game.Editor
             {
                 DrawEmptyState(BattleDebugEmptyStateProjector.Project(
                     _viewModel.QueryStatus,
-                    subject: "实体 Effect"));
+                    subject: "实体效果"));
             }
             else
             {
@@ -97,7 +97,7 @@ namespace AbilityKit.Game.Editor
             }
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.LabelField(
-                $"EffectStoreRevision={_viewModel.StoreRevision}",
+                $"效果存储版本={_viewModel.StoreRevision}",
                 EditorStyles.miniLabel);
         }
 
@@ -105,21 +105,21 @@ namespace AbilityKit.Game.Editor
         {
             var remaining = effect.HasRemainingTime
                 ? effect.RemainingSeconds.ToString("0.###")
-                : "N/A";
+                : "不适用";
             var nextTick = effect.HasPeriodicTick
                 ? effect.NextTickInSeconds.ToString("0.###")
-                : "N/A";
+                : "不适用";
 
             EditorGUILayout.BeginVertical(GUI.skin.box);
             EditorGUILayout.LabelField(
-                $"#{effect.InstanceId} stack={effect.StackCount} duration={effect.DurationPolicy}",
+                $"#{effect.InstanceId} 层数={effect.StackCount} 持续策略={BattleDebugDisplayText.EffectDurationPolicy(effect.DurationPolicy)}",
                 EditorStyles.miniBoldLabel);
             EditorGUILayout.LabelField(
-                $"elapsed={effect.ElapsedSeconds:0.###} remaining={remaining} nextTick={nextTick}",
+                $"已持续={effect.ElapsedSeconds:0.###} 剩余={remaining} 下次周期={nextTick}",
                 EditorStyles.miniLabel);
             EditorGUILayout.LabelField(
-                $"duration={effect.DurationSeconds:0.###} period={effect.PeriodSeconds:0.###} " +
-                $"components={effect.ComponentCount} periodicOnApply={effect.ExecutePeriodicOnApply}",
+                $"时长={effect.DurationSeconds:0.###} 周期={effect.PeriodSeconds:0.###} " +
+                $"组件数={effect.ComponentCount} 应用时执行周期={BattleDebugDisplayText.Bool(effect.ExecutePeriodicOnApply)}",
                 EditorStyles.miniLabel);
             EditorGUILayout.EndVertical();
         }

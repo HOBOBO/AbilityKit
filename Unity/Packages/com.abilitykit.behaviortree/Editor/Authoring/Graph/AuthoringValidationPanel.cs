@@ -33,7 +33,12 @@ namespace AbilityKit.BehaviorTree.Editor
 
             style.display = initiallyVisible ? DisplayStyle.Flex : DisplayStyle.None;
             style.maxHeight = 190f;
-            style.paddingTop = 6f;
+            style.minHeight = 40f;
+            style.flexShrink = 1f;
+            style.paddingLeft = 10f;
+            style.paddingRight = 10f;
+            style.paddingTop = 8f;
+            style.paddingBottom = 8f;
             style.borderTopWidth = 1f;
             style.borderTopColor = new Color(0.3f, 0.3f, 0.3f);
         }
@@ -48,7 +53,12 @@ namespace AbilityKit.BehaviorTree.Editor
             {
                 Add(new Label(_localization.Get("abilitykit.behaviortree.validation.success"))
                 {
-                    style = { color = new Color(0.55f, 0.9f, 0.62f), whiteSpace = WhiteSpace.Normal },
+                    style =
+                    {
+                        color = new Color(0.55f, 0.9f, 0.62f),
+                        whiteSpace = WhiteSpace.Normal,
+                        unityFontStyleAndWeight = FontStyle.Bold,
+                    },
                 });
                 _clearErrorNodes();
                 return;
@@ -56,7 +66,13 @@ namespace AbilityKit.BehaviorTree.Editor
 
             Add(new Label(_localization.Format("abilitykit.behaviortree.validation.errors", diagnostics.ErrorCount))
             {
-                style = { color = new Color(0.95f, 0.5f, 0.45f), whiteSpace = WhiteSpace.Normal },
+                style =
+                {
+                    color = new Color(0.95f, 0.5f, 0.45f),
+                    whiteSpace = WhiteSpace.Normal,
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    marginBottom = 4f,
+                },
             });
 
             foreach (var diagnostic in diagnostics.Items)
@@ -65,7 +81,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 {
                     Add(new Label(diagnostic.Message)
                     {
-                        style = { whiteSpace = WhiteSpace.Normal },
+                        style = { whiteSpace = WhiteSpace.Normal, marginBottom = 3f },
                     });
                     continue;
                 }
@@ -79,6 +95,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 };
                 focusError.style.unityTextAlign = TextAnchor.MiddleLeft;
                 focusError.style.whiteSpace = WhiteSpace.Normal;
+                focusError.style.marginBottom = 3f;
                 Add(focusError);
             }
 

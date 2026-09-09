@@ -119,6 +119,41 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void QueryTraceRoots_PrioritizesIssuesThenActiveAndSupportsPaging()
+        {
+            var collector = MakeCollector();
+            var registry = new MobaTraceRegistry();
+            var issueRoot = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            var failedAction = registry.CreateChildContext(
+                issueRoot,
+                MobaTraceKind.EffectAction,
+                601);
+            registry.EndContext(failedAction, TraceLifecycleReason.Failed);
+            registry.EndContext(issueRoot, TraceLifecycleReason.Completed);
+
+            var activeRoot = registry.CreateRootContext(MobaTraceKind.SkillCast, 502);
+            registry.CreateChildContext(activeRoot, MobaTraceKind.SkillPhase, 602);
+
+            var completedRoot = registry.CreateRootContext(MobaTraceKind.EffectExecution, 503);
+            registry.EndContext(completedRoot, TraceLifecycleReason.Completed);
+
+            var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
+            var result = store.QueryTraceRoots(new BattleDiagnosticTraceRootQuery(
+                1,
+                new BattleDiagnosticPageRequest(0, 0, 2)));
+
+            Assert.That(result.Status.Phase, Is.EqualTo(BattleDiagnosticQueryPhase.Ready));
+            Assert.That(result.Status.HasMore, Is.True);
+            Assert.That(result.Items.Count, Is.EqualTo(2));
+            Assert.That(result.Items[0].RootContextId, Is.EqualTo(issueRoot));
+            Assert.That(result.Items[0].IssueCount, Is.EqualTo(1));
+            Assert.That(result.Items[0].ActionCount, Is.EqualTo(1));
+            Assert.That(result.Items[1].RootContextId, Is.EqualTo(activeRoot));
+            Assert.That(result.Items[1].ActiveCount, Is.EqualTo(2));
+            Assert.That(result.Items[1].NodeCount, Is.EqualTo(2));
+        }
+
+        [Test]
         public void Registry_FrameZeroEnd_RemainsExplicitlyEndedAcrossSnapshotsAndExport()
         {
             var registry = new MobaTraceRegistry();

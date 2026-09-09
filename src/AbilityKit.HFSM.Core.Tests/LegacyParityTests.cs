@@ -14,6 +14,32 @@ namespace AbilityKit.HFSM.Core.Tests;
 public sealed class LegacyParityTests
 {
     [Fact]
+    public void UnityHfsmTwentyThreeActionInspectionAndMutableFlagsAreAvailable()
+    {
+        var actionState = new ActionState(needsExitTime: false);
+        actionState.AddAction("fire", () => { });
+        var transition = new Transition("active", "done");
+        var machine = new StateMachine();
+        machine.AddState("active", actionState);
+        machine.AddState("done", new State());
+        machine.AddTransition(transition);
+
+        Assert.False(machine.IsInitialized);
+        machine.Init();
+
+        Assert.True(machine.IsInitialized);
+        Assert.True(machine.IsActive);
+        Assert.True(machine.HasAction("fire"));
+        Assert.False(machine.HasAction("missing"));
+        actionState.needsExitTime = true;
+        actionState.isGhostState = true;
+        transition.forceInstantly = true;
+        Assert.True(actionState.needsExitTime);
+        Assert.True(actionState.isGhostState);
+        Assert.True(transition.forceInstantly);
+    }
+
+    [Fact]
     public void TransitionLifecycleAndNewStateTickHaveParity()
     {
         var legacy = RunLegacyLifecycle();

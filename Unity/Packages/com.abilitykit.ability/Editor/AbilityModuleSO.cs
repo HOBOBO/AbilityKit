@@ -13,9 +13,11 @@ namespace AbilityKit.Ability.Editor
     public sealed class AbilityModuleSO : ScriptableObject
     {
         [HorizontalGroup("Top", Width = 220)]
+        [LabelText("技能 ID")]
         public string AbilityId;
 
         [ListDrawerSettings(Expanded = true)]
+        [LabelText("触发器")]
         public List<TriggerEditorConfig> Triggers = new List<TriggerEditorConfig>();
     }
 
@@ -25,6 +27,7 @@ namespace AbilityKit.Ability.Editor
         [NonSerialized]
         internal AbilityModuleSO Owner;
 
+        [LabelText("基础配置")]
         public TriggerHeaderDTO Core = new TriggerHeaderDTO();
 
         [HorizontalGroup("Row", Width = 60)]
@@ -32,7 +35,7 @@ namespace AbilityKit.Ability.Editor
         public bool Enabled = true;
 
         [HorizontalGroup("Row", Width = 140)]
-        [LabelText("TriggerId")]
+        [LabelText("触发器 ID")]
         [LabelWidth(55)]
         [ShowInInspector]
         public int TriggerId
@@ -46,9 +49,9 @@ namespace AbilityKit.Ability.Editor
         }
 
         [HorizontalGroup("Row")]
-        [LabelText("EventId")]
+        [LabelText("事件 ID")]
         [LabelWidth(50)]
-        [ValueDropdown(nameof(GetEventIdOptions), IsUniqueList = true, DropdownTitle = "EventId")]
+        [ValueDropdown(nameof(GetEventIdOptions), IsUniqueList = true, DropdownTitle = "事件 ID")]
         [ShowInInspector]
         public string EventId
         {
@@ -61,6 +64,7 @@ namespace AbilityKit.Ability.Editor
         }
 
         [TextArea]
+        [LabelText("备注")]
         public string Note;
 
         [InfoBox("@GetLocalVarValidationMessage()", InfoMessageType.Error, VisibleIf = nameof(HasLocalVarValidationError))]
@@ -116,7 +120,7 @@ namespace AbilityKit.Ability.Editor
 
             var items = new List<ValueDropdownItem<string>>(list.Count + 1)
             {
-                new ValueDropdownItem<string>("<None>", string.Empty)
+                new ValueDropdownItem<string>("<未选择>", string.Empty)
             };
 
             for (int i = 0; i < list.Count; i++)
@@ -204,9 +208,12 @@ namespace AbilityKit.Ability.Editor
     {
         [HorizontalGroup("Row", Width = 220)]
         [GUIColor(nameof(GetKeyColor))]
+        [LabelText("变量键")]
         public string Key;
 
         [HorizontalGroup("Row", Width = 110)]
+        [LabelText("类型")]
+        [ValueDropdown(nameof(GetKindOptions))]
         public ArgValueKind Kind;
 
         [HorizontalGroup("Row", Width = 56)]
@@ -215,23 +222,38 @@ namespace AbilityKit.Ability.Editor
 
         [HorizontalGroup("Row")]
         [ShowIf(nameof(IsInt))]
+        [LabelText("整数值")]
         public int IntValue;
 
         [HorizontalGroup("Row")]
         [ShowIf(nameof(IsFloat))]
+        [LabelText("数值")]
         public float FloatValue;
 
         [HorizontalGroup("Row")]
         [ShowIf(nameof(IsBool))]
+        [LabelText("布尔值")]
         public bool BoolValue;
 
         [HorizontalGroup("Row")]
         [ShowIf(nameof(IsString))]
+        [LabelText("文本")]
         public string StringValue;
 
         [HorizontalGroup("Row")]
         [ShowIf(nameof(IsObject))]
+        [LabelText("对象")]
         public UnityEngine.Object ObjectValue;
+
+        private static IEnumerable<ValueDropdownItem<ArgValueKind>> GetKindOptions()
+        {
+            yield return new ValueDropdownItem<ArgValueKind>("未选择", ArgValueKind.None);
+            yield return new ValueDropdownItem<ArgValueKind>("整数", ArgValueKind.Int);
+            yield return new ValueDropdownItem<ArgValueKind>("数值", ArgValueKind.Float);
+            yield return new ValueDropdownItem<ArgValueKind>("布尔值", ArgValueKind.Bool);
+            yield return new ValueDropdownItem<ArgValueKind>("文本", ArgValueKind.String);
+            yield return new ValueDropdownItem<ArgValueKind>("对象", ArgValueKind.Object);
+        }
 
         private bool IsInt => Kind == ArgValueKind.Int;
         private bool IsFloat => Kind == ArgValueKind.Float;

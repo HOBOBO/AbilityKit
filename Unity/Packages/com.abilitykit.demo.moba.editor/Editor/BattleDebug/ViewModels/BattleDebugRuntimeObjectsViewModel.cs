@@ -120,7 +120,7 @@ namespace AbilityKit.Game.Editor
             {
                 Invalidate();
                 RefreshIfNeeded(session);
-                StatusMessage = "The runtime object catalog changed; the list was refreshed.";
+                StatusMessage = "运行时对象目录已变化，列表已刷新。";
                 return false;
             }
 
@@ -144,8 +144,8 @@ namespace AbilityKit.Game.Editor
             _nextPageOffset += PageSize;
             HasMore = result.Status.HasMore;
             PagingStatusMessage = HasMore
-                ? $"Loaded {_items.Count} objects; more are available."
-                : $"Loaded all {_items.Count} matching objects.";
+                ? $"已加载 {_items.Count} 个对象，还有更多。"
+                : $"已加载全部 {_items.Count} 个匹配对象。";
             ReconcileSelection();
             return true;
         }
@@ -207,7 +207,7 @@ namespace AbilityKit.Game.Editor
                 if (!CanRetainItems(result.Status))
                 {
                     RelatedEventStatusMessage =
-                        $"Related event lookup unavailable: {result.Status.Availability} " +
+                        $"关联事件查询不可用：{BattleDebugDisplayText.Availability(result.Status.Availability)} " +
                         result.Status.Message;
                     return false;
                 }
@@ -240,13 +240,13 @@ namespace AbilityKit.Game.Editor
             if (found)
             {
                 RelatedEventStatusMessage =
-                    $"Found event at frame {diagnosticEvent.Frame}, sequence {diagnosticEvent.Sequence}.";
+                    $"已找到第 {diagnosticEvent.Frame} 帧、序列 {diagnosticEvent.Sequence} 的事件。";
                 return true;
             }
 
             RelatedEventStatusMessage = exhausted
-                ? $"No related event was found in {scanned} retained events."
-                : $"No related event was found in the newest {scanned} events; older data was not scanned.";
+                ? $"在保留的 {scanned} 条事件中未找到关联事件。"
+                : $"在最新 {scanned} 条事件中未找到关联事件；未扫描更早的数据。";
             return false;
         }
 
@@ -294,19 +294,19 @@ namespace AbilityKit.Game.Editor
             switch (status.Phase)
             {
                 case BattleDiagnosticQueryPhase.Empty:
-                    return "No runtime objects match the current filters.";
+                    return "没有符合当前过滤条件的运行时对象。";
                 case BattleDiagnosticQueryPhase.Partial:
                     return string.IsNullOrEmpty(status.Message)
-                        ? "Only partial runtime object data is available."
+                        ? "当前仅有部分运行时对象数据可用。"
                         : status.Message;
                 case BattleDiagnosticQueryPhase.Unavailable:
                 case BattleDiagnosticQueryPhase.Error:
                     return string.IsNullOrEmpty(status.Message)
-                        ? $"Runtime object catalog unavailable: {status.Availability}."
+                        ? $"运行时对象目录不可用：{BattleDebugDisplayText.Availability(status.Availability)}。"
                         : status.Message;
                 default:
                     return status.HasMore
-                        ? $"Loaded {status.ResultCount} objects; more are available."
+                        ? $"已加载 {status.ResultCount} 个对象，还有更多。"
                         : string.Empty;
             }
         }
@@ -328,7 +328,7 @@ namespace AbilityKit.Game.Editor
             Summary = null;
             HasMore = false;
             StatusMessage =
-                "Unsupported: this session adapter does not provide runtime object catalog queries.";
+                "不支持：当前会话适配器未提供运行时对象目录查询。";
             QueryStatus = BattleDiagnosticQueryStatus.Unavailable(
                 0L,
                 revision,

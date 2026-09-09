@@ -29,5 +29,31 @@ namespace AbilityKit.Ability.Editor.Utilities
             Assign(module, null);
         }
     }
+
+    /// <summary>
+    /// 维护 Template 与 Project TemplateCatalog 的双向成员关系。
+    /// </summary>
+    internal static class TriggerAuthoringTemplateMembership
+    {
+        public static void Assign(TriggerAuthoringTemplateAsset template, TriggerAuthoringProjectAsset project)
+        {
+            if (template == null) throw new ArgumentNullException(nameof(template));
+
+            var previous = template.Project;
+            if (!ReferenceEquals(previous, project))
+            {
+                previous?.TemplateCatalog?.RemoveTemplate(template);
+                template.SetProject(project);
+            }
+
+            project?.TemplateCatalog?.AddTemplate(template);
+        }
+
+        public static void Detach(TriggerAuthoringTemplateAsset template)
+        {
+            if (template == null) throw new ArgumentNullException(nameof(template));
+            Assign(template, null);
+        }
+    }
 }
 #endif

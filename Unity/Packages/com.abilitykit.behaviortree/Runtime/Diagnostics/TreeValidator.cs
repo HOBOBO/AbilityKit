@@ -42,30 +42,30 @@ namespace AbilityKit.BehaviorTree.Diagnostics
 
             if (definition == null)
             {
-                Add("BT0001", "Tree definition is null.");
+                Add("BT0001", "行为树定义为空。");
                 return diagnostics;
             }
             if (registry == null)
             {
-                Add("BT0002", "Node registry is null.");
+                Add("BT0002", "节点注册表为空。");
                 return diagnostics;
             }
 
             if (definition.FormatVersion != TreeDefinition.CurrentFormatVersion)
             {
-                Add("BT0100", $"Unsupported format version {definition.FormatVersion} (expected {TreeDefinition.CurrentFormatVersion}).");
+                Add("BT0100", $"不支持格式版本 {definition.FormatVersion}，期望版本为 {TreeDefinition.CurrentFormatVersion}。");
             }
             if (string.IsNullOrEmpty(definition.TreeId))
             {
-                Add("BT0101", "TreeId must not be empty.");
+                Add("BT0101", "Tree ID 不能为空。");
             }
             if (string.IsNullOrEmpty(definition.RootNodeId))
             {
-                Add("BT0102", "RootNodeId must not be empty.");
+                Add("BT0102", "根节点 ID 不能为空。");
             }
             if (definition.Nodes.Count == 0)
             {
-                Add("BT0103", "Tree must contain at least one node.");
+                Add("BT0103", "行为树至少需要一个节点。");
                 return diagnostics;
             }
 
@@ -75,12 +75,12 @@ namespace AbilityKit.BehaviorTree.Diagnostics
             {
                 if (string.IsNullOrEmpty(node.Id))
                 {
-                    Add("BT0200", "Node id must not be empty.");
+                    Add("BT0200", "节点 ID 不能为空。");
                     continue;
                 }
                 if (!byId.TryAdd(node.Id, node))
                 {
-                    Add("BT0201", $"Node id '{node.Id}' is duplicated.", node.Id);
+                    Add("BT0201", $"节点 ID '{node.Id}' 重复。", node.Id);
                 }
                 if (string.Equals(node.Id, definition.RootNodeId, StringComparison.Ordinal))
                 {
@@ -90,7 +90,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
 
             if (root == null)
             {
-                Add("BT0202", $"Root node '{definition.RootNodeId}' not found.", definition.RootNodeId);
+                Add("BT0202", $"找不到根节点 '{definition.RootNodeId}'。", definition.RootNodeId);
             }
 
             var blackboardKeys = new HashSet<string>(StringComparer.Ordinal);
@@ -98,16 +98,16 @@ namespace AbilityKit.BehaviorTree.Diagnostics
             {
                 if (string.IsNullOrEmpty(key.Name))
                 {
-                    Add("BT0300", "Blackboard key name must not be empty.");
+                    Add("BT0300", "黑板键名称不能为空。");
                     continue;
                 }
                 if (!blackboardKeys.Add(key.Name))
                 {
-                    Add("BT0301", $"Blackboard key '{key.Name}' is duplicated.", blackboardKey: key.Name);
+                    Add("BT0301", $"黑板键 '{key.Name}' 重复。", blackboardKey: key.Name);
                 }
                 if (key.Default != null && key.Default.Type != key.Type)
                 {
-                    Add("BT0302", $"Blackboard key '{key.Name}' default value type {key.Default.Type} does not match declared {key.Type}.", blackboardKey: key.Name);
+                    Add("BT0302", $"黑板键 '{key.Name}' 的默认值类型 {key.Default.Type} 与声明类型 {key.Type} 不一致。", blackboardKey: key.Name);
                 }
             }
 
@@ -116,8 +116,46 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                 if (string.IsNullOrEmpty(node.Id)) continue;
                 if (!registry.TryGetDescriptor(node.Type, out var descriptor))
                 {
-                    Add("BT0400", $"Node '{node.Id}' references unknown type '{node.Type}'.", node.Id);
+                    Add("BT0400", $"节点 '{node.Id}' 引用了未知类型 '{node.Type}'。", node.Id);
                     continue;
+                }
+
+                if (node.SubtreeBlackboard != null)
+                {
+                    if (!string.Equals(node.Type, AbilityKit.BehaviorTree.Nodes.BuiltInNodeTypes.Subtree, StringComparison.Ordinal))
+                    {
+                        Add("BT0550", $"节点 '{node.Id}' 不是子树节点，不能配置子树黑板。", node.Id);
+                    }
+                    else if (node.SubtreeBlackboard.Bindings == null)
+                    {
+                        Add("BT0551", $"子树节点 '{node.Id}' 的黑板绑定列表无效。", node.Id);
+                    }
+                    else
+                    {
+                        var boundChildKeys = new HashSet<string>(StringComparer.Ordinal);
+                        foreach (var binding in node.SubtreeBlackboard.Bindings)
+                        {
+                            if (binding == null
+                                || string.IsNullOrEmpty(binding.SubtreeKey)
+                                || string.IsNullOrEmpty(binding.ParentKey))
+                            {
+                                Add("BT0552", $"子树节点 '{node.Id}' 包含未填写完整的黑板绑定。", node.Id);
+                                continue;
+                            }
+                            if (!boundChildKeys.Add(binding.SubtreeKey))
+                            {
+                                Add("BT0553", $"子树节点 '{node.Id}' 重复绑定了子树键 '{binding.SubtreeKey}'。", node.Id);
+                            }
+                            if (!definition.Blackboard.TryGetType(binding.ParentKey, out _))
+                            {
+                                Add(
+                                    "BT0554",
+                                    $"子树节点 '{node.Id}' 的绑定引用了未声明的父树键 '{binding.ParentKey}'。",
+                                    node.Id,
+                                    blackboardKey: binding.ParentKey);
+                            }
+                        }
+                    }
                 }
 
                 var childCount = node.ChildIds.Count;
@@ -126,7 +164,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                 {
                     Add(
                         "BT0401",
-                        $"Node '{node.Id}' ({descriptor.TypeId}) has {childCount} children; allowed [{descriptor.MinChildren}, {(descriptor.MaxChildren < 0 ? "unbounded" : descriptor.MaxChildren.ToString())}].",
+                        $"节点 '{node.Id}'（{descriptor.TypeId}）有 {childCount} 个子节点，允许范围为 [{descriptor.MinChildren}, {(descriptor.MaxChildren < 0 ? "无限制" : descriptor.MaxChildren.ToString())}]。",
                         node.Id);
                 }
 
@@ -134,7 +172,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                 {
                     if (!byId.ContainsKey(childId))
                     {
-                        Add("BT0402", $"Node '{node.Id}' references missing child '{childId}'.", node.Id);
+                        Add("BT0402", $"节点 '{node.Id}' 引用了不存在的子节点 '{childId}'。", node.Id);
                     }
                 }
 
@@ -149,7 +187,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                         {
                             Add(
                                 "BT0500",
-                                $"Node '{node.Id}' property '{pair.Key}' is {pair.Value.Type}, schema expects {field.Type}.",
+                                $"节点 '{node.Id}' 的属性 '{pair.Key}' 类型为 {pair.Value.Type}，属性定义要求 {field.Type}。",
                                 node.Id,
                                 pair.Key);
                         }
@@ -163,7 +201,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                                 {
                                     Add(
                                         "BT0501",
-                                        $"Node '{node.Id}' property '{pair.Key}' has enum index out of range [0, {field.Options.Count - 1}].",
+                                        $"节点 '{node.Id}' 的属性 '{pair.Key}' 枚举索引超出范围 [0, {field.Options.Count - 1}]。",
                                         node.Id,
                                         pair.Key);
                                 }
@@ -176,7 +214,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                                 {
                                     Add(
                                         "BT0502",
-                                        $"Node '{node.Id}' property '{pair.Key}' references undeclared blackboard key '{keyName}'.",
+                                        $"节点 '{node.Id}' 的属性 '{pair.Key}' 引用了未声明的黑板键 '{keyName}'。",
                                         node.Id,
                                         pair.Key,
                                         keyName);
@@ -187,7 +225,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                     }
                     if (!matched)
                     {
-                        Add("BT0503", $"Node '{node.Id}' has unknown property '{pair.Key}' for type '{node.Type}'.", node.Id, pair.Key);
+                        Add("BT0503", $"节点 '{node.Id}' 包含类型 '{node.Type}' 未定义的属性 '{pair.Key}'。", node.Id, pair.Key);
                     }
                 }
 
@@ -195,7 +233,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                 {
                     if (!abortValue.TryGetInt64(out var abort) || abort is < 0 or > (long)AbortType.Both)
                     {
-                        Add("BT0504", $"Node '{node.Id}' has invalid abortType value.", node.Id, AbilityKit.BehaviorTree.Nodes.CompositeNode.AbortTypeProperty);
+                        Add("BT0504", $"节点 '{node.Id}' 的中止类型值无效。", node.Id, AbilityKit.BehaviorTree.Nodes.CompositeNode.AbortTypeProperty);
                     }
                 }
 
@@ -205,7 +243,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                     {
                         Add(
                             "BT0600",
-                            $"Node type '{descriptor.TypeId}' requires blackboard key '{keyRef.Key}' of type {keyRef.Type}; tree declares {(definition.Blackboard.TryGetType(keyRef.Key, out var declared) ? declared.ToString() : "nothing")}.",
+                            $"节点类型 '{descriptor.TypeId}' 需要类型为 {keyRef.Type} 的黑板键 '{keyRef.Key}'，行为树中声明的是 {(definition.Blackboard.TryGetType(keyRef.Key, out var declared) ? declared.ToString() : "未声明")}。",
                             node.Id,
                             blackboardKey: keyRef.Key);
                     }
@@ -226,7 +264,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                     inDegree[childId]++;
                     if (inDegree[childId] > 1)
                     {
-                        Add("BT0700", $"Node '{childId}' has multiple parents.", childId);
+                        Add("BT0700", $"节点 '{childId}' 存在多个父节点。", childId);
                     }
                 }
             }
@@ -241,7 +279,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                     if (string.IsNullOrEmpty(node.Id)) continue;
                     if (!visited.Contains(node.Id))
                     {
-                        Add("BT0702", $"Node '{node.Id}' is unreachable from the root.", node.Id);
+                        Add("BT0702", $"无法从根节点到达节点 '{node.Id}'。", node.Id);
                     }
                 }
             }
@@ -265,7 +303,7 @@ namespace AbilityKit.BehaviorTree.Diagnostics
                     diagnostics.Add(new ValidationDiagnostic(
                         "BT0701",
                         ValidationSeverity.Error,
-                        $"Cycle detected at node '{childId}'.",
+                        $"在节点 '{childId}' 处检测到循环连接。",
                         childId));
                     continue;
                 }

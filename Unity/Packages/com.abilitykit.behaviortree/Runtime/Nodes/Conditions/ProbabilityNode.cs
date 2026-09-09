@@ -20,7 +20,7 @@ namespace AbilityKit.BehaviorTree.Nodes
             _random = context.Random;
             _percent = context.Properties.GetInt64(PercentProperty, 50);
             if (_percent is < 0 or > 100)
-                throw new InvalidOperationException($"BT node '{context.Definition.Id}': percent must be within [0,100].");
+                throw new InvalidOperationException($"行为树节点 '{context.Definition.Id}'：概率必须在 [0,100] 范围内。");
         }
 
         protected override bool Validate(AbilityKit.BehaviorTree.Execution.ExecutionContext context)

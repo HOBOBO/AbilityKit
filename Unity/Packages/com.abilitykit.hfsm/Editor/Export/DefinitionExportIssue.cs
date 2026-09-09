@@ -30,6 +30,7 @@ namespace AbilityKit.HFSM.Editor.Export
 
         public string Message { get; }
 
-        public override string ToString() => $"{Code} {Severity} at {Path}: {Message}";
+        public override string ToString() =>
+            $"{Code} {(Severity == LegacyImportSeverity.Error ? "错误" : "警告")}，位置 {Path}：{Message}";
     }
 }

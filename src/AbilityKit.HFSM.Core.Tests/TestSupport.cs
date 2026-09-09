@@ -130,7 +130,8 @@ internal static class Fixtures
         string id,
         string behavior = "",
         bool requiresExitApproval = false,
-        string childMachine = "")
+        string childMachine = "",
+        bool ghost = false)
     {
         return new StateDefinition
         {
@@ -138,6 +139,7 @@ internal static class Fixtures
             BehaviorKey = behavior,
             RequiresExitApproval = requiresExitApproval,
             ChildMachineId = childMachine,
+            IsGhostState = ghost,
         };
     }
 
@@ -150,7 +152,8 @@ internal static class Fixtures
         int priority = 0,
         bool fromAny = false,
         bool force = false,
-        long minimumDurationRaw = 0)
+        long minimumDurationRaw = 0,
+        bool exitMachine = false)
     {
         return new TransitionDefinition
         {
@@ -163,6 +166,7 @@ internal static class Fixtures
             FromAnyState = fromAny,
             ForceImmediate = force,
             MinimumActiveDurationRaw = minimumDurationRaw,
+            ExitMachine = exitMachine,
         };
     }
 }

@@ -20,7 +20,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -32,7 +32,7 @@ namespace AbilityKit.Game.Editor
             if (!ctx.HasSelection)
             {
                 EditorGUILayout.HelpBox(
-                    "选择 Actor 后可在此继续查看状态、标签、Effect 和最近活动。",
+                    "选择 Actor 后可在此继续查看状态、标签、效果和最近活动。",
                     MessageType.Info);
                 return;
             }
@@ -44,7 +44,7 @@ namespace AbilityKit.Game.Editor
             if ((session.SessionInfo.Capabilities & requiredCapabilities) != requiredCapabilities)
             {
                 EditorGUILayout.HelpBox(
-                    "当前诊断会话不支持 Actor、标签或 Effect 总览查询。",
+                    "当前诊断会话不支持 Actor、标签或效果总览查询。",
                     MessageType.Info);
                 return;
             }
@@ -62,7 +62,7 @@ namespace AbilityKit.Game.Editor
             if (_viewModel.Actor.HasValue)
             {
                 var actor = _viewModel.Actor.Value;
-                EditorGUILayout.LabelField("类型", actor.Kind.ToString());
+                EditorGUILayout.LabelField("类型", BattleDebugDisplayText.ActorKind(actor.Kind));
                 EditorGUILayout.LabelField("名称", actor.DisplayName);
             }
 
@@ -71,8 +71,8 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("标签数", _viewModel.TagCount.ToString());
             EditorGUILayout.LabelField("效果数", _viewModel.EffectCount.ToString());
             EditorGUILayout.LabelField(
-                $"State={_viewModel.StateStoreRevision} Tag={_viewModel.TagStoreRevision} " +
-                $"Effect={_viewModel.EffectStoreRevision}",
+                $"状态版本={_viewModel.StateStoreRevision} 标签版本={_viewModel.TagStoreRevision} " +
+                $"效果版本={_viewModel.EffectStoreRevision}",
                 EditorStyles.miniLabel);
 
             DrawRecentActivity(in ctx);
@@ -108,11 +108,11 @@ namespace AbilityKit.Game.Editor
             if (!resolution.HasHealthSnapshot)
             {
                 EditorGUILayout.HelpBox(
-                    "会话已连接，但当前数据源未提供 Health 快照。查询功能仍可使用。",
+                    "会话已连接，但当前数据源未提供健康快照。查询功能仍可使用。",
                     MessageType.Info);
                 EditorGUILayout.LabelField(
-                    $"Source={(ctx.IsOffline ? "Artifact" : "Live")}  " +
-                    $"E{session.EventStoreRevision} S{session.StateStoreRevision} T{session.TraceStoreRevision}",
+                    $"来源={(ctx.IsOffline ? "离线 Artifact" : "实时会话")}  " +
+                    $"事件版本={session.EventStoreRevision} 状态版本={session.StateStoreRevision} Trace 版本={session.TraceStoreRevision}",
                     EditorStyles.miniLabel);
                 return;
             }
@@ -121,40 +121,40 @@ namespace AbilityKit.Game.Editor
             var metrics = health.EventStoreMetrics;
             EditorGUILayout.LabelField(
                 "来源 / 会话",
-                $"{(ctx.IsOffline ? "Artifact" : "Live")} / {health.SessionInfo.Scope}");
+                $"{(ctx.IsOffline ? "离线 Artifact" : "实时会话")} / {health.SessionInfo.Scope}");
             EditorGUILayout.LabelField(
-                "轨道 Revision",
-                $"Event {health.EventStoreRevision} / State {health.StateStoreRevision} / Trace {health.TraceStoreRevision}");
+                "轨道版本",
+                $"事件 {health.EventStoreRevision} / 状态 {health.StateStoreRevision} / Trace {health.TraceStoreRevision}");
             EditorGUILayout.LabelField(
                 "进度",
-                $"完整帧 {health.LastSuccessfulStateFrame} / Event #{health.LastEventSequence}");
+                $"完整帧 {health.LastSuccessfulStateFrame} / 事件 #{health.LastEventSequence}");
             EditorGUILayout.LabelField(
                 "捕获",
-                $"Channels={health.EnabledChannels} / Frozen={health.IsFrozen}");
+                $"通道={BattleDebugDisplayText.EventChannel(health.EnabledChannels)} / 已冻结={BattleDebugDisplayText.Bool(health.IsFrozen)}");
             EditorGUILayout.LabelField(
-                "Event Store",
-                $"{metrics.Count}/{metrics.Capacity} / Accepted={metrics.AcceptedCount} / " +
-                $"Evicted={metrics.EvictedCount} / Rejected={metrics.RejectedCount}");
+                "事件仓库",
+                $"{metrics.Count}/{metrics.Capacity} / 已接收={metrics.AcceptedCount} / " +
+                $"已淘汰={metrics.EvictedCount} / 已拒绝={metrics.RejectedCount}");
 
             if (!health.HasProducedState)
             {
-                EditorGUILayout.HelpBox("State 轨道尚未产生完整快照。", MessageType.Info);
+                EditorGUILayout.HelpBox("状态轨道尚未产生完整快照。", MessageType.Info);
             }
             if (!health.HasProducedEvents)
             {
-                EditorGUILayout.HelpBox("Event 轨道尚未产生事件。", MessageType.Info);
+                EditorGUILayout.HelpBox("事件轨道尚未产生事件。", MessageType.Info);
             }
             if (health.HasErrors)
             {
                 var message = string.Empty;
                 if (!string.IsNullOrEmpty(health.LastStateSampleError))
                 {
-                    message += $"State [{health.StateSampleFailureCount}] {health.LastStateSampleError}";
+                    message += $"状态 [{health.StateSampleFailureCount}] {health.LastStateSampleError}";
                 }
                 if (!string.IsNullOrEmpty(health.LastEventCollectError))
                 {
                     if (!string.IsNullOrEmpty(message)) message += "\n";
-                    message += $"Event [{health.EventCollectFailureCount}] {health.LastEventCollectError}";
+                    message += $"事件 [{health.EventCollectFailureCount}] {health.LastEventCollectError}";
                 }
                 EditorGUILayout.HelpBox(message, MessageType.Warning);
             }
@@ -193,7 +193,7 @@ namespace AbilityKit.Game.Editor
             {
                 var evt = _viewModel.RecentEvent.Value;
                 EditorGUILayout.LabelField(
-                    $"#{evt.Sequence}  F{evt.Frame}  {evt.Kind}  {evt.Outcome}",
+                    $"#{evt.Sequence}  F{evt.Frame}  {BattleDebugDisplayText.EventKind(evt.Kind)}  {BattleDebugDisplayText.EventOutcome(evt.Outcome)}",
                     EditorStyles.miniLabel);
                 EditorGUILayout.LabelField(evt.Summary, EditorStyles.wordWrappedMiniLabel);
 

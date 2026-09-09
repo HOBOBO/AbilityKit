@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Editor
 {
     [BattleDebugModule(
         BattleDebugModuleIds.FrameSyncOverview,
-        "Frame Sync",
+        "帧同步",
         Sources = BattleDebugModuleSourceSupport.Live,
         Selections = BattleDebugModuleSelectionSupport.None)]
     internal sealed class BattleDebugFrameSyncPanel : IBattleDebugPanel, IBattleDebugPanelLayout
@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Editor
             var flowCtx = BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
-                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;
             }
 
@@ -42,7 +42,7 @@ namespace AbilityKit.Game.Editor
 
                 if (flowCtx.PredictionReconcileControl.TryGetReconcileEnabled(wid, out var enabled))
                 {
-                    EditorGUILayout.LabelField("对账开关", enabled.ToString());
+                    EditorGUILayout.LabelField("对账开关", BattleDebugDisplayText.Bool(enabled));
                 }
 
                 EditorGUILayout.BeginHorizontal();
@@ -78,7 +78,7 @@ namespace AbilityKit.Game.Editor
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            EditorGUILayout.LabelField("强制哈希不一致（调试）", BattleSessionFeature.DebugForceClientHashMismatch.ToString());
+            EditorGUILayout.LabelField("强制哈希不一致（调试）", BattleDebugDisplayText.Bool(BattleSessionFeature.DebugForceClientHashMismatch));
             if (GUILayout.Button("切换：强制哈希不一致"))
             {
                 BattleSessionFeature.DebugForceClientHashMismatch = !BattleSessionFeature.DebugForceClientHashMismatch;

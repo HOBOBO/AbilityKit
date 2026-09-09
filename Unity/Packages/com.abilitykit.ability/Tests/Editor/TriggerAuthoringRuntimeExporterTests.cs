@@ -892,12 +892,12 @@ namespace AbilityKit.Ability.Editor.Tests
                 {
                     TemplateId = "template.log",
                     TemplateVersion = "1.0.0",
-                    Event = "skill.cast",
                     Parameters =
                     {
                         new TriggerAuthoringTemplateParameterData
                         {
                             Name = "message",
+                            LocalVariableKey = "message",
                             Type = TriggerValueType.String,
                             Required = true,
                             HasDefault = true,
@@ -910,18 +910,24 @@ namespace AbilityKit.Ability.Editor.Tests
                             }
                         }
                     },
-                    Actions = new TriggerNodeData
+                    Definition = new TriggerDefinitionData
                     {
-                        Kind = TriggerNodeKind.Action,
-                        Type = "debug_log",
-                        Arguments =
+                        Event = "skill.cast",
+                        Priority = 27,
+                        Scope = "owner",
+                        Actions = new TriggerNodeData
                         {
-                            Arg("message", new TriggerValueRefData
+                            Kind = TriggerNodeKind.Action,
+                            Type = "debug_log",
+                            Arguments =
                             {
-                                Source = TriggerValueSource.TemplateParameter,
-                                Type = TriggerValueType.String,
-                                Path = "message"
-                            })
+                                Arg("message", new TriggerValueRefData
+                                {
+                                    Source = TriggerValueSource.LocalBlackboard,
+                                    Type = TriggerValueType.String,
+                                    Path = "trigger:message"
+                                })
+                            }
                         }
                     }
                 };
@@ -950,6 +956,7 @@ namespace AbilityKit.Ability.Editor.Tests
 
                 Assert.That(result.Success, Is.True, result.BuildMessage());
                 var trigger = result.Database.Triggers[0];
+                Assert.That(trigger.Priority, Is.EqualTo(27));
                 Assert.That(trigger.Actions.Count, Is.EqualTo(1));
                 Assert.That(trigger.Actions[0].Args["message"].Kind, Is.EqualTo("TemplateParam"));
                 Assert.That(trigger.Template.TemplateId, Is.EqualTo("template.log"));
@@ -1282,6 +1289,107 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(target.Scope, Is.EqualTo("owner"));
             Assert.That(roundTripped.Triggers[0].Actions[0].Args["boolValue"].BoolValue, Is.True);
             Assert.That(roundTripped.Triggers[0].Actions[0].Args["stringValue"].StringValue, Is.EqualTo("armed"));
+        }
+
+        [Test]
+        public void Build_EmbeddedActionCondition_ReusesPredicateCompilerAndProducesLoadableExecutionTree()
+        {
+            var sharedCondition = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Condition,
+                Type = "arg_gte",
+                Arguments =
+                {
+                    Arg("left", new TriggerValueRefData
+                    {
+                        Source = TriggerValueSource.Payload,
+                        Type = TriggerValueType.Number,
+                        Path = "amount"
+                    }),
+                    Arg("right", new TriggerValueRefData
+                    {
+                        Source = TriggerValueSource.Constant,
+                        Type = TriggerValueType.Number,
+                        NumberValue = 10d
+                    })
+                }
+            };
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "conditional",
+                Condition = new TriggerNodeData
+                {
+                    Kind = TriggerNodeKind.Condition,
+                    GroupReference = "condition.shared.damage_threshold"
+                },
+                Children = { DebugLog("then") },
+                ElseChildren = { DebugLog("else") }
+            });
+            module.ConditionGroups.Add(new TriggerNodeGroupData
+            {
+                Id = "condition.shared.damage_threshold",
+                DisplayName = "通用伤害阈值",
+                Root = sharedCondition
+            });
+            module.Triggers[0].Condition = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Condition,
+                GroupReference = "condition.shared.damage_threshold"
+            };
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.True, result.BuildMessage());
+            var trigger = result.Database.Triggers[0];
+            Assert.That(trigger.Actions, Is.Null);
+            Assert.That(trigger.ExecutionRoot, Is.Not.Null);
+            Assert.That(trigger.ExecutionRoot.Kind, Is.EqualTo("If"));
+            Assert.That(trigger.ExecutionRoot.Condition.Kind, Is.EqualTo("expr"));
+            Assert.That(trigger.Predicate.Nodes, Has.Count.EqualTo(1));
+            Assert.That(trigger.ExecutionRoot.Condition.Nodes, Has.Count.EqualTo(1));
+            Assert.That(trigger.Predicate.Nodes[0].Kind, Is.EqualTo("CompareNumeric"));
+            Assert.That(trigger.ExecutionRoot.Condition.Nodes[0].Kind, Is.EqualTo(trigger.Predicate.Nodes[0].Kind));
+            Assert.That(trigger.ExecutionRoot.Children, Has.Count.EqualTo(1));
+            Assert.That(trigger.ExecutionRoot.ElseChildren, Has.Count.EqualTo(1));
+
+            var runtimeDatabase = new TriggerPlanJsonDatabase();
+            var json = TriggerAuthoringRuntimeExporter.Serialize(result.Database);
+            Assert.DoesNotThrow(() => runtimeDatabase.LoadFromJson(json, "embedded-action-condition"));
+            Assert.That(runtimeDatabase.TryGetExecutionRootByTriggerId(1001, out var executionRoot), Is.True);
+            var conditional = executionRoot as IfTriggerPlanExecutable;
+            Assert.That(conditional, Is.Not.Null);
+            Assert.That(conditional.BranchCondition, Is.Not.Null);
+            Assert.That(conditional.ThenBranch, Is.Not.Null);
+            Assert.That(conditional.ElseBranch, Is.Not.Null);
+        }
+
+        [Test]
+        public void Build_EmbeddedActionCondition_RejectsDisabledCondition()
+        {
+            var condition = new TriggerNodeData
+            {
+                Enabled = false,
+                Kind = TriggerNodeKind.Condition,
+                Type = "always_true"
+            };
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "conditional",
+                Condition = condition,
+                Children = { DebugLog("then") }
+            });
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(
+                result.Diagnostics.Exists(diagnostic =>
+                    diagnostic.Code == "TRG1230" &&
+                    diagnostic.Path == "module.triggers[0].actions.condition"),
+                Is.True,
+                result.BuildMessage());
         }
 
         private static TriggerAuthoringModuleData CreateModule(TriggerNodeData actions)

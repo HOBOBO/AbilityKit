@@ -95,12 +95,12 @@ namespace AbilityKit.Game.Editor
         {
             if (!worldStatus.CanDisplayResults && worldStatus.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"世界状态不可用：{worldStatus.Availability} {worldStatus.Message}";
+                return $"世界状态不可用：{BattleDebugDisplayText.Availability(worldStatus.Availability)} {worldStatus.Message}";
             }
 
             if (!actorStatus.CanDisplayResults && actorStatus.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"Actor 状态不可用：{actorStatus.Availability} {actorStatus.Message}";
+                return $"Actor 状态不可用：{BattleDebugDisplayText.Availability(actorStatus.Availability)} {actorStatus.Message}";
             }
 
             return string.Empty;

@@ -33,7 +33,7 @@ namespace AbilityKit.Game.Editor
             if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session))
             {
                 EditorGUILayout.HelpBox(
-                    "诊断会话不可用。请启动战斗或打开包含 Battle Diagnostics 的 Artifact。",
+                    "诊断会话不可用。请启动战斗或打开包含战斗诊断的 Artifact。",
                     MessageType.Info);
                 return;
             }
@@ -97,14 +97,14 @@ namespace AbilityKit.Game.Editor
             }
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.LabelField(
-                $"TagStoreRevision={_viewModel.StoreRevision}",
+                $"标签存储版本={_viewModel.StoreRevision}",
                 EditorStyles.miniLabel);
         }
 
         private static void DrawTag(in BattleDiagnosticActorTag tag)
         {
             var displayName = string.IsNullOrEmpty(tag.Name)
-                ? $"Tag {tag.TagId}"
+                ? $"标签 {tag.TagId}"
                 : $"{tag.Name} ({tag.TagId})";
             EditorGUILayout.LabelField(displayName, EditorStyles.miniLabel);
         }

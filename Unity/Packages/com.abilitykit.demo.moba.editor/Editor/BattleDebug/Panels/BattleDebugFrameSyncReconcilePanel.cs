@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Editor
 {
     [BattleDebugModule(
         BattleDebugModuleIds.FrameSyncReconcile,
-        "Frame Sync",
+        "帧同步",
         Sources = BattleDebugModuleSourceSupport.Live,
         Selections = BattleDebugModuleSelectionSupport.None)]
     internal sealed class BattleDebugFrameSyncReconcilePanel : IBattleDebugPanel, IBattleDebugPanelLayout
@@ -27,7 +27,7 @@ namespace AbilityKit.Game.Editor
             var flowCtx = BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
-                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;
             }
 
@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Editor
 
             if (flowCtx.PredictionStats == null)
             {
-                EditorGUILayout.HelpBox("PredictionStats 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("预测统计为空。", MessageType.Info);
                 return;
             }
 
@@ -43,7 +43,7 @@ namespace AbilityKit.Game.Editor
 
             if (flowCtx.PredictionStats.TryGetReconcileEnabled(wid, out var enabled))
             {
-                EditorGUILayout.LabelField("对账是否启用（世界）", enabled.ToString());
+                EditorGUILayout.LabelField("对账是否启用（世界）", BattleDebugDisplayText.Bool(enabled));
             }
 
             EditorGUILayout.LabelField("不一致次数（总）", flowCtx.PredictionStats.TotalReconcileMismatch.ToString());
@@ -71,7 +71,7 @@ namespace AbilityKit.Game.Editor
 
                 if (flowCtx.PredictionReconcileControl.TryGetReconcileEnabled(swid, out var swEnabled))
                 {
-                    EditorGUILayout.LabelField("对账开关（运行时）", swEnabled.ToString());
+                    EditorGUILayout.LabelField("对账开关（运行时）", BattleDebugDisplayText.Bool(swEnabled));
                 }
 
                 EditorGUILayout.BeginHorizontal();

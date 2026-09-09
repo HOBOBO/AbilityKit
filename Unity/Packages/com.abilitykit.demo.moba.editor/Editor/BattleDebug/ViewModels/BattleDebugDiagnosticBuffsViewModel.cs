@@ -126,7 +126,7 @@ namespace AbilityKit.Game.Editor
                         eventRevision,
                         filtered.Count,
                         BattleDiagnosticDataAvailability.Truncated,
-                        $"Buff timeline scan is limited to {MaximumTimelinePages * TimelineLimit} events.");
+                        $"Buff 时间线最多扫描 {MaximumTimelinePages * TimelineLimit} 条事件。");
                     break;
                 }
 
@@ -151,7 +151,7 @@ namespace AbilityKit.Game.Editor
         {
             if (!status.CanDisplayResults && status.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"Buff 数据不可用：{status.Availability} {status.Message}";
+                return $"Buff 数据不可用：{BattleDebugDisplayText.Availability(status.Availability)} {status.Message}";
             }
 
             return string.Empty;
@@ -171,7 +171,7 @@ namespace AbilityKit.Game.Editor
 
             if (!status.CanDisplayResults && status.Phase != BattleDiagnosticQueryPhase.Empty)
             {
-                return $"Buff 生命周期事件不可用：{status.Availability} {status.Message}";
+                return $"Buff 生命周期事件不可用：{BattleDebugDisplayText.Availability(status.Availability)} {status.Message}";
             }
 
             if (lifecycleEventCount == 0)

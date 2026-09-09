@@ -389,5 +389,39 @@ namespace AbilityKit.BehaviorTree.Tests
             Assert.True(runtime.Blackboard.TryGetBool("b", out var value));
             Assert.False(value);
         }
+
+        [Fact]
+        public void Versions_AdvanceOnlyWhenValuesActuallyChange()
+        {
+            var definition = new TreeBuilder()
+                .Blackboard("b", TreeValueType.Bool)
+                .Blackboard("i", TreeValueType.Int64)
+                .Node("root", BuiltInNodeTypes.Succeed)
+                .Root("root");
+            var runtime = TreeRuntime.Create(definition, TestNodeTypes.CreateRegistry());
+            runtime.Enable();
+
+            Assert.Equal(0UL, runtime.Blackboard.Version);
+            runtime.Blackboard.SetBool("b", false);
+            Assert.Equal(0UL, runtime.Blackboard.Version);
+
+            runtime.Blackboard.SetBool("b", true);
+            var boolVersion = runtime.Blackboard.GetKeyVersion("b");
+            Assert.Equal(1UL, boolVersion);
+            Assert.Equal(boolVersion, runtime.Blackboard.Version);
+
+            runtime.Blackboard.SetInt64("i", 3);
+            Assert.Equal(2UL, runtime.Blackboard.Version);
+            Assert.Equal(boolVersion, runtime.Blackboard.GetKeyVersion("b"));
+            Assert.Equal(2UL, runtime.Blackboard.GetKeyVersion("i"));
+
+            var snapshot = runtime.Blackboard.CaptureValues();
+            runtime.Blackboard.SetBool("b", false);
+            var beforeRestore = runtime.Blackboard.Version;
+            runtime.Blackboard.RestoreValues(snapshot);
+            Assert.Equal(beforeRestore + 1, runtime.Blackboard.Version);
+            Assert.Equal(runtime.Blackboard.Version, runtime.Blackboard.GetKeyVersion("b"));
+            Assert.Equal(2UL, runtime.Blackboard.GetKeyVersion("i"));
+        }
     }
 }

@@ -9,47 +9,47 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             var events = new List<TriggerEventDefinitionData>
             {
-                Prefix("skill.", "Skill Events", "Ability", "SkillCastContext", SkillFields(), false, true),
-                Prefix("buff.", "Buff Events", "Buff", "BuffEventArgs", BuffFields(), false, true),
-                Prefix("area.", "Area Events", "Area", "AreaEventArgs", AreaFields(), false, true),
-                Prefix("projectile.", "Projectile Events", "Projectile", "ProjectileEventArgs", ProjectileFields(), false, true),
-                Prefix("summon.", "Summon Events", "Summon", "SummonEventPayload", SummonFields(), false, true),
-                Prefix("unit.", "Unit Events", "Unit", "UnitEventPayload", UnitFields(), false, true),
-                Prefix("gameplay.", "Gameplay Events", "Gameplay", "GameplayLifecycleEventArgs", GameplayFields(), true, true),
-                Prefix("presentation.", "Presentation Events", "Presentation", "PresentationEventArgs", PresentationFields(), true, false),
-                Exact("damage.attack.created", "Attack Created", "Damage", "AttackInfo", DamageFields(), false, true),
-                Exact("damage.attack.before_calc", "Before Damage Calculation", "Damage", "AttackInfo", DamageFields(), false, true),
-                Exact("damage.calc.begin", "Damage Calculation Began", "Damage", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.after_base", "After Base Damage", "Damage", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.after_mitigate", "After Mitigation", "Damage", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.after_shield", "After Shield", "Damage", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.final", "Final Damage", "Damage", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.apply.before", "Before Damage Apply", "Damage", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.apply.after", "After Damage Apply", "Damage", "DamageResult", DamageFields(), false, true),
-                Exact("health.change.committed", "Health Changed", "Health", "MobaHealthChangeResult", DamageFields(), false, true),
-                Exact("heal.apply.before", "Before Heal Apply", "Heal", "HealRequest", DamageFields(), false, true),
-                Exact("heal.apply.after", "After Heal Apply", "Heal", "HealResult", DamageFields(), false, true)
+                Prefix("skill.", "技能事件", "技能", "SkillCastContext", SkillFields(), false, true),
+                Prefix("buff.", "增益效果事件", "增益效果", "BuffEventArgs", BuffFields(), false, true),
+                Prefix("area.", "区域事件", "区域", "AreaEventArgs", AreaFields(), false, true),
+                Prefix("projectile.", "投射物事件", "投射物", "ProjectileEventArgs", ProjectileFields(), false, true),
+                Prefix("summon.", "召唤物事件", "召唤物", "SummonEventPayload", SummonFields(), false, true),
+                Prefix("unit.", "单位事件", "单位", "UnitEventPayload", UnitFields(), false, true),
+                Prefix("gameplay.", "玩法事件", "玩法", "GameplayLifecycleEventArgs", GameplayFields(), true, true),
+                Prefix("presentation.", "表现事件", "表现", "PresentationEventArgs", PresentationFields(), true, false),
+                Exact("damage.attack.created", "攻击已创建", "伤害", "AttackInfo", DamageFields(), false, true),
+                Exact("damage.attack.before_calc", "伤害计算前", "伤害", "AttackInfo", DamageFields(), false, true),
+                Exact("damage.calc.begin", "开始伤害计算", "伤害", "AttackCalcInfo", DamageFields(), false, true),
+                Exact("damage.calc.after_base", "基础伤害计算后", "伤害", "AttackCalcInfo", DamageFields(), false, true),
+                Exact("damage.calc.after_mitigate", "伤害减免后", "伤害", "AttackCalcInfo", DamageFields(), false, true),
+                Exact("damage.calc.after_shield", "护盾结算后", "伤害", "AttackCalcInfo", DamageFields(), false, true),
+                Exact("damage.calc.final", "最终伤害", "伤害", "AttackCalcInfo", DamageFields(), false, true),
+                Exact("damage.apply.before", "应用伤害前", "伤害", "AttackCalcInfo", DamageFields(), false, true),
+                Exact("damage.apply.after", "应用伤害后", "伤害", "DamageResult", DamageFields(), false, true),
+                Exact("health.change.committed", "生命值已变化", "生命值", "MobaHealthChangeResult", DamageFields(), false, true),
+                Exact("heal.apply.before", "应用治疗前", "治疗", "HealRequest", DamageFields(), false, true),
+                Exact("heal.apply.after", "应用治疗后", "治疗", "HealResult", DamageFields(), false, true)
             };
             AddExactEvents(events, new[]
             {
                 "skill.precast.start", "skill.precast.complete", "skill.precast.fail", "skill.precast.interrupt",
                 "skill.cast.start", "skill.cast.complete", "skill.cast.fail", "skill.cast.interrupt"
-            }, "Ability", "SkillCastContext", SkillFields());
+            }, "技能", "SkillCastContext", SkillFields());
             AddExactEvents(events, new[]
             {
                 "buff.apply", "buff.remove", "buff.interval", "buff.stack", "buff.refresh", "buff.tick",
                 "buff.end", "buff.added", "buff.removed", "buff.stack_changed", "buff.effect_tick"
-            }, "Buff", "BuffEventArgs", BuffFields());
+            }, "增益效果", "BuffEventArgs", BuffFields());
             AddExactEvents(events, new[] { "projectile.spawn", "projectile.tick", "projectile.hit", "projectile.exit" },
-                "Projectile", "ProjectileEventArgs", ProjectileFields());
+                "投射物", "ProjectileEventArgs", ProjectileFields());
             AddExactEvents(events, new[] { "area.spawn", "area.tick", "area.enter", "area.exit", "area.end" },
-                "Area", "AreaEventArgs", AreaFields());
+                "区域", "AreaEventArgs", AreaFields());
             AddExactEvents(events, new[] { "summon.spawn", "summon.despawn", "summon.die" },
-                "Summon", "SummonEventPayload", SummonFields());
+                "召唤物", "SummonEventPayload", SummonFields());
             AddExactEvents(events, new[] { "unit.spawn", "unit.despawn", "unit.die", "unit.respawn" },
-                "Unit", "UnitEventPayload", UnitFields());
+                "单位", "UnitEventPayload", UnitFields());
             AddExactEvents(events, new[] { "gameplay.started", "gameplay.tick", "gameplay.ended" },
-                "Gameplay", "GameplayLifecycleEventArgs", GameplayFields(), true);
+                "玩法", "GameplayLifecycleEventArgs", GameplayFields(), true);
             return events;
         }
 
@@ -71,10 +71,10 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             return new List<TriggerGlobalBlackboardKeyData>
             {
-                Key("skill.damagedTargets", "Damaged Targets", TriggerValueType.IntegerList, "skill", true, true),
-                Key("skill.hitCount", "Hit Count", TriggerValueType.Integer, "skill", true, true),
-                Key("skill.decayFactor", "Damage Decay Factor", TriggerValueType.Number, "skill", true, true),
-                Key("skill.loopGuards", "Loop Guard Contexts", TriggerValueType.IntegerList, "skill", true, true)
+                Key("skill.damagedTargets", "已受伤目标", TriggerValueType.IntegerList, "skill", true, true),
+                Key("skill.hitCount", "命中次数", TriggerValueType.Integer, "skill", true, true),
+                Key("skill.decayFactor", "伤害衰减系数", TriggerValueType.Number, "skill", true, true),
+                Key("skill.loopGuards", "循环保护上下文", TriggerValueType.IntegerList, "skill", true, true)
             };
         }
 

@@ -4,6 +4,14 @@ using AbilityKit.Demo.Moba.Diagnostics;
 
 namespace AbilityKit.Game.Editor
 {
+    internal enum BattleDebugTraceViewMode
+    {
+        Flow = 0,
+        Issues = 1,
+        Effects = 2,
+        Active = 3
+    }
+
     internal readonly struct BattleDebugDiagnosticTraceRow
     {
         public BattleDebugDiagnosticTraceRow(
@@ -72,9 +80,15 @@ namespace AbilityKit.Game.Editor
         private readonly HashSet<long> _selectedPathIds = new HashSet<long>();
         private readonly HashSet<long> _collapsedContextIds = new HashSet<long>();
         private string _searchText = string.Empty;
+        private IReadOnlyList<BattleDiagnosticTraceRootSummary> _rootSummaries =
+            Array.Empty<BattleDiagnosticTraceRootSummary>();
+        private BattleDiagnosticSessionScope _lastRootIndexScope;
+        private long _lastRootIndexRevision = -1;
+        private bool _hasCachedRootIndex;
 
         public IReadOnlyList<BattleDebugDiagnosticTraceRow> Rows => _rows;
         public IReadOnlyList<BattleDebugDiagnosticTraceRow> VisibleRows => _visibleRows;
+        public IReadOnlyList<BattleDiagnosticTraceRootSummary> RootSummaries => _rootSummaries;
         public IReadOnlyList<BattleDiagnosticTraceNodeSummary> SelectedPath => _selectedPath;
         public BattleDiagnosticQueryStatus QueryStatus { get; private set; }
         public string StatusMessage { get; private set; } = string.Empty;
@@ -88,7 +102,10 @@ namespace AbilityKit.Game.Editor
         public int SearchMatchCount { get; private set; }
         public int CollapsedBranchCount => _collapsedContextIds.Count;
         public bool FocusSelectedFlow { get; private set; }
+        public BattleDebugTraceViewMode ViewMode { get; private set; }
         public BattleDebugDiagnosticTraceSummary Summary { get; private set; }
+        public BattleDebugDiagnosticTraceSummary VisibleSummary { get; private set; }
+        public BattleDiagnosticQueryStatus RootQueryStatus { get; private set; }
 
         public void InvalidateCache()
         {
@@ -96,6 +113,50 @@ namespace AbilityKit.Game.Editor
             StatusMessage = string.Empty;
             _lastStoreRevision = -1;
             _hasCachedResult = false;
+        }
+
+        public void InvalidateRootIndex()
+        {
+            _lastRootIndexRevision = -1;
+            _hasCachedRootIndex = false;
+            RootQueryStatus = default;
+        }
+
+        public void RefreshRootIndexIfNeeded(IBattleDiagnosticReadOnlySession session)
+        {
+            if (session == null) throw new ArgumentNullException(nameof(session));
+            if (!(session is IBattleDiagnosticTraceRootSession rootSession))
+            {
+                _rootSummaries = Array.Empty<BattleDiagnosticTraceRootSummary>();
+                RootQueryStatus = BattleDiagnosticQueryStatus.Unavailable(
+                    0,
+                    session.TraceStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "当前会话未提供 Trace 根节点发现能力。");
+                return;
+            }
+
+            var scope = session.SessionInfo.Scope;
+            var revision = session.TraceStoreRevision;
+            if (_hasCachedRootIndex &&
+                _lastRootIndexScope == scope &&
+                _lastRootIndexRevision == revision)
+            {
+                return;
+            }
+
+            _lastRequestId++;
+            if (_lastRequestId <= 0L) _lastRequestId = 1L;
+            var result = rootSession.QueryTraceRoots(new BattleDiagnosticTraceRootQuery(
+                _lastRequestId,
+                new BattleDiagnosticPageRequest(0L, 0, 100)));
+            _lastRootIndexScope = scope;
+            _lastRootIndexRevision = revision;
+            _hasCachedRootIndex = true;
+            RootQueryStatus = result.Status;
+            _rootSummaries = result.Status.CanDisplayResults
+                ? result.Items
+                : (IReadOnlyList<BattleDiagnosticTraceRootSummary>)Array.Empty<BattleDiagnosticTraceRootSummary>();
         }
 
         public void Clear()
@@ -113,7 +174,9 @@ namespace AbilityKit.Game.Editor
             PinnedContextId = 0;
             SearchMatchCount = 0;
             FocusSelectedFlow = false;
+            ViewMode = BattleDebugTraceViewMode.Flow;
             Summary = default;
+            VisibleSummary = default;
             QueryStatus = default;
             StatusMessage = string.Empty;
             InvalidateCache();
@@ -154,6 +217,7 @@ namespace AbilityKit.Game.Editor
                 _childCounts = new Dictionary<long, int>();
                 _selectedPathIds.Clear();
                 Summary = default;
+                VisibleSummary = default;
                 SelectedContextId = 0;
                 _selectedPath = Array.Empty<BattleDiagnosticTraceNodeSummary>();
                 SearchMatchCount = 0;
@@ -195,6 +259,15 @@ namespace AbilityKit.Game.Editor
             RebuildVisibleRows();
         }
 
+        public void SetViewMode(BattleDebugTraceViewMode value)
+        {
+            if (!Enum.IsDefined(typeof(BattleDebugTraceViewMode), value))
+                throw new ArgumentOutOfRangeException(nameof(value));
+            if (ViewMode == value) return;
+            ViewMode = value;
+            RebuildVisibleRows();
+        }
+
         public void SetSearchText(string searchText)
         {
             searchText = searchText?.Trim() ?? string.Empty;
@@ -215,9 +288,9 @@ namespace AbilityKit.Game.Editor
 
             var selectedMatchIndex = -1;
             var matchCount = 0;
-            for (var i = 0; i < _rows.Count; i++)
+            for (var i = 0; i < _visibleRows.Count; i++)
             {
-                var node = _rows[i].Node;
+                var node = _visibleRows[i].Node;
                 if (!MatchesSearch(in node)) continue;
                 if (node.ContextId == SelectedContextId) selectedMatchIndex = matchCount;
                 matchCount++;
@@ -226,9 +299,9 @@ namespace AbilityKit.Game.Editor
             var targetMatchIndex = selectedMatchIndex < 0
                 ? (direction > 0 ? 0 : matchCount - 1)
                 : (selectedMatchIndex + (direction > 0 ? 1 : -1) + matchCount) % matchCount;
-            for (var i = 0; i < _rows.Count; i++)
+            for (var i = 0; i < _visibleRows.Count; i++)
             {
-                var node = _rows[i].Node;
+                var node = _visibleRows[i].Node;
                 if (!MatchesSearch(in node)) continue;
                 if (targetMatchIndex-- == 0) return SelectContext(node.ContextId);
             }
@@ -404,10 +477,14 @@ namespace AbilityKit.Game.Editor
             {
                 _visibleRows = Array.Empty<BattleDebugDiagnosticTraceRow>();
                 SearchMatchCount = 0;
+                VisibleSummary = default;
                 return;
             }
 
             var hasSearch = !string.IsNullOrEmpty(_searchText);
+            var includedByMode = ViewMode == BattleDebugTraceViewMode.Flow
+                ? null
+                : BuildIncludedWithAncestors(MatchesViewMode);
             HashSet<long> includedBySearch = null;
             if (hasSearch)
             {
@@ -418,7 +495,6 @@ namespace AbilityKit.Game.Editor
                     var node = _rows[i].Node;
                     if (!MatchesSearch(in node)) continue;
 
-                    SearchMatchCount++;
                     var currentId = node.ContextId;
                     var visited = new HashSet<long>();
                     while (currentId != 0 &&
@@ -441,15 +517,73 @@ namespace AbilityKit.Game.Editor
                 var row = _rows[i];
                 if (hasSearch)
                 {
-                    if (includedBySearch.Contains(row.Node.ContextId)) visible.Add(row);
+                    if (includedBySearch.Contains(row.Node.ContextId) &&
+                        (includedByMode == null || includedByMode.Contains(row.Node.ContextId)) &&
+                        (!FocusSelectedFlow || IsInSelectedFlow(row.Node.ContextId)))
+                    {
+                        visible.Add(row);
+                    }
                     continue;
                 }
 
+                if (includedByMode != null && !includedByMode.Contains(row.Node.ContextId)) continue;
                 if (FocusSelectedFlow && !IsInSelectedFlow(row.Node.ContextId)) continue;
                 if (!HasCollapsedAncestor(row.Node.ParentContextId)) visible.Add(row);
             }
 
             _visibleRows = visible;
+            if (hasSearch)
+            {
+                SearchMatchCount = 0;
+                for (var i = 0; i < visible.Count; i++)
+                {
+                    var node = visible[i].Node;
+                    if (MatchesSearch(in node)) SearchMatchCount++;
+                }
+            }
+            VisibleSummary = visible.Count > 0 ? BuildSummary(visible) : default;
+        }
+
+        private HashSet<long> BuildIncludedWithAncestors(
+            Func<BattleDiagnosticTraceNodeSummary, bool> predicate)
+        {
+            var included = new HashSet<long>();
+            for (var i = 0; i < _rows.Count; i++)
+            {
+                var node = _rows[i].Node;
+                if (!predicate(node)) continue;
+
+                var currentId = node.ContextId;
+                var visited = new HashSet<long>();
+                while (currentId != 0 &&
+                       visited.Add(currentId) &&
+                       _nodesById.TryGetValue(currentId, out var current))
+                {
+                    included.Add(currentId);
+                    currentId = current.ParentContextId;
+                }
+            }
+            return included;
+        }
+
+        private bool MatchesViewMode(BattleDiagnosticTraceNodeSummary node)
+        {
+            switch (ViewMode)
+            {
+                case BattleDebugTraceViewMode.Issues:
+                    return node.State == BattleDiagnosticTraceNodeState.Failed ||
+                           node.State == BattleDiagnosticTraceNodeState.ForceEnded;
+                case BattleDebugTraceViewMode.Effects:
+                    return string.Equals(node.Kind, "SkillCast", StringComparison.Ordinal) ||
+                           string.Equals(node.Kind, "SkillPhase", StringComparison.Ordinal) ||
+                           string.Equals(node.Kind, "SkillEffect", StringComparison.Ordinal) ||
+                           string.Equals(node.Kind, "EffectExecution", StringComparison.Ordinal) ||
+                           string.Equals(node.Kind, "EffectAction", StringComparison.Ordinal);
+                case BattleDebugTraceViewMode.Active:
+                    return node.State == BattleDiagnosticTraceNodeState.Active;
+                default:
+                    return true;
+            }
         }
 
         private bool HasCollapsedAncestor(long contextId)
@@ -554,7 +688,7 @@ namespace AbilityKit.Game.Editor
                 return "Trace 树为空。";
             }
 
-            return $"Trace 数据不可用：{status.Availability} {status.Message}";
+            return $"Trace 数据不可用：{BattleDebugDisplayText.Availability(status.Availability)} {status.Message}";
         }
     }
 }

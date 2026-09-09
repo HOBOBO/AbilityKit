@@ -7,7 +7,7 @@ namespace AbilityKit.Game.Editor
 {
     [BattleDebugModule(
         BattleDebugModuleIds.FrameSyncNetwork,
-        "Frame Sync",
+        "帧同步",
         Sources = BattleDebugModuleSourceSupport.All,
         Selections = BattleDebugModuleSelectionSupport.Frame)]
     internal sealed class BattleDebugFrameSyncNetworkPanel : IBattleDebugPanel, IBattleDebugPanelLayout
@@ -32,23 +32,23 @@ namespace AbilityKit.Game.Editor
             var hasHistory = BattleDebugFrameMetricHistory.Draw(
                 in ctx,
                 BattleDiagnosticMetricCategory.Network,
-                "Network Buffer History");
+                "网络缓冲历史");
             var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
             if (flowCtx == null)
             {
                 if (hasHistory) return;
-                EditorGUILayout.HelpBox("BattleFlowDebugProvider.Current 为空。", MessageType.Info);
+                EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;
             }
 
             var stats = BattleFlowDebugProvider.JitterBufferStats;
             if (stats == null)
             {
-                EditorGUILayout.HelpBox("JitterBufferStats 为空（未接线）。", MessageType.Info);
+                EditorGUILayout.HelpBox("网络抖动缓冲统计为空（尚未接入）。", MessageType.Info);
                 return;
             }
 
-            EditorGUILayout.LabelField("网络缓冲区（JitterBuffer）", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("网络抖动缓冲区", EditorStyles.boldLabel);
             EditorGUILayout.LabelField("延迟帧数", stats.DelayFrames.ToString());
             EditorGUILayout.LabelField("缺帧处理模式", stats.MissingMode);
             EditorGUILayout.LabelField("目标帧", stats.TargetFrame.ToString());

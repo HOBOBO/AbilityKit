@@ -65,7 +65,7 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Observation
         public void Refresh()
         {
             var timeline = _controller.Timeline;
-            _title.text = "结构化时间线 (" + timeline.Count + ")";
+            _title.text = "结构化时间线（" + timeline.Count + "）";
 
             _scroll.Clear();
             var changes = new List<ObservationChange>(timeline.EnumerateChanges());
@@ -84,9 +84,9 @@ namespace AbilityKit.BehaviorTree.Editor.Debugging.Observation
                     continue;
                 }
 
-                _scroll.Add(new Label("f" + item.Frame + "  " + item.Kind + "  " + item.Target)
+                _scroll.Add(new Label("帧 " + item.Frame + "  " + EditorDisplayText.ChangeKind(item.Kind) + "  " + item.Target)
                 {
-                    tooltip = item.From + " -> " + item.To,
+                    tooltip = EditorDisplayText.ChangeValue(item.Kind, item.From) + " -> " + EditorDisplayText.ChangeValue(item.Kind, item.To),
                     style = { whiteSpace = WhiteSpace.Normal, paddingTop = 1f, paddingBottom = 1f },
                 });
                 shown++;

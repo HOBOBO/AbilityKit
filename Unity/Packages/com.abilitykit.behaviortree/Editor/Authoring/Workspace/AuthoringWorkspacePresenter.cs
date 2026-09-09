@@ -66,7 +66,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
                     Document.Tree.Nodes.Find(n => n.Id == parentId)?.Type ?? string.Empty,
                     out var descriptor))
             {
-                error = $"Parent node '{parentId}' type is not registered.";
+                error = $"父节点 '{parentId}' 的类型尚未注册。";
                 return false;
             }
 
@@ -81,7 +81,7 @@ namespace AbilityKit.BehaviorTree.Editor.Authoring.Workspace
         public NodeDefinition? AddNode(NodeDescriptor descriptor, string nodeId, float x, float y)
         {
             if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
-            if (string.IsNullOrWhiteSpace(nodeId)) throw new ArgumentException("Node id is required.", nameof(nodeId));
+            if (string.IsNullOrWhiteSpace(nodeId)) throw new ArgumentException("节点 ID 不能为空。", nameof(nodeId));
             if (_workspace.IsReadOnly) return null;
 
             var node = new NodeDefinition

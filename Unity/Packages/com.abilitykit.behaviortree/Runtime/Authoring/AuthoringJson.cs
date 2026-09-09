@@ -26,18 +26,18 @@ namespace AbilityKit.BehaviorTree.Authoring
         public static AuthoringSourceDocument Load(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
-                throw new ArgumentException("BT authoring JSON must not be empty.", nameof(json));
+                throw new ArgumentException("行为树编辑 JSON 不能为空。", nameof(json));
 
             var root = JObject.Parse(json);
             var document = JsonConvert.DeserializeObject<AuthoringSourceDocument>(json, Settings);
             if (document == null)
-                throw new InvalidOperationException("BT authoring JSON produced a null document.");
+                throw new InvalidOperationException("行为树编辑 JSON 未能生成有效文档。");
 
             if (!string.Equals(document.Schema, AuthoringSchema.Id, StringComparison.Ordinal))
-                throw new InvalidOperationException($"Unsupported BT authoring schema '{document.Schema}'.");
+                throw new InvalidOperationException($"不支持行为树编辑 Schema '{document.Schema}'。");
             if (!string.Equals(document.Version, AuthoringSchema.Version, StringComparison.Ordinal)
                 && !string.Equals(document.Version, AuthoringSchema.LegacyVersion, StringComparison.Ordinal))
-                throw new InvalidOperationException($"Unsupported BT authoring version '{document.Version}'.");
+                throw new InvalidOperationException($"不支持行为树编辑版本 '{document.Version}'。");
 
             document.Notes ??= new List<AuthoringNoteData>();
 
@@ -71,7 +71,7 @@ namespace AbilityKit.BehaviorTree.Authoring
         {
             var manifest = JsonConvert.DeserializeObject<ProjectManifest>(json, Settings);
             if (manifest == null)
-                throw new InvalidOperationException("BT project manifest JSON produced a null manifest.");
+                throw new InvalidOperationException("行为树项目清单 JSON 未能生成有效清单。");
             return manifest;
         }
 
@@ -132,12 +132,12 @@ namespace AbilityKit.BehaviorTree.Authoring
 
                 var token = JToken.Load(reader);
                 if (token is not JObject obj)
-                    throw new JsonSerializationException("BT property value must be an object.");
+                    throw new JsonSerializationException("行为树属性值必须是 JSON 对象。");
 
                 var typeName = obj["type"]?.Value<string>()
-                    ?? throw new JsonSerializationException("BT property value requires 'type'.");
+                    ?? throw new JsonSerializationException("行为树属性值缺少 'type' 字段。");
                 if (!Enum.TryParse<ValueType>(typeName, out var type))
-                    throw new JsonSerializationException($"Unknown BT property value type '{typeName}'.");
+                    throw new JsonSerializationException($"未知的行为树属性值类型 '{typeName}'。");
 
                 var valueToken = obj["value"];
                 return type switch
@@ -146,7 +146,7 @@ namespace AbilityKit.BehaviorTree.Authoring
                     ValueType.Int64 => PropertyValue.Of(valueToken?.Value<long>() ?? 0),
                     ValueType.Fixed64 => PropertyValue.Of(Fixed64.FromRaw(valueToken?.Value<long>() ?? 0)),
                     ValueType.String => PropertyValue.Of(valueToken?.Value<string>() ?? ""),
-                    _ => throw new JsonSerializationException($"Unknown BT property value type '{typeName}'."),
+                    _ => throw new JsonSerializationException($"未知的行为树属性值类型 '{typeName}'。"),
                 };
             }
         }
@@ -182,7 +182,7 @@ namespace AbilityKit.BehaviorTree.Authoring
                 var bag = existingValue ?? new PropertyBag();
                 var token = JToken.Load(reader);
                 if (token is not JObject obj)
-                    throw new JsonSerializationException("BT property bag must be an object.");
+                    throw new JsonSerializationException("行为树属性集合必须是 JSON 对象。");
 
                 foreach (var property in obj.Properties())
                 {
