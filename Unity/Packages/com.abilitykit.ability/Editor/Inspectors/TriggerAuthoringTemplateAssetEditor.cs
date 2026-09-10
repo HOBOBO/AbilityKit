@@ -405,10 +405,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (kind == TriggerNodeKind.Action &&
                 string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
             {
-                DrawTemplateBranchCondition(node, depth + 1);
-                DrawTemplateActionBranch("条件成立时执行", node.Children, depth);
-                node.ElseChildren = node.ElseChildren ?? new List<TriggerNodeData>();
-                DrawTemplateActionBranch("条件不成立时执行", node.ElseChildren, depth);
+                DrawTemplateConditionalBranches(node, depth);
                 EditorGUILayout.EndVertical();
                 return node;
             }
@@ -440,6 +437,52 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
             EditorGUILayout.EndVertical();
             return node;
+        }
+
+        private void DrawTemplateConditionalBranches(TriggerNodeData root, int depth)
+        {
+            root.Children = root.Children ?? new List<TriggerNodeData>();
+            root.ElseChildren = root.ElseChildren ?? new List<TriggerNodeData>();
+            DrawTemplateBranchCondition(root, depth + 1);
+            DrawTemplateActionBranch("如果成立时执行", root.Children, depth);
+
+            var branches = new List<TriggerNodeData>();
+            TriggerAuthoringConditionalChain.CollectElseIfBranches(root, branches);
+            for (var i = 0; i < branches.Count; i++)
+            {
+                var branch = branches[i];
+                branch.Children = branch.Children ?? new List<TriggerNodeData>();
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("否则如果 " + (i + 1), EditorStyles.boldLabel);
+                GUILayout.FlexibleSpace();
+                var remove = GUILayout.Button("删除分支", EditorStyles.miniButton, GUILayout.Width(66f));
+                EditorGUILayout.EndHorizontal();
+                if (remove)
+                {
+                    TriggerAuthoringConditionalChain.RemoveElseIf(root, branch);
+                    EditorGUILayout.EndVertical();
+                    break;
+                }
+                DrawTemplateBranchCondition(branch, depth + 1);
+                DrawTemplateActionBranch("该分支成立时执行", branch.Children, depth);
+                EditorGUILayout.EndVertical();
+            }
+
+            if (GUILayout.Button("+ 添加否则如果", EditorStyles.miniButton, GUILayout.Width(112f)))
+            {
+                _types.TryGet(TriggerNodeKind.Action, "conditional", out var descriptor);
+                var branch = CreateNode(descriptor);
+                branch.Kind = TriggerNodeKind.Action;
+                branch.Type = "conditional";
+                branch.Condition = branch.Condition ?? CreateDefaultEmbeddedCondition();
+                TriggerAuthoringConditionalChain.AppendElseIf(root, branch);
+            }
+
+            DrawTemplateActionBranch(
+                "否则执行",
+                TriggerAuthoringConditionalChain.GetFallbackActions(root),
+                depth);
         }
 
         private void DrawTemplateBranchCondition(TriggerNodeData node, int depth)
@@ -611,7 +654,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 selected(descriptor);
                 EditorUtility.SetDirty(_asset);
             }
-            new TriggerNodeTypeBrowser(_nodeBrowserState, kind, OnType).Show(activator);
+            new TriggerNodeTypeBrowser(
+                _nodeBrowserState,
+                kind,
+                OnType,
+                catalog: _types).Show(activator);
         }
 
         private void ShowNodeCreationMenu(TriggerNodeKind kind, Action<TriggerNodeData> selected, Rect activator)
@@ -622,7 +669,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 selected(CreateNode(descriptor));
                 EditorUtility.SetDirty(_asset);
             }
-            new TriggerNodeTypeBrowser(_nodeBrowserState, kind, OnType).Show(activator);
+            new TriggerNodeTypeBrowser(
+                _nodeBrowserState,
+                kind,
+                OnType,
+                catalog: _types).Show(activator);
         }
 
         private void PasteRoot(TriggerNodeKind kind, Action<TriggerNodeData> selected)
@@ -661,9 +712,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void RebuildCatalogs()
         {
-            _types = TriggerTypeDescriptorCatalog.CreateProjectDefaults();
             var project = _asset != null ? _asset.Project : null;
-            _events = TriggerEventDescriptorCatalog.FromAsset(project != null ? project.EventCatalog : null);
+            _types = TriggerTypeDescriptorCatalog.CreateForProject(project);
+            _events = TriggerEventDescriptorCatalog.FromProject(project);
             _globalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                 project != null ? project.GlobalBlackboardCatalog : null);
         }

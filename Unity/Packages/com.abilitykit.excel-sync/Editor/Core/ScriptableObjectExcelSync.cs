@@ -1481,6 +1481,19 @@ namespace AbilityKit.ExcelSync.Editor
                 byColumnIndex[b.ColumnIndex] = b;
             }
 
+            // Luban 以首列识别数据行，首位字段不允许为空；因此 Luban 布局把主键列排到列首
+            // （字段名默认按名字排序，主键未必在首位）。绑定按列名匹配，重排不影响导入。
+            var columnOrder = Enumerable.Range(0, headers.Count).ToList();
+            if (options.LubanMarkers)
+            {
+                var pkIndex = headers.FindIndex(h => string.Equals(NormalizeHeader(h), pk, StringComparison.OrdinalIgnoreCase));
+                if (pkIndex > 0)
+                {
+                    columnOrder.RemoveAt(pkIndex);
+                    columnOrder.Insert(0, pkIndex);
+                }
+            }
+
             var directory = Path.GetDirectoryName(excelFilePath);
             if (!string.IsNullOrEmpty(directory))
             {
@@ -1491,16 +1504,33 @@ namespace AbilityKit.ExcelSync.Editor
             var rows = GetMemberValue(targetAsset, dataListMember) as System.Collections.IEnumerable;
             using (var writer = factory.CreateWriter(excelFilePath, options))
             {
-                writer.WriteHeaders(headers, options.HeaderRowIndex);
+                // Luban 布局：A 列为标记列（##var / ##type / ##），字段与数据整体右移一列。
+                if (options.LubanMarkers)
+                {
+                    var nameRow = new List<object>(headers.Count + 1) { "##var" };
+                    foreach (var i in columnOrder)
+                    {
+                        nameRow.Add(headers[i]);
+                    }
 
-                if (typeNameProvider != null)
+                    writer.WriteRow(options.HeaderRowIndex, nameRow);
+                }
+                else
+                {
+                    writer.WriteHeaders(headers, options.HeaderRowIndex);
+                }
+
+                // Luban 布局要求类型行必须存在；未显式提供时用 Luban 类型命名方案补齐。
+                var effectiveTypeNameProvider = typeNameProvider
+                    ?? (options.LubanMarkers ? LubanExcelTypeNameProvider.Instance : null);
+                if (effectiveTypeNameProvider != null)
                 {
                     var typeRow = new List<object>(headers.Count);
-                    for (var i = 0; i < headers.Count; i++)
+                    foreach (var i in columnOrder)
                     {
                         if (byColumnIndex.TryGetValue(i, out var b))
                         {
-                            typeRow.Add(typeNameProvider.GetTypeName(ExcelReflectionMapper.GetMemberType(b.Member)));
+                            typeRow.Add(effectiveTypeNameProvider.GetTypeName(ExcelReflectionMapper.GetMemberType(b.Member)));
                         }
                         else
                         {
@@ -1508,7 +1538,17 @@ namespace AbilityKit.ExcelSync.Editor
                         }
                     }
 
+                    if (options.LubanMarkers)
+                    {
+                        typeRow.Insert(0, "##type");
+                    }
+
                     writer.WriteRow(options.HeaderRowIndex + 1, typeRow);
+                }
+
+                if (options.LubanMarkers)
+                {
+                    writer.WriteRow(options.HeaderRowIndex + 2, new List<object> { "##" });
                 }
 
                 var rowIndex = options.DataStartRowIndex;
@@ -1533,16 +1573,24 @@ namespace AbilityKit.ExcelSync.Editor
                         }
 
                         var values = new List<object>(headers.Count);
-                        for (var i = 0; i < headers.Count; i++)
+                        foreach (var i in columnOrder)
                         {
                             if (byColumnIndex.TryGetValue(i, out var b))
                             {
-                                values.Add(NormalizeCellString(ExcelReflectionMapper.GetValue(item, b.Member), b.ColumnName, registry));
+                                var cellStr = NormalizeCellString(ExcelReflectionMapper.GetValue(item, b.Member), b.ColumnName, registry);
+                                // Luban 判定"留空取默认值"依据的是单元格缺失，空字符串会报"字段不允许为空"，
+                                // 因此 Luban 布局下空值写 null（EPPlus 不落单元格）。
+                                values.Add(options.LubanMarkers && string.IsNullOrEmpty(cellStr) ? null : (object)cellStr);
                             }
                             else
                             {
                                 values.Add(string.Empty);
                             }
+                        }
+
+                        if (options.LubanMarkers)
+                        {
+                            values.Insert(0, string.Empty);   // 数据行同样留空标记列
                         }
 
                         writer.WriteRow(rowIndex, values);

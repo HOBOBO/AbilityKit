@@ -41,6 +41,7 @@ namespace AbilityKit.BehaviorTree.Editor
         internal const string CommandToolbarName = "bt-command-toolbar";
         internal const string InspectorPaneName = "bt-inspector-pane";
         internal const string InspectorScrollName = "bt-inspector-scroll";
+        internal const string PreviewFaultLabelName = "bt-preview-fault";
         internal const float MinimumInspectorContentHeight = 140f;
 
         private AuthoringAsset? _asset;
@@ -83,6 +84,8 @@ namespace AbilityKit.BehaviorTree.Editor
         private string _instancePopupFingerprint = "";
         private ObservationEventTimelinePanel? _eventTimelinePanel;
         private TreePreviewSession? _previewSession;
+        private AuthoringGraphWindow? _previewOwner;
+        private Label? _previewFaultLabel;
         private string _configTreeId = "";
 
         public AuthoringGraphWindow()
@@ -91,6 +94,7 @@ namespace AbilityKit.BehaviorTree.Editor
         }
 
         internal bool IsObservation => _workspace != null && _documentSession.IsReadOnly;
+        internal AuthoringDocumentSession DocumentSession => _documentSession;
 
         public static void Open(AuthoringAsset asset)
         {
@@ -150,6 +154,41 @@ namespace AbilityKit.BehaviorTree.Editor
             window.Focus();
         }
 
+        internal static AuthoringGraphWindow OpenPreview(
+            TreePreviewSession session,
+            AuthoringGraphWindow owner,
+            AuthoringSourceDocument sourceDocument)
+        {
+            if (session == null) throw new ArgumentNullException(nameof(session));
+            return OpenOwnedObservation(session.Runtime, owner, sourceDocument, session);
+        }
+
+        private static AuthoringGraphWindow OpenOwnedObservation(
+            TreeDebugView view,
+            AuthoringGraphWindow owner,
+            AuthoringSourceDocument sourceDocument = null,
+            TreePreviewSession session = null)
+        {
+            if (view == null) throw new ArgumentNullException(nameof(view));
+            if (owner == null) throw new ArgumentNullException(nameof(owner));
+
+            foreach (var existing in Resources.FindObjectsOfTypeAll<AuthoringGraphWindow>())
+            {
+                if (ReferenceEquals(existing._previewOwner, owner)) existing.Close();
+            }
+
+            var window = CreateWindow<AuthoringGraphWindow>();
+            window.titleContent = new GUIContent(session != null ? "行为树预览" : "行为树观察图");
+            window.minSize = new Vector2(MinimumWindowWidth, MinimumWindowHeight);
+            window._previewOwner = owner;
+            window._previewSession = session;
+            if (session != null) session.Faulted += window.OnPreviewFaulted;
+            window.EnterObservationMode(view, sourceDocument: sourceDocument);
+            window.Show();
+            window.Focus();
+            return window;
+        }
+
         private void EnterEditMode(AuthoringAsset asset, AuthoringProjectAsset? project = null)
         {
             _observedView = null;
@@ -173,10 +212,12 @@ namespace AbilityKit.BehaviorTree.Editor
             TreeDebugView view,
             ObservationSnapshot initialSnapshot = null,
             ObservationSnapshot previousSnapshot = null,
-            ObservationDiff initialDiff = null)
+            ObservationDiff initialDiff = null,
+            AuthoringSourceDocument sourceDocument = null)
         {
             _observedView = view;
-            _configTreeId = _asset != null ? _document.Tree.TreeId : "";
+            _configTreeId = sourceDocument?.Tree?.TreeId
+                ?? (_asset != null ? _document.Tree.TreeId : "");
             _workspace.State.SetDocumentScope("observation." + (view.TreeId ?? "unknown"));
             _selectedNode = null;
             _observationController.Reset();
@@ -199,7 +240,10 @@ namespace AbilityKit.BehaviorTree.Editor
             hasUnsavedChanges = false;
             // 从运行时定义构造只读文档（布局为空，节点按层级自动排布）
             _workspace.Open(
-                AuthoringDocumentCatalog.BuildObservationDocument(view, EditorNodeCatalog.Registry),
+                AuthoringDocumentCatalog.BuildObservationDocument(
+                    view,
+                    EditorNodeCatalog.Registry,
+                    sourceDocument),
                 isReadOnly: true);
             BuildUi();
             RebuildGraph();
@@ -410,6 +454,28 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             actions.Add(new VisualElement { style = { flexGrow = 1f } });
             rootVisualElement.Add(actions);
+
+            if (_previewSession != null)
+            {
+                _previewFaultLabel = new Label
+                {
+                    name = PreviewFaultLabelName,
+                    style =
+                    {
+                        display = _previewSession.IsFaulted ? DisplayStyle.Flex : DisplayStyle.None,
+                        minHeight = 30f,
+                        paddingLeft = 10f,
+                        paddingRight = 10f,
+                        paddingTop = 6f,
+                        paddingBottom = 6f,
+                        whiteSpace = WhiteSpace.Normal,
+                        backgroundColor = new Color(0.42f, 0.12f, 0.1f, 0.92f),
+                        color = new Color(1f, 0.86f, 0.82f),
+                    },
+                };
+                UpdatePreviewFaultLabel();
+                rootVisualElement.Add(_previewFaultLabel);
+            }
 
             // Keep the inspector at a readable width while allowing the graph canvas to use the remaining space.
             var split = new TwoPaneSplitView(1, _workspace.State.InspectorWidth, TwoPaneSplitViewOrientation.Horizontal);
@@ -709,6 +775,7 @@ namespace AbilityKit.BehaviorTree.Editor
             _diagnostics.Replace(EditorDiagnostics.Analyze(
                 _document,
                 EditorNodeCatalog.Registry,
+                AuthoringDocumentCatalog.CreateTreeResolver(_document),
                 nodeId => _graphView.FocusNode(nodeId)).Items);
             if (_validationPanel == null) return;
             _workspace.State.SetPanelVisible("validation", true);
@@ -1093,15 +1160,17 @@ namespace AbilityKit.BehaviorTree.Editor
                 "确定");
         }
 
-        /// <summary>把当前编辑中的文档编译为无头预览实例并切到观察画布；不改动资产。</summary>
+        /// <summary>把当前编辑中的文档编译为无头预览实例，并在独立观察窗口中显示。</summary>
         private void StartPreview()
         {
             if (IsObservation) return;
 
+            var sourceSnapshot = AuthoringJson.Load(AuthoringJson.Save(_document));
             var debugName = "预览：" + (_asset != null ? _asset.name : (_document.Tree.TreeId ?? "行为树"));
             if (!TreePreviewSession.TryStart(
-                    _document,
+                    sourceSnapshot,
                     EditorNodeCatalog.Registry,
+                    AuthoringDocumentCatalog.CreateTreeResolver(sourceSnapshot),
                     debugName,
                     out var session,
                     out var error))
@@ -1110,13 +1179,38 @@ namespace AbilityKit.BehaviorTree.Editor
                 return;
             }
 
-            _previewSession = session;
-            EnterObservationMode(session.Runtime);
+            try
+            {
+                OpenPreview(session!, this, sourceSnapshot);
+            }
+            catch
+            {
+                session?.Dispose();
+                throw;
+            }
         }
 
-        /// <summary>结束预览并回到编辑模式（重新加载同一资产）。</summary>
+        /// <summary>预览窗口关闭后聚焦原编辑窗口；普通观察窗口则回到对应资产。</summary>
         private void BackToEdit()
         {
+            if (_previewOwner != null)
+            {
+                var owner = _previewOwner;
+                Close();
+                if (owner != null)
+                {
+                    owner.Show();
+                    owner.Focus();
+                }
+                return;
+            }
+
+            if (_asset == null)
+            {
+                Close();
+                return;
+            }
+
             var asset = _asset;
             var project = _project;
             StopPreview();
@@ -1127,9 +1221,30 @@ namespace AbilityKit.BehaviorTree.Editor
         {
             if (_previewSession != null)
             {
+                _previewSession.Faulted -= OnPreviewFaulted;
                 _previewSession.Dispose();
                 _previewSession = null;
             }
+            _previewOwner = null;
+            _previewFaultLabel = null;
+        }
+
+        private void OnPreviewFaulted(string message)
+        {
+            UpdatePreviewFaultLabel();
+            titleContent = new GUIContent("行为树预览（已停止）");
+            Repaint();
+        }
+
+        private void UpdatePreviewFaultLabel()
+        {
+            if (_previewFaultLabel == null || _previewSession == null) return;
+            _previewFaultLabel.text = _previewSession.IsFaulted
+                ? "预览已因运行时异常停止：" + (_previewSession.FaultMessage ?? "未知错误")
+                : string.Empty;
+            _previewFaultLabel.style.display = _previewSession.IsFaulted
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
         }
 
         /// <summary>进入调试（观察）模式：优先观察正在使用当前配置的运行时实例，否则启动无头预览。</summary>
@@ -1149,7 +1264,7 @@ namespace AbilityKit.BehaviorTree.Editor
                     }
                 }
             }
-            if (target != null) EnterObservationMode(target);
+            if (target != null) OpenOwnedObservation(target, this);
             else StartPreview();
         }
 

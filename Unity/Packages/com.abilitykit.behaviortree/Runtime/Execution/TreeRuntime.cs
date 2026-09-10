@@ -173,22 +173,31 @@ namespace AbilityKit.BehaviorTree.Execution
 
             foreach (var nodeDefinition in _definition.Nodes)
             {
-                var node = registry.CreateNode(nodeDefinition.Type);
-                node.NodeId = nodeDefinition.Id;
-                var random = new DeterministicRandom(DeriveNodeSeed(_options.Seed, nodeDefinition.Id));
-                var initContext = new NodeInitContext
+                try
                 {
-                    Tree = _definition,
-                    Definition = nodeDefinition,
-                    Properties = new PropertyReader(nodeDefinition.Properties),
-                    ChildCount = nodeDefinition.ChildIds.Count,
-                    Registry = registry,
-                    Random = random,
-                    Context = _context,
-                };
-                node.OnInit(in initContext);
-                _nodesById.Add(nodeDefinition.Id, node);
-                _randomsById.Add(nodeDefinition.Id, random);
+                    var node = registry.CreateNode(nodeDefinition.Type);
+                    node.NodeId = nodeDefinition.Id;
+                    var random = new DeterministicRandom(DeriveNodeSeed(_options.Seed, nodeDefinition.Id));
+                    var initContext = new NodeInitContext
+                    {
+                        Tree = _definition,
+                        Definition = nodeDefinition,
+                        Properties = new PropertyReader(nodeDefinition.Properties),
+                        ChildCount = nodeDefinition.ChildIds.Count,
+                        Registry = registry,
+                        Random = random,
+                        Context = _context,
+                    };
+                    node.OnInit(in initContext);
+                    _nodesById.Add(nodeDefinition.Id, node);
+                    _randomsById.Add(nodeDefinition.Id, random);
+                }
+                catch (Exception ex)
+                {
+                    throw new InvalidOperationException(
+                        $"行为树节点 '{nodeDefinition.Id}'（{nodeDefinition.Type}）创建或初始化失败：{ex.Message}",
+                        ex);
+                }
             }
 
             BindTopology();
@@ -210,16 +219,27 @@ namespace AbilityKit.BehaviorTree.Execution
             if (subtreeResolver != null)
             {
                 var expansion = TreeCompiler.ExpandReferences(definition, subtreeResolver, registry);
-                var runtime = new TreeRuntime(expansion.Definition, registry, services, options)
-                {
-                    _nodeSourceTree = expansion.NodeSourceTree,
-                    _nodeSourceNode = expansion.NodeSourceNode,
-                    _subtreeInstances = expansion.SubtreeInstances,
-                };
-                runtime.RebuildDebugStaticInfos();
-                return runtime;
+                return Create(expansion, registry, services, options);
             }
             return new TreeRuntime(definition, registry, services, options);
+        }
+
+        /// <summary>从已经完成子树展开的构建结果创建运行时，避免重复编译并保留节点来源信息。</summary>
+        public static TreeRuntime Create(
+            ExpansionResult expansion,
+            NodeRegistry registry,
+            ServiceResolver? services = null,
+            TreeRunOptions? options = null)
+        {
+            if (expansion == null) throw new ArgumentNullException(nameof(expansion));
+            var runtime = new TreeRuntime(expansion.Definition, registry, services, options)
+            {
+                _nodeSourceTree = expansion.NodeSourceTree,
+                _nodeSourceNode = expansion.NodeSourceNode,
+                _subtreeInstances = expansion.SubtreeInstances,
+            };
+            runtime.RebuildDebugStaticInfos();
+            return runtime;
         }
 
         public void Dispose()

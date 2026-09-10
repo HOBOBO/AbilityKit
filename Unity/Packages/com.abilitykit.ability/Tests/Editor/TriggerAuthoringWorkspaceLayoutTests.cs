@@ -3,28 +3,69 @@ using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
 using AbilityKit.Ability.Editor.Windows;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Ability.Editor.Tests
 {
-    public sealed class TriggerAuthoringWorkspaceLayoutTests
+    public sealed class TriggerAuthoringWorkspaceSelectionPersistenceTests
     {
-        [TestCase(719f, 0)]
-        [TestCase(820f, 1)]
-        [TestCase(1499f, 1)]
-        [TestCase(1500f, 2)]
-        public void Resolve_UsesStableResponsiveBreakpoints(float width, int expected)
+        private const string TestRoot = "Assets/__TriggerAuthoringWorkspaceSelectionPersistenceTests";
+        private string _preferenceKey;
+
+        [SetUp]
+        public void SetUp()
         {
-            Assert.That((int)TriggerAuthoringWorkspaceLayout.Resolve(width), Is.EqualTo(expected));
+            _preferenceKey = "AbilityKit.Tests.TriggerAuthoring.LastModule." + System.Guid.NewGuid().ToString("N");
+            AssetDatabase.DeleteAsset(TestRoot);
+            AssetDatabase.CreateFolder("Assets", "__TriggerAuthoringWorkspaceSelectionPersistenceTests");
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            EditorPrefs.DeleteKey(_preferenceKey);
+            AssetDatabase.DeleteAsset(TestRoot);
+            AssetDatabase.Refresh();
         }
 
         [Test]
-        public void PaneWidths_AreClampedAgainstWindowSize()
+        public void LastModule_RestoresByGuidAfterAssetMoves()
+        {
+            var module = ScriptableObject.CreateInstance<TriggerAuthoringModuleAsset>();
+            var originalPath = TestRoot + "/Original.asset";
+            var movedPath = TestRoot + "/Moved.asset";
+            AssetDatabase.CreateAsset(module, originalPath);
+
+            TriggerAuthoringWorkspaceWindow.SaveSelectedModulePreference(module, _preferenceKey);
+            Assert.That(AssetDatabase.MoveAsset(originalPath, movedPath), Is.Empty);
+
+            Assert.That(
+                TriggerAuthoringWorkspaceWindow.LoadSelectedModulePreference(_preferenceKey),
+                Is.SameAs(module));
+        }
+
+        [Test]
+        public void LastModule_RemovesPreferenceWhenAssetNoLongerExists()
+        {
+            var module = ScriptableObject.CreateInstance<TriggerAuthoringModuleAsset>();
+            var path = TestRoot + "/Deleted.asset";
+            AssetDatabase.CreateAsset(module, path);
+            TriggerAuthoringWorkspaceWindow.SaveSelectedModulePreference(module, _preferenceKey);
+            AssetDatabase.DeleteAsset(path);
+
+            Assert.That(TriggerAuthoringWorkspaceWindow.LoadSelectedModulePreference(_preferenceKey), Is.Null);
+            Assert.That(EditorPrefs.HasKey(_preferenceKey), Is.False);
+        }
+    }
+
+    public sealed class TriggerAuthoringWorkspaceLayoutTests
+    {
+        [Test]
+        public void ResourceNavigationWidth_IsClampedAgainstWindowSize()
         {
             Assert.That(TriggerAuthoringWorkspaceLayout.ClampNavigationWidth(50f, 1400f), Is.EqualTo(210f));
             Assert.That(TriggerAuthoringWorkspaceLayout.ClampNavigationWidth(900f, 900f), Is.EqualTo(306f));
-            Assert.That(TriggerAuthoringWorkspaceLayout.ClampInspectorWidth(50f, 1400f), Is.EqualTo(280f));
-            Assert.That(TriggerAuthoringWorkspaceLayout.ClampInspectorWidth(900f, 900f), Is.EqualTo(342f));
         }
 
         [Test]
@@ -353,6 +394,67 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(rules[0].ActionSummary, Does.Contain("事件参数：stack_count"));
             Assert.That(rules[0].ActionSummary, Does.Contain("造成伤害 → 播放表现"));
             Assert.That(rules[0].ActionSummary, Does.Contain("否则：输出调试日志"));
+        }
+
+        [Test]
+        public void ConditionalChain_AppendsAndDisplaysElseIfBeforeExistingElse()
+        {
+            var root = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "conditional",
+                Condition = new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" },
+                Children = { new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "heal" } },
+                ElseChildren = { new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "debug_log" } }
+            };
+            var elseIf = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "conditional",
+                Condition = new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" },
+                Children = { new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "give_damage" } }
+            };
+            var secondElseIf = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "conditional",
+                Condition = new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" },
+                Children = { new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "play_presentation" } }
+            };
+
+            Assert.That(TriggerAuthoringConditionalChain.AppendElseIf(root, elseIf), Is.True);
+            Assert.That(TriggerAuthoringConditionalChain.AppendElseIf(root, secondElseIf), Is.True);
+            Assert.That(root.ElseChildren, Has.Count.EqualTo(1));
+            Assert.That(root.ElseChildren[0], Is.SameAs(elseIf));
+            Assert.That(elseIf.ElseChildren, Has.Count.EqualTo(1));
+            Assert.That(elseIf.ElseChildren[0], Is.SameAs(secondElseIf));
+            Assert.That(secondElseIf.ElseChildren, Has.Count.EqualTo(1));
+            Assert.That(secondElseIf.ElseChildren[0].Type, Is.EqualTo("debug_log"));
+
+            var module = new TriggerAuthoringModuleData();
+            module.Triggers.Add(new TriggerDefinitionData
+            {
+                Id = 21,
+                Event = "buff.apply",
+                Actions = root
+            });
+            var rules = TriggerAuthoringRuleOverviewBuilder.Build(
+                module,
+                "buff.apply",
+                TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
+                null);
+
+            Assert.That(rules, Has.Count.EqualTo(1));
+            Assert.That(rules[0].ActionSummary, Does.Contain("如果["));
+            Assert.That(rules[0].ActionSummary, Does.Contain("否则如果["));
+            Assert.That(rules[0].ActionSummary, Does.Contain("播放表现"));
+            Assert.That(rules[0].ActionSummary, Does.Contain("否则：输出调试日志"));
+            Assert.That(rules[0].ActionSummary, Does.Not.Contain("否则：如果["));
+
+            Assert.That(TriggerAuthoringConditionalChain.RemoveElseIf(root, elseIf), Is.True);
+            Assert.That(root.ElseChildren, Has.Count.EqualTo(1));
+            Assert.That(root.ElseChildren[0], Is.SameAs(secondElseIf));
+            Assert.That(secondElseIf.ElseChildren[0].Type, Is.EqualTo("debug_log"));
         }
 
         [Test]
@@ -1036,10 +1138,16 @@ namespace AbilityKit.Ability.Editor.Tests
                     DisplayName = "Hero Skills",
                     Kind = TriggerModuleKind.Ability
                 };
+                asset.PackageMetadata.SetIdentity("ability", "hero.zhaoyun");
+                asset.PackageMetadata.SetOwner("combat-team");
+                asset.PackageMetadata.SetTags(new[] { "moba", "hero" });
 
                 Assert.That(TriggerAuthoringProjectTreePanel.MatchesModule(asset, "hero skills"), Is.True);
                 Assert.That(TriggerAuthoringProjectTreePanel.MatchesModule(asset, "moba.skill"), Is.True);
                 Assert.That(TriggerAuthoringProjectTreePanel.MatchesModule(asset, "ability"), Is.True);
+                Assert.That(TriggerAuthoringProjectTreePanel.MatchesModule(asset, "zhaoyun"), Is.True);
+                Assert.That(TriggerAuthoringProjectTreePanel.MatchesModule(asset, "combat-team"), Is.True);
+                Assert.That(TriggerAuthoringProjectTreePanel.MatchesModule(asset, "moba"), Is.True);
                 Assert.That(TriggerAuthoringProjectTreePanel.MatchesModule(asset, "buff"), Is.False);
             }
             finally

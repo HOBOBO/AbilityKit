@@ -12,14 +12,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
   m_Name: CharacterCO.asset.excelBaseline
   m_EditorClassIdentifier: 
-  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\characters.xlsx
-  SheetName: 
-  HeaderRowIndex: 6
-  DataStartRowIndex: 8
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\LubanConfig\Moba\MiniTemplate\Datas\characters.xlsx
+  SheetName: characters
+  HeaderRowIndex: 1
+  DataStartRowIndex: 4
   PrimaryKeyColumnName: Id
   Headers:
-  - AttributeTemplateId
+  - '##var'
   - Id
+  - AttributeTemplateId
   - ModelId
   - Name
   - PassiveSkillIds
@@ -27,6 +28,7 @@ MonoBehaviour:
   Rows:
   - Key: 1001
     Values:
+    - 
     - 1001
     - 1001
     - 1001
@@ -35,6 +37,7 @@ MonoBehaviour:
     - 10010101,10010201,10010301
   - Key: 1002
     Values:
+    - 
     - 1002
     - 1002
     - 1002
@@ -43,6 +46,7 @@ MonoBehaviour:
     - 10020101,10020201,10020301
   - Key: 1003
     Values:
+    - 
     - 1003
     - 1003
     - 1003
@@ -51,6 +55,7 @@ MonoBehaviour:
     - 10030101,10030201,10030301
   - Key: 1004
     Values:
+    - 
     - 1004
     - 1004
     - 1004
@@ -59,6 +64,7 @@ MonoBehaviour:
     - 10040101,10040201,10040301
   - Key: 1005
     Values:
+    - 
     - 1005
     - 1005
     - 1005
@@ -67,6 +73,7 @@ MonoBehaviour:
     - 10050101,10050201,10050301
   - Key: 1006
     Values:
+    - 
     - 1006
     - 1006
     - 1006

@@ -1324,7 +1324,21 @@ namespace AbilityKit.Ability.Editor.Tests
                     GroupReference = "condition.shared.damage_threshold"
                 },
                 Children = { DebugLog("then") },
-                ElseChildren = { DebugLog("else") }
+                ElseChildren =
+                {
+                    new TriggerNodeData
+                    {
+                        Kind = TriggerNodeKind.Action,
+                        Type = "conditional",
+                        Condition = new TriggerNodeData
+                        {
+                            Kind = TriggerNodeKind.Condition,
+                            Type = "always_true"
+                        },
+                        Children = { DebugLog("else-if") },
+                        ElseChildren = { DebugLog("else") }
+                    }
+                }
             });
             module.ConditionGroups.Add(new TriggerNodeGroupData
             {
@@ -1352,6 +1366,9 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(trigger.ExecutionRoot.Condition.Nodes[0].Kind, Is.EqualTo(trigger.Predicate.Nodes[0].Kind));
             Assert.That(trigger.ExecutionRoot.Children, Has.Count.EqualTo(1));
             Assert.That(trigger.ExecutionRoot.ElseChildren, Has.Count.EqualTo(1));
+            Assert.That(trigger.ExecutionRoot.ElseChildren[0].Kind, Is.EqualTo("If"));
+            Assert.That(trigger.ExecutionRoot.ElseChildren[0].Children, Has.Count.EqualTo(1));
+            Assert.That(trigger.ExecutionRoot.ElseChildren[0].ElseChildren, Has.Count.EqualTo(1));
 
             var runtimeDatabase = new TriggerPlanJsonDatabase();
             var json = TriggerAuthoringRuntimeExporter.Serialize(result.Database);

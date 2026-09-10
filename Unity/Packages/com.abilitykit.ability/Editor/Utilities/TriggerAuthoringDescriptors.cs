@@ -4,7 +4,7 @@ using AbilityKit.Ability.Config.Authoring;
 
 namespace AbilityKit.Ability.Editor.Utilities
 {
-    internal sealed class TriggerParameterOption
+    public sealed class TriggerParameterOption
     {
         public TriggerParameterOption(long value, string displayName)
         {
@@ -17,7 +17,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     }
 
     [Flags]
-    internal enum TriggerValueSourceMask
+    public enum TriggerValueSourceMask
     {
         None = 0,
         Constant = 1 << 0,
@@ -30,7 +30,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         All = Constant | Payload | Context | LocalBlackboard | GlobalBlackboard | TemplateParameter | Expression
     }
 
-    internal sealed class TriggerParameterDescriptor
+    public sealed class TriggerParameterDescriptor
     {
         public TriggerParameterDescriptor(
             string name,
@@ -82,13 +82,13 @@ namespace AbilityKit.Ability.Editor.Utilities
         public IReadOnlyList<TriggerParameterOption> Options { get; }
     }
 
-    internal enum TriggerParameterAccess
+    public enum TriggerParameterAccess
     {
         Read = 0,
         Write = 1
     }
 
-    internal sealed class TriggerTypeDescriptor
+    public sealed class TriggerTypeDescriptor
     {
         public TriggerTypeDescriptor(
             TriggerNodeKind kind,
@@ -132,10 +132,12 @@ namespace AbilityKit.Ability.Editor.Utilities
         public IReadOnlyList<TriggerParameterDescriptor> Parameters { get; }
     }
 
-    internal sealed class TriggerTypeDescriptorCatalog
+    public sealed class TriggerTypeDescriptorCatalog
     {
         private readonly Dictionary<string, TriggerTypeDescriptor> _entries =
             new Dictionary<string, TriggerTypeDescriptor>(StringComparer.Ordinal);
+        private readonly Dictionary<string, ITriggerAuthoringConditionCompiler> _conditionCompilers =
+            new Dictionary<string, ITriggerAuthoringConditionCompiler>(StringComparer.Ordinal);
 
         public void Register(TriggerTypeDescriptor descriptor)
         {
@@ -143,7 +145,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.IsNullOrWhiteSpace(descriptor.Type))
                 throw new ArgumentException("描述符必须指定节点类型。", nameof(descriptor));
 
-            _entries[BuildKey(descriptor.Kind, descriptor.Type)] = descriptor;
+            var key = BuildKey(descriptor.Kind, descriptor.Type);
+            _entries[key] = descriptor;
+            if (descriptor.Kind == TriggerNodeKind.Condition) _conditionCompilers.Remove(key);
         }
 
         public bool TryGet(TriggerNodeKind kind, string type, out TriggerTypeDescriptor descriptor)
@@ -168,10 +172,44 @@ namespace AbilityKit.Ability.Editor.Utilities
             return result;
         }
 
+        internal void RegisterConditionCompiler(
+            string type,
+            ITriggerAuthoringConditionCompiler compiler)
+        {
+            if (string.IsNullOrWhiteSpace(type)) throw new ArgumentException("必须指定条件类型。", nameof(type));
+            if (compiler == null) throw new ArgumentNullException(nameof(compiler));
+            _conditionCompilers[BuildKey(TriggerNodeKind.Condition, type)] = compiler;
+        }
+
+        internal bool TryGetConditionCompiler(
+            string type,
+            out ITriggerAuthoringConditionCompiler compiler)
+        {
+            return _conditionCompilers.TryGetValue(
+                BuildKey(TriggerNodeKind.Condition, type),
+                out compiler);
+        }
+
         public static TriggerTypeDescriptorCatalog CreateProjectDefaults()
         {
             var catalog = new TriggerTypeDescriptorCatalog();
             RegisterCompleteProjectTypes(catalog);
+            // Compatibility for standalone validation callers that predate project-scoped extensions.
+            RegisterLegacyMobaConditions(catalog);
+            RegisterCombatActions(catalog);
+            RegisterBuffAndShieldActions(catalog);
+            RegisterResourceActions(catalog);
+            RegisterSpawnAndSkillActions(catalog);
+            RegisterMotionActions(catalog);
+            RegisterPresentationAndGameplayActions(catalog);
+            return catalog;
+        }
+
+        public static TriggerTypeDescriptorCatalog CreateForProject(TriggerAuthoringProjectAsset project)
+        {
+            var catalog = new TriggerTypeDescriptorCatalog();
+            RegisterCompleteProjectTypes(catalog);
+            TriggerAuthoringExtensionRegistry.ApplyTypes(project, catalog);
             return catalog;
         }
 
@@ -204,6 +242,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             RegisterNumericVariableComparison(catalog, "num_var_lt", "数值变量小于");
             RegisterNumericVariableComparison(catalog, "num_var_eq", "数值变量等于");
 
+        }
+
+        private static void RegisterNumericComparison(
+            TriggerTypeDescriptorCatalog catalog,
+            string type,
+            string displayName)
+        {
+            catalog.Register(Condition(type, displayName, "Condition/Compare",
+                Required("left", TriggerValueType.Number), Required("right", TriggerValueType.Number)));
+        }
+
+        private static void RegisterLegacyMobaConditions(TriggerTypeDescriptorCatalog catalog)
+        {
             catalog.Register(Condition("has_buff", "拥有增益效果", "Condition/Combat",
                 Required("buff_id", TriggerValueType.Integer),
                 Optional("check_stack", TriggerValueType.Boolean),
@@ -220,15 +271,6 @@ namespace AbilityKit.Ability.Editor.Utilities
             catalog.Register(Condition("owner_matches_payload_source", "所有者匹配事件来源", "Condition/Context"));
             catalog.Register(Condition("owner_matches_payload_target", "所有者匹配事件目标", "Condition/Context"));
             catalog.Register(Condition("target_is_flying_projectile", "目标是飞行投射物", "Condition/Context"));
-        }
-
-        private static void RegisterNumericComparison(
-            TriggerTypeDescriptorCatalog catalog,
-            string type,
-            string displayName)
-        {
-            catalog.Register(Condition(type, displayName, "Condition/Compare",
-                Required("left", TriggerValueType.Number), Required("right", TriggerValueType.Number)));
         }
 
         private static void RegisterNumericVariableComparison(
@@ -276,12 +318,6 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Optional("source_id", TriggerValueType.Integer),
                 Optional("duration", TriggerValueType.Number)));
 
-            RegisterCombatActions(catalog);
-            RegisterBuffAndShieldActions(catalog);
-            RegisterResourceActions(catalog);
-            RegisterSpawnAndSkillActions(catalog);
-            RegisterMotionActions(catalog);
-            RegisterPresentationAndGameplayActions(catalog);
         }
 
         private static void RegisterCombatActions(TriggerTypeDescriptorCatalog catalog)

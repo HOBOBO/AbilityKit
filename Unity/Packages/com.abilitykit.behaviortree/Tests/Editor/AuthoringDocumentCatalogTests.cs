@@ -76,6 +76,35 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
         }
 
         [Test]
+        public void PreviewResolver_CurrentUnsavedDocumentOverridesCatalogAndReturnsClone()
+        {
+            var treeId = "resolver-current-" + System.Guid.NewGuid().ToString("N");
+            var saved = TreeExporter.Import(new TreeDefinition
+            {
+                TreeId = treeId,
+                RootNodeId = "saved-root",
+                Nodes = { new NodeDefinition { Id = "saved-root", Type = BuiltInNodeTypes.Succeed } },
+            });
+            var current = TreeExporter.Import(new TreeDefinition
+            {
+                TreeId = treeId,
+                RootNodeId = "unsaved-root",
+                Nodes = { new NodeDefinition { Id = "unsaved-root", Type = BuiltInNodeTypes.Fail } },
+            });
+
+            using var registration = AuthoringDocumentCatalog.RegisterProvider(new StaticProvider(saved));
+            var resolver = AuthoringDocumentCatalog.CreateTreeResolver(current);
+
+            Assert.That(resolver.TryResolve(treeId, out var first), Is.True);
+            Assert.That(first.RootNodeId, Is.EqualTo("unsaved-root"));
+            first.RootNodeId = "mutated-by-caller";
+
+            Assert.That(resolver.TryResolve(treeId, out var second), Is.True);
+            Assert.That(second.RootNodeId, Is.EqualTo("unsaved-root"));
+            Assert.That(current.Tree.RootNodeId, Is.EqualTo("unsaved-root"));
+        }
+
+        [Test]
         public void DuplicateProviderRegistrations_HaveIndependentLifetimes()
         {
             var tree = new TreeDefinition { TreeId = "duplicate-registration" };

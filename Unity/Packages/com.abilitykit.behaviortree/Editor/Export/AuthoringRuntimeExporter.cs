@@ -69,7 +69,8 @@ namespace AbilityKit.BehaviorTree.Editor
             var json = TreeExporter.Export(
                 document,
                 EditorNodeCatalog.Registry,
-                out var validationErrors);
+                out var validationErrors,
+                AuthoringDocumentCatalog.CreateTreeResolver(document));
             if (validationErrors.Count > 0)
             {
                 return new EditorExportReportEntry(

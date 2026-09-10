@@ -1,10 +1,12 @@
 #nullable enable
 
 using System;
+using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
 using AbilityKit.BehaviorTree.Authoring.Model;
 using AbilityKit.BehaviorTree.Diagnostics;
 using AbilityKit.BehaviorTree.Execution;
+using AbilityKit.BehaviorTree.Nodes;
 using AbilityKit.BehaviorTree.Registry;
 using AbilityKit.Deterministic;
 using UnityEditor;
@@ -23,6 +25,8 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private readonly TreeRuntime _runtime;
         private int _frame;
+        private bool _disposed;
+        private bool _updateSubscribed;
 
         private TreePreviewSession(TreeRuntime runtime)
         {
@@ -31,6 +35,9 @@ namespace AbilityKit.BehaviorTree.Editor
 
         public TreeRuntime Runtime => _runtime;
         public int Frame => _frame;
+        public bool IsFaulted { get; private set; }
+        public string? FaultMessage { get; private set; }
+        public event Action<string>? Faulted;
 
         /// <summary>
         /// 编译文档并启动预览。失败时返回 false 并给出错误（校验错误或运行时异常），
@@ -39,6 +46,15 @@ namespace AbilityKit.BehaviorTree.Editor
         public static bool TryStart(
             AuthoringSourceDocument document,
             NodeRegistry registry,
+            string debugName,
+            out TreePreviewSession? session,
+            out string? error)
+            => TryStart(document, registry, null, debugName, out session, out error);
+
+        public static bool TryStart(
+            AuthoringSourceDocument document,
+            NodeRegistry registry,
+            TreeDefinitionResolver? subtreeResolver,
             string debugName,
             out TreePreviewSession? session,
             out string? error)
@@ -51,52 +67,86 @@ namespace AbilityKit.BehaviorTree.Editor
                 return false;
             }
 
-            var definition = TreeExporter.ToRuntimeDefinition(document);
-            var errors = TreeValidator.Validate(definition, registry);
-            if (errors.Count > 0)
-            {
-                error = string.Join("\n", errors);
-                return false;
-            }
-
-            TreeRuntime runtime;
+            TreeRuntime? runtime = null;
             try
             {
-                runtime = TreeRuntime.Create(
-                    definition,
-                    registry,
-                    options: new TreeRunOptions
-                    {
-                        Seed = 0x12345678UL,
-                        // 预览需要自循环，否则树完成后画布不再变化。
-                        RestartWhenComplete = true,
-                        DebugName = debugName,
-                        DebugOwnerLabel = "Editor Preview",
-                    });
+                var build = BehaviorTreeBuildPipeline.Build(document, registry, subtreeResolver);
+                if (!build.Success || build.CompiledDefinition == null)
+                    throw new InvalidOperationException(string.Join(
+                        "\n",
+                        build.Diagnostics.Select(diagnostic =>
+                            $"[{diagnostic.Code}] {diagnostic.Message}")));
+
+                var options = new TreeRunOptions
+                {
+                    Seed = 0x12345678UL,
+                    // 预览需要自循环，否则树完成后画布不再变化。
+                    RestartWhenComplete = true,
+                    DebugName = debugName,
+                    DebugOwnerLabel = "Editor Preview",
+                };
+                runtime = build.Expansion == null
+                    ? TreeRuntime.Create(build.CompiledDefinition, registry, options: options)
+                    : TreeRuntime.Create(build.Expansion, registry, options: options);
                 runtime.Enable(0, Fixed64.Zero);
             }
             catch (Exception ex)
             {
+                if (runtime != null)
+                {
+                    try { runtime.Dispose(); }
+                    catch (Exception) { /* 启动失败时以原始错误为准。 */ }
+                }
                 error = ex.Message;
                 return false;
             }
 
             session = new TreePreviewSession(runtime);
-            EditorApplication.update += session.Tick;
+            session.SubscribeUpdate();
             return true;
         }
 
-        private void Tick()
+        internal void Tick()
         {
+            if (_disposed || IsFaulted) return;
             _frame++;
-            _runtime.Update(_frame, Fixed64.FromRatio(_frame, TicksPerSecond));
+            try
+            {
+                _runtime.Update(_frame, Fixed64.FromRatio(_frame, TicksPerSecond));
+            }
+            catch (Exception ex)
+            {
+                IsFaulted = true;
+                FaultMessage = string.IsNullOrWhiteSpace(ex.Message)
+                    ? ex.GetType().Name
+                    : ex.Message;
+                UnsubscribeUpdate();
+                try { Faulted?.Invoke(FaultMessage); }
+                catch (Exception) { /* 预览故障通知不能再次泄漏到 EditorApplication.update。 */ }
+            }
+        }
+
+        private void SubscribeUpdate()
+        {
+            if (_updateSubscribed) return;
+            EditorApplication.update += Tick;
+            _updateSubscribed = true;
+        }
+
+        private void UnsubscribeUpdate()
+        {
+            if (!_updateSubscribed) return;
+            EditorApplication.update -= Tick;
+            _updateSubscribed = false;
         }
 
         public void Dispose()
         {
-            EditorApplication.update -= Tick;
+            if (_disposed) return;
+            _disposed = true;
+            UnsubscribeUpdate();
             try { _runtime.Disable(); } catch (Exception) { /* 观察端不因停止异常泄漏 */ }
-            _runtime.Dispose();
+            try { _runtime.Dispose(); } catch (Exception) { /* 预览释放不能污染编辑器 update。 */ }
         }
     }
 }

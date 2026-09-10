@@ -4,6 +4,8 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 using AbilityKit.BehaviorTree.Authoring.Model;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Execution;
 using AbilityKit.BehaviorTree.Registry;
 using AbilityKit.BehaviorTree.Serialization;
 
@@ -39,7 +41,8 @@ namespace AbilityKit.BehaviorTree.Authoring
             IEnumerable<KeyValuePair<string, AuthoringSourceDocument>> trees,
             IReadOnlyList<string> exportTargetDirectories,
             NodeRegistry registry,
-            string repositoryRoot)
+            string repositoryRoot,
+            IEnumerable<KeyValuePair<string, AuthoringSourceDocument>>? resolverTrees = null)
         {
             if (trees == null) throw new ArgumentNullException(nameof(trees));
             if (registry == null) throw new ArgumentNullException(nameof(registry));
@@ -49,8 +52,13 @@ namespace AbilityKit.BehaviorTree.Authoring
 
             var report = new List<ExportReportEntry>();
             var targets = exportTargetDirectories ?? Array.Empty<string>();
+            var materializedTrees = new List<KeyValuePair<string, AuthoringSourceDocument>>(trees);
+            var resolverDocuments = resolverTrees == null
+                ? materializedTrees
+                : new List<KeyValuePair<string, AuthoringSourceDocument>>(resolverTrees);
+            var resolver = new DocumentTreeDefinitionResolver(resolverDocuments);
 
-            foreach (var pair in trees)
+            foreach (var pair in materializedTrees)
             {
                 var treeId = pair.Key;
                 var document = pair.Value;
@@ -62,7 +70,7 @@ namespace AbilityKit.BehaviorTree.Authoring
                     continue;
                 }
 
-                var json = TreeExporter.Export(document, registry, out var errors);
+                var json = TreeExporter.Export(document, registry, out var errors, resolver);
                 if (json == null)
                 {
                     foreach (var target in targets)
@@ -142,6 +150,7 @@ namespace AbilityKit.BehaviorTree.Authoring
 
             var sourceDirectory = ResolveDirectory(manifest.SourceDirectory, repositoryRoot);
             var report = new List<ExportReportEntry>();
+            var documents = new List<KeyValuePair<string, AuthoringSourceDocument>>();
             foreach (var treeId in manifest.Trees)
             {
                 var sourcePath = Path.Combine(sourceDirectory, treeId + ".json");
@@ -186,13 +195,45 @@ namespace AbilityKit.BehaviorTree.Authoring
                     continue;
                 }
 
-                report.AddRange(ExportAll(
-                    new[] { new KeyValuePair<string, AuthoringSourceDocument>(treeId, document) },
-                    manifest.ExportTargets,
-                    registry,
-                    repositoryRoot));
+                documents.Add(new KeyValuePair<string, AuthoringSourceDocument>(treeId, document));
             }
+            report.AddRange(ExportAll(
+                documents,
+                manifest.ExportTargets,
+                registry,
+                repositoryRoot));
             return report;
+        }
+
+        private sealed class DocumentTreeDefinitionResolver : TreeDefinitionResolver
+        {
+            private readonly Dictionary<string, TreeDefinition> _definitions =
+                new(StringComparer.Ordinal);
+
+            public DocumentTreeDefinitionResolver(
+                IEnumerable<KeyValuePair<string, AuthoringSourceDocument>> documents)
+            {
+                foreach (var pair in documents)
+                {
+                    var document = pair.Value;
+                    if (document?.Tree == null) continue;
+                    var treeId = document.Tree.TreeId;
+                    if (string.IsNullOrWhiteSpace(treeId) || _definitions.ContainsKey(treeId)) continue;
+                    _definitions.Add(treeId, TreeExporter.ToRuntimeDefinition(document));
+                }
+            }
+
+            public bool TryResolve(string treeId, out TreeDefinition definition)
+            {
+                if (_definitions.TryGetValue(treeId, out var source))
+                {
+                    definition = source.DeepClone();
+                    return true;
+                }
+
+                definition = null!;
+                return false;
+            }
         }
 
         public static List<string> ValidateUniqueTreeIds(IEnumerable<string> treeIds)

@@ -38,21 +38,69 @@ namespace AbilityKit.BehaviorTree.Editor
             TreeDefinition definition,
             NodeRegistry registry,
             Action<string>? locateNode = null)
+            => Analyze(definition, registry, null, locateNode);
+
+        public static EditorDiagnosticCollection Analyze(
+            TreeDefinition definition,
+            NodeRegistry registry,
+            TreeDefinitionResolver? resolver,
+            Action<string>? locateNode)
         {
-            var messages = TreeValidator.Validate(definition, registry);
-            return FromValidationMessages(definition, messages, locateNode);
+            if (definition == null) throw new ArgumentNullException(nameof(definition));
+            if (registry == null) throw new ArgumentNullException(nameof(registry));
+            var result = BehaviorTreeBuildPipeline.Build(definition, registry, resolver);
+            return FromValidationDiagnostics(definition, result.Diagnostics, locateNode);
         }
 
         public static EditorDiagnosticCollection Analyze(
             AuthoringSourceDocument document,
             NodeRegistry registry,
             Action<string>? locateNode = null)
+            => Analyze(document, registry, null, locateNode);
+
+        public static EditorDiagnosticCollection Analyze(
+            AuthoringSourceDocument document,
+            NodeRegistry registry,
+            TreeDefinitionResolver? resolver,
+            Action<string>? locateNode)
         {
             if (document == null) throw new ArgumentNullException(nameof(document));
             if (registry == null) throw new ArgumentNullException(nameof(registry));
 
-            var diagnostics = Analyze(document.Tree, registry, locateNode);
+            var diagnostics = Analyze(document.Tree, registry, resolver, locateNode);
             diagnostics.AddRange(EditorExtensionRegistry.Analyze(document, registry));
+            return diagnostics;
+        }
+
+        public static EditorDiagnosticCollection FromValidationDiagnostics(
+            TreeDefinition? definition,
+            IEnumerable<ValidationDiagnostic> validationDiagnostics,
+            Action<string>? locateNode = null)
+        {
+            if (validationDiagnostics == null) throw new ArgumentNullException(nameof(validationDiagnostics));
+            var knownNodeIds = new HashSet<string>(
+                (definition?.Nodes ?? new List<NodeDefinition>())
+                    .Where(node => node != null && !string.IsNullOrWhiteSpace(node.Id))
+                    .Select(node => node.Id),
+                StringComparer.Ordinal);
+            var diagnostics = new EditorDiagnosticCollection();
+            foreach (var diagnostic in validationDiagnostics)
+            {
+                var nodeId = diagnostic.NodeId;
+                if (nodeId != null && !knownNodeIds.Contains(nodeId)) nodeId = null;
+                var targetNodeId = nodeId;
+                Action? locate = targetNodeId != null && locateNode != null
+                    ? () => locateNode(targetNodeId)
+                    : null;
+                diagnostics.Add(new EditorDiagnostic(
+                    ValidationErrorCode,
+                    diagnostic.Severity == ValidationSeverity.Warning
+                        ? EditorDiagnosticSeverity.Warning
+                        : EditorDiagnosticSeverity.Error,
+                    $"[{diagnostic.Code}] {diagnostic.Message}",
+                    targetNodeId == null ? "tree" : "nodes/" + targetNodeId,
+                    locate: locate));
+            }
             return diagnostics;
         }
 

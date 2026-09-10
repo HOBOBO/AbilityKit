@@ -468,6 +468,86 @@ namespace AbilityKit.Ability.Editor.Utilities
         }
     }
 
+    internal static class TriggerAuthoringConditionalChain
+    {
+        public static bool IsConditional(TriggerNodeData node)
+        {
+            return node != null &&
+                   node.Kind == TriggerNodeKind.Action &&
+                   string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public static bool TryGetElseIf(TriggerNodeData node, out TriggerNodeData elseIf)
+        {
+            elseIf = null;
+            var actions = node?.ElseChildren;
+            if (actions == null || actions.Count != 1 || !IsConditional(actions[0])) return false;
+            elseIf = actions[0];
+            return true;
+        }
+
+        public static void CollectElseIfBranches(TriggerNodeData root, ICollection<TriggerNodeData> output)
+        {
+            if (root == null || output == null) return;
+            var visited = new HashSet<TriggerNodeData>();
+            var current = root;
+            while (current != null && visited.Add(current))
+            {
+                if (!TryGetElseIf(current, out var next)) break;
+                output.Add(next);
+                current = next;
+            }
+        }
+
+        public static List<TriggerNodeData> GetFallbackActions(TriggerNodeData root)
+        {
+            if (root == null) return null;
+            var visited = new HashSet<TriggerNodeData>();
+            var current = root;
+            while (current != null && visited.Add(current))
+            {
+                if (!TryGetElseIf(current, out var next)) break;
+                current = next;
+            }
+            return current.ElseChildren ?? (current.ElseChildren = new List<TriggerNodeData>());
+        }
+
+        public static bool AppendElseIf(TriggerNodeData root, TriggerNodeData branch)
+        {
+            if (root == null || !IsConditional(branch)) return false;
+            var visited = new HashSet<TriggerNodeData>();
+            var current = root;
+            while (current != null)
+            {
+                if (!visited.Add(current)) return false;
+                if (!TryGetElseIf(current, out var next)) break;
+                current = next;
+            }
+
+            branch.ElseChildren = current.ElseChildren ?? new List<TriggerNodeData>();
+            current.ElseChildren = new List<TriggerNodeData> { branch };
+            return true;
+        }
+
+        public static bool RemoveElseIf(TriggerNodeData root, TriggerNodeData branch)
+        {
+            if (root == null || branch == null) return false;
+            var visited = new HashSet<TriggerNodeData>();
+            var current = root;
+            while (current != null && visited.Add(current))
+            {
+                if (!TryGetElseIf(current, out var next)) break;
+                if (ReferenceEquals(next, branch))
+                {
+                    current.ElseChildren = next.ElseChildren ?? new List<TriggerNodeData>();
+                    return true;
+                }
+                current = next;
+            }
+            return false;
+        }
+    }
+
     internal static class TriggerAuthoringTriggerReuse
     {
         public const string ExecuteTriggerType = "execute_trigger";

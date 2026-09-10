@@ -12,15 +12,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
   m_Name: TagTemplateCO.asset.excelBaseline
   m_EditorClassIdentifier: 
-  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\tag_templates.xlsx
-  SheetName: 
-  HeaderRowIndex: 6
-  DataStartRowIndex: 8
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\LubanConfig\Moba\MiniTemplate\Datas\tag_templates.xlsx
+  SheetName: tag_templates
+  HeaderRowIndex: 1
+  DataStartRowIndex: 4
   PrimaryKeyColumnName: Id
   Headers:
+  - '##var'
+  - Id
   - BlockedTagNames
   - GrantTagNames
-  - Id
   - Name
   - RemoveTagNames
   - RequiredTagNames
@@ -28,24 +29,27 @@ MonoBehaviour:
   - Key: 1
     Values:
     - 
-    - 
     - 1
+    - 
+    - 
     - "\u65E0\u654C\u6807\u7B7E"
     - 
     - 
   - Key: 2
     Values:
     - 
-    - 
     - 2
+    - 
+    - 
     - "\u6C89\u9ED8\u6807\u7B7E"
     - 
     - 
   - Key: 3
     Values:
     - 
-    - 
     - 3
+    - 
+    - 
     - "\u7729\u6655\u6807\u7B7E"
     - 
     - 

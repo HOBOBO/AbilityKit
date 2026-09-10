@@ -59,13 +59,19 @@ namespace AbilityKit.BehaviorTree.Editor
 
         public static AuthoringSourceDocument BuildObservationDocument(
             TreeDebugView view,
-            NodeRegistry registry)
+            NodeRegistry registry,
+            AuthoringSourceDocument? currentDocument = null)
         {
             if (view == null) throw new ArgumentNullException(nameof(view));
             if (registry == null) throw new ArgumentNullException(nameof(registry));
 
             var definition = view.TreeDefinition;
             var documents = LoadAll();
+            if (currentDocument?.Tree != null)
+            {
+                // 预览必须反映当前内存中的编辑结果，而不是资产里最后一次保存的版本。
+                documents.Insert(0, currentDocument);
+            }
             foreach (var authored in documents)
             {
                 if (!string.Equals(authored.Tree.TreeId, definition.TreeId, StringComparison.Ordinal)
@@ -80,6 +86,26 @@ namespace AbilityKit.BehaviorTree.Editor
             ApplySourceMetadata(view, observation, byTreeId);
             ApplyAutomaticLayout(observation);
             return observation;
+        }
+
+        /// <summary>
+        /// 创建一次预览编译所使用的树解析快照。当前编辑文档始终覆盖目录中的同 TreeId 文档，
+        /// 解析结果返回防御性副本，避免编译阶段影响编辑器内存文档。
+        /// </summary>
+        internal static TreeDefinitionResolver CreateTreeResolver(AuthoringSourceDocument currentDocument)
+        {
+            if (currentDocument == null) throw new ArgumentNullException(nameof(currentDocument));
+
+            var definitions = new Dictionary<string, TreeDefinition>(StringComparer.Ordinal);
+            var byTreeId = IndexByTreeId(LoadAll());
+            foreach (var pair in byTreeId)
+                definitions[pair.Key] = TreeExporter.ToRuntimeDefinition(pair.Value);
+
+            var currentTreeId = currentDocument.Tree?.TreeId;
+            if (!string.IsNullOrWhiteSpace(currentTreeId))
+                definitions[currentTreeId!] = TreeExporter.ToRuntimeDefinition(currentDocument);
+
+            return new CatalogTreeDefinitionResolver(definitions);
         }
 
         private static List<AuthoringSourceDocument> LoadAll()
@@ -183,6 +209,28 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private static AuthoringSourceDocument Clone(AuthoringSourceDocument document)
             => AuthoringJson.Load(AuthoringJson.Save(document));
+
+        private sealed class CatalogTreeDefinitionResolver : TreeDefinitionResolver
+        {
+            private readonly IReadOnlyDictionary<string, TreeDefinition> _definitions;
+
+            public CatalogTreeDefinitionResolver(IReadOnlyDictionary<string, TreeDefinition> definitions)
+            {
+                _definitions = definitions;
+            }
+
+            public bool TryResolve(string treeId, out TreeDefinition definition)
+            {
+                if (_definitions.TryGetValue(treeId, out var source))
+                {
+                    definition = source.DeepClone();
+                    return true;
+                }
+
+                definition = null!;
+                return false;
+            }
+        }
 
         private sealed class AssetDatabaseProvider : IAuthoringDocumentProvider
         {

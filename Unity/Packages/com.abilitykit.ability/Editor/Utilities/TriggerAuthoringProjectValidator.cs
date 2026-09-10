@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config.Authoring;
+using AbilityKit.Ability.Editor.Packages;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using UnityEditor;
 using UnityEditor.Build;
@@ -160,6 +161,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             var assets = new HashSet<TriggerAuthoringModuleAsset>();
             var moduleIds = new HashSet<string>(StringComparer.Ordinal);
+            var packageIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var triggerIdOwners = new Dictionary<int, string>();
             var runtimeDocuments = new List<TriggerPlanAggregateCompiler.SourceDocument>();
             for (var i = 0; i < modules.Count; i++)
@@ -183,6 +185,15 @@ namespace AbilityKit.Ability.Editor.Utilities
                 var moduleId = asset.Module != null ? asset.Module.ModuleId : null;
                 if (!string.IsNullOrWhiteSpace(moduleId) && !moduleIds.Add(moduleId))
                     AddError(result, "TRG3044", path + ".moduleId", $"模块 ID 重复：{moduleId}。");
+                var contentKey = TriggerAuthoringPackageService.NormalizeIdentifier(asset.PackageMetadata.ContentKey);
+                if (!string.IsNullOrWhiteSpace(contentKey))
+                {
+                    var domainId = TriggerAuthoringPackageCatalog.ResolveDomainId(asset);
+                    var identity = domainId + ":" + contentKey;
+                    if (!packageIdentities.Add(identity))
+                        AddError(result, "TRG3046", path + ".packageMetadata.contentKey",
+                            $"内容包标识重复：业务域“{domainId}”中已经存在“{contentKey}”。");
+                }
                 var triggers = asset.Module?.Triggers;
                 if (triggers != null)
                     for (var triggerIndex = 0; triggerIndex < triggers.Count; triggerIndex++)

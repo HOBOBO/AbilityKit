@@ -1,947 +1,995 @@
 [
-    {
-        "Id":  1,
-        "Name":  "buff1",
-        "DurationMs":  3000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  0,
-        "MaxStacks":  0,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-
-                 ]
-    },
-    {
-        "Id":  101,
-        "Name":  "持续掉血buff",
-        "DurationMs":  5000,
-        "OngoingEffectId":  101,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  1000,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     1
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  4,
-                              "TargetId":  3,
-                              "Op":  0,
-                              "Value":  2,
-                              "Priority":  10
-                          },
-                          {
-                              "TargetKind":  4,
-                              "TargetId":  5,
-                              "Op":  0,
-                              "Value":  1000,
-                              "Priority":  10
-                          }
-                      ]
-    },
-    {
-        "Id":  10010000,
-        "Name":  "廉颇-勇士之魂-技能霸体战意",
-        "DurationMs":  1500,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "State.SuperArmor"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  23,
-                              "TargetId":  23,
-                              "Op":  0,
-                              "Value":  1.0,
-                              "Priority":  30
-                          }
-                      ]
-    },
-    {
-        "Id":  10010212,
-        "Name":  "廉颇-熔岩重击-命中减速",
-        "DurationMs":  1500,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     10010212
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  -0.3,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10020001,
-        "Name":  "小乔-治愈微笑-短暂加速",
-        "DurationMs":  2000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  4,
-        "RefreshPolicy":  2,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "Op":  0,
-                              "Value":  2,
-                              "Priority":  10
-                          }
-                      ]
-    },
-    {
-        "Id":  10020301,
-        "Name":  "小乔-星华缭乱-持续落星状态",
-        "DurationMs":  5000,
-        "OngoingEffectId":  20020301,
-        "PresentationTemplateId":  90002003,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-                                  10020311
-                              ],
-        "IntervalMs":  1000,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-                           10020312
-                       ],
-        "Tags":  [
-
-                 ],
-        "Modifiers":  [
-
-                      ]
-    },
-    {
-        "Id":  10030000,
-        "Name":  "赵云-龙鸣-被动免伤参数",
-        "DurationMs":  0,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Passive.DamageReductionByLostHp"
-                 ],
-        "Modifiers":  [
-
-                      ]
-    },
-    {
-        "Id":  10030001,
-        "Name":  "赵云-龙鸣-二档(破云)",
-        "DurationMs":  600,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     10030001,
-                     10030011
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  15,
-                              "TargetId":  15,
-                              "Op":  3,
-                              "Value":  0.25,
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  0,
-                              "Value":  0.5,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10030002,
-        "Name":  "赵云-龙鸣-三档(天翔)",
-        "DurationMs":  600,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     10030001,
-                     10030012
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  15,
-                              "TargetId":  15,
-                              "Op":  3,
-                              "Value":  0.35,
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  0,
-                              "Value":  0.8,
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  8,
-                              "TargetId":  8,
-                              "Op":  3,
-                              "Value":  0.15,
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  9,
-                              "TargetId":  9,
-                              "Op":  3,
-                              "Value":  0.15,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10030003,
-        "Name":  "赵云-龙鸣-三档护盾标记",
-        "DurationMs":  3000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     10030013
-                 ],
-        "Modifiers":  [
-
-                      ]
-    },
-    {
-        "Id":  10030101,
-        "Name":  "赵云-惊雷之龙-下次普攻强化",
-        "DurationMs":  5000,
-        "OngoingEffectId":  0,
-        "PresentationTemplateId":  90003001,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-                           10030111
-                       ],
-        "Tags":  [
-                     "State.NextBasicAttackEnhanced",
-                     "Zhaoyun.ThunderDragon"
-                 ],
-        "Modifiers":  [
-
-                      ]
-    },
-    {
-        "Id":  10030104,
-        "Name":  "赵云-惊雷之龙-短暂加速",
-        "DurationMs":  3000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "MoveSpeed.Up",
-                     "Zhaoyun.ThunderDragon"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  0.3,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10030102,
-        "Name":  "赵云-惊雷之龙-命中减速",
-        "DurationMs":  2000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Control.Slow"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  -0.25,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10030301,
-        "Name":  "赵云-天翔之龙-感电标记",
-        "DurationMs":  5000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Mark.Zhaoyun.Electrified"
-                 ],
-        "Modifiers":  [
-
-                      ]
-    },
-    {
-        "Id":  10040000,
-        "Name":  "墨子-机关术-技能护盾",
-        "DurationMs":  3000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Shield.Mozi.Passive"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  8,
-                              "TargetId":  8,
-                              "Op":  3,
-                              "Value":  0.2,
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  9,
-                              "TargetId":  9,
-                              "Op":  3,
-                              "Value":  0.2,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10040001,
-        "Name":  "墨子-机关重炮-眩晕",
-        "DurationMs":  1000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Control.Stun"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  -1,
-                              "Priority":  30
-                          }
-                      ]
-    },
-    {
-        "Id":  10040002,
-        "Name":  "墨子-墨守成规-持续眩晕",
-        "DurationMs":  500,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Control.Stun"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  -1,
-                              "Priority":  30
-                          }
-                      ]
-    },
-    {
-        "Id":  10040003,
-        "Name":  "墨子-墨守成规-机关屏障状态",
-        "DurationMs":  3500,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-                                  10040311
-                              ],
-        "IntervalMs":  500,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "State.Mozi.UltimateChannel"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  8,
-                              "TargetId":  8,
-                              "Op":  3,
-                              "Value":  0.3,
-                              "Priority":  20
-                          },
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  9,
-                              "TargetId":  9,
-                              "Op":  3,
-                              "Value":  0.3,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10040101,
-        "Name":  "墨子-和平漫步-下次普攻炮击",
-        "DurationMs":  5000,
-        "OngoingEffectId":  0,
-        "PresentationTemplateId":  90004001,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "State.NextBasicAttackEnhanced",
-                     "Mozi.Cannon"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  4,
-                              "TargetId":  6,
-                              "Op":  2,
-                              "Value":  10040112,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10050000,
-        "Name":  "妲己-失心-降低法术防御",
-        "DurationMs":  3000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  3,
-        "RefreshPolicy":  2,
-        "MaxStacks":  3,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Debuff.Daji.Heartbreak"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  9,
-                              "TargetId":  9,
-                              "Op":  0,
-                              "Value":  -30,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10050201,
-        "Name":  "妲己-偶像魅力-眩晕控制",
-        "DurationMs":  1500,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Control.Stun"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  -1,
-                              "Priority":  30
-                          }
-                      ]
-    },
-    {
-        "Id":  10050301,
-        "Name":  "妲己-女王崇拜-狐火状态",
-        "DurationMs":  1600,
-        "OngoingEffectId":  0,
-        "PresentationTemplateId":  90005003,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                               ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-                            10050314
-                       ],
-        "Tags":  [
-                     "State.Daji.UltimateFoxfire"
-                 ],
-        "Modifiers":  [
-
-                      ]
-    },
-    {
-        "Id":  10060000,
-        "Name":  "嬴政-王者审判-普攻穿透标记",
-        "DurationMs":  0,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Passive.YingZheng.Judgement"
-                 ],
-        "Modifiers":  [
-
-                      ]
-    },
-    {
-        "Id":  10060101,
-        "Name":  "嬴政-王者惩戒-减速",
-        "DurationMs":  1000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Debuff.Slow",
-                     "YingZheng.Skill1"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  -0.35,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10060201,
-        "Name":  "嬴政-王者守御-护盾加速",
-        "DurationMs":  3000,
-        "OngoingEffectId":  0,
-        "PresentationTemplateId":  90006002,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Shield.YingZheng.Guard",
-                     "MoveSpeed.Up"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  0.25,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10060211,
-        "Name":  "嬴政-王者守御-减速",
-        "DurationMs":  1000,
-        "OngoingEffectId":  0,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "Debuff.Slow",
-                     "YingZheng.Skill2"
-                 ],
-        "Modifiers":  [
-                          {
-                              "TargetKind":  1,
-                              "AttrTypeId":  17,
-                              "TargetId":  17,
-                              "Op":  3,
-                              "Value":  -0.25,
-                              "Priority":  20
-                          }
-                      ]
-    },
-    {
-        "Id":  10060301,
-        "Name":  "嬴政-至尊王权-持续飞剑状态",
-        "DurationMs":  2500,
-        "OngoingEffectId":  0,
-        "PresentationTemplateId":  90006003,
-        "OnAddEffects":  [
-
-                         ],
-        "OnRemoveEffects":  [
-
-                            ],
-        "OnIntervalEffects":  [
-
-                              ],
-        "IntervalMs":  0,
-        "StackingPolicy":  0,
-        "RefreshPolicy":  1,
-        "MaxStacks":  1,
-        "TriggerIds":  [
-
-                       ],
-        "Tags":  [
-                     "State.YingZheng.UltimateSwords"
-                 ],
-        "Modifiers":  [
-
-                      ]
-    }
+  {
+    "Id": 1,
+    "Name": "buff1",
+    "DurationMs": 3000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 0,
+    "MaxStacks": 0,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": null,
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 101,
+    "Name": "持续掉血buff",
+    "DurationMs": 5000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 1000,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 4,
+        "TargetId": 3,
+        "AttrTypeId": 0,
+        "Op": 0,
+        "Value": 2.0,
+        "Priority": 10,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      },
+      {
+        "TargetKind": 4,
+        "TargetId": 5,
+        "AttrTypeId": 0,
+        "Op": 0,
+        "Value": 1000.0,
+        "Priority": 10,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10010000,
+    "Name": "廉颇-勇士之魂-技能霸体战意",
+    "DurationMs": 1500,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 23,
+        "AttrTypeId": 23,
+        "Op": 0,
+        "Value": 1.0,
+        "Priority": 30,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10010212,
+    "Name": "廉颇-熔岩重击-命中减速",
+    "DurationMs": 1500,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": -0.3,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10020001,
+    "Name": "小乔-治愈微笑-短暂加速",
+    "DurationMs": 2000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 4,
+    "RefreshPolicy": 2,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 0,
+        "AttrTypeId": 17,
+        "Op": 0,
+        "Value": 2.0,
+        "Priority": 10,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10020301,
+    "Name": "小乔-星华缭乱-持续落星状态",
+    "DurationMs": 5000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [
+      10020311
+    ],
+    "IntervalMs": 1000,
+    "PresentationTemplateId": 90002003,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [
+      10020312
+    ],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030000,
+    "Name": "赵云-龙鸣-被动免伤参数",
+    "DurationMs": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030001,
+    "Name": "赵云-龙鸣-二档(破云)",
+    "DurationMs": 600,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 15,
+        "AttrTypeId": 15,
+        "Op": 3,
+        "Value": 0.25,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      },
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 0,
+        "Value": 0.5,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030002,
+    "Name": "赵云-龙鸣-三档(天翔)",
+    "DurationMs": 600,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 15,
+        "AttrTypeId": 15,
+        "Op": 3,
+        "Value": 0.35,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      },
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 0,
+        "Value": 0.8,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      },
+      {
+        "TargetKind": 1,
+        "TargetId": 8,
+        "AttrTypeId": 8,
+        "Op": 3,
+        "Value": 0.15,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      },
+      {
+        "TargetKind": 1,
+        "TargetId": 9,
+        "AttrTypeId": 9,
+        "Op": 3,
+        "Value": 0.15,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030003,
+    "Name": "赵云-龙鸣-三档护盾标记",
+    "DurationMs": 3000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030101,
+    "Name": "赵云-惊雷之龙-下次普攻强化",
+    "DurationMs": 5000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 90003001,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [
+      10030111
+    ],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030102,
+    "Name": "赵云-惊雷之龙-命中减速",
+    "DurationMs": 2000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": -0.25,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030104,
+    "Name": "赵云-惊雷之龙-短暂加速",
+    "DurationMs": 3000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": 0.3,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10030301,
+    "Name": "赵云-天翔之龙-感电标记",
+    "DurationMs": 5000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10040000,
+    "Name": "墨子-机关术-技能护盾",
+    "DurationMs": 3000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 8,
+        "AttrTypeId": 8,
+        "Op": 3,
+        "Value": 0.2,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      },
+      {
+        "TargetKind": 1,
+        "TargetId": 9,
+        "AttrTypeId": 9,
+        "Op": 3,
+        "Value": 0.2,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10040001,
+    "Name": "墨子-机关重炮-眩晕",
+    "DurationMs": 1000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": -1.0,
+        "Priority": 30,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10040002,
+    "Name": "墨子-墨守成规-持续眩晕",
+    "DurationMs": 500,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": -1.0,
+        "Priority": 30,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10040003,
+    "Name": "墨子-墨守成规-机关屏障状态",
+    "DurationMs": 3500,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [
+      10040311
+    ],
+    "IntervalMs": 500,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 8,
+        "AttrTypeId": 8,
+        "Op": 3,
+        "Value": 0.3,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      },
+      {
+        "TargetKind": 1,
+        "TargetId": 9,
+        "AttrTypeId": 9,
+        "Op": 3,
+        "Value": 0.3,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10040101,
+    "Name": "墨子-和平漫步-下次普攻炮击",
+    "DurationMs": 5000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 90004001,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 4,
+        "TargetId": 6,
+        "AttrTypeId": 0,
+        "Op": 2,
+        "Value": 10040112.0,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10050000,
+    "Name": "妲己-失心-降低法术防御",
+    "DurationMs": 3000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 3,
+    "RefreshPolicy": 2,
+    "MaxStacks": 3,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 9,
+        "AttrTypeId": 9,
+        "Op": 0,
+        "Value": -30.0,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10050201,
+    "Name": "妲己-偶像魅力-眩晕控制",
+    "DurationMs": 1500,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": -1.0,
+        "Priority": 30,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10050301,
+    "Name": "妲己-女王崇拜-狐火状态",
+    "DurationMs": 1600,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 90005003,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [
+      10050314
+    ],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10060000,
+    "Name": "嬴政-王者审判-普攻穿透标记",
+    "DurationMs": 0,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10060101,
+    "Name": "嬴政-王者惩戒-减速",
+    "DurationMs": 1000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": -0.35,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10060201,
+    "Name": "嬴政-王者守御-护盾加速",
+    "DurationMs": 3000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 90006002,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": 0.25,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10060211,
+    "Name": "嬴政-王者守御-减速",
+    "DurationMs": 1000,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 0,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [
+      {
+        "TargetKind": 1,
+        "TargetId": 17,
+        "AttrTypeId": 17,
+        "Op": 3,
+        "Value": -0.25,
+        "Priority": 20,
+        "MagnitudeSourceType": 0,
+        "MagnitudeBaseValue": 0.0,
+        "MagnitudeCoefficient": 0.0,
+        "MagnitudeDuration": 0.0,
+        "MagnitudeDecayType": 0,
+        "MagnitudeAttributeTypeId": 0,
+        "MagnitudeContextKey": null,
+        "MagnitudeCurve": null,
+        "EvaluationPolicy": 0
+      }
+    ],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  },
+  {
+    "Id": 10060301,
+    "Name": "嬴政-至尊王权-持续飞剑状态",
+    "DurationMs": 2500,
+    "OnAddEffects": [],
+    "OnRemoveEffects": [],
+    "OnIntervalEffects": [],
+    "IntervalMs": 0,
+    "PresentationTemplateId": 90006003,
+    "StackingPolicy": 0,
+    "RefreshPolicy": 1,
+    "MaxStacks": 1,
+    "TriggerIds": [],
+    "ContinuousTagTemplateId": 0,
+    "TagNames": null,
+    "Modifiers": [],
+    "DispelPolicy": 0,
+    "DispelCategory": 0,
+    "DispelBlockedByTagNames": null
+  }
 ]

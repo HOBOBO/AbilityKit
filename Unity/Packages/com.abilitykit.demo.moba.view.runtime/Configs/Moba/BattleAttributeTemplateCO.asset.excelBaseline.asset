@@ -12,12 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
   m_Name: BattleAttributeTemplateCO.asset.excelBaseline
   m_EditorClassIdentifier: 
-  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\attribute_templates.xlsx
-  SheetName: 
-  HeaderRowIndex: 6
-  DataStartRowIndex: 8
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\LubanConfig\Moba\MiniTemplate\Datas\attribute_templates.xlsx
+  SheetName: attribute_templates
+  HeaderRowIndex: 1
+  DataStartRowIndex: 4
   PrimaryKeyColumnName: Id
   Headers:
+  - '##var'
+  - Id
   - ActiveSkills
   - AttackRange
   - AttackSpeedR
@@ -28,7 +30,6 @@ MonoBehaviour:
   - ExtraMagicAttack
   - ExtraPhysicsAttack
   - Hp
-  - Id
   - MagicAttack
   - MagicBloodsuckingR
   - MagicDefense
@@ -48,6 +49,8 @@ MonoBehaviour:
   Rows:
   - Key: 1001
     Values:
+    - 
+    - 1001
     - 10010101,10010201,10010301
     - 0
     - 0
@@ -58,7 +61,6 @@ MonoBehaviour:
     - 0
     - 0
     - 50000
-    - 1001
     - 0
     - 0
     - 50
@@ -77,6 +79,8 @@ MonoBehaviour:
     - 0
   - Key: 1002
     Values:
+    - 
+    - 1002
     - 10020101,10020201,10020301
     - 0
     - 0
@@ -87,7 +91,6 @@ MonoBehaviour:
     - 0
     - 0
     - 50000
-    - 1002
     - 300
     - 0
     - 50
@@ -106,6 +109,8 @@ MonoBehaviour:
     - 0
   - Key: 1003
     Values:
+    - 
+    - 1003
     - 10030101,10030201,10030301
     - 0
     - 0
@@ -116,7 +121,6 @@ MonoBehaviour:
     - 0
     - 0
     - 50000
-    - 1003
     - 0
     - 0
     - 50
@@ -135,6 +139,8 @@ MonoBehaviour:
     - 0
   - Key: 1004
     Values:
+    - 
+    - 1004
     - 10040101,10040201,10040301
     - 0
     - 0
@@ -145,7 +151,6 @@ MonoBehaviour:
     - 0
     - 0
     - 50000
-    - 1004
     - 320
     - 0
     - 80
@@ -164,6 +169,8 @@ MonoBehaviour:
     - 0
   - Key: 1005
     Values:
+    - 
+    - 1005
     - 10050101,10050201,10050301
     - 0
     - 0
@@ -174,7 +181,6 @@ MonoBehaviour:
     - 0
     - 0
     - 50000
-    - 1005
     - 340
     - 0
     - 60
@@ -193,6 +199,8 @@ MonoBehaviour:
     - 0
   - Key: 1006
     Values:
+    - 
+    - 1006
     - 10060101,10060201,10060301
     - 0
     - 0
@@ -203,7 +211,6 @@ MonoBehaviour:
     - 0
     - 0
     - 50000
-    - 1006
     - 360
     - 0
     - 60

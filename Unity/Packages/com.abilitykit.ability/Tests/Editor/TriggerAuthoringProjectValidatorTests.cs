@@ -1,5 +1,6 @@
 #if UNITY_EDITOR
 using AbilityKit.Ability.Config.Authoring;
+using AbilityKit.Ability.Editor.Packages;
 using AbilityKit.Ability.Editor.Utilities;
 using NUnit.Framework;
 using UnityEngine;
@@ -41,6 +42,31 @@ namespace AbilityKit.Ability.Editor.Tests
 
                 Assert.That(result.Success, Is.False);
                 Assert.That(result.Diagnostics.Exists(item => item.Code == "TRG3045"), Is.True, result.BuildMessage());
+            }
+            finally
+            {
+                Object.DestroyImmediate(second);
+                fixture.Dispose();
+            }
+        }
+
+        [Test]
+        public void Validate_RejectsDuplicateContentIdentityInsideDomain()
+        {
+            var fixture = CreateFixture();
+            var second = ScriptableObject.CreateInstance<TriggerAuthoringModuleAsset>();
+            try
+            {
+                fixture.Module.PackageMetadata.SetIdentity("ability", "hero.zhaoyun");
+                second.name = "SecondModule";
+                second.SetProject(fixture.Project);
+                second.Module = CreateModule("skill.second", 1002);
+                second.PackageMetadata.SetIdentity("ability", "hero.zhaoyun");
+                fixture.Project.SetModules(new[] { fixture.Module, second });
+
+                var result = TriggerAuthoringProjectValidator.Validate(fixture.Project);
+
+                Assert.That(result.Diagnostics.Exists(item => item.Code == "TRG3046"), Is.True, result.BuildMessage());
             }
             finally
             {

@@ -54,6 +54,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             var project = ScriptableObject.CreateInstance<TriggerAuthoringProjectAsset>();
             project.SetCatalogs(eventCatalog, blackboardCatalog, templateCatalog);
+            project.SetExtensionIds(new[] { "abilitykit.demo.moba" });
             project.SetRuntimeOutputRoot("Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers");
             AssetDatabase.CreateAsset(
                 project,

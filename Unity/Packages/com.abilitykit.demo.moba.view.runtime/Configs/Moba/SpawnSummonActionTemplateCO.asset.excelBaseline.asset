@@ -12,12 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
   m_Name: SpawnSummonActionTemplateCO.asset.excelBaseline
   m_EditorClassIdentifier: 
-  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\spawn_summon_action_templates.xlsx
-  SheetName: 
-  HeaderRowIndex: 6
-  DataStartRowIndex: 8
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\LubanConfig\Moba\MiniTemplate\Datas\spawn_summon_action_templates.xlsx
+  SheetName: spawn_summon_action_templates
+  HeaderRowIndex: 1
+  DataStartRowIndex: 4
   PrimaryKeyColumnName: Id
   Headers:
+  - '##var'
+  - Id
   - AimPosKey
   - ArcAngleDeg
   - CasterKey
@@ -30,7 +32,6 @@ MonoBehaviour:
   - GridRows
   - GridSpacingX
   - GridSpacingZ
-  - Id
   - IntervalMs
   - Name
   - OwnerKeyMode
@@ -56,6 +57,8 @@ MonoBehaviour:
   - Key: 1
     Values:
     - 
+    - 1
+    - 
     - 360
     - 
     - 0
@@ -67,7 +70,6 @@ MonoBehaviour:
     - 0
     - 0
     - 0
-    - 1
     - 0
     - "\u53EC\u5524\u52A8\u4F5C-\u5706\u5F62"
     - 0

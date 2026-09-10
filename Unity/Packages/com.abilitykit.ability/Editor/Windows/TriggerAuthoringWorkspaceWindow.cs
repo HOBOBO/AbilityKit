@@ -4,28 +4,30 @@ using System.Collections.Generic;
 using System.IO;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Inspectors;
+using AbilityKit.Ability.Editor.Packages;
 using AbilityKit.Ability.Editor.Utilities;
 using AbilityKit.Editor.Platform.Commands;
 using AbilityKit.Editor.Platform.Diagnostics;
 using AbilityKit.Editor.Platform.UI;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace AbilityKit.Ability.Editor.Windows
 {
     /// <summary>
-    /// 触发器编辑工作台（Y3 式三栏）：
-    /// 左栏 = 项目/模块树（含未挂载模块警示）；中栏 = 所选模块的完整编辑器（复用 Module Inspector）；
-    /// 右栏 = Source 同步状态卡 + 项目构建校验卡。
+    /// 触发器编辑工作台：资源管理、规则编辑和检查发布分别占用独立页面。
+    /// 默认进入规则编辑，避免项目资源树长期挤占核心编辑画布。
     /// </summary>
     internal sealed class TriggerAuthoringWorkspaceWindow : EditorWindow
     {
         private const float DefaultNavigationWidth = 270f;
-        private const float DefaultInspectorWidth = 320f;
+        private const string LastSelectedModulePreferencePrefix =
+            "AbilityKit.TriggerAuthoring.Workspace.LastSelectedModule.";
 
-        private enum FocusedPage
+        private enum WorkspacePage
         {
-            Modules,
+            Resources,
             Editor,
             Review
         }
@@ -64,13 +66,11 @@ namespace AbilityKit.Ability.Editor.Windows
         private EditorDiagnosticCollection _platformDiagnostics = new EditorDiagnosticCollection();
         private readonly Action _selectionChangedHandler;
         [SerializeField] private float _navigationWidth = DefaultNavigationWidth;
-        [SerializeField] private float _inspectorWidth = DefaultInspectorWidth;
-        [SerializeField] private FocusedPage _focusedPage = FocusedPage.Editor;
+        [FormerlySerializedAs("_focusedPage")]
+        [SerializeField] private WorkspacePage _workspacePage = WorkspacePage.Editor;
         [SerializeField] private InspectorPage _inspectorPage = InspectorPage.Overview;
         [SerializeField] private ResourcePage _resourcePage = ResourcePage.Modules;
-        [SerializeField] private bool _focusEditor;
         private bool _draggingNavigationSplitter;
-        private bool _draggingInspectorSplitter;
 
         public TriggerAuthoringWorkspaceWindow()
         {
@@ -89,7 +89,13 @@ namespace AbilityKit.Ability.Editor.Windows
         {
             RegisterCommands();
             RefreshProjects();
-            if (_selectedModule != null) SelectModule(_selectedModule, false);
+            if (_selectedModule != null)
+                SelectModule(_selectedModule, false);
+            else
+            {
+                var restoredModule = LoadSelectedModulePreference(BuildSelectedModulePreferenceKey());
+                if (restoredModule != null) SelectModule(restoredModule, false);
+            }
             if (_selectedTemplate != null) SelectTemplate(_selectedTemplate, false);
             Selection.selectionChanged += _selectionChangedHandler;
         }
@@ -133,37 +139,7 @@ namespace AbilityKit.Ability.Editor.Windows
             HandleKeyboardShortcuts();
             DrawToolbar();
             DrawContextHeader();
-
-            if (_focusEditor)
-            {
-                DrawCenter(position.width, true);
-                return;
-            }
-
-            var mode = TriggerAuthoringWorkspaceLayout.Resolve(position.width);
-            if (mode == TriggerAuthoringWorkspaceLayoutMode.Focused)
-            {
-                DrawFocusedLayout();
-                return;
-            }
-
-            _navigationWidth = TriggerAuthoringWorkspaceLayout.ClampNavigationWidth(_navigationWidth, position.width);
-            _inspectorWidth = TriggerAuthoringWorkspaceLayout.ClampInspectorWidth(_inspectorWidth, position.width);
-            var showInspector = mode == TriggerAuthoringWorkspaceLayoutMode.Full;
-            var centerWidth = position.width - _navigationWidth - TriggerAuthoringWorkspaceLayout.SplitterWidth;
-            if (showInspector)
-                centerWidth -= _inspectorWidth + TriggerAuthoringWorkspaceLayout.SplitterWidth;
-
-            EditorGUILayout.BeginHorizontal();
-            DrawTree(_navigationWidth);
-            DrawPaneSplitter(ref _navigationWidth, ref _draggingNavigationSplitter, false);
-            DrawCenter(Mathf.Max(360f, centerWidth), true);
-            if (showInspector)
-            {
-                DrawPaneSplitter(ref _inspectorWidth, ref _draggingInspectorSplitter, true);
-                DrawRightPane(_inspectorWidth);
-            }
-            EditorGUILayout.EndHorizontal();
+            DrawWorkspacePages();
         }
 
         private void DrawToolbar()
@@ -192,7 +168,7 @@ namespace AbilityKit.Ability.Editor.Windows
                 GUILayout.Label("未选择模块", EditorStyles.boldLabel);
                 GUILayout.FlexibleSpace();
                 GUILayout.Label(_projects.Count + " 个项目", EditorStyles.miniLabel);
-                GUILayout.Label(_unassignedModules.Count + " 个未分配模块", EditorStyles.miniLabel);
+            GUILayout.Label(_unassignedModules.Count + " 个未归属内容包", EditorStyles.miniLabel);
                 EditorGUILayout.EndHorizontal();
                 return;
             }
@@ -235,23 +211,6 @@ namespace AbilityKit.Ability.Editor.Windows
                         ExportSelectedProject();
                 }
             }
-            GUILayout.Space(6f);
-            var oldBackground = GUI.backgroundColor;
-            if (_focusEditor) GUI.backgroundColor = new Color(0.42f, 0.66f, 0.92f);
-            var focusIcon = EditorGUIUtility.IconContent("d_ViewToolZoom");
-            var focusContent = new GUIContent(
-                _focusEditor ? "退出专注" : "专注",
-                focusIcon != null ? focusIcon.image : null,
-                _focusEditor
-                    ? "退出专注编辑模式（Esc）"
-                    : "进入专注编辑模式，隐藏导航和检查面板（Ctrl+Shift+F）");
-            if (GUILayout.Toggle(_focusEditor, focusContent, EditorStyles.toolbarButton, GUILayout.Width(_focusEditor ? 86f : 64f)) != _focusEditor)
-            {
-                _focusEditor = !_focusEditor;
-                GUI.FocusControl(null);
-                Repaint();
-            }
-            GUI.backgroundColor = oldBackground;
             EditorGUILayout.EndHorizontal();
         }
 
@@ -298,32 +257,15 @@ namespace AbilityKit.Ability.Editor.Windows
                         ExportSelectedProject();
                 }
             }
-            GUILayout.Space(6f);
-            var oldBackground = GUI.backgroundColor;
-            if (_focusEditor) GUI.backgroundColor = new Color(0.42f, 0.66f, 0.92f);
-            var focusIcon = EditorGUIUtility.IconContent("d_ViewToolZoom");
-            var focusContent = new GUIContent(
-                _focusEditor ? "退出专注" : "专注",
-                focusIcon != null ? focusIcon.image : null,
-                _focusEditor
-                    ? "退出专注编辑模式（Esc）"
-                    : "进入专注编辑模式，隐藏导航和检查面板（Ctrl+Shift+F）");
-            if (GUILayout.Toggle(_focusEditor, focusContent, EditorStyles.toolbarButton, GUILayout.Width(_focusEditor ? 86f : 64f)) != _focusEditor)
-            {
-                _focusEditor = !_focusEditor;
-                GUI.FocusControl(null);
-                Repaint();
-            }
-            GUI.backgroundColor = oldBackground;
         }
 
         private void HandleKeyboardShortcuts()
         {
             var current = Event.current;
             if (current == null || current.type != EventType.KeyDown) return;
-            if (_focusEditor && current.keyCode == KeyCode.Escape)
+            if (_workspacePage != WorkspacePage.Editor && current.keyCode == KeyCode.Escape)
             {
-                _focusEditor = false;
+                _workspacePage = WorkspacePage.Editor;
                 current.Use();
                 Repaint();
                 return;
@@ -331,29 +273,58 @@ namespace AbilityKit.Ability.Editor.Windows
 
             if ((current.control || current.command) && current.shift && current.keyCode == KeyCode.F)
             {
-                _focusEditor = !_focusEditor;
+                _workspacePage = _workspacePage == WorkspacePage.Editor
+                    ? WorkspacePage.Resources
+                    : WorkspacePage.Editor;
                 GUI.FocusControl(null);
                 current.Use();
                 Repaint();
             }
         }
 
-        private void DrawFocusedLayout()
+        private void DrawWorkspacePages()
         {
-            var labels = new[] { "资源", "编辑器", "检查" };
-            _focusedPage = (FocusedPage)GUILayout.Toolbar((int)_focusedPage, labels, EditorStyles.toolbarButton);
-            switch (_focusedPage)
+            var labels = new[] { "项目资源", "触发器编辑", "检查与发布" };
+            var nextPage = (WorkspacePage)GUILayout.Toolbar(
+                (int)_workspacePage,
+                labels,
+                EditorStyles.toolbarButton,
+                GUILayout.Height(25f));
+            if (nextPage != _workspacePage)
             {
-                case FocusedPage.Modules:
-                    DrawTree(position.width);
+                _workspacePage = nextPage;
+                if (_workspacePage == WorkspacePage.Review)
+                    _inspectorPage = InspectorPage.Validation;
+                GUI.FocusControl(null);
+            }
+
+            switch (_workspacePage)
+            {
+                case WorkspacePage.Resources:
+                    DrawResourceManagementPage();
                     break;
-                case FocusedPage.Review:
+                case WorkspacePage.Review:
                     DrawRightPane(position.width);
                     break;
                 default:
                     DrawCenter(position.width, true);
                     break;
             }
+        }
+
+        private void DrawResourceManagementPage()
+        {
+            _navigationWidth = TriggerAuthoringWorkspaceLayout.ClampNavigationWidth(
+                _navigationWidth,
+                position.width);
+            var detailsWidth = Mathf.Max(
+                320f,
+                position.width - _navigationWidth - TriggerAuthoringWorkspaceLayout.SplitterWidth);
+            EditorGUILayout.BeginHorizontal();
+            DrawTree(_navigationWidth);
+            DrawPaneSplitter(ref _navigationWidth, ref _draggingNavigationSplitter);
+            DrawRightPane(detailsWidth);
+            EditorGUILayout.EndHorizontal();
         }
 
         private void RegisterCommands()
@@ -397,7 +368,7 @@ namespace AbilityKit.Ability.Editor.Windows
                     template =>
                     {
                         SelectTemplate(template, true);
-                        _focusedPage = FocusedPage.Editor;
+                        _workspacePage = WorkspacePage.Editor;
                     },
                     CreateTemplateFromToolbar,
                     CreateTemplate,
@@ -417,14 +388,29 @@ namespace AbilityKit.Ability.Editor.Windows
                 module =>
                 {
                     SelectModule(module, true);
-                    _focusedPage = FocusedPage.Editor;
+                    _workspacePage = WorkspacePage.Editor;
                 },
+                CreatePackage,
                 () =>
                 {
                     _resourcePage = ResourcePage.Templates;
                     Repaint();
                 },
                 width);
+        }
+
+        private void CreatePackage(TriggerAuthoringProjectAsset project, string domainId)
+        {
+            TriggerAuthoringPackageCreationWindow.Open(
+                project,
+                domainId,
+                package =>
+                {
+                    RefreshProjects();
+                    SelectModule(package, true);
+                    _workspacePage = WorkspacePage.Editor;
+                    Repaint();
+                });
         }
 
         private void DrawCenter(float width, bool showEmbeddedDiagnostics)
@@ -504,10 +490,10 @@ namespace AbilityKit.Ability.Editor.Windows
         private void DrawOverview()
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
-            GUILayout.Label("模块状态", EditorStyles.boldLabel);
+            GUILayout.Label("内容包状态", EditorStyles.boldLabel);
             if (_selectedModule == null)
             {
-                EditorGUILayout.HelpBox("请选择一个模块以检查其构建就绪状态。", MessageType.Info);
+                EditorGUILayout.HelpBox("请选择一个内容包以检查其构建就绪状态。", MessageType.Info);
                 EditorGUILayout.EndVertical();
                 return;
             }
@@ -515,14 +501,16 @@ namespace AbilityKit.Ability.Editor.Windows
             var module = _selectedModule.Module;
             var project = _selectedModule.Project;
             DrawOverviewMetric("所属项目", project != null ? project.name : "未分配");
-            DrawOverviewMetric("模块 ID", module != null ? module.ModuleId : string.Empty);
-            DrawOverviewMetric("模块类型", module != null ? TriggerAuthoringEditorLabels.ModuleKind(module.Kind) : "未知");
+            DrawOverviewMetric("内容包 ID", module != null ? module.ModuleId : string.Empty);
+            DrawOverviewMetric("业务域", TriggerAuthoringPackageCatalog.ResolveDomainId(_selectedModule));
+            DrawOverviewMetric("内容标识", _selectedModule.PackageMetadata.ContentKey);
+            DrawOverviewMetric("运行时类型", module != null ? TriggerAuthoringEditorLabels.ModuleKind(module.Kind) : "未知");
             DrawOverviewMetric("触发器", module != null && module.Triggers != null ? module.Triggers.Count.ToString() : "0");
             DrawOverviewMetric("源文件", _selectedModule.SourceJsonPath ?? string.Empty);
             GUILayout.Space(4f);
 
             if (project == null)
-                EditorGUILayout.HelpBox("此模块尚未分配到项目，在完成分配前不会参与项目校验和运行时导出。", MessageType.Warning);
+                EditorGUILayout.HelpBox("此内容包尚未分配到项目，在完成分配前不会参与项目校验和运行时导出。", MessageType.Warning);
             else if (_validation == null || _validationProject != project)
                 EditorGUILayout.HelpBox("当前工作台会话中尚未执行项目校验。", MessageType.Info);
             else
@@ -550,7 +538,7 @@ namespace AbilityKit.Ability.Editor.Windows
             EditorGUILayout.EndHorizontal();
         }
 
-        private void DrawPaneSplitter(ref float paneWidth, ref bool dragging, bool rightPane)
+        private void DrawPaneSplitter(ref float paneWidth, ref bool dragging)
         {
             var rect = GUILayoutUtility.GetRect(
                 TriggerAuthoringWorkspaceLayout.SplitterWidth,
@@ -568,10 +556,8 @@ namespace AbilityKit.Ability.Editor.Windows
             }
             else if (dragging && Event.current.type == EventType.MouseDrag)
             {
-                paneWidth += rightPane ? -Event.current.delta.x : Event.current.delta.x;
-                paneWidth = rightPane
-                    ? TriggerAuthoringWorkspaceLayout.ClampInspectorWidth(paneWidth, position.width)
-                    : TriggerAuthoringWorkspaceLayout.ClampNavigationWidth(paneWidth, position.width);
+                paneWidth += Event.current.delta.x;
+                paneWidth = TriggerAuthoringWorkspaceLayout.ClampNavigationWidth(paneWidth, position.width);
                 Repaint();
                 Event.current.Use();
             }
@@ -763,11 +749,13 @@ namespace AbilityKit.Ability.Editor.Windows
             _resourcePage = ResourcePage.Modules;
             if (module == _selectedModule && _moduleDrawer != null)
             {
+                SaveSelectedModulePreference(module, BuildSelectedModulePreferenceKey());
                 if (syncSelection) Selection.activeObject = module;
                 return;
             }
 
             _selectedModule = module;
+            SaveSelectedModulePreference(module, BuildSelectedModulePreferenceKey());
             if (_moduleDrawer == null)
             {
                 _moduleDrawer = new TriggerAuthoringModuleDrawer(module);
@@ -801,7 +789,7 @@ namespace AbilityKit.Ability.Editor.Windows
             if (template == null) return;
             RefreshProjects();
             SelectTemplate(template, true);
-            _focusedPage = FocusedPage.Editor;
+            _workspacePage = WorkspacePage.Editor;
             Repaint();
         }
 
@@ -948,6 +936,42 @@ namespace AbilityKit.Ability.Editor.Windows
             if (Path.IsPathRooted(asset.SourceJsonPath)) return Path.GetFullPath(asset.SourceJsonPath);
             var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
             return Path.GetFullPath(Path.Combine(projectRoot, asset.SourceJsonPath));
+        }
+
+        private static string BuildSelectedModulePreferenceKey()
+        {
+            var projectPath = Path.GetFullPath(Application.dataPath)
+                .Replace('\\', '/')
+                .TrimEnd('/')
+                .ToLowerInvariant();
+            return LastSelectedModulePreferencePrefix + Hash128.Compute(projectPath);
+        }
+
+        internal static void SaveSelectedModulePreference(
+            TriggerAuthoringModuleAsset module,
+            string preferenceKey)
+        {
+            if (string.IsNullOrWhiteSpace(preferenceKey)) return;
+            var path = module != null ? AssetDatabase.GetAssetPath(module) : string.Empty;
+            var guid = string.IsNullOrWhiteSpace(path) ? string.Empty : AssetDatabase.AssetPathToGUID(path);
+            if (string.IsNullOrWhiteSpace(guid))
+            {
+                EditorPrefs.DeleteKey(preferenceKey);
+                return;
+            }
+            EditorPrefs.SetString(preferenceKey, guid);
+        }
+
+        internal static TriggerAuthoringModuleAsset LoadSelectedModulePreference(string preferenceKey)
+        {
+            if (string.IsNullOrWhiteSpace(preferenceKey) || !EditorPrefs.HasKey(preferenceKey)) return null;
+            var guid = EditorPrefs.GetString(preferenceKey, string.Empty);
+            var path = string.IsNullOrWhiteSpace(guid) ? string.Empty : AssetDatabase.GUIDToAssetPath(guid);
+            var module = string.IsNullOrWhiteSpace(path)
+                ? null
+                : AssetDatabase.LoadAssetAtPath<TriggerAuthoringModuleAsset>(path);
+            if (module == null) EditorPrefs.DeleteKey(preferenceKey);
+            return module;
         }
     }
 }

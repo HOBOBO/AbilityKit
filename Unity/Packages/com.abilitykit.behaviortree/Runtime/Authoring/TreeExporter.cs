@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using AbilityKit.BehaviorTree.Authoring.Model;
 using AbilityKit.BehaviorTree.Definition;
 using AbilityKit.BehaviorTree.Diagnostics;
+using AbilityKit.BehaviorTree.Execution;
 using AbilityKit.BehaviorTree.Registry;
 using AbilityKit.BehaviorTree.Serialization;
 
@@ -17,7 +18,11 @@ namespace AbilityKit.BehaviorTree.Authoring
             return document.Tree.DeepClone();
         }
 
-        public static string? Export(AuthoringSourceDocument document, NodeRegistry registry, out List<string> errors)
+        public static string? Export(
+            AuthoringSourceDocument document,
+            NodeRegistry registry,
+            out List<string> errors,
+            TreeDefinitionResolver? resolver = null)
         {
             if (document == null)
             {
@@ -25,14 +30,16 @@ namespace AbilityKit.BehaviorTree.Authoring
                 return null;
             }
 
-            var definition = ToRuntimeDefinition(document);
-            errors = TreeValidator.Validate(definition, registry);
-            if (errors.Count > 0)
+            var result = BehaviorTreeBuildPipeline.Build(document, registry, resolver);
+            errors = new List<string>();
+            foreach (var diagnostic in result.Diagnostics)
             {
-                return null;
+                if (diagnostic.Severity == ValidationSeverity.Error)
+                    errors.Add($"[{diagnostic.Code}] {diagnostic.Message}");
             }
+            if (!result.Success) return null;
 
-            return TreeJson.Save(definition);
+            return TreeJson.Save(result.SourceDefinition);
         }
 
         public static AuthoringSourceDocument Import(TreeDefinition definition, NodeRegistry? registry = null)

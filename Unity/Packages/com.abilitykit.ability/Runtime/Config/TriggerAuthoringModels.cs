@@ -307,6 +307,9 @@ namespace AbilityKit.Ability.Config.Authoring
     [Serializable]
     public sealed class TriggerExecutionControlData
     {
+        public string Mode;
+        public int MaxExecutions;
+        public double CooldownMilliseconds;
         public string InterruptPolicy = "none";
         public bool StopPropagationOnSuccess;
         public bool StopPropagationOnFailure;

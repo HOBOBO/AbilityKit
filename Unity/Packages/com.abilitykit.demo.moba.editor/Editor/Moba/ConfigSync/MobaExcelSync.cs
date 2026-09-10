@@ -22,8 +22,11 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     /// </summary>
     public static class MobaExcelSync
     {
-        // 与 view.runtime 的 Configs/Moba 同目录树，Excel 落在其 Excel 子目录。
-        public const string ExcelFolder = "Packages/com.abilitykit.demo.moba.view.runtime/Configs/Moba/Excel";
+        /// <summary>
+        /// 落盘真相源目录：仓库根的 Luban 工程 Datas 目录。Excel 是唯一真相源，SO 与 JSON 都是它的投影。
+        /// 注意 "../" 前缀——路径按 Application.dataPath（Unity/Assets）解析，需上溯到仓库根。
+        /// </summary>
+        public const string ExcelFolder = "../LubanConfig/Moba/MiniTemplate/Datas";
 
         [MenuItem("Tools/AbilityKit/Demos/Moba/Config Excel/Buff: Import Excel -> SO")]
         public static void ImportBuffExcelToSo()
@@ -50,18 +53,24 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         }
 
         /// <summary>
-        /// 单表单 sheet 的规范布局：第 6 行表头（字段名）、第 7 行类型（export-typed 写出，日常 import/export 忽略）、
-        /// 第 8 行起数据、主键列 Id。与 ExcelTableOptions 默认值及 excel-sync Wizard 的 Luban 读取约定（表头 6/类型 7）对齐。
+        /// Luban 数据表布局：R1 = ##var + 字段名、R2 = ##type + 类型、R3 = ## 注释行、R4 起数据，主键列 Id。
+        /// A 列为 Luban 标记列，读取侧无需开关（标记列自然成为 headers[0]，列索引自洽）。
         /// </summary>
         public static ExcelTableOptions DefaultOptions()
         {
-            // SheetName 留空以始终使用首个工作表，避免 sheet 名不匹配时静默回退的歧义。
+            return DefaultOptions(string.Empty);
+        }
+
+        /// <summary>同上，并指定 sheet 名（Luban 的 input=sheet名@文件名 需要与文件内 sheet 名一致）。</summary>
+        public static ExcelTableOptions DefaultOptions(string sheetName)
+        {
             return new ExcelTableOptions
             {
-                SheetName = string.Empty,
-                HeaderRowIndex = 6,
-                DataStartRowIndex = 8,
-                PrimaryKeyColumnName = "Id"
+                SheetName = sheetName ?? string.Empty,
+                HeaderRowIndex = 1,
+                DataStartRowIndex = 4,
+                PrimaryKeyColumnName = "Id",
+                LubanMarkers = true
             };
         }
 
@@ -89,7 +98,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             }
 
             ScriptableObjectExcelSync.ImportToSingleAssetDataList(
-                table, excelPath, DefaultOptions(), new EpplusTableReaderWriterFactory());
+                table, excelPath, DefaultOptions(table.FileWithoutExt), new EpplusTableReaderWriterFactory());
             Debug.Log($"[MobaExcelSync] Imported {excelPath} into {table.GetType().Name}");
         }
 
@@ -103,7 +112,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             }
 
             ScriptableObjectExcelSync.ExportFromSingleAssetDataList(
-                table, excelPath, DefaultOptions(), new EpplusTableReaderWriterFactory());
+                table, excelPath, DefaultOptions(table.FileWithoutExt), new EpplusTableReaderWriterFactory());
             Debug.Log($"[MobaExcelSync] Exported {table.GetType().Name} into {excelPath}");
         }
 
@@ -117,20 +126,23 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 return;
             }
 
-            var headers = new List<string>();
+            var nameRow = new List<object> { "##var" };
+            var typeRow = new List<object> { "##type" };
             foreach (var f in typeof(TDto).GetFields(BindingFlags.Public | BindingFlags.Instance))
             {
-                headers.Add(f.Name);
+                nameRow.Add(f.Name);
+                typeRow.Add(LubanExcelTypeNameProvider.Instance.GetTypeName(f.FieldType));
             }
 
             using (var writer = new EpplusTableReaderWriterFactory().CreateWriter(excelPath, DefaultOptions()))
             {
-                writer.WriteHeaders(headers, 1);
+                writer.WriteRow(1, nameRow);
+                writer.WriteRow(2, typeRow);
                 writer.Save();
             }
 
             AssetDatabase.Refresh();
-            Debug.Log($"[MobaExcelSync] Created skeleton Excel ({headers.Count} columns): {excelPath}");
+            Debug.Log($"[MobaExcelSync] Created skeleton Excel ({nameRow.Count - 1} columns): {excelPath}");
         }
 
         /// <summary>工程根相对路径（Packages/... 或 Assets/...）转绝对路径。</summary>

@@ -115,17 +115,17 @@ namespace AbilityKit.BehaviorTree.Execution
         {
             var sourceNode = FindNode(sourceTree, sourceNodeId)
                 ?? throw new InvalidOperationException(
-                    $"Subtree expansion: node '{sourceNodeId}' not found in tree '{sourceTreeId}'.");
+                    $"展开子树时，行为树 '{sourceTreeId}' 中不存在节点 '{sourceNodeId}'。");
 
             if (sourceNode.Type == BuiltInNodeTypes.Subtree)
             {
                 var refTreeId = ReadReferencedTreeId(sourceNode, sourceTreeId);
                 if (!resolver.TryResolve(refTreeId, out var refTree))
                     throw new InvalidOperationException(
-                        $"Subtree node '{sourceNode.Id}' references unknown tree '{refTreeId}'.");
+                        $"子树节点 '{sourceNode.Id}' 引用了不存在的行为树 '{refTreeId}'。");
                 if (!visiting.Add(refTree.TreeId))
                     throw new InvalidOperationException(
-                        $"Subtree reference cycle detected at tree '{refTree.TreeId}'.");
+                        $"检测到子树循环引用，涉及行为树 '{refTree.TreeId}'。");
 
                 var childPrefix = idPrefix.Length == 0
                     ? sourceNode.Id
@@ -175,14 +175,14 @@ namespace AbilityKit.BehaviorTree.Execution
             var configuration = subtreeNode.SubtreeBlackboard;
             if (configuration != null && registry == null)
                 throw new InvalidOperationException(
-                    $"Subtree node '{subtreeNode.Id}' requires a NodeRegistry to compile blackboard bindings.");
+                    $"子树节点 '{subtreeNode.Id}' 需要 NodeRegistry 才能编译黑板绑定。");
 
             var bindings = new Dictionary<string, string>(StringComparer.Ordinal);
             if (configuration != null)
             {
                 if (configuration.Bindings == null)
                     throw new InvalidOperationException(
-                        $"Subtree node '{subtreeNode.Id}' has an invalid blackboard binding list.");
+                        $"子树节点 '{subtreeNode.Id}' 的黑板绑定列表无效。");
                 foreach (var binding in configuration.Bindings)
                 {
                     if (binding == null
@@ -190,11 +190,11 @@ namespace AbilityKit.BehaviorTree.Execution
                         || string.IsNullOrEmpty(binding.ParentKey))
                     {
                         throw new InvalidOperationException(
-                            $"Subtree node '{subtreeNode.Id}' contains an empty blackboard binding.");
+                            $"子树节点 '{subtreeNode.Id}' 包含空的黑板绑定。");
                     }
                     if (!bindings.TryAdd(binding.SubtreeKey, binding.ParentKey))
                         throw new InvalidOperationException(
-                            $"Subtree node '{subtreeNode.Id}' binds child key '{binding.SubtreeKey}' more than once.");
+                            $"子树节点 '{subtreeNode.Id}' 重复绑定了子树黑板键 '{binding.SubtreeKey}'。");
                 }
             }
 
@@ -207,13 +207,13 @@ namespace AbilityKit.BehaviorTree.Execution
                     var parentDefinition = FindBlackboardKey(parentTree.Blackboard, parentKey);
                     if (parentDefinition == null)
                         throw new InvalidOperationException(
-                            $"Subtree node '{subtreeNode.Id}' binds to undeclared parent key '{parentKey}'.");
+                            $"子树节点 '{subtreeNode.Id}' 绑定了未声明的父树黑板键 '{parentKey}'。");
                     if (parentDefinition.Type != childKey.Type)
                         throw new InvalidOperationException(
-                            $"Subtree key '{childKey.Name}' and parent key '{parentKey}' have different types.");
+                            $"子树黑板键 '{childKey.Name}' 与父树黑板键 '{parentKey}' 的类型不一致。");
                     if (!parentKeyMap.TryGetValue(parentKey, out runtimeKey!))
                         throw new InvalidOperationException(
-                            $"Subtree parent key '{parentKey}' has no runtime mapping.");
+                            $"父树黑板键 '{parentKey}' 没有运行时映射。");
                 }
                 else if (configuration?.IsolateUnmappedKeys == true)
                 {
@@ -235,7 +235,7 @@ namespace AbilityKit.BehaviorTree.Execution
             {
                 if (!childKeyMap.ContainsKey(boundChildKey))
                     throw new InvalidOperationException(
-                        $"Subtree node '{subtreeNode.Id}' binds undeclared child key '{boundChildKey}'.");
+                        $"子树节点 '{subtreeNode.Id}' 绑定了未声明的子树黑板键 '{boundChildKey}'。");
             }
             return childKeyMap;
         }
@@ -277,7 +277,7 @@ namespace AbilityKit.BehaviorTree.Execution
             {
                 if (existing.Type != source.Type)
                     throw new InvalidOperationException(
-                        $"Subtree blackboard key '{runtimeName}' conflicts: {existing.Type} vs {source.Type}.");
+                        $"子树黑板键 '{runtimeName}' 类型冲突：{existing.Type} 与 {source.Type}。");
                 return;
             }
 
@@ -298,7 +298,7 @@ namespace AbilityKit.BehaviorTree.Execution
                 || string.IsNullOrEmpty(treeId))
             {
                 throw new InvalidOperationException(
-                    $"Subtree node '{node.Id}' in tree '{sourceTreeId}' has no treeId.");
+                    $"行为树 '{sourceTreeId}' 中的子树节点 '{node.Id}' 未配置 treeId。");
             }
             return treeId;
         }

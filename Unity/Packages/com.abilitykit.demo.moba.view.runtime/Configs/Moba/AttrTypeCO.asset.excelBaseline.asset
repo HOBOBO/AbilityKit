@@ -12,26 +12,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
   m_Name: AttrTypeCO.asset.excelBaseline
   m_EditorClassIdentifier: 
-  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\attr_types.xlsx
-  SheetName: 
-  HeaderRowIndex: 6
-  DataStartRowIndex: 8
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\LubanConfig\Moba\MiniTemplate\Datas\attr_types.xlsx
+  SheetName: attr_types
+  HeaderRowIndex: 1
+  DataStartRowIndex: 4
   PrimaryKeyColumnName: Id
   Headers:
-  - DefaultValue
+  - '##var'
   - Id
+  - DefaultValue
   - Key
   - ValueKind
   Rows:
   - Key: 1
     Values:
-    - 0
+    - 
     - 1
+    - 0
     - 
     - 0
   - Key: 2
     Values:
-    - 0
+    - 
     - 2
+    - 0
     - 
     - 0

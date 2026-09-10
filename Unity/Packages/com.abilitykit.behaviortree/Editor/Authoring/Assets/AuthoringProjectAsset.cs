@@ -181,7 +181,8 @@ namespace AbilityKit.BehaviorTree.Editor
                 },
                 _exportTargets,
                 EditorNodeCatalog.Registry,
-                repositoryRoot);
+                repositoryRoot,
+                CollectDocuments());
         }
 
         private static string ResolveTreeId(AuthoringAsset tree)

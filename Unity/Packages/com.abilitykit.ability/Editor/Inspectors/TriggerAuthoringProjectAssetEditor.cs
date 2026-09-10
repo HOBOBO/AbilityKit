@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.IO;
+using AbilityKit.Ability.Editor.Packages;
 using AbilityKit.Ability.Editor.Utilities;
 using Sirenix.OdinInspector.Editor;
 using Sirenix.Utilities.Editor;
@@ -30,11 +31,50 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (_asset == null) return;
 
             serializedObject.Update();
+            DrawExtensions();
+            GUILayout.Space(4f);
             DrawCatalogs();
             GUILayout.Space(4f);
             DrawModules();
             DrawRuntimeExport();
             DrawValidation();
+        }
+
+        private void DrawExtensions()
+        {
+            SirenixEditorGUI.BeginBox("业务扩展");
+            var available = TriggerAuthoringExtensionRegistry.GetAvailableExtensionIds();
+            var selected = new System.Collections.Generic.HashSet<string>(
+                _asset.ExtensionIds,
+                StringComparer.Ordinal);
+            var changed = false;
+            for (var i = 0; i < available.Count; i++)
+            {
+                var id = available[i];
+                var enabled = selected.Contains(id);
+                var next = EditorGUILayout.ToggleLeft(id, enabled);
+                if (next == enabled) continue;
+                changed = true;
+                if (next) selected.Add(id);
+                else selected.Remove(id);
+            }
+
+            foreach (var id in _asset.ExtensionIds)
+            {
+                if (string.IsNullOrWhiteSpace(id) || available.Contains(id)) continue;
+                EditorGUILayout.HelpBox("未发现扩展：" + id, MessageType.Warning);
+            }
+
+            if (available.Count == 0)
+                EditorGUILayout.HelpBox("当前没有业务包提供触发器编辑扩展。", MessageType.Info);
+            if (changed)
+            {
+                Undo.RecordObject(_asset, "设置触发器业务扩展");
+                _asset.SetExtensionIds(selected);
+                EditorUtility.SetDirty(_asset);
+                serializedObject.Update();
+            }
+            SirenixEditorGUI.EndBox();
         }
 
         private void DrawCatalogs()
@@ -56,7 +96,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private void DrawModules()
         {
             var modules = _asset.Modules;
-            SirenixEditorGUI.BeginBox($"模块（{modules.Count}）");
+            SirenixEditorGUI.BeginBox($"内容包（{modules.Count}）");
 
             for (var i = 0; i < modules.Count; i++)
             {
@@ -65,7 +105,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 EditorGUILayout.BeginHorizontal(EditorStyles.helpBox);
                 if (module == null)
                 {
-                    GUILayout.Label("<模块引用缺失>", EditorStyles.miniBoldLabel);
+                    GUILayout.Label("<内容包引用缺失>", EditorStyles.miniBoldLabel);
                 }
                 else
                 {
@@ -75,14 +115,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     GUILayout.Label(summary, EditorStyles.miniBoldLabel);
                     GUILayout.FlexibleSpace();
                     GUILayout.Label(
-                        module.Module != null ? TriggerAuthoringEditorLabels.ModuleKind(module.Module.Kind) : string.Empty,
+                        TriggerAuthoringPackageCatalog.ResolveDomainId(module),
                         EditorStyles.miniLabel,
                         GUILayout.Width(76f));
                     GUILayout.Label(
                         (module.Module != null && module.Module.Triggers != null ? module.Module.Triggers.Count : 0) + " 个触发器",
                         EditorStyles.miniLabel,
                         GUILayout.Width(70f));
-                    if (SirenixEditorGUI.ToolbarButton(new GUIContent("打开", "选择并定位此模块资产")))
+                    if (SirenixEditorGUI.ToolbarButton(new GUIContent("打开", "选择并定位此内容包资产")))
                     {
                         Selection.activeObject = module;
                         EditorGUIUtility.PingObject(module);
@@ -96,11 +136,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
             GUILayout.Space(2f);
             EditorGUILayout.BeginHorizontal();
             var added = (TriggerAuthoringModuleAsset)EditorGUILayout.ObjectField(
-                "添加现有模块", null, typeof(TriggerAuthoringModuleAsset), false);
+                "添加现有内容包", null, typeof(TriggerAuthoringModuleAsset), false);
             if (added != null)
                 AddExistingModule(added);
-            if (GUILayout.Button(new GUIContent("创建", "创建新模块资产并注册到当前项目"), EditorStyles.miniButton, GUILayout.Width(52f)))
-                CreateModule();
+            if (GUILayout.Button(new GUIContent("创建", "创建内容包并自动绑定 Source JSON"), EditorStyles.miniButton, GUILayout.Width(52f)))
+                CreatePackage();
             EditorGUILayout.EndHorizontal();
 
             SirenixEditorGUI.EndBox();
@@ -172,10 +212,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private void RemoveModuleAt(int index)
         {
             var module = index >= 0 && index < _asset.Modules.Count ? _asset.Modules[index] : null;
-            Undo.RecordObject(_asset, "移除触发器模块");
+            Undo.RecordObject(_asset, "移除触发器内容包");
             if (module != null)
             {
-                Undo.RecordObject(module, "移除触发器模块");
+                Undo.RecordObject(module, "移除触发器内容包");
                 TriggerAuthoringProjectMembership.Detach(module);
                 EditorUtility.SetDirty(module);
             }
@@ -189,35 +229,16 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private void AddExistingModule(TriggerAuthoringModuleAsset module)
         {
             if (module == null) return;
-            Undo.RecordObject(_asset, "添加触发器模块");
-            Undo.RecordObject(module, "添加触发器模块");
+            Undo.RecordObject(_asset, "添加触发器内容包");
+            Undo.RecordObject(module, "添加触发器内容包");
             TriggerAuthoringProjectMembership.Assign(module, _asset);
             EditorUtility.SetDirty(_asset);
             EditorUtility.SetDirty(module);
         }
 
-        private void CreateModule()
+        private void CreatePackage()
         {
-            var projectPath = AssetDatabase.GetAssetPath(_asset);
-            var projectDirectory = string.IsNullOrEmpty(projectPath)
-                ? "Assets"
-                : Path.GetDirectoryName(projectPath)?.Replace('\\', '/') ?? "Assets";
-            var path = EditorUtility.SaveFilePanelInProject(
-                "创建触发器模块",
-                "TriggerAuthoringModule",
-                "asset",
-                "请选择模块资产的创建位置。",
-                projectDirectory);
-            if (string.IsNullOrWhiteSpace(path)) return;
-
-            var module = TriggerAuthoringProjectSetup.CreateStarterModule(
-                Path.GetDirectoryName(path)?.Replace('\\', '/') ?? "Assets",
-                Path.GetFileNameWithoutExtension(path),
-                _asset);
-            if (module == null) return;
-
-            Selection.activeObject = module;
-            EditorGUIUtility.PingObject(module);
+            TriggerAuthoringPackageCreationWindow.Open(_asset);
         }
     }
 }

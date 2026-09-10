@@ -21,6 +21,9 @@ namespace AbilityKit.Ability.Editor
         public TriggerAuthoringModuleData Module = new TriggerAuthoringModuleData();
 
         [SerializeField, HideInInspector]
+        private TriggerAuthoringPackageMetadata _packageMetadata = new TriggerAuthoringPackageMetadata();
+
+        [SerializeField, HideInInspector]
         private string _sourceJsonPath;
 
         [SerializeField, HideInInspector]
@@ -29,10 +32,17 @@ namespace AbilityKit.Ability.Editor
         public string SourceJsonPath => _sourceJsonPath;
         public string LastSynchronizedHash => _lastSynchronizedHash;
         public TriggerAuthoringProjectAsset Project => _project;
+        public TriggerAuthoringPackageMetadata PackageMetadata =>
+            _packageMetadata ?? (_packageMetadata = new TriggerAuthoringPackageMetadata());
 
         internal void SetProject(TriggerAuthoringProjectAsset project)
         {
             _project = project;
+        }
+
+        internal void SetPackageMetadata(TriggerAuthoringPackageMetadata value)
+        {
+            _packageMetadata = value ?? new TriggerAuthoringPackageMetadata();
         }
 
         internal void MarkSynchronized(string sourceJsonPath, string contentHash)

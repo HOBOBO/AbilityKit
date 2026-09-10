@@ -939,6 +939,312 @@
         "blackboard": []
       },
       {
+        "id": 910010,
+        "name": "完整规则树演示 · 多分支伤害处理",
+        "groupPath": "编辑器演示/完整规则树",
+        "tags": [
+          "rule-tree",
+          "conditional",
+          "else-if",
+          "trigger-reference"
+        ],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "buff.apply",
+        "phase": "immediate",
+        "priority": 30,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "note": "入口条件：拥有事件中的 Buff，并且层数至少为 1。",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "groupReference": "condition.has_buff_from_payload",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gte",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "path": "stack_count"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 1.0
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "note": "顺序执行：记录入口、按 Buff 层数分支，最后调用复用触发效果。",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "debug_log",
+              "arguments": [
+                {
+                  "name": "message",
+                  "value": {
+                    "source": "Constant",
+                    "type": "String",
+                    "stringValue": "[规则树演示] 开始处理 Buff 层数"
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "conditional",
+              "note": "行为内条件：根据 stack_count 选择不同处理流程。",
+              "arguments": [],
+              "condition": {
+                "enabled": true,
+                "kind": "Condition",
+                "type": "arg_gte",
+                "arguments": [
+                  {
+                    "name": "left",
+                    "value": {
+                      "source": "Payload",
+                      "type": "Number",
+                      "path": "stack_count"
+                    }
+                  },
+                  {
+                    "name": "right",
+                    "value": {
+                      "source": "Constant",
+                      "type": "Number",
+                      "numberValue": 5.0
+                    }
+                  }
+                ],
+                "children": [],
+                "elseChildren": []
+              },
+              "children": [
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "debug_log",
+                  "arguments": [
+                    {
+                      "name": "message",
+                      "value": {
+                        "source": "Constant",
+                        "type": "String",
+                        "stringValue": "如果：5 层及以上，执行最高档效果"
+                      }
+                    }
+                  ],
+                  "children": [],
+                  "elseChildren": []
+                },
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "groupReference": "action.log_payload",
+                  "note": "复用行为分组：最高档效果同时输出完整载荷。",
+                  "arguments": [],
+                  "children": [],
+                  "elseChildren": []
+                }
+              ],
+              "elseChildren": [
+                {
+                  "enabled": true,
+                  "kind": "Action",
+                  "type": "conditional",
+                  "note": "否则如果分支 1：处理中档层数。",
+                  "arguments": [],
+                  "condition": {
+                    "enabled": true,
+                    "kind": "Condition",
+                    "type": "arg_gte",
+                    "arguments": [
+                      {
+                        "name": "left",
+                        "value": {
+                          "source": "Payload",
+                          "type": "Number",
+                          "path": "stack_count"
+                        }
+                      },
+                      {
+                        "name": "right",
+                        "value": {
+                          "source": "Constant",
+                          "type": "Number",
+                          "numberValue": 3.0
+                        }
+                      }
+                    ],
+                    "children": [],
+                    "elseChildren": []
+                  },
+                  "children": [
+                    {
+                      "enabled": true,
+                      "kind": "Action",
+                      "type": "debug_log",
+                      "arguments": [
+                        {
+                          "name": "message",
+                          "value": {
+                            "source": "Constant",
+                            "type": "String",
+                            "stringValue": "否则如果：3 至 4 层，执行中档效果"
+                          }
+                        }
+                      ],
+                      "children": [],
+                      "elseChildren": []
+                    }
+                  ],
+                  "elseChildren": [
+                    {
+                      "enabled": true,
+                      "kind": "Action",
+                      "type": "conditional",
+                      "note": "否则如果分支 2：处理低档层数。",
+                      "arguments": [],
+                      "condition": {
+                        "enabled": true,
+                        "kind": "Condition",
+                        "type": "arg_gte",
+                        "arguments": [
+                          {
+                            "name": "left",
+                            "value": {
+                              "source": "Payload",
+                              "type": "Number",
+                              "path": "stack_count"
+                            }
+                          },
+                          {
+                            "name": "right",
+                            "value": {
+                              "source": "Constant",
+                              "type": "Number",
+                              "numberValue": 1.0
+                            }
+                          }
+                        ],
+                        "children": [],
+                        "elseChildren": []
+                      },
+                      "children": [
+                        {
+                          "enabled": true,
+                          "kind": "Action",
+                          "type": "debug_log",
+                          "arguments": [
+                            {
+                              "name": "message",
+                              "value": {
+                                "source": "Constant",
+                                "type": "String",
+                                "stringValue": "否则如果：1 至 2 层，执行基础效果"
+                              }
+                            }
+                          ],
+                          "children": [],
+                          "elseChildren": []
+                        }
+                      ],
+                      "elseChildren": [
+                        {
+                          "enabled": true,
+                          "kind": "Action",
+                          "type": "debug_log",
+                          "arguments": [
+                            {
+                              "name": "message",
+                              "value": {
+                                "source": "Constant",
+                                "type": "String",
+                                "stringValue": "否则：层数异常，不执行效果"
+                              }
+                            }
+                          ],
+                          "children": [],
+                          "elseChildren": []
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "execute_trigger",
+              "note": "引用触发效果：在大纲中可展开预览目标的真实逻辑。",
+              "arguments": [
+                {
+                  "name": "trigger_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 910005
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "统一规则树测试：入口条件、顺序行为、多级否则如果、最终否则、复用分组和触发效果引用。"
+      },
+      {
         "id": 910002,
         "name": "Skill Cast Targeted Buff",
         "groupPath": "MOBA/Skill/Cast",

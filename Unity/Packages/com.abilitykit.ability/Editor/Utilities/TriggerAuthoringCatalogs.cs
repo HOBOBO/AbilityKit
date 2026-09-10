@@ -16,10 +16,23 @@ namespace AbilityKit.Ability.Editor.Utilities
         public TriggerEventDescriptorCatalog(IEnumerable<TriggerEventDefinitionData> definitions)
         {
             if (definitions == null) return;
+            var definitionIndexes = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var definition in definitions)
             {
                 if (definition == null || string.IsNullOrWhiteSpace(definition.Id)) continue;
-                _definitions.Add(definition);
+                var key = ((int)definition.MatchMode) + ":" + definition.Id;
+                if (definitionIndexes.TryGetValue(key, out var index))
+                    _definitions[index] = definition;
+                else
+                {
+                    definitionIndexes.Add(key, _definitions.Count);
+                    _definitions.Add(definition);
+                }
+            }
+
+            for (var i = 0; i < _definitions.Count; i++)
+            {
+                var definition = _definitions[i];
                 if (definition.MatchMode == TriggerEventMatchMode.Prefix)
                     _prefixes.Add(definition);
                 else
@@ -50,9 +63,17 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             return asset == null ? null : new TriggerEventDescriptorCatalog(asset.Events);
         }
+
+        public static TriggerEventDescriptorCatalog FromProject(TriggerAuthoringProjectAsset project)
+        {
+            if (project == null) return null;
+            var definitions = TriggerAuthoringExtensionRegistry.GetEvents(project);
+            if (project.EventCatalog?.Events != null) definitions.AddRange(project.EventCatalog.Events);
+            return new TriggerEventDescriptorCatalog(definitions);
+        }
     }
 
-    internal sealed class TriggerEventCatalogScanResult
+    public sealed class TriggerEventCatalogScanResult
     {
         public readonly List<TriggerEventDefinitionData> Events = new List<TriggerEventDefinitionData>();
         public int ScannedAttributeCount;
@@ -60,7 +81,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public int UpdatedCount;
     }
 
-    internal static class TriggerEventCatalogAssemblyScanner
+    public static class TriggerEventCatalogAssemblyScanner
     {
         public static TriggerEventCatalogScanResult ScanLoadedAssemblies()
         {
@@ -486,8 +507,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             var project = asset != null ? asset.Project : null;
             return new TriggerAuthoringValidationContext
             {
-                Types = TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
-                Events = TriggerEventDescriptorCatalog.FromAsset(project != null ? project.EventCatalog : null),
+                Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
+                Events = TriggerEventDescriptorCatalog.FromProject(project),
                 GlobalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                     project != null ? project.GlobalBlackboardCatalog : null),
                 Templates = TriggerTemplateDescriptorCatalog.FromAsset(
@@ -500,8 +521,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             var project = asset != null ? asset.Project : null;
             return new TriggerAuthoringValidationContext
             {
-                Types = TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
-                Events = TriggerEventDescriptorCatalog.FromAsset(project != null ? project.EventCatalog : null),
+                Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
+                Events = TriggerEventDescriptorCatalog.FromProject(project),
                 GlobalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                     project != null ? project.GlobalBlackboardCatalog : null),
                 Templates = TriggerTemplateDescriptorCatalog.FromAsset(

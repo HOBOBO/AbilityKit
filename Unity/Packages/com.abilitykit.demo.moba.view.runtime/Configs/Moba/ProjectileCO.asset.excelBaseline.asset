@@ -12,19 +12,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
   m_Name: ProjectileCO.asset.excelBaseline
   m_EditorClassIdentifier: 
-  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\projectiles.xlsx
-  SheetName: 
-  HeaderRowIndex: 6
-  DataStartRowIndex: 8
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\LubanConfig\Moba\MiniTemplate\Datas\projectiles.xlsx
+  SheetName: projectiles
+  HeaderRowIndex: 1
+  DataStartRowIndex: 4
   PrimaryKeyColumnName: Id
   Headers:
+  - '##var'
+  - Id
   - CollisionHeight
   - CollisionLength
   - CollisionWidth
   - HitCooldownMs
   - HitPolicyKind
   - HitsRemaining
-  - Id
   - LifetimeMs
   - MaxDistance
   - Name
@@ -49,11 +50,12 @@ MonoBehaviour:
   Rows:
   - Key: 1
     Values:
-    - 0
-    - 0
-    - 0
-    - 0
+    - 
     - 1
+    - 0
+    - 0
+    - 0
+    - 0
     - 1
     - 1
     - 2000
@@ -79,13 +81,14 @@ MonoBehaviour:
     - 0
   - Key: 2
     Values:
+    - 
+    - 2
     - 0
     - 0
     - 0
     - 500
     - 1
     - 3
-    - 2
     - 3000
     - 50
     - "\u56DE\u65CB\u9556"
@@ -109,13 +112,14 @@ MonoBehaviour:
     - 0
   - Key: 30020001
     Values:
-    - 0
-    - 0
-    - 0
-    - 0
-    - 1
-    - 1
+    - 
     - 30020001
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
     - 1200
     - 10
     - "\u5C0F\u4E54-\u666E\u901A\u653B\u51FB-\u6247\u5B50\u6295\u5C04\u7269"
@@ -139,13 +143,14 @@ MonoBehaviour:
     - 90002011
   - Key: 30020101
     Values:
+    - 
+    - 30020101
     - 0
     - 0
     - 0
     - 250
     - 1
     - 8
-    - 30020101
     - 2200
     - 12
     - "\u5C0F\u4E54-\u7EFD\u653E\u4E4B\u821E-\u6247\u5B50\u6295\u5C04\u7269"
@@ -169,13 +174,14 @@ MonoBehaviour:
     - 90002001
   - Key: 30040011
     Values:
-    - 0
-    - 0
-    - 0
-    - 0
-    - 1
-    - 1
+    - 
     - 30040011
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
     - 1200
     - 10
     - "\u58A8\u5B50-\u666E\u901A\u653B\u51FB-\u80FD\u91CF\u5F39\u6295\u5C04\u7269"
@@ -199,13 +205,14 @@ MonoBehaviour:
     - 90004011
   - Key: 30040201
     Values:
+    - 
+    - 30040201
     - 1.5
     - 0.8
     - 1
     - 0
     - 1
     - 1
-    - 30040201
     - 1500
     - 12
     - "\u58A8\u5B50-\u673A\u5173\u91CD\u70AE-\u70AE\u5F39\u6295\u5C04\u7269"
@@ -229,13 +236,14 @@ MonoBehaviour:
     - 90004002
   - Key: 30050001
     Values:
-    - 0
-    - 0
-    - 0
-    - 0
-    - 1
-    - 1
+    - 
     - 30050001
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
     - 1200
     - 10
     - "\u59B2\u5DF1-\u666E\u901A\u653B\u51FB-\u7075\u9B42\u6295\u5C04\u7269"
@@ -259,13 +267,14 @@ MonoBehaviour:
     - 90005011
   - Key: 30050101
     Values:
+    - 
+    - 30050101
     - 1.5
     - 0.8
     - 2
     - 180
     - 1
     - 6
-    - 30050101
     - 1600
     - 12
     - "\u59B2\u5DF1-\u7075\u9B42\u51B2\u51FB-\u51B2\u51FB\u6CE2\u6295\u5C04\u7269"
@@ -289,13 +298,14 @@ MonoBehaviour:
     - 90005001
   - Key: 30050201
     Values:
-    - 0
-    - 0
-    - 0
-    - 0
-    - 1
-    - 1
+    - 
     - 30050201
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
     - 1800
     - 16
     - "\u59B2\u5DF1-\u5076\u50CF\u9B45\u529B-\u8FFD\u8E2A\u9B45\u60D1\u5F39"
@@ -319,13 +329,14 @@ MonoBehaviour:
     - 90005002
   - Key: 30050301
     Values:
-    - 0
-    - 0
-    - 0
-    - 0
-    - 1
-    - 1
+    - 
     - 30050301
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
     - 1200
     - 12
     - "\u59B2\u5DF1-\u5973\u738B\u5D07\u62DC-\u72D0\u706B\u6295\u5C04\u7269"
@@ -349,13 +360,14 @@ MonoBehaviour:
     - 90005004
   - Key: 30060001
     Values:
+    - 
+    - 30060001
     - 0
     - 0
     - 0
     - 0
     - 1
     - 3
-    - 30060001
     - 1000
     - 10
     - "\u5B34\u653F-\u666E\u901A\u653B\u51FB-\u98DE\u5251\u6295\u5C04\u7269"
@@ -379,13 +391,14 @@ MonoBehaviour:
     - 90006011
   - Key: 30060301
     Values:
-    - 0
-    - 0
-    - 0
-    - 0
-    - 1
-    - 1
+    - 
     - 30060301
+    - 0
+    - 0
+    - 0
+    - 0
+    - 1
+    - 1
     - 900
     - 14
     - "\u5B34\u653F-\u81F3\u5C0A\u738B\u6743-\u98DE\u5251\u6295\u5C04\u7269"

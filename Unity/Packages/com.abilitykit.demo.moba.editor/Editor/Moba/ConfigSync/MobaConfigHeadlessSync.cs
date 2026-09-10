@@ -36,6 +36,18 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     {
         private const string ResourcesMobaFolder = "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba";
 
+        /// <summary>
+        /// 不走 Excel 真相链的表：skill_flows 的 Phases 是多态相位列表（List&lt;SkillPhaseDef&gt;），
+        /// 抽象类型无法经 codec 往返，该表以 JSON→Def 链（migrate-flows）为准。
+        /// </summary>
+        private static readonly HashSet<string> ExcelExcludedFiles =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "skill_flows" };
+
+        private static bool IsExcelExcluded(MobaConfigTableAssetSO table)
+        {
+            return table != null && ExcelExcludedFiles.Contains(table.FileWithoutExt);
+        }
+
         public static void Run()
         {
             var exitCode = 0;
@@ -109,6 +121,21 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 var name = table.GetType().Name;
                 try
                 {
+                    if (IsExcelExcluded(table))
+                    {
+                        // 该表不进 Excel：仅做 JSON ⇄ SO 同步。
+                        var excludedFolderDir = ToAbsolute(Path.Combine(ResourcesMobaFolder, table.FileWithoutExt));
+                        if (!Directory.Exists(excludedFolderDir) || Directory.GetFiles(excludedFolderDir, "*.json").Length == 0)
+                        {
+                            MobaConfigJsonFolderSync.ExportFromReplacing(table);
+                        }
+
+                        MobaConfigJsonFolderSync.ImportFolderReplacing(table);
+                        MobaConfigJsonFolderSync.ImportFolderToArrayJson(table);
+                        Debug.Log($"[Headless][push] {name}: ok (JSON⇄SO only, Excel excluded)");
+                        continue;
+                    }
+
                     // 1) 编辑面（逐条目文件夹）不存在时先从 SO 引导生成。
                     var folderDir = ToAbsolute(Path.Combine(ResourcesMobaFolder, table.FileWithoutExt));
                     if (!Directory.Exists(folderDir) || Directory.GetFiles(folderDir, "*.json").Length == 0)
@@ -126,7 +153,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     if (!File.Exists(excelPath))
                     {
                         Debug.Log($"[Headless][push] {name}: excel missing, bootstrapping from SO -> {excelPath}");
-                        ScriptableObjectExcelSync.BootstrapExcelFromSo(table, excelPath, MobaExcelSync.DefaultOptions(), new EpplusTableReaderWriterFactory());
+                        ScriptableObjectExcelSync.BootstrapExcelFromSo(table, excelPath, MobaExcelSync.DefaultOptions(table.FileWithoutExt), new EpplusTableReaderWriterFactory());
                     }
                     else
                     {
@@ -159,6 +186,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             foreach (var table in tables)
             {
                 var name = table.GetType().Name;
+                if (IsExcelExcluded(table))
+                {
+                    MobaConfigJsonFolderSync.ExportFromReplacing(table);
+                    MobaConfigJsonFolderSync.ImportFolderToArrayJson(table);
+                    Debug.Log($"[Headless][pull] {name}: ok (JSON⇄SO only, Excel excluded)");
+                    continue;
+                }
+
                 var excelPath = ToAbsolute(Path.Combine(excelFolder, MobaExcelSync.ExcelFileNameFor(table)));
                 if (!File.Exists(excelPath))
                 {
@@ -202,10 +237,16 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 var name = table.GetType().Name;
                 try
                 {
+                    if (IsExcelExcluded(table))
+                    {
+                        Debug.Log($"[Headless][bootstrap] {name}: excluded from Excel chain (uses JSON→Def)");
+                        continue;
+                    }
+
                     var excelPath = ToAbsolute(Path.Combine(excelFolder, MobaExcelSync.ExcelFileNameFor(table)));
                     if (!File.Exists(excelPath))
                     {
-                        ScriptableObjectExcelSync.BootstrapExcelFromSo(table, excelPath, MobaExcelSync.DefaultOptions(), new EpplusTableReaderWriterFactory());
+                        ScriptableObjectExcelSync.BootstrapExcelFromSo(table, excelPath, MobaExcelSync.DefaultOptions(table.FileWithoutExt), new EpplusTableReaderWriterFactory());
                         Debug.Log($"[Headless][bootstrap] {name}: created {excelPath} + baseline");
                     }
                     else
@@ -247,7 +288,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
 
                     // 用与 DefaultOptions 一致的布局：表头第 6 行、类型第 7 行、数据第 8 行起（Luban/Wizard 约定）。
                     ScriptableObjectExcelSync.BootstrapExcelFromSo(
-                        table, excelPath, MobaExcelSync.DefaultOptions(), new EpplusTableReaderWriterFactory(),
+                        table, excelPath, MobaExcelSync.DefaultOptions(table.FileWithoutExt), new EpplusTableReaderWriterFactory(),
                         DefaultExcelTypeNameProvider.Instance);
                     Debug.Log($"[Headless][export-typed] {name}: typed excel written to {excelPath} + baseline established");
                 }
@@ -290,7 +331,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                     else
                     {
                         ScriptableObjectExcelSync.BootstrapExcelFromSo(
-                            table, excelPath, MobaExcelSync.DefaultOptions(), new EpplusTableReaderWriterFactory(),
+                            table, excelPath, MobaExcelSync.DefaultOptions(table.FileWithoutExt), new EpplusTableReaderWriterFactory(),
                             DefaultExcelTypeNameProvider.Instance);
                     }
 

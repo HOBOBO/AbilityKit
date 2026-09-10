@@ -12,12 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 26cdbc0ffbd092f4e90ff5071dbcecc9, type: 3}
   m_Name: SkillButtonTemplateCO.asset.excelBaseline
   m_EditorClassIdentifier: 
-  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\Unity\Packages\com.abilitykit.demo.moba.view.runtime\Configs\Moba\Excel\skill_button_templates.xlsx
-  SheetName: 
-  HeaderRowIndex: 6
-  DataStartRowIndex: 8
+  ExcelAbsolutePath: C:\Workspace\gitProject\AbilityKit\LubanConfig\Moba\MiniTemplate\Datas\skill_button_templates.xlsx
+  SheetName: skill_button_templates
+  HeaderRowIndex: 1
+  DataStartRowIndex: 4
   PrimaryKeyColumnName: Id
   Headers:
+  - '##var'
+  - Id
   - AimMaxRadius
   - AimMode
   - DashDistance
@@ -26,7 +28,6 @@ MonoBehaviour:
   - FaceToAim
   - FanAngleDegrees
   - FanRadius
-  - Id
   - IndicatorShape
   - IndicatorWorldWidth
   - LockOnDurationMs
@@ -40,6 +41,8 @@ MonoBehaviour:
   Rows:
   - Key: 1
     Values:
+    - 
+    - 1
     - 0
     - 0
     - 0
@@ -48,7 +51,6 @@ MonoBehaviour:
     - False
     - 0
     - 0
-    - 1
     - 0
     - 0
     - 0
@@ -61,6 +63,8 @@ MonoBehaviour:
     - 0
   - Key: 2
     Values:
+    - 
+    - 2
     - 220
     - 0
     - 0
@@ -69,7 +73,6 @@ MonoBehaviour:
     - True
     - 0
     - 0
-    - 2
     - 1
     - 1.5
     - 0
@@ -82,6 +85,8 @@ MonoBehaviour:
     - 1
   - Key: 3
     Values:
+    - 
+    - 3
     - 220
     - 1
     - 0
@@ -90,7 +95,6 @@ MonoBehaviour:
     - False
     - 0
     - 0
-    - 3
     - 2
     - 2.8
     - 0
@@ -103,6 +107,8 @@ MonoBehaviour:
     - 2
   - Key: 4
     Values:
+    - 
+    - 4
     - 220
     - 0
     - 0
@@ -111,7 +117,6 @@ MonoBehaviour:
     - True
     - 0
     - 0
-    - 4
     - 5
     - 2
     - 0
@@ -124,6 +129,8 @@ MonoBehaviour:
     - 1
   - Key: 5
     Values:
+    - 
+    - 5
     - 220
     - 1
     - 0
@@ -132,7 +139,6 @@ MonoBehaviour:
     - False
     - 0
     - 0
-    - 5
     - 2
     - 4
     - 0
@@ -145,6 +151,8 @@ MonoBehaviour:
     - 2
   - Key: 6
     Values:
+    - 
+    - 6
     - 0
     - 0
     - 0
@@ -153,7 +161,6 @@ MonoBehaviour:
     - False
     - 0
     - 0
-    - 6
     - 3
     - 0
     - 0
@@ -166,6 +173,8 @@ MonoBehaviour:
     - 0
   - Key: 7
     Values:
+    - 
+    - 7
     - 220
     - 0
     - 0
@@ -174,7 +183,6 @@ MonoBehaviour:
     - True
     - 0
     - 0
-    - 7
     - 1
     - 0.6
     - 0
@@ -187,6 +195,8 @@ MonoBehaviour:
     - 1
   - Key: 8
     Values:
+    - 
+    - 8
     - 0
     - 0
     - 0
@@ -195,7 +205,6 @@ MonoBehaviour:
     - False
     - 0
     - 0
-    - 8
     - 0
     - 0
     - 0
@@ -208,6 +217,8 @@ MonoBehaviour:
     - 0
   - Key: 9
     Values:
+    - 
+    - 9
     - 220
     - 0
     - 0
@@ -216,7 +227,6 @@ MonoBehaviour:
     - True
     - 0
     - 0
-    - 9
     - 5
     - 3.5
     - 0
@@ -229,6 +239,8 @@ MonoBehaviour:
     - 1
   - Key: 10
     Values:
+    - 
+    - 10
     - 220
     - 1
     - 0
@@ -237,7 +249,6 @@ MonoBehaviour:
     - False
     - 0
     - 0
-    - 10
     - 2
     - 4.5
     - 0

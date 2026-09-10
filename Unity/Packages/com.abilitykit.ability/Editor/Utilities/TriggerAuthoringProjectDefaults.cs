@@ -38,7 +38,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             AddExactEvents(events, new[]
             {
                 "buff.apply", "buff.remove", "buff.interval", "buff.stack", "buff.refresh", "buff.tick",
-                "buff.end", "buff.added", "buff.removed", "buff.stack_changed", "buff.effect_tick"
+                "buff.end", "buff.added", "buff.removed", "buff.stack_changed", "buff.effect_tick", "on_buff_added"
             }, "增益效果", "BuffEventArgs", BuffFields());
             AddExactEvents(events, new[] { "projectile.spawn", "projectile.tick", "projectile.hit", "projectile.exit" },
                 "投射物", "ProjectileEventArgs", ProjectileFields());
@@ -50,6 +50,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 "单位", "UnitEventPayload", UnitFields());
             AddExactEvents(events, new[] { "gameplay.started", "gameplay.tick", "gameplay.ended" },
                 "玩法", "GameplayLifecycleEventArgs", GameplayFields(), true);
+            for (var i = 0; i < events.Count; i++)
+            {
+                if (events[i].Id.StartsWith("skill.", System.StringComparison.Ordinal))
+                    events[i].AllowExternal = true;
+            }
             return events;
         }
 

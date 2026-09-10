@@ -77,18 +77,31 @@ namespace AbilityKit.Ability.Editor.Tests
 
             Assert.That(TriggerAuthoringValidator.HasErrors(diagnostics), Is.False, FormatDiagnostics(diagnostics));
             Assert.That(runtime.Success, Is.True, runtime.BuildMessage());
-            Assert.That(document.Module.Triggers.Count, Is.EqualTo(2));
+            Assert.That(document.Module.Triggers.Count, Is.EqualTo(5));
             Assert.That(document.Module.ConditionGroups.Count, Is.EqualTo(1));
-            Assert.That(document.Module.ActionGroups.Count, Is.EqualTo(1));
+            Assert.That(document.Module.ActionGroups.Count, Is.EqualTo(2));
             Assert.That(document.Module.Triggers[0].Actions.Children.Exists(node => node != null && !node.Enabled), Is.True);
+            var ruleTreeDemo = document.Module.Triggers.Find(trigger => trigger != null && trigger.Id == 910010);
+            Assert.That(ruleTreeDemo, Is.Not.Null);
+            Assert.That(ruleTreeDemo.Condition.Type, Is.EqualTo("all"));
+            Assert.That(ruleTreeDemo.Actions.Type, Is.EqualTo("seq"));
+            var conditional = ruleTreeDemo.Actions.Children.Find(node =>
+                node != null && node.Type == "conditional");
+            Assert.That(conditional, Is.Not.Null);
+            Assert.That(TriggerAuthoringConditionalChain.TryGetElseIf(conditional, out var firstElseIf), Is.True);
+            Assert.That(TriggerAuthoringConditionalChain.TryGetElseIf(firstElseIf, out var secondElseIf), Is.True);
+            Assert.That(TriggerAuthoringConditionalChain.TryGetElseIf(secondElseIf, out _), Is.False);
+            Assert.That(TriggerAuthoringConditionalChain.GetFallbackActions(conditional)[0].Type, Is.EqualTo("debug_log"));
+            Assert.That(ruleTreeDemo.Actions.Children.Exists(node =>
+                TriggerAuthoringTriggerReuse.TryGetReferencedTriggerId(node, out var id) && id == 910005), Is.True);
 
             _asset.Module = new TriggerAuthoringModuleData();
             var imported = TriggerAuthoringSourceSync.Import(_asset, samplePath, force: true);
 
             Assert.That(imported.Success, Is.True, imported.Message);
             Assert.That(_asset.Module.ModuleId, Is.EqualTo("sample.trigger_editor.feature_showcase"));
-            Assert.That(_asset.Module.Triggers.Count, Is.EqualTo(2));
-            Assert.That(_asset.Module.Triggers[0].GroupPath, Is.EqualTo("MOBA/Buff/OnApply"));
+            Assert.That(_asset.Module.Triggers.Count, Is.EqualTo(5));
+            Assert.That(_asset.Module.Triggers[0].GroupPath, Is.EqualTo("AAA配置"));
             Assert.That(_asset.Module.Triggers[0].Tags, Does.Contain("varnumber"));
             Assert.That(_asset.SourceJsonPath.Replace('\\', '/'), Does.EndWith("trigger-editor-feature-showcase.trigger.json"));
         }

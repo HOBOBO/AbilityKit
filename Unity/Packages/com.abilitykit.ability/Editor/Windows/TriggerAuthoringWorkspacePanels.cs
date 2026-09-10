@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Inspectors;
+using AbilityKit.Ability.Editor.Packages;
 using AbilityKit.Ability.Editor.Utilities;
 using AbilityKit.Editor.Platform.Commands;
 using AbilityKit.Editor.Platform.Diagnostics;
@@ -13,16 +14,8 @@ using UnityEngine;
 
 namespace AbilityKit.Ability.Editor.Windows
 {
-    internal enum TriggerAuthoringWorkspaceLayoutMode
-    {
-        Focused,
-        Standard,
-        Full
-    }
-
     internal static class TriggerAuthoringWorkspaceLayout
     {
-        internal const float FullWidthThreshold = 1500f;
         internal const float StandardWidthThreshold = 820f;
         internal const float SplitterWidth = 5f;
         internal const float MinimumTriggerListWidth = 260f;
@@ -32,23 +25,10 @@ namespace AbilityKit.Ability.Editor.Windows
         internal const float NodeWorkspaceSplitThreshold = 600f;
         internal const float RuleOverviewSplitThreshold = 620f;
 
-        internal static TriggerAuthoringWorkspaceLayoutMode Resolve(float width)
-        {
-            if (width >= FullWidthThreshold) return TriggerAuthoringWorkspaceLayoutMode.Full;
-            if (width >= StandardWidthThreshold) return TriggerAuthoringWorkspaceLayoutMode.Standard;
-            return TriggerAuthoringWorkspaceLayoutMode.Focused;
-        }
-
         internal static float ClampNavigationWidth(float width, float windowWidth)
         {
             var maximum = Mathf.Max(210f, Mathf.Min(380f, windowWidth * 0.34f));
             return Mathf.Clamp(width, 210f, maximum);
-        }
-
-        internal static float ClampInspectorWidth(float width, float windowWidth)
-        {
-            var maximum = Mathf.Max(280f, Mathf.Min(420f, windowWidth * 0.38f));
-            return Mathf.Clamp(width, 280f, maximum);
         }
 
         internal static float ClampTriggerListWidth(float width, float availableWidth)
@@ -284,30 +264,7 @@ namespace AbilityKit.Ability.Editor.Windows
             if (node.Kind == TriggerNodeKind.Action &&
                 string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
             {
-                var condition = node.Condition == null
-                    ? "未配置判断条件"
-                    : SummarizeLogic(
-                        module,
-                        node.Condition,
-                        TriggerNodeKind.Condition,
-                        trigger,
-                        template,
-                        types).Text;
-                var thenSummary = SummarizeActionBranch(
-                    module,
-                    node.Children,
-                    trigger,
-                    template,
-                    types,
-                    "未配置成立行为");
-                var elseSummary = SummarizeActionBranch(
-                    module,
-                    node.ElseChildren,
-                    trigger,
-                    template,
-                    types,
-                    "不执行其他行为");
-                output.Add("如果[" + condition + "]：" + thenSummary + "；否则：" + elseSummary);
+                output.Add(SummarizeConditionalChain(module, node, trigger, template, types));
                 return;
             }
             var children = node.Children;
@@ -334,6 +291,56 @@ namespace AbilityKit.Ability.Editor.Windows
                 if (parts.Count > 0) title += "（" + string.Join("，", parts) + "）";
             }
             output.Add(title);
+        }
+
+        private static string SummarizeConditionalChain(
+            TriggerAuthoringModuleData module,
+            TriggerNodeData root,
+            TriggerDefinitionData trigger,
+            TriggerAuthoringTemplateData template,
+            TriggerTypeDescriptorCatalog types)
+        {
+            var parts = new List<string>();
+            var visited = new HashSet<TriggerNodeData>();
+            var current = root;
+            var branchIndex = 0;
+            while (current != null && visited.Add(current))
+            {
+                var condition = current.Condition == null
+                    ? "未配置判断条件"
+                    : SummarizeLogic(
+                        module,
+                        current.Condition,
+                        TriggerNodeKind.Condition,
+                        trigger,
+                        template,
+                        types).Text;
+                var actions = SummarizeActionBranch(
+                    module,
+                    current.Children,
+                    trigger,
+                    template,
+                    types,
+                    "未配置成立行为");
+                parts.Add((branchIndex == 0 ? "如果[" : "否则如果[") + condition + "]：" + actions);
+                branchIndex++;
+
+                if (TriggerAuthoringConditionalChain.TryGetElseIf(current, out var next))
+                {
+                    current = next;
+                    continue;
+                }
+
+                parts.Add("否则：" + SummarizeActionBranch(
+                    module,
+                    current.ElseChildren,
+                    trigger,
+                    template,
+                    types,
+                    "不执行其他行为"));
+                break;
+            }
+            return string.Join("；", parts);
         }
 
         private static string SummarizeActionBranch(
@@ -450,35 +457,38 @@ namespace AbilityKit.Ability.Editor.Windows
         private Vector2 _scroll;
         private string _search = string.Empty;
         private readonly HashSet<int> _collapsedProjects = new HashSet<int>();
+        private readonly HashSet<string> _collapsedDomains = new HashSet<string>(StringComparer.Ordinal);
 
         internal void Draw(
             IReadOnlyList<TriggerAuthoringProjectAsset> projects,
             IReadOnlyList<TriggerAuthoringModuleAsset> unassignedModules,
             TriggerAuthoringModuleAsset selectedModule,
             Action<TriggerAuthoringModuleAsset> selectModule,
+            Action<TriggerAuthoringProjectAsset, string> createPackage,
             Action showTemplates,
             float width)
         {
             if (projects == null) throw new ArgumentNullException(nameof(projects));
             if (unassignedModules == null) throw new ArgumentNullException(nameof(unassignedModules));
             if (selectModule == null) throw new ArgumentNullException(nameof(selectModule));
+            if (createPackage == null) throw new ArgumentNullException(nameof(createPackage));
             if (showTemplates == null) throw new ArgumentNullException(nameof(showTemplates));
 
             EditorGUILayout.BeginVertical(GUILayout.Width(width), GUILayout.ExpandHeight(true));
-            if (GUILayout.Toolbar(0, new[] { "模块", "模板" }, EditorStyles.toolbarButton) == 1)
+            if (GUILayout.Toolbar(0, new[] { "内容包", "函数库" }, EditorStyles.toolbarButton) == 1)
             {
                 showTemplates();
                 EditorGUILayout.EndVertical();
                 return;
             }
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label(new GUIContent("模块", "参与触发器构建的项目和模块。"), EditorStyles.boldLabel);
+            GUILayout.Label(new GUIContent("内容包", "参与触发器构建的业务域和内容包。"), EditorStyles.boldLabel);
             GUILayout.FlexibleSpace();
             GUILayout.Label(CountModules(projects, unassignedModules).ToString(), EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             _search = EditorGUILayout.TextField(_search ?? string.Empty, EditorStyles.toolbarSearchField);
-            if (GUILayout.Button(new GUIContent("×", "清除模块搜索"), EditorStyles.toolbarButton, GUILayout.Width(22f)) &&
+            if (GUILayout.Button(new GUIContent("×", "清除内容包搜索"), EditorStyles.toolbarButton, GUILayout.Width(22f)) &&
                 !string.IsNullOrEmpty(_search))
             {
                 _search = string.Empty;
@@ -495,7 +505,10 @@ namespace AbilityKit.Ability.Editor.Windows
                 if (project == null) continue;
                 var modules = project.Modules;
                 var projectMatches = Matches(project.name, filter);
-                var matchingModules = CountMatchingModules(modules, filter, projectMatches);
+                var groups = TriggerAuthoringPackageCatalog.Build(
+                    modules,
+                    package => projectMatches || MatchesModule(package, filter));
+                var matchingModules = CountPackages(groups);
                 if (!projectMatches && matchingModules == 0) continue;
 
                 var projectKey = project.GetInstanceID();
@@ -508,24 +521,33 @@ namespace AbilityKit.Ability.Editor.Windows
                     EditorStyles.foldoutHeader);
                 GUILayout.FlexibleSpace();
                 GUILayout.Label(matchingModules.ToString(), EditorStyles.miniLabel, GUILayout.Width(28f));
+                if (GUILayout.Button(new GUIContent("+", "在此项目中创建内容包"), EditorStyles.toolbarButton, GUILayout.Width(22f)))
+                    createPackage(project, null);
                 EditorGUILayout.EndHorizontal();
                 if (nextExpanded) _collapsedProjects.Remove(projectKey);
                 else _collapsedProjects.Add(projectKey);
-                if (!nextExpanded) continue;
-
-                for (var m = 0; m < modules.Count; m++)
+                if (!nextExpanded)
                 {
-                    if (modules[m] != null && DrawModuleRow(modules[m], selectedModule, filter, projectMatches, selectModule))
-                        visibleModules++;
+                    visibleModules += matchingModules;
+                    continue;
                 }
+
+                for (var g = 0; g < groups.Count; g++)
+                    visibleModules += DrawDomainGroup(
+                        project,
+                        groups[g],
+                        selectedModule,
+                        selectModule,
+                        createPackage,
+                        filter.Length > 0);
             }
 
             if (unassignedModules.Count > 0)
             {
                 GUILayout.Space(6f);
-                EditorGUILayout.LabelField($"未分配（{unassignedModules.Count}）", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField($"未归属项目（{unassignedModules.Count}）", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(
-                    "这些模块尚未注册到项目，因此不会参与构建校验和运行时导出。",
+                    "这些内容包尚未注册到项目，因此不会参与构建校验和运行时导出。",
                     MessageType.Warning);
                 for (var i = 0; i < unassignedModules.Count; i++)
                     if (DrawModuleRow(unassignedModules[i], selectedModule, filter, false, selectModule))
@@ -533,15 +555,46 @@ namespace AbilityKit.Ability.Editor.Windows
             }
 
             if (visibleModules == 0)
-                EditorGUILayout.HelpBox("没有模块匹配当前搜索条件。", MessageType.Info);
+                EditorGUILayout.HelpBox("没有内容包匹配当前搜索条件。", MessageType.Info);
 
             EditorGUILayout.EndScrollView();
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
-            GUILayout.Label(filter.Length == 0 ? "全部模块" : "匹配 " + visibleModules + " 个", EditorStyles.miniLabel);
+            GUILayout.Label(filter.Length == 0 ? "全部内容包" : "匹配 " + visibleModules + " 个", EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             GUILayout.Label(projects.Count + " 个项目", EditorStyles.miniLabel);
             EditorGUILayout.EndHorizontal();
             EditorGUILayout.EndVertical();
+        }
+
+        private int DrawDomainGroup(
+            TriggerAuthoringProjectAsset project,
+            TriggerAuthoringDomainGroup group,
+            TriggerAuthoringModuleAsset selectedModule,
+            Action<TriggerAuthoringModuleAsset> selectModule,
+            Action<TriggerAuthoringProjectAsset, string> createPackage,
+            bool searching)
+        {
+            var key = project.GetInstanceID() + ":" + group.DomainId;
+            var expanded = searching || !_collapsedDomains.Contains(key);
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Space(10f);
+            var nextExpanded = EditorGUILayout.Foldout(
+                expanded,
+                new GUIContent(group.DisplayName, group.DomainId),
+                true);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label(group.Packages.Count + " 包 / " + group.TriggerCount + " 条", EditorStyles.miniLabel);
+            if (GUILayout.Button(new GUIContent("+", "在此业务域创建内容包"), EditorStyles.toolbarButton, GUILayout.Width(22f)))
+                createPackage(project, group.DomainId);
+            EditorGUILayout.EndHorizontal();
+            if (nextExpanded) _collapsedDomains.Remove(key);
+            else _collapsedDomains.Add(key);
+            if (!nextExpanded) return group.Packages.Count;
+
+            var count = 0;
+            for (var i = 0; i < group.Packages.Count; i++)
+                if (DrawModuleRow(group.Packages[i], selectedModule, string.Empty, true, selectModule)) count++;
+            return count;
         }
 
         private static bool DrawModuleRow(
@@ -565,9 +618,12 @@ namespace AbilityKit.Ability.Editor.Windows
             var title = string.IsNullOrWhiteSpace(displayName) || string.Equals(displayName, summary, StringComparison.Ordinal)
                 ? summary
                 : displayName;
-            var tooltip = summary + "\n" + AssetDatabase.GetAssetPath(module) + "\n" + triggerCount + " 个触发器";
+            var metadata = module.PackageMetadata;
+            var tooltip = summary + "\n业务域：" + TriggerAuthoringPackageCatalog.ResolveDomainId(module) +
+                          (string.IsNullOrWhiteSpace(metadata.ContentKey) ? string.Empty : "\n内容标识：" + metadata.ContentKey) +
+                          "\n" + AssetDatabase.GetAssetPath(module) + "\n" + triggerCount + " 个触发器";
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Space(12f);
+            GUILayout.Space(24f);
             if (GUILayout.Button(new GUIContent(title, tooltip), EditorStyles.miniButtonLeft, GUILayout.Height(26f)))
                 selectModule(module);
             GUILayout.Label(triggerCount.ToString(), EditorStyles.miniButtonRight, GUILayout.Width(34f), GUILayout.Height(26f));
@@ -581,10 +637,26 @@ namespace AbilityKit.Ability.Editor.Windows
             if (module == null) return false;
             if (string.IsNullOrWhiteSpace(filter)) return true;
             var data = module.Module;
-            return Matches(module.name, filter) ||
+            var metadata = module.PackageMetadata;
+            if (Matches(module.name, filter) ||
                    Matches(data != null ? data.ModuleId : null, filter) ||
                    Matches(data != null ? data.DisplayName : null, filter) ||
-                   Matches(data != null ? data.Kind.ToString() : null, filter);
+                   Matches(data != null ? data.Kind.ToString() : null, filter) ||
+                   Matches(TriggerAuthoringPackageCatalog.ResolveDomainId(module), filter) ||
+                   Matches(metadata.ContentKey, filter) ||
+                   Matches(metadata.Owner, filter)) return true;
+            var tags = metadata.Tags;
+            for (var i = 0; i < tags.Count; i++)
+                if (Matches(tags[i], filter)) return true;
+            return false;
+        }
+
+        private static int CountPackages(IReadOnlyList<TriggerAuthoringDomainGroup> groups)
+        {
+            var count = 0;
+            if (groups == null) return count;
+            for (var i = 0; i < groups.Count; i++) count += groups[i].Packages.Count;
+            return count;
         }
 
         private static int CountMatchingModules(
@@ -642,7 +714,7 @@ namespace AbilityKit.Ability.Editor.Windows
             if (showModules == null) throw new ArgumentNullException(nameof(showModules));
 
             EditorGUILayout.BeginVertical(GUILayout.Width(width), GUILayout.ExpandHeight(true));
-            if (GUILayout.Toolbar(1, new[] { "模块", "模板" }, EditorStyles.toolbarButton) == 0)
+            if (GUILayout.Toolbar(1, new[] { "内容包", "函数库" }, EditorStyles.toolbarButton) == 0)
             {
                 showModules();
                 EditorGUILayout.EndVertical();

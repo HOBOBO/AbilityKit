@@ -35,6 +35,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public TriggerAuthoringRuntimePredicateDto Predicate;
         public List<TriggerAuthoringRuntimeActionDto> Actions;
         public TriggerAuthoringRuntimeExecutionNodeDto ExecutionRoot;
+        public TriggerAuthoringRuntimeExecutionControlDto ExecutionControl;
         public string CueId;
     }
 
@@ -53,7 +54,7 @@ namespace AbilityKit.Ability.Editor.Utilities
     }
 
     [Serializable]
-    internal sealed class TriggerAuthoringRuntimeBoolNodeDto
+    public sealed class TriggerAuthoringRuntimeBoolNodeDto
     {
         public string Kind;
         public bool ConstValue;
@@ -83,7 +84,17 @@ namespace AbilityKit.Ability.Editor.Utilities
     }
 
     [Serializable]
-    internal sealed class TriggerAuthoringRuntimeValueRefDto
+    internal sealed class TriggerAuthoringRuntimeExecutionControlDto
+    {
+        public string Mode;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public int MaxExecutions;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public double CooldownMs;
+    }
+
+    [Serializable]
+    public sealed class TriggerAuthoringRuntimeValueRefDto
     {
         public string Kind;
         public double ConstValue;
@@ -319,7 +330,20 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Predicate = predicate,
                 Actions = actionList,
                 ExecutionRoot = executionRoot,
+                ExecutionControl = CompileExecutionControl(trigger.ExecutionControl),
                 CueId = string.IsNullOrWhiteSpace(trigger.Cue?.CueId) ? null : trigger.Cue.CueId
+            };
+        }
+
+        private static TriggerAuthoringRuntimeExecutionControlDto CompileExecutionControl(
+            TriggerExecutionControlData control)
+        {
+            if (control == null || string.IsNullOrWhiteSpace(control.Mode)) return null;
+            return new TriggerAuthoringRuntimeExecutionControlDto
+            {
+                Mode = control.Mode.Trim().ToLowerInvariant(),
+                MaxExecutions = control.MaxExecutions,
+                CooldownMs = control.CooldownMilliseconds
             };
         }
 
@@ -341,11 +365,23 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             var control = trigger.ExecutionControl;
             if (control != null &&
-                (!string.IsNullOrWhiteSpace(control.InterruptPolicy) && !string.Equals(control.InterruptPolicy, "none", StringComparison.OrdinalIgnoreCase) ||
+                (!IsSupportedExecutionMode(control.Mode) ||
+                 control.MaxExecutions < 0 ||
+                 control.CooldownMilliseconds < 0d ||
+                 !string.IsNullOrWhiteSpace(control.InterruptPolicy) && !string.Equals(control.InterruptPolicy, "none", StringComparison.OrdinalIgnoreCase) ||
                  control.StopPropagationOnSuccess || control.StopPropagationOnFailure))
             {
-                AddError(diagnostics, "TRG2012", path + ".executionControl", "当前 Runtime Plan JSON 协议无法表示中断或传播控制。");
+                AddError(diagnostics, "TRG2012", path + ".executionControl", "Runtime Plan 仅支持 always/once/repeat/cooldown 执行模式、非负次数与冷却值，且暂不支持中断或传播控制。");
             }
+        }
+
+        private static bool IsSupportedExecutionMode(string mode)
+        {
+            return string.IsNullOrWhiteSpace(mode) ||
+                   string.Equals(mode, "always", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(mode, "once", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(mode, "repeat", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(mode, "cooldown", StringComparison.OrdinalIgnoreCase);
         }
 
         private static TriggerAuthoringRuntimePredicateDto CompilePredicate(
@@ -373,6 +409,67 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (node == null || !node.Enabled) return;
             var type = (node.Type ?? string.Empty).Trim().ToLowerInvariant();
+            if (context?.Types != null &&
+                context.Types.TryGetConditionCompiler(type, out var extensionCompiler))
+            {
+                try
+                {
+                    extensionCompiler.Compile(new TriggerAuthoringConditionCompilerContext(
+                        node,
+                        path,
+                        (required, aliases) => CompileExtensionConditionArgument(
+                            compileContext,
+                            node,
+                            path,
+                            context,
+                            strings,
+                            diagnostics,
+                            required,
+                            aliases),
+                        (functionKey, left, right) => AddFunction(
+                            output,
+                            functionKey,
+                            left ?? Const(0),
+                            right ?? Const(0)),
+                        value => output.Add(new TriggerAuthoringRuntimeBoolNodeDto
+                        {
+                            Kind = "Const",
+                            ConstValue = value
+                        }),
+                        (leftField, rightField, rightScale, compareOp) =>
+                            output.Add(new TriggerAuthoringRuntimeBoolNodeDto
+                            {
+                                Kind = "CompareNumeric",
+                                CompareOp = compareOp,
+                                Left = new TriggerAuthoringRuntimeValueRefDto
+                                {
+                                    Kind = "PayloadField",
+                                    FieldId = RuntimeStableStringId.Get("payload:" + leftField)
+                                },
+                                Right = new TriggerAuthoringRuntimeValueRefDto
+                                {
+                                    Kind = "PayloadField",
+                                    FieldId = RuntimeStableStringId.Get("payload:" + rightField),
+                                    HasScale = true,
+                                    Scale = rightScale
+                                }
+                            }),
+                        (code, pathSuffix, message) => AddError(
+                            diagnostics,
+                            code,
+                            path + (pathSuffix ?? string.Empty),
+                            message)));
+                }
+                catch (Exception ex)
+                {
+                    AddError(
+                        diagnostics,
+                        "TRG2099",
+                        path + ".type",
+                        $"条件“{node.Type ?? string.Empty}”的扩展编译器失败：{ex.Message}");
+                }
+                return;
+            }
             switch (type)
             {
                 case "all":
@@ -432,6 +529,43 @@ namespace AbilityKit.Ability.Editor.Utilities
                     AddError(diagnostics, "TRG2020", path + ".type", $"条件“{node.Type ?? string.Empty}”没有对应的 Runtime Plan 编译器。");
                     return;
             }
+        }
+
+        private static TriggerAuthoringRuntimeValueRefDto CompileExtensionConditionArgument(
+            RuntimeTriggerCompileContext compileContext,
+            TriggerNodeData node,
+            string path,
+            TriggerAuthoringValidationContext context,
+            SortedDictionary<int, string> strings,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            bool required,
+            params string[] aliases)
+        {
+            var match = TriggerAuthoringArgumentPathResolver.FindValue(
+                diagnostics,
+                node,
+                path,
+                true,
+                "TRG2080",
+                "仅当 Object 值为常量字段容器时，Runtime Plan 导出才能读取其字段。",
+                aliases);
+            if (match == null)
+            {
+                if (required)
+                {
+                    var name = aliases != null && aliases.Length > 0 ? aliases[0] : "value";
+                    AddError(diagnostics, "TRG2090", path + ".arguments." + name, "扩展条件缺少必需参数。");
+                }
+                return null;
+            }
+            return CompileValue(
+                compileContext,
+                match.Value,
+                path + match.PathSuffix,
+                context,
+                strings,
+                diagnostics,
+                false);
         }
 
         private static void CompileComparison(
@@ -1059,7 +1193,13 @@ namespace AbilityKit.Ability.Editor.Utilities
                         FieldId = RuntimeStableStringId.Get("payload:" + value.Path)
                     };
                 case TriggerValueSource.Context:
-                    return new TriggerAuthoringRuntimeValueRefDto { Kind = "Var", DomainId = "context", Key = value.Path };
+                    SplitContextPath(value.Path, out var contextDomain, out var contextKey);
+                    return new TriggerAuthoringRuntimeValueRefDto
+                    {
+                        Kind = "Var",
+                        DomainId = contextDomain,
+                        Key = contextKey
+                    };
                 case TriggerValueSource.LocalBlackboard:
                     return CompileLocalBlackboard(compileContext, value, path, diagnostics, writeTarget);
                 case TriggerValueSource.GlobalBlackboard:
@@ -1090,6 +1230,21 @@ namespace AbilityKit.Ability.Editor.Utilities
                     AddError(diagnostics, "TRG2056", path + ".source", $"Runtime Plan 导出不支持值来源 {value.Source}。");
                     return null;
             }
+        }
+
+        private static void SplitContextPath(string path, out string domain, out string key)
+        {
+            path = path ?? string.Empty;
+            var separator = path.IndexOf(':');
+            if (separator > 0 && separator < path.Length - 1)
+            {
+                domain = path.Substring(0, separator);
+                key = path.Substring(separator + 1);
+                return;
+            }
+
+            domain = "context";
+            key = path;
         }
 
         private static TriggerAuthoringRuntimeValueRefDto CompileLocalBlackboard(

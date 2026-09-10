@@ -323,6 +323,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 ["cue"] = ObjectSchema(
                     ("cueId", StringSchema())),
                 ["executionControl"] = ObjectSchema(
+                    ("mode", StringSchema()),
+                    ("maxExecutions", IntegerSchema()),
+                    ("cooldownMilliseconds", NumberSchema()),
                     ("interruptPolicy", StringSchema()),
                     ("stopPropagationOnSuccess", BooleanSchema()),
                     ("stopPropagationOnFailure", BooleanSchema())),
