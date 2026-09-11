@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    离线类型检查 Unity 宿主代码（*/Editor/**）。
+
+    存在的理由：`src/*.csproj` 全部以 net10.0 为目标、且看不到 Unity 类型，所以
+    "编译时不提供 Unity 程序集"这个土办法会让编译器在遇到 Unity 类型时放弃周围的绑定——
+    于是*可解析类型*上的真实缺陷被静默吞掉。已踩实例：`string[].Count`（CS0019）在那种
+    做法下不报任何错，直到 Unity 编译才暴露。
+
+    这里提供最小的 Unity 类型桩，让绑定能够走完，真实缺陷就会浮出来。
+
+    能力边界（务必知悉）：
+      * 桩只为了让绑定跑完，**不校验 Unity 的 API 形状**——Unity 成员名写错在这里照样通过，
+        只有真实 Unity 编译能发现（漏 using 那一半由 tools/check_unity_usings.js 覆盖）。
+      * 桩不完整时会报**响亮的误报**（某个 Unity 成员"不存在"），按真实 API 补桩即可；
+        这与旧办法的**静默漏报**相反，是刻意选择的失败方向。
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <OutputType>Library</OutputType>
+    <AssemblyName>AbilityKit.UnityHostProbe</AssemblyName>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../src/AbilityKit.Samples.Logic/AbilityKit.Samples.Logic.csproj" />
+    <ProjectReference Include="../../src/AbilityKit.Samples.Abstractions/AbilityKit.Samples.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="UnityStubs.cs" />
+    <Compile Include="PlatformStubs.cs" />
+    <!-- 被检查的 Unity 宿主代码 -->
+    <Compile Include="../../Unity/Packages/com.abilitykit.samples/Editor/*.cs" />
+  </ItemGroup>
+
+</Project>

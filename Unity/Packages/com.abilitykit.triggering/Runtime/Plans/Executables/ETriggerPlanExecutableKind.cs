@@ -15,5 +15,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
         Fail = 10,
         Scheduled = 11,
         Metadata = 12,
+        ForEach = 13,
     }
 }

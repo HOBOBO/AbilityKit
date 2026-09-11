@@ -22,8 +22,7 @@
                         "buffIds":  [
                                         10040003
                                     ],
-                        "target_self":  true,
-                        "duration_ms":  3500
+                        "target_self":  true
                     },
                     {
                         "type":  "add_shield",

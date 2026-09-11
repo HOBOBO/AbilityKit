@@ -54,8 +54,15 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 
                 var battleAccessor = new MobaBattlePayloadAccessor();
                 payloads.RegisterIntAccessor<AttackInfo>(battleAccessor, MobaBattlePayloadAccessor.SupportsAttackInfoField);
+                payloads.RegisterDoubleAccessor<AttackInfo>(battleAccessor, MobaBattlePayloadAccessor.SupportsAttackInfoField);
+                payloads.RegisterIntAccessor<AttackCalcInfo>(battleAccessor, MobaBattlePayloadAccessor.SupportsAttackCalcInfoField);
+                payloads.RegisterDoubleAccessor<AttackCalcInfo>(battleAccessor, MobaBattlePayloadAccessor.SupportsAttackCalcInfoField);
                 payloads.RegisterIntAccessor<DamageResult>(battleAccessor, MobaBattlePayloadAccessor.SupportsDamageResultField);
                 payloads.RegisterDoubleAccessor<DamageResult>(battleAccessor, MobaBattlePayloadAccessor.SupportsDamageResultField);
+                payloads.RegisterIntAccessor<Services.MobaHealRequest>(battleAccessor, MobaBattlePayloadAccessor.SupportsHealRequestField);
+                payloads.RegisterDoubleAccessor<Services.MobaHealRequest>(battleAccessor, MobaBattlePayloadAccessor.SupportsHealRequestField);
+                payloads.RegisterIntAccessor<Services.MobaHealthChangeResult>(battleAccessor, MobaBattlePayloadAccessor.SupportsHealthChangeResultField);
+                payloads.RegisterDoubleAccessor<Services.MobaHealthChangeResult>(battleAccessor, MobaBattlePayloadAccessor.SupportsHealthChangeResultField);
                 payloads.RegisterIntAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
                 payloads.RegisterDoubleAccessor<Events.Unit.UnitDieEventPayload>(battleAccessor, MobaBattlePayloadAccessor.SupportsUnitDieField);
 

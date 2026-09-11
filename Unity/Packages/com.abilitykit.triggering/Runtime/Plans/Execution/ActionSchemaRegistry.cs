@@ -202,8 +202,62 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 return false;
             }
 
-            var evalCtx = ctx;
-            return NumericExpressionEvaluator.TryEvaluate(in evalCtx, program, out value);
+            var argsCopy = args;
+            var ctxCopy = ctx;
+            return NumericRpnTokenEvaluator.TryEvaluate(
+                program,
+                (string domainId, string key, out double resolved) =>
+                    TryResolveExpressionVariable(argsCopy, ctxCopy, domainId, key, out resolved),
+                ctx.NumericFunctions,
+                out value);
+        }
+
+        private static bool TryResolveExpressionVariable<TArgs, TCtx>(
+            TArgs args,
+            ExecCtx<TCtx> ctx,
+            string domainId,
+            string key,
+            out double value)
+        {
+            value = default;
+            if (string.Equals(domainId, "payload", StringComparison.Ordinal))
+            {
+                return ctx.Payloads != null &&
+                       ctx.Payloads.TryGetDouble(
+                           in args,
+                           AbilityKit.Triggering.Eventing.StableStringId.Get("payload:" + key),
+                           out value);
+            }
+
+            const string blackboardPrefix = "__bb";
+            if (domainId != null && domainId.StartsWith(blackboardPrefix, StringComparison.Ordinal) &&
+                key != null && key.Length > 1 && key[0] == 'k' &&
+                int.TryParse(
+                    domainId.Substring(blackboardPrefix.Length),
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var boardId) &&
+                int.TryParse(
+                    key.Substring(1),
+                    System.Globalization.NumberStyles.None,
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    out var keyId))
+            {
+                if (ctx.Blackboards == null ||
+                    !ctx.Blackboards.TryResolve(boardId, out var board) ||
+                    board == null)
+                    return false;
+                if (board is IBlackboardSchema schema &&
+                    schema.TryGetKeySchema(keyId, out var keySchema) &&
+                    !keySchema.CanRead)
+                    return false;
+                return board.TryGetDouble(keyId, out value);
+            }
+
+            return ctx.NumericDomains != null &&
+                   ctx.NumericDomains.TryGetDomain(domainId, out var domain) &&
+                   domain != null &&
+                   domain.TryGet(in ctx, key, out value);
         }
 
         private static double ApplyNumericValuePolicy(in NumericValueRef valueRef, double value)

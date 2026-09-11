@@ -1,0 +1,114 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA Tests",
+    "description": "Headless verification skill for target search and tracked projectile launch."
+  },
+  "module": {
+    "moduleId": "ability.moba.tests.tracked_projectile",
+    "displayName": "MOBA Tracked Projectile Test Skill",
+    "kind": "Ability",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 99130001,
+        "name": "test_launch_projectile_at_nearest_enemy",
+        "groupPath": "tests/projectile",
+        "tags": ["moba", "test", "projectile", "target-search"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "shoot_projectile",
+              "arguments": [
+                {
+                  "name": "launcher_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 31020101
+                  }
+                },
+                {
+                  "name": "projectile_id",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 30020101
+                  }
+                },
+                {
+                  "name": "track_target",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Boolean",
+                    "booleanValue": true
+                  }
+                },
+                {
+                  "name": "target_source",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 6
+                  }
+                },
+                {
+                  "name": "target_order",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 8196
+                  }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Integer",
+                    "integerValue": 1
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Test-only skill using the existing Xiaoqiao fan launcher and projectile configs."
+      }
+    ]
+  }
+}

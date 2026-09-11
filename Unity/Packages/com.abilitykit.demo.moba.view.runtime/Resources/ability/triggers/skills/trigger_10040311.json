@@ -25,8 +25,7 @@
                                         10040002
                                     ],
                         "target_query_id":  50040301,
-                        "target_max_count":  10,
-                        "duration_ms":  500
+                        "target_max_count":  10
                     },
                     {
                         "type":  "debug_log",

@@ -116,6 +116,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 [ETriggerPlanExecutableKind.If] = new IfExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Repeat] = new RepeatExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Until] = new UntilExecutionNodeConverter(),
+                [ETriggerPlanExecutableKind.ForEach] = new ForEachExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Invert] = new InvertExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Succeed] = new SucceedExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Fail] = new FailExecutionNodeConverter(),
@@ -158,6 +159,9 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 case "repeat_until":
                 case "repeatuntil":
                     return nameof(ETriggerPlanExecutableKind.Until);
+                case "foreach":
+                case "for_each":
+                    return nameof(ETriggerPlanExecutableKind.ForEach);
                 case "invert":
                 case "not":
                     return nameof(ETriggerPlanExecutableKind.Invert);
@@ -317,6 +321,24 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return new UntilTriggerPlanExecutable(
                     Branch(Children(context, dto, databaseDto)),
                     context._context.ConvertCondition(dto.UntilCondition),
+                    dto.MaxIterations,
+                    Condition(context, dto),
+                    dto.Weight);
+            }
+        }
+
+        private sealed class ForEachExecutionNodeConverter : ExecutionNodeConverterBase
+        {
+            public override ITriggerPlanExecutable Convert(
+                TriggerPlanExecutionNodeConverter context,
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
+                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+            {
+                var target = context._context.ConvertExecutionBlackboardTarget(dto.ItemTarget, "itemTarget");
+                return new ForEachTriggerPlanExecutable(
+                    context._context.ConvertExecutionNumericValue(dto.Collection),
+                    in target,
+                    Branch(Children(context, dto, databaseDto)),
                     dto.MaxIterations,
                     Condition(context, dto),
                     dto.Weight);

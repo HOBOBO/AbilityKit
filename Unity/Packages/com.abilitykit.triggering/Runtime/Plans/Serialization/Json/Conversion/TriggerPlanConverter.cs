@@ -224,12 +224,39 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return ActionArgValue.OfBlackboardTarget(in target, name);
             }
 
+            if (dto != null && string.Equals(dto.Kind, "BlackboardValue", StringComparison.OrdinalIgnoreCase))
+            {
+                if (dto.BoardId == 0 || dto.KeyId == 0)
+                    throw new InvalidOperationException($"Blackboard value requires non-zero BoardId and KeyId. argument={name}");
+                if (dto.KeyType == BlackboardKeyType.Unknown)
+                    throw new InvalidOperationException($"Blackboard value requires KeyType. argument={name}");
+
+                var value = new BlackboardValueRef(dto.BoardId, dto.KeyId, dto.KeyType);
+                return ActionArgValue.OfBlackboardValue(in value, name);
+            }
+
             if (dto != null && string.Equals(dto.Kind, "Bool", StringComparison.OrdinalIgnoreCase))
                 return ActionArgValue.OfBool(dto.BoolValue, name);
             if (dto != null && string.Equals(dto.Kind, "String", StringComparison.OrdinalIgnoreCase))
                 return ActionArgValue.OfString(dto.StringValue, name);
 
             return new ActionArgValue(ConvertNumericValueRef(dto), name);
+        }
+
+        internal NumericValueRef ConvertExecutionNumericValue(
+            TriggerPlanJsonDatabase.NumericValueRefDto dto)
+        {
+            return ConvertNumericValueRef(dto);
+        }
+
+        internal BlackboardWriteTarget ConvertExecutionBlackboardTarget(
+            TriggerPlanJsonDatabase.NumericValueRefDto dto,
+            string name)
+        {
+            var value = ConvertActionArg(dto, name);
+            if (value.Kind != ActionArgKind.BlackboardTarget)
+                throw new InvalidOperationException($"Execution node field '{name}' must be a BlackboardTarget.");
+            return value.BlackboardTarget;
         }
 
         private static TriggerCueDescriptor BuildActionCueDescriptor(TriggerPlanJsonDatabase.ActionCallPlanDto dto)

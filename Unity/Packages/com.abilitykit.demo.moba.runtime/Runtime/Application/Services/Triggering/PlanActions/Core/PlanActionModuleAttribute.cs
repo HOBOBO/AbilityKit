@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int SetBlackboardVariable = 0;
         public const int AdvanceGameplayCounter = 0;
         public const int ExecuteTrigger = 1;
+        public const int QueryTargetCollection = 2;
         public const int EndGame = 0;
 
         public const int CancelSkill = 9;

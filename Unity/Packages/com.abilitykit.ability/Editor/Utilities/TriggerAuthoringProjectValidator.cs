@@ -112,6 +112,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                     AddError(result, "TRG3022", path + ".domain", "必须填写全局黑板域。");
                 if (key.Type == TriggerValueType.None)
                     AddError(result, "TRG3023", path + ".type", "必须设置全局黑板类型。");
+                else if (key.Type == TriggerValueType.Vector3 ||
+                         key.Type == TriggerValueType.IntegerList ||
+                         key.Type == TriggerValueType.Object)
+                    AddError(result, "TRG3026", path + ".type", $"项目触发器黑板不支持类型 {key.Type}。");
                 if (key.DefaultValue == null || key.DefaultValue.Source != TriggerValueSource.Constant)
                     AddError(result, "TRG3024", path + ".defaultValue", "全局黑板默认值必须是常量。");
                 else if (key.DefaultValue.Type != key.Type)

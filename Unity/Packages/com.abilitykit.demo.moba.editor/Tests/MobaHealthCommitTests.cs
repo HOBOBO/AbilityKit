@@ -9,10 +9,17 @@ using AbilityKit.Deterministic;
 using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Events.Unit;
+using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Payload;
+using AbilityKit.Triggering.Registry;
+using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -37,6 +44,106 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             _actorIndex.Dispose();
             _contexts.Reset();
+        }
+
+        [Test]
+        public void TriggerEventMappings_IncludeHealthAndHealPipelinePayloads()
+        {
+            var registry = new MobaEventSubscriptionRegistry();
+
+            Assert.That(registry.TryGetArgsType(DamagePipelineEvents.HealthCommitted, out var healthType), Is.True);
+            Assert.That(healthType, Is.EqualTo(typeof(MobaHealthChangeResult)));
+            Assert.That(registry.TryGetArgsType(HealPipelineEvents.BeforeApply, out var beforeHealType), Is.True);
+            Assert.That(beforeHealType, Is.EqualTo(typeof(MobaHealRequest)));
+            Assert.That(registry.TryGetArgsType(HealPipelineEvents.AfterApply, out var afterHealType), Is.True);
+            Assert.That(afterHealType, Is.EqualTo(typeof(MobaHealthChangeResult)));
+        }
+
+        [Test]
+        public void BattlePayloadAccessor_ReadsCalculationAndBoxedHealthResultFields()
+        {
+            var registry = new PayloadAccessorRegistry();
+            var accessor = new MobaBattlePayloadAccessor();
+            registry.RegisterIntAccessor<AttackCalcInfo>(accessor, MobaBattlePayloadAccessor.SupportsAttackCalcInfoField);
+            registry.RegisterDoubleAccessor<AttackCalcInfo>(accessor, MobaBattlePayloadAccessor.SupportsAttackCalcInfoField);
+            registry.RegisterIntAccessor<MobaHealthChangeResult>(accessor, MobaBattlePayloadAccessor.SupportsHealthChangeResultField);
+            registry.RegisterDoubleAccessor<MobaHealthChangeResult>(accessor, MobaBattlePayloadAccessor.SupportsHealthChangeResultField);
+
+            var calculation = new AttackCalcInfo(new AttackInfo());
+            calculation.RawDamage.BaseValue = 80f;
+            calculation.MitigatedDamage.BaseValue = 60f;
+            calculation.ShieldAbsorb.BaseValue = 15f;
+            calculation.HpDamage.BaseValue = 45f;
+            Assert.That(registry.TryGetDouble(
+                in calculation,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.RawDamage),
+                out var rawDamage), Is.True);
+            Assert.That(rawDamage, Is.EqualTo(80d));
+            Assert.That(registry.TryGetDouble(
+                in calculation,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.HpDamage),
+                out var hpDamage), Is.True);
+            Assert.That(hpDamage, Is.EqualTo(45d));
+
+            var origin = default(MobaGameplayOrigin);
+            object boxed = new MobaHealthChangeResult(
+                MobaHealthChangeKind.Heal,
+                sourceActorId: 11,
+                targetActorId: 12,
+                valueType: 2,
+                reasonKind: 3,
+                reasonParam: 4,
+                requestedValue: 50f,
+                appliedValue: 20f,
+                oldHp: 80f,
+                targetHp: 100f,
+                targetMaxHp: 100f,
+                in origin);
+            Assert.That(registry.TryGetDouble(
+                in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.RequestedValue),
+                out var requested), Is.True);
+            Assert.That(requested, Is.EqualTo(50d));
+            Assert.That(registry.TryGetDouble(
+                in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.AppliedValue),
+                out var applied), Is.True);
+            Assert.That(applied, Is.EqualTo(20d));
+            Assert.That(registry.TryGetDouble(
+                in boxed,
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.OverhealValue),
+                out var overheal), Is.True);
+            Assert.That(overheal, Is.EqualTo(30d));
+            Assert.That(registry.TryIsFieldSupported(
+                typeof(MobaHealthChangeResult),
+                MobaBattlePayloadFields.FieldId(MobaBattlePayloadFields.OverhealValue),
+                out var supported), Is.True);
+            Assert.That(supported, Is.True);
+        }
+
+        [Test]
+        public void TriggerPlanContextFactory_PreservesNumericExtensionRegistries()
+        {
+            var numericDomains = new NumericVarDomainRegistry();
+            var numericFunctions = new NumericRpnFunctionRegistry();
+            var dependencies = new MobaTriggerPlanRuntimeDependencies(
+                services: null,
+                eventBus: new EventBus(),
+                functions: new FunctionRegistry(),
+                actions: new ActionRegistry(),
+                payloads: new PayloadAccessorRegistry(),
+                numericDomains: numericDomains,
+                numericFunctions: numericFunctions);
+            var factory = new MobaTriggerPlanExecutionContextFactory(
+                dependencies,
+                new MobaTriggerPlanEffectResolver(null, null));
+            var control = new ExecutionControl();
+            control.Reset();
+
+            var context = factory.Create(control);
+
+            Assert.That(context.NumericDomains, Is.SameAs(numericDomains));
+            Assert.That(context.NumericFunctions, Is.SameAs(numericFunctions));
         }
 
         [Test]

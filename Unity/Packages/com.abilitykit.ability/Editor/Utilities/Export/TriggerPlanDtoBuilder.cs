@@ -110,6 +110,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                             continue;
                         }
 
+                        if (kv.Value.Kind == ActionArgKind.BlackboardValue)
+                        {
+                            var value = kv.Value.BlackboardValue;
+                            dto.Args[kv.Key] = new NumericValueRefDto
+                            {
+                                Kind = "BlackboardValue",
+                                BoardId = value.BoardId,
+                                KeyId = value.KeyId,
+                                KeyType = value.KeyType
+                            };
+                            continue;
+                        }
+
                         if (kv.Value.Kind == ActionArgKind.BooleanValue || kv.Value.Kind == ActionArgKind.StringValue)
                         {
                             dto.Args[kv.Key] = new NumericValueRefDto

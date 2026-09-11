@@ -21,6 +21,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private TriggerTypeDescriptorCatalog _types;
         private TriggerEventDescriptorCatalog _events;
         private TriggerGlobalBlackboardDescriptorCatalog _globalBlackboard;
+        private TriggerAuthoringValueSourceCatalog _valueSources;
         private Vector2 _scroll;
         private double _nextInspectionAt;
         private bool _showParameters = true;
@@ -706,7 +707,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
             {
                 Trigger = TriggerAuthoringTemplateDefinition.Get(_asset.Template),
                 Events = _events,
-                GlobalBlackboard = _globalBlackboard
+                GlobalBlackboard = _globalBlackboard,
+                ValueSources = _valueSources
             };
         }
 
@@ -715,6 +717,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var project = _asset != null ? _asset.Project : null;
             _types = TriggerTypeDescriptorCatalog.CreateForProject(project);
             _events = TriggerEventDescriptorCatalog.FromProject(project);
+            _valueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project);
             _globalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                 project != null ? project.GlobalBlackboardCatalog : null);
         }

@@ -17,8 +17,7 @@
                             "buffIds":  [
                                             10040000
                                         ],
-                            "target_self":  true,
-                            "duration_ms":  3000
+                            "target_self":  true
                         },
                         {
                             "type":  "add_shield",
@@ -113,8 +112,7 @@
                             "buffIds":  [
                                             10040000
                                         ],
-                            "target_self":  true,
-                            "duration_ms":  3000
+                            "target_self":  true
                         },
                         {
                             "type":  "debug_log",

@@ -1,0 +1,1714 @@
+# AbilityKit sample catalog golden baseline
+# Regenerate with: powershell -File tools/check_sample_baseline.ps1 -Update
+# Do not hand-edit. Every line below is produced by running the samples.
+# The scratch output directory is masked as <OUTPUT_DIR>; known wall-clock
+# dependent values are masked as <unstable> (see $knownUnstableKeys in
+# tools/check_sample_baseline.ps1 for the tracked root cause).
+
+===== [manifest] validate-manifest =====
+Sample Manifest Validation
+- Manifest entries: 37
+- Scanned sample types: 89
+- Stable entries: 37
+- Candidate entries: 0
+- Legacy entries: 0
+- Deprecated entries: 0
+- Formal manifest entries: 37
+- Formal catalog entries: 37
+- Output schema version: sample-output.v1
+- Attribute-only samples: 52
+- Missing type entries: 0
+- Duplicate ids: 0
+- Duplicate orders: 0
+- Missing required metadata: 0
+- Missing recommended metadata: 0
+- Invalid statuses: 0
+- Missing next references: 0
+- Web entries without deterministic tag: 0
+- Formal entries missing from catalog: 0
+- Catalog entries not manifest-backed: 0
+- Non-formal entries in default catalog: 0
+- Output contract issues: 0
+
+Attribute-only samples:
+  - AbilityKit.Samples.Logic.Samples.Behavior.BTreeBasics
+  - AbilityKit.Samples.Logic.Samples.Behavior.BTreeBlackboardUsage
+  - AbilityKit.Samples.Logic.Samples.Behavior.BTreeExternalNodes
+  - AbilityKit.Samples.Logic.Samples.Combat.CombatDynamicAabbTree
+  - AbilityKit.Samples.Logic.Samples.Combat.CombatGridBroadphaseVsNaive
+  - AbilityKit.Samples.Logic.Samples.Combat.CombatLayerFilterIncludeExclude
+  - AbilityKit.Samples.Logic.Samples.Combat.CombatLayerMatrixConfiguration
+  - AbilityKit.Samples.Logic.Samples.Config.ConfigRegistryBasics
+  - AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill.ProgressiveSkill_Phase0
+  - AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill.ProgressiveSkill_Phase1
+  - AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill.ProgressiveSkill_Phase2
+  - AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill.ProgressiveSkill_Phase3
+  - AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill.ProgressiveSkill_Phase4
+  - AbilityKit.Samples.Logic.Samples.Demo.ProgressiveSkill.ProgressiveSkill_Phase5
+  - AbilityKit.Samples.Logic.Samples.Demo.RPGBattle
+  - AbilityKit.Samples.Logic.Samples.Demo.TimedTowerDefense
+  - AbilityKit.Samples.Logic.Samples.Demo.TowerDefense
+  - AbilityKit.Samples.Logic.Samples.Flow.FlowAdvancedExample
+  - AbilityKit.Samples.Logic.Samples.Flow.TimedFlow
+  - AbilityKit.Samples.Logic.Samples.Foundation.EventSystem
+  - AbilityKit.Samples.Logic.Samples.Foundation.MarkerRegistry
+  - AbilityKit.Samples.Logic.Samples.Foundation.ObjectPool
+  - AbilityKit.Samples.Logic.Samples.Foundation.PoolConfigSample
+  - AbilityKit.Samples.Logic.Samples.Modifiers.ContinuousBehaviorModifiers
+  - AbilityKit.Samples.Logic.Samples.Modifiers.DataDrivenHFSMWithOngoingBehaviors
+  - AbilityKit.Samples.Logic.Samples.Modifiers.HFSMWithModifierIntegration
+  - AbilityKit.Samples.Logic.Samples.Modifiers.ModifierBasics
+  - AbilityKit.Samples.Logic.Samples.Modifiers.ModifierPipelineExample
+  - AbilityKit.Samples.Logic.Samples.Modifiers.StackingModifiers
+  - AbilityKit.Samples.Logic.Samples.Modifiers.TimeDecayModifiers
+  - AbilityKit.Samples.Logic.Samples.Pipeline.PipelinePhaseExecutorExample
+  - AbilityKit.Samples.Logic.Samples.StateMachine.HFSMBehaviorTree
+  - AbilityKit.Samples.Logic.Samples.StateMachine.HFSMJsonConfig
+  - AbilityKit.Samples.Logic.Samples.StateMachine.HFSMWithActions
+  - AbilityKit.Samples.Logic.Samples.StateMachine.HFSMWithBehaviors
+  - AbilityKit.Samples.Logic.Samples.StateMachine.HFSMWithHierarchy
+  - AbilityKit.Samples.Logic.Samples.StateMachine.HFSMWithTriggerIntegration
+  - AbilityKit.Samples.Logic.Samples.Tags.GameplayTagContainerDeepDive
+  - AbilityKit.Samples.Logic.Samples.Tags.TagStackOverview
+  - AbilityKit.Samples.Logic.Samples.Targeting.TargetingBasics
+  - AbilityKit.Samples.Logic.Samples.Triggering.ActionSchedulerExample
+  - AbilityKit.Samples.Logic.Samples.Triggering.BehaviorTreeExample
+  - AbilityKit.Samples.Logic.Samples.Triggering.ContinuousEffectsExample
+  - AbilityKit.Samples.Logic.Samples.Triggering.ExecCtxExample
+  - AbilityKit.Samples.Logic.Samples.Triggering.RPNExpressionExample
+  - AbilityKit.Samples.Logic.Samples.Triggering.SchedulerExample
+  - AbilityKit.Samples.Logic.Samples.Triggering.TriggerPlanExample
+  - AbilityKit.Samples.Logic.Samples.Triggering.TriggerWithBlackboard
+  - AbilityKit.Samples.Logic.Samples.World.WorldBlueprintUsage
+  - AbilityKit.Samples.Logic.Samples.World.WorldCrossCommunication
+  - AbilityKit.Samples.Logic.Samples.World.WorldHostOverview
+  - AbilityKit.Samples.Logic.Samples.World.WorldServicesDeepDive
+
+===== 00-AbilityKit Orientation.log =====
+------------------------------------------------------------------------
+AbilityKit Orientation
+------------------------------------------------------------------------
+从工具集合、按需组合、纯逻辑优先三个角度理解当前项目
+
+AbilityKit 不是一个必须整包接入的单体框架。
+它更接近一组玩法逻辑工具包：项目需要什么，就组合什么。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+它主要解决什么问题
+------------------------------------------------------------------------
+  1. 把技能、触发、标签、流程、状态机、World 等玩法逻辑拆成可复用模块。
+  2. 让核心逻辑先在纯 C# 环境里验证，再交给 Unity、MonoGame 或服务器宿主驱动。
+  3. 用配置、注册表、上下文和执行器，把数据和运行时行为解耦。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+读 sample 的推荐姿势
+------------------------------------------------------------------------
+  - 先运行 Onboarding，建立整体心智模型。
+  - 再看 Foundation / Tags / Config，理解基础词汇和数据入口。
+  - 然后看 Pipeline / Flow / HFSM / Triggering，理解行为编排。
+  - 最后看 World 和 Demo，理解模块如何落到完整运行环境。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+一个最小玩法需求的拆分
+------------------------------------------------------------------------
+  需求: 玩家释放火球术
+  标签: Cast.Fireball
+  是否需要目标: 是，进入 Targeting / Tags
+  是否需要时间过程: 是，进入 Flow / Pipeline
+sample 后续会不断把这类需求拆成更小的工具组合。
+
+Sample completed.
+
+===== 01-Pure Logic And Host Boundary.log =====
+------------------------------------------------------------------------
+Pure Logic And Host Boundary
+------------------------------------------------------------------------
+同一份逻辑通过 SampleRuntimeContext 适配控制台、文件输出和未来游戏宿主
+
+------------------------------------------------------------------------
+当前宿主上下文
+------------------------------------------------------------------------
+  HostKind: Console
+  ExecutionMode: InstantEnvironment
+  OutputDirectory: <OUTPUT_DIR>
+  HasConfigProvider: false
+  HasResourceProvider: false
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+同一份逻辑依赖的只是抽象
+------------------------------------------------------------------------
+  - ILogger：输出到控制台、文件、Unity Console 或 MonoGame overlay 都可以由宿主决定。
+  - ISampleEnvironment：时间由宿主推进，sample 不直接依赖 Thread.Sleep 或引擎帧循环。
+  - IConfigProvider / IResourceProvider：配置来源可以是文件、内存、Addressables 或远端服务。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+时间与帧回调演示
+------------------------------------------------------------------------
+初始 time=0.000
+  AdvanceTime 后: 0.100
+  Tick 1: delta=0.000, time=0.100
+  Tick 回调次数: 1
+  Pause 后 IsPaused: False
+  Pause 后尝试 AdvanceTime: 1.100
+  Resume 后 IsPaused: False
+
+  - Instant 模式偏向立即执行，Pause 可能只是宿主层的空操作。
+  - 使用 --mode simulated 运行本示例，可以观察更接近游戏帧循环的暂停和 Tick 行为。
+------------------------------------------------------------------------
+结论：sample 只表达玩法逻辑，真正的输出、资源和帧推进都交给宿主环境。
+
+Sample completed.
+
+===== 02-Package Composition Path.log =====
+------------------------------------------------------------------------
+Package Composition Path
+------------------------------------------------------------------------
+用一个玩法需求演示如何挑选 AbilityKit 模块，而不是整包全接
+
+------------------------------------------------------------------------
+按需组合不是少写代码，而是少背不需要的复杂度
+------------------------------------------------------------------------
+  1. 只需要技能释放前检查
+  推荐模块: GameplayTags + Pipeline
+  组合理由: 用标签描述状态，用 Pipeline 串联 PreCheck / Consume / Execute。
+
+  2. 需要持续 Buff 和衰减
+  推荐模块: Modifiers + Continuous + Flow
+  组合理由: Modifier 管属性变化，Continuous/Flow 管持续时间和阶段推进。
+
+  3. 需要副本、房间或服务器战斗
+  推荐模块: Host + World.DI + Pipeline + Triggering
+  组合理由: World 承载生命周期和服务，Triggering/Pipeline 承载玩法规则。
+
+  4. 需要完整技能最佳实践参考
+  推荐模块: demo.moba.* + 按需复制真实需要的模块
+  组合理由: moba 示例是参考工程，不是所有项目的必选依赖。
+
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+新人继续阅读的路线
+------------------------------------------------------------------------
+  - Foundation：先看日志、事件、对象池、类型注册这些底座。
+  - Tags / Config：再看数据如何描述玩法概念。
+  - Pipeline / Flow：然后看一次性阶段和跨帧流程。
+  - Triggering / HFSM / Modifiers：最后看规则、状态和属性如何互相驱动。
+  - World / Demo：把模块放进可运行世界，理解生命周期和集成边界。
+
+Sample completed.
+
+===== 03-From Concept To Skill Slice.log =====
+------------------------------------------------------------------------
+From Concept To Skill Slice
+------------------------------------------------------------------------
+用 GameplayTags + Pipeline 串起标签、检查、执行、持续效果和事件
+
+------------------------------------------------------------------------
+技能切片：Fireball
+------------------------------------------------------------------------
+  Caster: Hero(HP=100, Mana=80)
+  Target: TrainingDummy(HP=150, Mana=0)
+  AbilityTag: Ability.Fire.Fireball
+  Input.ManaCost: 30
+  Input.Damage: 45
+  Input.AbilityTag: Ability.Fire.Fireball
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+构建 Pipeline
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+执行 Pipeline
+------------------------------------------------------------------------
+[PreCheck] 目标存活且法力足够
+[Consume] 消耗 30 法力
+[Execute] 造成 45 伤害
+[Ongoing] 添加标签 State.Burning
+  PipelineState: Completed
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+执行结果
+------------------------------------------------------------------------
+  Caster: Hero(HP=100, Mana=50)
+  Target: TrainingDummy(HP=105, Mana=0)
+  Target.Has(State.Burning): True
+  Events: DamageApplied:45, BurningStarted:3s
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个切片对应到 AbilityKit 模块
+------------------------------------------------------------------------
+  - GameplayTags：Ability.Fire.Fireball、State.Burning 等玩法词汇。
+  - Pipeline：PreCheck / Consume / Execute / Ongoing 阶段。
+  - 后续可以继续接 Modifiers 表达数值变化，接 Triggering 响应命中/死亡事件。
+  - UI 宿主可以通过 SampleCatalog 展示这个示例，通过 SampleExecutionService 点击运行。
+
+Sample completed.
+
+===== 04-UI Host Integration.log =====
+------------------------------------------------------------------------
+UI Host Integration
+------------------------------------------------------------------------
+演示界面宿主如何列出示例，并在点击后用内存日志运行指定示例
+
+------------------------------------------------------------------------
+UI 可绑定的目录数据
+------------------------------------------------------------------------
+  SampleCount: 37
+  CategoryCount: 11
+  Onboarding: 6 samples
+  Foundation: 3 samples
+  Triggering: 3 samples
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+模拟按钮点击
+------------------------------------------------------------------------
+  Button.Title: Hello World
+  Button.Id: foundation/hello-world
+  Button.Category: Foundation
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+点击运行结果
+------------------------------------------------------------------------
+  Succeeded: True
+  CapturedLogEntries: 19
+  Section: Hello World
+  Info: 展示 SampleBase 的最小结构和基础输出能力
+  Info: 欢迎来到 AbilityKit.Samples。
+  Info: 这个示例只依赖 SampleBase，不依赖具体游戏引擎。
+  Section: SampleBase 提供的常用能力
+  Bullet: Log / Warn / Error：统一输出，宿主决定写到哪里。
+------------------------------------------------------------------------
+  - 界面层可以把 catalog.Entries 渲染成列表、树、标签页或搜索结果。
+  - 点击某一项时，使用 entry.Id 或 entry.Index 调用 SampleExecutionService。
+  - BufferedSampleLogger 可直接转成 UI 日志条目，Unity/MonoGame 也可以实现自己的 ILogger。
+
+Sample completed.
+
+===== 05-Environment Tick.log =====
+------------------------------------------------------------------------
+Environment Tick
+------------------------------------------------------------------------
+演示 ISampleEnvironment 如何由宿主按帧推进，并把 delta/time 传给纯逻辑示例
+
+------------------------------------------------------------------------
+宿主负责推进时间
+------------------------------------------------------------------------
+  InitialTime: 0.000
+  InitialDelta: 0.000
+  EnvironmentTick.InitialTime: 0.000
+  EnvironmentTick.InitialDelta: 0.000
+  - Sample 不创建线程、不 sleep，也不直接绑定 Unity Update 或浏览器 requestAnimationFrame。
+  - 宿主只需要调用 Environment.Advance(delta)，逻辑层就能收到 OnTick。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+模拟 5 个固定帧
+------------------------------------------------------------------------
+  EnvironmentTick.TickCount: 0
+  EnvironmentTick.AccumulatedDelta: 0.000
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+暂停不会推进
+------------------------------------------------------------------------
+  Paused: False
+  TimeWhilePaused: 0.120
+  EnvironmentTick.Paused: False
+  EnvironmentTick.TimeWhilePaused: 0.120
+  PausedAfterResume: False
+  FinalTime: 0.160
+  TickCount: 0
+  AccumulatedDelta: 0.000
+  EnvironmentTick.PausedAfterResume: False
+  EnvironmentTick.FinalTime: 0.160
+  EnvironmentTick.TickCount: 0
+  EnvironmentTick.AccumulatedDelta: 0.000
+
+Sample completed.
+
+===== 06-Web Timeline Snapshot.log =====
+------------------------------------------------------------------------
+Web Timeline Snapshot
+------------------------------------------------------------------------
+演示如何用稳定的结构化输出描述帧、实体、事件和范围，供 Web timeline 观察器消费
+
+------------------------------------------------------------------------
+Timeline 快照契约
+------------------------------------------------------------------------
+  - 日志仍然适合解释教学步骤。快照则用于驱动 Canvas、Replay 或外部可视化宿主。
+  - 第一版先用 KeyValue 输出稳定字段；后续可升级为专门的 snapshot sink。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Frame snapshots
+------------------------------------------------------------------------
+  snapshot.frame[0].time: 0.00
+  snapshot.frame[0].entity: caster
+  snapshot.frame[0].position: x=0.0, y=0.0
+  snapshot.frame[0].state: prepare
+  snapshot.frame[0].event: skill.fireball.cast-start
+  snapshot.frame[1].time: 0.10
+  snapshot.frame[1].entity: projectile
+  snapshot.frame[1].position: x=1.5, y=0.0
+  snapshot.frame[1].state: flying
+  snapshot.frame[1].event: projectile.spawn
+  snapshot.frame[2].time: 0.20
+  snapshot.frame[2].entity: projectile
+  snapshot.frame[2].position: x=3.0, y=0.0
+  snapshot.frame[2].state: flying
+  snapshot.frame[2].event: projectile.move
+  snapshot.frame[3].time: 0.30
+  snapshot.frame[3].entity: target
+  snapshot.frame[3].position: x=4.5, y=0.0
+  snapshot.frame[3].state: hit
+  snapshot.frame[3].event: projectile.hit
+  snapshot.frame[4].time: 0.40
+  snapshot.frame[4].entity: target
+  snapshot.frame[4].position: x=4.5, y=0.0
+  snapshot.frame[4].state: burning
+  snapshot.frame[4].event: damage.apply
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Web 宿主可视化建议
+------------------------------------------------------------------------
+  Stage: 960x540 canvas
+  Timeline: frame slider + play/pause + event card
+  EntityLayer: caster/projectile/target positions
+  EventLayer: cast-start/spawn/move/hit/damage badges
+  Next: combat/projectile-hit-damage -> skill/fireball-complete
+
+Sample completed.
+
+===== 07-Foundation Starter.log =====
+------------------------------------------------------------------------
+Foundation Starter
+------------------------------------------------------------------------
+用 Core + World.DI 跑通事件、对象池、服务注册和宿主驱动 Tick
+
+------------------------------------------------------------------------
+Foundation 组合边界
+------------------------------------------------------------------------
+  FoundationStarter.Modules: AbilityKit.Core, AbilityKit.World.DI
+  FoundationStarter.DemoDependency: false
+  - Core 负责事件、对象池和基础设施。 
+  - World.DI 负责战斗世界或玩法作用域中的服务装配。 
+  - Sample 宿主负责时间推进，Starter 不绑定 Unity Update 或服务端框架。 
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Core EventDispatcher
+------------------------------------------------------------------------
+  FoundationStarter.EventCount: 1
+  FoundationStarter.LastEvent: hero-001:foundation-ready
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Core ObjectPool
+------------------------------------------------------------------------
+  FoundationStarter.CommandBeforeRelease: Cast:starter.fireball
+  FoundationStarter.PoolCreated: 1
+  FoundationStarter.PoolInactive: 1
+  FoundationStarter.PoolReleaseTotal: 1
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+World.DI 服务容器
+------------------------------------------------------------------------
+  FoundationStarter.WorldTime: 0.15
+  FoundationStarter.LastRule: hero-001.BootFoundation
+  FoundationStarter.TransientDifferent: True
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+宿主驱动 Tick
+------------------------------------------------------------------------
+  FoundationStarter.SampleTickCount: 3
+  FoundationStarter.SampleTime: 0.06
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+已有 SkillCore 示例入口
+------------------------------------------------------------------------
+  FoundationStarter.Next.Pipeline: pipeline/basic-phases
+  FoundationStarter.Next.Triggering: triggering/basic-event-trigger
+  FoundationStarter.Next.TriggeringCondition: triggering/condition-blackboard
+  FoundationStarter.Next.Attributes: modifiers/attribute-basic
+  FoundationStarter.WebExport: dotnet run --project src/AbilityKit.Samples -- --web sample-web
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+验收结论
+------------------------------------------------------------------------
+  FoundationStarter.Result: Passed
+  - 该 Starter 只验证 P0 Foundation，不覆盖技能、战斗、同步或服务端链路。 
+  - SkillCore 能力已由现有 Pipeline、Triggering、Modifiers 示例覆盖，后续应收编路线而不是重复造示例。 
+
+Sample completed.
+
+===== 08-Hello World.log =====
+------------------------------------------------------------------------
+Hello World
+------------------------------------------------------------------------
+展示 SampleBase 的最小结构和基础输出能力
+
+欢迎来到 AbilityKit.Samples。
+这个示例只依赖 SampleBase，不依赖具体游戏引擎。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+SampleBase 提供的常用能力
+------------------------------------------------------------------------
+  - Log / Warn / Error：统一输出，宿主决定写到哪里。
+  - Section / Bullet / KeyValue：让示例输出更容易阅读。
+  - Environment：由宿主推进的时间环境。
+  - Config / Resources：由宿主注入的配置和资源入口。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+最小运行时状态
+------------------------------------------------------------------------
+  HostKind: Console
+  HelloWorld.HostKind: Console
+  Time: 0.000
+  HelloWorld.TimeBeforeFrame: 0.000
+  Time after one frame: 0.016
+  HelloWorld.TimeAfterFrame: 0.016
+
+Sample completed.
+
+===== 09-Gameplay Tags Overview.log =====
+------------------------------------------------------------------------
+Gameplay Tags Overview
+------------------------------------------------------------------------
+GameplayTag 核心概念与配置驱动使用
+
+=== GameplayTags 概述 ===
+------------------------------------------------------------------------
+【1】从配置加载标签组
+已注册 18 个标签
+共 4 个标签组
+  RegisteredTagCount: 18
+  TagGroupCount: 4
+
+【2】标签层级结构
+  - 标签格式: Parent.Child.GrandChild (点分隔)
+  - 支持父子匹配: Damage.Fire 会匹配 Damage
+  - 支持网络同步: NetIndex 用于高效网络传输
+
+示例标签:
+  - [Damage] Damage, Damage.Fire, Damage.Fire.Burning...
+  - [Buff] Buff.AttackSpeed, Buff.MoveSpeed, Debuff.Stun...
+  - [Unit] Unit, Unit.Hero, Unit.Enemy...
+
+【3】GameplayTagContainer 容器操作
+添加标签: Damage.Fire, Debuff.Stun
+容器当前标签数: 2
+HasTag(Damage.Fire): True
+HasTag(Damage): True
+  Container.Count: 2
+  Container.Has.Damage: True
+
+【4】层级匹配演示
+添加 Damage.Fire.Burning 到容器
+HasTag(Damage.Fire): True
+HasTagExact(Damage.Fire): True
+  Hierarchy.Has.DamageFire: True
+  Hierarchy.HasExact.DamageFire: True
+
+【5】容器操作
+原始容器 + Buff.AttackSpeed = 4 个标签
+  Combined.Count: 4
+移除 Debuff.Stun 后 = 3 个标签
+  Removed.Count: 3
+
+【6】快捷 API
+  - GameplayTagManager.Instance.RequestTag("TagName")  // 注册并获取标签
+  - tag.Matches(other)                                 // 层级匹配
+  - tag.IsChildOf(parent)                              // 是否为子标签
+  - container.HasTag(tag)                              // 检查标签（支持层级）
+  - container.HasTagExact(tag)                         // 精确检查
+RequestTag("Unit.Hero") = Unit.Hero
+------------------------------------------------------------------------
+完整 API 文档: AbilityKit.GameplayTags.Core
+
+Sample completed.
+
+===== 10-Tag Requirements Overview.log =====
+------------------------------------------------------------------------
+Tag Requirements Overview
+------------------------------------------------------------------------
+使用 GameplayTagRequirements 进行条件判断
+
+=== Tag Requirements 概述 ===
+------------------------------------------------------------------------
+【1】GameplayTagRequirements 概念
+  - Required: 必须包含的标签（All 匹配）
+  - Blocked: 不能包含的标签（Any 匹配）
+  - Exact: 是否精确匹配（默认 false，支持层级匹配）
+
+【2】创建需求条件
+  TagRequirements.RequiredCount: 2
+  TagRequirements.BlockedCount: 1
+  TagRequirements.Predicate: Require Buff.AttackSpeed + Unit.Hero, Block Status.Dead
+需求: 需要 Buff.AttackSpeed + Unit.Hero，阻止 Status.Dead
+
+【3】测试场景
+场景 A - 角色拥有: Buff.AttackSpeed, Buff.MoveSpeed, Unit.Hero
+  TagRequirements.SceneA: True
+IsSatisfiedBy: True
+
+场景 B - 角色拥有: Buff.MoveSpeed, Unit.Hero (缺少 AttackSpeed)
+  TagRequirements.SceneB: False
+IsSatisfiedBy: False
+
+场景 C - 角色拥有: Buff.AttackSpeed, Unit.Hero, Status.Dead
+  TagRequirements.SceneC: False
+IsSatisfiedBy: False
+
+【4】快捷构造方法
+  GameplayTagRequirements.Require(tag1, tag2)
+    -> 只有 Required，无 Blocked
+
+  GameplayTagRequirements.Block(tag1, tag2)
+    -> 只有 Blocked，无 Required
+  TagRequirements.QuickRequire: 2
+  TagRequirements.QuickBlock: 1
+快捷 Require: 2 个必需标签
+快捷 Block: 1 个阻止标签
+
+【5】典型应用场景
+  - 技能释放条件: 需要某些 Buff 才能释放
+  - 伤害修正: 对特定目标生效
+  - Buff 叠加规则: 互斥的 Debuff
+  - 目标过滤: 选择特定类型的单位
+------------------------------------------------------------------------
+
+Sample completed.
+
+===== 11-Pipeline Basics.log =====
+------------------------------------------------------------------------
+Pipeline Basics
+------------------------------------------------------------------------
+演示配置 + 执行器 + 对象池模式
+
+管线(Pipeline) 基础示例
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+示例1：代码组合构建即时管线
+------------------------------------------------------------------------
+  CodePipeline.InitialTargetValid: True
+  CodePipeline.InitialMana: 50
+  CodePipeline.ManaCost: 30
+开始执行技能管线:
+  [PreCheck] 检查目标是否有效...
+    -> 目标有效，继续执行
+  [Validation] 验证资源是否足够...
+    -> 资源足够，消耗 30 魔法值
+  [Execute] 执行技能效果!
+    -> 造成 100 点伤害
+管线结束，状态: Completed
+  CodePipeline.ResultState: Completed
+  CodePipeline.LastPhase: Execute
+  CodePipeline.FinalMana: 20
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+示例2：从PipelineConfig.json加载配置执行管线
+------------------------------------------------------------------------
+已加载配置文件，包含 1 个管线
+
+选择管线: [1] 技能释放管线
+描述: 演示技能释放的完整流程
+阶段数量: 5
+  ConfigPipeline.Id: 1
+  ConfigPipeline.PhaseCount: 5
+  - PreCheck (Instant, duration=0)
+  - Validation (Instant, duration=0)
+  - Casting (Timed, duration=1.5)
+  - Execute (Timed, duration=0.2)
+  - Cooldown (Timed, duration=0.5)
+
+构建并执行管线:
+  [PreCheck] -> PreCheckPhase
+    -> PreCheckExecutor
+  [Validation] -> ValidationPhase
+    -> ValidationExecutor
+  [Casting] -> CastingPhase
+    -> CastingExecutor
+  [Execute] -> ExecutePhase
+    -> ExecuteExecutor
+  [Cooldown] -> CooldownPhase
+    -> CooldownExecutor
+
+执行管线:
+  [PreCheck] 预检查阶段
+    -> 要求目标: True
+    -> 距离范围: [0, 3.4028235E+38]
+    -> 预检查通过
+  [Validation] 资源验证阶段
+    -> 当前资源: 100
+    -> 消耗需求: 0
+    -> 检查沉默状态: 否
+    -> 消耗 0 资源，剩余 100
+    -> 资源验证通过
+  [Casting] 施法引导阶段
+    -> 施法时长: 1.5s
+    -> 动画: 无
+    -> 可移动: 否
+    -> 可转向: 是
+  [Execute] 技能效果执行阶段
+    -> 伤害: 0
+    -> 效果半径: 0
+    -> 效果类型: Physical
+    -> 造成 0 点 Physical 伤害
+    -> 效果已应用到 0 范围内的目标
+  [Cooldown] 冷却阶段
+    -> 冷却时长: 5s
+    -> 技能进入冷却
+
+结果: Completed
+  ConfigPipeline.ResultState: Completed
+  ConfigPipeline.LastPhase: Cooldown
+
+执行后:
+  魔法值: 100
+  冷却中: True
+  ConfigPipeline.FinalMana: 100
+  ConfigPipeline.IsOnCooldown: True
+
+示例运行完成
+
+Sample completed.
+
+===== 12-Flow Basics.log =====
+------------------------------------------------------------------------
+Flow Basics
+------------------------------------------------------------------------
+使用 AbilityKit.Flow 的 FlowRunner、SequenceNode、WaitSecondsNode 和 ActionNode 编排施法流程
+
+  Flow.InitialMana: 100
+  Flow.Damage: 45
+  Flow.InitialTargetHp: 120
+Status: NotStarted -> Running
+Status: Running -> Failed
+Flow finished: Failed
+------------------------------------------------------------------------
+运行 Flow
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+结果状态
+------------------------------------------------------------------------
+[ERR] Exception: FlowContext missing value: AbilityKit.Samples.Logic.Samples.Flow.FlowBasics+CastState
+
+Sample completed.
+
+===== 13-Sequence And Race.log =====
+------------------------------------------------------------------------
+Sequence and Race
+------------------------------------------------------------------------
+使用真实 FlowRunner 对比 SequenceNode、RaceNode 与 ParallelAllNode 的执行语义
+
+------------------------------------------------------------------------
+SequenceNode：按顺序完成三个阶段
+------------------------------------------------------------------------
+[Sequence] Status: NotStarted -> Running
+[Sequence] Status: Running -> Failed
+[Sequence] Flow finished: Failed
+  Sequence.Pattern: Sequence
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+RaceNode：最快完成的分支获胜
+------------------------------------------------------------------------
+[Race] Status: NotStarted -> Running
+  Race.Pattern: Race
+[Race] Status: Running -> Canceled
+[Race] Flow finished: Canceled
+[ERR] Exception: FlowContext missing value: AbilityKit.Samples.Logic.Samples.Flow.SequenceAndRace+ComposerState
+
+Sample completed.
+
+===== 14-Skill Cast Timing.log =====
+------------------------------------------------------------------------
+Skill Cast Timing
+------------------------------------------------------------------------
+使用 FlowRunner、SequenceNode、RaceNode、WaitSecondsNode 和 WaitUntilNode 表达前摇、取消与释放结算
+
+------------------------------------------------------------------------
+场景 A：前摇完成并释放技能
+------------------------------------------------------------------------
+  CastComplete.CastTime: 0.35
+  CastComplete.ManaCost: 30
+  CastComplete.InitialMana: 100
+  CastComplete.InitialTargetHp: 120
+[CastComplete] Status: NotStarted -> Running
+[CastComplete] Status: Running -> Failed
+[CastComplete] Flow finished: Failed
+  CastComplete.Mana: 100
+  CastComplete.TargetHp: 120
+  CastComplete.Completed: False
+  CastComplete.Canceled: False
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+场景 B：前摇期间收到取消请求
+------------------------------------------------------------------------
+  CancelDuringCast.CastTime: 0.35
+  CancelDuringCast.ManaCost: 30
+  CancelDuringCast.InitialMana: 100
+  CancelDuringCast.InitialTargetHp: 120
+[CancelDuringCast] Status: NotStarted -> Running
+[CancelDuringCast] Status: Running -> Failed
+[CancelDuringCast] Flow finished: Failed
+  CancelDuringCast.Mana: 100
+  CancelDuringCast.TargetHp: 120
+  CancelDuringCast.Completed: False
+  CancelDuringCast.Canceled: False
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - FlowRunner：由宿主逐帧 Step(delta)，sample 不拥有主循环。
+  - SequenceNode：串联检查、前摇竞态、结算或失败处理。
+  - RaceNode：让施法前摇与取消请求竞速，先完成者决定后续状态。
+  - WaitSecondsNode：表达确定性前摇时间。
+  - WaitUntilNode：把外部取消信号桥接进流程。
+
+Sample completed.
+
+===== 15-Basic Event Trigger.log =====
+------------------------------------------------------------------------
+Basic Trigger
+------------------------------------------------------------------------
+使用 EventBus、TriggerRunner、ITrigger 和 ExecCtx 实现最小事件触发闭环
+
+  Trigger.MinDamage: 20
+  Trigger.Phase: 0
+  Trigger.Priority: 10
+------------------------------------------------------------------------
+发布命中事件
+------------------------------------------------------------------------
+Publish weak-hit: damage=12
+Publish heavy-hit: damage=35
+Publish follow-up-hit: damage=24
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+触发结果
+------------------------------------------------------------------------
+  Evaluated: 3
+  Executed: 2
+  TargetHp: 61
+  DamageLog: eval(weak-hit)=False | eval(heavy-hit)=True | apply(heavy-hit)=-35 | eval(follow-up-hit)=True | apply(follow-up-hit)=-24
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - EventBus：负责发布 sample.hit 事件并驱动订阅者。
+  - TriggerRunner：负责按 phase / priority 管理触发器并构造 ExecCtx。
+  - ITrigger.Evaluate：把条件判断留在触发器内部，失败时跳过 Execute。
+  - ITrigger.Execute：只在条件通过后修改样例上下文。
+
+Sample completed.
+
+===== 16-Condition Blackboard Trigger.log =====
+------------------------------------------------------------------------
+Trigger with Condition
+------------------------------------------------------------------------
+使用 DictionaryBlackboard 为 Trigger Evaluate 提供运行时条件
+
+------------------------------------------------------------------------
+黑板条件初始化
+------------------------------------------------------------------------
+  Blackboard: mana=20, silenced=False, combo=0
+  Blackboard.Mana: 20
+  Blackboard.Silenced: False
+  Blackboard.Combo: 0
+Publish fireball-low-mana: requiredCombo=1
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+状态变化后再次发布事件
+------------------------------------------------------------------------
+  Blackboard: mana=60, silenced=True, combo=0
+  Blackboard.Mana: 60
+  Blackboard.Silenced: True
+  Blackboard.Combo: 0
+Publish fireball-silenced: requiredCombo=1
+  Blackboard: mana=60, silenced=False, combo=1
+  Blackboard.Mana: 60
+  Blackboard.Silenced: False
+  Blackboard.Combo: 1
+Publish fireball-ready: requiredCombo=1
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+触发结果
+------------------------------------------------------------------------
+  Evaluated: 3
+  Executed: 1
+  Mana: 30
+  Combo: 2
+  Blackboard.FinalMana: 30
+  Blackboard.FinalCombo: 2
+  Trace: eval(fireball-low-mana)=mana:20,silenced:False,combo:0,passed:False | eval(fireball-silenced)=mana:60,silenced:True,combo:0,passed:False | eval(fireball-ready)=mana:60,silenced:False,combo:1,passed:True | execute(fireball-ready)=-30 mana,+1 combo
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - DictionaryBlackboard：保存 mana、silenced、combo 这类可变运行时状态。
+  - DictionaryBlackboardResolver：把 ExecCtx.Blackboards 中的 boardId 解析成具体黑板。
+  - ITrigger.Evaluate：读取黑板并同时检查资源、沉默和事件参数。
+  - ITrigger.Execute：条件通过后扣除资源，并把连击计数写回黑板。
+
+Sample completed.
+
+===== 17-Trigger Config Composition And Template.log =====
+------------------------------------------------------------------------
+Trigger Config Composition And Template
+------------------------------------------------------------------------
+演示触发器内嵌/引用配置、嵌套条件/行为和模板多值绑定
+
+------------------------------------------------------------------------
+配置形态
+------------------------------------------------------------------------
+  - 源配置支持 behaviorRefs 引用复用节点，也支持 children/then/else 内嵌节点。
+  - 运行时配置使用 Template.Bindings 传入多组数值，同一类触发器可以产生不同效果。
+
+source json shape:
+{
+  "behaviors": {
+    "mark-start": { "root": { "kind": "action", "type": "sample_mark_step", "step": 1 } },
+    "bonus-tick": { "root": { "kind": "action", "type": "sample_bonus_tick", "amount": "@bonus" } }
+  },
+  "condition_groups": {
+    "enough-power": [{ "type": "arg_gte", "left": "@power", "right": "@threshold" }]
+  },
+  "triggers": [{
+    "id": 4201,
+    "behavior": {
+      "kind": "sequence",
+      "behaviorRefs": ["mark-start"],
+      "children": [{
+        "kind": "if",
+        "conditionRefs": ["enough-power"],
+        "then": [{ "type": "sample_apply_effect", "amount": "@amount", "duration": "@duration" }],
+        "else": [{ "type": "sample_mark_step", "step": 0 }]
+      }, {
+        "kind": "repeat",
+        "times": 2,
+        "behaviorRefs": ["bonus-tick"]
+      }]
+    }
+  }]
+}
+------------------------------------------------------------------------
+模板多值绑定
+------------------------------------------------------------------------
+  light-burn: actions=1, total=0
+  TriggerConfig.Template[light-burn]: actions=1, total=0
+  heavy-burn: actions=1, total=0
+  TriggerConfig.Template[heavy-burn]: actions=1, total=0
+  效果日志: apply(amount=0,duration=0) | apply(amount=0,duration=0)
+  TriggerConfig.TemplateEffects: apply(amount=0,duration=0) | apply(amount=0,duration=0)
+  累计数值: 0
+  TriggerConfig.TemplateTotal: 0
+------------------------------------------------------------------------
+嵌套行为和条件
+------------------------------------------------------------------------
+  nested-tree: success=True, executed=4, reason=
+  TriggerConfig.Root[nested-tree]: success=True, executed=4, reason=
+  执行路径: mark(step=0) -> apply(amount=0,duration=0) -> bonus(0) -> bonus(0)
+  TriggerConfig.NestedPath: mark(step=0) -> apply(amount=0,duration=0) -> bonus(0) -> bonus(0)
+  累计数值: 0
+  TriggerConfig.NestedTotal: 0
+
+Sample completed.
+
+===== 18-Attribute Modifiers.log =====
+------------------------------------------------------------------------
+Attribute Modifiers
+------------------------------------------------------------------------
+使用 ModifierData 和 ModifierCalculator 计算角色属性
+
+------------------------------------------------------------------------
+基础属性
+------------------------------------------------------------------------
+  Modifier.BaseKeys: MaxHealth,AttackPower,Defense
+  Base.MaxHealth: 1000.0
+  Base.AttackPower: 100.0
+  Base.Defense: 50.0
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+装备与 Buff 修改器
+------------------------------------------------------------------------
+  Modifier.SourceCount: 4
+  Modifier.AttackSources: 3
+  Equipped.MaxHealth: 1000.0
+  Equipped.AttackPower: 202.5
+  Equipped.Defense: 68.0
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Override 的优先级
+------------------------------------------------------------------------
+  Modifier.OverrideSource: training-mode
+  Override.MaxHealth: 1000.0
+  Override.AttackPower: 80.0
+  Override.Defense: 68.0
+  - Override 使用更高优先级，适合训练场、变身、剧情状态这类强制属性。
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+时间衰减修改器
+------------------------------------------------------------------------
+  t=0s Attack: 322.5
+  Modifier.Decay.Attack: t=0s,value=322.5
+  t=1s Attack: 292.5
+  Modifier.Decay.Attack: t=1s,value=292.5
+  t=2s Attack: 262.5
+  Modifier.Decay.Attack: t=2s,value=262.5
+  t=3s Attack: 232.5
+  Modifier.Decay.Attack: t=3s,value=232.5
+  t=4s Attack: 202.5
+  Modifier.Decay.Attack: t=4s,value=202.5
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - ModifierData：描述一次 Add、PercentAdd、Mul、Override 或 TimeDecay 修改。
+  - ModifierCalculator：按 ModifierOp 和 Priority 把同一属性的修改器合成为最终值。
+  - ModifierKey：让业务用稳定键区分 MaxHealth、AttackPower、Defense 等属性。
+  - IModifierContext：为时间衰减、等级曲线和属性捕获提供运行时上下文。
+
+Sample completed.
+
+===== 19-DOT Lifecycle.log =====
+------------------------------------------------------------------------
+DOT Lifecycle
+------------------------------------------------------------------------
+使用 IContinuous 和 IContinuousManager 表达持续伤害生命周期
+
+------------------------------------------------------------------------
+激活 DOT
+------------------------------------------------------------------------
+  DOT.TargetInitialHp: 120.0
+  DOT.Burning.State: Inactive
+  Register: True
+  TryActivate: True
+  State: Active
+  DOT.ActiveCount: 1
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+宿主固定步进 Tick
+------------------------------------------------------------------------
+  t=1.0s: hp=108.0, active=1, total=1
+  t=2.0s: hp=96.0, active=1, total=1
+  DOT.Burning.EndReason: Running
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+暂停与恢复
+------------------------------------------------------------------------
+  TryPause: True
+  t=3.0s: hp=96.0, active=0, total=1
+  TryResume: True
+  t=4.0s: hp=84.0, active=1, total=1
+[Event] burning ended: Completed
+  t=5.0s: hp=72.0, active=0, total=0
+  DOT.Step: pause=False, active=False
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+中断另一个 DOT
+------------------------------------------------------------------------
+  t=6.0s: hp=67.0, active=1, total=1
+[Event] poison ended: Interrupted
+  DOT.Poison.Interrupted: True
+  ActiveCount: 0
+  DOT.ActiveCount: 0
+  TotalCount: 0
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - IContinuous：把 DOT 抽象为可激活、暂停、恢复、结束和中断的持续体。
+  - IContinuousConfig：提供持续体 id、所属实体和可中断策略。
+  - IContinuousManager：由业务层实现注册、激活、暂停、恢复、清理和 owner 查询。
+  - ContinuousState / ContinuousEndReason：让宿主和 UI 能观察生命周期状态与结束原因。
+
+Sample completed.
+
+===== 20-HFSM Basic State.log =====
+------------------------------------------------------------------------
+HFSM Basic State
+------------------------------------------------------------------------
+使用 StateMachine、State 和 Transition 管理角色基础状态
+
+------------------------------------------------------------------------
+初始化状态机
+------------------------------------------------------------------------
+[Idle] ready for command
+  StateChanged: Idle
+  ActiveState: Idle
+  HFSM.InitialState: Idle
+  HFSM.ActiveState: Idle
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Idle -> Casting -> Idle
+------------------------------------------------------------------------
+-- 等待输入 (+0.25s) --
+  Idle.Command: None
+  ActiveState: Idle
+  HFSM.ActiveState: Idle
+  HFSM.Step: 等待输入:time=0.25,state=Idle
+  HFSM.CastRequested: True
+-- 请求施法 (+0.25s) --
+[Transition] Idle -> Casting
+[Idle] exit
+[Casting] begin fireball
+  StateChanged: Casting
+  Casting.Progress: 0.25
+  ActiveState: Casting
+  HFSM.ActiveState: Casting
+  HFSM.Step: 请求施法:time=0.50,state=Casting
+-- 施法推进 (+0.50s) --
+  Casting.Progress: 0.75
+  ActiveState: Casting
+  HFSM.ActiveState: Casting
+  HFSM.Step: 施法推进:time=1.00,state=Casting
+-- 施法完成 (+0.50s) --
+  Casting.Progress: 1.25
+  ActiveState: Casting
+  HFSM.ActiveState: Casting
+  HFSM.Step: 施法完成:time=1.50,state=Casting
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+任意状态进入 Dead
+------------------------------------------------------------------------
+  HFSM.FatalHp: 0.0
+-- 受到致命伤害 (+0.10s) --
+[Transition] Any -> Dead
+[Casting] exit
+[Dead] actor disabled
+  StateChanged: Dead
+  Dead.Hp: 0.0
+  ActiveState: Dead
+  HFSM.ActiveState: Dead
+  HFSM.Step: 受到致命伤害:time=1.60,state=Dead
+-- 死亡后请求施法被忽略 (+0.10s) --
+  Dead.Hp: 0.0
+  ActiveState: Dead
+  HFSM.ActiveState: Dead
+  HFSM.Step: 死亡后请求施法被忽略:time=1.70,state=Dead
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - StateMachine：注册状态、转换、任意状态转换，并维护 ActiveStateName。
+  - State：承载 OnEnter、OnLogic、OnExit 生命周期回调。
+  - Transition：用业务条件表达 Idle、Casting、Dead 之间的切换规则。
+  - AddTransitionFromAny：表达死亡这类可从任意状态打断的全局门控。
+
+Sample completed.
+
+===== 21-HFSM Trigger Bridge.log =====
+------------------------------------------------------------------------
+HFSM Trigger Bridge
+------------------------------------------------------------------------
+使用 EventBus 把战斗事件桥接到 HFSM trigger transition
+
+------------------------------------------------------------------------
+初始化状态机与事件桥
+------------------------------------------------------------------------
+[Idle] wait for events
+  StateChanged: Idle
+  ActiveState: Idle
+  HFSMBridge.InitialState: Idle
+  - 业务只发布事件；桥接层把事件翻译为 HFSM trigger。 
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+CommandEvent -> Attack trigger
+------------------------------------------------------------------------
+Publish CommandEvent(Attack)
+  HFSMBridge.Command: Attack
+Bridge CommandEvent -> Attack trigger
+  HFSMBridge.Trigger: Attack
+[Trigger] Idle -> Attack
+[Attack] combo=1
+  StateChanged: Attack
+-- 攻击帧 (+0.25s) --
+[Attack] resolve hit window
+  ActiveState: Attack
+  HFSMBridge.FinalState: Attack
+[Trigger] Attack -> Idle
+[Attack] exit
+[Idle] wait for events
+  StateChanged: Idle
+  HFSMBridge.Trigger: FinishAttack
+  ActiveState: Idle
+  HFSMBridge.Combo: 1
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+DamageEvent -> Stagger trigger
+------------------------------------------------------------------------
+Publish DamageEvent(30.0, orc)
+  HFSMBridge.Damage: amount=30.0,source=orc
+Bridge DamageEvent -> hp=70.0
+  HFSMBridge.Trigger: Stagger
+[Trigger] Idle -> Stagger
+[Stagger] interrupted by orc
+  StateChanged: Stagger
+-- 硬直帧 (+0.25s) --
+  Stagger.Hp: 70.0
+  ActiveState: Stagger
+  HFSMBridge.FinalState: Stagger
+[Trigger] Stagger -> Idle
+[Stagger] recovered
+[Idle] wait for events
+  StateChanged: Idle
+  HFSMBridge.Trigger: Recover
+  ActiveState: Idle
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Fatal Damage -> Dead trigger
+------------------------------------------------------------------------
+Publish DamageEvent(80.0, boss)
+  HFSMBridge.Damage: amount=80.0,source=boss
+Bridge DamageEvent -> hp=-10.0
+  HFSMBridge.Trigger: Dead
+[Trigger] Any -> Dead
+[Dead] stop combat logic
+  StateChanged: Dead
+-- 死亡帧 (+0.10s) --
+  Dead.Hp: -10.0
+  ActiveState: Dead
+  HFSMBridge.FinalState: Dead
+Publish CommandEvent(Attack)
+  HFSMBridge.Command: Attack
+Bridge CommandEvent -> Attack trigger
+  HFSMBridge.Trigger: Attack
+  ActiveState: Dead
+  HFSMBridge.FinalState: Dead
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - EventBus：由业务系统发布 CommandEvent 与 DamageEvent。 
+  - StateMachine.Trigger：桥接层把事件转换为 Attack、Stagger、Dead 等状态机 trigger。 
+  - AddTriggerTransition：只在指定 trigger 触发时检查对应状态转换。 
+  - State 生命周期：在进入 Attack、Stagger、Dead 时执行确定性业务回调。 
+
+Sample completed.
+
+===== 22-World Lifecycle.log =====
+------------------------------------------------------------------------
+World Lifecycle
+------------------------------------------------------------------------
+使用 WorldTypeRegistry 与 WorldManager 管理 World 生命周期
+
+  WorldLifecycle.RegisteredType: BattleWorld
+------------------------------------------------------------------------
+注册并创建 World
+------------------------------------------------------------------------
+  WorldId: battle-001
+  WorldType: BattleWorld
+  Initialized: True
+  WorldLifecycle.Created: id=battle-001,type=BattleWorld
+  WorldLifecycle.Initialized: True
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+固定帧驱动 WorldManager.Tick
+------------------------------------------------------------------------
+  Frame 1: WorldTime=0.05s
+  WorldLifecycle.Tick: frame=1,time=0.05
+  Frame 2: WorldTime=0.10s
+  WorldLifecycle.Tick: frame=2,time=0.10
+  Frame 3: WorldTime=0.15s
+  WorldLifecycle.Tick: frame=3,time=0.15
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+销毁 World
+------------------------------------------------------------------------
+  Destroyed: True
+  WorldLifecycle.Destroyed: True
+  RemainingWorlds: 0
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - WorldTypeRegistry：按 WorldType 注册创建函数。 
+  - RegistryWorldFactory：把 registry 适配为 IWorldFactory。 
+  - WorldManager：负责 Create、Tick、Destroy 与生命周期调用。 
+  - WorldClock：作为 World 服务随 Tick 推进确定性时间。 
+
+Sample completed.
+
+===== 23-World DI Basics.log =====
+------------------------------------------------------------------------
+World DI Basics
+------------------------------------------------------------------------
+使用 WorldContainerBuilder 注册 Singleton、Transient 与 Scoped 服务
+
+------------------------------------------------------------------------
+构建 World 服务容器
+------------------------------------------------------------------------
+  WorldId: di-world
+  Initialized: True
+  WorldDI.Initialized: True
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Singleton 与 Transient 生命周期
+------------------------------------------------------------------------
+  SingletonSame: True
+  WorldDI.SingletonSame: True
+  TransientSame: False
+  WorldDI.TransientSame: False
+  RequestA: 1
+  RequestB: 2
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+服务协作与 World Tick
+------------------------------------------------------------------------
+  WorldTime: 0.25
+  WorldDI.WorldTime: 0.25
+  DamageLog: slime takes 25 damage
+  WorldDI.DamageLog: slime takes 25 damage
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+接入 WorldManager
+------------------------------------------------------------------------
+  ManagedWorld: managed-di-world
+  WorldDI.ManagedWorld: managed-di-world
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - WorldContainerBuilder：注册 World 内服务和业务服务。 
+  - WorldLifetime.Singleton：同一个 World 内复用同一个服务实例。 
+  - WorldLifetime.Transient：每次 Resolve 创建新的短生命周期对象。 
+  - IWorldResolver：业务从 World.Services 中解析依赖。 
+
+Sample completed.
+
+===== 24-World Host Client.log =====
+------------------------------------------------------------------------
+World Host Client
+------------------------------------------------------------------------
+使用 HostRuntime 管理客户端连接、消息广播和 World 生命周期消息
+
+------------------------------------------------------------------------
+连接客户端并创建 World
+------------------------------------------------------------------------
+  HostClient.ConnectedClients: 2
+  BeforeCreateWorld: lobby
+  WorldCreated: lobby
+  WorldId: lobby
+  HostClient.WorldCreated: lobby
+  Player1Messages: 1
+  HostClient.Player1Messages: 1
+  Player2Messages: 1
+  HostClient.Player2Messages: 1
+  FirstMessage: WorldCreatedMessage
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+广播与点对点消息
+------------------------------------------------------------------------
+  Player1Messages: 2
+  HostClient.Player1Messages: 2
+  Player2Messages: 3
+  HostClient.Player2Messages: 3
+  BeforeSend: 5
+  HostClient.BeforeSend: 5
+  AfterSend: 5
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+断开客户端与固定帧 Tick
+------------------------------------------------------------------------
+  PreTick: 0.05
+  PostTick: 0.05
+  Player1Messages: 2
+  HostClient.Player1Messages: 2
+  Player2Messages: 4
+  HostClient.Player2Messages: 4
+  LobbyTime: 0.05
+  HostClient.LobbyTime: 0.05
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+销毁 World 自动广播
+------------------------------------------------------------------------
+  WorldDestroyed: lobby
+  Destroyed: True
+  HostClient.Destroyed: True
+  Player2LastMessage: WorldDestroyedMessage
+  HostClient.Player2LastMessage: WorldDestroyedMessage
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+这个示例实际接入的包能力
+------------------------------------------------------------------------
+  - HostRuntime.Connect / Disconnect：维护服务端客户端连接表。 
+  - HostRuntime.Broadcast / SendTo：统一触发发送前后钩子。 
+  - HostRuntime.CreateWorld / DestroyWorld：封装 WorldManager 并广播生命周期消息。 
+  - HostRuntime.Tick：由宿主统一驱动 WorldManager.Tick。 
+
+Sample completed.
+
+===== 25-Battle Runtime Loop.log =====
+------------------------------------------------------------------------
+Battle Runtime Loop
+------------------------------------------------------------------------
+使用 BattleInputFrameScheduler、BattleInputBuffer 和 BattleTickDriver 驱动固定帧战斗循环
+
+------------------------------------------------------------------------
+调度客户端输入帧
+------------------------------------------------------------------------
+  MoveRight: request=0, accepted=True, frame=1, status=RemappedTooEarly
+  BattleRuntimeLoop.Schedule[MoveRight]: request=0, accepted=True, frame=1, status=RemappedTooEarly
+  Guard: request=-1, accepted=False, frame=-1, status=RejectedInvalidFrame
+  BattleRuntimeLoop.Schedule[Guard]: request=-1, accepted=False, frame=-1, status=RejectedInvalidFrame
+  CastFireball: request=4, accepted=True, frame=4, status=Accepted
+  BattleRuntimeLoop.Schedule[CastFireball]: request=4, accepted=True, frame=4, status=Accepted
+  BattleRuntimeLoop.Scheduled: count=3
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+固定帧 Tick
+------------------------------------------------------------------------
+  Frame 0: inputs=0, commands=0, ticked=True, hp=100, next=1
+  BattleRuntimeLoop.Frame[0]: inputs=0, commands=0, ticked=True, hp=100, next=1
+  Frame 1: inputs=1, commands=1, ticked=True, hp=100, next=2
+  BattleRuntimeLoop.Frame[1]: inputs=1, commands=1, ticked=True, hp=100, next=2
+  Frame 2: inputs=0, commands=0, ticked=True, hp=100, next=3
+  BattleRuntimeLoop.Frame[2]: inputs=0, commands=0, ticked=True, hp=100, next=3
+  Frame 3: inputs=0, commands=0, ticked=True, hp=100, next=4
+  BattleRuntimeLoop.Frame[3]: inputs=0, commands=0, ticked=True, hp=100, next=4
+  Frame 4: inputs=1, commands=1, ticked=True, hp=65, next=5
+  BattleRuntimeLoop.Frame[4]: inputs=1, commands=1, ticked=True, hp=65, next=5
+  Frame 5: inputs=0, commands=0, ticked=True, hp=65, next=6
+  BattleRuntimeLoop.Frame[5]: inputs=0, commands=0, ticked=True, hp=65, next=6
+  BattleRuntimeLoop.FinalHp: 65
+  BattleRuntimeLoop.FinalFrame: 6
+
+Sample completed.
+
+===== 26-Combat Entity Keyed Index.log =====
+------------------------------------------------------------------------
+Combat Entity Keyed Index
+------------------------------------------------------------------------
+使用 BattleEntityManager 为战斗实体建立阵营、类型和标签索引
+
+------------------------------------------------------------------------
+实体注册
+------------------------------------------------------------------------
+  Registry.Count: 4
+  CombatEntityIndex.RegistryCount: 4
+  1001: Knight, faction=Heroes, kind=Hero, pos=(0.0, 0.0, 0.0)
+  2001: Goblin, faction=Monsters, kind=Monster, pos=(5.0, 0.0, 0.0)
+  2002: Brute, faction=Monsters, kind=Monster, pos=(8.0, 0.0, 0.0)
+  2003: Shaman, faction=Monsters, kind=Monster, pos=(6.0, 0.0, 2.0)
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+KeyedEntityIndex
+------------------------------------------------------------------------
+  Heroes: 1001
+  CombatEntityIndex.Heroes: 1001
+  Monsters: 2001, 2002, 2003
+  Monster kind: 2001, 2002, 2003
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+MultiKeyEntityIndex
+------------------------------------------------------------------------
+  tag:enemy: 2001, 2002, 2003
+  tag:elite: 2002
+  After Remove(2002), tag:enemy: 2001, 2003
+  CombatEntityIndex.EnemiesAfterRemove: 2001, 2003
+
+Sample completed.
+
+===== 27-Combat Skill Library Index.log =====
+------------------------------------------------------------------------
+Combat Skill Library Index
+------------------------------------------------------------------------
+使用 SkillLibrary 和派生索引管理技能配置
+
+------------------------------------------------------------------------
+技能目录
+------------------------------------------------------------------------
+  Count: 3
+  CombatSkillLibrary.Count: 3
+  10001: Fireball, school=Fire, cd=8000ms, tags=damage/projectile
+  10002: Holy Light, school=Holy, cd=12000ms, tags=heal/target
+  10003: Flame Zone, school=Fire, cd=15000ms, tags=damage/area
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+派生索引
+------------------------------------------------------------------------
+  Fire school: 10001, 10003
+  CombatSkillLibrary.FireSchool: 10001, 10003
+  tag:damage: 10001, 10003
+  tag:support after update: 10002
+  CombatSkillLibrary.SupportAfterUpdate: 10002
+
+Sample completed.
+
+===== 28-Combat Targeting Index Provider.log =====
+------------------------------------------------------------------------
+Combat Targeting Index Provider
+------------------------------------------------------------------------
+从实体索引提供候选，再通过 TargetSearchEngine 过滤、评分和选择
+
+------------------------------------------------------------------------
+候选来源
+------------------------------------------------------------------------
+  ByFaction(Monsters): 2001, 2002, 2003
+  CombatTargeting.Candidates: 2001, 2002, 2003
+  Shape: Circle origin=(0,0), radius=7
+  Score: nearest to actor 1001
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+搜索结果
+------------------------------------------------------------------------
+  Result ids: [2001, 2003]
+  CombatTargeting.Results: [2001, 2003]
+  Goblin#2001: (5.0, 0.0, 0.0)
+  Shaman#2003: (6.0, 0.0, 2.0)
+
+Sample completed.
+
+===== 29-Combat Damage Pipeline.log =====
+------------------------------------------------------------------------
+Combat Damage Pipeline
+------------------------------------------------------------------------
+使用 DamageCalculationPipeline 计算暴击、加成、魔抗、护盾和实际伤害
+
+------------------------------------------------------------------------
+输入
+------------------------------------------------------------------------
+  Attacker: Knight#1001
+  Target: Goblin#2001, MR=10, Shield=12
+  Request: Magic base=40, critChance=50%, critRoll=25%, bonus=10%
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+处理结果
+------------------------------------------------------------------------
+  ProcessedCount: 8
+  CombatDamage.ProcessedCount: 8
+  IsCritical: False
+  RawDamage: 52.0
+  ResistReduction: 5.2
+  FinalDamage: 52.0
+  ShieldDamage: 12.0
+  ActualDamage: 40.0
+  CombatDamage.ActualDamage: 40.0
+  TargetHpAfterApply: 50.0
+  CombatDamage.TargetHpAfterApply: 50.0
+
+Sample completed.
+
+===== 30-Combat Collision Raycast.log =====
+------------------------------------------------------------------------
+Combat Collision Raycast
+------------------------------------------------------------------------
+使用 NaiveCollisionWorld 在纯逻辑环境中做 Raycast 命中查询
+
+------------------------------------------------------------------------
+碰撞世界
+------------------------------------------------------------------------
+  LayerMask: MonsterLayer
+  Ray: origin=(0,0,0), direction=Right, distance=20
+------------------------------------------------------------------------
+  HitCollider: 1
+  HitActor: Knight#1001
+  CombatCollision.HitActor: Knight#1001
+  HitDistance: 0.55
+  CombatCollision.HitDistance: 0.55
+  HitPoint: (0.6, 0.0, 0.0)
+
+Sample completed.
+
+===== 31-Combat Area Enter Stay Exit.log =====
+------------------------------------------------------------------------
+Combat Area Enter Stay Exit
+------------------------------------------------------------------------
+使用 AreaWorld 生成 Enter/Stay/Exit/Expire 事件
+
+------------------------------------------------------------------------
+Area spawn
+------------------------------------------------------------------------
+  AreaId: 1
+  CombatArea.AreaId: 1
+  Center: (5.5, 0, 0)
+  Radius: 2.2
+------------------------------------------------------------------------
+Frame 1
+------------------------------------------------------------------------
+No area events.
+------------------------------------------------------------------------
+Frame 2
+------------------------------------------------------------------------
+No area events.
+Frame 3: Shaman moves out of area.
+------------------------------------------------------------------------
+Frame 3
+------------------------------------------------------------------------
+No area events.
+------------------------------------------------------------------------
+Frame 4
+------------------------------------------------------------------------
+  Expire: 1
+------------------------------------------------------------------------
+Frame 5
+------------------------------------------------------------------------
+No area events.
+
+Sample completed.
+
+===== 32-Combat Projectile Basic Hit.log =====
+------------------------------------------------------------------------
+Combat Projectile Basic Hit
+------------------------------------------------------------------------
+使用 ProjectileWorld 发射命中即消失的单发投射物
+
+------------------------------------------------------------------------
+Projectile spawn
+------------------------------------------------------------------------
+  ProjectileId: 1
+  CombatProjectile.ProjectileId: 1
+  Policy: ExitOnHit
+------------------------------------------------------------------------
+Frame 1
+------------------------------------------------------------------------
+  Hit: Knight#1001 at (0.6, 0.0, 0.0), count=1
+  CombatProjectile.Frame[1].Hit: Knight#1001 at (0.6, 0.0, 0.0), count=1
+  Exit: Hit at frame 1
+  ActiveCount: 0
+  CombatProjectile.Frame[1].ActiveCount: 0
+
+Sample completed.
+
+===== 33-Combat Projectile Hit Damage.log =====
+------------------------------------------------------------------------
+Combat Projectile Hit Damage
+------------------------------------------------------------------------
+把 ProjectileHitEvent 接到 DamageCalculationPipeline 并落地扣血
+
+------------------------------------------------------------------------
+Skill chain
+------------------------------------------------------------------------
+  Cast: Knight casts Fireball
+  CombatProjectileDamage.Cast: Knight casts Fireball
+  ProjectileId: 1
+  OnHit: DamagePipeline -> ApplyHp
+------------------------------------------------------------------------
+Frame 1
+------------------------------------------------------------------------
+  Hit: Knight#1001 at (0.6, 0.0, 0.0), count=1
+  CombatProjectile.Frame[1].Hit: Knight#1001 at (0.6, 0.0, 0.0), count=1
+  ApplyDamage: 43, Knight.Hp=117
+  CombatProjectileDamage.Frame[1].ApplyDamage: 43, Knight.Hp=117
+  Exit: Hit at frame 1
+  ActiveCount: 0
+  CombatProjectile.Frame[1].ActiveCount: 0
+
+Sample completed.
+
+===== 34-Sync Input Frame.log =====
+------------------------------------------------------------------------
+Sync Input Frame
+------------------------------------------------------------------------
+使用 FramePacket、RemoteFrameAggregator 和 WorldManagerFrameDriver 聚合并提交输入帧
+
+------------------------------------------------------------------------
+接收远端 FramePacket
+------------------------------------------------------------------------
+  Packet 0: player=player-1, op=1001, payload=1
+  Packet 1: player=player-1, op=2001, payload=9
+  Packet 1: player=player-2, op=1001, payload=2
+  Packet 3: player=player-2, op=2001, payload=7
+  SyncInput.Packet: count=4
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+按帧构建输入并推进 World
+------------------------------------------------------------------------
+  SyncInput.FrameBuilt: frame=0,commands=1
+  SyncInput.Submitted: frame=0,commands=1
+  SyncInput.WorldTick: ticks=1,driverNext=1,score=1
+  SyncInput.Trimmed: minFrame=0
+  Frame 0: commands=1, worldTicks=1, driverNext=1, score=1
+  SyncInput.FrameBuilt: frame=1,commands=2
+  SyncInput.Submitted: frame=1,commands=2
+  SyncInput.WorldTick: ticks=2,driverNext=2,score=93
+  SyncInput.Trimmed: minFrame=1
+  Frame 1: commands=2, worldTicks=2, driverNext=2, score=93
+  SyncInput.FrameBuilt: frame=2,commands=0
+  SyncInput.Submitted: frame=2,commands=0
+  SyncInput.WorldTick: ticks=3,driverNext=3,score=93
+  SyncInput.Trimmed: minFrame=2
+  Frame 2: commands=0, worldTicks=3, driverNext=3, score=93
+  SyncInput.FrameBuilt: frame=3,commands=1
+  SyncInput.Submitted: frame=3,commands=1
+  SyncInput.WorldTick: ticks=4,driverNext=4,score=163
+  SyncInput.Trimmed: minFrame=3
+  Frame 3: commands=1, worldTicks=4, driverNext=4, score=163
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+输入提交记录
+------------------------------------------------------------------------
+frame=0, count=1
+frame=1, count=2
+frame=2, count=0
+frame=3, count=1
+
+Sample completed.
+
+===== 35-Sync World Snapshot.log =====
+------------------------------------------------------------------------
+Sync World Snapshot
+------------------------------------------------------------------------
+使用 SnapshotRoutingBuilder、FrameSnapshotDispatcher 和 SnapshotPipeline 路由并应用 World 快照
+
+  WorldSnapshot.RoutingBuilt: registry=world-summary,op=3001
+------------------------------------------------------------------------
+构建并投递快照包
+------------------------------------------------------------------------
+  WorldSnapshot.Fed: count=3,lastFrame=2
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+直接订阅记录
+------------------------------------------------------------------------
+cmd frame=0, hp=100, alive=True
+cmd frame=1, hp=75, alive=True
+cmd frame=2, hp=0, alive=False
+  WorldSnapshot.DirectEvents: 3
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+Pipeline 应用结果
+------------------------------------------------------------------------
+pipeline frame=0, hp=100, alive=True
+pipeline frame=1, hp=75, alive=True
+pipeline frame=2, hp=0, alive=False
+  Applied: 3
+  WorldSnapshot.Applied: 3
+  LastFrame: 2
+  WorldSnapshot.LastFrame: 2
+  LastHp: 0
+  Alive: False
+  WorldSnapshot.Alive: False
+
+Sample completed.
+
+===== 36-Sync State Diff Apply.log =====
+------------------------------------------------------------------------
+Sync State Diff Apply
+------------------------------------------------------------------------
+使用 SnapshotBuffer、StateManager、StateDiffProvider 和 StateHashComputer 捕获、差异化并校验状态
+
+------------------------------------------------------------------------
+捕获基线帧
+------------------------------------------------------------------------
+frame=10: x=0.0, hp=100, flags=0, hash=7A22F9B8289E156F
+  StateDiff.BaseCaptured: frame=10,x=0.0,hp=100
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+捕获目标帧
+------------------------------------------------------------------------
+frame=11: x=3.0, hp=72, flags=1, hash=A817772A9A0056A8
+  StateDiff.TargetCaptured: frame=11,x=3.0,hp=72,flags=1
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+计算并应用快照差异
+------------------------------------------------------------------------
+  IncrementalFullSnapshot: False
+  IncrementalDiffBytes: <unstable>
+  StateDiff.Computed: <unstable>
+  AppliedFullSnapshot: True
+  AppliedFrame: 11
+  FrameHashMatched: True
+  StateDiff.HashMatched: True
+------------------------------------------------------------------------
+------------------------------------------------------------------------
+回滚到基线帧
+------------------------------------------------------------------------
+  Restored: True
+  StateDiff.Restored: restored=True,x=0.0,hp=100
+rollback=10: x=0.0, hp=100, flags=0, hash=7A22F9B8289E156F
+
+Sample completed.

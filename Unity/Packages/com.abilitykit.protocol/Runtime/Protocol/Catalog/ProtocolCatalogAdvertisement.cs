@@ -91,7 +91,10 @@ namespace AbilityKit.Protocol.Catalog
             ProtocolReliability reliability,
             int minimumSchemaVersion,
             int maximumSchemaVersion,
-            int maximumPayloadBytes)
+            int maximumPayloadBytes,
+            string? responseId = null,
+            double captureSampleRate = 1d,
+            IReadOnlyList<string>? sensitiveFields = null)
         {
             Id = id ?? string.Empty;
             OpCode = opCode;
@@ -103,6 +106,9 @@ namespace AbilityKit.Protocol.Catalog
             MinimumSchemaVersion = minimumSchemaVersion;
             MaximumSchemaVersion = maximumSchemaVersion;
             MaximumPayloadBytes = maximumPayloadBytes;
+            ResponseId = responseId ?? string.Empty;
+            CaptureSampleRate = captureSampleRate;
+            SensitiveFields = sensitiveFields ?? Array.Empty<string>();
         }
 
         public string Id { get; }
@@ -115,6 +121,9 @@ namespace AbilityKit.Protocol.Catalog
         public int MinimumSchemaVersion { get; }
         public int MaximumSchemaVersion { get; }
         public int MaximumPayloadBytes { get; }
+        public string ResponseId { get; }
+        public double CaptureSampleRate { get; }
+        public IReadOnlyList<string> SensitiveFields { get; }
 
         internal ProtocolMessageDefinition ToMessageDefinition() =>
             new ProtocolMessageDefinition(
@@ -127,7 +136,10 @@ namespace AbilityKit.Protocol.Catalog
                 Reliability,
                 minimumSchemaVersion: MinimumSchemaVersion,
                 maximumSchemaVersion: MaximumSchemaVersion,
-                maximumPayloadBytes: MaximumPayloadBytes);
+                maximumPayloadBytes: MaximumPayloadBytes,
+                responseId: ResponseId,
+                captureSampleRate: CaptureSampleRate,
+                sensitiveFields: SensitiveFields);
 
         internal static ProtocolCatalogAdvertisementMessage FromMessage(ProtocolMessageDefinition message) =>
             new ProtocolCatalogAdvertisementMessage(
@@ -140,37 +152,70 @@ namespace AbilityKit.Protocol.Catalog
                 message.Reliability,
                 message.MinimumSchemaVersion,
                 message.MaximumSchemaVersion,
-                message.MaximumPayloadBytes);
+                message.MaximumPayloadBytes,
+                message.ResponseId,
+                message.CaptureSampleRate,
+                message.SensitiveFields);
     }
 
     public readonly struct ProtocolCatalogAdvertisementDecodeOptions
     {
+        public const int DefaultMaximumPayloadBytes = 1048576;
+        public const int DefaultMaximumCatalogs = 64;
+        public const int DefaultMaximumMessagesPerCatalog = 4096;
+        public const int DefaultMaximumStringBytes = 4096;
+        public const int DefaultMaximumSensitiveFieldsPerMessage = 64;
+
         public ProtocolCatalogAdvertisementDecodeOptions(
-            int maximumPayloadBytes = 1048576,
-            int maximumCatalogs = 64,
-            int maximumMessagesPerCatalog = 4096,
-            int maximumStringBytes = 4096)
+            int maximumPayloadBytes = DefaultMaximumPayloadBytes,
+            int maximumCatalogs = DefaultMaximumCatalogs,
+            int maximumMessagesPerCatalog = DefaultMaximumMessagesPerCatalog,
+            int maximumStringBytes = DefaultMaximumStringBytes,
+            int maximumSensitiveFieldsPerMessage = DefaultMaximumSensitiveFieldsPerMessage)
         {
             MaximumPayloadBytes = maximumPayloadBytes;
             MaximumCatalogs = maximumCatalogs;
             MaximumMessagesPerCatalog = maximumMessagesPerCatalog;
             MaximumStringBytes = maximumStringBytes;
+            MaximumSensitiveFieldsPerMessage = maximumSensitiveFieldsPerMessage;
         }
 
         public int MaximumPayloadBytes { get; }
         public int MaximumCatalogs { get; }
         public int MaximumMessagesPerCatalog { get; }
         public int MaximumStringBytes { get; }
+        public int MaximumSensitiveFieldsPerMessage { get; }
 
-        public static ProtocolCatalogAdvertisementDecodeOptions Default =>
-            new ProtocolCatalogAdvertisementDecodeOptions();
+        /// <summary>
+        /// Decode bounds used when the caller passes no options.
+        /// The constructor arguments must be spelled out: for a struct, `new T()`
+        /// binds to the implicit parameterless constructor and zeroes every field
+        /// rather than calling the all-optional-parameter constructor above. The
+        /// zeroed form is not a valid bound - it rejects every non-empty payload
+        /// and every catalog - so Default would silently disable the codec.
+        /// </summary>
+        public static ProtocolCatalogAdvertisementDecodeOptions Default { get; } =
+            new ProtocolCatalogAdvertisementDecodeOptions(
+                DefaultMaximumPayloadBytes,
+                DefaultMaximumCatalogs,
+                DefaultMaximumMessagesPerCatalog,
+                DefaultMaximumStringBytes,
+                DefaultMaximumSensitiveFieldsPerMessage);
     }
 
     /// <summary>Deterministic, bounded codec for the system catalog advertisement payload.</summary>
     public static class ProtocolCatalogAdvertisementCodec
     {
         private const uint Magic = 0x41434B41; // "AKCA" in little endian.
-        private const ushort FormatVersion = 1;
+
+        /// <summary>
+        /// Version written by <see cref="Encode"/>. Version 2 added the per-message
+        /// response id, capture sample rate and sensitive field list; version 1 payloads
+        /// are still decoded, with those fields defaulted.
+        /// </summary>
+        private const ushort CurrentFormatVersion = 2;
+        private const ushort MinimumSupportedFormatVersion = 1;
+
         private const int HeaderBytes = 8;
         private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
 
@@ -179,7 +224,7 @@ namespace AbilityKit.Protocol.Catalog
             if (advertisement == null) throw new ArgumentNullException(nameof(advertisement));
             var bytes = new List<byte>(Math.Min(1048576, HeaderBytes + advertisement.Catalogs.Count * 128));
             AppendUInt32(bytes, Magic);
-            AppendUInt16(bytes, FormatVersion);
+            AppendUInt16(bytes, CurrentFormatVersion);
             AppendUInt16(bytes, CheckedCount(advertisement.Catalogs.Count, "catalog"));
             foreach (var catalog in advertisement.Catalogs)
             {
@@ -201,6 +246,13 @@ namespace AbilityKit.Protocol.Catalog
                     AppendInt32(bytes, message.MinimumSchemaVersion);
                     AppendInt32(bytes, message.MaximumSchemaVersion);
                     AppendInt32(bytes, message.MaximumPayloadBytes);
+                    AppendString(bytes, message.ResponseId);
+                    AppendDouble(bytes, message.CaptureSampleRate);
+                    AppendUInt16(bytes, CheckedCount(message.SensitiveFields.Count, "sensitive field"));
+                    foreach (var sensitiveField in message.SensitiveFields)
+                    {
+                        AppendString(bytes, sensitiveField);
+                    }
                 }
             }
             return bytes.ToArray();
@@ -221,7 +273,8 @@ namespace AbilityKit.Protocol.Catalog
             var reader = new Reader(payload, options);
             if (!reader.TryUInt32(out var magic) || magic != Magic)
                 return Fail("Invalid catalog advertisement magic.", out error);
-            if (!reader.TryUInt16(out var version) || version != FormatVersion)
+            if (!reader.TryUInt16(out var version) ||
+                version < MinimumSupportedFormatVersion || version > CurrentFormatVersion)
                 return Fail("Unsupported catalog advertisement format version.", out error);
             if (!reader.TryUInt16(out var catalogCount) || catalogCount > options.MaximumCatalogs)
                 return Fail("Catalog count exceeds the configured bound.", out error);
@@ -248,9 +301,35 @@ namespace AbilityKit.Protocol.Catalog
                         !Enum.IsDefined(typeof(ProtocolPacketKind), (int)kind) ||
                         !Enum.IsDefined(typeof(ProtocolReliability), (int)reliability))
                         return Fail("Invalid or truncated message advertisement.", out error);
+
+                    var responseId = string.Empty;
+                    var captureSampleRate = 1d;
+                    IReadOnlyList<string> sensitiveFields = Array.Empty<string>();
+                    if (version >= 2)
+                    {
+                        if (!reader.TryString(out responseId) || !reader.TryDouble(out captureSampleRate) ||
+                            double.IsNaN(captureSampleRate) || double.IsInfinity(captureSampleRate))
+                            return Fail("Invalid or truncated message advertisement.", out error);
+                        if (!reader.TryUInt16(out var sensitiveFieldCount) ||
+                            sensitiveFieldCount > options.MaximumSensitiveFieldsPerMessage)
+                            return Fail("Truncated or oversized catalog advertisement.", out error);
+                        if (sensitiveFieldCount > 0)
+                        {
+                            var fields = new List<string>(sensitiveFieldCount);
+                            for (var k = 0; k < sensitiveFieldCount; k++)
+                            {
+                                if (!reader.TryString(out var sensitiveField))
+                                    return Fail("Invalid or truncated message advertisement.", out error);
+                                fields.Add(sensitiveField);
+                            }
+                            sensitiveFields = fields;
+                        }
+                    }
+
                     messages.Add(new ProtocolCatalogAdvertisementMessage(
                         id, opCode, (ProtocolDirection)direction, (ProtocolPacketKind)kind,
-                        payloadType, codec, (ProtocolReliability)reliability, minimum, maximum, budget));
+                        payloadType, codec, (ProtocolReliability)reliability, minimum, maximum, budget,
+                        responseId, captureSampleRate, sensitiveFields));
                 }
 
                 catalogs.Add(new ProtocolCatalogAdvertisementCatalog(
@@ -271,7 +350,10 @@ namespace AbilityKit.Protocol.Catalog
                 options.MaximumPayloadBytes > 0 ? options.MaximumPayloadBytes : defaults.MaximumPayloadBytes,
                 options.MaximumCatalogs > 0 ? options.MaximumCatalogs : defaults.MaximumCatalogs,
                 options.MaximumMessagesPerCatalog > 0 ? options.MaximumMessagesPerCatalog : defaults.MaximumMessagesPerCatalog,
-                options.MaximumStringBytes > 0 ? options.MaximumStringBytes : defaults.MaximumStringBytes);
+                options.MaximumStringBytes > 0 ? options.MaximumStringBytes : defaults.MaximumStringBytes,
+                options.MaximumSensitiveFieldsPerMessage > 0
+                    ? options.MaximumSensitiveFieldsPerMessage
+                    : defaults.MaximumSensitiveFieldsPerMessage);
         }
 
         private static bool Fail(string message, out string error)
@@ -309,6 +391,16 @@ namespace AbilityKit.Protocol.Catalog
         }
 
         private static void AppendInt32(List<byte> bytes, int value) => AppendUInt32(bytes, unchecked((uint)value));
+
+        // BinaryPrimitives.WriteDoubleLittleEndian is .NET 5+; Unity targets
+        // netstandard2.1 and does not have it. Writing the IEEE-754 bit pattern
+        // as a little-endian Int64 produces the exact same eight bytes.
+        private static void AppendDouble(List<byte> bytes, double value)
+        {
+            Span<byte> buffer = stackalloc byte[8];
+            BinaryPrimitives.WriteInt64LittleEndian(buffer, BitConverter.DoubleToInt64Bits(value));
+            bytes.AddRange(buffer.ToArray());
+        }
 
         private ref struct Reader
         {
@@ -352,6 +444,15 @@ namespace AbilityKit.Protocol.Catalog
             {
                 if (!TryUInt32(out var raw)) { value = 0; return false; }
                 value = unchecked((int)raw);
+                return true;
+            }
+
+            public bool TryDouble(out double value)
+            {
+                if (_payload.Length - _offset < 8) { value = 0d; return false; }
+                value = BitConverter.Int64BitsToDouble(
+                    BinaryPrimitives.ReadInt64LittleEndian(_payload.Slice(_offset, 8)));
+                _offset += 8;
                 return true;
             }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Variables.Numeric;
@@ -30,6 +31,12 @@ namespace AbilityKit.Triggering.Runtime.Plan
                     continue;
                 }
 
+                if (argument.Kind == ActionArgKind.BlackboardValue)
+                {
+                    resolvedArgs[pair.Key] = ResolveBlackboardValue(in argument, in ctx);
+                    continue;
+                }
+
                 if (argument.Kind == ActionArgKind.BooleanValue || argument.Kind == ActionArgKind.StringValue)
                 {
                     resolvedArgs[pair.Key] = argument;
@@ -43,6 +50,45 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
             var parsed = ActionSchemaRegistry.GetParsedArgs<TArgs, TCtx>(call.Id, resolvedArgs, ctx);
             return ConvertToNamedArgsDict(parsed, resolvedArgs);
+        }
+
+        private static ActionArgValue ResolveBlackboardValue(
+            in ActionArgValue argument,
+            in ExecCtx<TCtx> ctx)
+        {
+            var valueRef = argument.BlackboardValue;
+            if (ctx.Blackboards == null ||
+                !ctx.Blackboards.TryResolve(valueRef.BoardId, out var board) ||
+                board == null)
+                throw new InvalidOperationException(
+                    $"Blackboard value board was not found. boardId={valueRef.BoardId} argument='{argument.Name}'.");
+
+            if (!(board is IBlackboardSchema schema) ||
+                !schema.TryGetKeySchema(valueRef.KeyId, out var keySchema) ||
+                !keySchema.CanRead || keySchema.Type != valueRef.KeyType)
+                throw new InvalidOperationException(
+                    $"Blackboard value is not readable or its type changed. boardId={valueRef.BoardId} keyId={valueRef.KeyId} argument='{argument.Name}'.");
+
+            switch (valueRef.KeyType)
+            {
+                case BlackboardKeyType.Int:
+                case BlackboardKeyType.Float:
+                case BlackboardKeyType.Double:
+                    if (board.TryGetDouble(valueRef.KeyId, out var numeric))
+                        return ActionArgValue.OfConst(numeric, argument.Name);
+                    break;
+                case BlackboardKeyType.Bool:
+                    if (board.TryGetBool(valueRef.KeyId, out var boolean))
+                        return ActionArgValue.OfBool(boolean, argument.Name);
+                    break;
+                case BlackboardKeyType.String:
+                    if (board.TryGetString(valueRef.KeyId, out var text))
+                        return ActionArgValue.OfString(text, argument.Name);
+                    break;
+            }
+
+            throw new InvalidOperationException(
+                $"Blackboard value was not found. boardId={valueRef.BoardId} keyId={valueRef.KeyId} argument='{argument.Name}'.");
         }
 
         public static NamedArgsDict CreatePositionalArgs(double v0)

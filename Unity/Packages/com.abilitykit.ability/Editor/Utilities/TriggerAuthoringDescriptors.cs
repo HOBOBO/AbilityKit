@@ -65,7 +65,19 @@ namespace AbilityKit.Ability.Editor.Utilities
             Name = name ?? string.Empty;
             Type = type;
             Required = required;
-            AllowedSources = allowedSources;
+            if (access == TriggerParameterAccess.Output)
+            {
+                const TriggerValueSourceMask writableBoards =
+                    TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard;
+                var outputSources = allowedSources & writableBoards;
+                AllowedSources = outputSources != TriggerValueSourceMask.None
+                    ? outputSources
+                    : writableBoards;
+            }
+            else
+            {
+                AllowedSources = allowedSources;
+            }
             Access = access;
             RequiredGroup = requiredGroup ?? string.Empty;
             Fields = fields ?? Array.Empty<TriggerParameterDescriptor>();
@@ -85,7 +97,17 @@ namespace AbilityKit.Ability.Editor.Utilities
     public enum TriggerParameterAccess
     {
         Read = 0,
-        Write = 1
+        Write = 1,
+        // Outputs are Blackboard bindings populated by the action implementation.
+        Output = 2
+    }
+
+    public static class TriggerParameterAccessRules
+    {
+        public static bool IsWrite(TriggerParameterAccess access)
+        {
+            return access == TriggerParameterAccess.Write || access == TriggerParameterAccess.Output;
+        }
     }
 
     public sealed class TriggerTypeDescriptor
@@ -288,6 +310,21 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void RegisterCompleteActions(TriggerTypeDescriptorCatalog catalog)
         {
             catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "seq", "顺序执行", "Action/Flow", 1, -1, true));
+            catalog.Register(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "for_each",
+                "遍历集合",
+                "Action/Flow",
+                1,
+                -1,
+                true,
+                Required("collection", TriggerValueType.Integer),
+                Writable("item", TriggerValueType.Integer),
+                new TriggerParameterDescriptor(
+                    "max_iterations",
+                    TriggerValueType.Integer,
+                    true,
+                    TriggerValueSourceMask.Constant)));
             catalog.Register(Action("execute_trigger", "执行触发效果", "Action/Flow",
                 new TriggerParameterDescriptor(
                     "trigger_id",
@@ -849,42 +886,37 @@ namespace AbilityKit.Ability.Editor.Utilities
                     effectiveTrigger.Blackboard,
                     path + ".blackboard",
                     TriggerAuthoringLocalBlackboardScope.Trigger);
+                ValidateCallableParameters(
+                    diagnostics,
+                    effectiveTrigger,
+                    path + ".callableParameters",
+                    declaredTriggerKeys);
                 foreach (var pair in declaredTriggerKeys) triggerKeys[pair.Key] = pair.Value;
                 ValidateTemplateReference(diagnostics, trigger, path, context, eventDefinition, moduleKeys);
                 if (trigger.Template == null || trigger.Condition != null)
                     ValidateResolvedNode(diagnostics, module, effectiveTrigger.Condition, TriggerNodeKind.Condition, path + ".condition", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
                 if (trigger.Template == null || trigger.Actions != null)
                     ValidateResolvedNode(diagnostics, module, effectiveTrigger.Actions, TriggerNodeKind.Action, path + ".actions", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
-            }
 
-            ValidateTriggerReferences(diagnostics, module);
+                if (effectiveTrigger.Actions != null && TriggerAuthoringGroupResolver.TryExpand(
+                        module,
+                        effectiveTrigger.Actions,
+                        TriggerNodeKind.Action,
+                        out var expandedActions,
+                        out _))
+                    ValidateTriggerReferenceNode(
+                        diagnostics,
+                        module,
+                        effectiveTrigger,
+                        expandedActions,
+                        path + ".actions",
+                        triggerKeys,
+                        eventDefinition,
+                        context.GlobalBlackboard,
+                        context.Templates);
+            }
 
             return diagnostics;
-        }
-
-        private static void ValidateTriggerReferences(
-            ICollection<TriggerAuthoringDiagnostic> diagnostics,
-            TriggerAuthoringModuleData module)
-        {
-            var triggers = module?.Triggers;
-            if (triggers == null) return;
-            for (var i = 0; i < triggers.Count; i++)
-            {
-                var trigger = triggers[i];
-                if (trigger == null || trigger.Actions == null) continue;
-                if (!TriggerAuthoringGroupResolver.TryExpand(
-                        module,
-                        trigger.Actions,
-                        TriggerNodeKind.Action,
-                        out var actions,
-                        out _)) continue;
-                ValidateTriggerReferenceNode(
-                    diagnostics,
-                    module,
-                    trigger,
-                    actions,
-                    $"module.triggers[{i}].actions");
-            }
         }
 
         private static void ValidateTriggerReferenceNode(
@@ -892,7 +924,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringModuleData module,
             TriggerDefinitionData owner,
             TriggerNodeData node,
-            string path)
+            string path,
+            IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
+            TriggerEventDefinitionData eventDefinition,
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerTemplateDescriptorCatalog templates)
         {
             if (node == null || !node.Enabled) return;
             if (TriggerAuthoringTriggerReuse.IsReference(node))
@@ -908,12 +944,21 @@ namespace AbilityKit.Ability.Editor.Utilities
                         AddError(diagnostics, "TRG1702", path + ".arguments.trigger_id", $"未找到触发器：{targetId}。");
                     else if (owner != null && ReferencesTrigger(module, target, owner.Id, new HashSet<int>()))
                         AddError(diagnostics, "TRG1703", path + ".arguments.trigger_id", $"触发器引用形成循环：{owner.Id} -> {targetId}。");
+                    else
+                        ValidateCallableBindings(
+                            diagnostics,
+                            node,
+                            TriggerAuthoringTemplateDefinition.ResolveEffective(target, templates),
+                            path,
+                            localKeys,
+                            eventDefinition,
+                            globalBlackboard);
                 }
             }
 
-            ValidateTriggerReferenceNode(diagnostics, module, owner, node.Condition, path + ".condition");
-            ValidateTriggerReferenceChildren(diagnostics, module, owner, node.Children, path + ".children");
-            ValidateTriggerReferenceChildren(diagnostics, module, owner, node.ElseChildren, path + ".elseChildren");
+            ValidateTriggerReferenceNode(diagnostics, module, owner, node.Condition, path + ".condition", localKeys, eventDefinition, globalBlackboard, templates);
+            ValidateTriggerReferenceChildren(diagnostics, module, owner, node.Children, path + ".children", localKeys, eventDefinition, globalBlackboard, templates);
+            ValidateTriggerReferenceChildren(diagnostics, module, owner, node.ElseChildren, path + ".elseChildren", localKeys, eventDefinition, globalBlackboard, templates);
         }
 
         private static void ValidateTriggerReferenceChildren(
@@ -921,11 +966,138 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringModuleData module,
             TriggerDefinitionData owner,
             IReadOnlyList<TriggerNodeData> children,
-            string path)
+            string path,
+            IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
+            TriggerEventDefinitionData eventDefinition,
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerTemplateDescriptorCatalog templates)
         {
             if (children == null) return;
             for (var i = 0; i < children.Count; i++)
-                ValidateTriggerReferenceNode(diagnostics, module, owner, children[i], path + "[" + i + "]");
+                ValidateTriggerReferenceNode(diagnostics, module, owner, children[i], path + "[" + i + "]", localKeys, eventDefinition, globalBlackboard, templates);
+        }
+
+        private static void ValidateCallableParameters(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerDefinitionData trigger,
+            string path,
+            IReadOnlyDictionary<string, BlackboardSymbol> triggerKeys)
+        {
+            var parameters = trigger?.CallableParameters;
+            if (parameters == null || parameters.Count == 0) return;
+            if (!string.Equals(trigger.Scope, "owner", StringComparison.OrdinalIgnoreCase))
+                AddError(diagnostics, "TRG1710", path, "带参数的可调用触发器必须使用 owner 作用域。");
+
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            var localKeys = new HashSet<string>(StringComparer.Ordinal);
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                var parameterPath = path + "[" + i + "]";
+                if (parameter == null)
+                {
+                    AddError(diagnostics, "TRG1711", parameterPath, "调用参数不能为空。");
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(parameter.Name))
+                    AddError(diagnostics, "TRG1711", parameterPath + ".name", "必须填写调用参数名称。");
+                else if (string.Equals(parameter.Name, TriggerAuthoringTriggerReuse.TriggerIdArgument, StringComparison.Ordinal))
+                    AddError(diagnostics, "TRG1711", parameterPath + ".name", "调用参数名称不能使用保留名称 trigger_id。");
+                else if (!names.Add(parameter.Name))
+                    AddError(diagnostics, "TRG1712", parameterPath + ".name", $"调用参数重复：{parameter.Name}。");
+
+                if (!IsRuntimeBlackboardType(parameter.Type))
+                    AddError(diagnostics, "TRG1713", parameterPath + ".type", $"调用参数不支持类型 {parameter.Type}。");
+                if (parameter.Direction != TriggerCallableParameterDirection.Input &&
+                    parameter.Direction != TriggerCallableParameterDirection.Output)
+                    AddError(diagnostics, "TRG1713", parameterPath + ".direction", "调用参数方向必须是 Input 或 Output。");
+                if (string.IsNullOrWhiteSpace(parameter.LocalVariableKey))
+                {
+                    AddError(diagnostics, "TRG1714", parameterPath + ".localVariableKey", "调用参数必须绑定触发器局部变量。");
+                    continue;
+                }
+                if (!localKeys.Add(parameter.LocalVariableKey))
+                    AddError(diagnostics, "TRG1715", parameterPath + ".localVariableKey", $"多个调用参数不能绑定同一个局部变量：{parameter.LocalVariableKey}。");
+                if (triggerKeys == null || !triggerKeys.TryGetValue(parameter.LocalVariableKey, out var symbol))
+                {
+                    AddError(diagnostics, "TRG1716", parameterPath + ".localVariableKey", $"未找到调用参数对应的触发器局部变量：{parameter.LocalVariableKey}。");
+                    continue;
+                }
+                if (!IsTypeCompatible(parameter.Type, symbol.Type))
+                    AddError(diagnostics, "TRG1717", parameterPath + ".type", $"调用参数类型 {parameter.Type} 与局部变量类型 {symbol.Type} 不一致。");
+                if (symbol.ReadOnly)
+                    AddError(diagnostics, "TRG1722", parameterPath + ".localVariableKey", "调用参数对应的局部变量必须允许运行时写入。");
+
+                // Runtime needs to populate inputs before entering the target plan. Inside the
+                // callable, input symbols remain read-only at authoring time.
+                if (parameter.Direction == TriggerCallableParameterDirection.Input)
+                    symbol.ReadOnly = true;
+
+                if (parameter.Direction == TriggerCallableParameterDirection.Output && parameter.HasDefault)
+                    AddError(diagnostics, "TRG1718", parameterPath + ".hasDefault", "输出参数不能设置默认值。");
+                if (parameter.Direction == TriggerCallableParameterDirection.Input && parameter.HasDefault)
+                {
+                    if (parameter.DefaultValue == null || parameter.DefaultValue.Source != TriggerValueSource.Constant)
+                        AddError(diagnostics, "TRG1719", parameterPath + ".defaultValue", "调用参数默认值必须是常量。");
+                    else if (!IsTypeCompatible(parameter.Type, parameter.DefaultValue.Type))
+                        AddError(diagnostics, "TRG1719", parameterPath + ".defaultValue.type", "调用参数默认值类型不匹配。");
+                }
+            }
+        }
+
+        private static void ValidateCallableBindings(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerNodeData call,
+            TriggerDefinitionData target,
+            string path,
+            IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
+            TriggerEventDefinitionData eventDefinition,
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+        {
+            var parameters = target?.CallableParameters;
+            var bindings = new Dictionary<string, TriggerArgumentData>(StringComparer.Ordinal);
+            var arguments = call.Arguments ?? new List<TriggerArgumentData>();
+            for (var i = 0; i < arguments.Count; i++)
+            {
+                var argument = arguments[i];
+                if (argument == null || string.IsNullOrWhiteSpace(argument.Name) ||
+                    string.Equals(argument.Name, TriggerAuthoringTriggerReuse.TriggerIdArgument, StringComparison.Ordinal))
+                    continue;
+                bindings[argument.Name] = argument;
+            }
+
+            for (var i = 0; i < (parameters?.Count ?? 0); i++)
+            {
+                var parameter = parameters[i];
+                if (parameter == null || string.IsNullOrWhiteSpace(parameter.Name)) continue;
+                if (!bindings.TryGetValue(parameter.Name, out var binding))
+                {
+                    if (parameter.Required && !(parameter.Direction == TriggerCallableParameterDirection.Input && parameter.HasDefault))
+                        AddError(diagnostics, "TRG1720", path + ".arguments." + parameter.Name, $"缺少调用参数绑定：{parameter.Name}。");
+                    continue;
+                }
+
+                var output = parameter.Direction == TriggerCallableParameterDirection.Output;
+                ValidateValue(
+                    diagnostics,
+                    binding.Value,
+                    new TriggerParameterDescriptor(
+                        parameter.Name,
+                        parameter.Type,
+                        parameter.Required,
+                        output
+                            ? TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard
+                            : TriggerValueSourceMask.All,
+                        output ? TriggerParameterAccess.Output : TriggerParameterAccess.Read),
+                    path + ".arguments." + parameter.Name,
+                    localKeys,
+                    eventDefinition,
+                    globalBlackboard);
+            }
+
+            foreach (var pair in bindings)
+                if (TriggerAuthoringTriggerReuse.FindParameter(target, pair.Key) == null)
+                    AddWarning(diagnostics, "TRG1721", path + ".arguments." + pair.Key, $"目标触发器未声明调用参数：{pair.Key}。");
         }
 
         private static bool ReferencesTrigger(
@@ -1331,8 +1503,21 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
                 if (variable.Type == TriggerValueType.None)
                     AddError(diagnostics, "TRG1102", itemPath + ".type", "必须设置黑板值类型。");
+                else if (!IsRuntimeBlackboardType(variable.Type))
+                    AddError(diagnostics, "TRG1103", itemPath + ".type",
+                        $"项目触发器黑板不支持类型 {variable.Type}。");
             }
             return keys;
+        }
+
+        private static bool IsRuntimeBlackboardType(TriggerValueType type)
+        {
+            return type == TriggerValueType.Integer ||
+                   type == TriggerValueType.Number ||
+                   type == TriggerValueType.Boolean ||
+                   type == TriggerValueType.String ||
+                   type == TriggerValueType.Entity ||
+                   type == TriggerValueType.ObjectId;
         }
 
         private static void ValidateNode(
@@ -1398,7 +1583,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         known = true;
                         break;
                     }
-                    if (!known)
+                    if (!known && !TriggerAuthoringTriggerReuse.IsReference(node))
                         AddWarning(diagnostics, "TRG1214", argumentPath + ".name",
                             $"未知参数“{argument.Name}”会继续保留，但编辑 Schema 将忽略该参数。");
                 }
@@ -1424,6 +1609,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             ValidateSetVariableTypes(diagnostics, node, arguments, path);
+            ValidateForEachLimits(diagnostics, node, arguments, path);
 
             var requiredGroups = new HashSet<string>(StringComparer.Ordinal);
             for (var i = 0; i < descriptor.Parameters.Count; i++)
@@ -1496,10 +1682,34 @@ namespace AbilityKit.Ability.Editor.Utilities
                     $"set_var 目标类型 {targetType} 与值类型 {valueType} 不匹配。");
         }
 
+        private static void ValidateForEachLimits(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerNodeData node,
+            IReadOnlyDictionary<string, TriggerArgumentData> arguments,
+            string path)
+        {
+            if (node.Kind != TriggerNodeKind.Action ||
+                !string.Equals(node.Type, "for_each", StringComparison.Ordinal) ||
+                !arguments.TryGetValue("max_iterations", out var argument) ||
+                argument?.Value == null)
+                return;
+
+            var value = argument.Value;
+            if (value.Source != TriggerValueSource.Constant ||
+                value.Type != TriggerValueType.Integer ||
+                value.IntegerValue <= 0 || value.IntegerValue > int.MaxValue)
+                AddError(
+                    diagnostics,
+                    "TRG1316",
+                    path + ".arguments.max_iterations",
+                    "for_each 的 max_iterations 必须是大于 0 的整数常量。");
+        }
+
         private static bool IsSetVariableType(TriggerValueType type)
         {
             return type == TriggerValueType.Integer || type == TriggerValueType.Number ||
-                   type == TriggerValueType.Boolean || type == TriggerValueType.String;
+                   type == TriggerValueType.Boolean || type == TriggerValueType.String ||
+                   type == TriggerValueType.Entity || type == TriggerValueType.ObjectId;
         }
 
         private static bool IsSetVariableTypeCompatible(TriggerValueType target, TriggerValueType value)
@@ -1556,7 +1766,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     {
                         if (!IsTypeCompatible(local.Type, value.Type))
                             AddError(diagnostics, "TRG1309", path + ".type", $"局部黑板 Key“{value.Path}”的类型为 {local.Type}，当前值类型为 {value.Type}。");
-                        if (parameter.Access == TriggerParameterAccess.Write && local.ReadOnly)
+                        if (TriggerParameterAccessRules.IsWrite(parameter.Access) && local.ReadOnly)
                             AddError(diagnostics, "TRG1314", path + ".path", $"局部黑板 Key“{value.Path}”为只读。");
                     }
                     break;
@@ -1567,8 +1777,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                         ValidateGlobalBlackboardValue(diagnostics, value, parameter.Access, path, globalBlackboard);
                     break;
                 case TriggerValueSource.Expression:
-                    if (string.IsNullOrWhiteSpace(value.Expression))
-                        AddError(diagnostics, "TRG1306", path + ".expression", "必须填写表达式。");
+                    if (!TriggerAuthoringValueRefEditor.TryValidateExpression(value.Expression, out var expressionError))
+                        AddError(diagnostics, "TRG1325", path + ".expression", expressionError);
                     break;
             }
         }
@@ -1712,7 +1922,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 AddError(diagnostics, "TRG1313", path + ".type", $"全局黑板 Key“{value.Path}”的类型为 {key.Type}，当前值类型为 {value.Type}。");
             if (access == TriggerParameterAccess.Read && !key.CanRead)
                 AddError(diagnostics, "TRG1311", path + ".path", $"全局黑板 Key“{value.Path}”不可读。");
-            if (access == TriggerParameterAccess.Write && !key.CanWrite)
+            if (TriggerParameterAccessRules.IsWrite(access) && !key.CanWrite)
                 AddError(diagnostics, "TRG1312", path + ".path", $"全局黑板 Key“{value.Path}”为只读。");
         }
 

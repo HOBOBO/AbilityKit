@@ -7,6 +7,9 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Collections;
+using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -26,11 +29,22 @@ namespace AbilityKit.Demo.Moba.Services
             FunctionRegistry functions,
             ActionRegistry actions,
             IPayloadAccessorRegistry payloads = null,
-            MobaEffectExecutionService currentEffects = null)
+            MobaEffectExecutionService currentEffects = null,
+            INumericVarDomainRegistry numericDomains = null,
+            INumericRpnFunctionRegistry numericFunctions = null)
         {
             _services = services;
             _planDb = planDb;
-            _dependencies = new MobaTriggerPlanRuntimeDependencies(services, eventBus, functions, actions, payloads);
+            if (numericDomains == null) services?.TryResolve(out numericDomains);
+            if (numericFunctions == null) services?.TryResolve(out numericFunctions);
+            _dependencies = new MobaTriggerPlanRuntimeDependencies(
+                services,
+                eventBus,
+                functions,
+                actions,
+                payloads,
+                numericDomains,
+                numericFunctions);
             _effects = new MobaTriggerPlanEffectResolver(services, currentEffects);
             _contextFactory = new MobaTriggerPlanExecutionContextFactory(_dependencies, _effects);
             _runner = new MobaTriggerPlanExecutionRunner();
@@ -71,11 +85,19 @@ namespace AbilityKit.Demo.Moba.Services
             var ctrl = new ExecutionControl();
             ctrl.Reset();
 
-            var execCtx = _contextFactory.Create(ctrl);
-            var hasExecutionRoot = _planDb.TryGetExecutionRootByTriggerId(triggerId, out var executionRoot);
-
+            TriggerCollectionStore ownedCollections = null;
+            ITriggerCollectionResolver collections = null;
+            var currentEffects = _effects.Resolve();
+            if (currentEffects == null ||
+                !currentEffects.TryGetCurrentTriggerCollections(out collections))
+            {
+                ownedCollections = new TriggerCollectionStore();
+                collections = ownedCollections;
+            }
             try
             {
+                var execCtx = _contextFactory.Create(ctrl, collections);
+                var hasExecutionRoot = _planDb.TryGetExecutionRootByTriggerId(triggerId, out var executionRoot);
                 return _runner.Execute(plan, executionRoot, hasExecutionRoot, args, in execCtx, ctrl, predicateMissIsSuccess);
             }
             catch (Exception ex)
@@ -88,6 +110,10 @@ namespace AbilityKit.Demo.Moba.Services
                     MobaBattleExceptionSeverity.Critical,
                     detail: $"triggerId={triggerId}");
                 return false;
+            }
+            finally
+            {
+                ownedCollections?.Dispose();
             }
         }
 

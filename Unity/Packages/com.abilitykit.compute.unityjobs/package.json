@@ -1,0 +1,20 @@
+{
+  "name": "com.abilitykit.compute.unityjobs",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Compute Unity Jobs",
+  "unity": "2022.3",
+  "description": "Optional reusable native buffers and dependency-plan primitives for concrete Unity Jobs and Burst business extensions.",
+  "keywords": [
+    "abilitykit",
+    "compute",
+    "jobs",
+    "burst"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  },
+  "dependencies": {
+    "com.abilitykit.compute": "0.1.0",
+    "com.unity.collections": "2.1.4"
+  }
+}

@@ -2,11 +2,17 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Unity has no implicit usings; keep this matching so the .NET build is a faithful
+         proxy for the Unity compile of the same sources. -->
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>AbilityKit.Samples.Abstractions</RootNamespace>
     <AssemblyName>AbilityKit.Samples.Abstractions</AssemblyName>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
   </PropertyGroup>
 
+  <!-- 源码权威在 Unity/Packages/com.abilitykit.samples；本工程只做投影，不再持有源码。 -->
+  <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.samples/Runtime/Abstractions/**/*.cs" />
+  </ItemGroup>
 </Project>

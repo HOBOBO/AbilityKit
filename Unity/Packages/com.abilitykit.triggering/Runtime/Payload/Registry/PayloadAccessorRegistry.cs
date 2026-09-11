@@ -42,9 +42,16 @@ namespace AbilityKit.Triggering.Payload
 
         public bool TryGetInt<TArgs>(in TArgs args, int fieldId, out int value)
         {
-            if (_intAccessorsByArgsType.TryGetValue(typeof(TArgs), out var obj) && obj is IPayloadIntAccessor<TArgs> accessor)
+            if (_intAccessorsByArgsType.TryGetValue(typeof(TArgs), out var obj) &&
+                obj is IPayloadIntAccessor<TArgs> accessor &&
+                accessor.TryGet(in args, fieldId, out value))
             {
-                return accessor.TryGet(in args, fieldId, out value);
+                return true;
+            }
+
+            if (args is object boxed && boxed.GetType() != typeof(TArgs))
+            {
+                return TryGetBoxedInt(boxed, fieldId, out value);
             }
 
             value = default;
@@ -53,9 +60,18 @@ namespace AbilityKit.Triggering.Payload
 
         public bool TryGetDouble<TArgs>(in TArgs args, int fieldId, out double value)
         {
-            if (_doubleAccessorsByArgsType.TryGetValue(typeof(TArgs), out var obj) && obj is IPayloadDoubleAccessor<TArgs> accessor)
+            if (_doubleAccessorsByArgsType.TryGetValue(typeof(TArgs), out var obj) &&
+                obj is IPayloadDoubleAccessor<TArgs> accessor &&
+                accessor.TryGet(in args, fieldId, out value))
             {
-                return accessor.TryGet(in args, fieldId, out value);
+                return true;
+            }
+
+            if (args is object boxed &&
+                boxed.GetType() != typeof(TArgs) &&
+                TryGetBoxedDouble(boxed, fieldId, out value))
+            {
+                return true;
             }
 
             if (TryGetInt(in args, fieldId, out var iv))
@@ -70,8 +86,29 @@ namespace AbilityKit.Triggering.Payload
 
         public bool TryGetInt(in object args, int fieldId, out int value)
         {
-            if (args != null
-                && _boxedIntAccessorsByArgsType.TryGetValue(args.GetType(), out var accessor))
+            return TryGetBoxedInt(args, fieldId, out value);
+        }
+
+        public bool TryGetDouble(in object args, int fieldId, out double value)
+        {
+            if (TryGetBoxedDouble(args, fieldId, out value))
+            {
+                return true;
+            }
+
+            if (TryGetInt(in args, fieldId, out var intValue))
+            {
+                value = intValue;
+                return true;
+            }
+
+            value = default;
+            return false;
+        }
+
+        private bool TryGetBoxedInt(object args, int fieldId, out int value)
+        {
+            if (args != null && _boxedIntAccessorsByArgsType.TryGetValue(args.GetType(), out var accessor))
             {
                 return accessor.TryGet(args, fieldId, out value);
             }
@@ -80,18 +117,12 @@ namespace AbilityKit.Triggering.Payload
             return false;
         }
 
-        public bool TryGetDouble(in object args, int fieldId, out double value)
+        private bool TryGetBoxedDouble(object args, int fieldId, out double value)
         {
             if (args != null
                 && _boxedDoubleAccessorsByArgsType.TryGetValue(args.GetType(), out var accessor)
                 && accessor.TryGet(args, fieldId, out value))
             {
-                return true;
-            }
-
-            if (TryGetInt(in args, fieldId, out var intValue))
-            {
-                value = intValue;
                 return true;
             }
 

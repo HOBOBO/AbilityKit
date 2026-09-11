@@ -200,6 +200,21 @@
         "com.abilitykit.core": "0.1.0"
       }
     },
+    "com.abilitykit.compute": {
+      "version": "file:com.abilitykit.compute",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.compute.unityjobs": {
+      "version": "file:com.abilitykit.compute.unityjobs",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.compute": "0.1.0",
+        "com.unity.collections": "2.1.4"
+      }
+    },
     "com.abilitykit.context": {
       "version": "file:com.abilitykit.context",
       "depth": 0,
@@ -456,6 +471,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
+        "com.abilitykit.compute.unityjobs": "0.1.0",
         "com.abilitykit.demo.shooter.runtime": "0.0.1",
         "com.abilitykit.world.di": "0.1.0",
         "com.unity.burst": "1.8.21",
@@ -839,6 +855,41 @@
       "source": "embedded",
       "dependencies": {}
     },
+    "com.abilitykit.samples": {
+      "version": "file:com.abilitykit.samples",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.behavior": "0.1.0",
+        "com.abilitykit.combat.collision.abstractions": "0.1.0",
+        "com.abilitykit.combat.damage": "0.1.0",
+        "com.abilitykit.combat.entitymanager": "0.1.0",
+        "com.abilitykit.combat.projectile": "0.1.0",
+        "com.abilitykit.combat.skilllibrary": "0.1.0",
+        "com.abilitykit.combat.targeting": "0.1.0",
+        "com.abilitykit.continuous": "0.1.0",
+        "com.abilitykit.core": "0.1.0",
+        "com.abilitykit.dataflow": "0.1.0",
+        "com.abilitykit.deterministic": "0.1.0",
+        "com.abilitykit.flow": "0.1.0",
+        "com.abilitykit.game.battle.runtime": "0.1.0",
+        "com.abilitykit.gameplaytags": "0.1.0",
+        "com.abilitykit.hfsm": "0.1.0",
+        "com.abilitykit.host": "0.1.0",
+        "com.abilitykit.host.extension": "0.1.0",
+        "com.abilitykit.modifiers": "0.1.0",
+        "com.abilitykit.network.runtime": "0.1.0",
+        "com.abilitykit.pipeline": "0.1.0",
+        "com.abilitykit.timer": "0.1.0",
+        "com.abilitykit.triggering": "0.1.0",
+        "com.abilitykit.world.di": "0.1.0",
+        "com.abilitykit.world.framesync": "0.1.0",
+        "com.abilitykit.world.networkfragments": "0.1.0",
+        "com.abilitykit.world.snapshot": "0.1.0",
+        "com.abilitykit.world.statesync": "0.1.0",
+        "com.unity.nuget.newtonsoft-json": "3.2.1"
+      }
+    },
     "com.abilitykit.scenario": {
       "version": "file:com.abilitykit.scenario",
       "depth": 0,
@@ -996,6 +1047,23 @@
         "com.abilitykit.world.di": "0.1.0",
         "com.abilitykit.thirdparty.svelto": "0.0.1"
       }
+    },
+    "com.coplaydev.unity-mcp": {
+      "version": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.modules.animation": "1.0.0",
+        "com.unity.modules.imageconversion": "1.0.0",
+        "com.unity.modules.physics": "1.0.0",
+        "com.unity.modules.physics2d": "1.0.0",
+        "com.unity.modules.uielements": "1.0.0",
+        "com.unity.modules.screencapture": "1.0.0",
+        "com.unity.modules.unitywebrequest": "1.0.0",
+        "com.unity.nuget.newtonsoft-json": "3.0.2",
+        "com.unity.test-framework": "1.1.31"
+      },
+      "hash": "30d22075093d1d35dfb0091c1c7550e9ad948577"
     },
     "com.cysharp.memorypack": {
       "version": "1.10.0",

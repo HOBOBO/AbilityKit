@@ -1,0 +1,25 @@
+{
+  "name": "AbilityKit.Compute.UnityJobs.Tests",
+  "rootNamespace": "AbilityKit.Compute.UnityJobs.Tests",
+  "references": [
+    "AbilityKit.Compute",
+    "AbilityKit.Compute.UnityJobs",
+    "Unity.Collections"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "UNITY_INCLUDE_TESTS"
+  ],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

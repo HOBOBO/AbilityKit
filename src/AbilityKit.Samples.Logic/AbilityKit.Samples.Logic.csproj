@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- Unity has no implicit usings; keep this matching so the .NET build is a faithful
+         proxy for the Unity compile of the same sources. -->
+    <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <RootNamespace>AbilityKit.Samples.Logic</RootNamespace>
     <AssemblyName>AbilityKit.Samples.Logic</AssemblyName>
@@ -42,18 +44,19 @@
     <ProjectReference Include="..\AbilityKit.Game.Battle.Runtime\AbilityKit.Game.Battle.Runtime.csproj" />
   </ItemGroup>
 
-  <!-- NuGet Dependencies -->
+  <!-- NuGet 依赖 -->
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="xunit" Version="2.9.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
   </ItemGroup>
 
+  <!-- 源码权威在 Unity/Packages/com.abilitykit.samples；本工程只做投影。
+       Abstractions 子树由同级的 AbilityKit.Samples.Abstractions 工程编译，此处不重复包含。 -->
   <ItemGroup>
-    <None Include="sample-manifest.json" CopyToOutputDirectory="PreserveNewest" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.samples/Runtime/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.samples/Runtime/Ability/**/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.samples/Runtime/Infrastructure/**/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.samples/Runtime/Samples/**/*.cs" />
+    <None Include="../../Unity/Packages/com.abilitykit.samples/Runtime/sample-manifest.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

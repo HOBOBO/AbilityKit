@@ -1,0 +1,16 @@
+{
+  "name": "com.abilitykit.compute",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Compute",
+  "unity": "2022.3",
+  "description": "Cross-runtime contracts for explicitly selected, fallible compute acceleration backends.",
+  "keywords": [
+    "abilitykit",
+    "compute",
+    "acceleration",
+    "runtime"
+  ],
+  "author": {
+    "name": "AbilityKit"
+  }
+}

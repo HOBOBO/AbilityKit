@@ -1,0 +1,131 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA Tests",
+    "description": "Owner-bound heal event composition that converts part of overheal into a shield."
+  },
+  "module": {
+    "moduleId": "ability.moba.tests.overheal_to_shield",
+    "displayName": "MOBA Overheal To Shield Test Skill",
+    "kind": "Passive",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 99190004,
+        "name": "test_overheal_to_shield",
+        "groupPath": "tests/composite/heal",
+        "tags": ["moba", "test", "composite", "heal", "shield", "event"],
+        "enabled": true,
+        "entryMode": "Event",
+        "event": "heal.apply.after",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "condition": {
+          "enabled": true,
+          "kind": "Condition",
+          "type": "all",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "owner_matches_payload_target",
+              "arguments": [],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Condition",
+              "type": "arg_gt",
+              "arguments": [
+                {
+                  "name": "left",
+                  "value": {
+                    "source": "Payload",
+                    "type": "Number",
+                    "path": "overheal_value"
+                  }
+                },
+                {
+                  "name": "right",
+                  "value": {
+                    "source": "Constant",
+                    "type": "Number",
+                    "numberValue": 0.0
+                  }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "add_shield",
+          "arguments": [
+            {
+              "name": "shield_id",
+              "value": { "source": "Constant", "type": "Integer", "integerValue": 99190004 }
+            },
+            {
+              "name": "shield_value",
+              "value": {
+                "source": "Expression",
+                "type": "Number",
+                "expression": "max(payload.overheal_value * 0.5 + 5, 1)"
+              }
+            },
+            {
+              "name": "absorb_ratio",
+              "value": { "source": "Constant", "type": "Number", "numberValue": 1.0 }
+            },
+            {
+              "name": "duration_frames",
+              "value": { "source": "Constant", "type": "Integer", "integerValue": 60 }
+            },
+            {
+              "name": "target_source",
+              "value": { "source": "Constant", "type": "Integer", "integerValue": 2 }
+            },
+            {
+              "name": "target_actor_id",
+              "value": { "source": "Payload", "type": "Integer", "path": "target_actor_id" }
+            },
+            {
+              "name": "target_max_count",
+              "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+            }
+          ],
+          "children": [],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Test-only owner-bound event composition; healing and shield lifetime stay owned by their runtime systems."
+      }
+    ]
+  }
+}

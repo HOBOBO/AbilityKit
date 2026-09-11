@@ -229,6 +229,8 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
             public ActionCallPlanDto Action;
             public PredicatePlanDto Condition;
             public PredicatePlanDto UntilCondition;
+            public NumericValueRefDto Collection;
+            public NumericValueRefDto ItemTarget;
             public List<ExecutionNodeDto> Children;
             public List<ExecutionNodeDto> ElseChildren;
             public int Count = 1;

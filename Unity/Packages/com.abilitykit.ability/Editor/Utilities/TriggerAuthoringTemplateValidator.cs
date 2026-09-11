@@ -101,6 +101,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 effective.Tags = instance.Tags != null ? new List<string>(instance.Tags) : new List<string>();
                 effective.Enabled = instance.Enabled;
                 effective.Template = instance.Template;
+                effective.CallableParameters = CloneCallableParameters(instance.CallableParameters);
             }
             if (runtimeParameterReferences)
             {
@@ -152,6 +153,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Condition = prototype.Condition,
                 Actions = prototype.Actions,
                 Blackboard = prototype.Blackboard,
+                CallableParameters = instance.CallableParameters,
                 Note = prototype.Note
             };
         }
@@ -207,6 +209,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             target.Condition = copy.Condition;
             target.Actions = copy.Actions;
             target.Blackboard = copy.Blackboard;
+            target.CallableParameters = copy.CallableParameters;
             target.Note = copy.Note;
         }
 
@@ -246,6 +249,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Template = source.Template,
                 Condition = TriggerAuthoringGroupResolver.CloneNode(source.Condition),
                 Actions = TriggerAuthoringGroupResolver.CloneNode(source.Actions),
+                CallableParameters = CloneCallableParameters(source.CallableParameters),
                 Note = source.Note
             };
             var variables = source.Blackboard;
@@ -266,6 +270,31 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
             return clone;
+        }
+
+        private static List<TriggerCallableParameterData> CloneCallableParameters(
+            IReadOnlyList<TriggerCallableParameterData> source)
+        {
+            if (source == null) return null;
+            var result = new List<TriggerCallableParameterData>(source.Count);
+            for (var i = 0; i < source.Count; i++)
+            {
+                var parameter = source[i];
+                result.Add(parameter == null
+                    ? null
+                    : new TriggerCallableParameterData
+                    {
+                        Name = parameter.Name,
+                        LocalVariableKey = parameter.LocalVariableKey,
+                        Type = parameter.Type,
+                        Direction = parameter.Direction,
+                        Required = parameter.Required,
+                        HasDefault = parameter.HasDefault,
+                        DefaultValue = TriggerAuthoringGroupResolver.CloneValue(parameter.DefaultValue),
+                        Description = parameter.Description
+                    });
+            }
+            return result;
         }
 
         private static void RewriteInputReferences(

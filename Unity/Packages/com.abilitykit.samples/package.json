@@ -1,0 +1,47 @@
+{
+  "name": "com.abilitykit.samples",
+  "version": "0.1.0",
+  "displayName": "AbilityKit Samples",
+  "unity": "2022.3",
+  "description": "AbilityKit 示例目录：37 条分级示例（Onboarding / Foundation / Tags / Pipeline / Flow / Triggering / HFSM / Modifiers / World / Sync / Combat），带 manifest、学习路径与宿主边界契约。纯 C# 内容，由 .NET、Web 与 Unity 宿主复用。",
+  "author": {
+    "name": "AbilityKit"
+  },
+  "keywords": [
+    "abilitykit",
+    "samples",
+    "learning",
+    "pure-csharp",
+    "documentation"
+  ],
+  "dependencies": {
+    "com.abilitykit.behavior": "0.1.0",
+    "com.abilitykit.combat.collision.abstractions": "0.1.0",
+    "com.abilitykit.combat.damage": "0.1.0",
+    "com.abilitykit.combat.entitymanager": "0.1.0",
+    "com.abilitykit.combat.projectile": "0.1.0",
+    "com.abilitykit.combat.skilllibrary": "0.1.0",
+    "com.abilitykit.combat.targeting": "0.1.0",
+    "com.abilitykit.continuous": "0.1.0",
+    "com.abilitykit.core": "0.1.0",
+    "com.abilitykit.dataflow": "0.1.0",
+    "com.abilitykit.deterministic": "0.1.0",
+    "com.abilitykit.flow": "0.1.0",
+    "com.abilitykit.game.battle.runtime": "0.1.0",
+    "com.abilitykit.gameplaytags": "0.1.0",
+    "com.abilitykit.hfsm": "0.1.0",
+    "com.abilitykit.host": "0.1.0",
+    "com.abilitykit.host.extension": "0.1.0",
+    "com.abilitykit.modifiers": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.pipeline": "0.1.0",
+    "com.abilitykit.timer": "0.1.0",
+    "com.abilitykit.triggering": "0.1.0",
+    "com.abilitykit.world.di": "0.1.0",
+    "com.abilitykit.world.framesync": "0.1.0",
+    "com.abilitykit.world.networkfragments": "0.1.0",
+    "com.abilitykit.world.snapshot": "0.1.0",
+    "com.abilitykit.world.statesync": "0.1.0",
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  }
+}

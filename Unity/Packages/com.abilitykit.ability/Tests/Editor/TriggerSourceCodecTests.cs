@@ -82,6 +82,11 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(restored.Module.Triggers[0].Actions.Children[1].Condition.Type, Is.EqualTo("always_true"));
             Assert.That(restored.Module.Triggers[0].Actions.Children[1].ElseChildren[0].Type, Is.EqualTo("debug_log"));
             Assert.That(restored.Module.Triggers[0].Condition.GroupReference, Is.EqualTo("condition_group_1"));
+            Assert.That(restored.Module.Triggers[0].CallableParameters, Has.Count.EqualTo(1));
+            Assert.That(restored.Module.Triggers[0].CallableParameters[0].Name, Is.EqualTo("amount"));
+            Assert.That(
+                restored.Module.Triggers[0].CallableParameters[0].Direction,
+                Is.EqualTo(TriggerCallableParameterDirection.Input));
         }
 
         [Test]
@@ -262,6 +267,23 @@ namespace AbilityKit.Ability.Editor.Tests
                             Event = "combat.damage_taken",
                             Phase = "early",
                             Priority = 20,
+                            CallableParameters = new System.Collections.Generic.List<TriggerCallableParameterData>
+                            {
+                                new TriggerCallableParameterData
+                                {
+                                    Name = "amount",
+                                    LocalVariableKey = "amount",
+                                    Type = TriggerValueType.Number,
+                                    Direction = TriggerCallableParameterDirection.Input,
+                                    HasDefault = true,
+                                    DefaultValue = new TriggerValueRefData
+                                    {
+                                        Source = TriggerValueSource.Constant,
+                                        Type = TriggerValueType.Number,
+                                        NumberValue = 1d
+                                    }
+                                }
+                            },
                             Condition = new TriggerNodeData
                             {
                                 Kind = TriggerNodeKind.Condition,

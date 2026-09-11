@@ -1,0 +1,43 @@
+#nullable enable
+
+using System;
+using AbilityKit.Core.Markers;
+using AbilityKit.Samples.Logic.Infrastructure.Config.Attributes;
+
+namespace AbilityKit.Samples.Logic.Infrastructure.Config
+{
+    /// <summary>
+    /// 瑙掕壊绫诲瀷娉ㄥ唽琛?
+    /// 閫氳繃 CharacterTypeIdAttribute 鑷姩鍙戠幇鍜屾敞鍐岃鑹插疄鐜扮被鍨?(Hero, Boss, Tower 绛?
+    /// </summary>
+    public sealed class CharacterTypeRegistry : KeyedMarkerRegistry<string, CharacterTypeIdAttribute>
+    {
+        private static readonly Lazy<CharacterTypeRegistry> _instance = new(() => new CharacterTypeRegistry());
+        public static CharacterTypeRegistry Instance => _instance.Value;
+
+        private CharacterTypeRegistry()
+        {
+            ScanCurrentAssembly();
+        }
+
+        private void ScanCurrentAssembly()
+        {
+            var assembly = typeof(CharacterTypeRegistry).Assembly;
+            MarkerScanner<CharacterTypeIdAttribute>.Scan(new[] { assembly }, this);
+        }
+
+        internal void RegisterByAttribute(CharacterTypeIdAttribute attr, Type implType)
+        {
+            if (attr == null || implType == null) return;
+            Register(attr.CharacterId, implType);
+        }
+
+        /// <summary>
+        /// 根据角色 ID 创建角色实例
+        /// </summary>
+        public object CreateCharacter(string characterId)
+        {
+            return GetOrCreateInstance(characterId);
+        }
+    }
+}

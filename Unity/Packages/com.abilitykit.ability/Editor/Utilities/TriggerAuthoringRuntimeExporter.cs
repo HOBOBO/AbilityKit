@@ -79,6 +79,10 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string Kind;
         public TriggerAuthoringRuntimeActionDto Action;
         public TriggerAuthoringRuntimePredicateDto Condition;
+        public TriggerAuthoringRuntimeValueRefDto Collection;
+        public TriggerAuthoringRuntimeValueRefDto ItemTarget;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public int MaxIterations;
         public List<TriggerAuthoringRuntimeExecutionNodeDto> Children;
         public List<TriggerAuthoringRuntimeExecutionNodeDto> ElseChildren;
     }
@@ -734,6 +738,8 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (node == null || !node.Enabled) return false;
             if (string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "for_each", StringComparison.OrdinalIgnoreCase)) return true;
+            if (TriggerAuthoringTriggerReuse.IsReference(node)) return true;
             if (RequiresExecutionTree(node.Children)) return true;
             return RequiresExecutionTree(node.ElseChildren);
         }
@@ -756,6 +762,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             ICollection<TriggerAuthoringDiagnostic> diagnostics)
         {
             if (node == null || !node.Enabled) return null;
+            if (TriggerAuthoringTriggerReuse.IsReference(node))
+                return CompileCallableInvocation(
+                    compileContext,
+                    node,
+                    path,
+                    context,
+                    strings,
+                    diagnostics);
             if (string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
             {
                 return new TriggerAuthoringRuntimeExecutionNodeDto
@@ -800,6 +814,60 @@ namespace AbilityKit.Ability.Editor.Utilities
                 };
             }
 
+            if (string.Equals(node.Type, "for_each", StringComparison.OrdinalIgnoreCase))
+            {
+                var collectionArgument = FindArgument(node, "collection");
+                var itemArgument = FindArgument(node, "item");
+                var maxIterationsArgument = FindArgument(node, "max_iterations");
+                var maxIterations = 0;
+                if (maxIterationsArgument?.Value == null ||
+                    maxIterationsArgument.Value.Source != TriggerValueSource.Constant ||
+                    maxIterationsArgument.Value.Type != TriggerValueType.Integer ||
+                    maxIterationsArgument.Value.IntegerValue <= 0 ||
+                    maxIterationsArgument.Value.IntegerValue > int.MaxValue)
+                {
+                    AddError(
+                        diagnostics,
+                        "TRG2033",
+                        path + ".arguments.max_iterations",
+                        "for_each 的 max_iterations 必须是大于 0 的整数常量。");
+                }
+                else
+                {
+                    maxIterations = (int)maxIterationsArgument.Value.IntegerValue;
+                }
+
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = "ForEach",
+                    Collection = CompileValue(
+                        compileContext,
+                        collectionArgument?.Value,
+                        path + ".arguments.collection",
+                        context,
+                        strings,
+                        diagnostics,
+                        true),
+                    ItemTarget = CompileValue(
+                        compileContext,
+                        itemArgument?.Value,
+                        path + ".arguments.item",
+                        context,
+                        strings,
+                        diagnostics,
+                        true,
+                        true),
+                    MaxIterations = maxIterations,
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
             if (node.Children != null && node.Children.Count > 0)
             {
                 AddError(diagnostics, "TRG2030", path + ".children", $"行为“{node.Type ?? string.Empty}”无法保留子节点执行语义。");
@@ -810,6 +878,173 @@ namespace AbilityKit.Ability.Editor.Utilities
             return action == null
                 ? null
                 : new TriggerAuthoringRuntimeExecutionNodeDto { Kind = "Action", Action = action };
+        }
+
+        private static TriggerAuthoringRuntimeExecutionNodeDto CompileCallableInvocation(
+            RuntimeTriggerCompileContext callerContext,
+            TriggerNodeData node,
+            string path,
+            TriggerAuthoringValidationContext context,
+            SortedDictionary<int, string> strings,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics)
+        {
+            if (!TriggerAuthoringTriggerReuse.TryGetReferencedTriggerId(node, out var targetId))
+                return null;
+            var targetSource = TriggerAuthoringTriggerReuse.FindTrigger(callerContext.Module, targetId);
+            var target = TriggerAuthoringTemplateDefinition.ResolveEffective(targetSource, context?.Templates);
+            var parameters = target?.CallableParameters;
+            if (target == null || parameters == null || parameters.Count == 0)
+            {
+                var legacyAction = CompileAction(callerContext, node, path, context, strings, diagnostics);
+                return legacyAction == null
+                    ? null
+                    : new TriggerAuthoringRuntimeExecutionNodeDto { Kind = "Action", Action = legacyAction };
+            }
+
+            var targetContext = new RuntimeTriggerCompileContext(
+                callerContext.Module,
+                target,
+                true,
+                callerContext.Blackboards);
+            var children = new List<TriggerAuthoringRuntimeExecutionNodeDto>();
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter == null || parameter.Direction != TriggerCallableParameterDirection.Input) continue;
+                var binding = FindArgument(node, parameter.Name);
+                var input = binding?.Value ?? (parameter.HasDefault ? parameter.DefaultValue : null);
+                if (input == null) continue;
+                var targetValue = CompileCallableLocalValue(
+                    targetContext,
+                    target,
+                    parameter,
+                    true,
+                    path + ".arguments." + parameter.Name,
+                    diagnostics);
+                var inputValue = CompileValue(
+                    callerContext,
+                    input,
+                    path + ".arguments." + parameter.Name,
+                    context,
+                    strings,
+                    diagnostics,
+                    true,
+                    false,
+                    IsTypedBlackboardValue(parameter.Type));
+                AddSetVariableExecution(children, targetValue, inputValue);
+            }
+
+            var triggerIdArgument = FindArgument(node, TriggerAuthoringTriggerReuse.TriggerIdArgument);
+            var callNode = new TriggerNodeData
+            {
+                Enabled = true,
+                Kind = TriggerNodeKind.Action,
+                Type = TriggerAuthoringTriggerReuse.ExecuteTriggerType,
+                Arguments = triggerIdArgument == null
+                    ? new List<TriggerArgumentData>()
+                    : new List<TriggerArgumentData> { triggerIdArgument }
+            };
+            var callAction = CompileAction(callerContext, callNode, path, context, strings, diagnostics);
+            if (callAction != null)
+                children.Add(new TriggerAuthoringRuntimeExecutionNodeDto { Kind = "Action", Action = callAction });
+
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter == null || parameter.Direction != TriggerCallableParameterDirection.Output) continue;
+                var binding = FindArgument(node, parameter.Name);
+                if (binding?.Value == null) continue;
+                var outputTarget = CompileValue(
+                    callerContext,
+                    binding.Value,
+                    path + ".arguments." + parameter.Name,
+                    context,
+                    strings,
+                    diagnostics,
+                    true,
+                    true);
+                var outputValue = CompileCallableLocalValue(
+                    targetContext,
+                    target,
+                    parameter,
+                    false,
+                    path + ".arguments." + parameter.Name,
+                    diagnostics);
+                if (outputValue != null && IsTypedBlackboardValue(parameter.Type))
+                    outputValue.Kind = "BlackboardValue";
+                AddSetVariableExecution(children, outputTarget, outputValue);
+            }
+
+            return new TriggerAuthoringRuntimeExecutionNodeDto
+            {
+                Kind = "Sequence",
+                Children = children
+            };
+        }
+
+        private static TriggerAuthoringRuntimeValueRefDto CompileCallableLocalValue(
+            RuntimeTriggerCompileContext targetContext,
+            TriggerDefinitionData target,
+            TriggerCallableParameterData parameter,
+            bool writeTarget,
+            string path,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics)
+        {
+            if (FindBlackboardVariable(target?.Blackboard, parameter.LocalVariableKey, out var variable) < 0 ||
+                variable == null)
+            {
+                AddError(diagnostics, "TRG2086", path, $"未找到可调用触发器局部变量：{parameter.LocalVariableKey ?? string.Empty}。");
+                return null;
+            }
+
+            var boardName = "local.trigger:" + targetContext.Module.ModuleId + ":" +
+                            target.Id.ToString(CultureInfo.InvariantCulture);
+            var ownerId = targetContext.Module.ModuleId + ":" +
+                          target.Id.ToString(CultureInfo.InvariantCulture);
+            var boardId = BlackboardIdMapper.BoardId(boardName);
+            EnsureLocalBlackboardPlan(
+                targetContext.Blackboards,
+                boardId,
+                boardName,
+                ownerId,
+                target.Blackboard,
+                path,
+                diagnostics);
+            return new TriggerAuthoringRuntimeValueRefDto
+            {
+                Kind = writeTarget ? "BlackboardTarget" : "Blackboard",
+                BoardId = boardId,
+                KeyId = BlackboardIdMapper.KeyId(variable.Key),
+                KeyType = ToBlackboardKeyType(variable.Type),
+                Scope = writeTarget ? BlackboardInitializationScopes.Owner : null
+            };
+        }
+
+        private static void AddSetVariableExecution(
+            ICollection<TriggerAuthoringRuntimeExecutionNodeDto> output,
+            TriggerAuthoringRuntimeValueRefDto target,
+            TriggerAuthoringRuntimeValueRefDto value)
+        {
+            if (target == null || value == null) return;
+            output.Add(new TriggerAuthoringRuntimeExecutionNodeDto
+            {
+                Kind = "Action",
+                Action = new TriggerAuthoringRuntimeActionDto
+                {
+                    ActionId = RuntimeStableStringId.Get("action:set_var"),
+                    Arity = 2,
+                    Args = new Dictionary<string, TriggerAuthoringRuntimeValueRefDto>(StringComparer.Ordinal)
+                    {
+                        { "target", target },
+                        { "value", value }
+                    }
+                }
+            });
+        }
+
+        private static bool IsTypedBlackboardValue(TriggerValueType type)
+        {
+            return type == TriggerValueType.Boolean || type == TriggerValueType.String;
         }
 
         private static List<TriggerAuthoringRuntimeExecutionNodeDto> CompileExecutionChildren(
@@ -1127,17 +1362,20 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
             if (typedActionValue &&
                 (value.Type == TriggerValueType.Boolean || value.Type == TriggerValueType.String) &&
-                value.Source != TriggerValueSource.Constant)
+                value.Source != TriggerValueSource.Constant &&
+                value.Source != TriggerValueSource.LocalBlackboard &&
+                value.Source != TriggerValueSource.GlobalBlackboard)
             {
                 AddError(
                     diagnostics,
                     "TRG2060",
                     path + ".source",
-                    $"运行时 set_var 当前仅支持以常量形式使用 {value.Type} 值。");
+                    $"运行时 {value.Type} 值当前支持常量或黑板引用。");
                 return null;
             }
             if (value.Type == TriggerValueType.String &&
                 !writeTarget &&
+                !typedActionValue &&
                 value.Source != TriggerValueSource.Constant &&
                 value.Source != TriggerValueSource.TemplateParameter)
             {
@@ -1201,7 +1439,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                         Key = contextKey
                     };
                 case TriggerValueSource.LocalBlackboard:
-                    return CompileLocalBlackboard(compileContext, value, path, diagnostics, writeTarget);
+                    var localValue = CompileLocalBlackboard(compileContext, value, path, diagnostics, writeTarget);
+                    if (localValue != null && typedActionValue && !writeTarget &&
+                        (value.Type == TriggerValueType.Boolean || value.Type == TriggerValueType.String))
+                        localValue.Kind = "BlackboardValue";
+                    return localValue;
                 case TriggerValueSource.GlobalBlackboard:
                     if (context?.GlobalBlackboard == null)
                     {
@@ -1214,7 +1456,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         return null;
                     }
                     var domain = string.IsNullOrWhiteSpace(globalKey.Domain) ? "global" : globalKey.Domain;
-                    return new TriggerAuthoringRuntimeValueRefDto
+                    var globalValue = new TriggerAuthoringRuntimeValueRefDto
                     {
                         Kind = writeTarget ? "BlackboardTarget" : "Blackboard",
                         BoardId = BlackboardIdMapper.BoardId(domain),
@@ -1222,10 +1464,27 @@ namespace AbilityKit.Ability.Editor.Utilities
                         KeyType = ToBlackboardKeyType(globalKey.Type),
                         Scope = writeTarget ? BlackboardInitializationScopes.Global : null
                     };
+                    if (typedActionValue && !writeTarget &&
+                        (value.Type == TriggerValueType.Boolean || value.Type == TriggerValueType.String))
+                        globalValue.Kind = "BlackboardValue";
+                    return globalValue;
                 case TriggerValueSource.TemplateParameter:
                     return new TriggerAuthoringRuntimeValueRefDto { Kind = "TemplateParam", Key = value.Path };
                 case TriggerValueSource.Expression:
-                    return new TriggerAuthoringRuntimeValueRefDto { Kind = "Expr", ExprText = value.Expression };
+                    if (!TriggerAuthoringValueRefEditor.TryValidateExpression(value.Expression, out var expressionError))
+                    {
+                        AddError(diagnostics, "TRG2082", path + ".expression", expressionError);
+                        return null;
+                    }
+                    if (!TryRewriteExpression(
+                            compileContext,
+                            context,
+                            value.Expression,
+                            path + ".expression",
+                            diagnostics,
+                            out var runtimeExpression))
+                        return null;
+                    return new TriggerAuthoringRuntimeValueRefDto { Kind = "Expr", ExprText = runtimeExpression };
                 default:
                     AddError(diagnostics, "TRG2056", path + ".source", $"Runtime Plan 导出不支持值来源 {value.Source}。");
                     return null;
@@ -1245,6 +1504,152 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             domain = "context";
             key = path;
+        }
+
+        private static bool TryRewriteExpression(
+            RuntimeTriggerCompileContext compileContext,
+            TriggerAuthoringValidationContext context,
+            string expression,
+            string path,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            out string rewritten)
+        {
+            var output = new StringBuilder(expression != null ? expression.Length + 32 : 32);
+            expression = expression ?? string.Empty;
+            var success = true;
+            var index = 0;
+            while (index < expression.Length)
+            {
+                var current = expression[index];
+                if (!char.IsLetter(current) && current != '_')
+                {
+                    output.Append(current);
+                    index++;
+                    continue;
+                }
+
+                var start = index++;
+                while (index < expression.Length)
+                {
+                    current = expression[index];
+                    if (char.IsLetterOrDigit(current) || current == '_' || current == '.')
+                    {
+                        index++;
+                        continue;
+                    }
+                    break;
+                }
+
+                var identifier = expression.Substring(start, index - start);
+                var next = index;
+                while (next < expression.Length && char.IsWhiteSpace(expression[next])) next++;
+                if (next < expression.Length && expression[next] == '(')
+                {
+                    output.Append(identifier);
+                    continue;
+                }
+
+                if (!TryRewriteExpressionReference(
+                        compileContext,
+                        context,
+                        identifier,
+                        path,
+                        diagnostics,
+                        out var replacement))
+                    success = false;
+                output.Append(replacement ?? identifier);
+            }
+
+            rewritten = output.ToString();
+            return success;
+        }
+
+        private static bool TryRewriteExpressionReference(
+            RuntimeTriggerCompileContext compileContext,
+            TriggerAuthoringValidationContext context,
+            string identifier,
+            string path,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            out string replacement)
+        {
+            replacement = identifier;
+            var dot = identifier.IndexOf('.');
+            if (dot <= 0 || dot >= identifier.Length - 1) return true;
+
+            var scope = identifier.Substring(0, dot);
+            var key = identifier.Substring(dot + 1);
+            if (!string.Equals(scope, "trigger", StringComparison.Ordinal) &&
+                !string.Equals(scope, "module", StringComparison.Ordinal) &&
+                !string.Equals(scope, "global", StringComparison.Ordinal))
+                return true;
+
+            int boardId;
+            int keyId;
+            if (string.Equals(scope, "global", StringComparison.Ordinal))
+            {
+                if (context?.GlobalBlackboard == null ||
+                    !context.GlobalBlackboard.TryGet(key, out var global) ||
+                    global == null || !global.CanRead)
+                {
+                    AddError(diagnostics, "TRG2083", path, $"公式引用了未知或不可读的全局黑板 Key：{key}。");
+                    return false;
+                }
+
+                var domain = string.IsNullOrWhiteSpace(global.Domain) ? "global" : global.Domain;
+                boardId = BlackboardIdMapper.BoardId(domain);
+                keyId = BlackboardIdMapper.KeyId(global.Key);
+            }
+            else
+            {
+                if (compileContext == null || !compileContext.IsOwnerBound)
+                {
+                    AddError(diagnostics, "TRG2084", path, "公式中的局部黑板引用要求触发器绑定所有者。");
+                    return false;
+                }
+
+                IReadOnlyList<TriggerBlackboardVariableData> variables;
+                string boardName;
+                string ownerId;
+                string declarationPath;
+                if (string.Equals(scope, "trigger", StringComparison.Ordinal))
+                {
+                    variables = compileContext.Trigger?.Blackboard;
+                    boardName = "local.trigger:" + compileContext.Module.ModuleId + ":" +
+                                compileContext.Trigger.Id.ToString(CultureInfo.InvariantCulture);
+                    ownerId = compileContext.Module.ModuleId + ":" +
+                              compileContext.Trigger.Id.ToString(CultureInfo.InvariantCulture);
+                    declarationPath = "module.triggers[" +
+                                      FindTriggerIndex(compileContext.Module, compileContext.Trigger) + "].blackboard";
+                }
+                else
+                {
+                    variables = compileContext.Module?.Blackboard;
+                    boardName = "local.module:" + compileContext.Module?.ModuleId;
+                    ownerId = compileContext.Module?.ModuleId;
+                    declarationPath = "module.blackboard";
+                }
+
+                if (FindBlackboardVariable(variables, key, out var variable) < 0 || variable == null)
+                {
+                    AddError(diagnostics, "TRG2085", path, $"公式引用了未知的{scope}黑板 Key：{key}。");
+                    return false;
+                }
+
+                boardId = BlackboardIdMapper.BoardId(boardName);
+                keyId = BlackboardIdMapper.KeyId(variable.Key);
+                EnsureLocalBlackboardPlan(
+                    compileContext.Blackboards,
+                    boardId,
+                    boardName,
+                    ownerId,
+                    variables,
+                    declarationPath,
+                    diagnostics);
+            }
+
+            replacement = "__bb" + boardId.ToString(CultureInfo.InvariantCulture) +
+                          ".k" + keyId.ToString(CultureInfo.InvariantCulture);
+            return true;
         }
 
         private static TriggerAuthoringRuntimeValueRefDto CompileLocalBlackboard(
@@ -1611,7 +2016,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 var parameter = parameters[i];
                 if (parameter != null && string.Equals(parameter.Name, argumentName, StringComparison.Ordinal))
-                    return parameter.Access == TriggerParameterAccess.Write;
+                    return TriggerParameterAccessRules.IsWrite(parameter.Access);
             }
             return false;
         }

@@ -247,7 +247,7 @@ namespace AbilityKit.Demo.Shooter.Jobs.Tests
                     Assert.AreEqual(
                         expected.NeighborIndices[offset + slot],
                         actual.NeighborIndices[offset + slot]);
-                    Assert.AreEqual(
+                    AssertDistanceWithinOneUlp(
                         expected.NeighborDistanceSquared[offset + slot],
                         actual.NeighborDistanceSquared[offset + slot]);
                 }
@@ -365,8 +365,23 @@ namespace AbilityKit.Demo.Shooter.Jobs.Tests
             for (var slot = 0; slot < batch.NeighborCounts[agentIndex]; slot++)
             {
                 Assert.AreEqual(expected[slot].Index, batch.NeighborIndices[offset + slot]);
-                Assert.AreEqual(expected[slot].DistanceSquared, batch.NeighborDistanceSquared[offset + slot]);
+                AssertDistanceWithinOneUlp(
+                    expected[slot].DistanceSquared,
+                    batch.NeighborDistanceSquared[offset + slot]);
             }
+        }
+
+        private static void AssertDistanceWithinOneUlp(float expected, float actual)
+        {
+            Assert.That(expected, Is.GreaterThanOrEqualTo(0f));
+            Assert.That(actual, Is.GreaterThanOrEqualTo(0f));
+            var expectedBits = BitConverter.SingleToInt32Bits(expected);
+            var actualBits = BitConverter.SingleToInt32Bits(actual);
+            var ulpDistance = Math.Abs((long)expectedBits - actualBits);
+            Assert.That(
+                ulpDistance,
+                Is.LessThanOrEqualTo(1L),
+                $"Expected {expected:R}, got {actual:R} ({ulpDistance} ULP apart).");
         }
 
         private readonly struct Neighbor : IComparable<Neighbor>

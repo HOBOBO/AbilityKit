@@ -177,6 +177,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private TriggerTypeDescriptorCatalog _types;
         private TriggerEventDescriptorCatalog _events;
         private TriggerGlobalBlackboardDescriptorCatalog _globalBlackboard;
+        private TriggerAuthoringValueSourceCatalog _valueSources;
         private TriggerTemplateDescriptorCatalog _templates;
         private List<TriggerAuthoringDiagnostic> _diagnostics = new List<TriggerAuthoringDiagnostic>();
         private EditorDiagnosticCollection _platformDiagnostics = new EditorDiagnosticCollection();
@@ -211,6 +212,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private bool _showEditorOrganization = true;
         private bool _showAdvanced;
         private bool _showTriggerBlackboard;
+        private bool _showCallableParameters;
         private bool _showDiagnostics = true;
         private readonly HashSet<string> _expandedGroupEditors = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _expandedGroupPreviews = new HashSet<string>(StringComparer.Ordinal);
@@ -1543,6 +1545,19 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
             EditorGUILayout.EndVertical();
 
+            if (effectiveTrigger.EntryMode == TriggerEntryMode.Callable ||
+                Count(trigger.CallableParameters) > 0)
+            {
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                _showCallableParameters = EditorGUILayout.Foldout(
+                    _showCallableParameters,
+                    $"调用接口（{Count(trigger.CallableParameters)}）",
+                    true);
+                if (_showCallableParameters)
+                    DrawCallableParameters(trigger);
+                EditorGUILayout.EndVertical();
+            }
+
             EditorGUILayout.BeginVertical(EditorStyles.helpBox);
             _showAdvanced = EditorGUILayout.Foldout(_showAdvanced, "高级执行配置", true);
             if (_showAdvanced)
@@ -1601,6 +1616,127 @@ namespace AbilityKit.Ability.Editor.Inspectors
                         _asset.Module != null ? _asset.Module.Blackboard : null);
             }
             EditorGUILayout.EndVertical();
+        }
+
+        private void DrawCallableParameters(TriggerDefinitionData trigger)
+        {
+            var parameters = trigger.CallableParameters ??
+                             (trigger.CallableParameters = new List<TriggerCallableParameterData>());
+            EditorGUILayout.HelpBox(
+                "输入和输出通过触发器局部变量传递。输入在被调用逻辑中只读，输出由被调用逻辑写入。",
+                MessageType.Info);
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i] ?? (parameters[i] = new TriggerCallableParameterData());
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label("参数 " + (i + 1), EditorStyles.miniBoldLabel);
+                GUILayout.FlexibleSpace();
+                var remove = GUILayout.Button(new GUIContent("×", "删除调用参数"), EditorStyles.miniButton, GUILayout.Width(22f));
+                EditorGUILayout.EndHorizontal();
+
+                parameter.Name = EditorGUILayout.TextField("名称", parameter.Name);
+                var previousType = parameter.Type;
+                parameter.Type = DrawCallableValueTypePopup("类型", parameter.Type);
+                parameter.Direction = (TriggerCallableParameterDirection)EditorGUILayout.EnumPopup(
+                    "方向",
+                    parameter.Direction);
+                parameter.Required = EditorGUILayout.Toggle("必填", parameter.Required);
+                var previousKey = parameter.LocalVariableKey;
+                parameter.LocalVariableKey = EditorGUILayout.TextField("局部变量 Key", parameter.LocalVariableKey);
+                parameter.Description = EditorGUILayout.TextField("说明", parameter.Description);
+
+                if (parameter.Direction == TriggerCallableParameterDirection.Input)
+                {
+                    parameter.HasDefault = EditorGUILayout.Toggle("使用默认值", parameter.HasDefault);
+                    if (parameter.HasDefault)
+                    {
+                        if (parameter.DefaultValue == null || parameter.DefaultValue.Type != parameter.Type)
+                            parameter.DefaultValue = CreateValue(parameter.Type);
+                        DrawValueRef(
+                            parameter.DefaultValue,
+                            new TriggerParameterDescriptor(
+                                parameter.Name,
+                                parameter.Type,
+                                false,
+                                TriggerValueSourceMask.Constant),
+                            trigger);
+                    }
+                }
+                else
+                {
+                    parameter.HasDefault = false;
+                }
+
+                if (previousType != parameter.Type ||
+                    !string.Equals(previousKey, parameter.LocalVariableKey, StringComparison.Ordinal))
+                    EnsureCallableLocalVariable(trigger, parameter);
+
+                EditorGUILayout.EndVertical();
+                if (remove)
+                {
+                    parameters.RemoveAt(i);
+                    i--;
+                }
+            }
+
+            if (GUILayout.Button("+ 添加调用参数", EditorStyles.miniButton))
+            {
+                var name = NextCallableParameterName(parameters);
+                var parameter = new TriggerCallableParameterData
+                {
+                    Name = name,
+                    LocalVariableKey = name,
+                    Type = TriggerValueType.Number,
+                    Direction = TriggerCallableParameterDirection.Input,
+                    Required = true,
+                    DefaultValue = CreateValue(TriggerValueType.Number)
+                };
+                parameters.Add(parameter);
+                EnsureCallableLocalVariable(trigger, parameter);
+            }
+        }
+
+        private static void EnsureCallableLocalVariable(
+            TriggerDefinitionData trigger,
+            TriggerCallableParameterData parameter)
+        {
+            if (trigger == null || parameter == null || string.IsNullOrWhiteSpace(parameter.LocalVariableKey)) return;
+            var variables = trigger.Blackboard ?? (trigger.Blackboard = new List<TriggerBlackboardVariableData>());
+            for (var i = 0; i < variables.Count; i++)
+            {
+                var variable = variables[i];
+                if (variable == null || !string.Equals(variable.Key, parameter.LocalVariableKey, StringComparison.Ordinal)) continue;
+                variable.Type = parameter.Type;
+                variable.ReadOnly = false;
+                if (variable.DefaultValue == null || variable.DefaultValue.Type != parameter.Type)
+                    variable.DefaultValue = CreateValue(parameter.Type);
+                return;
+            }
+            variables.Add(new TriggerBlackboardVariableData
+            {
+                Key = parameter.LocalVariableKey,
+                Type = parameter.Type,
+                ReadOnly = false,
+                Description = "Callable " + parameter.Direction,
+                DefaultValue = CreateValue(parameter.Type)
+            });
+        }
+
+        private static string NextCallableParameterName(IReadOnlyList<TriggerCallableParameterData> parameters)
+        {
+            for (var suffix = 1; ; suffix++)
+            {
+                var candidate = "parameter" + suffix;
+                var used = false;
+                for (var i = 0; i < parameters.Count; i++)
+                    if (parameters[i] != null && string.Equals(parameters[i].Name, candidate, StringComparison.Ordinal))
+                    {
+                        used = true;
+                        break;
+                    }
+                if (!used) return candidate;
+            }
         }
 
         private void DrawTemplateBinding(TriggerDefinitionData trigger)
@@ -2686,7 +2822,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return (item.Node.Enabled ? string.Empty : "[停用] ") + branchPrefix + "触发效果 #" + triggerId +
                        (target != null ? " · " + DisplayTriggerName(target) : " · 引用缺失");
             }
-            _types.TryGet(item.Kind, item.Node.Type, out var descriptor);
+            var descriptor = ResolveNodeDescriptor(item.Kind, item.Node);
             var name = TriggerAuthoringEditorLabels.Node(
                 item.Node.Type,
                 descriptor != null ? descriptor.DisplayName : null);
@@ -2803,7 +2939,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void DrawEditableNodeDetails(NodeOutlineItem item, TriggerDefinitionData trigger)
         {
-            _types.TryGet(item.Kind, item.Node.Type, out var descriptor);
+            var descriptor = ResolveNodeDescriptor(item.Kind, item.Node);
             var isTriggerReference = TriggerAuthoringTriggerReuse.IsReference(item.Node);
             var children = item.Node.Children ?? (item.Node.Children = new List<TriggerNodeData>());
             var maxChildren = descriptor != null ? descriptor.MaxChildren : 0;
@@ -2862,7 +2998,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             if (isTriggerReference)
             {
-                DrawTriggerReferenceDetails(item.Node);
+                DrawTriggerReferenceDetails(item.Node, trigger);
                 return;
             }
 
@@ -3007,7 +3143,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             if (node == null) return "未配置";
             if (!string.IsNullOrWhiteSpace(node.GroupReference)) return "引用分组：" + node.GroupReference;
-            _types.TryGet(kind, node.Type, out var descriptor);
+            var descriptor = ResolveNodeDescriptor(kind, node);
             return TriggerAuthoringEditorLabels.Node(node.Type, descriptor != null ? descriptor.DisplayName : null);
         }
 
@@ -3059,7 +3195,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return;
             }
 
-            _types.TryGet(item.Kind, item.Node.Type, out var descriptor);
+            var descriptor = ResolveNodeDescriptor(item.Kind, item.Node);
             var children = item.Node.Children ?? (item.Node.Children = new List<TriggerNodeData>());
             var maxChildren = descriptor != null ? descriptor.MaxChildren : 0;
             var canAddChild = maxChildren != 0 && (maxChildren < 0 || children.Count < maxChildren);
@@ -3335,7 +3471,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return groupNode;
             }
 
-            _types.TryGet(kind, node.Type, out var descriptor);
+            var descriptor = ResolveNodeDescriptor(kind, node);
             var children = node.Children ?? (node.Children = new List<TriggerNodeData>());
             var maxChildren = descriptor != null ? descriptor.MaxChildren : 0;
             var canPasteChild = maxChildren != 0 &&
@@ -3940,7 +4076,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
                         ? TriggerAuthoringTemplateDefinition.Get(_activeTemplatePreview)
                         : trigger,
                     Events = _events,
-                    GlobalBlackboard = _globalBlackboard
+                    GlobalBlackboard = _globalBlackboard,
+                    ValueSources = _valueSources
                 });
         }
 
@@ -4226,8 +4363,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
             AddLocalVarType(menu, variables, undoName, TriggerValueType.Integer);
             AddLocalVarType(menu, variables, undoName, TriggerValueType.Boolean);
             AddLocalVarType(menu, variables, undoName, TriggerValueType.String);
-            AddLocalVarType(menu, variables, undoName, TriggerValueType.Vector3);
-            AddLocalVarType(menu, variables, undoName, TriggerValueType.IntegerList);
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.Entity);
+            AddLocalVarType(menu, variables, undoName, TriggerValueType.ObjectId);
             menu.DropDown(activator);
         }
 
@@ -4280,8 +4417,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var prefix = type == TriggerValueType.Integer ? "intValue" :
                 type == TriggerValueType.Boolean ? "flag" :
                 type == TriggerValueType.String ? "text" :
-                type == TriggerValueType.Vector3 ? "position" :
-                type == TriggerValueType.IntegerList ? "ids" :
+                type == TriggerValueType.Entity ? "entity" :
+                type == TriggerValueType.ObjectId ? "objectId" :
                 "number";
             var suffix = 1;
             var key = prefix;
@@ -4906,7 +5043,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
             RequestRepaint();
         }
 
-        private void DrawTriggerReferenceDetails(TriggerNodeData node)
+        private void DrawTriggerReferenceDetails(
+            TriggerNodeData node,
+            TriggerDefinitionData caller)
         {
             TriggerAuthoringTriggerReuse.TryGetReferencedTriggerId(node, out var triggerId);
             node.Enabled = EditorGUILayout.Toggle("启用节点", node.Enabled);
@@ -4931,12 +5070,75 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 "入口模式",
                 effectiveTarget.EntryMode == TriggerEntryMode.Callable ? "仅供调用" : "事件触发并允许调用");
             DrawReferencedTemplateInputs(target);
+            DrawCallableBindings(node, caller, effectiveTarget);
             EditorGUILayout.BeginHorizontal();
             if (GUILayout.Button("定位目标", EditorStyles.miniButtonLeft))
                 SelectTrigger(_asset.Module.Triggers.IndexOf(target));
             if (GUILayout.Button("转为本地副本", EditorStyles.miniButtonRight))
                 LocalizeTriggerReference(node);
             EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawCallableBindings(
+            TriggerNodeData node,
+            TriggerDefinitionData caller,
+            TriggerDefinitionData target)
+        {
+            var parameters = target?.CallableParameters;
+            if (parameters == null || parameters.Count == 0) return;
+            var arguments = node.Arguments ?? (node.Arguments = new List<TriggerArgumentData>());
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.LabelField("调用参数", EditorStyles.miniBoldLabel);
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var callableParameter = parameters[i];
+                if (callableParameter == null || string.IsNullOrWhiteSpace(callableParameter.Name)) continue;
+                var descriptor = CreateCallableBindingDescriptor(callableParameter);
+                var argument = FindArgument(arguments, callableParameter.Name);
+                DrawParameterSeparator();
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(
+                    callableParameter.Name +
+                    (callableParameter.Direction == TriggerCallableParameterDirection.Output ? "（输出）" : "（输入）"),
+                    EditorStyles.miniBoldLabel);
+                GUILayout.FlexibleSpace();
+                if (argument == null)
+                {
+                    if (callableParameter.Direction == TriggerCallableParameterDirection.Input && callableParameter.HasDefault)
+                        GUILayout.Label("默认值：" + SummarizeValue(callableParameter.DefaultValue), EditorStyles.miniLabel);
+                    if (GUILayout.Button("添加绑定", EditorStyles.miniButton, GUILayout.Width(64f)))
+                        arguments.Add(CreateArgument(descriptor));
+                    EditorGUILayout.EndHorizontal();
+                    continue;
+                }
+                if (!callableParameter.Required &&
+                    GUILayout.Button(new GUIContent("×", "移除可选绑定"), EditorStyles.miniButton, GUILayout.Width(22f)))
+                {
+                    arguments.Remove(argument);
+                    EditorGUILayout.EndHorizontal();
+                    continue;
+                }
+                EditorGUILayout.EndHorizontal();
+                argument.Value = argument.Value ?? CreateValue(callableParameter.Type);
+                DrawValueRef(argument.Value, descriptor, caller);
+                if (!string.IsNullOrWhiteSpace(callableParameter.Description))
+                    GUILayout.Label(callableParameter.Description, EditorStyles.wordWrappedMiniLabel);
+            }
+            EditorGUILayout.EndVertical();
+        }
+
+        private static TriggerParameterDescriptor CreateCallableBindingDescriptor(
+            TriggerCallableParameterData parameter)
+        {
+            var output = parameter.Direction == TriggerCallableParameterDirection.Output;
+            return new TriggerParameterDescriptor(
+                parameter.Name,
+                parameter.Type,
+                parameter.Required && !(parameter.HasDefault && !output),
+                output
+                    ? TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard
+                    : TriggerValueSourceMask.All,
+                output ? TriggerParameterAccess.Output : TriggerParameterAccess.Read);
         }
 
         private void DrawReferencedTemplateInputs(TriggerDefinitionData target)
@@ -5026,7 +5228,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             menu.ShowAsContext();
         }
 
-        private static void SetTriggerReferenceId(TriggerNodeData node, int triggerId)
+        private void SetTriggerReferenceId(TriggerNodeData node, int triggerId)
         {
             var argument = FindArgument(node.Arguments, TriggerAuthoringTriggerReuse.TriggerIdArgument);
             if (argument == null)
@@ -5040,6 +5242,31 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 Type = TriggerValueType.Integer,
                 IntegerValue = triggerId
             };
+            var target = TriggerAuthoringTriggerReuse.FindTrigger(_asset?.Module, triggerId);
+            var parameters = ResolveEffectiveTrigger(target)?.CallableParameters;
+            if (parameters == null) return;
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter == null || string.IsNullOrWhiteSpace(parameter.Name) ||
+                    !parameter.Required ||
+                    parameter.Direction == TriggerCallableParameterDirection.Input && parameter.HasDefault ||
+                    FindArgument(node.Arguments, parameter.Name) != null)
+                    continue;
+                node.Arguments.Add(CreateArgument(CreateCallableBindingDescriptor(parameter)));
+            }
+        }
+
+        private TriggerTypeDescriptor ResolveNodeDescriptor(TriggerNodeKind kind, TriggerNodeData node)
+        {
+            if (TriggerAuthoringTriggerReuse.TryGetReferencedTriggerId(node, out var targetId))
+            {
+                var target = TriggerAuthoringTriggerReuse.FindTrigger(_asset?.Module, targetId);
+                if (target != null)
+                    return TriggerAuthoringTriggerReuse.BuildCallDescriptor(ResolveEffectiveTrigger(target));
+            }
+            _types.TryGet(kind, node?.Type, out var descriptor);
+            return descriptor;
         }
 
         private void SelectReferencedTrigger(TriggerNodeData node)
@@ -5293,6 +5520,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var project = _asset != null ? _asset.Project : null;
             _types = TriggerTypeDescriptorCatalog.CreateForProject(project);
             _events = TriggerEventDescriptorCatalog.FromProject(project);
+            _valueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project);
             _globalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                 project != null ? project.GlobalBlackboardCatalog : null);
             _templates = TriggerTemplateDescriptorCatalog.FromAsset(
@@ -5334,6 +5562,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 case "blackboard":
                     _selectedEditorTab = TriggerEditorTab.Settings;
                     _showTriggerBlackboard = true;
+                    break;
+                case "callableParameters":
+                    _selectedEditorTab = TriggerEditorTab.Settings;
+                    _showCallableParameters = true;
                     break;
                 case "condition":
                     _selectedEditorTab = TriggerEditorTab.RuleTree;
@@ -5577,6 +5809,15 @@ namespace AbilityKit.Ability.Editor.Inspectors
             TriggerValueType.Vector3,
             TriggerValueType.Object
         };
+        private static readonly TriggerValueType[] CallableValueTypeOptions =
+        {
+            TriggerValueType.Integer,
+            TriggerValueType.Number,
+            TriggerValueType.Boolean,
+            TriggerValueType.String,
+            TriggerValueType.Entity,
+            TriggerValueType.ObjectId
+        };
 
         private static TriggerModuleKind DrawModuleKindPopup(string label, TriggerModuleKind value)
         {
@@ -5612,6 +5853,18 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 if (ValueTypeOptions[i] == value) selected = i;
             }
             return ValueTypeOptions[EditorGUILayout.Popup(label, selected, names)];
+        }
+
+        private static TriggerValueType DrawCallableValueTypePopup(string label, TriggerValueType value)
+        {
+            var names = new string[CallableValueTypeOptions.Length];
+            var selected = 0;
+            for (var i = 0; i < CallableValueTypeOptions.Length; i++)
+            {
+                names[i] = TriggerAuthoringEditorLabels.ValueType(CallableValueTypeOptions[i]);
+                if (CallableValueTypeOptions[i] == value) selected = i;
+            }
+            return CallableValueTypeOptions[EditorGUILayout.Popup(label, selected, names)];
         }
 
         private static string GetSyncStateLabel(TriggerAuthoringSyncState state)

@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Text;
 using AbilityKit.Protocol.Catalog;
 using AbilityKit.Protocol.Generated;
 using Xunit;
@@ -340,6 +342,36 @@ public sealed class ProtocolCatalogTests
     }
 
     [Fact]
+    public void CatalogAdvertisementCodec_DecodesVersion1PayloadWithDefaultedFields()
+    {
+        var advertisement = ProtocolCatalogAdvertisement.FromCatalogs(new[]
+        {
+            BuiltInProtocolCatalogs.All.Single(catalog => catalog.CatalogId == "abilitykit.room")
+        });
+
+        var legacyPayload = EncodeVersion1(advertisement);
+
+        Assert.True(ProtocolCatalogAdvertisementCodec.TryDecode(legacyPayload, out var decoded, out var error), error);
+        Assert.NotNull(decoded);
+
+        var source = advertisement.Catalogs.Single();
+        var restored = decoded!.Catalogs.Single();
+        Assert.Equal(source.CatalogId, restored.CatalogId);
+        Assert.Equal(source.ProjectId, restored.ProjectId);
+        Assert.Equal(source.Domain, restored.Domain);
+        Assert.Equal(source.Messages.Count, restored.Messages.Count);
+
+        // Version 1 carried no response id, capture sample rate or sensitive field list.
+        // They must come back defaulted rather than making the payload undecodable.
+        foreach (var message in restored.Messages)
+        {
+            Assert.Equal(string.Empty, message.ResponseId);
+            Assert.Equal(1d, message.CaptureSampleRate);
+            Assert.Empty(message.SensitiveFields);
+        }
+    }
+
+    [Fact]
     public void CatalogRegistry_NegotiatesSharedCatalogsFromAdvertisement()
     {
         var registry = BuiltInProtocolCatalogs.CreateRegistry();
@@ -603,4 +635,62 @@ public sealed class ProtocolCatalogTests
             ProtocolPacketKind.Event,
             "Payload",
             "protobuf");
+
+    /// <summary>
+    /// Writes the version 1 advertisement layout by hand, so the decoder's
+    /// backward-compatibility path stays covered after the version 2 bump.
+    /// Do not "simplify" this by calling the encoder - the encoder only emits the
+    /// current version, and a round trip through it would test nothing.
+    /// </summary>
+    private static byte[] EncodeVersion1(ProtocolCatalogAdvertisement advertisement)
+    {
+        var bytes = new List<byte>();
+        AppendUInt32(bytes, 0x41434B41u); // "AKCA"
+        AppendUInt16(bytes, 1);
+        AppendUInt16(bytes, (ushort)advertisement.Catalogs.Count);
+        foreach (var catalog in advertisement.Catalogs)
+        {
+            AppendString(bytes, catalog.CatalogId);
+            AppendString(bytes, catalog.ProjectId);
+            AppendString(bytes, catalog.Domain);
+            AppendUInt32(bytes, unchecked((uint)catalog.Revision));
+            AppendString(bytes, catalog.DefaultCodec);
+            AppendUInt16(bytes, (ushort)catalog.Messages.Count);
+            foreach (var message in catalog.Messages)
+            {
+                AppendString(bytes, message.Id);
+                AppendUInt32(bytes, message.OpCode);
+                bytes.Add((byte)message.Direction);
+                bytes.Add((byte)message.Kind);
+                AppendString(bytes, message.PayloadType);
+                AppendString(bytes, message.Codec);
+                bytes.Add((byte)message.Reliability);
+                AppendUInt32(bytes, unchecked((uint)message.MinimumSchemaVersion));
+                AppendUInt32(bytes, unchecked((uint)message.MaximumSchemaVersion));
+                AppendUInt32(bytes, unchecked((uint)message.MaximumPayloadBytes));
+            }
+        }
+        return bytes.ToArray();
+    }
+
+    private static void AppendString(List<byte> bytes, string value)
+    {
+        var encoded = Encoding.UTF8.GetBytes(value);
+        AppendUInt16(bytes, (ushort)encoded.Length);
+        bytes.AddRange(encoded);
+    }
+
+    private static void AppendUInt16(List<byte> bytes, ushort value)
+    {
+        Span<byte> buffer = stackalloc byte[2];
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer, value);
+        bytes.AddRange(buffer.ToArray());
+    }
+
+    private static void AppendUInt32(List<byte> bytes, uint value)
+    {
+        Span<byte> buffer = stackalloc byte[4];
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer, value);
+        bytes.AddRange(buffer.ToArray());
+    }
 }

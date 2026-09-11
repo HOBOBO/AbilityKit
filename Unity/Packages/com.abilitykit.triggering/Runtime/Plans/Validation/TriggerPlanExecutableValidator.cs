@@ -52,6 +52,9 @@ namespace AbilityKit.Triggering.Validation
                 case UntilTriggerPlanExecutable until:
                     ValidateUntil(until, path, ref result);
                     break;
+                case ForEachTriggerPlanExecutable forEach:
+                    ValidateForEach(forEach, path, ref result);
+                    break;
                 case IfTriggerPlanExecutable branch:
                     ValidateIf(branch, path, ref result);
                     break;
@@ -141,6 +144,27 @@ namespace AbilityKit.Triggering.Validation
             }
 
             ValidateNode(until.Child, $"{path}.child", ref result, requireNode: true);
+        }
+
+        private static void ValidateForEach(ForEachTriggerPlanExecutable forEach, string path, ref ValidationResult result)
+        {
+            if (forEach.MaxIterations <= 0)
+            {
+                result.AddError(
+                    ValidationErrorCodes.INVALID_EXECUTION_NODE,
+                    $"ForEach maxIterations must be greater than zero: {forEach.MaxIterations}",
+                    $"{path}.maxIterations");
+            }
+            if (forEach.ItemTarget.BoardId == 0 || forEach.ItemTarget.KeyId == 0 ||
+                forEach.ItemTarget.KeyType == AbilityKit.Triggering.Blackboard.BlackboardKeyType.Unknown)
+            {
+                result.AddError(
+                    ValidationErrorCodes.INVALID_EXECUTION_NODE,
+                    "ForEach itemTarget must reference a typed Blackboard key.",
+                    $"{path}.itemTarget");
+            }
+
+            ValidateNode(forEach.Child, $"{path}.child", ref result, requireNode: true);
         }
 
         private static void ValidateScheduled(ScheduledTriggerPlanExecutable scheduled, string path, ref ValidationResult result)

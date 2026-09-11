@@ -4,6 +4,7 @@ using AbilityKit.Core;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Config;
@@ -131,17 +132,73 @@ namespace AbilityKit.Triggering.Tests.Editor
         }
 
         [Test]
+        public void NumericExpression_ResolvesPayloadAndEncodedBlackboardReferences()
+        {
+            var boardId = BlackboardIdMapper.BoardId("local.module:formula");
+            var keyId = BlackboardIdMapper.KeyId("power");
+            var board = new DictionaryBlackboard();
+            board.DefineKey(keyId, BlackboardKeyType.Double);
+            board.SetDouble(keyId, 7.5d);
+            var blackboards = new DictionaryBlackboardResolver();
+            blackboards.Register(boardId, board);
+
+            var payloads = new PayloadAccessorRegistry();
+            payloads.RegisterDoubleAccessor<FormulaPayload>(new FormulaPayloadAccessor());
+            var ctx = new ExecCtx<object>(
+                null,
+                null,
+                null,
+                null,
+                blackboards,
+                payloads,
+                null,
+                null,
+                null,
+                default,
+                default);
+            var payload = new FormulaPayload { Damage = 2.5d };
+            var expression = NumericValueRef.Expr(
+                "__bb" + boardId + ".k" + keyId + " + payload.damage");
+
+            Assert.That(ActionSchemaRegistry.TryResolveNumericRef(
+                in expression, in payload, in ctx, out var value), Is.True);
+            Assert.That(value, Is.EqualTo(10d));
+        }
+
+        [Test]
         public void ActionArgValue_GetHashCode_SupportsAllValueKinds()
         {
             Assert.DoesNotThrow(() => default(ActionArgValue).GetHashCode());
             Assert.DoesNotThrow(() => ActionArgValue.OfConst(7, "amount").GetHashCode());
             Assert.DoesNotThrow(() => ActionArgValue.OfBool(true, "enabled").GetHashCode());
             Assert.DoesNotThrow(() => ActionArgValue.OfString("armed", "state").GetHashCode());
+            var blackboardValue = new BlackboardValueRef(10, 20, BlackboardKeyType.String);
+            Assert.DoesNotThrow(() => ActionArgValue.OfBlackboardValue(in blackboardValue, "state").GetHashCode());
         }
 
         private static void AssertSemanticProjectionMatchesRawFields(ActionCallPlan call)
         {
             Assert.That(call.Id, Is.Not.EqualTo(default(ActionId)));
+        }
+
+        private sealed class FormulaPayload
+        {
+            public double Damage;
+        }
+
+        private sealed class FormulaPayloadAccessor : IPayloadDoubleAccessor<FormulaPayload>
+        {
+            public bool TryGet(in FormulaPayload args, int fieldId, out double value)
+            {
+                if (args != null && fieldId == StableStringId.Get("payload:damage"))
+                {
+                    value = args.Damage;
+                    return true;
+                }
+
+                value = default;
+                return false;
+            }
         }
 
     }

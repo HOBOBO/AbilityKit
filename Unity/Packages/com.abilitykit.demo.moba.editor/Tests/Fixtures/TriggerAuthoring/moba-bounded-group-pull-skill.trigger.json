@@ -1,0 +1,98 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA Tests",
+    "description": "Headless composite skill using the existing target search and Pull systems."
+  },
+  "module": {
+    "moduleId": "ability.moba.tests.bounded_group_pull",
+    "displayName": "MOBA Bounded Group Pull Test Skill",
+    "kind": "Ability",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 99190002,
+        "name": "test_pull_two_nearest_enemies",
+        "groupPath": "tests/composite/control",
+        "tags": ["moba", "test", "composite", "target-search", "pull"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "pull",
+              "arguments": [
+                {
+                  "name": "speed",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 6.0 }
+                },
+                {
+                  "name": "duration_ms",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 300.0 }
+                },
+                {
+                  "name": "direction_mode",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 0 }
+                },
+                {
+                  "name": "priority",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 100 }
+                },
+                {
+                  "name": "motion_group_id",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 3 }
+                },
+                {
+                  "name": "target_source",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 6 }
+                },
+                {
+                  "name": "target_order",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 8196 }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 2 }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Test-only composition; target count is capped by SearchTarget while motion remains owned by Pull runtime."
+      }
+    ]
+  }
+}

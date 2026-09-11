@@ -13,8 +13,7 @@
         {
           "type": "add_buff",
           "buffIds": [10010000],
-          "target_self": true,
-          "duration_ms": 1500
+          "target_self": true
         },
         {
           "type": "dash",

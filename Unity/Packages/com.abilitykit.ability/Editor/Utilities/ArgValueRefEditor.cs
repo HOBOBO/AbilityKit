@@ -3,6 +3,7 @@ using AbilityKit.Ability.Config;
 using Sirenix.OdinInspector;
 using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Config.Authoring;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 using UnityEditor;
 using UnityEngine;
 
@@ -98,25 +99,66 @@ namespace AbilityKit.Ability.Editor
 
 namespace AbilityKit.Ability.Editor.Utilities
 {
-    internal sealed class TriggerAuthoringValueRefEditorContext
+    internal readonly struct TriggerAuthoringExpressionReference
     {
-        private static readonly TriggerPayloadFieldData[] BuiltInContextFields =
+        public TriggerAuthoringExpressionReference(
+            string expression,
+            string label,
+            TriggerValueType type)
         {
-            new TriggerPayloadFieldData { Path = "query.id", Type = TriggerValueType.Integer, DisplayName = "查询 ID" },
-            new TriggerPayloadFieldData { Path = "filter.param", Type = TriggerValueType.Integer, DisplayName = "过滤参数" },
-            new TriggerPayloadFieldData { Path = "owner.actor_id", Type = TriggerValueType.Integer, DisplayName = "所有者实体 ID" },
-            new TriggerPayloadFieldData { Path = "caster.actor_id", Type = TriggerValueType.Integer, DisplayName = "施法者实体 ID" },
-            new TriggerPayloadFieldData { Path = "target.actor_id", Type = TriggerValueType.Integer, DisplayName = "目标实体 ID" },
-            new TriggerPayloadFieldData { Path = "source.actor_id", Type = TriggerValueType.Integer, DisplayName = "来源实体 ID" },
-            new TriggerPayloadFieldData { Path = "delta_time", Type = TriggerValueType.Number, DisplayName = "帧间隔时间" }
+            Expression = expression ?? string.Empty;
+            Label = string.IsNullOrWhiteSpace(label) ? Expression : label;
+            Type = type;
+        }
+
+        public string Expression { get; }
+        public string Label { get; }
+        public TriggerValueType Type { get; }
+    }
+
+    internal static class TriggerAuthoringExpressionFunctions
+    {
+        public static readonly string[] Names =
+        {
+            "插入函数...",
+            "绝对值 abs",
+            "最小值 min",
+            "最大值 max",
+            "限制范围 clamp",
+            "向下取整 floor",
+            "向上取整 ceil",
+            "四舍五入 round",
+            "幂 pow",
+            "平方根 sqrt",
+            "线性插值 lerp"
         };
 
+        public static readonly string[] Snippets =
+        {
+            string.Empty,
+            "abs()",
+            "min(, )",
+            "max(, )",
+            "clamp(, , )",
+            "floor()",
+            "ceil()",
+            "round()",
+            "pow(, )",
+            "sqrt()",
+            "lerp(, , )"
+        };
+    }
+
+    internal sealed class TriggerAuthoringValueRefEditorContext
+    {
         public TriggerAuthoringModuleData Module;
         public TriggerDefinitionData Trigger;
         public TriggerEventDescriptorCatalog Events;
         public TriggerGlobalBlackboardDescriptorCatalog GlobalBlackboard;
         public IReadOnlyList<TriggerAuthoringTemplateParameterData> TemplateParameters;
-        public IReadOnlyList<TriggerPayloadFieldData> ContextFields = BuiltInContextFields;
+        public TriggerAuthoringValueSourceCatalog ValueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(null);
+        // Kept for callers that provide temporary context fields without a project extension.
+        public IReadOnlyList<TriggerPayloadFieldData> ContextFields = System.Array.Empty<TriggerPayloadFieldData>();
 
         public TriggerEventDefinitionData ResolveEventDefinition()
         {
@@ -507,7 +549,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     DrawPathPopup(value, CollectPathOptions(TriggerValueSource.TemplateParameter, effectiveType, access, context), "模板参数");
                     break;
                 case TriggerValueSource.Expression:
-                    value.Expression = EditorGUILayout.TextField("表达式", value.Expression);
+                    DrawExpression(value, context);
                     break;
                 default:
                     value.Path = EditorGUILayout.TextField("路径", value.Path);
@@ -523,7 +565,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             var result = new List<TriggerAuthoringValuePathOption>();
             context = context ?? new TriggerAuthoringValueRefEditorContext();
-            var write = access == TriggerParameterAccess.Write;
+            var write = TriggerParameterAccessRules.IsWrite(access);
 
             switch (source)
             {
@@ -545,6 +587,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     }
                     break;
                 case TriggerValueSource.Context:
+                    AddRegisteredValueSourceOptions(result, context.ValueSources, expectedType);
                     AddFieldOptions(result, source, context.ContextFields, expectedType, "运行上下文");
                     break;
                 case TriggerValueSource.LocalBlackboard:
@@ -1080,6 +1123,230 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static string GetSourceName(TriggerValueSource source)
         {
             return TriggerAuthoringEditorLabels.Source(source);
+        }
+
+        public static List<TriggerAuthoringExpressionReference> CollectExpressionReferences(
+            TriggerAuthoringValueRefEditorContext context)
+        {
+            context = context ?? new TriggerAuthoringValueRefEditorContext();
+            var result = new List<TriggerAuthoringExpressionReference>();
+
+            var eventDefinition = context.ResolveEventDefinition();
+            AddExpressionFields(result, eventDefinition != null ? eventDefinition.PayloadFields : null, "payload.", "事件参数/");
+
+            var valueSources = context.ValueSources != null ? context.ValueSources.Definitions : null;
+            if (valueSources != null)
+            {
+                for (var i = 0; i < valueSources.Count; i++)
+                {
+                    var source = valueSources[i];
+                    if (source == null || !IsNumericType(source.Type)) continue;
+                    var expressionName = GetContextExpressionName(source);
+                    if (string.IsNullOrWhiteSpace(expressionName)) continue;
+                    AddExpressionReference(result, expressionName, "运行上下文/" + source.DisplayName, source.Type);
+                }
+            }
+
+            AddExpressionBlackboard(result, context.Trigger != null ? context.Trigger.Blackboard : null, "trigger.", "触发器变量/");
+            AddExpressionBlackboard(result, context.Module != null ? context.Module.Blackboard : null, "module.", "模块变量/");
+
+            var globals = context.GlobalBlackboard != null ? context.GlobalBlackboard.Definitions : null;
+            if (globals != null)
+            {
+                for (var i = 0; i < globals.Count; i++)
+                {
+                    var variable = globals[i];
+                    if (variable == null || !variable.CanRead || !IsNumericType(variable.Type) || string.IsNullOrWhiteSpace(variable.Key)) continue;
+                    AddExpressionReference(result, "global." + variable.Key, "全局黑板/" + variable.DisplayName, variable.Type);
+                }
+            }
+
+            result.Sort((left, right) => string.Compare(left.Label, right.Label, System.StringComparison.Ordinal));
+            return result;
+        }
+
+        public static bool TryValidateExpression(string expression, out string error)
+        {
+            error = null;
+            if (string.IsNullOrWhiteSpace(expression))
+            {
+                error = "必须填写表达式。";
+                return false;
+            }
+            if (!NumericExpressionCompiler.TryCompile(expression, out var program) || program == null)
+            {
+                error = "表达式语法无效。请检查括号、运算符和变量名。";
+                return false;
+            }
+
+            var stack = 0;
+            var tokens = program.Tokens;
+            for (var i = 0; i < tokens.Length; i++)
+            {
+                var token = tokens[i];
+                switch (token.Kind)
+                {
+                    case NumericRpnTokenKind.Number:
+                    case NumericRpnTokenKind.Var:
+                        stack++;
+                        break;
+                    case NumericRpnTokenKind.Add:
+                    case NumericRpnTokenKind.Sub:
+                    case NumericRpnTokenKind.Mul:
+                    case NumericRpnTokenKind.Div:
+                        if (stack < 2)
+                        {
+                            error = "表达式中的二元运算符缺少操作数。";
+                            return false;
+                        }
+                        stack--;
+                        break;
+                    case NumericRpnTokenKind.Func:
+                        if (!DefaultNumericRpnFunctionRegistry.Instance.TryGet(token.FuncName, out var function) || function == null)
+                        {
+                            error = "未知公式函数：" + token.FuncName;
+                            return false;
+                        }
+                        if (function.ArgCount != token.FuncArgCount)
+                        {
+                            error = $"函数 {token.FuncName} 需要 {function.ArgCount} 个参数，当前为 {token.FuncArgCount} 个。";
+                            return false;
+                        }
+                        if (stack < token.FuncArgCount)
+                        {
+                            error = "公式函数缺少参数：" + token.FuncName;
+                            return false;
+                        }
+                        stack = stack - token.FuncArgCount + 1;
+                        break;
+                }
+            }
+            if (stack != 1)
+            {
+                error = "表达式必须最终计算出一个数值。";
+                return false;
+            }
+            return true;
+        }
+
+        private static void AddRegisteredValueSourceOptions(
+            ICollection<TriggerAuthoringValuePathOption> output,
+            TriggerAuthoringValueSourceCatalog catalog,
+            TriggerValueType expectedType)
+        {
+            var definitions = catalog != null ? catalog.Definitions : null;
+            if (definitions == null) return;
+            for (var i = 0; i < definitions.Count; i++)
+            {
+                var definition = definitions[i];
+                if (definition == null || !TypeMatches(expectedType, definition.Type)) continue;
+                output.Add(new TriggerAuthoringValuePathOption(
+                    TriggerValueSource.Context,
+                    definition.Path,
+                    definition.Type,
+                    "运行上下文/" + definition.DisplayName,
+                    true,
+                    false));
+            }
+        }
+
+        private static void DrawExpression(
+            TriggerValueRefData value,
+            TriggerAuthoringValueRefEditorContext context)
+        {
+            EditorGUILayout.LabelField("数值公式", EditorStyles.miniBoldLabel);
+            value.Expression = EditorGUILayout.TextArea(
+                value.Expression ?? string.Empty,
+                GUILayout.MinHeight(EditorGUIUtility.singleLineHeight * 2f));
+
+            var references = CollectExpressionReferences(context);
+            var referenceNames = new string[references.Count + 1];
+            referenceNames[0] = "插入变量...";
+            for (var i = 0; i < references.Count; i++)
+                referenceNames[i + 1] = references[i].Label + "  [" + references[i].Expression + "]";
+            var selectedReference = EditorGUILayout.Popup("引用", 0, referenceNames);
+            if (selectedReference > 0)
+                value.Expression = AppendExpressionToken(value.Expression, references[selectedReference - 1].Expression);
+
+            var functionNames = TriggerAuthoringExpressionFunctions.Names;
+            var selectedFunction = EditorGUILayout.Popup("函数", 0, functionNames);
+            if (selectedFunction > 0)
+                value.Expression = AppendExpressionToken(value.Expression, TriggerAuthoringExpressionFunctions.Snippets[selectedFunction]);
+
+            if (TryValidateExpression(value.Expression, out var error))
+                EditorGUILayout.HelpBox("公式语法有效。运行时将编译为 RPN。", MessageType.Info);
+            else if (!string.IsNullOrWhiteSpace(value.Expression))
+                EditorGUILayout.HelpBox(error, MessageType.Error);
+        }
+
+        private static string AppendExpressionToken(string expression, string token)
+        {
+            expression = expression ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(expression)) return token ?? string.Empty;
+            return expression.TrimEnd() + " " + (token ?? string.Empty);
+        }
+
+        private static void AddExpressionFields(
+            ICollection<TriggerAuthoringExpressionReference> output,
+            IReadOnlyList<TriggerPayloadFieldData> fields,
+            string prefix,
+            string labelPrefix)
+        {
+            if (fields == null) return;
+            for (var i = 0; i < fields.Count; i++)
+            {
+                var field = fields[i];
+                if (field == null || !IsNumericType(field.Type) || string.IsNullOrWhiteSpace(field.Path)) continue;
+                AddExpressionReference(
+                    output,
+                    prefix + field.Path,
+                    labelPrefix + (string.IsNullOrWhiteSpace(field.DisplayName) ? field.Path : field.DisplayName),
+                    field.Type);
+            }
+        }
+
+        private static void AddExpressionBlackboard(
+            ICollection<TriggerAuthoringExpressionReference> output,
+            IReadOnlyList<TriggerBlackboardVariableData> variables,
+            string prefix,
+            string labelPrefix)
+        {
+            if (variables == null) return;
+            for (var i = 0; i < variables.Count; i++)
+            {
+                var variable = variables[i];
+                if (variable == null || !IsNumericType(variable.Type) || string.IsNullOrWhiteSpace(variable.Key)) continue;
+                AddExpressionReference(output, prefix + variable.Key, labelPrefix + variable.Key, variable.Type);
+            }
+        }
+
+        private static void AddExpressionReference(
+            ICollection<TriggerAuthoringExpressionReference> output,
+            string expression,
+            string label,
+            TriggerValueType type)
+        {
+            if (output == null || string.IsNullOrWhiteSpace(expression)) return;
+            output.Add(new TriggerAuthoringExpressionReference(expression, label, type));
+        }
+
+        private static string GetContextExpressionName(TriggerAuthoringValueSourceDescriptor descriptor)
+        {
+            if (descriptor == null) return string.Empty;
+            if (!string.IsNullOrWhiteSpace(descriptor.ExpressionName)) return descriptor.ExpressionName;
+            var path = descriptor.Path ?? string.Empty;
+            var separator = path.IndexOf(':');
+            return separator > 0 && separator < path.Length - 1
+                ? path.Substring(0, separator) + "." + path.Substring(separator + 1)
+                : "context." + path;
+        }
+
+        private static bool IsNumericType(TriggerValueType type)
+        {
+            return type == TriggerValueType.Integer ||
+                   type == TriggerValueType.Number ||
+                   type == TriggerValueType.Entity ||
+                   type == TriggerValueType.ObjectId;
         }
     }
 }

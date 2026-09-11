@@ -355,6 +355,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                         KeyType = dto.KeyType,
                         Scope = dto.Scope
                     };
+                case "BlackboardValue":
+                    return new
+                    {
+                        Kind = "BlackboardValue",
+                        BoardId = dto.BoardId,
+                        KeyId = dto.KeyId,
+                        KeyType = dto.KeyType
+                    };
                 case "Bool":
                     return new { Kind = "Bool", BoolValue = dto.BoolValue };
                 case "String":
@@ -627,6 +635,19 @@ namespace AbilityKit.Ability.Editor.Utilities
                     writer.WriteValue(value.KeyType.ToString());
                     writer.WritePropertyName("Scope");
                     writer.WriteValue(value.Scope);
+                    writer.WriteEndObject();
+                    break;
+
+                case "BlackboardValue":
+                    writer.WriteStartObject();
+                    writer.WritePropertyName("Kind");
+                    writer.WriteValue("BlackboardValue");
+                    writer.WritePropertyName("BoardId");
+                    writer.WriteValue(value.BoardId);
+                    writer.WritePropertyName("KeyId");
+                    writer.WriteValue(value.KeyId);
+                    writer.WritePropertyName("KeyType");
+                    writer.WriteValue(value.KeyType.ToString());
                     writer.WriteEndObject();
                     break;
 

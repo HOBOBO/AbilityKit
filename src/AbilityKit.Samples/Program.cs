@@ -1,4 +1,6 @@
 using System;
+using AbilityKit.Samples.Infrastructure;
+using AbilityKit.Samples.Logic.Infrastructure.Config;
 using System.Text;
 using AbilityKit.Samples.Abstractions;
 using AbilityKit.Samples.Infrastructure;
@@ -12,6 +14,9 @@ namespace AbilityKit.Samples
         private static int Main(string[] args)
         {
             Console.OutputEncoding = Encoding.UTF8;
+
+            // 示例内容只依赖 IResourceProvider；文件系统实现由 .NET 宿主安装。
+            ResourceProviders.Current = new FileSystemResourceProvider();
 
             var cli = SampleCliOptions.Parse(args);
             if (!string.IsNullOrWhiteSpace(cli.WebOutputDirectory))

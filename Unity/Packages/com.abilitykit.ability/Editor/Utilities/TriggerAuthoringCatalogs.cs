@@ -501,6 +501,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public TriggerEventDescriptorCatalog Events;
         public TriggerGlobalBlackboardDescriptorCatalog GlobalBlackboard;
         public TriggerTemplateDescriptorCatalog Templates;
+        public TriggerAuthoringValueSourceCatalog ValueSources;
 
         public static TriggerAuthoringValidationContext Create(TriggerAuthoringModuleAsset asset)
         {
@@ -509,6 +510,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
                 Events = TriggerEventDescriptorCatalog.FromProject(project),
+                ValueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project),
                 GlobalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                     project != null ? project.GlobalBlackboardCatalog : null),
                 Templates = TriggerTemplateDescriptorCatalog.FromAsset(
@@ -523,6 +525,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
                 Events = TriggerEventDescriptorCatalog.FromProject(project),
+                ValueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project),
                 GlobalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                     project != null ? project.GlobalBlackboardCatalog : null),
                 Templates = TriggerTemplateDescriptorCatalog.FromAsset(

@@ -22,6 +22,33 @@ namespace AbilityKit.Ability.Editor.Utilities
         void Compile(TriggerAuthoringConditionCompilerContext context);
     }
 
+    /// <summary>
+    /// Describes a typed, read-only runtime value contributed by a business package.
+    /// Use a "domain:key" path when the value is backed by a runtime numeric variable domain.
+    /// </summary>
+    public sealed class TriggerAuthoringValueSourceDescriptor
+    {
+        public TriggerAuthoringValueSourceDescriptor(
+            string path,
+            TriggerValueType type,
+            string displayName,
+            string description = null,
+            string expressionName = null)
+        {
+            Path = path ?? string.Empty;
+            Type = type;
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? Path : displayName;
+            Description = description ?? string.Empty;
+            ExpressionName = expressionName ?? string.Empty;
+        }
+
+        public string Path { get; }
+        public TriggerValueType Type { get; }
+        public string DisplayName { get; }
+        public string Description { get; }
+        public string ExpressionName { get; }
+    }
+
     public sealed class TriggerAuthoringConditionCompilerContext
     {
         private readonly Func<bool, string[], TriggerAuthoringRuntimeValueRefDto> _compileArgument;
@@ -142,20 +169,24 @@ namespace AbilityKit.Ability.Editor.Utilities
     {
         private readonly TriggerTypeDescriptorCatalog _types;
         private readonly List<TriggerEventDefinitionData> _events;
+        private readonly TriggerAuthoringValueSourceCatalog _values;
 
         internal TriggerAuthoringExtensionContext(
             TriggerAuthoringProjectAsset project,
             TriggerTypeDescriptorCatalog types,
-            List<TriggerEventDefinitionData> events)
+            List<TriggerEventDefinitionData> events,
+            TriggerAuthoringValueSourceCatalog values)
         {
             Project = project;
             _types = types;
             _events = events;
+            _values = values;
         }
 
         public TriggerAuthoringProjectAsset Project { get; }
         public bool AcceptsNodes => _types != null;
         public bool AcceptsEvents => _events != null;
+        public bool AcceptsValueSources => _values != null;
 
         public void RegisterCondition(TriggerTypeDescriptor descriptor)
         {
@@ -176,6 +207,12 @@ namespace AbilityKit.Ability.Editor.Utilities
             RegisterNode(descriptor, TriggerNodeKind.Action);
         }
 
+        public void RegisterValueSource(TriggerAuthoringValueSourceDescriptor descriptor)
+        {
+            if (_values == null) return;
+            _values.Register(descriptor);
+        }
+
         public void RegisterEvent(TriggerEventDefinitionData definition)
         {
             if (_events == null) return;
@@ -193,6 +230,63 @@ namespace AbilityKit.Ability.Editor.Utilities
         }
     }
 
+    internal sealed class TriggerAuthoringValueSourceCatalog
+    {
+        private readonly List<TriggerAuthoringValueSourceDescriptor> _definitions =
+            new List<TriggerAuthoringValueSourceDescriptor>();
+        private readonly Dictionary<string, int> _indexes =
+            new Dictionary<string, int>(StringComparer.Ordinal);
+
+        public IReadOnlyList<TriggerAuthoringValueSourceDescriptor> Definitions => _definitions;
+
+        public void Register(TriggerAuthoringValueSourceDescriptor descriptor)
+        {
+            if (descriptor == null) throw new ArgumentNullException(nameof(descriptor));
+            if (string.IsNullOrWhiteSpace(descriptor.Path))
+                throw new ArgumentException("Value source path is required.", nameof(descriptor));
+            if (descriptor.Type == TriggerValueType.None ||
+                descriptor.Type == TriggerValueType.Object ||
+                descriptor.Type == TriggerValueType.Vector3 ||
+                descriptor.Type == TriggerValueType.IntegerList)
+                throw new ArgumentException("Value sources must use a scalar runtime type.", nameof(descriptor));
+
+            if (_indexes.TryGetValue(descriptor.Path, out var index))
+                _definitions[index] = descriptor;
+            else
+            {
+                _indexes.Add(descriptor.Path, _definitions.Count);
+                _definitions.Add(descriptor);
+            }
+        }
+
+        public bool TryGet(string path, out TriggerAuthoringValueSourceDescriptor descriptor)
+        {
+            descriptor = null;
+            return !string.IsNullOrWhiteSpace(path) &&
+                   _indexes.TryGetValue(path, out var index) &&
+                   (descriptor = _definitions[index]) != null;
+        }
+
+        public static TriggerAuthoringValueSourceCatalog CreateForProject(TriggerAuthoringProjectAsset project)
+        {
+            var catalog = new TriggerAuthoringValueSourceCatalog();
+            RegisterBuiltIns(catalog);
+            TriggerAuthoringExtensionRegistry.ApplyValues(project, catalog);
+            return catalog;
+        }
+
+        private static void RegisterBuiltIns(TriggerAuthoringValueSourceCatalog catalog)
+        {
+            catalog.Register(new TriggerAuthoringValueSourceDescriptor("query.id", TriggerValueType.Integer, "查询 ID", expressionName: "context.query.id"));
+            catalog.Register(new TriggerAuthoringValueSourceDescriptor("filter.param", TriggerValueType.Integer, "过滤参数", expressionName: "context.filter.param"));
+            catalog.Register(new TriggerAuthoringValueSourceDescriptor("owner.actor_id", TriggerValueType.Integer, "所有者实体 ID", expressionName: "context.owner.actor_id"));
+            catalog.Register(new TriggerAuthoringValueSourceDescriptor("caster.actor_id", TriggerValueType.Integer, "施法者实体 ID", expressionName: "context.caster.actor_id"));
+            catalog.Register(new TriggerAuthoringValueSourceDescriptor("target.actor_id", TriggerValueType.Integer, "目标实体 ID", expressionName: "context.target.actor_id"));
+            catalog.Register(new TriggerAuthoringValueSourceDescriptor("source.actor_id", TriggerValueType.Integer, "来源实体 ID", expressionName: "context.source.actor_id"));
+            catalog.Register(new TriggerAuthoringValueSourceDescriptor("delta_time", TriggerValueType.Number, "帧间隔时间", expressionName: "context.delta_time"));
+        }
+    }
+
     internal static class TriggerAuthoringExtensionRegistry
     {
         public static void ApplyTypes(
@@ -200,14 +294,22 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerTypeDescriptorCatalog catalog)
         {
             if (project == null || catalog == null) return;
-            Apply(project, catalog, null);
+            Apply(project, catalog, null, null);
         }
 
         public static List<TriggerEventDefinitionData> GetEvents(TriggerAuthoringProjectAsset project)
         {
             var result = new List<TriggerEventDefinitionData>();
-            if (project != null) Apply(project, null, result);
+            if (project != null) Apply(project, null, result, null);
             return result;
+        }
+
+        public static void ApplyValues(
+            TriggerAuthoringProjectAsset project,
+            TriggerAuthoringValueSourceCatalog catalog)
+        {
+            if (project == null || catalog == null) return;
+            Apply(project, null, null, catalog);
         }
 
         public static List<string> GetAvailableExtensionIds()
@@ -226,7 +328,8 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void Apply(
             TriggerAuthoringProjectAsset project,
             TriggerTypeDescriptorCatalog types,
-            List<TriggerEventDefinitionData> events)
+            List<TriggerEventDefinitionData> events,
+            TriggerAuthoringValueSourceCatalog values)
         {
             var enabled = new HashSet<string>(project.ExtensionIds, StringComparer.Ordinal);
             if (enabled.Count == 0) return;
@@ -244,7 +347,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
                 try
                 {
-                    extension.Register(new TriggerAuthoringExtensionContext(project, types, events));
+                    extension.Register(new TriggerAuthoringExtensionContext(project, types, events, values));
                 }
                 catch (Exception ex)
                 {

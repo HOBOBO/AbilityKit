@@ -42,8 +42,7 @@
                         "buffIds":  [
                                         10030102
                                     ],
-                        "target_max_count":  1,
-                        "duration_ms":  2000
+                        "target_max_count":  1
                     },
                     {
                         "type":  "remove_buff",

@@ -119,7 +119,7 @@ Targeting 的输出是“在某次世界状态与查询配置下选出的目标�
 | 池化 | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Execution/TargetingPool.cs` | 复用上下文、命中列表、ID 列表、规则列表和命中缓冲区 |
 | 注册表 | `Unity/Packages/com.abilitykit.combat.targeting/Runtime/SearchTarget/Registry/TargetRegistries.cs` | 按稳定整数 ID 创建规则、评分器和选择器 |
 | MOBA 接入 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Search` | 配置查询构建、实体索引 provider 与技能搜索服务 |
-| 纯 C# 示例 | `src/AbilityKit.Samples.Logic/Samples/Targeting/TargetingBasics.cs` | 最小搜索示例 |
+| 纯 C# 示例 | `Unity/Packages/com.abilitykit.samples/Runtime/Samples/Targeting/TargetingBasics.cs` | 最小搜索示例 |
 
 包内 `Documentation~/Manual.md` 是当前运行时手册，`Documentation~/Examples.md` 提供组合示例，`Documentation~/Design/` 保存历史设计材料；本文仍以当前源码为准，接口或语义冲突时应同步修正文档。
 
@@ -278,7 +278,7 @@ ApplySkillToLiveTargets(results);
 
 查询可注册到 `TargetQueryDatabase`、跨帧保存或在 builder 释放后执行；`Build()` 已经完成规则快照。若改用返回 `SearchResult` 的重载，调用方还必须在消费完结果后释放该结果。数据库在 query ID 未注册、工厂构建失败或查询缺少 provider 时返回 `false`；空 context 或空调用方结果列表属于编程错误并抛出 `ArgumentNullException`，列表重载在查找前会先清空结果。位置服务由具体规则或评分器按需验证，生产接入仍应在启动阶段检查自己的组件装配。
 
-仓库中的完整可运行参考位于 `src/AbilityKit.Samples.Logic/Samples/Targeting/TargetingBasics.cs`。
+仓库中的完整可运行参考位于 `Unity/Packages/com.abilitykit.samples/Runtime/Samples/Targeting/TargetingBasics.cs`。
 
 ```mermaid
 flowchart LR

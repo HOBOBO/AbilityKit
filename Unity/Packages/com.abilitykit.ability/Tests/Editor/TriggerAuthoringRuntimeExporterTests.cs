@@ -1115,6 +1115,52 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void Build_RewritesBlackboardReferencesInsideNumericExpressions()
+        {
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "set_num_var",
+                Arguments =
+                {
+                    Arg("target", Ref(TriggerValueSource.LocalBlackboard, TriggerValueType.Number, "result")),
+                    Arg("value", new TriggerValueRefData
+                    {
+                        Source = TriggerValueSource.Expression,
+                        Type = TriggerValueType.Number,
+                        Expression = "module.baseDamage + payload.damage"
+                    })
+                }
+            });
+            module.Blackboard.Add(new TriggerBlackboardVariableData
+            {
+                Key = "baseDamage",
+                Type = TriggerValueType.Number,
+                DefaultValue = new TriggerValueRefData
+                    { Source = TriggerValueSource.Constant, Type = TriggerValueType.Number, NumberValue = 4 }
+            });
+            module.Blackboard.Add(new TriggerBlackboardVariableData
+            {
+                Key = "result",
+                Type = TriggerValueType.Number,
+                DefaultValue = new TriggerValueRefData
+                    { Source = TriggerValueSource.Constant, Type = TriggerValueType.Number }
+            });
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.True, result.BuildMessage());
+            var expression = result.Database.Triggers[0].Actions[0].Args["value"].ExprText;
+            StringAssert.Contains("__bb", expression);
+            StringAssert.Contains("payload.damage", expression);
+            StringAssert.DoesNotContain("module.baseDamage", expression);
+            var runtime = new TriggerPlanJsonDatabase();
+            Assert.DoesNotThrow(() => runtime.LoadFromJson(
+                TriggerAuthoringRuntimeExporter.Serialize(result.Database),
+                "numeric-expression-rewrite"));
+        }
+
+        [Test]
         public void Build_CompilesTypedBlackboardWritesAndRuntimeJsonLoadsThem()
         {
             var module = CreateModule(new TriggerNodeData
@@ -1195,6 +1241,64 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void Build_CompilesBooleanAndStringBlackboardCopies()
+        {
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "seq",
+                Children =
+                {
+                    TypedWrite("enabledCopy", TriggerValueType.Boolean,
+                        Ref(TriggerValueSource.LocalBlackboard, TriggerValueType.Boolean, "enabled")),
+                    TypedWrite("stateCopy", TriggerValueType.String,
+                        Ref(TriggerValueSource.LocalBlackboard, TriggerValueType.String, "state"))
+                }
+            });
+            module.Blackboard.Add(new TriggerBlackboardVariableData
+            {
+                Key = "enabled",
+                Type = TriggerValueType.Boolean,
+                DefaultValue = new TriggerValueRefData
+                    { Source = TriggerValueSource.Constant, Type = TriggerValueType.Boolean, BooleanValue = true }
+            });
+            module.Blackboard.Add(new TriggerBlackboardVariableData
+            {
+                Key = "enabledCopy",
+                Type = TriggerValueType.Boolean,
+                DefaultValue = new TriggerValueRefData
+                    { Source = TriggerValueSource.Constant, Type = TriggerValueType.Boolean }
+            });
+            module.Blackboard.Add(new TriggerBlackboardVariableData
+            {
+                Key = "state",
+                Type = TriggerValueType.String,
+                DefaultValue = new TriggerValueRefData
+                    { Source = TriggerValueSource.Constant, Type = TriggerValueType.String, StringValue = "armed" }
+            });
+            module.Blackboard.Add(new TriggerBlackboardVariableData
+            {
+                Key = "stateCopy",
+                Type = TriggerValueType.String,
+                DefaultValue = new TriggerValueRefData
+                    { Source = TriggerValueSource.Constant, Type = TriggerValueType.String }
+            });
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.True, result.BuildMessage());
+            Assert.That(result.Database.Triggers[0].Actions[0].Args["value"].Kind, Is.EqualTo("BlackboardValue"));
+            Assert.That(result.Database.Triggers[0].Actions[0].Args["value"].KeyType, Is.EqualTo(BlackboardKeyType.Bool));
+            Assert.That(result.Database.Triggers[0].Actions[1].Args["value"].Kind, Is.EqualTo("BlackboardValue"));
+            Assert.That(result.Database.Triggers[0].Actions[1].Args["value"].KeyType, Is.EqualTo(BlackboardKeyType.String));
+
+            var runtime = new TriggerPlanJsonDatabase();
+            runtime.LoadFromJson(TriggerAuthoringRuntimeExporter.Serialize(result.Database), "typed-blackboard-copy");
+            Assert.That(runtime.Records[0].Plan.Actions[0].Args["value"].Kind, Is.EqualTo(ActionArgKind.BlackboardValue));
+            Assert.That(runtime.Records[0].Plan.Actions[1].Args["value"].Kind, Is.EqualTo(ActionArgKind.BlackboardValue));
+        }
+
+        [Test]
         public void Build_RejectsSetVariableTargetValueTypeMismatchBeforeCompilation()
         {
             var module = CreateModule(TypedWrite("enabled", TriggerValueType.Boolean,
@@ -1271,7 +1375,14 @@ namespace AbilityKit.Ability.Editor.Tests
                             },
                             ["value"] = new NumericValueRefDto { Kind = "Const", ConstValue = 4 },
                             ["boolValue"] = new NumericValueRefDto { Kind = "Bool", BoolValue = true },
-                            ["stringValue"] = new NumericValueRefDto { Kind = "String", StringValue = "armed" }
+                            ["stringValue"] = new NumericValueRefDto { Kind = "String", StringValue = "armed" },
+                            ["blackboardValue"] = new NumericValueRefDto
+                            {
+                                Kind = "BlackboardValue",
+                                BoardId = 404,
+                                KeyId = 505,
+                                KeyType = BlackboardKeyType.String
+                            }
                         }
                     }
                 }
@@ -1289,6 +1400,8 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(target.Scope, Is.EqualTo("owner"));
             Assert.That(roundTripped.Triggers[0].Actions[0].Args["boolValue"].BoolValue, Is.True);
             Assert.That(roundTripped.Triggers[0].Actions[0].Args["stringValue"].StringValue, Is.EqualTo("armed"));
+            Assert.That(roundTripped.Triggers[0].Actions[0].Args["blackboardValue"].Kind, Is.EqualTo("BlackboardValue"));
+            Assert.That(roundTripped.Triggers[0].Actions[0].Args["blackboardValue"].KeyType, Is.EqualTo(BlackboardKeyType.String));
         }
 
         [Test]
@@ -1407,6 +1520,272 @@ namespace AbilityKit.Ability.Editor.Tests
                     diagnostic.Path == "module.triggers[0].actions.condition"),
                 Is.True,
                 result.BuildMessage());
+        }
+
+        [Test]
+        public void Build_CallableContract_CompilesInputCallAndOutputSequence()
+        {
+            var module = CreateCallableModule(
+                new TriggerCallableParameterData
+                {
+                    Name = "damage",
+                    LocalVariableKey = "inputDamage",
+                    Type = TriggerValueType.Number,
+                    Direction = TriggerCallableParameterDirection.Input
+                },
+                new TriggerCallableParameterData
+                {
+                    Name = "result",
+                    LocalVariableKey = "outputDamage",
+                    Type = TriggerValueType.Number,
+                    Direction = TriggerCallableParameterDirection.Output
+                });
+            module.Triggers[0].Blackboard.Add(Variable("result", TriggerValueType.Number));
+            module.Triggers[0].Actions = CallableReference(
+                200,
+                Arg("damage", new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.Number,
+                    NumberValue = 12.5d
+                }),
+                Arg("result", Ref(
+                    TriggerValueSource.LocalBlackboard,
+                    TriggerValueType.Number,
+                    TriggerAuthoringLocalBlackboardPath.Format(
+                        TriggerAuthoringLocalBlackboardScope.Trigger,
+                        "result"))));
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.True, result.BuildMessage());
+            var root = result.Database.Triggers[0].ExecutionRoot;
+            Assert.That(root.Kind, Is.EqualTo("Sequence"));
+            Assert.That(root.Children, Has.Count.EqualTo(3));
+            Assert.That(root.Children[0].Action.ActionId, Is.EqualTo(RuntimeStableStringId.Get("action:set_var")));
+            Assert.That(root.Children[1].Action.ActionId, Is.EqualTo(RuntimeStableStringId.Get("action:execute_trigger")));
+            Assert.That(root.Children[1].Action.Args.Keys, Is.EquivalentTo(new[] { "trigger_id" }));
+            Assert.That(root.Children[2].Action.ActionId, Is.EqualTo(RuntimeStableStringId.Get("action:set_var")));
+            Assert.That(root.Children[0].Action.Args["target"].Kind, Is.EqualTo("BlackboardTarget"));
+            Assert.That(root.Children[2].Action.Args["value"].Kind, Is.EqualTo("Blackboard"));
+            Assert.That(result.Database.Blackboards, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void Build_CallableContract_PreservesTypedBooleanAndStringBlackboardValues()
+        {
+            var module = CreateCallableModule(
+                new TriggerCallableParameterData
+                {
+                    Name = "enabled",
+                    LocalVariableKey = "inputEnabled",
+                    Type = TriggerValueType.Boolean,
+                    Direction = TriggerCallableParameterDirection.Input
+                },
+                new TriggerCallableParameterData
+                {
+                    Name = "label",
+                    LocalVariableKey = "outputLabel",
+                    Type = TriggerValueType.String,
+                    Direction = TriggerCallableParameterDirection.Output
+                });
+            module.Triggers[0].Blackboard.Add(Variable("label", TriggerValueType.String));
+            module.Triggers[0].Actions = CallableReference(
+                200,
+                Arg("enabled", new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.Boolean,
+                    BooleanValue = true
+                }),
+                Arg("label", Ref(
+                    TriggerValueSource.LocalBlackboard,
+                    TriggerValueType.String,
+                    TriggerAuthoringLocalBlackboardPath.Format(
+                        TriggerAuthoringLocalBlackboardScope.Trigger,
+                        "label"))));
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.True, result.BuildMessage());
+            var children = result.Database.Triggers[0].ExecutionRoot.Children;
+            Assert.That(children[0].Action.Args["value"].Kind, Is.EqualTo("Bool"));
+            Assert.That(children[2].Action.Args["value"].Kind, Is.EqualTo("BlackboardValue"));
+            Assert.That(children[2].Action.Args["value"].KeyType, Is.EqualTo(BlackboardKeyType.String));
+        }
+
+        [Test]
+        public void Build_CallableContract_RejectsMissingRequiredBinding()
+        {
+            var module = CreateCallableModule(new TriggerCallableParameterData
+            {
+                Name = "damage",
+                LocalVariableKey = "inputDamage",
+                Type = TriggerValueType.Number,
+                Direction = TriggerCallableParameterDirection.Input
+            });
+            module.Triggers[0].Actions = CallableReference(200);
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Exists(diagnostic => diagnostic.Code == "TRG1720"), Is.True);
+        }
+
+        [Test]
+        public void Build_CallableContract_TreatsInputLocalAsReadOnlyInsideCallable()
+        {
+            var module = CreateCallableModule(new TriggerCallableParameterData
+            {
+                Name = "damage",
+                LocalVariableKey = "inputDamage",
+                Type = TriggerValueType.Number,
+                Direction = TriggerCallableParameterDirection.Input
+            });
+            module.Triggers[0].Actions = CallableReference(
+                200,
+                Arg("damage", new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.Number,
+                    NumberValue = 1d
+                }));
+            module.Triggers[1].Actions = TypedWrite(
+                TriggerAuthoringLocalBlackboardPath.Format(
+                    TriggerAuthoringLocalBlackboardScope.Trigger,
+                    "inputDamage"),
+                TriggerValueType.Number,
+                new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.Number,
+                    NumberValue = 2d
+                });
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics.Exists(diagnostic => diagnostic.Code == "TRG1314"), Is.True);
+        }
+
+        private static TriggerAuthoringModuleData CreateCallableModule(
+            params TriggerCallableParameterData[] parameters)
+        {
+            var module = CreateModule(DebugLog("caller"));
+            var callable = new TriggerDefinitionData
+            {
+                Id = 200,
+                Name = "Callable",
+                EntryMode = TriggerEntryMode.Callable,
+                Scope = "owner",
+                Actions = DebugLog("callable"),
+                CallableParameters = new List<TriggerCallableParameterData>(parameters)
+            };
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                var parameter = parameters[i];
+                callable.Blackboard.Add(Variable(parameter.LocalVariableKey, parameter.Type));
+            }
+            module.Triggers.Add(callable);
+            return module;
+        }
+
+        [Test]
+        public void Build_ForEach_ExportsCollectionHandleAndItemTarget()
+        {
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "for_each",
+                Arguments =
+                {
+                    Arg("collection", Ref(
+                        TriggerValueSource.LocalBlackboard,
+                        TriggerValueType.Integer,
+                        "targets")),
+                    Arg("item", Ref(
+                        TriggerValueSource.LocalBlackboard,
+                        TriggerValueType.Integer,
+                        "currentTarget")),
+                    Arg("max_iterations", ConstInt(32))
+                },
+                Children = { DebugLog("target") }
+            });
+            module.Blackboard.Add(Variable("targets", TriggerValueType.Integer));
+            module.Blackboard.Add(Variable("currentTarget", TriggerValueType.Integer));
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.True, result.BuildMessage());
+            var executionRoot = result.Database.Triggers[0].ExecutionRoot;
+            Assert.That(executionRoot.Kind, Is.EqualTo("ForEach"));
+            Assert.That(executionRoot.Collection.Kind, Is.EqualTo("Blackboard"));
+            Assert.That(executionRoot.ItemTarget.Kind, Is.EqualTo("BlackboardTarget"));
+            Assert.That(executionRoot.MaxIterations, Is.EqualTo(32));
+            Assert.That(executionRoot.Children, Has.Count.EqualTo(1));
+
+            var database = new TriggerPlanJsonDatabase();
+            var json = TriggerAuthoringRuntimeExporter.Serialize(result.Database);
+            Assert.DoesNotThrow(() => database.LoadFromJson(json, "authoring-foreach-test"));
+            Assert.That(database.TryGetExecutionRootByTriggerId(1001, out var runtimeRoot), Is.True);
+            Assert.That(runtimeRoot, Is.TypeOf<ForEachTriggerPlanExecutable>());
+        }
+
+        [Test]
+        public void Build_ForEach_RejectsNonPositiveIterationLimit()
+        {
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "for_each",
+                Arguments =
+                {
+                    Arg("collection", Ref(
+                        TriggerValueSource.LocalBlackboard,
+                        TriggerValueType.Integer,
+                        "targets")),
+                    Arg("item", Ref(
+                        TriggerValueSource.LocalBlackboard,
+                        TriggerValueType.Integer,
+                        "currentTarget")),
+                    Arg("max_iterations", ConstInt(0))
+                },
+                Children = { DebugLog("target") }
+            });
+            module.Blackboard.Add(Variable("targets", TriggerValueType.Integer));
+            module.Blackboard.Add(Variable("currentTarget", TriggerValueType.Integer));
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics, Has.Some.Matches<TriggerAuthoringDiagnostic>(diagnostic =>
+                diagnostic.Code == "TRG1316"));
+        }
+
+        private static TriggerNodeData CallableReference(int triggerId, params TriggerArgumentData[] bindings)
+        {
+            var node = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = TriggerAuthoringTriggerReuse.ExecuteTriggerType,
+                Arguments = { Arg(TriggerAuthoringTriggerReuse.TriggerIdArgument, ConstInt(triggerId)) }
+            };
+            node.Arguments.AddRange(bindings);
+            return node;
+        }
+
+        private static TriggerBlackboardVariableData Variable(string key, TriggerValueType type)
+        {
+            return new TriggerBlackboardVariableData
+            {
+                Key = key,
+                Type = type,
+                DefaultValue = new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = type
+                }
+            };
         }
 
         private static TriggerAuthoringModuleData CreateModule(TriggerNodeData actions)

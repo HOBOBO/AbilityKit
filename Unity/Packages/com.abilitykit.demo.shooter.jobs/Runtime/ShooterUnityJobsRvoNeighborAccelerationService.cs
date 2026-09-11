@@ -2,6 +2,7 @@
 
 using System;
 using System.Threading.Tasks;
+using AbilityKit.Compute.UnityJobs;
 using AbilityKit.Demo.Shooter.Runtime;
 using Unity.Burst;
 using Unity.Collections;
@@ -32,6 +33,9 @@ namespace AbilityKit.Demo.Shooter.Jobs
 
         private readonly int _minimumAgentCount;
         private readonly int _innerLoopBatchCount;
+        private readonly UnityJobPlan _neighborPlan;
+        private readonly UnityJobNodeId _buildSpatialGridNode;
+        private readonly UnityJobNodeId _collectNeighborsNode;
         private NativeArray<uint> _entityIds;
         private NativeArray<float> _positionX;
         private NativeArray<float> _positionY;
@@ -57,6 +61,11 @@ namespace AbilityKit.Demo.Shooter.Jobs
 
             _minimumAgentCount = minimumAgentCount;
             _innerLoopBatchCount = innerLoopBatchCount;
+
+            var planBuilder = new UnityJobPlanBuilder();
+            _buildSpatialGridNode = planBuilder.Add("build-spatial-grid");
+            _collectNeighborsNode = planBuilder.Add("collect-neighbors", _buildSpatialGridNode);
+            _neighborPlan = planBuilder.Build();
         }
 
         public bool IsAvailable => !_disposed;
@@ -118,14 +127,19 @@ namespace AbilityKit.Demo.Shooter.Jobs
             var hasPendingHandle = false;
             try
             {
+                _neighborPlan.BeginSchedule();
+                hasPendingHandle = true;
                 pendingHandle = new BuildSpatialGridJob
                 {
                     InverseCellSize = inverseCellSize,
                     PositionX = _positionX,
                     PositionY = _positionY,
                     SpatialGrid = _spatialGrid.AsParallelWriter()
-                }.Schedule(batch.Count, _innerLoopBatchCount);
-                hasPendingHandle = true;
+                }.Schedule(
+                    batch.Count,
+                    _innerLoopBatchCount,
+                    _neighborPlan.GetDependency(_buildSpatialGridNode));
+                _neighborPlan.Record(_buildSpatialGridNode, pendingHandle);
 
                 pendingHandle = new CollectNeighborsJob
                 {
@@ -141,9 +155,14 @@ namespace AbilityKit.Demo.Shooter.Jobs
                     NeighborCounts = _neighborCounts,
                     NeighborIndices = _neighborIndices,
                     NeighborDistanceSquared = _neighborDistanceSquared
-                }.Schedule(batch.Count, _innerLoopBatchCount, pendingHandle);
+                }.Schedule(
+                    batch.Count,
+                    _innerLoopBatchCount,
+                    _neighborPlan.GetDependency(_collectNeighborsNode));
+                _neighborPlan.Record(_collectNeighborsNode, pendingHandle);
 
-                pendingHandle.Complete();
+                _neighborPlan.EndSchedule();
+                _neighborPlan.Complete();
                 hasPendingHandle = false;
                 NativeArray<int>.Copy(_neighborCounts, batch.NeighborCounts, batch.Count);
                 NativeArray<int>.Copy(_neighborIndices, batch.NeighborIndices, neighborCapacity);
@@ -157,7 +176,7 @@ namespace AbilityKit.Demo.Shooter.Jobs
             {
                 if (hasPendingHandle)
                 {
-                    pendingHandle.Complete();
+                    _neighborPlan.Complete();
                 }
             }
         }
@@ -169,6 +188,7 @@ namespace AbilityKit.Demo.Shooter.Jobs
                 return;
             }
 
+            _neighborPlan.Complete();
             DisposeIfCreated(ref _entityIds);
             DisposeIfCreated(ref _positionX);
             DisposeIfCreated(ref _positionY);

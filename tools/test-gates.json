@@ -530,7 +530,7 @@
       "name": "foundation-units",
       "level": "P1",
       "owner": "Runtime Platform",
-      "description": "Foundation leaf-package unit contracts: timer scheduling semantics, gameplay tag hierarchy/query/persistence, diagnostics profiler data, flow engine contracts, protocol wire serialization, and environment profile mechanism.",
+      "description": "Foundation leaf-package unit contracts: timer scheduling semantics, gameplay tag hierarchy/query/persistence, diagnostics profiler data, flow engine contracts, protocol wire serialization, environment profile mechanism, and the sample catalog golden baseline.",
       "scope": [
         "timer",
         "gameplaytags",
@@ -539,7 +539,8 @@
         "protocol",
         "environment",
         "scenario",
-        "battleflow"
+        "battleflow",
+        "samples"
       ],
       "requiredBefore": [
         "merge-foundation-package-change",
@@ -592,6 +593,20 @@
           "name": "BattleFlow block model tests",
           "kind": "dotnet-test",
           "project": "src/AbilityKit.BattleFlow.Tests/AbilityKit.BattleFlow.Tests.csproj"
+        },
+        {
+          "name": "Build sample catalog host",
+          "kind": "dotnet-build",
+          "project": "src/AbilityKit.Samples/AbilityKit.Samples.csproj"
+        },
+        {
+          "name": "Sample catalog golden baseline",
+          "kind": "powershell-script",
+          "script": "tools/check_sample_baseline.ps1",
+          "arguments": [
+            "-NoBuild"
+          ],
+          "timeoutSeconds": 600
         }
       ]
     },

@@ -234,7 +234,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                 var method = s_registerTypedAsMethod.MakeGenericMethod(argsType);
                 var registration = (IDisposable)method.Invoke(
                     this,
-                    new object[] { ownerKey, record.EventId, record.Plan, ownerBlackboards });
+                    new object[] { ownerKey, record.EventId, record.Plan, record.ExecutionRoot, ownerBlackboards });
                 if (registration == null)
                 {
                     throw new InvalidOperationException($"Owner-bound trigger typed registration returned null. triggerId={record.TriggerId} eventName={record.EventName} eid={record.EventId}");
@@ -252,6 +252,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             long ownerKey,
             int eventId,
             TriggerPlan<object> plan,
+            ITriggerPlanExecutable executionRoot,
             IBlackboardResolver ownerBlackboards)
             where TArgs : class
         {
@@ -266,7 +267,14 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
             }
 
             var typedPlan = plan.AsArgs<TArgs>();
-            var inner = new PlannedTrigger<TArgs, IWorldResolver>(typedPlan);
+            PlannedTrigger<TArgs, IWorldResolver>.ExecutionRootDelegate executeRoot = null;
+            if (executionRoot != null)
+            {
+                executeRoot = (in TArgs args, in ExecCtx<IWorldResolver> ctx) =>
+                    executionRoot.Execute(args, in ctx);
+            }
+
+            var inner = new PlannedTrigger<TArgs, IWorldResolver>(typedPlan, executeRoot);
             var trigger = new GatedOwnerBoundTrigger<TArgs>(
                 ownerKey,
                 inner,
@@ -449,7 +457,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering
                     ctx.NumericFunctions,
                     ctx.Policy,
                     ctx.Control,
-                    ctx.ActionSchedulerManager);
+                    ctx.ActionSchedulerManager,
+                    ctx.Collections);
             }
         }
 

@@ -1,0 +1,127 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA Tests",
+    "description": "Headless composite skill using the existing Shield and Resource systems."
+  },
+  "module": {
+    "moduleId": "ability.moba.tests.shield_resource",
+    "displayName": "MOBA Shield And Resource Test Skill",
+    "kind": "Ability",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 99190001,
+        "name": "test_gain_shield_and_rage",
+        "groupPath": "tests/composite/defense",
+        "tags": ["moba", "test", "composite", "shield", "resource"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "add_shield",
+              "arguments": [
+                {
+                  "name": "shield_id",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 99190001 }
+                },
+                {
+                  "name": "shield_value",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 180.0 }
+                },
+                {
+                  "name": "absorb_ratio",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 1.0 }
+                },
+                {
+                  "name": "duration_frames",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 30 }
+                },
+                {
+                  "name": "priority",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 20 }
+                },
+                {
+                  "name": "target_source",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            },
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "modify_resource",
+              "arguments": [
+                {
+                  "name": "resource_type",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 3 }
+                },
+                {
+                  "name": "amount",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 15.0 }
+                },
+                {
+                  "name": "min",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 0.0 }
+                },
+                {
+                  "name": "max",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 100.0 }
+                },
+                {
+                  "name": "target_source",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 4 }
+                },
+                {
+                  "name": "target_max_count",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 1 }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Test-only composition; shield lifetime and Rage clamping belong to their existing systems."
+      }
+    ]
+  }
+}

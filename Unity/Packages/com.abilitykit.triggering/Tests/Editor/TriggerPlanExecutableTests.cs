@@ -33,6 +33,45 @@ namespace AbilityKit.Triggering.Tests
         }
 
         [Test]
+        public void PlannedTrigger_WithExecutionRoot_ExecutesRootWhenLegacyActionsAreEmpty()
+        {
+            var root = new CountingExecutable();
+            var plan = new TriggerPlan<object>(phase: 0, priority: 0, triggerId: 1001);
+            var trigger = new PlannedTrigger<object, object>(
+                in plan,
+                (in object value, in ExecCtx<object> ctx) => root.Execute(value, in ctx));
+            object args = new object();
+            ExecCtx<object> ctx = default;
+
+            Assert.That(trigger.Evaluate(in args, in ctx), Is.True);
+            trigger.Execute(in args, in ctx);
+
+            Assert.That(root.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void PlannedTrigger_WithExecutionRoot_PreservesOnceExecutionControl()
+        {
+            var root = new CountingExecutable();
+            var executionControl = new TriggerExecutionControlPlan(ETriggerExecutionMode.Once, maxExecutions: 1);
+            var plan = new TriggerPlan<object>(
+                phase: 0,
+                priority: 0,
+                triggerId: 1002,
+                executionControl: in executionControl);
+            var trigger = new PlannedTrigger<object, object>(
+                in plan,
+                (in object value, in ExecCtx<object> ctx) => root.Execute(value, in ctx));
+            object args = new object();
+            ExecCtx<object> ctx = default;
+
+            trigger.Execute(in args, in ctx);
+            trigger.Execute(in args, in ctx);
+
+            Assert.That(root.Count, Is.EqualTo(1));
+        }
+
+        [Test]
         public void Validator_RejectsTimelineActionInsideExecutableTree()
         {
             var actionId = new ActionId(StableStringId.Get("test:trigger_plan_executable_validator:timeline"));

@@ -31,6 +31,12 @@ namespace AbilityKit.Ability.Config.Authoring
         Callable = 1
     }
 
+    public enum TriggerCallableParameterDirection
+    {
+        Input = 0,
+        Output = 1
+    }
+
     public enum TriggerValueType
     {
         None = 0,
@@ -145,6 +151,8 @@ namespace AbilityKit.Ability.Config.Authoring
         public TriggerNodeData Condition;
         public TriggerNodeData Actions;
         public List<TriggerBlackboardVariableData> Blackboard = new List<TriggerBlackboardVariableData>();
+        // Null keeps existing source documents stable until a callable contract is declared.
+        public List<TriggerCallableParameterData> CallableParameters;
         public string Note;
     }
 
@@ -202,6 +210,19 @@ namespace AbilityKit.Ability.Config.Authoring
         public bool ReadOnly;
         public string Description;
         public TriggerValueRefData DefaultValue = new TriggerValueRefData();
+    }
+
+    [Serializable]
+    public sealed class TriggerCallableParameterData
+    {
+        public string Name;
+        public string LocalVariableKey;
+        public TriggerValueType Type;
+        public TriggerCallableParameterDirection Direction;
+        public bool Required = true;
+        public bool HasDefault;
+        public TriggerValueRefData DefaultValue = new TriggerValueRefData();
+        public string Description;
     }
 
     [Serializable]

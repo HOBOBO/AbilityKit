@@ -144,7 +144,7 @@ flowchart TB
 | `src/AbilityKit.Network.Runtime.Tests` | 理解时钟、延迟补偿、同步健康事件 |
 | `src/AbilityKit.Demo.Shooter.Runtime.Tests` | Shooter Runtime、Svelto、同步和状态 hash 验证更集中 |
 | `src/AbilityKit.Game.View.Runtime.Tests` | 表现会话、视图管线和绑定验证更集中 |
-| `src/AbilityKit.Samples.Logic` | 更小的逻辑样例，适合学习单个能力 |
+| `Unity/Packages/com.abilitykit.samples` | 更小的逻辑样例，适合学习单个能力 |
 
 ### 4.1 `.csproj` 引用源码的常见形态
 

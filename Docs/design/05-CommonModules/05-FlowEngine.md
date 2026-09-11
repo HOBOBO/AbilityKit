@@ -348,7 +348,7 @@ Flow 可以被业务层使用，但它本身不规定“技能阶段”或“触
 | 证据 | 入口 | 能证明什么 | 不能证明什么 |
 |------|------|------------|--------------|
 | .NET 编译 | `dotnet build src/AbilityKit.Flow/AbilityKit.Flow.csproj -c Release` | package runtime 可在 `net10.0` 镜像中编译，并能解析 Core/HFSM 依赖 | 不覆盖 Unity player 生命周期或线程行为 |
-| 纯逻辑样例 | `src/AbilityKit.Samples.Logic/Samples/Flow` | Sequence、Race、等待和技能计时等组合可被真实调用 | 不是完整契约测试套件 |
+| 纯逻辑样例 | `Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow` | Sequence、Race、等待和技能计时等组合可被真实调用 | 不是完整契约测试套件 |
 | package sample | `Unity/Packages/com.abilitykit.flow/Samples~/FlowExamples` | Unity package 的接入形态与典型节点组合 | 不等于自动回归门禁 |
 | Starter 调用 | `Unity/Assets/Scripts/Starter/StarterFlowManager.cs` | Unity 宿主存在生产式启动入口 | 不覆盖所有异常和池化分支 |
 | 专项测试 | `src/AbilityKit.Flow.Tests/` | 2026-08-17 扩至 **236/236**（Runner/Session/Host/Context 作用域/全部节点与块/pump 上限/池化往返/诊断/Stages/HfsmFlowRunner/Execute 扩展），连续多轮全绿，接入 `foundation-units` 门禁 | 不覆盖 Unity player 生命周期、线程行为与 Editor 场景 |

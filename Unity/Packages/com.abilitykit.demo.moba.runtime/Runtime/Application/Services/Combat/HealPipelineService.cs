@@ -11,7 +11,7 @@ namespace AbilityKit.Demo.Moba.Services
         public const string AfterApply = "heal.apply.after";
     }
 
-    public readonly struct MobaHealRequest
+    public readonly struct MobaHealRequest : IMobaActorContextProvider, IMobaOriginContextProvider
     {
         public MobaHealRequest(
             int healerActorId,
@@ -41,6 +41,24 @@ namespace AbilityKit.Demo.Moba.Services
         public int ReasonParam { get; }
         public MobaGameplayOrigin Origin { get; }
         public bool AllowDeadTarget { get; }
+
+        public bool TryGetSourceActorId(out int actorId)
+        {
+            actorId = HealerActorId;
+            return actorId > 0;
+        }
+
+        public bool TryGetTargetActorId(out int actorId)
+        {
+            actorId = TargetActorId;
+            return actorId > 0;
+        }
+
+        public bool TryGetOrigin(out MobaGameplayOrigin origin)
+        {
+            origin = Origin;
+            return origin.IsValid;
+        }
     }
 
     [WorldService(typeof(HealPipelineService))]

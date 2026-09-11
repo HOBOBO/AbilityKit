@@ -43,7 +43,7 @@ Pipeline 适合表达：
 
 跨帧 Pipeline 的最小宿主循环应遵守以下责任：启动时保存 `IAbilityPipelineRun<TCtx>`；仅在运行有效期内调用 `Tick(deltaTime)`；取消后至少继续 Tick 一次以完成失败和清理，或改用立即生效的 `Interrupt()`；宿主销毁前终止仍活跃的 run。自定义有状态 phase 还必须实现 `IAbilityPipelinePhaseInstanceFactory<TCtx>`，否则同一定义的并发运行可能共享状态。
 
-仓库中的最小即时示例和 context/config 实现位于 `src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs`；MOBA 跨帧接入则应从 `SkillPipelineRunner.cs` 阅读，但其 PreCast/Cast 和配置字段不是通用契约。
+仓库中的最小即时示例和 context/config 实现位于 `Unity/Packages/com.abilitykit.samples/Runtime/Samples/Pipeline/PipelineBasics.cs`；MOBA 跨帧接入则应从 `SkillPipelineRunner.cs` 阅读，但其 PreCast/Cast 和配置字段不是通用契约。
 
 ---
 
@@ -65,7 +65,7 @@ Pipeline 适合表达：
 | Ability 能力面 | `Unity/Packages/com.abilitykit.ability/Runtime/Ability` | Trigger、Effect、Config、Tag 和 World Service |
 | MOBA runner | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline/SkillPipelineRunner.cs` | MOBA PreCast/Cast 运行和领域清理 |
 | MOBA 配置 | `Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Services/Skill/Pipeline` | Timeline、RulePlan、Sequence、WaitUntil 的配置映射 |
-| 纯 C# 示例 | `src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs` | 即时和跨帧管线最小用法 |
+| 纯 C# 示例 | `Unity/Packages/com.abilitykit.samples/Runtime/Samples/Pipeline/PipelineBasics.cs` | 即时和跨帧管线最小用法 |
 
 `src/AbilityKit.Pipeline/AbilityKit.Pipeline.csproj` 直接编译 Unity package 的 Runtime 源码，因此通用逻辑可在非 Unity .NET 工程复用。Unity 生成工程不是源码所有权入口。
 

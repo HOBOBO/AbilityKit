@@ -118,6 +118,38 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void ConvertFiles_DropsAddBuffDurationButKeepsActionOwnedDuration()
+        {
+            var root = Path.Combine(Path.GetTempPath(), "AbilityKitMobaTriggerMigration", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            var path = Path.Combine(root, "trigger_45.json");
+            File.WriteAllText(path,
+                "{\"id\":45,\"name\":\"Duration ownership\",\"event\":\"\",\"actions\":[" +
+                "{\"type\":\"add_buff\",\"buff_id\":101,\"duration_ms\":1500}," +
+                "{\"type\":\"dash\",\"duration_ms\":350}]}" );
+            try
+            {
+                var module = TriggerAuthoringMobaMigration.ConvertFiles(
+                    new TriggerAuthoringMobaMigration.PackageDefinition(
+                        "skills", "ability", "moba.skills", "ability.moba.skills", "Skills", TriggerModuleKind.Ability),
+                    root,
+                    new[] { path });
+                var actions = module.Triggers.Single().Actions.Children;
+
+                Assert.That(actions[0].Type, Is.EqualTo("add_buff"));
+                Assert.That(actions[0].Arguments.Exists(item => item.Name == "duration_ms"), Is.False,
+                    "Buff lifetime must come exclusively from the Buff config table.");
+                Assert.That(actions[1].Type, Is.EqualTo("dash"));
+                Assert.That(actions[1].Arguments.Single(item => item.Name == "duration_ms").Value.NumberValue,
+                    Is.EqualTo(350d));
+            }
+            finally
+            {
+                Directory.Delete(root, true);
+            }
+        }
+
+        [Test]
         public void CheckedInMobaSources_AllConvertValidateAndCompile()
         {
             var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Directory.GetCurrentDirectory();

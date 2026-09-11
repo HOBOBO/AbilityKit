@@ -1,0 +1,86 @@
+{
+  "schema": "abilitykit-trigger-authoring",
+  "version": "2.2",
+  "metadata": {
+    "author": "AbilityKit MOBA Tests",
+    "description": "Headless skill that delegates persistent effect timing to the existing Area Runtime."
+  },
+  "module": {
+    "moduleId": "ability.moba.tests.persistent_area",
+    "displayName": "MOBA Persistent Area Test Skill",
+    "kind": "Ability",
+    "blackboard": [],
+    "conditionGroups": [],
+    "actionGroups": [],
+    "triggers": [
+      {
+        "id": 99190003,
+        "name": "test_spawn_runtime_owned_area",
+        "groupPath": "tests/composite/area",
+        "tags": ["moba", "test", "composite", "area", "persistent"],
+        "enabled": true,
+        "entryMode": "Callable",
+        "event": "",
+        "phase": "immediate",
+        "priority": 50,
+        "interruptPriority": 0,
+        "scope": "owner",
+        "allowExternal": false,
+        "schedule": {
+          "mode": "transient",
+          "delayMilliseconds": 0,
+          "intervalMilliseconds": 0,
+          "repeatCount": 0
+        },
+        "cue": {},
+        "executionControl": {
+          "maxExecutions": 0,
+          "cooldownMilliseconds": 0.0,
+          "interruptPolicy": "none",
+          "stopPropagationOnSuccess": false,
+          "stopPropagationOnFailure": false
+        },
+        "actions": {
+          "enabled": true,
+          "kind": "Action",
+          "type": "seq",
+          "arguments": [],
+          "children": [
+            {
+              "enabled": true,
+              "kind": "Action",
+              "type": "spawn_area",
+              "arguments": [
+                {
+                  "name": "area_id",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 40060101 }
+                },
+                {
+                  "name": "position_mode",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 0 }
+                },
+                {
+                  "name": "radius",
+                  "value": { "source": "Constant", "type": "Number", "numberValue": 2.75 }
+                },
+                {
+                  "name": "duration_frames",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 18 }
+                },
+                {
+                  "name": "stay_interval_frames",
+                  "value": { "source": "Constant", "type": "Integer", "integerValue": 3 }
+                }
+              ],
+              "children": [],
+              "elseChildren": []
+            }
+          ],
+          "elseChildren": []
+        },
+        "blackboard": [],
+        "note": "Test-only skill; trigger execution spawns once and Area Runtime owns delay, intervals, and expiration."
+      }
+    ]
+  }
+}

@@ -7,7 +7,7 @@ namespace AbilityKit.Demo.Moba.Services
         Respawn = 2,
     }
 
-    public readonly struct MobaHealthChangeResult
+    public readonly struct MobaHealthChangeResult : IMobaActorContextProvider, IMobaOriginContextProvider
     {
         public MobaHealthChangeResult(
             MobaHealthChangeKind kind,
@@ -51,5 +51,23 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaGameplayOrigin Origin { get; }
         public bool Succeeded => AppliedValue > 0f;
         public bool BecameDead => Kind == MobaHealthChangeKind.Damage && OldHp > 0f && TargetHp <= 0f;
+
+        public bool TryGetSourceActorId(out int actorId)
+        {
+            actorId = SourceActorId;
+            return actorId > 0;
+        }
+
+        public bool TryGetTargetActorId(out int actorId)
+        {
+            actorId = TargetActorId;
+            return actorId > 0;
+        }
+
+        public bool TryGetOrigin(out MobaGameplayOrigin origin)
+        {
+            origin = Origin;
+            return origin.IsValid;
+        }
     }
 }

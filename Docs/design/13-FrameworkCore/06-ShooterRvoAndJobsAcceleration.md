@@ -149,15 +149,15 @@ Jobs 服务每次调用依次完成：
 1. 校验数组长度、有限坐标、距离派生值和 cell 坐标范围；
 2. 扩容并复用 Persistent NativeArray 与 NativeParallelMultiHashMap；
 3. 从托管数组复制 EntityId 和位置；
-4. 并行构建空间 MultiHashMap；
-5. 并行为每个 Agent 扫描固定 3x3 cell；
+4. 从 `UnityJobPlan` 取得节点依赖，并在 Shooter 程序集中直接调度具体 Burst Job，并行构建空间 MultiHashMap；
+5. DAG 的下一节点并行为每个 Agent 扫描邻域；
 6. 在每个 Agent 自己的输出区间内按稳定键插入 Top-N；
 7. 当前线程 `Complete()`；
 8. 将计数、索引和距离复制回托管数组。
 
-两个 Job 使用 Burst Strict FloatMode 和 Standard FloatPrecision。空间哈希的同 cell 枚举顺序不稳定，但每个 Agent 在本地有序插入候选，最终输出不依赖 MultiHashMap 枚举顺序。
+两个 Job 使用 Burst Strict FloatMode 和 Standard FloatPrecision。空间哈希的同 cell 枚举顺序不稳定，但每个 Agent 在本地有序插入候选，最终输出不依赖 MultiHashMap 枚举顺序。托管参考计算与 Burst 对相同浮点表达式可能有末位舍入差异，因此测试要求邻居索引完全一致、距离最多相差 1 ULP；这不是跨平台逐位确定性承诺。
 
-Jobs 目前是同步加速：调用方在同一 Tick 内等待 Job 完成，然后继续托管 ORCA 求解。它没有与其他系统重叠执行，也没有把整个求解链路留在 Native 内存中，因此性能收益需要覆盖两次托管/Native 拷贝和调度成本。
+`UnityJobPlan` 本身支持返回组合 handle 和多分支依赖，但 Shooter 目前仍是同步加速：调用方在同一 Tick 内等待 Job 完成，然后继续托管 ORCA 求解。它没有与其他系统重叠执行，也没有把整个求解链路留在 Native 内存中，因此性能收益需要覆盖两次托管/Native 拷贝和调度成本。通用框架边界见 [通用计算加速后端与 Unity Jobs 扩展框架](10-ComputeAccelerationBackends.md)。
 
 ### 7.3 资源生命周期
 
@@ -188,14 +188,15 @@ Pure State Snapshot 当前代码明确量化投射物速度，但没有与 Packe
 - AcceleratedPreferred 在服务成功、拒绝、异常、不可用及多种伪造输出下都与 Managed hash 一致；
 - Managed 模式从不调用已注册的加速服务。
 
-Unity Editor Jobs 包存在 3 项直接测试，源码覆盖：
+本轮使用 Unity 2022.3.62f1 运行 Jobs Editor 测试，结果为 5/5 通过，覆盖：
 
 - 跨正负 cell 边界时与全量参考收集一致；
 - buffer 扩容和跨帧复用不会保留旧结果；
+- 2,048 Agent 的高密度与稀疏邻居结果保持稳定，稳态循环无托管分配；
 - NaN、派生值溢出和 cell 坐标越界会被拒绝；
 - Dispose 后服务不可用。
 
-这 3 项 Unity Editor 测试本轮未运行，也未发现对应 workflow gate 接线，因此只能记录为测试资产存在，不能写成本次已通过或持续门禁证据。
+这些测试本轮已在真实 Unity Editor 中通过，但仍未发现对应 workflow gate 接线，因此不能视为持续门禁证据。2,048 Agent 用例中的计时输出只用于回归观察，不是多平台正式性能 artifact。
 
 这些测试证明同一运行环境中的行为一致性和回退协议。它们没有提供 2,048 Agent RVO 帧耗、稳态分配、Managed/Jobs 性能交叉点、跨平台 hash 或不同 Burst 配置下的一致性证据。仓库中的 2,048 实体表现/同步测试不能替代 RVO 性能验收。
 
@@ -207,9 +208,9 @@ Unity Editor Jobs 包存在 3 项直接测试，源码覆盖：
 | E1 | Shooter Intent/Solve/Integration、snapshot/hash 消费 | 证明领域链路实际接入，不能外推为公共导航能力 |
 | E2 | Shooter Runtime 测试工程成功构建 | 当前纯 .NET RVO 组合可编译；Unity Jobs 另属 Editor 环境 |
 | E3 | Runtime RVO 聚焦测试 12/12 通过 | 验证 Managed、Disabled、确定性和伪造加速输出回退 |
-| E3 资产 | Unity Jobs Editor 3 项测试存在但本轮未运行 | 不能声明 Jobs 后端当前测试通过 |
+| E3 | Unity Jobs Editor 测试 5/5 通过 | 验证 DAG 接线、结果排序、1 ULP 距离边界、缓冲复用、输入拒绝与 Dispose |
 | E4 | 无 64/128/512/2048 Agent 正式性能 artifact | 不证明默认 64 阈值或帧预算合理 |
-| E5 | `shooter-fast` workflow 与夜间 `regression` 编排完整 Shooter Runtime Tests | Runtime 契约有持续接线；Jobs Editor 3 项未发现同等 gate |
+| E5 | `shooter-fast` workflow 与夜间 `regression` 编排完整 Shooter Runtime Tests | Runtime 契约有持续接线；Jobs Editor 5 项未发现同等 gate |
 
 ### 9.2 P0 测试
 

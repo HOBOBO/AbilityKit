@@ -1,0 +1,25 @@
+{
+  "name": "AbilityKit.Compute.UnityJobs",
+  "rootNamespace": "AbilityKit.Compute.UnityJobs",
+  "references": [
+    "AbilityKit.Compute",
+    "Unity.Collections"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "ABILITYKIT_COMPUTE_UNITY_JOBS"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.unity.collections",
+      "expression": "1.0.0",
+      "define": "ABILITYKIT_COMPUTE_UNITY_JOBS"
+    }
+  ],
+  "noEngineReferences": false
+}

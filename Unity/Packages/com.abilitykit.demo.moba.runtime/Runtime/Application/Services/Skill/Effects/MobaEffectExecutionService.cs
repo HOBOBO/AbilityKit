@@ -19,6 +19,8 @@ using AbilityKit.Pipeline;
 using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Observability;
+using AbilityKit.Triggering.Collections;
+using AbilityKit.Triggering.Blackboard;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -39,6 +41,8 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
         [WorldInject(required: false)] private IMobaTriggerAnalysisHook _triggerAnalysisHook = null;
         [WorldInject(required: false)] private IMobaEffectLifecycleHook _effectLifecycleHook = null;
+        [WorldInject(required: false)] private IBlackboardResolver _globalBlackboards = null;
+        [WorldInject(required: false)] private IOwnerBlackboardStore _ownerBlackboards = null;
 
         private readonly MobaTriggerExecutionBudget _executionBudget = new MobaTriggerExecutionBudget();
         private MobaTriggerPlanExecutor _planExecutor;
@@ -57,12 +61,22 @@ namespace AbilityKit.Demo.Moba.Services
 
         private sealed class CombatExecutionFrame
         {
-            public CombatExecutionFrame(in MobaCombatExecutionContext context)
+            public CombatExecutionFrame(
+                in MobaCombatExecutionContext context,
+                ITriggerCollectionResolver collections,
+                bool ownsCollections,
+                IBlackboardResolver blackboards)
             {
                 Context = context;
+                Collections = collections;
+                OwnsCollections = ownsCollections;
+                Blackboards = blackboards;
             }
 
             public MobaCombatExecutionContext Context { get; private set; }
+            public ITriggerCollectionResolver Collections { get; }
+            public bool OwnsCollections { get; }
+            public IBlackboardResolver Blackboards { get; }
 
             public void AdvanceToEffectExecution(
                 long effectContextId,
@@ -90,6 +104,22 @@ namespace AbilityKit.Demo.Moba.Services
 
             context = _executionContexts.Peek().Context;
             return context.HasExecutionSource;
+        }
+
+        internal bool TryGetCurrentTriggerCollections(out ITriggerCollectionResolver collections)
+        {
+            collections = _executionContexts.Count > 0
+                ? _executionContexts.Peek().Collections
+                : null;
+            return collections != null;
+        }
+
+        internal bool TryGetCurrentExecutionBlackboards(out IBlackboardResolver blackboards)
+        {
+            blackboards = _executionContexts.Count > 0
+                ? _executionContexts.Peek().Blackboards
+                : null;
+            return blackboards != null;
         }
 
         public bool TryGetCurrentTraceScope(out MobaEffectTraceScopeSnapshot snapshot)
@@ -553,10 +583,25 @@ namespace AbilityKit.Demo.Moba.Services
             in MobaCombatExecutionContext executionContext,
             in MobaEffectLineageInput lineageInput,
             in TriggerPlan<object> plan,
-            in MobaTriggerExecutionBudgetToken budgetToken)
+            in MobaTriggerExecutionBudgetToken budgetToken,
+            IBlackboardResolver blackboards = null)
         {
             EffectExecutionTraceScope traceScope = null;
-            var executionFrame = new CombatExecutionFrame(in executionContext);
+            var ownsCollections = _executionContexts.Count == 0;
+            ITriggerCollectionResolver collections = ownsCollections
+                ? new TriggerCollectionStore()
+                : _executionContexts.Peek().Collections;
+            if (!ownsCollections)
+                blackboards = _executionContexts.Peek().Blackboards;
+            else if (blackboards == null && executionContext.SourceActorId > 0 && _ownerBlackboards != null)
+                blackboards = _ownerBlackboards.GetOrCreate(executionContext.SourceActorId);
+            if (blackboards == null)
+                blackboards = _globalBlackboards;
+            var executionFrame = new CombatExecutionFrame(
+                in executionContext,
+                collections,
+                ownsCollections,
+                blackboards);
             _executionContexts.Push(executionFrame);
             try
             {
@@ -622,6 +667,8 @@ namespace AbilityKit.Demo.Moba.Services
         {
             EnsureCurrentSession(executionFrame, null, operation);
             _executionContexts.Pop();
+            if (executionFrame.OwnsCollections && executionFrame.Collections is IDisposable disposable)
+                disposable.Dispose();
         }
 
         private sealed class MobaEffectExecutionSession : IDisposable
@@ -852,7 +899,14 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (!TryEnterExecutionBudget(triggerId, in executionContext, out var budgetToken, out var conditionContext)) return false;
 
-            using (var session = BeginExecutionSession(triggerId, triggerId, in executionContext, in lineageInput, in plan, in budgetToken))
+            using (var session = BeginExecutionSession(
+                       triggerId,
+                       triggerId,
+                       in executionContext,
+                       in lineageInput,
+                       in plan,
+                       in budgetToken,
+                       ctx.Blackboards))
             {
                 var activeExecutionContext = session.ExecutionContext;
                 conditionContext = CreateConditionContext(in activeExecutionContext);
@@ -860,6 +914,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var conditionsPassed = conditionResult.Passed;
                 if (conditionsPassed)
                 {
+                    TryGetCurrentTriggerCollections(out var collections);
                     var actionCtx = new ExecCtx<IWorldResolver>(
                         _services ?? ctx.Context,
                         ctx.EventBus,
@@ -873,7 +928,8 @@ namespace AbilityKit.Demo.Moba.Services
                         ctx.NumericFunctions,
                         ctx.Policy,
                         ctx.Control,
-                        ctx.ActionSchedulerManager);
+                        ctx.ActionSchedulerManager,
+                        collections ?? ctx.Collections);
                     trigger.Execute(in args, in actionCtx);
                     CollectTriggerAnalysisExecution(triggerId, in conditionContext, true, detailCode: 3);
                 }

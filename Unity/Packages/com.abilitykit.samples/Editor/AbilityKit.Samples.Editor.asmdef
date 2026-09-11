@@ -1,0 +1,19 @@
+{
+    "name": "AbilityKit.Samples.Editor",
+    "rootNamespace": "AbilityKit",
+    "references": [
+        "AbilityKit.Samples",
+        "AbilityKit.Editor.Platform"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

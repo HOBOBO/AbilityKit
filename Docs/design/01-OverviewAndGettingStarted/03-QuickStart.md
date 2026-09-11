@@ -1,8 +1,8 @@
 # 1.3 快速开始：从源码到第一个可运行闭环
 
 > 文档类型：源码接入与验证指南
-> 事实基线：2026-08-16
-> 文档版本：v3.0
+> 事实基线：2026-09-10
+> 文档版本：v3.1
 >
 > 本文用于建立 AbilityKit 从源码位置、构建入口、Console Demo、测试项目到第一个功能改动的最短运行闭环。本文结论来自 `README.md`、`Unity/Packages/README.md`、`.cursor/rules/src-unity-packages-relation.mdc`、`src/AbilityKit.sln`、Console Demo 启动链路和 P0 相关测试工程。
 
@@ -33,17 +33,42 @@ AbilityKit 不是单个 Unity 插件，而是一组可以在 Unity、纯 .NET、
 flowchart TD
     A["克隆仓库并打开根目录"] --> B["确认共享 package runtime 以 Unity/Packages 为权威源"]
     B --> C["阅读能力地图和项目结构"]
-    C --> D["运行 dotnet build 或 Console Demo"]
+    C --> D0["第 0 步：跑示例目录（无需配置与服务器）"]
+    D0 --> D["需要完整战斗链路时再进 dotnet build 或 MOBA Console Demo"]
     D --> E["观察配置、世界、阶段、自动测试日志"]
     E --> F["按源码入口追一条闭环"]
     F --> G{当前目标}
     G -- 学框架底座 --> H["Core + World.DI + Host"]
     G -- 学玩法表达 --> I["Triggering + Ability + Combat"]
     G -- 学联机同步 --> J["FrameSync + Snapshot + StateSync + Record"]
-    G -- 学示例落地 --> K["MOBA / Shooter / ET / Orleans"]
+    G -- 学示例落地 --> K["示例目录 / MOBA / Shooter / ET / Orleans"]
 ```
 
 这条路径的核心思想是：先跑通运行闭环，再沿一条源码链路扩展到相关模块。
+
+### 2.1 第 0 步：跑示例目录（推荐起点，不需要配置和服务器）
+
+仓库自带一套分级示例目录，可以直接运行，不需要 Luban 配置、不依赖服务器或网络：
+
+```powershell
+dotnet run --project src/AbilityKit.Samples -- --list                        # 列出 37 条官方示例
+dotnet run --project src/AbilityKit.Samples -- --id onboarding/orientation   # 按稳定 id 运行单条
+dotnet run --project src/AbilityKit.Samples -- --all                         # 全量运行
+dotnet run --project src/AbilityKit.Samples -- --web sample-web              # 导出静态页面（含画布与时间线）
+```
+
+示例内容在 `Unity/Packages/com.abilitykit.samples`，由 `sample-manifest.json` 描述；每条都带 `guide`（purpose / observe / takeaway）、`learningContract`（前置知识与学习目标）、`next` 学习链。当前共 37 条：**Beginner 24 条、Intermediate 13 条**，覆盖 18 个分类。
+
+推荐顺序：`onboarding/*`（6 条，先建立整体心智模型）→ `foundation/*`、`tags/*`（基础词汇与数据入口）→ `pipeline/*`、`flow/*`、`triggering/*`、`modifiers/*`（行为编排）→ `world/*`、`sync/*`、`combat/*`（运行环境与战斗链路）。
+
+示例输出有 golden 基线保护，改动示例源码时不会静默漂移：
+
+```powershell
+powershell -File tools/check_sample_baseline.ps1          # 校验（foundation-units 门禁会跑这一步）
+powershell -File tools/check_sample_baseline.ps1 -Update  # 输出确实该变时刷新基线
+```
+
+> **要"最少依赖的最小闭环"而不是"能力全览"，改用五个 Starter**：`src/AbilityKit.Samples.Foundation` 只需 `core` + `world.di` 两个包（源码 301 行），随后 `SkillCore` → `BattleRuntime` → `SyncRuntime` / `ServerRuntime` 逐层加包。五个工程互为"下一步"引用，可直接 `dotnet run`。
 
 ---
 
@@ -58,6 +83,9 @@ flowchart TD
 | `.cursor/rules/src-unity-packages-relation.mdc` | 明确共享 package runtime 以 `Unity/Packages` 为权威源，镜像工程通过项目文件引用源码 |
 | `.cursor/rules/ability-package-structure.mdc` | Runtime、Editor、Samples、package 命名和包结构约束 |
 | `src/AbilityKit.sln` | .NET 解决方案入口，包含框架、Demo、测试项目 |
+| `src/AbilityKit.Samples` | 示例目录宿主，提供 `--list` / `--id` / `--all` / `--web` / `--validate-manifest`；示例内容在 `Unity/Packages/com.abilitykit.samples`，宿主契约定在 `Unity/Packages/com.abilitykit.samples/Runtime/Abstractions` |
+| `src/AbilityKit.Samples.{Foundation,SkillCore,BattleRuntime,SyncRuntime,ServerRuntime}` | 五个逐层加包的 Starter 工程，见 §2.1；`Foundation` 只依赖 `core` + `world.di` |
+| `tools/samples/sample-baseline.txt` | 示例输出的 golden 基线，由 `tools/check_sample_baseline.ps1` 生成与校验，挂在 `foundation-units` 门禁 |
 | `Docs/design/00-index.md` | 当前设计文档总索引和源码入口索引 |
 
 ### 3.2 为什么先从 `src` 跑
@@ -212,6 +240,8 @@ dotnet test src/AbilityKit.Demo.Shooter.Runtime.Tests/AbilityKit.Demo.Shooter.Ru
 | `AbilityKit.Demo.Moba.Tests` | `279/305` | 279 项通过；26 项共同被同一个严格配置错误阻断，不能写成 Console 完整 World 当前可运行 |
 
 快速开始应以“最小聚焦测试通过”为第一闭环，再把 Console 作为项目配置、应用装配与失败门禁的综合入口。只有主 MOBA 配置恢复有效并重新执行成功后，才能把默认 Console 路径写成已跑通证据。
+
+**示例目录证据（2026-09-10 实测，E3）**：`src/AbilityKit.Samples` 的 `--all` 与 `--validate-manifest` 在本地与 `foundation-units` 门禁下均通过——37 条示例全量输出与 `tools/samples/sample-baseline.txt` 逐字节一致，manifest 校验 24 项计数全部为 0 错误，门禁步骤耗时 4.7s。**已知例外**：`sync/state-diff-apply` 的 `IncrementalDiffBytes` 依赖墙钟（根因见 `tools/check_sample_baseline.ps1` 的 `$knownUnstableKeys` 注释），基线中该行被掩码为 `<unstable>`；这是缺陷被掩盖而非已修复，其余所有行仍逐字节校验。
 
 ---
 

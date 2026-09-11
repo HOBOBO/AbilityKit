@@ -7,6 +7,10 @@ using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Context;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Collections;
+using AbilityKit.Triggering.Blackboard;
+using AbilityKit.Triggering.Variables.Numeric;
+using AbilityKit.Triggering.Variables.Numeric.Expression;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -17,13 +21,17 @@ namespace AbilityKit.Demo.Moba.Services
             IEventBus eventBus,
             FunctionRegistry functions,
             ActionRegistry actions,
-            IPayloadAccessorRegistry payloads)
+            IPayloadAccessorRegistry payloads,
+            INumericVarDomainRegistry numericDomains = null,
+            INumericRpnFunctionRegistry numericFunctions = null)
         {
             Services = services;
             EventBus = eventBus;
             Functions = functions;
             Actions = actions;
             Payloads = payloads;
+            NumericDomains = numericDomains;
+            NumericFunctions = numericFunctions;
         }
 
         public IWorldResolver Services { get; }
@@ -31,6 +39,8 @@ namespace AbilityKit.Demo.Moba.Services
         public FunctionRegistry Functions { get; }
         public ActionRegistry Actions { get; }
         public IPayloadAccessorRegistry Payloads { get; }
+        public INumericVarDomainRegistry NumericDomains { get; }
+        public INumericRpnFunctionRegistry NumericFunctions { get; }
 
         public void ValidateForExecution(string ownerName, int triggerId)
         {
@@ -100,9 +110,17 @@ namespace AbilityKit.Demo.Moba.Services
             _effects = effects;
         }
 
-        public ExecCtx<IWorldResolver> Create(ExecutionControl control)
+        public ExecCtx<IWorldResolver> Create(
+            ExecutionControl control,
+            ITriggerCollectionResolver collections = null)
         {
             var currentEffects = _effects.Resolve();
+            if (collections == null && currentEffects != null)
+                currentEffects.TryGetCurrentTriggerCollections(out collections);
+            IBlackboardResolver blackboards = null;
+            if (currentEffects == null ||
+                !currentEffects.TryGetCurrentExecutionBlackboards(out blackboards))
+                _dependencies.Services?.TryResolve(out blackboards);
             var context = currentEffects != null
                 ? new CurrentEffectWorldResolver(_dependencies.Services, currentEffects)
                 : _dependencies.Services;
@@ -112,13 +130,14 @@ namespace AbilityKit.Demo.Moba.Services
                 eventBus: _dependencies.EventBus,
                 functions: _dependencies.Functions,
                 actions: _dependencies.Actions,
-                blackboards: null,
+                blackboards: blackboards,
                 payloads: _dependencies.Payloads,
                 idNames: null,
-                numericDomains: null,
-                numericFunctions: null,
+                numericDomains: _dependencies.NumericDomains,
+                numericFunctions: _dependencies.NumericFunctions,
                 policy: default,
-                control: control);
+                control: control,
+                collections: collections);
         }
 
         private sealed class CurrentEffectWorldResolver : IWorldResolver

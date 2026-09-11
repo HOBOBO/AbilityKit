@@ -553,6 +553,61 @@ namespace AbilityKit.Ability.Editor.Utilities
         public const string ExecuteTriggerType = "execute_trigger";
         public const string TriggerIdArgument = "trigger_id";
 
+        public static TriggerTypeDescriptor BuildCallDescriptor(TriggerDefinitionData target)
+        {
+            var parameters = new List<TriggerParameterDescriptor>
+            {
+                new TriggerParameterDescriptor(
+                    TriggerIdArgument,
+                    TriggerValueType.Integer,
+                    true,
+                    TriggerValueSourceMask.Constant)
+            };
+            var callableParameters = target?.CallableParameters;
+            if (callableParameters != null)
+            {
+                for (var i = 0; i < callableParameters.Count; i++)
+                {
+                    var parameter = callableParameters[i];
+                    if (parameter == null || string.IsNullOrWhiteSpace(parameter.Name)) continue;
+                    var output = parameter.Direction == TriggerCallableParameterDirection.Output;
+                    parameters.Add(new TriggerParameterDescriptor(
+                        parameter.Name,
+                        parameter.Type,
+                        parameter.Required && !(parameter.HasDefault && !output),
+                        output
+                            ? TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard
+                            : TriggerValueSourceMask.All,
+                        output ? TriggerParameterAccess.Output : TriggerParameterAccess.Read));
+                }
+            }
+
+            return new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                ExecuteTriggerType,
+                "执行触发效果",
+                "Action/Flow",
+                0,
+                0,
+                true,
+                parameters.ToArray());
+        }
+
+        public static TriggerCallableParameterData FindParameter(
+            TriggerDefinitionData target,
+            string name)
+        {
+            var parameters = target?.CallableParameters;
+            if (parameters == null || string.IsNullOrWhiteSpace(name)) return null;
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter != null && string.Equals(parameter.Name, name, StringComparison.Ordinal))
+                    return parameter;
+            }
+            return null;
+        }
+
         public static bool IsReference(TriggerNodeData node)
         {
             return node != null &&

@@ -85,6 +85,18 @@ namespace AbilityKit.Ability.Editor.Utilities
                 $"{result.TriggerCount} triggers from {result.SourceFileCount} files.");
         }
 
+        // Keeps the checked-in MOBA project catalog aligned without regenerating modules or sources.
+        public static void SyncEventCatalogBatch()
+        {
+            EnsureFolder(CatalogRoot);
+            var eventCatalog = GetOrCreateAsset<TriggerEventCatalogAsset>(
+                CatalogRoot + "/MobaTriggerEvents.asset");
+            eventCatalog.Events = TriggerAuthoringProjectDefaults.CreateMobaEvents();
+            EditorUtility.SetDirty(eventCatalog);
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[TriggerAuthoringMobaMigration] Synchronized {eventCatalog.Events.Count} MOBA events.");
+        }
+
         internal static TriggerAuthoringMobaMigrationResult Generate()
         {
             var result = new TriggerAuthoringMobaMigrationResult();
@@ -424,6 +436,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return "target_payload_field_id";
             if (string.Equals(type, "add_buff", StringComparison.OrdinalIgnoreCase))
             {
+                // Buff lifetime is owned by the Buff config. Legacy trigger files carried this
+                // field, but the runtime action has never treated it as an override.
+                if (string.Equals(name, "duration_ms", StringComparison.OrdinalIgnoreCase)) return null;
                 if (string.Equals(name, "buffIds", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(name, "buff_id", StringComparison.OrdinalIgnoreCase)) return "buff_ids";
                 if (string.Equals(name, "targetActorId", StringComparison.OrdinalIgnoreCase)) return "target_actor_id";

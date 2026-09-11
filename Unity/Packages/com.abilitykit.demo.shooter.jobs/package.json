@@ -8,6 +8,7 @@
     "name": "AbilityKit"
   },
   "dependencies": {
+    "com.abilitykit.compute.unityjobs": "0.1.0",
     "com.abilitykit.demo.shooter.runtime": "0.0.1",
     "com.abilitykit.world.di": "0.1.0",
     "com.unity.burst": "1.8.21",

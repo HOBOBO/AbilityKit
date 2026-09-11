@@ -17,18 +17,18 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Prefix("unit.", "单位事件", "单位", "UnitEventPayload", UnitFields(), false, true),
                 Prefix("gameplay.", "玩法事件", "玩法", "GameplayLifecycleEventArgs", GameplayFields(), true, true),
                 Prefix("presentation.", "表现事件", "表现", "PresentationEventArgs", PresentationFields(), true, false),
-                Exact("damage.attack.created", "攻击已创建", "伤害", "AttackInfo", DamageFields(), false, true),
-                Exact("damage.attack.before_calc", "伤害计算前", "伤害", "AttackInfo", DamageFields(), false, true),
-                Exact("damage.calc.begin", "开始伤害计算", "伤害", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.after_base", "基础伤害计算后", "伤害", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.after_mitigate", "伤害减免后", "伤害", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.after_shield", "护盾结算后", "伤害", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.calc.final", "最终伤害", "伤害", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.apply.before", "应用伤害前", "伤害", "AttackCalcInfo", DamageFields(), false, true),
-                Exact("damage.apply.after", "应用伤害后", "伤害", "DamageResult", DamageFields(), false, true),
-                Exact("health.change.committed", "生命值已变化", "生命值", "MobaHealthChangeResult", DamageFields(), false, true),
-                Exact("heal.apply.before", "应用治疗前", "治疗", "HealRequest", DamageFields(), false, true),
-                Exact("heal.apply.after", "应用治疗后", "治疗", "HealResult", DamageFields(), false, true)
+                Exact("damage.attack.created", "攻击已创建", "伤害", "AttackInfo", AttackFields(), false, true),
+                Exact("damage.attack.before_calc", "伤害计算前", "伤害", "AttackInfo", AttackFields(), false, true),
+                Exact("damage.calc.begin", "开始伤害计算", "伤害", "AttackCalcInfo", DamageCalculationFields(), false, true),
+                Exact("damage.calc.after_base", "基础伤害计算后", "伤害", "AttackCalcInfo", DamageCalculationFields(), false, true),
+                Exact("damage.calc.after_mitigate", "伤害减免后", "伤害", "AttackCalcInfo", DamageCalculationFields(), false, true),
+                Exact("damage.calc.after_shield", "护盾结算后", "伤害", "AttackCalcInfo", DamageCalculationFields(), false, true),
+                Exact("damage.calc.final", "最终伤害", "伤害", "AttackCalcInfo", DamageCalculationFields(), false, true),
+                Exact("damage.apply.before", "应用伤害前", "伤害", "AttackCalcInfo", DamageCalculationFields(), false, true),
+                Exact("damage.apply.after", "应用伤害后", "伤害", "DamageResult", DamageResultFields(), false, true),
+                Exact("health.change.committed", "生命值已变化", "生命值", "MobaHealthChangeResult", HealthChangeFields(), false, true),
+                Exact("heal.apply.before", "应用治疗前", "治疗", "MobaHealRequest", HealRequestFields(), false, true),
+                Exact("heal.apply.after", "应用治疗后", "治疗", "MobaHealthChangeResult", HealthChangeFields(), false, true)
             };
             AddExactEvents(events, new[]
             {
@@ -241,7 +241,30 @@ namespace AbilityKit.Ability.Editor.Utilities
             };
         }
 
-        private static List<TriggerPayloadFieldData> DamageFields()
+        private static List<TriggerPayloadFieldData> AttackFields()
+        {
+            return new List<TriggerPayloadFieldData>
+            {
+                Field("attacker_actor_id", TriggerValueType.Integer), Field("target_actor_id", TriggerValueType.Integer),
+                Field("base_damage", TriggerValueType.Number), Field("damage_rate", TriggerValueType.Number),
+                Field("flat_bonus", TriggerValueType.Number), Field("final_damage", TriggerValueType.Number),
+                Field("damage_type", TriggerValueType.Integer),
+                Field("crit_type", TriggerValueType.Integer), Field("reason_kind", TriggerValueType.Integer),
+                Field("reason_param", TriggerValueType.Integer)
+            };
+        }
+
+        private static List<TriggerPayloadFieldData> DamageCalculationFields()
+        {
+            var fields = AttackFields();
+            fields.Add(Field("raw_damage", TriggerValueType.Number));
+            fields.Add(Field("mitigated_damage", TriggerValueType.Number));
+            fields.Add(Field("shield_absorb", TriggerValueType.Number));
+            fields.Add(Field("hp_damage", TriggerValueType.Number));
+            return fields;
+        }
+
+        private static List<TriggerPayloadFieldData> DamageResultFields()
         {
             return new List<TriggerPayloadFieldData>
             {
@@ -250,6 +273,30 @@ namespace AbilityKit.Ability.Editor.Utilities
                 Field("target_max_hp", TriggerValueType.Number), Field("damage_type", TriggerValueType.Integer),
                 Field("crit_type", TriggerValueType.Integer), Field("reason_kind", TriggerValueType.Integer),
                 Field("reason_param", TriggerValueType.Integer)
+            };
+        }
+
+        private static List<TriggerPayloadFieldData> HealRequestFields()
+        {
+            return new List<TriggerPayloadFieldData>
+            {
+                Field("healer_actor_id", TriggerValueType.Integer), Field("target_actor_id", TriggerValueType.Integer),
+                Field("heal_type", TriggerValueType.Integer), Field("requested_value", TriggerValueType.Number),
+                Field("reason_kind", TriggerValueType.Integer), Field("reason_param", TriggerValueType.Integer),
+                Field("allow_dead_target", TriggerValueType.Boolean)
+            };
+        }
+
+        private static List<TriggerPayloadFieldData> HealthChangeFields()
+        {
+            return new List<TriggerPayloadFieldData>
+            {
+                Field("change_kind", TriggerValueType.Integer), Field("source_actor_id", TriggerValueType.Integer),
+                Field("target_actor_id", TriggerValueType.Integer), Field("value_type", TriggerValueType.Integer),
+                Field("requested_value", TriggerValueType.Number), Field("applied_value", TriggerValueType.Number),
+                Field("overheal_value", TriggerValueType.Number), Field("old_hp", TriggerValueType.Number),
+                Field("target_hp", TriggerValueType.Number), Field("target_max_hp", TriggerValueType.Number),
+                Field("reason_kind", TriggerValueType.Integer), Field("reason_param", TriggerValueType.Integer)
             };
         }
     }

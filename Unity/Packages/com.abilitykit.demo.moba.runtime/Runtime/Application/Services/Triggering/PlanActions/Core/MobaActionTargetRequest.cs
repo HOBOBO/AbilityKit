@@ -130,6 +130,43 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             string actionName,
             List<int> results)
         {
+            return TryResolveTargetsCore(
+                in request,
+                in coreInput,
+                in effectInput,
+                ctx,
+                actionName,
+                results,
+                requireMatch: true);
+        }
+
+        public static bool TryResolveTargetCollection(
+            in MobaActionTargetRequest request,
+            in MobaPlanActionInput coreInput,
+            in MobaEffectActionInput effectInput,
+            ExecCtx<IWorldResolver> ctx,
+            string actionName,
+            List<int> results)
+        {
+            return TryResolveTargetsCore(
+                in request,
+                in coreInput,
+                in effectInput,
+                ctx,
+                actionName,
+                results,
+                requireMatch: false);
+        }
+
+        private static bool TryResolveTargetsCore(
+            in MobaActionTargetRequest request,
+            in MobaPlanActionInput coreInput,
+            in MobaEffectActionInput effectInput,
+            ExecCtx<IWorldResolver> ctx,
+            string actionName,
+            List<int> results,
+            bool requireMatch)
+        {
             if (results == null) return false;
             results.Clear();
 
@@ -167,13 +204,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
                 var found = search.TrySearchActorIds(request.QueryTemplateId, effectInput.CasterActorId, in aimPosition, explicitTargetActorId, results);
                 Log.Warning($"[MobaActionTargetResolver] template query action={actionName} queryId={request.QueryTemplateId} caster={effectInput.CasterActorId} explicitTarget={explicitTargetActorId} found={found} count={results.Count} targets={FormatTargets(results)} aim=({aimPosition.X:0.###},{aimPosition.Y:0.###},{aimPosition.Z:0.###})");
-                return found;
+                return found || !requireMatch;
             }
 
             var template = BuildInlineTemplate(in request);
             var inlineFound = search.TrySearchActorIds(template, effectInput.CasterActorId, in aimPosition, explicitTargetActorId, results);
             Log.Warning($"[MobaActionTargetResolver] inline query action={actionName} source={request.SourceCode} caster={effectInput.CasterActorId} explicitTarget={explicitTargetActorId} found={inlineFound} count={results.Count} targets={FormatTargets(results)} aim=({aimPosition.X:0.###},{aimPosition.Y:0.###},{aimPosition.Z:0.###})");
-            return inlineFound;
+            return inlineFound || !requireMatch;
         }
 
         private static string FormatTargets(List<int> targets)

@@ -2,6 +2,7 @@
   "name": "AbilityKit.Demo.Shooter.Jobs",
   "rootNamespace": "AbilityKit.Demo.Shooter.Jobs",
   "references": [
+    "AbilityKit.Compute.UnityJobs",
     "AbilityKit.Demo.Shooter.Runtime",
     "AbilityKit.World.DI",
     "Unity.Burst",

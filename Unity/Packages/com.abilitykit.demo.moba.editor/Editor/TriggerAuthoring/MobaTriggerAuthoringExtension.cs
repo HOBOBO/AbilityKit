@@ -148,6 +148,11 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
 
         private static void RegisterActions(TriggerAuthoringExtensionContext context)
         {
+            context.RegisterAction(Action(
+                "query_target_collection",
+                "查询目标集合",
+                "Action/Targeting",
+                WithTargets(Output("result", TriggerValueType.Integer))));
             context.RegisterAction(Action("give_damage", "造成伤害", "Action/Combat", WithTargets(
                 OneOf("damage_amount", "damage_value", TriggerValueType.Number),
                 OneOf("damage_amount", "source_attack_ratio", TriggerValueType.Number),
@@ -322,6 +327,18 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         private static TriggerParameterDescriptor Optional(string name, TriggerValueType type)
         {
             return new TriggerParameterDescriptor(name, type, false);
+        }
+
+        private static TriggerParameterDescriptor Output(string name, TriggerValueType type)
+        {
+            const TriggerValueSourceMask variables =
+                TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard;
+            return new TriggerParameterDescriptor(
+                name,
+                type,
+                true,
+                variables,
+                TriggerParameterAccess.Output);
         }
 
         private static TriggerParameterDescriptor OneOf(string group, string name, TriggerValueType type)

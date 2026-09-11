@@ -18,6 +18,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
     public sealed class PlannedTrigger<TArgs, TCtx> : ITrigger<TArgs, TCtx>, ITriggerWithId
         where TArgs : class
     {
+        public delegate TriggerPlanExecutionResult ExecutionRootDelegate(
+            in TArgs args,
+            in ExecCtx<TCtx> ctx);
+
         private readonly PlannedTriggerActionExecutor<TArgs, TCtx> _actionExecutor;
 
         /// <inheritdoc />
@@ -27,14 +31,21 @@ namespace AbilityKit.Triggering.Runtime.Plan
         public int TriggerId => _plan.TriggerId;
 
         public PlannedTrigger(in TriggerPlan<TArgs> plan)
+            : this(in plan, null)
+        {
+        }
+
+        public PlannedTrigger(in TriggerPlan<TArgs> plan, ExecutionRootDelegate executionRoot)
         {
             _plan = plan;
+            _executionRoot = executionRoot;
             _actionExecutor = new PlannedTriggerActionExecutor<TArgs, TCtx>(in plan);
             _resolved = false;
             _execCtx = default;
         }
 
         private readonly TriggerPlan<TArgs> _plan;
+        private readonly ExecutionRootDelegate _executionRoot;
         private bool _resolved;
         private ExecCtx<TCtx> _execCtx;
         private int _executionCount;
@@ -50,15 +61,22 @@ namespace AbilityKit.Triggering.Runtime.Plan
 
         public void Execute(in TArgs args, in ExecCtx<TCtx> ctx)
         {
-            Resolve(ctx);
             _execCtx = ctx;
             var actions = _plan.Actions;
-            var hasActions = actions != null && actions.Length > 0;
+            var hasExecutionRoot = _executionRoot != null;
+            var hasActions = hasExecutionRoot || (actions != null && actions.Length > 0);
             var canExecuteByControl = CanExecuteByControl(in ctx);
-            var hasScheduledActions = HasScheduledActions(in ctx, actions);
 
             if (!hasActions || !canExecuteByControl) return;
 
+            if (hasExecutionRoot)
+            {
+                ExecuteRoot(in args, in ctx);
+                return;
+            }
+
+            Resolve(ctx);
+            var hasScheduledActions = HasScheduledActions(in ctx, actions);
             if (!hasScheduledActions)
             {
                 ExecuteImmediate(in args, in ctx);
@@ -66,6 +84,21 @@ namespace AbilityKit.Triggering.Runtime.Plan
             }
 
             ExecuteMixedActions(in args, in ctx, actions);
+        }
+
+        private void ExecuteRoot(in TArgs args, in ExecCtx<TCtx> ctx)
+        {
+            var control = ctx.Control ?? new ExecutionControl();
+            try
+            {
+                _executionRoot(in args, in ctx);
+            }
+            finally
+            {
+                MarkExecutedByControl(in ctx);
+            }
+
+            ApplyInterruptControl(control);
         }
 
         private bool HasScheduledActions(in ExecCtx<TCtx> ctx, ActionCallPlan[] actions)
