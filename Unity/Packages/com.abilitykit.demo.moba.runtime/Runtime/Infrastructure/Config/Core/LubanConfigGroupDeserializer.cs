@@ -622,7 +622,11 @@ namespace AbilityKit.Demo.Moba.Config.Core
                         Children = DeserializeSkillPhases(obj["Children"]),
                         Repeat = DeserializeSkillRepeat(obj["Repeat"]),
                         Delay = DeserializeSkillDelay(obj["Delay"]),
-                        WaitUntil = DeserializeSkillWaitUntil(obj["WaitUntil"])
+                        WaitUntil = DeserializeSkillWaitUntil(obj["WaitUntil"]),
+                        AwaitEvent = DeserializeSkillAwaitEvent(obj["AwaitEvent"]),
+                        Window = DeserializeSkillWindow(obj["Window"]),
+                        CommitPoint = DeserializeSkillCommitPoint(obj["CommitPoint"]),
+                        Economy = DeserializeSkillEconomy(obj["Economy"])
                     });
                 }
             }
@@ -706,7 +710,94 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 Children = DeserializeSkillPhases(obj["Children"]),
                 Repeat = DeserializeSkillRepeat(obj["Repeat"]),
                 Delay = DeserializeSkillDelay(obj["Delay"]),
-                WaitUntil = DeserializeSkillWaitUntil(obj["WaitUntil"])
+                WaitUntil = DeserializeSkillWaitUntil(obj["WaitUntil"]),
+                AwaitEvent = DeserializeSkillAwaitEvent(obj["AwaitEvent"]),
+                Window = DeserializeSkillWindow(obj["Window"]),
+                CommitPoint = DeserializeSkillCommitPoint(obj["CommitPoint"]),
+                Economy = DeserializeSkillEconomy(obj["Economy"])
+            };
+        }
+
+        private static SkillAwaitEventPhaseDTO DeserializeSkillAwaitEvent(JToken token)
+        {
+            if (!(token is JObject obj)) return null;
+            return new SkillAwaitEventPhaseDTO
+            {
+                EventId = obj["EventId"]?.Value<string>() ?? string.Empty,
+                TimeoutMs = obj["TimeoutMs"]?.Value<int>() ?? 0,
+                CompleteOnTimeout = obj["CompleteOnTimeout"]?.Value<bool>() ?? true,
+                Filters = DeserializeSkillEventIntFilters(obj["Filters"]),
+            };
+        }
+
+        private static SkillEventIntFilterDTO[] DeserializeSkillEventIntFilters(JToken token)
+        {
+            if (!(token is JArray array)) return Array.Empty<SkillEventIntFilterDTO>();
+            var result = new List<SkillEventIntFilterDTO>(array.Count);
+            foreach (var item in array)
+            {
+                if (!(item is JObject obj)) continue;
+                result.Add(new SkillEventIntFilterDTO
+                {
+                    FieldId = obj["FieldId"]?.Value<int>() ?? 0,
+                    ExpectedValue = obj["ExpectedValue"]?.Value<int>() ?? 0,
+                    UseCasterActorId = obj["UseCasterActorId"]?.Value<bool>() ?? false,
+                    UseTargetActorId = obj["UseTargetActorId"]?.Value<bool>() ?? false,
+                    UseSkillId = obj["UseSkillId"]?.Value<bool>() ?? false,
+                });
+            }
+            return result.ToArray();
+        }
+
+        private static SkillWindowPhaseDTO DeserializeSkillWindow(JToken token)
+        {
+            if (!(token is JObject obj)) return null;
+            return new SkillWindowPhaseDTO
+            {
+                WindowId = obj["WindowId"]?.Value<string>() ?? string.Empty,
+                Kind = obj["Kind"]?.Value<int>() ?? 0,
+                DurationMs = obj["DurationMs"]?.Value<int>() ?? 0,
+                CompleteOnTimeout = obj["CompleteOnTimeout"]?.Value<bool>() ?? true,
+                ChannelIntervalMs = obj["ChannelIntervalMs"]?.Value<int>() ?? 0,
+                ChargeTierThresholdMs = obj["ChargeTierThresholdMs"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                OpenTriggerIds = obj["OpenTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                TickTriggerIds = obj["TickTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                CloseTriggerIds = obj["CloseTriggerIds"]?.ToObject<int[]>() ?? Array.Empty<int>(),
+                AbortOnTriggerFailure = obj["AbortOnTriggerFailure"]?.Value<bool>() ?? true,
+                FailReason = obj["FailReason"]?.Value<string>(),
+            };
+        }
+
+        private static SkillCommitPointPhaseDTO DeserializeSkillCommitPoint(JToken token)
+        {
+            if (!(token is JObject obj)) return null;
+            return new SkillCommitPointPhaseDTO
+            {
+                CommitId = obj["CommitId"]?.Value<string>() ?? string.Empty,
+            };
+        }
+
+        private static SkillEconomyPhaseDTO DeserializeSkillEconomy(JToken token)
+        {
+            if (!(token is JObject obj)) return null;
+            return new SkillEconomyPhaseDTO
+            {
+                Operation = obj["Operation"]?.Value<int>() ?? 0,
+                ResourceType = obj["ResourceType"]?.Value<int>() ?? 0,
+                ResourceAmount = obj["ResourceAmount"]?.Value<float>() ?? 0f,
+                UseResolvedResourceCost = obj["UseResolvedResourceCost"]?.Value<bool>() ?? true,
+                ChargeCost = obj["ChargeCost"]?.Value<int>() ?? 1,
+                MaxCharges = obj["MaxCharges"]?.Value<int>() ?? 1,
+                ChargeRecoveryMs = obj["ChargeRecoveryMs"]?.Value<int>() ?? 0,
+                StartSkillCooldown = obj["StartSkillCooldown"]?.Value<bool>() ?? true,
+                SkillCooldownMs = obj["SkillCooldownMs"]?.Value<int>() ?? 0,
+                UseResolvedSkillCooldown = obj["UseResolvedSkillCooldown"]?.Value<bool>() ?? true,
+                CooldownGroup = obj["CooldownGroup"]?.Value<string>() ?? string.Empty,
+                SharedCooldownMs = obj["SharedCooldownMs"]?.Value<int>() ?? 0,
+                GlobalCooldownMs = obj["GlobalCooldownMs"]?.Value<int>() ?? 0,
+                IgnoreGlobalCooldown = obj["IgnoreGlobalCooldown"]?.Value<bool>() ?? false,
+                RefundBeforeCommit = obj["RefundBeforeCommit"]?.Value<bool>() ?? true,
+                FailReason = obj["FailReason"]?.Value<string>(),
             };
         }
 

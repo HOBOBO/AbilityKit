@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Ability.Host;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Ability.World.DI;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;
@@ -11,13 +13,19 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Events.Unit;
 using AbilityKit.Demo.Moba.Gameplay.Triggering;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
+using AbilityKit.Demo.Moba.Services.Combat.Transactions;
 using AbilityKit.Demo.Moba.Services.EntityConstruction;
 using AbilityKit.Demo.Moba.Services.EntityManager;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Systems;
+using AbilityKit.Modifiers;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 using NUnit.Framework;
@@ -328,6 +336,252 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void HealTransaction_InterceptorCanModifyValueBeforeCommit()
+        {
+            var transactions = new MobaCombatTransactionPipeline();
+            transactions.Register(new DelegateTransactionInterceptor<MobaHealTransaction>(
+                (transaction, stage, _) =>
+                {
+                    if (stage == MobaCombatTransactionStage.Modify) transaction.SetValue(5f);
+                }));
+            var service = CreateService(initialHp: 80f, new EventBus(), out var target, transactions);
+
+            var result = service.CommitHeal(7, TargetActorId, 5, 50f);
+
+            Assert.That(result.Succeeded, Is.True);
+            Assert.That(result.RequestedValue, Is.EqualTo(5f));
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(85f));
+        }
+
+        [Test]
+        public void HealTransaction_InterceptorCanCancelBeforeCommit()
+        {
+            var transactions = new MobaCombatTransactionPipeline();
+            transactions.Register(new DelegateTransactionInterceptor<MobaHealTransaction>(
+                (transaction, stage, _) =>
+                {
+                    if (stage == MobaCombatTransactionStage.Validate) transaction.Cancel("blocked by test rule");
+                }));
+            var service = CreateService(initialHp: 80f, new EventBus(), out var target, transactions);
+
+            var result = service.CommitHeal(7, TargetActorId, 5, 50f);
+
+            Assert.That(result.Succeeded, Is.False);
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
+        }
+
+        [Test]
+        public void CombatTransaction_CancelledValidationRunsRollbackStage()
+        {
+            var stages = new List<MobaCombatTransactionStage>();
+            var pipeline = new MobaCombatTransactionPipeline();
+            pipeline.Register(new DelegateTransactionInterceptor<TestRevertibleTransaction>(
+                (transaction, stage, _) =>
+                {
+                    stages.Add(stage);
+                    if (stage == MobaCombatTransactionStage.Validate) transaction.Cancel("validation failed");
+                }));
+            var transaction = new TestRevertibleTransaction();
+
+            var result = pipeline.TryExecute(transaction, _ => true, _ => true);
+
+            Assert.That(result, Is.False);
+            Assert.That(transaction.RollbackCount, Is.EqualTo(1));
+            Assert.That(stages, Is.EqualTo(new[]
+            {
+                MobaCombatTransactionStage.Prepare,
+                MobaCombatTransactionStage.Modify,
+                MobaCombatTransactionStage.Validate,
+                MobaCombatTransactionStage.Rollback,
+            }));
+        }
+
+        [Test]
+        public void EffectMagnitude_AttributeRealtimeSnapshotAndTimeDecayUseRuntimeContext()
+        {
+            var registry = new MobaActorRegistry();
+            var entities = new MobaEntityManager(null);
+            var actor = CreateRegisteredActor(registry, entities, initialHp: 80f);
+            actor.GetMobaAttrs().SetBase(BattleAttributeType.PHYSICS_ATTACK, 40f);
+            var actors = new MobaActorLookupService(_actorIndex, registry, entities, _contexts);
+            var frameTime = new FrameTime();
+            frameTime.AlignTo(new FrameIndex(20), 0.1f);
+            var services = new TestWorldResolver()
+                .Add<MobaActorLookupService>(actors)
+                .Add<IFrameTime>(frameTime);
+            var runtimeBlackboard = new MobaSkillRuntimeBlackboard();
+            var boards = new MobaSkillRuntimeBlackboardResolver(runtimeBlackboard, 101L, TargetActorId, 301L);
+            var execCtx = new ExecCtx<IWorldResolver>(services, null, null, null, boards, null, null, null, null, default, null);
+            var executionContext = new MobaCombatExecutionContext(null, default, default, default, default, frame: 10);
+            var fixedSource = MagnitudeSource.Fixed(10f);
+            var attributeSource = MagnitudeSource.Attribute(
+                ModifierKey.FromPacked((uint)BattleAttributeType.PHYSICS_ATTACK), 0.5f);
+            var realtime = new MobaEffectMagnitudeSpec(
+                in fixedSource, in attributeSource,
+                MobaEffectMagnitudeCombine.Add,
+                MobaEffectSourceRole.AttributionActor,
+                MobaEffectEvaluationPolicy.Realtime);
+
+            Assert.That(MobaEffectMagnitudeResolver.TryEvaluate(
+                in realtime, in executionContext, in execCtx,
+                TargetActorId, TargetActorId, TargetActorId, default,
+                out var realtimeValue, out _, out var failure), Is.True, failure);
+            Assert.That(realtimeValue, Is.EqualTo(30f));
+
+            var captureTarget = new BlackboardWriteTarget(
+                MobaSkillRuntimeTriggerBoards.Effect, 92001, BlackboardKeyType.Double, "effect");
+            var snapshot = new MobaEffectMagnitudeSpec(
+                in fixedSource, in attributeSource,
+                MobaEffectMagnitudeCombine.Add,
+                MobaEffectSourceRole.AttributionActor,
+                MobaEffectEvaluationPolicy.Snapshot,
+                captureTarget);
+            Assert.That(BlackboardMutation.TrySetNumeric(boards, in captureTarget, 0d, out failure), Is.True, failure);
+            Assert.That(MobaEffectMagnitudeResolver.TryEvaluate(
+                in snapshot, in executionContext, in execCtx,
+                TargetActorId, TargetActorId, TargetActorId, default,
+                out var capturedValue, out _, out failure), Is.True, failure);
+            actor.GetMobaAttrs().SetBase(BattleAttributeType.PHYSICS_ATTACK, 100f);
+            Assert.That(MobaEffectMagnitudeResolver.TryEvaluate(
+                in snapshot, in executionContext, in execCtx,
+                TargetActorId, TargetActorId, TargetActorId, default,
+                out var reusedValue, out _, out failure), Is.True, failure);
+            Assert.That(capturedValue, Is.EqualTo(30f));
+            Assert.That(reusedValue, Is.EqualTo(30f));
+
+            var decaySource = MagnitudeSource.TimeDecay(100f, 2f);
+            var decay = new MobaEffectMagnitudeSpec(in decaySource, default);
+            Assert.That(MobaEffectMagnitudeResolver.TryEvaluate(
+                in decay, in executionContext, in execCtx,
+                0, 0, 0, default,
+                out var decayValue, out _, out failure), Is.True, failure);
+            Assert.That(decayValue, Is.EqualTo(50f).Within(0.001f));
+
+            actor.AddOwnerLink(701, 702);
+            var ownerSpec = new MobaEffectMagnitudeSpec(
+                in fixedSource, default,
+                sourceRole: MobaEffectSourceRole.Owner,
+                evaluationPolicy: MobaEffectEvaluationPolicy.Snapshot);
+            Assert.That(MobaEffectMagnitudeResolver.TryEvaluate(
+                in ownerSpec, in executionContext, in execCtx,
+                0, TargetActorId, 0, default,
+                out _, out var ownerCapture, out failure), Is.True, failure);
+            var rootOwnerSpec = new MobaEffectMagnitudeSpec(
+                in fixedSource, default,
+                sourceRole: MobaEffectSourceRole.RootOwner,
+                evaluationPolicy: MobaEffectEvaluationPolicy.Snapshot);
+            Assert.That(MobaEffectMagnitudeResolver.TryEvaluate(
+                in rootOwnerSpec, in executionContext, in execCtx,
+                0, TargetActorId, 0, default,
+                out _, out var rootOwnerCapture, out failure), Is.True, failure);
+            Assert.That(ownerCapture.SourceActorId, Is.EqualTo(701));
+            Assert.That(rootOwnerCapture.SourceActorId, Is.EqualTo(702));
+
+            var targetCaptureTarget = new BlackboardWriteTarget(
+                MobaSkillRuntimeTriggerBoards.Target, 92002, BlackboardKeyType.Double, "target");
+            var targetSnapshot = new MobaEffectMagnitudeSpec(
+                in fixedSource, default,
+                evaluationPolicy: MobaEffectEvaluationPolicy.Snapshot,
+                captureTarget: targetCaptureTarget);
+            Assert.That(MobaEffectMagnitudeResolver.TryEvaluate(
+                in targetSnapshot, in executionContext, in execCtx,
+                0, TargetActorId, 802, default,
+                out _, out _, out failure), Is.True, failure);
+            var secondTargetBoards = new MobaSkillRuntimeBlackboardResolver(runtimeBlackboard, 101L, 802, 301L);
+            Assert.That(secondTargetBoards.TryResolve(MobaSkillRuntimeTriggerBoards.Target, out var secondTargetBoard), Is.True);
+            Assert.That(secondTargetBoard.TryGetDouble(targetCaptureTarget.KeyId, out var secondTargetCapture), Is.True);
+            Assert.That(secondTargetCapture, Is.EqualTo(10d));
+
+            registry.Dispose();
+            entities.Dispose();
+        }
+
+        [Test]
+        public void DamageTransaction_ModifiesDamageAndPreservesStagesAndShieldAbsorption()
+        {
+            var eventBus = new EventBus();
+            var transactions = new MobaCombatTransactionPipeline();
+            transactions.Register(new DelegateTransactionInterceptor<MobaDamageTransaction>(
+                (transaction, stage, _) =>
+                {
+                    if (stage == MobaCombatTransactionStage.Modify) transaction.SetBaseDamage(20f);
+                }));
+            var pipeline = CreateDamagePipeline(80f, eventBus, transactions, out var target, out var shields);
+            shields.AddShield(TargetActorId, new ShieldLayer
+            {
+                ShieldId = 101,
+                SourceActorId = 7,
+                CurrentValue = Fixed64.FromSingle(5f),
+                MaxValue = Fixed64.FromSingle(5f),
+                InitialValue = Fixed64.FromSingle(5f),
+                AbsorbRatio = Fixed64.One,
+                StackingPolicy = ShieldStackingPolicy.Independent,
+                ConsumePolicy = ShieldConsumePolicy.PriorityThenOldest,
+            });
+            var stages = new List<string>();
+            using var beforeCalc = eventBus.Subscribe(
+                new EventKey<AttackInfo>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.BeforeCalc)),
+                _ => stages.Add("before_calc"));
+            using var afterApply = eventBus.Subscribe(
+                new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)),
+                _ => stages.Add("after_apply"));
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 7,
+                TargetActorId = TargetActorId,
+                DamageType = DamageType.Physical,
+            };
+            attack.BaseDamage.BaseValue = 50f;
+
+            var result = pipeline.Execute(attack);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result.Value, Is.EqualTo(15f));
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(65f));
+            Assert.That(shields.GetTotalRemaining(TargetActorId), Is.Zero);
+            Assert.That(stages, Is.EqualTo(new[] { "before_calc", "after_apply" }));
+        }
+
+        [Test]
+        public void DamageTransaction_ValidationCancellationDoesNotEnterDamagePipeline()
+        {
+            var eventBus = new EventBus();
+            var transactions = new MobaCombatTransactionPipeline();
+            var stages = new List<MobaCombatTransactionStage>();
+            transactions.Register(new DelegateTransactionInterceptor<MobaDamageTransaction>(
+                (transaction, stage, _) =>
+                {
+                    stages.Add(stage);
+                    if (stage == MobaCombatTransactionStage.Validate) transaction.Cancel("blocked by test rule");
+                }));
+            var pipeline = CreateDamagePipeline(80f, eventBus, transactions, out var target, out _);
+            var eventCount = 0;
+            using var attackCreated = eventBus.Subscribe(
+                new EventKey<AttackInfo>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AttackCreated)),
+                _ => eventCount++);
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 7,
+                TargetActorId = TargetActorId,
+                DamageType = DamageType.Physical,
+            };
+            attack.BaseDamage.BaseValue = 50f;
+
+            var result = pipeline.Execute(attack);
+
+            Assert.That(result, Is.Null);
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(80f));
+            Assert.That(eventCount, Is.Zero);
+            Assert.That(stages, Is.EqualTo(new[]
+            {
+                MobaCombatTransactionStage.Prepare,
+                MobaCombatTransactionStage.Modify,
+                MobaCombatTransactionStage.Validate,
+                MobaCombatTransactionStage.Rollback,
+            }));
+        }
+
+        [Test]
         public void CommitHeal_DeadTargetWithoutPermission_DoesNotMutateOrPublish()
         {
             var eventBus = new EventBus();
@@ -443,7 +697,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         private MobaDamageService CreateService(
             float initialHp,
             EventBus eventBus,
-            out ActorEntity target)
+            out ActorEntity target,
+            MobaCombatTransactionPipeline transactions = null)
         {
             var registry = new MobaActorRegistry();
             var entities = new MobaEntityManager(null);
@@ -451,7 +706,69 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var actors = new MobaActorLookupService(_actorIndex, registry, entities, _contexts);
             var rules = new MobaCombatRulesService(actors);
             var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
-            return new MobaDamageService(actors, snapshots, rules, eventBus: eventBus);
+            return new MobaDamageService(actors, snapshots, rules, eventBus: eventBus, transactions: transactions);
+        }
+
+        private DamagePipelineService CreateDamagePipeline(
+            float initialHp,
+            EventBus eventBus,
+            MobaCombatTransactionPipeline transactions,
+            out ActorEntity target,
+            out MobaShieldService shields)
+        {
+            var registry = new MobaActorRegistry();
+            var entities = new MobaEntityManager(null);
+            target = CreateRegisteredActor(registry, entities, initialHp);
+            var actors = new MobaActorLookupService(_actorIndex, registry, entities, _contexts);
+            var rules = new MobaCombatRulesService(actors);
+            var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
+            var damage = new MobaDamageService(actors, snapshots, rules, eventBus: eventBus, transactions: transactions);
+            shields = new MobaShieldService();
+            return new DamagePipelineService(actors, damage, eventBus, shields: shields, transactions: transactions);
+        }
+
+        private sealed class DelegateTransactionInterceptor<TTransaction> : IMobaCombatTransactionInterceptor<TTransaction>
+            where TTransaction : class, IMobaCombatTransaction
+        {
+            private readonly Action<TTransaction, MobaCombatTransactionStage, MobaCombatTransactionContext> _callback;
+
+            public DelegateTransactionInterceptor(Action<TTransaction, MobaCombatTransactionStage, MobaCombatTransactionContext> callback)
+                => _callback = callback;
+
+            public void OnStage(TTransaction transaction, MobaCombatTransactionStage stage, in MobaCombatTransactionContext context)
+                => _callback(transaction, stage, context);
+        }
+
+        private sealed class TestRevertibleTransaction : MobaCombatTransactionBase, IMobaRevertibleCombatTransaction
+        {
+            public TestRevertibleTransaction() : base(0L) { }
+            public int RollbackCount { get; private set; }
+            public void Rollback() => RollbackCount++;
+        }
+
+        private sealed class TestWorldResolver : IWorldResolver
+        {
+            private readonly Dictionary<Type, object> _services = new Dictionary<Type, object>();
+
+            public TestWorldResolver Add<T>(T service)
+            {
+                _services[typeof(T)] = service;
+                return this;
+            }
+
+            public object Resolve(Type serviceType) => _services[serviceType];
+            public T Resolve<T>() => (T)Resolve(typeof(T));
+            public bool TryResolve(Type serviceType, out object instance) => _services.TryGetValue(serviceType, out instance);
+            public bool TryResolve<T>(out T instance)
+            {
+                if (_services.TryGetValue(typeof(T), out var raw) && raw is T typed)
+                {
+                    instance = typed;
+                    return true;
+                }
+                instance = default;
+                return false;
+            }
         }
 
         private ActorEntity CreateRegisteredActor(

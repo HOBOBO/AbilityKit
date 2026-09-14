@@ -68,6 +68,7 @@ namespace AbilityKit.Ability.Editor.Tests
             eventCatalog.Events = TriggerAuthoringProjectDefaults.CreateMobaEvents();
             blackboardCatalog.Keys = TriggerAuthoringProjectDefaults.CreateMobaBlackboardKeys();
             project.SetCatalogs(eventCatalog, blackboardCatalog, templateCatalog);
+            project.SetExtensionIds(new[] { "abilitykit.demo.moba" });
             _tracked.Add(project);
             _tracked.Add(eventCatalog);
             _tracked.Add(blackboardCatalog);

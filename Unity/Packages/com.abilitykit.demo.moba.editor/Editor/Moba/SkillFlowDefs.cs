@@ -147,6 +147,9 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 case SkillPhaseType.Parallel:
                     def = new SkillParallelPhaseDef { Children = ConvertPhasesFromDto(dto.Children) };
                     break;
+                case SkillPhaseType.Race:
+                    def = new SkillRacePhaseDef { Children = ConvertPhasesFromDto(dto.Children) };
+                    break;
                 case SkillPhaseType.Repeat:
                     var rep = dto.Repeat ?? new SkillRepeatPhaseDTO();
                     def = new SkillRepeatPhaseDef
@@ -168,6 +171,61 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                         CompleteOnTimeout = w.CompleteOnTimeout,
                         ObservedSlots = w.ObservedSlots ?? Array.Empty<int>(),
                         Arguments = w.Arguments ?? Array.Empty<SkillWaitConditionArgumentDTO>(),
+                    };
+                    break;
+                case SkillPhaseType.AwaitEvent:
+                    var awaitEvent = dto.AwaitEvent ?? new SkillAwaitEventPhaseDTO();
+                    def = new SkillAwaitEventPhaseDef
+                    {
+                        EventId = awaitEvent.EventId,
+                        TimeoutMs = awaitEvent.TimeoutMs,
+                        CompleteOnTimeout = awaitEvent.CompleteOnTimeout,
+                        Filters = awaitEvent.Filters ?? Array.Empty<SkillEventIntFilterDTO>(),
+                    };
+                    break;
+                case SkillPhaseType.Window:
+                    var window = dto.Window ?? new SkillWindowPhaseDTO();
+                    def = new SkillWindowPhaseDef
+                    {
+                        WindowId = window.WindowId,
+                        Kind = (SkillWindowKind)window.Kind,
+                        DurationMs = window.DurationMs,
+                        CompleteOnTimeout = window.CompleteOnTimeout,
+                        ChannelIntervalMs = window.ChannelIntervalMs,
+                        ChargeTierThresholdMs = window.ChargeTierThresholdMs ?? Array.Empty<int>(),
+                        OpenTriggerIds = window.OpenTriggerIds ?? Array.Empty<int>(),
+                        TickTriggerIds = window.TickTriggerIds ?? Array.Empty<int>(),
+                        CloseTriggerIds = window.CloseTriggerIds ?? Array.Empty<int>(),
+                        AbortOnTriggerFailure = window.AbortOnTriggerFailure,
+                        FailReason = window.FailReason,
+                    };
+                    break;
+                case SkillPhaseType.CommitPoint:
+                    def = new SkillCommitPointPhaseDef
+                    {
+                        CommitId = (dto.CommitPoint ?? new SkillCommitPointPhaseDTO()).CommitId,
+                    };
+                    break;
+                case SkillPhaseType.Economy:
+                    var economy = dto.Economy ?? new SkillEconomyPhaseDTO();
+                    def = new SkillEconomyPhaseDef
+                    {
+                        Operation = (SkillEconomyOperation)economy.Operation,
+                        ResourceType = economy.ResourceType,
+                        ResourceAmount = economy.ResourceAmount,
+                        UseResolvedResourceCost = economy.UseResolvedResourceCost,
+                        ChargeCost = economy.ChargeCost,
+                        MaxCharges = economy.MaxCharges,
+                        ChargeRecoveryMs = economy.ChargeRecoveryMs,
+                        StartSkillCooldown = economy.StartSkillCooldown,
+                        SkillCooldownMs = economy.SkillCooldownMs,
+                        UseResolvedSkillCooldown = economy.UseResolvedSkillCooldown,
+                        CooldownGroup = economy.CooldownGroup,
+                        SharedCooldownMs = economy.SharedCooldownMs,
+                        GlobalCooldownMs = economy.GlobalCooldownMs,
+                        IgnoreGlobalCooldown = economy.IgnoreGlobalCooldown,
+                        RefundBeforeCommit = economy.RefundBeforeCommit,
+                        FailReason = economy.FailReason,
                     };
                     break;
                 default:
@@ -291,6 +349,13 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     }
 
     [Serializable]
+    public sealed class SkillRacePhaseDef : SkillCompositePhaseDef
+    {
+        public override SkillPhaseType PhaseType => SkillPhaseType.Race;
+        public override SkillPhaseDTO ToDto() => CreateCompositeDto();
+    }
+
+    [Serializable]
     public sealed class SkillRepeatPhaseDef : SkillPhaseDef
     {
         [MinValue(1)]
@@ -379,6 +444,136 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         }
     }
 
+    [Serializable]
+    public sealed class SkillAwaitEventPhaseDef : SkillPhaseDef
+    {
+        [Required]
+        public string EventId;
+        [MinValue(0)]
+        public int TimeoutMs;
+        public bool CompleteOnTimeout = true;
+        public SkillEventIntFilterDTO[] Filters = Array.Empty<SkillEventIntFilterDTO>();
+
+        public override SkillPhaseType PhaseType => SkillPhaseType.AwaitEvent;
+
+        public override SkillPhaseDTO ToDto()
+        {
+            var dto = CreateDto();
+            dto.AwaitEvent = new SkillAwaitEventPhaseDTO
+            {
+                EventId = EventId,
+                TimeoutMs = TimeoutMs,
+                CompleteOnTimeout = CompleteOnTimeout,
+                Filters = Filters ?? Array.Empty<SkillEventIntFilterDTO>(),
+            };
+            return dto;
+        }
+    }
+
+    [Serializable]
+    public sealed class SkillWindowPhaseDef : SkillPhaseDef
+    {
+        [Required]
+        public string WindowId;
+        public SkillWindowKind Kind;
+        [MinValue(0)]
+        public int DurationMs;
+        public bool CompleteOnTimeout = true;
+        [MinValue(0)]
+        public int ChannelIntervalMs;
+        public int[] ChargeTierThresholdMs = Array.Empty<int>();
+        public int[] OpenTriggerIds = Array.Empty<int>();
+        public int[] TickTriggerIds = Array.Empty<int>();
+        public int[] CloseTriggerIds = Array.Empty<int>();
+        public bool AbortOnTriggerFailure = true;
+        public string FailReason;
+
+        public override SkillPhaseType PhaseType => SkillPhaseType.Window;
+
+        public override SkillPhaseDTO ToDto()
+        {
+            var dto = CreateDto();
+            dto.Window = new SkillWindowPhaseDTO
+            {
+                WindowId = WindowId,
+                Kind = (int)Kind,
+                DurationMs = DurationMs,
+                CompleteOnTimeout = CompleteOnTimeout,
+                ChannelIntervalMs = ChannelIntervalMs,
+                ChargeTierThresholdMs = ChargeTierThresholdMs ?? Array.Empty<int>(),
+                OpenTriggerIds = OpenTriggerIds ?? Array.Empty<int>(),
+                TickTriggerIds = TickTriggerIds ?? Array.Empty<int>(),
+                CloseTriggerIds = CloseTriggerIds ?? Array.Empty<int>(),
+                AbortOnTriggerFailure = AbortOnTriggerFailure,
+                FailReason = FailReason,
+            };
+            return dto;
+        }
+    }
+
+    [Serializable]
+    public sealed class SkillCommitPointPhaseDef : SkillPhaseDef
+    {
+        [Required]
+        public string CommitId;
+        public override SkillPhaseType PhaseType => SkillPhaseType.CommitPoint;
+
+        public override SkillPhaseDTO ToDto()
+        {
+            var dto = CreateDto();
+            dto.CommitPoint = new SkillCommitPointPhaseDTO { CommitId = CommitId };
+            return dto;
+        }
+    }
+
+    [Serializable]
+    public sealed class SkillEconomyPhaseDef : SkillPhaseDef
+    {
+        public SkillEconomyOperation Operation;
+        public int ResourceType;
+        [MinValue(0)] public float ResourceAmount;
+        public bool UseResolvedResourceCost = true;
+        [MinValue(0)] public int ChargeCost = 1;
+        [MinValue(1)] public int MaxCharges = 1;
+        [MinValue(0)] public int ChargeRecoveryMs;
+        public bool StartSkillCooldown = true;
+        [MinValue(0)] public int SkillCooldownMs;
+        public bool UseResolvedSkillCooldown = true;
+        public string CooldownGroup;
+        [MinValue(0)] public int SharedCooldownMs;
+        [MinValue(0)] public int GlobalCooldownMs;
+        public bool IgnoreGlobalCooldown;
+        public bool RefundBeforeCommit = true;
+        public string FailReason;
+
+        public override SkillPhaseType PhaseType => SkillPhaseType.Economy;
+
+        public override SkillPhaseDTO ToDto()
+        {
+            var dto = CreateDto();
+            dto.Economy = new SkillEconomyPhaseDTO
+            {
+                Operation = (int)Operation,
+                ResourceType = ResourceType,
+                ResourceAmount = ResourceAmount,
+                UseResolvedResourceCost = UseResolvedResourceCost,
+                ChargeCost = ChargeCost,
+                MaxCharges = MaxCharges,
+                ChargeRecoveryMs = ChargeRecoveryMs,
+                StartSkillCooldown = StartSkillCooldown,
+                SkillCooldownMs = SkillCooldownMs,
+                UseResolvedSkillCooldown = UseResolvedSkillCooldown,
+                CooldownGroup = CooldownGroup,
+                SharedCooldownMs = SharedCooldownMs,
+                GlobalCooldownMs = GlobalCooldownMs,
+                IgnoreGlobalCooldown = IgnoreGlobalCooldown,
+                RefundBeforeCommit = RefundBeforeCommit,
+                FailReason = FailReason,
+            };
+            return dto;
+        }
+    }
+
     internal static class SkillPhaseDefMenu
     {
         public static void Show(Action<SkillPhaseDef> apply, string undoLabel)
@@ -391,9 +586,14 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Add(menu, "执行/Timeline", () => new SkillTimelinePhaseDef(), apply, owner, undoLabel);
             Add(menu, "组合/Sequence", () => new SkillSequencePhaseDef(), apply, owner, undoLabel);
             Add(menu, "组合/Parallel", () => new SkillParallelPhaseDef(), apply, owner, undoLabel);
+            Add(menu, "组合/Race", () => new SkillRacePhaseDef(), apply, owner, undoLabel);
             Add(menu, "组合/Repeat", () => new SkillRepeatPhaseDef(), apply, owner, undoLabel);
             Add(menu, "控制/Delay", () => new SkillDelayPhaseDef(), apply, owner, undoLabel);
             Add(menu, "控制/WaitUntil", () => new SkillWaitUntilPhaseDef(), apply, owner, undoLabel);
+            Add(menu, "控制/AwaitEvent", () => new SkillAwaitEventPhaseDef(), apply, owner, undoLabel);
+            Add(menu, "技能窗口/Window", () => new SkillWindowPhaseDef(), apply, owner, undoLabel);
+            Add(menu, "技能窗口/CommitPoint", () => new SkillCommitPointPhaseDef(), apply, owner, undoLabel);
+            Add(menu, "技能经济/Economy", () => new SkillEconomyPhaseDef(), apply, owner, undoLabel);
             menu.ShowAsContext();
         }
 

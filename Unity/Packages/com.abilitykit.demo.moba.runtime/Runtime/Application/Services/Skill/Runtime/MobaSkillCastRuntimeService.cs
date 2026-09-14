@@ -349,6 +349,62 @@ namespace AbilityKit.Demo.Moba.Services
             LifecycleHooks.Clear();
         }
 
+        internal MobaSkillCastRuntimeServiceSnapshot CaptureRollbackSnapshot()
+        {
+            var runtimes = new List<MobaSkillCastRuntimeSnapshot>(_runtimes.Count);
+            foreach (var pair in _runtimes)
+            {
+                if (pair.Value != null && !pair.Value.IsEnded) runtimes.Add(pair.Value.CaptureRollbackSnapshot());
+            }
+            runtimes.Sort((left, right) => left.RuntimeId.CompareTo(right.RuntimeId));
+            var retains = new List<MobaSkillRuntimeRetainHandle>(_retains.Values);
+            retains.Sort((left, right) => left.RetainId.CompareTo(right.RetainId));
+            return new MobaSkillCastRuntimeServiceSnapshot(
+                _nextRuntimeId,
+                _nextRetainId,
+                _nextGeneration,
+                runtimes.ToArray(),
+                retains.ToArray());
+        }
+
+        internal void RestoreRollbackSnapshot(in MobaSkillCastRuntimeServiceSnapshot snapshot)
+        {
+            var previous = new Dictionary<long, MobaSkillCastRuntime>(_runtimes);
+            _runtimes.Clear();
+            _runtimeByTraceContextId.Clear();
+            _retains.Clear();
+            _endingBuffer.Clear();
+            _diagnosticChildrenBuffer.Clear();
+
+            var source = snapshot.Runtimes ?? Array.Empty<MobaSkillCastRuntimeSnapshot>();
+            for (var i = 0; i < source.Length; i++)
+            {
+                var state = source[i];
+                MobaSkillCastRuntime runtime;
+                if (!previous.TryGetValue(state.RuntimeId, out runtime) || runtime == null || runtime.Generation != state.Generation)
+                {
+                    var aimPos = state.AimPos;
+                    var aimDir = state.AimDir;
+                    var request = new MobaSkillCastRuntimeCreateRequest(
+                        state.SkillId, state.SkillSlot, state.SkillLevel, state.Sequence, state.CasterActorId,
+                        state.TargetActorId, in aimPos, in aimDir, state.RootTraceContextId);
+                    runtime = new MobaSkillCastRuntime(state.RuntimeId, state.Generation, in request);
+                }
+                runtime.RestoreRollbackSnapshot(in state);
+                _runtimes.Add(runtime.RuntimeId, runtime);
+                if (runtime.RootTraceContextId != 0L) _runtimeByTraceContextId[runtime.RootTraceContextId] = runtime.RuntimeId;
+            }
+
+            var retains = snapshot.Retains ?? Array.Empty<MobaSkillRuntimeRetainHandle>();
+            for (var i = 0; i < retains.Length; i++)
+            {
+                if (retains[i].IsValid) _retains[retains[i].RetainId] = retains[i];
+            }
+            _nextRuntimeId = Math.Max(1L, snapshot.NextRuntimeId);
+            _nextRetainId = Math.Max(1L, snapshot.NextRetainId);
+            _nextGeneration = Math.Max(1, snapshot.NextGeneration);
+        }
+
         private bool EndPipeline(MobaSkillCastRuntime runtime, MobaSkillRuntimeEndReason reason, SkillCastStage stage)
         {
             if (runtime == null || runtime.IsEnded || runtime.IsEnding || runtime.PipelineEnded) return false;
@@ -545,5 +601,23 @@ namespace AbilityKit.Demo.Moba.Services
                     return TraceLifecycleReason.Completed;
             }
         }
+    }
+
+    internal readonly struct MobaSkillCastRuntimeServiceSnapshot
+    {
+        public MobaSkillCastRuntimeServiceSnapshot(long nextRuntimeId, long nextRetainId, int nextGeneration, MobaSkillCastRuntimeSnapshot[] runtimes, MobaSkillRuntimeRetainHandle[] retains)
+        {
+            NextRuntimeId = nextRuntimeId;
+            NextRetainId = nextRetainId;
+            NextGeneration = nextGeneration;
+            Runtimes = runtimes ?? Array.Empty<MobaSkillCastRuntimeSnapshot>();
+            Retains = retains ?? Array.Empty<MobaSkillRuntimeRetainHandle>();
+        }
+
+        public long NextRuntimeId { get; }
+        public long NextRetainId { get; }
+        public int NextGeneration { get; }
+        public MobaSkillCastRuntimeSnapshot[] Runtimes { get; }
+        public MobaSkillRuntimeRetainHandle[] Retains { get; }
     }
 }

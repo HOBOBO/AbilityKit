@@ -298,6 +298,31 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
             return LaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs, continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext);
         }
 
+        public bool TryLaunch(
+            int casterActorId,
+            ProjectileLauncherMO launcher,
+            ProjectileMO projectile,
+            int countPerShot,
+            float fanAngleDeg,
+            int durationMs,
+            int continuousProcessId,
+            bool trackTarget,
+            in Vec3 aimPos,
+            in Vec3 aimDir,
+            in ProjectileSourceContext sourceContext,
+            out MobaProjectileLaunchResult result)
+        {
+            result = default;
+            if (_entities == null || casterActorId <= 0 || launcher == null || projectile == null) return false;
+            if (!_entities.TryGetActorEntity(casterActorId, out var caster) || caster == null || !caster.hasTransform) return false;
+            var spawnPos = aimPos.SqrMagnitude > 0f ? aimPos : caster.transform.Value.Position;
+            var dir = aimDir.SqrMagnitude > 0f ? aimDir : caster.transform.Value.Forward;
+            dir = DeterministicMathBridge.Normalize(in dir);
+            if (dir.SqrMagnitude <= 0f) dir = Vec3.Forward;
+            return TryLaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs,
+                continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext, out result);
+        }
+
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, in Vec3 spawnPos, in Vec3 dir)
         {
             return LaunchFromSpawn(casterActorId, launcher, projectile, in spawnPos, in dir, default);
@@ -325,6 +350,13 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
 
         public bool LaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, bool trackTarget, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext)
         {
+            return TryLaunchFromSpawn(casterActorId, launcher, projectile, countPerShot, fanAngleDeg, durationMs,
+                continuousProcessId, trackTarget, in spawnPos, in dir, in sourceContext, out _);
+        }
+
+        private bool TryLaunchFromSpawn(int casterActorId, ProjectileLauncherMO launcher, ProjectileMO projectile, int countPerShot, float fanAngleDeg, int durationMs, int continuousProcessId, bool trackTarget, in Vec3 spawnPos, in Vec3 dir, in ProjectileSourceContext sourceContext, out MobaProjectileLaunchResult result)
+        {
+            result = default;
             var request = new MobaProjectileLaunchRequest(
                 casterActorId,
                 launcher,
@@ -349,16 +381,17 @@ namespace AbilityKit.Demo.Moba.Services.Projectile
                     return false;
                 }
 
+                result = continuous.Result;
                 return true;
             }
 
-            var startedDirectly = TryStartLaunch(in request, out var directResult);
-            if (!startedDirectly || !directResult.Success)
+            var startedDirectly = TryStartLaunch(in request, out result);
+            if (!startedDirectly || !result.Success)
             {
-                Log.Warning($"[MobaProjectileService] projectile launch direct start failed. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0} error={directResult.Error ?? "<none>"}");
+                Log.Warning($"[MobaProjectileService] projectile launch direct start failed. casterActorId={casterActorId} launcherId={launcher?.Id ?? 0} projectileId={projectile?.Id ?? 0} error={result.Error ?? "<none>"}");
             }
 
-            return startedDirectly && directResult.Success;
+            return startedDirectly && result.Success;
         }
 
         public bool TryStartLaunch(in MobaProjectileLaunchRequest request, out MobaProjectileLaunchResult result)

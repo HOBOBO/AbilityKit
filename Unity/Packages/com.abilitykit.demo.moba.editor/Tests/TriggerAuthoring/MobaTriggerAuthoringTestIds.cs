@@ -30,6 +30,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         public const int BoundedGroupPull = 99_190_002;
         public const int PersistentArea = 99_190_003;
         public const int OverhealToShield = 99_190_004;
+        public const int P0ComplexShowcase = 99_190_010;
 
         public static bool IsReserved(int id)
         {

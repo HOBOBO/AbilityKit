@@ -1,3 +1,5 @@
+using AbilityKit.Triggering.Runtime.Plan;
+
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     /// <summary>
@@ -18,19 +20,25 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly int ContinuousProcessId;
         public readonly MobaActionTargetRequest TargetRequest;
         public readonly bool TrackTarget;
+        public readonly BlackboardWriteTarget ResultTarget;
+        public readonly BlackboardWriteTarget ResultCountTarget;
 
         public ShootProjectileArgs(
             int launcherId,
             int projectileId,
             int continuousProcessId,
             in MobaActionTargetRequest targetRequest,
-            bool trackTarget)
+            bool trackTarget,
+            BlackboardWriteTarget resultTarget = default,
+            BlackboardWriteTarget resultCountTarget = default)
         {
             LauncherId = launcherId;
             ProjectileId = projectileId;
             ContinuousProcessId = continuousProcessId;
             TargetRequest = targetRequest;
             TrackTarget = trackTarget;
+            ResultTarget = resultTarget;
+            ResultCountTarget = resultCountTarget;
         }
 
         public static ShootProjectileArgs Default => new ShootProjectileArgs(0, 0, 0, default, false);

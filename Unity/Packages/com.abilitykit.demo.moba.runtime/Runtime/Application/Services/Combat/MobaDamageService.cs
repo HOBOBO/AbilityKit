@@ -5,6 +5,7 @@ using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
+using AbilityKit.Demo.Moba.Services.Combat.Transactions;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -17,19 +18,22 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaCombatRulesService _rules;
         private readonly IMobaBattleDiagnosticEventSink _eventCollector;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
+        private readonly MobaCombatTransactionPipeline _transactions;
 
         public MobaDamageService(
             MobaActorLookupService actors,
             MobaDamageEventSnapshotService snapshots,
             MobaCombatRulesService rules = null,
             IMobaBattleDiagnosticEventSink eventCollector = null,
-            AbilityKit.Triggering.Eventing.IEventBus eventBus = null)
+            AbilityKit.Triggering.Eventing.IEventBus eventBus = null,
+            MobaCombatTransactionPipeline transactions = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _snapshots = snapshots ?? throw new ArgumentNullException(nameof(snapshots));
             _rules = rules;
             _eventCollector = eventCollector;
             _eventBus = eventBus;
+            _transactions = transactions;
         }
 
         internal MobaHealthChangeResult CommitDamage(
@@ -105,7 +109,7 @@ namespace AbilityKit.Demo.Moba.Services
                 reasonParam,
                 origin,
                 allowDeadTarget);
-            return HealPipelineService.Execute(this, _eventBus, in request);
+            return HealPipelineService.Execute(this, _eventBus, _transactions, in request);
         }
 
         internal MobaHealthChangeResult CommitHealCore(

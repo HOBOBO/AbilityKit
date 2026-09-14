@@ -4,8 +4,6 @@ namespace AbilityKit.Triggering.Runtime.Plan
 {
     public sealed class RandomTriggerPlanExecutable : CompositeTriggerPlanExecutableBase
     {
-        private static readonly System.Random Random = new System.Random();
-
         public override string Name => "Random";
         public override ETriggerPlanExecutableKind Kind => ETriggerPlanExecutableKind.Random;
 
@@ -27,7 +25,10 @@ namespace AbilityKit.Triggering.Runtime.Plan
             if (totalWeight <= 0f)
                 return TriggerPlanExecutionResult.Skipped("Random has no weighted branch");
 
-            var selected = (float)(Random.NextDouble() * totalWeight);
+            if (ctx.RandomSource == null)
+                return TriggerPlanExecutionResult.Failed("Random execution requires an injected ITriggerRandomSource.");
+
+            var selected = ctx.RandomSource.NextFloat01() * totalWeight;
             for (int i = 0; i < Children.Count; i++)
             {
                 var child = Children[i];

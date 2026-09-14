@@ -68,7 +68,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (access == TriggerParameterAccess.Output)
             {
                 const TriggerValueSourceMask writableBoards =
-                    TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard;
+                    TriggerValueSourceMask.Context |
+                    TriggerValueSourceMask.LocalBlackboard |
+                    TriggerValueSourceMask.GlobalBlackboard;
                 var outputSources = allowedSources & writableBoards;
                 AllowedSources = outputSources != TriggerValueSourceMask.None
                     ? outputSources
@@ -310,6 +312,34 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void RegisterCompleteActions(TriggerTypeDescriptorCatalog catalog)
         {
             catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "seq", "顺序执行", "Action/Flow", 1, -1, true));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "random", "随机选择", "Action/Flow", 1, -1, true));
+            catalog.Register(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "weighted",
+                "分支权重",
+                "Action/Flow",
+                1,
+                1,
+                true,
+                new TriggerParameterDescriptor(
+                    "weight",
+                    TriggerValueType.Number,
+                    true,
+                    TriggerValueSourceMask.Constant)));
+            catalog.Register(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "scheduled",
+                "调度执行",
+                "Action/Flow",
+                1,
+                1,
+                true,
+                Choice("schedule_mode", true,
+                    Option(0, "立即"), Option(1, "延迟一次"), Option(2, "周期"),
+                    Option(3, "外部驱动"), Option(4, "条件驱动"), Option(5, "持续")),
+                Optional("interval_ms", TriggerValueType.Number),
+                Optional("max_executions", TriggerValueType.Integer),
+                Optional("can_be_interrupted", TriggerValueType.Boolean)));
             catalog.Register(new TriggerTypeDescriptor(
                 TriggerNodeKind.Action,
                 "for_each",
@@ -600,7 +630,9 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static TriggerParameterDescriptor Writable(string name, TriggerValueType type)
         {
             const TriggerValueSourceMask variables =
-                TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard;
+                TriggerValueSourceMask.Context |
+                TriggerValueSourceMask.LocalBlackboard |
+                TriggerValueSourceMask.GlobalBlackboard;
             return new TriggerParameterDescriptor(
                 name, type, true, variables, TriggerParameterAccess.Write);
         }

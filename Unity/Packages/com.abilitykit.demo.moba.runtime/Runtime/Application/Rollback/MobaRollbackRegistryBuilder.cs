@@ -46,6 +46,7 @@ namespace AbilityKit.Demo.Moba.Rollback
             {
                 registry.Register(new MobaActorTransformRollbackProvider(actorRegistry));
                 registry.Register(new MobaActorHpRollbackProvider(actorRegistry));
+                registry.Register(new MobaActorResourceRollbackProvider(actorRegistry));
                 registry.Register(new MobaBuffTimerRollbackProvider(actorRegistry));
                 registry.Register(new MobaSkillCooldownRollbackProvider(actorRegistry));
 
@@ -76,6 +77,21 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (world.Services.TryResolve<RollbackWorldRandom>(out var random) && random != null)
             {
                 registry.Register(random);
+            }
+
+            if (world.Services.TryResolve<MobaTriggerExecutionRuntimeService>(out var triggerExecutions) && triggerExecutions != null)
+            {
+                registry.Register(triggerExecutions);
+            }
+
+            if (world.Services.TryResolve<MobaSkillCastRuntimeService>(out var skillRuntimes) && skillRuntimes != null)
+            {
+                registry.Register(new MobaSkillRuntimeRollbackProvider(skillRuntimes));
+            }
+
+            if (world.Services.TryResolve<MobaSkillEconomyService>(out var skillEconomy) && skillEconomy != null)
+            {
+                registry.Register(new MobaSkillEconomyRollbackProvider(skillEconomy));
             }
 
             return registry;

@@ -1,4 +1,6 @@
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
+using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -14,6 +16,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly ShieldStackingPolicy StackingPolicy;
         public readonly ShieldConsumePolicy ConsumePolicy;
         public readonly MobaActionTargetRequest TargetRequest;
+        public readonly MobaEffectMagnitudeSpec Magnitude;
+        public readonly BlackboardWriteTarget ResultTarget;
+        public readonly BlackboardWriteTarget ResultCountTarget;
 
         public AddShieldArgs(
             int shieldId,
@@ -25,7 +30,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             int durationMs,
             ShieldStackingPolicy stackingPolicy,
             ShieldConsumePolicy consumePolicy,
-            in MobaActionTargetRequest targetRequest)
+            in MobaActionTargetRequest targetRequest,
+            MobaEffectMagnitudeSpec magnitude = default,
+            BlackboardWriteTarget resultTarget = default,
+            BlackboardWriteTarget resultCountTarget = default)
         {
             ShieldId = shieldId;
             Value = value;
@@ -37,6 +45,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             StackingPolicy = stackingPolicy;
             ConsumePolicy = consumePolicy;
             TargetRequest = targetRequest;
+            Magnitude = magnitude;
+            ResultTarget = resultTarget;
+            ResultCountTarget = resultCountTarget;
         }
     }
 }

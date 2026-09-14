@@ -1,13 +1,43 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using AbilityKit.Ability.Impl.BattleDemo.Moba.Editor;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Share.Config;
 using NUnit.Framework;
+using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 {
     public sealed class SkillFlowDefTests
     {
+        [Test]
+        public void P1EconomyShowcase_DeserializesAndIsEditableAsSkillFlowAsset()
+        {
+            var sourcePath = Path.GetFullPath(Path.Combine(
+                Application.dataPath, "..", MobaP1SkillFlowShowcaseSync.SourceAssetPath));
+            var array = LubanConfigGroupDeserializer.Instance.DeserializeFromText(
+                File.ReadAllText(sourcePath), typeof(SkillFlowDTO));
+            Assert.That(array, Has.Length.EqualTo(1));
+
+            var source = (SkillFlowDTO)array.GetValue(0);
+            var restored = SkillFlowDef.FromDto(source).ToDto();
+            Assert.That(restored.Id, Is.EqualTo(MobaP1SkillFlowShowcaseSync.FlowId));
+            Assert.That(restored.Phases[0].Economy.MaxCharges, Is.EqualTo(3));
+            Assert.That(restored.Phases[0].Economy.CooldownGroup, Is.EqualTo("mobility"));
+            Assert.That(restored.Phases[1].Type, Is.EqualTo((int)SkillPhaseType.Race));
+            Assert.That(restored.Phases[2].CommitPoint.CommitId, Is.EqualTo("p1.release"));
+            Assert.That(restored.Phases[3].Children[1].Repeat.Phase.Economy.Operation,
+                Is.EqualTo((int)SkillEconomyOperation.ConsumeResource));
+
+            var asset = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(MobaP1SkillFlowShowcaseSync.TargetAssetPath);
+            Assert.That(asset, Is.Not.Null, "Run MobaP1SkillFlowShowcaseSync.SyncBatch to import the showcase JSON.");
+            Assert.That(asset.dataList, Has.Length.EqualTo(1));
+            Assert.That(asset.dataList[0].Id, Is.EqualTo(MobaP1SkillFlowShowcaseSync.FlowId));
+            Assert.That(asset.dataList[0].Phases[0], Is.TypeOf<SkillEconomyPhaseDef>());
+        }
+
         [Test]
         public void ToDto_MapsPipelineMetadataAndFormalTopLevelPhases()
         {
@@ -161,6 +191,64 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void FromDtoAndToDto_RoundTripsAdvancedWindowStateMachinePhases()
+        {
+            var source = new SkillFlowDTO
+            {
+                Id = 80100001,
+                Name = "p1-window-flow",
+                Phases = new[]
+                {
+                    new SkillPhaseDTO
+                    {
+                        Type = (int)SkillPhaseType.Race,
+                        PhaseId = "release-or-timeout",
+                        Children = new[]
+                        {
+                            new SkillPhaseDTO
+                            {
+                                Type = (int)SkillPhaseType.AwaitEvent,
+                                PhaseId = "await-hit",
+                                AwaitEvent = new SkillAwaitEventPhaseDTO
+                                {
+                                    EventId = "projectile.hit",
+                                    TimeoutMs = 800,
+                                    Filters = new[] { new SkillEventIntFilterDTO { FieldId = 17, UseCasterActorId = true } },
+                                },
+                            },
+                            new SkillPhaseDTO
+                            {
+                                Type = (int)SkillPhaseType.Window,
+                                PhaseId = "charge",
+                                Window = new SkillWindowPhaseDTO
+                                {
+                                    WindowId = "charge.primary",
+                                    Kind = (int)SkillWindowKind.Charge,
+                                    DurationMs = 1200,
+                                    ChargeTierThresholdMs = new[] { 300, 700, 1100 },
+                                },
+                            },
+                        },
+                    },
+                    new SkillPhaseDTO
+                    {
+                        Type = (int)SkillPhaseType.CommitPoint,
+                        PhaseId = "commit",
+                        CommitPoint = new SkillCommitPointPhaseDTO { CommitId = "resource.commit" },
+                    },
+                },
+            };
+
+            var restored = SkillFlowDef.FromDto(source).ToDto();
+
+            Assert.That(restored.Phases[0].Type, Is.EqualTo((int)SkillPhaseType.Race));
+            Assert.That(restored.Phases[0].Children[0].AwaitEvent.EventId, Is.EqualTo("projectile.hit"));
+            Assert.That(restored.Phases[0].Children[0].AwaitEvent.Filters[0].UseCasterActorId, Is.True);
+            Assert.That(restored.Phases[0].Children[1].Window.ChargeTierThresholdMs, Is.EqualTo(new[] { 300, 700, 1100 }));
+            Assert.That(restored.Phases[1].CommitPoint.CommitId, Is.EqualTo("resource.commit"));
+        }
+
+        [Test]
         public void ToDto_RetainsDeprecatedChecksForExistingAssetMigration()
         {
             var phase = new SkillChecksPhaseDef
@@ -235,7 +323,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             }
             finally
             {
-                Object.DestroyImmediate(asset);
+                UnityEngine.Object.DestroyImmediate(asset);
             }
         }
     }

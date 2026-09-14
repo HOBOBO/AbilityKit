@@ -28,11 +28,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var stackingPolicy = ReadEnum(namedArgs, ctx, ShieldStackingPolicy.Independent, "stacking_policy", "stackingpolicy");
             var consumePolicy = ReadEnum(namedArgs, ctx, ShieldConsumePolicy.PriorityThenOldest, "consume_policy", "consumepolicy");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
-            return new AddShieldArgs(shieldId, value, absorbRatio, priority, damageTypeMask, durationFrames, durationMs, stackingPolicy, consumePolicy, in targetRequest);
+            var magnitude = MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, value);
+            TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "shield_result");
+            TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "shield_count");
+            return new AddShieldArgs(shieldId, value, absorbRatio, priority, damageTypeMask, durationFrames, durationMs, stackingPolicy, consumePolicy, in targetRequest, magnitude, resultTarget, resultCountTarget);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (MobaEffectMagnitudeSchemaReader.HasMagnitudeArgs(args)) { error = null; return true; }
             return RequireAny(args, "shield_value", out error, "shield_value", "value", "amount");
         }
     }

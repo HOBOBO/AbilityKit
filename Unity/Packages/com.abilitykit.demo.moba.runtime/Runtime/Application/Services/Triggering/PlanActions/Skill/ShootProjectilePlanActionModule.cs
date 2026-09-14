@@ -171,13 +171,19 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             aimPos = casterPos;
 
             var sourceContext = input.CreateSourceContext(casterActorId, targetActorId, projectile.Id);
-            if (!projectileSvc.Launch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, args.ContinuousProcessId, args.TrackTarget, in aimPos, in aimDir, in sourceContext))
+            if (!projectileSvc.TryLaunch(casterActorId, launcher, projectile, launchParams.CountPerShot, launchParams.FanAngleDeg, launchParams.DurationMs, args.ContinuousProcessId, args.TrackTarget, in aimPos, in aimDir, in sourceContext, out var launchResult))
             {
                 LogRejected(ctx, $"launch failed. launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId}");
                 return;
             }
+            if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, launchResult.LauncherActorId, out var outputError) ||
+                !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, launchResult.TotalCount, out outputError))
+            {
+                LogRejected(ctx, outputError);
+                return;
+            }
 
-            LogApplied(ctx, $"launch requested. casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} targetActorId={targetActorId} trackTarget={args.TrackTarget} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} continuousProcessId={args.ContinuousProcessId} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection}");
+            LogApplied(ctx, $"launch requested. casterActorId={casterActorId} launcherId={launchParams.LauncherId} projectileId={launchParams.ProjectileId} launcherActorId={launchResult.LauncherActorId} targetActorId={targetActorId} trackTarget={args.TrackTarget} countPerShot={launchParams.CountPerShot} fanAngleDeg={launchParams.FanAngleDeg:0.###} durationMs={launchParams.DurationMs} continuousProcessId={args.ContinuousProcessId} hasAimPos={input.HasAimPosition} hasAimDir={input.HasAimDirection}");
         }
     }
 }

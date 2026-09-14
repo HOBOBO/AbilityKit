@@ -22,11 +22,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var reasonKind = ReadInt(namedArgs, ctx, (int)DamageReasonKind.Buff, "reason_kind", "reasonkind");
             var reasonParam = ReadInt(namedArgs, ctx, 0, "reason_param", "reasonparam");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
-            return new HealArgs(amount, healType, reasonKind, reasonParam, in targetRequest);
+            var magnitude = MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, amount);
+            return new HealArgs(amount, healType, reasonKind, reasonParam, in targetRequest, magnitude);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (MobaEffectMagnitudeSchemaReader.HasMagnitudeArgs(args)) { error = null; return true; }
             return RequireAny(args, "amount", out error, "amount", "heal_amount", "value");
         }
     }

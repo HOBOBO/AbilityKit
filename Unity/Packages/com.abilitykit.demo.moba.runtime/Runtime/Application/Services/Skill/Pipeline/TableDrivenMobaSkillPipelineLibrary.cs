@@ -249,12 +249,32 @@ namespace AbilityKit.Demo.Moba.Services
                     return new ParallelPhaseDefinition(
                         MakePhaseId(phase, fallbackPhaseId),
                         BuildChildDefinitions(phase.Children, checksPhaseId, timelinePhaseId, fallbackPhaseId));
+                case SkillPhaseType.Race:
+                    return new RacePhaseDefinition(
+                        MakePhaseId(phase, fallbackPhaseId),
+                        BuildChildDefinitions(phase.Children, checksPhaseId, timelinePhaseId, fallbackPhaseId));
                 case SkillPhaseType.Repeat:
                     return BuildRepeatPhaseDefinition(phase, checksPhaseId, timelinePhaseId, fallbackPhaseId);
                 case SkillPhaseType.Delay:
                     return BuildDelayPhaseDefinition(phase, fallbackPhaseId);
                 case SkillPhaseType.WaitUntil:
                     return BuildWaitUntilPhaseDefinition(phase, fallbackPhaseId);
+                case SkillPhaseType.AwaitEvent:
+                    if (phase.AwaitEvent == null)
+                        throw new InvalidOperationException($"AwaitEvent skill phase requires event config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+                    return new AwaitEventPhaseDefinition(MakePhaseId(phase, fallbackPhaseId), phase.AwaitEvent);
+                case SkillPhaseType.Window:
+                    if (phase.Window == null)
+                        throw new InvalidOperationException($"Window skill phase requires window config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+                    return new WindowPhaseDefinition(MakePhaseId(phase, fallbackPhaseId), phase.Window, GetOrCreateRulePlanExecutor());
+                case SkillPhaseType.CommitPoint:
+                    if (phase.CommitPoint == null)
+                        throw new InvalidOperationException($"CommitPoint skill phase requires commit config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+                    return new CommitPointPhaseDefinition(MakePhaseId(phase, fallbackPhaseId), phase.CommitPoint);
+                case SkillPhaseType.Economy:
+                    if (phase.Economy == null)
+                        throw new InvalidOperationException($"Economy skill phase requires economy config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+                    return new EconomyPhaseDefinition(MakePhaseId(phase, fallbackPhaseId), phase.Economy);
                 default:
                     throw new InvalidOperationException($"Unsupported skill phase type. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, type={phase.Type}");
             }
@@ -496,6 +516,85 @@ namespace AbilityKit.Demo.Moba.Services
             protected override AbilityCompositePhase<SkillPipelineContext> CreateCompositePhase()
             {
                 return new AbilityParallelPhase<SkillPipelineContext>(PhaseId);
+            }
+        }
+
+        private sealed class RacePhaseDefinition : CompositePhaseDefinition
+        {
+            public RacePhaseDefinition(AbilityPipelinePhaseId phaseId, IReadOnlyList<PhaseDefinition> children)
+                : base(phaseId, children)
+            {
+            }
+
+            protected override AbilityCompositePhase<SkillPipelineContext> CreateCompositePhase()
+            {
+                return new AbilityRacePhase<SkillPipelineContext>(PhaseId);
+            }
+        }
+
+        private sealed class AwaitEventPhaseDefinition : PhaseDefinition
+        {
+            private readonly SkillAwaitEventPhaseDTO _specification;
+
+            public AwaitEventPhaseDefinition(AbilityPipelinePhaseId phaseId, SkillAwaitEventPhaseDTO specification)
+                : base(phaseId)
+            {
+                _specification = specification;
+            }
+
+            public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
+            {
+                return new SkillAwaitEventPhase(PhaseId, _specification);
+            }
+        }
+
+        private sealed class WindowPhaseDefinition : PhaseDefinition
+        {
+            private readonly SkillWindowPhaseDTO _specification;
+            private readonly MobaTriggerPlanExecutor _executor;
+
+            public WindowPhaseDefinition(AbilityPipelinePhaseId phaseId, SkillWindowPhaseDTO specification, MobaTriggerPlanExecutor executor)
+                : base(phaseId)
+            {
+                _specification = specification;
+                _executor = executor;
+            }
+
+            public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
+            {
+                return new SkillWindowPhase(PhaseId, _specification, _executor);
+            }
+        }
+
+        private sealed class CommitPointPhaseDefinition : PhaseDefinition
+        {
+            private readonly SkillCommitPointPhaseDTO _specification;
+
+            public CommitPointPhaseDefinition(AbilityPipelinePhaseId phaseId, SkillCommitPointPhaseDTO specification)
+                : base(phaseId)
+            {
+                _specification = specification;
+            }
+
+            public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
+            {
+                return new SkillCommitPointPhase(PhaseId, _specification);
+            }
+        }
+
+        private sealed class EconomyPhaseDefinition : PhaseDefinition
+        {
+            private readonly SkillEconomyPhaseDTO _specification;
+
+            public EconomyPhaseDefinition(AbilityPipelinePhaseId phaseId, SkillEconomyPhaseDTO specification)
+                : base(phaseId)
+            {
+                _specification = specification;
+            }
+
+            public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
+            {
+                return new SkillEconomyPhase(PhaseId, _specification);
             }
         }
 

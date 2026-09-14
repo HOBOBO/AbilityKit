@@ -6,6 +6,7 @@ using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Core.Pooling;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Services.StateSync;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
@@ -20,7 +21,7 @@ namespace AbilityKit.Demo.Moba.Rollback
     /// - 回滚时直接恢复这两个字段。
     /// - ActiveSkillRuntime 是 mutable class，直接修改字段即可，无需重建。
     /// </summary>
-    public sealed class MobaSkillCooldownRollbackProvider : IRollbackStateProvider
+    public sealed class MobaSkillCooldownRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10004;
 
@@ -50,6 +51,14 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             ImportState(frame, payload);
         }
+
+        public void AddStateHash(FrameIndex frame, ref MobaStateHashBuilder hash)
+        {
+            var payload = ExportState(frame);
+            hash.AddInt(Key);
+            hash.AddInt(payload.Length);
+            for (var i = 0; i < payload.Length; i++) hash.AddByte(payload[i]);
+        }
  
         public byte[] ExportState(FrameIndex frame)
         {
@@ -71,7 +80,11 @@ namespace AbilityKit.Demo.Moba.Rollback
                         if (skill == null) continue;
                         entries.Add(new MobaSkillCooldownRollbackEntry(
                             actorId, slot + 1, skill.SkillId,
-                            skill.CooldownEndTimeMs, skill.CooldownDurationMs));
+                            skill.CooldownEndTimeMs, skill.CooldownDurationMs,
+                            skill.MaxCharges, skill.CurrentCharges,
+                            skill.ChargeRecoveryMs, skill.NextChargeRecoveryTimeMs,
+                            skill.CooldownGroupId, skill.ChargesConfigured,
+                            skill.IgnoreGlobalCooldown));
                     }
                 }
 
@@ -82,7 +95,7 @@ namespace AbilityKit.Demo.Moba.Rollback
                 });
 
                 var arr = entries.Count == 0 ? Array.Empty<MobaSkillCooldownRollbackEntry>() : entries.ToArray();
-                return MemoryPackSerializer.Serialize(new MobaSkillCooldownRollbackPayload(1, arr));
+                return MemoryPackSerializer.Serialize(new MobaSkillCooldownRollbackPayload(2, arr));
             }
             finally
             {
@@ -113,6 +126,13 @@ namespace AbilityKit.Demo.Moba.Rollback
                 {
                     skill.CooldownEndTimeMs = it.CooldownEndTimeMs;
                     skill.CooldownDurationMs = it.CooldownDurationMs;
+                    skill.MaxCharges = it.MaxCharges;
+                    skill.CurrentCharges = it.CurrentCharges;
+                    skill.ChargeRecoveryMs = it.ChargeRecoveryMs;
+                    skill.NextChargeRecoveryTimeMs = it.NextChargeRecoveryTimeMs;
+                    skill.CooldownGroupId = it.CooldownGroupId;
+                    skill.ChargesConfigured = it.ChargesConfigured;
+                    skill.IgnoreGlobalCooldown = it.IgnoreGlobalCooldown;
                 }
             }
         }
@@ -140,15 +160,33 @@ namespace AbilityKit.Demo.Moba.Rollback
         [MemoryPackOrder(2)] public readonly int SkillId;
         [MemoryPackOrder(3)] public readonly long CooldownEndTimeMs;
         [MemoryPackOrder(4)] public readonly int CooldownDurationMs;
+        [MemoryPackOrder(5)] public readonly int MaxCharges;
+        [MemoryPackOrder(6)] public readonly int CurrentCharges;
+        [MemoryPackOrder(7)] public readonly int ChargeRecoveryMs;
+        [MemoryPackOrder(8)] public readonly long NextChargeRecoveryTimeMs;
+        [MemoryPackOrder(9)] public readonly int CooldownGroupId;
+        [MemoryPackOrder(10)] public readonly bool ChargesConfigured;
+        [MemoryPackOrder(11)] public readonly bool IgnoreGlobalCooldown;
 
         public MobaSkillCooldownRollbackEntry(int actorId, int skillSlot, int skillId,
-                                 long cooldownEndTimeMs, int cooldownDurationMs)
+                                 long cooldownEndTimeMs, int cooldownDurationMs,
+                                 int maxCharges, int currentCharges,
+                                 int chargeRecoveryMs, long nextChargeRecoveryTimeMs,
+                                 int cooldownGroupId, bool chargesConfigured,
+                                 bool ignoreGlobalCooldown)
         {
             ActorId = actorId;
             SkillSlot = skillSlot;
             SkillId = skillId;
             CooldownEndTimeMs = cooldownEndTimeMs;
             CooldownDurationMs = cooldownDurationMs;
+            MaxCharges = maxCharges;
+            CurrentCharges = currentCharges;
+            ChargeRecoveryMs = chargeRecoveryMs;
+            NextChargeRecoveryTimeMs = nextChargeRecoveryTimeMs;
+            CooldownGroupId = cooldownGroupId;
+            ChargesConfigured = chargesConfigured;
+            IgnoreGlobalCooldown = ignoreGlobalCooldown;
         }
     }
 }

@@ -85,6 +85,11 @@ namespace AbilityKit.Ability.Editor.Utilities
         public int MaxIterations;
         public List<TriggerAuthoringRuntimeExecutionNodeDto> Children;
         public List<TriggerAuthoringRuntimeExecutionNodeDto> ElseChildren;
+        public float? Weight;
+        public string ScheduleMode;
+        public float? IntervalMs;
+        public int? MaxExecutions;
+        public bool? CanBeInterrupted;
     }
 
     [Serializable]
@@ -739,6 +744,9 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (node == null || !node.Enabled) return false;
             if (string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase)) return true;
             if (string.Equals(node.Type, "for_each", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "random", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "weighted", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "scheduled", StringComparison.OrdinalIgnoreCase)) return true;
             if (TriggerAuthoringTriggerReuse.IsReference(node)) return true;
             if (RequiresExecutionTree(node.Children)) return true;
             return RequiresExecutionTree(node.ElseChildren);
@@ -804,6 +812,86 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return new TriggerAuthoringRuntimeExecutionNodeDto
                 {
                     Kind = "Sequence",
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
+            if (string.Equals(node.Type, "random", StringComparison.OrdinalIgnoreCase))
+            {
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = "Random",
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
+            if (string.Equals(node.Type, "weighted", StringComparison.OrdinalIgnoreCase))
+            {
+                var child = CompileFirstEnabledChild(
+                    compileContext,
+                    node.Children,
+                    path + ".children",
+                    context,
+                    strings,
+                    diagnostics);
+                var weight = ReadConstantNumber(
+                    FindArgument(node, "weight")?.Value,
+                    1f,
+                    path + ".arguments.weight",
+                    diagnostics);
+                if (child != null) child.Weight = weight;
+                return child;
+            }
+
+            if (string.Equals(node.Type, "scheduled", StringComparison.OrdinalIgnoreCase))
+            {
+                var mode = ReadConstantInteger(
+                    FindArgument(node, "schedule_mode")?.Value,
+                    0,
+                    path + ".arguments.schedule_mode",
+                    diagnostics);
+                if (mode < 0 || mode > 5)
+                {
+                    AddError(diagnostics, "TRG2034", path + ".arguments.schedule_mode",
+                        "scheduled 的 schedule_mode 必须在 0 到 5 之间。");
+                    mode = 0;
+                }
+                var intervalMs = ReadConstantNumber(
+                    FindArgument(node, "interval_ms")?.Value,
+                    0f,
+                    path + ".arguments.interval_ms",
+                    diagnostics,
+                    required: false);
+                var maxExecutions = ReadConstantInteger(
+                    FindArgument(node, "max_executions")?.Value,
+                    -1,
+                    path + ".arguments.max_executions",
+                    diagnostics,
+                    required: false);
+                var canBeInterrupted = ReadConstantBoolean(
+                    FindArgument(node, "can_be_interrupted")?.Value,
+                    true,
+                    path + ".arguments.can_be_interrupted",
+                    diagnostics);
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = "Scheduled",
+                    ScheduleMode = ScheduleModeName(mode),
+                    IntervalMs = intervalMs,
+                    MaxExecutions = maxExecutions,
+                    CanBeInterrupted = canBeInterrupted,
                     Children = CompileExecutionChildren(
                         compileContext,
                         node.Children,
@@ -1069,6 +1157,94 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (child != null) result.Add(child);
             }
             return result;
+        }
+
+        private static TriggerAuthoringRuntimeExecutionNodeDto CompileFirstEnabledChild(
+            RuntimeTriggerCompileContext compileContext,
+            IReadOnlyList<TriggerNodeData> nodes,
+            string path,
+            TriggerAuthoringValidationContext context,
+            SortedDictionary<int, string> strings,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics)
+        {
+            if (nodes == null) return null;
+            for (var i = 0; i < nodes.Count; i++)
+            {
+                if (nodes[i] == null || !nodes[i].Enabled) continue;
+                return CompileExecutionNode(
+                    compileContext,
+                    nodes[i],
+                    path + "[" + i + "]",
+                    context,
+                    strings,
+                    diagnostics);
+            }
+            return null;
+        }
+
+        private static float ReadConstantNumber(
+            TriggerValueRefData value,
+            float fallback,
+            string path,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            bool required = true)
+        {
+            if (value == null)
+            {
+                if (required) AddError(diagnostics, "TRG2035", path, "必须提供数值常量。");
+                return fallback;
+            }
+            if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.Number)
+                return (float)value.NumberValue;
+            if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.Integer)
+                return (float)value.IntegerValue;
+            AddError(diagnostics, "TRG2035", path, "必须提供数值常量。");
+            return fallback;
+        }
+
+        private static int ReadConstantInteger(
+            TriggerValueRefData value,
+            int fallback,
+            string path,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            bool required = true)
+        {
+            if (value == null)
+            {
+                if (required) AddError(diagnostics, "TRG2036", path, "必须提供整数常量。");
+                return fallback;
+            }
+            if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.Integer &&
+                value.IntegerValue >= int.MinValue && value.IntegerValue <= int.MaxValue)
+                return (int)value.IntegerValue;
+            AddError(diagnostics, "TRG2036", path, "必须提供整数常量。");
+            return fallback;
+        }
+
+        private static bool ReadConstantBoolean(
+            TriggerValueRefData value,
+            bool fallback,
+            string path,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics)
+        {
+            if (value == null) return fallback;
+            if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.Boolean)
+                return value.BooleanValue;
+            AddError(diagnostics, "TRG2037", path, "必须提供 Boolean 常量。");
+            return fallback;
+        }
+
+        private static string ScheduleModeName(int value)
+        {
+            switch (value)
+            {
+                case 1: return "Timed";
+                case 2: return "Periodic";
+                case 3: return "External";
+                case 4: return "Conditional";
+                case 5: return "Continuous";
+                default: return "Transient";
+            }
         }
 
         private static void CompileActions(
@@ -1348,9 +1524,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return null;
             }
             if (writeTarget && value.Source != TriggerValueSource.LocalBlackboard &&
-                value.Source != TriggerValueSource.GlobalBlackboard)
+                value.Source != TriggerValueSource.GlobalBlackboard &&
+                value.Source != TriggerValueSource.Context)
             {
-                AddError(diagnostics, "TRG2059", path + ".source", "黑板写入目标必须引用局部或全局黑板 Key。");
+                AddError(diagnostics, "TRG2059", path + ".source",
+                    "黑板写入目标必须引用局部、全局或业务扩展注册的可写运行时 Blackboard Key。");
                 return null;
             }
             if (value.Type == TriggerValueType.Vector3 ||
@@ -1431,6 +1609,27 @@ namespace AbilityKit.Ability.Editor.Utilities
                         FieldId = RuntimeStableStringId.Get("payload:" + value.Path)
                     };
                 case TriggerValueSource.Context:
+                    if (writeTarget)
+                    {
+                        if (context?.ValueSources == null ||
+                            !context.ValueSources.TryGet(value.Path, out var writableRuntimeValue) ||
+                            writableRuntimeValue == null || !writableRuntimeValue.CanWrite)
+                        {
+                            AddError(diagnostics, "TRG2087", path + ".path",
+                                $"运行上下文值不可写：{value.Path ?? string.Empty}。");
+                            return null;
+                        }
+                        return new TriggerAuthoringRuntimeValueRefDto
+                        {
+                            Kind = "BlackboardTarget",
+                            BoardId = BlackboardIdMapper.BoardId(writableRuntimeValue.BlackboardName),
+                            KeyId = BlackboardIdMapper.KeyId(writableRuntimeValue.BlackboardKey),
+                            KeyType = ToBlackboardKeyType(value.Type),
+                            Scope = string.IsNullOrWhiteSpace(writableRuntimeValue.BlackboardScope)
+                                ? null
+                                : writableRuntimeValue.BlackboardScope
+                        };
+                    }
                     SplitContextPath(value.Path, out var contextDomain, out var contextKey);
                     return new TriggerAuthoringRuntimeValueRefDto
                     {

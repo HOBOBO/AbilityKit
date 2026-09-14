@@ -7,6 +7,7 @@ using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
 using AbilityKit.Trace;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services.Combat.Transactions;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -18,6 +19,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaShieldService _shields;
         private readonly AbilityKit.Triggering.Eventing.IEventBus _eventBus;
         private readonly IMobaDamageStageProvider _stageProvider;
+        private readonly MobaCombatTransactionPipeline _transactions;
         [WorldInject(required: false)] private MobaTraceRegistry _trace = null;
         [WorldInject(required: false)] private MobaCombatActivityService _combatActivity = null;
  
@@ -32,7 +34,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaShieldService shields = null,
             IMobaBattleDiagnosticsService diagnostics = null,
             IMobaBattleDiagnosticEventSink eventCollector = null,
-            IMobaDamageStageProvider stageProvider = null)
+            IMobaDamageStageProvider stageProvider = null,
+            MobaCombatTransactionPipeline transactions = null)
         {
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _damage = damage ?? throw new ArgumentNullException(nameof(damage));
@@ -41,12 +44,34 @@ namespace AbilityKit.Demo.Moba.Services
             _diagnostics = diagnostics;
             _eventCollector = eventCollector;
             _stageProvider = stageProvider ?? new MobaDamageStageRegistry(mitigation, shields);
+            _transactions = transactions;
         }
 
         public DamageResult Execute(AttackInfo attack)
         {
             if (attack == null) return null;
-            if (attack.TargetActorId <= 0) return null;
+            var transaction = new MobaDamageTransaction(attack);
+            DamageResult result = null;
+            var committed = _transactions == null
+                ? IsValid(transaction) && Commit(transaction)
+                : _transactions.TryExecute(transaction, IsValid, Commit);
+            return committed ? result : null;
+
+            bool Commit(MobaDamageTransaction current)
+            {
+                result = ExecuteCore(current.Attack);
+                return result != null;
+            }
+        }
+
+        private static bool IsValid(MobaDamageTransaction transaction)
+        {
+            return transaction != null && !transaction.IsCancelled && transaction.Attack != null &&
+                   transaction.Attack.TargetActorId > 0;
+        }
+
+        private DamageResult ExecuteCore(AttackInfo attack)
+        {
 
             var diagnostics = _diagnostics;
             var start = diagnostics != null ? diagnostics.GetTimestamp() : 0L;

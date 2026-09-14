@@ -28,7 +28,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var offsetZ = ReadFloat(namedArgs, ctx, 0f, "offset_z", "offsetz", "z");
             var hasTargetRequest = HasExplicitTargetRequest(namedArgs);
             var targetRequest = hasTargetRequest ? MobaActionTargetSchemaReader.Read(namedArgs, ctx) : default;
-            return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ, hasTargetRequest, targetRequest);
+            TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "area_result");
+            TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "spawn_count");
+            return new SpawnAreaArgs(areaId, positionMode, radiusOverride, durationFrames, durationMs, stayIntervalFrames, collisionLayerMaskOverride, offsetX, offsetY, offsetZ, hasTargetRequest, targetRequest, resultTarget, resultCountTarget);
         }
 
         private static bool HasExplicitTargetRequest(Dictionary<string, ActionArgValue> namedArgs)

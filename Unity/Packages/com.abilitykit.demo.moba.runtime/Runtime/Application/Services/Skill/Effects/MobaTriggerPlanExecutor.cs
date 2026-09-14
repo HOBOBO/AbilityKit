@@ -10,6 +10,7 @@ using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Collections;
 using AbilityKit.Triggering.Variables.Numeric;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
+using AbilityKit.Ability.World.Services;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -37,6 +38,10 @@ namespace AbilityKit.Demo.Moba.Services
             _planDb = planDb;
             if (numericDomains == null) services?.TryResolve(out numericDomains);
             if (numericFunctions == null) services?.TryResolve(out numericFunctions);
+            IWorldRandom worldRandom = null;
+            ITriggerExecutionScheduler executionScheduler = null;
+            services?.TryResolve(out worldRandom);
+            services?.TryResolve(out executionScheduler);
             _dependencies = new MobaTriggerPlanRuntimeDependencies(
                 services,
                 eventBus,
@@ -44,7 +49,9 @@ namespace AbilityKit.Demo.Moba.Services
                 actions,
                 payloads,
                 numericDomains,
-                numericFunctions);
+                numericFunctions,
+                worldRandom as ITriggerRandomSource,
+                executionScheduler);
             _effects = new MobaTriggerPlanEffectResolver(services, currentEffects);
             _contextFactory = new MobaTriggerPlanExecutionContextFactory(_dependencies, _effects);
             _runner = new MobaTriggerPlanExecutionRunner();

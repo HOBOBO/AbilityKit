@@ -1,6 +1,7 @@
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Config;
 using AbilityKit.Triggering.Runtime.Plan;
 using AbilityKit.Triggering.Runtime.Plan.Json;
 using AbilityKit.Triggering.Validation;
@@ -68,6 +69,42 @@ namespace AbilityKit.Triggering.Tests
             Assert.That(result.IsValid, Is.True);
             Assert.That(result.Warnings, Has.Some.Matches<ValidationIssue>(issue => issue.Code == ValidationErrorCodes.EMPTY_EXECUTION_NODE));
         }
+
+        [Test]
+        public void LoadFromJson_ConvertsScheduledExecutionRoot()
+        {
+            var json = @"
+{
+  ""FormatVersion"": 1,
+  ""Triggers"": [
+    {
+      ""TriggerId"": 4103,
+      ""EventName"": ""test:validating_json_execution_root:event:scheduled"",
+      ""ExecutionRoot"": {
+        ""Kind"": ""Scheduled"",
+        ""ScheduleMode"": ""Periodic"",
+        ""IntervalMs"": 125,
+        ""MaxExecutions"": 4,
+        ""CanBeInterrupted"": false,
+        ""Children"": [ { ""Kind"": ""Succeed"" } ]
+      }
+    }
+  ]
+}";
+            var database = new TriggerPlanJsonDatabase();
+
+            database.LoadFromJson(json, "scheduled-execution-root-test");
+
+            Assert.That(database.TryGetExecutionRootByTriggerId(4103, out var root), Is.True);
+            Assert.That(root, Is.TypeOf<ScheduledTriggerPlanExecutable>());
+            var scheduled = (ScheduledTriggerPlanExecutable)root;
+            Assert.That(scheduled.ScheduleMode, Is.EqualTo(EScheduleMode.Periodic));
+            Assert.That(scheduled.IntervalMs, Is.EqualTo(125f));
+            Assert.That(scheduled.MaxExecutions, Is.EqualTo(4));
+            Assert.That(scheduled.CanBeInterrupted, Is.False);
+            Assert.That(scheduled.Child, Is.Not.Null);
+        }
+
         [Test]
         public void LoadFromJson_AcceptsSourceTriggerArrayRoot()
         {

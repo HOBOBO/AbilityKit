@@ -269,7 +269,20 @@ namespace AbilityKit.Demo.Moba.Services.EntityConstruction
             {
                 var id = skillIds[i];
                 if (id <= 0) continue;
-                list.Add(new ActiveSkillRuntime { SkillId = id, Level = 1, CooldownDurationMs = 0, CooldownEndTimeMs = 0L });
+                list.Add(new ActiveSkillRuntime
+                {
+                    SkillId = id,
+                    Level = 1,
+                    CooldownDurationMs = 0,
+                    CooldownEndTimeMs = 0L,
+                    MaxCharges = 1,
+                    CurrentCharges = 1,
+                    ChargeRecoveryMs = 0,
+                    NextChargeRecoveryTimeMs = 0L,
+                    CooldownGroupId = 0,
+                    ChargesConfigured = false,
+                    IgnoreGlobalCooldown = false,
+                });
             }
 
             return list.Count == 0 ? Array.Empty<ActiveSkillRuntime>() : list.ToArray();

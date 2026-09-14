@@ -934,6 +934,7 @@ namespace AbilityKit.Demo.Moba.Services
                     break;
                 case SkillPhaseType.Sequence:
                 case SkillPhaseType.Parallel:
+                case SkillPhaseType.Race:
                     ValidateChildPhases(config, triggers, report, phase.Children, path + ".children", businessId);
                     break;
                 case SkillPhaseType.Repeat:
@@ -955,6 +956,21 @@ namespace AbilityKit.Demo.Moba.Services
                     break;
                 case SkillPhaseType.WaitUntil:
                     ValidateWaitUntilPhase(report, phase.WaitUntil, path + ".waitUntil", businessId);
+                    break;
+                case SkillPhaseType.AwaitEvent:
+                    ValidateAwaitEventPhase(report, phase.AwaitEvent, path + ".awaitEvent", businessId);
+                    break;
+                case SkillPhaseType.Window:
+                    ValidateWindowPhase(triggers, report, phase.Window, path + ".window", businessId);
+                    break;
+                case SkillPhaseType.CommitPoint:
+                    if (phase.CommitPoint == null)
+                        report.Error(Source, path + ".commitPoint", "commit point phase has no config.", businessId.ToString());
+                    else if (string.IsNullOrWhiteSpace(phase.CommitPoint.CommitId))
+                        report.Error(Source, path + ".commitPoint.commitId", "commit id is required.", businessId.ToString());
+                    break;
+                case SkillPhaseType.Economy:
+                    ValidateEconomyPhase(report, phase.Economy, path + ".economy", businessId);
                     break;
                 default:
                     report.Warning(Source, path + ".type", "skill phase type is not recognized.", businessId.ToString());
@@ -989,6 +1005,98 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 report.Error(Source, path + ".condition", error, businessId.ToString());
             }
+        }
+
+        private static void ValidateEconomyPhase(MobaRuntimeValidationReport report, SkillEconomyPhaseDTO economy, string path, int businessId)
+        {
+            if (economy == null)
+            {
+                report.Error(Source, path, "economy phase has no config.", businessId.ToString());
+                return;
+            }
+
+            if (!Enum.IsDefined(typeof(SkillEconomyOperation), economy.Operation))
+                report.Error(Source, path + ".operation", "economy operation is not recognized.", businessId.ToString());
+            if (economy.ResourceType < 0 || economy.ResourceType > (int)AbilityKit.Demo.Moba.Components.ResourceType.ComboPoint)
+                report.Error(Source, path + ".resourceType", "resource type is not recognized.", businessId.ToString());
+            if (economy.ResourceAmount < 0f)
+                report.Error(Source, path + ".resourceAmount", "resource amount is negative.", businessId.ToString());
+            if (economy.ChargeCost < 0)
+                report.Error(Source, path + ".chargeCost", "charge cost is negative.", businessId.ToString());
+            if (economy.MaxCharges <= 0)
+                report.Error(Source, path + ".maxCharges", "max charges must be positive.", businessId.ToString());
+            if (economy.ChargeRecoveryMs < 0)
+                report.Error(Source, path + ".chargeRecoveryMs", "charge recovery is negative.", businessId.ToString());
+            if (economy.MaxCharges > 1 && economy.ChargeRecoveryMs <= 0)
+                report.Error(Source, path + ".chargeRecoveryMs", "multi-charge skills require a positive recovery duration.", businessId.ToString());
+            if (economy.SkillCooldownMs < 0 || economy.SharedCooldownMs < 0 || economy.GlobalCooldownMs < 0)
+                report.Error(Source, path, "cooldown durations cannot be negative.", businessId.ToString());
+            if (economy.SharedCooldownMs > 0 && string.IsNullOrWhiteSpace(economy.CooldownGroup))
+                report.Error(Source, path + ".cooldownGroup", "shared cooldown requires a group id.", businessId.ToString());
+            if ((SkillEconomyOperation)economy.Operation == SkillEconomyOperation.ConsumeResource &&
+                !economy.UseResolvedResourceCost && economy.ResourceAmount <= 0f)
+                report.Error(Source, path + ".resourceAmount", "resource consumption requires a positive amount.", businessId.ToString());
+        }
+
+        private static void ValidateAwaitEventPhase(MobaRuntimeValidationReport report, SkillAwaitEventPhaseDTO wait, string path, int businessId)
+        {
+            if (wait == null)
+            {
+                report.Error(Source, path, "awaitEvent phase has no config.", businessId.ToString());
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(wait.EventId)) report.Error(Source, path + ".eventId", "event id is required.", businessId.ToString());
+            if (wait.TimeoutMs < 0) report.Error(Source, path + ".timeoutMs", "event wait timeout is negative.", businessId.ToString());
+            var filters = wait.Filters;
+            if (filters == null) return;
+            for (var i = 0; i < filters.Length; i++)
+            {
+                var filter = filters[i];
+                var filterPath = $"{path}.filters[{i}]";
+                if (filter == null)
+                {
+                    report.Error(Source, filterPath, "event filter is null.", businessId.ToString());
+                    continue;
+                }
+                if (filter.FieldId <= 0) report.Error(Source, filterPath + ".fieldId", "payload field id must be positive.", businessId.ToString());
+                var dynamicValues = (filter.UseCasterActorId ? 1 : 0) + (filter.UseTargetActorId ? 1 : 0) + (filter.UseSkillId ? 1 : 0);
+                if (dynamicValues > 1) report.Error(Source, filterPath, "event filter can use only one contextual expected value.", businessId.ToString());
+            }
+        }
+
+        private static void ValidateWindowPhase(TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillWindowPhaseDTO window, string path, int businessId)
+        {
+            if (window == null)
+            {
+                report.Error(Source, path, "window phase has no config.", businessId.ToString());
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(window.WindowId)) report.Error(Source, path + ".windowId", "window id is required.", businessId.ToString());
+            if (!Enum.IsDefined(typeof(SkillWindowKind), window.Kind)) report.Error(Source, path + ".kind", "window kind is not recognized.", businessId.ToString());
+            if (window.DurationMs < 0) report.Error(Source, path + ".durationMs", "window duration is negative.", businessId.ToString());
+            if ((SkillWindowKind)window.Kind == SkillWindowKind.Timed && window.DurationMs <= 0)
+                report.Error(Source, path + ".durationMs", "timed window duration must be positive.", businessId.ToString());
+            if (window.ChannelIntervalMs < 0) report.Error(Source, path + ".channelIntervalMs", "channel interval is negative.", businessId.ToString());
+            if ((SkillWindowKind)window.Kind == SkillWindowKind.Channel && window.ChannelIntervalMs <= 0)
+                report.Error(Source, path + ".channelIntervalMs", "channel window interval must be positive.", businessId.ToString());
+
+            var thresholds = window.ChargeTierThresholdMs;
+            if (thresholds != null)
+            {
+                var previous = -1;
+                for (var i = 0; i < thresholds.Length; i++)
+                {
+                    if (thresholds[i] < 0 || thresholds[i] <= previous)
+                        report.Error(Source, $"{path}.chargeTierThresholdMs[{i}]", "charge thresholds must be non-negative and strictly ascending.", businessId.ToString());
+                    previous = thresholds[i];
+                }
+            }
+
+            ValidateTriggerRefs(triggers, window.OpenTriggerIds, report, path + ".openTriggerIds", businessId);
+            ValidateTriggerRefs(triggers, window.TickTriggerIds, report, path + ".tickTriggerIds", businessId);
+            ValidateTriggerRefs(triggers, window.CloseTriggerIds, report, path + ".closeTriggerIds", businessId);
         }
 
         private static void ValidateTimelinePhase(TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillTimelinePhaseDTO timeline, string path, int businessId)

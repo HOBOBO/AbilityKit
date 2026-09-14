@@ -38,7 +38,23 @@ namespace AbilityKit.Triggering.Runtime.Plan
                 return TriggerPlanExecutionResult.Failed("Scheduled child is null");
             }
 
-            return Child.Execute(args, in ctx);
+            if (ScheduleMode == EScheduleMode.Transient)
+                return Child.Execute(args, in ctx);
+
+            if (ctx.ExecutionScheduler == null)
+                return TriggerPlanExecutionResult.Failed("Scheduled execution requires an injected ITriggerExecutionScheduler.");
+
+            var handle = ctx.ExecutionScheduler.Schedule(
+                Child,
+                args,
+                in ctx,
+                ScheduleMode,
+                IntervalMs,
+                MaxExecutions,
+                CanBeInterrupted);
+            return handle.IsValid
+                ? TriggerPlanExecutionResult.None
+                : TriggerPlanExecutionResult.Failed("Scheduled execution registration failed.");
         }
     }
 }

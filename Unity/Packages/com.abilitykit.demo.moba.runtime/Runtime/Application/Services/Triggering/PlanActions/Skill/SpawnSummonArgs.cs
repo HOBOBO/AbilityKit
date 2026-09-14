@@ -1,4 +1,5 @@
 using System;
+using AbilityKit.Triggering.Runtime.Plan;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -20,6 +21,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public int TotalCount;
         public int QueryTemplateId;
         public int TargetMode;
+        public BlackboardWriteTarget ResultTarget;
+        public BlackboardWriteTarget ResultCountTarget;
 
         public SpawnSummonArgs(int summonId)
         {
@@ -31,6 +34,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             TotalCount = 0;
             QueryTemplateId = 0;
             TargetMode = 0;
+            ResultTarget = default;
+            ResultCountTarget = default;
         }
     }
 }

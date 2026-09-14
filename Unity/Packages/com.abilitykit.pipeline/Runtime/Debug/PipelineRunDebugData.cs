@@ -11,6 +11,7 @@ namespace AbilityKit.Pipeline
         Phase,
         Sequence,
         Parallel,
+        Race,
         Conditional,
         Gate,
         Composite
@@ -24,6 +25,7 @@ namespace AbilityKit.Pipeline
         Flow,
         Sequence,
         Parallel,
+        Race,
         Condition,
         Child
     }

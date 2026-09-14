@@ -2,10 +2,19 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Core.Mathematics;
+using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
 using AbilityKit.Demo.Moba.Services.Buffs.Core;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
+using AbilityKit.Modifiers;
+using AbilityKit.Triggering.Blackboard;
+using AbilityKit.Triggering.Runtime;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Variables.Numeric;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -185,6 +194,120 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(resolved, Is.True);
             Assert.That(actorId, Is.EqualTo(91));
             Assert.That(failure, Is.Null);
+        }
+
+        [Test]
+        public void SkillRuntimeTriggerBridge_IsolatesAllScopesAndDynamicallyWritesOutputs()
+        {
+            var runtime = CreateRuntime(new MobaSkillCastRuntimeService(), 510, 5010L);
+            const int keyId = 91001;
+            var first = new MobaSkillRuntimeBlackboardResolver(runtime.Blackboard, 101L, 201, 301L);
+            var second = new MobaSkillRuntimeBlackboardResolver(runtime.Blackboard, 102L, 202, 302L);
+            var castTarget = new BlackboardWriteTarget(MobaSkillRuntimeTriggerBoards.Cast, keyId, BlackboardKeyType.Double, "cast");
+            var effectTarget = new BlackboardWriteTarget(MobaSkillRuntimeTriggerBoards.Effect, keyId, BlackboardKeyType.Double, "effect");
+            var targetTarget = new BlackboardWriteTarget(MobaSkillRuntimeTriggerBoards.Target, keyId, BlackboardKeyType.Double, "target");
+            var childTarget = new BlackboardWriteTarget(MobaSkillRuntimeTriggerBoards.Child, keyId, BlackboardKeyType.Double, "child");
+
+            Assert.That(BlackboardMutation.TrySetNumeric(first, in castTarget, 1d, out _), Is.True);
+            Assert.That(BlackboardMutation.TrySetNumeric(first, in effectTarget, 2d, out _), Is.True);
+            Assert.That(BlackboardMutation.TrySetNumeric(first, in targetTarget, 3d, out _), Is.True);
+            Assert.That(BlackboardMutation.TrySetNumeric(first, in childTarget, 4d, out _), Is.True);
+            Assert.That(BlackboardMutation.TrySetNumeric(second, in effectTarget, 12d, out _), Is.True);
+            Assert.That(BlackboardMutation.TrySetNumeric(second, in targetTarget, 13d, out _), Is.True);
+            Assert.That(BlackboardMutation.TrySetNumeric(second, in childTarget, 14d, out _), Is.True);
+
+            AssertBoardValue(first, MobaSkillRuntimeTriggerBoards.Cast, keyId, 1d);
+            AssertBoardValue(second, MobaSkillRuntimeTriggerBoards.Cast, keyId, 1d);
+            AssertBoardValue(first, MobaSkillRuntimeTriggerBoards.Effect, keyId, 2d);
+            AssertBoardValue(second, MobaSkillRuntimeTriggerBoards.Effect, keyId, 12d);
+            AssertBoardValue(first, MobaSkillRuntimeTriggerBoards.Target, keyId, 3d);
+            AssertBoardValue(second, MobaSkillRuntimeTriggerBoards.Target, keyId, 13d);
+            AssertBoardValue(first, MobaSkillRuntimeTriggerBoards.Child, keyId, 4d);
+            AssertBoardValue(second, MobaSkillRuntimeTriggerBoards.Child, keyId, 14d);
+
+            var output = new ExecCtx<object>(null, null, null, null, first, null, null, null, null, default, null);
+            var outputTarget = new BlackboardWriteTarget(MobaSkillRuntimeTriggerBoards.Effect, 91002, BlackboardKeyType.Int, "effect");
+            Assert.That(TriggerActionOutput.TryWrite(in output, in outputTarget, 77d, out var error), Is.True, error);
+            AssertBoardValue(first, MobaSkillRuntimeTriggerBoards.Effect, 91002, 77d);
+        }
+
+        [Test]
+        public void SkillRuntimeNumericDomain_AddsUninitializedDynamicVariableFromZero()
+        {
+            var runtime = CreateRuntime(new MobaSkillCastRuntimeService(), 511, 5011L);
+            var resolver = new MobaSkillRuntimeBlackboardResolver(runtime.Blackboard, 101L, 201, 301L);
+            var domain = new MobaSkillRuntimeNumericVarDomain();
+            var ctx = new ExecCtx<object>(null, null, null, null, resolver, null, null, null, null, default, null);
+            var target = new BlackboardWriteTarget(
+                MobaSkillRuntimeTriggerBoards.Effect,
+                BlackboardIdMapper.KeyId("skill_runtime.effect.combo"),
+                BlackboardKeyType.Double,
+                "effect");
+
+            Assert.That(BlackboardMutation.TryAddNumeric(resolver, in target, 2.5d, out var error), Is.True, error);
+            Assert.That(domain.TryGet(in ctx, "effect.combo", out var value), Is.True);
+            Assert.That(value, Is.EqualTo(2.5d));
+            Assert.That(domain.TrySet(in ctx, "effect.combo", 6.5d), Is.True);
+            Assert.That(domain.TryGet(in ctx, "effect.combo", out value), Is.True);
+            Assert.That(value, Is.EqualTo(6.5d));
+        }
+
+        [Test]
+        public void SkillRuntimeRollbackProvider_RestoresScopedDynamicBlackboardValues()
+        {
+            var service = new MobaSkillCastRuntimeService();
+            var runtime = CreateRuntime(service, 512, 5012L);
+            var handle = runtime.Handle;
+            var resolver = new MobaSkillRuntimeBlackboardResolver(runtime.Blackboard, 101L, 201, 301L);
+            var boardTarget = new BlackboardWriteTarget(MobaSkillRuntimeTriggerBoards.Target, 91003, BlackboardKeyType.Double, "target");
+            Assert.That(BlackboardMutation.TrySetNumeric(resolver, in boardTarget, 9d, out _), Is.True);
+            Assert.That(resolver.TryResolve(MobaSkillRuntimeTriggerBoards.Target, out var board), Is.True);
+            var snapshotBoard = (MobaSkillRuntimeBlackboardAdapter)board;
+            snapshotBoard.MarkSnapshotCaptured(boardTarget.KeyId);
+            var provider = new MobaSkillRuntimeRollbackProvider(service);
+            var payload = provider.ExportState(new FrameIndex(10));
+
+            Assert.That(BlackboardMutation.TrySetNumeric(resolver, in boardTarget, 99d, out _), Is.True);
+            provider.ImportState(new FrameIndex(10), payload);
+
+            Assert.That(service.TryGet(in handle, out var restored), Is.True);
+            var restoredResolver = new MobaSkillRuntimeBlackboardResolver(restored.Blackboard, 101L, 201, 301L);
+            AssertBoardValue(restoredResolver, MobaSkillRuntimeTriggerBoards.Target, 91003, 9d);
+            Assert.That(restoredResolver.TryResolve(MobaSkillRuntimeTriggerBoards.Target, out board), Is.True);
+            Assert.That(((MobaSkillRuntimeBlackboardAdapter)board).IsSnapshotCaptured(boardTarget.KeyId), Is.True);
+        }
+
+        [Test]
+        public void GiveDamageSchema_ParsesMagnitudeConfigurationAndCaptureTarget()
+        {
+            var captureTarget = new BlackboardWriteTarget(
+                MobaSkillRuntimeTriggerBoards.Effect, 91004, BlackboardKeyType.Double, "effect");
+            var args = new Dictionary<string, ActionArgValue>
+            {
+                ["magnitude_type"] = ActionArgValue.OfConst((int)MagnitudeSourceType.Attribute, "magnitude_type"),
+                ["magnitude_attribute"] = ActionArgValue.OfConst((int)BattleAttributeType.PHYSICS_ATTACK, "magnitude_attribute"),
+                ["magnitude_coefficient"] = ActionArgValue.OfConst(0.5d, "magnitude_coefficient"),
+                ["magnitude_secondary_type"] = ActionArgValue.OfConst((int)MagnitudeSourceType.Fixed, "magnitude_secondary_type"),
+                ["magnitude_secondary_value"] = ActionArgValue.OfConst(10d, "magnitude_secondary_value"),
+                ["magnitude_combine"] = ActionArgValue.OfConst((int)MobaEffectMagnitudeCombine.Add, "magnitude_combine"),
+                ["magnitude_source_role"] = ActionArgValue.OfConst((int)MobaEffectSourceRole.SkillCaster, "magnitude_source_role"),
+                ["magnitude_evaluation"] = ActionArgValue.OfConst((int)MobaEffectEvaluationPolicy.Snapshot, "magnitude_evaluation"),
+                ["magnitude_capture"] = ActionArgValue.OfBlackboardTarget(in captureTarget, "magnitude_capture"),
+            };
+            var ctx = default(ExecCtx<AbilityKit.Ability.World.DI.IWorldResolver>);
+
+            var parsed = GiveDamageSchema.Instance.ParseArgs(args, ctx);
+
+            Assert.That(parsed.Magnitude.Enabled, Is.True);
+            Assert.That(parsed.Magnitude.BaseSource.Type, Is.EqualTo(MagnitudeSourceType.Attribute));
+            Assert.That(parsed.Magnitude.BaseSource.AttributeKey.Packed, Is.EqualTo((uint)BattleAttributeType.PHYSICS_ATTACK));
+            Assert.That(parsed.Magnitude.BaseSource.BaseValue, Is.EqualTo(0.5f));
+            Assert.That(parsed.Magnitude.SecondarySource.Type, Is.EqualTo(MagnitudeSourceType.Fixed));
+            Assert.That(parsed.Magnitude.SecondarySource.BaseValue, Is.EqualTo(10f));
+            Assert.That(parsed.Magnitude.Combine, Is.EqualTo(MobaEffectMagnitudeCombine.Add));
+            Assert.That(parsed.Magnitude.SourceRole, Is.EqualTo(MobaEffectSourceRole.SkillCaster));
+            Assert.That(parsed.Magnitude.EvaluationPolicy, Is.EqualTo(MobaEffectEvaluationPolicy.Snapshot));
+            Assert.That(parsed.Magnitude.CaptureTarget, Is.EqualTo(captureTarget));
         }
 
         [TestCase(true)]
@@ -419,6 +542,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(field, Is.Not.Null, fieldName);
             field.SetValue(target, value);
+        }
+
+        private static void AssertBoardValue(IBlackboardResolver resolver, int boardId, int keyId, double expected)
+        {
+            Assert.That(resolver.TryResolve(boardId, out var board), Is.True);
+            Assert.That(board.TryGetDouble(keyId, out var value), Is.True);
+            Assert.That(value, Is.EqualTo(expected));
         }
 
         private static MobaSkillRuntimeBlackboardEntryDiagnostics FindEntry(

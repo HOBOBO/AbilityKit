@@ -33,13 +33,23 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerValueType type,
             string displayName,
             string description = null,
-            string expressionName = null)
+            string expressionName = null,
+            bool canWrite = false,
+            string blackboardName = null,
+            string blackboardKey = null,
+            string blackboardScope = null)
         {
             Path = path ?? string.Empty;
             Type = type;
             DisplayName = string.IsNullOrWhiteSpace(displayName) ? Path : displayName;
             Description = description ?? string.Empty;
             ExpressionName = expressionName ?? string.Empty;
+            CanWrite = canWrite;
+            BlackboardName = blackboardName ?? string.Empty;
+            BlackboardKey = blackboardKey ?? string.Empty;
+            BlackboardScope = blackboardScope ?? string.Empty;
+            if (CanWrite && (string.IsNullOrWhiteSpace(BlackboardName) || string.IsNullOrWhiteSpace(BlackboardKey)))
+                throw new ArgumentException("Writable runtime values require a Blackboard name and key.", nameof(blackboardName));
         }
 
         public string Path { get; }
@@ -47,6 +57,10 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string DisplayName { get; }
         public string Description { get; }
         public string ExpressionName { get; }
+        public bool CanWrite { get; }
+        public string BlackboardName { get; }
+        public string BlackboardKey { get; }
+        public string BlackboardScope { get; }
     }
 
     public sealed class TriggerAuthoringConditionCompilerContext

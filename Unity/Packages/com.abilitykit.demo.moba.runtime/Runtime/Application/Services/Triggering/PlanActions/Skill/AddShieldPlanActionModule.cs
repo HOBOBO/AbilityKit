@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -22,7 +23,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 return;
             }
 
-            if (args.Value <= 0f)
+            if (args.Value <= 0f && !args.Magnitude.Enabled)
             {
                 LogRejected("requires positive shield value");
                 return;
@@ -47,9 +48,20 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     return;
                 }
 
+                var firstInstanceId = 0;
+                var addedCount = 0;
                 for (var i = 0; i < targets.Count; i++)
                 {
-                    AddShield(shields, args, effectInput, ctx, sourceActorId, targets[i], LogApplied);
+                    var instanceId = AddShield(shields, args, effectInput, ctx, sourceActorId, targets[i], LogApplied);
+                    if (instanceId <= 0) continue;
+                    if (firstInstanceId == 0) firstInstanceId = instanceId;
+                    addedCount++;
+                }
+                if (addedCount > 0 &&
+                    (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, firstInstanceId, out var outputError) ||
+                     !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, addedCount, out outputError)))
+                {
+                    LogRejected(ctx, outputError);
                 }
             }
             finally
@@ -58,9 +70,24 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
         }
 
-        private static void AddShield(MobaShieldService shields, AddShieldArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, Action<string> logApplied)
+        private static int AddShield(MobaShieldService shields, AddShieldArgs args, MobaEffectActionInput input, ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, Action<string> logApplied)
         {
-            if (targetActorId <= 0) return;
+            if (targetActorId <= 0) return 0;
+
+            var value = args.Value;
+            var executionContext = input.ExecutionContext;
+            if (args.Magnitude.Enabled && !MobaEffectMagnitudeResolver.TryEvaluate(
+                    in args.Magnitude,
+                    in executionContext,
+                    in ctx,
+                    sourceActorId,
+                    input.CasterActorId,
+                    targetActorId,
+                    default,
+                    out value,
+                    out _,
+                    out _)) return 0;
+            if (value <= 0f) return 0;
 
             ResolveFrames(args, ctx, sourceActorId, targetActorId, out var startFrame, out var expireFrame);
             var origin = input.BuildOrigin(sourceActorId, targetActorId, MobaTraceKind.EffectExecution, args.ShieldId);
@@ -73,9 +100,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 SourceContextId = origin.ImmediateContextId,
                 RootContextId = origin.EffectiveRootContextId,
                 OwnerContextId = origin.OwnerContextId,
-                CurrentValue = MobaResourceFixedConvert.ToFixed(args.Value),
-                MaxValue = MobaResourceFixedConvert.ToFixed(args.Value),
-                InitialValue = MobaResourceFixedConvert.ToFixed(args.Value),
+                CurrentValue = MobaResourceFixedConvert.ToFixed(value),
+                MaxValue = MobaResourceFixedConvert.ToFixed(value),
+                InitialValue = MobaResourceFixedConvert.ToFixed(value),
                 AbsorbRatio = MobaResourceFixedConvert.ToFixed(args.AbsorbRatio),
                 Priority = args.Priority,
                 DamageTypeMask = args.DamageTypeMask,
@@ -89,7 +116,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             };
 
             var instanceId = shields.AddShield(targetActorId, layer);
-            logApplied?.Invoke($"source={sourceActorId} target={targetActorId} shieldId={args.ShieldId} instance={instanceId} value={args.Value:0.###} expireFrame={expireFrame}");
+            logApplied?.Invoke($"source={sourceActorId} target={targetActorId} shieldId={args.ShieldId} instance={instanceId} value={value:0.###} expireFrame={expireFrame}");
+            return instanceId;
         }
 
         private static void ResolveFrames(AddShieldArgs args, ExecCtx<IWorldResolver> ctx, int sourceActorId, int targetActorId, out int startFrame, out int expireFrame)

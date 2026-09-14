@@ -37,6 +37,7 @@
         "AbilityKit.Demo.Moba.Share",
         "AbilityKit.Demo.Common",
         "AbilityKit.Pipeline",
+        "AbilityKit.Triggering",
         "AbilityKit.Network.Runtime",
         "AbilityKit.Network.Room",
         "AbilityKit.Network.Sdk",

@@ -36,11 +36,13 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 "attribute_source_kind",
                 "attributesourcekind");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
-            return new GiveDamageArgs(damageValue, reasonParam, damageType, targetRequest, sourceAttackRatio, reasonKind, attributeSource);
+            var magnitude = MobaEffectMagnitudeSchemaReader.Read(namedArgs, in ctx, damageValue);
+            return new GiveDamageArgs(damageValue, reasonParam, damageType, targetRequest, sourceAttackRatio, reasonKind, attributeSource, magnitude);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)
         {
+            if (MobaEffectMagnitudeSchemaReader.HasMagnitudeArgs(args)) { error = null; return true; }
             return RequireAny(args, "damage_value/source_attack_ratio", out error, "damage_value", "value", "damagevalue", "source_attack_ratio", "sourceattackratio", "attack_ratio", "attackratio");
         }
     }

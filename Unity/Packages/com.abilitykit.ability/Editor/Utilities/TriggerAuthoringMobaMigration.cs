@@ -34,6 +34,10 @@ namespace AbilityKit.Ability.Editor.Utilities
             "Packages/com.abilitykit.demo.moba.view.runtime/Resources/ability/triggers";
         internal const string OutputRoot = "Assets/AbilityKit/MobaTriggerAuthoring";
         internal const string ProjectAssetPath = OutputRoot + "/MobaTriggerAuthoringProject.asset";
+        internal const string P0ShowcaseSourceAssetPath =
+            OutputRoot + "/Showcases/moba-p0-complex-skill.trigger.json";
+        internal const string P0ShowcaseModuleAssetPath =
+            OutputRoot + "/Packages/ability_moba_tests_p0_showcase.Module.asset";
 
         private const string CatalogRoot = OutputRoot + "/Catalogs";
         private const string PackageRoot = OutputRoot + "/Packages";
@@ -95,6 +99,24 @@ namespace AbilityKit.Ability.Editor.Utilities
             EditorUtility.SetDirty(eventCatalog);
             AssetDatabase.SaveAssets();
             Debug.Log($"[TriggerAuthoringMobaMigration] Synchronized {eventCatalog.Events.Count} MOBA events.");
+        }
+
+        [MenuItem("Tools/AbilityKit/Framework/Ability/触发器示例/同步 MOBA P0 复杂技能展示")]
+        public static void SyncP0ShowcaseBatch()
+        {
+            var project = AssetDatabase.LoadAssetAtPath<TriggerAuthoringProjectAsset>(ProjectAssetPath);
+            if (project == null)
+                throw new InvalidOperationException("MOBA Trigger Authoring project is missing: " + ProjectAssetPath);
+
+            AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
+            var module = ImportP0Showcase(project);
+            TriggerAuthoringProjectMembership.Assign(module, project);
+            EditorUtility.SetDirty(project);
+            AssetDatabase.SaveAssets();
+
+            var validation = TriggerAuthoringProjectValidator.Validate(project);
+            if (!validation.Success) throw new InvalidDataException(validation.BuildMessage());
+            Debug.Log("[TriggerAuthoringMobaMigration] Synchronized MOBA P0 showcase into the Trigger Authoring workspace.");
         }
 
         internal static TriggerAuthoringMobaMigrationResult Generate()
@@ -172,6 +194,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 modules.Add(asset);
             }
 
+            if (File.Exists(ResolveProjectPath(P0ShowcaseSourceAssetPath)))
+                modules.Add(ImportP0Showcase(project));
+
             project.SetModules(modules);
             EditorUtility.SetDirty(eventCatalog);
             EditorUtility.SetDirty(blackboardCatalog);
@@ -184,6 +209,30 @@ namespace AbilityKit.Ability.Editor.Utilities
             result.Modules.AddRange(modules);
             result.Validation = TriggerAuthoringProjectValidator.Validate(project);
             return result;
+        }
+
+        private static TriggerAuthoringModuleAsset ImportP0Showcase(TriggerAuthoringProjectAsset project)
+        {
+            var sourcePath = ResolveProjectPath(P0ShowcaseSourceAssetPath);
+            if (!File.Exists(sourcePath))
+                throw new FileNotFoundException("MOBA P0 showcase source is missing.", sourcePath);
+
+            EnsureFolder(OutputRoot + "/Showcases");
+            EnsureFolder(PackageRoot);
+            var asset = GetOrCreateAsset<TriggerAuthoringModuleAsset>(P0ShowcaseModuleAssetPath);
+            TriggerAuthoringProjectMembership.Assign(asset, project);
+            asset.Module = new TriggerAuthoringModuleData { ModuleId = "ability.moba.tests.p0_showcase" };
+            var import = TriggerAuthoringSourceSync.Import(asset, sourcePath, force: true);
+            if (!import.Success) throw new InvalidDataException(import.Message);
+
+            var metadata = new TriggerAuthoringPackageMetadata();
+            metadata.SetIdentity("ability", "moba.tests.p0_showcase");
+            metadata.SetOwner("moba-demo-tests");
+            metadata.SetTags(new[] { "moba", "test", "p0", "showcase" });
+            asset.SetPackageMetadata(metadata);
+            asset.name = "MOBA P0 复杂技能展示";
+            EditorUtility.SetDirty(asset);
+            return asset;
         }
 
         internal static TriggerAuthoringModuleData ConvertFiles(

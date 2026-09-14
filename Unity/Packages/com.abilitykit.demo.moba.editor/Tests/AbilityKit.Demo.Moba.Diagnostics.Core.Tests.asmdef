@@ -12,6 +12,7 @@
     "AbilityKit.Game.UnitTests",
     "AbilityKit.Ability.Editor",
     "AbilityKit.Demo.Moba.Share",
+    "AbilityKit.Pipeline",
     "AbilityKit.World.DI",
     "AbilityKit.World.Entitas",
     "AbilityKit.World.ECS",
@@ -37,7 +38,8 @@
   "allowUnsafeCode": false,
   "overrideReferences": true,
   "precompiledReferences": [
-    "Entitas.dll"
+    "Entitas.dll",
+    "Sirenix.Serialization.dll"
   ],
   "autoReferenced": true,
   "defineConstraints": [],

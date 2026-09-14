@@ -86,6 +86,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             {
                 var registry = new NumericVarDomainRegistry();
                 registry.Register(new MobaGameplayNumericVarDomain());
+                registry.Register(new Services.Triggering.MobaSkillRuntimeNumericVarDomain());
                 RegisterDefaultBlackboardDomain(registry, "bb");
                 RegisterDefaultBlackboardDomain(registry, "actor");
                 RegisterDefaultBlackboardDomain(registry, "skill");

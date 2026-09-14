@@ -163,16 +163,19 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillRuntimeBlackboardEntryDiagnostics(
             in MobaSkillRuntimeBlackboardKey key,
             in MobaSkillRuntimeValue value,
-            int collectionCount)
+            int collectionCount,
+            long scopeOwnerId = 0L)
         {
             Key = key;
             Value = value;
             CollectionCount = collectionCount;
+            ScopeOwnerId = scopeOwnerId;
         }
 
         public MobaSkillRuntimeBlackboardKey Key { get; }
         public MobaSkillRuntimeValue Value { get; }
         public int CollectionCount { get; }
+        public long ScopeOwnerId { get; }
         public bool IsCollection =>
             Key.ValueKind == MobaSkillRuntimeValueKind.ActorIdSet ||
             Key.ValueKind == MobaSkillRuntimeValueKind.ContextIdSet;
@@ -244,6 +247,7 @@ namespace AbilityKit.Demo.Moba.Services
         Vec3 = 8,
         ActorIdSet = 9,
         ContextIdSet = 10,
+        Double = 11,
     }
 
     public readonly struct MobaSkillRuntimeBlackboardKey : IEquatable<MobaSkillRuntimeBlackboardKey>
@@ -284,16 +288,18 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly int _intValue;
         private readonly long _longValue;
         private readonly float _floatValue;
+        private readonly double _doubleValue;
         private readonly bool _boolValue;
         private readonly string _stringValue;
         private readonly Vec3 _vec3Value;
 
-        private MobaSkillRuntimeValue(MobaSkillRuntimeValueKind kind, int intValue, long longValue, float floatValue, bool boolValue, string stringValue, in Vec3 vec3Value)
+        private MobaSkillRuntimeValue(MobaSkillRuntimeValueKind kind, int intValue, long longValue, float floatValue, double doubleValue, bool boolValue, string stringValue, in Vec3 vec3Value)
         {
             Kind = kind;
             _intValue = intValue;
             _longValue = longValue;
             _floatValue = floatValue;
+            _doubleValue = doubleValue;
             _boolValue = boolValue;
             _stringValue = stringValue;
             _vec3Value = vec3Value;
@@ -303,18 +309,37 @@ namespace AbilityKit.Demo.Moba.Services
         public int IntValue => _intValue;
         public long LongValue => _longValue;
         public float FloatValue => _floatValue;
+        public double DoubleValue => _doubleValue;
         public bool BoolValue => _boolValue;
         public string StringValue => _stringValue;
         public Vec3 Vec3Value => _vec3Value;
 
-        public static MobaSkillRuntimeValue FromInt(int value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Int, value, 0L, 0f, false, null, Vec3.Zero);
-        public static MobaSkillRuntimeValue FromLong(long value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Long, 0, value, 0f, false, null, Vec3.Zero);
-        public static MobaSkillRuntimeValue FromFloat(float value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Float, 0, 0L, value, false, null, Vec3.Zero);
-        public static MobaSkillRuntimeValue FromBool(bool value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Bool, 0, 0L, 0f, value, null, Vec3.Zero);
-        public static MobaSkillRuntimeValue FromString(string value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.String, 0, 0L, 0f, false, value, Vec3.Zero);
-        public static MobaSkillRuntimeValue FromActorId(int value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.ActorId, value, 0L, 0f, false, null, Vec3.Zero);
-        public static MobaSkillRuntimeValue FromContextId(long value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.ContextId, 0, value, 0f, false, null, Vec3.Zero);
-        public static MobaSkillRuntimeValue FromVec3(in Vec3 value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Vec3, 0, 0L, 0f, false, null, value);
+        public static MobaSkillRuntimeValue FromInt(int value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Int, value, 0L, 0f, 0d, false, null, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromLong(long value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Long, 0, value, 0f, 0d, false, null, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromFloat(float value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Float, 0, 0L, value, 0d, false, null, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromDouble(double value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Double, 0, 0L, 0f, value, false, null, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromBool(bool value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Bool, 0, 0L, 0f, 0d, value, null, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromString(string value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.String, 0, 0L, 0f, 0d, false, value, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromActorId(int value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.ActorId, value, 0L, 0f, 0d, false, null, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromContextId(long value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.ContextId, 0, value, 0f, 0d, false, null, Vec3.Zero);
+        public static MobaSkillRuntimeValue FromVec3(in Vec3 value) => new MobaSkillRuntimeValue(MobaSkillRuntimeValueKind.Vec3, 0, 0L, 0f, 0d, false, null, value);
+    }
+
+    public readonly struct MobaSkillRuntimeBlackboardAddress : IEquatable<MobaSkillRuntimeBlackboardAddress>
+    {
+        public MobaSkillRuntimeBlackboardAddress(MobaSkillRuntimeBlackboardScope scope, long scopeOwnerId = 0L)
+        {
+            Scope = scope;
+            ScopeOwnerId = scopeOwnerId;
+        }
+
+        public MobaSkillRuntimeBlackboardScope Scope { get; }
+        public long ScopeOwnerId { get; }
+        public static MobaSkillRuntimeBlackboardAddress Cast => new MobaSkillRuntimeBlackboardAddress(MobaSkillRuntimeBlackboardScope.Cast);
+
+        public bool Equals(MobaSkillRuntimeBlackboardAddress other) => Scope == other.Scope && ScopeOwnerId == other.ScopeOwnerId;
+        public override bool Equals(object obj) => obj is MobaSkillRuntimeBlackboardAddress other && Equals(other);
+        public override int GetHashCode() => ((int)Scope * 397) ^ ScopeOwnerId.GetHashCode();
     }
 
     public static class MobaSkillRuntimeBlackboardKeys
@@ -327,43 +352,69 @@ namespace AbilityKit.Demo.Moba.Services
 
     public sealed class MobaSkillRuntimeBlackboard
     {
-        private readonly Dictionary<int, MobaSkillRuntimeBlackboardKey> _keys = new Dictionary<int, MobaSkillRuntimeBlackboardKey>();
-        private readonly Dictionary<int, MobaSkillRuntimeValue> _values = new Dictionary<int, MobaSkillRuntimeValue>();
-        private readonly Dictionary<int, HashSet<int>> _actorIdSets = new Dictionary<int, HashSet<int>>();
-        private readonly Dictionary<int, HashSet<long>> _contextIdSets = new Dictionary<int, HashSet<long>>();
+        private readonly struct EntryKey : IEquatable<EntryKey>
+        {
+            public EntryKey(int keyId, in MobaSkillRuntimeBlackboardAddress address)
+            {
+                KeyId = keyId;
+                Scope = address.Scope;
+                ScopeOwnerId = address.ScopeOwnerId;
+            }
+
+            public int KeyId { get; }
+            public MobaSkillRuntimeBlackboardScope Scope { get; }
+            public long ScopeOwnerId { get; }
+            public bool Equals(EntryKey other) => KeyId == other.KeyId && Scope == other.Scope && ScopeOwnerId == other.ScopeOwnerId;
+            public override bool Equals(object obj) => obj is EntryKey other && Equals(other);
+            public override int GetHashCode() => ((KeyId * 397) ^ (int)Scope) * 397 ^ ScopeOwnerId.GetHashCode();
+        }
+
+        private readonly Dictionary<EntryKey, MobaSkillRuntimeBlackboardKey> _keys = new Dictionary<EntryKey, MobaSkillRuntimeBlackboardKey>();
+        private readonly Dictionary<EntryKey, MobaSkillRuntimeValue> _values = new Dictionary<EntryKey, MobaSkillRuntimeValue>();
+        private readonly Dictionary<EntryKey, HashSet<int>> _actorIdSets = new Dictionary<EntryKey, HashSet<int>>();
+        private readonly Dictionary<EntryKey, HashSet<long>> _contextIdSets = new Dictionary<EntryKey, HashSet<long>>();
+        private readonly HashSet<EntryKey> _snapshotCaptures = new HashSet<EntryKey>();
 
         public int Count => _values.Count + _actorIdSets.Count + _contextIdSets.Count;
 
-        public bool Register(in MobaSkillRuntimeBlackboardKey key)
+        public bool Register(in MobaSkillRuntimeBlackboardKey key) => Register(in key, new MobaSkillRuntimeBlackboardAddress(key.Scope));
+
+        public bool Register(in MobaSkillRuntimeBlackboardKey key, in MobaSkillRuntimeBlackboardAddress address)
         {
-            if (!key.IsValid) return false;
-            if (_keys.TryGetValue(key.Id, out var existing))
+            if (!key.IsValid || key.Scope != address.Scope) return false;
+            var entryKey = new EntryKey(key.Id, in address);
+            if (_keys.TryGetValue(entryKey, out var existing))
             {
-                return existing.ValueKind == key.ValueKind && existing.Scope == key.Scope;
+                return existing.ValueKind == key.ValueKind && existing.OwnerModuleId == key.OwnerModuleId;
             }
 
-            _keys.Add(key.Id, key);
+            _keys.Add(entryKey, key);
             return true;
         }
 
-        public bool Set(in MobaSkillRuntimeBlackboardKey key, in MobaSkillRuntimeValue value)
+        public bool Set(in MobaSkillRuntimeBlackboardKey key, in MobaSkillRuntimeValue value) => Set(in key, in value, new MobaSkillRuntimeBlackboardAddress(key.Scope));
+
+        public bool Set(in MobaSkillRuntimeBlackboardKey key, in MobaSkillRuntimeValue value, in MobaSkillRuntimeBlackboardAddress address)
         {
-            if (!Register(in key)) return false;
+            if (!Register(in key, in address)) return false;
             if (!IsScalarKind(key.ValueKind)) return false;
             if (!IsCompatible(key.ValueKind, value.Kind)) return false;
-            _values[key.Id] = value;
+            _values[new EntryKey(key.Id, in address)] = value;
             return true;
         }
 
-        public bool TryGet(in MobaSkillRuntimeBlackboardKey key, out MobaSkillRuntimeValue value)
+        public bool TryGet(in MobaSkillRuntimeBlackboardKey key, out MobaSkillRuntimeValue value) => TryGet(in key, new MobaSkillRuntimeBlackboardAddress(key.Scope), out value);
+
+        public bool TryGet(in MobaSkillRuntimeBlackboardKey key, in MobaSkillRuntimeBlackboardAddress address, out MobaSkillRuntimeValue value)
         {
             value = default;
-            return key.IsValid && IsScalarKind(key.ValueKind) && _values.TryGetValue(key.Id, out value) && IsCompatible(key.ValueKind, value.Kind);
+            return key.IsValid && key.Scope == address.Scope && IsScalarKind(key.ValueKind) && _values.TryGetValue(new EntryKey(key.Id, in address), out value) && IsCompatible(key.ValueKind, value.Kind);
         }
 
         public bool SetInt(in MobaSkillRuntimeBlackboardKey key, int value) => Set(in key, MobaSkillRuntimeValue.FromInt(value));
         public bool SetLong(in MobaSkillRuntimeBlackboardKey key, long value) => Set(in key, MobaSkillRuntimeValue.FromLong(value));
         public bool SetFloat(in MobaSkillRuntimeBlackboardKey key, float value) => Set(in key, MobaSkillRuntimeValue.FromFloat(value));
+        public bool SetDouble(in MobaSkillRuntimeBlackboardKey key, double value) => Set(in key, MobaSkillRuntimeValue.FromDouble(value));
         public bool SetBool(in MobaSkillRuntimeBlackboardKey key, bool value) => Set(in key, MobaSkillRuntimeValue.FromBool(value));
         public bool SetString(in MobaSkillRuntimeBlackboardKey key, string value) => Set(in key, MobaSkillRuntimeValue.FromString(value));
         public bool SetActorId(in MobaSkillRuntimeBlackboardKey key, int value) => Set(in key, MobaSkillRuntimeValue.FromActorId(value));
@@ -394,6 +445,22 @@ namespace AbilityKit.Demo.Moba.Services
             if (!TryGet(in key, out var raw) || raw.Kind != MobaSkillRuntimeValueKind.Float) return false;
             value = raw.FloatValue;
             return true;
+        }
+
+        public bool TryGetDouble(in MobaSkillRuntimeBlackboardKey key, out double value)
+        {
+            value = default;
+            if (!TryGet(in key, out var raw)) return false;
+            switch (raw.Kind)
+            {
+                case MobaSkillRuntimeValueKind.Double: value = raw.DoubleValue; return true;
+                case MobaSkillRuntimeValueKind.Float: value = raw.FloatValue; return true;
+                case MobaSkillRuntimeValueKind.Int:
+                case MobaSkillRuntimeValueKind.ActorId: value = raw.IntValue; return true;
+                case MobaSkillRuntimeValueKind.Long:
+                case MobaSkillRuntimeValueKind.ContextId: value = raw.LongValue; return true;
+                default: return false;
+            }
         }
 
         public bool TryGetBool(in MobaSkillRuntimeBlackboardKey key, out bool value)
@@ -437,13 +504,17 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public bool AddActorId(in MobaSkillRuntimeBlackboardKey key, int actorId)
+            => AddActorId(in key, new MobaSkillRuntimeBlackboardAddress(key.Scope), actorId);
+
+        public bool AddActorId(in MobaSkillRuntimeBlackboardKey key, in MobaSkillRuntimeBlackboardAddress address, int actorId)
         {
             if (actorId <= 0) return false;
-            if (!RegisterSetKey(in key, MobaSkillRuntimeValueKind.ActorIdSet)) return false;
-            if (!_actorIdSets.TryGetValue(key.Id, out var set))
+            if (!RegisterSetKey(in key, in address, MobaSkillRuntimeValueKind.ActorIdSet)) return false;
+            var entryKey = new EntryKey(key.Id, in address);
+            if (!_actorIdSets.TryGetValue(entryKey, out var set))
             {
                 set = new HashSet<int>();
-                _actorIdSets.Add(key.Id, set);
+                _actorIdSets.Add(entryKey, set);
             }
 
             return set.Add(actorId);
@@ -451,22 +522,26 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool ContainsActorId(in MobaSkillRuntimeBlackboardKey key, int actorId)
         {
-            return actorId > 0 && key.ValueKind == MobaSkillRuntimeValueKind.ActorIdSet && _actorIdSets.TryGetValue(key.Id, out var set) && set.Contains(actorId);
+            var address = new MobaSkillRuntimeBlackboardAddress(key.Scope);
+            return actorId > 0 && key.ValueKind == MobaSkillRuntimeValueKind.ActorIdSet && _actorIdSets.TryGetValue(new EntryKey(key.Id, in address), out var set) && set.Contains(actorId);
         }
 
         public int GetActorIdCount(in MobaSkillRuntimeBlackboardKey key)
         {
-            return key.ValueKind == MobaSkillRuntimeValueKind.ActorIdSet && _actorIdSets.TryGetValue(key.Id, out var set) ? set.Count : 0;
+            var address = new MobaSkillRuntimeBlackboardAddress(key.Scope);
+            return key.ValueKind == MobaSkillRuntimeValueKind.ActorIdSet && _actorIdSets.TryGetValue(new EntryKey(key.Id, in address), out var set) ? set.Count : 0;
         }
 
         public bool AddContextId(in MobaSkillRuntimeBlackboardKey key, long contextId)
         {
             if (contextId == 0L) return false;
-            if (!RegisterSetKey(in key, MobaSkillRuntimeValueKind.ContextIdSet)) return false;
-            if (!_contextIdSets.TryGetValue(key.Id, out var set))
+            var address = new MobaSkillRuntimeBlackboardAddress(key.Scope);
+            if (!RegisterSetKey(in key, in address, MobaSkillRuntimeValueKind.ContextIdSet)) return false;
+            var entryKey = new EntryKey(key.Id, in address);
+            if (!_contextIdSets.TryGetValue(entryKey, out var set))
             {
                 set = new HashSet<long>();
-                _contextIdSets.Add(key.Id, set);
+                _contextIdSets.Add(entryKey, set);
             }
 
             return set.Add(contextId);
@@ -474,20 +549,25 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool ContainsContextId(in MobaSkillRuntimeBlackboardKey key, long contextId)
         {
-            return contextId != 0L && key.ValueKind == MobaSkillRuntimeValueKind.ContextIdSet && _contextIdSets.TryGetValue(key.Id, out var set) && set.Contains(contextId);
+            var address = new MobaSkillRuntimeBlackboardAddress(key.Scope);
+            return contextId != 0L && key.ValueKind == MobaSkillRuntimeValueKind.ContextIdSet && _contextIdSets.TryGetValue(new EntryKey(key.Id, in address), out var set) && set.Contains(contextId);
         }
 
         public int GetContextIdCount(in MobaSkillRuntimeBlackboardKey key)
         {
-            return key.ValueKind == MobaSkillRuntimeValueKind.ContextIdSet && _contextIdSets.TryGetValue(key.Id, out var set) ? set.Count : 0;
+            var address = new MobaSkillRuntimeBlackboardAddress(key.Scope);
+            return key.ValueKind == MobaSkillRuntimeValueKind.ContextIdSet && _contextIdSets.TryGetValue(new EntryKey(key.Id, in address), out var set) ? set.Count : 0;
         }
 
         public bool Remove(in MobaSkillRuntimeBlackboardKey key)
         {
             if (!key.IsValid) return false;
-            var removed = _values.Remove(key.Id);
-            removed |= _actorIdSets.Remove(key.Id);
-            removed |= _contextIdSets.Remove(key.Id);
+            var address = new MobaSkillRuntimeBlackboardAddress(key.Scope);
+            var entryKey = new EntryKey(key.Id, in address);
+            var removed = _values.Remove(entryKey);
+            removed |= _actorIdSets.Remove(entryKey);
+            removed |= _contextIdSets.Remove(entryKey);
+            _snapshotCaptures.Remove(entryKey);
             return removed;
         }
 
@@ -496,6 +576,8 @@ namespace AbilityKit.Demo.Moba.Services
             _values.Clear();
             _actorIdSets.Clear();
             _contextIdSets.Clear();
+            _snapshotCaptures.Clear();
+            _keys.Clear();
         }
 
         public int CopyDiagnosticsTo(List<MobaSkillRuntimeBlackboardEntryDiagnostics> results)
@@ -506,30 +588,131 @@ namespace AbilityKit.Demo.Moba.Services
             foreach (var pair in _keys)
             {
                 var key = pair.Value;
-                if (_values.TryGetValue(key.Id, out var value))
+                var entryKey = pair.Key;
+                if (_values.TryGetValue(entryKey, out var value))
                 {
-                    results.Add(new MobaSkillRuntimeBlackboardEntryDiagnostics(key, value, 0));
+                    results.Add(new MobaSkillRuntimeBlackboardEntryDiagnostics(key, value, 0, entryKey.ScopeOwnerId));
                     continue;
                 }
 
-                if (_actorIdSets.TryGetValue(key.Id, out var actors))
+                if (_actorIdSets.TryGetValue(entryKey, out var actors))
                 {
-                    results.Add(new MobaSkillRuntimeBlackboardEntryDiagnostics(key, default, actors.Count));
+                    results.Add(new MobaSkillRuntimeBlackboardEntryDiagnostics(key, default, actors.Count, entryKey.ScopeOwnerId));
                     continue;
                 }
 
-                if (_contextIdSets.TryGetValue(key.Id, out var contexts))
+                if (_contextIdSets.TryGetValue(entryKey, out var contexts))
                 {
-                    results.Add(new MobaSkillRuntimeBlackboardEntryDiagnostics(key, default, contexts.Count));
+                    results.Add(new MobaSkillRuntimeBlackboardEntryDiagnostics(key, default, contexts.Count, entryKey.ScopeOwnerId));
                 }
             }
 
             return results.Count - start;
         }
 
-        private bool RegisterSetKey(in MobaSkillRuntimeBlackboardKey key, MobaSkillRuntimeValueKind expectedKind)
+        public bool TryGetValue(
+            int keyId,
+            in MobaSkillRuntimeBlackboardAddress address,
+            out MobaSkillRuntimeBlackboardKey key,
+            out MobaSkillRuntimeValue value)
         {
-            return key.ValueKind == expectedKind && Register(in key);
+            var entryKey = new EntryKey(keyId, in address);
+            if (_keys.TryGetValue(entryKey, out key) && _values.TryGetValue(entryKey, out value)) return true;
+            key = default;
+            value = default;
+            return false;
+        }
+
+        public bool TryGetKey(
+            int keyId,
+            in MobaSkillRuntimeBlackboardAddress address,
+            out MobaSkillRuntimeBlackboardKey key)
+        {
+            return _keys.TryGetValue(new EntryKey(keyId, in address), out key);
+        }
+
+        internal bool IsSnapshotCaptured(int keyId, in MobaSkillRuntimeBlackboardAddress address)
+        {
+            return _snapshotCaptures.Contains(new EntryKey(keyId, in address));
+        }
+
+        internal void MarkSnapshotCaptured(int keyId, in MobaSkillRuntimeBlackboardAddress address)
+        {
+            var entryKey = new EntryKey(keyId, in address);
+            if (!_values.ContainsKey(entryKey))
+                throw new InvalidOperationException($"Cannot mark missing skill Blackboard value '{keyId}' as captured.");
+            _snapshotCaptures.Add(entryKey);
+        }
+
+        internal MobaSkillRuntimeBlackboardSnapshotEntry[] CaptureRollbackSnapshot()
+        {
+            var entries = new List<MobaSkillRuntimeBlackboardSnapshotEntry>(_keys.Count);
+            foreach (var pair in _keys)
+            {
+                var key = pair.Value;
+                if ((key.Flags & MobaSkillRuntimeBlackboardFlags.Rollback) == 0) continue;
+                var entryKey = pair.Key;
+                _values.TryGetValue(entryKey, out var value);
+                var actors = _actorIdSets.TryGetValue(entryKey, out var actorSet) ? new List<int>(actorSet) : null;
+                var contexts = _contextIdSets.TryGetValue(entryKey, out var contextSet) ? new List<long>(contextSet) : null;
+                actors?.Sort();
+                contexts?.Sort();
+                entries.Add(new MobaSkillRuntimeBlackboardSnapshotEntry(
+                    in key,
+                    entryKey.ScopeOwnerId,
+                    in value,
+                    actors?.ToArray() ?? Array.Empty<int>(),
+                    contexts?.ToArray() ?? Array.Empty<long>(),
+                    _snapshotCaptures.Contains(entryKey)));
+            }
+            entries.Sort((left, right) =>
+            {
+                var scope = left.Key.Scope.CompareTo(right.Key.Scope);
+                if (scope != 0) return scope;
+                var owner = left.ScopeOwnerId.CompareTo(right.ScopeOwnerId);
+                return owner != 0 ? owner : left.Key.Id.CompareTo(right.Key.Id);
+            });
+            return entries.ToArray();
+        }
+
+        internal void RestoreRollbackSnapshot(MobaSkillRuntimeBlackboardSnapshotEntry[] entries)
+        {
+            Clear();
+            if (entries == null) return;
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                var key = entry.Key;
+                var value = entry.Value;
+                var address = new MobaSkillRuntimeBlackboardAddress(key.Scope, entry.ScopeOwnerId);
+                if (!Register(in key, in address))
+                    throw new InvalidOperationException($"Cannot restore skill Blackboard key '{key.Id}'.");
+                if (IsScalarKind(key.ValueKind))
+                {
+                    if (!Set(in key, in value, in address))
+                        throw new InvalidOperationException($"Cannot restore skill Blackboard scalar '{key.Id}'.");
+                    if (entry.IsSnapshotCaptured) MarkSnapshotCaptured(key.Id, in address);
+                }
+                else if (key.ValueKind == MobaSkillRuntimeValueKind.ActorIdSet)
+                {
+                    for (var j = 0; j < entry.ActorIds.Length; j++) AddActorId(in key, in address, entry.ActorIds[j]);
+                }
+                else if (key.ValueKind == MobaSkillRuntimeValueKind.ContextIdSet)
+                {
+                    var entryKey = new EntryKey(key.Id, in address);
+                    if (!_contextIdSets.TryGetValue(entryKey, out var set))
+                    {
+                        set = new HashSet<long>();
+                        _contextIdSets.Add(entryKey, set);
+                    }
+                    for (var j = 0; j < entry.ContextIds.Length; j++) set.Add(entry.ContextIds[j]);
+                }
+            }
+        }
+
+        private bool RegisterSetKey(in MobaSkillRuntimeBlackboardKey key, in MobaSkillRuntimeBlackboardAddress address, MobaSkillRuntimeValueKind expectedKind)
+        {
+            return key.ValueKind == expectedKind && Register(in key, in address);
         }
 
         private static bool IsScalarKind(MobaSkillRuntimeValueKind kind)
@@ -541,6 +724,32 @@ namespace AbilityKit.Demo.Moba.Services
         {
             return keyKind == valueKind;
         }
+    }
+
+    internal readonly struct MobaSkillRuntimeBlackboardSnapshotEntry
+    {
+        public MobaSkillRuntimeBlackboardSnapshotEntry(
+            in MobaSkillRuntimeBlackboardKey key,
+            long scopeOwnerId,
+            in MobaSkillRuntimeValue value,
+            int[] actorIds,
+            long[] contextIds,
+            bool isSnapshotCaptured = false)
+        {
+            Key = key;
+            ScopeOwnerId = scopeOwnerId;
+            Value = value;
+            ActorIds = actorIds ?? Array.Empty<int>();
+            ContextIds = contextIds ?? Array.Empty<long>();
+            IsSnapshotCaptured = isSnapshotCaptured;
+        }
+
+        public MobaSkillRuntimeBlackboardKey Key { get; }
+        public long ScopeOwnerId { get; }
+        public MobaSkillRuntimeValue Value { get; }
+        public int[] ActorIds { get; }
+        public long[] ContextIds { get; }
+        public bool IsSnapshotCaptured { get; }
     }
 
     public interface IMobaSkillRuntimeStateSlot
@@ -788,6 +997,47 @@ namespace AbilityKit.Demo.Moba.Services
             return state != null;
         }
 
+        internal MobaSkillCastRuntimeSnapshot CaptureRollbackSnapshot()
+        {
+            return new MobaSkillCastRuntimeSnapshot(
+                RuntimeId,
+                Generation,
+                RootTraceContextId,
+                SkillId,
+                SkillSlot,
+                SkillLevel,
+                Sequence,
+                CasterActorId,
+                TargetActorId,
+                AimPos,
+                AimDir,
+                Stage,
+                PipelineEnded,
+                IsEnding,
+                IsEnded,
+                EndReason,
+                _children.ToArray(),
+                Blackboard.CaptureRollbackSnapshot());
+        }
+
+        internal void RestoreRollbackSnapshot(in MobaSkillCastRuntimeSnapshot snapshot)
+        {
+            if (snapshot.RuntimeId != RuntimeId || snapshot.Generation != Generation)
+                throw new InvalidOperationException($"Skill runtime identity mismatch. expected={RuntimeId}:{Generation} actual={snapshot.RuntimeId}:{snapshot.Generation}");
+            RootTraceContextId = snapshot.RootTraceContextId;
+            TargetActorId = snapshot.TargetActorId;
+            AimPos = snapshot.AimPos;
+            AimDir = snapshot.AimDir;
+            Stage = snapshot.Stage;
+            PipelineEnded = snapshot.PipelineEnded;
+            IsEnding = snapshot.IsEnding;
+            IsEnded = snapshot.IsEnded;
+            EndReason = snapshot.EndReason;
+            _children.Clear();
+            if (snapshot.Children != null) _children.AddRange(snapshot.Children);
+            Blackboard.RestoreRollbackSnapshot(snapshot.BlackboardEntries);
+        }
+
         internal void NotifyEnding(MobaSkillRuntimeEndReason reason)
         {
             foreach (var slot in _stateSlots.Values)
@@ -795,6 +1045,42 @@ namespace AbilityKit.Demo.Moba.Services
                 slot?.OnRuntimeEnding(this, reason);
             }
         }
+    }
+
+    internal readonly struct MobaSkillCastRuntimeSnapshot
+    {
+        public MobaSkillCastRuntimeSnapshot(
+            long runtimeId, int generation, long rootTraceContextId, int skillId, int skillSlot, int skillLevel,
+            int sequence, int casterActorId, int targetActorId, Vec3 aimPos, Vec3 aimDir, SkillCastStage stage,
+            bool pipelineEnded, bool isEnding, bool isEnded, MobaSkillRuntimeEndReason endReason,
+            MobaSkillRuntimeChildRef[] children, MobaSkillRuntimeBlackboardSnapshotEntry[] blackboardEntries)
+        {
+            RuntimeId = runtimeId; Generation = generation; RootTraceContextId = rootTraceContextId;
+            SkillId = skillId; SkillSlot = skillSlot; SkillLevel = skillLevel; Sequence = sequence;
+            CasterActorId = casterActorId; TargetActorId = targetActorId; AimPos = aimPos; AimDir = aimDir;
+            Stage = stage; PipelineEnded = pipelineEnded; IsEnding = isEnding; IsEnded = isEnded; EndReason = endReason;
+            Children = children ?? Array.Empty<MobaSkillRuntimeChildRef>();
+            BlackboardEntries = blackboardEntries ?? Array.Empty<MobaSkillRuntimeBlackboardSnapshotEntry>();
+        }
+
+        public long RuntimeId { get; }
+        public int Generation { get; }
+        public long RootTraceContextId { get; }
+        public int SkillId { get; }
+        public int SkillSlot { get; }
+        public int SkillLevel { get; }
+        public int Sequence { get; }
+        public int CasterActorId { get; }
+        public int TargetActorId { get; }
+        public Vec3 AimPos { get; }
+        public Vec3 AimDir { get; }
+        public SkillCastStage Stage { get; }
+        public bool PipelineEnded { get; }
+        public bool IsEnding { get; }
+        public bool IsEnded { get; }
+        public MobaSkillRuntimeEndReason EndReason { get; }
+        public MobaSkillRuntimeChildRef[] Children { get; }
+        public MobaSkillRuntimeBlackboardSnapshotEntry[] BlackboardEntries { get; }
     }
 
     public readonly struct MobaSkillCastRuntimeCreateRequest

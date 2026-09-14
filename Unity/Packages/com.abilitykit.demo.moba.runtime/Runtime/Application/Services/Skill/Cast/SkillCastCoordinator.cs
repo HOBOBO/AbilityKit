@@ -202,6 +202,12 @@ namespace AbilityKit.Demo.Moba.Services
 
         private MobaSkillInputHandleResult HandlePressInput(int actorId, in SkillInputEvent evt)
         {
+            if (_runnerRegistry.TrySignalRecast(actorId, evt.Slot))
+            {
+                _runnerRegistry.TryUpdateRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId);
+                return MobaSkillInputHandleResult.Accepted("skill.input.running.recast");
+            }
+
             if (_runnerRegistry.TryUpdateRunningInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId))
             {
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.updated");
@@ -513,6 +519,10 @@ namespace AbilityKit.Demo.Moba.Services
         public void RemoveActor(int actorId)
         {
             _runnerRegistry.CancelAndRemove(actorId, MobaSkillRuntimeEndReason.OwnerRemoved);
+            if (_services != null && _services.TryResolve<MobaSkillEconomyService>(out var economy) && economy != null)
+            {
+                economy.RemoveActor(actorId);
+            }
             _preparation.RemoveActor(actorId);
         }
 

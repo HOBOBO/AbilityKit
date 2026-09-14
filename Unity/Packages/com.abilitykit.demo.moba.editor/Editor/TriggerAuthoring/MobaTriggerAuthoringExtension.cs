@@ -30,6 +30,35 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 RegisterConditions(context);
                 RegisterActions(context);
             }
+            if (context.AcceptsValueSources) RegisterSkillRuntimeValues(context);
+        }
+
+        private static void RegisterSkillRuntimeValues(TriggerAuthoringExtensionContext context)
+        {
+            RegisterSkillRuntimeValue(context, "cast", "showcase_combo", TriggerValueType.Number, "技能运行时/Cast/连击计数");
+            RegisterSkillRuntimeValue(context, "effect", "showcase_snapshot_damage", TriggerValueType.Number, "技能运行时/Effect/伤害快照");
+            RegisterSkillRuntimeValue(context, "target", "showcase_snapshot_damage", TriggerValueType.Number, "技能运行时/Target/逐目标伤害快照");
+            RegisterSkillRuntimeValue(context, "child", "showcase_runtime_id", TriggerValueType.Integer, "技能运行时/Child/生成对象 ID");
+            RegisterSkillRuntimeValue(context, "child", "showcase_result_count", TriggerValueType.Integer, "技能运行时/Child/生成数量");
+        }
+
+        private static void RegisterSkillRuntimeValue(
+            TriggerAuthoringExtensionContext context,
+            string scope,
+            string key,
+            TriggerValueType type,
+            string displayName)
+        {
+            var fullKey = "skill_runtime." + scope + "." + key;
+            context.RegisterValueSource(new TriggerAuthoringValueSourceDescriptor(
+                "skill_runtime:" + scope + "." + key,
+                type,
+                displayName,
+                "MOBA skill pipeline scoped Blackboard value.",
+                fullKey,
+                canWrite: true,
+                blackboardName: "skill_runtime." + scope,
+                blackboardKey: fullKey));
         }
 
         private static void RegisterConditions(TriggerAuthoringExtensionContext context)
@@ -153,13 +182,13 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 "查询目标集合",
                 "Action/Targeting",
                 WithTargets(Output("result", TriggerValueType.Integer))));
-            context.RegisterAction(Action("give_damage", "造成伤害", "Action/Combat", WithTargets(
+            context.RegisterAction(Action("give_damage", "造成伤害", "Action/Combat", WithTargets(WithMagnitude("damage_amount",
                 OneOf("damage_amount", "damage_value", TriggerValueType.Number),
                 OneOf("damage_amount", "source_attack_ratio", TriggerValueType.Number),
                 DamageType("damage_type"),
                 DamageReason("reason_kind"),
                 Optional("reason_param", TriggerValueType.Integer),
-                Choice("attribute_source", false, Option(0, "归属实体"), Option(1, "触发器所有者")))));
+                Choice("attribute_source", false, Option(0, "归属实体"), Option(1, "触发器所有者"))))));
             context.RegisterAction(Action("adjust_damage_number", "调整伤害数值", "Action/Combat",
                 OneOf("damage_modifier", "value", TriggerValueType.Number),
                 OneOf("damage_modifier", "repeat_target_decay_factor", TriggerValueType.Number),
@@ -174,9 +203,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("target_hit_count_key_base", TriggerValueType.Integer)));
             context.RegisterAction(Action("take_damage", "承受伤害", "Action/Combat",
                 Optional("rate", TriggerValueType.Number), Optional("reason_param", TriggerValueType.Integer)));
-            context.RegisterAction(Action("heal", "治疗", "Action/Combat", WithTargets(
-                Required("amount", TriggerValueType.Number), DamageType("heal_type"),
-                DamageReason("reason_kind"), Optional("reason_param", TriggerValueType.Integer))));
+            context.RegisterAction(Action("heal", "治疗", "Action/Combat", WithTargets(WithMagnitude("heal_amount",
+                OneOf("heal_amount", "amount", TriggerValueType.Number), DamageType("heal_type"),
+                DamageReason("reason_kind"), Optional("reason_param", TriggerValueType.Integer)))));
 
             context.RegisterAction(Action("add_buff", "添加增益效果", "Action/Buff", WithTargets(
                 Required("buff_ids", TriggerValueType.IntegerList))));
@@ -186,9 +215,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("remove_all", TriggerValueType.Boolean),
                 Optional("remove_slow", TriggerValueType.Boolean),
                 Optional("reason", TriggerValueType.Integer))));
-            context.RegisterAction(Action("add_shield", "添加护盾", "Action/Shield", WithTargets(
+            context.RegisterAction(Action("add_shield", "添加护盾", "Action/Shield", WithTargets(WithMagnitude("shield_amount",
                 Optional("shield_id", TriggerValueType.Integer),
-                Required("shield_value", TriggerValueType.Number),
+                OneOf("shield_amount", "shield_value", TriggerValueType.Number),
                 Optional("absorb_ratio", TriggerValueType.Number),
                 Optional("priority", TriggerValueType.Integer),
                 Optional("damage_type_mask", TriggerValueType.Integer),
@@ -199,7 +228,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                     Option(2, "刷新同护盾与来源"), Option(3, "替换较低优先级")),
                 Choice("consume_policy", false,
                     Option(0, "优先级后按最早"), Option(1, "优先级后按最新"),
-                    Option(2, "最早优先"), Option(3, "最新优先")))));
+                    Option(2, "最早优先"), Option(3, "最新优先")),
+                OptionalOutput("result", TriggerValueType.Integer),
+                OptionalOutput("result_count", TriggerValueType.Integer)))));
             context.RegisterAction(Action("remove_shield", "移除护盾", "Action/Shield", WithTargets(
                 OneOf("shield_identity", "shield_id", TriggerValueType.Integer),
                 OneOf("shield_identity", "instance_id", TriggerValueType.Integer),
@@ -222,7 +253,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Required("launcher_id", TriggerValueType.Integer),
                 Required("projectile_id", TriggerValueType.Integer),
                 Optional("continuous_process_id", TriggerValueType.Integer),
-                Optional("track_target", TriggerValueType.Boolean))));
+                Optional("track_target", TriggerValueType.Boolean),
+                OptionalOutput("result", TriggerValueType.Integer),
+                OptionalOutput("result_count", TriggerValueType.Integer))));
             context.RegisterAction(Action("remove_projectile", "移除投射物", "Action/Projectile"));
             context.RegisterAction(Action("spawn_summon", "生成召唤物", "Action/Summon",
                 Required("summon_id", TriggerValueType.Integer),
@@ -232,7 +265,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("duration_ms", TriggerValueType.Number),
                 Optional("total_count", TriggerValueType.Integer),
                 Optional("query_template_id", TriggerValueType.Integer),
-                Optional("target_mode", TriggerValueType.Integer)));
+                Optional("target_mode", TriggerValueType.Integer),
+                OptionalOutput("result", TriggerValueType.Integer),
+                OptionalOutput("result_count", TriggerValueType.Integer)));
             context.RegisterAction(Action("remove_summon", "移除召唤物", "Action/Summon", WithTargets(
                 Optional("summon_id", TriggerValueType.Integer),
                 Optional("summon_actor_id", TriggerValueType.Integer),
@@ -246,7 +281,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("stay_interval_frames", TriggerValueType.Integer),
                 Optional("collision_layer_mask", TriggerValueType.Integer),
                 Optional("offset_x", TriggerValueType.Number), Optional("offset_y", TriggerValueType.Number),
-                Optional("offset_z", TriggerValueType.Number))));
+                Optional("offset_z", TriggerValueType.Number),
+                OptionalOutput("result", TriggerValueType.Integer),
+                OptionalOutput("result_count", TriggerValueType.Integer))));
             context.RegisterAction(Action("remove_area", "移除区域", "Action/Area", WithTargets(
                 OneOf("area_identity", "area_id", TriggerValueType.Integer),
                 OneOf("area_identity", "template_id", TriggerValueType.Integer),
@@ -332,11 +369,27 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         private static TriggerParameterDescriptor Output(string name, TriggerValueType type)
         {
             const TriggerValueSourceMask variables =
-                TriggerValueSourceMask.LocalBlackboard | TriggerValueSourceMask.GlobalBlackboard;
+                TriggerValueSourceMask.Context |
+                TriggerValueSourceMask.LocalBlackboard |
+                TriggerValueSourceMask.GlobalBlackboard;
             return new TriggerParameterDescriptor(
                 name,
                 type,
                 true,
+                variables,
+                TriggerParameterAccess.Output);
+        }
+
+        private static TriggerParameterDescriptor OptionalOutput(string name, TriggerValueType type)
+        {
+            const TriggerValueSourceMask variables =
+                TriggerValueSourceMask.Context |
+                TriggerValueSourceMask.LocalBlackboard |
+                TriggerValueSourceMask.GlobalBlackboard;
+            return new TriggerParameterDescriptor(
+                name,
+                type,
+                false,
                 variables,
                 TriggerParameterAccess.Output);
         }
@@ -449,6 +502,44 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("trigger_ids", TriggerValueType.IntegerList),
                 Optional("interval_ms", TriggerValueType.Integer),
                 Optional("interval_trigger_ids", TriggerValueType.IntegerList)
+            });
+        }
+
+        private static TriggerParameterDescriptor[] WithMagnitude(
+            string amountGroup,
+            params TriggerParameterDescriptor[] parameters)
+        {
+            return Append(parameters, new[]
+            {
+                OneOf(amountGroup, "magnitude_value", TriggerValueType.Number),
+                Choice("magnitude_type", false,
+                    Option(0, "固定值"), Option(1, "等级曲线"), Option(2, "属性"),
+                    Option(3, "时间衰减"), Option(5, "上下文数值")),
+                Optional("magnitude_coefficient", TriggerValueType.Number),
+                Optional("magnitude_attribute", TriggerValueType.Integer),
+                Optional("magnitude_duration", TriggerValueType.Number),
+                Choice("magnitude_decay", false,
+                    Option(0, "线性"), Option(1, "指数"), Option(2, "对数"),
+                    Option(3, "缓出"), Option(4, "缓入"), Option(5, "缓入缓出")),
+                Optional("magnitude_context_key", TriggerValueType.String),
+                Choice("magnitude_secondary_type", false,
+                    Option(0, "固定值"), Option(1, "等级曲线"), Option(2, "属性"),
+                    Option(3, "时间衰减"), Option(5, "上下文数值")),
+                Optional("magnitude_secondary_value", TriggerValueType.Number),
+                Optional("magnitude_secondary_coefficient", TriggerValueType.Number),
+                Optional("magnitude_secondary_attribute", TriggerValueType.Integer),
+                Optional("magnitude_secondary_duration", TriggerValueType.Number),
+                Choice("magnitude_secondary_decay", false,
+                    Option(0, "线性"), Option(1, "指数"), Option(2, "对数"),
+                    Option(3, "缓出"), Option(4, "缓入"), Option(5, "缓入缓出")),
+                Optional("magnitude_secondary_context_key", TriggerValueType.String),
+                Choice("magnitude_combine", false,
+                    Option(0, "相加"), Option(1, "相乘"), Option(2, "覆盖")),
+                Choice("magnitude_source_role", false,
+                    Option(0, "归因实体"), Option(1, "技能施法者"), Option(2, "所有者"),
+                    Option(3, "根所有者"), Option(4, "目标"), Option(5, "自身"), Option(6, "子实体")),
+                Choice("magnitude_evaluation", false, Option(0, "实时"), Option(1, "快照")),
+                OptionalOutput("magnitude_capture", TriggerValueType.Number)
             });
         }
 

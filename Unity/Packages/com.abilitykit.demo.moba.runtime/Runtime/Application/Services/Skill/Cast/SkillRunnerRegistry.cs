@@ -69,6 +69,12 @@ namespace AbilityKit.Demo.Moba.Services
             return _runners.TryGetValue(actorId, out var runner) && runner != null && runner.UpdateInputBySlot(slot, in aimPos, in aimDir, ToActorId(targetActorId));
         }
 
+        public bool TrySignalRecast(int actorId, int slot)
+        {
+            if (actorId <= 0 || slot <= 0) return false;
+            return _runners.TryGetValue(actorId, out var runner) && runner != null && runner.SignalRecastBySlot(slot);
+        }
+
         public bool TryUpdateRunningInputAndRelease(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir, long targetActorId)
         {
             if (!TryUpdateRunningInput(actorId, slot, in aimPos, in aimDir, targetActorId))

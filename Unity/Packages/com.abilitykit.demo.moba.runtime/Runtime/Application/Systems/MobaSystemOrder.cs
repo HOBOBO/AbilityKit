@@ -62,6 +62,8 @@ namespace AbilityKit.Demo.Moba.Systems
         public const int EffectListeners = Base + WorldSystemOrder.Normal + 90;
         /// <summary>技能管道执行</summary>
         public const int SkillPipelines = Base + WorldSystemOrder.Normal + 100;
+        /// <summary>触发器执行树定时实例</summary>
+        public const int TriggerExecutionTick = Base + WorldSystemOrder.Normal + 110;
 
         // ========== 战斗系统 (Execute/Normal) ==========
         /// <summary>效果步骤</summary>

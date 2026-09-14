@@ -3,6 +3,7 @@ using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Triggering.Registry;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
@@ -13,7 +14,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
         protected override void Execute(object triggerArgs, HealArgs args, ExecCtx<IWorldResolver> ctx)
         {
-            if (args.Amount <= 0f) return;
+            if (args.Amount <= 0f && !args.Magnitude.Enabled) return;
             if (!ctx.Context.TryResolve<MobaDamageService>(out var damage) || damage == null)
             {
                 LogRejected(ctx, "cannot resolve MobaDamageService.");
@@ -47,6 +48,21 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 for (int i = 0; i < targets.Count; i++)
                 {
                     var targetActorId = targets[i];
+                    var amount = args.Amount;
+                    var executionContext = effectInput.ExecutionContext;
+                    if (args.Magnitude.Enabled && !MobaEffectMagnitudeResolver.TryEvaluate(
+                            in args.Magnitude,
+                            in executionContext,
+                            in ctx,
+                            effectInput.CasterActorId,
+                            effectInput.CasterActorId,
+                            targetActorId,
+                            default,
+                            out amount,
+                            out _,
+                            out _))
+                        continue;
+                    if (amount <= 0f) continue;
                     var origin = effectInput.BuildOrigin(
                         effectInput.CasterActorId,
                         targetActorId,
@@ -56,7 +72,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                         effectInput.CasterActorId,
                         targetActorId,
                         (int)args.HealType,
-                        args.Amount,
+                        amount,
                         args.ReasonKind,
                         args.ReasonParam,
                         origin);

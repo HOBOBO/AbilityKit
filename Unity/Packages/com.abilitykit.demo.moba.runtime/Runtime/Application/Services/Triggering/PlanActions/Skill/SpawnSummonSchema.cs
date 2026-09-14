@@ -29,6 +29,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 QueryTemplateId = ReadInt(namedArgs, ctx, 0, "query_template_id", "querytemplateid", "query_id"),
                 TargetMode = ReadInt(namedArgs, ctx, 0, "target_mode", "targetmode", "target")
             };
+            TryReadBlackboardTarget(namedArgs, out args.ResultTarget, "result", "result_id", "summon_result");
+            TryReadBlackboardTarget(namedArgs, out args.ResultCountTarget, "result_count", "summon_count");
 
             return args;
         }

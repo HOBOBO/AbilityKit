@@ -39,5 +39,20 @@ namespace AbilityKit.Protocol.Moba.StateSync
         [MemoryPackOrder(9)]
         public int DisableReason;
 
+        [MemoryPackOrder(10)]
+        public int MaxCharges;
+
+        [MemoryPackOrder(11)]
+        public int CurrentCharges;
+
+        [MemoryPackOrder(12)]
+        public int ChargeRecoveryRemainingMs;
+
+        [MemoryPackOrder(13)]
+        public int SharedCooldownRemainingMs;
+
+        [MemoryPackOrder(14)]
+        public int GlobalCooldownRemainingMs;
+
     }
 }

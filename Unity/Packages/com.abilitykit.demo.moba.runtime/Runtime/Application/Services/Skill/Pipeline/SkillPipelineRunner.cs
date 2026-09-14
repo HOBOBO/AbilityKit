@@ -237,6 +237,20 @@ namespace AbilityKit.Demo.Moba.Services
             return false;
         }
 
+        public bool SignalRecastBySlot(int slot)
+        {
+            if (slot <= 0) return false;
+            for (var i = _running.Count - 1; i >= 0; i--)
+            {
+                var context = _running[i].Context;
+                if (context == null || context.SkillSlot != slot || context.WorldServices == null) continue;
+                if (!context.TryGetSkillRuntimeHandle(out var handle)) continue;
+                if (!context.WorldServices.TryResolve<MobaSkillWindowRuntimeService>(out var windows) || windows == null) continue;
+                return windows.TrySignalRecast(in handle);
+            }
+            return false;
+        }
+
         public void FillRunningSnapshots(List<RunningSnapshot> buffer)
         {
             if (buffer == null) throw new ArgumentNullException(nameof(buffer));

@@ -140,6 +140,7 @@ namespace AbilityKit.Pipeline
         private static EPipelineDebugNodeKind GetDebugNodeKind(IAbilityPipelinePhase<TCtx> phase)
         {
             if (phase is AbilityConditionalPhase<TCtx>) return EPipelineDebugNodeKind.Conditional;
+            if (phase is AbilityRacePhase<TCtx>) return EPipelineDebugNodeKind.Race;
             if (phase is AbilityParallelPhase<TCtx>) return EPipelineDebugNodeKind.Parallel;
             if (phase is AbilitySequencePhase<TCtx>) return EPipelineDebugNodeKind.Sequence;
             if (phase is AbilityGatePhase<TCtx>) return EPipelineDebugNodeKind.Gate;
@@ -152,6 +153,7 @@ namespace AbilityKit.Pipeline
             {
                 EPipelineDebugNodeKind.Sequence => EPipelineDebugEdgeKind.Sequence,
                 EPipelineDebugNodeKind.Parallel => EPipelineDebugEdgeKind.Parallel,
+                EPipelineDebugNodeKind.Race => EPipelineDebugEdgeKind.Race,
                 EPipelineDebugNodeKind.Conditional => EPipelineDebugEdgeKind.Condition,
                 _ => EPipelineDebugEdgeKind.Child
             };
@@ -164,6 +166,7 @@ namespace AbilityKit.Pipeline
         {
             if (kind == EPipelineDebugNodeKind.Sequence) return (childIndex + 1).ToString();
             if (kind == EPipelineDebugNodeKind.Parallel) return "Parallel";
+            if (kind == EPipelineDebugNodeKind.Race) return "Race";
             if (phase is AbilityConditionalPhase<TCtx> conditional && childIndex < conditional.Branches.Count)
             {
                 var condition = conditional.Branches[childIndex].Condition;
@@ -200,6 +203,7 @@ namespace AbilityKit.Pipeline
             {
                 EPipelineDebugNodeKind.Sequence => "Sequential children",
                 EPipelineDebugNodeKind.Parallel => "Concurrent children",
+                EPipelineDebugNodeKind.Race => "First completed child wins",
                 EPipelineDebugNodeKind.Conditional when phase is AbilityConditionalPhase<TCtx> conditional =>
                     "No match: " + conditional.NoConditionBehavior,
                 EPipelineDebugNodeKind.Gate when phase is AbilityGatePhase<TCtx> gate =>
@@ -364,6 +368,10 @@ namespace AbilityKit.Pipeline
                 {
                     return parallel.DebugIsChildActive(childIndex);
                 }
+                if (phase is AbilityRacePhase<TCtx> race)
+                {
+                    return race.DebugIsChildActive(childIndex);
+                }
                 return phase is AbilityCompositePhase<TCtx> composite
                     && composite.DebugCurrentSubPhaseIndex == childIndex;
             }
@@ -493,12 +501,15 @@ namespace AbilityKit.Pipeline
             {
                 if (State != EAbilityPipelineState.Executing) return;
 
+                var phaseHandledInterrupt = _currentPhase is IInterruptiblePhase<TCtx>;
                 if (_currentPhase is IInterruptiblePhase<TCtx> interruptible)
                 {
                     interruptible.OnInterrupt(Context);
                 }
 
-                InterruptSubPhases(_currentPhase);
+                // An interruptible composite owns interruption of its active descendants.
+                // Recursing again here would invoke child cleanup twice.
+                if (!phaseHandledInterrupt) InterruptSubPhases(_currentPhase);
 
                 Context.IsAborted = true;
                 _owner.Events?.OnPipelineInterrupt?.Invoke(Context, true);

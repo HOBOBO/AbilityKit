@@ -1,3 +1,5 @@
+using AbilityKit.Triggering.Runtime.Plan;
+
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 {
     public readonly struct SpawnAreaArgs
@@ -14,6 +16,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public readonly float OffsetZ;
         public readonly bool HasTargetRequest;
         public readonly MobaActionTargetRequest TargetRequest;
+        public readonly BlackboardWriteTarget ResultTarget;
+        public readonly BlackboardWriteTarget ResultCountTarget;
 
         public SpawnAreaArgs(
             int areaId,
@@ -27,7 +31,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             float offsetY,
             float offsetZ,
             bool hasTargetRequest = false,
-            MobaActionTargetRequest targetRequest = default)
+            MobaActionTargetRequest targetRequest = default,
+            BlackboardWriteTarget resultTarget = default,
+            BlackboardWriteTarget resultCountTarget = default)
         {
             AreaId = areaId;
             PositionMode = positionMode;
@@ -41,6 +47,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             OffsetZ = offsetZ;
             HasTargetRequest = hasTargetRequest;
             TargetRequest = targetRequest;
+            ResultTarget = resultTarget;
+            ResultCountTarget = resultCountTarget;
         }
     }
 }

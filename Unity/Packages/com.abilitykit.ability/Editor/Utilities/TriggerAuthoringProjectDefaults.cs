@@ -76,10 +76,8 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             return new List<TriggerGlobalBlackboardKeyData>
             {
-                Key("skill.damagedTargets", "已受伤目标", TriggerValueType.IntegerList, "skill", true, true),
                 Key("skill.hitCount", "命中次数", TriggerValueType.Integer, "skill", true, true),
-                Key("skill.decayFactor", "伤害衰减系数", TriggerValueType.Number, "skill", true, true),
-                Key("skill.loopGuards", "循环保护上下文", TriggerValueType.IntegerList, "skill", true, true)
+                Key("skill.decayFactor", "伤害衰减系数", TriggerValueType.Number, "skill", true, true)
             };
         }
 

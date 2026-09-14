@@ -62,26 +62,32 @@ namespace AbilityKit.Demo.Moba.Services
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos)
         {
-            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default, sourceContext: default);
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default, sourceContext: default, out _);
         }
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward)
         {
-            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: default);
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: default, out _);
         }
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in SummonSourceContext sourceContext)
         {
-            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default, sourceContext: in sourceContext);
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: false, forward: default, sourceContext: in sourceContext, out _);
         }
 
         public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward, in SummonSourceContext sourceContext)
         {
-            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: in sourceContext);
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: in sourceContext, out _);
         }
 
-        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext)
+        public bool TrySummon(int casterActorId, int summonId, in Vec3 pos, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId)
         {
+            return TrySummonInternal(casterActorId, summonId, in pos, hasForward: true, forward: in forward, sourceContext: in sourceContext, out summonActorId);
+        }
+
+        private bool TrySummonInternal(int casterActorId, int summonId, in Vec3 pos, bool hasForward, in Vec3 forward, in SummonSourceContext sourceContext, out int summonActorId)
+        {
+            summonActorId = 0;
             if (casterActorId <= 0) return false;
             if (summonId <= 0) return false;
             EnsureObjectBootstrapRegistered();
@@ -186,6 +192,7 @@ namespace AbilityKit.Demo.Moba.Services
                     in spawnSourceContext);
                 CollectSummonSpawned(actorId, summonId, in spawnSourceContext);
 
+                summonActorId = actorId;
                 return true;
             }
             catch (Exception ex)

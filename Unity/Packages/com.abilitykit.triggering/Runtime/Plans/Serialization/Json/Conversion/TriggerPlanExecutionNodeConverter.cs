@@ -120,6 +120,7 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 [ETriggerPlanExecutableKind.Invert] = new InvertExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Succeed] = new SucceedExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Fail] = new FailExecutionNodeConverter(),
+                [ETriggerPlanExecutableKind.Scheduled] = new ScheduledExecutionNodeConverter(),
                 [ETriggerPlanExecutableKind.Metadata] = new MetadataExecutionNodeConverter()
             };
         }
@@ -175,6 +176,11 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 case "always_fail":
                 case "alwaysfail":
                     return nameof(ETriggerPlanExecutableKind.Fail);
+                case "scheduled":
+                case "schedule":
+                case "timed":
+                case "periodic":
+                    return nameof(ETriggerPlanExecutableKind.Scheduled);
                 case "metadata":
                 case "decorator":
                 case "tags":
@@ -425,6 +431,30 @@ namespace AbilityKit.Triggering.Runtime.Plan.Json
                 return Enum.TryParse<ETriggerPlanMetadataKind>(value, true, out var kind)
                     ? kind
                     : ETriggerPlanMetadataKind.Generic;
+            }
+        }
+
+        private sealed class ScheduledExecutionNodeConverter : ExecutionNodeConverterBase
+        {
+            public override ITriggerPlanExecutable Convert(
+                TriggerPlanExecutionNodeConverter context,
+                TriggerPlanJsonDatabase.ExecutionNodeDto dto,
+                TriggerPlanJsonDatabase.TriggerPlanDatabaseDto databaseDto)
+            {
+                var modeText = dto.ScheduleMode;
+                if (string.IsNullOrWhiteSpace(modeText))
+                    modeText = dto.Kind;
+                if (!System.Enum.TryParse<EScheduleMode>(modeText, true, out var mode))
+                    throw new InvalidOperationException($"Scheduled execution node mode not supported: {modeText}");
+
+                return new ScheduledTriggerPlanExecutable(
+                    Branch(Children(context, dto, databaseDto)),
+                    mode,
+                    dto.IntervalMs,
+                    dto.MaxExecutions,
+                    dto.CanBeInterrupted,
+                    Condition(context, dto),
+                    dto.Weight);
             }
         }
     }

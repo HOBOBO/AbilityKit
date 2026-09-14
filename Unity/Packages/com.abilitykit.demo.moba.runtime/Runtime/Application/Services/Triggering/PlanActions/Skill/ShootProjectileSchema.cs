@@ -25,8 +25,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             var continuousProcessId = ReadInt(namedArgs, ctx, 0, "continuous_process_id", "continuousprocessid", "continuous_id", "continuousid");
             var targetRequest = MobaActionTargetSchemaReader.Read(namedArgs, ctx);
             var trackTarget = ReadBoolNonZero(namedArgs, ctx, false, "track_target", "tracktarget", "tracking", "homing");
+            TryReadBlackboardTarget(namedArgs, out var resultTarget, "result", "result_id", "launcher_result");
+            TryReadBlackboardTarget(namedArgs, out var resultCountTarget, "result_count", "projectile_count");
 
-            return new ShootProjectileArgs(launcherId, projectileId, continuousProcessId, in targetRequest, trackTarget);
+            return new ShootProjectileArgs(launcherId, projectileId, continuousProcessId, in targetRequest, trackTarget, resultTarget, resultCountTarget);
         }
 
         public override bool TryValidateArgs(ReadOnlySpan<KeyValuePair<string, ActionArgValue>> args, out string error)

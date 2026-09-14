@@ -13,6 +13,7 @@ using AbilityKit.Triggering.Runtime.Plan;
 using CritType = AbilityKit.Demo.Moba.CritType;
 using DamageReasonKind = AbilityKit.Demo.Moba.DamageReasonKind;
 using DamageFormulaKind = AbilityKit.Demo.Moba.DamageFormulaKind;
+using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 
 
 namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
@@ -75,7 +76,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             var origin = input.BuildOrigin(attackerActorId, targetActorId, MobaTraceKind.EffectExecution, 0);
-            if (!TryResolveRequestedDamage(args, input, ctx, attackerActorId, out var attributeSourceActorId, out var requestedDamage, out var failure))
+            if (!TryResolveRequestedDamage(args, input, ctx, attackerActorId, targetActorId, out var attributeSourceActorId, out var requestedDamage, out var failure))
             {
                 MobaPlanActionDiagnostics.Rejected(
                     ctx.Context,
@@ -112,6 +113,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             MobaEffectActionInput input,
             ExecCtx<IWorldResolver> ctx,
             int attackerActorId,
+            int targetActorId,
             out int attributeSourceActorId,
             out Fixed64 requestedDamage,
             out string failure)
@@ -119,6 +121,25 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             attributeSourceActorId = 0;
             requestedDamage = MobaResourceFixedConvert.ToFixed(args.DamageValue);
             failure = null;
+            if (args.Magnitude.Enabled)
+            {
+                var executionContext = input.ExecutionContext;
+                if (!MobaEffectMagnitudeResolver.TryEvaluate(
+                        in args.Magnitude,
+                        in executionContext,
+                        in ctx,
+                        attackerActorId,
+                        input.CasterActorId,
+                        targetActorId,
+                        default,
+                        out var magnitude,
+                        out _,
+                        out failure))
+                    return false;
+                attributeSourceActorId = attackerActorId;
+                requestedDamage = MobaResourceFixedConvert.ToFixed(magnitude);
+                return true;
+            }
             if (args.SourceAttackRatio == 0f) return true;
 
             var skillRuntimeHandle = input.ExecutionContext.SkillRuntimeHandle;

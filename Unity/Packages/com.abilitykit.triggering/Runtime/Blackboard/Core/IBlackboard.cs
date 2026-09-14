@@ -19,6 +19,15 @@ namespace AbilityKit.Triggering.Blackboard
         bool TryGetKeySchema(int keyId, out BlackboardKeySchema schema);
     }
 
+    /// <summary>
+    /// Opt-in contract for runtime-owned Blackboards whose keys are declared by typed
+    /// action outputs. Static/configured Blackboards should only implement IBlackboardSchema.
+    /// </summary>
+    public interface IDynamicBlackboardSchema : IBlackboardSchema
+    {
+        bool TryDefineKey(int keyId, BlackboardKeyType type, bool canRead = true, bool canWrite = true);
+    }
+
     public interface IBlackboard
     {
         bool TryGetInt(int keyId, out int value);

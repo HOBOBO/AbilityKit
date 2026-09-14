@@ -54,9 +54,15 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
 
             var forward = input.HasAimDirection ? input.AimDirection : Vec3.Forward;
             var sourceContext = input.CreateSourceContext(casterActorId, summonId);
-            if (summonSvc.TrySummon(casterActorId, summonId, in spawnPos, in forward, in sourceContext))
+            if (summonSvc.TrySummon(casterActorId, summonId, in spawnPos, in forward, in sourceContext, out var summonActorId))
             {
-                LogApplied(ctx, $"caster={casterActorId} summonId={summonId}");
+                if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, summonActorId, out var outputError) ||
+                    !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError))
+                {
+                    LogRejected(ctx, outputError);
+                    return;
+                }
+                LogApplied(ctx, $"caster={casterActorId} summonId={summonId} summonActorId={summonActorId}");
             }
         }
     }

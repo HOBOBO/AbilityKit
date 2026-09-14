@@ -587,7 +587,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     }
                     break;
                 case TriggerValueSource.Context:
-                    AddRegisteredValueSourceOptions(result, context.ValueSources, expectedType);
+                    AddRegisteredValueSourceOptions(result, context.ValueSources, expectedType, write);
                     AddFieldOptions(result, source, context.ContextFields, expectedType, "运行上下文");
                     break;
                 case TriggerValueSource.LocalBlackboard:
@@ -1232,7 +1232,8 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void AddRegisteredValueSourceOptions(
             ICollection<TriggerAuthoringValuePathOption> output,
             TriggerAuthoringValueSourceCatalog catalog,
-            TriggerValueType expectedType)
+            TriggerValueType expectedType,
+            bool write)
         {
             var definitions = catalog != null ? catalog.Definitions : null;
             if (definitions == null) return;
@@ -1240,13 +1241,14 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 var definition = definitions[i];
                 if (definition == null || !TypeMatches(expectedType, definition.Type)) continue;
+                if (write && !definition.CanWrite) continue;
                 output.Add(new TriggerAuthoringValuePathOption(
                     TriggerValueSource.Context,
                     definition.Path,
                     definition.Type,
                     "运行上下文/" + definition.DisplayName,
                     true,
-                    false));
+                    definition.CanWrite));
             }
         }
 

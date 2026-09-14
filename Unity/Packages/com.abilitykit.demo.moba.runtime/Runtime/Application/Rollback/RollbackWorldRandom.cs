@@ -4,10 +4,11 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.FrameSync.Rollback;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
+using AbilityKit.Triggering.Runtime;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    public sealed class RollbackWorldRandom : IWorldRandom, IRollbackStateProvider, IMobaStateRecoveryProvider
+    public sealed class RollbackWorldRandom : IWorldRandom, ITriggerRandomSource, IRollbackStateProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10010;
 

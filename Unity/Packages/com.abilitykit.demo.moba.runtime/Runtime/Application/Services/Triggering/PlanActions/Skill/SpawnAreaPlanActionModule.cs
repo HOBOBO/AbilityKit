@@ -79,7 +79,12 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 center = center + offset;
                 LogInvestigation(ctx,
                     $"resolved area params center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                SpawnOneArea(projectiles, areaRuntime, trace, args, aoe, input, ctx, in center, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame);
+                if (SpawnOneArea(projectiles, areaRuntime, trace, args, aoe, input, ctx, in center, input.TargetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId) &&
+                    (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, runtimeAreaId, out var outputError) ||
+                     !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, 1, out outputError)))
+                {
+                    LogRejected(ctx, outputError);
+                }
                 return;
             }
 
@@ -99,6 +104,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 }
 
                 var spawned = 0;
+                var firstRuntimeAreaId = 0;
                 for (int i = 0; i < targets.Count; i++)
                 {
                     var targetActorId = targets[i];
@@ -111,8 +117,9 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                     center = center + offset;
                     LogInvestigation(ctx,
                         $"resolved target area params target={targetActorId} center=({center.X:0.###},{center.Y:0.###},{center.Z:0.###}) radius={radius:0.###} lifetimeFrames={lifetimeFrames} stayIntervalFrames={stayIntervalFrames} delayFrames={delayFrames} collisionMask={collisionLayerMask} frame={frame}");
-                    if (SpawnOneArea(projectiles, areaRuntime, trace, args, aoe, input, ctx, in center, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame))
+                    if (SpawnOneArea(projectiles, areaRuntime, trace, args, aoe, input, ctx, in center, targetActorId, radius, lifetimeFrames, collisionLayerMask, stayIntervalFrames, delayFrames, frame, out var runtimeAreaId))
                     {
+                        if (firstRuntimeAreaId == 0) firstRuntimeAreaId = runtimeAreaId;
                         spawned++;
                     }
                 }
@@ -120,6 +127,11 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
                 if (spawned == 0)
                 {
                     LogRejected(ctx, $"target area spawn produced no area. areaId={args.AreaId} targets={targets.Count}");
+                }
+                else if (!MobaPlanActionOutput.TryWrite(in ctx, in args.ResultTarget, firstRuntimeAreaId, out var outputError) ||
+                         !MobaPlanActionOutput.TryWrite(in ctx, in args.ResultCountTarget, spawned, out outputError))
+                {
+                    LogRejected(ctx, outputError);
                 }
             }
             finally
@@ -143,8 +155,10 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             int collisionLayerMask,
             int stayIntervalFrames,
             int delayFrames,
-            int frame)
+            int frame,
+            out int runtimeAreaId)
         {
+            runtimeAreaId = 0;
             var origin = input.BuildOrigin(input.CasterActorId, targetActorId, MobaTraceKind.AreaSpawn, args.AreaId);
             var skillRuntimeHandle = origin.SkillRuntimeHandle;
             LogInvestigation(ctx,
@@ -231,6 +245,7 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
             }
 
             LogApplied(ctx, $"templateId={args.AreaId} runtimeId={areaId.Value} caster={input.CasterActorId} target={targetActorId} radius={radius} lifetimeFrames={lifetimeFrames}");
+            runtimeAreaId = areaId.Value;
             return true;
         }
 

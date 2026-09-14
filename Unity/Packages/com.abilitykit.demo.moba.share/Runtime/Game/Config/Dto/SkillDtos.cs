@@ -96,6 +96,11 @@ namespace AbilityKit.Demo.Moba.Share.Config
         Repeat = 12,
         Delay = 13,
         WaitUntil = 14,
+        Race = 15,
+        AwaitEvent = 16,
+        Window = 17,
+        CommitPoint = 18,
+        Economy = 19,
     }
 
     [Serializable]
@@ -111,6 +116,10 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public SkillRepeatPhaseDTO Repeat;
         public SkillDelayPhaseDTO Delay;
         public SkillWaitUntilPhaseDTO WaitUntil;
+        public SkillAwaitEventPhaseDTO AwaitEvent;
+        public SkillWindowPhaseDTO Window;
+        public SkillCommitPointPhaseDTO CommitPoint;
+        public SkillEconomyPhaseDTO Economy;
     }
 
     [Serializable]
@@ -150,6 +159,82 @@ namespace AbilityKit.Demo.Moba.Share.Config
     {
         public string Name;
         public string Value;
+    }
+
+    public enum SkillWindowKind
+    {
+        Timed = 0,
+        Recast = 1,
+        Charge = 2,
+        Channel = 3,
+    }
+
+    [Serializable]
+    public sealed class SkillAwaitEventPhaseDTO
+    {
+        public string EventId;
+        public int TimeoutMs;
+        public bool CompleteOnTimeout = true;
+        public SkillEventIntFilterDTO[] Filters;
+    }
+
+    [Serializable]
+    public sealed class SkillEventIntFilterDTO
+    {
+        public int FieldId;
+        public int ExpectedValue;
+        public bool UseCasterActorId;
+        public bool UseTargetActorId;
+        public bool UseSkillId;
+    }
+
+    [Serializable]
+    public sealed class SkillWindowPhaseDTO
+    {
+        public string WindowId;
+        public int Kind;
+        public int DurationMs;
+        public bool CompleteOnTimeout = true;
+        public int ChannelIntervalMs;
+        public int[] ChargeTierThresholdMs;
+        public int[] OpenTriggerIds;
+        public int[] TickTriggerIds;
+        public int[] CloseTriggerIds;
+        public bool AbortOnTriggerFailure = true;
+        public string FailReason;
+    }
+
+    [Serializable]
+    public sealed class SkillCommitPointPhaseDTO
+    {
+        public string CommitId;
+    }
+
+    public enum SkillEconomyOperation
+    {
+        ReserveCast = 0,
+        ConsumeResource = 1,
+    }
+
+    [Serializable]
+    public sealed class SkillEconomyPhaseDTO
+    {
+        public int Operation;
+        public int ResourceType;
+        public float ResourceAmount;
+        public bool UseResolvedResourceCost = true;
+        public int ChargeCost = 1;
+        public int MaxCharges = 1;
+        public int ChargeRecoveryMs;
+        public bool StartSkillCooldown = true;
+        public int SkillCooldownMs;
+        public bool UseResolvedSkillCooldown = true;
+        public string CooldownGroup;
+        public int SharedCooldownMs;
+        public int GlobalCooldownMs;
+        public bool IgnoreGlobalCooldown;
+        public bool RefundBeforeCommit = true;
+        public string FailReason;
     }
 
     [Serializable]
