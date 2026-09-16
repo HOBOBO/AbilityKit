@@ -11,6 +11,8 @@ using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Systems;
 using AbilityKit.Pipeline;
 using AbilityKit.Triggering.Eventing;
+using AbilityKit.Triggering.Blackboard;
+using AbilityKit.Triggering.Payload;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -39,6 +41,59 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(scope.EventBus.HasSubscribers(key), Is.False);
             Assert.That(scope.Windows.TryGetSnapshot(in scope.Handle, out var snapshot), Is.True);
             Assert.That(snapshot.EventSequence, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AwaitEvent_CapturesRegisteredPayloadFieldsIntoScopedRuntimeBlackboard()
+        {
+            using var scope = new PhaseTestScope(registerCaptureAccessors: true);
+            const string eventId = "test.skill.capture";
+            var phase = new SkillAwaitEventPhase(
+                Id("await-capture"),
+                new SkillAwaitEventPhaseDTO
+                {
+                    EventId = eventId,
+                    TimeoutMs = 1000,
+                    Captures = new[]
+                    {
+                        new SkillEventCaptureDTO
+                        {
+                            FieldId = CapturePayloadAccessor.CountField,
+                            Key = "hit_count",
+                            Scope = (int)SkillEventCaptureScope.Cast,
+                            ValueType = (int)SkillEventCaptureValueType.Integer,
+                        },
+                        new SkillEventCaptureDTO
+                        {
+                            FieldId = CapturePayloadAccessor.DamageField,
+                            Key = "last_damage",
+                            Scope = (int)SkillEventCaptureScope.Target,
+                            ValueType = (int)SkillEventCaptureValueType.Number,
+                        },
+                    },
+                });
+            var key = new EventKey<object>(TriggeringIdUtil.GetEventEid(eventId));
+
+            phase.Execute(scope.Context);
+            object payload = new CapturePayload(3, 27.5);
+            scope.EventBus.Publish(key, in payload);
+            phase.OnUpdate(scope.Context, 0f);
+
+            Assert.That(phase.IsComplete, Is.True);
+            Assert.That(scope.Runtimes.TryGetBlackboard(in scope.Handle, out var board), Is.True);
+            var castKeyId = BlackboardIdMapper.KeyId("skill_runtime.cast.hit_count");
+            var targetKeyId = BlackboardIdMapper.KeyId("skill_runtime.target.last_damage");
+            var castKey = new MobaSkillRuntimeBlackboardKey(
+                castKeyId, "hit_count", MobaSkillRuntimeValueKind.Int, MobaSkillRuntimeBlackboardScope.Cast);
+            var targetKey = new MobaSkillRuntimeBlackboardKey(
+                targetKeyId, "last_damage", MobaSkillRuntimeValueKind.Double, MobaSkillRuntimeBlackboardScope.Target);
+            var targetAddress = new MobaSkillRuntimeBlackboardAddress(
+                MobaSkillRuntimeBlackboardScope.Target, PhaseTestScope.TargetActorId);
+            Assert.That(board.TryGetInt(in castKey, out var hitCount) && hitCount == 3, Is.True);
+            Assert.That(board.TryGet(in targetKey, in targetAddress, out var damage) &&
+                        damage.Kind == MobaSkillRuntimeValueKind.Double &&
+                        Math.Abs(damage.DoubleValue - 27.5) < 0.001,
+                Is.True);
         }
 
         [Test]
@@ -215,27 +270,37 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public const int SkillId = 801100;
             public const int SkillSlot = 2;
             public const int CasterActorId = 10;
-            private const int TargetActorId = 20;
+            public const int TargetActorId = 20;
 
             private readonly WorldContainer _container;
             public readonly EventBus EventBus;
             public readonly MobaSkillWindowRuntimeService Windows;
+            public readonly MobaSkillCastRuntimeService Runtimes;
             public readonly MobaSkillCastRuntimeHandle Handle;
             public readonly SkillCastRequest Request;
             public readonly SkillCastContext TriggerContext;
             public readonly SkillPipelineContext Context;
 
-            public PhaseTestScope()
+            public PhaseTestScope(bool registerCaptureAccessors = false)
             {
                 var runtimes = new MobaSkillCastRuntimeService();
+                Runtimes = runtimes;
                 Windows = new MobaSkillWindowRuntimeService(runtimes);
                 EventBus = new EventBus();
                 var frameTime = new FixedFrameTime();
-                _container = new WorldContainerBuilder()
+                var builder = new WorldContainerBuilder()
                     .RegisterExternalInstance(runtimes)
                     .RegisterExternalInstance(Windows)
-                    .RegisterExternalInstance<IFrameTime>(frameTime)
-                    .Build();
+                    .RegisterExternalInstance<IFrameTime>(frameTime);
+                if (registerCaptureAccessors)
+                {
+                    var payloads = new PayloadAccessorRegistry();
+                    var accessor = new CapturePayloadAccessor();
+                    payloads.RegisterIntAccessor<CapturePayload>(accessor);
+                    payloads.RegisterDoubleAccessor<CapturePayload>(accessor);
+                    builder.RegisterExternalInstance<IPayloadAccessorRegistry>(payloads);
+                }
+                _container = builder.Build();
 
                 var aim = Vec3.Zero;
                 var direction = Vec3.Forward;
@@ -260,6 +325,32 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public void Dispose()
             {
                 _container.Dispose();
+            }
+        }
+
+        private readonly struct CapturePayload
+        {
+            public CapturePayload(int count, double damage) { Count = count; Damage = damage; }
+            public int Count { get; }
+            public double Damage { get; }
+        }
+
+        private sealed class CapturePayloadAccessor :
+            IPayloadIntAccessor<CapturePayload>, IPayloadDoubleAccessor<CapturePayload>
+        {
+            public const int CountField = 41;
+            public const int DamageField = 42;
+
+            public bool TryGet(in CapturePayload args, int fieldId, out int value)
+            {
+                value = args.Count;
+                return fieldId == CountField;
+            }
+
+            public bool TryGet(in CapturePayload args, int fieldId, out double value)
+            {
+                value = args.Damage;
+                return fieldId == DamageField;
             }
         }
 

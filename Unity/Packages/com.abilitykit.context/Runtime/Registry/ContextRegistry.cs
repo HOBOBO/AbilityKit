@@ -152,6 +152,36 @@ namespace AbilityKit.Context
                 return _nextEntityId++;
         }
 
+        public long NextEntityId
+        {
+            get { lock (_lock) return _nextEntityId; }
+        }
+
+        public long[] GetRollbackEntityIds()
+        {
+            lock (_lock)
+                return _entities.Keys.OrderBy(id => id).ToArray();
+        }
+
+        public void RestoreRollbackEntityCursor(long nextEntityId, IReadOnlyCollection<long> confirmedIds)
+        {
+            if (nextEntityId < 1 || confirmedIds == null)
+                throw new ArgumentException("Invalid context registry rollback cursor.");
+            var confirmed = new HashSet<long>(confirmedIds);
+            foreach (var id in confirmed)
+                if (!Exists(id)) throw new InvalidOperationException($"Confirmed context entity {id} was destroyed before rollback.");
+
+            foreach (var id in GetRollbackEntityIds())
+                if (!confirmed.Contains(id)) Destroy(id);
+
+            lock (_lock)
+            {
+                if (_entities.Keys.Any(id => id >= nextEntityId))
+                    throw new InvalidOperationException("Context rollback cursor would reuse an existing entity ID.");
+                _nextEntityId = nextEntityId;
+            }
+        }
+
         public FlowContextScope BeginFlow(string name = null, long ownerEntityId = 0, long parentFlowId = 0, FlowContextPhase disposePhase = FlowContextPhase.Completed)
         {
             var flowId = CreateFlow(name, ownerEntityId, parentFlowId);

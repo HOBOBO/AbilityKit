@@ -13,6 +13,8 @@
     <ProjectReference Include="RuntimeCheck.csproj" />
     <ProjectReference Include="EditorCheck.csproj" />
     <ProjectReference Include="DemoBTreeCheck.csproj" />
+    <ProjectReference Include="ShowcaseRuntimeCheck.csproj" />
+    <ProjectReference Include="ShowcaseEditorCheck.csproj" />
   </ItemGroup>
 
 </Project>

@@ -101,6 +101,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         Window = 17,
         CommitPoint = 18,
         Economy = 19,
+        DerivedSkill = 20,
     }
 
     [Serializable]
@@ -120,6 +121,7 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public SkillWindowPhaseDTO Window;
         public SkillCommitPointPhaseDTO CommitPoint;
         public SkillEconomyPhaseDTO Economy;
+        public SkillDerivedSkillPhaseDTO DerivedSkill;
     }
 
     [Serializable]
@@ -176,6 +178,29 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int TimeoutMs;
         public bool CompleteOnTimeout = true;
         public SkillEventIntFilterDTO[] Filters;
+        public SkillEventCaptureDTO[] Captures;
+    }
+
+    public enum SkillEventCaptureScope
+    {
+        Cast = 0,
+        Target = 1,
+    }
+
+    public enum SkillEventCaptureValueType
+    {
+        Integer = 0,
+        Number = 1,
+    }
+
+    [Serializable]
+    public sealed class SkillEventCaptureDTO
+    {
+        public int FieldId;
+        public string Key;
+        public int Scope;
+        public int ValueType;
+        public bool Required = true;
     }
 
     [Serializable]
@@ -234,6 +259,18 @@ namespace AbilityKit.Demo.Moba.Share.Config
         public int GlobalCooldownMs;
         public bool IgnoreGlobalCooldown;
         public bool RefundBeforeCommit = true;
+        public string FailReason;
+    }
+
+    [Serializable]
+    public sealed class SkillDerivedSkillPhaseDTO
+    {
+        public int SkillId;
+        public bool InheritAim = true;
+        public bool InheritTarget = true;
+        public bool WaitForCompletion;
+        public bool AbortOnFailure = true;
+        public int MaxDepth = 4;
         public string FailReason;
     }
 

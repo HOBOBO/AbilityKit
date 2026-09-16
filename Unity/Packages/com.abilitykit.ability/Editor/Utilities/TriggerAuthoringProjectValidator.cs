@@ -46,6 +46,8 @@ namespace AbilityKit.Ability.Editor.Utilities
 
     internal static class TriggerAuthoringProjectValidator
     {
+        private const int MaxExpandedTriggerNodeCount = 512;
+
         public static TriggerAuthoringProjectValidationResult Validate(TriggerAuthoringProjectAsset project)
         {
             var result = new TriggerAuthoringProjectValidationResult();
@@ -167,6 +169,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             var moduleIds = new HashSet<string>(StringComparer.Ordinal);
             var packageIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var triggerIdOwners = new Dictionary<int, string>();
+            var triggerDefinitions = new Dictionary<int, TriggerDefinitionData>();
             var runtimeDocuments = new List<TriggerPlanAggregateCompiler.SourceDocument>();
             for (var i = 0; i < modules.Count; i++)
             {
@@ -215,6 +218,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                         else
                         {
                             triggerIdOwners.Add(triggerId, path + ".triggers[" + triggerIndex + "]");
+                            triggerDefinitions.Add(triggerId, triggers[triggerIndex]);
                         }
                     }
 
@@ -225,6 +229,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     moduleId ?? asset.name,
                     TriggerAuthoringRuntimeExporter.Serialize(compile.Database)));
             }
+
+            ValidateExecuteTriggerGraph(triggerDefinitions, triggerIdOwners, result);
 
             if (TriggerAuthoringValidator.HasErrors(result.Diagnostics)) return;
             try
@@ -237,6 +243,172 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 AddError(result, "TRG3050", "project.runtime", ex.Message);
             }
+        }
+
+        private static void ValidateExecuteTriggerGraph(
+            Dictionary<int, TriggerDefinitionData> definitions,
+            Dictionary<int, string> paths,
+            TriggerAuthoringProjectValidationResult result)
+        {
+            var graph = new Dictionary<int, List<int>>();
+            foreach (var pair in definitions)
+            {
+                var references = new List<int>();
+                CollectExecuteTriggerReferences(pair.Value?.Condition, pair.Key, paths, references, result);
+                CollectExecuteTriggerReferences(pair.Value?.Actions, pair.Key, paths, references, result);
+                graph[pair.Key] = references;
+            }
+
+            var states = new Dictionary<int, byte>();
+            var stack = new List<int>();
+            var reportedCycles = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var triggerId in graph.Keys)
+                VisitTrigger(triggerId, graph, paths, states, stack, reportedCycles, result);
+
+            if (TriggerAuthoringValidator.HasErrors(result.Diagnostics)) return;
+            var budgets = new Dictionary<int, long>();
+            foreach (var pair in definitions)
+            {
+                var count = CountExpandedTriggerNodes(pair.Key, definitions, graph, budgets, MaxExpandedTriggerNodeCount + 1L);
+                if (count > MaxExpandedTriggerNodeCount)
+                    AddError(result, "TRG3063", paths[pair.Key],
+                        $"Trigger {pair.Key} expands to more than {MaxExpandedTriggerNodeCount} nodes through execute_trigger calls.");
+            }
+        }
+
+        private static void CollectExecuteTriggerReferences(
+            TriggerNodeData node,
+            int ownerTriggerId,
+            Dictionary<int, string> paths,
+            List<int> references,
+            TriggerAuthoringProjectValidationResult result)
+        {
+            if (node == null) return;
+            if (node.Enabled && node.Kind == TriggerNodeKind.Action &&
+                string.Equals(node.Type, "execute_trigger", StringComparison.OrdinalIgnoreCase))
+            {
+                TriggerArgumentData triggerArgument = null;
+                var arguments = node.Arguments;
+                if (arguments != null)
+                    for (var i = 0; i < arguments.Count; i++)
+                        if (arguments[i] != null &&
+                            (string.Equals(arguments[i].Name, "trigger_id", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(arguments[i].Name, "triggerId", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            triggerArgument = arguments[i];
+                            break;
+                        }
+
+                var value = triggerArgument?.Value;
+                var ownerPath = paths.TryGetValue(ownerTriggerId, out var path) ? path : $"trigger.{ownerTriggerId}";
+                if (value == null || value.Source != TriggerValueSource.Constant)
+                {
+                    AddError(result, "TRG3062", ownerPath,
+                        "execute_trigger requires a constant trigger_id so references and recursion can be validated statically.");
+                }
+                else
+                {
+                    var referencedId = value.IntegerValue > int.MaxValue || value.IntegerValue < int.MinValue
+                        ? 0
+                        : (int)value.IntegerValue;
+                    if (referencedId <= 0 || !paths.ContainsKey(referencedId))
+                        AddError(result, "TRG3060", ownerPath,
+                            $"execute_trigger references missing TriggerId {value.IntegerValue}.");
+                    else
+                        references.Add(referencedId);
+                }
+            }
+
+            CollectExecuteTriggerReferences(node.Condition, ownerTriggerId, paths, references, result);
+            CollectExecuteTriggerReferences(node.Children, ownerTriggerId, paths, references, result);
+            CollectExecuteTriggerReferences(node.ElseChildren, ownerTriggerId, paths, references, result);
+        }
+
+        private static void CollectExecuteTriggerReferences(
+            List<TriggerNodeData> nodes,
+            int ownerTriggerId,
+            Dictionary<int, string> paths,
+            List<int> references,
+            TriggerAuthoringProjectValidationResult result)
+        {
+            if (nodes == null) return;
+            for (var i = 0; i < nodes.Count; i++)
+                CollectExecuteTriggerReferences(nodes[i], ownerTriggerId, paths, references, result);
+        }
+
+        private static void VisitTrigger(
+            int triggerId,
+            Dictionary<int, List<int>> graph,
+            Dictionary<int, string> paths,
+            Dictionary<int, byte> states,
+            List<int> stack,
+            HashSet<string> reported,
+            TriggerAuthoringProjectValidationResult result)
+        {
+            if (states.TryGetValue(triggerId, out var state) && state == 2) return;
+            if (state == 1)
+            {
+                var start = stack.IndexOf(triggerId);
+                if (start < 0) start = 0;
+                var cycle = new List<int>();
+                for (var i = start; i < stack.Count; i++) cycle.Add(stack[i]);
+                cycle.Add(triggerId);
+                var signature = string.Join("->", cycle);
+                if (reported.Add(signature))
+                    AddError(result, "TRG3061", paths[triggerId], $"execute_trigger cycle detected: {signature}.");
+                return;
+            }
+
+            states[triggerId] = 1;
+            stack.Add(triggerId);
+            if (graph.TryGetValue(triggerId, out var dependencies))
+                for (var i = 0; i < dependencies.Count; i++)
+                    VisitTrigger(dependencies[i], graph, paths, states, stack, reported, result);
+            stack.RemoveAt(stack.Count - 1);
+            states[triggerId] = 2;
+        }
+
+        private static long CountExpandedTriggerNodes(
+            int triggerId,
+            Dictionary<int, TriggerDefinitionData> definitions,
+            Dictionary<int, List<int>> graph,
+            Dictionary<int, long> memo,
+            long stopAfter)
+        {
+            if (memo.TryGetValue(triggerId, out var cached)) return cached;
+            if (!definitions.TryGetValue(triggerId, out var definition) || definition == null) return 0;
+            var count = CountNodes(definition.Condition, stopAfter) + CountNodes(definition.Actions, stopAfter);
+            if (graph.TryGetValue(triggerId, out var dependencies))
+                for (var i = 0; i < dependencies.Count && count < stopAfter; i++)
+                    count = SaturatingAdd(count,
+                        CountExpandedTriggerNodes(dependencies[i], definitions, graph, memo, stopAfter), stopAfter);
+            count = Math.Min(count, stopAfter);
+            memo[triggerId] = count;
+            return count;
+        }
+
+        private static long CountNodes(TriggerNodeData node, long stopAfter)
+        {
+            if (node == null) return 0;
+            var count = 1L;
+            count = SaturatingAdd(count, CountNodes(node.Condition, stopAfter), stopAfter);
+            count = SaturatingAdd(count, CountNodes(node.Children, stopAfter), stopAfter);
+            return SaturatingAdd(count, CountNodes(node.ElseChildren, stopAfter), stopAfter);
+        }
+
+        private static long CountNodes(List<TriggerNodeData> nodes, long stopAfter)
+        {
+            if (nodes == null) return 0;
+            long count = 0;
+            for (var i = 0; i < nodes.Count && count < stopAfter; i++)
+                count = SaturatingAdd(count, CountNodes(nodes[i], stopAfter), stopAfter);
+            return count;
+        }
+
+        private static long SaturatingAdd(long left, long right, long maximum)
+        {
+            if (left >= maximum || right >= maximum || left > maximum - right) return maximum;
+            return left + right;
         }
 
         private static void AddDiagnostics(

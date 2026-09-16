@@ -1,7 +1,10 @@
 using System;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Pipeline;
+using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Eventing;
 using AbilityKit.Triggering.Payload;
 
@@ -78,12 +81,100 @@ namespace AbilityKit.Demo.Moba.Services
         private void OnEvent(SkillPipelineContext context, object payload)
         {
             if (IsComplete || _received || !MatchesFilters(context, payload)) return;
+            if (!TryCapturePayload(context, payload, out var failure))
+            {
+                Fail(context, failure);
+                return;
+            }
             _received = true;
             if (context?.WorldServices != null && context.TryGetSkillRuntimeHandle(out var handle) &&
                 context.WorldServices.TryResolve<MobaSkillWindowRuntimeService>(out var windows) && windows != null)
             {
                 windows.SignalEvent(in handle, _specification.EventId);
             }
+        }
+
+        private bool TryCapturePayload(SkillPipelineContext context, object payload, out string failure)
+        {
+            failure = null;
+            var captures = _specification.Captures;
+            if (captures == null || captures.Length == 0) return true;
+            if (context?.WorldServices == null ||
+                !context.WorldServices.TryResolve<IPayloadAccessorRegistry>(out var accessors) || accessors == null ||
+                !context.TryGetSkillRuntimeHandle(out var handle) ||
+                !context.WorldServices.TryResolve<MobaSkillCastRuntimeService>(out var runtimes) || runtimes == null ||
+                !runtimes.TryGetBlackboard(in handle, out var blackboard) || blackboard == null)
+            {
+                failure = "Skill event capture requires payload accessors and a live skill runtime Blackboard.";
+                return false;
+            }
+
+            for (var i = 0; i < captures.Length; i++)
+            {
+                var capture = captures[i];
+                if (capture == null) continue;
+                if (!TryCaptureValue(accessors, payload, capture, blackboard, context, out var error))
+                {
+                    if (!capture.Required) continue;
+                    failure = $"Skill event capture failed at index {i}: {error}";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool TryCaptureValue(
+            IPayloadAccessorRegistry accessors,
+            object payload,
+            SkillEventCaptureDTO capture,
+            MobaSkillRuntimeBlackboard blackboard,
+            SkillPipelineContext context,
+            out string error)
+        {
+            error = null;
+            if (capture.FieldId <= 0 || string.IsNullOrWhiteSpace(capture.Key))
+            {
+                error = "field id and key are required.";
+                return false;
+            }
+
+            var scope = (SkillEventCaptureScope)capture.Scope;
+            var runtimeScope = scope == SkillEventCaptureScope.Target
+                ? MobaSkillRuntimeBlackboardScope.Target
+                : MobaSkillRuntimeBlackboardScope.Cast;
+            var ownerId = runtimeScope == MobaSkillRuntimeBlackboardScope.Target ? context.TargetActorId : 0L;
+            if (runtimeScope == MobaSkillRuntimeBlackboardScope.Target && ownerId <= 0)
+            {
+                error = "target-scoped capture requires a target actor.";
+                return false;
+            }
+
+            var scopeName = scope == SkillEventCaptureScope.Target ? "target" : "cast";
+            var keyName = capture.Key.Trim();
+            var keyId = BlackboardIdMapper.KeyId($"skill_runtime.{scopeName}.{keyName}");
+            var address = new MobaSkillRuntimeBlackboardAddress(runtimeScope, ownerId);
+            if ((SkillEventCaptureValueType)capture.ValueType == SkillEventCaptureValueType.Integer)
+            {
+                if (!accessors.TryGetInt(in payload, capture.FieldId, out var value))
+                {
+                    error = $"payload field {capture.FieldId} is not an integer.";
+                    return false;
+                }
+                var key = new MobaSkillRuntimeBlackboardKey(keyId, keyName, MobaSkillRuntimeValueKind.Int,
+                    runtimeScope, MobaSkillRuntimeBlackboardFlags.Rollback | MobaSkillRuntimeBlackboardFlags.Debug);
+                var runtimeValue = MobaSkillRuntimeValue.FromInt(value);
+                return blackboard.Set(in key, in runtimeValue, in address);
+            }
+
+            if (!accessors.TryGetDouble(in payload, capture.FieldId, out var number))
+            {
+                error = $"payload field {capture.FieldId} is not numeric.";
+                return false;
+            }
+            var numberKey = new MobaSkillRuntimeBlackboardKey(keyId, keyName, MobaSkillRuntimeValueKind.Double,
+                runtimeScope, MobaSkillRuntimeBlackboardFlags.Rollback | MobaSkillRuntimeBlackboardFlags.Debug);
+            var numberValue = MobaSkillRuntimeValue.FromDouble(number);
+            return blackboard.Set(in numberKey, in numberValue, in address);
         }
 
         private bool MatchesFilters(SkillPipelineContext context, object payload)

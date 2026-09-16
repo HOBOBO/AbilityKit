@@ -39,6 +39,41 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void P2SkillProgrammingShowcase_DeserializesAndIsEditableAsSkillFlowAsset()
+        {
+            var sourcePath = Path.GetFullPath(Path.Combine(
+                Application.dataPath, "..", MobaP2SkillProgrammingShowcaseSync.FlowSourceAssetPath));
+            var array = LubanConfigGroupDeserializer.Instance.DeserializeFromText(
+                File.ReadAllText(sourcePath), typeof(SkillFlowDTO));
+            Assert.That(array, Has.Length.EqualTo(1));
+
+            var source = (SkillFlowDTO)array.GetValue(0);
+            var restored = SkillFlowDef.FromDto(source).ToDto();
+            Assert.That(restored.Id, Is.EqualTo(MobaP2SkillProgrammingShowcaseSync.FlowId));
+            Assert.That(restored.Phases[0].RulePlan.TriggerIds,
+                Is.EqualTo(new[] { MobaP2SkillProgrammingShowcaseSync.ApplyTriggerId }));
+            Assert.That(restored.Phases[1].Type, Is.EqualTo((int)SkillPhaseType.Parallel));
+            Assert.That(restored.Phases[1].Children[0].AwaitEvent.Captures, Has.Length.EqualTo(2));
+            Assert.That(restored.Phases[1].Children[0].AwaitEvent.Captures[0].Scope,
+                Is.EqualTo((int)SkillEventCaptureScope.Cast));
+            Assert.That(restored.Phases[1].Children[0].AwaitEvent.Captures[1].Scope,
+                Is.EqualTo((int)SkillEventCaptureScope.Target));
+            Assert.That(restored.Phases[1].Children[1].DerivedSkill.SkillId, Is.EqualTo(10010101));
+            Assert.That(restored.Phases[1].Children[1].DerivedSkill.WaitForCompletion, Is.True);
+            Assert.That(restored.Phases[2].Repeat.RepeatCount, Is.EqualTo(2));
+            Assert.That(restored.Phases[3].RulePlan.TriggerIds,
+                Is.EqualTo(new[] { MobaP2SkillProgrammingShowcaseSync.ClearTriggerId }));
+
+            var asset = AssetDatabase.LoadAssetAtPath<SkillFlowSO>(
+                MobaP2SkillProgrammingShowcaseSync.FlowAssetPath);
+            Assert.That(asset, Is.Not.Null,
+                "Run MobaP2SkillProgrammingShowcaseSync.SyncBatch to import the P2 showcase.");
+            Assert.That(asset.dataList, Has.Length.EqualTo(1));
+            Assert.That(asset.dataList[0].Id, Is.EqualTo(MobaP2SkillProgrammingShowcaseSync.FlowId));
+            Assert.That(asset.dataList[0].Phases[1], Is.TypeOf<SkillParallelPhaseDef>());
+        }
+
+        [Test]
         public void ToDto_MapsPipelineMetadataAndFormalTopLevelPhases()
         {
             var flow = new SkillFlowDef
@@ -246,6 +281,63 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.Phases[0].Children[0].AwaitEvent.Filters[0].UseCasterActorId, Is.True);
             Assert.That(restored.Phases[0].Children[1].Window.ChargeTierThresholdMs, Is.EqualTo(new[] { 300, 700, 1100 }));
             Assert.That(restored.Phases[1].CommitPoint.CommitId, Is.EqualTo("resource.commit"));
+        }
+
+        [Test]
+        public void FromDtoAndToDto_RoundTripsP2DerivedSkillAndEventCaptures()
+        {
+            var source = new SkillFlowDTO
+            {
+                Id = 99200020,
+                Name = "p2-derived-capture-flow",
+                Phases = new[]
+                {
+                    new SkillPhaseDTO
+                    {
+                        Type = (int)SkillPhaseType.AwaitEvent,
+                        PhaseId = "capture.hit",
+                        AwaitEvent = new SkillAwaitEventPhaseDTO
+                        {
+                            EventId = "projectile.hit",
+                            TimeoutMs = 1200,
+                            Captures = new[]
+                            {
+                                new SkillEventCaptureDTO
+                                {
+                                    FieldId = 7,
+                                    Key = "impact_damage",
+                                    Scope = (int)SkillEventCaptureScope.Target,
+                                    ValueType = (int)SkillEventCaptureValueType.Number,
+                                    Required = true,
+                                },
+                            },
+                        },
+                    },
+                    new SkillPhaseDTO
+                    {
+                        Type = (int)SkillPhaseType.DerivedSkill,
+                        PhaseId = "derive.explosion",
+                        DerivedSkill = new SkillDerivedSkillPhaseDTO
+                        {
+                            SkillId = 99200021,
+                            InheritAim = true,
+                            InheritTarget = true,
+                            WaitForCompletion = true,
+                            AbortOnFailure = true,
+                            MaxDepth = 4,
+                        },
+                    },
+                },
+            };
+
+            var restored = SkillFlowDef.FromDto(source).ToDto();
+
+            Assert.That(restored.Phases[0].AwaitEvent.Captures, Has.Length.EqualTo(1));
+            Assert.That(restored.Phases[0].AwaitEvent.Captures[0].Key, Is.EqualTo("impact_damage"));
+            Assert.That(restored.Phases[0].AwaitEvent.Captures[0].Scope, Is.EqualTo((int)SkillEventCaptureScope.Target));
+            Assert.That(restored.Phases[1].DerivedSkill.SkillId, Is.EqualTo(99200021));
+            Assert.That(restored.Phases[1].DerivedSkill.WaitForCompletion, Is.True);
+            Assert.That(restored.Phases[1].DerivedSkill.MaxDepth, Is.EqualTo(4));
         }
 
         [Test]

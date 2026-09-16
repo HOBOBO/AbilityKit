@@ -486,5 +486,49 @@ flowchart TD
 
 ---
 
-文档类型：演进计划（未实施） | 事实基线：2026-09-10 | 证据等级：E0 源码核校（设计）／目标 E3（.NET 侧）／E1（Unity 宿主）
-*文档版本：v2.3 | 最后更新：2026-09-10*
+## 十、实施状态（2026-09-14）
+
+阶段 0、1、2 主体、3.1、3.2 与学习内容呈现均已落地；内容包 `com.abilitykit.samples`（`Runtime/` 186 文件 + `Editor/` 6 文件）是源码唯一权威，`src/` 两个工程改为投影。
+
+| 阶段 | 状态 | 证据 |
+|---|---|---|
+| 0 golden 基线 + QuickStart 可见性 | 完成 | `tools/check_sample_baseline.ps1` + `tools/samples/sample-baseline.txt`，挂 `foundation-units` |
+| 1 契约+内容层进包 | 完成 | Unity 侧 `Runtime`(186) + `Editor`(5) 编译通过（用户实测，2026-09-11） |
+| 2 移植阻塞清理 | 完成 | #5 `Ability/` 子树经用户裁定归为 Legacy，不改造 |
+| 3.1 目录窗口 | 完成 | 编译通过；**运行时行为未验收** |
+| 3.2 语义图 IMGUI | 完成 | 同上 |
+| 3.3 学习内容呈现 | 完成（2026-09-14） | 新增 `Editor/SampleLearningRenderer.cs`；离线自查器 0 错误 |
+
+### 10.1 本次修复的两个搬迁遗留缺陷（均为静默数据丢失）
+
+| # | 缺陷 | 影响面 | 修复与证据 |
+|---|---|---|---|
+| 1 | `SampleLearningContract` 未建模 `audience` / `prerequisites` / `outcomes` / `pitfalls`，反序列化时被整段丢弃 | 这 4 个字段在清单里覆盖 **37/37**（prerequisites 36/37），此前宿主拿到的永远是空值 | 补 4 个属性；实测 `audience`/`outcomes`/`pitfalls` 由 **0/37 → 37/37** |
+| 2 | `codeWalkthrough.sourceFile` 指向搬迁前的 `src/AbilityKit.Samples.Logic/...`，**39 个唯一路径里 30 个已失效**（88 处引用） | Web 宿主 `ReadCodeExcerpt` 对不存在的文件**静默返回空串**——导出页的代码块整段为空，无任何报错 | 重写为包内路径；实测 **98/98** 个走读步骤全部可解析 |
+
+缺陷 2 的教训值得记一笔：`SampleManifestValidator` 只校验 `sourceFile` 非空，不校验路径可达，所以清单校验一路绿灯而导出内容早就是空的。**校验器能报告的只有它检查过的维度。**
+
+### 10.2 学习内容的呈现口径（按实测覆盖度决定）
+
+`learningContract` 的两层字段价值差别很大，渲染器据此取舍：
+
+| 字段 | 覆盖 | 处置 |
+|---|---|---|
+| `summary` / `capabilities` / `concepts` / `apiHighlights` / `inputHints` / `outputHints` / `executionHint` | 16/37（人工撰写） | 展示，是契约主体 |
+| `prerequisites` | 36/37 | 展示且**可点击跳转**，是 `next` 链的反向索引 |
+| `pitfalls` | 37/37，但仅 **8 种**去重取值 | 展示（同族示例复用同一组忠告） |
+| `outcomes` | 37/37，三条里**有两条在全部示例中完全相同** | 展示，但置于末尾 |
+| `audience` | 37/37，全部是"希望理解 **{标题}** 在 AbilityKit 学习路径中作用的开发者。" | **不展示**——标题的模板复述，无独立信息量 |
+
+`learningCheckpoints`（37/37）与 `codeWalkthrough`（37/37，每条 2–4 步）质量最高且**逐条示例定制**，是本次呈现的主线：自查点默认折叠（先想再看），走读步骤支持内联看码与一键定位。
+
+### 10.3 已知未决
+
+1. **校验器对 21 条示例存在检测盲区**：这些示例的 `learningContract` 只有身份层字段，缺 tier-2。校验器的 `hasAnyLearning` 以 tier-2 为门，因此这些示例**当前完全不被审计**（校验报告显示 `Missing recommended metadata: 0`）。放宽该门会一次性暴露约 105 条建议项，需拍板。
+2. **示例包仍有 87 行乱码**（39 文件，集中在 `Runtime/Infrastructure/Config`）。`tools/fix_sample_mojibake.ps1` 按设计跳过它们——GBK→UTF-8 往返在截断处不无损，强行修复会把猜出来的文字写进注释。全仓合计 105 行 / 43 文件，即 **83% 的乱码集中在示例包**。
+3. **Unity 侧运行时行为仍未验收**：编译通过 ≠ 打开窗口能列出 37 条并跑对输出。这是 3.1/3.2/3.3 共同的验收缺口，需要真实 Unity 会话（E1→E4）。
+
+---
+
+文档类型：演进计划（部分已实施） | 事实基线：2026-09-14 | 证据等级：E3（.NET 侧构建/门禁/golden 基线）／E1（Unity 宿主，编译已过、运行时未验收）
+*文档版本：v2.4 | 最后更新：2026-09-14*

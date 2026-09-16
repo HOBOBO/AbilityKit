@@ -127,11 +127,10 @@ namespace AbilityKit.HFSM.Samples.HfsmRuntimeSample
         {
 #if UNITY_EDITOR
             if (_runtime == null) return;
-            LiveRegistry.Register(gameObject.name, _runtime, snapshot =>
-            {
-                snapshot.activeStatePaths.Clear();
-                foreach (var path in _runtime.GetActivePath()) snapshot.activeStatePaths.Add(path);
-            });
+            // The deterministic runtime implements IVisualizationProvider itself, so registering the
+            // instance (without a snapshot callback) lets the monitor read its full structure, active
+            // path, pending/exiting, transition list, durations and transition history.
+            LiveRegistry.Register(gameObject.name, _runtime);
             _registered = true;
 #endif
         }

@@ -1,45 +1,21 @@
-# Complete Runtime Observation
+# 行为树可运行示例
 
-该示例同时演示 BehaviorTree 的 authoring JSON、ScriptableObject 编辑资产、确定性运行时驱动和 Runtime Observation。
+本 Sample 包含三棵可编辑行为树、一键生成的基础 Unity 场景，以及可在 Play Mode 中操作的运行宿主。项目需先通过 Package Manager 导入 **Complete Runtime Observation** Sample。
 
-## 导入与创建编辑资产
+## 打开场景与编辑
 
-1. 在 Package Manager 中选择 **AbilityKit BehaviorTree**，导入 **Complete Runtime Observation**。
-2. 执行菜单 **AbilityKit > Behavior Tree > Samples > Complete Runtime Observation > Create Or Refresh Authoring Asset**。
-3. 工具读取 `Authoring/complete_runtime_observation.authoring.json`，校验并反写到 `Assets/BehaviorTreeSamples/CompleteRuntimeObservation.asset`。
-4. Graph Editor 会自动打开，可查看 26 个节点、三组优先级分支、节点元数据、布局与注释。
-5. JSON 是示例权威源；再次执行菜单会用 JSON 刷新已有 ScriptableObject。
+1. 执行菜单 `AbilityKit/行为树/示例/创建可运行展示场景`。菜单首次运行会在 `Assets/BehaviorTreeShowcase/` 创建场景、三份编辑资产和相应运行时 JSON；再次执行只重新导出已有资产，不覆盖树的编辑内容，也不重建已有场景。
+2. 打开 `BehaviorTreeShowcase.unity`。场景中三个代理分别使用巡逻、目标追踪和优先级决策树；点击代理，在 Inspector 中点「打开行为树编辑器」。
+3. 编辑并保存树后，回到该代理 Inspector，点「导出当前行为树供场景运行」。导出结果保存在 `Assets/BehaviorTreeShowcase/Runtime/`，组件运行时直接加载此 JSON；不导出则 Play Mode 仍使用上一次的产物。
+4. 进入 Play Mode，展开「感知输入」修改生命值、目标和距离。胶囊颜色及场景标签反馈 `out.mode`，Inspector 中能看到帧、树状态与输出。
+5. 点「打开运行时观察」选择对应实例，可查看活动节点、抢占路径、黑板初始/实时值与时间线；Inspector 的「推进一个逻辑帧」「重新开始行为树」可用于观察长耗时分支。
 
-## Play Mode 运行与观察
+| 示例 | 树资产 | 可观察的行为 |
+| --- | --- | --- |
+| 巡逻循环 | `Trees/PatrolLoop.asset` | Sequence + RandomSelector + Wait；完成后重新开始，输出 `Patrol`。 |
+| 目标追踪 | `Trees/TargetChase.asset` | Selector 优先选择近距离攻击，发现远处目标时追踪，无目标时等待；输出 `Attack` / `Chase` / `Idle`。 |
+| 优先级决策 | `Trees/PriorityDecision.asset` | 26 节点的撤退 > 战斗 > 巡逻策略，含条件中断、Timeout、Cooldown、随机巡逻与 Bool/Int64/Fixed64/String 黑板。生命值 <= 30 时输出 `Retreat`。 |
 
-1. 在场景中新建 GameObject。
-2. 添加 **AbilityKit/Behavior Tree/Runtime Observation Sample**。
-3. 将 `Authoring/complete_runtime_observation.authoring.json` 拖到 **Authoring Json** 字段。
-4. 进入 Play Mode。
-5. 点击 Sample Inspector 中的 **Open Runtime Observation**，选择 **Complete Runtime Observation**。
-6. 修改以下输入观察运行路径抢占和黑板变化：
-   - `Health <= 30`：进入紧急撤退。
-   - `Has Target = true`、`Can Act = true`、`Target Distance <= 6`：进入战斗。
-   - 其他情况：进入默认巡逻。
-7. 可使用 **Step One Deterministic Tick**、**Restart Tree**、**Stop Runtime**，也可在 Observation Window 冻结、回看或打开图形观察。
+三棵树同时使用 `self.*` 感知键与 `out.mode` / `out.busy` 输出键，便于在观察窗中对照同一组输入的不同决策。场景只使用 Unity 内置几何体，不依赖第三方美术资源；节点运行、时钟与随机流由 BehaviorTree 运行时负责。
 
-## 示例覆盖能力
-
-- Composite：Selector、Sequence、RandomSelector。
-- Decorator：Timeout、Cooldown。
-- Condition：Bool、Int64、Fixed64 黑板比较。
-- Action：SetBlackboard、Wait、Log。
-- Typed blackboard：Bool、Int64、Fixed64、String。
-- 确定性帧与时间、Seed、响应式 Restart。
-- `DebugName` 自动注册、节点状态、活动路径和黑板实时观察。
-
-## 示例代码职责
-
-- `RuntimeObservationSample`：只适配 Unity 生命周期并协调各对象。
-- `ObservationRuntimeFactory`：从 authoring JSON 创建已注册调试观察的运行实例。
-- `ObservationRuntimeSettings`：确定性 tick、Seed 和重启策略。
-- `AgentDecisionInputs` / `AgentDecisionOutputs`：领域输入输出与黑板映射。
-- `ObservationBlackboardKeys`：JSON 与 C# 共享的黑板 key 契约。
-- `RuntimeObservationSampleInstaller`：Editor 中的 JSON → ScriptableObject 安装流程。
-
-> Sample 使用未缩放 Unity 时间仅作为 tick 调度边界；传入行为树的是离散帧号和按 tick 累加的 `Fixed64` 时间。
+旧版手动演示仍可用：执行 `AbilityKit/Behavior Tree/Samples/Complete Runtime Observation/Create Or Refresh Authoring Asset` 安装单份完整树，并将 `Resources/complete_runtime_observation.json` 赋给 `RuntimeObservationSample` 的「编辑源 JSON」。新展示场景默认使用导出的运行时 JSON，不依赖这份兼容入口。

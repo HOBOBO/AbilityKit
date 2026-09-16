@@ -76,6 +76,32 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
         }
 
         [Test]
+        public void ReferencedDocumentLookup_UsesSamePriorityAndDefensiveCopiesAsResolver()
+        {
+            var treeId = "lookup-child-" + System.Guid.NewGuid().ToString("N");
+            var low = TreeExporter.Import(new TreeDefinition { TreeId = treeId });
+            low.Tree.Blackboard.Keys.Add(new BlackboardKeyDefinition
+            {
+                Name = "oldKey", Type = ValueType.Int64,
+            });
+            var high = TreeExporter.Import(new TreeDefinition { TreeId = treeId });
+            high.Tree.Blackboard.Keys.Add(new BlackboardKeyDefinition
+            {
+                Name = "newKey", Type = ValueType.Int64,
+            });
+            using var highRegistration = AuthoringDocumentCatalog.RegisterProvider(new StaticProvider(high), 20);
+            using var lowRegistration = AuthoringDocumentCatalog.RegisterProvider(new StaticProvider(low), 10);
+
+            Assert.That(AuthoringDocumentCatalog.TryFindDocument(
+                treeId, new AuthoringSourceDocument(), out var first), Is.True);
+            Assert.That(first.Tree.Blackboard.Keys.Single().Name, Is.EqualTo("newKey"));
+            first.Tree.Blackboard.Keys[0].Name = "mutated";
+            Assert.That(AuthoringDocumentCatalog.TryFindDocument(
+                treeId, new AuthoringSourceDocument(), out var second), Is.True);
+            Assert.That(second.Tree.Blackboard.Keys.Single().Name, Is.EqualTo("newKey"));
+        }
+
+        [Test]
         public void PreviewResolver_CurrentUnsavedDocumentOverridesCatalogAndReturnsClone()
         {
             var treeId = "resolver-current-" + System.Guid.NewGuid().ToString("N");
@@ -102,6 +128,8 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
             Assert.That(resolver.TryResolve(treeId, out var second), Is.True);
             Assert.That(second.RootNodeId, Is.EqualTo("unsaved-root"));
             Assert.That(current.Tree.RootNodeId, Is.EqualTo("unsaved-root"));
+            Assert.That(AuthoringDocumentCatalog.TryFindDocument(treeId, current, out var lookup), Is.True);
+            Assert.That(lookup.Tree.RootNodeId, Is.EqualTo("unsaved-root"));
         }
 
         [Test]

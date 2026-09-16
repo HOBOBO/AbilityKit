@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.BehaviorTree\AbilityKit.BehaviorTree.csproj" />
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.behaviortree\Samples~\CompleteRuntimeObservation\Editor\BehaviorTreeShowcaseDocuments.cs" Link="BehaviorTreeShowcaseDocuments.cs" />
+    <Content Include="..\..\Unity\Packages\com.abilitykit.behaviortree\Samples~\CompleteRuntimeObservation\Resources\complete_runtime_observation.json" Link="complete_runtime_observation.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

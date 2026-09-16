@@ -100,6 +100,37 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
+        public MobaSkillParamModifierServiceSnapshot CaptureRollbackSnapshot()
+        {
+            var entries = new List<MobaSkillParamModifierSnapshotEntry>();
+            foreach (var pair in _modifiersByOwner)
+            {
+                var modifiers = pair.Value;
+                if (modifiers == null) continue;
+                for (var i = 0; i < modifiers.Count; i++)
+                {
+                    var modifier = modifiers[i];
+                    entries.Add(new MobaSkillParamModifierSnapshotEntry(
+                        pair.Key.Scope, pair.Key.Id, CloneModifier(in modifier)));
+                }
+            }
+            entries.Sort(MobaSkillParamModifierSnapshotEntry.Compare);
+            return new MobaSkillParamModifierServiceSnapshot(entries.ToArray());
+        }
+
+        public void RestoreRollbackSnapshot(in MobaSkillParamModifierServiceSnapshot snapshot)
+        {
+            _modifiersByOwner.Clear();
+            var entries = snapshot.Entries;
+            if (entries == null) return;
+            for (var i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                var modifier = entry.Modifier;
+                AddModifier(new MobaModifierOwnerRef(entry.Scope, entry.OwnerId), CloneModifier(in modifier));
+            }
+        }
+
         public int ResolveInt(int actorId, ModifierKey key, int baseValue, IModifierContext context = null)
         {
             return ResolveInt(MobaModifierOwnerRef.Actor(actorId), key, baseValue, context);
@@ -179,8 +210,8 @@ namespace AbilityKit.Demo.Moba.Services
                 Id = id;
             }
 
-            private MobaModifierOwnerScope Scope { get; }
-            private int Id { get; }
+            internal MobaModifierOwnerScope Scope { get; }
+            internal int Id { get; }
 
             public override int GetHashCode()
             {
@@ -194,6 +225,64 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 return obj is OwnerKey other && Scope == other.Scope && Id == other.Id;
             }
+        }
+
+        private static ModifierData CloneModifier(in ModifierData source)
+        {
+            var clone = source;
+            clone.Magnitude.ArrayData = Clone(source.Magnitude.ArrayData);
+            var pipeline = clone.Magnitude.PipelineData;
+            pipeline.Modifier0.Curve = Clone(pipeline.Modifier0.Curve);
+            pipeline.Modifier1.Curve = Clone(pipeline.Modifier1.Curve);
+            pipeline.Modifier2.Curve = Clone(pipeline.Modifier2.Curve);
+            pipeline.Modifier3.Curve = Clone(pipeline.Modifier3.Curve);
+            clone.Magnitude.PipelineData = pipeline;
+            clone.CustomData.RawData = Clone(source.CustomData.RawData);
+            return clone;
+        }
+
+        private static T[] Clone<T>(T[] source)
+        {
+            return source == null ? null : (T[])source.Clone();
+        }
+    }
+
+    public readonly struct MobaSkillParamModifierServiceSnapshot
+    {
+        public MobaSkillParamModifierServiceSnapshot(MobaSkillParamModifierSnapshotEntry[] entries)
+        {
+            Entries = entries ?? Array.Empty<MobaSkillParamModifierSnapshotEntry>();
+        }
+
+        public MobaSkillParamModifierSnapshotEntry[] Entries { get; }
+    }
+
+    public readonly struct MobaSkillParamModifierSnapshotEntry
+    {
+        public MobaSkillParamModifierSnapshotEntry(MobaModifierOwnerScope scope, int ownerId, ModifierData modifier)
+        {
+            Scope = scope;
+            OwnerId = ownerId;
+            Modifier = modifier;
+        }
+
+        public MobaModifierOwnerScope Scope { get; }
+        public int OwnerId { get; }
+        public ModifierData Modifier { get; }
+
+        internal static int Compare(MobaSkillParamModifierSnapshotEntry left, MobaSkillParamModifierSnapshotEntry right)
+        {
+            var scope = left.Scope.CompareTo(right.Scope);
+            if (scope != 0) return scope;
+            var owner = left.OwnerId.CompareTo(right.OwnerId);
+            if (owner != 0) return owner;
+            var key = left.Modifier.Key.Packed.CompareTo(right.Modifier.Key.Packed);
+            if (key != 0) return key;
+            var priority = left.Modifier.Priority.CompareTo(right.Modifier.Priority);
+            if (priority != 0) return priority;
+            var source = left.Modifier.SourceId.CompareTo(right.Modifier.SourceId);
+            if (source != 0) return source;
+            return left.Modifier.Op.CompareTo(right.Modifier.Op);
         }
     }
 }

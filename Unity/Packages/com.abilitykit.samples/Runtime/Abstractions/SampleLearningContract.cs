@@ -29,5 +29,17 @@ namespace AbilityKit.Samples.Abstractions
 
         /// <summary>Optional execution hint such as instant, frame-based, or continuous.</summary>
         public string ExecutionHint { get; set; } = string.Empty;
+
+        /// <summary>Who this sample is written for.</summary>
+        public string Audience { get; set; } = string.Empty;
+
+        /// <summary>Sample ids that should be read before this one.</summary>
+        public string[] Prerequisites { get; set; } = Array.Empty<string>();
+
+        /// <summary>What the learner is expected to be able to do afterwards.</summary>
+        public string[] Outcomes { get; set; } = Array.Empty<string>();
+
+        /// <summary>Common mistakes or shortcuts to avoid.</summary>
+        public string[] Pitfalls { get; set; } = Array.Empty<string>();
     }
 }

@@ -24,6 +24,8 @@ namespace AbilityKit.HFSM.Editor
         private static readonly Color DefaultStateBorderColor = new Color(0.9f, 0.7f, 0.3f);
         private static readonly Color RunningColor = new Color(0.2f, 0.5f, 0.2f);
         private static readonly Color RunningBorderColor = Color.green;
+        private static readonly Color PendingColor = new Color(0.45f, 0.4f, 0.15f);
+        private static readonly Color PendingBorderColor = new Color(1f, 0.85f, 0.3f);
 
         private const float NodeWidth = 150f;
         private const float NodeHeight = 50f;
@@ -32,6 +34,7 @@ namespace AbilityKit.HFSM.Editor
 
         private float _lastClickTime = -1f;
         private NodeBase _lastClickedNode;
+        private bool _dragUndoRecorded;
 
         public GraphStateLayer(EditorWindow editorWindow) : base(editorWindow)
         {
@@ -56,6 +59,9 @@ namespace AbilityKit.HFSM.Editor
 
         public override void ProcessEvent()
         {
+            if (Event.current.type == EventType.MouseUp)
+                _dragUndoRecorded = false;
+
             HandleNodeClick();
             HandleNodeDrag();
             HandleContextMenu();
@@ -93,6 +99,17 @@ namespace AbilityKit.HFSM.Editor
 
         private Color GetNodeBackgroundColor(NodeBase node)
         {
+            // Live observation wins over the static palette so the running path stands out.
+            if (Context.IsNodeActive(node.Id))
+            {
+                return RunningColor;
+            }
+
+            if (Context.IsNodeEntering(node.Id) || Context.IsNodeExiting(node.Id))
+            {
+                return PendingColor;
+            }
+
             if (node.NodeType == GraphNodeType.StateMachine)
             {
                 return StateMachineColor;
@@ -113,6 +130,16 @@ namespace AbilityKit.HFSM.Editor
             if (isSelected)
             {
                 return SelectedBorderColor;
+            }
+
+            if (Context.IsNodeActive(node.Id))
+            {
+                return RunningBorderColor;
+            }
+
+            if (Context.IsNodeEntering(node.Id) || Context.IsNodeExiting(node.Id))
+            {
+                return PendingBorderColor;
             }
 
             if (node.NodeType == GraphNodeType.StateMachine)
@@ -498,6 +525,13 @@ namespace AbilityKit.HFSM.Editor
 
             if (Context.HasSelection && Context.SelectedNodes.Count > 0)
             {
+                // One undo entry per drag gesture, not one per mouse-drag event.
+                if (!_dragUndoRecorded)
+                {
+                    Context.BeginNodeMove();
+                    _dragUndoRecorded = true;
+                }
+
                 Vector2 delta = Event.current.delta / Context.ZoomFactor;
                 Context.MoveSelectedNodes(delta);
                 Event.current.Use();

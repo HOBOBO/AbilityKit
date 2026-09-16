@@ -31,6 +31,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests.TriggerAuthoring
         public const int PersistentArea = 99_190_003;
         public const int OverhealToShield = 99_190_004;
         public const int P0ComplexShowcase = 99_190_010;
+        public const int P2ApplySkillParameters = 99_190_020;
+        public const int P2ClearSkillParameters = 99_190_021;
 
         public static bool IsReserved(int id)
         {

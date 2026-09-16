@@ -2,7 +2,7 @@
 
 > **文档类型：Canonical 设计**
 >
-> **事实基线：2026-08-16**
+> **事实基线：2026-09-16**
 >
 > **规范范围：** Provider 注册、快照捕获/恢复、输入历史、预测重演与 Host 接入；表现重整由项目层负责。
 
@@ -22,6 +22,7 @@
 8. [Host Extension 集成](#8-host-extension-集成)
 9. [Demo 接入：MOBA 与 Shooter](#9-demo-接入moba-与-shooter)
 10. [设计约束与查漏补缺](#10-设计约束与查漏补缺)
+11. [MOBA Entitas 与运行时 Context 增量](#11-moba-entitas-与运行时-context-增量)
 
 ---
 
@@ -55,7 +56,7 @@ AbilityKit 的回滚预测不是单一算法，而是一组围绕“保存过去
 |------|------|
 | [IRollbackStateProvider.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/IRollbackStateProvider.cs) | 回滚状态 Provider 接口，定义 `Key`、`Export`、`Import` |
 | [RollbackRegistry.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackRegistry.cs) | Provider 注册表，按 `Key` 排序并在 Coordinator 构造时封存 |
-| [WorldRollbackSnapshot.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/WorldRollbackSnapshot.cs) | 回滚快照与条目结构，使用 `BinaryObjectCodec` 编解码 |
+| [WorldRollbackSnapshot.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/WorldRollbackSnapshot.cs) | 回滚快照与条目结构，使用 MemoryPack 编解码 |
 | [RollbackSnapshotRingBuffer.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackSnapshotRingBuffer.cs) | 固定容量回滚快照环形缓存 |
 | [RollbackCoordinator.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackCoordinator.cs) | 协调器直接使用 `ArrayPool<WorldRollbackSnapshotEntry>` 和 `ArrayPool<IRollbackStateProvider>`，降低捕获与恢复临时数组分配 |
 | [RollbackCoordinator.cs](../../../Unity/Packages/com.abilitykit.world.framesync/Runtime/FrameSync/Rollback/RollbackCoordinator.cs) | 回滚核心协调器，负责捕获、存储、恢复、清理 |
@@ -151,7 +152,7 @@ public readonly struct WorldRollbackSnapshot
 - `Version` 当前由 `WorldRollbackSnapshotCodec.CurrentVersion` 固定为 `1`。
 - `Frame` 是快照对应的模拟帧。
 - `Entries` 使用数组承载，捕获时通过共享 `ArrayPool<WorldRollbackSnapshotEntry>` 租用临时数组，并在存储完成后清理归还。
-- `WorldRollbackSnapshotCodec` 用 `BinaryObjectCodec.Encode/Decode` 做二进制编解码，可用于跨模块传输或持久化。
+- `WorldRollbackSnapshotCodec` 用 MemoryPack 做二进制编解码；跨模块传输或持久化时仍须校验快照版本和 Provider Key 集合。
 
 ---
 
@@ -557,4 +558,23 @@ flowchart LR
 
 ---
 
-*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*
+## 11. MOBA Entitas 与运行时 Context 增量
+
+本节只记录 2026-09-16 源码可证实的**帧同步客户端回滚**增量；跨同步模式的预测资格、StateSync 权威覆盖与降级设计详见 [帧同步与状态同步预测回滚方案](03.2-FrameStatePredictionRollback.md)。逻辑恢复后 View、插值和 Cue 的责任另见 [表现重整](03.1-PredictionReconciliationDesign.md)。
+
+| Key/责任域 | Provider | 捕获和恢复的责任 | 不覆盖的对象 |
+|---|---|---|---|
+| `10000` | [MobaEntitasEntityRollbackProvider](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaEntitasEntityRollbackProvider.cs) | `ActorIdAllocator.NextId`、ActorContext 的 ActorId/SkillCastInstanceId 集合；先解除预测新增实体的 ActorRegistry/EntityManager 索引再销毁，裁剪召唤 owner/source/retain 索引。 | 已真正销毁的确认帧实体不可仅凭 ID 重建。 |
+| 其余 Key（按数值排序） | [MobaRollbackRegistryBuilder](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaRollbackRegistryBuilder.cs) | Transform、HP、资源、Buff timer、冷却、StateMachine/Brain/HFSM、Shield、Blackboard、随机数、技能运行时、经济、修饰器及部分日志等专项 Provider。 | Provider 的具体字段、外部对象和事件订阅仍须逐个审计。 |
+| `10011` | [MobaContextEntityRollbackProvider](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaContextEntityRollbackProvider.cs) | 运行时 `ContextRegistry.NextEntityId` 与上下文实体集合；裁剪预测新增的实体、binding 和 ID 游标之后的新 snapshot。 | Flow ID/Phase、已删除确认上下文的重建和任意快照对象的深复制。 |
+| `10018` | [MobaEntitasComponentRollbackProvider](../../../Unity/Packages/com.abilitykit.demo.moba.runtime/Runtime/Application/Rollback/MobaEntitasComponentRollbackProvider.cs) | 补齐 Lifetime、ProjectileLauncher、SummonMeta、ProjectileEffectSnapshot、SkillLoadout、Timeline、Tag、取消/销毁/DespawnRequest 的存在性与字段；Active/Passive SkillRuntime 数组逐元素复制。 | 任意 Entitas 组件、Motion/AttributeGroup/Buff 运行时对象及外部监听器。 |
+
+上表标注三个新 Provider 的 Key；实际全部 Provider 由 registry 按 Key 数值排序导入，不保证各专项 Provider 每个字段都可重建。真正承载自增上下文 ID 的是 [ContextRegistry](../../../Unity/Packages/com.abilitykit.context/Runtime/Registry/ContextRegistry.cs)，不是当前 0 个组件的 Entitas `GameContext`；战斗 ActorId 又是另一套 allocator，两者不能用同一个阈值删除。
+
+`RollbackCoordinator` 恢复前会解析所有 Key 并运行支持预校验的 Provider；新的实体/Context Provider 对确认帧身份缺失会报错，避免把**已知不可重建**的状态继续导入。然而预校验不能使全体 Provider 的 `Import` 原子化：后续导入错误仍可能留下部分恢复，必须停止预测并请求完整权威恢复。当前组件 Provider 只实现显式列出的有限字段快照，不能据此推广为“Entitas 完整自动回滚”。哈希计算同样须把开放预测的新状态域纳入稳定排序/序列化，单纯增加 Provider 并不会自动扩大权威哈希覆盖。
+
+当前新增 [聚焦测试](../../../src/AbilityKit.Demo.Moba.Tests/Smoke/MobaEntitasRollbackTests.cs) 验证预测实体/释放实例清除、ActorId 与 Context EntityId 复位、组件存在性和技能数组深拷贝、确认实体缺失预校验、召唤 owner 索引裁剪。它们是局部逻辑证据，不替代真实服务端确认输入、两客户端网络抖动或 Unity 表现重整验收。
+
+---
+
+*文档版本：v3.3 | 最后更新：2026-09-16 | 文档类型：Canonical 设计*

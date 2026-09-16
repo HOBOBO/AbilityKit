@@ -11,6 +11,7 @@ using AbilityKit.Demo.Moba.Attributes;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
+using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Demo.Moba.Services;
@@ -19,6 +20,7 @@ using AbilityKit.ECS;
 using AbilityKit.Effect;
 using AbilityKit.GameplayTags;
 using AbilityKit.Modifiers;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -250,7 +252,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
-        public void TrySampleActorBuffs_ProjectsRuntimeFieldsAndNormalizesInvalidValues()
+        public void TrySampleActorBuffs_ProjectsContinuousTimingAndNormalizesInvalidValues()
         {
             var context = new ActorContext();
             var entity = context.CreateEntity();
@@ -296,8 +298,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(buffs[0].BuffId, Is.EqualTo(1001));
             Assert.That(buffs[0].SourceActorId, Is.EqualTo(20));
             Assert.That(buffs[0].StackCount, Is.EqualTo(2));
-            Assert.That(buffs[0].RemainingSeconds, Is.Zero);
-            Assert.That(buffs[0].IntervalRemainingSeconds, Is.EqualTo(1.5f));
+            Assert.That(buffs[0].RemainingSeconds, Is.EqualTo(5f));
+            Assert.That(buffs[0].IntervalRemainingSeconds, Is.Zero);
             Assert.That(buffs[0].SourceContextId, Is.EqualTo(30));
             Assert.That(buffs[0].RuntimeContextId, Is.EqualTo(40));
             Assert.That(buffs[0].RuntimeContextVersion, Is.EqualTo(3));
@@ -366,12 +368,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void AttributeWorldServicesModule_ResolvesSamplerWithScopedLifetime()
         {
             AttributeWorldServicesModule.ClearCache();
-            var runtimeAssembly = typeof(MobaBattleDiagnosticStateSampler).Assembly;
-            var builder = new WorldContainerBuilder()
-                .AddModule(new AttributeWorldServicesModule(
-                    WorldServiceProfile.Default,
-                    new[] { runtimeAssembly },
-                    new[] { "AbilityKit.Demo.Moba.Services" }));
+            var builder = CreateAttributedRuntimeBuilder();
 
             using var container = builder.Build();
             Assert.That(container.IsRegistered(typeof(MobaBattleDiagnosticStateSampler)), Is.True);
@@ -391,12 +388,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void AttributeWorldServicesModule_ResolvesCollectorPortsAndActorStoresWithoutCycle()
         {
             AttributeWorldServicesModule.ClearCache();
-            var runtimeAssembly = typeof(MobaBattleDiagnosticEventCollector).Assembly;
-            var builder = new WorldContainerBuilder()
-                .AddModule(new AttributeWorldServicesModule(
-                    WorldServiceProfile.Default,
-                    new[] { runtimeAssembly },
-                    new[] { "AbilityKit.Demo.Moba.Services" }));
+            var builder = CreateAttributedRuntimeBuilder();
 
             using var container = builder.Build();
             using var scope = container.CreateScope();
@@ -418,12 +410,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void AttributeWorldServicesModule_ResolvesNarrowPortsOverOneCollector()
         {
             AttributeWorldServicesModule.ClearCache();
-            var runtimeAssembly = typeof(MobaBattleDiagnosticEventCollector).Assembly;
-            var builder = new WorldContainerBuilder()
-                .AddModule(new AttributeWorldServicesModule(
-                    WorldServiceProfile.Default,
-                    new[] { runtimeAssembly },
-                    new[] { "AbilityKit.Demo.Moba.Services" }));
+            var builder = CreateAttributedRuntimeBuilder();
 
             using var container = builder.Build();
             using var scope = container.CreateScope();
@@ -624,6 +611,61 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public AttributeContext Attributes { get; } = new AttributeContext();
             public EffectContainer Effects { get; } = new EffectContainer();
         }
+
+        private sealed class EmptyContinuousModifierQueryService : IMobaContinuousModifierQueryService
+        {
+            public IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(int ownerActorId) =>
+                Array.Empty<MobaContinuousModifierEntry>();
+
+            public IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(
+                int ownerActorId,
+                int targetKind) => Array.Empty<MobaContinuousModifierEntry>();
+
+            public IReadOnlyList<MobaContinuousModifierEntry> GetActiveModifiers(
+                int ownerActorId,
+                int targetKind,
+                int targetId) => Array.Empty<MobaContinuousModifierEntry>();
+
+            public IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(int ownerActorId) =>
+                Array.Empty<MobaContinuousModifierExplainResult>();
+
+            public IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(
+                int ownerActorId,
+                int targetKind) => Array.Empty<MobaContinuousModifierExplainResult>();
+
+            public IReadOnlyList<MobaContinuousModifierExplainResult> ExplainActiveModifiers(
+                int ownerActorId,
+                int targetKind,
+                int targetId) => Array.Empty<MobaContinuousModifierExplainResult>();
+
+            public bool TryExplainModifier(
+                MobaContinuousModifierEntry entry,
+                out MobaContinuousModifierExplainResult result)
+            {
+                result = default;
+                return false;
+            }
+
+            public float EvaluateNumeric(
+                int ownerActorId,
+                int targetKind,
+                int targetId,
+                float baseValue) => baseValue;
+        }
+
+        private static WorldContainerBuilder CreateAttributedRuntimeBuilder()
+        {
+            var runtimeAssembly = typeof(MobaBattleDiagnosticStateSampler).Assembly;
+            return new WorldContainerBuilder()
+                .AddModule(new AttributeWorldServicesModule(
+                    WorldServiceProfile.Default,
+                    new[] { runtimeAssembly },
+                    new[] { "AbilityKit.Demo.Moba.Services" }))
+                .RegisterExternalInstance(new MobaConfigDatabase())
+                .RegisterExternalInstance(new TriggerPlanJsonDatabase())
+                .RegisterExternalInstance<IMobaContinuousModifierQueryService>(
+                    new EmptyContinuousModifierQueryService());
+        }
     }
 
     public sealed class MobaBattleDiagnosticLocalSessionTests
@@ -814,5 +856,6 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 () => 0,
                 () => 0L);
         }
+
     }
 }

@@ -5,6 +5,9 @@ using AbilityKit.Ability.Host.Extensions.FrameSync;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services.StateImport;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Demo.Moba.Rollback;
+using AbilityKit.HFSM.Definition;
 using AbilityKit.Game.Battle;
 using AbilityKit.Game.Battle.Agent;
 using AbilityKit.Protocol.Room;
@@ -80,7 +83,7 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            var result = ImportAuthoritativeState(importer, in snapshot);
+            var result = ImportAuthoritativeState(importer, world, in snapshot);
             if (result.Failed > 0)
             {
                 Log.Warning(
@@ -116,7 +119,7 @@ namespace AbilityKit.Game.Flow
                 return false;
             }
 
-            var result = ImportAuthoritativeState(importer, in snapshot);
+            var result = ImportAuthoritativeState(importer, _handles.RemoteDriven.World, in snapshot);
             if (result.Failed == 0) return true;
 
             Log.Warning(
@@ -142,6 +145,7 @@ namespace AbilityKit.Game.Flow
 
         private static MobaStateImportResult ImportAuthoritativeState(
             MobaLogicWorldStateImporter importer,
+            IWorld world,
             in GatewayStateSyncSnapshot snapshot)
         {
             var actors = snapshot.Actors ?? Array.Empty<GatewayStateSyncActorSnapshot>();
@@ -163,7 +167,32 @@ namespace AbilityKit.Game.Flow
                     actor.OwnerNetId);
             }
 
-            return importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
+            var result = importer.Import(imports, snapshot.Frame, isFullSnapshot: true);
+            if (result.Failed != 0) return result;
+
+            if (world?.Services != null &&
+                world.Services.TryResolve<MobaActorRegistry>(out var registry) && registry != null)
+            {
+                world.Services.TryResolve<StateMachineDefinition>(out var definition);
+                try
+                {
+                    if (!CharacterHfsmGatewayStateImporter.TryApply(in snapshot, registry, definition))
+                        result.Failed++;
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning("[BattleAuthoritativeWorldRecoveryPort] Character HFSM import failed: " + ex.Message);
+                    result.Failed++;
+                }
+            }
+            else if (snapshot.SchemaVersion >= 2 ||
+                snapshot.PayloadOpCode == MobaCharacterHfsmRollbackProvider.DefaultKey ||
+                snapshot.PayloadOpCode == MobaCharacterHfsmWireCodec.CompressedOpCode)
+            {
+                Log.Warning("[BattleAuthoritativeWorldRecoveryPort] Character HFSM baseline is missing.");
+                result.Failed++;
+            }
+            return result;
         }
     }
 

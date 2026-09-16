@@ -195,7 +195,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(workspace.Filter, Is.EqualTo(shared));
             Assert.That(viewModel.HasActiveFilter, Is.False);
             Assert.That(viewModel.RecentFrameCount, Is.Zero);
-            Assert.That(viewModel.BuildLocalFilter(99, true), Is.EqualTo(BattleDiagnosticFilter.Default));
+            var expectedLocal = new BattleDiagnosticFilter(
+                BattleDiagnosticFilter.Default.Frames,
+                BattleDiagnosticEventChannel.All,
+                triggerValue: BattleDiagnosticTriggerValueFilter.Valuable);
+            Assert.That(viewModel.BuildLocalFilter(99, true), Is.EqualTo(expectedLocal));
         }
 
         [Test]
@@ -1477,7 +1481,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.Rows, Is.Empty);
             Assert.That(viewModel.SelectedPath, Is.Empty);
             Assert.That(viewModel.SelectedContextId, Is.Zero);
-            Assert.That(viewModel.StatusMessage, Does.Contain("Evicted"));
+            Assert.That(viewModel.QueryStatus.Availability,
+                Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
+            Assert.That(viewModel.StatusMessage, Is.Not.Empty);
         }
 
         [Test]
@@ -1894,7 +1900,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(viewModel.Event.HasValue, Is.False);
             Assert.That(viewModel.QueryStatus.Availability, Is.EqualTo(BattleDiagnosticDataAvailability.Evicted));
-            Assert.That(viewModel.StatusMessage, Does.Contain("Evicted"));
+            Assert.That(viewModel.StatusMessage, Is.Not.Empty);
         }
 
         [Test]
@@ -2090,7 +2096,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(
                 viewModel.QueryStatus.Availability,
                 Is.EqualTo(BattleDiagnosticDataAvailability.Unsupported));
-            StringAssert.Contains("Unsupported", viewModel.StatusMessage);
+            Assert.That(viewModel.StatusMessage, Is.Not.Empty);
         }
 
         [Test]

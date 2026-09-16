@@ -108,6 +108,31 @@ namespace AbilityKit.BehaviorTree.Editor
             return new CatalogTreeDefinitionResolver(definitions);
         }
 
+        internal static bool TryFindDocument(
+            string treeId,
+            AuthoringSourceDocument currentDocument,
+            out AuthoringSourceDocument document)
+        {
+            if (string.IsNullOrWhiteSpace(treeId))
+            {
+                document = null!;
+                return false;
+            }
+            if (currentDocument?.Tree != null
+                && string.Equals(currentDocument.Tree.TreeId, treeId, StringComparison.Ordinal))
+            {
+                document = Clone(currentDocument);
+                return true;
+            }
+            if (IndexByTreeId(LoadAll()).TryGetValue(treeId, out var found))
+            {
+                document = Clone(found);
+                return true;
+            }
+            document = null!;
+            return false;
+        }
+
         private static List<AuthoringSourceDocument> LoadAll()
         {
             var result = new List<AuthoringSourceDocument>();

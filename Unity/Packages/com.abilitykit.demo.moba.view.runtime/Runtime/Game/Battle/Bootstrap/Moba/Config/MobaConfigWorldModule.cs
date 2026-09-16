@@ -7,6 +7,7 @@ using AbilityKit.Demo.Moba.Config;
 using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.View.Config;
+using AbilityKit.Game.Battle.Component;
 
 namespace AbilityKit.Game.Battle.Moba.Config
 {
@@ -26,6 +27,8 @@ namespace AbilityKit.Game.Battle.Moba.Config
             builder.TryRegister<IMobaConfigDtoBytesDeserializer>(WorldLifetime.Singleton, _ => new LubanMobaConfigDtoBytesDeserializer());
             builder.TryRegister<IMobaConfigDtoProvider>(WorldLifetime.Singleton, _ => EmptyMobaConfigDtoProvider.Instance);
             builder.TryRegister<IMobaConfigLoadProfile>(WorldLifetime.Singleton, _ => ResourcesJsonMobaConfigLoadProfile.Default);
+            builder.TryRegister<CharacterPresentationActionCatalog>(WorldLifetime.Singleton, _ =>
+                CharacterPresentationActionCatalog.Load(_.Resolve<ITextAssetLoader>()));
             builder.TryRegister<IMobaConfigLoadPipeline>(WorldLifetime.Singleton, _ =>
             {
                 _.TryResolve<IMobaConfigTableRegistry>(out var registry);

@@ -75,6 +75,48 @@ namespace AbilityKit.Ability.Editor.Tests
             }
         }
 
+        [Test]
+        public void Validate_RejectsMissingExecuteTriggerReference()
+        {
+            var fixture = CreateFixture();
+            try
+            {
+                fixture.Module.Module.Triggers[0].Actions = CreateExecuteTriggerNode(999999);
+
+                var result = TriggerAuthoringProjectValidator.Validate(fixture.Project);
+
+                Assert.That(result.Diagnostics.Exists(item => item.Code == "TRG3060"), Is.True, result.BuildMessage());
+            }
+            finally
+            {
+                fixture.Dispose();
+            }
+        }
+
+        [Test]
+        public void Validate_RejectsExecuteTriggerCycleAcrossDefinitions()
+        {
+            var fixture = CreateFixture();
+            try
+            {
+                fixture.Module.Module.Triggers[0].Actions = CreateExecuteTriggerNode(1002);
+                fixture.Module.Module.Triggers.Add(new TriggerDefinitionData
+                {
+                    Id = 1002,
+                    Event = "skill.cast",
+                    Actions = CreateExecuteTriggerNode(1001),
+                });
+
+                var result = TriggerAuthoringProjectValidator.Validate(fixture.Project);
+
+                Assert.That(result.Diagnostics.Exists(item => item.Code == "TRG3061"), Is.True, result.BuildMessage());
+            }
+            finally
+            {
+                fixture.Dispose();
+            }
+        }
+
         private static Fixture CreateFixture()
         {
             var project = ScriptableObject.CreateInstance<TriggerAuthoringProjectAsset>();
@@ -129,6 +171,28 @@ namespace AbilityKit.Ability.Editor.Tests
                         }
                     }
                 }
+            };
+        }
+
+        private static TriggerNodeData CreateExecuteTriggerNode(int triggerId)
+        {
+            return new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "execute_trigger",
+                Arguments =
+                {
+                    new TriggerArgumentData
+                    {
+                        Name = "trigger_id",
+                        Value = new TriggerValueRefData
+                        {
+                            Source = TriggerValueSource.Constant,
+                            Type = TriggerValueType.Integer,
+                            IntegerValue = triggerId,
+                        },
+                    },
+                },
             };
         }
 

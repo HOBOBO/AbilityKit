@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Luban 配置表 Excel 的读写 CLI（供 AI/脚本直接操作最终产物 Excel）。
+
+    存在的理由：配置真相源已迁到 Luban 工程的 Datas/*.xlsx，但 AI 缺一个能直接读写 xlsx 的手段——
+    手写 zip/OOXML 只能覆盖自己写出的表，读不了 Excel/人工编辑过的真实文件。
+    这里复用仓库内已有的 EPPlus 4.0.5（com.abilitykit.excel-sync 包内嵌），得到与 Unity 侧同一套读写语义。
+
+    两个必须的处理（EPPlus 4.x 在 .NET Core+ 的既知问题）：
+      1. 必须注册 CodePagesEncodingProvider，否则 EPPlus 内部 Encoding.GetEncoding("IBM437") 抛
+         "IBM437 is not a supported encoding name"。
+      2. Worksheets 索引是 1-based（Worksheets[0] 越界），与 Unity 侧 excel-sync 踩过的是同一个坑。
+
+    本工具不认识业务语义，只认识 **Luban 数据表布局**：
+      A 列 = 标记列（##var / ##type / ## / 数据行留空），B 列起为字段；
+      ##var 行是字段名、##type 行是类型、## 行是注释，其后为数据行。
+    写入语义跟随 Luban：空值要**清除单元格**而不是写空字符串（Luban 以"单元格缺失"判定留空取默认值）。
+
+    边界：只读写 Excel，不碰 SO/JSON。改完 Excel 用 tools/run-moba-config-sync.ps1 -Mode pull-excel
+    把改动下发到项目内（SO → 逐条目 JSON → 运行时数组 JSON）。
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>ExcelTool</AssemblyName>
+    <RootNamespace>AbilityKit.Tools.ExcelTool</RootNamespace>
+    <!-- EPPlus 4.0.5 是 .NET Framework 时代产物；NU1701 是预期的兼容性提示，CS0618 为库内过时 API -->
+    <NoWarn>NU1701;CS0618</NoWarn>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="EPPlus">
+      <HintPath>..\..\Unity\Packages\com.abilitykit.excel-sync\Editor\Plugins\EPPlus\EPPlus.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

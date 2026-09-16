@@ -325,7 +325,27 @@ namespace AbilityKit.Demo.Moba.Services
             return CastSkillInternal(actorId, skillId, slot, aimPos, aimDir, hasAim: true, targetActorId);
         }
 
-        private MobaSkillCastResult CastSkillInternal(int actorId, int skillId, int slot, in Vec3 aimPos, in Vec3 aimDir, bool hasAim, int targetActorId = 0)
+        public MobaSkillCastResult TryCastDerivedSkill(
+            int actorId,
+            int skillId,
+            in Vec3 aimPos,
+            in Vec3 aimDir,
+            int targetActorId)
+        {
+            var policy = new SkillCastPolicy(allowParallel: true, interruptRunning: false);
+            return CastSkillInternal(actorId, skillId, 0, in aimPos, in aimDir, true,
+                targetActorId, policy);
+        }
+
+        private MobaSkillCastResult CastSkillInternal(
+            int actorId,
+            int skillId,
+            int slot,
+            in Vec3 aimPos,
+            in Vec3 aimDir,
+            bool hasAim,
+            int targetActorId = 0,
+            SkillCastPolicy? policyOverride = null)
         {
             var resolvedSkillId = ResolveModifiedSkillId(actorId, skillId);
             if (!TryValidateCombatRules(actorId, out var combatFailure, out var combatMessage))
@@ -345,7 +365,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
             else
             {
-                result = StartPreparedCast(actorId, resolvedSkillId, in prepared);
+                result = StartPreparedCast(actorId, resolvedSkillId, in prepared, policyOverride);
             }
 
             CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in result);
@@ -441,7 +461,11 @@ namespace AbilityKit.Demo.Moba.Services
             return skill.SkillType == SkillType.NormalAttack;
         }
 
-        private MobaSkillCastResult StartPreparedCast(int actorId, int skillId, in SkillCastPreparationResult prepared)
+        private MobaSkillCastResult StartPreparedCast(
+            int actorId,
+            int skillId,
+            in SkillCastPreparationResult prepared,
+            SkillCastPolicy? policyOverride = null)
         {
             var ctx = prepared.Context;
 
@@ -455,7 +479,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             var req = prepared.Request;
             var runner = _runnerRegistry.GetOrCreate(actorId);
-            var policy = _policyResolver.Resolve(skillId, _castPolicy);
+            var policy = _policyResolver.Resolve(skillId, policyOverride ?? _castPolicy);
             var startResult = runner.TryStart(
                 prepared.PreCastConfig,
                 prepared.PreCastPhases,

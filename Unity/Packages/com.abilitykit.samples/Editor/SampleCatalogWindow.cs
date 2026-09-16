@@ -31,6 +31,10 @@ namespace AbilityKit.Samples.Editor
 
         private readonly BufferedSampleLogger _logger = new BufferedSampleLogger();
 
+        // 展开状态跨帧保存在窗口上：自查答案默认折叠，源码片段展开过一次就不再读盘。
+        private readonly HashSet<string> _expandedCheckpoints = new HashSet<string>();
+        private readonly HashSet<string> _expandedCodes = new HashSet<string>();
+
         private SampleCatalog? _catalog;
         private SampleExecutionService? _service;
         private SamplePackageResourceProvider? _resourceProvider;
@@ -145,11 +149,7 @@ namespace AbilityKit.Samples.Editor
 
             if (GUILayout.Button(label, EditorStyles.miniButton))
             {
-                _selected = entry;
-                _frameIndex = 0;
-                _logger.Clear();
-                _status = entry.Title;
-                GUI.FocusControl(null);
+                Select(entry);
             }
 
             GUI.backgroundColor = previous;
@@ -193,9 +193,12 @@ namespace AbilityKit.Samples.Editor
             {
                 _detailScroll = scroll.scrollPosition;
                 DrawGuide(_selected);
+                SampleLearningRenderer.DrawLearningContract(_selected, NavigateTo);
                 DrawRunControls(_selected);
                 DrawOutput();
                 DrawVisual(_selected);
+                SampleLearningRenderer.DrawCheckpoints(_selected, _expandedCheckpoints);
+                SampleLearningRenderer.DrawCodeWalkthrough(_selected, _expandedCodes);
                 DrawNextSteps(_selected);
             }
 
@@ -379,12 +382,33 @@ namespace AbilityKit.Samples.Editor
 
                 if (GUILayout.Button("→ " + next.Title + "   (" + nextId + ")", EditorStyles.miniButton))
                 {
-                    _selected = next;
-                    _frameIndex = 0;
-                    _logger.Clear();
-                    _status = next.Title;
+                    NavigateTo(nextId);
                 }
             }
+        }
+
+        /// <summary>
+        /// 跳转到指定示例。<c>next</c> 链与学习契约里的"前置"都走这里，
+        /// 保证换示例时帧号、输出与展开状态一起复位。
+        /// </summary>
+        private void NavigateTo(string sampleId)
+        {
+            if (_catalog == null || !_catalog.TryGetById(sampleId, out var entry))
+            {
+                _status = "清单里找不到示例：" + sampleId;
+                return;
+            }
+
+            Select(entry);
+        }
+
+        private void Select(SampleCatalogEntry entry)
+        {
+            _selected = entry;
+            _frameIndex = 0;
+            _logger.Clear();
+            _status = entry.Title;
+            GUI.FocusControl(null);
         }
 
         // --- 目录与执行 -------------------------------------------------------

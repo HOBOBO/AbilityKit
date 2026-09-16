@@ -50,8 +50,9 @@ public static class ActorComponentsLookup {
     public const int ActorDespawnRequest = 39;
     public const int ActorBrain = 40;
     public const int ActorStateMachine = 41;
+    public const int CharacterHfsm = 42;
 
-    public const int TotalComponents = 42;
+    public const int TotalComponents = 43;
 
     public static readonly string[] componentNames = {
         "ActorId",
@@ -95,7 +96,8 @@ public static class ActorComponentsLookup {
         "UnitSubType",
         "ActorDespawnRequest",
         "ActorBrain",
-        "ActorStateMachine"
+        "ActorStateMachine",
+        "CharacterHfsm"
     };
 
     public static readonly System.Type[] componentTypes = {
@@ -140,6 +142,7 @@ public static class ActorComponentsLookup {
         typeof(AbilityKit.Demo.Moba.Components.UnitSubTypeComponent),
         typeof(AbilityKit.Demo.Moba.Components.ActorDespawnRequestComponent),
         typeof(AbilityKit.Demo.Moba.Components.ActorBrainComponent),
-        typeof(AbilityKit.Demo.Moba.Components.ActorStateMachineComponent)
+        typeof(AbilityKit.Demo.Moba.Components.ActorStateMachineComponent),
+        typeof(AbilityKit.Demo.Moba.Components.CharacterHfsmComponent)
     };
 }

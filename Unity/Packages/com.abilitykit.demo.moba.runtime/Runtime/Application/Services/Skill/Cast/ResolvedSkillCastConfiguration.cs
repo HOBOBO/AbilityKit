@@ -32,6 +32,17 @@ namespace AbilityKit.Demo.Moba.Services
         public bool HasLevelConfiguration { get; }
         public bool IsValid => SkillId > 0 && SkillLevel > 0;
 
+        public ResolvedSkillCastConfiguration WithRuntimeParameters(int resourceCost, int cooldownMs)
+        {
+            return new ResolvedSkillCastConfiguration(
+                SkillId,
+                SkillLevel,
+                ResourceType,
+                Math.Max(0, resourceCost),
+                Math.Max(0, cooldownMs),
+                HasLevelConfiguration);
+        }
+
         public static bool TryResolve(
             MobaConfigDatabase configs,
             int skillId,

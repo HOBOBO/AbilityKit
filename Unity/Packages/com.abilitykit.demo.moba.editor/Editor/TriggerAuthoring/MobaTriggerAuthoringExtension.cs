@@ -300,6 +300,17 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
             context.RegisterAction(Action("reset_cooldown", "重置冷却", "Action/Skill", WithTargets(
                 OneOf("skill_identity", "skill_id", TriggerValueType.Integer),
                 OneOf("skill_identity", "skill_slot", TriggerValueType.Integer))));
+            context.RegisterAction(Action("add_skill_param_modifier", "添加技能参数修饰", "Action/Skill", WithTargets(
+                Choice("parameter_id", true,
+                    Option(3, "投射物数量"), Option(4, "投射物扇形角度"), Option(5, "投射物持续时间"),
+                    Option(8, "技能资源消耗"), Option(9, "技能冷却时间"), Option(10, "技能施法范围")),
+                Choice("operation", false,
+                    Option(0, "加法"), Option(1, "乘法"), Option(2, "覆盖"), Option(3, "百分比加成")),
+                Required("value", TriggerValueType.Number),
+                Required("source_id", TriggerValueType.Integer),
+                Optional("priority", TriggerValueType.Integer))));
+            context.RegisterAction(Action("remove_skill_param_modifiers", "移除技能参数修饰", "Action/Skill", WithTargets(
+                Required("source_id", TriggerValueType.Integer))));
 
             context.RegisterAction(Action("blink", "闪现", "Action/Motion",
                 Optional("distance", TriggerValueType.Number), Optional("direction_mode", TriggerValueType.Integer),

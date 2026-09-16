@@ -1,0 +1,41 @@
+{
+  "formatVersion": 1,
+  "definitionId": "moba.character.default",
+  "rootMachineId": "life",
+  "machines": [
+    {
+      "id": "life", "initialStateId": "alive", "rememberLastState": false,
+      "states": [
+        { "id": "alive", "behaviorKey": "", "childMachineId": "action", "requiresExitApproval": false },
+        { "id": "dead", "behaviorKey": "", "childMachineId": "", "requiresExitApproval": false }
+      ],
+      "transitions": [
+        { "id": "die", "fromAnyState": false, "fromStateId": "alive", "toStateId": "dead", "triggerId": "", "conditionKey": "dead", "actionKey": "", "priority": 100, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "respawn", "fromAnyState": false, "fromStateId": "dead", "toStateId": "alive", "triggerId": "", "conditionKey": "alive", "actionKey": "", "priority": 100, "forceImmediate": false, "minimumActiveDurationRaw": 0 }
+      ]
+    },
+    {
+      "id": "action", "initialStateId": "idle", "rememberLastState": false,
+      "states": [
+        { "id": "idle", "behaviorKey": "", "childMachineId": "", "requiresExitApproval": false },
+        { "id": "moving", "behaviorKey": "", "childMachineId": "", "requiresExitApproval": false },
+        { "id": "casting", "behaviorKey": "", "childMachineId": "", "requiresExitApproval": false },
+        { "id": "controlled", "behaviorKey": "", "childMachineId": "", "requiresExitApproval": false }
+      ],
+      "transitions": [
+        { "id": "idle.control", "fromAnyState": false, "fromStateId": "idle", "toStateId": "controlled", "triggerId": "", "conditionKey": "controlled", "actionKey": "", "priority": 100, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "moving.control", "fromAnyState": false, "fromStateId": "moving", "toStateId": "controlled", "triggerId": "", "conditionKey": "controlled", "actionKey": "", "priority": 100, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "casting.control", "fromAnyState": false, "fromStateId": "casting", "toStateId": "controlled", "triggerId": "", "conditionKey": "controlled", "actionKey": "", "priority": 100, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "idle.cast", "fromAnyState": false, "fromStateId": "idle", "toStateId": "casting", "triggerId": "", "conditionKey": "casting", "actionKey": "", "priority": 70, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "moving.cast", "fromAnyState": false, "fromStateId": "moving", "toStateId": "casting", "triggerId": "", "conditionKey": "casting", "actionKey": "", "priority": 70, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "controlled.cast", "fromAnyState": false, "fromStateId": "controlled", "toStateId": "casting", "triggerId": "", "conditionKey": "free.cast", "actionKey": "", "priority": 70, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "idle.move", "fromAnyState": false, "fromStateId": "idle", "toStateId": "moving", "triggerId": "", "conditionKey": "moving", "actionKey": "", "priority": 40, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "casting.move", "fromAnyState": false, "fromStateId": "casting", "toStateId": "moving", "triggerId": "", "conditionKey": "moving", "actionKey": "", "priority": 40, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "controlled.move", "fromAnyState": false, "fromStateId": "controlled", "toStateId": "moving", "triggerId": "", "conditionKey": "free.move", "actionKey": "", "priority": 40, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "moving.idle", "fromAnyState": false, "fromStateId": "moving", "toStateId": "idle", "triggerId": "", "conditionKey": "idle", "actionKey": "", "priority": 10, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "casting.idle", "fromAnyState": false, "fromStateId": "casting", "toStateId": "idle", "triggerId": "", "conditionKey": "idle", "actionKey": "", "priority": 10, "forceImmediate": false, "minimumActiveDurationRaw": 0 },
+        { "id": "controlled.idle", "fromAnyState": false, "fromStateId": "controlled", "toStateId": "idle", "triggerId": "", "conditionKey": "free.idle", "actionKey": "", "priority": 10, "forceImmediate": false, "minimumActiveDurationRaw": 0 }
+      ]
+    }
+  ]
+}

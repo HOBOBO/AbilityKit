@@ -55,6 +55,7 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaClientAuthoritativeInterpolationSyncController.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaClientReplicationPipeline.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/MobaAuthoritativeSnapshotState.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Networking/Replication/CharacterHfsmGatewayStateImporter.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Session/Features/Net/BattleReplicationRuntime.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Bootstrap/BattleModes.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Bootstrap/BattleStartPlan.cs" />

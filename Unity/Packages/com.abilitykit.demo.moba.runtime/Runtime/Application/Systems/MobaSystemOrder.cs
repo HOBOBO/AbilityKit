@@ -86,6 +86,8 @@ namespace AbilityKit.Demo.Moba.Systems
         // ========== 清理系统 (PostExecute/Late) ==========
         /// <summary>实体管理器清理</summary>
         public const int EntityManagerCleanup = Base + WorldSystemOrder.Late + 5;
+        // Character state samples the effects of skill, buff and combat systems before despawn.
+        public const int CharacterHfsmTick = Base + WorldSystemOrder.Late + 4;
         /// <summary>投射物同步</summary>
         public const int ProjectileSync = Base + WorldSystemOrder.Late + 10;
         /// <summary>投射物发射器清理</summary>

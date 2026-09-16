@@ -120,7 +120,9 @@ namespace AbilityKit.Game.Battle.Agent
                 push.SchemaVersion,
                 removedActorIds,
                 push.EventWatermark,
-                push.EventEpoch);
+                push.EventEpoch,
+                push.PayloadOpCode,
+                push.Payload == null ? null : (byte[])push.Payload.Clone());
         }
     }
 }

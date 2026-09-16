@@ -220,6 +220,10 @@ namespace AbilityKit.Demo.Moba.Systems.EntityManager
                 {
                     entity.RemoveActorStateMachine();
                 }
+                if (entity.hasCharacterHfsm)
+                {
+                    entity.RemoveCharacterHfsm();
+                }
 
                 entity.Destroy();
             }

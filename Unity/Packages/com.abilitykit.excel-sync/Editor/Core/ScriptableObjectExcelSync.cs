@@ -1103,6 +1103,81 @@ namespace AbilityKit.ExcelSync.Editor
             Debug.Log($"[ExcelSoSync][Import] AfterCount={(afterListObj != null ? afterListObj.Count : -1)}");
         }
 
+        /// <summary>
+        /// 只读 Excel 重建 baseline，**不触碰目标资产的 DataList**。
+        /// 用于导出成功后同步比较基准；读取与归一化路径与导入侧一致，保证 baseline 与 Excel 由构造对齐。
+        /// </summary>
+        public static void RefreshBaselineFromExcel(
+            ScriptableObject targetAsset,
+            string excelFilePath,
+            ExcelTableOptions options,
+            ITableReaderWriterFactory factory,
+            ExcelCodecRegistry registry = null)
+        {
+            if (targetAsset == null) throw new ArgumentNullException(nameof(targetAsset));
+            if (!File.Exists(excelFilePath)) return;
+
+            options ??= new ExcelTableOptions();
+            registry ??= ExcelCodecRegistry.Default;
+
+            using var reader = factory.CreateReader(excelFilePath, options);
+            var headers = reader.GetHeaders();
+
+            var primaryKeyColumnIndex = -1;
+            for (var idx = 0; idx < headers.Count; idx++)
+            {
+                if (string.Equals(headers[idx]?.Trim(), options.PrimaryKeyColumnName?.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    primaryKeyColumnIndex = idx;
+                    break;
+                }
+            }
+
+            if (primaryKeyColumnIndex < 0)
+            {
+                return;   // 无主键列无法建立按主键索引的 baseline
+            }
+
+            var baselineRows = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            foreach (var row in reader.ReadRows(options.DataStartRowIndex))
+            {
+                if (row.Count == 0 || primaryKeyColumnIndex >= row.Count)
+                {
+                    continue;
+                }
+
+                var pk = row[primaryKeyColumnIndex]?.ToString();
+                if (string.IsNullOrWhiteSpace(pk))
+                {
+                    continue;
+                }
+
+                pk = pk.Trim();
+                if (baselineRows.ContainsKey(pk))
+                {
+                    continue;
+                }
+
+                var values = new List<string>(headers.Count);
+                for (var i = 0; i < headers.Count; i++)
+                {
+                    values.Add(i < row.Count ? NormalizeCellString(row[i], headers[i], registry) : string.Empty);
+                }
+
+                baselineRows.Add(pk, values);
+            }
+
+            var baselineAsset = GetOrCreateBaselineAsset(targetAsset);
+            if (baselineAsset == null)
+            {
+                return;
+            }
+
+            baselineAsset.Set(excelFilePath, options, headers, baselineRows);
+            EditorUtility.SetDirty(baselineAsset);
+            AssetDatabase.SaveAssets();
+        }
+
         public static void ExportFromSingleAssetDataList(
             ScriptableObject targetAsset,
             string excelFilePath,
@@ -1128,6 +1203,7 @@ namespace AbilityKit.ExcelSync.Editor
             }
 
             var listObj = GetMemberValue(targetAsset, dataListMember) as System.Collections.IEnumerable;
+            var exportCommitted = false;
             if (listObj != null && File.Exists(excelFilePath))
             {
                 try
@@ -1402,8 +1478,7 @@ namespace AbilityKit.ExcelSync.Editor
                             }
 
                             package.Save();
-                            AssetDatabase.Refresh();
-                            return;
+                            exportCommitted = true;
                         }
                     }
                 }
@@ -1412,6 +1487,17 @@ namespace AbilityKit.ExcelSync.Editor
                     Debug.LogWarning($"[ExcelSoSync][Export] Safe export aborted: {e.Message}");
                     throw;
                 }
+            }
+
+            // 导出成功后刷新 baseline（须在 package 释放后执行，避免文件句柄冲突）。
+            // 不刷新会导致下一次导出仍以旧 baseline 为基准：此时 Local 已等于旧 Base，
+            // 三方合并判定"本地未改：不动"，于是写回过的值被静默丢弃，
+            // Excel 停留在旧值而 SO/JSON 已更新——真相源与派生侧静默分叉。
+            if (exportCommitted)
+            {
+                AssetDatabase.Refresh();
+                RefreshBaselineFromExcel(targetAsset, excelFilePath, options, factory, registry);
+                return;
             }
 
             throw new InvalidOperationException("Safe export requires an existing Excel file and an import-created baseline. Sequential overwrite export is disabled to avoid overwriting others' changes.");

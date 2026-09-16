@@ -544,6 +544,30 @@ namespace AbilityKit.Demo.Moba.Services
             if (list.Count == 0) _summonsByRootOwner.Remove(rootOwnerActorId);
         }
 
+        public void PruneRollbackActors(IReadOnlyCollection<int> confirmedActorIds)
+        {
+            if (confirmedActorIds == null) throw new ArgumentNullException(nameof(confirmedActorIds));
+            var confirmed = new HashSet<int>(confirmedActorIds);
+            var owners = new List<int>(_summonsByRootOwner.Keys);
+            foreach (var owner in owners)
+            {
+                var list = _summonsByRootOwner[owner];
+                list.RemoveAll(id => !confirmed.Contains(id));
+                if (list.Count == 0) _summonsByRootOwner.Remove(owner);
+            }
+
+            var sources = new List<int>(_sourceBySummonActorId.Keys);
+            foreach (var id in sources)
+                if (!confirmed.Contains(id)) _sourceBySummonActorId.Remove(id);
+
+            // Skill runtime rollback restores its own retain collection after entity cleanup.
+            var retains = new List<int>(_skillRuntimeRetainsBySummonActorId.Keys);
+            foreach (var id in retains)
+                if (!confirmed.Contains(id)) _skillRuntimeRetainsBySummonActorId.Remove(id);
+            _queryBuffer.Clear();
+            _lifecycle?.SetActive(MobaTemporaryEntityKind.Summon, ActiveCount, CurrentFrame);
+        }
+
         private void TrackSourceContext(int summonActorId, in SummonSourceContext sourceContext)
         {
             if (summonActorId <= 0) return;

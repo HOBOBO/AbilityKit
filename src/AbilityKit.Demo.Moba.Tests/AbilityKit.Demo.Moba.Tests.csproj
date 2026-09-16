@@ -34,6 +34,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Entities/Components/BattleCharacterHfsmComponent.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Entities/Components/CharacterPresentationActions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Include="..\AbilityKit.Demo.Moba.Console\Configs\**\*" Link="Configs\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

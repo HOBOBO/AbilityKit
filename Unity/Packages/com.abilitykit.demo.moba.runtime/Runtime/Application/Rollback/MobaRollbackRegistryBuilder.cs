@@ -7,6 +7,9 @@ using AbilityKit.Demo.Moba.Services.StateMachine;
 using AbilityKit.Demo.Moba.Services.Passive;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Triggering.Blackboard;
+using AbilityKit.HFSM.Definition;
+using AbilityKit.Ability.World;
+using AbilityKit.Demo.Moba.Services.EntityManager;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
@@ -20,6 +23,16 @@ namespace AbilityKit.Demo.Moba.Rollback
         {
             var registry = new RollbackRegistry();
             if (world?.Services == null) return registry;
+
+            if (world is IEntitasWorld entitasWorld && entitasWorld.Contexts is global::Contexts contexts &&
+                world.Services.TryResolve<ActorIdAllocator>(out var actorIds) && actorIds != null &&
+                world.Services.TryResolve<MobaActorRegistry>(out var actors) && actors != null)
+            {
+                world.Services.TryResolve<MobaEntityManager>(out var entityManager);
+                world.Services.TryResolve<MobaSummonService>(out var summons);
+                registry.Register(new MobaEntitasEntityRollbackProvider(contexts.actor, actorIds, actors, entityManager, summons));
+                registry.Register(new MobaEntitasComponentRollbackProvider(contexts.actor));
+            }
 
             if (world.Services.TryResolve<IOwnerBlackboardStore>(out var ownerBlackboards) &&
                 ownerBlackboards is IOwnerBlackboardSnapshotStore snapshotStore)
@@ -49,6 +62,8 @@ namespace AbilityKit.Demo.Moba.Rollback
                 registry.Register(new MobaActorResourceRollbackProvider(actorRegistry));
                 registry.Register(new MobaBuffTimerRollbackProvider(actorRegistry));
                 registry.Register(new MobaSkillCooldownRollbackProvider(actorRegistry));
+                world.Services.TryResolve<StateMachineDefinition>(out var characterDefinition);
+                registry.Register(new MobaCharacterHfsmRollbackProvider(actorRegistry, characterDefinition));
 
                 if (world.Services.TryResolve<MobaBrainService>(out var brainService) && brainService != null)
                 {
@@ -79,6 +94,9 @@ namespace AbilityKit.Demo.Moba.Rollback
                 registry.Register(random);
             }
 
+            if (world.Services.TryResolve<MobaRuntimeContextService>(out var runtimeContexts) && runtimeContexts != null)
+                registry.Register(new MobaContextEntityRollbackProvider(runtimeContexts));
+
             if (world.Services.TryResolve<MobaTriggerExecutionRuntimeService>(out var triggerExecutions) && triggerExecutions != null)
             {
                 registry.Register(triggerExecutions);
@@ -92,6 +110,16 @@ namespace AbilityKit.Demo.Moba.Rollback
             if (world.Services.TryResolve<MobaSkillEconomyService>(out var skillEconomy) && skillEconomy != null)
             {
                 registry.Register(new MobaSkillEconomyRollbackProvider(skillEconomy));
+            }
+
+            if (world.Services.TryResolve<MobaSkillParamModifierService>(out var skillParamModifiers) && skillParamModifiers != null)
+            {
+                registry.Register(new MobaSkillParamModifierRollbackProvider(skillParamModifiers));
+            }
+
+            if (world.Services.TryResolve<MobaDerivedSkillService>(out var derivedSkills) && derivedSkills != null)
+            {
+                registry.Register(new MobaDerivedSkillRollbackProvider(derivedSkills));
             }
 
             return registry;

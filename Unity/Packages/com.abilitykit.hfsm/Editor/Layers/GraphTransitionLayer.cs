@@ -22,8 +22,8 @@ namespace AbilityKit.HFSM.Editor
         private const float ConditionLabelOffset = 8f;
         private const float BidirectionalOffset = 15f;
 
-        // Static material for GL rendering
-        private static Material s_GLMaterial;
+        // 条件标签背景贴图：缓存复用，避免每帧 new Texture2D 造成泄漏。
+        private static Texture2D s_LabelBackground;
 
         // Cache for edge grouping (source-target pairs)
         private System.Collections.Generic.Dictionary<string, int> _edgeIndexCache = new System.Collections.Generic.Dictionary<string, int>();
@@ -358,7 +358,7 @@ namespace AbilityKit.HFSM.Editor
                 alignment = TextAnchor.MiddleCenter,
                 fontSize = 13,
                 fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white, background = MakeTex(lineColor) }
+                normal = { textColor = Color.white, background = LabelBackground() }
             };
 
             Vector2 labelSize = labelStyle.CalcSize(new GUIContent(labelText));
@@ -416,14 +416,18 @@ namespace AbilityKit.HFSM.Editor
             }
         }
 
-        private Texture2D MakeTex(Color lineColor)
+        private static Texture2D LabelBackground()
         {
-            Texture2D tex = new Texture2D(1, 1);
-            // Use a semi-transparent dark background for better readability with white text
-            Color bgColor = new Color(0.15f, 0.15f, 0.15f, 0.9f);
-            tex.SetPixel(0, 0, bgColor);
-            tex.Apply();
-            return tex;
+            if (s_LabelBackground == null)
+            {
+                s_LabelBackground = new Texture2D(1, 1);
+                // Use a semi-transparent dark background for better readability with white text
+                s_LabelBackground.SetPixel(0, 0, new Color(0.15f, 0.15f, 0.15f, 0.9f));
+                s_LabelBackground.Apply();
+                s_LabelBackground.hideFlags = HideFlags.HideAndDontSave;
+            }
+
+            return s_LabelBackground;
         }
 
         private void DrawRotatedLabel(Rect rect, float angleDegrees, string text, GUIStyle style)
@@ -443,82 +447,5 @@ namespace AbilityKit.HFSM.Editor
             GUI.matrix = oldMatrix;
         }
 
-        private void DrawRotatedBackground(Rect rect, float angleDegrees, Color borderColor)
-        {
-            // Use a simple material for GL rendering
-            if (s_GLMaterial == null)
-            {
-                s_GLMaterial = new Material(Shader.Find("Hidden/Internal-Colored"));
-                s_GLMaterial.hideFlags = HideFlags.HideAndDontSave;
-            }
-
-            Vector3 center = new Vector3(rect.x + rect.width * 0.5f, rect.y + rect.height * 0.5f, 0);
-            Quaternion rotation = Quaternion.Euler(0, 0, angleDegrees);
-
-            // Calculate rotated corners
-            Vector2[] corners = new Vector2[]
-            {
-                new Vector2(rect.x, rect.y),
-                new Vector2(rect.xMax, rect.y),
-                new Vector2(rect.xMax, rect.yMax),
-                new Vector2(rect.x, rect.yMax)
-            };
-
-            Vector2[] rotatedCorners = new Vector2[4];
-            for (int i = 0; i < 4; i++)
-            {
-                Vector3 offset = (Vector3)corners[i] - center;
-                Vector3 rotated = rotation * offset;
-                rotatedCorners[i] = rotated;
-            }
-
-            // Setup GL matrix
-            GL.PushMatrix();
-            GL.LoadIdentity();
-
-            // Draw filled background
-            Color bgColor = new Color(0.2f, 0.2f, 0.2f, 0.9f);
-            GL.Color(bgColor);
-            GL.Begin(GL.QUADS);
-            GL.Vertex3(rotatedCorners[0].x, rotatedCorners[0].y, 0);
-            GL.Vertex3(rotatedCorners[1].x, rotatedCorners[1].y, 0);
-            GL.Vertex3(rotatedCorners[2].x, rotatedCorners[2].y, 0);
-            GL.Vertex3(rotatedCorners[3].x, rotatedCorners[3].y, 0);
-            GL.End();
-
-            // Draw border
-            GL.Color(borderColor);
-            GL.Begin(GL.LINES);
-            GL.Vertex3(rotatedCorners[0].x, rotatedCorners[0].y, 0);
-            GL.Vertex3(rotatedCorners[1].x, rotatedCorners[1].y, 0);
-            GL.Vertex3(rotatedCorners[1].x, rotatedCorners[1].y, 0);
-            GL.Vertex3(rotatedCorners[2].x, rotatedCorners[2].y, 0);
-            GL.Vertex3(rotatedCorners[2].x, rotatedCorners[2].y, 0);
-            GL.Vertex3(rotatedCorners[3].x, rotatedCorners[3].y, 0);
-            GL.Vertex3(rotatedCorners[3].x, rotatedCorners[3].y, 0);
-            GL.Vertex3(rotatedCorners[0].x, rotatedCorners[0].y, 0);
-            GL.End();
-
-            GL.PopMatrix();
-        }
-
-        /// <summary>
-        /// Helper class for scoped GUI color changes.
-        /// </summary>
-        private class GUIColorScope : GUI.Scope
-        {
-            private readonly Color _previousColor;
-
-            public GUIColorScope(Color newColor)
-            {
-                _previousColor = GUI.color;
-                GUI.color = newColor;
-            }
-
-            protected override void CloseScope()
-            {
-                GUI.color = _previousColor;
-            }
-        }
     }
 }

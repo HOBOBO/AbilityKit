@@ -19,7 +19,6 @@ namespace AbilityKit.HFSM.Editor.Export
     {
         private static readonly Dictionary<string, IGraphExporter> _exporters = new Dictionary<string, IGraphExporter>();
         private static readonly Dictionary<string, IGraphDataExtractor> _dataExtractors = new Dictionary<string, IGraphDataExtractor>();
-        private static readonly List<IGraphExtension> _extensions = new List<IGraphExtension>();
 
         private static bool _initialized = false;
 
@@ -169,40 +168,6 @@ namespace AbilityKit.HFSM.Editor.Export
         }
 
         // ========================================================================
-        // 扩展点注册
-        // ========================================================================
-
-        /// <summary>
-        /// 注册图形扩展
-        /// </summary>
-        public static void RegisterExtension(IGraphExtension extension)
-        {
-            if (extension == null)
-                throw new ArgumentNullException(nameof(extension));
-
-            if (!_extensions.Contains(extension))
-            {
-                _extensions.Add(extension);
-            }
-        }
-
-        /// <summary>
-        /// 取消注册图形扩展
-        /// </summary>
-        public static bool UnregisterExtension(IGraphExtension extension)
-        {
-            return _extensions.Remove(extension);
-        }
-
-        /// <summary>
-        /// 获取所有图形扩展
-        /// </summary>
-        public static IReadOnlyList<IGraphExtension> GetAllExtensions()
-        {
-            return _extensions.AsReadOnly();
-        }
-
-        // ========================================================================
         // 便捷导出方法
         // ========================================================================
 
@@ -245,7 +210,6 @@ namespace AbilityKit.HFSM.Editor.Export
                 $"已初始化：{(_initialized ? "是" : "否")}",
                 $"导出器：{_exporters.Count}",
                 $"数据提取器：{_dataExtractors.Count}",
-                $"扩展：{_extensions.Count}",
                 "",
                 "已注册的导出器："
             };
@@ -273,7 +237,6 @@ namespace AbilityKit.HFSM.Editor.Export
         {
             _exporters.Clear();
             _dataExtractors.Clear();
-            _extensions.Clear();
             _initialized = false;
         }
     }

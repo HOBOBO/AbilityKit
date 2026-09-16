@@ -667,6 +667,27 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
     public sealed class AuthoringGraphViewObservationProjectionTests
     {
         [Test]
+        public void CollapseSubtree_HidesDescendantsAndEdgesButKeepsInlineRoot()
+        {
+            var document = BuildGraphDocument();
+            document.Tree.Nodes.First(node => node.Id == "childA").Type = BuiltInNodeTypes.Sequence;
+            document.Tree.Nodes.First(node => node.Id == "childA").ChildIds.Add("nested");
+            document.Tree.Nodes.Add(new NodeDefinition { Id = "nested", Type = BuiltInNodeTypes.Succeed });
+            document.Layout.Add(new NodeLayoutData { NodeId = "nested", X = 0, Y = 320 });
+            var graph = BuildGraph(document);
+
+            graph.SetSubtreeCollapsed("childA", true);
+            Assert.That(graph.GetNodeViewForTests("childA").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(graph.GetNodeViewForTests("nested").style.display.value, Is.EqualTo(DisplayStyle.None));
+            Assert.That(graph.GetEdgeForTests("childA", "root").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(graph.GetEdgeForTests("nested", "childA").style.display.value, Is.EqualTo(DisplayStyle.None));
+
+            graph.SetSubtreeCollapsed("childA", false);
+            Assert.That(graph.GetNodeViewForTests("nested").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(graph.GetEdgeForTests("nested", "childA").style.display.value, Is.EqualTo(DisplayStyle.Flex));
+        }
+
+        [Test]
         public void ApplyObservationProjection_UpdatesChangedNodesWithoutReapplyingUnchangedNodes()
         {
             var document = BuildGraphDocument();
@@ -806,6 +827,28 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
     public sealed class AuthoringInspectorRendererObservationTests
     {
         [Test]
+        public void DefaultValueEditor_DistinguishesUnsetFromExplicitZeroAndRoundTrips()
+        {
+            var document = BuildDocument(out _);
+            var view = new MutableDebugView("inspector-tree", "Inspector Tree");
+            view.SetSample(1, NodeState.Running, onStack: 1, score: 10);
+            var root = new ScrollView();
+            var renderer = new AuthoringInspectorRenderer(root,
+                new SnapshotInspectorHost(document, ObservationSnapshot.Capture(1, 0, view), false));
+
+            renderer.Render(null);
+            var toggle = root.Query<Toggle>().ToList().Single(field => field.label == "使用默认值");
+            toggle.value = true;
+            Assert.That(document.Tree.Blackboard.Keys[0].Default.Int64Value, Is.EqualTo(0L));
+            root.Query<LongField>().First().value = 7L;
+            Assert.That(document.Tree.Blackboard.Keys[0].Default.Int64Value, Is.EqualTo(7L));
+            var restored = AuthoringJson.Load(AuthoringJson.Save(document));
+            Assert.That(restored.Tree.Blackboard.Keys[0].Default.Int64Value, Is.EqualTo(7L));
+            toggle.value = false;
+            Assert.That(document.Tree.Blackboard.Keys[0].Default, Is.Null);
+        }
+
+        [Test]
         public void RuntimeDetails_ReadNodeAndBlackboardFromDisplayedSnapshot()
         {
             var document = BuildDocument(out var node);
@@ -827,6 +870,23 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
             Assert.That(text, Does.Contain("运行中"));
             Assert.That(text, Does.Contain("score = 10"));
             Assert.That(text, Does.Not.Contain("score = 99"));
+        }
+
+        [Test]
+        public void SelectedNode_KeepsWholeBlackboardAndShowsInitialAndLiveValues()
+        {
+            var document = BuildDocument(out var node);
+            document.Tree.Blackboard.Keys[0].Default = PropertyValue.Of(3L);
+            var view = new MutableDebugView("inspector-tree", "Inspector Tree");
+            view.SetSample(1, NodeState.Running, onStack: 1, score: 10);
+            var root = new ScrollView();
+            var renderer = new AuthoringInspectorRenderer(root,
+                new SnapshotInspectorHost(document, ObservationSnapshot.Capture(1, 0, view)));
+
+            renderer.Render(node);
+            var text = string.Join("\n", root.Query<Label>().ToList().Select(label => label.text));
+            Assert.That(text, Does.Contain("初始  3"));
+            Assert.That(text, Does.Contain("实时  10"));
         }
 
         private static AuthoringSourceDocument BuildDocument(out NodeDefinition node)
@@ -851,17 +911,19 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
 
         private sealed class SnapshotInspectorHost : IAuthoringInspectorHost
         {
-            public SnapshotInspectorHost(AuthoringSourceDocument document, ObservationSnapshot snapshot)
+            public SnapshotInspectorHost(AuthoringSourceDocument document, ObservationSnapshot snapshot, bool isReadOnly = true)
             {
                 Document = document;
                 DisplayedObservationSnapshot = snapshot;
+                IsReadOnly = isReadOnly;
             }
 
             public AuthoringSourceDocument Document { get; }
-            public bool IsReadOnly => true;
+            public bool IsReadOnly { get; }
             public ObservationSnapshot? DisplayedObservationSnapshot { get; }
             public ObservationSnapshot? PreviousObservationSnapshot => null;
             public ObservationDiff? DisplayedObservationDiff => null;
+            public ObservationBlackboard? InitialRuntimeBlackboard => null;
 
             public string ResolveNodeDisplayName(NodeDefinition node) => node.Id;
             public void RecordChange() { }

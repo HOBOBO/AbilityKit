@@ -275,6 +275,10 @@ namespace AbilityKit.Demo.Moba.Services
                     if (phase.Economy == null)
                         throw new InvalidOperationException($"Economy skill phase requires economy config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
                     return new EconomyPhaseDefinition(MakePhaseId(phase, fallbackPhaseId), phase.Economy);
+                case SkillPhaseType.DerivedSkill:
+                    if (phase.DerivedSkill == null)
+                        throw new InvalidOperationException($"DerivedSkill phase requires derived skill config. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}");
+                    return new DerivedSkillPhaseDefinition(MakePhaseId(phase, fallbackPhaseId), phase.DerivedSkill);
                 default:
                     throw new InvalidOperationException($"Unsupported skill phase type. phaseId={MakePhaseId(phase, fallbackPhaseId).Value}, type={phase.Type}");
             }
@@ -595,6 +599,22 @@ namespace AbilityKit.Demo.Moba.Services
             public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
             {
                 return new SkillEconomyPhase(PhaseId, _specification);
+            }
+        }
+
+        private sealed class DerivedSkillPhaseDefinition : PhaseDefinition
+        {
+            private readonly SkillDerivedSkillPhaseDTO _specification;
+
+            public DerivedSkillPhaseDefinition(AbilityPipelinePhaseId phaseId, SkillDerivedSkillPhaseDTO specification)
+                : base(phaseId)
+            {
+                _specification = specification;
+            }
+
+            public override IAbilityPipelinePhase<SkillPipelineContext> CreatePhase()
+            {
+                return new SkillDerivedSkillPhase(PhaseId, _specification);
             }
         }
 

@@ -136,7 +136,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/AbilityKitOrientation.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/AbilityKitOrientation.cs",
           "startLine": 10,
           "endLine": 30,
           "explanation": "从 AbilityKitOrientation 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -145,7 +145,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/AbilityKitOrientation.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/AbilityKitOrientation.cs",
           "startLine": 31,
           "endLine": 60,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -290,7 +290,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/PureLogicHostBoundary.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/PureLogicHostBoundary.cs",
           "startLine": 9,
           "endLine": 29,
           "explanation": "从 PureLogicHostBoundary 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -299,7 +299,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/PureLogicHostBoundary.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/PureLogicHostBoundary.cs",
           "startLine": 30,
           "endLine": 60,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -443,7 +443,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/PackageCompositionPath.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/PackageCompositionPath.cs",
           "startLine": 10,
           "endLine": 30,
           "explanation": "从 PackageCompositionPath 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -452,7 +452,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/PackageCompositionPath.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/PackageCompositionPath.cs",
           "startLine": 31,
           "endLine": 71,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -823,7 +823,7 @@
       "codeWalkthrough": [
         {
           "title": "准备玩法词汇和施法上下文",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/FromConceptToSkillSlice.cs",
           "startLine": 21,
           "endLine": 31,
           "explanation": "这段代码先申请技能与状态标签，再创建施法者、目标和 SkillCastContext。后续 Pipeline 的每个阶段都会读写这个上下文。",
@@ -832,7 +832,7 @@
         },
         {
           "title": "定义技能 Pipeline 阶段",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/FromConceptToSkillSlice.cs",
           "startLine": 33,
           "endLine": 58,
           "explanation": "这里把 Fireball 拆成 PreCheck、Consume、Execute、Ongoing 四个阶段，每个阶段只负责一件事：检查、扣蓝、造成伤害、添加持续状态。",
@@ -841,7 +841,7 @@
         },
         {
           "title": "运行 Pipeline 并记录状态",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/FromConceptToSkillSlice.cs",
           "startLine": 60,
           "endLine": 63,
           "explanation": "RunToCompletion 会按顺序执行前面注册的阶段，并把执行状态写回 result，结构化日志中的 PipelineState 就来自这里。",
@@ -850,7 +850,7 @@
         },
         {
           "title": "读取最终结果和事件",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/FromConceptToSkillSlice.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/FromConceptToSkillSlice.cs",
           "startLine": 65,
           "endLine": 78,
           "explanation": "最后读取被修改后的角色属性、状态标签和事件列表，把代码产生的变化转成学习者能直接观察的输出。",
@@ -996,7 +996,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/SampleHostIntegration.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/SampleHostIntegration.cs",
           "startLine": 11,
           "endLine": 31,
           "explanation": "从 SampleHostIntegration 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -1005,7 +1005,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/SampleHostIntegration.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/SampleHostIntegration.cs",
           "startLine": 32,
           "endLine": 91,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -1175,7 +1175,7 @@
       "codeWalkthrough": [
         {
           "title": "监听宿主 Tick 并累计时间",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Foundation/EnvironmentTick.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Foundation/EnvironmentTick.cs",
           "startLine": 16,
           "endLine": 27,
           "explanation": "这里先订阅 OnTick，再输出初始时间和 delta，说明 sample 的时钟完全来自宿主环境。",
@@ -1184,7 +1184,7 @@
         },
         {
           "title": "模拟固定帧并记录每次 Tick",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Foundation/EnvironmentTick.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Foundation/EnvironmentTick.cs",
           "startLine": 29,
           "endLine": 32,
           "explanation": "SimulateFrames 会驱动连续固定帧，OnTick 中的帧号和累计 delta 证明 sample 没有自己驱动主循环。",
@@ -1193,7 +1193,7 @@
         },
         {
           "title": "暂停与恢复的时间语义",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Foundation/EnvironmentTick.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Foundation/EnvironmentTick.cs",
           "startLine": 34,
           "endLine": 45,
           "explanation": "暂停后再次推进时间不会改变 Time，恢复后才继续累积，这正是宿主统一驱动的关键语义。",
@@ -1405,7 +1405,7 @@
       "codeWalkthrough": [
         {
           "title": "声明 Foundation 边界",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Starter/FoundationStarter.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Starter/FoundationStarter.cs",
           "startLine": 16,
           "endLine": 27,
           "explanation": "示例开头输出 Foundation 只包含 Core、World.DI 和宿主抽象，避免把 Demo 或复杂战斗链路混进第一阶段 Starter。",
@@ -1414,7 +1414,7 @@
         },
         {
           "title": "验证 Core 事件与对象池",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Starter/FoundationStarter.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Starter/FoundationStarter.cs",
           "startLine": 29,
           "endLine": 61,
           "explanation": "这里使用 EventDispatcher 发布事件，并用 ObjectPool 租还短生命周期命令对象，证明 Core 基础设施可以独立运行。",
@@ -1423,7 +1423,7 @@
         },
         {
           "title": "验证 World.DI 与宿主 Tick",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Starter/FoundationStarter.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Starter/FoundationStarter.cs",
           "startLine": 63,
           "endLine": 108,
           "explanation": "这里构建 World 容器、解析服务、推进 WorldClock，再由 sample 宿主模拟三帧 Tick，并输出已有 SkillCore 示例入口。",
@@ -1599,7 +1599,7 @@
       "codeWalkthrough": [
         {
           "title": "逐帧输出稳定字段",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/WebTimelineSnapshot.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/WebTimelineSnapshot.cs",
           "startLine": 17,
           "endLine": 27,
           "explanation": "这里用 EmitFrame 逐帧输出 time、entity、position、state 和 event，构成可给 Web timeline 直接消费的稳定结构。",
@@ -1608,7 +1608,7 @@
         },
         {
           "title": "输出 Web 宿主建议",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Onboarding/WebTimelineSnapshot.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Onboarding/WebTimelineSnapshot.cs",
           "startLine": 29,
           "endLine": 35,
           "explanation": "这一段不是泛泛的描述，而是把 canvas、timeline、entity layer 和 event layer 直接告诉宿主，方便后续接图形化 UI。",
@@ -1752,7 +1752,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Foundation/HelloWorld.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Foundation/HelloWorld.cs",
           "startLine": 9,
           "endLine": 29,
           "explanation": "从 HelloWorld 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -1761,7 +1761,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Foundation/HelloWorld.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Foundation/HelloWorld.cs",
           "startLine": 30,
           "endLine": 38,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -2046,7 +2046,7 @@
       "codeWalkthrough": [
         {
           "title": "加载并注册标签配置",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/GameplayTagsOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Tags/GameplayTagsOverview.cs",
           "startLine": 26,
           "endLine": 34,
           "explanation": "这段代码把配置中的标签组加载出来，并通过 SampleConfig.LoadAndRegisterTags 注册到 GameplayTagManager。",
@@ -2055,7 +2055,7 @@
         },
         {
           "title": "创建标签并放入容器",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/GameplayTagsOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Tags/GameplayTagsOverview.cs",
           "startLine": 49,
           "endLine": 66,
           "explanation": "这里用 RequestTag 创建标签对象，再把标签加入 GameplayTagContainer，输出容器数量和父级匹配结果。",
@@ -2064,7 +2064,7 @@
         },
         {
           "title": "比较层级匹配与精确匹配",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/GameplayTagsOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Tags/GameplayTagsOverview.cs",
           "startLine": 68,
           "endLine": 78,
           "explanation": "加入 Damage.Fire.Burning 后，HasTag(Damage.Fire) 可以通过层级关系命中，而 HasTagExact(Damage.Fire) 只看精确标签。",
@@ -2371,7 +2371,7 @@
       "codeWalkthrough": [
         {
           "title": "构建 Required / Blocked 条件",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/TagRequirementsOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Tags/TagRequirementsOverview.cs",
           "startLine": 20,
           "endLine": 43,
           "explanation": "这里先加载标签，再构建 Required 和 Blocked 容器，最后组合成 GameplayTagRequirements。",
@@ -2380,7 +2380,7 @@
         },
         {
           "title": "验证不同场景的判定结果",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/TagRequirementsOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Tags/TagRequirementsOverview.cs",
           "startLine": 47,
           "endLine": 75,
           "explanation": "三个场景分别对应满足、缺少 Required 和命中 Blocked 三种常见分支。",
@@ -2389,7 +2389,7 @@
         },
         {
           "title": "快捷构造方法",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Tags/TagRequirementsOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Tags/TagRequirementsOverview.cs",
           "startLine": 77,
           "endLine": 94,
           "explanation": "Require 与 Block 适合只需要单边条件时快速生成规则对象，减少模板代码。",
@@ -2690,7 +2690,7 @@
       "codeWalkthrough": [
         {
           "title": "初始化 Pipeline 上下文",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Pipeline/PipelineBasics.cs",
           "startLine": 41,
           "endLine": 50,
           "explanation": "这段代码创建 SamplePipelineContext 并写入 targetValid、manaCost、currentMana，后续所有阶段都从这里读取或修改数据。",
@@ -2699,7 +2699,7 @@
         },
         {
           "title": "注册代码构建的即时阶段",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Pipeline/PipelineBasics.cs",
           "startLine": 52,
           "endLine": 88,
           "explanation": "PreCheck 负责目标检查，Validation 负责资源检查与扣蓝，Execute 负责执行效果；每个阶段只承担一个清晰职责。",
@@ -2708,7 +2708,7 @@
         },
         {
           "title": "同步运行并观察状态",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Pipeline/PipelineBasics.cs",
           "startLine": 90,
           "endLine": 96,
           "explanation": "RunToCompletion 会重置阶段、设置 Executing 状态、按顺序执行阶段，最后返回 Completed 或 Failed。",
@@ -2717,7 +2717,7 @@
         },
         {
           "title": "从配置构建阶段链",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Pipeline/PipelineBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Pipeline/PipelineBasics.cs",
           "startLine": 105,
           "endLine": 164,
           "explanation": "配置模式先读取 phase 定义，再通过 Registry 和 Executor 创建可执行阶段，说明 Pipeline 可以从手写代码逐步升级到数据驱动。",
@@ -2991,7 +2991,7 @@
       "codeWalkthrough": [
         {
           "title": "创建 FlowContext 和 Runner",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/FlowBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/FlowBasics.cs",
           "startLine": 19,
           "endLine": 27,
           "explanation": "这段代码把 CastState 写入 FlowContext，并启动 FlowRunner。",
@@ -3000,7 +3000,7 @@
         },
         {
           "title": "宿主循环推进 Step",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/FlowBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/FlowBasics.cs",
           "startLine": 28,
           "endLine": 37,
           "explanation": "这里模拟宿主每帧调用 Step(delta)，证明持续流程由外部时间推进。",
@@ -3009,7 +3009,7 @@
         },
         {
           "title": "定义 Fireball 节点链",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/FlowBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/FlowBasics.cs",
           "startLine": 55,
           "endLine": 82,
           "explanation": "SequenceNode 串联检查、扣蓝、等待和伤害结算，每个 ActionNode 只修改一部分状态。",
@@ -3274,7 +3274,7 @@
       "codeWalkthrough": [
         {
           "title": "运行同一个 FlowRunner 模板",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SequenceAndRace.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/SequenceAndRace.cs",
           "startLine": 38,
           "endLine": 59,
           "explanation": "RunFlow 对三种组合器使用同一套 FlowRunner + Step 观察方式，便于对比组合器语义。",
@@ -3283,7 +3283,7 @@
         },
         {
           "title": "创建 Race 分支",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SequenceAndRace.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/SequenceAndRace.cs",
           "startLine": 71,
           "endLine": 80,
           "explanation": "Fast branch 等待 0.2s，Slow branch 等待 0.4s，因此 Race 应由 Fast branch 先完成。",
@@ -3292,7 +3292,7 @@
         },
         {
           "title": "创建 ParallelAll 分支",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SequenceAndRace.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/SequenceAndRace.cs",
           "startLine": 82,
           "endLine": 94,
           "explanation": "ParallelAll 只有所有分支都完成后才结束，适合等待多个表现或命中反馈。",
@@ -3554,7 +3554,7 @@
       "codeWalkthrough": [
         {
           "title": "运行两个对照场景",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SkillCastTiming.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/SkillCastTiming.cs",
           "startLine": 18,
           "endLine": 34,
           "explanation": "OnRun 先运行正常释放，再运行取消前摇，形成可比较的教学输出。",
@@ -3563,7 +3563,7 @@
         },
         {
           "title": "在帧循环中注入取消",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SkillCastTiming.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/SkillCastTiming.cs",
           "startLine": 36,
           "endLine": 71,
           "explanation": "RunScenario 在指定时间写入 CancelRequested，然后继续 Step，让 Flow 自己处理取消逻辑。",
@@ -3572,7 +3572,7 @@
         },
         {
           "title": "Race 前摇和取消",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Flow/SkillCastTiming.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Flow/SkillCastTiming.cs",
           "startLine": 73,
           "endLine": 127,
           "explanation": "CreateCastFlow 中 RaceNode 同时等待前摇完成和取消信号，先完成者决定后续状态。",
@@ -3836,7 +3836,7 @@
       "codeWalkthrough": [
         {
           "title": "创建 Runner 并注册触发器",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/BasicTrigger.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/BasicTrigger.cs",
           "startLine": 24,
           "endLine": 35,
           "explanation": "这段代码创建 EventBus、上下文和 TriggerRunner，并把 DamageOnHitTrigger 注册到 sample.hit。",
@@ -3845,7 +3845,7 @@
         },
         {
           "title": "发布三次命中事件",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/BasicTrigger.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/BasicTrigger.cs",
           "startLine": 37,
           "endLine": 47,
           "explanation": "三个不同伤害值事件会触发同一个 Trigger，用输出展示 Evaluate 与 Execute 次数差异。",
@@ -3854,7 +3854,7 @@
         },
         {
           "title": "实现条件和动作",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/BasicTrigger.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/BasicTrigger.cs",
           "startLine": 64,
           "endLine": 87,
           "explanation": "DamageOnHitTrigger 把条件判断放在 Evaluate，把扣血和日志放在 Execute。",
@@ -4126,7 +4126,7 @@
       "codeWalkthrough": [
         {
           "title": "创建黑板和 Runner",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerWithCondition.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/TriggerWithCondition.cs",
           "startLine": 30,
           "endLine": 50,
           "explanation": "这段代码注册 DictionaryBlackboard，并把 resolver 注入 TriggerRunner，使 ExecCtx 能解析运行时状态。",
@@ -4135,7 +4135,7 @@
         },
         {
           "title": "构造三种状态场景",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerWithCondition.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/TriggerWithCondition.cs",
           "startLine": 52,
           "endLine": 70,
           "explanation": "OnRun 依次写入低法力、沉默和就绪状态，再发布同类 cast 事件进行对照。",
@@ -4144,7 +4144,7 @@
         },
         {
           "title": "读取并写回黑板",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerWithCondition.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/TriggerWithCondition.cs",
           "startLine": 100,
           "endLine": 150,
           "explanation": "ManaAndStateTrigger 在 Evaluate 中读取 mana/silenced/combo，在 Execute 中扣蓝并增加 combo。",
@@ -4290,7 +4290,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerConfigCompositionAndTemplate.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/TriggerConfigCompositionAndTemplate.cs",
           "startLine": 19,
           "endLine": 39,
           "explanation": "从 TriggerConfigCompositionAndTemplate 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -4299,7 +4299,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Triggering/TriggerConfigCompositionAndTemplate.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Triggering/TriggerConfigCompositionAndTemplate.cs",
           "startLine": 40,
           "endLine": 99,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -4465,7 +4465,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Modifiers/AttributeModifiers.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Modifiers/AttributeModifiers.cs",
           "title": "OnRun",
           "explanation": "按 Base、Equipped、Override、TimeDecay 四段搭建学习路径。",
           "startLine": 18,
@@ -4473,7 +4473,7 @@
           "outputHint": "Modifier.SourceCount"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Modifiers/AttributeModifiers.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Modifiers/AttributeModifiers.cs",
           "title": "CharacterAttributes.GetFinalValue",
           "explanation": "筛选同一 ModifierKey 的 ModifierData 并调用 ModifierCalculator.Calculate。",
           "startLine": 110,
@@ -4711,7 +4711,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Continuous/ContinuousBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Continuous/ContinuousBasics.cs",
           "title": "OnRun",
           "explanation": "按注册、激活、Tick、暂停、恢复、中断顺序展示生命周期。",
           "startLine": 19,
@@ -4719,7 +4719,7 @@
           "outputHint": "DOT.Burning.State"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Continuous/ContinuousBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Continuous/ContinuousBasics.cs",
           "title": "DamageOverTime.Tick",
           "explanation": "说明只在 Active 状态推进时间和扣血，持续时间到期后用 Completed 结束。",
           "startLine": 173,
@@ -4944,7 +4944,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/StateMachine/HFSMBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/StateMachine/HFSMBasics.cs",
           "title": "CreateStateMachine",
           "explanation": "注册 Idle、Casting、Dead 状态与三条转换。",
           "startLine": 48,
@@ -4952,7 +4952,7 @@
           "outputHint": "HFSM.InitialState"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/StateMachine/HFSMBasics.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/StateMachine/HFSMBasics.cs",
           "title": "Step",
           "explanation": "宿主设置 DeltaTime 并调用 fsm.OnLogic 推进一帧。",
           "startLine": 108,
@@ -5189,7 +5189,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/StateMachine/HFSMWithTriggers.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/StateMachine/HFSMWithTriggers.cs",
           "title": "HfsmEventBridge",
           "explanation": "订阅 EventBus 并把业务事件翻译为 HFSM trigger。",
           "startLine": 187,
@@ -5197,7 +5197,7 @@
           "outputHint": "HFSMBridge.Trigger"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/StateMachine/HFSMWithTriggers.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/StateMachine/HFSMWithTriggers.cs",
           "title": "CreateStateMachine",
           "explanation": "注册 Attack、Stagger、Recover、Dead trigger transition。",
           "startLine": 67,
@@ -5419,7 +5419,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/World/WorldLifecycle.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/World/WorldLifecycle.cs",
           "title": "OnRun",
           "explanation": "按注册、创建、Tick、销毁展示 World 生命周期主路径。",
           "startLine": 20,
@@ -5427,7 +5427,7 @@
           "outputHint": "WorldLifecycle.Created"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/World/WorldLifecycle.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/World/WorldLifecycle.cs",
           "title": "CreateWorld",
           "explanation": "通过 WorldContainerBuilder 注册 WorldClock 和 WorldLogger，再构造 LifecycleWorld。",
           "startLine": 61,
@@ -5651,7 +5651,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/World/WorldDIOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/World/WorldDIOverview.cs",
           "title": "OnRun",
           "explanation": "展示服务创建、生命周期对照、业务服务协作和 WorldManager 接入。",
           "startLine": 19,
@@ -5659,7 +5659,7 @@
           "outputHint": "WorldDI.SingletonSame"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/World/WorldDIOverview.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/World/WorldDIOverview.cs",
           "title": "CreateWorld",
           "explanation": "注册 Singleton 服务、Transient 工厂和业务服务。",
           "startLine": 76,
@@ -5894,7 +5894,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/World/HostClientManagement.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/World/HostClientManagement.cs",
           "title": "OnRun",
           "explanation": "按连接、创建、消息发送、断开、Tick、销毁展示 HostRuntime 主路径。",
           "startLine": 26,
@@ -5902,7 +5902,7 @@
           "outputHint": "HostClient.Player2Messages"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/World/HostClientManagement.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/World/HostClientManagement.cs",
           "title": "CreateOptions",
           "explanation": "注册创建、销毁、Tick 和消息发送钩子，观察 HostRuntime 的扩展点。",
           "startLine": 85,
@@ -6090,7 +6090,7 @@
       "codeWalkthrough": [
         {
           "title": "初始化战斗状态并调度输入",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Battle/BattleRuntimeLoop.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Battle/BattleRuntimeLoop.cs",
           "startLine": 14,
           "endLine": 36,
           "explanation": "这里先初始化 BattleHostState 和调度器，再把三条输入分别放入请求帧，展示接受与拒绝的区别。",
@@ -6099,7 +6099,7 @@
         },
         {
           "title": "按固定帧驱动战斗模拟",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Battle/BattleRuntimeLoop.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Battle/BattleRuntimeLoop.cs",
           "startLine": 28,
           "endLine": 50,
           "explanation": "driver.Tick 会在每一帧消费输入并推进模拟，输出中同时包含 frame、命令数、hp 和 next 帧号。",
@@ -6108,7 +6108,7 @@
         },
         {
           "title": "调度器与模拟实现",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Battle/BattleRuntimeLoop.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Battle/BattleRuntimeLoop.cs",
           "startLine": 39,
           "endLine": 104,
           "explanation": "ScheduleInput 演示帧调度规则，TrainingBattleSimulation 演示命令如何转化为血量变化。",
@@ -6248,7 +6248,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Sync/SyncInputFrame.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Sync/SyncInputFrame.cs",
           "title": "OnRun",
           "explanation": "展示接收 FramePacket、构建 RemoteInputFrame、提交输入、Tick 世界和裁剪缓存的完整流程。",
           "startLine": 20,
@@ -6256,7 +6256,7 @@
           "outputHint": "SyncInput.FrameBuilt"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Sync/SyncInputFrame.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Sync/SyncInputFrame.cs",
           "title": "AddPacket",
           "explanation": "把业务输入包装成 FramePacket 并写入 RemoteFrameAggregator。",
           "startLine": 58,
@@ -6407,7 +6407,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Sync/WorldSnapshot.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Sync/WorldSnapshot.cs",
           "title": "OnRun",
           "explanation": "展示构建快照路由、注册解码器、注册直接处理和 Pipeline 阶段。",
           "startLine": 19,
@@ -6415,7 +6415,7 @@
           "outputHint": "WorldSnapshot.RoutingBuilt"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Sync/WorldSnapshot.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Sync/WorldSnapshot.cs",
           "title": "FeedSnapshot",
           "explanation": "将 WorldStateSnapshot 包装到 FramePacket 并喂给 routing.Snapshots。",
           "startLine": 78,
@@ -6570,7 +6570,7 @@
       ],
       "codeWalkthrough": [
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Sync/StateDiffApply.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Sync/StateDiffApply.cs",
           "title": "OnRun",
           "explanation": "展示注册可回滚实体、捕获两帧、计算 diff、应用快照、校验哈希和回滚。",
           "startLine": 18,
@@ -6578,7 +6578,7 @@
           "outputHint": "StateDiff.Computed"
         },
         {
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Sync/StateDiffApply.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Sync/StateDiffApply.cs",
           "title": "SyncHero",
           "explanation": "SyncHero 同时实现 IRollbackable 与 IHashableState，提供回滚状态和业务哈希。",
           "startLine": 79,
@@ -6735,7 +6735,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 19,
           "endLine": 39,
           "explanation": "从 CombatEntityKeyedIndex 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -6744,7 +6744,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 40,
           "endLine": 99,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -6890,7 +6890,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 56,
           "endLine": 76,
           "explanation": "从 CombatSkillLibraryIndex 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -6899,7 +6899,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 77,
           "endLine": 136,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -7046,7 +7046,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 94,
           "endLine": 114,
           "explanation": "从 CombatTargetingIndexProvider 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -7055,7 +7055,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 115,
           "endLine": 174,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -7202,7 +7202,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 141,
           "endLine": 161,
           "explanation": "从 CombatDamagePipelineSample 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -7211,7 +7211,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 162,
           "endLine": 221,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -7357,7 +7357,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 206,
           "endLine": 226,
           "explanation": "从 CombatCollisionRaycast 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -7366,7 +7366,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 227,
           "endLine": 286,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -7514,7 +7514,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 240,
           "endLine": 260,
           "explanation": "从 CombatAreaEnterStayExit 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -7523,7 +7523,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 261,
           "endLine": 320,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -7671,7 +7671,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 326,
           "endLine": 346,
           "explanation": "从 CombatProjectileBasicHit 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -7680,7 +7680,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 347,
           "endLine": 406,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",
@@ -7825,7 +7825,7 @@
       "codeWalkthrough": [
         {
           "title": "样本入口与上下文准备",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 381,
           "endLine": 401,
           "explanation": "从 CombatProjectileHitDamage 的 OnRun 入口开始，准备该样本需要的上下文、数据和宿主无关输出。",
@@ -7834,7 +7834,7 @@
         },
         {
           "title": "核心能力调用与结果输出",
-          "sourceFile": "src/AbilityKit.Samples.Logic/Samples/Combat/CombatFirstWaveSamples.cs",
+          "sourceFile": "Unity/Packages/com.abilitykit.samples/Runtime/Samples/Combat/CombatFirstWaveSamples.cs",
           "startLine": 402,
           "endLine": 461,
           "explanation": "这里调用 package API 或样本运行时能力，并通过稳定 KeyValue 输出让宿主可视化。",

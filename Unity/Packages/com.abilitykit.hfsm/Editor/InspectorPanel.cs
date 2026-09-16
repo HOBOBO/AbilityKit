@@ -55,6 +55,16 @@ namespace AbilityKit.HFSM.Editor
             EditorGUILayout.HelpBox("请选择节点或转换以编辑其属性。", MessageType.Info);
         }
 
+        /// <summary>
+        /// Records an undo snapshot of the graph asset before an inspector edit. It must be called
+        /// before mutating the model, because Undo.RecordObject snapshots the state at call time.
+        /// </summary>
+        private void RecordUndo(string label)
+        {
+            if (_context != null && _context.GraphAsset != null)
+                Undo.RecordObject(_context.GraphAsset, label);
+        }
+
         private void DrawNodeInspector(NodeBase node)
         {
             EditorGUILayout.LabelField("节点检查器", EditorStyles.boldLabel);
@@ -65,6 +75,7 @@ namespace AbilityKit.HFSM.Editor
             string newName = EditorGUILayout.TextField("名称", node.DisplayName);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 DisplayName");
                 node.DisplayName = newName;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -100,6 +111,7 @@ namespace AbilityKit.HFSM.Editor
             isParallel = EditorGUILayout.Toggle("并行状态", isParallel);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("编辑状态机属性");
                 if (isParallel)
                     state.NextParallelBehaviorKeysInternal.Add(string.Empty);
                 else
@@ -126,6 +138,7 @@ namespace AbilityKit.HFSM.Editor
             bool needsExitTime = EditorGUILayout.Toggle("需要退出时间", state.NeedsExitTime);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 NeedsExitTime");
                 state.NeedsExitTime = needsExitTime;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -135,6 +148,7 @@ namespace AbilityKit.HFSM.Editor
             bool isGhost = EditorGUILayout.Toggle("幽灵状态", state.IsGhostState);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 IsGhostState");
                 state.IsGhostState = isGhost;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -146,6 +160,7 @@ namespace AbilityKit.HFSM.Editor
             bool isDefault = EditorGUILayout.Toggle("设为默认状态", state.isDefault);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("编辑状态机属性");
                 if (isDefault && !state.isDefault)
                 {
                     _context.SetDefaultState(state);
@@ -173,7 +188,7 @@ namespace AbilityKit.HFSM.Editor
                 _behaviorInspector = new BehaviorInspector(state, () =>
                 {
                     EditorUtility.SetDirty(_context.GraphAsset);
-                });
+                }, () => RecordUndo("编辑行为"));
                 _lastInspectedState = state;
             }
 
@@ -190,6 +205,7 @@ namespace AbilityKit.HFSM.Editor
             bool rememberLast = EditorGUILayout.Toggle("记住上次状态", stateMachine.RememberLastState);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 RememberLastState");
                 stateMachine.RememberLastState = rememberLast;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -198,6 +214,7 @@ namespace AbilityKit.HFSM.Editor
             var needsExitTime = EditorGUILayout.Toggle("需要退出时间", stateMachine.NeedsExitTime);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 NeedsExitTime");
                 stateMachine.NeedsExitTime = needsExitTime;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -206,6 +223,7 @@ namespace AbilityKit.HFSM.Editor
             var isGhostState = EditorGUILayout.Toggle("幽灵状态", stateMachine.IsGhostState);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 IsGhostState");
                 stateMachine.IsGhostState = isGhostState;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -228,6 +246,7 @@ namespace AbilityKit.HFSM.Editor
                 new[] { "任一行为允许", "全部行为允许" });
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 NextParallelExitPolicy");
                 state.NextParallelExitPolicy = policyIndex == 1
                     ? ParallelExitPolicy.All
                     : ParallelExitPolicy.Any;
@@ -247,6 +266,7 @@ namespace AbilityKit.HFSM.Editor
                 EditorGUILayout.EndVertical();
                 if (GUILayout.Button(new GUIContent("-", "移除此并行行为"), GUILayout.Width(24)))
                 {
+                    RecordUndo("编辑状态机属性");
                     state.NextParallelBehaviorKeysInternal.RemoveAt(bindingIndex);
                     EditorUtility.SetDirty(_context.GraphAsset);
                     EditorGUILayout.EndHorizontal();
@@ -257,6 +277,7 @@ namespace AbilityKit.HFSM.Editor
 
             if (GUILayout.Button("+ 添加并行行为"))
             {
+                RecordUndo("编辑状态机属性");
                 state.NextParallelBehaviorKeysInternal.Add(string.Empty);
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -326,6 +347,7 @@ namespace AbilityKit.HFSM.Editor
             int priority = EditorGUILayout.IntField("优先级", edge.Priority);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 Priority");
                 edge.Priority = priority;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -335,6 +357,7 @@ namespace AbilityKit.HFSM.Editor
             bool forceInstantly = EditorGUILayout.Toggle("立即强制转换", edge.ForceInstantly);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 ForceInstantly");
                 edge.ForceInstantly = forceInstantly;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -344,6 +367,7 @@ namespace AbilityKit.HFSM.Editor
             bool isExit = EditorGUILayout.Toggle("退出转换", edge.IsExitTransition);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 IsExitTransition");
                 edge.IsExitTransition = isExit;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -355,6 +379,7 @@ namespace AbilityKit.HFSM.Editor
             string triggerId = EditorGUILayout.TextField("触发器 ID", edge.NextTriggerId);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 NextTriggerId");
                 edge.NextTriggerId = triggerId;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -376,6 +401,7 @@ namespace AbilityKit.HFSM.Editor
                 edge.NextMinimumActiveDurationRaw);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 NextMinimumActiveDurationRaw");
                 edge.NextMinimumActiveDurationRaw = minimumDurationRaw;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -403,6 +429,7 @@ namespace AbilityKit.HFSM.Editor
             bool useAndLogic = EditorGUILayout.Toggle("满足全部条件（AND）", edge.UseAndLogic);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 UseAndLogic");
                 edge.UseAndLogic = useAndLogic;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -446,6 +473,7 @@ namespace AbilityKit.HFSM.Editor
             GUI.backgroundColor = new Color(1f, 0.4f, 0.4f, 1f);
             if (GUILayout.Button(new GUIContent("X", "删除条件"), EditorStyles.miniButton, GUILayout.Width(20), GUILayout.Height(16)))
             {
+                RecordUndo("删除条件");
                 EditorUtility.SetDirty(_context.GraphAsset);
                 edge.RemoveCondition(condition);
             }
@@ -466,6 +494,7 @@ namespace AbilityKit.HFSM.Editor
                     var menu = new GenericMenu();
                     menu.AddItem(new GUIContent("删除条件"), false, () =>
                     {
+                        RecordUndo("删除条件");
                         EditorUtility.SetDirty(_context.GraphAsset);
                         edge.RemoveCondition(condition);
                     });
@@ -515,6 +544,7 @@ namespace AbilityKit.HFSM.Editor
             selectedIndex = EditorGUILayout.Popup("参数", selectedIndex, parameterNames);
             if (EditorGUI.EndChangeCheck() && selectedIndex >= 0)
             {
+                RecordUndo("修改 ParameterName");
                 condition.ParameterName = parameterNames[selectedIndex];
                 condition.ParameterType = parameters[selectedIndex].ParameterType;
                 EditorUtility.SetDirty(_context.GraphAsset);
@@ -525,6 +555,7 @@ namespace AbilityKit.HFSM.Editor
             ParameterValueType paramType = DrawParameterTypePopup("类型", condition.ParameterType);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 ParameterType");
                 condition.ParameterType = paramType;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -536,6 +567,7 @@ namespace AbilityKit.HFSM.Editor
                 CompareOperator op = DrawCompareOperatorPopup("运算符", condition.Operator);
                 if (EditorGUI.EndChangeCheck())
                 {
+                    RecordUndo("修改 Operator");
                     condition.Operator = op;
                     EditorUtility.SetDirty(_context.GraphAsset);
                 }
@@ -548,6 +580,7 @@ namespace AbilityKit.HFSM.Editor
                 bool boolValue = EditorGUILayout.Toggle("值", condition.BoolValue);
                 if (EditorGUI.EndChangeCheck())
                 {
+                    RecordUndo("修改 BoolValue");
                     condition.BoolValue = boolValue;
                     EditorUtility.SetDirty(_context.GraphAsset);
                 }
@@ -558,6 +591,7 @@ namespace AbilityKit.HFSM.Editor
                 float floatValue = EditorGUILayout.FloatField("值", condition.FloatValue);
                 if (EditorGUI.EndChangeCheck())
                 {
+                    RecordUndo("修改 FloatValue");
                     condition.FloatValue = floatValue;
                     EditorUtility.SetDirty(_context.GraphAsset);
                 }
@@ -568,6 +602,7 @@ namespace AbilityKit.HFSM.Editor
                 int intValue = EditorGUILayout.IntField("值", condition.IntValue);
                 if (EditorGUI.EndChangeCheck())
                 {
+                    RecordUndo("修改 IntValue");
                     condition.IntValue = intValue;
                     EditorUtility.SetDirty(_context.GraphAsset);
                 }
@@ -584,6 +619,7 @@ namespace AbilityKit.HFSM.Editor
             float duration = EditorGUILayout.FloatField("持续时间（秒）", condition.Duration);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 Duration");
                 condition.Duration = duration;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -592,6 +628,7 @@ namespace AbilityKit.HFSM.Editor
             CompareOperator op = DrawCompareOperatorPopup("运算符", condition.Operator);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("修改 Operator");
                 condition.Operator = op;
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -626,6 +663,7 @@ namespace AbilityKit.HFSM.Editor
 
         private void AddCondition(TransitionEdge edge, TransitionCondition condition)
         {
+            RecordUndo("添加条件");
             edge.AddCondition(condition);
             EditorUtility.SetDirty(_context.GraphAsset);
         }
@@ -656,6 +694,7 @@ namespace AbilityKit.HFSM.Editor
             var next = EditorGUILayout.Popup(label, selected, options);
             if (EditorGUI.EndChangeCheck())
             {
+                RecordUndo("编辑状态机属性");
                 assign(next == 0 ? string.Empty : next == 1 ? currentKey : descriptors[next - 2].Key);
                 EditorUtility.SetDirty(_context.GraphAsset);
             }
@@ -667,6 +706,7 @@ namespace AbilityKit.HFSM.Editor
                 var custom = EditorGUILayout.TextField("稳定键", currentKey ?? string.Empty);
                 if (EditorGUI.EndChangeCheck())
                 {
+                    RecordUndo("编辑状态机属性");
                     assign(custom);
                     EditorUtility.SetDirty(_context.GraphAsset);
                 }
@@ -745,12 +785,6 @@ namespace AbilityKit.HFSM.Editor
                 case CompareOperator.LessOrEqual: return "<=";
                 default: return "?";
             }
-        }
-
-        private void RemoveCondition(TransitionEdge edge, TransitionCondition condition)
-        {
-            edge.RemoveCondition(condition);
-            EditorUtility.SetDirty(_context.GraphAsset);
         }
     }
 }

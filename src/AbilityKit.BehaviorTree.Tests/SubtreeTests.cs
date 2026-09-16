@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using AbilityKit.Deterministic;
+using AbilityKit.BehaviorTree.Authoring;
 using Xunit;
 using static AbilityKit.BehaviorTree.Tests.TestNodeTypes;
 
@@ -89,6 +90,51 @@ namespace AbilityKit.BehaviorTree.Tests
         }
 
         [Fact]
+        public void Build_NestedMissingReference_LocatesOuterReferenceNode()
+        {
+            var middle = new TreeDefinition { TreeId = "middle-missing" };
+            middle.Nodes.Add(new NodeDefinition { Id = "innerRef", Type = BuiltInNodeTypes.Subtree });
+            middle.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("not-found"));
+            middle.RootNodeId = "innerRef";
+            var parent = new TreeBuilder()
+                .Node("outerRef", BuiltInNodeTypes.Subtree)
+                .Root("outerRef");
+            parent.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of(middle.TreeId));
+            var resolver = new DictionaryResolver();
+            resolver.Add(middle);
+
+            var build = BehaviorTreeBuildPipeline.Build(parent, CreateRegistry(), resolver);
+
+            Assert.False(build.Success);
+            Assert.Contains(build.Diagnostics, diagnostic =>
+                diagnostic.Code == BehaviorTreeBuildPipeline.ExpansionFailedCode
+                && diagnostic.NodeId == "outerRef"
+                && diagnostic.Message.Contains("innerRef"));
+        }
+
+        [Fact]
+        public void Expand_ConflictingSharedInitialValues_RequiresBindingOrIsolation()
+        {
+            var child = LeafTree("initial-child", BuiltInNodeTypes.Succeed, "leaf");
+            child.Blackboard.Keys.Add(new BlackboardKeyDefinition
+            {
+                Name = "count", Type = TreeValueType.Int64, Default = PropertyValue.Of(9L),
+            });
+            var parent = new TreeBuilder()
+                .Blackboard("count", TreeValueType.Int64)
+                .Node("sub", BuiltInNodeTypes.Subtree)
+                .Root("sub");
+            parent.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of(child.TreeId));
+            var resolver = new DictionaryResolver();
+            resolver.Add(child);
+
+            var error = Assert.Throws<SubtreeExpansionException>(() =>
+                TreeCompiler.ExpandReferences(parent, resolver, CreateRegistry()));
+            Assert.Equal("sub", error.ReferenceNodeId);
+            Assert.Contains("初始值冲突", error.Message);
+        }
+
+        [Fact]
         public void Expand_Cycle_Throws()
         {
             var a = new TreeDefinition { TreeId = "a" };
@@ -104,7 +150,7 @@ namespace AbilityKit.BehaviorTree.Tests
             var resolver = new DictionaryResolver();
             resolver.Add(a);
             resolver.Add(b);
-            Assert.Throws<System.InvalidOperationException>(() => TreeCompiler.ExpandReferences(a, resolver));
+            Assert.ThrowsAny<System.InvalidOperationException>(() => TreeCompiler.ExpandReferences(a, resolver));
         }
 
         [Fact]
@@ -115,7 +161,7 @@ namespace AbilityKit.BehaviorTree.Tests
                 .Root("root");
             parent.Nodes[0].Properties.Set(SubtreeNode.TreeIdProperty, PropertyValue.Of("missing"));
 
-            Assert.Throws<System.InvalidOperationException>(
+            Assert.ThrowsAny<System.InvalidOperationException>(
                 () => TreeCompiler.ExpandReferences(parent, new DictionaryResolver()));
         }
 
@@ -147,7 +193,7 @@ namespace AbilityKit.BehaviorTree.Tests
             child2.RootNodeId = "c2";
             var resolver2 = new DictionaryResolver();
             resolver2.Add(child2);
-            Assert.Throws<System.InvalidOperationException>(
+            Assert.ThrowsAny<System.InvalidOperationException>(
                 () => TreeCompiler.ExpandReferences(parent, resolver2));
         }
 
@@ -350,7 +396,7 @@ namespace AbilityKit.BehaviorTree.Tests
             var resolver = new DictionaryResolver();
             resolver.Add(child);
 
-            Assert.Throws<System.InvalidOperationException>(
+            Assert.ThrowsAny<System.InvalidOperationException>(
                 () => TreeCompiler.ExpandReferences(parent, resolver, CreateRegistry()));
         }
     }

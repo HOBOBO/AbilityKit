@@ -116,6 +116,7 @@ ability-kit/
 
 ## 相关 skill
 
+- **新增/修改 MOBA 英雄技能的规范**（落点判定树：能力组件 vs continuous runtime vs 配置 vs 世界级服务；交付清单与门禁）见 [moba-skill-authoring](../moba-skill-authoring/SKILL.md)
 - 客户端预测/回滚/reconcile 见 [framesync-prediction-rollback](../framesync-prediction-rollback/SKILL.md)
 - Session/Flow 类代码重构（State/Handles/Controllers）见 [state-handles-controllers](../state-handles-controllers/SKILL.md)
 - 多人联网 SDK 架构（network.sdk/room/battle 分层、coordinator 契约包、传输可插拔、序列化统一模型）见 [coordinator](../coordinator/SKILL.md)

@@ -4,6 +4,7 @@ using AbilityKit.BehaviorTree.Blackboard;
 using AbilityKit.BehaviorTree.Definition;
 using AbilityKit.BehaviorTree.Nodes;
 using AbilityKit.BehaviorTree.Registry;
+using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 
 namespace AbilityKit.BehaviorTree.Execution
 {
@@ -42,6 +43,19 @@ namespace AbilityKit.BehaviorTree.Execution
             NodeSourceTree = nodeSourceTree;
             NodeSourceNode = nodeSourceNode;
             SubtreeInstances = subtreeInstances;
+        }
+    }
+
+    public sealed class SubtreeExpansionException : InvalidOperationException
+    {
+        public string SourceTreeId { get; }
+        public string ReferenceNodeId { get; }
+
+        public SubtreeExpansionException(string sourceTreeId, string referenceNodeId, Exception inner)
+            : base($"行为树 '{sourceTreeId}' 的子树节点 '{referenceNodeId}' 展开失败：{inner.Message}", inner)
+        {
+            SourceTreeId = sourceTreeId;
+            ReferenceNodeId = referenceNodeId;
         }
     }
 
@@ -119,27 +133,39 @@ namespace AbilityKit.BehaviorTree.Execution
 
             if (sourceNode.Type == BuiltInNodeTypes.Subtree)
             {
-                var refTreeId = ReadReferencedTreeId(sourceNode, sourceTreeId);
-                if (!resolver.TryResolve(refTreeId, out var refTree))
-                    throw new InvalidOperationException(
-                        $"子树节点 '{sourceNode.Id}' 引用了不存在的行为树 '{refTreeId}'。");
-                if (!visiting.Add(refTree.TreeId))
-                    throw new InvalidOperationException(
-                        $"检测到子树循环引用，涉及行为树 '{refTree.TreeId}'。");
+                try
+                {
+                    var refTreeId = ReadReferencedTreeId(sourceNode, sourceTreeId);
+                    if (!resolver.TryResolve(refTreeId, out var refTree))
+                        throw new InvalidOperationException(
+                            $"子树节点 '{sourceNode.Id}' 引用了不存在的行为树 '{refTreeId}'。");
+                    if (!visiting.Add(refTree.TreeId))
+                        throw new InvalidOperationException(
+                            $"检测到子树循环引用，涉及行为树 '{refTree.TreeId}'。");
 
-                var childPrefix = idPrefix.Length == 0
-                    ? sourceNode.Id
-                    : idPrefix + "." + sourceNode.Id;
-                var childKeyMap = BuildChildKeyMap(
-                    sourceNode, sourceTree, refTree, childPrefix, keyMap, registry,
-                    result.Blackboard, blackboardByName);
-                var expandedRootId = ExpandSubtree(
-                    refTree.TreeId, refTree.RootNodeId, childPrefix, refTree, resolver, registry,
-                    childKeyMap, result, blackboardByName, provenance, sourceNodes,
-                    subtreeInstances, visiting);
-                visiting.Remove(refTree.TreeId);
-                subtreeInstances.Add(new SubtreeInstance(expandedRootId, refTree.TreeId));
-                return expandedRootId;
+                    var childPrefix = idPrefix.Length == 0
+                        ? sourceNode.Id
+                        : idPrefix + "." + sourceNode.Id;
+                    var childKeyMap = BuildChildKeyMap(
+                        sourceNode, sourceTree, refTree, childPrefix, keyMap, registry,
+                        result.Blackboard, blackboardByName);
+                    var expandedRootId = ExpandSubtree(
+                        refTree.TreeId, refTree.RootNodeId, childPrefix, refTree, resolver, registry,
+                        childKeyMap, result, blackboardByName, provenance, sourceNodes,
+                        subtreeInstances, visiting);
+                    visiting.Remove(refTree.TreeId);
+                    subtreeInstances.Add(new SubtreeInstance(expandedRootId, refTree.TreeId));
+                    return expandedRootId;
+                }
+                catch (SubtreeExpansionException ex) when (ex.SourceTreeId == sourceTreeId
+                    && ex.ReferenceNodeId == sourceNode.Id)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    throw new SubtreeExpansionException(sourceTreeId, sourceNode.Id, ex);
+                }
             }
 
             var newId = idPrefix.Length == 0 ? sourceNode.Id : idPrefix + "." + sourceNode.Id;
@@ -278,6 +304,9 @@ namespace AbilityKit.BehaviorTree.Execution
                 if (existing.Type != source.Type)
                     throw new InvalidOperationException(
                         $"子树黑板键 '{runtimeName}' 类型冲突：{existing.Type} 与 {source.Type}。");
+                if (!DefaultValuesEqual(existing, source))
+                    throw new InvalidOperationException(
+                        $"共享黑板键 '{runtimeName}' 的初始值冲突：已有 {existing.Default?.ToString() ?? "类型默认值"}，子树为 {source.Default?.ToString() ?? "类型默认值"}。请显式绑定或隔离该键。");
                 return;
             }
 
@@ -289,6 +318,18 @@ namespace AbilityKit.BehaviorTree.Execution
             };
             byName.Add(runtimeName, clone);
             schema.Keys.Add(clone);
+        }
+
+        private static bool DefaultValuesEqual(BlackboardKeyDefinition left, BlackboardKeyDefinition right)
+        {
+            return left.Type switch
+            {
+                ValueType.Bool => (left.Default?.BoolValue ?? false) == (right.Default?.BoolValue ?? false),
+                ValueType.Int64 => (left.Default?.Int64Value ?? 0L) == (right.Default?.Int64Value ?? 0L),
+                ValueType.Fixed64 => (left.Default?.Fixed64Raw ?? 0L) == (right.Default?.Fixed64Raw ?? 0L),
+                ValueType.String => string.Equals(left.Default?.StringValue ?? "", right.Default?.StringValue ?? "", StringComparison.Ordinal),
+                _ => true,
+            };
         }
 
         private static string ReadReferencedTreeId(NodeDefinition node, string sourceTreeId)

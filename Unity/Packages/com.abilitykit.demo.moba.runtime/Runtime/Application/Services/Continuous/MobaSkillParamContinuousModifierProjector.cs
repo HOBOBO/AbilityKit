@@ -73,6 +73,9 @@ namespace AbilityKit.Demo.Moba.Services
                 case 5: return MobaSkillParamModifierKeys.Projectile.DurationMs;
                 case 6: return MobaSkillParamModifierKeys.Skill.SkillId;
                 case 7: return MobaSkillParamModifierKeys.Summon.SummonId;
+                case 8: return MobaSkillParamModifierKeys.Skill.ResourceCost;
+                case 9: return MobaSkillParamModifierKeys.Skill.CooldownMs;
+                case 10: return MobaSkillParamModifierKeys.Skill.CastRange;
                 default: return ModifierKey.Create(ModifierKey.Categories.Projectile, ToByte(targetId));
             }
         }

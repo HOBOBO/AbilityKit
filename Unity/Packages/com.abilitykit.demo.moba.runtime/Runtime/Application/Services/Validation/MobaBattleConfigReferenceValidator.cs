@@ -15,6 +15,7 @@ namespace AbilityKit.Demo.Moba.Services
         private const string Source = "battle.config.references";
         private const int DefaultSkillReleaseTriggerId = 900101011;
         private const int DefaultSkillCommitTriggerId = 900101012;
+        private const int MaxExpandedSkillFlowPhaseCount = 512;
 
         public string Name => Source;
 
@@ -172,6 +173,8 @@ namespace AbilityKit.Demo.Moba.Services
                     ValidateSkillFlow(config, triggers, report, preCastFlow, $"skill.{skill.Id}.preCastFlow.{skill.PreCastFlowId}", skill.Id);
                 }
             }
+
+            ValidateDerivedSkillGraph(config, report);
         }
 
         private static bool ValidateSkillLevelConfiguration(
@@ -908,6 +911,16 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 ValidateSkillPhase(config, triggers, report, flow.Phases[i], $"{path}.phases[{i}]", businessId);
             }
+
+            var expandedCount = CountExpandedPhases(flow.Phases, MaxExpandedSkillFlowPhaseCount + 1L);
+            if (expandedCount > MaxExpandedSkillFlowPhaseCount)
+            {
+                report.Error(
+                    Source,
+                    path + ".phases",
+                    $"skill flow expands to more than {MaxExpandedSkillFlowPhaseCount} phases; split the flow or reduce repeat counts.",
+                    businessId.ToString());
+            }
         }
 
         private static void ValidateSkillPhase(MobaConfigDatabase config, TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillPhaseDTO phase, string path, int businessId)
@@ -972,6 +985,9 @@ namespace AbilityKit.Demo.Moba.Services
                 case SkillPhaseType.Economy:
                     ValidateEconomyPhase(report, phase.Economy, path + ".economy", businessId);
                     break;
+                case SkillPhaseType.DerivedSkill:
+                    ValidateDerivedSkillPhase(config, report, phase.DerivedSkill, path + ".derivedSkill", businessId);
+                    break;
                 default:
                     report.Warning(Source, path + ".type", "skill phase type is not recognized.", businessId.ToString());
                     break;
@@ -1001,6 +1017,7 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             if (wait.TimeoutMs < 0) report.Error(Source, path + ".timeoutMs", "waitUntil timeout is negative.", businessId.ToString());
+            else if (wait.TimeoutMs == 0) report.Warning(Source, path + ".timeoutMs", "waitUntil has no timeout and can keep the skill runtime alive indefinitely.", businessId.ToString());
             if (!SkillWaitConditionCatalog.TryValidate(wait, out var error))
             {
                 report.Error(Source, path + ".condition", error, businessId.ToString());
@@ -1048,21 +1065,164 @@ namespace AbilityKit.Demo.Moba.Services
 
             if (string.IsNullOrWhiteSpace(wait.EventId)) report.Error(Source, path + ".eventId", "event id is required.", businessId.ToString());
             if (wait.TimeoutMs < 0) report.Error(Source, path + ".timeoutMs", "event wait timeout is negative.", businessId.ToString());
+            else if (wait.TimeoutMs == 0) report.Warning(Source, path + ".timeoutMs", "event wait has no timeout and can keep the skill runtime alive indefinitely.", businessId.ToString());
             var filters = wait.Filters;
-            if (filters == null) return;
-            for (var i = 0; i < filters.Length; i++)
+            if (filters != null)
             {
-                var filter = filters[i];
-                var filterPath = $"{path}.filters[{i}]";
-                if (filter == null)
+                for (var i = 0; i < filters.Length; i++)
                 {
-                    report.Error(Source, filterPath, "event filter is null.", businessId.ToString());
+                    var filter = filters[i];
+                    var filterPath = $"{path}.filters[{i}]";
+                    if (filter == null)
+                    {
+                        report.Error(Source, filterPath, "event filter is null.", businessId.ToString());
+                        continue;
+                    }
+                    if (filter.FieldId <= 0) report.Error(Source, filterPath + ".fieldId", "payload field id must be positive.", businessId.ToString());
+                    var dynamicValues = (filter.UseCasterActorId ? 1 : 0) + (filter.UseTargetActorId ? 1 : 0) + (filter.UseSkillId ? 1 : 0);
+                    if (dynamicValues > 1) report.Error(Source, filterPath, "event filter can use only one contextual expected value.", businessId.ToString());
+                }
+            }
+
+            var captures = wait.Captures;
+            if (captures == null) return;
+            var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var i = 0; i < captures.Length; i++)
+            {
+                var capture = captures[i];
+                var capturePath = $"{path}.captures[{i}]";
+                if (capture == null)
+                {
+                    report.Error(Source, capturePath, "event capture is null.", businessId.ToString());
                     continue;
                 }
-                if (filter.FieldId <= 0) report.Error(Source, filterPath + ".fieldId", "payload field id must be positive.", businessId.ToString());
-                var dynamicValues = (filter.UseCasterActorId ? 1 : 0) + (filter.UseTargetActorId ? 1 : 0) + (filter.UseSkillId ? 1 : 0);
-                if (dynamicValues > 1) report.Error(Source, filterPath, "event filter can use only one contextual expected value.", businessId.ToString());
+                if (capture.FieldId <= 0) report.Error(Source, capturePath + ".fieldId", "payload field id must be positive.", businessId.ToString());
+                if (string.IsNullOrWhiteSpace(capture.Key))
+                    report.Error(Source, capturePath + ".key", "capture Blackboard key is required.", businessId.ToString());
+                else if (!keys.Add(capture.Scope + ":" + capture.Key.Trim()))
+                    report.Error(Source, capturePath + ".key", "capture Blackboard key is duplicated in the same scope.", businessId.ToString());
+                if (!Enum.IsDefined(typeof(SkillEventCaptureScope), capture.Scope))
+                    report.Error(Source, capturePath + ".scope", "capture scope is not recognized.", businessId.ToString());
+                if (!Enum.IsDefined(typeof(SkillEventCaptureValueType), capture.ValueType))
+                    report.Error(Source, capturePath + ".valueType", "capture value type is not recognized.", businessId.ToString());
             }
+        }
+
+        private static void ValidateDerivedSkillPhase(
+            MobaConfigDatabase config,
+            MobaRuntimeValidationReport report,
+            SkillDerivedSkillPhaseDTO derived,
+            string path,
+            int businessId)
+        {
+            if (derived == null)
+            {
+                report.Error(Source, path, "derived skill phase has no config.", businessId.ToString());
+                return;
+            }
+            RequiredRef(Ref<SkillMO>(config.TryGetSkill), derived.SkillId, report, path + ".skillId", "derived skill", businessId);
+            if (derived.SkillId == businessId)
+                report.Error(Source, path + ".skillId", "a skill cannot directly derive itself.", businessId.ToString());
+            if (derived.MaxDepth < 1 || derived.MaxDepth > 16)
+                report.Error(Source, path + ".maxDepth", "derived skill max depth must be in range [1, 16].", businessId.ToString());
+        }
+
+        private static long CountExpandedPhases(IReadOnlyList<SkillPhaseDTO> phases, long stopAfter)
+        {
+            if (phases == null) return 0;
+            long count = 0;
+            for (var i = 0; i < phases.Count && count < stopAfter; i++)
+                count = SaturatingAdd(count, CountExpandedPhase(phases[i], stopAfter), stopAfter);
+            return count;
+        }
+
+        private static long CountExpandedPhase(SkillPhaseDTO phase, long stopAfter)
+        {
+            if (phase == null) return 1;
+            long descendants = 0;
+            var type = (SkillPhaseType)phase.Type;
+            if (type == SkillPhaseType.Sequence || type == SkillPhaseType.Parallel || type == SkillPhaseType.Race)
+                descendants = CountExpandedPhases(phase.Children, stopAfter);
+            else if (type == SkillPhaseType.Repeat && phase.Repeat?.Phase != null)
+            {
+                var child = CountExpandedPhase(phase.Repeat.Phase, stopAfter);
+                var repeat = Math.Max(0, phase.Repeat.RepeatCount);
+                descendants = child > 0 && repeat > stopAfter / child ? stopAfter : child * repeat;
+            }
+            return SaturatingAdd(1, descendants, stopAfter);
+        }
+
+        private static long SaturatingAdd(long left, long right, long maximum)
+        {
+            if (left >= maximum || right >= maximum || left > maximum - right) return maximum;
+            return left + right;
+        }
+
+        private static void ValidateDerivedSkillGraph(MobaConfigDatabase config, MobaRuntimeValidationReport report)
+        {
+            var graph = new Dictionary<int, HashSet<int>>();
+            foreach (var skill in All<SkillMO>(config))
+            {
+                if (skill == null) continue;
+                var dependencies = new HashSet<int>();
+                if (skill.CastFlowId > 0 && config.TryGetSkillFlow(skill.CastFlowId, out var castFlow) && castFlow != null)
+                    CollectDerivedSkillIds(castFlow.Phases, dependencies);
+                if (skill.PreCastFlowId > 0 && config.TryGetSkillFlow(skill.PreCastFlowId, out var preFlow) && preFlow != null)
+                    CollectDerivedSkillIds(preFlow.Phases, dependencies);
+                graph[skill.Id] = dependencies;
+            }
+
+            var states = new Dictionary<int, byte>();
+            var stack = new List<int>();
+            var reported = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var skillId in graph.Keys)
+                VisitDerivedSkill(skillId, graph, states, stack, reported, report);
+        }
+
+        private static void CollectDerivedSkillIds(IReadOnlyList<SkillPhaseDTO> phases, HashSet<int> result)
+        {
+            if (phases == null) return;
+            for (var i = 0; i < phases.Count; i++) CollectDerivedSkillIds(phases[i], result);
+        }
+
+        private static void CollectDerivedSkillIds(SkillPhaseDTO phase, HashSet<int> result)
+        {
+            if (phase == null) return;
+            if ((SkillPhaseType)phase.Type == SkillPhaseType.DerivedSkill && phase.DerivedSkill?.SkillId > 0)
+                result.Add(phase.DerivedSkill.SkillId);
+            CollectDerivedSkillIds(phase.Children, result);
+            if (phase.Repeat?.Phase != null) CollectDerivedSkillIds(phase.Repeat.Phase, result);
+        }
+
+        private static void VisitDerivedSkill(
+            int skillId,
+            Dictionary<int, HashSet<int>> graph,
+            Dictionary<int, byte> states,
+            List<int> stack,
+            HashSet<string> reported,
+            MobaRuntimeValidationReport report)
+        {
+            if (states.TryGetValue(skillId, out var state) && state == 2) return;
+            if (state == 1)
+            {
+                var start = stack.IndexOf(skillId);
+                if (start < 0) start = 0;
+                var cycle = new List<int>();
+                for (var i = start; i < stack.Count; i++) cycle.Add(stack[i]);
+                cycle.Add(skillId);
+                var signature = string.Join("->", cycle);
+                if (reported.Add(signature))
+                    report.Error(Source, $"skill.{skillId}.derivedSkillGraph", $"derived skill cycle detected: {signature}.", skillId.ToString());
+                return;
+            }
+
+            states[skillId] = 1;
+            stack.Add(skillId);
+            if (graph.TryGetValue(skillId, out var dependencies))
+                foreach (var dependency in dependencies)
+                    if (graph.ContainsKey(dependency)) VisitDerivedSkill(dependency, graph, states, stack, reported, report);
+            stack.RemoveAt(stack.Count - 1);
+            states[skillId] = 2;
         }
 
         private static void ValidateWindowPhase(TriggerPlanJsonDatabase triggers, MobaRuntimeValidationReport report, SkillWindowPhaseDTO window, string path, int businessId)

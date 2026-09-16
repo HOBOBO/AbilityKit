@@ -14,6 +14,7 @@ namespace AbilityKit.HFSM.Editor
     {
         private StateNode targetState;
         private Action onDirty;
+        private Action onBeforeChange;
 
         private const float INDENT_WIDTH = 15f;
         private const float ITEM_HEIGHT = 22f;
@@ -28,10 +29,11 @@ namespace AbilityKit.HFSM.Editor
         // Scroll position for behavior list
         private Vector2 scrollPosition;
 
-        public BehaviorInspector(StateNode state, Action onDirty)
+        public BehaviorInspector(StateNode state, Action onDirty, Action onBeforeChange = null)
         {
             this.targetState = state;
             this.onDirty = onDirty;
+            this.onBeforeChange = onBeforeChange;
         }
 
         public void Draw()
@@ -184,6 +186,8 @@ namespace AbilityKit.HFSM.Editor
             GUI.backgroundColor = new Color(1f, 0.5f, 0.5f);
             if (GUILayout.Button(new GUIContent("X", "删除行为"), EditorStyles.miniButton, GUILayout.Width(20)))
             {
+                // Recorded at the call site because DeleteBehaviorItem recurses over children.
+                onBeforeChange?.Invoke();
                 DeleteBehaviorItem(item);
                 EditorGUILayout.EndHorizontal();
                 return;
@@ -299,6 +303,9 @@ namespace AbilityKit.HFSM.Editor
             var targetItem = targetState.GetBehaviorItem(targetId);
             if (targetItem == null)
                 return;
+
+            // Undo must be recorded before this drop's first mutation.
+            onBeforeChange?.Invoke();
 
             // Remove from old parent
             if (!string.IsNullOrEmpty(draggedItem.parentId))
@@ -819,6 +826,8 @@ namespace AbilityKit.HFSM.Editor
 
         private void AddBehavior(string typeName, BehaviorItem parent)
         {
+            onBeforeChange?.Invoke();
+
             if (targetState.BehaviorItems == null || targetState.BehaviorItems.Count == 0)
             {
                 targetState.InitializeBehaviorItems(new List<BehaviorItem>());

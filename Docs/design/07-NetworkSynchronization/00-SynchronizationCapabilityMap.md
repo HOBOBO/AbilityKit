@@ -487,6 +487,7 @@ Room 维护成员身份、在线状态、准备、恢复、晚加入和开战入
 1. `07-NetworkSynchronization/01-FrameSync.md`：帧号、输入源和基础帧同步。
 2. `07-NetworkSynchronization/02-StateSync.md`：快照和状态修正。
 3. `07-NetworkSynchronization/03-RollbackPrediction.md`：预测、回滚和确认帧。
+4. `07-NetworkSynchronization/03.2-FrameStatePredictionRollback.md`：帧同步整世界重演与状态同步权威覆盖后局部重演的实施边界。
 4. `07-NetworkSynchronization/05-SessionCoordination.md`：客户端会话和 Orleans Room/Battle。
 5. `07-NetworkSynchronization/04-ReplaySystem.md`：同步过程的记录和复现。
 6. `09-ImplementationExamples/Shooter/03-GatewayOrleansSmoke.md` 与 `09-ImplementationExamples/Shooter/08-NetworkModulesDeepDive.md`：Shooter 远端闭环验收。

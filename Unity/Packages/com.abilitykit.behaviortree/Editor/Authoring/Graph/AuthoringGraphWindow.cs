@@ -42,6 +42,8 @@ namespace AbilityKit.BehaviorTree.Editor
         internal const string InspectorPaneName = "bt-inspector-pane";
         internal const string InspectorScrollName = "bt-inspector-scroll";
         internal const string PreviewFaultLabelName = "bt-preview-fault";
+        internal const string PreviewStepButtonName = "bt-preview-step";
+        internal const string PreviewResetButtonName = "bt-preview-reset";
         internal const float MinimumInspectorContentHeight = 140f;
 
         private AuthoringAsset? _asset;
@@ -84,6 +86,9 @@ namespace AbilityKit.BehaviorTree.Editor
         private string _instancePopupFingerprint = "";
         private ObservationEventTimelinePanel? _eventTimelinePanel;
         private TreePreviewSession? _previewSession;
+        private Button? _previewStepButton;
+        private Button? _previewResetButton;
+        private bool _catalogPreview;
         private AuthoringGraphWindow? _previewOwner;
         private Label? _previewFaultLabel;
         private string _configTreeId = "";
@@ -131,6 +136,24 @@ namespace AbilityKit.BehaviorTree.Editor
             window.titleContent = new GUIContent("行为树观察图");
             window.minSize = new Vector2(MinimumWindowWidth, MinimumWindowHeight);
             window.EnterObservationMode(view);
+            window.Show();
+            window.Focus();
+        }
+
+        internal static void OpenCatalogPreview(AuthoringSourceDocument source)
+        {
+            var window = CreateWindow<AuthoringGraphWindow>();
+            window._catalogPreview = true;
+            window._observedView = null;
+            window._workspace.State.SetDocumentScope("reference." + source.Tree.TreeId);
+            var document = AuthoringJson.Load(AuthoringJson.Save(source));
+            if (document.Layout.Count > 1 && document.Layout.All(item => item.X == 0f && item.Y == 0f))
+                document.Layout.Clear();
+            window._workspace.Open(document, isReadOnly: true);
+            window._selectedNode = null;
+            window.titleContent = new GUIContent("子树引用（只读）");
+            window.BuildUi();
+            window.RebuildGraph();
             window.Show();
             window.Focus();
         }
@@ -191,6 +214,7 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void EnterEditMode(AuthoringAsset asset, AuthoringProjectAsset? project = null)
         {
+            _catalogPreview = false;
             _observedView = null;
             _asset = asset;
             _project = project;
@@ -215,6 +239,7 @@ namespace AbilityKit.BehaviorTree.Editor
             ObservationDiff initialDiff = null,
             AuthoringSourceDocument sourceDocument = null)
         {
+            _catalogPreview = false;
             _observedView = view;
             _configTreeId = sourceDocument?.Tree?.TreeId
                 ?? (_asset != null ? _document.Tree.TreeId : "");
@@ -350,28 +375,38 @@ namespace AbilityKit.BehaviorTree.Editor
             header.style.minHeight = 30f;
             header.style.paddingLeft = 4f;
             header.style.paddingRight = 4f;
-            header.Add(ModeToggleButton("编辑", !IsObservation, () =>
+            if (_catalogPreview)
             {
-                if (IsObservation) BackToEdit();
-            }));
-            header.Add(ModeToggleButton("调试", IsObservation, () =>
-            {
-                if (!IsObservation) EnterDebugMode();
-            }));
-            _modeLabel = new Label(L(IsObservation
-                ? "abilitykit.behaviortree.mode.observation"
-                : "abilitykit.behaviortree.mode.edit"))
-            {
-                style =
+                header.Add(new Label("子树引用（只读）")
                 {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    minWidth = 150f,
-                    marginLeft = 10f,
-                    marginRight = 8f,
-                    unityTextAlign = TextAnchor.MiddleLeft,
-                },
-            };
-            header.Add(_modeLabel);
+                    style = { unityFontStyleAndWeight = FontStyle.Bold, marginLeft = 8f },
+                });
+            }
+            else
+            {
+                header.Add(ModeToggleButton("编辑", !IsObservation, () =>
+                {
+                    if (IsObservation) BackToEdit();
+                }));
+                header.Add(ModeToggleButton("调试", IsObservation, () =>
+                {
+                    if (!IsObservation) EnterDebugMode();
+                }));
+                _modeLabel = new Label(L(IsObservation
+                    ? "abilitykit.behaviortree.mode.observation"
+                    : "abilitykit.behaviortree.mode.edit"))
+                {
+                    style =
+                    {
+                        unityFontStyleAndWeight = FontStyle.Bold,
+                        minWidth = 150f,
+                        marginLeft = 10f,
+                        marginRight = 8f,
+                        unityTextAlign = TextAnchor.MiddleLeft,
+                    },
+                };
+                header.Add(_modeLabel);
+            }
             if (!IsObservation)
             {
                 _dirtyLabel = new Label
@@ -410,21 +445,53 @@ namespace AbilityKit.BehaviorTree.Editor
             actions.style.minHeight = 28f;
             actions.style.paddingLeft = 4f;
             actions.style.paddingRight = 4f;
-            if (IsObservation)
+            if (_catalogPreview)
+            {
+                actions.Add(new Button(Close) { text = "返回" });
+                actions.Add(CommandButton(EditorCommandIds.FrameAll, "frame-all"));
+            }
+            else if (IsObservation)
             {
                 actions.Add(CommandButton(EditorCommandIds.Close, "close"));
                 _observationPauseButton = CommandButton(EditorCommandIds.PauseObservation, "pause");
                 actions.Add(_observationPauseButton);
+                if (_previewSession != null)
+                {
+                    _previewStepButton = new Button(StepPreview)
+                    {
+                        name = PreviewStepButtonName,
+                        text = "单步",
+                        tooltip = "暂停后推进一个逻辑帧",
+                    };
+                    _previewResetButton = new Button(ResetPreview)
+                    {
+                        name = PreviewResetButtonName,
+                        text = "重置",
+                        tooltip = "恢复本次预览的初始运行状态",
+                    };
+                    _previewStepButton.style.height = 22f;
+                    _previewResetButton.style.height = 22f;
+                    actions.Add(_previewStepButton);
+                    actions.Add(_previewResetButton);
+                    RefreshPreviewControls();
+                }
                 actions.Add(CommandButton(EditorCommandIds.CopySnapshot, "copy-snapshot"));
                 actions.Add(ToolbarSeparator());
                 _instancePopup = new PopupField<string>
                 {
-                    tooltip = "切换到其它运行中的行为树实例",
+                    tooltip = _previewSession != null
+                        ? "当前预览实例"
+                        : "切换到其它运行中的行为树实例",
                 };
                 _instancePopup.style.width = 230f;
                 _instancePopup.RegisterValueChangedCallback(evt => OnInstancePopupChanged(evt.newValue));
                 actions.Add(_instancePopup);
                 actions.Add(ToolbarSeparator());
+                if (_observedView?.SubtreeInstances?.Count > 0)
+                {
+                    actions.Add(SubtreePreviewMenu());
+                    actions.Add(ToolbarSeparator());
+                }
                 actions.Add(CommandButton(EditorCommandIds.FrameAll, "frame-all"));
             }
             else
@@ -513,7 +580,7 @@ namespace AbilityKit.BehaviorTree.Editor
             inspectorScroll.style.paddingBottom = 10f;
             _inspectorRenderer = new AuthoringInspectorRenderer(inspectorScroll, this);
             rightPane.Add(inspectorScroll);
-            if (IsObservation)
+            if (IsObservation && !_catalogPreview)
             {
                 _eventTimelinePanel = new ObservationEventTimelinePanel(
                     _observationController,
@@ -592,6 +659,33 @@ namespace AbilityKit.BehaviorTree.Editor
                 _ => IsObservation || _graphView.GetSelectedNodeIds().Count == 0
                     ? DropdownMenuAction.Status.Disabled
                     : DropdownMenuAction.Status.Normal);
+            return menu;
+        }
+
+        private UnityEditor.UIElements.ToolbarMenu SubtreePreviewMenu()
+        {
+            var menu = new UnityEditor.UIElements.ToolbarMenu
+            {
+                text = "子树",
+                tooltip = "按引用实例折叠或展开预览节点",
+            };
+            menu.style.height = 22f;
+            foreach (var instances in _observedView!.SubtreeInstances.GroupBy(
+                instance => instance.InlinedRootNodeId, StringComparer.Ordinal))
+            {
+                var rootId = instances.Key;
+                menu.menu.AppendAction(
+                    string.Join(" → ", instances.Select(instance => instance.ReferencedTreeId))
+                    + "  ·  " + rootId,
+                    _ =>
+                    {
+                        _graphView.SetSubtreeCollapsed(rootId, !_graphView.IsSubtreeCollapsed(rootId));
+                        _graphView.FocusNode(rootId);
+                    },
+                    _ => _graphView.IsSubtreeCollapsed(rootId)
+                        ? DropdownMenuAction.Status.Checked
+                        : DropdownMenuAction.Status.Normal);
+            }
             return menu;
         }
 
@@ -763,7 +857,11 @@ namespace AbilityKit.BehaviorTree.Editor
             hasUnsavedChanges = _documentSession.IsDirty;
             _undoButton?.SetEnabled(_documentSession.CanUndo);
             _redoButton?.SetEnabled(_documentSession.CanRedo);
-            titleContent = new GUIContent(IsObservation
+            titleContent = new GUIContent(_catalogPreview
+                ? "子树引用（只读）"
+                : _previewSession != null
+                ? (_previewSession.IsFaulted ? "行为树预览（已停止）" : "行为树预览")
+                : IsObservation
                 ? "行为树观察"
                 : (_isDirty ? "行为树编辑器 *" : "行为树编辑器"));
             RefreshOverview();
@@ -784,12 +882,90 @@ namespace AbilityKit.BehaviorTree.Editor
 
         private void ToggleObservationPause()
         {
-            if (_observationController.Paused) _observationController.Resume();
+            if (_previewSession != null)
+            {
+                if (_previewSession.IsPaused)
+                {
+                    _previewSession.Resume();
+                    _observationController.Resume();
+                }
+                else
+                {
+                    _previewSession.Pause();
+                    _observationController.Pause();
+                }
+                RefreshPreviewControls();
+            }
+            else if (_observationController.Paused) _observationController.Resume();
             else _observationController.Pause();
             if (_observationPauseButton != null)
                 _observationPauseButton.text = L(_observationController.Paused
                     ? "abilitykit.behaviortree.command.resume"
                     : "abilitykit.behaviortree.command.pause");
+            RefreshObservationModeLabel();
+        }
+
+        private void RefreshPreviewControls()
+        {
+            if (_previewSession == null) return;
+            _observationPauseButton?.SetEnabled(!_previewSession.IsFaulted);
+            _previewStepButton?.SetEnabled(_previewSession.IsPaused && !_previewSession.IsFaulted);
+            _previewResetButton?.SetEnabled(true);
+            if (_observationPauseButton != null)
+                _observationPauseButton.text = L(_previewSession.IsPaused
+                    ? "abilitykit.behaviortree.command.resume"
+                    : "abilitykit.behaviortree.command.pause");
+        }
+
+        private void StepPreview()
+        {
+            if (_previewSession == null || !_previewSession.IsPaused) return;
+            _previewSession.Step();
+            SamplePreviewNow();
+            RefreshPreviewControls();
+        }
+
+        private void ResetPreview()
+        {
+            if (_previewSession == null) return;
+            if (!_previewSession.TryReset(out var error))
+            {
+                EditorUtility.DisplayDialog("预览重置失败", error ?? "未知错误", "确定");
+                RefreshPreviewControls();
+                return;
+            }
+            _observationController.ClearHistory();
+            _displayedObservationSnapshot = null;
+            _previousObservationSnapshot = null;
+            _displayedObservationDiff = null;
+            _graphView.ClearNodeStates();
+            UpdatePreviewFaultLabel();
+            SamplePreviewNow();
+            RefreshPreviewControls();
+            titleContent = new GUIContent("行为树预览");
+        }
+
+        private void SamplePreviewNow()
+        {
+            if (_previewSession == null) return;
+            if (_observationController.SelectedInstanceId == 0)
+                TryBindObservationView(_previewSession.Runtime);
+            var snapshot = _observationController.Sample();
+            UpdateDisplayedObservationSnapshot(
+                snapshot,
+                _observationController.Timeline.SampleAt(_observationController.Timeline.Count - 2),
+                _observationController.Timeline.LatestDiff);
+            if (_displayedObservationSnapshot != null)
+            {
+                _graphView.ApplyObservationProjection(
+                    _displayedObservationSnapshot,
+                    _displayedObservationDiff,
+                    _observationContributors);
+                _inspectorRenderer.RefreshRuntimeDetails();
+            }
+            _observationState = _observationController.State;
+            RefreshObservationModeLabel();
+            _eventTimelinePanel?.Refresh();
         }
 
         private void CopyObservationSnapshot()
@@ -869,6 +1045,14 @@ namespace AbilityKit.BehaviorTree.Editor
         private void RefreshObservationModeLabel()
         {
             if (_modeLabel == null) return;
+            if (_previewSession != null)
+            {
+                _modeLabel.text = _previewSession.IsFaulted
+                    ? "预览已停止 · 帧 " + _previewSession.Frame
+                    : "预览 · 帧 " + _previewSession.Frame
+                      + (_previewSession.IsPaused ? " · 已暂停" : "");
+                return;
+            }
             if (_displayedObservationSnapshot == null)
             {
                 _modeLabel.text = L("abilitykit.behaviortree.mode.observation");
@@ -907,6 +1091,7 @@ namespace AbilityKit.BehaviorTree.Editor
             {
                 var view = entries[i].View;
                 if (view == null) continue;
+                if (_previewSession != null && !ReferenceEquals(view, _previewSession.Runtime)) continue;
                 if (!string.IsNullOrEmpty(_configTreeId)
                     && !string.Equals(view.TreeId, _configTreeId, StringComparison.Ordinal))
                     continue;
@@ -1167,11 +1352,35 @@ namespace AbilityKit.BehaviorTree.Editor
 
             var sourceSnapshot = AuthoringJson.Load(AuthoringJson.Save(_document));
             var debugName = "预览：" + (_asset != null ? _asset.name : (_document.Tree.TreeId ?? "行为树"));
+            var resolver = AuthoringDocumentCatalog.CreateTreeResolver(sourceSnapshot);
+            var build = BehaviorTreeBuildPipeline.Build(sourceSnapshot, EditorNodeCatalog.Registry, resolver);
+            if (!build.Success || build.CompiledDefinition == null)
+            {
+                EditorUtility.DisplayDialog("预览失败", string.Join("\n",
+                    build.Diagnostics.Select(diagnostic =>
+                        "[" + diagnostic.Code + "] " + diagnostic.Message)), "确定");
+                return;
+            }
+            if (build.CompiledDefinition.Blackboard.Keys.Count == 0)
+                LaunchPreview(sourceSnapshot, resolver, debugName, null);
+            else
+                PreviewBlackboardSetupWindow.Open(this,
+                    build.CompiledDefinition.Blackboard,
+                    overrides => LaunchPreview(sourceSnapshot, resolver, debugName, overrides));
+        }
+
+        private void LaunchPreview(
+            AuthoringSourceDocument sourceSnapshot,
+            TreeDefinitionResolver resolver,
+            string debugName,
+            IReadOnlyDictionary<string, PropertyValue>? initialOverrides)
+        {
             if (!TreePreviewSession.TryStart(
                     sourceSnapshot,
                     EditorNodeCatalog.Registry,
-                    AuthoringDocumentCatalog.CreateTreeResolver(sourceSnapshot),
+                    resolver,
                     debugName,
+                    initialOverrides,
                     out var session,
                     out var error))
             {
@@ -1227,11 +1436,15 @@ namespace AbilityKit.BehaviorTree.Editor
             }
             _previewOwner = null;
             _previewFaultLabel = null;
+            _previewStepButton = null;
+            _previewResetButton = null;
         }
 
         private void OnPreviewFaulted(string message)
         {
             UpdatePreviewFaultLabel();
+            RefreshPreviewControls();
+            RefreshObservationModeLabel();
             titleContent = new GUIContent("行为树预览（已停止）");
             Repaint();
         }
@@ -1395,6 +1608,7 @@ namespace AbilityKit.BehaviorTree.Editor
         ObservationSnapshot? IAuthoringInspectorHost.DisplayedObservationSnapshot => _displayedObservationSnapshot;
         ObservationSnapshot? IAuthoringInspectorHost.PreviousObservationSnapshot => _previousObservationSnapshot;
         ObservationDiff? IAuthoringInspectorHost.DisplayedObservationDiff => _displayedObservationDiff;
+        ObservationBlackboard? IAuthoringInspectorHost.InitialRuntimeBlackboard => _previewSession?.InitialBlackboard;
         void IAuthoringInspectorHost.RefreshNodeTitles() => _graphView.RefreshNodeTitles();
         void IAuthoringInspectorHost.RebuildGraph() => RebuildGraph();
         void IAuthoringInspectorHost.RefreshChrome() => RefreshChrome();

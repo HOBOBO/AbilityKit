@@ -41,6 +41,14 @@ namespace UnityEngine
     public class Object { }
     public class ScriptableObject : Object { }
     public class TextAsset : Object { public string text => string.Empty; }
+    public class MonoScript : Object { }
+    public static class Application { public static string dataPath => string.Empty; }
+    public static class Debug
+    {
+        public static void Log(object message) { }
+        public static void LogWarning(object message) { }
+        public static void LogError(object message) { }
+    }
 
     [System.AttributeUsage(System.AttributeTargets.Field)]
     public sealed class SerializeFieldAttribute : System.Attribute { }
@@ -69,6 +77,7 @@ namespace UnityEngine
         public static GUILayoutOption Width(float v) => null;
         public static GUILayoutOption Height(float v) => null;
         public static GUILayoutOption MinHeight(float v) => null;
+        public static GUILayoutOption MaxHeight(float v) => null;
         public static GUILayoutOption ExpandWidth(bool v) => null;
         public static bool Button(string text, params GUILayoutOption[] options) => false;
         public static bool Button(string text, GUIStyle style, params GUILayoutOption[] options) => false;
@@ -177,6 +186,8 @@ namespace UnityEditor
         public static GUIStyle wordWrappedLabel => null;
         public static GUIStyle wordWrappedMiniLabel => null;
         public static GUIStyle centeredGreyMiniLabel => null;
+        public static GUIStyle helpBox => null;
+        public static GUIStyle textArea => null;
     }
 
     public static class EditorGUI
@@ -213,9 +224,12 @@ namespace UnityEditor
         public static bool Foldout(bool foldout, string content, bool toggleOnLabelClick) => foldout;
         public static int IntSlider(int value, int left, int right) => value;
         public static string TextField(string text, GUIStyle style) => text;
+        public static string TextArea(string text, GUIStyle style, params GUILayoutOption[] options) => text;
         public static void BeginHorizontal(params GUILayoutOption[] options) { }
+        public static void BeginHorizontal(GUIStyle style, params GUILayoutOption[] options) { }
         public static void EndHorizontal() { }
         public static void BeginVertical(params GUILayoutOption[] options) { }
+        public static void BeginVertical(GUIStyle style, params GUILayoutOption[] options) { }
         public static void EndVertical() { }
     }
 
@@ -224,5 +238,6 @@ namespace UnityEditor
         public static string[] FindAssets(string filter, string[] searchInFolders) => Array.Empty<string>();
         public static string GUIDToAssetPath(string guid) => string.Empty;
         public static T LoadAssetAtPath<T>(string assetPath) where T : UnityEngine.Object => null;
+        public static bool OpenAsset(UnityEngine.Object target, int lineNumber) => false;
     }
 }

@@ -112,8 +112,12 @@ namespace AbilityKit.BehaviorTree.Authoring
                     diagnostics.Add(new ValidationDiagnostic(
                         ExpansionFailedCode,
                         ValidationSeverity.Error,
-                        "子树展开失败：" + ReadExceptionMessage(ex),
-                        ResolveMentionedNodeId(ex.Message, source)));
+                        "子树展开失败：" + (ex is SubtreeExpansionException
+                            ? ex.Message : ReadExceptionMessage(ex)),
+                        ex is SubtreeExpansionException subtreeError
+                            && string.Equals(subtreeError.SourceTreeId, source.TreeId, StringComparison.Ordinal)
+                            ? subtreeError.ReferenceNodeId
+                            : ResolveMentionedNodeId(ex.Message, source)));
                     return new BehaviorTreeBuildResult(source, null, null, diagnostics);
                 }
             }

@@ -626,7 +626,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                         AwaitEvent = DeserializeSkillAwaitEvent(obj["AwaitEvent"]),
                         Window = DeserializeSkillWindow(obj["Window"]),
                         CommitPoint = DeserializeSkillCommitPoint(obj["CommitPoint"]),
-                        Economy = DeserializeSkillEconomy(obj["Economy"])
+                        Economy = DeserializeSkillEconomy(obj["Economy"]),
+                        DerivedSkill = DeserializeSkillDerivedSkill(obj["DerivedSkill"])
                     });
                 }
             }
@@ -714,7 +715,8 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 AwaitEvent = DeserializeSkillAwaitEvent(obj["AwaitEvent"]),
                 Window = DeserializeSkillWindow(obj["Window"]),
                 CommitPoint = DeserializeSkillCommitPoint(obj["CommitPoint"]),
-                Economy = DeserializeSkillEconomy(obj["Economy"])
+                Economy = DeserializeSkillEconomy(obj["Economy"]),
+                DerivedSkill = DeserializeSkillDerivedSkill(obj["DerivedSkill"])
             };
         }
 
@@ -727,7 +729,27 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 TimeoutMs = obj["TimeoutMs"]?.Value<int>() ?? 0,
                 CompleteOnTimeout = obj["CompleteOnTimeout"]?.Value<bool>() ?? true,
                 Filters = DeserializeSkillEventIntFilters(obj["Filters"]),
+                Captures = DeserializeSkillEventCaptures(obj["Captures"]),
             };
+        }
+
+        private static SkillEventCaptureDTO[] DeserializeSkillEventCaptures(JToken token)
+        {
+            if (!(token is JArray array)) return Array.Empty<SkillEventCaptureDTO>();
+            var result = new List<SkillEventCaptureDTO>(array.Count);
+            foreach (var item in array)
+            {
+                if (!(item is JObject obj)) continue;
+                result.Add(new SkillEventCaptureDTO
+                {
+                    FieldId = obj["FieldId"]?.Value<int>() ?? 0,
+                    Key = obj["Key"]?.Value<string>() ?? string.Empty,
+                    Scope = obj["Scope"]?.Value<int>() ?? 0,
+                    ValueType = obj["ValueType"]?.Value<int>() ?? 0,
+                    Required = obj["Required"]?.Value<bool>() ?? true,
+                });
+            }
+            return result.ToArray();
         }
 
         private static SkillEventIntFilterDTO[] DeserializeSkillEventIntFilters(JToken token)
@@ -798,6 +820,21 @@ namespace AbilityKit.Demo.Moba.Config.Core
                 IgnoreGlobalCooldown = obj["IgnoreGlobalCooldown"]?.Value<bool>() ?? false,
                 RefundBeforeCommit = obj["RefundBeforeCommit"]?.Value<bool>() ?? true,
                 FailReason = obj["FailReason"]?.Value<string>(),
+            };
+        }
+
+        private static SkillDerivedSkillPhaseDTO DeserializeSkillDerivedSkill(JToken token)
+        {
+            if (!(token is JObject obj)) return null;
+            return new SkillDerivedSkillPhaseDTO
+            {
+                SkillId = obj["SkillId"]?.Value<int>() ?? 0,
+                InheritAim = obj["InheritAim"]?.Value<bool>() ?? true,
+                InheritTarget = obj["InheritTarget"]?.Value<bool>() ?? true,
+                WaitForCompletion = obj["WaitForCompletion"]?.Value<bool>() ?? false,
+                AbortOnFailure = obj["AbortOnFailure"]?.Value<bool>() ?? true,
+                MaxDepth = obj["MaxDepth"]?.Value<int>() ?? 4,
+                FailReason = obj["FailReason"]?.Value<string>() ?? string.Empty,
             };
         }
 

@@ -179,7 +179,7 @@ namespace AbilityKit.Game.Battle.Agent
 
     public readonly struct GatewayStateSyncSnapshot
     {
-        public const int CurrentSchemaVersion = 1;
+        public const int CurrentSchemaVersion = 3;
 
         public readonly ulong WorldId;
         public readonly int Frame;
@@ -190,6 +190,8 @@ namespace AbilityKit.Game.Battle.Agent
         public readonly int[] RemovedActorIds;
         public readonly long EventWatermark;
         public readonly string EventEpoch;
+        public readonly int PayloadOpCode;
+        public readonly byte[] Payload;
 
         public GatewayStateSyncSnapshot(
             ulong worldId,
@@ -200,7 +202,9 @@ namespace AbilityKit.Game.Battle.Agent
             int schemaVersion = 0,
             int[] removedActorIds = null,
             long eventWatermark = 0L,
-            string eventEpoch = null)
+            string eventEpoch = null,
+            int payloadOpCode = 0,
+            byte[] payload = null)
         {
             WorldId = worldId;
             Frame = frame;
@@ -211,6 +215,8 @@ namespace AbilityKit.Game.Battle.Agent
             RemovedActorIds = removedActorIds ?? System.Array.Empty<int>();
             EventWatermark = System.Math.Max(0L, eventWatermark);
             EventEpoch = eventEpoch ?? string.Empty;
+            PayloadOpCode = payloadOpCode;
+            Payload = payload ?? System.Array.Empty<byte>();
         }
     }
 

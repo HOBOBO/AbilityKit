@@ -101,8 +101,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                                          value.Value == BattleDiagnosticFrameMetricKeys.PredictionStalled)), Is.True);
             Assert.That(artifact.ThresholdProfile.Metadata.Single(value =>
                 value.Key == "frameMetricProfile").Value, Is.EqualTo("Default"));
-            StringAssert.Contains("\"assessmentMode\": \"WindowMaximumHigh\"", json);
-            StringAssert.Contains("\"operator\": \"window-max>=\"", json);
+            Assert.That(catalogEntry.Values.Single(value =>
+                value.Key == "assessmentMode").Value, Is.EqualTo("WindowMaximumHigh"));
+            Assert.That(artifact.ThresholdProfile.Rules.Any(rule =>
+                rule.Metric == BattleDiagnosticFrameMetricKeys.PredictionBacklog &&
+                rule.Severity == "critical" &&
+                rule.Operator == "window-max>="), Is.True);
 
             var capturedProfile = MobaBattleDiagnosticArtifactCodec.FromMetricProfile(
                 artifact.BattleDiagnostics.FrameMetricProfile);

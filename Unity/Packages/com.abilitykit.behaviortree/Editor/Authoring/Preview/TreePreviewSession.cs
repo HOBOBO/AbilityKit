@@ -1,15 +1,19 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.BehaviorTree.Authoring;
 using AbilityKit.BehaviorTree.Authoring.Model;
+using AbilityKit.BehaviorTree.Definition;
+using AbilityKit.BehaviorTree.Editor.Debugging.Observation;
 using AbilityKit.BehaviorTree.Diagnostics;
 using AbilityKit.BehaviorTree.Execution;
 using AbilityKit.BehaviorTree.Nodes;
 using AbilityKit.BehaviorTree.Registry;
 using AbilityKit.Deterministic;
 using UnityEditor;
+using ValueType = AbilityKit.BehaviorTree.Definition.ValueType;
 
 namespace AbilityKit.BehaviorTree.Editor
 {
@@ -24,17 +28,24 @@ namespace AbilityKit.BehaviorTree.Editor
         private const long TicksPerSecond = 60;
 
         private readonly TreeRuntime _runtime;
+        private readonly TreeRuntimeSnapshot _initialState;
         private int _frame;
         private bool _disposed;
         private bool _updateSubscribed;
+        private bool _paused;
 
-        private TreePreviewSession(TreeRuntime runtime)
+        private TreePreviewSession(TreeRuntime runtime, TreeRuntimeSnapshot initialState)
         {
             _runtime = runtime;
+            _initialState = initialState;
+            InitialBlackboard = ObservationBlackboard.Copy(initialState.Blackboard
+                ?? throw new InvalidOperationException("预览初始快照没有黑板数据。"));
         }
 
         public TreeRuntime Runtime => _runtime;
+        public ObservationBlackboard InitialBlackboard { get; }
         public int Frame => _frame;
+        public bool IsPaused => _paused;
         public bool IsFaulted { get; private set; }
         public string? FaultMessage { get; private set; }
         public event Action<string>? Faulted;
@@ -58,6 +69,16 @@ namespace AbilityKit.BehaviorTree.Editor
             string debugName,
             out TreePreviewSession? session,
             out string? error)
+            => TryStart(document, registry, subtreeResolver, debugName, null, out session, out error);
+
+        public static bool TryStart(
+            AuthoringSourceDocument document,
+            NodeRegistry registry,
+            TreeDefinitionResolver? subtreeResolver,
+            string debugName,
+            IReadOnlyDictionary<string, PropertyValue>? initialOverrides,
+            out TreePreviewSession? session,
+            out string? error)
         {
             session = null;
             error = null;
@@ -68,6 +89,7 @@ namespace AbilityKit.BehaviorTree.Editor
             }
 
             TreeRuntime? runtime = null;
+            TreeRuntimeSnapshot? initialState = null;
             try
             {
                 var build = BehaviorTreeBuildPipeline.Build(document, registry, subtreeResolver);
@@ -88,7 +110,9 @@ namespace AbilityKit.BehaviorTree.Editor
                 runtime = build.Expansion == null
                     ? TreeRuntime.Create(build.CompiledDefinition, registry, options: options)
                     : TreeRuntime.Create(build.Expansion, registry, options: options);
+                ApplyInitialOverrides(runtime, initialOverrides);
                 runtime.Enable(0, Fixed64.Zero);
+                initialState = runtime.CaptureState();
             }
             catch (Exception ex)
             {
@@ -101,14 +125,89 @@ namespace AbilityKit.BehaviorTree.Editor
                 return false;
             }
 
-            session = new TreePreviewSession(runtime);
+            session = new TreePreviewSession(runtime, initialState!);
             session.SubscribeUpdate();
             return true;
         }
 
-        internal void Tick()
+        private static void ApplyInitialOverrides(
+            TreeRuntime runtime,
+            IReadOnlyDictionary<string, PropertyValue>? overrides)
+        {
+            if (overrides == null) return;
+            var blackboard = runtime.Blackboard;
+            var schema = blackboard.Schema;
+            foreach (var pair in overrides)
+            {
+                if (pair.Value == null || !schema.TryGetType(pair.Key, out var type)
+                    || pair.Value.Type != type)
+                    throw new InvalidOperationException("预览黑板初始值无效：" + pair.Key);
+                switch (type)
+                {
+                    case ValueType.Bool: blackboard.SetBool(pair.Key, pair.Value.BoolValue); break;
+                    case ValueType.Int64: blackboard.SetInt64(pair.Key, pair.Value.Int64Value); break;
+                    case ValueType.Fixed64:
+                        blackboard.SetFixed64(pair.Key, Fixed64.FromRaw(pair.Value.Fixed64Raw));
+                        break;
+                    case ValueType.String: blackboard.SetString(pair.Key, pair.Value.StringValue); break;
+                }
+            }
+        }
+
+        public void Pause() => _paused = true;
+
+        public void Resume()
         {
             if (_disposed || IsFaulted) return;
+            _paused = false;
+        }
+
+        public bool Step()
+        {
+            if (!_paused || _disposed || IsFaulted) return false;
+            Advance();
+            return !IsFaulted;
+        }
+
+        public bool TryReset(out string? error)
+        {
+            error = null;
+            if (_disposed)
+            {
+                error = "预览会话已关闭。";
+                return false;
+            }
+            try
+            {
+                _runtime.Disable();
+                _runtime.Enable(0, Fixed64.Zero);
+                _runtime.RestoreState(_initialState);
+                _frame = 0;
+                IsFaulted = false;
+                FaultMessage = null;
+                SubscribeUpdate();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                IsFaulted = true;
+                FaultMessage = ex.Message;
+                error = ex.Message;
+                UnsubscribeUpdate();
+                try { _runtime.Disable(); }
+                catch (Exception) { /* Preserve the reset error. */ }
+                return false;
+            }
+        }
+
+        internal void Tick()
+        {
+            if (_disposed || IsFaulted || _paused) return;
+            Advance();
+        }
+
+        private void Advance()
+        {
             _frame++;
             try
             {

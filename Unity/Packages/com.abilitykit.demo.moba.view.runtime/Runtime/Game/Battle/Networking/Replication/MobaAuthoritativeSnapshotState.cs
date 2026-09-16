@@ -59,7 +59,11 @@ namespace AbilityKit.Game.Battle.Agent
                 isFullSnapshot: true,
                 materializedActors,
                 snapshot.SchemaVersion,
-                Array.Empty<int>());
+                Array.Empty<int>(),
+                snapshot.EventWatermark,
+                snapshot.EventEpoch,
+                snapshot.PayloadOpCode,
+                snapshot.Payload);
         }
 
         public void Reset()

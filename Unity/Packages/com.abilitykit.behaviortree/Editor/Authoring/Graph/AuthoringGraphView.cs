@@ -40,6 +40,7 @@ namespace AbilityKit.BehaviorTree.Editor
             new(System.StringComparer.Ordinal);
         private readonly Dictionary<Group, AuthoringGroupData> _groupDataByElement = new();
         private readonly Dictionary<string, Edge> _edgeViewsByKey = new(StringComparer.Ordinal);
+        private readonly HashSet<string> _collapsedSubtreeIds = new(StringComparer.Ordinal);
         private readonly HashSet<string> _activeObservationEdges = new(StringComparer.Ordinal);
         private readonly HashSet<string> _projectionNodeIds = new(StringComparer.Ordinal);
         private readonly HashSet<string> _nextObservationEdges = new(StringComparer.Ordinal);
@@ -362,6 +363,7 @@ namespace AbilityKit.BehaviorTree.Editor
             view.title = string.Equals(view.Node.Id, _host.Document.Tree.RootNodeId, StringComparison.Ordinal)
                 ? "★ " + title
                 : title;
+            if (_collapsedSubtreeIds.Contains(view.Node.Id)) view.title += "  [已折叠]";
         }
 
         public void FocusNode(string nodeId)
@@ -466,6 +468,7 @@ namespace AbilityKit.BehaviorTree.Editor
 
         public void ClearAll()
         {
+            _collapsedSubtreeIds.Clear();
             _nodeViewsById.Clear();
             _groupDataByElement.Clear();
             _edgeViewsByKey.Clear();
@@ -473,6 +476,47 @@ namespace AbilityKit.BehaviorTree.Editor
             _projectedObservationSnapshot = null;
             foreach (var element in graphElements.ToList()) RemoveElement(element);
             _host.OnGraphSelectionChanged(null);
+        }
+
+        public bool IsSubtreeCollapsed(string rootNodeId) => _collapsedSubtreeIds.Contains(rootNodeId);
+
+        public void SetSubtreeCollapsed(string rootNodeId, bool collapsed)
+        {
+            if (!_host.IsReadOnly || !_nodeViewsById.ContainsKey(rootNodeId)) return;
+            if (collapsed) _collapsedSubtreeIds.Add(rootNodeId);
+            else _collapsedSubtreeIds.Remove(rootNodeId);
+
+            var hidden = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var rootId in _collapsedSubtreeIds)
+            {
+                var root = _host.Document.Tree.Nodes.Find(node => node.Id == rootId);
+                if (root == null) continue;
+                var pending = new Stack<string>(root.ChildIds);
+                while (pending.Count > 0)
+                {
+                    var id = pending.Pop();
+                    if (!hidden.Add(id)) continue;
+                    var node = _host.Document.Tree.Nodes.Find(candidate => candidate.Id == id);
+                    if (node == null) continue;
+                    foreach (var child in node.ChildIds) pending.Push(child);
+                }
+            }
+            foreach (var pair in _nodeViewsById)
+                pair.Value.style.display = hidden.Contains(pair.Key) ? DisplayStyle.None : DisplayStyle.Flex;
+            RefreshNodeTitles();
+            foreach (var pair in _edgeViewsByKey)
+            {
+                var separator = pair.Key.IndexOf('\u001f');
+                var childId = pair.Key.Substring(0, separator);
+                var parentId = pair.Key.Substring(separator + 1);
+                pair.Value.style.display = hidden.Contains(childId) || hidden.Contains(parentId)
+                    ? DisplayStyle.None : DisplayStyle.Flex;
+            }
+            if (selection.OfType<AuthoringNodeView>().Any(view => hidden.Contains(view.Node.Id)))
+            {
+                ClearSelection();
+                NotifySelectionChanged();
+            }
         }
 
         /// <summary>观察模式：把运行时节点状态着色到画布（运行中加边框高亮）。</summary>

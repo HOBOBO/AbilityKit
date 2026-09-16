@@ -4,6 +4,8 @@ using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Context;
 using AbilityKit.Demo.Moba.Components;
+using System;
+using System.Collections.Generic;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -25,6 +27,22 @@ namespace AbilityKit.Demo.Moba.Services
         public ContextRegistry Registry => _registry;
         public SnapshotStorage Snapshots => _snapshots;
         public ContextValueResolver Resolver => _resolver;
+
+        public void RestoreRollbackEntityCursor(long nextEntityId, IReadOnlyCollection<long> confirmedIds)
+        {
+            var confirmed = new HashSet<long>(confirmedIds ?? throw new ArgumentNullException(nameof(confirmedIds)));
+            foreach (var id in confirmed)
+                if (!_registry.Exists(id)) throw new InvalidOperationException($"Confirmed context entity {id} was destroyed before rollback.");
+            foreach (var id in _registry.GetRollbackEntityIds())
+            {
+                if (confirmed.Contains(id)) continue;
+                _buffProvider.Unbind(id);
+                _snapshots.Remove(id);
+            }
+            _snapshots.RemoveFromEntityId(nextEntityId);
+            _buffProvider.PruneFromEntityId(nextEntityId);
+            _registry.RestoreRollbackEntityCursor(nextEntityId, confirmedIds);
+        }
 
         public long EnsureBuffContext(BuffRuntime runtime, in MobaBuffRuntimeContextData data)
         {
@@ -100,6 +118,13 @@ namespace AbilityKit.Demo.Moba.Services
             public void Clear()
             {
                 _entries.Clear();
+            }
+
+            public void PruneFromEntityId(long firstEntityId)
+            {
+                var ids = new List<long>(_entries.Keys);
+                foreach (var id in ids)
+                    if (id >= firstEntityId) _entries.Remove(id);
             }
 
             public bool TryGetProperty(long contextId, out IProperty property)

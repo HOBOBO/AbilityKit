@@ -363,31 +363,36 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
             // 优先走标准投影路径：与预测通道共享 MobaActorProjectionProducer 的字段提取逻辑，
             // 快照携带完整的 Position/Rotation/Velocity/Hp/TeamId，而非仅 X/Y/Z。
             // Delta 帧时携带上帧数据做实体级增量（跳过不变的 actor）。
+            StateSyncPush push;
             if (_battleWorld?.Services != null
                 && _battleWorld.Services.TryResolve<IActorProjectionProducer>(out var producer)
                 && producer != null)
             {
                 _projectionBuffer ??= new List<ActorProjectionData>(64);
                 _lastProjectionData ??= new Dictionary<int, ActorProjectionData>(64);
-                return _protocolMapper.CreateStateSyncPushFromProjection(
+                push = _protocolMapper.CreateStateSyncPushFromProjection(
                     wId, frame, producer, isFullSnapshot, _projectionBuffer, _lastProjectionData);
             }
-
-            // 回退到旧路径（WorldStateSnapshot）
-            var frameIndex = new FrameIndex(frame);
-            WorldStateSnapshot snapshot = default;
-            var hasSnapshot = _runtimePort?.TryGetSnapshot(frameIndex, out snapshot) == true;
-            if (!hasSnapshot && _snapshotProvider != null)
+            else
             {
-                hasSnapshot = _snapshotProvider.TryGetSnapshot(frameIndex, out snapshot);
+                // 回退到旧路径（WorldStateSnapshot）
+                var frameIndex = new FrameIndex(frame);
+                WorldStateSnapshot snapshot = default;
+                var hasSnapshot = _runtimePort?.TryGetSnapshot(frameIndex, out snapshot) == true;
+                if (!hasSnapshot && _snapshotProvider != null)
+                    hasSnapshot = _snapshotProvider.TryGetSnapshot(frameIndex, out snapshot);
+
+                push = _protocolMapper.CreateStateSyncPush(
+                    wId, frame, hasSnapshot ? snapshot : null,
+                    _runtimePort?.GetDiagnosticEntityStates(), isFullSnapshot);
             }
 
-            return _protocolMapper.CreateStateSyncPush(
-                wId,
-                frame,
-                hasSnapshot ? snapshot : null,
-                _runtimePort?.GetDiagnosticEntityStates(),
-                isFullSnapshot);
+            if (_battleWorld?.Services == null ||
+                !_battleWorld.Services.TryResolve<MobaActorRegistry>(out var registry) || registry == null)
+                return push;
+
+            _battleWorld.Services.TryResolve<AbilityKit.HFSM.Definition.StateMachineDefinition>(out var definition);
+            return MobaCharacterHfsmPushPayload.Attach(push, registry, definition, frame);
         }
 
         public void Dispose()
@@ -469,4 +474,3 @@ internal sealed class MobaBattleRuntimeAdapter : IBattleRuntimeAdapter
         }
     }
 }
-

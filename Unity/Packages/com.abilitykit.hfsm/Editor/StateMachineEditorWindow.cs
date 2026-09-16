@@ -12,6 +12,7 @@ using AbilityKit.HFSM.Editor.Export;
 using AbilityKit.HFSM.Editor.Diagnostics;
 using AbilityKit.HFSM.Editor.RuntimeMonitor;
 using AbilityKit.HFSM.Graph.Descriptor;
+using AbilityKit.HFSM.Visualization;
 
 namespace AbilityKit.HFSM.Editor
 {
@@ -33,6 +34,10 @@ namespace AbilityKit.HFSM.Editor
         private readonly List<IDisposable> _commandRegistrations = new List<IDisposable>();
         private EditorContext _context;
         private VisualElement _root;
+        private PopupField<string> _observeDropdown;
+        private readonly List<string> _observeNames = new List<string>();
+        private string _observeFingerprint = "";
+        private double _nextObservePollTime;
 
         // IMGUI containers for graph layers
         private IMGUIContainer _graphContainer;
@@ -104,6 +109,8 @@ namespace AbilityKit.HFSM.Editor
             CreateUI();
             CreateLayers();
 
+            EditorApplication.update += OnEditorUpdate;
+
             // Initialize view state
             bool hasSavedView = _userState.HasKey(LastZoomStateKey);
             if (hasSavedView)
@@ -152,6 +159,8 @@ namespace AbilityKit.HFSM.Editor
 
         private void OnDisable()
         {
+            EditorApplication.update -= OnEditorUpdate;
+
             // Save view state
             if (_context != null)
             {
@@ -177,6 +186,13 @@ namespace AbilityKit.HFSM.Editor
                 _context.OnStateMachineChanged -= OnStateMachineChanged;
             }
             _diagnosticsPanel?.Dispose();
+            // InspectorPanel is an EditorWindow created with CreateInstance; it is never shown, so it
+            // must be destroyed explicitly or the instance leaks.
+            if (_inspectorPanel != null)
+            {
+                DestroyImmediate(_inspectorPanel);
+                _inspectorPanel = null;
+            }
             foreach (var registration in _commandRegistrations)
                 registration.Dispose();
             _commandRegistrations.Clear();
@@ -308,6 +324,8 @@ namespace AbilityKit.HFSM.Editor
             ToolbarButton exportButton = _root.Q<ToolbarButton>("ExportButton");
             if (exportButton != null)
                 exportButton.clickable = new Clickable(() => ExecuteCommand("hfsm.graph.export-menu"));
+
+            CreateObserveDropdown(breadcrumbArea);
         }
 
         private void ShowExportMenu()
@@ -640,7 +658,14 @@ namespace AbilityKit.HFSM.Editor
                 return;
             }
 
-            _breadcrumbLabel.text = $"{_context.GraphAsset.GraphName} > {_context.GetPathString()}";
+            var text = $"{_context.GraphAsset.GraphName} > {_context.GetPathString()}";
+            var snapshot = _context.LiveSnapshot;
+            if (_context.IsObserving && snapshot != null)
+            {
+                text += $"   [观察 {_context.ObservedInstanceName} · frame {snapshot.frame} · 定义 {snapshot.definitionHash:X8}]";
+            }
+
+            _breadcrumbLabel.text = text;
         }
 
         #region Actions
@@ -837,6 +862,110 @@ namespace AbilityKit.HFSM.Editor
             );
 
             Repaint();
+        }
+
+        #endregion
+
+        #region Runtime Observation
+
+        private const string NoObservationLabel = "（不观察运行时）";
+
+        private void CreateObserveDropdown(VisualElement toolbar)
+        {
+            _observeDropdown = new PopupField<string>
+            {
+                tooltip = "选择一个运行中的状态机实例，把实时状态着色到编辑画布",
+            };
+            _observeDropdown.style.width = 180f;
+            _observeDropdown.style.marginLeft = 4f;
+            _observeDropdown.RegisterValueChangedCallback(evt => OnObserveSelectionChanged(evt.newValue));
+            toolbar.Add(_observeDropdown);
+            RefreshObserveDropdown(force: true);
+        }
+
+        private void OnObserveSelectionChanged(string label)
+        {
+            if (_context == null || _observeDropdown == null) return;
+            var index = _observeDropdown.choices != null ? _observeDropdown.choices.IndexOf(label) : -1;
+            if (index < 0 || index >= _observeNames.Count) return;
+
+            var name = _observeNames[index];
+            if (string.IsNullOrEmpty(name)) _context.EndObserve();
+            else _context.BeginObserve(name);
+
+            _observeFingerprint = "";
+            RefreshObserveDropdown(force: true);
+            Repaint();
+        }
+
+        /// <summary>
+        /// Rebuilds the instance choices. Fingerprint-gated because the editor update calls it on a
+        /// 0.25s cadence, and rebuilding the choice list would otherwise fight an open dropdown.
+        /// </summary>
+        private void RefreshObserveDropdown(bool force = false)
+        {
+            if (_observeDropdown == null) return;
+
+            var entries = LiveRegistry.GetEntries();
+            var labels = new List<string> { NoObservationLabel };
+            var names = new List<string> { null };
+            var fingerprint = "";
+            for (var index = 0; index < entries.Count; index++)
+            {
+                var entry = entries[index];
+                if (entry == null) continue;
+                var typeName = entry.FsmType?.Name ?? "未知类型";
+                fingerprint += entry.Name + "(" + typeName + "),";
+                labels.Add(entry.Name + " (" + typeName + ")");
+                names.Add(entry.Name);
+            }
+
+            var observed = _context != null ? _context.ObservedInstanceName : null;
+            fingerprint += ">>" + observed;
+            if (!force && fingerprint == _observeFingerprint) return;
+            _observeFingerprint = fingerprint;
+
+            var selectedIndex = 0;
+            if (!string.IsNullOrEmpty(observed))
+            {
+                for (var index = 1; index < names.Count; index++)
+                {
+                    if (string.Equals(names[index], observed, StringComparison.Ordinal))
+                    {
+                        selectedIndex = index;
+                        break;
+                    }
+                }
+            }
+
+            _observeNames.Clear();
+            _observeNames.AddRange(names);
+            _observeDropdown.choices = labels;
+            _observeDropdown.SetValueWithoutNotify(labels[selectedIndex]);
+            _observeDropdown.SetEnabled(names.Count > 1);
+        }
+
+        private void OnEditorUpdate()
+        {
+            if (_context == null) return;
+
+            var now = EditorApplication.timeSinceStartup;
+            if (now < _nextObservePollTime) return;
+            _nextObservePollTime = now + 0.25d;
+
+            if (Application.isPlaying)
+            {
+                LiveRegistry.UpdateAllSnapshots();
+                if (_context.IsObserving)
+                {
+                    var entry = LiveRegistry.FindEntry(_context.ObservedInstanceName);
+                    _context.SetLiveSnapshot(entry?.Snapshot);
+                    UpdateBreadcrumb();
+                    Repaint();
+                }
+            }
+
+            RefreshObserveDropdown();
         }
 
         #endregion

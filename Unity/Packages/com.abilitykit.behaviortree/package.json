@@ -16,8 +16,8 @@
   },
   "samples": [
     {
-      "displayName": "Complete Runtime Observation",
-      "description": "完整 authoring JSON、ScriptableObject 反写工具，以及可交互的 Play Mode 节点/黑板观察宿主。",
+      "displayName": "行为树场景与运行观察",
+      "description": "三棵可编辑示例树、可生成的基础 Unity 场景，以及 Play Mode 节点和黑板观察宿主。",
       "path": "Samples~/CompleteRuntimeObservation"
     }
   ],

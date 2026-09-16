@@ -12,6 +12,7 @@
         "AbilityKit.Core",
         "AbilityKit.Continuous",
         "AbilityKit.Deterministic",
+        "AbilityKit.HFSM.Core",
         "AbilityKit.Pipeline",
         "AbilityKit.Record",
         "AbilityKit.Modifiers",

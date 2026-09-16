@@ -32,7 +32,7 @@ namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation
                 {
                     Seed = settings.Seed,
                     RestartWhenComplete = false,
-                    DebugName = "Complete Runtime Observation",
+                    DebugName = document.Tree.TreeId,
                     DebugOwnerLabel = ownerLabel ?? "",
                 });
         }
@@ -58,7 +58,7 @@ namespace AbilityKit.BehaviorTree.Samples.CompleteRuntimeObservation
                 {
                     Seed = settings.Seed,
                     RestartWhenComplete = false,
-                    DebugName = "Complete Runtime Observation (Runtime JSON)",
+                    DebugName = definition.TreeId,
                     DebugOwnerLabel = ownerLabel ?? "",
                 });
         }

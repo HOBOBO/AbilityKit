@@ -77,11 +77,25 @@ namespace AbilityKit.Demo.Moba.Services
             }
 
             var castFlowId = skill.CastFlowId;
+            float castRange = skill.Range;
+            MobaSkillParamModifierService paramModifiers = null;
+            if (_services.TryResolve<MobaSkillParamModifierService>(out var resolvedModifiers) && resolvedModifiers != null)
+            {
+                paramModifiers = resolvedModifiers;
+                castRange = Math.Max(0f, paramModifiers.Skill.ResolveCastRange(actorId, castRange));
+            }
             if (RequiresTargetSearch(skill))
             {
                 if (!_services.TryResolve<SearchTargetService>(out var search) || search == null)
                 {
                     return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "Required target search service is unavailable.");
+                }
+
+                if (skill.RequiredTargetQueryId <= 0 && castRange <= 0f)
+                {
+                    return SkillCastPreparationResult.Failed(
+                        SkillFailureCodes.Cast.ConfigurationInvalid,
+                        $"Resolved cast range must be positive. skillId={skillId}, range={castRange}.");
                 }
 
                 var targets = new List<int>(1);
@@ -93,7 +107,7 @@ namespace AbilityKit.Demo.Moba.Services
                         finalTargetActorId,
                         targets)
                     : search.TrySearchActorIds(
-                        NormalAttackTargetQuery.Create(skill.Range),
+                        NormalAttackTargetQuery.Create(castRange),
                         actorId,
                         in casterPos,
                         finalTargetActorId,
@@ -139,6 +153,13 @@ namespace AbilityKit.Demo.Moba.Services
                 return SkillCastPreparationResult.Failed(
                     SkillFailureCodes.Cast.ConfigurationInvalid,
                     configurationError);
+            }
+
+            if (paramModifiers != null)
+            {
+                resolvedConfiguration = resolvedConfiguration.WithRuntimeParameters(
+                    paramModifiers.Skill.ResolveResourceCost(actorId, resolvedConfiguration.ResourceCost),
+                    paramModifiers.Skill.ResolveCooldownMs(actorId, resolvedConfiguration.CooldownMs));
             }
 
             var sequence = NextCastSequence(actorId);

@@ -122,9 +122,10 @@ flowchart TB
 7. [状态同步](07-NetworkSynchronization/02-StateSync.md)
 8. [回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md)
 9. [预测与表现重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md)
-10. [回放系统](07-NetworkSynchronization/04-ReplaySystem.md)
-11. [会话协调](07-NetworkSynchronization/05-SessionCoordination.md)
-12. [多人联网 SDK 新示例接入指南](07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md)
+10. [帧同步与状态同步预测回滚方案](07-NetworkSynchronization/03.2-FrameStatePredictionRollback.md)
+11. [回放系统](07-NetworkSynchronization/04-ReplaySystem.md)
+12. [会话协调](07-NetworkSynchronization/05-SessionCoordination.md)
+13. [多人联网 SDK 新示例接入指南](07-NetworkSynchronization/07-MultiplayerSdkIntegrationGuide.md)
 
 ---
 
@@ -213,6 +214,7 @@ flowchart TB
 | [02-状态同步](07-NetworkSynchronization/02-StateSync.md) | Canonical 设计 | 元信息/实体状态双轨、快照缓存与路由生命周期、hash/diff、PredictionCoordinator 重演顺序及 store 清理缺口 |
 | [03-回滚预测](07-NetworkSynchronization/03-RollbackPrediction.md) | Canonical 设计 | Provider 稳定顺序、池化捕获/恢复、非事务 Import、三层预测实现、FrameTime 恢复与 E0-E5 证据 |
 | [03.1-预测与表现重整](07-NetworkSynchronization/03.1-PredictionReconciliationDesign.md) | Canonical 设计 | 逻辑校正到 View/插值/Cue 的项目桥接契约，区分底座实现、接入要求、目标设计与验收证据 |
+| [03.2-帧同步与状态同步预测回滚方案](07-NetworkSynchronization/03.2-FrameStatePredictionRollback.md) | 实施设计与现状审计 | 帧末状态恢复与权威基线覆盖的区别、预测资格、MOBA Entitas/Context 真实边界、StateSync 局部重演和验收顺序 |
 | [04-回放系统](07-NetworkSynchronization/04-ReplaySystem.md) | Canonical 设计 | Record/FrameRecord/akrec 三层职责、v4 writer/v1-v4 reader、RecordIdHash、Smoke artifact 与 CI 分层 |
 | [05-会话协调](07-NetworkSynchronization/05-SessionCoordination.md) | Canonical 设计 | 阶段化 commit、Profile/Room 能力绑定、双连接唯一订阅、断线离线保留、1 分钟遗弃清理和跨 Grain/store 非事务边界 |
 | [06-FrameRecord 编码与 Smoke 证据链](07-NetworkSynchronization/06-FrameRecordCodecAndSmokeEvidence.md) | Canonical 设计 | codec 身份、StateHash schema、v1-v4 兼容、RecordIdHash、Smoke 回读与 E3/E4/E5 分层 |
@@ -269,6 +271,7 @@ flowchart TB
 | [03.20-MOBA Runtime 战斗逻辑层深潜](09-ImplementationExamples/MOBA/19-MobaRuntimeLogicLayerDeepDive.md) | 战斗逻辑层设计 | 输入输出、System/Service、DI 生命周期、测试分层，以及 runtime 作为项目应用组合而非框架默认层 |
 | [03.21-MOBA Runtime 战斗逻辑层实战指南](../../local/Docs/AbilityKit战斗逻辑层设计草稿.md) | 实战指南（与 19 号互补） | 框架能力组合全景图、6 种扩展模式（0 代码到 50 行代码）、11 个实战反模式 + 修复路径、7 步上手流程 + 接入里程碑 |
 | [03.22-Console Demo Bootstrap 与 FeatureHost 装配链路深潜](09-ImplementationExamples/MOBA/20-ConsoleDemoBootstrapAndFeatureDeepDive.md) | Console Demo 装配 | Bootstrap/FeatureHost、共享双连接 StateSync、真实墙钟网络 Tick、自动输入、两套 replay 与现存 attach/view/Hybrid 债务 |
+| [03.23-MOBA 技能能力缺口矩阵](09-ImplementationExamples/MOBA/21-SkillCapabilityGapMatrix.md) | 能力评估 | 六条机制轴 × 61 条技能形态的判定表；经三轮回源码重验：B 类 10 条是"能力+构建+编辑器+往返+单测全齐、仅生产内容为零"的流程问题，C 类初扫 8 条重验后真正保留 4 条——短板在契约层(回滚/重连)，不在机制层；含"召唤物不进快照"的裁定(销毁预测+重执行，前提是 ActorIdAllocator 需进回滚) |
 | [04-Shooter Demo 与 Orleans Smoke](09-ImplementationExamples/04-Shooter%20Demo%20与%20Orleans%20Smoke.md) | 网络闭环与分层证据 | 默认 `state-sync-authority`、AuthoritativeInterpolation、2 人 Room 与 packed 1/30；区分本地模拟玩家、真实 Room 成员、E3 契约、历史 E4 artifact 和 E5 gate |
 | [04.1-Shooter 专题总览](09-ImplementationExamples/Shooter/00-Overview.md) | Shooter 导航 | 项目级综合参考入口，区分模板/Profile/controller、可复用机制与 Shooter 应用编排；默认两名 Room 成员 ready，证据按 E0-E5 阅读 |
 | [04.2-Shooter Runtime、Svelto 装配与恢复边界](09-ImplementationExamples/Shooter/01-RuntimeSveltoSimulation.md) | Shooter 运行时 | Blueprint/WorldModule、窄 RuntimePort、float Tick、结构提交、容量与 packed 恢复，以及 runtime 不拥有客户端表现/网络生命周期 |
@@ -489,7 +492,7 @@ flowchart TB
 | 2026-08-19 | 2.88 | Shooter 千单位性能专题：记录 AOI 未变化抑制与周期刷新、插值/输入背压、codec/Mapper/Projection 稳态零分配、GPU stable slot/局部上传、端到端指标、2K allocation gate、历史 AOI 扇出结果和真实双客户端 GPU E4 缺口 |
 | 2026-09-07 | 2.89 | 编辑器平台收敛与统一入口设计：新增 `13-FrameworkCore/09-EditorPlatformConvergence.md`，按源码核校 Editor Platform 的采纳地图（BT/HFSM/Ability 部分接入、Pipeline/BattleFlow/Protocol/Trace 未接）、七个关注点共享/域内边界、重复实现证据、Hub 统一入口与五阶段收敛顺序；纠正包内 canonical 把 Pipeline 误列为 Platform 消费者；仅改 Markdown |
 | 2026-09-07 | 2.90 | 编辑器平台收敛收尾：判定运行时调试骨架不下沉（四 debugger 机制/快照各异、无稳定契约，按能力下沉五条否决），更新 `09-EditorPlatformConvergence.md` §三/§6.2（v1.2）；同步落地删除 pipeline 死代码 `EditorPipelineTraceRecorder`（未使用单例，保留 `EditorPipelineRunTrace`） |
-| 2026-09-10 | 2.91 | 新增 `01-OverviewAndGettingStarted/05-SampleCatalogUnityHosts.md`（演进计划，未实施；同日 v1.0→v2.0 重写并改名）：调研确认示例体系已是"契约/内容/宿主"三层且已有 CLI+Web 两个宿主，Unity 宿主缺失（`SampleHostKind` 六种形态无 Unity，`ISampleEnvironment` 全仓零消费者）；结论改为把 `Samples.Abstractions`（27 文件 1715 行、零依赖）与 `Samples.Logic`（162 文件 22607 行、37 条示例）搬进 `Unity/Packages` 并补 Unity 宿主，**作废** v1.0 的 `com.abilitykit.demo.minimal` 新包方案（会造第四套并行体系）；实测 7 类移植阻塞（STJ 5 处 / nullable 162 文件 0 指令 / 隐式 using ~13 / File 4 处 / Console 8 处 / 死 xunit 引用 / 24 包闭包）；保留 `world.di` 补 `IWorldTickDriver`+`DefaultWorld` 为独立可选项（附录 A）；仅改 Markdown |
+| 2026-09-14 | 2.92 | 示例工程阶段 3.3 落地与两个搬迁遗留缺陷修复：新增 `com.abilitykit.samples/Editor/SampleLearningRenderer.cs`（学习契约 / 自查点 / 源码走读三段 IMGUI 呈现）；修复 ①`SampleLearningContract` 未建模 `audience`/`prerequisites`/`outcomes`/`pitfalls` 导致 37/37 数据被静默丢弃（实测由 0/37 → 37/37）②`codeWalkthrough.sourceFile` 39 个唯一路径中 30 个因搬迁失效（88 处引用），致 Web 宿主代码块静默为空（实测 98/98 步恢复可解析）；同步 `05-SampleCatalogUnityHosts.md` 增 §十实施状态（v2.4）；`tools/unity-host-probe` 补 7 处 Unity 类型桩 | 新增 `01-OverviewAndGettingStarted/05-SampleCatalogUnityHosts.md`（演进计划，未实施；同日 v1.0→v2.0 重写并改名）：调研确认示例体系已是"契约/内容/宿主"三层且已有 CLI+Web 两个宿主，Unity 宿主缺失（`SampleHostKind` 六种形态无 Unity，`ISampleEnvironment` 全仓零消费者）；结论改为把 `Samples.Abstractions`（27 文件 1715 行、零依赖）与 `Samples.Logic`（162 文件 22607 行、37 条示例）搬进 `Unity/Packages` 并补 Unity 宿主，**作废** v1.0 的 `com.abilitykit.demo.minimal` 新包方案（会造第四套并行体系）；实测 7 类移植阻塞（STJ 5 处 / nullable 162 文件 0 指令 / 隐式 using ~13 / File 4 处 / Console 8 处 / 死 xunit 引用 / 24 包闭包）；保留 `world.di` 补 `IWorldTickDriver`+`DefaultWorld` 为独立可选项（附录 A）；仅改 Markdown |
 | 2026-09-10 | 2.92 | `05-SampleCatalogUnityHosts.md` v2.1：包名前缀决策落定为 `com.abilitykit.samples.*`（非 `demo.samples.*`，理由是这些包是示例体系本身而非具体示例）；核实该命名跳出 `neverReleased.prefixes` 豁免区，被 `tools/publish/audit-versions.js` 的 `isFramework()` 判为框架包，故新增 §6.4 记录三条硬约束（须 cohort 0.1.0 / 24 个依赖须逐一按被引包声明版本 0.1.0 / 不得带 BOM）；并记录实际发布须等 23 个未发布依赖先上 OpenUPM 的张力（该张力**只影响发布，不阻塞实施**——24 个依赖包在仓库内全部已存在）；仅改 Markdown |
 | 2026-09-10 | 2.93 | `05-SampleCatalogUnityHosts.md` v2.2：收敛为**只新增一个包 `com.abilitykit.samples`**（契约层与内容层合并，不拆两个包）。依据：已核实 `Samples.Abstractions.csproj` 的全部消费者仅 `src/AbilityKit.Samples` 与 `Samples.Logic` 两个，无任何框架包依赖，为假想消费者多维护一个包不划算；包结构定为 `Runtime/`（纯逻辑，`noEngineReferences:true`）+ `Editor/`（Unity 宿主）双 asmdef；.NET 侧两个工程保持不动、只改 `<Compile Include>` 指向同一包的不同子树；净新增包数 +1；仅改 Markdown |
 | 2026-09-10 | 2.94 | `05-SampleCatalogUnityHosts.md` v2.3：Unity 宿主渲染口径定案——**先文本后画布**（阶段 3 拆为 3.1 结构化文本 / 3.2 语义图，3.1 做完即达成核心目标），且**用最基础 IMGUI 绘制、不复刻 Web 宿主的 canvas 渲染**（`GUI.Box` / `EditorGUI.DrawRect` / `Handles.DrawAAPolyLine` / `GUI.Label`，预估 150–250 行；明确不做 camera/材质级渲染、缓动动画、自适应布局）。补充佐证：契约层 `SampleVisualModel` / `SampleVisualFrame` 的 XML 注释原文即声明为"host-neutral … consumed by reusable render templates / learning hosts"，宿主中立渲染本就是设计意图；仅改 Markdown |

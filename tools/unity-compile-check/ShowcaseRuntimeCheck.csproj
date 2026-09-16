@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <LangVersion>9.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <NoWarn>CS8632</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup>
+    <UnityManaged>C:\Program Files\Unity\Hub\Editor\2022.3.62f1\Editor\Data\Managed</UnityManaged>
+    <RepoRoot>C:\Workspace\gitProject\AbilityKit</RepoRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(RepoRoot)\Unity\Packages\com.abilitykit.behaviortree\Samples~\CompleteRuntimeObservation\Runtime\*.cs" />
+    <ProjectReference Include="RuntimeCheck.csproj" />
+    <ProjectReference Include="DeterministicCheck.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(UnityManaged)\UnityEngine\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(UnityManaged)\UnityEngine\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

@@ -126,6 +126,14 @@ namespace AbilityKit.Context
             }
         }
 
+        public void RemoveFromEntityId(long firstEntityId)
+        {
+            long[] ids;
+            lock (_lock)
+                ids = _snapshots.Keys.Where(id => id >= firstEntityId).ToArray();
+            foreach (var id in ids) Remove(id);
+        }
+
         public void Clear()
         {
             lock (_lock)

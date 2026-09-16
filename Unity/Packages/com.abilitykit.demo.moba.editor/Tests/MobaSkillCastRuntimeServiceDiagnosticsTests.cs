@@ -512,6 +512,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var areaRuntime = new MobaAreaRuntimeService();
             SetPrivateField(areaRuntime, "_skillRuntimes", skillRuntimes);
+            var frameTime = new FrameTime();
+            frameTime.Reset(new FrameIndex(1), 0f, 1f / 60f);
+            SetPrivateField<IFrameTime>(areaRuntime, "_frameTime", frameTime);
             return areaRuntime;
         }
 

@@ -1,3 +1,8 @@
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Battle.Component;
+using AbilityKit.Game.Battle.Entity;
+using UnityEngine;
+using AbilityKit.HFSM.Definition;
 using EC = AbilityKit.World.ECS;
 
 namespace AbilityKit.Game.Flow
@@ -34,7 +39,34 @@ namespace AbilityKit.Game.Flow
             if (!_inputs.TryCreate(entity, out var input)) return;
             if (!_models.Sync(in input, runtimeContext, out var handle)) return;
 
+            SyncCharacterHfsm(in input, handle, runtimeContext);
+
             _attachedVfx.SyncProjectileVfx(entity, handle, input.Meta);
+        }
+
+        private static void SyncCharacterHfsm(in BattleViewEntitySyncInput input,
+            BattleViewHandle handle, IBattleRuntimeContext context)
+        {
+            if (handle.GameObject == null || input.Meta == null ||
+                input.Meta.Kind != BattleEntityKind.Character || context?.Session == null ||
+                !context.Session.TryGetWorld(out var world) || world?.Services == null ||
+                !world.Services.TryResolve<MobaActorRegistry>(out var registry) ||
+                registry == null || !registry.TryGet(input.ActorId, out var actor) ||
+                !actor.hasCharacterHfsm) return;
+
+            if (!input.Entity.TryGetRef(out BattleCharacterHfsmComponent state) || state == null ||
+                state.EntityCode != input.Meta.EntityCode)
+            {
+                world.Services.TryResolve<StateMachineDefinition>(out var definition);
+                world.Services.TryResolve<CharacterPresentationActionCatalog>(out var catalog);
+                state = new BattleCharacterHfsmComponent(definition, catalog, input.Meta.EntityCode);
+                input.Entity.WithRef(state);
+            }
+            state.ApplySnapshot(actor.characterHfsm.Runtime.CaptureSnapshot());
+
+            var mono = handle.GameObject.GetComponent<MonoCharacterHfsmView>();
+            if (mono == null) mono = handle.GameObject.AddComponent<MonoCharacterHfsmView>();
+            mono.Bind(state, context.Plan.World.TickRate);
         }
     }
 

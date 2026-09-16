@@ -6,6 +6,7 @@ using AbilityKit.Demo.Moba.Config.BattleDemo;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Services.Behavior;
 using AbilityKit.Demo.Moba.Services.StateMachine;
+using AbilityKit.HFSM.Definition;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
 {
@@ -46,6 +47,8 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 MobaActorStateMachineProfileJsonLoader.Load(_.Resolve<ITextAssetLoader>(), catalog);
                 return catalog;
             });
+            builder.TryRegister<StateMachineDefinition>(WorldLifetime.Singleton, _ =>
+                MobaCharacterHfsmProfile.LoadDefinition(_.Resolve<ITextAssetLoader>()));
             builder.TryRegister<IMobaConfigLoadPipeline>(WorldLifetime.Singleton, _ =>
             {
                 _.TryResolve<IMobaConfigTableRegistry>(out var registry);

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "states": [
+    {
+      "path": "life/alive/action/idle",
+      "action": { "id": "idle", "type": "sequence", "actions": [
+        { "id": "idle.play", "type": "play", "animatorState": "Idle", "loop": true }
+      ] }
+    },
+    {
+      "path": "life/alive/action/moving",
+      "action": { "id": "moving", "type": "sequence", "actions": [
+        { "id": "moving.play", "type": "play", "animatorState": "Run", "loop": true }
+      ] }
+    },
+    {
+      "path": "life/alive/action/casting",
+      "action": { "id": "casting", "type": "sequence", "actions": [
+        { "id": "casting.log", "type": "log", "message": "casting" },
+        { "id": "attack.phase", "type": "wait", "seconds": 0.5 }
+      ] }
+    },
+    {
+      "path": "life/alive/action/controlled",
+      "action": { "id": "controlled", "type": "sequence", "actions": [
+        { "id": "controlled.play", "type": "play", "animatorState": "Stun", "loop": true }
+      ] }
+    },
+    {
+      "path": "life/dead",
+      "action": { "id": "dead", "type": "sequence", "actions": [
+        { "id": "dead.play", "type": "play", "animatorState": "Die", "loop": false }
+      ] }
+    }
+  ],
+  "variants": [
+    {
+      "entityCode": 1001,
+      "path": "life/alive/action/casting",
+      "actionId": "attack.phase",
+      "action": { "id": "attack.phase", "type": "sequence", "actions": [
+        { "id": "attack.play", "type": "play", "animatorState": "Attack" },
+        { "id": "attack.wait", "type": "wait", "seconds": 0.5 }
+      ] }
+    }
+  ]
+}

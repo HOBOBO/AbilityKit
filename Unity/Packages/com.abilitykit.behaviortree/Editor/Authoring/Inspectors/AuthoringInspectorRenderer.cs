@@ -29,6 +29,7 @@ namespace AbilityKit.BehaviorTree.Editor
         ObservationSnapshot? DisplayedObservationSnapshot { get; }
         ObservationSnapshot? PreviousObservationSnapshot { get; }
         ObservationDiff? DisplayedObservationDiff { get; }
+        ObservationBlackboard? InitialRuntimeBlackboard { get; }
         void RefreshNodeTitles();
         void RebuildGraph();
         void RefreshChrome();
@@ -105,9 +106,13 @@ namespace AbilityKit.BehaviorTree.Editor
                         paddingTop = 6f,
                     },
                 };
-                _root.Add(_runtimeNodeStateLabel);
-                _root.Add(_runtimeBlackboardLabel);
-                RefreshRuntimeDetails();
+                if (_host.DisplayedObservationSnapshot != null)
+                {
+                    _root.Add(_runtimeNodeStateLabel);
+                    _root.Add(_runtimeBlackboardLabel);
+                }
+                DrawRuntimeBlackboardPanel();
+                if (_host.DisplayedObservationSnapshot != null) RefreshRuntimeDetails();
             }
             else
             {
@@ -402,11 +407,8 @@ namespace AbilityKit.BehaviorTree.Editor
         public void RefreshRuntimeDetails()
         {
             if (!_host.IsReadOnly) return;
-            if (_selectedNode == null)
-            {
-                RefreshRuntimeBlackboardPanel();
-                return;
-            }
+            RefreshRuntimeBlackboardPanel();
+            if (_selectedNode == null) return;
             if (_runtimeNodeStateLabel == null) return;
             var snapshot = _host.DisplayedObservationSnapshot;
             if (snapshot == null || !snapshot.TryGetNode(_selectedNode.Id, out var state))
@@ -465,7 +467,7 @@ namespace AbilityKit.BehaviorTree.Editor
         private void DrawRuntimeBlackboardPanel()
         {
             _root.Add(new Label("黑板") { style = { paddingTop = 8f, unityFontStyleAndWeight = FontStyle.Bold } });
-            _runtimeBlackboardSearchField = new TextField
+            _runtimeBlackboardSearchField = new TextField("筛选")
             {
                 value = _runtimeBlackboardSearch,
                 isDelayed = false,
@@ -503,34 +505,83 @@ namespace AbilityKit.BehaviorTree.Editor
                 _host.DisplayedObservationDiff);
             if (view.Count == 0)
             {
-                _runtimeTreeBlackboardContainer.Add(new Label("（空）") { style = { opacity = 0.65f } });
+                foreach (var key in _host.Document.Tree.Blackboard.Keys)
+                {
+                    if (!string.IsNullOrWhiteSpace(_runtimeBlackboardSearch)
+                        && key.Name.IndexOf(_runtimeBlackboardSearch, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                    if (_runtimeBlackboardChangedOnly) continue;
+                    _runtimeTreeBlackboardContainer.Add(new Label(
+                        key.Name + " [" + key.Type + "]  初始 " + InitialBlackboardValue(key.Name, key)
+                        + "  ·  实时 <无快照>")
+                    {
+                        style = { whiteSpace = WhiteSpace.Normal, marginBottom = 3f },
+                    });
+                }
+                if (_runtimeTreeBlackboardContainer.childCount == 0)
+                    _runtimeTreeBlackboardContainer.Add(new Label("（空）") { style = { opacity = 0.65f } });
                 return;
             }
 
             foreach (var row in view.Search(_runtimeBlackboardSearch, _runtimeBlackboardChangedOnly))
             {
-                var label = new Label(FormatBlackboardRow(row))
+                var initial = _host.Document.Tree.Blackboard.Keys.FirstOrDefault(key =>
+                    string.Equals(key.Name, row.Key, StringComparison.Ordinal));
+                var item = new VisualElement
                 {
                     tooltip = row.Key,
                     style =
                     {
-                        whiteSpace = UnityEngine.UIElements.WhiteSpace.Normal,
-                        paddingTop = 2f,
-                        paddingBottom = 2f,
-                        unityFontStyleAndWeight = row.IsChanged ? FontStyle.Bold : FontStyle.Normal,
+                        paddingTop = 3f,
+                        paddingBottom = 5f,
+                        borderBottomWidth = 1f,
+                        borderBottomColor = new Color(0.5f, 0.5f, 0.5f, 0.2f),
                     },
                 };
-                if (row.IsChanged) label.style.backgroundColor = new Color(1f, 0.85f, 0.45f, 0.18f);
-                _runtimeTreeBlackboardContainer.Add(label);
+                item.Add(new Label(row.Key + "  [" + row.Type + "]")
+                {
+                    style = { unityFontStyleAndWeight = FontStyle.Bold, whiteSpace = WhiteSpace.Normal },
+                });
+                var values = new VisualElement
+                {
+                    style = { flexDirection = FlexDirection.Row, flexWrap = Wrap.Wrap },
+                };
+                values.Add(new Label("初始  " + InitialBlackboardValue(row.Key, initial))
+                {
+                    style = { flexGrow = 1f, minWidth = 105f, whiteSpace = WhiteSpace.Normal },
+                });
+                var current = row.HasCurrentValue ? row.CurrentValue : "<已移除>";
+                if (row.HasPreviousValue && row.IsChanged)
+                    current += "（前值 " + row.PreviousValue + "）";
+                values.Add(new Label("实时  " + current)
+                {
+                    style = { flexGrow = 1f, minWidth = 105f, whiteSpace = WhiteSpace.Normal },
+                });
+                item.Add(values);
+                if (row.IsChanged) item.style.backgroundColor = new Color(1f, 0.85f, 0.45f, 0.18f);
+                _runtimeTreeBlackboardContainer.Add(item);
             }
         }
 
-        private static string FormatBlackboardRow(ObservationBlackboardRow row)
+        private static string FormatInitialValue(BlackboardKeyDefinition key)
         {
-            var current = row.HasCurrentValue ? row.CurrentValue : "<已移除>";
-            if (!row.HasPreviousValue) return row.Key + " [" + row.Type + "] = " + current;
-            if (!row.IsChanged) return row.Key + " [" + row.Type + "] = " + current;
-            return row.Key + " [" + row.Type + "] = " + current + "（前值 " + row.PreviousValue + "）";
+            if (key.Default != null) return key.Default.ToString();
+            return key.Type switch
+            {
+                ValueType.Bool => "false（类型默认）",
+                ValueType.Int64 => "0（类型默认）",
+                ValueType.Fixed64 => "0（类型默认）",
+                ValueType.String => "空字符串（类型默认）",
+                _ => "<未设置>",
+            };
+        }
+
+        private string InitialBlackboardValue(string name, BlackboardKeyDefinition? definition)
+        {
+            var previewInitial = _host.InitialRuntimeBlackboard;
+            var index = previewInitial?.IndexOf(name) ?? -1;
+            return index >= 0
+                ? previewInitial!.GetDisplayValue(index)
+                : definition == null ? "<定义不可用>" : FormatInitialValue(definition);
         }
 
         private void DrawSubtreeBlackboard(NodeDefinition node)
@@ -677,21 +728,15 @@ namespace AbilityKit.BehaviorTree.Editor
             return choices.FirstOrDefault(key => !usedSet.Contains(key)) ?? "";
         }
 
-        private static List<string> ResolveReferencedBlackboardKeys(NodeDefinition node)
+        private List<string> ResolveReferencedBlackboardKeys(NodeDefinition node)
         {
             if (!node.Properties.TryGet(SubtreeNode.TreeIdProperty, out var value)
                 || !value.TryGetString(out var treeId)
                 || string.IsNullOrEmpty(treeId))
                 return new List<string>();
 
-            foreach (var guid in AssetDatabase.FindAssets("t:AuthoringAsset"))
-            {
-                var asset = AssetDatabase.LoadAssetAtPath<AuthoringAsset>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset == null) continue;
-                var tree = asset.LoadDocument().Tree;
-                if (!string.Equals(tree.TreeId, treeId, StringComparison.Ordinal)) continue;
-                return tree.Blackboard.Keys.Select(key => key.Name).ToList();
-            }
+            if (AuthoringDocumentCatalog.TryFindDocument(treeId, _host.Document, out var document))
+                return document.Tree.Blackboard.Keys.Select(key => key.Name).ToList();
             return new List<string>();
         }
 
@@ -745,18 +790,25 @@ namespace AbilityKit.BehaviorTree.Editor
         }
 
         /// <summary>跨树跳转：按 TreeId 找到授权资产并打开其图编辑器。</summary>
-        private static void OpenReferencedTree(string treeId)
+        private void OpenReferencedTree(string treeId)
         {
+            if (!AuthoringDocumentCatalog.TryFindDocument(treeId, _host.Document, out var referenced))
+            {
+                Debug.LogWarning($"[BtAuthoring] 未找到 TreeId='{treeId}' 的引用树。");
+                return;
+            }
             foreach (var guid in AssetDatabase.FindAssets("t:AuthoringAsset"))
             {
                 var asset = AssetDatabase.LoadAssetAtPath<AuthoringAsset>(AssetDatabase.GUIDToAssetPath(guid));
-                if (asset != null && string.Equals(asset.LoadDocument().Tree.TreeId, treeId, System.StringComparison.Ordinal))
+                if (asset != null
+                    && string.Equals(asset.LoadDocument().Tree.TreeId, treeId, StringComparison.Ordinal)
+                    && asset.LoadDocument().Tree.ComputeDefinitionHash() == referenced.Tree.ComputeDefinitionHash())
                 {
                     AuthoringGraphWindow.Open(asset);
                     return;
                 }
             }
-            Debug.LogWarning($"[BtAuthoring] 未找到 TreeId='{treeId}' 的授权资产。");
+            AuthoringGraphWindow.OpenCatalogPreview(referenced);
         }
 
         private static string FormatFieldValue(PropertyField field, PropertyValue value)
@@ -884,8 +936,83 @@ namespace AbilityKit.BehaviorTree.Editor
                             $"[BtAuthoring] 黑板键 '{oldName}' 的类型已从 {impact.FromType} 改为 {impact.ToType}；需要重新校验 {impact.Usages.Count} 处引用。");
                     }
                     _host.RefreshNodeTitles();
+                    Render(_selectedNode);
                 });
                 row.Add(typeField);
+
+                var key = _host.Document.Tree.Blackboard.Keys[index];
+                var defaultRow = new VisualElement
+                {
+                    style =
+                    {
+                        flexDirection = FlexDirection.Row,
+                        alignItems = Align.Center,
+                        marginBottom = 8f,
+                        paddingLeft = 6f,
+                    },
+                };
+                var hasDefault = new Toggle("使用默认值") { value = key.Default != null };
+                hasDefault.style.minWidth = 100f;
+                defaultRow.Add(hasDefault);
+                var valueContainer = new VisualElement { style = { flexGrow = 1f, minWidth = 80f } };
+                defaultRow.Add(valueContainer);
+                void RefreshDefaultEditor()
+                {
+                    valueContainer.Clear();
+                    if (key.Default == null) return;
+                    switch (key.Type)
+                    {
+                        case ValueType.Bool:
+                            var boolField = new Toggle { value = key.Default.BoolValue };
+                            boolField.RegisterValueChangedCallback(evt =>
+                            {
+                                _host.RecordChange();
+                                key.Default = PropertyValue.Of(evt.newValue);
+                            });
+                            valueContainer.Add(boolField);
+                            break;
+                        case ValueType.Int64:
+                            var intField = new LongField { value = key.Default.Int64Value };
+                            intField.style.flexGrow = 1f;
+                            intField.RegisterValueChangedCallback(evt =>
+                            {
+                                _host.RecordChange();
+                                key.Default = PropertyValue.Of(evt.newValue);
+                            });
+                            valueContainer.Add(intField);
+                            break;
+                        case ValueType.Fixed64:
+                            var fixedField = new FloatField
+                            {
+                                value = AbilityKit.Deterministic.Fixed64.FromRaw(key.Default.Fixed64Raw).ToSingle(),
+                            };
+                            fixedField.style.flexGrow = 1f;
+                            fixedField.RegisterValueChangedCallback(evt =>
+                            {
+                                _host.RecordChange();
+                                key.Default = PropertyValue.Of(AbilityKit.Deterministic.Fixed64.FromSingle(evt.newValue));
+                            });
+                            valueContainer.Add(fixedField);
+                            break;
+                        case ValueType.String:
+                            var stringField = new TextField { value = key.Default.StringValue, isDelayed = true };
+                            stringField.style.flexGrow = 1f;
+                            stringField.RegisterValueChangedCallback(evt =>
+                            {
+                                _host.RecordChange();
+                                key.Default = PropertyValue.Of(evt.newValue ?? "");
+                            });
+                            valueContainer.Add(stringField);
+                            break;
+                    }
+                }
+                hasDefault.RegisterValueChangedCallback(evt =>
+                {
+                    _host.RecordChange();
+                    key.Default = evt.newValue ? DefaultOf(key.Type) : null;
+                    RefreshDefaultEditor();
+                });
+                RefreshDefaultEditor();
 
                 var refCount = KeyReferenceIndex.FindReferences(
                     _host.Document.Tree, EditorNodeCatalog.Registry, oldName).Count;
@@ -921,6 +1048,7 @@ namespace AbilityKit.BehaviorTree.Editor
                 removeButton.style.marginLeft = 4f;
                 row.Add(removeButton);
                 _root.Add(row);
+                _root.Add(defaultRow);
             }
 
             var addKey = new Button(() =>

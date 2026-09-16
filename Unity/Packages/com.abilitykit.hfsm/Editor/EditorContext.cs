@@ -4,6 +4,7 @@ using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using AbilityKit.HFSM.Graph;
+using AbilityKit.HFSM.Visualization;
 
 namespace AbilityKit.HFSM.Editor
 {
@@ -35,6 +36,59 @@ namespace AbilityKit.HFSM.Editor
         /// The currently active state machine being viewed/edited.
         /// </summary>
         public StateMachineNode CurrentStateMachine { get; private set; }
+
+        // ------------------------------------------------------------------
+        // 运行时观察：把 LiveRegistry 里绑定实例的实时快照着色到编辑画布
+        // ------------------------------------------------------------------
+
+        private string _observedInstanceName;
+        private FsmSnapshot _liveSnapshot;
+
+        /// <summary>Whether the canvas is currently bound to a live runtime instance.</summary>
+        public bool IsObserving => !string.IsNullOrEmpty(_observedInstanceName);
+
+        /// <summary>Name of the bound live instance; empty when not observing.</summary>
+        public string ObservedInstanceName => _observedInstanceName;
+
+        /// <summary>The latest live snapshot, or null when not observing.</summary>
+        public FsmSnapshot LiveSnapshot => _liveSnapshot;
+
+        /// <summary>
+        /// Machine whose children the canvas currently shows. Live state paths are
+        /// "{machineId}/{stateId}", so a nested machine prefixes the node id with this.
+        /// </summary>
+        public string CurrentMachineId =>
+            CurrentStateMachine != null
+                ? CurrentStateMachine.Id
+                : (_graphAsset != null ? _graphAsset.RootStateMachineId : string.Empty);
+
+        public void BeginObserve(string instanceName) => _observedInstanceName = instanceName ?? string.Empty;
+
+        public void EndObserve()
+        {
+            _observedInstanceName = null;
+            _liveSnapshot = null;
+        }
+
+        public void SetLiveSnapshot(FsmSnapshot snapshot) => _liveSnapshot = snapshot;
+
+        /// <summary>True when the node sits on the live run stack.</summary>
+        public bool IsNodeActive(string nodeId) => LivePathsContain(_liveSnapshot?.activeStatePaths, nodeId);
+
+        /// <summary>True when the node is the pending target of a delayed transition.</summary>
+        public bool IsNodeEntering(string nodeId) => LivePathsContain(_liveSnapshot?.pendingStatePaths, nodeId);
+
+        /// <summary>True when the node is waiting for its machine to approve exit.</summary>
+        public bool IsNodeExiting(string nodeId) => LivePathsContain(_liveSnapshot?.exitingStatePaths, nodeId);
+
+        private bool LivePathsContain(List<string> paths, string nodeId)
+        {
+            // Guard on the binding too: a stray snapshot must never color the canvas while unbound.
+            if (!IsObserving || paths == null || string.IsNullOrEmpty(nodeId)) return false;
+            var machineId = CurrentMachineId;
+            if (string.IsNullOrEmpty(machineId)) return false;
+            return paths.Contains(machineId + "/" + nodeId);
+        }
 
         /// <summary>
         /// Path of state machine nodes from root to current.
@@ -172,6 +226,8 @@ namespace AbilityKit.HFSM.Editor
         /// </summary>
         public void Reset()
         {
+            EndObserve();
+
             if (_graphAsset == null)
             {
                 CurrentStateMachine = null;
@@ -322,19 +378,6 @@ namespace AbilityKit.HFSM.Editor
             IsPreviewTransition = false;
             TransitionSourceNode = null;
             TransitionTargetNode = null;
-        }
-
-        /// <summary>
-        /// Adds a node to the selection.
-        /// </summary>
-        public void AddToSelection(NodeBase node)
-        {
-            if (node == null || SelectedNodes.Contains(node))
-                return;
-
-            SelectedNodes.Add(node);
-            SelectedEdge = null;
-            OnSelectionChanged?.Invoke();
         }
 
         /// <summary>
@@ -583,26 +626,26 @@ namespace AbilityKit.HFSM.Editor
         }
 
         /// <summary>
-        /// Moves a node to a new position.
-        /// </summary>
-        public void MoveNode(NodeBase node, Vector2 delta)
-        {
-            if (_graphAsset == null || node == null)
-                return;
-
-            node.Position += delta;
-            EditorUtility.SetDirty(_graphAsset);
-        }
-
-        /// <summary>
         /// Moves all selected nodes by a delta.
         /// </summary>
-        public void MoveSelectedNodes(Vector2 delta)
+        /// <summary>
+        /// Records a single undo entry for a node-drag gesture. Call once when the drag starts; the
+        /// per-step <see cref="MoveSelectedNodes"/> calls then fold into that one entry instead of
+        /// stacking a new undo entry on every mouse-drag event.
+        /// </summary>
+        public void BeginNodeMove()
         {
             if (_graphAsset == null || SelectedNodes.Count == 0)
                 return;
 
             Undo.RecordObject(_graphAsset, "移动节点");
+        }
+
+        public void MoveSelectedNodes(Vector2 delta)
+        {
+            if (_graphAsset == null || SelectedNodes.Count == 0)
+                return;
+
             foreach (var node in SelectedNodes)
             {
                 node.Position += delta;

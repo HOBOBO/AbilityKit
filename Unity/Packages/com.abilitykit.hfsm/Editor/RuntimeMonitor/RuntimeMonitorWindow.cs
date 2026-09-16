@@ -72,6 +72,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
         private VisualElement _root;
         private EditorSplitter _mainSplitter;
         private PopupField<string> _fsmDropdown;
+        private Label _runtimeInfoLabel;
         private VisualElement _playIndicator;
         private VisualElement _treeViewContainer;
         private VisualElement _graphViewContainer;
@@ -152,6 +153,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             if (entry == null) return;
 
             _currentSnapshot = entry.Snapshot;
+            UpdateRuntimeInfoLabel();
             UpdateLayout();
             RepaintViews();
         }
@@ -173,6 +175,15 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
 
             // 初始刷新
             RefreshFsmList();
+        }
+
+        private void UpdateRuntimeInfoLabel()
+        {
+            if (_runtimeInfoLabel == null) return;
+            var snapshot = _currentSnapshot;
+            _runtimeInfoLabel.text = snapshot == null || (snapshot.frame == 0 && snapshot.definitionHash == 0L)
+                ? string.Empty
+                : $"frame {snapshot.frame}  ·  定义 {snapshot.definitionHash:X8}";
         }
 
         private void CreateToolbar()
@@ -236,6 +247,19 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
                 UpdateViewVisibility();
             });
             toolbar.Add(historyToggle);
+
+            // 运行版本信息（帧号 / 定义哈希）
+            _runtimeInfoLabel = new Label
+            {
+                style =
+                {
+                    marginLeft = 8,
+                    marginRight = 6,
+                    unityTextAlign = TextAnchor.MiddleLeft,
+                },
+            };
+            toolbar.Add(_runtimeInfoLabel);
+            UpdateRuntimeInfoLabel();
 
             // 播放状态指示
             _playIndicator = new VisualElement();
@@ -469,6 +493,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             var entry = FindEntry(target);
             _currentSnapshot = entry?.Snapshot;
             _preferredFsmName = entry?.Name ?? string.Empty;
+            UpdateRuntimeInfoLabel();
             _userState.SetString(SelectedFsmStateKey, _preferredFsmName);
             if (EditorApplication.isPlaying)
                 LiveRegistry.UpdateSnapshot(target);

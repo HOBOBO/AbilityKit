@@ -181,6 +181,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                         TimeoutMs = awaitEvent.TimeoutMs,
                         CompleteOnTimeout = awaitEvent.CompleteOnTimeout,
                         Filters = awaitEvent.Filters ?? Array.Empty<SkillEventIntFilterDTO>(),
+                        Captures = awaitEvent.Captures ?? Array.Empty<SkillEventCaptureDTO>(),
                     };
                     break;
                 case SkillPhaseType.Window:
@@ -226,6 +227,19 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                         IgnoreGlobalCooldown = economy.IgnoreGlobalCooldown,
                         RefundBeforeCommit = economy.RefundBeforeCommit,
                         FailReason = economy.FailReason,
+                    };
+                    break;
+                case SkillPhaseType.DerivedSkill:
+                    var derived = dto.DerivedSkill ?? new SkillDerivedSkillPhaseDTO();
+                    def = new SkillDerivedSkillPhaseDef
+                    {
+                        SkillId = derived.SkillId,
+                        InheritAim = derived.InheritAim,
+                        InheritTarget = derived.InheritTarget,
+                        WaitForCompletion = derived.WaitForCompletion,
+                        AbortOnFailure = derived.AbortOnFailure,
+                        MaxDepth = derived.MaxDepth,
+                        FailReason = derived.FailReason,
                     };
                     break;
                 default:
@@ -453,6 +467,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         public int TimeoutMs;
         public bool CompleteOnTimeout = true;
         public SkillEventIntFilterDTO[] Filters = Array.Empty<SkillEventIntFilterDTO>();
+        public SkillEventCaptureDTO[] Captures = Array.Empty<SkillEventCaptureDTO>();
 
         public override SkillPhaseType PhaseType => SkillPhaseType.AwaitEvent;
 
@@ -465,6 +480,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
                 TimeoutMs = TimeoutMs,
                 CompleteOnTimeout = CompleteOnTimeout,
                 Filters = Filters ?? Array.Empty<SkillEventIntFilterDTO>(),
+                Captures = Captures ?? Array.Empty<SkillEventCaptureDTO>(),
             };
             return dto;
         }
@@ -574,6 +590,36 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
         }
     }
 
+    [Serializable]
+    public sealed class SkillDerivedSkillPhaseDef : SkillPhaseDef
+    {
+        [MinValue(1)] public int SkillId;
+        public bool InheritAim = true;
+        public bool InheritTarget = true;
+        public bool WaitForCompletion;
+        public bool AbortOnFailure = true;
+        [MinValue(1), MaxValue(16)] public int MaxDepth = 4;
+        public string FailReason;
+
+        public override SkillPhaseType PhaseType => SkillPhaseType.DerivedSkill;
+
+        public override SkillPhaseDTO ToDto()
+        {
+            var dto = CreateDto();
+            dto.DerivedSkill = new SkillDerivedSkillPhaseDTO
+            {
+                SkillId = SkillId,
+                InheritAim = InheritAim,
+                InheritTarget = InheritTarget,
+                WaitForCompletion = WaitForCompletion,
+                AbortOnFailure = AbortOnFailure,
+                MaxDepth = MaxDepth,
+                FailReason = FailReason,
+            };
+            return dto;
+        }
+    }
+
     internal static class SkillPhaseDefMenu
     {
         public static void Show(Action<SkillPhaseDef> apply, string undoLabel)
@@ -594,6 +640,7 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
             Add(menu, "技能窗口/Window", () => new SkillWindowPhaseDef(), apply, owner, undoLabel);
             Add(menu, "技能窗口/CommitPoint", () => new SkillCommitPointPhaseDef(), apply, owner, undoLabel);
             Add(menu, "技能经济/Economy", () => new SkillEconomyPhaseDef(), apply, owner, undoLabel);
+            Add(menu, "技能编排/Derived Skill", () => new SkillDerivedSkillPhaseDef(), apply, owner, undoLabel);
             menu.ShowAsContext();
         }
 

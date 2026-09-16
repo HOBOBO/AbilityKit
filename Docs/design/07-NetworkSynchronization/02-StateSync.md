@@ -2,7 +2,7 @@
 
 > **文档类型：Canonical 设计**
 >
-> **事实基线：2026-08-16**
+> **事实基线：2026-09-16**
 >
 > **规范范围：** 快照模型、缓存、路由、差分、预测校正与业务状态同步接入；不把示例专用状态模型提升为框架协议。
 
@@ -21,6 +21,8 @@
 7. [网络快照消息与打包](#7-网络快照消息与打包)
 8. [Shooter 状态同步落地](#8-shooter-状态同步落地)
 9. [设计约束与查漏补缺](#9-设计约束与查漏补缺)
+10. [关联文档](#10-关联文档)
+11. [状态同步业务预测回滚契约](#11-状态同步业务预测回滚契约)
 
 ---
 
@@ -443,8 +445,31 @@ flowchart TD
 
 - [帧同步机制](01-FrameSync.md) - 理解输入帧如何推进逻辑。
 - [回滚预测](03-RollbackPrediction.md) - 理解快照恢复与输入重演。
+- [帧同步与状态同步预测回滚方案](03.2-FrameStatePredictionRollback.md) - 预测白名单、权威基线、对账次序及失败降级。
 - [网络同步能力地图](00-SynchronizationCapabilityMap.md) - 回到同步能力总览。
 
 ---
 
-*文档版本：v3.2 | 最后更新：2026-08-16 | 文档类型：Canonical 设计*
+## 11. 状态同步业务预测回滚契约
+
+与第 6 节的**通用槽位协调器**不同，本节定义项目接入状态同步网络主链时必须满足的条件。该方案目前不是 MOBA 默认房间已经实现的 StateSync Profile；实际同步模式必须以服务端最终 commit 的 template/profile 和客户端能力声明为准。[03.2 专题](03.2-FrameStatePredictionRollback.md) 给出帧同步与状态同步的逐项对比和完整实施顺序。
+
+### 11.1 输入确认与权威快照
+
+服务器业务快照必须明确 `WorldId`、session generation、权威 `frame/sequence`、本地输入 `acceptedSeq/acceptedFrame`、全量/增量及其基线、实体身份/生命周期、字段覆盖范围和可比较的局部哈希。**`SnapshotMessage.StateHash` 不等于项目自动获得完整业务哈希。** AOI 之外的实体不可见不能被编码为 Destroy；只在服务端明确销毁且该对象属于本观察者的可见基线时才能删权威实体。迟到或重复确认不得倒退 confirmed cursor；增量缺少基线时请求 full 而非尝试用局部预测快照补洞。
+
+本地主控预测保存未确认命令和可独立复制的槽位；远端角色只积累权威 pose 插值样本。收到 `A(F)` 时：裁剪 `<= acceptedSeq` 命令，比较 `F` 历史预测槽位，**先覆盖权威本地主控字段和实体生命周期，再重演 `> acceptedSeq` 本地命令**。被拒绝输入及其临时实体/Cue 必须撤销；重演不能重复 RPC 或最终结算。对大误差、历史过期和不可导入的 delta 采用权威 full baseline 并限制或暂停预测。此过程是权威修正，不是 FrameSync 的整 World `S(F-1)` 复原。
+
+### 11.2 预测资格和 API 边界
+
+默认仅允许本地受控角色的移动、朝向和可撤销施法起手进入逻辑或低风险表现预测；资源/冷却需先完成权威覆盖及拒绝输入测试。召唤体、弹道仅作为具备临时 ID、generation 和撤销策略的局部 pending 对象；远端实体、最终命中/伤害/死亡、复杂 Buff 与随机触发默认权威驱动。开放更多状态前要同时验证复制、误差比较、权威字段掩码、生命周期和外部副作用幂等。
+
+`PredictionCoordinator` 有本地输入、同帧批次、快照隔离、服务器槽位覆盖与按原帧重演，适合作为**局部状态处理内核**，不负责业务权威 Create/Destroy/AOI 或网络协议。`ClientPredictionModule` 的 `Tick` 当前直接将 `_confirmedFrame` 更新为本地 `_currentFrame`，`ApplyServerSnapshot` 将 `_currentFrame` 改为服务器帧，`EntityPredictionState.ApplyServerState` 没有 pending 命令重演；不能把它当作上述已完成的业务网络控制器。项目要在正式业务入口补上 acceptedSeq 的历史裁剪、权威导入、重演与表现重整，或选用已有 Shooter 专用链，但不可仅凭通用类型名宣称 StateSync 预测回滚完成。
+
+### 11.3 验收条件
+
+同一权威快照重复到达、旧 generation/World 混入、乱序确认、丢失增量基线、AOI 进入/退出、输入拒绝及无历史可比较都应有单独测试。记录确认 cursor 单调性、误差、回放耗时、输入裁剪、临时对象撤销和 full 请求次数；纯槽位 E3 通过不等于 Gateway/双客户端 E4 或表现 Cue 验收。业务模式的具体字段与失败处理以 [03.2 专题](03.2-FrameStatePredictionRollback.md) 和 [表现重整](03.1-PredictionReconciliationDesign.md) 为准。
+
+---
+
+*文档版本：v3.3 | 最后更新：2026-09-16 | 文档类型：Canonical 设计*

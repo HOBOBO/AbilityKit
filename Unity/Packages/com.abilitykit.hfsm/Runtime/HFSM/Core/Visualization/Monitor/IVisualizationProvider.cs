@@ -239,6 +239,21 @@ namespace AbilityKit.HFSM.Visualization
         public string typeName;
 
         /// <summary>
+        /// 采样时的运行时帧号；提供者没有帧时钟时为 0。
+        /// </summary>
+        public int frame;
+
+        /// <summary>
+        /// 采样时的运行时时钟（Q32.32 raw）；不可用时为 0。
+        /// </summary>
+        public long timeRaw;
+
+        /// <summary>
+        /// 运行中定义的稳定哈希；不可用时为 0。
+        /// </summary>
+        public long definitionHash;
+
+        /// <summary>
         /// 状态节点列表
         /// </summary>
         public List<StateNodeInfo> states;

@@ -5,6 +5,7 @@ using System.Text;
 using AbilityKit.Deterministic;
 
 using AbilityKit.HFSM.Definition;
+using AbilityKit.HFSM.Visualization;
 
 namespace AbilityKit.HFSM.Runtime
 {
@@ -12,7 +13,7 @@ namespace AbilityKit.HFSM.Runtime
     /// Deterministic hierarchical state-machine runtime. The compiled runtime owns copies of all
     /// semantic definition values, so later authoring-model mutations cannot change execution.
     /// </summary>
-    public sealed class StateMachineRuntime<TOwner>
+    public sealed class StateMachineRuntime<TOwner> : IVisualizationProvider
     {
         private readonly TOwner _owner;
         private readonly StateMachineDefinition _definition;
@@ -20,6 +21,7 @@ namespace AbilityKit.HFSM.Runtime
         private readonly Dictionary<string, CompiledMachine> _machines;
         private readonly CompiledMachine _root;
         private readonly List<IRuntimeObserver> _observers = new List<IRuntimeObserver>();
+        private HfsmRuntimeVisualization? _visualization;
         private const int MaximumGhostTransitions = 1024;
         private bool _initialized;
         private bool _faulted;
@@ -62,6 +64,46 @@ namespace AbilityKit.HFSM.Runtime
         {
             return observer != null && _observers.Remove(observer);
         }
+
+        /// <summary>
+        /// Lazily created editor-visualization bridge. It subscribes itself as an observer, so
+        /// transition history and enter counts are captured from the runtime's own event stream.
+        /// </summary>
+        private HfsmRuntimeVisualization Visualization
+        {
+            get
+            {
+                var visualization = _visualization;
+                if (visualization == null)
+                {
+                    visualization = new HfsmRuntimeVisualization(
+                        _definition,
+                        () => _initialized && !_faulted ? CaptureSnapshot() : null,
+                        () => _currentTimeRaw);
+                    _visualization = visualization;
+                    AddObserver(visualization);
+                }
+
+                return visualization;
+            }
+        }
+
+        FsmSnapshot IVisualizationProvider.GetSnapshot() => Visualization.GetSnapshot();
+
+        IEnumerable<string> IVisualizationProvider.GetActiveStatePaths() => Visualization.GetActiveStatePaths();
+
+        IEnumerable<ParameterInfo> IVisualizationProvider.GetParameters() => Visualization.GetParameters();
+
+        IEnumerable<(string name, string parentPath, bool isStateMachine)> IVisualizationProvider.GetStateStructure()
+            => Visualization.GetStateStructure();
+
+        IEnumerable<TransitionInfo> IVisualizationProvider.GetTransitions() => Visualization.GetTransitions();
+
+        void IVisualizationProvider.RecordTransition(string fromPath, string toPath, string trigger)
+            => Visualization.RecordTransition(fromPath, toPath, trigger);
+
+        IEnumerable<StateTransitionRecord> IVisualizationProvider.GetHistory(int maxCount)
+            => Visualization.GetHistory(maxCount);
 
         public void Initialize(int frame, Fixed64 time)
         {

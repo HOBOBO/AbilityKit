@@ -9,6 +9,8 @@ namespace AbilityKit.Demo.Moba.Services
     {
         private int _nextId = 1;
 
+        public int NextId => _nextId;
+
         public int Next()
         {
             var id = _nextId;

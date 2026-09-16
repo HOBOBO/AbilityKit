@@ -13,6 +13,7 @@ using AbilityKit.BehaviorTree.Execution;
 using AbilityKit.BehaviorTree.Nodes;
 using AbilityKit.BehaviorTree.Registry;
 using AbilityKit.BehaviorTree.Serialization;
+using AbilityKit.Deterministic;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -198,6 +199,161 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
         }
 
         [Test]
+        public void InitialOverrides_ApplyOnlyToPreviewAndRejectUnknownOrWrongType()
+        {
+            var document = Document("override-preview", "root", BuiltInNodeTypes.Succeed);
+            document.Tree.Blackboard.Keys.Add(new BlackboardKeyDefinition
+            {
+                Name = "score", Type = AbilityKit.BehaviorTree.Definition.ValueType.Int64,
+                Default = PropertyValue.Of(3L),
+            });
+            var overrides = new Dictionary<string, PropertyValue> { ["score"] = PropertyValue.Of(9L) };
+
+            Assert.That(TreePreviewSession.TryStart(document, Registry(), null, "override-preview",
+                overrides, out var session, out var error), Is.True, error);
+            using (var active = session!)
+            {
+                Assert.That(active.Runtime.Blackboard.GetInt64("score"), Is.EqualTo(9L));
+                Assert.That(active.InitialBlackboard.TryGetInt64("score", out var initial), Is.True);
+                Assert.That(initial, Is.EqualTo(9L));
+                active.Runtime.Blackboard.SetInt64("score", 17L);
+                Assert.That(active.InitialBlackboard.TryGetInt64("score", out initial), Is.True);
+                Assert.That(initial, Is.EqualTo(9L));
+            }
+            Assert.That(document.Tree.Blackboard.Keys[0].Default!.Int64Value, Is.EqualTo(3L));
+
+            foreach (var invalid in new[]
+            {
+                new Dictionary<string, PropertyValue> { ["other"] = PropertyValue.Of(9L) },
+                new Dictionary<string, PropertyValue> { ["score"] = PropertyValue.Of(true) },
+            })
+            {
+                Assert.That(TreePreviewSession.TryStart(document, Registry(), null, "invalid-preview",
+                    invalid, out var rejected, out error), Is.False);
+                Assert.That(rejected, Is.Null);
+                Assert.That(error, Does.Contain("黑板初始值无效"));
+            }
+        }
+
+        [Test]
+        public void PauseStepAndReset_RestoreFrameBlackboardAndInitialSnapshot()
+        {
+            var document = Document("control-preview", "root", BuiltInNodeTypes.Succeed);
+            document.Tree.Blackboard.Keys.Add(new BlackboardKeyDefinition
+            {
+                Name = "score", Type = AbilityKit.BehaviorTree.Definition.ValueType.Int64,
+                Default = PropertyValue.Of(3L),
+            });
+            Assert.That(TreePreviewSession.TryStart(document, Registry(), null, "control-preview",
+                new Dictionary<string, PropertyValue> { ["score"] = PropertyValue.Of(9L) },
+                out var session, out var error), Is.True, error);
+            using (var active = session!)
+            {
+                active.Pause();
+                active.Tick();
+                Assert.That(active.Frame, Is.Zero);
+                Assert.That(active.Step(), Is.True);
+                Assert.That(active.Frame, Is.EqualTo(1));
+                active.Tick();
+                Assert.That(active.Frame, Is.EqualTo(1));
+                active.Runtime.Blackboard.SetInt64("score", 42L);
+                Assert.That(active.TryReset(out error), Is.True, error);
+                Assert.That(active.IsPaused, Is.True);
+                Assert.That(active.Frame, Is.Zero);
+                Assert.That(active.Runtime.Blackboard.GetInt64("score"), Is.EqualTo(9L));
+                Assert.That(active.InitialBlackboard.TryGetInt64("score", out var initial), Is.True);
+                Assert.That(initial, Is.EqualTo(9L));
+                Assert.That(active.Step(), Is.True);
+                Assert.That(active.Frame, Is.EqualTo(1));
+                active.Resume();
+                Assert.That(active.Step(), Is.False);
+                active.Tick();
+                Assert.That(active.Frame, Is.EqualTo(2));
+            }
+        }
+
+        [Test]
+        public void FaultedPreview_ResetAllowsAnotherStep()
+        {
+            var registry = Registry();
+            registry.Register(new NodeDescriptor(ThrowingTickNode.TypeId, "抛出异常", "测试",
+                NodeKind.Action, 0, 0, () => new ThrowingTickNode()));
+            Assert.That(TreePreviewSession.TryStart(Document("reset-fault", "root", ThrowingTickNode.TypeId),
+                registry, "reset-fault", out var session, out var error), Is.True, error);
+            using (var active = session!)
+            {
+                active.Pause();
+                Assert.That(active.Step(), Is.False);
+                Assert.That(active.IsFaulted, Is.True);
+                Assert.That(active.TryReset(out error), Is.True, error);
+                Assert.That(active.IsFaulted, Is.False);
+                Assert.That(active.Runtime.IsEnabled, Is.True);
+                Assert.That(active.Frame, Is.Zero);
+                Assert.That(active.Step(), Is.False);
+                Assert.That(active.Frame, Is.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public void Reset_RewindsDeterministicRandomStream()
+        {
+            var document = Document("random-preview", "root", BuiltInNodeTypes.Probability);
+            Assert.That(TreePreviewSession.TryStart(document, Registry(), "random-preview",
+                out var session, out var error), Is.True, error);
+            using (var active = session!)
+            {
+                active.Pause();
+                var initial = active.Runtime.CaptureState().Nodes[0].RandomSequence;
+                Assert.That(active.Step(), Is.True);
+                var afterStep = active.Runtime.CaptureState().Nodes[0].RandomSequence;
+                Assert.That(afterStep, Is.GreaterThan(initial));
+                Assert.That(active.TryReset(out error), Is.True, error);
+                Assert.That(active.Runtime.CaptureState().Nodes[0].RandomSequence, Is.EqualTo(initial));
+                Assert.That(active.Step(), Is.True);
+                Assert.That(active.Runtime.CaptureState().Nodes[0].RandomSequence, Is.EqualTo(afterStep));
+            }
+        }
+
+        [Test]
+        public void PreviewSetup_Fixed64InputPreservesPrecisionAndBlocksInvalidValue()
+        {
+            var owner = ScriptableObject.CreateInstance<AuthoringGraphWindow>();
+            PreviewBlackboardSetupWindow? setup = null;
+            try
+            {
+                var schema = new BlackboardSchema();
+                schema.Keys.Add(new BlackboardKeyDefinition
+                {
+                    Name = "distance",
+                    Type = AbilityKit.BehaviorTree.Definition.ValueType.Fixed64,
+                    Default = PropertyValue.Of(Fixed64.FromRaw(1L)),
+                });
+                PreviewBlackboardSetupWindow.Open(owner, schema, _ => { });
+                setup = Resources.FindObjectsOfTypeAll<PreviewBlackboardSetupWindow>().Last();
+                var field = setup.rootVisualElement.Q<TextField>();
+                var toggle = setup.rootVisualElement.Q<Toggle>();
+                var start = setup.rootVisualElement.Query<Button>().ToList()
+                    .Single(button => button.text == "开始预览");
+
+                Assert.That(field, Is.Not.Null);
+                Assert.That(toggle, Is.Not.Null);
+                Assert.That(field!.value, Is.EqualTo(Fixed64.FromRaw(1L).ToString()));
+                toggle!.value = true;
+                field.value = "not-a-number";
+                Assert.That(start.enabledSelf, Is.False);
+                field.value = "0.5";
+                Assert.That(start.enabledSelf, Is.True);
+                toggle.value = false;
+                Assert.That(field.value, Is.EqualTo(Fixed64.FromRaw(1L).ToString()));
+            }
+            finally
+            {
+                if (setup != null) UnityEngine.Object.DestroyImmediate(setup);
+                UnityEngine.Object.DestroyImmediate(owner);
+            }
+        }
+
+        [Test]
         public void PreviewWindow_DoesNotReplaceOwnersDirtyDocumentOrUndoHistory()
         {
             var owner = ScriptableObject.CreateInstance<AuthoringGraphWindow>();
@@ -228,6 +384,15 @@ namespace AbilityKit.BehaviorTree.Editor.Tests
                 Assert.That(owner.DocumentSession.IsDirty, Is.True);
                 Assert.That(owner.DocumentSession.CanUndo, Is.True);
                 Assert.That(preview.IsObservation, Is.True);
+                Assert.That(preview.titleContent.text, Is.EqualTo("行为树预览"));
+                var step = preview.rootVisualElement.Q<Button>(AuthoringGraphWindow.PreviewStepButtonName);
+                var reset = preview.rootVisualElement.Q<Button>(AuthoringGraphWindow.PreviewResetButtonName);
+                Assert.That(step, Is.Not.Null);
+                Assert.That(reset, Is.Not.Null);
+                Assert.That(step!.enabledSelf, Is.False);
+                Assert.That(reset!.enabledSelf, Is.True);
+                Assert.That(((IAuthoringInspectorHost)preview).InitialRuntimeBlackboard, Is.Not.Null);
+                Assert.That(((IAuthoringInspectorHost)preview).InitialRuntimeBlackboard!.Count, Is.Zero);
             }
             finally
             {

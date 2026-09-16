@@ -38,6 +38,8 @@ namespace AbilityKit.Demo.Moba.Services.Triggering.PlanActions
         public const int ConvertResourceToHeal = 10;
         public const int StartCooldown = 10;
         public const int ResetCooldown = 10;
+        public const int AddSkillParamModifier = 10;
+        public const int RemoveSkillParamModifiers = 10;
         public const int ShootProjectile = 10;
         public const int GiveDamage = 11;
         public const int AdjustDamageNumber = 11;
