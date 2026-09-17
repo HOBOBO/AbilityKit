@@ -52,13 +52,29 @@ namespace AbilityKit.Demo.Moba.Services
             if (attack == null) return null;
             var transaction = new MobaDamageTransaction(attack);
             DamageResult result = null;
-            var committed = _transactions == null
-                ? IsValid(transaction) && Commit(transaction)
-                : _transactions.TryExecute(transaction, IsValid, Commit);
-            return committed ? result : null;
+            var coreEntered = false;
+            try
+            {
+                var committed = _transactions == null
+                    ? IsValid(transaction) && Commit(transaction)
+                    : _transactions.TryExecute(transaction, IsValid, Commit);
+                if (!committed && !coreEntered)
+                    TryCollectDamageCalculation(transaction.Attack, null,
+                        transaction.IsCancelled ? BattleDiagnosticDamageStage.TransactionRejected : BattleDiagnosticDamageStage.InvalidRequest,
+                        0f, transaction.FailureReason);
+                return committed ? result : null;
+            }
+            catch (Exception ex)
+            {
+                TryCollectDamageCalculation(transaction.Attack, null,
+                    result != null ? BattleDiagnosticDamageStage.PostCommitNotificationFailed : BattleDiagnosticDamageStage.ExecutionFailed,
+                    0f, ex.GetType().Name);
+                throw;
+            }
 
             bool Commit(MobaDamageTransaction current)
             {
+                coreEntered = true;
                 result = ExecuteCore(current.Attack);
                 return result != null;
             }
@@ -81,6 +97,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!_actors.TryGetActorEntity(attack.TargetActorId, out var target) || target == null)
                 {
                     diagnostics?.Counter("moba.damage.targetMissing");
+                    TryCollectDamageCalculation(attack, null, BattleDiagnosticDamageStage.TargetMissing, 0f);
                     return null;
                 }
 
@@ -99,6 +116,7 @@ namespace AbilityKit.Demo.Moba.Services
                 if (!shieldCommitted)
                 {
                     diagnostics?.Counter("moba.damage.shieldCommitConflict");
+                    TryCollectDamageCalculation(attack, calc, BattleDiagnosticDamageStage.ShieldCommitRejected, 0f);
                     return null;
                 }
 
@@ -112,12 +130,14 @@ namespace AbilityKit.Demo.Moba.Services
                         value: hpDamage,
                         reasonKind: (int)attack.ReasonKind,
                         reasonParam: attack.ReasonParam,
-                        origin: attackOrigin)
+                        origin: attackOrigin,
+                        collectDiagnostic: _eventCollector == null)
                     : default;
                 if (hpDamage > AbilityKit.Deterministic.Fixed64.Zero && !committed.Succeeded)
                 {
                     _shields?.RollbackAbsorb(calc.ShieldPlan);
                     diagnostics?.Counter("moba.damage.healthCommitRejected");
+                    TryCollectDamageCalculation(attack, calc, BattleDiagnosticDamageStage.HealthCommitRejected, 0f);
                     return null;
                 }
 
@@ -146,7 +166,7 @@ namespace AbilityKit.Demo.Moba.Services
 
                 RecordCombatActivity(result);
                 Publish(DamagePipelineEvents.AfterApply, result);
-                TryCollectDamage(result);
+                TryCollectDamage(result, calc);
                 diagnostics?.Counter("moba.damage.applied");
                 diagnostics?.Sample("moba.damage.value", result.Value);
                 return result;
@@ -280,14 +300,67 @@ namespace AbilityKit.Demo.Moba.Services
                 summary: $"damage={result.Value:0.###}, targetHp={result.TargetHp:0.###}");
         }
 
-        private void TryCollectDamage(DamageResult result)
+        public static MobaBattleDiagnosticEventDraft CreateCalculationDraft(
+            AttackInfo attack, AttackCalcInfo calc, BattleDiagnosticDamageStage stage, float appliedHpDamage,
+            float? targetHp = null, string failureReason = "")
+        {
+            if (attack == null) throw new ArgumentNullException(nameof(attack));
+            attack.TryGetOrigin(out var origin);
+            var handle = origin.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var payloadData = new BattleDiagnosticDamageCalculationPayload(stage,
+                attack.BaseDamage.FixedValue.RawValue,
+                calc?.RawDamage.FixedValue.RawValue ?? 0L,
+                calc?.MitigatedDamage.FixedValue.RawValue ?? 0L,
+                calc?.ShieldAbsorb.FixedValue.RawValue ?? 0L,
+                calc?.HpDamage.FixedValue.RawValue ?? 0L,
+                AbilityKit.Deterministic.Fixed64.FromSingle(appliedHpDamage).RawValue);
+            var payload = BattleDiagnosticEventPayload.FromDamageCalculation(in payloadData);
+            var contextId = origin.ImmediateContextId != 0L
+                ? origin.ImmediateContextId : origin.EffectiveParentContextId;
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.Damage, BattleDiagnosticEventChannel.DamageAndHeal,
+                stage == BattleDiagnosticDamageStage.Completed
+                    ? BattleDiagnosticEventOutcome.Succeeded : BattleDiagnosticEventOutcome.Failed,
+                attack.AttackerActorId, attack.TargetActorId,
+                attack.ReasonParam != 0 ? attack.ReasonParam : origin.ImmediateConfigId,
+                origin.EffectiveRootContextId, contextId, runtime,
+                payloadVersion: BattleDiagnosticDamageCalculationPayload.CurrentSchemaVersion,
+                summary: $"damage calculation: {stage}; applied={appliedHpDamage:0.###}" +
+                    (targetHp.HasValue ? $", targetHp={targetHp.Value:0.###}" : string.Empty) +
+                    (string.IsNullOrEmpty(failureReason) ? string.Empty : "; reason=" +
+                        (failureReason.Length <= 128 ? failureReason : failureReason.Substring(0, 128))), payload: payload);
+        }
+
+        private void TryCollectDamageCalculation(AttackInfo attack, AttackCalcInfo calc,
+            BattleDiagnosticDamageStage stage, float appliedHpDamage, string failureReason = "")
         {
             try
             {
                 var collector = _eventCollector;
-                if (collector == null || result == null) return;
+                if (collector == null || attack == null ||
+                    !collector.IsEnabled(BattleDiagnosticEventChannel.DamageAndHeal)) return;
+                var draft = CreateCalculationDraft(attack, calc, stage, appliedHpDamage, failureReason: failureReason);
+                collector.TryCollect(in draft);
+            }
+            catch
+            {
+            }
+        }
 
-                var draft = CreateDiagnosticDraft(result);
+        private void TryCollectDamage(DamageResult result, AttackCalcInfo calc)
+        {
+            try
+            {
+                var collector = _eventCollector;
+                if (collector == null || result == null ||
+                    !collector.IsEnabled(BattleDiagnosticEventChannel.DamageAndHeal)) return;
+
+                var draft = calc?.Attack != null
+                    ? CreateCalculationDraft(calc.Attack, calc, BattleDiagnosticDamageStage.Completed, result.Value, result.TargetHp)
+                    : CreateDiagnosticDraft(result);
                 collector.TryCollect(in draft);
             }
             catch

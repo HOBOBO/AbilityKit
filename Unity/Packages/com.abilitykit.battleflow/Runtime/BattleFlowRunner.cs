@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using AbilityKit.Scenario;
 
 namespace AbilityKit.BattleFlow
@@ -55,6 +56,8 @@ namespace AbilityKit.BattleFlow
     /// <summary>运行器注册表：项目在编辑器里注册自己的 runner（如 MOBA 的 MobaBattleFlowRunner）。</summary>
     public static class BattleFlowRunnerRegistry
     {
+        public static Func<string, IReadOnlyList<BattleBlock>> DslParser { get; set; }
+            = BattleFlowDslParser.Parse;
         /// <summary>当前注册的运行器；未注册时编辑器「运行」按钮会提示。</summary>
         public static IBattleFlowRunner? Runner { get; set; }
 

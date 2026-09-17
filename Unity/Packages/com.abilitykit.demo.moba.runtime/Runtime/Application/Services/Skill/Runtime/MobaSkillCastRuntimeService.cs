@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Trace;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Pooling;
@@ -30,9 +31,14 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)]
         private MobaTraceRegistry _trace = null;
 
+        [WorldInject(required: false)]
+        private IMobaBattleDiagnosticEventSink _diagnosticEvents = null;
+
         public MobaSkillRuntimeLifecycleHookService LifecycleHooks { get; } = new MobaSkillRuntimeLifecycleHookService();
 
         public int Count => _runtimes.Count;
+
+        internal MobaTraceRegistry TraceRegistry => _trace;
 
         public MobaSkillCastRuntime Create(in MobaSkillCastRuntimeCreateRequest request)
         {
@@ -513,9 +519,114 @@ namespace AbilityKit.Demo.Moba.Services
 
         private void NotifyLifecycle(MobaSkillRuntimeLifecycleEventKind kind, MobaSkillCastRuntime runtime, in MobaSkillRuntimeChildRef child, in MobaSkillRuntimeRetainHandle retainHandle, MobaSkillRuntimeEndReason reason, bool forced)
         {
+            TryCollectLifecycleDiagnostic(kind, runtime, reason, forced);
             if (runtime == null || LifecycleHooks.Count == 0) return;
             var lifecycleEvent = new MobaSkillRuntimeLifecycleEvent(kind, runtime, in child, in retainHandle, reason, forced);
             LifecycleHooks.Notify(in lifecycleEvent);
+        }
+
+        private void TryCollectLifecycleDiagnostic(
+            MobaSkillRuntimeLifecycleEventKind kind,
+            MobaSkillCastRuntime runtime,
+            MobaSkillRuntimeEndReason reason,
+            bool forced)
+        {
+            try
+            {
+                var sink = _diagnosticEvents;
+                if (sink == null ||
+                    !sink.IsEnabled(BattleDiagnosticEventChannel.Skill) ||
+                    !TryCreateLifecycleDiagnosticDraft(kind, runtime, reason, forced, out var draft))
+                {
+                    return;
+                }
+
+                sink.TryCollect(in draft);
+            }
+            catch
+            {
+                // Diagnostics must never affect runtime finalization.
+            }
+        }
+
+        internal static bool TryCreateLifecycleDiagnosticDraft(
+            MobaSkillRuntimeLifecycleEventKind kind,
+            MobaSkillCastRuntime runtime,
+            MobaSkillRuntimeEndReason reason,
+            bool forced,
+            out MobaBattleDiagnosticEventDraft draft)
+        {
+            draft = default;
+            if (runtime == null || !TryMapDiagnosticStage(kind, out var stage)) return false;
+
+            var data = new BattleDiagnosticSkillExecutionPayload(
+                runtime.DiagnosticCommandId,
+                stage,
+                runtime.SkillSlot,
+                runtime.SkillLevel,
+                runtime.Sequence,
+                endReason: (int)reason,
+                pendingChildren: runtime.PendingChildren,
+                forced: forced,
+                detail: kind.ToString());
+            var payload = BattleDiagnosticEventPayload.FromSkillExecution(in data);
+            var handle = new BattleDiagnosticRuntimeHandle(runtime.RuntimeId, runtime.Generation);
+            draft = new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.SkillRuntimeEnded,
+                BattleDiagnosticEventChannel.Skill,
+                ResolveDiagnosticOutcome(stage, reason),
+                sourceActorId: runtime.CasterActorId,
+                targetActorId: runtime.TargetActorId,
+                configId: runtime.SkillId,
+                rootContextId: runtime.RootTraceContextId,
+                contextId: runtime.RootTraceContextId,
+                skillRuntime: handle,
+                payloadVersion: BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
+                summary: $"{stage} reason={reason} pending={runtime.PendingChildren} forced={forced}",
+                payload: payload);
+            return true;
+        }
+
+        private static bool TryMapDiagnosticStage(
+            MobaSkillRuntimeLifecycleEventKind kind,
+            out BattleDiagnosticSkillExecutionStage stage)
+        {
+            switch (kind)
+            {
+                case MobaSkillRuntimeLifecycleEventKind.WaitingChildren:
+                    stage = BattleDiagnosticSkillExecutionStage.RuntimeWaitingChildren;
+                    return true;
+                case MobaSkillRuntimeLifecycleEventKind.Finalized:
+                    stage = BattleDiagnosticSkillExecutionStage.RuntimeFinalized;
+                    return true;
+                case MobaSkillRuntimeLifecycleEventKind.ForceTerminated:
+                    stage = BattleDiagnosticSkillExecutionStage.RuntimeForceTerminated;
+                    return true;
+                case MobaSkillRuntimeLifecycleEventKind.Cleared:
+                    stage = BattleDiagnosticSkillExecutionStage.RuntimeCleared;
+                    return true;
+                default:
+                    stage = default;
+                    return false;
+            }
+        }
+
+        private static BattleDiagnosticEventOutcome ResolveDiagnosticOutcome(
+            BattleDiagnosticSkillExecutionStage stage,
+            MobaSkillRuntimeEndReason reason)
+        {
+            if (stage == BattleDiagnosticSkillExecutionStage.RuntimeWaitingChildren)
+                return BattleDiagnosticEventOutcome.None;
+            switch (reason)
+            {
+                case MobaSkillRuntimeEndReason.PipelineCompleted:
+                    return BattleDiagnosticEventOutcome.Succeeded;
+                case MobaSkillRuntimeEndReason.Cancelled:
+                case MobaSkillRuntimeEndReason.OwnerRemoved:
+                    return BattleDiagnosticEventOutcome.Interrupted;
+                default:
+                    return BattleDiagnosticEventOutcome.Failed;
+            }
         }
 
         private static string FormatWaitingChildrenWarning(MobaSkillCastRuntime runtime, List<MobaSkillRuntimeChildRef> children)

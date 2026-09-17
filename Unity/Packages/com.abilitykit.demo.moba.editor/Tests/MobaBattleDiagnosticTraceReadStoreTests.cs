@@ -7,6 +7,10 @@ using AbilityKit.Core.Observability;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Observability;
 using AbilityKit.Trace;
+using AbilityKit.Demo.Moba.Config.Core;
+using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Triggering.Runtime.Plan.Json;
 using NUnit.Framework;
 
 namespace AbilityKit.Demo.Moba.Diagnostics.Tests
@@ -19,6 +23,27 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         public void SetUp()
         {
             _scope = new BattleDiagnosticSessionScope("session", "world", 1);
+        }
+
+        [Test]
+        public void DefinitionSource_ActionUsesExistingModuleDescriptorsWithoutExecutingActions()
+        {
+            var modules = new PlanActionModuleRegistry(new IPlanActionModule[] { new GiveDamagePlanActionModule() });
+            var descriptor = modules.Descriptors[0];
+            var actionId = PlanActionRegisterUtil.GetActionId(descriptor.ActionName).Value;
+            var source = new MobaBattleDiagnosticDefinitionCatalogSource(
+                new MobaConfigDatabase(), new TriggerPlanJsonDatabase());
+            WorldTestInjector.Inject(source, new Dictionary<Type, object>
+            {
+                [typeof(PlanActionModuleRegistry)] = modules
+            });
+            var reference = BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Action, actionId);
+            Assert.That(source.TryResolve(in reference, out var definition), Is.True);
+            Assert.That(definition.DisplayName, Is.EqualTo(descriptor.ActionName));
+            Assert.That(definition.Metadata[0].StringValue, Is.EqualTo(descriptor.ActionName));
+            Assert.That(definition.Metadata[1].StringValue, Is.EqualTo(descriptor.ModuleName));
+            var effectReference = BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Effect, actionId);
+            Assert.That(source.TryResolve(in effectReference, out _), Is.False);
         }
 
         [Test]
@@ -44,6 +69,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             registry.TrySetSkillPhaseLocation(firstChildId, 501, 7001, "cast.release");
             var secondChildId = registry.CreateChildContext(rootId, MobaTraceKind.EffectExecution, 503, 8, 22);
             registry.TrySetEffectTrigger(secondChildId, 7003);
+            registry.TrySetEffectOrigin(secondChildId, MobaTraceKind.AreaStay, 601);
             frameTime.StepTo(new FrameIndex(12), 0.02f);
             var grandChildId = registry.CreateChildContext(firstChildId, MobaTraceKind.EffectAction, 504, 9, 23);
             frameTime.StepTo(new FrameIndex(15), 0.02f);
@@ -87,9 +113,54 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(result.Items[0].Definition.Kind,
                 Is.EqualTo(BattleDiagnosticDefinitionKind.Skill));
             Assert.That(result.Items[2].Definition.Kind,
-                Is.EqualTo(BattleDiagnosticDefinitionKind.Effect));
+                Is.EqualTo(BattleDiagnosticDefinitionKind.Action));
             Assert.That(result.Items[3].TriggerDefinition.Kind,
                 Is.EqualTo(BattleDiagnosticDefinitionKind.Trigger));
+            Assert.That(result.Items[3].HasOrigin, Is.True);
+            Assert.That(result.Items[3].OriginKind, Is.EqualTo((int)MobaTraceKind.AreaStay));
+            Assert.That(result.Items[3].OriginDefinition,
+                Is.EqualTo(BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Area, 601)));
+        }
+
+        [Test]
+        public void PredictionRetraction_RemovesCurrentTreeAndKeepsHistoricalEvidenceWithMarker()
+        {
+            var collector = MakeCollector();
+            using var registry = new MobaTraceRegistry();
+            registry.AttachDiagnosticCollector(collector);
+            var root = registry.CreateRootContext(MobaTraceKind.SkillCast, 501);
+            var boundary = registry.NextContextId;
+            var predictedChild = registry.CreateChildContext(root, MobaTraceKind.EffectExecution, 502);
+            var predictedRoot = registry.CreateRootContext(MobaTraceKind.SkillCast, 503);
+            var store = new MobaBattleDiagnosticTraceReadStore(registry, collector.Store);
+            var before = store.QueryTrace(1, root);
+            Assert.That(before.Items.Count, Is.EqualTo(2));
+            var historicalCount = collector.Store.Count;
+
+            Assert.That(registry.RetractPrediction(boundary), Is.EqualTo(2));
+
+            var after = store.QueryTrace(2, root);
+            Assert.That(after.Items.Count, Is.EqualTo(1));
+            Assert.That(after.Items[0].ContextId, Is.EqualTo(root));
+            Assert.That(after.Status.StoreRevision, Is.GreaterThan(before.Status.StoreRevision));
+            Assert.That(store.QueryTrace(3, predictedRoot).Items, Is.Empty);
+            var snapshot = store.CaptureTraceSnapshot();
+            Assert.That(snapshot.Nodes.Count, Is.EqualTo(1));
+            Assert.That(snapshot.Nodes[0].ContextId, Is.EqualTo(root));
+            Assert.That(registry.Contains(predictedChild), Is.False);
+            Assert.That(collector.Store.Count, Is.EqualTo(historicalCount + 1));
+            var events = collector.Store.Query(new BattleDiagnosticEventQuery(
+                1, BattleDiagnosticFilter.Default, new BattleDiagnosticPageRequest(0, 0, 100))).Items;
+            var markerFound = false;
+            foreach (var diagnosticEvent in events)
+            {
+                if (diagnosticEvent.Kind != BattleDiagnosticEventKind.TracePredictionRetracted) continue;
+                markerFound = true;
+                Assert.That(diagnosticEvent.ContextId, Is.Zero);
+                Assert.That(diagnosticEvent.RootContextId, Is.Zero);
+                Assert.That(diagnosticEvent.Summary, Does.Contain($"[{boundary}, {registry.NextContextId})"));
+            }
+            Assert.That(markerFound, Is.True);
         }
 
         [Test]

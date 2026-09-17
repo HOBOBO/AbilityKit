@@ -4,6 +4,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Components;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Share.Config;
 using AbilityKit.Deterministic;
 using AbilityKit.Triggering.Eventing;
@@ -125,8 +126,13 @@ namespace AbilityKit.Demo.Moba.Services
             public int ActorId;
             public int SkillId;
             public int SkillSlot;
+            public int SkillLevel;
+            public int CastSequence;
+            public long DiagnosticCommandId;
             public ResourceType ResourceType;
             public Fixed64 ResourceAmount;
+            public long ResourceBeforeRaw;
+            public long ResourceAfterRaw;
             public int ChargeCost;
             public bool RefundBeforeCommit;
             public int CooldownMs;
@@ -139,6 +145,7 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly MobaSkillCastRuntimeService _runtimes;
         private readonly MobaActorLookupService _actors;
         private readonly IFrameTime _time;
+        private readonly IMobaBattleDiagnosticEventSink _diagnosticEvents;
         private readonly Dictionary<long, Transaction> _transactions = new Dictionary<long, Transaction>();
         private readonly Dictionary<ActorGroupKey, long> _cooldownGroups = new Dictionary<ActorGroupKey, long>();
         private readonly Dictionary<int, long> _globalCooldowns = new Dictionary<int, long>();
@@ -147,10 +154,20 @@ namespace AbilityKit.Demo.Moba.Services
             MobaSkillCastRuntimeService runtimes,
             MobaActorLookupService actors,
             IFrameTime time)
+            : this(runtimes, actors, time, null)
+        {
+        }
+
+        public MobaSkillEconomyService(
+            MobaSkillCastRuntimeService runtimes,
+            MobaActorLookupService actors,
+            IFrameTime time,
+            IMobaBattleDiagnosticEventSink diagnosticEvents)
         {
             _runtimes = runtimes ?? throw new ArgumentNullException(nameof(runtimes));
             _actors = actors ?? throw new ArgumentNullException(nameof(actors));
             _time = time ?? throw new ArgumentNullException(nameof(time));
+            _diagnosticEvents = diagnosticEvents;
             _runtimes.LifecycleHooks.Register(this);
         }
 
@@ -187,6 +204,13 @@ namespace AbilityKit.Demo.Moba.Services
             var usesCharges = specification.MaxCharges > 1 || specification.ChargeRecoveryMs > 0;
             var chargeCost = usesCharges ? Math.Max(1, specification.ChargeCost) : 0;
             var cooldownGroupId = StableId(specification.CooldownGroup);
+            var resourceType = specification.ResourceType > 0
+                ? (ResourceType)specification.ResourceType
+                : context.ResolvedConfiguration.ResourceType;
+            var amount = specification.UseResolvedResourceCost
+                ? context.ResolvedConfiguration.ResourceCost
+                : specification.ResourceAmount;
+            var resourceAmount = amount > 0f ? MobaResourceFixedConvert.ToFixed(amount) : Fixed64.Zero;
             skill.CooldownGroupId = cooldownGroupId;
             skill.IgnoreGlobalCooldown = specification.IgnoreGlobalCooldown;
             var availability = GetAvailability(
@@ -195,17 +219,22 @@ namespace AbilityKit.Demo.Moba.Services
             if (!availability.Available)
             {
                 failure = availability.Reason;
+                TryCollectEconomy(context, specification,
+                    BattleDiagnosticSkillExecutionStage.EconomyRejected,
+                    resourceType, resourceAmount.RawValue, 0L, 0L, chargeCost,
+                    BattleDiagnosticEventOutcome.Failed, failure);
                 return false;
             }
 
-            var resourceType = specification.ResourceType > 0
-                ? (ResourceType)specification.ResourceType
-                : context.ResolvedConfiguration.ResourceType;
-            var amount = specification.UseResolvedResourceCost
-                ? context.ResolvedConfiguration.ResourceCost
-                : specification.ResourceAmount;
-            var resourceAmount = amount > 0f ? MobaResourceFixedConvert.ToFixed(amount) : Fixed64.Zero;
-            if (!TryConsumeResource(context.CasterActorId, resourceType, resourceAmount, out failure)) return false;
+            if (!TryConsumeResource(context.CasterActorId, resourceType, resourceAmount,
+                    out failure, out var resourceBeforeRaw, out var resourceAfterRaw))
+            {
+                TryCollectEconomy(context, specification,
+                    BattleDiagnosticSkillExecutionStage.EconomyRejected,
+                    resourceType, resourceAmount.RawValue, resourceBeforeRaw, resourceAfterRaw,
+                    chargeCost, BattleDiagnosticEventOutcome.Failed, failure);
+                return false;
+            }
 
             if (chargeCost > 0) ConsumeCharges(skill, chargeCost, nowMs);
             var cooldownMs = specification.StartSkillCooldown
@@ -219,8 +248,13 @@ namespace AbilityKit.Demo.Moba.Services
                 ActorId = context.CasterActorId,
                 SkillId = context.SkillId,
                 SkillSlot = context.SkillSlot,
+                SkillLevel = context.SkillLevel,
+                CastSequence = context.CastSequence,
+                DiagnosticCommandId = context.DiagnosticCommandId,
                 ResourceType = resourceType,
                 ResourceAmount = resourceAmount,
+                ResourceBeforeRaw = resourceBeforeRaw,
+                ResourceAfterRaw = resourceAfterRaw,
                 ChargeCost = chargeCost,
                 RefundBeforeCommit = specification.RefundBeforeCommit,
                 CooldownMs = cooldownMs,
@@ -229,6 +263,10 @@ namespace AbilityKit.Demo.Moba.Services
                 GlobalCooldownMs = Math.Max(0, specification.GlobalCooldownMs),
                 State = MobaSkillEconomyTransactionState.Reserved,
             });
+            TryCollectEconomy(context, specification,
+                BattleDiagnosticSkillExecutionStage.EconomyReserved,
+                resourceType, resourceAmount.RawValue, resourceBeforeRaw, resourceAfterRaw,
+                chargeCost, BattleDiagnosticEventOutcome.Succeeded, "reserved");
             return true;
         }
 
@@ -250,11 +288,24 @@ namespace AbilityKit.Demo.Moba.Services
             var amount = specification.UseResolvedResourceCost
                 ? context.ResolvedConfiguration.ResourceCost
                 : specification.ResourceAmount;
-            return TryConsumeResource(
+            var succeeded = TryConsumeResource(
                 context.CasterActorId,
                 resourceType,
                 amount > 0f ? MobaResourceFixedConvert.ToFixed(amount) : Fixed64.Zero,
-                out failure);
+                out failure,
+                out var resourceBeforeRaw,
+                out var resourceAfterRaw);
+            var resourceAmountRaw = amount > 0f
+                ? MobaResourceFixedConvert.ToFixed(amount).RawValue
+                : 0L;
+            TryCollectEconomy(context, specification,
+                succeeded
+                    ? BattleDiagnosticSkillExecutionStage.ResourceConsumed
+                    : BattleDiagnosticSkillExecutionStage.EconomyRejected,
+                resourceType, resourceAmountRaw, resourceBeforeRaw, resourceAfterRaw, 0,
+                succeeded ? BattleDiagnosticEventOutcome.Succeeded : BattleDiagnosticEventOutcome.Failed,
+                succeeded ? "resource consumed" : failure);
+            return succeeded;
         }
 
         public bool Commit(in MobaSkillCastRuntimeHandle handle, string commitId = null)
@@ -276,6 +327,10 @@ namespace AbilityKit.Demo.Moba.Services
                 _globalCooldowns[transaction.ActorId] = nowMs + transaction.GlobalCooldownMs;
 
             transaction.State = MobaSkillEconomyTransactionState.Committed;
+            TryCollectEconomy(transaction,
+                BattleDiagnosticSkillExecutionStage.EconomyCommitted,
+                BattleDiagnosticEventOutcome.Succeeded,
+                string.IsNullOrEmpty(commitId) ? "committed" : commitId);
             return true;
         }
 
@@ -339,7 +394,13 @@ namespace AbilityKit.Demo.Moba.Services
             }
             else if (transaction.State == MobaSkillEconomyTransactionState.Reserved && transaction.RefundBeforeCommit)
             {
-                Refund(transaction);
+                Refund(transaction, out var refundBeforeRaw, out var refundAfterRaw);
+                transaction.ResourceBeforeRaw = refundBeforeRaw;
+                transaction.ResourceAfterRaw = refundAfterRaw;
+                TryCollectEconomy(transaction,
+                    BattleDiagnosticSkillExecutionStage.EconomyRefunded,
+                    BattleDiagnosticEventOutcome.Succeeded,
+                    lifecycleEvent.Reason.ToString());
             }
 
             _transactions.Remove(handle.RuntimeId);
@@ -436,9 +497,17 @@ namespace AbilityKit.Demo.Moba.Services
             return new MobaSkillEconomyAvailability(true, null, skill.CurrentCharges, nowMs);
         }
 
-        private bool TryConsumeResource(int actorId, ResourceType resourceType, Fixed64 amount, out string failure)
+        private bool TryConsumeResource(
+            int actorId,
+            ResourceType resourceType,
+            Fixed64 amount,
+            out string failure,
+            out long beforeRaw,
+            out long afterRaw)
         {
             failure = null;
+            beforeRaw = 0L;
+            afterRaw = 0L;
             if (amount <= Fixed64.Zero) return true;
             if (resourceType == ResourceType.None || !_actors.TryGetActorEntity(actorId, out var actor) ||
                 actor == null || !actor.hasResourceContainer || actor.resourceContainer.Value?.Map == null ||
@@ -447,24 +516,31 @@ namespace AbilityKit.Demo.Moba.Services
                 failure = "Required skill resource is unavailable.";
                 return false;
             }
+            beforeRaw = resource.Current.RawValue;
+            afterRaw = beforeRaw;
             if (resource.Current < amount)
             {
                 failure = "Insufficient skill resource.";
                 return false;
             }
             resource.Current -= amount;
+            afterRaw = resource.Current.RawValue;
             return true;
         }
 
-        private void Refund(Transaction transaction)
+        private void Refund(Transaction transaction, out long beforeRaw, out long afterRaw)
         {
+            beforeRaw = 0L;
+            afterRaw = 0L;
             if (transaction.ResourceAmount > Fixed64.Zero &&
                 _actors.TryGetActorEntity(transaction.ActorId, out var actor) && actor != null &&
                 actor.hasResourceContainer && actor.resourceContainer.Value?.Map != null &&
                 actor.resourceContainer.Value.Map.TryGetValue(transaction.ResourceType, out var resource) && resource != null)
             {
+                beforeRaw = resource.Current.RawValue;
                 resource.Current += transaction.ResourceAmount;
                 if (resource.LastMax > Fixed64.Zero && resource.Current > resource.LastMax) resource.Current = resource.LastMax;
+                afterRaw = resource.Current.RawValue;
             }
 
             if (transaction.ChargeCost > 0 && MobaSkillRuntimeAccess.TryGetActiveSkill(
@@ -472,6 +548,114 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 skill.CurrentCharges = Math.Min(Math.Max(1, skill.MaxCharges), skill.CurrentCharges + transaction.ChargeCost);
                 if (skill.CurrentCharges >= skill.MaxCharges) skill.NextChargeRecoveryTimeMs = 0L;
+            }
+        }
+
+        private void TryCollectEconomy(
+            SkillPipelineContext context,
+            SkillEconomyPhaseDTO specification,
+            BattleDiagnosticSkillExecutionStage stage,
+            ResourceType resourceType,
+            long resourceAmountRaw,
+            long resourceBeforeRaw,
+            long resourceAfterRaw,
+            int chargeCost,
+            BattleDiagnosticEventOutcome outcome,
+            string detail)
+        {
+            try
+            {
+                if (context == null || specification == null) return;
+                var data = new BattleDiagnosticSkillExecutionPayload(
+                    context.DiagnosticCommandId, stage, context.SkillSlot, context.SkillLevel,
+                    context.CastSequence, resourceType: (int)resourceType,
+                    resourceAmountRaw: resourceAmountRaw,
+                    resourceBeforeRaw: resourceBeforeRaw,
+                    resourceAfterRaw: resourceAfterRaw,
+                    chargeCost: chargeCost,
+                    cooldownMs: specification.StartSkillCooldown
+                        ? Math.Max(0, specification.UseResolvedSkillCooldown
+                            ? context.ResolvedConfiguration.CooldownMs
+                            : specification.SkillCooldownMs)
+                        : 0,
+                    sharedCooldownMs: Math.Max(0, specification.SharedCooldownMs),
+                    globalCooldownMs: Math.Max(0, specification.GlobalCooldownMs),
+                    detail: detail);
+                var runtimeHandle = context.RuntimeHandle;
+                TryCollectEconomy(context.CasterActorId, context.TargetActorId, context.SkillId,
+                    in runtimeHandle, in data, outcome);
+            }
+            catch
+            {
+                // Diagnostics must never change economy transaction semantics.
+            }
+        }
+
+        private void TryCollectEconomy(
+            Transaction transaction,
+            BattleDiagnosticSkillExecutionStage stage,
+            BattleDiagnosticEventOutcome outcome,
+            string detail)
+        {
+            try
+            {
+                if (transaction == null) return;
+                var data = new BattleDiagnosticSkillExecutionPayload(
+                    transaction.DiagnosticCommandId, stage, transaction.SkillSlot,
+                    transaction.SkillLevel, transaction.CastSequence,
+                    resourceType: (int)transaction.ResourceType,
+                    resourceAmountRaw: transaction.ResourceAmount.RawValue,
+                    resourceBeforeRaw: transaction.ResourceBeforeRaw,
+                    resourceAfterRaw: transaction.ResourceAfterRaw,
+                    chargeCost: transaction.ChargeCost,
+                    cooldownMs: transaction.CooldownMs,
+                    sharedCooldownMs: transaction.SharedCooldownMs,
+                    globalCooldownMs: transaction.GlobalCooldownMs,
+                    detail: detail);
+                TryCollectEconomy(transaction.ActorId, 0, transaction.SkillId,
+                    in transaction.Handle, in data, outcome);
+            }
+            catch
+            {
+                // Diagnostics must never change economy transaction semantics.
+            }
+        }
+
+        private void TryCollectEconomy(
+            int actorId,
+            int targetActorId,
+            int skillId,
+            in MobaSkillCastRuntimeHandle runtimeHandle,
+            in BattleDiagnosticSkillExecutionPayload data,
+            BattleDiagnosticEventOutcome outcome)
+        {
+            try
+            {
+                var sink = _diagnosticEvents;
+                if (sink == null || !sink.IsEnabled(BattleDiagnosticEventChannel.Skill)) return;
+                var payload = BattleDiagnosticEventPayload.FromSkillExecution(in data);
+                var runtime = runtimeHandle.IsValid
+                    ? new BattleDiagnosticRuntimeHandle(runtimeHandle.RuntimeId, runtimeHandle.Generation)
+                    : default;
+                var draft = new MobaBattleDiagnosticEventDraft(
+                    BattleDiagnosticEventKind.SkillEconomy,
+                    BattleDiagnosticEventChannel.Skill,
+                    outcome,
+                    sourceActorId: actorId,
+                    targetActorId: targetActorId,
+                    configId: skillId,
+                    rootContextId: runtimeHandle.RootTraceContextId,
+                    contextId: runtimeHandle.RootTraceContextId,
+                    skillRuntime: runtime,
+                    payloadVersion: BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
+                    summary: $"{data.Stage} resource={data.ResourceBeforeRaw}->{data.ResourceAfterRaw} " +
+                             $"cooldown={data.CooldownMs}/{data.SharedCooldownMs}/{data.GlobalCooldownMs}",
+                    payload: payload);
+                sink.TryCollect(in draft);
+            }
+            catch
+            {
+                // Diagnostics must never change economy transaction semantics.
             }
         }
 

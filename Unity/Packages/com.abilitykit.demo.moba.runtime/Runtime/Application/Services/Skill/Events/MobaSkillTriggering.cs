@@ -104,6 +104,16 @@ namespace AbilityKit.Demo.Moba.Services
             var summary = string.IsNullOrEmpty(ctx.FailReason)
                 ? eventId
                 : eventId + ": " + ctx.FailReason;
+            TryMapExecutionStage(eventId, out var executionStage, out var endReason);
+            var executionData = new BattleDiagnosticSkillExecutionPayload(
+                ctx.DiagnosticCommandId,
+                executionStage,
+                ctx.SkillSlot,
+                ctx.SkillLevel,
+                ctx.Sequence,
+                endReason: (int)endReason,
+                detail: summary);
+            var payload = BattleDiagnosticEventPayload.FromSkillExecution(in executionData);
 
             draft = new MobaBattleDiagnosticEventDraft(
                 kind,
@@ -115,8 +125,43 @@ namespace AbilityKit.Demo.Moba.Services
                 rootContextId,
                 ctx.SourceContextId,
                 runtime,
-                summary: summary);
+                payloadVersion: BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
+                summary: summary,
+                payload: payload);
             return true;
+        }
+
+        private static void TryMapExecutionStage(
+            string eventId,
+            out BattleDiagnosticSkillExecutionStage stage,
+            out MobaSkillRuntimeEndReason endReason)
+        {
+            endReason = MobaSkillRuntimeEndReason.None;
+            switch (eventId)
+            {
+                case Events.PreCastStart:
+                    stage = BattleDiagnosticSkillExecutionStage.PreCastStarted;
+                    return;
+                case Events.PreCastComplete:
+                    stage = BattleDiagnosticSkillExecutionStage.PreCastCompleted;
+                    return;
+                case Events.CastStart:
+                    stage = BattleDiagnosticSkillExecutionStage.CastStarted;
+                    return;
+                case Events.CastComplete:
+                    stage = BattleDiagnosticSkillExecutionStage.CastCompleted;
+                    endReason = MobaSkillRuntimeEndReason.PipelineCompleted;
+                    return;
+                case Events.PreCastInterrupt:
+                case Events.CastInterrupt:
+                    stage = BattleDiagnosticSkillExecutionStage.CastInterrupted;
+                    endReason = MobaSkillRuntimeEndReason.Cancelled;
+                    return;
+                default:
+                    stage = BattleDiagnosticSkillExecutionStage.CastFailed;
+                    endReason = MobaSkillRuntimeEndReason.Failed;
+                    return;
+            }
         }
 
         private static void TryCollect(string eventId, SkillCastContext ctx)

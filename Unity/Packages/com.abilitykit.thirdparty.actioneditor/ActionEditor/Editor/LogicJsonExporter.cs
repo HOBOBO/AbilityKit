@@ -2,12 +2,30 @@ using System;
 using System.IO;
 using AbilityKit.ActionSchema;
 using NBC.ActionEditor;
+using UnityEditor;
 using UnityEngine;
 
 namespace NBC.ActionEditor
 {
     public static class LogicJsonExporter
     {
+        private const string XiaoQiaoAssetPath =
+            "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/action_timeline/skill_10020101.json";
+
+        [MenuItem("Tools/AbilityKit/Demos/Moba/ActionEditor/Export XiaoQiao Skill 1")]
+        public static void ExportXiaoQiaoSkillOne()
+        {
+            var textAsset = AssetDatabase.LoadAssetAtPath<TextAsset>(XiaoQiaoAssetPath);
+            if (textAsset == null) throw new FileNotFoundException("ActionEditor skill asset is missing", XiaoQiaoAssetPath);
+            var asset = Json.Deserialize(typeof(Asset), textAsset.text) as Asset;
+            if (!(asset is IActionTimelineRuntimeAsset marked) || !marked.ExportMobaRuntime)
+                throw new InvalidDataException("XiaoQiao skill asset must opt in to MOBA runtime export.");
+            asset.Init();
+            ExportLogicJson(asset, Path.GetFullPath(Path.Combine(Application.dataPath, "..", XiaoQiaoAssetPath)));
+            AssetDatabase.Refresh();
+            Debug.Log("[ActionEditor] Exported XiaoQiao skill 1 logic and presentation timelines.");
+        }
+
         public static void ExportLogicJson(Asset assetData, string editorJsonPath)
         {
             if (assetData == null) return;
@@ -19,8 +37,24 @@ namespace NBC.ActionEditor
             var name = Path.GetFileNameWithoutExtension(editorJsonPath);
             var logicPath = Path.Combine(dir ?? string.Empty, name + ".logic.json");
 
+            SkillAssetDto logic = null;
+            SkillAssetDto presentation = null;
+            if (assetData is IActionTimelineRuntimeAsset mobaAsset && mobaAsset.ExportMobaRuntime)
+            {
+                logic = ActionTimelinePartition.Create(dto, ActionTimelineRuntimeTypes.Logic);
+                presentation = ActionTimelinePartition.Create(dto, ActionTimelineRuntimeTypes.Presentation);
+            }
+
             var json = Json.Serialize(dto);
             File.WriteAllText(logicPath, json);
+
+            if (logic != null && presentation != null)
+            {
+                var mobaLogicPath = Path.Combine(dir ?? string.Empty, name + ".moba.logic.json");
+                var mobaPresentationPath = Path.Combine(dir ?? string.Empty, name + ".moba.presentation.json");
+                File.WriteAllText(mobaLogicPath, Json.Serialize(logic));
+                File.WriteAllText(mobaPresentationPath, Json.Serialize(presentation));
+            }
         }
 
         private static SkillAssetDto ToDto(Asset asset)
@@ -68,6 +102,13 @@ namespace NBC.ActionEditor
                                 var c = new ClipDto
                                 {
                                     type = clip.GetType().FullName,
+                                    runtimeType = clip is IActionTimelineRuntimeClip runtimeClip
+                                        ? (runtimeClip.RuntimeKind == ActionTimelineRuntimeKind.Logic
+                                            ? ActionTimelineRuntimeTypes.Logic
+                                            : runtimeClip.RuntimeKind == ActionTimelineRuntimeKind.Presentation
+                                                ? ActionTimelineRuntimeTypes.Presentation
+                                                : null)
+                                        : null,
                                     start = clip.StartTime,
                                     length = clip.Length,
                                     blendIn = clip.BlendIn,

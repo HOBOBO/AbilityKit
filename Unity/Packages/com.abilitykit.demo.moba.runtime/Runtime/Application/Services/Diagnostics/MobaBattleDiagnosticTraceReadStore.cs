@@ -29,6 +29,8 @@ namespace AbilityKit.Demo.Moba.Services
 
         [WorldInject(required: false)]
         private IMobaRuntimeObjectKeyResolver _runtimeObjectKeys = null;
+        [WorldInject(required: false)] private IMobaEffectExecutionSnapshotReader _executionSnapshots = null;
+        [WorldInject(required: false)] private IMobaActionExecutionSnapshotReader _actionSnapshots = null;
 
         public MobaBattleDiagnosticTraceReadStore(
             MobaTraceRegistry registry,
@@ -40,7 +42,7 @@ namespace AbilityKit.Demo.Moba.Services
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
-        public long Revision => _registry.Revision;
+        public long Revision => _registry.Revision + (_executionSnapshots?.Revision ?? 0) + (_actionSnapshots?.Revision ?? 0);
 
         public BattleDiagnosticTraceTrackSnapshot CaptureTraceSnapshot()
         {
@@ -207,7 +209,12 @@ namespace AbilityKit.Demo.Moba.Services
                 metadata?.TriggerId ?? 0,
                 sourceActor.Generation,
                 targetActor.Generation,
-                MobaTraceRegistry.ResolveDefinitionKind(node.Kind));
+                MobaTraceRegistry.ResolveDefinitionKind(node.Kind),
+                (int)(metadata?.OriginKind ?? MobaTraceKind.None),
+                metadata?.OriginConfigId ?? 0,
+                MobaTraceRegistry.ResolveDefinitionKind((int)(metadata?.OriginKind ?? MobaTraceKind.None)),
+                _executionSnapshots != null && metadata != null ? _executionSnapshots.Read(metadata.ExecutionSnapshot) : default,
+                _actionSnapshots != null && metadata != null ? _actionSnapshots.Read(metadata.ActionSnapshot) : default);
         }
 
         private BattleDiagnosticRuntimeObjectReference ResolveActorReference(

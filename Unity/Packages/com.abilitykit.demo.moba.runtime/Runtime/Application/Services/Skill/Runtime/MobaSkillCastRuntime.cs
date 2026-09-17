@@ -850,6 +850,7 @@ namespace AbilityKit.Demo.Moba.Services
             Sequence = request.Sequence;
             CasterActorId = request.CasterActorId;
             TargetActorId = request.TargetActorId;
+            DiagnosticCommandId = request.DiagnosticCommandId;
             AimPos = request.AimPos;
             AimDir = request.AimDir;
             Stage = SkillCastStage.PreCast;
@@ -865,6 +866,7 @@ namespace AbilityKit.Demo.Moba.Services
         public int Sequence { get; }
         public int CasterActorId { get; }
         public int TargetActorId { get; private set; }
+        public long DiagnosticCommandId { get; }
         public Vec3 AimPos { get; private set; }
         public Vec3 AimDir { get; private set; }
         public SkillCastStage Stage { get; internal set; }
@@ -1095,7 +1097,8 @@ namespace AbilityKit.Demo.Moba.Services
             int targetActorId,
             in Vec3 aimPos,
             in Vec3 aimDir,
-            long rootTraceContextId)
+            long rootTraceContextId,
+            long diagnosticCommandId = 0L)
         {
             SkillId = skillId;
             SkillSlot = skillSlot;
@@ -1106,6 +1109,7 @@ namespace AbilityKit.Demo.Moba.Services
             AimPos = aimPos;
             AimDir = aimDir;
             RootTraceContextId = rootTraceContextId;
+            DiagnosticCommandId = diagnosticCommandId;
         }
 
         public int SkillId { get; }
@@ -1117,5 +1121,6 @@ namespace AbilityKit.Demo.Moba.Services
         public Vec3 AimPos { get; }
         public Vec3 AimDir { get; }
         public long RootTraceContextId { get; }
+        public long DiagnosticCommandId { get; }
     }
 }

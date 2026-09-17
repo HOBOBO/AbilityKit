@@ -23,6 +23,7 @@ namespace AbilityKit.Demo.Moba.Rollback
         public void ValidateImport(FrameIndex frame, byte[] payload)
         {
             var snapshot = Read(payload);
+            _contexts.Registry.ValidateRollbackEntityCursor(snapshot.NextEntityId, snapshot.EntityIds ?? Array.Empty<long>());
             foreach (var id in snapshot.EntityIds ?? Array.Empty<long>())
             {
                 if (id <= 0 || id >= snapshot.NextEntityId || !_contexts.Registry.Exists(id))

@@ -12,7 +12,192 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         TriggerAnalysis = 2,
         SkillFailure = 3,
         BuffLifecycle = 4,
-        TriggerAnalysisAggregate = 5
+        TriggerAnalysisAggregate = 5,
+        DamageCalculation = 6,
+        TargetSearch = 7,
+        InputCommand = 8,
+        SkillExecution = 9
+    }
+
+    public enum BattleDiagnosticSkillExecutionStage
+    {
+        PreCastStarted = 1,
+        PreCastCompleted = 2,
+        CastStarted = 3,
+        CastCompleted = 4,
+        CastFailed = 5,
+        CastInterrupted = 6,
+        EconomyReserved = 7,
+        ResourceConsumed = 8,
+        EconomyCommitted = 9,
+        EconomyRefunded = 10,
+        EconomyRejected = 11,
+        RuntimeWaitingChildren = 12,
+        RuntimeFinalized = 13,
+        RuntimeForceTerminated = 14,
+        RuntimeCleared = 15
+    }
+
+    public readonly struct BattleDiagnosticSkillExecutionPayload
+    {
+        public const int CurrentSchemaVersion = 1;
+
+        public BattleDiagnosticSkillExecutionPayload(
+            long commandId,
+            BattleDiagnosticSkillExecutionStage stage,
+            int skillSlot,
+            int skillLevel,
+            int castSequence,
+            int endReason = 0,
+            int resourceType = 0,
+            long resourceAmountRaw = 0L,
+            long resourceBeforeRaw = 0L,
+            long resourceAfterRaw = 0L,
+            int chargeCost = 0,
+            int cooldownMs = 0,
+            int sharedCooldownMs = 0,
+            int globalCooldownMs = 0,
+            int pendingChildren = 0,
+            bool forced = false,
+            string detail = "")
+        {
+            CommandId = commandId;
+            Stage = stage;
+            SkillSlot = skillSlot;
+            SkillLevel = skillLevel;
+            CastSequence = castSequence;
+            EndReason = endReason;
+            ResourceType = resourceType;
+            ResourceAmountRaw = resourceAmountRaw;
+            ResourceBeforeRaw = resourceBeforeRaw;
+            ResourceAfterRaw = resourceAfterRaw;
+            ChargeCost = chargeCost;
+            CooldownMs = cooldownMs;
+            SharedCooldownMs = sharedCooldownMs;
+            GlobalCooldownMs = globalCooldownMs;
+            PendingChildren = pendingChildren;
+            Forced = forced;
+            Detail = detail ?? string.Empty;
+        }
+
+        public long CommandId { get; }
+        public BattleDiagnosticSkillExecutionStage Stage { get; }
+        public int SkillSlot { get; }
+        public int SkillLevel { get; }
+        public int CastSequence { get; }
+        public int EndReason { get; }
+        public int ResourceType { get; }
+        public long ResourceAmountRaw { get; }
+        public long ResourceBeforeRaw { get; }
+        public long ResourceAfterRaw { get; }
+        public int ChargeCost { get; }
+        public int CooldownMs { get; }
+        public int SharedCooldownMs { get; }
+        public int GlobalCooldownMs { get; }
+        public int PendingChildren { get; }
+        public bool Forced { get; }
+        public string Detail { get; }
+    }
+
+    public readonly struct BattleDiagnosticInputCommandPayload
+    {
+        public const int CurrentSchemaVersion = 1;
+
+        public BattleDiagnosticInputCommandPayload(long commandId, int inputFrame, string playerId,
+            int opCode, bool succeeded, int failureCode, string message, int skillSlot = 0,
+            int skillPhase = 0, int targetActorId = 0)
+        {
+            CommandId = commandId;
+            InputFrame = inputFrame;
+            PlayerId = playerId ?? string.Empty;
+            OpCode = opCode;
+            Succeeded = succeeded;
+            FailureCode = failureCode;
+            Message = message ?? string.Empty;
+            SkillSlot = skillSlot;
+            SkillPhase = skillPhase;
+            TargetActorId = targetActorId;
+        }
+
+        public long CommandId { get; }
+        public int InputFrame { get; }
+        public string PlayerId { get; }
+        public int OpCode { get; }
+        public bool Succeeded { get; }
+        public int FailureCode { get; }
+        public string Message { get; }
+        public int SkillSlot { get; }
+        public int SkillPhase { get; }
+        public int TargetActorId { get; }
+    }
+
+    public readonly struct BattleDiagnosticTargetSearchPayload
+    {
+        public const int CurrentSchemaVersion = 1;
+
+        public BattleDiagnosticTargetSearchPayload(long commandId, int explicitTargetActorId,
+            int candidateCount, int eligibleCount, int selectedCount,
+            string selectedActorIds, string decisionDetails)
+        {
+            CommandId = commandId;
+            ExplicitTargetActorId = explicitTargetActorId;
+            CandidateCount = candidateCount;
+            EligibleCount = eligibleCount;
+            SelectedCount = selectedCount;
+            SelectedActorIds = selectedActorIds ?? string.Empty;
+            DecisionDetails = decisionDetails ?? string.Empty;
+        }
+
+        public long CommandId { get; }
+        public int ExplicitTargetActorId { get; }
+        public int CandidateCount { get; }
+        public int EligibleCount { get; }
+        public int SelectedCount { get; }
+        public string SelectedActorIds { get; }
+        public string DecisionDetails { get; }
+    }
+
+    public enum BattleDiagnosticDamageStage
+    {
+        TargetMissing = 1,
+        ShieldCommitRejected = 2,
+        HealthCommitRejected = 3,
+        Completed = 4,
+        InvalidRequest = 5,
+        TransactionRejected = 6,
+        ExecutionFailed = 7,
+        PostCommitNotificationFailed = 8
+    }
+
+    public readonly struct BattleDiagnosticDamageCalculationPayload
+    {
+        public const int CurrentSchemaVersion = 1;
+
+        public BattleDiagnosticDamageCalculationPayload(BattleDiagnosticDamageStage stage,
+            long baseDamageRaw, long rawDamageRaw, long mitigatedDamageRaw,
+            long shieldAbsorbRaw, long plannedHpDamageRaw, long appliedHpDamageRaw)
+        {
+            Stage = stage;
+            BaseDamageRaw = baseDamageRaw;
+            RawDamageRaw = rawDamageRaw;
+            MitigatedDamageRaw = mitigatedDamageRaw;
+            ShieldAbsorbRaw = shieldAbsorbRaw;
+            PlannedHpDamageRaw = plannedHpDamageRaw;
+            AppliedHpDamageRaw = appliedHpDamageRaw;
+        }
+
+        public BattleDiagnosticDamageStage Stage { get; }
+        public bool HasCalculation => Stage == BattleDiagnosticDamageStage.Completed ||
+            Stage == BattleDiagnosticDamageStage.ShieldCommitRejected || Stage == BattleDiagnosticDamageStage.HealthCommitRejected;
+        public long BaseDamageRaw { get; }
+        public long RawDamageRaw { get; }
+        public long MitigatedDamageRaw { get; }
+        public long ShieldAbsorbRaw { get; }
+        public long PlannedHpDamageRaw { get; }
+        public long AppliedHpDamageRaw { get; }
+
+        // Diagnostic values are signed Q32.32, matching the simulation's Fixed64 raw representation.
+        public static double ToDisplayValue(long raw) => raw / 4294967296d;
     }
 
     public enum BattleDiagnosticBuffLifecycleStage
@@ -357,13 +542,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             string source,
             string stage,
             string code,
-            string message)
+            string message,
+            long commandId = 0L)
         {
             Slot = slot;
             Source = source ?? string.Empty;
             Stage = stage ?? string.Empty;
             Code = code ?? string.Empty;
             Message = message ?? string.Empty;
+            CommandId = commandId;
         }
 
         public int Slot { get; }
@@ -371,10 +558,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public string Stage { get; }
         public string Code { get; }
         public string Message { get; }
+        public long CommandId { get; }
 
         public bool Equals(BattleDiagnosticSkillFailurePayload other)
         {
-            return Slot == other.Slot &&
+            return Slot == other.Slot && CommandId == other.CommandId &&
                    string.Equals(Source, other.Source, StringComparison.Ordinal) &&
                    string.Equals(Stage, other.Stage, StringComparison.Ordinal) &&
                    string.Equals(Code, other.Code, StringComparison.Ordinal) &&
@@ -390,7 +578,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         {
             unchecked
             {
-                var hashCode = Slot;
+                var hashCode = (Slot * 397) ^ CommandId.GetHashCode();
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Source ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Stage ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(Code ?? string.Empty);
@@ -422,6 +610,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         private readonly long _int64Value2;
         private readonly long _int64Value3;
         private readonly long _int64Value4;
+        private readonly long _int64Value5;
+        private readonly long _int64Value6;
         private readonly string _stringValue;
         private readonly string _stringValue2;
         private readonly string _stringValue3;
@@ -445,6 +635,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             long int64Value2 = 0L,
             long int64Value3 = 0L,
             long int64Value4 = 0L,
+            long int64Value5 = 0L,
+            long int64Value6 = 0L,
             string stringValue = "",
             string stringValue2 = "",
             string stringValue3 = "",
@@ -477,6 +669,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             _int64Value2 = int64Value2;
             _int64Value3 = int64Value3;
             _int64Value4 = int64Value4;
+            _int64Value5 = int64Value5;
+            _int64Value6 = int64Value6;
             _stringValue = stringValue ?? string.Empty;
             _stringValue2 = stringValue2 ?? string.Empty;
             _stringValue3 = stringValue3 ?? string.Empty;
@@ -488,6 +682,123 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticPayloadKind Kind { get; }
         public int SchemaVersion { get; }
         public bool HasValue => Kind != BattleDiagnosticPayloadKind.None;
+
+        public static BattleDiagnosticEventPayload FromSkillExecution(
+            in BattleDiagnosticSkillExecutionPayload payload)
+        {
+            return new BattleDiagnosticEventPayload(BattleDiagnosticPayloadKind.SkillExecution,
+                BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
+                (int)payload.Stage, payload.Forced ? 1U : 0U,
+                payload.SkillSlot, payload.SkillLevel, payload.CastSequence, payload.EndReason,
+                payload.ResourceType, payload.ChargeCost, payload.CooldownMs,
+                payload.SharedCooldownMs, payload.GlobalCooldownMs,
+                int64Value: payload.CommandId,
+                int64Value2: payload.ResourceAmountRaw,
+                int64Value3: payload.ResourceBeforeRaw,
+                int64Value4: payload.ResourceAfterRaw,
+                int64Value5: payload.PendingChildren,
+                stringValue: payload.Detail);
+        }
+
+        public bool TryGetSkillExecution(out BattleDiagnosticSkillExecutionPayload payload)
+        {
+            if (Kind != BattleDiagnosticPayloadKind.SkillExecution ||
+                SchemaVersion != BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion)
+            {
+                payload = default;
+                return false;
+            }
+
+            payload = new BattleDiagnosticSkillExecutionPayload(
+                _int64Value,
+                (BattleDiagnosticSkillExecutionStage)_int32Value,
+                _int32Value2,
+                _int32Value3,
+                _int32Value4,
+                _int32Value5,
+                _int32Value6,
+                _int64Value2,
+                _int64Value3,
+                _int64Value4,
+                _int32Value7,
+                _int32Value8,
+                _int32Value9,
+                _int32Value10,
+                (int)_int64Value5,
+                _uint32Value != 0U,
+                _stringValue);
+            return true;
+        }
+
+        public static BattleDiagnosticEventPayload FromInputCommand(in BattleDiagnosticInputCommandPayload payload)
+        {
+            return new BattleDiagnosticEventPayload(BattleDiagnosticPayloadKind.InputCommand,
+                BattleDiagnosticInputCommandPayload.CurrentSchemaVersion,
+                payload.InputFrame, 0U, payload.OpCode, payload.Succeeded ? 1 : 0,
+                payload.FailureCode, payload.SkillSlot, payload.SkillPhase, payload.TargetActorId,
+                int64Value: payload.CommandId, stringValue: payload.PlayerId,
+                stringValue2: payload.Message);
+        }
+
+        public bool TryGetInputCommand(out BattleDiagnosticInputCommandPayload payload)
+        {
+            if (Kind != BattleDiagnosticPayloadKind.InputCommand ||
+                SchemaVersion != BattleDiagnosticInputCommandPayload.CurrentSchemaVersion)
+            {
+                payload = default;
+                return false;
+            }
+            payload = new BattleDiagnosticInputCommandPayload(_int64Value, _int32Value,
+                _stringValue, _int32Value2, _int32Value3 != 0, _int32Value4,
+                _stringValue2, _int32Value5, _int32Value6, _int32Value7);
+            return true;
+        }
+
+        public static BattleDiagnosticEventPayload FromTargetSearch(in BattleDiagnosticTargetSearchPayload payload)
+        {
+            return new BattleDiagnosticEventPayload(BattleDiagnosticPayloadKind.TargetSearch,
+                BattleDiagnosticTargetSearchPayload.CurrentSchemaVersion,
+                payload.ExplicitTargetActorId, 0U, payload.CandidateCount,
+                payload.EligibleCount, payload.SelectedCount,
+                int64Value: payload.CommandId, stringValue: payload.SelectedActorIds,
+                stringValue2: payload.DecisionDetails);
+        }
+
+        public bool TryGetTargetSearch(out BattleDiagnosticTargetSearchPayload payload)
+        {
+            if (Kind != BattleDiagnosticPayloadKind.TargetSearch ||
+                SchemaVersion != BattleDiagnosticTargetSearchPayload.CurrentSchemaVersion)
+            {
+                payload = default;
+                return false;
+            }
+            payload = new BattleDiagnosticTargetSearchPayload(_int64Value, _int32Value,
+                _int32Value2, _int32Value3, _int32Value4, _stringValue, _stringValue2);
+            return true;
+        }
+
+        public static BattleDiagnosticEventPayload FromDamageCalculation(in BattleDiagnosticDamageCalculationPayload payload)
+        {
+            return new BattleDiagnosticEventPayload(BattleDiagnosticPayloadKind.DamageCalculation,
+                BattleDiagnosticDamageCalculationPayload.CurrentSchemaVersion, (int)payload.Stage, 0U,
+                int64Value: payload.BaseDamageRaw, int64Value2: payload.RawDamageRaw,
+                int64Value3: payload.MitigatedDamageRaw, int64Value4: payload.ShieldAbsorbRaw,
+                int64Value5: payload.PlannedHpDamageRaw, int64Value6: payload.AppliedHpDamageRaw);
+        }
+
+        public bool TryGetDamageCalculation(out BattleDiagnosticDamageCalculationPayload payload)
+        {
+            if (Kind != BattleDiagnosticPayloadKind.DamageCalculation ||
+                SchemaVersion != BattleDiagnosticDamageCalculationPayload.CurrentSchemaVersion)
+            {
+                payload = default;
+                return false;
+            }
+
+            payload = new BattleDiagnosticDamageCalculationPayload((BattleDiagnosticDamageStage)_int32Value,
+                _int64Value, _int64Value2, _int64Value3, _int64Value4, _int64Value5, _int64Value6);
+            return true;
+        }
 
         public static BattleDiagnosticEventPayload FromSyncSnapshotReceived(
             in BattleDiagnosticSyncSnapshotReceivedPayload payload)
@@ -664,6 +975,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion,
                 payload.Slot,
                 0U,
+                int64Value: payload.CommandId,
                 stringValue: payload.Source,
                 stringValue2: payload.Stage,
                 stringValue3: payload.Code,
@@ -684,7 +996,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 _stringValue,
                 _stringValue2,
                 _stringValue3,
-                _stringValue4);
+                _stringValue4,
+                _int64Value);
             return true;
         }
 
@@ -707,6 +1020,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    _int64Value2 == other._int64Value2 &&
                    _int64Value3 == other._int64Value3 &&
                    _int64Value4 == other._int64Value4 &&
+                   _int64Value5 == other._int64Value5 &&
+                   _int64Value6 == other._int64Value6 &&
                    string.Equals(_stringValue, other._stringValue, StringComparison.Ordinal) &&
                    string.Equals(_stringValue2, other._stringValue2, StringComparison.Ordinal) &&
                    string.Equals(_stringValue3, other._stringValue3, StringComparison.Ordinal) &&
@@ -739,6 +1054,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ _int64Value2.GetHashCode();
                 hashCode = (hashCode * 397) ^ _int64Value3.GetHashCode();
                 hashCode = (hashCode * 397) ^ _int64Value4.GetHashCode();
+                hashCode = (hashCode * 397) ^ _int64Value5.GetHashCode();
+                hashCode = (hashCode * 397) ^ _int64Value6.GetHashCode();
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue2 ?? string.Empty);
                 hashCode = (hashCode * 397) ^ StringComparer.Ordinal.GetHashCode(_stringValue3 ?? string.Empty);

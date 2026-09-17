@@ -1,4 +1,5 @@
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Editor;
 using NUnit.Framework;
 
@@ -216,6 +217,35 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void TraceMapper_ActionNavigatesToTriggerPlan_NotActionRegistrationId()
+        {
+            var node = TraceNode("EffectAction", -42, triggerId: 701);
+            Assert.That(BattleDebugConfigReferenceMapper.TryFromTraceNode(in node, out var reference), Is.True);
+            Assert.That(reference.Kind, Is.EqualTo(BattleDebugConfigKind.TriggerPlan));
+            Assert.That(reference.Id, Is.EqualTo(701));
+        }
+
+        [Test]
+        public void TraceMapper_OriginUsesItsOwnKindAndConfigId()
+        {
+            var node = TraceNode("EffectExecution", 801,
+                originKind: (int)MobaTraceKind.AreaStay, originConfigId: 601);
+            Assert.That(BattleDebugConfigReferenceMapper.TryFromTraceOrigin(in node, out var reference), Is.True);
+            Assert.That(reference.Kind, Is.EqualTo(BattleDebugConfigKind.Area));
+            Assert.That(reference.Id, Is.EqualTo(601));
+            var legacy = TraceNode("EffectExecution", 801);
+            Assert.That(BattleDebugConfigReferenceMapper.TryFromTraceOrigin(in legacy, out _), Is.False);
+        }
+
+        [Test]
+        public void TraceMapper_InvalidOriginKind_DoesNotWrapIntoKnownByteEnum()
+        {
+            var node = TraceNode("EffectExecution", 801,
+                originKind: 256 + (int)MobaTraceKind.AreaStay, originConfigId: 601);
+            Assert.That(BattleDebugConfigReferenceMapper.TryFromTraceOrigin(in node, out _), Is.False);
+        }
+
+        [Test]
         public void TraceMapper_MapsRealSkillPhaseToExactFlowPhase()
         {
             var node = TraceNode(
@@ -240,7 +270,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             int configId,
             int skillId = 0,
             int castFlowId = 0,
-            string phaseId = "")
+            string phaseId = "",
+            int triggerId = 0,
+            int originKind = 0,
+            int originConfigId = 0)
         {
             return new BattleDiagnosticTraceNodeSummary(
                 Scope,
@@ -254,7 +287,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 kind: kind,
                 skillId: skillId,
                 castFlowId: castFlowId,
-                phaseId: phaseId);
+                phaseId: phaseId,
+                triggerId: triggerId,
+                originKind: originKind,
+                originConfigId: originConfigId);
         }
     }
 }

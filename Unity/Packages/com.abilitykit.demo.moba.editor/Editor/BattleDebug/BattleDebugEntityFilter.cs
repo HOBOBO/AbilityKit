@@ -5,11 +5,11 @@ namespace AbilityKit.Game.Editor
     internal static class BattleDebugEntityFilter
     {
         public static bool Matches(
-            IBattleDebugFacade facade,
+            AbilityKit.Demo.Moba.Diagnostics.IBattleDiagnosticReadOnlySession session,
             BattleDebugEntityId id,
             string filter)
         {
-            return BattleDebugEntityFilterImpl.Matches(facade, id, filter);
+            return BattleDebugEntityFilterImpl.Matches(session, id, filter);
         }
     }
 }

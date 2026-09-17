@@ -3,6 +3,7 @@ using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.ECS;
 using AbilityKit.Game.Battle;
+using AbilityKit.Game.Flow;
 using AbilityKit.Game.Editor.Diagnostics;
 
 namespace AbilityKit.Game.Editor
@@ -26,7 +27,8 @@ namespace AbilityKit.Game.Editor
             BattleDebugDiagnosticSessionResolution diagnosticResolution = default,
             bool isOffline = false,
             BattleDiagnosticWorkspaceState workspaceState = null,
-            float availableContentWidth = 0f)
+            float availableContentWidth = 0f,
+            Action<BattleContext> onHashMismatchChanged = null)
         {
             Facade = facade;
             SelectedId = selectedId;
@@ -45,6 +47,7 @@ namespace AbilityKit.Game.Editor
             IsOffline = isOffline;
             WorkspaceState = workspaceState;
             AvailableContentWidth = availableContentWidth;
+            OnHashMismatchChanged = onHashMismatchChanged;
         }
 
         public IBattleDebugFacade Facade { get; }
@@ -64,6 +67,7 @@ namespace AbilityKit.Game.Editor
         public bool IsOffline { get; }
         public BattleDiagnosticWorkspaceState WorkspaceState { get; }
         public float AvailableContentWidth { get; }
+        public Action<BattleContext> OnHashMismatchChanged { get; }
 
         public bool HasSelection => SelectedId.IsValid;
         public bool HasRuntimeSelection => SelectedId.IsValid && SelectedUnit != null;
@@ -87,7 +91,8 @@ namespace AbilityKit.Game.Editor
                 DiagnosticResolution,
                 IsOffline,
                 WorkspaceState,
-                availableContentWidth);
+                availableContentWidth,
+                OnHashMismatchChanged);
         }
     }
 }

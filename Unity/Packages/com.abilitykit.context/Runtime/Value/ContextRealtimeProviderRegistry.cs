@@ -60,6 +60,31 @@ namespace AbilityKit.Context
             return TryGetProvider(request.PropertyTypeId, out var provider) && provider.TryGetValue(request.ContextId, request.Key, out value);
         }
 
+        /// <summary>Captures one provider instance for a multi-field compatibility read; does not create context data.</summary>
+        public bool TryGetValueReader<TProperty>(long contextId, out IContextValueProvider reader)
+            where TProperty : IProperty
+        {
+            reader = null;
+            var type = PropertyTypeRegistry.Instance.Get<TProperty>();
+            if (type == null || !TryGetProvider(type.Id, out var provider)) return false;
+            reader = new RealtimeValueReader(provider, contextId);
+            return true;
+        }
+
+        private sealed class RealtimeValueReader : IContextValueProvider
+        {
+            private readonly IContextRealtimeValueProvider _provider;
+            private readonly long _contextId;
+
+            internal RealtimeValueReader(IContextRealtimeValueProvider provider, long contextId)
+            {
+                _provider = provider;
+                _contextId = contextId;
+            }
+
+            public bool TryGetValue<T>(string key, out T value) => _provider.TryGetValue(_contextId, key, out value);
+        }
+
         public void Clear()
         {
             lock (_lock)

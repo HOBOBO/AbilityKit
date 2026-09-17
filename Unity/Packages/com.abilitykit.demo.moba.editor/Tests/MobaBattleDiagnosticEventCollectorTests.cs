@@ -112,6 +112,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 TargetActorId = 9,
                 SourceContextId = 500,
                 RuntimeHandle = new MobaSkillCastRuntimeHandle(42, 2, 400),
+                DiagnosticCommandId = 4401,
+                SkillSlot = 2,
+                SkillLevel = 3,
+                Sequence = 17,
                 FailReason = "reason"
             };
 
@@ -127,6 +131,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(draft.ContextId, Is.EqualTo(500));
             Assert.That(draft.SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(42, 2)));
             Assert.That(draft.Summary, Does.Contain("reason"));
+            Assert.That(draft.Payload.TryGetSkillExecution(out var execution), Is.True);
+            Assert.That(execution.CommandId, Is.EqualTo(4401));
+            Assert.That(execution.SkillSlot, Is.EqualTo(2));
+            Assert.That(execution.SkillLevel, Is.EqualTo(3));
+            Assert.That(execution.CastSequence, Is.EqualTo(17));
+            Assert.That(execution.Detail, Does.Contain("reason"));
         }
 
         [Test]
@@ -254,6 +264,27 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(draft.ContextId, Is.EqualTo(601));
             Assert.That(draft.SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(55, 3)));
             Assert.That(draft.AttackId, Is.Zero);
+        }
+
+        [Test]
+        public void DamageCalculationDraft_FailureKeepsAttackOriginAndPlannedValues()
+        {
+            var attack = new AttackInfo { AttackerActorId = 7, TargetActorId = 9, ReasonParam = 301 };
+            var origin = new MobaGameplayOrigin(7, 9, MobaTraceKind.EffectExecution,
+                201, 601, 600, 500, 400, new MobaSkillCastRuntimeHandle(55, 3, 500));
+            attack.SetOrigin(in origin);
+            var calc = new AttackCalcInfo(attack);
+
+            var draft = DamagePipelineService.CreateCalculationDraft(attack, calc,
+                BattleDiagnosticDamageStage.ShieldCommitRejected, 0f);
+
+            Assert.That(draft.Outcome, Is.EqualTo(BattleDiagnosticEventOutcome.Failed));
+            Assert.That(draft.RootContextId, Is.EqualTo(500));
+            Assert.That(draft.ContextId, Is.EqualTo(601));
+            Assert.That(draft.SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(55, 3)));
+            Assert.That(draft.Payload.TryGetDamageCalculation(out var payload), Is.True);
+            Assert.That(payload.Stage, Is.EqualTo(BattleDiagnosticDamageStage.ShieldCommitRejected));
+            Assert.That(payload.AppliedHpDamageRaw, Is.Zero);
         }
 
         private MobaBattleDiagnosticEventCollector CreateCollector()

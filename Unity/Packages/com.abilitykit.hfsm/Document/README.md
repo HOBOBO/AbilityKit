@@ -1,10 +1,14 @@
 # HFSM — 分层有限状态机
 
+## 可编辑展示场景
+
+在 Package Manager 导入 `Complete HFSM Showcase`，执行菜单 `AbilityKit/HFSM/Samples/Create Complete Showcase Scene`。两份 GraphAsset 可在图编辑器中编辑并导出，场景内三个代理可修改事实输入、单步、恢复快照，在 Runtime Monitor 中查看活动层级和转移记录。详细步骤见 Sample 的 `README.md`。
+
 ## 设计理念
 
 HFSM 回答的问题是："实体的状态是什么，以及如何在不同状态间切换？"
 
-基于 UnityHFSM（Inspiaaa），HFSM 提供 StateMachine 容器和 State 基类。每个 State 有 `OnEnter`/`OnLogic`/`OnExit` 生命周期，Transition 支持条件谓词和时间延迟。ITriggerable<TEvent> 接口让状态可以订阅事件并触发转换，实现事件驱动的状态切换。核心原语统一收敛到 `AbilityKit.HFSM` 命名空间（子命名空间如 `AbilityKit.HFSM.Extension`、`AbilityKit.HFSM.Definition`、`AbilityKit.HFSM.Runtime` 承载扩展、数据驱动定义与确定性运行时）。
+当前数据驱动核心由项目自己的 `AbilityKit.HFSM.Definition` 和 `AbilityKit.HFSM.Runtime` 实现：GraphAsset 编辑源经导出校验生成稳定定义 JSON，RuntimeBindings 显式注册状态、条件和转移动作，运行时支持层级、确定性帧推进、快照恢复与状态观察。以下 StateMachine/State 示例描述仍保留的旧版兼容 API，不代表新版导出 Definition 的用法。
 
 **与 Flow 的关系**：`HfsmFlowRunner` 将 HFSM 作为 Flow 节点嵌入，使状态机可以被 Flow 的组合器（Sequence、Parallel、Timeout）管理。
 

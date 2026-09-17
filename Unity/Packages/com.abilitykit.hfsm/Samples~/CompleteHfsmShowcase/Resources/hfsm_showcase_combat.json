@@ -1,0 +1,34 @@
+{
+  "formatVersion": 2,
+  "definitionId": "showcase.combat.reference",
+  "rootMachineId": "Life",
+  "machines": [
+    {
+      "id":"Life","initialStateId":"Combat","rememberLastState":false,
+      "states":[
+        {"id":"Combat","behaviorKey":"","childMachineId":"Combat","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"},
+        {"id":"Dead","behaviorKey":"showcase.state","childMachineId":"","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"}
+      ],
+      "transitions":[
+        {"id":"life.dead","fromAnyState":false,"fromStateId":"Combat","toStateId":"Dead","triggerId":"","conditionKey":"showcase.dead","actionKey":"showcase.transition","priority":100,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+        {"id":"life.respawn","fromAnyState":false,"fromStateId":"Dead","toStateId":"Combat","triggerId":"respawn","conditionKey":"showcase.alive","actionKey":"showcase.transition","priority":100,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0}
+      ]
+    },
+    {
+      "id":"Combat","initialStateId":"Idle","rememberLastState":true,
+      "states":[
+        {"id":"Idle","behaviorKey":"showcase.state","childMachineId":"","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"},
+        {"id":"Chase","behaviorKey":"showcase.combat.chase","childMachineId":"","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"},
+        {"id":"Strike","behaviorKey":"showcase.combat.strike","childMachineId":"","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"}
+      ],
+      "transitions":[
+        {"id":"idle.strike","fromAnyState":false,"fromStateId":"Idle","toStateId":"Strike","triggerId":"","conditionKey":"showcase.strike","actionKey":"showcase.transition","priority":80,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+        {"id":"idle.chase","fromAnyState":false,"fromStateId":"Idle","toStateId":"Chase","triggerId":"","conditionKey":"showcase.chase","actionKey":"showcase.transition","priority":40,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+        {"id":"chase.strike","fromAnyState":false,"fromStateId":"Chase","toStateId":"Strike","triggerId":"","conditionKey":"showcase.strike","actionKey":"showcase.transition","priority":80,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+        {"id":"strike.chase","fromAnyState":false,"fromStateId":"Strike","toStateId":"Chase","triggerId":"","conditionKey":"showcase.chase","actionKey":"showcase.transition","priority":40,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":1288490188},
+        {"id":"chase.idle","fromAnyState":false,"fromStateId":"Chase","toStateId":"Idle","triggerId":"","conditionKey":"showcase.no-target","actionKey":"showcase.transition","priority":10,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+        {"id":"strike.idle","fromAnyState":false,"fromStateId":"Strike","toStateId":"Idle","triggerId":"","conditionKey":"showcase.no-target","actionKey":"showcase.transition","priority":10,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0}
+      ]
+    }
+  ]
+}

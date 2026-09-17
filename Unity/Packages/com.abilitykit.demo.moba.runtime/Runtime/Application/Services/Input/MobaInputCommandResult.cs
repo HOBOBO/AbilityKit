@@ -31,6 +31,11 @@ namespace AbilityKit.Demo.Moba.Services
         public readonly string PlayerId;
         public readonly int ActorId;
         public readonly int OpCode;
+        public readonly long DiagnosticCommandId;
+        public readonly int SkillSlot;
+        public readonly int SkillPhase;
+        public readonly int TargetActorId;
+        public readonly MobaSkillCastRuntimeHandle SkillRuntimeHandle;
 
         public MobaInputCommandResult(
             bool succeeded,
@@ -38,7 +43,12 @@ namespace AbilityKit.Demo.Moba.Services
             string message,
             string playerId,
             int actorId,
-            int opCode)
+            int opCode,
+            long diagnosticCommandId = 0L,
+            int skillSlot = 0,
+            int skillPhase = 0,
+            int targetActorId = 0,
+            MobaSkillCastRuntimeHandle skillRuntimeHandle = default)
         {
             Succeeded = succeeded;
             FailureCode = failureCode;
@@ -46,6 +56,24 @@ namespace AbilityKit.Demo.Moba.Services
             PlayerId = playerId;
             ActorId = actorId;
             OpCode = opCode;
+            DiagnosticCommandId = diagnosticCommandId;
+            SkillSlot = skillSlot;
+            SkillPhase = skillPhase;
+            TargetActorId = targetActorId;
+            SkillRuntimeHandle = skillRuntimeHandle;
+        }
+
+        public MobaInputCommandResult WithDiagnosticCommandId(long commandId)
+        {
+            return new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
+                OpCode, commandId, SkillSlot, SkillPhase, TargetActorId, SkillRuntimeHandle);
+        }
+
+        public MobaInputCommandResult WithSkillDiagnostic(int slot, int phase, int targetActorId,
+            in MobaSkillCastRuntimeHandle runtimeHandle)
+        {
+            return new MobaInputCommandResult(Succeeded, FailureCode, Message, PlayerId, ActorId,
+                OpCode, DiagnosticCommandId, slot, phase, targetActorId, runtimeHandle);
         }
 
         public static MobaInputCommandResult Accepted(PlayerInputCommand command, int actorId = 0)

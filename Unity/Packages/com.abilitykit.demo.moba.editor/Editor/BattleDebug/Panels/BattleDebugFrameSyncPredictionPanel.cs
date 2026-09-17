@@ -60,7 +60,7 @@ namespace AbilityKit.Game.Editor
                        BattleDiagnosticMetricCategory.Prediction) ||
                    !ctx.IsOffline &&
                    EditorApplication.isPlaying &&
-                   BattleFlowDebugProvider.Current != null;
+                   BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out _);
         }
 
         public void Draw(in BattleDebugContext ctx)
@@ -69,7 +69,8 @@ namespace AbilityKit.Game.Editor
                 in ctx,
                 BattleDiagnosticMetricCategory.Prediction,
                 "预测历史");
-            var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
+            var flowCtx = BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out var resolved)
+                ? resolved : null;
             if (flowCtx == null)
             {
                 if (hasHistory) return;
@@ -140,7 +141,8 @@ namespace AbilityKit.Game.Editor
 
                 // 第三类帧：尽力从抖动缓冲读取权威最新帧（如果已接入）。
                 // 如果不可用，则回退到已确认帧。
-                var jb = BattleFlowDebugProvider.JitterBufferStats;
+                BattleFlowDebugProvider.TryGetJitterBufferStats(
+                    flowCtx.Plan.World.WorldId, out var jb);
                 var authoritative = jb != null ? jb.MaxReceivedFrame : confirmed;
                 var deltaAuthoritativeToConfirmed = authoritative - confirmed;
                 var deltaPredictedToAuthoritative = predicted - authoritative;

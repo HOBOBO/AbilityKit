@@ -1,7 +1,51 @@
+using System;
+using System.Collections.Generic;
 using AbilityKit.Scenario;
 
 namespace AbilityKit.BattleFlow
 {
+    /// <summary>Sets the deterministic seed stored in the neutral scenario IR.</summary>
+    public sealed class SetScenarioSeedBlock : BattleAtomicBlock
+    {
+        public int Seed { get; set; }
+
+        /// <inheritdoc/>
+        public override void Compile(BattleFlowBuilder builder) => builder.SetSeed(Seed);
+    }
+
+    /// <summary>A timestamped command compiled into the neutral scenario IR.</summary>
+    public sealed class CommandBlock : BattleAtomicBlock
+    {
+        /// <inheritdoc/>
+        public override BattleBlockSection Section => BattleBlockSection.Timeline;
+
+        /// <summary>Virtual scenario timestamp in milliseconds.</summary>
+        public int AtMs { get; set; }
+        /// <summary>Runtime-neutral command name.</summary>
+        public string Name { get; set; } = string.Empty;
+        /// <summary>Optional actor selected by the command.</summary>
+        public string? ActorAlias { get; set; }
+        /// <summary>Optional target selected by the command.</summary>
+        public string? TargetAlias { get; set; }
+        /// <summary>Opaque parameters interpreted by the owning runtime adapter.</summary>
+        public IReadOnlyDictionary<string, string> Parameters { get; set; } =
+            new Dictionary<string, string>();
+
+        /// <inheritdoc/>
+        public override void Compile(BattleFlowBuilder builder)
+        {
+            if (builder == null) throw new ArgumentNullException(nameof(builder));
+            builder.AddCommand(new TestCommand
+            {
+                AtMs = AtMs,
+                Name = Name,
+                ActorAlias = ActorAlias,
+                TargetAlias = TargetAlias,
+                Parameters = new Dictionary<string, string>(Parameters),
+            });
+        }
+    }
+
     /// <summary>设置环境 Profile（引用 com.abilitykit.environment 的 EnvironmentProfileCatalog 里的具名场景）。</summary>
     public sealed class SetEnvironmentBlock : BattleAtomicBlock
     {

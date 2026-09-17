@@ -6,6 +6,7 @@
     "AbilityKit.Demo.Common.Unity",
     "AbilityKit.Demo.Starter",
     "AbilityKit.Demo.Moba.Diagnostics.Core",
+    "AbilityKit.ActionSchema",
     "AbilityKit.Demo.Moba.Runtime",
     "AbilityKit.Demo.Moba.Share",
     "AbilityKit.Demo.Moba.View.Runtime",

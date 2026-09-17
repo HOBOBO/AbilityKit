@@ -312,6 +312,7 @@ MonoBehaviour:
       type: {class: SkillTimelinePhaseDef, ns: AbilityKit.Ability.Impl.BattleDemo.Moba.Editor, asm: AbilityKit.Demo.Moba.Editor}
       data:
         PhaseId: 
+        MobaLogicTimeline: {fileID: 4900000, guid: 4fc1964cb86d4e2c91e70badea48c720, type: 3}
         Timeline:
           DurationMs: 600
           Events:

@@ -11,6 +11,18 @@
     "runtime"
   ],
   "author": { "name": "AbilityKit" },
+  "samples": [
+    {
+      "displayName": "Complete HFSM Showcase",
+      "description": "Editable patrol and hierarchical combat graphs with export, simulation and runtime observation.",
+      "path": "Samples~/CompleteHfsmShowcase"
+    },
+    {
+      "displayName": "HFSM Runtime Sample",
+      "description": "Minimal trigger and runtime monitor example.",
+      "path": "Samples~/HfsmRuntimeSample"
+    }
+  ],
   "dependencies": {
     "com.abilitykit.core": "0.1.0",
     "com.abilitykit.deterministic": "0.1.0",

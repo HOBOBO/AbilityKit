@@ -25,6 +25,7 @@ namespace AbilityKit.Game.Flow
         private ConnectionManager _connectionManager;
         private NetworkConditioningMiddleware _middleware;
         private NetworkConditionProfile _activeProfile;
+        private NetworkConditionScenario _scenario;
         private bool _enabled;
         private int _seed;
 
@@ -84,6 +85,7 @@ namespace AbilityKit.Game.Flow
         /// <param name="profile">要应用的网络条件。</param>
         public void ApplyProfile(NetworkConditionProfile profile)
         {
+            _scenario = null;
             _activeProfile = profile;
             _enabled = true;
 
@@ -92,6 +94,15 @@ namespace AbilityKit.Game.Flow
             {
                 RebuildMiddleware();
             }
+        }
+
+        /// <summary>Apply time phases and optional direction/opcode overrides to the current connection.</summary>
+        public void ApplyScenario(NetworkConditionScenario scenario)
+        {
+            _scenario = scenario ?? throw new ArgumentNullException(nameof(scenario));
+            _activeProfile = scenario.Baseline;
+            _enabled = true;
+            if (_connectionManager != null) RebuildMiddleware();
         }
 
         /// <summary>
@@ -152,6 +163,11 @@ namespace AbilityKit.Game.Flow
             return _middleware?.GetStats() ?? default;
         }
 
+        public NetworkConditionDecision[] SnapshotDecisions()
+        {
+            return _middleware?.SnapshotDecisions() ?? Array.Empty<NetworkConditionDecision>();
+        }
+
         private void RebuildMiddleware()
         {
             if (_connectionManager == null || !_enabled) return;
@@ -164,7 +180,11 @@ namespace AbilityKit.Game.Flow
         {
             if (pipeline == null || !_enabled) return;
 
-            _middleware = new NetworkConditioningMiddleware(_activeProfile, clockMs: null, seed: _seed);
+            _middleware = _scenario == null
+                ? new NetworkConditioningMiddleware(_activeProfile, clockMs: null, seed: _seed,
+                    decisionCapacity: 1024, maxPendingPackets: 4096)
+                : new NetworkConditioningMiddleware(_scenario, clockMs: null, seed: _seed,
+                    decisionCapacity: 1024, maxPendingPackets: 4096);
             pipeline.AddFirst(_middleware);
         }
 
@@ -173,10 +193,12 @@ namespace AbilityKit.Game.Flow
             if (_middleware == null || _connectionManager == null) return;
 
             _connectionManager.Pipeline?.Remove(_middleware);
+            _middleware.ClearPending();
         }
 
         private void OnPipelineCreated(NetworkPipeline pipeline)
         {
+            _middleware?.ClearPending();
             _middleware = null;
             InstallMiddleware(pipeline);
         }

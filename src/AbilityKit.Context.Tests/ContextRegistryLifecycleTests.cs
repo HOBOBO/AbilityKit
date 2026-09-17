@@ -60,6 +60,54 @@ public sealed class ContextRegistryLifecycleTests
         Assert.False(registry.Exists(entityId));
     }
 
+    [Fact]
+    public void Restore_preserves_identity_and_only_advances_allocation_cursor()
+    {
+        var registry = new ContextRegistry();
+        Assert.Equal(100L, registry.RestoreEntity(100L).Build());
+        Assert.Equal(101L, registry.Create().Build());
+        Assert.Equal(5L, registry.RestoreEntity(5L).Build());
+        Assert.Equal(102L, registry.Create().Build());
+    }
+
+    [Fact]
+    public void Restore_rejects_existing_identity_without_overwriting_properties()
+    {
+        var registry = new ContextRegistry();
+        var property = new TestProperty();
+        var id = registry.Create().With(property).Build();
+        var cursor = registry.NextEntityId;
+
+        Assert.Throws<InvalidOperationException>(() => registry.RestoreEntity(id));
+        Assert.Same(property, new ContextValueResolver(registry).GetProperty<TestProperty>(id).Value);
+        Assert.Equal(cursor, registry.NextEntityId);
+        Assert.Equal(1, registry.Count);
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-1L)]
+    [InlineData(long.MaxValue)]
+    public void Restore_rejects_invalid_identity(long id)
+    {
+        var registry = new ContextRegistry();
+        Assert.Throws<ArgumentOutOfRangeException>(() => registry.RestoreEntity(id));
+        Assert.Equal(0, registry.Count);
+    }
+
+    [Fact]
+    public void Restore_publishes_created_even_when_an_observer_throws()
+    {
+        var registry = new ContextRegistry();
+        var observed = new List<ContextEventType>();
+        registry.Subscribe(_ => throw new InvalidOperationException("observer failed"));
+        registry.Subscribe(evt => observed.Add(evt.Type));
+
+        Assert.Equal(20L, registry.RestoreEntity(20L).Build());
+        Assert.Equal(new[] { ContextEventType.Created }, observed);
+        Assert.True(registry.Exists(20L));
+    }
+
     private sealed class TestProperty : IProperty
     {
         public int TypeId => PropertyTypeRegistry.Instance.Get<TestProperty>()?.Id ?? 0;

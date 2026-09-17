@@ -34,6 +34,7 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticEventKind.SkillRuntimeEnded: return "技能运行时结束";
                 case BattleDiagnosticEventKind.TraceNodeStarted: return "Trace 节点开始";
                 case BattleDiagnosticEventKind.TraceNodeEnded: return "Trace 节点结束";
+                case BattleDiagnosticEventKind.TracePredictionRetracted: return "Trace 预测撤销";
                 case BattleDiagnosticEventKind.Damage: return "伤害";
                 case BattleDiagnosticEventKind.Heal: return "治疗";
                 case BattleDiagnosticEventKind.BuffAdded: return "Buff 添加";
@@ -53,6 +54,9 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticEventKind.TriggerAnalysis: return "触发分析";
                 case BattleDiagnosticEventKind.SkillFailure: return "技能失败";
                 case BattleDiagnosticEventKind.TriggerAnalysisAggregate: return "触发分析汇总";
+                case BattleDiagnosticEventKind.TargetSearch: return "目标搜索";
+                case BattleDiagnosticEventKind.InputCommand: return "输入命令";
+                case BattleDiagnosticEventKind.SkillEconomy: return "技能经济";
                 default: return "未知事件";
             }
         }
@@ -82,6 +86,45 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticEventOutcome.Cancelled: return "已取消";
                 case BattleDiagnosticEventOutcome.Interrupted: return "已中断";
                 default: return "无";
+            }
+        }
+
+        public static string SkillExecutionStage(BattleDiagnosticSkillExecutionStage value)
+        {
+            switch (value)
+            {
+                case BattleDiagnosticSkillExecutionStage.PreCastStarted: return "前摇开始";
+                case BattleDiagnosticSkillExecutionStage.PreCastCompleted: return "前摇完成";
+                case BattleDiagnosticSkillExecutionStage.CastStarted: return "释放开始";
+                case BattleDiagnosticSkillExecutionStage.CastCompleted: return "释放完成";
+                case BattleDiagnosticSkillExecutionStage.CastFailed: return "释放失败";
+                case BattleDiagnosticSkillExecutionStage.CastInterrupted: return "释放中断";
+                case BattleDiagnosticSkillExecutionStage.EconomyReserved: return "资源预留";
+                case BattleDiagnosticSkillExecutionStage.ResourceConsumed: return "资源扣除";
+                case BattleDiagnosticSkillExecutionStage.EconomyCommitted: return "经济提交";
+                case BattleDiagnosticSkillExecutionStage.EconomyRefunded: return "资源返还";
+                case BattleDiagnosticSkillExecutionStage.EconomyRejected: return "经济拒绝";
+                case BattleDiagnosticSkillExecutionStage.RuntimeWaitingChildren: return "等待子对象";
+                case BattleDiagnosticSkillExecutionStage.RuntimeFinalized: return "运行时结束";
+                case BattleDiagnosticSkillExecutionStage.RuntimeForceTerminated: return "强制终止";
+                case BattleDiagnosticSkillExecutionStage.RuntimeCleared: return "运行时清理";
+                default: return value.ToString();
+            }
+        }
+
+        public static string SkillCastPhase(BattleDebugSkillCastPhase value)
+        {
+            switch (value)
+            {
+                case BattleDebugSkillCastPhase.InputToTarget: return "输入→选目标";
+                case BattleDebugSkillCastPhase.TargetToCast: return "选目标→释放";
+                case BattleDebugSkillCastPhase.PreCast: return "前摇";
+                case BattleDebugSkillCastPhase.Cast: return "释放";
+                case BattleDebugSkillCastPhase.Economy: return "经济提交";
+                case BattleDebugSkillCastPhase.WaitingChildren: return "等待子对象";
+                case BattleDebugSkillCastPhase.RuntimeTail: return "运行时收尾";
+                case BattleDebugSkillCastPhase.Total: return "执行总跨度";
+                default: return value.ToString();
             }
         }
 
@@ -196,6 +239,8 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticEventChannel.Sync: return "同步";
                 case BattleDiagnosticEventChannel.WarningAndException: return "警告与异常";
                 case BattleDiagnosticEventChannel.Trigger: return "触发";
+                case BattleDiagnosticEventChannel.Targeting: return "目标搜索";
+                case BattleDiagnosticEventChannel.Input: return "输入";
                 case BattleDiagnosticEventChannel.All: return "全部";
                 case BattleDiagnosticEventChannel.None: return "无";
             }
@@ -209,6 +254,8 @@ namespace AbilityKit.Game.Editor
             AppendChannel(builder, value, BattleDiagnosticEventChannel.Sync, "同步");
             AppendChannel(builder, value, BattleDiagnosticEventChannel.WarningAndException, "警告与异常");
             AppendChannel(builder, value, BattleDiagnosticEventChannel.Trigger, "触发");
+            AppendChannel(builder, value, BattleDiagnosticEventChannel.Targeting, "目标搜索");
+            AppendChannel(builder, value, BattleDiagnosticEventChannel.Input, "输入");
             return builder.Length == 0 ? "无" : builder.ToString();
         }
 
@@ -232,6 +279,9 @@ namespace AbilityKit.Game.Editor
                 case BattleDiagnosticPayloadKind.SkillFailure: return "技能失败";
                 case BattleDiagnosticPayloadKind.BuffLifecycle: return "Buff 生命周期";
                 case BattleDiagnosticPayloadKind.TriggerAnalysisAggregate: return "触发分析汇总";
+                case BattleDiagnosticPayloadKind.TargetSearch: return "目标搜索";
+                case BattleDiagnosticPayloadKind.InputCommand: return "输入命令";
+                case BattleDiagnosticPayloadKind.SkillExecution: return "技能执行";
                 default: return "无";
             }
         }
@@ -444,6 +494,8 @@ namespace AbilityKit.Game.Editor
                 case BattleDebugDiagnosticEventScope.TemporaryEntities: return "临时实体";
                 case BattleDebugDiagnosticEventScope.Warnings: return "警告";
                 case BattleDebugDiagnosticEventScope.Triggers: return "触发";
+                case BattleDebugDiagnosticEventScope.Targeting: return "目标搜索";
+                case BattleDebugDiagnosticEventScope.Input: return "输入命令";
                 default: return "全部事件";
             }
         }

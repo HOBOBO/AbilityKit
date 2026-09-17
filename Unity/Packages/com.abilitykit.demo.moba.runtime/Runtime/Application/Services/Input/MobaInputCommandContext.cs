@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaEntityManager Entities { get; }
         public SkillCastCoordinator Skills { get; }
         public IWorldResolver Services { get; }
+        public long DiagnosticCommandId { get; internal set; }
 
         /// <summary>
         /// 创建输入命令处理上下文。

@@ -49,6 +49,25 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void NavigationGroups_KeepActorInvestigationAndFrameSyncDistinct()
+        {
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugAttributesPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Actor));
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugDiagnosticEventsPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Investigation));
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugRuntimeObjectsPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.Investigation));
+            Assert.That(BattleDebugNavigation.GroupOf(new BattleDebugFrameSyncPredictionPanel()),
+                Is.EqualTo(BattleDebugNavigationGroup.FrameSync));
+            Assert.That(BattleDebugNavigation.GroupOfModuleId(BattleDebugModuleIds.FrameSyncNetwork),
+                Is.EqualTo(BattleDebugNavigationGroup.FrameSync));
+            Assert.That(BattleDebugNavigation.GroupOfModuleId(BattleDebugModuleIds.DiagnosticTrace),
+                Is.EqualTo(BattleDebugNavigationGroup.Investigation));
+            Assert.That(BattleDebugNavigation.NavigationName(new BattleDebugFrameSyncPredictionPanel()),
+                Is.EqualTo("预测"));
+        }
+
+        [Test]
         public void EventsAndTrace_ExposeComposableWidgetsWithStableIds()
         {
             var events = (IBattleDebugWidgetProvider)new BattleDebugDiagnosticEventsPanel();

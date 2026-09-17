@@ -196,6 +196,7 @@ namespace AbilityKit.Demo.Moba.Services
                 var previous = _captureMode;
                 if (previous == value) return;
                 _captureMode = value;
+                CaptureRevision++;
                 try
                 {
                     _captureModeObserver?.OnCaptureModeChanged(
@@ -209,7 +210,14 @@ namespace AbilityKit.Demo.Moba.Services
                 }
             }
         }
-        public BattleDiagnosticEventChannel EnabledChannels { get; set; }
+        private BattleDiagnosticEventChannel _enabledChannels;
+        public BattleDiagnosticEventChannel EnabledChannels
+        {
+            get => _enabledChannels;
+            set { if (_enabledChannels == value) return; _enabledChannels = value; CaptureRevision++; }
+        }
+        internal long CaptureRevision { get; private set; }
+        internal event Action<BattleDiagnosticEvent> EventCollected;
         public int StateSampleIntervalFrames
         {
             get => _stateSampleIntervalFrames;
@@ -275,6 +283,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void SetFrozen(bool frozen)
         {
+            if (IsFrozen != frozen) CaptureRevision++;
             Store.SetFrozen(frozen);
             StateStore.SetFrozen(frozen);
             if (frozen) MetricStore.Freeze();
@@ -346,6 +355,13 @@ namespace AbilityKit.Demo.Moba.Services
 
                 _lastSequence = sequence;
                 _lastCollectError = string.Empty;
+                var observers = EventCollected;
+                if (observers != null)
+                    foreach (Action<BattleDiagnosticEvent> observer in observers.GetInvocationList())
+                    {
+                        try { observer(diagnosticEvent); }
+                        catch { /* Each optional observer is isolated from event acceptance and other observers. */ }
+                    }
                 return true;
             }
             catch (Exception ex)
@@ -607,10 +623,7 @@ namespace AbilityKit.Demo.Moba.Services
 
         public void SetFrozen(bool frozen)
         {
-            _collector.Store.SetFrozen(frozen);
-            _collector.StateStore.SetFrozen(frozen);
-            if (frozen) _collector.MetricStore.Freeze();
-            else _collector.MetricStore.Resume();
+            _collector.SetFrozen(frozen);
             _attributeStore?.SetFrozen(frozen);
             _buffStore?.SetFrozen(frozen);
             _tagStore?.SetFrozen(frozen);

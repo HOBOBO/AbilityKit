@@ -154,12 +154,15 @@ namespace AbilityKit.Game.Flow
     /// </summary>
     internal sealed class BattleSessionDiagnostics : IDisposable
     {
+        private static readonly Dictionary<BattleContext, BattleSessionDiagnostics> DebugControlsByContext =
+            new Dictionary<BattleContext, BattleSessionDiagnostics>();
         private static BattleSessionDiagnostics _debugControlOwner;
         private static bool _debugForceClientHashMismatch;
 
         private readonly BattleReplicationRuntime _replication;
         private string _scope = string.Empty;
         private bool _forceClientHashMismatch;
+        private BattleContext _debugControlContext;
         private JitterBufferStatsSnapshot _jitterBufferStats;
         private TimeSyncStatsSnapshot _timeSyncStats;
         private Dictionary<string, TimeSyncStatsSnapshot> _timeSyncStatsByWorld;
@@ -191,6 +194,23 @@ namespace AbilityKit.Game.Flow
         }
 
         internal bool ShouldForceClientHashMismatch => _forceClientHashMismatch;
+
+        internal static bool TryGetDebugForceClientHashMismatch(BattleContext context, out bool enabled)
+        {
+            enabled = false;
+            if (context == null || !DebugControlsByContext.TryGetValue(context, out var diagnostics) ||
+                !ReferenceEquals(diagnostics._debugControlContext, context)) return false;
+            enabled = diagnostics._forceClientHashMismatch;
+            return true;
+        }
+
+        internal static bool TrySetDebugForceClientHashMismatch(BattleContext context, bool enabled)
+        {
+            if (context == null || !DebugControlsByContext.TryGetValue(context, out var diagnostics) ||
+                !ReferenceEquals(diagnostics._debugControlContext, context)) return false;
+            diagnostics._forceClientHashMismatch = enabled;
+            return true;
+        }
 
         internal MobaSynchronizationHealthSnapshot SynchronizationHealth =>
             _replication.SynchronizationHealth;
@@ -333,9 +353,11 @@ namespace AbilityKit.Game.Flow
             BattleDiagnosticMetricCategory category, string metric, bool value) =>
             sink.TryRecordMetric(frame, timestamp, category, BattleDiagnosticMetricValueKind.Flag, metric, value ? 1d : 0d);
 
-        internal void PublishDebugControls()
+        internal void PublishDebugControls(BattleContext context = null)
         {
             _forceClientHashMismatch = _debugForceClientHashMismatch;
+            _debugControlContext = context;
+            if (context != null) DebugControlsByContext[context] = this;
             _debugControlOwner = this;
         }
 
@@ -468,6 +490,11 @@ namespace AbilityKit.Game.Flow
 
         public void Dispose()
         {
+            if (_debugControlContext != null &&
+                DebugControlsByContext.TryGetValue(_debugControlContext, out var published) &&
+                ReferenceEquals(published, this))
+                DebugControlsByContext.Remove(_debugControlContext);
+            _debugControlContext = null;
             if (ReferenceEquals(_debugControlOwner, this))
             {
                 _debugControlOwner = null;

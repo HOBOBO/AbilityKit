@@ -43,7 +43,7 @@ public sealed class LiveSimTimelineRunner
         }
     }
 
-    private void ExecuteStep(MobaAcceptanceTimelineStepExpectation step)
+    internal void ExecuteStep(MobaAcceptanceTimelineStepExpectation step)
     {
         if (LiveSimSetupActionExecutor.IsWaitAction(step.action))
         {

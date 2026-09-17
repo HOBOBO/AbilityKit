@@ -10,8 +10,9 @@ namespace AbilityKit.ActionEditorImpl
     [Description("播放一个动画剪辑的行为")]
     [Color(0.48f, 0.71f, 0.84f)]
     [Attachable(typeof(AnimationTrack))]
-    public class PlayAnimation : Clip, ISubClipContainable, ILogicJsonExportable
+    public class PlayAnimation : Clip, ISubClipContainable, IActionTimelineRuntimeClip
     {
+        public ActionTimelineRuntimeKind RuntimeKind => ActionTimelineRuntimeKind.Presentation;
         [SerializeField] [HideInInspector] private float blendIn = 0.25f;
         [SerializeField] [HideInInspector] private float blendOut = 0.25f;
 

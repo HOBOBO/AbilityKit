@@ -8,11 +8,13 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
     /// </summary>
     public sealed class MobaBattleFlowAssertions
     {
+        public string PredictionBackend { get; set; } = MobaPredictionBackendIds.Headless;
         public List<MobaTraceAssertion> MustContain { get; } = new List<MobaTraceAssertion>();
         public List<MobaTraceAssertion> MustNotContain { get; } = new List<MobaTraceAssertion>();
         public List<MobaStateAssertion> State { get; } = new List<MobaStateAssertion>();
         public List<MobaContextAssertion> Context { get; } = new List<MobaContextAssertion>();
         public List<MobaRelationshipAssertion> Relationships { get; } = new List<MobaRelationshipAssertion>();
+        public List<MobaPredictionAssertion> Prediction { get; } = new List<MobaPredictionAssertion>();
     }
 
     /// <summary>trace 断言（必须/禁止出现）。</summary>
@@ -51,5 +53,13 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public int ParentConfigId { get; set; }
         public string ChildKind { get; set; } = string.Empty;
         public int ChildConfigId { get; set; }
+    }
+
+    /// <summary>Assertion over deterministic client-prediction and reconciliation telemetry.</summary>
+    public sealed class MobaPredictionAssertion
+    {
+        public string Property { get; set; } = string.Empty;
+        public string Comparator { get; set; } = "eq";
+        public string ExpectedValue { get; set; } = string.Empty;
     }
 }

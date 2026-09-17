@@ -6,6 +6,19 @@
 
 ---
 
+## 阅读入口与术语
+
+本文以 2026-09-17 的实现为准，描述基础包，不把 MOBA 业务适配能力视为基础包能力。
+
+| 名称 | 回答的问题 | 不应混用为 |
+|------|------------|------------|
+| `AbilityKit.Context` | 如何按实体 ID 注册属性、解析值及保存快照 | 效果因果树、完整 ECS、权威战斗状态 |
+| MOBA 执行 Context | 本次条件/行为执行需要什么事实与来源 | 跨帧活对象的永久容器 |
+| Trace | 谁派生了谁、节点是否结束 | 实时属性仓库 |
+| MOBA Runtime Context | 如何通过独立 ID 读取 Buff 实时值或最终快照 | Trace ID、技能 runtime handle、逐帧历史 |
+
+关联阅读：[Trace 设计](../../com.abilitykit.trace/Document/Trace溯源树模块开发设计文档.md)、[MOBA 整体上下文指南](../../com.abilitykit.demo.moba.runtime/Runtime/Docs/MobaCombatContextDesignGuide.md)、[Runtime Context 设计](../../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md)。
+
 ## 一、设计理念：为什么需要 Context 模块
 
 Context 模块提供轻量的运行时上下文注册中心。它不试图替代完整 ECS，而是为技能、触发、战斗计算、快照回放等模块提供一套“按流程组织实体、按实体 ID 组织属性和快照”的基础能力。
@@ -97,6 +110,7 @@ Context 模块提供轻量的运行时上下文注册中心。它不试图替代
 |------|------|
 | `Create()` | 创建无 flow 归属实体并返回 `EntityBuilder` |
 | `CreateInFlow(flowId)` | 创建归属指定 flow 的实体 |
+| `RestoreEntity(entityId)` | 显式恢复无 flow 身份；拒绝覆盖已有实体，只推进分配游标 |
 | `BeginFlow(...)` | 创建 flow scope，适合流程级上下文管理 |
 | `SetFlowPhase(flowId, phase)` | 更新 flow 阶段并派发事件 |
 | `Destroy(entityId)` | 派发 Destroying，移除实体和属性索引，派发 Destroyed |
@@ -108,6 +122,8 @@ Context 模块提供轻量的运行时上下文注册中心。它不试图替代
 | `Clear()` | 逐个销毁当前实体，并清理 flow 与索引 |
 
 事件处理器现在在锁外派发。注册表会先在锁内完成状态变更并复制订阅列表，然后释放锁再调用 handler，避免业务回调导致锁内重入和长时间阻塞。
+
+观察器异常逐个隔离，通过可选 `EventHandlerException` 报告；报告回调异常也被隔离，不改变创建、更新、销毁的结果。这不是事务回调，不能用于否决状态变更。
 
 ### 4.3 Query
 
@@ -136,6 +152,38 @@ var ids = registry.Query()
 | `IDestroyableSnapshot` | 可标记销毁状态 | `MarkDestroyed` |
 
 重复保存同一实体快照时会先移除旧 source/owner 索引，再重建新索引，避免重复 ID 或旧索引残留。若快照未实现 `IVersionedContextSnapshot`，存储层会按 entity 自动递增版本。
+
+旧 `Save(IContextSnapshot)` 保留每个 EntityId 一份的兼容语义；它不保证数据独立或不可变，不适用于历史事实查询。实现 `IImmutableContextSnapshot` 的新类型必须走 `SaveManaged`，禁止静默退回旧存储路径。实体仍有受管历史时，旧 Save 拒绝覆盖，须由逻辑宿主先显式 Remove。
+
+受管快照保存多份记录，默认总容量 4096、每实体 16，可在构造存储时配置。`Count` 是有最新快照的实体数量，`HistoryCount` 是受管记录数量；容量不约束旧兼容快照。所谓保存/持久化是内存留存，不是落盘或网络序列化。Source/Owner 索引仍只查询各实体最新保存记录，ID 语义由业务约定，基础包不会证明它属于哪个注册表。
+
+#### 4.4.1 类型、身份与不可变契约
+
+宿主通过 `RegisterType<T>(typeId, schemaVersion, purpose)` 显式注册具体快照类型。稳定 TypeId 不依赖 CLR 类名，重复相同注册幂等；同一 CLR 类型的不同注册或跨类型重复 TypeId 均拒绝。注册属于存储实例，不是跨世界静态表；Clear 清数据但保留类型注册。
+
+| 信息 | 语义 |
+|------|------|
+| `TypeId` / `SchemaVersion` | 载荷种类与结构版本，不是数据修订号 |
+| `Purpose` | Observation 或 Recovery；不同用途应使用不同载荷类型，基础存储不提供恢复协议 |
+| `StorageId` / `SnapshotId` | 存储实例与单份记录身份；SnapshotId 单调分配，Clear/回滚不回退 |
+| `EntityId` / `Generation` | 上下文与实例代次；Generation 由逻辑宿主提供，不从业务 Version 猜测 |
+| `Frame` / `Kind` | 逻辑采集帧与业务时刻标签，如 applied、executed、removed；同帧允许多份 |
+| `Version` | 兼容业务载荷提供的版本，不承担 Generation 或 SchemaVersion 职责 |
+| `SavedAtMs` / `IsDestroyed` | 入库时间与采集时的销毁事实，不随后续生命周期改变 |
+
+`IImmutableContextSnapshot` 是载荷实现契约：构造时复制必要字段，不暴露运行时可变引用；集合也须复制并只读。存储不做反射深拷贝，不能自动证明实现类遵守契约。受管路径拒绝 `IDestroyableSnapshot`，销毁事实在 capture metadata 中一次写入，旧 MarkDestroyed 只服务兼容对象，不修改受管载荷或历史记录。
+
+#### 4.4.2 精确查询与保留管理
+
+SaveManaged 返回 `ContextSnapshotReference`，历史消费者应保存这份引用，而不是以后仅按 EntityId 取最新值。`Query` 校验所属 StorageId、EntityId 和 Generation；记录已淘汰/删除返回 Unavailable，尚未分配的 ID 返回 NotCaptured，无效或不匹配引用分别返回 InvalidReference/IdentityMismatch。
+
+`ReadSnapshot<TSnapshot, TValue>(reference, key)` 只读指定载荷，另外区分 TypeMismatch 和 FieldMissing；不会补默认值、读实时 provider 或切到其他快照。`GetHistory(entityId, generation)` 列出该代次的记录；`TryGetLatest<T>(entityId, generation, kind, out record)` 按保存顺序选最新匹配项，不按 Frame 排序，也不是任意历史帧的插值查询。
+
+容量自动淘汰最早保存且未 retain 的受管记录。逻辑宿主可调用 `PruneBeforeFrame` 做帧窗口淘汰，也可用 `Retain` 的 IDisposable 句柄暂时保护必要记录；释放幂等。全部容量被保护时，TrySaveManaged 返回 false，不分配 ID、不改现有数据；SaveManaged 则抛异常。观察快照采集失败不得阻断战斗生命周期。
+
+`RemoveSnapshot`、Remove(entityId)、RemoveFromEntityId 和 Clear 是宿主显式失效操作，即使存在 retain 也会删除，旧引用/句柄不会别名新记录。删除最新项会重建最新视图和来源/归属索引。历史查询与帧清理只作用于受管记录，不把旧兼容对象伪装成历史记录。
+
+工具应依赖 `IContextSnapshotReader`，仅查询类型、记录、历史和字段；不注册、保存、retain 或淘汰。窗口关闭清理工具自己的缓存/订阅，不清除逻辑存储。采集、帧窗口和世界结束清理仍由逻辑宿主管理。
 
 ### 4.5 TraceContextProperty
 
@@ -167,11 +215,44 @@ using (var flow = registry.BeginFlow("SkillCast", ownerEntityId: casterId))
 
 ### 5.2 销毁实体
 
-`Destroy(entityId)` 会先派发 Destroying，再从 `_entities` 移除实体、清理属性索引、从 flow 中解除绑定，最后派发 Destroyed。快照不会自动删除；如果需要保留历史状态，调用者应在销毁前保存快照，或者在销毁后调用 `SnapshotStorage.MarkDestroyed` 标记状态。
+`Destroy(entityId)` 会先派发 Destroying，再从 `_entities` 移除实体、清理属性索引、从 flow 中解除绑定，最后派发 Destroyed。快照不会自动删除；需要保留最终事实时应在销毁前复制数据，并将销毁事实写入受管 capture metadata。只有旧兼容快照可在销毁后调用 `SnapshotStorage.MarkDestroyed` 修改标记。
 
 ### 5.3 查询实体
 
 `GetEntitiesWith<T>` 读取增量索引，不再每次扫描全部实体。`Query` 可以组合 With/Without 条件，适合常见的运行时筛选。
+
+### 5.4 统一值读取
+
+`ContextValueResolver` 将实体属性、外部实时 provider 和快照组合为只读解析入口，不主动创建实体或生成快照。
+
+| 读取模式 | 优先级 |
+|----------|--------|
+| `RealtimeThenSnapshot` | 实时 provider / 注册属性，未命中再读快照 |
+| `RealtimeOnly` | 仅实时 provider / 注册属性 |
+| `SnapshotOnly` | 仅已保存快照 |
+| `SnapshotThenRealtime` | 快照未命中后再读实时 |
+
+实时 provider 是对业务真值的投影，不要求把每次数值变化写回 Registry。Registry.Destroy 不自动解绑 provider；宿主必须协调解绑，否则解析器仍可能读到 provider。
+
+`GetValue` 未命中时可返回 `Found=true, Source=DefaultValue`，不要只检查 Found 来判断实际数据命中；`TryGetValue` 排除默认值。基础解析器不校验业务 Version，也不保证两次读取来自同一原子快照。
+
+新快照使用 `IImmutableContextSnapshot`，通过 `TryGetValue` 明确表达键缺失；同时实现 provider 和旧 accessor 时，字段缺失不再回退 accessor 伪装命中。只有旧 `ISnapshotAccessor.GetValue` 的类型仍没有命中标志，兼容路径可能把默认值视为快照命中。属性级 `GetProperty` 回退也要求快照能提供该属性对象，不能假设任意字段快照都可还原属性。历史事实读取使用带完整快照引用的 ReadSnapshot，而不是这些按实体最新视图的回退入口。
+
+### 5.5 实时实例引用与精确读取
+
+`ContextEntityReference` 保存 RegistryId、EntityId 和 Generation。RegistryId 每个注册表实例唯一；Generation 在实体创建或 RestoreEntity 时单调分配，Clear 与游标回滚均不重置。恢复的业务 EntityId 可以相同，但本地实例身份不同。通过 `TryGetReference` 只读取当前身份，不创建实体或快照；跨注册表、旧代次、缺失实体分别由 Query 返回 IdentityMismatch 或 Unavailable，无效引用返回 InvalidReference。
+
+`ReadRealtimeProperty<TProperty>(reference)` 只解析该实例的实时属性，`ReadRealtime<TValue,TProperty>(reference,key)` 从同一属性对象读字段。它们不回退快照，不返回默认值伪装命中，也不在查询时注册新属性类型。PropertyMissing 与 FieldMissing 独立于身份失败；真实零值正常命中，默认结果不视为成功。
+
+外部 provider 返回属性后重新校验实体代次，字段读取后也重新校验，拒绝读取过程中销毁并复用 ID 的结果。这不是对可变业务对象的跨线程事务或自动深拷贝：provider 应返回一致的属性视图，宿主仍需在模拟线程协调。原 long ID 的 Get/GetValue 等入口保留兼容，不具备实例代次校验；历史快照必须使用独立 ContextSnapshotReference，不能把实时引用当作某份历史记录。
+
+### 5.6 恢复身份与回滚不是同一能力
+
+`RestoreEntity` 只建立指定 ID 的空实体并发布 Created，不恢复属性、flow、实时 provider 或快照；ID 必须为正且小于 long.MaxValue。宿主应先校验冲突，再重建领域状态与绑定。
+
+`ValidateRollbackEntityCursor` 在删除前检查确认实体存在且其 ID 小于恢复游标。`RestoreRollbackEntityCursor` 先完成相同预检，再移除非确认实体并回退分配游标；非法参数、缺失确认实体或确认 ID 冲突不会先删除预测实体。MOBA 适配层也在清理 provider/快照前调用此预检。该保证针对预检失败，不是外部回调或并发写入的完整事务。
+
+回滚保留确认实体的 Generation，但重放创建的预测实体获得新代次；旧精确实时引用不能因 ID 重用重新有效。此能力不能复活已销毁实体，也不恢复属性变化、flow 阶段和外部 provider。MOBA 适配层另清理预测 provider/快照，仍不具备完整 Context 生命周期回滚。
 
 ---
 
@@ -188,15 +269,20 @@ using (var flow = registry.BeginFlow("SkillCast", ownerEntityId: casterId))
 ## 七、注意事项与当前限制
 
 - `ContextRegistry` 的属性对象按引用保存，修改属性内部字段不会自动派发事件；需要通过 `Set` 重新写入才能通知。
-- 事件已改为锁外派发，但 handler 抛异常仍会聚合为 `AggregateException` 抛给调用方。
+- 观察器及异常报告回调均隔离；业务应通过显式命令返回值或领域校验处理失败，不能依赖观察器异常改变结果。
 - 快照和实体注册中心没有自动同步销毁关系，调用方需要显式保存、移除或标记快照。
 - `FlowContext` 是流程组织模型，不负责驱动业务状态机，也不会自动 Tick。
 - Query 支持 With/Without 与谓词过滤；OR、分组和值比较 DSL 可在后续按实际接入复杂度扩展。
 - `FlowContext` 不内置 tag/category/faction 等业务分类；这些语义应通过业务侧 `IProperty`、业务查询服务或诊断适配层扩展。
+- Registry/Storage 的内部锁不等于业务对象线程安全；属性引用、flow 引用、外部 provider 与多步读取没有统一事务锁，战斗宿主应在同一模拟线程协调。
+- 精确 ContextEntityReference 只保护实体实例；FlowContextScope 仍使用 flow ID，Clear 后旧 flow 作用域尚无同等代次保护，不能把实体引用安全推导为全部流程引用安全。
+- 受管快照有容量淘汰、显式帧窗口清理与 retain；旧兼容快照仍无容量限制，存储不自动调度 TTL。只关闭工具不应删除逻辑服务拥有的最终快照。
 
 ---
 
 ## 八、最小接入示例
+
+实体引用安全、纯实时读取和非法回滚预检的回归用例见 [ContextEntityReferenceTests](../../../../src/AbilityKit.Context.Tests/ContextEntityReferenceTests.cs)。
 
 ```csharp
 public sealed class BusinessCategoryProperty : IProperty
@@ -233,5 +319,5 @@ var buffEntities = registry.Query()
 
 ---
 
-*文档版本：1.1*  
-*最后更新：2026-06-17*
+*文档版本：1.4*
+*最后更新：2026-09-17*

@@ -567,14 +567,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticPageRequest Page { get; }
     }
 
-    public interface IBattleDiagnosticDefinitionCatalogSession
+    public interface IBattleDiagnosticDefinitionLookupSession
     {
         long DefinitionStoreRevision { get; }
 
         BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinition(
             long requestId,
             in BattleDiagnosticDefinitionReference reference);
+    }
 
+    public interface IBattleDiagnosticDefinitionCatalogSession :
+        IBattleDiagnosticDefinitionLookupSession
+    {
         BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinitions(
             BattleDiagnosticDefinitionQuery query);
     }

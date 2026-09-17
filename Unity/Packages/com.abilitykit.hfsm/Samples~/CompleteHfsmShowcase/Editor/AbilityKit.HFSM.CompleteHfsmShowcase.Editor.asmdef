@@ -1,0 +1,14 @@
+{
+  "name": "AbilityKit.HFSM.CompleteHfsmShowcase.Editor",
+  "rootNamespace": "AbilityKit.HFSM.Samples.CompleteHfsmShowcase.Editor",
+  "references": ["AbilityKit.HFSM.Core", "AbilityKit.HFSM.Unity", "AbilityKit.HFSM.Editor", "AbilityKit.HFSM.CompleteHfsmShowcase", "AbilityKit.Deterministic"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

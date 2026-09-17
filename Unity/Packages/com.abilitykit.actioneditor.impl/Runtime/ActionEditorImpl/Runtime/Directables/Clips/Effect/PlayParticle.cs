@@ -10,8 +10,12 @@ namespace AbilityKit.ActionEditorImpl
     [Description("播放一个粒子特效")]
     [Color(0.0f, 1f, 1f)]
     [Attachable(typeof(EffectTrack))]
-    public class PlayParticle : Clip
+    public class PlayParticle : Clip, IActionTimelineRuntimeClip
     {
+        public ActionTimelineRuntimeKind RuntimeKind => ActionTimelineRuntimeKind.Presentation;
+
+        [MenuName("Resources Key")] public string resourceKey = "";
+
         [MenuName("特效对象")] [SelectObjectPath(typeof(GameObject))]
         public string resPath = "";
 
@@ -41,10 +45,17 @@ namespace AbilityKit.ActionEditorImpl
             set => length = value;
         }
 
-        public override bool IsValid => audioClip != null;
+        public override bool IsValid => !string.IsNullOrEmpty(resourceKey) || audioClip != null;
 
-        public override string Info => IsValid ? audioClip.name : base.Info;
+        public override string Info => audioClip != null ? audioClip.name :
+            !string.IsNullOrEmpty(resourceKey) ? resourceKey : base.Info;
 
-        public AudioTrack Track => (AudioTrack)Parent;
+        public EffectTrack Track => (EffectTrack)Parent;
+
+        public void FillLogicArgs(System.Collections.Generic.Dictionary<string, string> args)
+        {
+            if (args == null) return;
+            args["resourceKey"] = resourceKey ?? string.Empty;
+        }
     }
 }

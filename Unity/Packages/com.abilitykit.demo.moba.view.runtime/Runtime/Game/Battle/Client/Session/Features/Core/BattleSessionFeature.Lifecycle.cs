@@ -35,7 +35,7 @@ namespace AbilityKit.Game.Flow
 
             EnsureSubFeaturesCreated();
             _subFeatureHost?.Attach(new FeatureModuleContext<BattleSessionFeature>(ctx, this));
-            _runtime.Diagnostics.PublishDebugControls();
+            _runtime.Diagnostics.PublishDebugControls(_ctx);
         }
 
         private static void TryInstallUnityLogSinkIfNeeded()
@@ -88,6 +88,7 @@ namespace AbilityKit.Game.Flow
                     "sub-features",
                     () => _subFeatureHost?.Detach(new FeatureModuleContext<BattleSessionFeature>(detachContext, this))),
                 new AsyncSessionTeardownStep("gateway room", StopGatewayRoomPreparationAsync),
+                new AsyncSessionTeardownStep("network condition", () => NetworkCondition.Detach()),
                 new AsyncSessionTeardownStep("spectator session", _runtime.Spectator.StopAsync),
                 new AsyncSessionTeardownStep("replay session", _runtime.Replay.Stop),
                 new AsyncSessionTeardownStep("battle session", _orchestrator.StopSessionAsync),

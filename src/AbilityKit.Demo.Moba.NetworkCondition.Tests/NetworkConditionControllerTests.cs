@@ -91,6 +91,34 @@ public sealed class NetworkConditionControllerTests
         Assert.Null(controller.Middleware);
     }
 
+    [Fact]
+    public void ProfileSwitchDiscardsOldPendingPacketsAndScenarioSurvivesReconnect()
+    {
+        var transports = new List<MemoryTransport>();
+        using var manager = CreateManager(transports);
+        var controller = new NetworkConditionController();
+        controller.Attach(manager);
+        manager.Open("localhost", 1);
+        controller.ApplyProfile(new NetworkConditionProfile(1000, 0, 0, 0, 0));
+        var previous = controller.Middleware;
+        var delivered = 0;
+        var header = new NetworkPacketHeader(NetworkPacketFlags.None, 1, 1, 1);
+        previous.OnOutbound(null!, header, new ArraySegment<byte>(new byte[] { 1 }), (_, _) => delivered++);
+        Assert.Equal(1, previous.GetStats().PendingCount);
+
+        var scenario = new NetworkConditionScenario(NetworkConditionProfile.Ideal,
+            new NetworkConditionScenario.Phase(0, 100, new NetworkConditionProfile(0, 0, 1, 0, 0)));
+        controller.ApplyScenario(scenario);
+        Assert.Equal(0, previous.GetStats().PendingCount);
+        previous.Advance(long.MaxValue);
+        Assert.Equal(0, delivered);
+
+        transports[0].DisconnectFromRemote();
+        manager.Tick(0f);
+        Assert.NotSame(previous, controller.Middleware);
+        Assert.True(controller.IsEnabled);
+    }
+
     private static ConnectionManager CreateManager(ICollection<MemoryTransport> transports)
     {
         var options = new ConnectionOptions

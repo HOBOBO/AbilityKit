@@ -54,8 +54,40 @@ var scenario = BattleFlowCompiler.Compile("case-1", new BattleBlock[] { standard
 // scenario 是 TestScenario：EnvironmentProfileId + Actors + Timeline 已填好
 ```
 
+## 虚拟网络命令
+
+BattleFlow 只负责把网络 DSL 编译成中性 `TestScenario.Commands`，不执行网络语义，也不依赖网络包：
+
+```text
+seed 47
+network phase at=1000 until=3000 direction=inbound opcode=5202 latency=80 jitter=20 loss=0.1 reorder=0.05 bandwidth=128
+network disconnect at=2000
+network reconnect at=5000
+network packet inbound opcode=5202 seq=101 at=5100
+```
+
+- `seed` 进入 `TestScenario.Seed`，同一场景、种子和输入必须生成一致的网络决策与战斗指纹。
+- `network phase` 定义 `[at, until)` 的条件窗口；未填写的条件继承基线 profile。
+- `network disconnect` / `network reconnect` 只切换虚拟链路，不操作真实 socket。
+- `network packet` 描述权威帧或其他协议包的产生时刻；相同 `at` 保持脚本源顺序。
+- 编译结果由 `network.runtime` 的 `VirtualNetworkScenarioPlan` 和 `VirtualNetworkScenarioPlayer` 解释；Moba 侧再把到达的帧接到 `BattleLogicSession.InjectRemoteFrame`。
+
+### MOBA headless 执行顺序
+
+只要场景包含 `network.*` 命令，MOBA LiveSim runner 就让网络命令与战斗时间线共用同一个单调虚拟时钟。每个时间戳严格按以下顺序执行：
+
+1. 投递此前已经到期的虚拟包。
+2. 执行该时刻的 `network.disconnect`、`network.reconnect`、`network.packet`。
+3. 产生该时刻的战斗输入。
+
+因此，同一时刻的 `network disconnect` 会稳定阻断 `cast`，同一时刻的 `network reconnect` 会先恢复链路再接受 `cast`。技能时间线输入按 `SkillInput` 出站包处理，只有实际投递后才进入原有 `IMobaInputCoordinator` 路径；非技能动作仍是本地确定性动作。
+
+Headless runner 中的显式 `network.packet` 用于可观察的合成流量，不会伪造业务帧。需要覆盖客户端预测、对账和回滚时，应使用 `MobaVirtualFrameSessionRunner` 播放同一份虚拟网络计划，把交付回调绑定到 `BattleLogicSession.InjectRemoteFrame`，并通过 `advanceSimulationByMs` 在同一虚拟时钟上推进 session/feature。runner 会在交付权威帧前推进模拟、清空所有虚拟到期帧、执行超时约束，并输出网络轨迹与确定性指纹；调用方还可用 `captureFinalState` 把最终世界状态哈希纳入总指纹。底层单包能力仍由 `MobaVirtualFrameCarrier` 提供。两条路径都不依赖真实 socket 状态。
+
+CLI 可用 `--determinism <scenario.json|flow.battleflow> [result.txt]` 连续执行两次并比较完整指纹；单例运行也可直接传入 `.battleflow`。普通执行在指定结果路径时额外生成 `.trace.json` 和 `.network.json`。
+
 ## 说明
 
 - 纯 C#（`noEngineReferences`）、C# 9 兼容、无 Unity / 无实体系统依赖，可在 .NET 直接测试。
 - 依赖 `com.abilitykit.scenario`（中性 IR）；`EnvironmentProfileId` 是**不透明字符串 id**，由项目侧的 environment catalog 解析。
-- 本包只给**作者层机制**，不内置任何业务积木；MOBA/shooter 各自提供自己的复合积木与积木库。
+- 本包只给**作者层机制**和中性命令积木，不解释网络或玩法语义；MOBA/shooter 各自提供自己的复合积木、载荷解析与积木库。

@@ -555,6 +555,68 @@ namespace AbilityKit.Game.Test.UnitTest
                 BattleSessionFeature.DebugForceClientHashMismatch = false;
             }
         }
+
+        [Test]
+        public void Diagnostics_ScopedDebugControls_IsolateConcurrentContextsAndNewSessions()
+        {
+            var first = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var second = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var next = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var firstContext = new BattleContext();
+            var secondContext = new BattleContext();
+            var nextContext = new BattleContext();
+            try
+            {
+                BattleSessionFeature.DebugForceClientHashMismatch = false;
+                first.PublishDebugControls(firstContext);
+                second.PublishDebugControls(secondContext);
+                Assert.That(BattleSessionFeature.TrySetDebugForceClientHashMismatch(firstContext, true), Is.True);
+                Assert.That(first.ShouldForceClientHashMismatch, Is.True);
+                Assert.That(second.ShouldForceClientHashMismatch, Is.False);
+                Assert.That(BattleSessionFeature.DebugForceClientHashMismatch, Is.False);
+                Assert.That(BattleSessionFeature.TryGetDebugForceClientHashMismatch(firstContext, out var forced), Is.True);
+                Assert.That(forced, Is.True);
+
+                Assert.That(BattleSessionFeature.TrySetDebugForceClientHashMismatch(firstContext, false), Is.True);
+                first.Dispose();
+                Assert.That(BattleSessionFeature.TrySetDebugForceClientHashMismatch(firstContext, true), Is.False);
+                Assert.That(BattleSessionFeature.TrySetDebugForceClientHashMismatch(secondContext, true), Is.True);
+                Assert.That(second.ShouldForceClientHashMismatch, Is.True);
+
+                next.PublishDebugControls(nextContext);
+                Assert.That(next.ShouldForceClientHashMismatch, Is.False);
+            }
+            finally
+            {
+                first.Dispose();
+                second.Dispose();
+                next.Dispose();
+                BattleSessionFeature.DebugForceClientHashMismatch = false;
+            }
+        }
+
+        [Test]
+        public void Diagnostics_ScopedDebugControls_StalePublisherCannotRemoveReplacement()
+        {
+            var stale = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var replacement = new BattleSessionDiagnostics(new BattleReplicationRuntime());
+            var context = new BattleContext();
+            try
+            {
+                BattleSessionFeature.DebugForceClientHashMismatch = false;
+                stale.PublishDebugControls(context);
+                replacement.PublishDebugControls(context);
+                stale.Dispose();
+                Assert.That(BattleSessionFeature.TrySetDebugForceClientHashMismatch(context, true), Is.True);
+                Assert.That(replacement.ShouldForceClientHashMismatch, Is.True);
+            }
+            finally
+            {
+                stale.Dispose();
+                replacement.Dispose();
+                BattleSessionFeature.DebugForceClientHashMismatch = false;
+            }
+        }
 #endif
 
         [Test]

@@ -21,7 +21,47 @@ namespace AbilityKit.Context
 
         public ContextRegistry Registry => _registry;
         public SnapshotStorage Snapshots => _snapshots;
+        public IContextSnapshotReader SnapshotReader => _snapshots;
         public ContextRealtimeProviderRegistry RealtimeProviders => _realtimeProviders;
+
+        public ContextRealtimeValue<TProperty> ReadRealtimeProperty<TProperty>(in ContextEntityReference reference)
+            where TProperty : class, IProperty
+        {
+            var status = _registry.Query(reference);
+            if (status != ContextEntityQueryStatus.Found)
+                return new ContextRealtimeValue<TProperty>(status, reference, null);
+            var type = PropertyTypeRegistry.Instance.Get<TProperty>();
+            if (type == null)
+                return new ContextRealtimeValue<TProperty>(ContextEntityQueryStatus.PropertyMissing, reference, null);
+
+            TProperty property = null;
+            if (_realtimeProviders == null || !_realtimeProviders.TryGetProperty(reference.EntityId, type.Id, out property))
+            {
+                status = _registry.ReadProperty(reference, type.Id, out var raw);
+                if (status != ContextEntityQueryStatus.Found)
+                    return new ContextRealtimeValue<TProperty>(status, reference, null);
+                property = raw as TProperty;
+            }
+            status = _registry.Query(reference);
+            if (status == ContextEntityQueryStatus.Found && property == null)
+                status = ContextEntityQueryStatus.PropertyMissing;
+            return new ContextRealtimeValue<TProperty>(status, reference,
+                status == ContextEntityQueryStatus.Found ? property : null);
+        }
+
+        public ContextRealtimeValue<TValue> ReadRealtime<TValue, TProperty>(in ContextEntityReference reference, string key)
+            where TProperty : class, IProperty
+        {
+            var property = ReadRealtimeProperty<TProperty>(reference);
+            if (!property.Found)
+                return new ContextRealtimeValue<TValue>(property.Status, reference, default);
+            var value = default(TValue);
+            var found = !string.IsNullOrEmpty(key) && property.Value is IContextValueProvider provider && provider.TryGetValue(key, out value);
+            var status = _registry.Query(reference);
+            return new ContextRealtimeValue<TValue>(status == ContextEntityQueryStatus.Found
+                ? (found ? ContextEntityQueryStatus.Found : ContextEntityQueryStatus.FieldMissing) : status,
+                reference, found && status == ContextEntityQueryStatus.Found ? value : default);
+        }
 
         public bool TryGetRealtimeProperty<TProperty>(long contextId, out TProperty property)
             where TProperty : class, IProperty
@@ -34,6 +74,14 @@ namespace AbilityKit.Context
         {
             snapshot = _snapshots?.Get(contextId);
             return snapshot != null;
+        }
+
+        public ContextSnapshotValue<TValue> ReadSnapshot<TSnapshot, TValue>(in ContextSnapshotReference reference, string key)
+            where TSnapshot : IImmutableContextSnapshot
+        {
+            return _snapshots != null
+                ? _snapshots.ReadSnapshot<TSnapshot, TValue>(reference, key)
+                : new ContextSnapshotValue<TValue>(ContextSnapshotQueryStatus.Unavailable, default, default);
         }
 
         public ContextValueResult<TProperty> GetProperty<TProperty>(
@@ -172,8 +220,8 @@ namespace AbilityKit.Context
             if (snapshot == null)
                 return false;
 
-            if (snapshot is IContextValueProvider provider && provider.TryGetValue(request.Key, out value))
-                return true;
+            if (snapshot is IContextValueProvider provider && !string.IsNullOrEmpty(request.Key))
+                return provider.TryGetValue(request.Key, out value);
 
             if (snapshot is ISnapshotAccessor accessor)
             {

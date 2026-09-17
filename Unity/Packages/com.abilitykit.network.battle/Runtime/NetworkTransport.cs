@@ -25,6 +25,9 @@ namespace AbilityKit.Network.Battle
 
         public NetworkTransportOptions Options => _options;
 
+        /// <summary>Connection used by this transport, including when an SDK client is supplied.</summary>
+        public IConnection Connection => _sdkClient.Connection;
+
         private readonly NetworkSdkClient _sdkClient;
         private readonly bool _ownsSdkClient;
 

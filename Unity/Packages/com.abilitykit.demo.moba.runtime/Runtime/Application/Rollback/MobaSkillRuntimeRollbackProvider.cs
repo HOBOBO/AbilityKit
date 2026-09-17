@@ -6,10 +6,12 @@ using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.StateSync;
 using AbilityKit.Demo.Moba.Components;
 using MemoryPack;
+using System.Collections.Generic;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Rollback
 {
-    public sealed class MobaSkillRuntimeRollbackProvider : IRollbackStateProvider, IMobaStateRecoveryProvider
+    public sealed class MobaSkillRuntimeRollbackProvider : IRollbackStateProvider, IRollbackStatePreflightProvider, IMobaStateRecoveryProvider
     {
         public const int DefaultKey = 10012;
         private readonly MobaSkillCastRuntimeService _runtimes;
@@ -21,12 +23,99 @@ namespace AbilityKit.Demo.Moba.Rollback
 
         public int Key => DefaultKey;
         public string Name => "SkillRuntime";
-        public byte[] Export(FrameIndex frame) => ExportState(frame);
-        public void Import(FrameIndex frame, byte[] payload) => ImportState(frame, payload);
+        public byte[] Export(FrameIndex frame)
+        {
+            var nodes = new List<MobaSkillTraceLifecycleRollbackEntry>();
+            var trace = _runtimes.TraceRegistry;
+            var state = _runtimes.CaptureRollbackSnapshot();
+            if (trace != null)
+            {
+                var ids = new HashSet<long>();
+                foreach (var runtime in state.Runtimes)
+                {
+                    Capture(runtime.RootTraceContextId);
+                    foreach (var child in runtime.Children) Capture(child.TraceContextId);
+                }
+                void Capture(long id)
+                {
+                    if (id == 0L || !ids.Add(id)) return;
+                    if (!trace.TryGetNodeSnapshot(id, out var node))
+                        throw new InvalidOperationException($"Skill runtime Trace node {id} is missing at rollback capture.");
+                    nodes.Add(new MobaSkillTraceLifecycleRollbackEntry(node));
+                }
+            }
+            nodes.Sort((left, right) => left.ContextId.CompareTo(right.ContextId));
+            return MemoryPackSerializer.Serialize(new MobaSkillRuntimeLocalRollbackPayload(2, SerializeRuntimeState(in state),
+                trace != null ? nodes.ToArray() : null, trace != null ? trace.NextContextId : 0L));
+        }
+
+        public void ValidateImport(FrameIndex frame, byte[] payload)
+        {
+            var state = ReadLocalRollback(payload);
+            var runtimeState = MemoryPackSerializer.Deserialize<MobaSkillRuntimeRollbackPayload>(state.RuntimeState);
+            if (runtimeState.Version != 1 && runtimeState.Version != 2)
+                throw new InvalidOperationException("Unsupported skill runtime state in local rollback payload.");
+            if (state.TraceNodes == null) return;
+            if (state.Version == 2)
+            {
+                var registry = _runtimes.TraceRegistry ?? throw new InvalidOperationException("Skill rollback Trace registry is unavailable.");
+                registry.ValidatePredictionRetraction(state.TraceNextContextId);
+            }
+            var referencedIds = new HashSet<long>();
+            foreach (var runtime in runtimeState.Runtimes ?? Array.Empty<MobaSkillRuntimeRollbackEntry>())
+            {
+                if (runtime.RootTraceContextId != 0L) referencedIds.Add(runtime.RootTraceContextId);
+                foreach (var child in runtime.Children ?? Array.Empty<MobaSkillRuntimeChildRollbackEntry>())
+                    if (child.TraceContextId != 0L) referencedIds.Add(child.TraceContextId);
+            }
+            var nodes = ToTraceNodes(state.TraceNodes);
+            foreach (var node in nodes)
+                if (!referencedIds.Remove(node.ContextId) || (state.Version == 2 && node.ContextId >= state.TraceNextContextId))
+                    throw new InvalidOperationException($"Trace node {node.ContextId} does not match local skill rollback scope.");
+            if (referencedIds.Count != 0)
+                throw new InvalidOperationException("Local skill rollback is missing referenced Trace nodes.");
+            if (nodes.Length == 0) return;
+            var trace = _runtimes.TraceRegistry ?? throw new InvalidOperationException("Skill rollback Trace registry is unavailable.");
+            trace.ValidateLifecycleRestore(nodes);
+        }
+
+        public void Import(FrameIndex frame, byte[] payload)
+        {
+            var state = ReadLocalRollback(payload);
+            ValidateImport(frame, payload);
+            ImportState(frame, state.RuntimeState);
+            var nodes = ToTraceNodes(state.TraceNodes);
+            if (state.Version == 2 && state.TraceNodes != null)
+                _runtimes.TraceRegistry.RetractPrediction(state.TraceNextContextId);
+            if (nodes.Length > 0) _runtimes.TraceRegistry.RestoreLifecycle(nodes);
+        }
+
+        private static MobaSkillRuntimeLocalRollbackPayload ReadLocalRollback(byte[] payload)
+        {
+            if (payload == null || payload.Length == 0) throw new InvalidOperationException("Missing local skill rollback payload.");
+            var state = MemoryPackSerializer.Deserialize<MobaSkillRuntimeLocalRollbackPayload>(payload);
+            if ((state.Version != 1 && state.Version != 2) || state.RuntimeState == null || state.RuntimeState.Length == 0 ||
+                (state.Version == 2 && state.TraceNodes == null && state.TraceNextContextId != 0L))
+                throw new InvalidOperationException("Unsupported local skill rollback payload.");
+            return state;
+        }
+
+        private static TraceNodeSnapshot[] ToTraceNodes(MobaSkillTraceLifecycleRollbackEntry[] entries)
+        {
+            entries = entries ?? Array.Empty<MobaSkillTraceLifecycleRollbackEntry>();
+            var nodes = new TraceNodeSnapshot[entries.Length];
+            for (var i = 0; i < nodes.Length; i++) nodes[i] = entries[i].ToNode();
+            return nodes;
+        }
 
         public byte[] ExportState(FrameIndex frame)
         {
             var snapshot = _runtimes.CaptureRollbackSnapshot();
+            return SerializeRuntimeState(in snapshot);
+        }
+
+        private static byte[] SerializeRuntimeState(in MobaSkillCastRuntimeServiceSnapshot snapshot)
+        {
             var runtimes = new MobaSkillRuntimeRollbackEntry[snapshot.Runtimes.Length];
             for (var i = 0; i < runtimes.Length; i++) runtimes[i] = ToSerializable(in snapshot.Runtimes[i]);
             var retains = new MobaSkillRuntimeRetainRollbackEntry[snapshot.Retains.Length];
@@ -144,6 +233,39 @@ namespace AbilityKit.Demo.Moba.Rollback
             var child = new MobaSkillRuntimeChildRef((MobaSkillRuntimeChildKind)value.ChildKind, value.ChildId, value.ChildTraceContextId, value.ChildConfigId);
             return new MobaSkillRuntimeRetainHandle(value.RetainId, in runtime, in child);
         }
+    }
+
+    [MemoryPackable]
+    public readonly partial struct MobaSkillRuntimeLocalRollbackPayload
+    {
+        [MemoryPackOrder(0)] public readonly int Version;
+        [MemoryPackOrder(1)] public readonly byte[] RuntimeState;
+        [MemoryPackOrder(2)] public readonly MobaSkillTraceLifecycleRollbackEntry[] TraceNodes;
+        [MemoryPackOrder(3)] public readonly long TraceNextContextId;
+        [MemoryPackConstructor]
+        public MobaSkillRuntimeLocalRollbackPayload(int version, byte[] runtimeState, MobaSkillTraceLifecycleRollbackEntry[] traceNodes, long traceNextContextId = 0L)
+        { Version = version; RuntimeState = runtimeState; TraceNodes = traceNodes; TraceNextContextId = traceNextContextId; }
+    }
+
+    [MemoryPackable]
+    public readonly partial struct MobaSkillTraceLifecycleRollbackEntry
+    {
+        [MemoryPackOrder(0)] public readonly long ContextId;
+        [MemoryPackOrder(1)] public readonly long RootId;
+        [MemoryPackOrder(2)] public readonly long ParentId;
+        [MemoryPackOrder(3)] public readonly int Kind;
+        [MemoryPackOrder(4)] public readonly int CreatedFrame;
+        [MemoryPackOrder(5)] public readonly int EndedFrame;
+        [MemoryPackOrder(6)] public readonly int EndReason;
+        [MemoryPackOrder(7)] public readonly bool IsEnded;
+        public MobaSkillTraceLifecycleRollbackEntry(long contextId, long rootId, long parentId, int kind,
+            int createdFrame, int endedFrame, int endReason, bool isEnded)
+        { ContextId = contextId; RootId = rootId; ParentId = parentId; Kind = kind;
+          CreatedFrame = createdFrame; EndedFrame = endedFrame; EndReason = endReason; IsEnded = isEnded; }
+        public MobaSkillTraceLifecycleRollbackEntry(TraceNodeSnapshot node)
+            : this(node.ContextId, node.RootId, node.ParentId, node.Kind, node.CreatedFrame, node.EndedFrame, node.EndReason, node.IsEnded) { }
+        public TraceNodeSnapshot ToNode() => new TraceNodeSnapshot(ContextId, RootId, ParentId, Kind,
+            CreatedFrame, EndedFrame, EndReason, 0, null, IsEnded);
     }
 
     [MemoryPackable]

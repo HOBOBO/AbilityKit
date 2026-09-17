@@ -1,0 +1,15 @@
+{
+  "name": "AbilityKit.HFSM.CompleteHfsmShowcase.Tests",
+  "rootNamespace": "AbilityKit.HFSM.Samples.CompleteHfsmShowcase.Tests",
+  "references": ["AbilityKit.HFSM.Core", "AbilityKit.HFSM.Unity", "AbilityKit.HFSM.Editor", "AbilityKit.HFSM.CompleteHfsmShowcase", "AbilityKit.HFSM.CompleteHfsmShowcase.Editor", "AbilityKit.Deterministic"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

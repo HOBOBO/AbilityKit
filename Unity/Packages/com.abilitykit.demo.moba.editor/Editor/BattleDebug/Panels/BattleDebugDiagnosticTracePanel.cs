@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Editor.Diagnostics;
 using UnityEditor;
 using UnityEngine;
@@ -18,6 +19,7 @@ namespace AbilityKit.Game.Editor
     internal sealed class BattleDebugDiagnosticTracePanel :
         IBattleDebugPanel,
         IBattleDebugPanelLayout,
+        IBattleDebugPanelSessionCleanup,
         IBattleDebugTraceTarget,
         IBattleDebugWidgetProvider
     {
@@ -70,6 +72,19 @@ namespace AbilityKit.Game.Editor
         }
 
         public IReadOnlyList<IBattleDebugWidget> Widgets => _widgets;
+
+        public void ClearSessionState()
+        {
+            _viewModel.Clear();
+            _rootContextIdText = string.Empty;
+            _pendingRootContextId = 0;
+            _pendingContextId = 0;
+            _treeScroll = Vector2.zero;
+            _waterfallScroll = Vector2.zero;
+            _waterfallItems.Clear();
+            _overviewItems.Clear();
+            System.Array.Clear(_overviewBuffer.Counts, 0, _overviewBuffer.Counts.Length);
+        }
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
 
@@ -520,9 +535,9 @@ namespace AbilityKit.Game.Editor
                         : node.StartFrame;
                 _waterfallItems.Add(new BattleDebugWaterfallItem(
                     node.ContextId,
-                    $"{BattleDebugDisplayText.TraceKind(node.Kind)} #{node.ContextId}",
+                    $"{BattleDebugDisplayText.TraceKind(node.Kind)} #{node.ContextId}  {BuildConfigText(in node)}",
                     $"来源={node.SourceActorId}，目标={node.TargetActorId}，" +
-                    $"配置={node.ConfigId}，触发器={node.TriggerId}\n" +
+                    $"{BuildConfigText(in node)}\n" +
                     $"状态={BuildResultText(in node)}\n" +
                     $"F{node.StartFrame} -> " +
                     (node.EndFrame >= 0 ? $"F{node.EndFrame}" : "进行中"),
@@ -855,6 +870,23 @@ namespace AbilityKit.Game.Editor
                 BuildResultText(in selected));
             EditorGUILayout.LabelField("帧区间 / 持续", BuildFrameSpan(in selected));
             EditorGUILayout.LabelField("配置", BuildConfigText(in selected));
+            if (selected.HasOrigin)
+            {
+                EditorGUILayout.LabelField("直接触发来源", BuildOriginText(in selected));
+                var hasOriginConfig = BattleDebugConfigReferenceMapper.TryFromTraceOrigin(
+                    in selected,
+                    out var originConfig);
+                EditorGUI.BeginDisabledGroup(!hasOriginConfig || ctx.OpenConfig == null);
+                if (GUILayout.Button("打开来源配置", GUILayout.Width(110)))
+                {
+                    ctx.OpenConfig?.Invoke(originConfig);
+                }
+                EditorGUI.EndDisabledGroup();
+            }
+            else if (selected.Kind == "EffectExecution")
+            {
+                EditorGUILayout.LabelField("直接触发来源", "未记录");
+            }
             if (selected.TriggerId != 0)
             {
                 EditorGUILayout.LabelField("触发计划", selected.TriggerId.ToString());
@@ -889,7 +921,9 @@ namespace AbilityKit.Game.Editor
                 in selected,
                 out var configReference);
             EditorGUI.BeginDisabledGroup(!hasConfigReference || ctx.OpenConfig == null);
-            if (GUILayout.Button("打开配置", GUILayout.Width(80)))
+            if (GUILayout.Button(
+                    selected.Kind == "EffectAction" ? "打开触发计划" : "打开配置",
+                    GUILayout.Width(110)))
             {
                 ctx.OpenConfig?.Invoke(configReference);
             }
@@ -906,6 +940,10 @@ namespace AbilityKit.Game.Editor
             {
                 EditorGUILayout.LabelField("结束原因", selected.EndReason);
             }
+
+            DrawDefinitionDetails(in selected);
+            DrawExecutionFacts(in selected);
+            DrawActionFacts(in selected);
 
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.LabelField("根节点路径", EditorStyles.boldLabel);
@@ -924,6 +962,136 @@ namespace AbilityKit.Game.Editor
                 pathText,
                 EditorStyles.textArea,
                 GUILayout.Height(pathHeight));
+        }
+
+        private static void DrawActionFacts(in BattleDiagnosticTraceNodeSummary node)
+        {
+            if (node.Kind != "EffectAction") return;
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("动作执行快照", EditorStyles.boldLabel);
+            var facts = node.ActionFacts;
+            if (!facts.IsCaptured)
+            {
+                EditorGUILayout.LabelField("状态", facts.Availability == BattleDiagnosticDataAvailability.Evicted ? "已淘汰" : "未采集 / 不可用");
+                return;
+            }
+            EditorGUILayout.LabelField("记录 / 代次", $"{facts.SnapshotId} / {facts.Generation}");
+            EditorGUILayout.LabelField("类型 / 版本", $"{facts.TypeId} / {facts.SchemaVersion}");
+            EditorGUILayout.LabelField("动作索引 / ID", $"{facts.ActionIndex} / {facts.ActionId}");
+            var outcome = facts.Outcome == BattleDiagnosticActionOutcome.Completed ? "调用完成（未抛异常）" :
+                facts.Outcome == BattleDiagnosticActionOutcome.Failed ? "调用失败" :
+                facts.Outcome == BattleDiagnosticActionOutcome.Aborted ? "作用域中止" : "仅入口，结束未采集";
+            EditorGUILayout.LabelField("执行状态", outcome);
+            EditorGUILayout.LabelField("入口 / 结束帧", $"{facts.Frame} / {(facts.HasAfter ? facts.EndFrame.ToString() : "未采集")}");
+            DrawActionActorValues("来源", facts.SourceBefore, facts.SourceAfter, facts.HasAfter);
+            DrawActionActorValues("目标", facts.TargetBefore, facts.TargetAfter, facts.HasAfter);
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("HP 实际提交", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("采集状态", facts.CommitsComplete ? "动作期间连续采集" : "未完整采集 / 无事件订阅");
+            EditorGUILayout.LabelField("记录数", facts.CommitsTruncated ? $"{facts.Commits.Count}（已截断）" : facts.Commits.Count.ToString());
+            if (facts.Commits.Count == 0)
+                EditorGUILayout.LabelField("提交结果", "无已记录的 HP 变化");
+            foreach (var commit in facts.Commits)
+            {
+                EditorGUILayout.Space(3);
+                var kind = commit.Kind == 0 ? "伤害" : commit.Kind == 1 ? "治疗" : commit.Kind == 2 ? "重生" : commit.Kind.ToString();
+                EditorGUILayout.LabelField("类型 / 来源 / 目标", $"{kind} / {commit.SourceActorId} / {commit.TargetActorId}");
+                EditorGUILayout.LabelField("请求 / 实际值", $"{commit.RequestedValue:0.###} / {commit.AppliedValue:0.###}");
+                EditorGUILayout.LabelField("HP 前 / 后 / 上限", $"{commit.OldHp:0.###} / {commit.TargetHp:0.###} / {commit.TargetMaxHp:0.###}");
+                EditorGUILayout.LabelField("数值类型 / 原因", $"{commit.ValueType} / {commit.ReasonKind} / {commit.ReasonParam}");
+                EditorGUILayout.LabelField("提交来源节点", commit.OriginContextId.ToString());
+            }
+            DrawActionDamageResults(in facts);
+        }
+
+        private static void DrawActionDamageResults(in BattleDiagnosticActionExecutionFacts facts)
+        {
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("伤害管线结果", EditorStyles.boldLabel);
+            if (facts.DamageAvailability != BattleDiagnosticDataAvailability.Available)
+            {
+                EditorGUILayout.LabelField("状态", "未采集 / 伤害通道未启用");
+                return;
+            }
+            EditorGUILayout.LabelField("覆盖状态", facts.DamageCoverageContinuous ? "动作期间连续观察" : "覆盖不连续 / 未完整采集");
+            EditorGUILayout.LabelField("记录数", facts.DamageResultsTruncated ? $"{facts.DamageResults.Count}（已截断）" : facts.DamageResults.Count.ToString());
+            foreach (var result in facts.DamageResults)
+            {
+                var c = result.Calculation;
+                var outcome = result.Outcome == BattleDiagnosticActionDamageOutcome.Applied ? "已提交 HP 伤害" :
+                    result.Outcome == BattleDiagnosticActionDamageOutcome.FullyAbsorbed ? "护盾全吸收" :
+                    result.Outcome == BattleDiagnosticActionDamageOutcome.NoHpDamage ? "零 HP 伤害" :
+                    result.Outcome == BattleDiagnosticActionDamageOutcome.Rejected ? "管线拒绝" :
+                    result.Outcome == BattleDiagnosticActionDamageOutcome.ExecutionFailed ? "执行异常，可能已有部分提交" :
+                    result.Outcome == BattleDiagnosticActionDamageOutcome.PostCommitNotificationFailed ? "提交完成后的通知异常" : "未知结果";
+                EditorGUILayout.Space(3);
+                EditorGUILayout.LabelField("结果", outcome);
+                EditorGUILayout.LabelField("阶段", c.Stage.ToString());
+                EditorGUILayout.LabelField("事件序号 / 帧", $"{result.Sequence} / {result.Frame}");
+                EditorGUILayout.LabelField("来源 / 目标", $"{result.SourceActorId} / {result.TargetActorId}");
+                EditorGUILayout.LabelField("来源节点", result.OriginContextId.ToString());
+                if (c.HasCalculation)
+                {
+                    EditorGUILayout.LabelField("基础 / 原始伤害", $"{DamageValue(c.BaseDamageRaw)} / {DamageValue(c.RawDamageRaw)}");
+                    EditorGUILayout.LabelField("减免后 / 护盾计划", $"{DamageValue(c.MitigatedDamageRaw)} / {DamageValue(c.ShieldAbsorbRaw)}");
+                    EditorGUILayout.LabelField("HP 计划 / 实际", $"{DamageValue(c.PlannedHpDamageRaw)} / {DamageValue(c.AppliedHpDamageRaw)}");
+                }
+                else EditorGUILayout.LabelField("计算数值", "未采集");
+                if (!string.IsNullOrEmpty(result.Detail))
+                    EditorGUILayout.LabelField("详情", result.Detail, EditorStyles.wordWrappedLabel);
+            }
+        }
+
+        private static string DamageValue(long raw) => BattleDiagnosticDamageCalculationPayload.ToDisplayValue(raw).ToString("0.###");
+
+        private static void DrawActionActorValues(string role, BattleDiagnosticActionActorValues before,
+            BattleDiagnosticActionActorValues after, bool hasAfter)
+        {
+            EditorGUILayout.LabelField($"{role} Actor", before.ActorId.ToString());
+            EditorGUILayout.LabelField($"{role}绑定 前 / 后", $"{before.BindingId} / {(hasAfter ? after.BindingId.ToString() : "未采集")}");
+            var sameBinding = hasAfter && before.IsSameBinding(after);
+            if (hasAfter && !sameBinding)
+                EditorGUILayout.LabelField($"{role}身份", !before.HasActor || !after.HasActor ? "实体缺失，差值不可用" : "实体绑定已更换，差值不可用");
+            DrawActionResource($"{role} HP", before.HasHp, before.Hp, hasAfter && after.HasHp, after.Hp, sameBinding);
+            DrawActionResource($"{role} Mana", before.HasMana, before.Mana, hasAfter && after.HasMana, after.Mana, sameBinding);
+        }
+
+        private static void DrawActionResource(string label, bool hasBefore, float before, bool hasAfter, float after, bool sameBinding)
+        {
+            var left = hasBefore ? before.ToString("0.###") : "缺失";
+            var right = hasAfter ? after.ToString("0.###") : "缺失 / 未采集";
+            var delta = hasBefore && hasAfter && sameBinding ? (after - before).ToString("+0.###;-0.###;0") : "不可用";
+            EditorGUILayout.LabelField(label + " 前 / 后 / 差值", $"{left} / {right} / {delta}");
+        }
+
+        private static void DrawExecutionFacts(in BattleDiagnosticTraceNodeSummary node)
+        {
+            if (node.Kind != "EffectExecution") return;
+            EditorGUILayout.Space(4);
+            EditorGUILayout.LabelField("执行入口快照", EditorStyles.boldLabel);
+            var facts = node.ExecutionFacts;
+            if (!facts.IsCaptured)
+            {
+                EditorGUILayout.LabelField("状态", facts.Availability == BattleDiagnosticDataAvailability.Evicted ? "已淘汰" : "未采集 / 不可用");
+                return;
+            }
+            EditorGUILayout.LabelField("记录 / 代次", $"{facts.SnapshotId} / {facts.Generation}");
+            EditorGUILayout.LabelField("采集帧", facts.Frame.ToString());
+            EditorGUILayout.LabelField("类型", facts.TypeId);
+            EditorGUILayout.LabelField("结构版本", facts.SchemaVersion.ToString());
+            EditorGUILayout.LabelField("Payload 类型", facts.PayloadTypeName);
+            EditorGUILayout.LabelField("效果配置 / 触发计划", $"{facts.EffectConfigId} / {facts.TriggerId}");
+            EditorGUILayout.LabelField("Runtime Context", facts.HasRuntimeContext ? facts.RuntimeContextId.ToString() : "未提供");
+            if (facts.HasRuntimeContext) EditorGUILayout.LabelField("Runtime 版本", facts.RuntimeContextVersion.ToString());
+            if (!facts.HasStageSnapshot)
+            {
+                EditorGUILayout.LabelField("阶段数值", "未提供");
+                return;
+            }
+            EditorGUILayout.LabelField("层数", facts.StackCount.ToString());
+            EditorGUILayout.LabelField("已持续 / 秒", facts.ElapsedSeconds.ToString("0.###"));
+            EditorGUILayout.LabelField("剩余 / 秒", facts.RemainingSeconds.ToString("0.###"));
+            EditorGUILayout.LabelField("总时长 / 秒", facts.DurationSeconds.ToString("0.###"));
         }
 
         private static void DrawActorRoute(
@@ -1003,12 +1171,13 @@ namespace AbilityKit.Game.Editor
             }
         }
 
-        private static string BuildNodeTooltip(in BattleDebugDiagnosticTraceRow row)
+        private string BuildNodeTooltip(in BattleDebugDiagnosticTraceRow row)
         {
             var node = row.Node;
             return $"{BattleDebugDisplayText.TraceKind(node.Kind)} #{node.ContextId}\n" +
                    $"父节点 #{node.ParentContextId}，深度 {row.Depth}\n" +
                    $"{BuildConfigText(in node)}，触发器 {FormatId(node.TriggerId)}\n" +
+                   (node.HasOrigin ? $"直接来源：{BuildOriginText(in node)}\n" : string.Empty) +
                    $"{BuildActorRoute(in node)}\n" +
                    $"{BuildFrameSpan(in node)}, {BuildResultText(in node)}";
         }
@@ -1018,25 +1187,118 @@ namespace AbilityKit.Game.Editor
             return $"来源 {FormatId(node.SourceActorId)} -> 目标 {FormatId(node.TargetActorId)}";
         }
 
-        private static string BuildConfigText(in BattleDiagnosticTraceNodeSummary node)
+        private string BuildConfigText(in BattleDiagnosticTraceNodeSummary node)
         {
-            if (string.Equals(node.Kind, "EffectExecution", System.StringComparison.Ordinal) ||
-                string.Equals(node.Kind, "SkillEffect", System.StringComparison.Ordinal))
+            if (string.Equals(node.Kind, "EffectExecution", System.StringComparison.Ordinal))
             {
                 return node.TriggerId > 0
-                    ? $"效果 {FormatId(node.ConfigId)} / 触发器 {node.TriggerId}"
-                    : $"效果 {FormatId(node.ConfigId)}";
+                    ? $"{FormatDefinition("效果", node.Definition)} / " +
+                      FormatDefinition("触发器", node.TriggerDefinition)
+                    : FormatDefinition("效果", node.Definition);
             }
             if (string.Equals(node.Kind, "EffectAction", System.StringComparison.Ordinal))
             {
-                return $"动作 {FormatId(node.ConfigId)}";
+                return FormatDefinition("动作", node.Definition);
             }
             if (string.Equals(node.Kind, "SkillCast", System.StringComparison.Ordinal) ||
+                string.Equals(node.Kind, "SkillEffect", System.StringComparison.Ordinal) ||
                 string.Equals(node.Kind, "SkillPhase", System.StringComparison.Ordinal))
             {
-                return $"技能 {FormatId(node.SkillId != 0 ? node.SkillId : node.ConfigId)}";
+                var skill = node.SkillDefinition.IsResolved
+                    ? node.SkillDefinition
+                    : node.Definition;
+                return FormatDefinition("技能", skill);
             }
-            return "配置 " + FormatId(node.ConfigId);
+            return FormatDefinition("配置", node.Definition);
+        }
+
+        private string FormatDefinition(
+            string label,
+            BattleDiagnosticDefinitionReference reference)
+        {
+            if (!reference.HasDefinitionId) return label + " -";
+            var displayName = _viewModel.GetDefinitionDisplayName(reference);
+            return string.IsNullOrEmpty(displayName)
+                ? $"{label} {reference.DefinitionId}"
+                : $"{label} {displayName} (#{reference.DefinitionId})";
+        }
+
+        private string BuildOriginText(in BattleDiagnosticTraceNodeSummary node)
+        {
+            var kind = BattleDebugDisplayText.TraceKind(((MobaTraceKind)node.OriginKind).ToString());
+            return kind + " / " + FormatDefinition("来源定义", node.OriginDefinition);
+        }
+
+        private void DrawDefinitionDetails(in BattleDiagnosticTraceNodeSummary node)
+        {
+            BattleDiagnosticDefinition definition;
+            BattleDiagnosticDefinition trigger = null;
+            BattleDiagnosticDefinition skill = null;
+            BattleDiagnosticDefinition origin = null;
+            var hasDefinition = _viewModel.TryGetDefinition(
+                node.Definition,
+                out definition);
+            var hasTrigger = node.TriggerDefinition != node.Definition &&
+                             _viewModel.TryGetDefinition(
+                                 node.TriggerDefinition,
+                                 out trigger);
+            var hasSkill = node.SkillDefinition != node.Definition &&
+                           node.SkillDefinition != node.TriggerDefinition &&
+                           _viewModel.TryGetDefinition(
+                               node.SkillDefinition,
+                               out skill);
+            var hasOrigin = node.OriginDefinition != node.Definition &&
+                            node.OriginDefinition != node.TriggerDefinition &&
+                            node.OriginDefinition != node.SkillDefinition &&
+                            _viewModel.TryGetDefinition(node.OriginDefinition, out origin);
+            if (!hasDefinition && !hasTrigger && !hasSkill && !hasOrigin) return;
+
+            EditorGUILayout.Space(4f);
+            EditorGUILayout.LabelField(
+                $"定义映射（版本 {_viewModel.DefinitionStoreRevision}）",
+                EditorStyles.boldLabel);
+            if (hasDefinition) DrawDefinition("节点定义", definition);
+            if (hasTrigger) DrawDefinition("触发器定义", trigger);
+            if (hasSkill) DrawDefinition("技能定义", skill);
+            if (hasOrigin) DrawDefinition("直接来源定义", origin);
+        }
+
+        private static void DrawDefinition(
+            string label,
+            BattleDiagnosticDefinition definition)
+        {
+            var title = definition.IsResolved
+                ? $"{definition.DisplayName}  [{definition.Kind} #{definition.DefinitionId}]"
+                : $"未解析  [{definition.Kind} #{definition.DefinitionId}]";
+            EditorGUILayout.LabelField(label, title);
+            if (!definition.IsResolved) return;
+            if (!string.IsNullOrEmpty(definition.SourcePath))
+            {
+                EditorGUILayout.LabelField("来源", definition.SourcePath);
+            }
+            for (var i = 0; i < definition.Metadata.Count; i++)
+            {
+                var item = definition.Metadata[i];
+                EditorGUILayout.LabelField("  " + item.Key, FormatMetadataValue(in item));
+            }
+        }
+
+        private static string FormatMetadataValue(
+            in BattleDiagnosticDefinitionMetadataEntry item)
+        {
+            switch (item.ValueKind)
+            {
+                case BattleDiagnosticDefinitionMetadataValueKind.String:
+                    return item.StringValue;
+                case BattleDiagnosticDefinitionMetadataValueKind.Integer:
+                    return item.IntegerValue.ToString();
+                case BattleDiagnosticDefinitionMetadataValueKind.Number:
+                    return item.NumberValue.ToString("0.###");
+                case BattleDiagnosticDefinitionMetadataValueKind.Boolean:
+                    return item.BooleanValue ? "true" : "false";
+                default:
+                    return "-";
+            }
         }
 
         private static string BuildFrameSpan(in BattleDiagnosticTraceNodeSummary node)

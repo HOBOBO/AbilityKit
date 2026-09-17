@@ -133,6 +133,19 @@ namespace AbilityKit.Demo.Moba.Services
             return true;
         }
 
+        public bool TrySetEffectOrigin(long contextId, MobaTraceKind originKind, int originConfigId)
+        {
+            if (contextId == 0 || !TryGetNodeSnapshot(contextId, out var snapshot) ||
+                !(snapshot.Metadata is MobaTraceMetadata metadata))
+            {
+                return false;
+            }
+
+            metadata.OriginKind = originKind;
+            metadata.OriginConfigId = originConfigId;
+            return true;
+        }
+
         public override string GetKindName(int kind)
         {
             return ((MobaTraceKind)kind).ToString();
@@ -190,11 +203,22 @@ namespace AbilityKit.Demo.Moba.Services
             if (!_eventCollector.IsEnabled(BattleDiagnosticEventChannel.Skill)) return;
             if (evt.Kind != TraceRegistryEventKind.RootCreated
                 && evt.Kind != TraceRegistryEventKind.ChildCreated
-                && evt.Kind != TraceRegistryEventKind.NodeEnded)
+                && evt.Kind != TraceRegistryEventKind.NodeEnded
+                && evt.Kind != TraceRegistryEventKind.PredictionRetracted)
                 return;
 
             try
             {
+                if (evt.Kind == TraceRegistryEventKind.PredictionRetracted)
+                {
+                    var retraction = new MobaBattleDiagnosticEventDraft(
+                        BattleDiagnosticEventKind.TracePredictionRetracted,
+                        BattleDiagnosticEventChannel.Skill,
+                        BattleDiagnosticEventOutcome.Succeeded,
+                        summary: $"Retracted predicted Trace allocations: [{evt.ContextId}, {NextContextId}). Historical events in this range are no longer current.");
+                    _eventCollector.TryCollect(in retraction);
+                    return;
+                }
                 if (evt.Kind == TraceRegistryEventKind.NodeEnded)
                 {
                     if (!TryResolveTraceNodeFields(evt.ContextId, out var kind, out var configId, out var sourceActorId, out var targetActorId))
@@ -311,8 +335,9 @@ namespace AbilityKit.Demo.Moba.Services
                 case MobaTraceKind.SkillPhase:
                     return BattleDiagnosticDefinitionKind.Skill;
                 case MobaTraceKind.EffectExecution:
-                case MobaTraceKind.EffectAction:
                     return BattleDiagnosticDefinitionKind.Effect;
+                case MobaTraceKind.EffectAction:
+                    return BattleDiagnosticDefinitionKind.Action;
                 case MobaTraceKind.BuffApply:
                 case MobaTraceKind.BuffTick:
                 case MobaTraceKind.BuffRemove:

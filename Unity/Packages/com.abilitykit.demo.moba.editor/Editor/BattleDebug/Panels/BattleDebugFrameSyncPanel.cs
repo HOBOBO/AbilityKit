@@ -5,6 +5,22 @@ using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    internal static class BattleDebugFrameSyncContextResolver
+    {
+        public static bool TryResolve(in BattleDebugContext ctx, out BattleContext context)
+        {
+            context = null;
+            if (ctx.IsOffline || !EditorApplication.isPlaying || ctx.Facade == null ||
+                !ctx.Facade.TryGetSession(out var session) || session == null)
+                return false;
+
+            var worldId = session.WorldId.ToString();
+            return BattleFlowDebugProvider.TryGetContext(worldId, out context) &&
+                   context != null && ReferenceEquals(context.Session, session) &&
+                   string.Equals(context.Plan.World.WorldId, worldId, System.StringComparison.Ordinal);
+        }
+    }
+
     [BattleDebugModule(
         BattleDebugModuleIds.FrameSyncOverview,
         "帧同步",
@@ -19,13 +35,12 @@ namespace AbilityKit.Game.Editor
 
         public bool IsVisible(in BattleDebugContext ctx)
         {
-            return !ctx.IsOffline && EditorApplication.isPlaying && BattleFlowDebugProvider.Current != null;
+            return BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out _);
         }
 
         public void Draw(in BattleDebugContext ctx)
         {
-            var flowCtx = BattleFlowDebugProvider.Current;
-            if (flowCtx == null)
+            if (!BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out var flowCtx))
             {
                 EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;
@@ -78,21 +93,19 @@ namespace AbilityKit.Game.Editor
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            EditorGUILayout.LabelField("强制哈希不一致（调试）", BattleDebugDisplayText.Bool(BattleSessionFeature.DebugForceClientHashMismatch));
+            var canInject = BattleSessionFeature.TryGetDebugForceClientHashMismatch(flowCtx, out var forced);
+            EditorGUILayout.LabelField("强制哈希不一致（调试）",
+                canInject ? BattleDebugDisplayText.Bool(forced) : "会话控制不可用");
+            EditorGUI.BeginDisabledGroup(!canInject);
             if (GUILayout.Button("切换：强制哈希不一致"))
             {
-                BattleSessionFeature.DebugForceClientHashMismatch = !BattleSessionFeature.DebugForceClientHashMismatch;
-
-                if (flowCtx.PredictionReconcileControl != null)
+                if (BattleSessionFeature.TrySetDebugForceClientHashMismatch(flowCtx, !forced))
                 {
-                    if (flowCtx.HasRuntimeWorldId)
-                    {
-                        flowCtx.PredictionReconcileControl.ResetReconcile(flowCtx.RuntimeWorldId);
-                    }
-
-                    flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.World.WorldId));
+                    ctx.OnHashMismatchChanged?.Invoke(flowCtx);
+                    ResetReconcile(flowCtx);
                 }
             }
+            EditorGUI.EndDisabledGroup();
 #endif
 
             EditorGUILayout.Space();
@@ -112,6 +125,14 @@ namespace AbilityKit.Game.Editor
                 EditorGUILayout.LabelField("因回放超时自动关闭对账（总）", flowCtx.PredictionStats.TotalReconcileAutoDisabledByReplayTimeout.ToString());
                 EditorGUILayout.LabelField("因回放超时自动关闭对账最近帧", flowCtx.PredictionStats.LastReconcileAutoDisabledByReplayTimeoutFrame.Value.ToString());
             }
+        }
+
+        internal static void ResetReconcile(BattleContext flowCtx)
+        {
+            if (flowCtx?.PredictionReconcileControl == null) return;
+            if (flowCtx.HasRuntimeWorldId)
+                flowCtx.PredictionReconcileControl.ResetReconcile(flowCtx.RuntimeWorldId);
+            flowCtx.PredictionReconcileControl.ResetReconcile(new WorldId(flowCtx.Plan.World.WorldId));
         }
     }
 }

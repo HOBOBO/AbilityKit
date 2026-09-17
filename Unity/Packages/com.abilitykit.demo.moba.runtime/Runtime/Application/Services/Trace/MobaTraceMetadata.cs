@@ -1,4 +1,5 @@
 using AbilityKit.Trace;
+using AbilityKit.Context;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -12,6 +13,10 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaTraceKind TraceKind { get; set; }
         public int ConfigId { get; set; }
         public int TriggerId { get; set; }
+        public ContextSnapshotReference ExecutionSnapshot { get; set; }
+        public ContextSnapshotReference ActionSnapshot { get; set; }
+        public MobaTraceKind OriginKind { get; set; }
+        public int OriginConfigId { get; set; }
         public int SkillId { get; set; }
         public int CastFlowId { get; set; }
         public string PhaseId { get; set; }

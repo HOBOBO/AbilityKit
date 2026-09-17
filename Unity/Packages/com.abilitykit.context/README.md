@@ -2,6 +2,8 @@
 
 ECS 风格的实体-属性管理框架，让非 ECS 系统也能享受类似 ECS 的开发体验。
 
+完整职责、读取模式、观察器隔离、显式身份恢复及当前限制见 [设计文档](Document/Context上下文注册与快照模块开发设计文档.md)。本包提供基础注册/解析/内存快照，不是完整 ECS、Trace 因果树或权威恢复仓库；MOBA 业务适配见 [Runtime Context 设计](../com.abilitykit.demo.moba.runtime/Document/RuntimeContext运行时值与快照设计文档.md)。
+
 ## 核心概念对齐
 
 | ECS 概念 | 本框架对应 | 说明 |
@@ -218,6 +220,23 @@ if (current.Found && current.IsRealtime)
 |------|------|
 | `TryGetValue<T>(key, out value)` | 由属性或快照实现，向统一解析器暴露命名值 |
 
+### 受管快照
+
+新快照实现 `IImmutableContextSnapshot`，构造时与可变运行时数据脱离，宿主显式注册类型后保存：
+
+```csharp
+var snapshots = new SnapshotStorage(maxRecords: 4096, maxRecordsPerEntity: 16);
+snapshots.RegisterType<MySnapshot>("game.effect.execution", schemaVersion: 1);
+var reference = snapshots.SaveManaged(payload,
+    new ContextSnapshotCapture(generation: 1, frame: payload.Frame, kind: "executed"));
+IContextSnapshotReader reader = snapshots;
+var result = reader.ReadSnapshot<MySnapshot, float>(reference, "Damage");
+```
+
+`MySnapshot`/`payload` 是业务提供的类型和数据。Generation 是逻辑实例代次，不是业务 Version；历史查询须保留包含 StorageId/SnapshotId 的完整 reference。精确查询不回退实时或最新数据，明确区分缺失、身份不匹配和字段不存在。
+
+类型注册包含稳定 TypeId、SchemaVersion、Observation/Recovery 用途。多份历史受全局/每实体容量限制；宿主负责帧窗口清理、必要记录 retain 和世界结束 Clear，编辑器仅依赖 reader。全部容量被 retain 时 TrySaveManaged 返回 false，观察采集不可阻断业务流程。旧 Save 仍只保留实体最新一份，不提供不可变/历史保证。
+
 ## 模块结构
 
 ```
@@ -232,7 +251,9 @@ com.abilitykit.context/
 ├── Snapshot/
 │   ├── IContextSnapshot.cs # 快照接口
 │   ├── ISnapshotAccessor.cs
-│   └── SnapshotStorage.cs # 快照存储
+│   ├── SnapshotStorage.cs # 兼容最新快照存储
+│   ├── SnapshotStorage.Managed.cs # 受管历史与保留管理
+│   └── ContextSnapshotManagement.cs # 类型、身份与只读查询契约
 ├── Value/
 │   ├── ContextValueResolver.cs
 │   ├── ContextValueTypes.cs

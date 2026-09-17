@@ -3,7 +3,7 @@ using AbilityKit.Network.Runtime.Conditioning;
 namespace AbilityKit.Game.Flow
 {
     /// <summary>
-    /// Exposes gateway network conditioning while GatewaySessionRuntime owns its attachment lifecycle.
+    /// Exposes room-preparation and battle connection conditioning for this session.
     /// </summary>
     public sealed partial class BattleSessionFeature
     {

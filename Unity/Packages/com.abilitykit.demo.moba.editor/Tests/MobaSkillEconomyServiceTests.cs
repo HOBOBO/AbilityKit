@@ -17,6 +17,31 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
     public sealed class MobaSkillEconomyServiceTests
     {
         [Test]
+        public void WorldContainer_ResolvesEconomyWithoutDiagnosticSink()
+        {
+            var contexts = new Contexts();
+            var registry = new MobaActorRegistry();
+            var runtimes = new MobaSkillCastRuntimeService();
+            var time = new MutableFrameTime();
+            var lookup = new MobaActorLookupService(
+                new ActorIdIndex(contexts),
+                registry,
+                new MobaEntityManager(null),
+                contexts);
+            using var container = new WorldContainerBuilder()
+                .RegisterExternalInstance(runtimes)
+                .RegisterExternalInstance(lookup)
+                .RegisterExternalInstance<IFrameTime>(time)
+                .RegisterType<MobaSkillEconomyService, MobaSkillEconomyService>()
+                .Build();
+
+            var economy = container.Resolve<MobaSkillEconomyService>();
+
+            Assert.That(economy, Is.Not.Null);
+            Assert.That(economy.PendingTransactionCount, Is.Zero);
+        }
+
+        [Test]
         public void SkillSnapshotCodec_RoundTripsChargeAndActorCooldownFields()
         {
             var source = new MobaSkillStateSnapshotEntry
@@ -58,6 +83,41 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(scope.Economy.PendingTransactionCount, Is.EqualTo(0));
             Assert.That(scope.Runtimes.Cancel(context.RuntimeHandle), Is.False);
             Assert.That(scope.Mana.Current, Is.EqualTo(Fixed64.FromInt32(100)));
+        }
+
+        [Test]
+        public void EconomyDiagnostics_RecordResourceCooldownCommitAndRefundTimeline()
+        {
+            using var scope = new EconomyTestScope();
+            var committed = scope.CreateCast(slot: 1, skillId: EconomyTestScope.SkillOneId);
+            var specification = scope.Reservation(
+                cooldownMs: 800, cooldownGroup: "mobility",
+                sharedCooldownMs: 600, globalCooldownMs: 300);
+
+            Assert.That(scope.Economy.TryReserve(committed, specification, out var failure), Is.True, failure);
+            Assert.That(scope.Economy.Commit(committed.RuntimeHandle, "cast.release"), Is.True);
+            Assert.That(scope.Diagnostics.Drafts, Has.Count.EqualTo(2));
+            Assert.That(scope.Diagnostics.Drafts[0].Payload.TryGetSkillExecution(out var reserved), Is.True);
+            Assert.That(reserved.Stage, Is.EqualTo(BattleDiagnosticSkillExecutionStage.EconomyReserved));
+            Assert.That(reserved.CommandId, Is.GreaterThan(0));
+            Assert.That(reserved.ResourceBeforeRaw, Is.EqualTo(Fixed64.FromInt32(100).RawValue));
+            Assert.That(reserved.ResourceAfterRaw, Is.EqualTo(Fixed64.FromInt32(90).RawValue));
+            Assert.That(scope.Diagnostics.Drafts[1].Payload.TryGetSkillExecution(out var committedPayload), Is.True);
+            Assert.That(committedPayload.Stage, Is.EqualTo(BattleDiagnosticSkillExecutionStage.EconomyCommitted));
+            Assert.That(committedPayload.CommandId, Is.EqualTo(reserved.CommandId));
+            Assert.That(committedPayload.CooldownMs, Is.EqualTo(800));
+            Assert.That(committedPayload.SharedCooldownMs, Is.EqualTo(600));
+            Assert.That(committedPayload.GlobalCooldownMs, Is.EqualTo(300));
+
+            scope.Diagnostics.Drafts.Clear();
+            var refunded = scope.CreateCast(slot: 2, skillId: EconomyTestScope.SkillTwoId);
+            Assert.That(scope.Economy.TryReserve(refunded, scope.Reservation(), out failure), Is.True, failure);
+            Assert.That(scope.Runtimes.Cancel(refunded.RuntimeHandle), Is.True);
+            Assert.That(scope.Diagnostics.Drafts, Has.Count.EqualTo(2));
+            Assert.That(scope.Diagnostics.Drafts[1].Payload.TryGetSkillExecution(out var refundPayload), Is.True);
+            Assert.That(refundPayload.Stage, Is.EqualTo(BattleDiagnosticSkillExecutionStage.EconomyRefunded));
+            Assert.That(refundPayload.ResourceBeforeRaw, Is.EqualTo(Fixed64.FromInt32(80).RawValue));
+            Assert.That(refundPayload.ResourceAfterRaw, Is.EqualTo(Fixed64.FromInt32(90).RawValue));
         }
 
         [Test]
@@ -256,7 +316,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 var lookup = new MobaActorLookupService(_index, _registry, _entities, _contexts);
                 Runtimes = new MobaSkillCastRuntimeService();
                 Time = new MutableFrameTime();
-                Economy = new MobaSkillEconomyService(Runtimes, lookup, Time);
+                Diagnostics = new DiagnosticDraftRecorder();
+                Economy = new MobaSkillEconomyService(Runtimes, lookup, Time, Diagnostics);
                 _container = new WorldContainerBuilder()
                     .RegisterExternalInstance(Runtimes)
                     .RegisterExternalInstance(Economy)
@@ -269,6 +330,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public ResourceState Mana { get; }
             public MobaSkillCastRuntimeService Runtimes { get; }
             public MobaSkillEconomyService Economy { get; }
+            public DiagnosticDraftRecorder Diagnostics { get; }
             public MutableFrameTime Time { get; }
             public MobaActorRegistry Registry => _registry;
 
@@ -288,6 +350,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 var handle = runtime.Handle;
                 triggerContext.RuntimeHandle = handle;
                 triggerContext.RuntimeId = handle.RuntimeId;
+                triggerContext.DiagnosticCommandId = 4400L + _sequence;
                 triggerContext.ResolvedConfiguration = new ResolvedSkillCastConfiguration(
                     skillId, 1, ResourceType.Mana, 10, 500, true);
                 var context = new SkillPipelineContext();
@@ -348,6 +411,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public float Time => TimeSeconds;
             public float FrameToTime(FrameIndex frame) => frame.Value / 1000f;
             public FrameIndex TimeToFrame(float time) => new FrameIndex((int)Math.Round(time * 1000f));
+        }
+
+        private sealed class DiagnosticDraftRecorder : IMobaBattleDiagnosticEventSink
+        {
+            public List<MobaBattleDiagnosticEventDraft> Drafts { get; } =
+                new List<MobaBattleDiagnosticEventDraft>();
+
+            public bool TryCollect(in MobaBattleDiagnosticEventDraft draft)
+            {
+                Drafts.Add(draft);
+                return true;
+            }
         }
     }
 }

@@ -11,7 +11,8 @@ namespace AbilityKit.Game.Editor
     {
         Overview = 0,
         TriggerFlow = 1,
-        Events = 2
+        SkillCasts = 2,
+        Events = 3
     }
 
     /// <summary>
@@ -36,7 +37,7 @@ namespace AbilityKit.Game.Editor
     {
         private static readonly string[] EventScopeLabels =
         {
-            "伤害与效果", "伤害与治疗", "效果", "技能", "Buff", "临时实体", "警告", "触发", "全部事件"
+            "伤害与效果", "伤害与治疗", "效果", "技能", "Buff", "临时实体", "警告", "触发", "全部事件", "目标搜索", "输入命令"
         };
         private static readonly string[] ActorRelationLabels = { "任意关系", "来源", "目标", "来源或目标" };
         private static readonly string[] TriggerStageLabels = { "全部阶段", "预算", "条件", "计划", "执行" };
@@ -71,6 +72,8 @@ namespace AbilityKit.Game.Editor
         private readonly BattleDebugTimelineOverviewBuffer _overviewBuffer =
             new BattleDebugTimelineOverviewBuffer();
         private Vector2 _flowScroll;
+        private Vector2 _castScroll;
+        private string _expandedSkillCastKey = string.Empty;
         private BattleDebugDiagnosticEventsPresentation _presentation =
             BattleDebugDiagnosticEventsPresentation.Overview;
         private readonly BattleDebugHistogramSeries[] _histogramSeries =
@@ -833,34 +836,44 @@ namespace AbilityKit.Game.Editor
             IReadOnlyList<BattleDiagnosticEvent> items)
         {
             var flows = BattleDebugDiagnosticEventsViewModel.BuildTriggerFlows(items);
+            var casts = ResolveSkillCastFlows(items);
             var groups = _viewModel.IssueGroups;
             var issueCount = groups?.Count ?? 0;
             var eventCount = items?.Count ?? 0;
+            var compact = ctx.AvailableContentWidth < 620f;
 
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label("视图", EditorStyles.miniLabel, GUILayout.Width(30f));
             var next = _presentation;
             if (GUILayout.Toggle(
                     next == BattleDebugDiagnosticEventsPresentation.Overview,
-                    new GUIContent($"概览  {issueCount}", "事件分布、失败调查和问题聚合"),
+                    new GUIContent(compact ? "概览" : $"概览  {issueCount}", "事件分布、失败调查和问题聚合"),
                     EditorStyles.toolbarButton,
-                    GUILayout.Width(86f)))
+                    GUILayout.Width(compact ? 58f : 86f)))
             {
                 next = BattleDebugDiagnosticEventsPresentation.Overview;
             }
             if (GUILayout.Toggle(
                     next == BattleDebugDiagnosticEventsPresentation.TriggerFlow,
-                    new GUIContent($"触发流程  {flows.Count}", "按根节点和触发器查看四阶段触发链路"),
+                    new GUIContent(compact ? "触发" : $"触发流程  {flows.Count}", "按根节点和触发器查看四阶段触发链路"),
                     EditorStyles.toolbarButton,
-                    GUILayout.Width(104f)))
+                    GUILayout.Width(compact ? 58f : 104f)))
             {
                 next = BattleDebugDiagnosticEventsPresentation.TriggerFlow;
             }
             if (GUILayout.Toggle(
-                    next == BattleDebugDiagnosticEventsPresentation.Events,
-                    new GUIContent($"事件  {eventCount}", "查看当前工作集中的原始事件与聚合摘要"),
+                    next == BattleDebugDiagnosticEventsPresentation.SkillCasts,
+                    new GUIContent(compact ? "施法" : $"施法链路  {casts.Count}", "按命令、Trace 和技能运行时聚合一次施法的完整事件链"),
                     EditorStyles.toolbarButton,
-                    GUILayout.Width(86f)))
+                    GUILayout.Width(compact ? 58f : 104f)))
+            {
+                next = BattleDebugDiagnosticEventsPresentation.SkillCasts;
+            }
+            if (GUILayout.Toggle(
+                    next == BattleDebugDiagnosticEventsPresentation.Events,
+                    new GUIContent(compact ? "事件" : $"事件  {eventCount}", "查看当前工作集中的原始事件与聚合摘要"),
+                    EditorStyles.toolbarButton,
+                    GUILayout.Width(compact ? 58f : 86f)))
             {
                 next = BattleDebugDiagnosticEventsPresentation.Events;
             }
@@ -879,9 +892,14 @@ namespace AbilityKit.Game.Editor
             _presentation = next;
             _scroll = Vector2.zero;
             _flowScroll = Vector2.zero;
+            _castScroll = Vector2.zero;
             if (next == BattleDebugDiagnosticEventsPresentation.TriggerFlow)
             {
                 _viewModel.FocusTriggerFlows();
+            }
+            else if (next == BattleDebugDiagnosticEventsPresentation.SkillCasts)
+            {
+                _viewModel.FocusSkillCasts();
             }
             ctx.RequestRepaint?.Invoke();
         }
@@ -896,6 +914,9 @@ namespace AbilityKit.Game.Editor
                 case BattleDebugDiagnosticEventsPresentation.TriggerFlow:
                     DrawTriggerFlowWorkspace(in ctx, items, expandHeight);
                     break;
+                case BattleDebugDiagnosticEventsPresentation.SkillCasts:
+                    DrawSkillCastWorkspace(in ctx, items, expandHeight);
+                    break;
                 case BattleDebugDiagnosticEventsPresentation.Events:
                     DrawEventList(in ctx, items, expandHeight);
                     break;
@@ -905,6 +926,352 @@ namespace AbilityKit.Game.Editor
                     DrawIssueGroups();
                     break;
             }
+        }
+
+        private void DrawSkillCastWorkspace(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDiagnosticEvent> items,
+            bool expandHeight)
+        {
+            var casts = ResolveSkillCastFlows(items);
+            var comparisons = ResolveSkillCastComparisons(casts);
+            if (casts.Count == 0)
+            {
+                EditorGUILayout.HelpBox(
+                    "当前工作集没有可关联的技能施法。可扩大事件工作集或清除共享过滤条件后重试。",
+                    MessageType.Info);
+                return;
+            }
+
+            _castScroll = expandHeight
+                ? EditorGUILayout.BeginScrollView(
+                    _castScroll,
+                    GUILayout.MinHeight(240f),
+                    GUILayout.ExpandHeight(true))
+                : EditorGUILayout.BeginScrollView(
+                    _castScroll,
+                    GUILayout.MinHeight(180f),
+                    GUILayout.MaxHeight(Mathf.Max(300f, EditorGUIUtility.currentViewWidth * 0.55f)));
+            DrawSkillCastComparisonSummary(in ctx, casts, comparisons);
+            DrawSkillCastFlows(in ctx, casts, comparisons);
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawSkillCastComparisonSummary(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDebugSkillCastFlow> casts,
+            IReadOnlyList<BattleDebugSkillCastComparison> comparisons)
+        {
+            if (comparisons == null || comparisons.Count == 0) return;
+
+            EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label("施法对比", EditorStyles.miniBoldLabel, GUILayout.Width(58f));
+            GUILayout.Label("数值为逻辑帧跨度，不代表 CPU 耗时。", EditorStyles.miniLabel);
+            GUILayout.FlexibleSpace();
+            GUILayout.Label($"{comparisons.Count} 组", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            for (var i = 0; i < comparisons.Count; i++)
+            {
+                var comparison = comparisons[i];
+                var skillLabel = comparison.SkillId != 0
+                    ? $"技能 {comparison.SkillId} Lv{comparison.SkillLevel}"
+                    : $"槽位 {comparison.SkillSlot} Lv{comparison.SkillLevel}";
+                var baselineLabel = comparison.HasReliableBaseline
+                    ? $"成功基线 {comparison.BaselineSampleCount} 次，中位总跨度 {comparison.MedianTotalFrames} 帧"
+                    : $"基线不足 {comparison.BaselineSampleCount}/2";
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Label(skillLabel, EditorStyles.miniBoldLabel, GUILayout.Width(150f));
+                GUILayout.Label(
+                    $"样本 {comparison.CastCount}  成功 {comparison.SuccessCount}  问题 {comparison.ProblemCount}",
+                    EditorStyles.miniLabel,
+                    GUILayout.Width(150f));
+                GUILayout.Label(baselineLabel, EditorStyles.miniLabel);
+                GUILayout.FlexibleSpace();
+                if (comparison.Deviations.Count > 0)
+                    GUILayout.Label($"慢阶段 {comparison.Deviations.Count}", EditorStyles.miniBoldLabel);
+                EditorGUILayout.EndHorizontal();
+
+                var visibleDeviationCount = Mathf.Min(3, comparison.Deviations.Count);
+                for (var deviationIndex = 0; deviationIndex < visibleDeviationCount; deviationIndex++)
+                {
+                    var deviation = comparison.Deviations[deviationIndex];
+                    var castIndex = FindSkillCastIndex(casts, deviation.CastKey);
+                    if (castIndex < 0) continue;
+                    var cast = casts[castIndex];
+                    var label =
+                        $"{BattleDebugDisplayText.SkillCastPhase(deviation.Phase)}  " +
+                        $"{deviation.ActualFrames} 帧 / 基线 {deviation.BaselineFrames}  " +
+                        $"(+{deviation.ExcessFrames})  F{cast.FirstFrame}";
+                    var oldColor = GUI.color;
+                    GUI.color = new Color(1f, 0.68f, 0.32f, 1f);
+                    if (GUILayout.Button(label, EditorStyles.miniButton, GUILayout.MinWidth(260f)))
+                    {
+                        ExpandSkillCast(in ctx, in cast);
+                        _actionStatus = $"已定位慢阶段：{BattleDebugDisplayText.SkillCastPhase(deviation.Phase)}。";
+                    }
+                    GUI.color = oldColor;
+                }
+            }
+            EditorGUILayout.EndVertical();
+            EditorGUILayout.Space(4f);
+        }
+
+        private void DrawSkillCastFlows(
+            in BattleDebugContext ctx,
+            IReadOnlyList<BattleDebugSkillCastFlow> casts,
+            IReadOnlyList<BattleDebugSkillCastComparison> comparisons)
+        {
+            for (var i = 0; i < casts.Count; i++)
+            {
+                var cast = casts[i];
+                var expanded = string.Equals(
+                    _expandedSkillCastKey,
+                    cast.Key,
+                    System.StringComparison.Ordinal);
+                var skillLabel = cast.SkillId != 0
+                    ? $"技能 {cast.SkillId}"
+                    : cast.SkillSlot > 0
+                        ? $"槽位 {cast.SkillSlot}"
+                        : "技能未识别";
+                var status = cast.IsComplete
+                    ? BattleDebugDisplayText.EventOutcome(cast.Outcome)
+                    : "进行中";
+                var hasDeviation = TryFindWorstSkillCastDeviation(
+                    comparisons,
+                    cast.Key,
+                    out var worstDeviation);
+                var header = $"{(expanded ? "▼" : "▶")}  {skillLabel}  F{cast.FirstFrame}-F{cast.LastFrame}  " +
+                             $"{cast.DurationFrames} 帧  {cast.EventCount} 事件" +
+                             (hasDeviation ? $"  慢 +{worstDeviation.ExcessFrames}" : string.Empty);
+                var tooltip =
+                    $"{skillLabel}，槽位={cast.SkillSlot}，等级={cast.SkillLevel}，序列={cast.CastSequence}\n" +
+                    $"命令={cast.CommandId}，Trace={cast.RootContextId}，Runtime={cast.SkillRuntime}\n" +
+                    $"来源={cast.SourceActorId}，目标={cast.TargetActorId}";
+
+                EditorGUILayout.BeginVertical(EditorStyles.helpBox);
+                EditorGUILayout.BeginHorizontal();
+                var oldColor = GUI.color;
+                GUI.color = GetOutcomeColor(cast.Outcome);
+                if (GUILayout.Button(
+                        new GUIContent(header, tooltip),
+                        EditorStyles.miniButton,
+                        GUILayout.MinWidth(280f),
+                        GUILayout.Height(24f)))
+                {
+                    _expandedSkillCastKey = expanded ? string.Empty : cast.Key;
+                    if (cast.Events.Count > 0)
+                    {
+                        var latest = cast.Events[cast.Events.Count - 1];
+                        SelectEvent(in ctx, in latest);
+                    }
+                    _actionStatus = expanded ? "已收起施法链路。" : $"已展开 {skillLabel} 的施法链路。";
+                }
+                GUI.color = oldColor;
+                GUILayout.Label(status, EditorStyles.miniBoldLabel, GUILayout.Width(54f));
+                EditorGUILayout.EndHorizontal();
+
+                EditorGUILayout.LabelField(
+                    $"命令 {FormatCorrelationId(cast.CommandId)}  ·  Trace {FormatCorrelationId(cast.RootContextId)}  ·  " +
+                    $"Runtime {(cast.SkillRuntime.IsValid ? cast.SkillRuntime.ToString() : "-")}",
+                    EditorStyles.miniLabel);
+                EditorGUILayout.LabelField(
+                    $"输入 {cast.InputCount}  选目标 {cast.TargetSearchCount}  阶段 {cast.SkillStageCount}  " +
+                    $"经济 {cast.EconomyCount}  后续 {cast.ConsequenceCount}",
+                    EditorStyles.miniLabel);
+
+                if (expanded)
+                {
+                    DrawSkillCastPhaseTimings(in cast, hasDeviation ? worstDeviation : default);
+                    for (var eventIndex = 0; eventIndex < cast.Events.Count; eventIndex++)
+                    {
+                        var item = cast.Events[eventIndex];
+                        DrawSkillCastTimelineEvent(in ctx, in item);
+                    }
+
+                    EditorGUILayout.BeginHorizontal();
+                    if (GUILayout.Button("复制链路", EditorStyles.miniButton, GUILayout.Width(76f)))
+                    {
+                        EditorGUIUtility.systemCopyBuffer = BuildSkillCastClipboardText(in cast);
+                        _actionStatus = "施法链路已复制到剪贴板。";
+                    }
+                    EditorGUI.BeginDisabledGroup(cast.RootContextId == 0L || ctx.OpenTrace == null);
+                    if (GUILayout.Button("打开 Trace", EditorStyles.miniButton, GUILayout.Width(82f)))
+                    {
+                        var contextId = cast.Events.Count > 0
+                            ? cast.Events[cast.Events.Count - 1].ContextId
+                            : 0L;
+                        ctx.OpenTrace?.Invoke(cast.RootContextId, contextId);
+                    }
+                    EditorGUI.EndDisabledGroup();
+                    GUILayout.FlexibleSpace();
+                    EditorGUILayout.EndHorizontal();
+                }
+                EditorGUILayout.EndVertical();
+                EditorGUILayout.Space(2f);
+            }
+        }
+
+        private static void DrawSkillCastPhaseTimings(
+            in BattleDebugSkillCastFlow cast,
+            BattleDebugSkillCastDeviation worstDeviation)
+        {
+            if (cast.Timings.Count == 0) return;
+            var builder = new StringBuilder();
+            for (var i = 0; i < cast.Timings.Count; i++)
+            {
+                var timing = cast.Timings[i];
+                if (timing.Phase == BattleDebugSkillCastPhase.Total) continue;
+                var isWorst = !string.IsNullOrEmpty(worstDeviation.CastKey) &&
+                              worstDeviation.Phase == timing.Phase;
+                if (builder.Length > 0) builder.Append("  ·  ");
+                if (isWorst) builder.Append("[慢] ");
+                builder.Append(BattleDebugDisplayText.SkillCastPhase(timing.Phase));
+                builder.Append(' ');
+                builder.Append(timing.DurationFrames);
+            }
+            EditorGUILayout.LabelField("阶段跨度", builder.ToString(), EditorStyles.wordWrappedMiniLabel);
+        }
+
+        private void ExpandSkillCast(
+            in BattleDebugContext ctx,
+            in BattleDebugSkillCastFlow cast)
+        {
+            _expandedSkillCastKey = cast.Key;
+            if (cast.Events.Count == 0) return;
+            var latest = cast.Events[cast.Events.Count - 1];
+            SelectEvent(in ctx, in latest);
+        }
+
+        private static int FindSkillCastIndex(
+            IReadOnlyList<BattleDebugSkillCastFlow> casts,
+            string key)
+        {
+            if (casts == null || string.IsNullOrEmpty(key)) return -1;
+            for (var i = 0; i < casts.Count; i++)
+            {
+                if (string.Equals(casts[i].Key, key, System.StringComparison.Ordinal)) return i;
+            }
+            return -1;
+        }
+
+        private static bool TryFindWorstSkillCastDeviation(
+            IReadOnlyList<BattleDebugSkillCastComparison> comparisons,
+            string castKey,
+            out BattleDebugSkillCastDeviation deviation)
+        {
+            deviation = default;
+            if (comparisons == null || string.IsNullOrEmpty(castKey)) return false;
+            for (var comparisonIndex = 0; comparisonIndex < comparisons.Count; comparisonIndex++)
+            {
+                var candidates = comparisons[comparisonIndex].Deviations;
+                for (var deviationIndex = 0; deviationIndex < candidates.Count; deviationIndex++)
+                {
+                    var candidate = candidates[deviationIndex];
+                    if (!string.Equals(candidate.CastKey, castKey, System.StringComparison.Ordinal)) continue;
+                    if (string.IsNullOrEmpty(deviation.CastKey) ||
+                        candidate.ExcessFrames > deviation.ExcessFrames)
+                    {
+                        deviation = candidate;
+                    }
+                }
+            }
+            return !string.IsNullOrEmpty(deviation.CastKey);
+        }
+
+        private void DrawSkillCastTimelineEvent(
+            in BattleDebugContext ctx,
+            in BattleDiagnosticEvent item)
+        {
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Label($"F{item.Frame}", EditorStyles.miniLabel, GUILayout.Width(48f));
+            var selected = _selectedEvent.HasValue && _selectedEvent.Value.Sequence == item.Sequence;
+            var oldColor = GUI.color;
+            GUI.color = GetOutcomeColor(item.Outcome);
+            var stage = GetSkillCastTimelineLabel(in item);
+            var summary = string.IsNullOrEmpty(item.Summary) ? string.Empty : "  " + item.Summary;
+            if (GUILayout.Button(
+                    new GUIContent($"#{item.Sequence}  {stage}{summary}", BuildEventTooltip(in item)),
+                    selected ? EditorStyles.toolbarButton : EditorStyles.miniButton,
+                    GUILayout.MinWidth(240f),
+                    GUILayout.Height(22f)))
+            {
+                SelectEvent(in ctx, in item);
+            }
+            GUI.color = oldColor;
+            GUILayout.Label(
+                BattleDebugDisplayText.EventOutcome(item.Outcome),
+                EditorStyles.miniLabel,
+                GUILayout.Width(48f));
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private static string GetSkillCastTimelineLabel(in BattleDiagnosticEvent item)
+        {
+            if (item.Payload.TryGetSkillExecution(out var execution))
+                return BattleDebugDisplayText.SkillExecutionStage(execution.Stage);
+            if (item.Kind == BattleDiagnosticEventKind.InputCommand) return "输入命令";
+            if (item.Kind == BattleDiagnosticEventKind.TargetSearch) return "目标搜索";
+            return BattleDebugDisplayText.EventKind(item.Kind);
+        }
+
+        private static string BuildEventTooltip(in BattleDiagnosticEvent item)
+        {
+            return $"F{item.Frame}  #{item.Sequence}\n" +
+                   $"{BattleDebugDisplayText.EventKind(item.Kind)} / {BattleDebugDisplayText.EventOutcome(item.Outcome)}\n" +
+                   $"来源={item.SourceActorId}，目标={item.TargetActorId}，配置={item.ConfigId}\n" +
+                   item.Summary;
+        }
+
+        private static string FormatCorrelationId(long value)
+        {
+            return value != 0L ? value.ToString() : "-";
+        }
+
+        internal static string BuildSkillCastClipboardText(in BattleDebugSkillCastFlow cast)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine($"CommandId={cast.CommandId}");
+            builder.AppendLine($"RootContextId={cast.RootContextId}");
+            builder.AppendLine($"SkillRuntime={cast.SkillRuntime}");
+            builder.AppendLine($"SkillId={cast.SkillId}");
+            builder.AppendLine($"SkillSlot={cast.SkillSlot}");
+            builder.AppendLine($"SkillLevel={cast.SkillLevel}");
+            builder.AppendLine($"CastSequence={cast.CastSequence}");
+            builder.AppendLine($"SourceActorId={cast.SourceActorId}");
+            builder.AppendLine($"TargetActorId={cast.TargetActorId}");
+            builder.AppendLine($"Frames={cast.FirstFrame}-{cast.LastFrame}");
+            builder.AppendLine($"Outcome={cast.Outcome}");
+            builder.AppendLine($"EventCount={cast.EventCount}");
+            builder.AppendLine(
+                $"StageCounts=Input:{cast.InputCount},TargetSearch:{cast.TargetSearchCount}," +
+                $"Skill:{cast.SkillStageCount},Economy:{cast.EconomyCount},Consequence:{cast.ConsequenceCount}");
+            for (var i = 0; i < cast.Events.Count; i++)
+            {
+                var item = cast.Events[i];
+                builder.AppendLine(
+                    $"Event=F{item.Frame} #{item.Sequence} {item.Kind} {item.Outcome} " +
+                    $"Context:{item.ContextId} Config:{item.ConfigId} Summary:{item.Summary}");
+            }
+            return builder.ToString();
+        }
+
+        private IReadOnlyList<BattleDebugSkillCastFlow> ResolveSkillCastFlows(
+            IReadOnlyList<BattleDiagnosticEvent> items)
+        {
+            return ReferenceEquals(items, _viewModel.Items) && _viewModel.SkillCastFlows != null
+                ? _viewModel.SkillCastFlows
+                : BattleDebugDiagnosticEventsViewModel.BuildSkillCastFlows(items);
+        }
+
+        private IReadOnlyList<BattleDebugSkillCastComparison> ResolveSkillCastComparisons(
+            IReadOnlyList<BattleDebugSkillCastFlow> casts)
+        {
+            return ReferenceEquals(casts, _viewModel.SkillCastFlows) &&
+                   _viewModel.SkillCastComparisons != null
+                ? _viewModel.SkillCastComparisons
+                : BattleDebugDiagnosticEventsViewModel.BuildSkillCastComparisons(casts);
         }
 
         private void DrawTriggerFlowWorkspace(
@@ -1532,7 +1899,16 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("根节点 / 上下文", $"{evt.RootContextId} / {evt.ContextId}");
             EditorGUILayout.LabelField("配置 / 攻击", $"{evt.ConfigId} / {evt.AttackId}");
             EditorGUILayout.LabelField("技能运行时", evt.SkillRuntime.ToString());
-            EditorGUILayout.LabelField("摘要", evt.Summary);
+            if (evt.Kind == BattleDiagnosticEventKind.TargetSearch)
+            {
+                EditorGUILayout.LabelField("目标搜索", EditorStyles.boldLabel);
+                EditorGUILayout.SelectableLabel(evt.Summary, EditorStyles.wordWrappedLabel,
+                    GUILayout.Height(Mathf.Min(560f, 24f + 17f * evt.Summary.Split('\n').Length)));
+            }
+            else
+            {
+                EditorGUILayout.LabelField("摘要", evt.Summary);
+            }
 
             if (evt.Payload.TryGetTriggerAnalysis(out var triggerPayload))
             {
@@ -1549,6 +1925,22 @@ namespace AbilityKit.Game.Editor
             else if (evt.Payload.TryGetBuffLifecycle(out var buffLifecycle))
             {
                 DrawBuffLifecyclePayloadDetails(in buffLifecycle, evt.Payload.SchemaVersion);
+            }
+            else if (evt.Payload.TryGetDamageCalculation(out var damageCalculation))
+            {
+                DrawDamageCalculationDetails(in damageCalculation);
+            }
+            else if (evt.Payload.TryGetInputCommand(out var inputCommand))
+            {
+                DrawInputCommandDetails(in inputCommand);
+            }
+            else if (evt.Payload.TryGetTargetSearch(out var targetSearch))
+            {
+                DrawTargetSearchDetails(in targetSearch);
+            }
+            else if (evt.Payload.TryGetSkillExecution(out var skillExecution))
+            {
+                DrawSkillExecutionDetails(in skillExecution);
             }
             else if (evt.Payload.TryGetSyncSnapshotReceived(out var syncPayload))
             {
@@ -1738,6 +2130,22 @@ namespace AbilityKit.Game.Editor
             {
                 AppendBuffLifecyclePayloadClipboard(builder, in buffLifecycle, evt.Payload.SchemaVersion);
             }
+            else if (evt.Payload.TryGetDamageCalculation(out var damageCalculation))
+            {
+                AppendDamageCalculationClipboard(builder, in damageCalculation);
+            }
+            else if (evt.Payload.TryGetInputCommand(out var inputCommand))
+            {
+                AppendInputCommandClipboard(builder, in inputCommand);
+            }
+            else if (evt.Payload.TryGetTargetSearch(out var targetSearch))
+            {
+                AppendTargetSearchClipboard(builder, in targetSearch);
+            }
+            else if (evt.Payload.TryGetSkillExecution(out var skillExecution))
+            {
+                AppendSkillExecutionClipboard(builder, in skillExecution);
+            }
             else if (evt.Payload.TryGetSyncSnapshotReceived(out var syncPayload))
             {
                 builder.AppendLine($"PayloadKind={evt.Payload.Kind}");
@@ -1783,6 +2191,144 @@ namespace AbilityKit.Game.Editor
             }
 
             return builder.ToString();
+        }
+
+        private static void DrawDamageCalculationDetails(in BattleDiagnosticDamageCalculationPayload payload)
+        {
+            EditorGUILayout.LabelField("Damage stage", payload.Stage.ToString());
+            if (!payload.HasCalculation)
+            {
+                EditorGUILayout.LabelField("Calculation values", "Not captured");
+                return;
+            }
+            EditorGUILayout.LabelField("Base / raw", $"{FormatDamageRaw(payload.BaseDamageRaw)} / {FormatDamageRaw(payload.RawDamageRaw)}");
+            EditorGUILayout.LabelField("Mitigated / shield planned", $"{FormatDamageRaw(payload.MitigatedDamageRaw)} / {FormatDamageRaw(payload.ShieldAbsorbRaw)}");
+            EditorGUILayout.LabelField("HP planned / applied", $"{FormatDamageRaw(payload.PlannedHpDamageRaw)} / {FormatDamageRaw(payload.AppliedHpDamageRaw)}");
+        }
+
+        private static void DrawInputCommandDetails(in BattleDiagnosticInputCommandPayload payload)
+        {
+            EditorGUILayout.LabelField("命令 / 输入帧", $"{payload.CommandId} / {payload.InputFrame}");
+            EditorGUILayout.LabelField("玩家 / 操作码", $"{payload.PlayerId} / {payload.OpCode}");
+            EditorGUILayout.LabelField("结果", payload.Succeeded ? "成功" : $"失败 ({payload.FailureCode})");
+            if (payload.SkillSlot != 0 || payload.SkillPhase != 0 || payload.TargetActorId != 0)
+                EditorGUILayout.LabelField("技能槽位 / 阶段 / 目标",
+                    $"{payload.SkillSlot} / {payload.SkillPhase} / {payload.TargetActorId}");
+            if (!string.IsNullOrEmpty(payload.Message))
+                EditorGUILayout.LabelField("消息", payload.Message, EditorStyles.wordWrappedLabel);
+        }
+
+        private static void DrawTargetSearchDetails(in BattleDiagnosticTargetSearchPayload payload)
+        {
+            EditorGUILayout.LabelField("关联命令", payload.CommandId > 0 ? payload.CommandId.ToString() : "（非玩家输入）");
+            EditorGUILayout.LabelField("显式目标", payload.ExplicitTargetActorId.ToString());
+            EditorGUILayout.LabelField("候选 / 合格 / 选中",
+                $"{payload.CandidateCount} / {payload.EligibleCount} / {payload.SelectedCount}");
+            EditorGUILayout.LabelField("选中 Actor", string.IsNullOrEmpty(payload.SelectedActorIds)
+                ? "（无）" : payload.SelectedActorIds);
+            if (!string.IsNullOrEmpty(payload.DecisionDetails))
+                EditorGUILayout.SelectableLabel(payload.DecisionDetails.TrimStart('\r', '\n'),
+                    EditorStyles.wordWrappedLabel,
+                    GUILayout.Height(Mathf.Min(560f, 24f + 17f * payload.DecisionDetails.Split('\n').Length)));
+        }
+
+        private static string FormatDamageRaw(long value) =>
+            BattleDiagnosticDamageCalculationPayload.ToDisplayValue(value).ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+
+        private static void AppendDamageCalculationClipboard(StringBuilder builder, in BattleDiagnosticDamageCalculationPayload payload)
+        {
+            builder.AppendLine($"PayloadKind={BattleDiagnosticPayloadKind.DamageCalculation}");
+            builder.AppendLine($"PayloadSchemaVersion={BattleDiagnosticDamageCalculationPayload.CurrentSchemaVersion}");
+            builder.AppendLine($"DamageStage={payload.Stage}");
+            builder.AppendLine($"DamageHasCalculation={payload.HasCalculation}");
+            if (!payload.HasCalculation) return;
+            builder.AppendLine($"DamageBaseRaw={payload.BaseDamageRaw}");
+            builder.AppendLine($"DamageRawRaw={payload.RawDamageRaw}");
+            builder.AppendLine($"DamageMitigatedRaw={payload.MitigatedDamageRaw}");
+            builder.AppendLine($"DamageShieldRaw={payload.ShieldAbsorbRaw}");
+            builder.AppendLine($"DamagePlannedHpRaw={payload.PlannedHpDamageRaw}");
+            builder.AppendLine($"DamageAppliedHpRaw={payload.AppliedHpDamageRaw}");
+        }
+
+        private static void AppendInputCommandClipboard(StringBuilder builder, in BattleDiagnosticInputCommandPayload payload)
+        {
+            builder.AppendLine($"PayloadKind={BattleDiagnosticPayloadKind.InputCommand}");
+            builder.AppendLine($"PayloadSchemaVersion={BattleDiagnosticInputCommandPayload.CurrentSchemaVersion}");
+            builder.AppendLine($"InputCommandId={payload.CommandId}");
+            builder.AppendLine($"InputFrame={payload.InputFrame}");
+            builder.AppendLine($"InputPlayerId={payload.PlayerId}");
+            builder.AppendLine($"InputOpCode={payload.OpCode}");
+            builder.AppendLine($"InputSucceeded={payload.Succeeded}");
+            builder.AppendLine($"InputFailureCode={payload.FailureCode}");
+            builder.AppendLine($"InputSkillSlot={payload.SkillSlot}");
+            builder.AppendLine($"InputSkillPhase={payload.SkillPhase}");
+            builder.AppendLine($"InputTargetActorId={payload.TargetActorId}");
+            builder.AppendLine($"InputMessage={payload.Message}");
+        }
+
+        private static void AppendTargetSearchClipboard(StringBuilder builder, in BattleDiagnosticTargetSearchPayload payload)
+        {
+            builder.AppendLine($"PayloadKind={BattleDiagnosticPayloadKind.TargetSearch}");
+            builder.AppendLine($"PayloadSchemaVersion={BattleDiagnosticTargetSearchPayload.CurrentSchemaVersion}");
+            builder.AppendLine($"TargetSearchCommandId={payload.CommandId}");
+            builder.AppendLine($"TargetSearchExplicitTargetActorId={payload.ExplicitTargetActorId}");
+            builder.AppendLine($"TargetSearchCandidateCount={payload.CandidateCount}");
+            builder.AppendLine($"TargetSearchEligibleCount={payload.EligibleCount}");
+            builder.AppendLine($"TargetSearchSelectedCount={payload.SelectedCount}");
+            builder.AppendLine($"TargetSearchSelectedActorIds={payload.SelectedActorIds}");
+            builder.AppendLine($"TargetSearchDecisionDetails={payload.DecisionDetails}");
+        }
+
+        private static void DrawSkillExecutionDetails(in BattleDiagnosticSkillExecutionPayload payload)
+        {
+            EditorGUILayout.LabelField("执行阶段", payload.Stage.ToString());
+            EditorGUILayout.LabelField("关联命令", payload.CommandId > 0L
+                ? payload.CommandId.ToString() : "（非玩家输入）");
+            EditorGUILayout.LabelField("槽位 / 等级 / 序列",
+                $"{payload.SkillSlot} / {payload.SkillLevel} / {payload.CastSequence}");
+            if (payload.ResourceType != 0 || payload.ResourceAmountRaw != 0L ||
+                payload.ResourceBeforeRaw != 0L || payload.ResourceAfterRaw != 0L)
+            {
+                EditorGUILayout.LabelField("资源类型 / 数量",
+                    $"{payload.ResourceType} / {FormatDamageRaw(payload.ResourceAmountRaw)}");
+                EditorGUILayout.LabelField("资源变化",
+                    $"{FormatDamageRaw(payload.ResourceBeforeRaw)} -> {FormatDamageRaw(payload.ResourceAfterRaw)}");
+            }
+            if (payload.ChargeCost != 0)
+                EditorGUILayout.LabelField("充能消耗", payload.ChargeCost.ToString());
+            if (payload.CooldownMs != 0 || payload.SharedCooldownMs != 0 || payload.GlobalCooldownMs != 0)
+                EditorGUILayout.LabelField("技能 / 共享 / 全局冷却",
+                    $"{payload.CooldownMs} / {payload.SharedCooldownMs} / {payload.GlobalCooldownMs} ms");
+            if (payload.EndReason != 0 || payload.PendingChildren != 0 || payload.Forced)
+                EditorGUILayout.LabelField("结束原因 / 待结束子对象 / 强制",
+                    $"{payload.EndReason} / {payload.PendingChildren} / {payload.Forced}");
+            if (!string.IsNullOrEmpty(payload.Detail))
+                EditorGUILayout.LabelField("详情", payload.Detail, EditorStyles.wordWrappedLabel);
+        }
+
+        private static void AppendSkillExecutionClipboard(
+            StringBuilder builder,
+            in BattleDiagnosticSkillExecutionPayload payload)
+        {
+            builder.AppendLine($"PayloadKind={BattleDiagnosticPayloadKind.SkillExecution}");
+            builder.AppendLine($"PayloadSchemaVersion={BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion}");
+            builder.AppendLine($"SkillExecutionCommandId={payload.CommandId}");
+            builder.AppendLine($"SkillExecutionStage={payload.Stage}");
+            builder.AppendLine($"SkillExecutionSlot={payload.SkillSlot}");
+            builder.AppendLine($"SkillExecutionLevel={payload.SkillLevel}");
+            builder.AppendLine($"SkillExecutionSequence={payload.CastSequence}");
+            builder.AppendLine($"SkillExecutionEndReason={payload.EndReason}");
+            builder.AppendLine($"SkillExecutionResourceType={payload.ResourceType}");
+            builder.AppendLine($"SkillExecutionResourceAmountRaw={payload.ResourceAmountRaw}");
+            builder.AppendLine($"SkillExecutionResourceBeforeRaw={payload.ResourceBeforeRaw}");
+            builder.AppendLine($"SkillExecutionResourceAfterRaw={payload.ResourceAfterRaw}");
+            builder.AppendLine($"SkillExecutionChargeCost={payload.ChargeCost}");
+            builder.AppendLine($"SkillExecutionCooldownMs={payload.CooldownMs}");
+            builder.AppendLine($"SkillExecutionSharedCooldownMs={payload.SharedCooldownMs}");
+            builder.AppendLine($"SkillExecutionGlobalCooldownMs={payload.GlobalCooldownMs}");
+            builder.AppendLine($"SkillExecutionPendingChildren={payload.PendingChildren}");
+            builder.AppendLine($"SkillExecutionForced={payload.Forced}");
+            builder.AppendLine($"SkillExecutionDetail={payload.Detail}");
         }
 
         private static void DrawTriggerPayloadDetails(
@@ -1842,6 +2388,8 @@ namespace AbilityKit.Game.Editor
                 "失败来源 / 阶段",
                 $"{BattleDebugDisplayText.SkillFailureSource(payload.Source)} / {BattleDebugDisplayText.SkillFailureStage(payload.Stage)}");
             EditorGUILayout.LabelField("失败消息", payload.Message);
+            if (payload.CommandId > 0L)
+                EditorGUILayout.LabelField("关联输入命令", payload.CommandId.ToString());
         }
 
         private static void DrawBuffLifecyclePayloadDetails(
@@ -1893,6 +2441,7 @@ namespace AbilityKit.Game.Editor
             builder.AppendLine($"SkillFailureStage={payload.Stage}");
             builder.AppendLine($"SkillFailureCode={payload.Code}");
             builder.AppendLine($"SkillFailureMessage={payload.Message}");
+            builder.AppendLine($"SkillFailureCommandId={payload.CommandId}");
         }
 
         private static void AppendTriggerPayloadClipboard(

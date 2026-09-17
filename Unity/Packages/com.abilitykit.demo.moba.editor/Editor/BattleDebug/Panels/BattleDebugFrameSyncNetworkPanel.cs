@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Editor
                        BattleDiagnosticMetricCategory.Network) ||
                    !ctx.IsOffline &&
                    EditorApplication.isPlaying &&
-                   BattleFlowDebugProvider.Current != null;
+                   BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out _);
         }
 
         public void Draw(in BattleDebugContext ctx)
@@ -33,7 +33,8 @@ namespace AbilityKit.Game.Editor
                 in ctx,
                 BattleDiagnosticMetricCategory.Network,
                 "网络缓冲历史");
-            var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
+            var flowCtx = BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out var resolved)
+                ? resolved : null;
             if (flowCtx == null)
             {
                 if (hasHistory) return;
@@ -41,8 +42,8 @@ namespace AbilityKit.Game.Editor
                 return;
             }
 
-            var stats = BattleFlowDebugProvider.JitterBufferStats;
-            if (stats == null)
+            if (!BattleFlowDebugProvider.TryGetJitterBufferStats(
+                    flowCtx.Plan.World.WorldId, out var stats) || stats == null)
             {
                 EditorGUILayout.HelpBox("网络抖动缓冲统计为空（尚未接入）。", MessageType.Info);
                 return;

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using AbilityKit.ActionSchema;
 using AbilityKit.Core.Mathematics;
 
@@ -17,6 +18,12 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
 
         public MobaTimelinePlayer(SkillAssetDto asset, MobaClipHandlerRegistry registry, IMobaTimelineEventSink sink)
         {
+            if (asset != null && asset.schemaVersion == 1)
+            {
+                if (asset.runtimeType != ActionTimelineRuntimeTypes.Logic)
+                    throw new InvalidDataException("MOBA logic player cannot load a presentation timeline.");
+                ActionTimelinePartition.Validate(asset, ActionTimelineRuntimeTypes.Logic);
+            }
             _asset = asset;
             _registry = registry ?? throw new ArgumentNullException(nameof(registry));
             _sink = sink;
@@ -53,6 +60,7 @@ namespace AbilityKit.Demo.Moba.ActionTimeline
                     foreach (var clip in track.clips)
                     {
                         if (clip == null) continue;
+                        if (clip.runtimeType == ActionTimelineRuntimeTypes.Presentation) continue;
 
                         var key = MakeClipKey(group, track, clip);
                         if (_fired.Contains(key)) continue;

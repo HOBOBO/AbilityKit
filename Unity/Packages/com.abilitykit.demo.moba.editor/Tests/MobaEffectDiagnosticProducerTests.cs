@@ -340,6 +340,30 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void EffectTrace_PreservesDirectOriginForRootAndChild()
+        {
+            var service = CreateEffectService(out var trace, out _);
+            BeginEffectScope(service);
+            var rootId = service.CurrentEffectContextId;
+            Assert.That(trace.TryGetNodeSnapshot(rootId, out var root), Is.True);
+            var rootMetadata = (MobaTraceMetadata)root.Metadata;
+            Assert.That(rootMetadata.OriginKind, Is.EqualTo(MobaTraceKind.SkillEffect));
+            Assert.That(rootMetadata.OriginConfigId, Is.EqualTo(801));
+
+            var lineage = new MobaEffectLineageInput(
+                EffectContextKind.Skill, MobaTraceKind.AreaStay, 7, 9,
+                rootId, rootId, 0L, 601);
+            InvokePrivate(service, "BeginEffectTraceScope", 803, 804, lineage);
+            Assert.That(trace.TryGetNodeSnapshot(service.CurrentEffectContextId, out var child), Is.True);
+            Assert.That(child.ParentId, Is.EqualTo(rootId));
+            var metadata = (MobaTraceMetadata)child.Metadata;
+            Assert.That(metadata.ConfigId, Is.EqualTo(803));
+            Assert.That(metadata.TriggerId, Is.EqualTo(804));
+            Assert.That(metadata.OriginKind, Is.EqualTo(MobaTraceKind.AreaStay));
+            Assert.That(metadata.OriginConfigId, Is.EqualTo(601));
+        }
+
+        [Test]
         public void ActionExecution_Success_RecordsLifecycleAndSampledMetrics()
         {
             var service = CreateEffectService(out var trace, out var diagnostics);
@@ -352,6 +376,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(trace.TryGetNodeSnapshot(actionContextId, out var action), Is.True);
             Assert.That(action.EndReason, Is.EqualTo((int)TraceLifecycleReason.Completed));
+            Assert.That(((MobaTraceMetadata)action.Metadata).TriggerId, Is.EqualTo(802));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionInvoked), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionSucceeded), Is.EqualTo(1L));
             Assert.That(GetCounter(MobaBattleDiagnosticMetric.EffectActionFailed), Is.Zero);

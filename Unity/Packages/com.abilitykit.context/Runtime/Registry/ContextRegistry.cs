@@ -19,6 +19,9 @@ namespace AbilityKit.Context
         private readonly object _lock = new object();
         private long _nextEntityId = 1;
         private long _nextFlowId = 1;
+        private long _nextGeneration = 1;
+
+        public Guid RegistryId { get; } = Guid.NewGuid();
 
         /// <summary>
         /// Receives event observer failures without changing the result of the state operation.
@@ -28,13 +31,15 @@ namespace AbilityKit.Context
         private sealed class EntityData
         {
             public long Id { get; }
+            public long Generation { get; }
             public long FlowId { get; set; }
             public long CreatedAtMs { get; }
             public Dictionary<int, IProperty> Properties { get; } = new Dictionary<int, IProperty>();
 
-            public EntityData(long id, long flowId)
+            public EntityData(long id, long flowId, long generation)
             {
                 Id = id;
+                Generation = generation;
                 FlowId = flowId;
                 CreatedAtMs = TimeUtil.CurrentTimeMs;
             }
@@ -93,8 +98,9 @@ namespace AbilityKit.Context
                 if (flowId != 0 && !_flows.ContainsKey(flowId))
                     throw new ArgumentException($"Flow {flowId} not found", nameof(flowId));
 
+                ValidateAllocation();
                 id = _nextEntityId++;
-                var entity = new EntityData(id, flowId);
+                var entity = new EntityData(id, flowId, _nextGeneration++);
                 _entities[id] = entity;
                 if (flowId != 0)
                     _flows[flowId].AddEntity(id);
@@ -104,6 +110,26 @@ namespace AbilityKit.Context
 
             RaiseEvent(evt);
             return new EntityBuilder(this, id);
+        }
+
+        /// <summary>Restores a persisted identity without replacing an existing entity.</summary>
+        public EntityBuilder RestoreEntity(long entityId)
+        {
+            if (entityId <= 0L || entityId == long.MaxValue)
+                throw new ArgumentOutOfRangeException(nameof(entityId));
+
+            lock (_lock)
+            {
+                if (_entities.ContainsKey(entityId))
+                    throw new InvalidOperationException($"Context entity {entityId} already exists.");
+                if (_nextGeneration == long.MaxValue)
+                    throw new InvalidOperationException("Context entity generation space is exhausted.");
+                _entities.Add(entityId, new EntityData(entityId, 0L, _nextGeneration++));
+                _nextEntityId = Math.Max(_nextEntityId, entityId + 1L);
+            }
+
+            RaiseEvent(ContextEvent.Created(entityId));
+            return new EntityBuilder(this, entityId);
         }
 
         public bool Destroy(long entityId)
@@ -149,7 +175,56 @@ namespace AbilityKit.Context
         public long GenerateId()
         {
             lock (_lock)
+            {
+                ValidateAllocation();
                 return _nextEntityId++;
+            }
+        }
+
+        private void ValidateAllocation()
+        {
+            if (_nextEntityId == long.MaxValue || _nextGeneration == long.MaxValue)
+                throw new InvalidOperationException("Context entity identity space is exhausted.");
+        }
+
+        public bool TryGetReference(long entityId, out ContextEntityReference reference)
+        {
+            lock (_lock)
+            {
+                if (_entities.TryGetValue(entityId, out var entity))
+                {
+                    reference = new ContextEntityReference(RegistryId, entityId, entity.Generation);
+                    return true;
+                }
+            }
+            reference = default;
+            return false;
+        }
+
+        public ContextEntityQueryStatus Query(in ContextEntityReference reference)
+        {
+            lock (_lock) return QueryEntity(reference);
+        }
+
+        private ContextEntityQueryStatus QueryEntity(in ContextEntityReference reference)
+        {
+            if (!reference.IsValid) return ContextEntityQueryStatus.InvalidReference;
+            if (reference.RegistryId != RegistryId) return ContextEntityQueryStatus.IdentityMismatch;
+            if (!_entities.TryGetValue(reference.EntityId, out var entity)) return ContextEntityQueryStatus.Unavailable;
+            return entity.Generation == reference.Generation
+                ? ContextEntityQueryStatus.Found : ContextEntityQueryStatus.IdentityMismatch;
+        }
+
+        internal ContextEntityQueryStatus ReadProperty(in ContextEntityReference reference, int typeId, out IProperty property)
+        {
+            property = null;
+            lock (_lock)
+            {
+                var status = QueryEntity(reference);
+                if (status != ContextEntityQueryStatus.Found) return status;
+                return _entities[reference.EntityId].Properties.TryGetValue(typeId, out property)
+                    ? ContextEntityQueryStatus.Found : ContextEntityQueryStatus.PropertyMissing;
+            }
         }
 
         public long NextEntityId
@@ -163,13 +238,26 @@ namespace AbilityKit.Context
                 return _entities.Keys.OrderBy(id => id).ToArray();
         }
 
-        public void RestoreRollbackEntityCursor(long nextEntityId, IReadOnlyCollection<long> confirmedIds)
+        public void ValidateRollbackEntityCursor(long nextEntityId, IReadOnlyCollection<long> confirmedIds)
         {
             if (nextEntityId < 1 || confirmedIds == null)
                 throw new ArgumentException("Invalid context registry rollback cursor.");
-            var confirmed = new HashSet<long>(confirmedIds);
-            foreach (var id in confirmed)
-                if (!Exists(id)) throw new InvalidOperationException($"Confirmed context entity {id} was destroyed before rollback.");
+            lock (_lock)
+            {
+                foreach (var id in confirmedIds)
+                {
+                    if (!_entities.ContainsKey(id))
+                        throw new InvalidOperationException($"Confirmed context entity {id} was destroyed before rollback.");
+                    if (id >= nextEntityId)
+                        throw new InvalidOperationException("Context rollback cursor would reuse an existing entity ID.");
+                }
+            }
+        }
+
+        public void RestoreRollbackEntityCursor(long nextEntityId, IReadOnlyCollection<long> confirmedIds)
+        {
+            var confirmed = new HashSet<long>(confirmedIds ?? throw new ArgumentNullException(nameof(confirmedIds)));
+            ValidateRollbackEntityCursor(nextEntityId, confirmed);
 
             foreach (var id in GetRollbackEntityIds())
                 if (!confirmed.Contains(id)) Destroy(id);

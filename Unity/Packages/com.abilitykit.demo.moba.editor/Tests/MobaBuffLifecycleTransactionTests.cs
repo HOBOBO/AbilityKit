@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Continuous;
+using AbilityKit.Context;
+using AbilityKit.Ability.FrameSync;
 using AbilityKit.GameplayTags;
 using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -182,6 +184,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         {
             var buff = GetBuff(CreateConfigs());
             var runtime = CreateRuntime(buff);
+            using var runtimeContexts = new MobaRuntimeContextService();
+            var contextId = runtimeContexts.EnsureBuffContext(runtime,
+                MobaBuffRuntimeContextData.FromRuntime(runtime, ActorId, 10, MobaRuntimeContextLifecycleState.Active));
+            runtime.RuntimeContextVersion = 3L;
             var list = new List<BuffRuntime> { runtime };
             _target.AddBuffs(list);
             _target.AddEffectListeners(new List<EffectListenerRuntime>
@@ -195,12 +201,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 Assert.That(list, Is.Empty);
                 Assert.That(runtime.Continuous, Is.Null);
                 Assert.That(_target.effectListeners.Active, Is.Empty);
+                Assert.That(runtime.RuntimeContextId, Is.EqualTo(contextId));
+                Assert.That(runtime.RuntimeContextVersion, Is.EqualTo(3L));
+                Assert.That(runtimeContexts.Registry.Exists(contextId), Is.False);
+                var result = runtimeContexts.Resolver.GetValue<int, MobaBuffContextProperty>(contextId, MobaRuntimeContextKeys.StackCount);
+                Assert.That(result.Source, Is.EqualTo(ContextValueSource.Snapshot));
+                Assert.That(result.Value, Is.EqualTo(runtime.StackCount));
             }));
             var bindings = new BuffRuntimeBindingCoordinator(
                 hooks,
                 new BuffContinuousBindingService(null, null),
                 null);
-            var endFlow = new BuffEndFlow(null, null, null, bindings);
+            var endFlow = new BuffEndFlow(null, new BuffContextRegistry(null, runtimeContexts, null, null), null, bindings);
 
             var error = Assert.Throws<InvalidOperationException>(() =>
                 endFlow.EndRuntime(
@@ -215,8 +227,42 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(list, Is.Empty);
             Assert.That(runtime.BuffId, Is.Zero);
             Assert.That(runtime.SourceContextId, Is.Zero);
+            Assert.That(runtime.RuntimeContextId, Is.Zero);
+            Assert.That(runtime.RuntimeContextVersion, Is.Zero);
             Assert.That(runtime.Continuous, Is.Null);
             Assert.That(runtime.ModifierBindings, Is.Null);
+        }
+
+        [Test]
+        public void BuffStateRecovery_PreservesRuntimeContextIdentityAndVersion()
+        {
+            using var runtimeContexts = new MobaRuntimeContextService();
+            using var skills = new MobaSkillCastRuntimeService();
+            var runtime = new BuffRuntime
+            {
+                BuffId = BuffId, SourceId = SourceActorId, SourceContextId = SourceContextId,
+                StackCount = 2, Remaining = 8f, IntervalRemainingSeconds = 1f,
+            };
+            _target.AddBuffs(new List<BuffRuntime> { runtime });
+            _registry.Register(ActorId, _target);
+            var contextId = runtimeContexts.EnsureBuffContext(runtime,
+                MobaBuffRuntimeContextData.FromRuntime(runtime, ActorId, 10, MobaRuntimeContextLifecycleState.Active));
+            runtime.RuntimeContextVersion = 5L;
+            var recovery = new MobaBuffStateRecoveryProvider(_registry, runtimeContexts, skills);
+            var frame = new FrameIndex(10);
+            var payload = recovery.ExportState(frame);
+            runtime.Remaining = 1f;
+            runtimeContexts.Registry.Create().Build();
+
+            recovery.ImportState(frame, payload);
+            Assert.DoesNotThrow(() => recovery.ValidateRestoredState(frame, payload));
+            var restored = _target.buffs.Active[0];
+            Assert.That(restored.RuntimeContextId, Is.EqualTo(contextId));
+            Assert.That(restored.RuntimeContextVersion, Is.EqualTo(5L));
+            Assert.That(runtimeContexts.TryGetBuffContext(contextId, out var property), Is.True);
+            Assert.That(property.Version, Is.EqualTo(5L));
+            Assert.That(property.RemainingSeconds, Is.EqualTo(8f));
+            Assert.That(runtimeContexts.Snapshots.TryGetRecord(contextId, out _), Is.False);
         }
 
         [Test]

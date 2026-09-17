@@ -66,7 +66,7 @@ namespace AbilityKit.Game.Flow
 
             var mono = handle.GameObject.GetComponent<MonoCharacterHfsmView>();
             if (mono == null) mono = handle.GameObject.AddComponent<MonoCharacterHfsmView>();
-            mono.Bind(state, context.Plan.World.TickRate);
+            mono.Bind(state, context.Plan.World.TickRate, registry, input.ActorId);
         }
     }
 

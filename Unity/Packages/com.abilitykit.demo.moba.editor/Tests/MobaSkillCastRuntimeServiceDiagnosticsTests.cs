@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Ability.FrameSync;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Demo.Moba.Rollback;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.Area;
@@ -11,6 +12,7 @@ using AbilityKit.Demo.Moba.Services.Combat.Magnitude;
 using AbilityKit.Demo.Moba.Services.Triggering;
 using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
 using AbilityKit.Modifiers;
+using AbilityKit.Trace;
 using AbilityKit.Triggering.Blackboard;
 using AbilityKit.Triggering.Runtime;
 using AbilityKit.Triggering.Runtime.Plan;
@@ -107,6 +109,70 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(service.MarkPipelineEnded(runtime.Handle.RuntimeId, MobaSkillRuntimeEndReason.PipelineCompleted), Is.True);
             Assert.That(service.TryGetDetailDiagnostics(in handle, out _), Is.False);
+        }
+
+        [TestCase(
+            MobaSkillRuntimeLifecycleEventKind.WaitingChildren,
+            MobaSkillRuntimeEndReason.PipelineCompleted,
+            false,
+            BattleDiagnosticSkillExecutionStage.RuntimeWaitingChildren,
+            BattleDiagnosticEventOutcome.None)]
+        [TestCase(
+            MobaSkillRuntimeLifecycleEventKind.Finalized,
+            MobaSkillRuntimeEndReason.PipelineCompleted,
+            false,
+            BattleDiagnosticSkillExecutionStage.RuntimeFinalized,
+            BattleDiagnosticEventOutcome.Succeeded)]
+        [TestCase(
+            MobaSkillRuntimeLifecycleEventKind.ForceTerminated,
+            MobaSkillRuntimeEndReason.RollbackCleanup,
+            true,
+            BattleDiagnosticSkillExecutionStage.RuntimeForceTerminated,
+            BattleDiagnosticEventOutcome.Failed)]
+        public void LifecycleDiagnosticDraft_PreservesRuntimeCorrelationAndTerminalState(
+            MobaSkillRuntimeLifecycleEventKind kind,
+            MobaSkillRuntimeEndReason reason,
+            bool forced,
+            BattleDiagnosticSkillExecutionStage expectedStage,
+            BattleDiagnosticEventOutcome expectedOutcome)
+        {
+            var service = new MobaSkillCastRuntimeService();
+            var aimPosition = Vec3.Zero;
+            var aimDirection = Vec3.Forward;
+            var request = new MobaSkillCastRuntimeCreateRequest(
+                303, 2, 4, 19, 55, 66,
+                in aimPosition, in aimDirection,
+                rootTraceContextId: 2001L,
+                diagnosticCommandId: 4401L);
+            var runtime = service.Create(in request);
+            var child = new MobaSkillRuntimeChildRef(MobaSkillRuntimeChildKind.Projectile, 71L, 72L);
+            Assert.That(service.RetainChild(runtime.RuntimeId, in child), Is.True);
+
+            var created = MobaSkillCastRuntimeService.TryCreateLifecycleDiagnosticDraft(
+                kind,
+                runtime,
+                reason,
+                forced,
+                out var draft);
+
+            Assert.That(created, Is.True);
+            Assert.That(draft.Kind, Is.EqualTo(BattleDiagnosticEventKind.SkillRuntimeEnded));
+            Assert.That(draft.Outcome, Is.EqualTo(expectedOutcome));
+            Assert.That(draft.SourceActorId, Is.EqualTo(55));
+            Assert.That(draft.TargetActorId, Is.EqualTo(66));
+            Assert.That(draft.ConfigId, Is.EqualTo(303));
+            Assert.That(draft.RootContextId, Is.EqualTo(2001L));
+            Assert.That(draft.SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(runtime.RuntimeId, runtime.Generation)));
+            Assert.That(draft.Payload.TryGetSkillExecution(out var payload), Is.True);
+            Assert.That(payload.CommandId, Is.EqualTo(4401L));
+            Assert.That(payload.Stage, Is.EqualTo(expectedStage));
+            Assert.That(payload.SkillSlot, Is.EqualTo(2));
+            Assert.That(payload.SkillLevel, Is.EqualTo(4));
+            Assert.That(payload.CastSequence, Is.EqualTo(19));
+            Assert.That(payload.EndReason, Is.EqualTo((int)reason));
+            Assert.That(payload.PendingChildren, Is.EqualTo(1));
+            Assert.That(payload.Forced, Is.EqualTo(forced));
+            Assert.That(payload.Detail, Is.EqualTo(kind.ToString()));
         }
 
         [Test]
@@ -275,6 +341,34 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             AssertBoardValue(restoredResolver, MobaSkillRuntimeTriggerBoards.Target, 91003, 9d);
             Assert.That(restoredResolver.TryResolve(MobaSkillRuntimeTriggerBoards.Target, out board), Is.True);
             Assert.That(((MobaSkillRuntimeBlackboardAdapter)board).IsSnapshotCaptured(boardTarget.KeyId), Is.True);
+        }
+
+        [Test]
+        public void LocalSkillRollback_RestoresTraceLifecycleWithoutChangingAuthorityPayload()
+        {
+            using var trace = new MobaTraceRegistry();
+            using var service = new MobaSkillCastRuntimeService();
+            SetPrivateField(service, "_trace", trace);
+            var rootId = trace.CreateRootContext(MobaTraceKind.SkillCast, 512, 101, 201);
+            var runtime = CreateRuntime(service, 512, rootId);
+            var handle = runtime.Handle;
+            var provider = new MobaSkillRuntimeRollbackProvider(service);
+            var frame = new FrameIndex(10);
+            var authorityPayload = provider.ExportState(frame);
+            var localPayload = provider.Export(frame);
+            service.ForceTerminate(in handle);
+            Assert.That(trace.TryGetSnapshot(rootId).IsEnded, Is.True);
+            var revision = trace.Revision;
+
+            provider.ValidateImport(frame, localPayload);
+            provider.Import(frame, localPayload);
+
+            Assert.That(service.TryGet(in handle, out _), Is.True);
+            Assert.That(trace.TryGetSnapshot(rootId).IsEnded, Is.False);
+            Assert.That(trace.Revision, Is.GreaterThan(revision));
+            Assert.That(provider.ExportState(frame), Is.EqualTo(authorityPayload));
+            Assert.That(trace.TryGetRootState(rootId, out var root), Is.True);
+            Assert.That(root.ActiveCount, Is.EqualTo(1));
         }
 
         [Test]

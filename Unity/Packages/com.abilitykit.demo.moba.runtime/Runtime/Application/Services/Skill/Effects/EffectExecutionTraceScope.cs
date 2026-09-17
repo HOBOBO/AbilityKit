@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using AbilityKit.Diagnostics;
+using AbilityKit.Trace;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -11,6 +12,8 @@ namespace AbilityKit.Demo.Moba.Services
         public int SourceActorId;
         public int TargetActorId;
         public bool IsRoot;
+        public TraceRootScope RootScope;
+        public TraceTreeScope CurrentActionScope;
         public int CurrentActionIndex = -1;
         public long CurrentActionContextId;
         public long CurrentActionId;

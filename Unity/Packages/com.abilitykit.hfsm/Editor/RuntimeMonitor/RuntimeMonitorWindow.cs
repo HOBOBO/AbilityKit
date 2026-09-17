@@ -44,6 +44,7 @@ namespace AbilityKit.HFSM.Editor.RuntimeMonitor
             OpenWindow();
             var window = GetWindow<RuntimeMonitorWindow>();
             window._preferredFsmName = preferredFsmName ?? string.Empty;
+            window._selectedFsm = null;
             window.RefreshFsmList();
             window.Show();
             window.Focus();

@@ -146,10 +146,16 @@ namespace AbilityKit.Demo.Moba.Services
 
         public MobaSkillInputHandleResult TryHandleInputResult(int actorId, in SkillInputEvent evt)
         {
+            return TryHandleInputResult(actorId, in evt, 0L);
+        }
+
+        public MobaSkillInputHandleResult TryHandleInputResult(int actorId, in SkillInputEvent evt,
+            long diagnosticCommandId)
+        {
             var result = ValidateSkillInput(actorId, in evt);
             if (result.Success)
             {
-                result = DispatchSkillInputPhase(actorId, in evt);
+                result = DispatchSkillInputPhase(actorId, in evt, diagnosticCommandId);
             }
 
             if (!result.Success &&
@@ -162,7 +168,8 @@ namespace AbilityKit.Demo.Moba.Services
                     evt.Slot,
                     evt.TargetActorId,
                     in failure,
-                    runtimeHandle: default);
+                    runtimeHandle: default,
+                    diagnosticCommandId: diagnosticCommandId);
             }
 
             return result;
@@ -183,16 +190,17 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaSkillInputHandleResult.Accepted();
         }
 
-        private MobaSkillInputHandleResult DispatchSkillInputPhase(int actorId, in SkillInputEvent evt)
+        private MobaSkillInputHandleResult DispatchSkillInputPhase(int actorId, in SkillInputEvent evt,
+            long diagnosticCommandId)
         {
             switch (evt.Phase)
             {
                 case SkillInputPhase.Press:
-                    return HandlePressInput(actorId, in evt);
+                    return HandlePressInput(actorId, in evt, diagnosticCommandId);
                 case SkillInputPhase.Hold:
                     return HandleHoldInput(actorId, in evt);
                 case SkillInputPhase.Release:
-                    return HandleReleaseInput(actorId, in evt);
+                    return HandleReleaseInput(actorId, in evt, diagnosticCommandId);
                 case SkillInputPhase.Cancel:
                     return HandleCancelInput(actorId, evt.Slot);
                 default:
@@ -200,7 +208,8 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private MobaSkillInputHandleResult HandlePressInput(int actorId, in SkillInputEvent evt)
+        private MobaSkillInputHandleResult HandlePressInput(int actorId, in SkillInputEvent evt,
+            long diagnosticCommandId)
         {
             if (_runnerRegistry.TrySignalRecast(actorId, evt.Slot))
             {
@@ -213,7 +222,7 @@ namespace AbilityKit.Demo.Moba.Services
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.updated");
             }
 
-            return TryStartCastFromInput(actorId, in evt);
+            return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
         }
 
         private MobaSkillInputHandleResult HandleHoldInput(int actorId, in SkillInputEvent evt)
@@ -226,14 +235,15 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaSkillInputHandleResult.Failed("skill.input.noRunningForHold", "No running skill for hold input.");
         }
 
-        private MobaSkillInputHandleResult HandleReleaseInput(int actorId, in SkillInputEvent evt)
+        private MobaSkillInputHandleResult HandleReleaseInput(int actorId, in SkillInputEvent evt,
+            long diagnosticCommandId)
         {
             if (_runnerRegistry.TryUpdateRunningInputAndRelease(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId))
             {
                 return MobaSkillInputHandleResult.Accepted("skill.input.running.released");
             }
 
-            return TryStartCastFromInput(actorId, in evt);
+            return TryStartCastFromInput(actorId, in evt, diagnosticCommandId);
         }
 
         private MobaSkillInputHandleResult HandleCancelInput(int actorId, int slot)
@@ -246,10 +256,28 @@ namespace AbilityKit.Demo.Moba.Services
             return MobaSkillInputHandleResult.Failed("skill.input.noRunningForCancel", "No running skill for cancel input.");
         }
 
-        private MobaSkillInputHandleResult TryStartCastFromInput(int actorId, in SkillInputEvent evt)
+        private MobaSkillInputHandleResult TryStartCastFromInput(int actorId, in SkillInputEvent evt,
+            long diagnosticCommandId)
         {
-            var result = TryCastBySlot(actorId, evt.Slot, in evt.AimPos, in evt.AimDir, evt.TargetActorId);
+            var result = TryCastBySlotFromInput(actorId, evt.Slot, in evt.AimPos, in evt.AimDir,
+                evt.TargetActorId, diagnosticCommandId);
             return MobaSkillInputHandleResult.FromCast(in result, "skill.input.cast.started");
+        }
+
+        private MobaSkillCastResult TryCastBySlotFromInput(int actorId, int slot, in Vec3 aimPos,
+            in Vec3 aimDir, int targetActorId, long diagnosticCommandId)
+        {
+            if (!_loadout.TryGetSkillId(actorId, slot, out var skillId))
+            {
+                var failure = new MobaSkillCastFailure("Preparation", null,
+                    SkillFailureCodes.Cast.MissingSkill, "Skill not found in slot.");
+                var result = MobaSkillCastResult.Failed("Skill not found in slot.", in failure);
+                CollectSkillFailure(actorId, skillId: 0, slot, targetActorId, in result,
+                    diagnosticCommandId);
+                return result;
+            }
+            return CastSkillInternal(actorId, skillId, slot, in aimPos, in aimDir, true,
+                targetActorId, diagnosticCommandId: diagnosticCommandId);
         }
 
         public bool CastBySlot(int actorId, int slot, in Vec3 aimPos, in Vec3 aimDir, out string failReason)
@@ -345,17 +373,20 @@ namespace AbilityKit.Demo.Moba.Services
             in Vec3 aimDir,
             bool hasAim,
             int targetActorId = 0,
-            SkillCastPolicy? policyOverride = null)
+            SkillCastPolicy? policyOverride = null,
+            long diagnosticCommandId = 0L)
         {
             var resolvedSkillId = ResolveModifiedSkillId(actorId, skillId);
             if (!TryValidateCombatRules(actorId, out var combatFailure, out var combatMessage))
             {
                 var rejected = MobaSkillCastResult.Failed(combatMessage, in combatFailure);
-                CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in rejected);
+                CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in rejected,
+                    diagnosticCommandId);
                 return rejected;
             }
 
-            var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in aimPos, in aimDir, hasAim, targetActorId);
+            var input = new SkillCastPreparationInput(actorId, resolvedSkillId, slot, in aimPos,
+                in aimDir, hasAim, targetActorId, diagnosticCommandId);
             var prepared = _preparation.Prepare(in input);
             MobaSkillCastResult result;
             if (!prepared.Success)
@@ -368,7 +399,8 @@ namespace AbilityKit.Demo.Moba.Services
                 result = StartPreparedCast(actorId, resolvedSkillId, in prepared, policyOverride);
             }
 
-            CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in result);
+            CollectSkillFailure(actorId, resolvedSkillId, slot, targetActorId, in result,
+                diagnosticCommandId);
             return result;
         }
 
@@ -382,7 +414,8 @@ namespace AbilityKit.Demo.Moba.Services
             int skillId,
             int slot,
             int targetActorId,
-            in MobaSkillCastResult result)
+            in MobaSkillCastResult result,
+            long diagnosticCommandId = 0L)
         {
             if (result.Success) return;
 
@@ -394,7 +427,8 @@ namespace AbilityKit.Demo.Moba.Services
                 slot,
                 targetActorId,
                 in failure,
-                in runtimeHandle);
+                in runtimeHandle,
+                diagnosticCommandId);
         }
 
         private void CollectSkillFailure(
@@ -403,7 +437,8 @@ namespace AbilityKit.Demo.Moba.Services
             int slot,
             int targetActorId,
             in MobaSkillCastFailure failure,
-            in MobaSkillCastRuntimeHandle runtimeHandle)
+            in MobaSkillCastRuntimeHandle runtimeHandle,
+            long diagnosticCommandId = 0L)
         {
             if (!failure.HasValue ||
                 _services == null ||
@@ -418,7 +453,8 @@ namespace AbilityKit.Demo.Moba.Services
                 failure.Source,
                 failure.Stage,
                 failure.Code,
-                failure.Message);
+                failure.Message,
+                diagnosticCommandId);
             var payload = BattleDiagnosticEventPayload.FromSkillFailure(in payloadData);
             var runtime = runtimeHandle.IsValid
                 ? new BattleDiagnosticRuntimeHandle(runtimeHandle.RuntimeId, runtimeHandle.Generation)

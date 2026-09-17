@@ -2,13 +2,69 @@ using System;
 
 namespace AbilityKit.Trace
 {
+    // Copies of a value-type scope share ownership of its initial retain.
+    internal sealed class TraceScopeLease
+    {
+        private readonly TraceTreeRegistryBase _registry;
+        private readonly long _contextId;
+        private readonly long _rootId;
+        private int _retainedCount = 1;
+        private bool _disposed;
+
+        internal TraceScopeLease(TraceTreeRegistryBase registry, long contextId)
+        {
+            _registry = registry;
+            _contextId = contextId;
+            _rootId = registry._contexts.TryGetValue(contextId, out var node) ? node.RootId : 0;
+        }
+
+        internal bool IsValid => !_disposed && _registry.Contains(_contextId);
+
+        internal void EndChild(int reason)
+        {
+            if (_disposed) return;
+            _disposed = true;
+            try
+            {
+                _registry.End(_contextId, reason);
+            }
+            finally
+            {
+                Release();
+            }
+        }
+
+        internal int EndRoot(int reason) => IsValid ? _registry.EndRoot(_rootId, reason) : 0;
+
+        internal void Retain()
+        {
+            if (!IsValid || _retainedCount == int.MaxValue) return;
+            _retainedCount++;
+            _registry.RetainRoot(_rootId);
+        }
+
+        internal void Release()
+        {
+            if (_retainedCount == 0) return;
+            _retainedCount--;
+            _registry.ReleaseRoot(_rootId);
+        }
+
+        internal void DisposeRoot()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            Release();
+        }
+    }
+
     /// <summary>
     /// 溯源树作用域
-    /// RAII 模式的 IDisposable，用于自动结束溯源节点
+    /// RAII 模式的 IDisposable，用于自动结束溯源节点并释放其根保留引用
     /// </summary>
     public readonly struct TraceTreeScope : IDisposable
     {
-        private readonly TraceTreeRegistryBase _registry;
+        private readonly TraceScopeLease _lease;
         private readonly long _contextId;
         private readonly int _frame;
         private readonly int _reason;
@@ -22,7 +78,7 @@ namespace AbilityKit.Trace
             int frame,
             int reason = 0)
         {
-            _registry = registry;
+            _lease = new TraceScopeLease(registry, contextId);
             _contextId = contextId;
             _frame = frame;
             _reason = reason;
@@ -41,17 +97,14 @@ namespace AbilityKit.Trace
         /// <summary>
         /// 是否有效
         /// </summary>
-        public bool IsValid => _registry != null && _contextId != 0;
+        public bool IsValid => _lease != null && _lease.IsValid;
 
         /// <summary>
         /// 结束此作用域（手动提前结束）
         /// </summary>
         public void End()
         {
-            if (IsValid)
-            {
-                _registry.End(_contextId, _reason);
-            }
+            _lease?.EndChild(_reason);
         }
 
         /// <summary>
@@ -59,10 +112,7 @@ namespace AbilityKit.Trace
         /// </summary>
         public void End(int reason)
         {
-            if (IsValid)
-            {
-                _registry.End(_contextId, reason);
-            }
+            _lease?.EndChild(reason);
         }
 
         /// <summary>
@@ -70,10 +120,7 @@ namespace AbilityKit.Trace
         /// </summary>
         public void Dispose()
         {
-            if (IsValid)
-            {
-                _registry.End(_contextId, _reason);
-            }
+            _lease?.EndChild(_reason);
         }
 
         /// <summary>
@@ -93,7 +140,7 @@ namespace AbilityKit.Trace
     /// </summary>
     public readonly struct TraceRootScope : IDisposable
     {
-        private readonly TraceTreeRegistryBase _registry;
+        private readonly TraceScopeLease _lease;
         private readonly long _rootId;
         private readonly int _frame;
 
@@ -105,7 +152,7 @@ namespace AbilityKit.Trace
             long rootId,
             int frame)
         {
-            _registry = registry;
+            _lease = new TraceScopeLease(registry, rootId);
             _rootId = rootId;
             _frame = frame;
         }
@@ -123,28 +170,22 @@ namespace AbilityKit.Trace
         /// <summary>
         /// 是否有效
         /// </summary>
-        public bool IsValid => _registry != null && _rootId != 0;
+        public bool IsValid => _lease != null && _lease.IsValid;
 
         /// <summary>
-        /// 保留根节点（增加外部引用计数）
+        /// 保留根节点（额外的手动引用，需要与 Release 配对）
         /// </summary>
         public void Retain()
         {
-            if (IsValid)
-            {
-                _registry.RetainRoot(_rootId);
-            }
+            _lease?.Retain();
         }
 
         /// <summary>
-        /// 释放根节点（减少外部引用计数）
+        /// 释放本作用域持有的一个引用；不会释放其他消费者的引用
         /// </summary>
         public void Release()
         {
-            if (IsValid)
-            {
-                _registry.ReleaseRoot(_rootId);
-            }
+            _lease?.Release();
         }
 
         /// <summary>
@@ -152,21 +193,16 @@ namespace AbilityKit.Trace
         /// </summary>
         public int End(int reason = 0)
         {
-            if (!IsValid)
-                return 0;
-            return _registry.EndRoot(_rootId, reason);
+            return _lease?.EndRoot(reason) ?? 0;
         }
 
         /// <summary>
         /// 结束此作用域（隐式，用于 using 语句）
-        /// 会 Release 外部引用计数
+        /// 最多释放一个引用；重复 Dispose 和结构体副本共享释放状态
         /// </summary>
         public void Dispose()
         {
-            if (IsValid)
-            {
-                _registry.ReleaseRoot(_rootId);
-            }
+            _lease?.DisposeRoot();
         }
 
         /// <summary>

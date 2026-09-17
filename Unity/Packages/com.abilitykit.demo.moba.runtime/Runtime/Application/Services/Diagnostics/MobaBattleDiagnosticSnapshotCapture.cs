@@ -185,6 +185,7 @@ namespace AbilityKit.Demo.Moba.Services
                 AddDefinition(result, seen, item.Definition);
                 AddDefinition(result, seen, item.TriggerDefinition);
                 AddDefinition(result, seen, item.SkillDefinition);
+                AddDefinition(result, seen, item.OriginDefinition);
             }
             for (var i = 0; i < buffs.Items.Count; i++)
                 AddDefinition(

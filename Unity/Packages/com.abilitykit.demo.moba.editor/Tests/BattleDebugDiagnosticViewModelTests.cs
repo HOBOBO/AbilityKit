@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Battle;
 using AbilityKit.Game.Editor;
 using NUnit.Framework;
 
@@ -9,6 +11,25 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 {
     public sealed class BattleDebugDiagnosticViewModelTests
     {
+        [Test]
+        public void EventsFilter_TargetingAndInputUseTheirOwnChannels()
+        {
+            var session = new RecordingSession();
+            var viewModel = new BattleDebugDiagnosticEventsViewModel
+            {
+                EventScope = BattleDebugDiagnosticEventScope.Targeting
+            };
+
+            viewModel.RefreshIfNeeded(session, 0, false);
+            Assert.That(session.LastEventQuery.Filter.Channels,
+                Is.EqualTo(BattleDiagnosticEventChannel.Targeting));
+
+            viewModel.EventScope = BattleDebugDiagnosticEventScope.Input;
+            viewModel.RefreshIfNeeded(session, 0, false);
+            Assert.That(session.LastEventQuery.Filter.Channels,
+                Is.EqualTo(BattleDiagnosticEventChannel.Input));
+        }
+
         [Test]
         public void EventsCacheKey_IncludesRevisionAndEveryFilterOrSelectionInput()
         {
@@ -366,6 +387,157 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void SkillCastFlows_BridgeCommandTraceAndRuntimeIntoChronologicalTimeline()
+        {
+            var runtime = new BattleDiagnosticRuntimeHandle(700, 2);
+            var inputData = new BattleDiagnosticInputCommandPayload(
+                4401, 10, "player-one", 17, true, 0, "accepted", skillSlot: 2);
+            var inputPayload = BattleDiagnosticEventPayload.FromInputCommand(in inputData);
+            var searchData = new BattleDiagnosticTargetSearchPayload(
+                4401, 9, 4, 2, 1, "9", "selected");
+            var searchPayload = BattleDiagnosticEventPayload.FromTargetSearch(in searchData);
+            var startedData = new BattleDiagnosticSkillExecutionPayload(
+                4401, BattleDiagnosticSkillExecutionStage.CastStarted, 2, 3, 17);
+            var startedPayload = BattleDiagnosticEventPayload.FromSkillExecution(in startedData);
+            var economyData = new BattleDiagnosticSkillExecutionPayload(
+                4401, BattleDiagnosticSkillExecutionStage.EconomyCommitted, 2, 3, 17,
+                cooldownMs: 800);
+            var economyPayload = BattleDiagnosticEventPayload.FromSkillExecution(in economyData);
+            var failedData = new BattleDiagnosticSkillExecutionPayload(
+                4401, BattleDiagnosticSkillExecutionStage.CastFailed, 2, 3, 17,
+                detail: "execution failed");
+            var failedPayload = BattleDiagnosticEventPayload.FromSkillExecution(in failedData);
+            var otherData = new BattleDiagnosticSkillExecutionPayload(
+                4402, BattleDiagnosticSkillExecutionStage.CastCompleted, 1, 1, 18);
+            var otherPayload = BattleDiagnosticEventPayload.FromSkillExecution(in otherData);
+            var events = new[]
+            {
+                SkillCastEvent(30, 7, BattleDiagnosticEventKind.SkillRuntimeEnded,
+                    BattleDiagnosticEventOutcome.Succeeded, 101, 901, default, in otherPayload),
+                SkillCastEvent(15, 6, BattleDiagnosticEventKind.SkillRuntimeEnded,
+                    BattleDiagnosticEventOutcome.Failed, 101, 900, runtime, in failedPayload),
+                SkillCastEvent(14, 5, BattleDiagnosticEventKind.Damage,
+                    BattleDiagnosticEventOutcome.Succeeded, 301, 900, runtime),
+                SkillCastEvent(13, 4, BattleDiagnosticEventKind.SkillEconomy,
+                    BattleDiagnosticEventOutcome.Succeeded, 101, 900, runtime, in economyPayload),
+                SkillCastEvent(12, 3, BattleDiagnosticEventKind.SkillRuntimeStarted,
+                    BattleDiagnosticEventOutcome.None, 101, 900, runtime, in startedPayload),
+                SkillCastEvent(11, 2, BattleDiagnosticEventKind.TargetSearch,
+                    BattleDiagnosticEventOutcome.Succeeded, 101, 900, default, in searchPayload),
+                SkillCastEvent(10, 1, BattleDiagnosticEventKind.InputCommand,
+                    BattleDiagnosticEventOutcome.Succeeded, 101, 0, default, in inputPayload),
+            };
+
+            var flows = BattleDebugDiagnosticEventsViewModel.BuildSkillCastFlows(events);
+
+            Assert.That(flows, Has.Count.EqualTo(2));
+            var flow = FindSkillCastFlow(flows, 4401);
+            Assert.That(flow.RootContextId, Is.EqualTo(900));
+            Assert.That(flow.SkillRuntime, Is.EqualTo(runtime));
+            Assert.That(flow.SkillId, Is.EqualTo(101));
+            Assert.That(flow.SkillSlot, Is.EqualTo(2));
+            Assert.That(flow.SkillLevel, Is.EqualTo(3));
+            Assert.That(flow.CastSequence, Is.EqualTo(17));
+            Assert.That(flow.FirstFrame, Is.EqualTo(10));
+            Assert.That(flow.LastFrame, Is.EqualTo(15));
+            Assert.That(flow.LatestSequence, Is.EqualTo(6));
+            Assert.That(flow.Outcome, Is.EqualTo(BattleDiagnosticEventOutcome.Failed));
+            Assert.That(flow.InputCount, Is.EqualTo(1));
+            Assert.That(flow.TargetSearchCount, Is.EqualTo(1));
+            Assert.That(flow.SkillStageCount, Is.EqualTo(2));
+            Assert.That(flow.EconomyCount, Is.EqualTo(1));
+            Assert.That(flow.ConsequenceCount, Is.EqualTo(1));
+            Assert.That(flow.Events.Count, Is.EqualTo(6));
+            Assert.That(flow.Events[0].Sequence, Is.EqualTo(1));
+            Assert.That(flow.Events[5].Sequence, Is.EqualTo(6));
+            Assert.That(flow.TryGetTiming(BattleDebugSkillCastPhase.Cast, out var castTiming), Is.True);
+            Assert.That(castTiming.DurationFrames, Is.EqualTo(3));
+            Assert.That(flow.TryGetTiming(BattleDebugSkillCastPhase.Total, out var totalTiming), Is.True);
+            Assert.That(totalTiming.DurationFrames, Is.EqualTo(5));
+            var clipboard = BattleDebugDiagnosticEventsPanel.BuildSkillCastClipboardText(in flow);
+            StringAssert.Contains("CommandId=4401", clipboard);
+            StringAssert.Contains("RootContextId=900", clipboard);
+            StringAssert.Contains("Outcome=Failed", clipboard);
+            StringAssert.Contains("Event=F10 #1 InputCommand", clipboard);
+            StringAssert.Contains("Event=F15 #6 SkillRuntimeEnded", clipboard);
+        }
+
+        [Test]
+        public void SkillCastFlows_FallBackToTraceAndRuntimeAfterRollbackAndIgnoreUnanchoredTrace()
+        {
+            var runtime = new BattleDiagnosticRuntimeHandle(55, 3);
+            var finalizedData = new BattleDiagnosticSkillExecutionPayload(
+                0, BattleDiagnosticSkillExecutionStage.RuntimeFinalized, 2, 3, 17,
+                endReason: 1);
+            var finalizedPayload = BattleDiagnosticEventPayload.FromSkillExecution(in finalizedData);
+            var events = new[]
+            {
+                SkillCastEvent(8, 3, BattleDiagnosticEventKind.Damage,
+                    BattleDiagnosticEventOutcome.Succeeded, 301, 999, default),
+                SkillCastEvent(5, 2, BattleDiagnosticEventKind.SkillRuntimeEnded,
+                    BattleDiagnosticEventOutcome.Succeeded, 101, 800, runtime, in finalizedPayload),
+                SkillCastEvent(4, 1, BattleDiagnosticEventKind.Damage,
+                    BattleDiagnosticEventOutcome.Succeeded, 301, 0, runtime),
+            };
+
+            var flows = BattleDebugDiagnosticEventsViewModel.BuildSkillCastFlows(events);
+
+            Assert.That(flows, Has.Count.EqualTo(1));
+            Assert.That(flows[0].CommandId, Is.Zero);
+            Assert.That(flows[0].RootContextId, Is.EqualTo(800));
+            Assert.That(flows[0].SkillRuntime, Is.EqualTo(runtime));
+            Assert.That(flows[0].Outcome, Is.EqualTo(BattleDiagnosticEventOutcome.Succeeded));
+            Assert.That(flows[0].Events.Count, Is.EqualTo(2));
+            Assert.That(flows[0].ConsequenceCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SkillCastComparisons_UseSuccessfulMedianAndFlagSlowPhases()
+        {
+            var events = new List<BattleDiagnosticEvent>();
+            var sequence = 0L;
+            AddSuccessfulSkillCast(
+                events, 4401, 900, 700, inputFrame: 0, castStartFrame: 1, castEndFrame: 3,
+                ref sequence);
+            AddSuccessfulSkillCast(
+                events, 4402, 901, 701, inputFrame: 10, castStartFrame: 11, castEndFrame: 13,
+                ref sequence);
+            AddSuccessfulSkillCast(
+                events, 4403, 902, 702, inputFrame: 20, castStartFrame: 21, castEndFrame: 31,
+                ref sequence);
+
+            var flows = BattleDebugDiagnosticEventsViewModel.BuildSkillCastFlows(events);
+            var comparisons = BattleDebugDiagnosticEventsViewModel.BuildSkillCastComparisons(flows);
+
+            Assert.That(flows, Has.Count.EqualTo(3));
+            Assert.That(comparisons, Has.Count.EqualTo(1));
+            var comparison = comparisons[0];
+            Assert.That(comparison.SkillId, Is.EqualTo(101));
+            Assert.That(comparison.SkillLevel, Is.EqualTo(3));
+            Assert.That(comparison.CastCount, Is.EqualTo(3));
+            Assert.That(comparison.BaselineSampleCount, Is.EqualTo(3));
+            Assert.That(comparison.HasReliableBaseline, Is.True);
+            Assert.That(comparison.MedianTotalFrames, Is.EqualTo(3));
+            Assert.That(comparison.ProblemCount, Is.Zero);
+
+            var slowCast = FindSkillCastFlow(flows, 4403);
+            Assert.That(TryFindDeviation(
+                comparison.Deviations,
+                slowCast.Key,
+                BattleDebugSkillCastPhase.Cast,
+                out var castDeviation), Is.True);
+            Assert.That(castDeviation.ActualFrames, Is.EqualTo(10));
+            Assert.That(castDeviation.BaselineFrames, Is.EqualTo(2));
+            Assert.That(TryFindDeviation(
+                comparison.Deviations,
+                slowCast.Key,
+                BattleDebugSkillCastPhase.Total,
+                out var totalDeviation), Is.True);
+            Assert.That(totalDeviation.ActualFrames, Is.EqualTo(11));
+            Assert.That(totalDeviation.BaselineFrames, Is.EqualTo(3));
+        }
+
+        [Test]
         public void EventsIssueGroups_AggregateSkillFailuresByStableFieldsAndFocusCode()
         {
             const string stableCode = "Cast.TargetOutOfRange";
@@ -630,6 +802,18 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Unknown));
             Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Unknown));
             Assert.That(session.LastEventQuery.Filter.TriggerValue, Is.EqualTo(BattleDiagnosticTriggerValueFilter.Valuable));
+
+            viewModel.TriggerContextKind = 2;
+            viewModel.TriggerOriginKind = 3;
+            viewModel.FocusSkillCasts();
+            viewModel.RefreshIfNeeded(session, 10, true);
+            Assert.That(session.LastEventQuery.Filter.Channels, Is.EqualTo(BattleDiagnosticEventChannel.All));
+            Assert.That(session.LastEventQuery.Filter.FailuresOnly, Is.False);
+            Assert.That(session.LastEventQuery.Filter.TriggerStage, Is.EqualTo(BattleDiagnosticTriggerAnalysisStage.Unknown));
+            Assert.That(session.LastEventQuery.Filter.TriggerResult, Is.EqualTo(BattleDiagnosticTriggerAnalysisResult.Unknown));
+            Assert.That(session.LastEventQuery.Filter.TriggerContextKind, Is.Zero);
+            Assert.That(session.LastEventQuery.Filter.TriggerOriginKind, Is.Zero);
+            Assert.That(session.LastEventQuery.Filter.TriggerValue, Is.EqualTo(BattleDiagnosticTriggerValueFilter.All));
         }
 
         [Test]
@@ -1019,6 +1203,130 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(session.ModifierQueryCount, Is.EqualTo(4));
             Assert.That(session.LastAttributeActorId, Is.EqualTo(12));
             Assert.That(session.LastAttributeFrame, Is.EqualTo(5));
+        }
+
+        [Test]
+        public void AttributeCurve_RecordsFramesAndReplacesSameFrameWithoutDuplicatingRevision()
+        {
+            var session = new RecordingSession { ReturnAttributes = true };
+            var viewModel = new BattleDebugDiagnosticAttributesViewModel();
+            session.ActorAttributeStoreRevision = 1;
+            session.AttributeFrame = 10;
+            session.AttributeValue = 5;
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true);
+            viewModel.TrackAttribute(session, 11, 1, true);
+
+            session.ActorAttributeStoreRevision = 2;
+            session.AttributeValue = 8;
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true);
+            Assert.That(viewModel.History.Count, Is.EqualTo(1));
+            Assert.That(viewModel.History[0].FinalValue, Is.EqualTo(8));
+
+            session.ActorAttributeStoreRevision = 3;
+            session.AttributeFrame = 12;
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true);
+            Assert.That(viewModel.History.Select(sample => sample.Frame), Is.EqualTo(new[] { 10, 12 }));
+
+            viewModel.ClearHistory(waitForNextRevision: true);
+            viewModel.TrackAttribute(session, 11, 1, true);
+            Assert.That(viewModel.History, Is.Empty);
+            session.ActorAttributeStoreRevision = 4;
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true);
+            Assert.That(viewModel.History.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void AttributeCurve_ResetsOnSelectionSessionOrFrameRollbackAndIgnoresUnavailable()
+        {
+            var session = new RecordingSession { ReturnAttributes = true, ActorAttributeStoreRevision = 1, AttributeFrame = 10 };
+            var viewModel = new BattleDebugDiagnosticAttributesViewModel();
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true);
+            viewModel.TrackAttribute(session, 11, 2, true);
+            Assert.That(viewModel.History, Is.Empty);
+            viewModel.TrackAttribute(session, 11, 1, true);
+
+            session.ActorAttributeStoreRevision = 2;
+            session.AttributeFrame = 9;
+            viewModel.RefreshIfNeeded(session, 11);
+            viewModel.TrackAttribute(session, 11, 1, true);
+            Assert.That(viewModel.History.Select(sample => sample.Frame), Is.EqualTo(new[] { 9 }));
+
+            var replacement = new RecordingSession { ReturnAttributes = true, ActorAttributeStoreRevision = 2, AttributeFrame = 20 };
+            viewModel.RefreshIfNeeded(replacement, 11);
+            viewModel.TrackAttribute(replacement, 11, 1, true);
+            Assert.That(replacement.AttributeQueryCount, Is.EqualTo(1));
+            Assert.That(viewModel.History.Select(sample => sample.Frame), Is.EqualTo(new[] { 20 }));
+
+            replacement.ReturnAttributes = false;
+            replacement.ActorAttributeStoreRevision = 3;
+            viewModel.RefreshIfNeeded(replacement, 11);
+            viewModel.TrackAttribute(replacement, 11, 1, true);
+            Assert.That(viewModel.History.Count, Is.EqualTo(1));
+            viewModel.TrackAttribute(replacement, 12, 1, true);
+            Assert.That(viewModel.History, Is.Empty);
+        }
+
+        [Test]
+        public void AttributeCurve_KeepsOnlyMostRecent240Samples()
+        {
+            var session = new RecordingSession { ReturnAttributes = true };
+            var viewModel = new BattleDebugDiagnosticAttributesViewModel();
+            for (var frame = 1; frame <= 245; frame++)
+            {
+                session.ActorAttributeStoreRevision = frame;
+                session.AttributeFrame = frame;
+                viewModel.RefreshIfNeeded(session, 11);
+                viewModel.TrackAttribute(session, 11, 1, true);
+            }
+            Assert.That(viewModel.History.Count, Is.EqualTo(240));
+            Assert.That(viewModel.History[0].Frame, Is.EqualTo(6));
+            Assert.That(viewModel.History[239].Frame, Is.EqualTo(245));
+        }
+
+        [Test]
+        public void EntityFilter_UsesReadOnlyAttributeSnapshotsAndFailsClosedWhenUnavailable()
+        {
+            var id = new BattleDebugEntityId(11);
+            Assert.That(BattleDebugEntityFilter.Matches(null, id, "id:11"), Is.True);
+
+            var session = new RecordingSession(
+                additionalCapabilities: BattleDiagnosticCapabilities.ActorAttributes)
+            {
+                ReturnAttributes = true,
+                AttributeFrame = 7,
+                AttributeValue = 8
+            };
+            Assert.That(BattleDebugEntityFilter.Matches(session, id, "attr:Health>=8"), Is.True);
+            Assert.That(BattleDebugEntityFilter.Matches(session, id, "attr:1>7"), Is.True);
+            Assert.That(BattleDebugEntityFilter.Matches(session, id, "attr:Health>8"), Is.False);
+            Assert.That(BattleDebugEntityFilter.Matches(session, id, "attr:Unknown>0"), Is.False);
+            Assert.That(session.LastAttributeFrame, Is.Zero);
+            Assert.That(session.LastAttributeActorId, Is.EqualTo(11));
+
+            session.ReturnAttributes = false;
+            Assert.That(BattleDebugEntityFilter.Matches(session, id, "attr:Health>=8"), Is.False);
+            Assert.That(BattleDebugEntityFilter.Matches(null, id, "attr:Health>=8"), Is.False);
+        }
+
+        [Test]
+        public void EntityFilter_EffectEmptySnapshotIsDifferentFromUnavailable()
+        {
+            var session = new RecordingSession(
+                additionalCapabilities: BattleDiagnosticCapabilities.ActorEffects)
+            {
+                Effects = Array.Empty<BattleDiagnosticActorEffect>()
+            };
+            var id = new BattleDebugEntityId(11);
+            Assert.That(BattleDebugEntityFilter.Matches(session, id, "effect:count==0"), Is.True);
+            session.Effects = null;
+            Assert.That(BattleDebugEntityFilter.Matches(session, id, "effect:count==0"), Is.False);
+            var unsupported = new RecordingSession();
+            Assert.That(BattleDebugEntityFilter.Matches(unsupported, id, "effect:count==0"), Is.False);
         }
 
         [Test]
@@ -1582,6 +1890,165 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(viewModel.SelectSearchMatch(-1), Is.True);
             Assert.That(viewModel.SelectedContextId, Is.EqualTo(111));
             Assert.That(viewModel.GetVisibleRowIndex(111), Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TracePanelRegistryCleanup_ReleasesCachedSessionDataAndSelection()
+        {
+            var panel = BattleDebugPanelRegistry.GetAll().OfType<BattleDebugDiagnosticTracePanel>().Single();
+            var field = typeof(BattleDebugDiagnosticTracePanel).GetField("_viewModel",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            var viewModel = (BattleDebugDiagnosticTraceViewModel)field.GetValue(panel);
+            var session = new RecordingSession
+            {
+                TraceNodes = new[] { TraceNode(100, 100, 0, "EffectExecution") }
+            };
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.PinSelection();
+            BattleDebugPanelRegistry.ClearSessionState();
+            Assert.That(viewModel.Rows, Is.Empty);
+            Assert.That(viewModel.RootSummaries, Is.Empty);
+            Assert.That(viewModel.RootContextId, Is.Zero);
+            Assert.That(viewModel.SelectedContextId, Is.Zero);
+            Assert.That(viewModel.PinnedContextId, Is.Zero);
+        }
+
+        [Test]
+        public void TraceSessionReplacement_WithSameScopeAndRevision_DoesNotReuseOldNodesOrDefinitions()
+        {
+            var first = new DefinitionLookupSession
+            {
+                TraceNodes = new[] { TraceNode(100, 100, 0, "EffectAction", configId: 41,
+                    definitionKind: BattleDiagnosticDefinitionKind.Action) }
+            };
+            var second = new DefinitionLookupSession
+            {
+                TraceNodes = new[] { TraceNode(100, 100, 0, "EffectAction", configId: 42,
+                    definitionKind: BattleDiagnosticDefinitionKind.Action) }
+            };
+            var firstReference = first.TraceNodes[0].Definition;
+            var secondReference = second.TraceNodes[0].Definition;
+            first.Definitions[firstReference] = Definition(in firstReference, "First Action");
+            second.Definitions[secondReference] = Definition(in secondReference, "Second Action");
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(first, 100);
+            viewModel.RefreshIfNeeded(second, 100);
+            Assert.That(second.TraceQueryCount, Is.EqualTo(1));
+            Assert.That(viewModel.Rows[0].Node.ConfigId, Is.EqualTo(42));
+            Assert.That(viewModel.TryGetDefinition(firstReference, out _), Is.False);
+            Assert.That(viewModel.GetDefinitionDisplayName(secondReference), Is.EqualTo("Second Action"));
+        }
+
+        [Test]
+        public void TraceOriginDefinitions_SupportNameAndKindSearch_AndClearWithWindow()
+        {
+            var origin = BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Area, 601);
+            var session = new DefinitionLookupSession
+            {
+                TraceNodes = new[] { TraceNode(100, 100, 0, "EffectExecution",
+                    originKind: (int)MobaTraceKind.AreaStay, originConfigId: 601,
+                    originDefinitionKind: BattleDiagnosticDefinitionKind.Area) }
+            };
+            session.Definitions[origin] = Definition(in origin, "Burning Field");
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.SetSearchText("Burning Field");
+            Assert.That(viewModel.SearchMatchCount, Is.EqualTo(1));
+            viewModel.SetSearchText("AreaStay");
+            Assert.That(viewModel.SearchMatchCount, Is.EqualTo(1));
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(session.DefinitionQueryCount, Is.EqualTo(1));
+            viewModel.Clear();
+            Assert.That(viewModel.TryGetDefinition(origin, out _), Is.False);
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(session.DefinitionQueryCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TraceDefinitions_UnavailableLookupsAreCachedUntilRevisionChanges()
+        {
+            var session = new DefinitionLookupSession
+            {
+                DefinitionsUnavailable = true,
+                TraceNodes = new[] { TraceNode(100, 100, 0, "EffectAction", configId: -42,
+                    definitionKind: BattleDiagnosticDefinitionKind.Action) }
+            };
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+            viewModel.RefreshIfNeeded(session, 100);
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(session.DefinitionQueryCount, Is.EqualTo(1));
+            session.DefinitionStoreRevision++;
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(session.DefinitionQueryCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void TraceDefinitions_ResolveLightweightReferences_CacheByRevision_AndSupportSearch()
+        {
+            var skillReference = new BattleDiagnosticDefinitionReference(
+                BattleDiagnosticDefinitionKind.Skill,
+                101);
+            var triggerReference = new BattleDiagnosticDefinitionReference(
+                BattleDiagnosticDefinitionKind.Trigger,
+                701);
+            var session = new DefinitionLookupSession
+            {
+                TraceNodes = new[]
+                {
+                    TraceNode(
+                        100,
+                        100,
+                        0,
+                        "SkillCast",
+                        configId: 101,
+                        skillId: 101,
+                        definitionKind: BattleDiagnosticDefinitionKind.Skill),
+                    TraceNode(
+                        100,
+                        110,
+                        100,
+                        "EffectExecution",
+                        triggerId: 701,
+                        configId: 501,
+                        definitionKind: BattleDiagnosticDefinitionKind.Effect)
+                }
+            };
+            session.Definitions[skillReference] = Definition(
+                in skillReference,
+                "Fire Strike",
+                BattleDiagnosticDefinitionMetadataEntry.Integer("cooldownMs", 750));
+            session.Definitions[triggerReference] = Definition(
+                in triggerReference,
+                "On Fire Strike");
+            var viewModel = new BattleDebugDiagnosticTraceViewModel();
+
+            viewModel.RefreshIfNeeded(session, 100);
+
+            Assert.That(
+                viewModel.GetDefinitionDisplayName(skillReference),
+                Is.EqualTo("Fire Strike"));
+            Assert.That(viewModel.TryGetDefinition(skillReference, out var skill), Is.True);
+            Assert.That(skill.Metadata.Count, Is.EqualTo(1));
+            Assert.That(session.DefinitionQueryCount, Is.EqualTo(3));
+
+            viewModel.RefreshIfNeeded(session, 100);
+            Assert.That(session.DefinitionQueryCount, Is.EqualTo(3));
+
+            viewModel.SetSearchText("fire strike");
+            Assert.That(viewModel.SearchMatchCount, Is.EqualTo(2));
+
+            viewModel.SetSearchText("flame strike");
+            Assert.That(viewModel.SearchMatchCount, Is.Zero);
+            session.DefinitionStoreRevision++;
+            session.Definitions[skillReference] = Definition(in skillReference, "Flame Strike");
+            viewModel.RefreshIfNeeded(session, 100);
+
+            Assert.That(
+                viewModel.GetDefinitionDisplayName(skillReference),
+                Is.EqualTo("Flame Strike"));
+            Assert.That(viewModel.SearchMatchCount, Is.EqualTo(1));
+            Assert.That(session.DefinitionQueryCount, Is.EqualTo(6));
+            Assert.That(session.TraceQueryCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -2382,6 +2849,109 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 payload: BattleDiagnosticEventPayload.FromTriggerAnalysis(in payload));
         }
 
+        private static BattleDebugSkillCastFlow FindSkillCastFlow(
+            IReadOnlyList<BattleDebugSkillCastFlow> flows,
+            long commandId)
+        {
+            for (var i = 0; i < flows.Count; i++)
+            {
+                if (flows[i].CommandId == commandId) return flows[i];
+            }
+
+            Assert.Fail($"Expected skill cast flow for command {commandId}.");
+            return default;
+        }
+
+        private static bool TryFindDeviation(
+            IReadOnlyList<BattleDebugSkillCastDeviation> deviations,
+            string castKey,
+            BattleDebugSkillCastPhase phase,
+            out BattleDebugSkillCastDeviation result)
+        {
+            for (var i = 0; i < deviations.Count; i++)
+            {
+                if (deviations[i].CastKey == castKey && deviations[i].Phase == phase)
+                {
+                    result = deviations[i];
+                    return true;
+                }
+            }
+            result = default;
+            return false;
+        }
+
+        private static void AddSuccessfulSkillCast(
+            List<BattleDiagnosticEvent> events,
+            long commandId,
+            long rootContextId,
+            long runtimeId,
+            int inputFrame,
+            int castStartFrame,
+            int castEndFrame,
+            ref long sequence)
+        {
+            var runtime = new BattleDiagnosticRuntimeHandle(runtimeId, 1);
+            var inputData = new BattleDiagnosticInputCommandPayload(
+                commandId, inputFrame, "player-one", 17, true, 0, "accepted", skillSlot: 2);
+            var inputPayload = BattleDiagnosticEventPayload.FromInputCommand(in inputData);
+            events.Add(SkillCastEvent(
+                inputFrame, ++sequence, BattleDiagnosticEventKind.InputCommand,
+                BattleDiagnosticEventOutcome.Succeeded, 101, 0, default, in inputPayload));
+
+            var startedData = new BattleDiagnosticSkillExecutionPayload(
+                commandId, BattleDiagnosticSkillExecutionStage.CastStarted, 2, 3, (int)commandId);
+            var startedPayload = BattleDiagnosticEventPayload.FromSkillExecution(in startedData);
+            events.Add(SkillCastEvent(
+                castStartFrame, ++sequence, BattleDiagnosticEventKind.SkillRuntimeStarted,
+                BattleDiagnosticEventOutcome.None, 101, rootContextId, runtime, in startedPayload));
+
+            var completedData = new BattleDiagnosticSkillExecutionPayload(
+                commandId, BattleDiagnosticSkillExecutionStage.CastCompleted, 2, 3, (int)commandId);
+            var completedPayload = BattleDiagnosticEventPayload.FromSkillExecution(in completedData);
+            events.Add(SkillCastEvent(
+                castEndFrame, ++sequence, BattleDiagnosticEventKind.SkillRuntimeEnded,
+                BattleDiagnosticEventOutcome.Succeeded, 101, rootContextId, runtime, in completedPayload));
+
+            var finalizedData = new BattleDiagnosticSkillExecutionPayload(
+                commandId, BattleDiagnosticSkillExecutionStage.RuntimeFinalized, 2, 3, (int)commandId,
+                endReason: 1);
+            var finalizedPayload = BattleDiagnosticEventPayload.FromSkillExecution(in finalizedData);
+            events.Add(SkillCastEvent(
+                castEndFrame, ++sequence, BattleDiagnosticEventKind.SkillRuntimeEnded,
+                BattleDiagnosticEventOutcome.Succeeded, 101, rootContextId, runtime, in finalizedPayload));
+        }
+
+        private static BattleDiagnosticEvent SkillCastEvent(
+            int frame,
+            long sequence,
+            BattleDiagnosticEventKind kind,
+            BattleDiagnosticEventOutcome outcome,
+            int configId,
+            long rootContextId,
+            BattleDiagnosticRuntimeHandle runtime,
+            in BattleDiagnosticEventPayload payload = default)
+        {
+            return new BattleDiagnosticEvent(
+                RecordingSession.Scope,
+                frame,
+                sequence,
+                sequence,
+                kind,
+                kind == BattleDiagnosticEventKind.Damage
+                    ? BattleDiagnosticEventChannel.DamageAndHeal
+                    : BattleDiagnosticEventChannel.Skill,
+                outcome,
+                sourceActorId: 7,
+                targetActorId: 9,
+                configId: configId,
+                rootContextId: rootContextId,
+                contextId: rootContextId,
+                skillRuntime: runtime,
+                payloadVersion: payload.HasValue ? payload.SchemaVersion : 1,
+                summary: kind.ToString(),
+                payload: payload);
+        }
+
         private static BattleDiagnosticEvent TriggerFlowEvent(
             int frame,
             long sequence,
@@ -2452,7 +3022,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             BattleDiagnosticTraceNodeState state = BattleDiagnosticTraceNodeState.Active,
             long sourceActorId = 0,
             long targetActorId = 0,
-            int triggerId = 0)
+            int triggerId = 0,
+            int configId = 0,
+            int skillId = 0,
+            BattleDiagnosticDefinitionKind definitionKind = BattleDiagnosticDefinitionKind.Unknown,
+            int originKind = 0,
+            int originConfigId = 0,
+            BattleDiagnosticDefinitionKind originDefinitionKind = BattleDiagnosticDefinitionKind.Unknown)
         {
             return new BattleDiagnosticTraceNodeSummary(
                 RecordingSession.Scope,
@@ -2463,9 +3039,68 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 -1,
                 state,
                 actorId: sourceActorId,
+                configId: configId,
                 kind: kind,
+                skillId: skillId,
                 targetActorId: targetActorId,
-                triggerId: triggerId);
+                triggerId: triggerId,
+                definitionKind: definitionKind,
+                originKind: originKind,
+                originConfigId: originConfigId,
+                originDefinitionKind: originDefinitionKind);
+        }
+
+        private static BattleDiagnosticDefinition Definition(
+            in BattleDiagnosticDefinitionReference reference,
+            string displayName,
+            params BattleDiagnosticDefinitionMetadataEntry[] metadata)
+        {
+            return new BattleDiagnosticDefinition(
+                in reference,
+                displayName,
+                "test",
+                "test-hash",
+                "test-source",
+                BattleDiagnosticDefinitionResolution.Resolved,
+                metadata);
+        }
+
+        private sealed class DefinitionLookupSession :
+            RecordingSession,
+            IBattleDiagnosticDefinitionLookupSession
+        {
+            public long DefinitionStoreRevision { get; set; } = 1L;
+            public int DefinitionQueryCount { get; private set; }
+            public bool DefinitionsUnavailable { get; set; }
+            public Dictionary<BattleDiagnosticDefinitionReference, BattleDiagnosticDefinition>
+                Definitions { get; } =
+                    new Dictionary<BattleDiagnosticDefinitionReference, BattleDiagnosticDefinition>();
+
+            public BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinition(
+                long requestId,
+                in BattleDiagnosticDefinitionReference reference)
+            {
+                DefinitionQueryCount++;
+                if (DefinitionsUnavailable)
+                {
+                    return BattleDiagnosticQueryResult<BattleDiagnosticDefinition>.Unavailable(
+                        requestId, DefinitionStoreRevision, BattleDiagnosticDataAvailability.NotCaptured);
+                }
+                if (Definitions.TryGetValue(reference, out var definition))
+                {
+                    return BattleDiagnosticQueryResult<BattleDiagnosticDefinition>.FromItems(
+                        requestId,
+                        DefinitionStoreRevision,
+                        new[] { definition },
+                        false);
+                }
+
+                return BattleDiagnosticQueryResult<BattleDiagnosticDefinition>.FromItems(
+                    requestId,
+                    DefinitionStoreRevision,
+                    new[] { BattleDiagnosticDefinition.Unresolved(in reference) },
+                    false);
+            }
         }
 
         private sealed class RuntimeObjectCatalogSession :
@@ -2552,7 +3187,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             internal static readonly BattleDiagnosticSessionScope Scope =
                 new BattleDiagnosticSessionScope("test", "world", 1);
 
-            public RecordingSession(int worldInstanceId = 1)
+            public RecordingSession(
+                int worldInstanceId = 1,
+                BattleDiagnosticCapabilities additionalCapabilities = BattleDiagnosticCapabilities.None)
             {
                 SessionInfo = new BattleDiagnosticSessionInfo(
                     new BattleDiagnosticSessionScope("test", "world", worldInstanceId),
@@ -2563,7 +3200,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     BattleDiagnosticCapabilities.WorldState |
                     BattleDiagnosticCapabilities.ActorState |
                     BattleDiagnosticCapabilities.Events |
-                    BattleDiagnosticCapabilities.Trace,
+                    BattleDiagnosticCapabilities.Trace |
+                    additionalCapabilities,
                     BattleDiagnosticConnectionState.Connected,
                     BattleDiagnosticCaptureState.Capturing);
             }
@@ -2582,6 +3220,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             public bool PageEventResults { get; set; }
             public long EvictedEventRevision { get; set; } = -1;
             public IReadOnlyList<BattleDiagnosticActorTag> Tags { get; set; }
+            public bool ReturnAttributes { get; set; }
+            public int AttributeFrame { get; set; } = 1;
+            public float AttributeValue { get; set; }
             public IReadOnlyList<BattleDiagnosticActorEffect> Effects { get; set; }
             public IReadOnlyList<BattleDiagnosticTraceNodeSummary> TraceNodes { get; set; }
             public BattleDiagnosticDataAvailability TraceAvailability { get; set; } =
@@ -2709,6 +3350,13 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 AttributeQueryCount++;
                 LastAttributeFrame = frame;
                 LastAttributeActorId = actorId;
+                if (ReturnAttributes)
+                {
+                    return BattleDiagnosticQueryResult<BattleDiagnosticActorAttribute>.FromItems(
+                        requestId, ActorAttributeStoreRevision,
+                        new[] { new BattleDiagnosticActorAttribute(
+                            SessionInfo.Scope, AttributeFrame, actorId, 1, 2f, AttributeValue, 1, "Health") }, false);
+                }
                 return BattleDiagnosticQueryResult<BattleDiagnosticActorAttribute>.Unavailable(
                     requestId,
                     ActorAttributeStoreRevision,

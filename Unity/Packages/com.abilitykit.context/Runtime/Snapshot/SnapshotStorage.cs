@@ -6,9 +6,9 @@ namespace AbilityKit.Context
 {
     /// <summary>
     /// 快照存储管理器
-    /// 负责持久化保存实体的快照
+    /// 保存实体最新视图及有界受管快照历史，不负责落盘或自动采集。
     /// </summary>
-    public sealed class SnapshotStorage
+    public sealed partial class SnapshotStorage : IContextSnapshotReader
     {
         private sealed class SnapshotRecord
         {
@@ -18,6 +18,7 @@ namespace AbilityKit.Context
             public long SavedAtMs;
             public long SourceEntityId;
             public long OwnerEntityId;
+            public long SnapshotId;
         }
 
         private readonly Dictionary<long, SnapshotRecord> _snapshots = new Dictionary<long, SnapshotRecord>();
@@ -30,9 +31,13 @@ namespace AbilityKit.Context
         public void Save(IContextSnapshot snapshot)
         {
             if (snapshot == null) throw new ArgumentNullException(nameof(snapshot));
+            if (snapshot is IImmutableContextSnapshot)
+                throw new InvalidOperationException("Immutable snapshots must use SaveManaged with explicit capture metadata.");
 
             lock (_lock)
             {
+                if (_historyByEntity.ContainsKey(snapshot.EntityId))
+                    throw new InvalidOperationException("Cannot replace managed history with a legacy snapshot. Remove the entity snapshots first.");
                 RemoveIndexes(snapshot.EntityId);
 
                 var record = new SnapshotRecord
@@ -71,7 +76,9 @@ namespace AbilityKit.Context
             {
                 if (_snapshots.TryGetValue(entityId, out var snapshotRecord))
                 {
-                    record = new ContextSnapshotRecord(snapshotRecord.Snapshot, snapshotRecord.Version, snapshotRecord.Frame, snapshotRecord.SavedAtMs);
+                    record = snapshotRecord.SnapshotId != 0
+                        ? _history[snapshotRecord.SnapshotId]
+                        : new ContextSnapshotRecord(snapshotRecord.Snapshot, snapshotRecord.Version, snapshotRecord.Frame, snapshotRecord.SavedAtMs);
                     return true;
                 }
             }
@@ -115,8 +122,10 @@ namespace AbilityKit.Context
         {
             lock (_lock)
             {
+                var existed = _snapshots.ContainsKey(entityId);
+                RemoveHistoryForEntity(entityId);
                 if (!_snapshots.TryGetValue(entityId, out var record))
-                    return false;
+                    return existed;
 
                 RemoveIndexes(entityId);
                 _snapshots.Remove(entityId);
@@ -128,10 +137,11 @@ namespace AbilityKit.Context
 
         public void RemoveFromEntityId(long firstEntityId)
         {
-            long[] ids;
             lock (_lock)
-                ids = _snapshots.Keys.Where(id => id >= firstEntityId).ToArray();
-            foreach (var id in ids) Remove(id);
+            {
+                var ids = _snapshots.Keys.Where(id => id >= firstEntityId).ToArray();
+                foreach (var id in ids) Remove(id);
+            }
         }
 
         public void Clear()
@@ -143,6 +153,7 @@ namespace AbilityKit.Context
                 _byOwner.Clear();
                 _latestFrameByEntity.Clear();
                 _latestVersionByEntity.Clear();
+                ClearHistory();
             }
         }
 

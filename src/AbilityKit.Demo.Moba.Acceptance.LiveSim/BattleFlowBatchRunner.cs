@@ -21,6 +21,8 @@ public sealed class BattleFlowCaseResult
     public string CaseId { get; set; } = string.Empty;
     public bool Passed { get; set; }
     public string Summary { get; set; } = string.Empty;
+    public string DeterminismFingerprint { get; set; } = string.Empty;
+    public int NetworkTraceCount { get; set; }
 }
 
 /// <summary>批量运行一个目录下的 .battleflow：逐个 加载 → 编译 → headless 跑 → 汇总。</summary>
@@ -31,15 +33,24 @@ public static class BattleFlowBatchRunner
         if (!Directory.Exists(directory)) throw new DirectoryNotFoundException($"流程目录不存在: {directory}");
 
         var result = new BattleFlowBatchResult();
-        var files = Directory.GetFiles(directory, "*.battleflow");
+        var files = Directory.GetFiles(directory, "*.battleflow")
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .ToArray();
         foreach (var file in files)
         {
             try
             {
                 var doc = BattleFlowCodec.Load(file);
                 var scenario = BattleFlowCompiler.Compile(doc.CaseId, doc.Blocks);
-                var run = MobaBattleFlowScenarioRunner.Run(scenario);
-                result.Cases.Add(new BattleFlowCaseResult { CaseId = doc.CaseId, Passed = run.Passed, Summary = run.Summary });
+                var outcome = MobaBattleFlowScenarioRunner.RunDetailed(scenario);
+                result.Cases.Add(new BattleFlowCaseResult
+                {
+                    CaseId = doc.CaseId,
+                    Passed = outcome.Result.Passed,
+                    Summary = outcome.Result.Summary,
+                    DeterminismFingerprint = outcome.DeterminismFingerprint,
+                    NetworkTraceCount = outcome.NetworkTrace.Length,
+                });
             }
             catch (Exception ex)
             {

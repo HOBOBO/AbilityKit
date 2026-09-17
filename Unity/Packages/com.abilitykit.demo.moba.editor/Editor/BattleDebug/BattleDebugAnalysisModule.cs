@@ -34,6 +34,39 @@ namespace AbilityKit.Game.Editor
         Inspector = 3
     }
 
+    internal enum BattleDebugNavigationGroup
+    {
+        Actor = 0,
+        Investigation = 1,
+        FrameSync = 2
+    }
+
+    internal static class BattleDebugNavigation
+    {
+        public static BattleDebugNavigationGroup GroupOf(IBattleDebugPanel panel)
+        {
+            if (!(panel is IBattleDebugPanelLayout layout) || layout.Workspace == BattleDebugWorkspace.Actor)
+                return BattleDebugNavigationGroup.Actor;
+            return string.Equals(BattleDebugModuleCatalog.Describe(panel).Category, "帧同步", StringComparison.Ordinal)
+                ? BattleDebugNavigationGroup.FrameSync
+                : BattleDebugNavigationGroup.Investigation;
+        }
+
+        public static BattleDebugNavigationGroup GroupOfModuleId(string moduleId) =>
+            moduleId != null && moduleId.StartsWith("diagnostics.framesync.", StringComparison.Ordinal)
+                ? BattleDebugNavigationGroup.FrameSync
+                : BattleDebugNavigationGroup.Investigation;
+
+        public static string NavigationName(IBattleDebugPanel panel)
+        {
+            var name = panel.Name;
+            return GroupOf(panel) == BattleDebugNavigationGroup.FrameSync &&
+                   name.StartsWith("帧同步/", StringComparison.Ordinal)
+                ? name.Substring("帧同步/".Length)
+                : name;
+        }
+    }
+
     internal enum BattleDebugWidgetRefreshPolicy
     {
         OnDemand = 0,
@@ -44,6 +77,7 @@ namespace AbilityKit.Game.Editor
     internal static class BattleDebugModuleIds
     {
         public const string DiagnosticEvents = "diagnostics.events";
+        public const string DiagnosticHealth = "diagnostics.health";
         public const string DiagnosticTrace = "diagnostics.trace";
         public const string RuntimeObjects = "diagnostics.runtime-objects";
         public const string FrameSyncOverview = "diagnostics.framesync.overview";

@@ -43,7 +43,8 @@ namespace AbilityKit.Demo.Moba.Services
             Fixed64 value,
             int reasonKind = 0,
             int reasonParam = 0,
-            MobaGameplayOrigin origin = default)
+            MobaGameplayOrigin origin = default,
+            bool collectDiagnostic = true)
         {
             if (targetActorId <= 0 || value <= Fixed64.Zero) return default;
             if (_rules != null && !_rules.CanReceiveDamage(attackerActorId, targetActorId).Passed) return default;
@@ -71,7 +72,8 @@ namespace AbilityKit.Demo.Moba.Services
                 attrs.MaxHp,
                 in origin);
             _snapshots.ReportDamage(attackerActorId, targetActorId, damageType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
-            CollectDirectDamage(attackerActorId, targetActorId, damageType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
+            if (collectDiagnostic)
+                CollectDirectDamage(in result);
             PublishCommitted(in result);
             return result;
         }
@@ -163,7 +165,7 @@ namespace AbilityKit.Demo.Moba.Services
                 attrs.MaxHp,
                 in origin);
             _snapshots.ReportHeal(healerActorId, targetActorId, healType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
-            CollectHeal(healerActorId, targetActorId, healType, MobaResourceFixedConvert.ToSingle(actual), reasonKind, reasonParam, MobaResourceFixedConvert.ToSingle(newHp), attrs.MaxHp);
+            CollectHeal(in result);
             PublishCommitted(in result);
             return result;
         }
@@ -214,29 +216,53 @@ namespace AbilityKit.Demo.Moba.Services
                 summary: summary);
         }
 
-        private void CollectDirectDamage(
-            int attackerActorId,
-            int targetActorId,
-            int damageType,
-            float value,
-            int reasonKind,
-            int reasonParam,
-            float targetHp,
-            float maxHp)
+        internal static MobaBattleDiagnosticEventDraft CreateDirectDamageDraft(in MobaHealthChangeResult result)
+        {
+            var origin = result.Origin;
+            var handle = origin.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            return new MobaBattleDiagnosticEventDraft(
+                BattleDiagnosticEventKind.Damage, BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded, result.SourceActorId, result.TargetActorId,
+                result.ReasonParam != 0 ? result.ReasonParam : origin.ImmediateConfigId,
+                origin.EffectiveRootContextId,
+                origin.ImmediateContextId != 0L ? origin.ImmediateContextId : origin.EffectiveParentContextId,
+                runtime,
+                summary: $"directDamage requested={result.RequestedValue:0.###}, applied={result.AppliedValue:0.###}, " +
+                         $"damageType={result.ValueType}, reasonKind={result.ReasonKind}, " +
+                         $"hp={result.OldHp:0.###}->{result.TargetHp:0.###}, maxHp={result.TargetMaxHp:0.###}");
+        }
+
+        internal static MobaBattleDiagnosticEventDraft CreateHealDraft(in MobaHealthChangeResult result)
+        {
+            var origin = result.Origin;
+            var handle = origin.SkillRuntimeHandle;
+            var runtime = handle.IsValid
+                ? new AbilityKit.Demo.Moba.Diagnostics.BattleDiagnosticRuntimeHandle(handle.RuntimeId, handle.Generation)
+                : default;
+            var contextId = origin.ImmediateContextId != 0L
+                ? origin.ImmediateContextId : origin.EffectiveParentContextId;
+            return new MobaBattleDiagnosticEventDraft(
+                AbilityKit.Demo.Moba.Diagnostics.BattleDiagnosticEventKind.Heal,
+                AbilityKit.Demo.Moba.Diagnostics.BattleDiagnosticEventChannel.DamageAndHeal,
+                AbilityKit.Demo.Moba.Diagnostics.BattleDiagnosticEventOutcome.Succeeded,
+                result.SourceActorId, result.TargetActorId,
+                result.ReasonParam != 0 ? result.ReasonParam : origin.ImmediateConfigId,
+                origin.EffectiveRootContextId, contextId, runtime,
+                summary: $"heal requested={result.RequestedValue:0.###}, applied={result.AppliedValue:0.###}, " +
+                         $"healType={result.ValueType}, reasonKind={result.ReasonKind}, " +
+                         $"hp={result.OldHp:0.###}->{result.TargetHp:0.###}, maxHp={result.TargetMaxHp:0.###}");
+        }
+
+        private void CollectDirectDamage(in MobaHealthChangeResult result)
         {
             if (_eventCollector == null) return;
 
             try
             {
-                var draft = CreateDirectDamageDraft(
-                    attackerActorId,
-                    targetActorId,
-                    damageType,
-                    value,
-                    reasonKind,
-                    reasonParam,
-                    targetHp,
-                    maxHp);
+                var draft = CreateDirectDamageDraft(in result);
                 _eventCollector.TryCollect(in draft);
             }
             catch (Exception)
@@ -245,29 +271,13 @@ namespace AbilityKit.Demo.Moba.Services
             }
         }
 
-        private void CollectHeal(
-            int healerActorId,
-            int targetActorId,
-            int healType,
-            float value,
-            int reasonKind,
-            int reasonParam,
-            float targetHp,
-            float maxHp)
+        private void CollectHeal(in MobaHealthChangeResult result)
         {
             if (_eventCollector == null) return;
 
             try
             {
-                var draft = CreateHealDraft(
-                    healerActorId,
-                    targetActorId,
-                    healType,
-                    value,
-                    reasonKind,
-                    reasonParam,
-                    targetHp,
-                    maxHp);
+                var draft = CreateHealDraft(in result);
                 _eventCollector.TryCollect(in draft);
             }
             catch (Exception)

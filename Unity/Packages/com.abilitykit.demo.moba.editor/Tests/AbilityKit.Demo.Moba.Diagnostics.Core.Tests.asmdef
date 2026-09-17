@@ -18,6 +18,7 @@
     "AbilityKit.World.ECS",
     "AbilityKit.World.FrameSync",
     "AbilityKit.Trace",
+    "AbilityKit.Context",
     "AbilityKit.Triggering",
     "AbilityKit.Core",
     "AbilityKit.Continuous",

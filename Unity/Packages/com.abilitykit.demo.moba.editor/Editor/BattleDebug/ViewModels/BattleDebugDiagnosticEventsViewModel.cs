@@ -15,7 +15,9 @@ namespace AbilityKit.Game.Editor
         TemporaryEntities = 5,
         Warnings = 6,
         Triggers = 7,
-        All = 8
+        All = 8,
+        Targeting = 9,
+        Input = 10
     }
 
     /// <summary>
@@ -188,11 +190,193 @@ namespace AbilityKit.Game.Editor
         }
     }
 
+    internal enum BattleDebugSkillCastPhase
+    {
+        InputToTarget = 1,
+        TargetToCast = 2,
+        PreCast = 3,
+        Cast = 4,
+        Economy = 5,
+        WaitingChildren = 6,
+        RuntimeTail = 7,
+        Total = 8
+    }
+
+    internal readonly struct BattleDebugSkillCastPhaseTiming
+    {
+        public BattleDebugSkillCastPhaseTiming(
+            BattleDebugSkillCastPhase phase,
+            int startFrame,
+            int endFrame)
+        {
+            Phase = phase;
+            StartFrame = startFrame;
+            EndFrame = endFrame;
+        }
+
+        public BattleDebugSkillCastPhase Phase { get; }
+        public int StartFrame { get; }
+        public int EndFrame { get; }
+        public int DurationFrames => Math.Max(0, EndFrame - StartFrame);
+        public bool IsObserved =>
+            StartFrame != BattleDiagnosticFrames.Invalid &&
+            EndFrame != BattleDiagnosticFrames.Invalid;
+    }
+
+    internal readonly struct BattleDebugSkillCastDeviation
+    {
+        public BattleDebugSkillCastDeviation(
+            string castKey,
+            BattleDebugSkillCastPhase phase,
+            int actualFrames,
+            int baselineFrames)
+        {
+            CastKey = castKey ?? string.Empty;
+            Phase = phase;
+            ActualFrames = actualFrames;
+            BaselineFrames = baselineFrames;
+        }
+
+        public string CastKey { get; }
+        public BattleDebugSkillCastPhase Phase { get; }
+        public int ActualFrames { get; }
+        public int BaselineFrames { get; }
+        public int ExcessFrames => Math.Max(0, ActualFrames - BaselineFrames);
+    }
+
+    internal readonly struct BattleDebugSkillCastComparison
+    {
+        public BattleDebugSkillCastComparison(
+            string key,
+            int skillId,
+            int skillSlot,
+            int skillLevel,
+            int castCount,
+            int baselineSampleCount,
+            int successCount,
+            int problemCount,
+            int medianTotalFrames,
+            IReadOnlyList<BattleDebugSkillCastDeviation> deviations)
+        {
+            Key = key ?? string.Empty;
+            SkillId = skillId;
+            SkillSlot = skillSlot;
+            SkillLevel = skillLevel;
+            CastCount = castCount;
+            BaselineSampleCount = baselineSampleCount;
+            SuccessCount = successCount;
+            ProblemCount = problemCount;
+            MedianTotalFrames = medianTotalFrames;
+            Deviations = deviations ?? Array.Empty<BattleDebugSkillCastDeviation>();
+        }
+
+        public string Key { get; }
+        public int SkillId { get; }
+        public int SkillSlot { get; }
+        public int SkillLevel { get; }
+        public int CastCount { get; }
+        public int BaselineSampleCount { get; }
+        public bool HasReliableBaseline => BaselineSampleCount >= 2;
+        public int SuccessCount { get; }
+        public int ProblemCount { get; }
+        public int MedianTotalFrames { get; }
+        public IReadOnlyList<BattleDebugSkillCastDeviation> Deviations { get; }
+    }
+
+    internal readonly struct BattleDebugSkillCastFlow
+    {
+        public BattleDebugSkillCastFlow(
+            string key,
+            long commandId,
+            long rootContextId,
+            BattleDiagnosticRuntimeHandle skillRuntime,
+            int skillId,
+            int skillSlot,
+            int skillLevel,
+            int castSequence,
+            long sourceActorId,
+            long targetActorId,
+            int firstFrame,
+            int lastFrame,
+            long latestSequence,
+            BattleDiagnosticEventOutcome outcome,
+            int inputCount,
+            int targetSearchCount,
+            int skillStageCount,
+            int economyCount,
+            int consequenceCount,
+            IReadOnlyList<BattleDebugSkillCastPhaseTiming> timings,
+            IReadOnlyList<BattleDiagnosticEvent> events)
+        {
+            Key = key ?? string.Empty;
+            CommandId = commandId;
+            RootContextId = rootContextId;
+            SkillRuntime = skillRuntime;
+            SkillId = skillId;
+            SkillSlot = skillSlot;
+            SkillLevel = skillLevel;
+            CastSequence = castSequence;
+            SourceActorId = sourceActorId;
+            TargetActorId = targetActorId;
+            FirstFrame = firstFrame;
+            LastFrame = lastFrame;
+            LatestSequence = latestSequence;
+            Outcome = outcome;
+            InputCount = inputCount;
+            TargetSearchCount = targetSearchCount;
+            SkillStageCount = skillStageCount;
+            EconomyCount = economyCount;
+            ConsequenceCount = consequenceCount;
+            Timings = timings ?? Array.Empty<BattleDebugSkillCastPhaseTiming>();
+            Events = events ?? Array.Empty<BattleDiagnosticEvent>();
+        }
+
+        public string Key { get; }
+        public long CommandId { get; }
+        public long RootContextId { get; }
+        public BattleDiagnosticRuntimeHandle SkillRuntime { get; }
+        public int SkillId { get; }
+        public int SkillSlot { get; }
+        public int SkillLevel { get; }
+        public int CastSequence { get; }
+        public long SourceActorId { get; }
+        public long TargetActorId { get; }
+        public int FirstFrame { get; }
+        public int LastFrame { get; }
+        public int DurationFrames => Math.Max(0, LastFrame - FirstFrame);
+        public long LatestSequence { get; }
+        public BattleDiagnosticEventOutcome Outcome { get; }
+        public bool IsComplete => Outcome != BattleDiagnosticEventOutcome.None;
+        public int InputCount { get; }
+        public int TargetSearchCount { get; }
+        public int SkillStageCount { get; }
+        public int EconomyCount { get; }
+        public int ConsequenceCount { get; }
+        public IReadOnlyList<BattleDebugSkillCastPhaseTiming> Timings { get; }
+        public IReadOnlyList<BattleDiagnosticEvent> Events { get; }
+        public int EventCount => Events.Count;
+
+        public bool TryGetTiming(
+            BattleDebugSkillCastPhase phase,
+            out BattleDebugSkillCastPhaseTiming timing)
+        {
+            for (var i = 0; i < Timings.Count; i++)
+            {
+                if (Timings[i].Phase != phase) continue;
+                timing = Timings[i];
+                return timing.IsObserved;
+            }
+            timing = default;
+            return false;
+        }
+    }
+
     internal sealed class BattleDebugDiagnosticEventsViewModel
     {
         private const int DisplayLimit = 200;
         private const int IssueGroupLimit = 6;
         private const int TriggerFlowLimit = 12;
+        private const int SkillCastFlowLimit = 20;
 
         private long _lastRequestId;
         private long _lastStoreRevision = -1;
@@ -220,6 +404,8 @@ namespace AbilityKit.Game.Editor
         private IReadOnlyList<BattleDiagnosticEvent> _cachedItems;
         private IReadOnlyList<BattleDebugDiagnosticIssueGroup> _issueGroups;
         private IReadOnlyList<BattleDebugTriggerFlow> _triggerFlows;
+        private IReadOnlyList<BattleDebugSkillCastFlow> _skillCastFlows;
+        private IReadOnlyList<BattleDebugSkillCastComparison> _skillCastComparisons;
 
         /// <summary>最近一次事件查询的结构化状态。</summary>
         public BattleDiagnosticQueryStatus QueryStatus { get; private set; }
@@ -301,6 +487,12 @@ namespace AbilityKit.Game.Editor
         /// <summary>当前工作集中按 Root 和 Trigger 归并的触发阶段流程。</summary>
         public IReadOnlyList<BattleDebugTriggerFlow> TriggerFlows => _triggerFlows;
 
+        /// <summary>当前工作集中按命令、Trace 和技能运行时关联的施法链。</summary>
+        public IReadOnlyList<BattleDebugSkillCastFlow> SkillCastFlows => _skillCastFlows;
+
+        public IReadOnlyList<BattleDebugSkillCastComparison> SkillCastComparisons =>
+            _skillCastComparisons;
+
         /// <summary>最近一次查询的状态消息（空字符串表示无特殊状态）。</summary>
         public string StatusMessage { get; private set; } = string.Empty;
 
@@ -322,6 +514,8 @@ namespace AbilityKit.Game.Editor
             _cachedItems = null;
             _issueGroups = null;
             _triggerFlows = null;
+            _skillCastFlows = null;
+            _skillCastComparisons = null;
             QueryStatus = default;
             _lastStoreRevision = -1;
             _worksetRevision = -1;
@@ -456,6 +650,18 @@ namespace AbilityKit.Game.Editor
             InvalidateCache();
         }
 
+        public void FocusSkillCasts()
+        {
+            FailuresOnly = false;
+            EventScope = BattleDebugDiagnosticEventScope.All;
+            TriggerStage = BattleDiagnosticTriggerAnalysisStage.Unknown;
+            TriggerResult = BattleDiagnosticTriggerAnalysisResult.Unknown;
+            TriggerContextKind = 0;
+            TriggerOriginKind = 0;
+            TriggerValueFilter = BattleDiagnosticTriggerValueFilter.All;
+            InvalidateCache();
+        }
+
         /// <summary>
         /// 如果缓存有效则直接返回；否则根据当前过滤条件和选中实体重新查询。
         /// </summary>
@@ -553,6 +759,8 @@ namespace AbilityKit.Game.Editor
                 _cachedItems = result.Items;
                 _issueGroups = BuildIssueGroups(result.Items);
                 _triggerFlows = BuildTriggerFlows(result.Items);
+                _skillCastFlows = BuildSkillCastFlows(result.Items);
+                _skillCastComparisons = BuildSkillCastComparisons(_skillCastFlows);
                 StatusMessage = result.Status.HasMore
                     ? $"已加载 {result.Items.Count} 条（仍有更多）"
                     : string.Empty;
@@ -562,6 +770,8 @@ namespace AbilityKit.Game.Editor
                 _cachedItems = result.Items;
                 _issueGroups = Array.Empty<BattleDebugDiagnosticIssueGroup>();
                 _triggerFlows = Array.Empty<BattleDebugTriggerFlow>();
+                _skillCastFlows = Array.Empty<BattleDebugSkillCastFlow>();
+                _skillCastComparisons = Array.Empty<BattleDebugSkillCastComparison>();
                 StatusMessage = result.Status.Phase == BattleDiagnosticQueryPhase.Empty
                     ? BuildEmptyMessage(hasSelection)
                     : $"查询不可用：{BattleDebugDisplayText.Availability(result.Status.Availability)} {result.Status.Message}";
@@ -644,6 +854,8 @@ namespace AbilityKit.Game.Editor
             _cachedItems = AppendDistinct(_cachedItems, result.Items);
             _issueGroups = BuildIssueGroups(_cachedItems);
             _triggerFlows = BuildTriggerFlows(_cachedItems);
+            _skillCastFlows = BuildSkillCastFlows(_cachedItems);
+            _skillCastComparisons = BuildSkillCastComparisons(_skillCastFlows);
             _nextPageOffset += DisplayLimit;
             HasMore = result.Status.HasMore;
             StatusMessage = string.Empty;
@@ -958,6 +1170,569 @@ namespace AbilityKit.Game.Editor
             }
 
             return flows;
+        }
+
+        internal static IReadOnlyList<BattleDebugSkillCastFlow> BuildSkillCastFlows(
+            IReadOnlyList<BattleDiagnosticEvent> events)
+        {
+            if (events == null || events.Count == 0)
+                return Array.Empty<BattleDebugSkillCastFlow>();
+
+            var links = new SkillCastLinkSet(events.Count);
+            var commandOwners = new Dictionary<long, int>();
+            var rootOwners = new Dictionary<long, int>();
+            var runtimeOwners = new Dictionary<BattleDiagnosticRuntimeHandle, int>();
+            var correlated = new bool[events.Count];
+
+            for (var i = 0; i < events.Count; i++)
+            {
+                var item = events[i];
+                var commandId = GetDiagnosticCommandId(in item);
+                if (commandId != 0L)
+                {
+                    correlated[i] = true;
+                    LinkSkillCast(commandOwners, commandId, i, links);
+                }
+                if (item.RootContextId != 0L)
+                {
+                    correlated[i] = true;
+                    LinkSkillCast(rootOwners, item.RootContextId, i, links);
+                }
+                if (item.SkillRuntime.IsValid)
+                {
+                    correlated[i] = true;
+                    LinkSkillCast(runtimeOwners, item.SkillRuntime, i, links);
+                }
+            }
+
+            var builders = new Dictionary<int, SkillCastFlowBuilder>();
+            for (var i = 0; i < events.Count; i++)
+            {
+                if (!correlated[i]) continue;
+                var root = links.Find(i);
+                if (!builders.TryGetValue(root, out var builder))
+                {
+                    builder = new SkillCastFlowBuilder();
+                    builders.Add(root, builder);
+                }
+                var item = events[i];
+                builder.Add(in item);
+            }
+
+            var flows = new List<BattleDebugSkillCastFlow>(builders.Count);
+            foreach (var pair in builders)
+            {
+                if (pair.Value.HasSkillAnchor) flows.Add(pair.Value.Build());
+            }
+            flows.Sort((left, right) =>
+            {
+                var frameComparison = right.LastFrame.CompareTo(left.LastFrame);
+                return frameComparison != 0
+                    ? frameComparison
+                    : right.LatestSequence.CompareTo(left.LatestSequence);
+            });
+            if (flows.Count > SkillCastFlowLimit)
+                flows.RemoveRange(SkillCastFlowLimit, flows.Count - SkillCastFlowLimit);
+            return flows;
+        }
+
+        internal static IReadOnlyList<BattleDebugSkillCastComparison> BuildSkillCastComparisons(
+            IReadOnlyList<BattleDebugSkillCastFlow> casts)
+        {
+            if (casts == null || casts.Count == 0)
+                return Array.Empty<BattleDebugSkillCastComparison>();
+
+            var builders = new Dictionary<string, SkillCastComparisonBuilder>(StringComparer.Ordinal);
+            for (var i = 0; i < casts.Count; i++)
+            {
+                var cast = casts[i];
+                var key = cast.SkillId != 0
+                    ? $"skill|{cast.SkillId}|level|{cast.SkillLevel}"
+                    : $"slot|{cast.SkillSlot}|level|{cast.SkillLevel}";
+                if (!builders.TryGetValue(key, out var builder))
+                {
+                    builder = new SkillCastComparisonBuilder(
+                        key,
+                        cast.SkillId,
+                        cast.SkillSlot,
+                        cast.SkillLevel);
+                    builders.Add(key, builder);
+                }
+                builder.Add(in cast);
+            }
+
+            var comparisons = new List<BattleDebugSkillCastComparison>(builders.Count);
+            foreach (var pair in builders) comparisons.Add(pair.Value.Build());
+            comparisons.Sort((left, right) =>
+            {
+                var deviationComparison = right.Deviations.Count.CompareTo(left.Deviations.Count);
+                if (deviationComparison != 0) return deviationComparison;
+                var problemComparison = right.ProblemCount.CompareTo(left.ProblemCount);
+                if (problemComparison != 0) return problemComparison;
+                return right.CastCount.CompareTo(left.CastCount);
+            });
+            return comparisons;
+        }
+
+        private sealed class SkillCastComparisonBuilder
+        {
+            private readonly string _key;
+            private readonly int _skillId;
+            private readonly int _skillSlot;
+            private readonly int _skillLevel;
+            private readonly List<BattleDebugSkillCastFlow> _casts =
+                new List<BattleDebugSkillCastFlow>();
+
+            public SkillCastComparisonBuilder(
+                string key,
+                int skillId,
+                int skillSlot,
+                int skillLevel)
+            {
+                _key = key;
+                _skillId = skillId;
+                _skillSlot = skillSlot;
+                _skillLevel = skillLevel;
+            }
+
+            public void Add(in BattleDebugSkillCastFlow cast)
+            {
+                _casts.Add(cast);
+            }
+
+            public BattleDebugSkillCastComparison Build()
+            {
+                var successCount = 0;
+                var problemCount = 0;
+                var baselineValues = new Dictionary<BattleDebugSkillCastPhase, List<int>>();
+                for (var i = 0; i < _casts.Count; i++)
+                {
+                    var cast = _casts[i];
+                    if (cast.Outcome == BattleDiagnosticEventOutcome.Succeeded)
+                    {
+                        successCount++;
+                        for (var timingIndex = 0; timingIndex < cast.Timings.Count; timingIndex++)
+                        {
+                            var timing = cast.Timings[timingIndex];
+                            if (!timing.IsObserved) continue;
+                            if (!baselineValues.TryGetValue(timing.Phase, out var values))
+                            {
+                                values = new List<int>();
+                                baselineValues.Add(timing.Phase, values);
+                            }
+                            values.Add(timing.DurationFrames);
+                        }
+                    }
+                    else
+                    {
+                        problemCount++;
+                    }
+                }
+
+                var baselines = new Dictionary<BattleDebugSkillCastPhase, int>();
+                foreach (var pair in baselineValues)
+                {
+                    if (pair.Value.Count < 2) continue;
+                    baselines.Add(pair.Key, Median(pair.Value));
+                }
+
+                var deviations = new List<BattleDebugSkillCastDeviation>();
+                for (var i = 0; i < _casts.Count; i++)
+                {
+                    var cast = _casts[i];
+                    for (var timingIndex = 0; timingIndex < cast.Timings.Count; timingIndex++)
+                    {
+                        var timing = cast.Timings[timingIndex];
+                        if (!baselines.TryGetValue(timing.Phase, out var baseline)) continue;
+                        var threshold = baseline + Math.Max(
+                            2,
+                            (int)Math.Ceiling(Math.Max(1, baseline) * 0.5d));
+                        if (timing.DurationFrames <= threshold) continue;
+                        deviations.Add(new BattleDebugSkillCastDeviation(
+                            cast.Key,
+                            timing.Phase,
+                            timing.DurationFrames,
+                            baseline));
+                    }
+                }
+                deviations.Sort((left, right) =>
+                {
+                    var excessComparison = right.ExcessFrames.CompareTo(left.ExcessFrames);
+                    return excessComparison != 0
+                        ? excessComparison
+                        : right.ActualFrames.CompareTo(left.ActualFrames);
+                });
+
+                var baselineSampleCount = baselineValues.TryGetValue(
+                    BattleDebugSkillCastPhase.Total,
+                    out var totalValues)
+                    ? totalValues.Count
+                    : 0;
+                var medianTotal = baselines.TryGetValue(
+                    BattleDebugSkillCastPhase.Total,
+                    out var totalMedian)
+                    ? totalMedian
+                    : baselineSampleCount == 1
+                        ? totalValues[0]
+                        : 0;
+                return new BattleDebugSkillCastComparison(
+                    _key,
+                    _skillId,
+                    _skillSlot,
+                    _skillLevel,
+                    _casts.Count,
+                    baselineSampleCount,
+                    successCount,
+                    problemCount,
+                    medianTotal,
+                    deviations);
+            }
+
+            private static int Median(List<int> values)
+            {
+                values.Sort();
+                var middle = values.Count / 2;
+                return values.Count % 2 != 0
+                    ? values[middle]
+                    : (values[middle - 1] + values[middle]) / 2;
+            }
+        }
+
+        private static void LinkSkillCast<TKey>(
+            Dictionary<TKey, int> owners,
+            TKey key,
+            int eventIndex,
+            SkillCastLinkSet links)
+        {
+            if (owners.TryGetValue(key, out var owner))
+                links.Union(eventIndex, owner);
+            else
+                owners.Add(key, eventIndex);
+        }
+
+        private static long GetDiagnosticCommandId(in BattleDiagnosticEvent item)
+        {
+            if (item.Payload.TryGetSkillExecution(out var execution)) return execution.CommandId;
+            if (item.Payload.TryGetInputCommand(out var input)) return input.CommandId;
+            if (item.Payload.TryGetTargetSearch(out var search)) return search.CommandId;
+            if (item.Payload.TryGetSkillFailure(out var failure)) return failure.CommandId;
+            return 0L;
+        }
+
+        private sealed class SkillCastLinkSet
+        {
+            private readonly int[] _parents;
+
+            public SkillCastLinkSet(int count)
+            {
+                _parents = new int[count];
+                for (var i = 0; i < count; i++) _parents[i] = i;
+            }
+
+            public int Find(int value)
+            {
+                var root = value;
+                while (_parents[root] != root) root = _parents[root];
+                while (_parents[value] != value)
+                {
+                    var parent = _parents[value];
+                    _parents[value] = root;
+                    value = parent;
+                }
+                return root;
+            }
+
+            public void Union(int left, int right)
+            {
+                var leftRoot = Find(left);
+                var rightRoot = Find(right);
+                if (leftRoot != rightRoot) _parents[rightRoot] = leftRoot;
+            }
+        }
+
+        private sealed class SkillCastFlowBuilder
+        {
+            private readonly List<BattleDiagnosticEvent> _events = new List<BattleDiagnosticEvent>();
+            private long _commandId;
+            private long _rootContextId;
+            private BattleDiagnosticRuntimeHandle _skillRuntime;
+            private int _skillId;
+            private int _skillSlot;
+            private int _skillLevel;
+            private int _castSequence;
+            private long _sourceActorId;
+            private long _targetActorId;
+            private int _firstFrame = BattleDiagnosticFrames.Invalid;
+            private int _lastFrame = BattleDiagnosticFrames.Invalid;
+            private long _latestSequence;
+            private BattleDiagnosticEventOutcome _outcome;
+            private int _inputCount;
+            private int _targetSearchCount;
+            private int _skillStageCount;
+            private int _economyCount;
+            private int _consequenceCount;
+
+            public bool HasSkillAnchor { get; private set; }
+
+            public void Add(in BattleDiagnosticEvent item)
+            {
+                _events.Add(item);
+                var commandId = GetDiagnosticCommandId(in item);
+                if (_commandId == 0L && commandId != 0L) _commandId = commandId;
+                if (_rootContextId == 0L && item.RootContextId != 0L) _rootContextId = item.RootContextId;
+                if (!_skillRuntime.IsValid && item.SkillRuntime.IsValid) _skillRuntime = item.SkillRuntime;
+                if (_sourceActorId == 0L && item.SourceActorId != 0L) _sourceActorId = item.SourceActorId;
+                if (_targetActorId == 0L && item.TargetActorId != 0L) _targetActorId = item.TargetActorId;
+
+                if (item.Payload.TryGetSkillExecution(out var execution))
+                {
+                    HasSkillAnchor = true;
+                    if (_skillSlot == 0) _skillSlot = execution.SkillSlot;
+                    if (_skillLevel == 0) _skillLevel = execution.SkillLevel;
+                    if (_castSequence == 0) _castSequence = execution.CastSequence;
+                    if (_skillId == 0 && item.ConfigId != 0) _skillId = item.ConfigId;
+                    if (item.Kind == BattleDiagnosticEventKind.SkillEconomy) _economyCount++;
+                    else _skillStageCount++;
+                    if (IsTerminalSkillStage(execution.Stage)) UpdateOutcome(item.Outcome);
+                }
+                else if (item.Payload.TryGetSkillFailure(out var failure))
+                {
+                    HasSkillAnchor = true;
+                    if (_skillSlot == 0) _skillSlot = failure.Slot;
+                    if (_skillId == 0 && item.ConfigId != 0) _skillId = item.ConfigId;
+                    _skillStageCount++;
+                    UpdateOutcome(item.Outcome == BattleDiagnosticEventOutcome.None
+                        ? BattleDiagnosticEventOutcome.Failed
+                        : item.Outcome);
+                }
+                else
+                {
+                    switch (item.Kind)
+                    {
+                        case BattleDiagnosticEventKind.InputCommand:
+                            _inputCount++;
+                            if (item.Payload.TryGetInputCommand(out var input) && input.SkillSlot > 0)
+                            {
+                                HasSkillAnchor = true;
+                                if (_skillSlot == 0) _skillSlot = input.SkillSlot;
+                            }
+                            break;
+                        case BattleDiagnosticEventKind.TargetSearch:
+                            _targetSearchCount++;
+                            break;
+                        case BattleDiagnosticEventKind.SkillRuntimeStarted:
+                        case BattleDiagnosticEventKind.SkillRuntimeEnded:
+                            HasSkillAnchor = true;
+                            _skillStageCount++;
+                            if (_skillId == 0 && item.ConfigId != 0) _skillId = item.ConfigId;
+                            if (item.Kind == BattleDiagnosticEventKind.SkillRuntimeEnded)
+                                UpdateOutcome(item.Outcome);
+                            break;
+                        case BattleDiagnosticEventKind.SkillEconomy:
+                            HasSkillAnchor = true;
+                            _economyCount++;
+                            break;
+                        default:
+                            _consequenceCount++;
+                            if (item.SkillRuntime.IsValid) HasSkillAnchor = true;
+                            break;
+                    }
+                }
+
+                var isLatest = _lastFrame == BattleDiagnosticFrames.Invalid ||
+                               item.Frame > _lastFrame ||
+                               (item.Frame == _lastFrame && item.Sequence > _latestSequence);
+                if (_firstFrame == BattleDiagnosticFrames.Invalid || item.Frame < _firstFrame)
+                    _firstFrame = item.Frame;
+                if (_lastFrame == BattleDiagnosticFrames.Invalid || item.Frame > _lastFrame)
+                    _lastFrame = item.Frame;
+                if (isLatest || _latestSequence == 0L) _latestSequence = item.Sequence;
+            }
+
+            public BattleDebugSkillCastFlow Build()
+            {
+                _events.Sort((left, right) =>
+                {
+                    var frameComparison = left.Frame.CompareTo(right.Frame);
+                    return frameComparison != 0
+                        ? frameComparison
+                        : left.Sequence.CompareTo(right.Sequence);
+                });
+                var key = _commandId != 0L
+                    ? "command|" + _commandId
+                    : _rootContextId != 0L
+                        ? "root|" + _rootContextId
+                        : _skillRuntime.IsValid
+                            ? $"runtime|{_skillRuntime.RuntimeId}|{_skillRuntime.Generation}"
+                            : "event|" + _latestSequence;
+                return new BattleDebugSkillCastFlow(
+                    key,
+                    _commandId,
+                    _rootContextId,
+                    _skillRuntime,
+                    _skillId,
+                    _skillSlot,
+                    _skillLevel,
+                    _castSequence,
+                    _sourceActorId,
+                    _targetActorId,
+                    _firstFrame,
+                    _lastFrame,
+                    _latestSequence,
+                    _outcome,
+                    _inputCount,
+                    _targetSearchCount,
+                    _skillStageCount,
+                    _economyCount,
+                    _consequenceCount,
+                    BuildPhaseTimings(),
+                    _events.ToArray());
+            }
+
+            private IReadOnlyList<BattleDebugSkillCastPhaseTiming> BuildPhaseTimings()
+            {
+                var inputFrame = BattleDiagnosticFrames.Invalid;
+                var targetFrame = BattleDiagnosticFrames.Invalid;
+                var preCastStartFrame = BattleDiagnosticFrames.Invalid;
+                var preCastEndFrame = BattleDiagnosticFrames.Invalid;
+                var castStartFrame = BattleDiagnosticFrames.Invalid;
+                var castEndFrame = BattleDiagnosticFrames.Invalid;
+                var economyStartFrame = BattleDiagnosticFrames.Invalid;
+                var economyEndFrame = BattleDiagnosticFrames.Invalid;
+                var waitingChildrenFrame = BattleDiagnosticFrames.Invalid;
+                var runtimeEndFrame = BattleDiagnosticFrames.Invalid;
+
+                for (var i = 0; i < _events.Count; i++)
+                {
+                    var item = _events[i];
+                    if (item.Kind == BattleDiagnosticEventKind.InputCommand)
+                        SetFirstFrame(ref inputFrame, item.Frame);
+                    if (item.Kind == BattleDiagnosticEventKind.TargetSearch)
+                        SetFirstFrame(ref targetFrame, item.Frame);
+                    if (!item.Payload.TryGetSkillExecution(out var execution)) continue;
+
+                    switch (execution.Stage)
+                    {
+                        case BattleDiagnosticSkillExecutionStage.PreCastStarted:
+                            SetFirstFrame(ref preCastStartFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.PreCastCompleted:
+                            SetLastFrame(ref preCastEndFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.CastStarted:
+                            SetFirstFrame(ref castStartFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.CastCompleted:
+                        case BattleDiagnosticSkillExecutionStage.CastFailed:
+                        case BattleDiagnosticSkillExecutionStage.CastInterrupted:
+                            SetLastFrame(ref castEndFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.EconomyReserved:
+                            SetFirstFrame(ref economyStartFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.ResourceConsumed:
+                            SetFirstFrame(ref economyStartFrame, item.Frame);
+                            SetLastFrame(ref economyEndFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.EconomyCommitted:
+                        case BattleDiagnosticSkillExecutionStage.EconomyRefunded:
+                        case BattleDiagnosticSkillExecutionStage.EconomyRejected:
+                            if (economyStartFrame == BattleDiagnosticFrames.Invalid)
+                                SetFirstFrame(ref economyStartFrame, item.Frame);
+                            SetLastFrame(ref economyEndFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.RuntimeWaitingChildren:
+                            SetFirstFrame(ref waitingChildrenFrame, item.Frame);
+                            break;
+                        case BattleDiagnosticSkillExecutionStage.RuntimeFinalized:
+                        case BattleDiagnosticSkillExecutionStage.RuntimeForceTerminated:
+                        case BattleDiagnosticSkillExecutionStage.RuntimeCleared:
+                            SetLastFrame(ref runtimeEndFrame, item.Frame);
+                            break;
+                    }
+                }
+
+                var timings = new List<BattleDebugSkillCastPhaseTiming>(8);
+                AddTiming(timings, BattleDebugSkillCastPhase.InputToTarget, inputFrame, targetFrame);
+                AddTiming(timings, BattleDebugSkillCastPhase.TargetToCast, targetFrame, castStartFrame);
+                AddTiming(timings, BattleDebugSkillCastPhase.PreCast, preCastStartFrame, preCastEndFrame);
+                AddTiming(timings, BattleDebugSkillCastPhase.Cast, castStartFrame, castEndFrame);
+                AddTiming(timings, BattleDebugSkillCastPhase.Economy, economyStartFrame, economyEndFrame);
+                AddTiming(timings, BattleDebugSkillCastPhase.WaitingChildren, waitingChildrenFrame, runtimeEndFrame);
+                AddTiming(timings, BattleDebugSkillCastPhase.RuntimeTail, castEndFrame, runtimeEndFrame);
+
+                var totalStartFrame = inputFrame != BattleDiagnosticFrames.Invalid
+                    ? inputFrame
+                    : preCastStartFrame != BattleDiagnosticFrames.Invalid
+                        ? preCastStartFrame
+                        : castStartFrame != BattleDiagnosticFrames.Invalid
+                            ? castStartFrame
+                            : _firstFrame;
+                var totalEndFrame = runtimeEndFrame != BattleDiagnosticFrames.Invalid
+                    ? runtimeEndFrame
+                    : castEndFrame;
+                AddTiming(timings, BattleDebugSkillCastPhase.Total, totalStartFrame, totalEndFrame);
+                return timings;
+            }
+
+            private static void AddTiming(
+                List<BattleDebugSkillCastPhaseTiming> timings,
+                BattleDebugSkillCastPhase phase,
+                int startFrame,
+                int endFrame)
+            {
+                if (startFrame == BattleDiagnosticFrames.Invalid ||
+                    endFrame == BattleDiagnosticFrames.Invalid ||
+                    endFrame < startFrame)
+                {
+                    return;
+                }
+                timings.Add(new BattleDebugSkillCastPhaseTiming(phase, startFrame, endFrame));
+            }
+
+            private static void SetFirstFrame(ref int value, int frame)
+            {
+                if (value == BattleDiagnosticFrames.Invalid || frame < value) value = frame;
+            }
+
+            private static void SetLastFrame(ref int value, int frame)
+            {
+                if (value == BattleDiagnosticFrames.Invalid || frame > value) value = frame;
+            }
+
+            private void UpdateOutcome(BattleDiagnosticEventOutcome outcome)
+            {
+                if (OutcomePriority(outcome) > OutcomePriority(_outcome)) _outcome = outcome;
+            }
+
+            private static int OutcomePriority(BattleDiagnosticEventOutcome outcome)
+            {
+                switch (outcome)
+                {
+                    case BattleDiagnosticEventOutcome.Failed: return 4;
+                    case BattleDiagnosticEventOutcome.Interrupted: return 3;
+                    case BattleDiagnosticEventOutcome.Cancelled: return 2;
+                    case BattleDiagnosticEventOutcome.Succeeded: return 1;
+                    default: return 0;
+                }
+            }
+
+            private static bool IsTerminalSkillStage(BattleDiagnosticSkillExecutionStage stage)
+            {
+                switch (stage)
+                {
+                    case BattleDiagnosticSkillExecutionStage.CastCompleted:
+                    case BattleDiagnosticSkillExecutionStage.CastFailed:
+                    case BattleDiagnosticSkillExecutionStage.CastInterrupted:
+                    case BattleDiagnosticSkillExecutionStage.EconomyRejected:
+                    case BattleDiagnosticSkillExecutionStage.RuntimeFinalized:
+                    case BattleDiagnosticSkillExecutionStage.RuntimeForceTerminated:
+                    case BattleDiagnosticSkillExecutionStage.RuntimeCleared:
+                        return true;
+                    default:
+                        return false;
+                }
+            }
         }
 
         private static string BuildTriggerFlowKey(
@@ -1357,6 +2132,10 @@ namespace AbilityKit.Game.Editor
                     return BattleDiagnosticEventChannel.WarningAndException;
                 case BattleDebugDiagnosticEventScope.Triggers:
                     return BattleDiagnosticEventChannel.Trigger;
+                case BattleDebugDiagnosticEventScope.Targeting:
+                    return BattleDiagnosticEventChannel.Targeting;
+                case BattleDebugDiagnosticEventScope.Input:
+                    return BattleDiagnosticEventChannel.Input;
                 default:
                     return BattleDiagnosticEventChannel.All;
             }

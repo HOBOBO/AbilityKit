@@ -23,6 +23,7 @@ namespace AbilityKit.Demo.Moba.Components
         public long SourceContextId;
         public long RuntimeContextId;
         public long RuntimeContextVersion;
+        public AbilityKit.Context.ContextEntityReference RuntimeContextIdentity;
         public MobaGameplayOrigin Origin;
         public MobaContextSourceView ContextSource;
         public MobaSkillCastRuntimeHandle SkillRuntimeHandle;

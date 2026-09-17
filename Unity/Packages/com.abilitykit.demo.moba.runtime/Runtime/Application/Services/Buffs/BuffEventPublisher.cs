@@ -109,6 +109,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 SourceContextId = runtime != null ? runtime.SourceContextId : 0,
                 RuntimeContextId = runtime != null ? runtime.RuntimeContextId : 0L,
                 RuntimeContextVersion = runtime != null ? runtime.RuntimeContextVersion : 0L,
+                RuntimeContextIdentity = runtime != null ? runtime.RuntimeContextIdentity : default,
                 Runtime = runtime,
             };
         }

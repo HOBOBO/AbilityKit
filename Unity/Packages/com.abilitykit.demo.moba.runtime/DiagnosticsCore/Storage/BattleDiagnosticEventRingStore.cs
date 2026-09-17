@@ -335,6 +335,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 return true;
             }
 
+            if (diagnosticEvent.Payload.TryGetInputCommand(out var inputCommand) &&
+                MatchesInputCommandSearch(in inputCommand, searchText)) return true;
+
+            if (diagnosticEvent.Payload.TryGetTargetSearch(out var targetSearch) &&
+                MatchesTargetSearchSearch(in targetSearch, searchText)) return true;
+
+            if (diagnosticEvent.Payload.TryGetSkillExecution(out var skillExecution) &&
+                MatchesSkillExecutionSearch(in skillExecution, searchText)) return true;
+
             return MatchesNumber(diagnosticEvent.Sequence, searchText) ||
                    MatchesNumber(diagnosticEvent.Frame, searchText) ||
                    MatchesNumber(diagnosticEvent.SourceActorId, searchText) ||
@@ -400,7 +409,54 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    failure.Stage.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
                    failure.Code.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
                    failure.Message.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                   MatchesNumber(failure.Slot, searchText);
+                   MatchesNumber(failure.Slot, searchText) ||
+                   MatchesNumber(failure.CommandId, searchText);
+        }
+
+        private static bool MatchesInputCommandSearch(in BattleDiagnosticInputCommandPayload input,
+            string searchText)
+        {
+            return input.PlayerId.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   input.Message.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   MatchesNumber(input.CommandId, searchText) ||
+                   MatchesNumber(input.InputFrame, searchText) ||
+                   MatchesNumber(input.OpCode, searchText) ||
+                   MatchesNumber(input.FailureCode, searchText) ||
+                   MatchesNumber(input.SkillSlot, searchText) ||
+                   MatchesNumber(input.SkillPhase, searchText) ||
+                   MatchesNumber(input.TargetActorId, searchText);
+        }
+
+        private static bool MatchesTargetSearchSearch(in BattleDiagnosticTargetSearchPayload search,
+            string searchText)
+        {
+            return search.SelectedActorIds.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   search.DecisionDetails.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   MatchesNumber(search.CommandId, searchText) ||
+                   MatchesNumber(search.ExplicitTargetActorId, searchText) ||
+                   MatchesNumber(search.CandidateCount, searchText) ||
+                   MatchesNumber(search.EligibleCount, searchText) ||
+                   MatchesNumber(search.SelectedCount, searchText);
+        }
+
+        private static bool MatchesSkillExecutionSearch(
+            in BattleDiagnosticSkillExecutionPayload execution,
+            string searchText)
+        {
+            return execution.Stage.ToString().IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   execution.Detail.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   MatchesNumber(execution.CommandId, searchText) ||
+                   MatchesNumber(execution.SkillSlot, searchText) ||
+                   MatchesNumber(execution.SkillLevel, searchText) ||
+                   MatchesNumber(execution.CastSequence, searchText) ||
+                   MatchesNumber(execution.EndReason, searchText) ||
+                   MatchesNumber(execution.ResourceType, searchText) ||
+                   MatchesNumber(execution.ResourceAmountRaw, searchText) ||
+                   MatchesNumber(execution.ChargeCost, searchText) ||
+                   MatchesNumber(execution.CooldownMs, searchText) ||
+                   MatchesNumber(execution.SharedCooldownMs, searchText) ||
+                   MatchesNumber(execution.GlobalCooldownMs, searchText) ||
+                   MatchesNumber(execution.PendingChildren, searchText);
         }
 
         private static bool MatchesTriggerSearch(

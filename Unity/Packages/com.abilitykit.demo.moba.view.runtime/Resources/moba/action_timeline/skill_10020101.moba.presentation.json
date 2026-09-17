@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "runtimeType": "presentation",
+  "length": 0.6,
+  "groups": [
+    {
+      "name": "XiaoQiaoSkill1",
+      "actorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "type": "AbilityKit.ActionEditorImpl.EffectTrack",
+          "name": "Effect",
+          "active": true,
+          "clips": [
+            {
+              "type": "AbilityKit.ActionEditorImpl.PlayParticle",
+              "runtimeType": "presentation",
+              "start": 0.0,
+              "length": 0.35,
+              "blendIn": 0.0,
+              "blendOut": 0.0,
+              "args": { "resourceKey": "effect/xiaoqiao_basic_fan" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

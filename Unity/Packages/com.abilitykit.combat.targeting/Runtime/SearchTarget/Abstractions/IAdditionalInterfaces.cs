@@ -35,4 +35,19 @@ namespace AbilityKit.Battle.SearchTarget
         void OnHit();
         void OnResult(int count);
     }
+
+    public enum SearchCandidateDecision
+    {
+        Invalid = 1,
+        Duplicate = 2,
+        RuleRejected = 3,
+        ScoreUnavailable = 4,
+        Eligible = 5
+    }
+
+    public interface ISearchDetailedStats : ISearchStats
+    {
+        void OnDecision(EntityId id, SearchCandidateDecision decision, int ruleIndex, string ruleName,
+            float? primaryScore);
+    }
 }

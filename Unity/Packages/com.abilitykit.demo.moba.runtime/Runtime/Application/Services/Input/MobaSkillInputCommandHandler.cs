@@ -64,18 +64,24 @@ namespace AbilityKit.Demo.Moba.Services
                 return false;
             }
 
-            var skillResult = context.Skills.TryHandleInputResult(actorId, in evt);
+            var skillResult = context.Skills.TryHandleInputResult(actorId, in evt, context.DiagnosticCommandId);
             if (!skillResult.Success)
             {
+                var failedRuntimeHandle = skillResult.RuntimeHandle;
                 result = MobaInputCommandResult.Rejected(
                     command,
                     MobaInputCommandFailureCode.SkillRejected,
                     CreateSkillRejectedMessage(in skillResult, evt.Slot, evt.TargetActorId),
-                    actorId);
+                    actorId)
+                    .WithSkillDiagnostic(evt.Slot, (int)evt.Phase, evt.TargetActorId,
+                        in failedRuntimeHandle);
                 return false;
             }
 
-            result = MobaInputCommandResult.Accepted(command, actorId);
+            var runtimeHandle = skillResult.RuntimeHandle;
+            result = MobaInputCommandResult.Accepted(command, actorId)
+                .WithSkillDiagnostic(evt.Slot, (int)evt.Phase, evt.TargetActorId,
+                    in runtimeHandle);
             return true;
         }
 

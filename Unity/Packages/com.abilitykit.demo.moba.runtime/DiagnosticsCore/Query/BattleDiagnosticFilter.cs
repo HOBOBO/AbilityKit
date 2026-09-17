@@ -14,6 +14,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         Sync = 1 << 5,
         WarningAndException = 1 << 6,
         Trigger = 1 << 7,
+        Targeting = 1 << 8,
+        Input = 1 << 9,
         All = Skill |
               Effect |
               Buff |
@@ -21,7 +23,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics
               DamageAndHeal |
               Sync |
               WarningAndException |
-              Trigger
+              Trigger |
+              Targeting |
+              Input
     }
 
     public enum BattleDiagnosticActorRelation

@@ -137,7 +137,7 @@ namespace AbilityKit.Demo.Moba.Services
 
     public sealed class MobaBuffContextProperty : IProperty, IContextValueProvider
     {
-        public MobaBuffContextProperty(in MobaBuffRuntimeContextData data)
+        public MobaBuffContextProperty(in MobaBuffRuntimeContextData data, long version = 1L)
         {
             BuffId = data.BuffId;
             SourceActorId = data.SourceActorId;
@@ -151,7 +151,7 @@ namespace AbilityKit.Demo.Moba.Services
             LifecycleState = data.LifecycleState;
             Frame = data.Frame;
             SkillRuntimeHandle = data.SkillRuntimeHandle;
-            Version = 1L;
+            Version = version;
         }
 
         public int TypeId => PropertyTypeRegistry.Instance.Register<MobaBuffContextProperty>().Id;
@@ -196,7 +196,7 @@ namespace AbilityKit.Demo.Moba.Services
         public static MobaBuffContextProperty FromRuntime(BuffRuntime runtime, int targetActorId, int frame, MobaRuntimeContextLifecycleState state)
         {
             var data = MobaBuffRuntimeContextData.FromRuntime(runtime, targetActorId, frame, state);
-            var property = new MobaBuffContextProperty(in data);
+            var property = new MobaBuffContextProperty(in data, runtime != null ? runtime.RuntimeContextVersion : 1L);
             if (runtime != null)
                 property.SetContextId(runtime.RuntimeContextId);
 
@@ -204,9 +204,8 @@ namespace AbilityKit.Demo.Moba.Services
         }
     }
 
-    public sealed class MobaBuffContextSnapshot : IVersionedContextSnapshot, ISnapshotAccessor, ISourceContext, IOwnerContext, IDestroyableSnapshot, IContextValueProvider
+    public sealed class MobaBuffContextSnapshot : IImmutableContextSnapshot, ISnapshotAccessor, ISourceContext, IOwnerContext
     {
-        private bool _destroyed;
         private readonly MobaBuffRuntimeContextData _data;
 
         public MobaBuffContextSnapshot(MobaBuffContextProperty property)
@@ -256,17 +255,13 @@ namespace AbilityKit.Demo.Moba.Services
         public int Frame { get; }
         public long SourceEntityId => _data.TraceContextId;
         public long OwnerEntityId => _data.OwnerTraceContextId;
-        public bool IsRealtimeAvailable => !_destroyed;
-        public bool IsDestroyed => _destroyed;
+        public bool IsRealtimeAvailable => false;
+        public bool IsDestroyed => _data.LifecycleState == MobaRuntimeContextLifecycleState.Ended ||
+            _data.LifecycleState == MobaRuntimeContextLifecycleState.Destroyed;
 
         public T GetValue<T>(string key, T snapshotDefault = default)
         {
             return TryGetValue(key, out T value) ? value : snapshotDefault;
-        }
-
-        public void MarkDestroyed()
-        {
-            _destroyed = true;
         }
 
         public bool TryGetValue<T>(string key, out T value)

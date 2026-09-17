@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Game.Editor
 {
@@ -68,6 +69,7 @@ namespace AbilityKit.Game.Editor
         private long _lastStoreRevision = -1;
         private long _lastRootContextId;
         private bool _hasCachedResult;
+        private IBattleDiagnosticReadOnlySession _lastTraceSession;
         private IReadOnlyList<BattleDebugDiagnosticTraceRow> _rows =
             Array.Empty<BattleDebugDiagnosticTraceRow>();
         private IReadOnlyList<BattleDebugDiagnosticTraceRow> _visibleRows =
@@ -77,6 +79,14 @@ namespace AbilityKit.Game.Editor
         private Dictionary<long, BattleDiagnosticTraceNodeSummary> _nodesById =
             new Dictionary<long, BattleDiagnosticTraceNodeSummary>();
         private Dictionary<long, int> _childCounts = new Dictionary<long, int>();
+        private readonly Dictionary<BattleDiagnosticDefinitionReference, BattleDiagnosticDefinition>
+            _definitionsByReference =
+                new Dictionary<BattleDiagnosticDefinitionReference, BattleDiagnosticDefinition>();
+        private IBattleDiagnosticDefinitionLookupSession _lastDefinitionSession;
+        private readonly HashSet<BattleDiagnosticDefinitionReference> _queriedDefinitions =
+            new HashSet<BattleDiagnosticDefinitionReference>();
+        private BattleDiagnosticSessionScope _lastDefinitionScope;
+        private long _lastDefinitionStoreRevision = -1;
         private readonly HashSet<long> _selectedPathIds = new HashSet<long>();
         private readonly HashSet<long> _collapsedContextIds = new HashSet<long>();
         private string _searchText = string.Empty;
@@ -85,6 +95,7 @@ namespace AbilityKit.Game.Editor
         private BattleDiagnosticSessionScope _lastRootIndexScope;
         private long _lastRootIndexRevision = -1;
         private bool _hasCachedRootIndex;
+        private IBattleDiagnosticReadOnlySession _lastRootIndexSession;
 
         public IReadOnlyList<BattleDebugDiagnosticTraceRow> Rows => _rows;
         public IReadOnlyList<BattleDebugDiagnosticTraceRow> VisibleRows => _visibleRows;
@@ -106,6 +117,7 @@ namespace AbilityKit.Game.Editor
         public BattleDebugDiagnosticTraceSummary Summary { get; private set; }
         public BattleDebugDiagnosticTraceSummary VisibleSummary { get; private set; }
         public BattleDiagnosticQueryStatus RootQueryStatus { get; private set; }
+        public long DefinitionStoreRevision => _lastDefinitionStoreRevision;
 
         public void InvalidateCache()
         {
@@ -113,6 +125,7 @@ namespace AbilityKit.Game.Editor
             StatusMessage = string.Empty;
             _lastStoreRevision = -1;
             _hasCachedResult = false;
+            _lastDefinitionStoreRevision = -1;
         }
 
         public void InvalidateRootIndex()
@@ -139,6 +152,7 @@ namespace AbilityKit.Game.Editor
             var scope = session.SessionInfo.Scope;
             var revision = session.TraceStoreRevision;
             if (_hasCachedRootIndex &&
+                ReferenceEquals(_lastRootIndexSession, session) &&
                 _lastRootIndexScope == scope &&
                 _lastRootIndexRevision == revision)
             {
@@ -151,6 +165,7 @@ namespace AbilityKit.Game.Editor
                 _lastRequestId,
                 new BattleDiagnosticPageRequest(0L, 0, 100)));
             _lastRootIndexScope = scope;
+            _lastRootIndexSession = session;
             _lastRootIndexRevision = revision;
             _hasCachedRootIndex = true;
             RootQueryStatus = result.Status;
@@ -162,10 +177,18 @@ namespace AbilityKit.Game.Editor
         public void Clear()
         {
             _rows = Array.Empty<BattleDebugDiagnosticTraceRow>();
+            _lastTraceSession = null;
+            _lastRootIndexSession = null;
+            _rootSummaries = Array.Empty<BattleDiagnosticTraceRootSummary>();
+            InvalidateRootIndex();
             _visibleRows = Array.Empty<BattleDebugDiagnosticTraceRow>();
             _selectedPath = Array.Empty<BattleDiagnosticTraceNodeSummary>();
             _nodesById = new Dictionary<long, BattleDiagnosticTraceNodeSummary>();
             _childCounts = new Dictionary<long, int>();
+            _definitionsByReference.Clear();
+            _queriedDefinitions.Clear();
+            _lastDefinitionSession = null;
+            _lastDefinitionStoreRevision = -1;
             _selectedPathIds.Clear();
             _collapsedContextIds.Clear();
             _searchText = string.Empty;
@@ -192,10 +215,12 @@ namespace AbilityKit.Game.Editor
             var scope = session.SessionInfo.Scope;
             var revision = session.TraceStoreRevision;
             if (_hasCachedResult &&
+                ReferenceEquals(_lastTraceSession, session) &&
                 _lastScope == scope &&
                 _lastStoreRevision == revision &&
                 _lastRootContextId == rootContextId)
             {
+                if (RefreshDefinitions(session, _rows)) RebuildVisibleRows();
                 return;
             }
 
@@ -205,6 +230,7 @@ namespace AbilityKit.Game.Editor
             var result = session.QueryTrace(_lastRequestId, rootContextId);
             QueryStatus = result.Status;
             _lastScope = scope;
+            _lastTraceSession = session;
             _lastStoreRevision = revision;
             _lastRootContextId = rootContextId;
             _hasCachedResult = true;
@@ -222,10 +248,12 @@ namespace AbilityKit.Game.Editor
                 _selectedPath = Array.Empty<BattleDiagnosticTraceNodeSummary>();
                 SearchMatchCount = 0;
                 StatusMessage = BuildStatusMessage(result.Status);
+                RefreshDefinitions(session, _rows);
                 return;
             }
 
             ProjectRows(result.Items);
+            RefreshDefinitions(session, _rows);
             StatusMessage = result.Status.HasMore
                 ? "Trace 数据已截断，当前树可能不完整。"
                 : string.Empty;
@@ -381,6 +409,82 @@ namespace AbilityKit.Game.Editor
         public bool SelectPinned()
         {
             return IsPinnedContextAvailable && SelectContext(PinnedContextId);
+        }
+
+        public bool TryGetDefinition(
+            BattleDiagnosticDefinitionReference reference,
+            out BattleDiagnosticDefinition definition)
+        {
+            if (reference.HasDefinitionId)
+            {
+                return _definitionsByReference.TryGetValue(reference, out definition);
+            }
+
+            definition = null;
+            return false;
+        }
+
+        public string GetDefinitionDisplayName(
+            BattleDiagnosticDefinitionReference reference)
+        {
+            return TryGetDefinition(reference, out var definition) && definition.IsResolved
+                ? definition.DisplayName
+                : string.Empty;
+        }
+
+        private bool RefreshDefinitions(
+            IBattleDiagnosticReadOnlySession session,
+            IReadOnlyList<BattleDebugDiagnosticTraceRow> rows)
+        {
+            var lookup = session as IBattleDiagnosticDefinitionLookupSession;
+            if (lookup == null)
+            {
+                var changed = _definitionsByReference.Count > 0;
+                if (_lastDefinitionSession != null) _definitionsByReference.Clear();
+                _queriedDefinitions.Clear();
+                _lastDefinitionSession = null;
+                _lastDefinitionStoreRevision = -1;
+                return changed;
+            }
+
+            var revision = lookup.DefinitionStoreRevision;
+            var definitionsChanged = false;
+            if (!ReferenceEquals(_lastDefinitionSession, lookup) ||
+                _lastDefinitionScope != session.SessionInfo.Scope ||
+                _lastDefinitionStoreRevision != revision)
+            {
+                definitionsChanged = _definitionsByReference.Count > 0;
+                _definitionsByReference.Clear();
+                _queriedDefinitions.Clear();
+                _lastDefinitionSession = lookup;
+                _lastDefinitionScope = session.SessionInfo.Scope;
+                _lastDefinitionStoreRevision = revision;
+            }
+
+            for (var i = 0; i < rows.Count; i++)
+            {
+                var node = rows[i].Node;
+                definitionsChanged |= QueryDefinitionIfNeeded(lookup, node.Definition);
+                definitionsChanged |= QueryDefinitionIfNeeded(lookup, node.TriggerDefinition);
+                definitionsChanged |= QueryDefinitionIfNeeded(lookup, node.SkillDefinition);
+                definitionsChanged |= QueryDefinitionIfNeeded(lookup, node.OriginDefinition);
+            }
+            return definitionsChanged;
+        }
+
+        private bool QueryDefinitionIfNeeded(
+            IBattleDiagnosticDefinitionLookupSession lookup,
+            BattleDiagnosticDefinitionReference reference)
+        {
+            if (!reference.IsResolved || !_queriedDefinitions.Add(reference)) return false;
+
+            _lastRequestId++;
+            if (_lastRequestId <= 0L) _lastRequestId = 1L;
+            var result = lookup.QueryDefinition(_lastRequestId, in reference);
+            if (!result.Status.CanDisplayResults || result.Items.Count == 0) return false;
+
+            _definitionsByReference[reference] = result.Items[0];
+            return true;
         }
 
         private void ProjectRows(IReadOnlyList<BattleDiagnosticTraceNodeSummary> nodes)
@@ -630,7 +734,20 @@ namespace AbilityKit.Game.Editor
                    (node.TriggerId != 0 && Contains(node.TriggerId.ToString(), _searchText)) ||
                    (node.SkillId != 0 && Contains(node.SkillId.ToString(), _searchText)) ||
                    (node.CastFlowId != 0 && Contains(node.CastFlowId.ToString(), _searchText)) ||
-                   Contains(node.PhaseId, _searchText);
+                   Contains(node.PhaseId, _searchText) ||
+                   MatchesDefinition(node.Definition) ||
+                   MatchesDefinition(node.TriggerDefinition) ||
+                   MatchesDefinition(node.SkillDefinition) ||
+                   MatchesDefinition(node.OriginDefinition) ||
+                   (node.HasOrigin && Contains(((MobaTraceKind)node.OriginKind).ToString(), _searchText)) ||
+                   (node.OriginConfigId != 0 && Contains(node.OriginConfigId.ToString(), _searchText));
+        }
+
+        private bool MatchesDefinition(BattleDiagnosticDefinitionReference reference)
+        {
+            return TryGetDefinition(reference, out var definition) &&
+                   (Contains(definition.DisplayName, _searchText) ||
+                    Contains(definition.SourcePath, _searchText));
         }
 
         private static BattleDebugDiagnosticTraceSummary BuildSummary(

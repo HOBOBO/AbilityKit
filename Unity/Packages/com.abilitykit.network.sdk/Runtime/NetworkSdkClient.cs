@@ -87,6 +87,9 @@ namespace AbilityKit.Network.Sdk
 
         public ConnectionState State => _connection.State;
 
+        /// <summary>Underlying connection for packet middleware installed by the owning host.</summary>
+        public IConnection Connection => _connection;
+
         public bool IsConnected => _connection.IsConnected;
 
         public bool SupportsReconnect => _reconnectableConnection != null;

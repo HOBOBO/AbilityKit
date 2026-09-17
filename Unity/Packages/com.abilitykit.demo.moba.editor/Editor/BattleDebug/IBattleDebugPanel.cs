@@ -26,6 +26,11 @@ namespace AbilityKit.Game.Editor
         bool OwnsScrollView { get; }
     }
 
+    internal interface IBattleDebugPanelSessionCleanup
+    {
+        void ClearSessionState();
+    }
+
     internal interface IBattleDebugTraceTarget
     {
         void OpenTrace(long rootContextId, long contextId);

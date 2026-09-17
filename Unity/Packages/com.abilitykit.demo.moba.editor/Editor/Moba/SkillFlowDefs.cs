@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Demo.Moba.Share.Config;
+using AbilityKit.Demo.Moba.Services;
 using Sirenix.OdinInspector;
 using UnityEditor;
 using UnityEngine;
@@ -288,13 +289,17 @@ namespace AbilityKit.Ability.Impl.BattleDemo.Moba.Editor
     public sealed class SkillTimelinePhaseDef : SkillPhaseDef
     {
         public SkillTimelinePhaseDTO Timeline = new SkillTimelinePhaseDTO();
+        [Tooltip("ActionEditor 导出的 *.moba.logic.json；为空时使用上方手填 Timeline。")]
+        public TextAsset MobaLogicTimeline;
 
         public override SkillPhaseType PhaseType => SkillPhaseType.Timeline;
 
         public override SkillPhaseDTO ToDto()
         {
             var dto = CreateDto();
-            dto.Timeline = Timeline;
+            dto.Timeline = MobaLogicTimeline != null
+                ? MobaActionTimelineCompiler.CompileLogicPhase(MobaLogicTimeline.text)
+                : Timeline;
             return dto;
         }
     }

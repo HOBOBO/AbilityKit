@@ -19,6 +19,24 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         // ===== 直接伤害草稿映射 =====
 
         [Test]
+        public void DirectDamageCommitDraft_RetainsOriginAndAppliedValue()
+        {
+            var runtime = new MobaSkillCastRuntimeHandle(55, 3, 500);
+            var origin = new MobaGameplayOrigin(7, 11, MobaTraceKind.EffectExecution,
+                201, 601, 600, 500, 400, runtime);
+            var result = new MobaHealthChangeResult(MobaHealthChangeKind.Damage,
+                7, 11, 1, 2, 401, 25f, 10f, 100f, 90f, 100f, in origin);
+
+            var draft = MobaDamageService.CreateDirectDamageDraft(in result);
+
+            Assert.That(draft.RootContextId, Is.EqualTo(500));
+            Assert.That(draft.ContextId, Is.EqualTo(601));
+            Assert.That(draft.SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(55, 3)));
+            Assert.That(draft.Summary, Does.Contain("requested=25"));
+            Assert.That(draft.Summary, Does.Contain("applied=10"));
+        }
+
+        [Test]
         public void CreateDirectDamageDraft_MapsAllFields()
         {
             var draft = MobaDamageService.CreateDirectDamageDraft(
@@ -60,6 +78,25 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         // ===== 治疗草稿映射 =====
+
+        [Test]
+        public void HealCommitDraft_RetainsRequestedAppliedAndOrigin()
+        {
+            var runtime = new MobaSkillCastRuntimeHandle(55, 3, 500);
+            var origin = new MobaGameplayOrigin(7, 11, MobaTraceKind.EffectExecution,
+                201, 601, 600, 500, 400, runtime);
+            var result = new MobaHealthChangeResult(MobaHealthChangeKind.Heal,
+                7, 11, 1, 2, 401, 25f, 10f, 90f, 100f, 100f, in origin);
+
+            var draft = MobaDamageService.CreateHealDraft(in result);
+
+            Assert.That(draft.RootContextId, Is.EqualTo(500));
+            Assert.That(draft.ContextId, Is.EqualTo(601));
+            Assert.That(draft.SkillRuntime, Is.EqualTo(new BattleDiagnosticRuntimeHandle(55, 3)));
+            Assert.That(draft.Summary, Does.Contain("requested=25"));
+            Assert.That(draft.Summary, Does.Contain("applied=10"));
+            Assert.That(draft.Summary, Does.Contain("hp=90->100"));
+        }
 
         [Test]
         public void CreateHealDraft_MapsAllFields()

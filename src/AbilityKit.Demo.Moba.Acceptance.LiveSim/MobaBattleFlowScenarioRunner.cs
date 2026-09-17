@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using AbilityKit.BattleFlow;
 using AbilityKit.EnvironmentModel;
 using AbilityKit.Demo.Moba.Acceptance;
@@ -11,6 +14,7 @@ using AbilityKit.Demo.Moba.EnvironmentModel;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Services.EnvironmentModel;
 using AbilityKit.Game.Test.UnitTest;
+using AbilityKit.Game.Battle.Testing;
 using AbilityKit.Scenario;
 using AbilityKit.Trace;
 
@@ -28,6 +32,9 @@ public sealed class MobaBattleFlowScenarioRunner
 
     public static MobaBattleFlowRunOutcome RunDetailed(TestScenario scenario)
     {
+        if (scenario == null) throw new ArgumentNullException(nameof(scenario));
+        var predictionBackend = MobaBattleFlowPredictionScenarioRunner.ResolveBackend(scenario);
+        ValidateCommands(scenario.Commands);
         using var bootstrapper = Boot();
         var expectation = ToExpectation(scenario);
         var executor = new LiveSimSetupActionExecutor(bootstrapper);
@@ -35,25 +42,184 @@ public sealed class MobaBattleFlowScenarioRunner
         var envEntities = BindEnvironment(scenario, bootstrapper.RuntimeServices!);
         PlaceObstacles(scenario, bootstrapper.RuntimeServices!);
         AssembleActors(expectation, executor);
-        new LiveSimTimelineRunner(bootstrapper, executor).Run(
-            expectation.timeline ?? Array.Empty<MobaAcceptanceTimelineStepExpectation>());
+        var timelineRunner = new LiveSimTimelineRunner(bootstrapper, executor);
+        LiveSimVirtualNetworkRunResult? networkRun = null;
+        if (scenario.Commands.Count > 0)
+        {
+            networkRun = new LiveSimVirtualNetworkTimelineRunner(executor, timelineRunner).Run(
+                expectation.timeline ?? Array.Empty<MobaAcceptanceTimelineStepExpectation>(),
+                scenario.Commands,
+                scenario.Seed,
+                scenario.TimeoutMs);
+        }
+        else
+        {
+            timelineRunner.Run(expectation.timeline ?? Array.Empty<MobaAcceptanceTimelineStepExpectation>());
+        }
         executor.TickMilliseconds(500);
+
+        var assertions = scenario.Expectations as MobaBattleFlowAssertions;
+        BattleFlowPredictionRunResult? predictionRun = null;
+        MobaPredictionAssertionResult? predictionVerdict = null;
+        if ((assertions?.Prediction.Count ?? 0) > 0)
+        {
+            predictionRun = MobaBattleFlowPredictionScenarioRunner.Run(scenario, predictionBackend);
+            predictionVerdict = BattleFlowPredictionScenarioRunner.Verify(
+                assertions!.Prediction,
+                predictionRun);
+        }
 
         var records = CaptureTraceRecords(bootstrapper, scenario.CaseId);
         var traceNodes = ToTraceNodes(records);
         var summary = $"actors={scenario.Actors.Count}, timeline={scenario.Timeline.Count}, traceNodes={records.Length}";
         if (!string.IsNullOrEmpty(scenario.EnvironmentProfileId))
             summary += $", env={scenario.EnvironmentProfileId}({envEntities}个)";
+        if (networkRun != null)
+        {
+            var dropped = networkRun.Stats.InboundDropped + networkRun.Stats.OutboundDropped;
+            summary += $", virtualNetwork={networkRun.TimelinePacketsDelivered}/{networkRun.TimelinePacketsQueued}" +
+                       $", dropped={dropped}, seed={scenario.Seed}, virtualMs={networkRun.FinishedAtMs}";
+        }
+        if (predictionRun != null)
+        {
+            summary += $", syncBackend={predictionRun.BackendId}, prediction={predictionRun.ConfirmedFrame}/{predictionRun.PredictedFrame}" +
+                       $", mismatch={predictionRun.Mismatches}, rollback={predictionRun.Rollbacks}" +
+                       $", finalHash={predictionRun.FinalStateHash}";
+        }
 
-        if (!HasAssertions(expectation))
-            return new MobaBattleFlowRunOutcome { Result = new BattleFlowRunResult { Passed = true, Summary = summary }, TraceNodes = traceNodes };
+        var fingerprint = ComputeDeterminismFingerprint(
+            scenario, executor, bootstrapper.Context.LastFrame, traceNodes, networkRun?.Trace, predictionRun);
+        summary += $", fingerprint={fingerprint.Substring(0, 12)}";
 
-        var observations = executor.CaptureObservations(expectation);
-        var verdict = AcceptanceVerifier.VerifyWithObservations(expectation, records, observations);
-        summary += $", verdict={(verdict.result.passed ? "PASSED" : "FAILED")}";
-        if (!verdict.result.passed)
-            summary += $", missing={verdict.coverage.missingTraceNodes}";
-        return new MobaBattleFlowRunOutcome { Result = new BattleFlowRunResult { Passed = verdict.result.passed, Summary = summary }, TraceNodes = traceNodes, Summary = verdict };
+        var hasGameplayAssertions = HasAssertions(expectation);
+        if (!hasGameplayAssertions && predictionVerdict == null)
+            return CreateOutcome(true, summary, traceNodes, null, networkRun, predictionRun, null, fingerprint);
+
+        MobaAcceptanceSummary? verdict = null;
+        var passed = true;
+        if (hasGameplayAssertions)
+        {
+            var observations = executor.CaptureObservations(expectation);
+            verdict = AcceptanceVerifier.VerifyWithObservations(expectation, records, observations);
+            passed &= verdict.result.passed;
+            if (!verdict.result.passed)
+                summary += $", missing={verdict.coverage.missingTraceNodes}";
+        }
+        if (predictionVerdict != null)
+        {
+            passed &= predictionVerdict.Passed;
+            if (!predictionVerdict.Passed)
+                summary += $", syncFailures={string.Join(" | ", predictionVerdict.Failures)}";
+        }
+        summary += $", verdict={(passed ? "PASSED" : "FAILED")}";
+        return CreateOutcome(
+            passed,
+            summary,
+            traceNodes,
+            verdict,
+            networkRun,
+            predictionRun,
+            predictionVerdict,
+            fingerprint);
+    }
+
+    public static MobaBattleFlowDeterminismResult VerifyDeterminism(TestScenario scenario)
+    {
+        var first = RunDetailed(scenario);
+        var second = RunDetailed(scenario);
+        return new MobaBattleFlowDeterminismResult
+        {
+            First = first,
+            Second = second,
+            Matches = string.Equals(first.DeterminismFingerprint, second.DeterminismFingerprint,
+                StringComparison.Ordinal),
+        };
+    }
+
+    private static MobaBattleFlowRunOutcome CreateOutcome(
+        bool passed,
+        string summary,
+        BattleFlowTraceNode[] traceNodes,
+        MobaAcceptanceSummary? verdict,
+        LiveSimVirtualNetworkRunResult? networkRun,
+        BattleFlowPredictionRunResult? predictionRun,
+        MobaPredictionAssertionResult? predictionVerdict,
+        string fingerprint)
+    {
+        return new MobaBattleFlowRunOutcome
+        {
+            Result = new BattleFlowRunResult { Passed = passed, Summary = summary },
+            TraceNodes = traceNodes,
+            Summary = verdict,
+            NetworkTrace = networkRun?.Trace ?? Array.Empty<string>(),
+            PredictionTrace = predictionRun?.StateTrace ?? Array.Empty<string>(),
+            Prediction = predictionRun,
+            PredictionFailures = predictionVerdict?.Failures ?? Array.Empty<string>(),
+            DeterminismFingerprint = fingerprint,
+        };
+    }
+
+    private static void ValidateCommands(IReadOnlyList<TestCommand> commands)
+    {
+        foreach (var command in commands)
+        {
+            if (!command.Name.StartsWith("network.", StringComparison.Ordinal))
+                throw new InvalidOperationException(
+                    $"Unsupported BattleFlow command '{command.Name}' atMs={command.AtMs}.");
+        }
+    }
+
+    private static string ComputeDeterminismFingerprint(
+        TestScenario scenario,
+        LiveSimSetupActionExecutor executor,
+        int finalFrame,
+        IReadOnlyList<BattleFlowTraceNode> traceNodes,
+        IReadOnlyList<string>? networkTrace,
+        BattleFlowPredictionRunResult? predictionRun)
+    {
+        var text = new StringBuilder(1024);
+        text.Append("seed=").Append(scenario.Seed).Append(";frame=").Append(finalFrame).AppendLine();
+        foreach (var node in traceNodes
+                     .OrderBy(node => node.Frame)
+                     .ThenBy(node => node.Kind, StringComparer.Ordinal)
+                     .ThenBy(node => node.ConfigId))
+        {
+            text.Append("trace|").Append(node.Frame).Append('|').Append(node.Kind).Append('|')
+                .Append(node.ConfigId).AppendLine();
+        }
+
+        foreach (var actor in scenario.Actors.OrderBy(actor => actor.Alias, StringComparer.Ordinal))
+        {
+            if (!executor.TryGetActorId(actor.Alias, out var actorId)) continue;
+            var position = executor.GetActorPosition(actorId);
+            text.Append("actor|").Append(actor.Alias).Append('|')
+                .Append(executor.GetActorHp(actorId).ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                .Append(executor.GetActorMana(actorId).ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                .Append(executor.GetActorMaxHp(actorId).ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                .Append(executor.GetActorMaxMana(actorId).ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                .Append(executor.GetActorTeamId(actorId)).Append('|')
+                .Append(position.X.ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                .Append(position.Y.ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                .Append(position.Z.ToString("R", CultureInfo.InvariantCulture)).Append('|')
+                .Append(executor.CountActorBuffs(actorId)).AppendLine();
+        }
+
+        if (networkTrace != null)
+            foreach (var entry in networkTrace) text.Append("network|").Append(entry).AppendLine();
+
+        if (predictionRun != null)
+        {
+            text.Append("prediction|").Append(predictionRun.DeterminismFingerprint).Append('|')
+                .Append(predictionRun.FinalStateHash).Append('|')
+                .Append(predictionRun.Mismatches).Append('|')
+                .Append(predictionRun.Rollbacks).Append('|')
+                .Append(predictionRun.ConfirmedFrame).Append('|')
+                .Append(predictionRun.PredictedFrame).AppendLine();
+            foreach (var entry in predictionRun.StateTrace)
+                text.Append("prediction-state|").Append(entry).AppendLine();
+        }
+
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
     }
 
     private static BattleFlowTraceNode[] ToTraceNodes(MobaAcceptanceTraceRecord[] records) =>
@@ -278,7 +444,19 @@ public sealed class MobaBattleFlowRunOutcome
 {
     public BattleFlowRunResult Result { get; init; } = new BattleFlowRunResult { Passed = false };
     public BattleFlowTraceNode[] TraceNodes { get; init; } = Array.Empty<BattleFlowTraceNode>();
+    public string[] NetworkTrace { get; init; } = Array.Empty<string>();
+    public string[] PredictionTrace { get; init; } = Array.Empty<string>();
+    public BattleFlowPredictionRunResult? Prediction { get; init; }
+    public string[] PredictionFailures { get; init; } = Array.Empty<string>();
+    public string DeterminismFingerprint { get; init; } = string.Empty;
 
     /// <summary>富判定摘要（verdict/coverage/traceCounts），供 webadmin 回归总结分析；无断言（smoke）时为 null。</summary>
     public MobaAcceptanceSummary? Summary { get; init; }
+}
+
+public sealed class MobaBattleFlowDeterminismResult
+{
+    public bool Matches { get; init; }
+    public MobaBattleFlowRunOutcome First { get; init; } = new();
+    public MobaBattleFlowRunOutcome Second { get; init; } = new();
 }

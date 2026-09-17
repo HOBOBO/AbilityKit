@@ -72,11 +72,16 @@
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Hud/BattleHudSessionModel.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Hud/Skills/BattleHudSkillFailureFeed.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Testing/MobaDemoHarnessCarrier.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Testing/MobaVirtualFrameCarrier.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Testing/MobaBattleFlowPredictionScenarioRunner.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Testing/MobaPredictionScenarioBackends.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Client/Replay/BattleReplayManifest.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../AbilityKit.Game.View.Runtime/AbilityKit.Game.View.Runtime.csproj" />
+    <ProjectReference Include="../AbilityKit.Demo.Moba.Environment/AbilityKit.Demo.Moba.Environment.csproj" />
+    <ProjectReference Include="../AbilityKit.Scenario/AbilityKit.Scenario.csproj" />
     <ProjectReference Include="../AbilityKit.Demo.Moba.Core/AbilityKit.Demo.Moba.Core.csproj" />
     <ProjectReference Include="../AbilityKit.Host.Extension/AbilityKit.Host.Extension.csproj" />
     <ProjectReference Include="../AbilityKit.Demo.Moba.Host/AbilityKit.Demo.Moba.Host.csproj" />

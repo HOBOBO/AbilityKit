@@ -1,4 +1,7 @@
 using System.Collections.Generic;
+using AbilityKit.ActionSchema;
+using AbilityKit.Demo.Moba.Services;
+using AbilityKit.Game.Flow.Battle.Presentation.Timeline;
 using AbilityKit.Ability.Host;
 using AbilityKit.Combat.Collision;
 using AbilityKit.Combat.Projectile;
@@ -15,6 +18,38 @@ namespace AbilityKit.Game.Test.UnitTest
 {
     public sealed class XiaoQiaoSkillAcceptanceTests : MobaAcceptanceTestBase
     {
+        [Test]
+        public void XiaoQiaoActionEditorRuntimeExports_ShouldLoadIntoSeparateRuntimes()
+        {
+            var logic = Resources.Load<TextAsset>("moba/action_timeline/skill_10020101.moba.logic");
+            var visual = Resources.Load<TextAsset>("moba/action_timeline/skill_10020101.moba.presentation");
+            Assert.IsNotNull(logic);
+            Assert.IsNotNull(visual);
+            Assert.IsNotNull(Resources.Load<GameObject>("effect/xiaoqiao_basic_fan"));
+            var phase = MobaActionTimelineCompiler.CompileLogicPhase(logic.text);
+            Assert.AreEqual(600, phase.DurationMs);
+            Assert.AreEqual(10020101, phase.Events[0].EffectId);
+            var sink = new TimelineRecordingSink();
+            var runtime = new MobaSkillPresentationTimelineRuntime(4294967297L, visual.text, sink);
+            runtime.StartAt(0f);
+            Assert.AreEqual("effect/xiaoqiao_basic_fan", sink.ResourceKey);
+            runtime.Stop();
+            Assert.AreEqual(4294967297L, sink.StoppedInstance);
+        }
+
+        private sealed class TimelineRecordingSink : IMobaSkillPresentationTimelineSink
+        {
+            public string ResourceKey;
+            public long StoppedInstance;
+
+            public void OnClipStart(long skillInstanceId, GroupDto group, ClipDto clip, float offsetSeconds)
+            {
+                ResourceKey = clip.args["resourceKey"];
+            }
+
+            public void OnTimelineStop(long skillInstanceId) => StoppedInstance = skillInstanceId;
+        }
+
         private const string Skill10020101ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020101.expected.json";
         private const string Skill10020101ScenarioExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020101_scenario.expected.json";
         private const string Skill10020201ExpectationPath = "Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Test/Expectations/skill_10020201.expected.json";

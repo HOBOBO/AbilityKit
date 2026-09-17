@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "runtimeType": "logic",
+  "length": 0.6,
+  "groups": [
+    {
+      "name": "XiaoQiaoSkill1",
+      "actorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "type": "AbilityKit.ActionEditorImpl.SignalTrack",
+          "name": "Logic",
+          "active": true,
+          "clips": [
+            {
+              "type": "AbilityKit.ActionEditorImpl.ExecuteEffect",
+              "runtimeType": "logic",
+              "start": 0.0,
+              "length": 0.0,
+              "blendIn": 0.0,
+              "blendOut": 0.0,
+              "args": { "effectId": "10020101", "eventTag": "xq_skill_1_cast" }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

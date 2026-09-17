@@ -3,9 +3,17 @@ using System.Collections.Generic;
 
 namespace AbilityKit.ActionSchema
 {
+    public static class ActionTimelineRuntimeTypes
+    {
+        public const string Logic = "logic";
+        public const string Presentation = "presentation";
+    }
+
     [Serializable]
     public sealed class SkillAssetDto
     {
+        public int schemaVersion;
+        public string runtimeType;
         public float length;
         public List<GroupDto> groups = new List<GroupDto>();
     }
@@ -35,6 +43,7 @@ namespace AbilityKit.ActionSchema
     public sealed class ClipDto
     {
         public string type;
+        public string runtimeType;
         public float start;
         public float length;
         public float blendIn;

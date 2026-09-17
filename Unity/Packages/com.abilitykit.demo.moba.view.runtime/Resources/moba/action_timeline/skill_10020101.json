@@ -1,0 +1,47 @@
+{
+  "groups": [
+    {
+      "name": "XiaoQiaoSkill1",
+      "ActorId": 0,
+      "active": true,
+      "tracks": [
+        {
+          "name": "Effect",
+          "active": true,
+          "actionClips": [
+            {
+              "resourceKey": "effect/xiaoqiao_basic_fan",
+              "resPath": "Packages/com.abilitykit.demo.moba.view.runtime/Resources/effect/xiaoqiao_basic_fan.prefab",
+              "startTime": 0.0,
+              "length": 0.35,
+              "name": "PlayParticle",
+              "$type": "AbilityKit.ActionEditorImpl.PlayParticle"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.EffectTrack"
+        },
+        {
+          "name": "Logic",
+          "active": true,
+          "actionClips": [
+            {
+              "effectId": 10020101,
+              "eventTag": "xq_skill_1_cast",
+              "startTime": 0.0,
+              "name": "ExecuteEffect",
+              "$type": "AbilityKit.ActionEditorImpl.ExecuteEffect"
+            }
+          ],
+          "$type": "AbilityKit.ActionEditorImpl.SignalTrack"
+        }
+      ]
+    }
+  ],
+  "exportMobaRuntime": true,
+  "length": 0.6,
+  "viewTimeMin": 0.0,
+  "viewTimeMax": 2.0,
+  "rangeMin": 0.0,
+  "rangeMax": 2.0,
+  "$type": "AbilityKit.ActionEditorImpl.SkillAsset"
+}

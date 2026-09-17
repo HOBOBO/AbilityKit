@@ -149,7 +149,8 @@ namespace AbilityKit.Battle.SearchTarget
             }
         }
 
-        private static bool PassRules(in SearchQuery query, SearchContext context, EntityId id)
+        private static bool PassRules(in SearchQuery query, SearchContext context, EntityId id,
+            ISearchStats stats)
         {
             var rules = query.Rules;
             if (rules == null || rules.Count == 0) return true;
@@ -158,9 +159,25 @@ namespace AbilityKit.Battle.SearchTarget
             {
                 var r = rules[i];
                 if (r == null) continue;
-                if (!r.IsMatch(in query, context, id)) return false;
+                if (!r.IsMatch(in query, context, id))
+                {
+                    if (stats is ISearchDetailedStats)
+                        ReportDecision(stats, id, SearchCandidateDecision.RuleRejected, i, r.GetType().Name);
+                    return false;
+                }
             }
             return true;
+        }
+
+        private static void ReportDecision(ISearchStats stats, EntityId id,
+            SearchCandidateDecision decision, int ruleIndex = -1, string ruleName = null,
+            float? primaryScore = null)
+        {
+            if (stats is ISearchDetailedStats detailed)
+            {
+                try { detailed.OnDecision(id, decision, ruleIndex, ruleName, primaryScore); }
+                catch { /* Diagnostic observation cannot change search results. */ }
+            }
         }
 
         private readonly struct CandidateConsumer : ICandidateConsumer
@@ -194,17 +211,36 @@ namespace AbilityKit.Battle.SearchTarget
             public void Consume(EntityId id)
             {
                 _stats?.OnCandidate();
-                if (!id.IsValid) return;
+                if (!id.IsValid)
+                {
+                    ReportDecision(_stats, id, SearchCandidateDecision.Invalid);
+                    return;
+                }
 
                 var key = _keyProvider != null ? _keyProvider.GetKey(id) : id.Value;
-                if (_seenKeys != null && _seenKeys.Contains(key)) return;
-                if (!PassRules(in _query, _context, id)) return;
+                if (_seenKeys != null && _seenKeys.Contains(key))
+                {
+                    ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
+                    return;
+                }
+                if (!PassRules(in _query, _context, id, _stats)) return;
 
                 var scoreOffset = _scoreBuffer.Add(_query.Orders, in _query, _context, id);
-                if (scoreOffset < 0) return;
-                if (_seenKeys != null && !_seenKeys.Add(key)) return;
+                if (scoreOffset < 0)
+                {
+                    ReportDecision(_stats, id, SearchCandidateDecision.ScoreUnavailable);
+                    return;
+                }
+                if (_seenKeys != null && !_seenKeys.Add(key))
+                {
+                    ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
+                    return;
+                }
 
                 _stats?.OnHit();
+                ReportDecision(_stats, id, SearchCandidateDecision.Eligible,
+                    primaryScore: _query.Orders.Count > 0
+                        ? new SearchHit(id, key, _scoreBuffer, scoreOffset).GetScore(0) : (float?)null);
                 _hits.Add(new SearchHit(id, key, _scoreBuffer, scoreOffset));
             }
         }
@@ -245,11 +281,19 @@ namespace AbilityKit.Battle.SearchTarget
             public void Consume(EntityId id)
             {
                 _stats?.OnCandidate();
-                if (!id.IsValid) return;
+                if (!id.IsValid)
+                {
+                    ReportDecision(_stats, id, SearchCandidateDecision.Invalid);
+                    return;
+                }
 
                 var key = _keyProvider != null ? _keyProvider.GetKey(id) : id.Value;
-                if (_seenKeys != null && _seenKeys.Contains(key)) return;
-                if (!PassRules(in _query, _context, id)) return;
+                if (_seenKeys != null && _seenKeys.Contains(key))
+                {
+                    ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
+                    return;
+                }
+                if (!PassRules(in _query, _context, id, _stats)) return;
 
                 var scoreCount = _query.Orders.Count;
                 var temporaryOffset = _capacity * scoreCount;
@@ -260,11 +304,19 @@ namespace AbilityKit.Battle.SearchTarget
                         _context,
                         id) < 0)
                 {
+                    ReportDecision(_stats, id, SearchCandidateDecision.ScoreUnavailable);
                     return;
                 }
-                if (_seenKeys != null && !_seenKeys.Add(key)) return;
+                if (_seenKeys != null && !_seenKeys.Add(key))
+                {
+                    ReportDecision(_stats, id, SearchCandidateDecision.Duplicate);
+                    return;
+                }
 
                 _stats?.OnHit();
+                ReportDecision(_stats, id, SearchCandidateDecision.Eligible,
+                    primaryScore: scoreCount > 0
+                        ? new SearchHit(id, key, _scoreBuffer, temporaryOffset).GetScore(0) : (float?)null);
                 Offer(id, key, temporaryOffset, scoreCount);
             }
 

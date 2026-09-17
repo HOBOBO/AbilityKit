@@ -77,6 +77,7 @@ namespace AbilityKit.Trace
         internal readonly ITraceContextSource _contextSource;
         internal long _nextId;
         private long _revision;
+        private long _predictionFloor = 1;
 
         private static readonly List<long> EmptyChildrenList = new List<long>();
 
@@ -108,7 +109,12 @@ namespace AbilityKit.Trace
         /// <summary>
         /// 生成新的唯一 ID
         /// </summary>
-        protected long NewId() => _nextId++;
+        protected long NewId()
+        {
+            if (_nextId == long.MaxValue)
+                throw new InvalidOperationException("Trace context ID space is exhausted.");
+            return _nextId++;
+        }
 
         /// <summary>
         /// 获取叶子节点数据存储
@@ -134,6 +140,8 @@ namespace AbilityKit.Trace
         /// 获取查询可见 Trace 数据的单调版本。
         /// </summary>
         public long Revision => _revision;
+
+        public long NextContextId => _nextId;
 
         /// <summary>
         /// 获取根节点 ID 列表
@@ -198,6 +206,78 @@ namespace AbilityKit.Trace
 
         public bool Contains(long contextId) => _contexts.ContainsKey(contextId);
 
+        public void ValidatePredictionRetraction(long nextContextId)
+        {
+            if (nextContextId < _predictionFloor || nextContextId > _nextId)
+                throw new InvalidOperationException($"Invalid Trace prediction boundary {nextContextId}.");
+        }
+
+        /// <summary>Revokes nodes allocated after a local snapshot, without reusing their identities.</summary>
+        public int RetractPrediction(long nextContextId)
+        {
+            ValidatePredictionRetraction(nextContextId);
+            var affectedParents = new HashSet<long>();
+            var removedCount = 0;
+            for (var id = _nextId - 1L; id >= nextContextId; id--)
+            {
+                if (!_contexts.TryGetValue(id, out var record)) continue;
+                if (record.ParentId != 0L) affectedParents.Add(record.ParentId);
+                if (!record.IsEnded && _roots.TryGetValue(record.RootId, out var root))
+                    _roots[record.RootId] = root.WithActiveCount(root.ActiveCount - 1).WithLastTouchedFrame(GetCurrentFrame());
+                _contexts.Remove(id);
+                _childrenByParent.Remove(id);
+                if (record.ContextId == record.RootId) _roots.Remove(id);
+                OnPredictionNodeRemoved(id);
+                _leafDataStore.Clear(id);
+                removedCount++;
+            }
+            foreach (var parentId in affectedParents)
+                if (_childrenByParent.TryGetValue(parentId, out var children))
+                    children.RemoveAll(id => id >= nextContextId);
+            if (removedCount > 0)
+                Publish(new TraceRegistryEvent(TraceRegistryEventKind.PredictionRetracted, nextContextId, 0, 0, 0, GetCurrentFrame()));
+            return removedCount;
+        }
+
+        protected virtual void OnPredictionNodeRemoved(long contextId) { }
+
+        /// <summary>Validates a local lifecycle restore without rebuilding missing identities or metadata.</summary>
+        public void ValidateLifecycleRestore(IReadOnlyList<TraceNodeSnapshot> nodes)
+        {
+            if (nodes == null) throw new ArgumentNullException(nameof(nodes));
+            var ids = new HashSet<long>();
+            foreach (var node in nodes)
+            {
+                if (!ids.Add(node.ContextId) || !_roots.ContainsKey(node.RootId) || !_contexts.TryGetValue(node.ContextId, out var current) ||
+                    current.RootId != node.RootId || current.ParentId != node.ParentId ||
+                    current.Kind != node.Kind || current.CreatedFrame != node.CreatedFrame ||
+                    (!node.IsEnded && (node.EndedFrame != 0 || node.EndReason != 0)))
+                    throw new InvalidOperationException($"Trace lifecycle identity {node.ContextId} is missing or invalid.");
+            }
+        }
+
+        /// <summary>Restores captured node lifecycle only; current external retain handles remain authoritative.</summary>
+        public void RestoreLifecycle(IReadOnlyList<TraceNodeSnapshot> nodes)
+        {
+            ValidateLifecycleRestore(nodes);
+            var activeDeltas = new Dictionary<long, int>();
+            foreach (var node in nodes)
+            {
+                var current = _contexts[node.ContextId];
+                activeDeltas.TryGetValue(node.RootId, out var delta);
+                activeDeltas[node.RootId] = delta + (node.IsEnded ? 0 : 1) - (current.IsEnded ? 0 : 1);
+                _contexts[node.ContextId] = new TraceContextRecord(node.ContextId, node.RootId, node.ParentId,
+                    node.Kind, node.CreatedFrame, node.EndedFrame, node.EndReason, node.IsEnded);
+            }
+            foreach (var change in activeDeltas)
+            {
+                var root = _roots[change.Key];
+                _roots[change.Key] = root.WithActiveCount(root.ActiveCount + change.Value).WithLastTouchedFrame(GetCurrentFrame());
+            }
+            if (nodes.Count > 0)
+                Publish(new TraceRegistryEvent(TraceRegistryEventKind.LifecycleRestored, 0, 0, 0, 0, GetCurrentFrame()));
+        }
+
         public bool IsLeaf(long contextId)
         {
             if (!_contexts.ContainsKey(contextId))
@@ -234,10 +314,11 @@ namespace AbilityKit.Trace
         /// </summary>
         public void Clear()
         {
+            OnClearing();
             _contexts.Clear();
             _roots.Clear();
             _childrenByParent.Clear();
-            _nextId = 1;
+            _predictionFloor = _nextId;
             OnClear();
             Publish(new TraceRegistryEvent(TraceRegistryEventKind.RegistryCleared, 0, 0, 0, 0, GetCurrentFrame()));
         }
@@ -246,6 +327,13 @@ namespace AbilityKit.Trace
         /// 清理时触发（子类可覆盖）
         /// </summary>
         protected virtual void OnClear() { }
+
+        /// <summary>Clears owned mappings while node identities are still available.</summary>
+        protected virtual void OnClearing()
+        {
+            foreach (var id in _contexts.Keys)
+                _leafDataStore.Clear(id);
+        }
 
         /// <summary>
         /// 保留根节点（增加外部引用计数）
@@ -372,6 +460,15 @@ namespace AbilityKit.Trace
         /// 获取元数据存储
         /// </summary>
         public ITraceMetadataStore<T> MetadataStore => _metadataStore;
+
+        protected override void OnPredictionNodeRemoved(long contextId) => _metadataStore.Clear(contextId);
+
+        protected override void OnClearing()
+        {
+            foreach (var id in _contexts.Keys)
+                _metadataStore.Clear(id);
+            base.OnClearing();
+        }
 
         protected override object GetMetadataObject(long contextId)
         {

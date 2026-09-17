@@ -48,6 +48,7 @@ namespace AbilityKit.Game.Flow
                     _networkIoDispatcher);
                 if (transport is NetworkTransport networkTransport)
                 {
+                    NetworkCondition.Attach(networkTransport.Connection);
                     _runtime.InputSubmissionDiagnostics.Bind(
                         networkTransport,
                         _plan.World.WorldId);

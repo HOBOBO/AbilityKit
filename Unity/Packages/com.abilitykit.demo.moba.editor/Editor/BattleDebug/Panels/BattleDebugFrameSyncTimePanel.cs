@@ -20,13 +20,12 @@ namespace AbilityKit.Game.Editor
 
         public bool IsVisible(in BattleDebugContext ctx)
         {
-            return !ctx.IsOffline && EditorApplication.isPlaying && BattleFlowDebugProvider.Current != null;
+            return BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out _);
         }
 
         public void Draw(in BattleDebugContext ctx)
         {
-            var flowCtx = BattleFlowDebugProvider.Current;
-            if (flowCtx == null)
+            if (!BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out var flowCtx))
             {
                 EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;
@@ -64,8 +63,8 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField("固定帧间隔", (time.FrameToTime(new FrameIndex(time.Frame.Value + 1)) - time.FrameToTime(time.Frame)).ToString("F4"));
 
             EditorGUILayout.Space();
-            var ts = BattleFlowDebugProvider.TimeSyncStats;
-            var map = BattleFlowDebugProvider.TimeSyncStatsByWorld;
+            BattleFlowDebugProvider.TryGetTimeSyncStats(
+                flowCtx.Plan.World.WorldId, out var ts, out var map);
             if (map != null)
             {
                 EditorGUILayout.LabelField("各世界时间同步统计数", map.Count.ToString());

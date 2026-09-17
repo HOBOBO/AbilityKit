@@ -38,6 +38,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.Events.Revision, Is.EqualTo(EventRevision));
             Assert.That(restored.Events.Metrics, Is.EqualTo(source.Events.Metrics));
             Assert.That(restored.Events.Events, Is.EqualTo(source.Events.Events));
+            Assert.That(restored.Events.Events[0].Payload.TryGetDamageCalculation(out var damage), Is.True);
+            Assert.That(damage.Stage, Is.EqualTo(BattleDiagnosticDamageStage.HealthCommitRejected));
+            Assert.That(damage.PlannedHpDamageRaw, Is.EqualTo(2L << 32));
+            Assert.That(damage.AppliedHpDamageRaw, Is.Zero);
             Assert.That(restored.Events.Events[2].DefinitionKind, Is.EqualTo(BattleDiagnosticDefinitionKind.Trigger));
             StringAssert.Contains("\"definitionKind\": 2", json);
             Assert.That(restored.State.World, Is.EqualTo(source.State.World));
@@ -45,6 +49,9 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(restored.Trace.Nodes, Is.EqualTo(source.Trace.Nodes));
             Assert.That(restored.Trace.Nodes[0].TargetActorId, Is.EqualTo(2));
             Assert.That(restored.Trace.Nodes[0].TriggerId, Is.EqualTo(701));
+            Assert.That(restored.Trace.Nodes[0].OriginKind, Is.EqualTo((int)MobaTraceKind.AreaStay));
+            Assert.That(restored.Trace.Nodes[0].OriginDefinition,
+                Is.EqualTo(BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Area, 601)));
             Assert.That(restored.Trace.Nodes[0].SourceObject.Kind,
                 Is.EqualTo(BattleDiagnosticRuntimeObjectKind.Actor));
             Assert.That(restored.Trace.Nodes[0].SourceActorGeneration, Is.EqualTo(3));
@@ -147,6 +154,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(failure.Stage, Is.EqualTo("Preparation"));
             Assert.That(failure.Code, Is.EqualTo("Cast.TargetOutOfRange"));
             Assert.That(failure.Message, Is.EqualTo("Target is outside cast range."));
+            Assert.That(failure.CommandId, Is.EqualTo(4401));
             Assert.That(restored.Events.Events[4].Payload.TryGetBuffLifecycle(out var buff), Is.True);
             Assert.That(buff.Stage, Is.EqualTo(BattleDiagnosticBuffLifecycleStage.Removed));
             Assert.That(buff.StackCount, Is.EqualTo(3));
@@ -167,8 +175,33 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(triggerAggregate.OccurrenceCount, Is.EqualTo(59));
             Assert.That(triggerAggregate.FirstFrame, Is.EqualTo(Frame - 58));
             Assert.That(triggerAggregate.LastContextId, Is.EqualTo(962));
+            Assert.That(restored.Events.Events[6].Payload.TryGetInputCommand(out var input), Is.True);
+            Assert.That(input.CommandId, Is.EqualTo(4401));
+            Assert.That(input.InputFrame, Is.EqualTo(Frame));
+            Assert.That(input.PlayerId, Is.EqualTo("player-one"));
+            Assert.That(input.SkillSlot, Is.EqualTo(2));
+            Assert.That(input.TargetActorId, Is.EqualTo(2));
+            Assert.That(restored.Events.Events[7].Payload.TryGetTargetSearch(out var search), Is.True);
+            Assert.That(search.CommandId, Is.EqualTo(input.CommandId));
+            Assert.That(search.ExplicitTargetActorId, Is.EqualTo(2));
+            Assert.That(search.CandidateCount, Is.EqualTo(4));
+            Assert.That(search.EligibleCount, Is.EqualTo(2));
+            Assert.That(search.SelectedCount, Is.EqualTo(1));
+            Assert.That(search.SelectedActorIds, Is.EqualTo("2"));
+            Assert.That(search.DecisionDetails, Is.EqualTo("2:eligible:rank=1;3:rejected:team"));
+            Assert.That(failure.CommandId, Is.EqualTo(input.CommandId));
+            Assert.That(restored.Events.Events[8].Payload.TryGetSkillExecution(out var execution), Is.True);
+            Assert.That(execution.CommandId, Is.EqualTo(input.CommandId));
+            Assert.That(execution.Stage, Is.EqualTo(BattleDiagnosticSkillExecutionStage.EconomyCommitted));
+            Assert.That(execution.ResourceBeforeRaw, Is.EqualTo(100L << 32));
+            Assert.That(execution.ResourceAfterRaw, Is.EqualTo(90L << 32));
+            Assert.That(execution.CooldownMs, Is.EqualTo(800));
+            Assert.That(execution.Detail, Is.EqualTo("cast.release"));
             StringAssert.Contains("\"buffLifecycleModifierSourceId\": 77", json);
             StringAssert.Contains("\"buffLifecycleRemoveReason\": 9", json);
+            StringAssert.Contains("\"inputCommandId\": 4401", json);
+            StringAssert.Contains("\"targetSearchCommandId\": 4401", json);
+            StringAssert.Contains("\"skillExecutionCommandId\": 4401", json);
         }
 
         [Test]
@@ -388,6 +421,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 node.Definition = null;
                 node.TriggerDefinition = null;
                 node.SkillDefinition = null;
+                node.OriginDefinition = null;
+                node.OriginKind = 0;
                 node.SourceActorGeneration = 0;
                 node.TargetActorGeneration = 0;
                 node.DefinitionKind = 0;
@@ -410,6 +445,30 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(first.TriggerDefinition.DefinitionId, Is.EqualTo(701));
             Assert.That(first.SkillDefinition.DefinitionId, Is.EqualTo(101));
             Assert.That(second.ParentContext.ContextId, Is.EqualTo(900));
+            Assert.That(first.HasOrigin, Is.False);
+            Assert.That(first.OriginConfigId, Is.Zero);
+        }
+
+        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
+        public void FromSection_LegacyActionDefinition_IsMigratedWithoutTreatingItAsEffect(bool typed)
+        {
+            var section = MobaBattleDiagnosticArtifactCodec.ToSection(CreateSnapshot());
+            var action = section.Trace.Nodes[1];
+            action.Kind = "EffectAction";
+            action.ConfigId = -42;
+            action.DefinitionKind = (int)BattleDiagnosticDefinitionKind.Effect;
+            if (typed)
+            {
+                action.Definition.Kind = (int)BattleDiagnosticDefinitionKind.Effect;
+                action.Definition.DefinitionId = -42;
+            }
+            else action.Definition = null;
+
+            var restored = MobaBattleDiagnosticArtifactCodec.FromSection(section);
+            Assert.That(restored.Trace.Nodes[1].Definition,
+                Is.EqualTo(BattleDiagnosticDefinitionReference.Create(BattleDiagnosticDefinitionKind.Action, -42)));
         }
 
         [Test]
@@ -696,7 +755,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 source: "Cast",
                 stage: "Preparation",
                 code: "Cast.TargetOutOfRange",
-                message: "Target is outside cast range.");
+                message: "Target is outside cast range.",
+                commandId: 4401);
             var failurePayload = BattleDiagnosticEventPayload.FromSkillFailure(in failureData);
             var buffData = new BattleDiagnosticBuffLifecyclePayload(
                 BattleDiagnosticBuffLifecycleStage.Removed,
@@ -710,6 +770,28 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 modifierSourceId: 77,
                 removeReason: 9);
             var buffPayload = BattleDiagnosticEventPayload.FromBuffLifecycle(in buffData);
+            var damageData = new BattleDiagnosticDamageCalculationPayload(
+                BattleDiagnosticDamageStage.HealthCommitRejected, 1L << 32, 2L << 32,
+                3L << 32, 1L << 32, 2L << 32, 0L);
+            var damagePayload = BattleDiagnosticEventPayload.FromDamageCalculation(in damageData);
+            var inputData = new BattleDiagnosticInputCommandPayload(
+                4401, Frame, "player-one", 17, true, 0, "Skill input accepted.", 2, 1, 2);
+            var inputPayload = BattleDiagnosticEventPayload.FromInputCommand(in inputData);
+            var searchData = new BattleDiagnosticTargetSearchPayload(
+                4401, 2, 4, 2, 1, "2", "2:eligible:rank=1;3:rejected:team");
+            var searchPayload = BattleDiagnosticEventPayload.FromTargetSearch(in searchData);
+            var executionData = new BattleDiagnosticSkillExecutionPayload(
+                4401, BattleDiagnosticSkillExecutionStage.EconomyCommitted,
+                2, 3, 17, resourceType: 4,
+                resourceAmountRaw: 10L << 32,
+                resourceBeforeRaw: 100L << 32,
+                resourceAfterRaw: 90L << 32,
+                chargeCost: 1,
+                cooldownMs: 800,
+                sharedCooldownMs: 600,
+                globalCooldownMs: 300,
+                detail: "cast.release");
+            var executionPayload = BattleDiagnosticEventPayload.FromSkillExecution(in executionData);
             var events = new[]
             {
                 new BattleDiagnosticEvent(
@@ -727,7 +809,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     contextId: 901,
                     skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
                     attackId: 800,
-                    summary: "Fire Strike failed"),
+                    summary: "Fire Strike failed",
+                    payload: damagePayload),
                 new BattleDiagnosticEvent(
                     _scope,
                     Frame,
@@ -805,9 +888,60 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                     contextId: 962,
                     payloadVersion: BattleDiagnosticTriggerAnalysisAggregatePayload.CurrentSchemaVersion,
                     summary: "Repeated trigger condition miss.",
-                    payload: triggerAggregatePayload)
+                    payload: triggerAggregatePayload),
+                new BattleDiagnosticEvent(
+                    _scope,
+                    Frame,
+                    7,
+                    1040,
+                    BattleDiagnosticEventKind.InputCommand,
+                    BattleDiagnosticEventChannel.Input,
+                    BattleDiagnosticEventOutcome.Succeeded,
+                    sourceActorId: 1,
+                    targetActorId: 2,
+                    configId: 101,
+                    rootContextId: 900,
+                    contextId: 900,
+                    skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
+                    payloadVersion: BattleDiagnosticInputCommandPayload.CurrentSchemaVersion,
+                    summary: "Skill input accepted",
+                    payload: inputPayload),
+                new BattleDiagnosticEvent(
+                    _scope,
+                    Frame,
+                    8,
+                    1045,
+                    BattleDiagnosticEventKind.TargetSearch,
+                    BattleDiagnosticEventChannel.Targeting,
+                    BattleDiagnosticEventOutcome.Succeeded,
+                    sourceActorId: 1,
+                    targetActorId: 2,
+                    configId: 101,
+                    rootContextId: 900,
+                    contextId: 900,
+                    skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
+                    payloadVersion: BattleDiagnosticTargetSearchPayload.CurrentSchemaVersion,
+                    summary: "Target selected",
+                    payload: searchPayload),
+                new BattleDiagnosticEvent(
+                    _scope,
+                    Frame,
+                    9,
+                    1050,
+                    BattleDiagnosticEventKind.SkillEconomy,
+                    BattleDiagnosticEventChannel.Skill,
+                    BattleDiagnosticEventOutcome.Succeeded,
+                    sourceActorId: 1,
+                    targetActorId: 2,
+                    configId: 101,
+                    rootContextId: 900,
+                    contextId: 900,
+                    skillRuntime: new BattleDiagnosticRuntimeHandle(700, 2),
+                    payloadVersion: BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
+                    summary: "Economy committed",
+                    payload: executionPayload)
             };
-            var metrics = new BattleDiagnosticStoreMetrics(8, events.Length, EventRevision, 2, 0, 1, true);
+            var metrics = new BattleDiagnosticStoreMetrics(16, events.Length, EventRevision, 2, 0, 1, true);
             var actors = new[]
             {
                 new BattleDiagnosticActorSummary(_scope, Frame, 1, BattleDiagnosticActorKind.Hero, 101, 1, 1f, 2f, 3f, 90f, 100f, true, "Mage"),
@@ -815,7 +949,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             };
             var traces = new[]
             {
-                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "SkillPhase", "Completed", 101, 7001, "cast.release", 2, 701, 3, 5, BattleDiagnosticDefinitionKind.Skill),
+                new BattleDiagnosticTraceNodeSummary(_scope, 900, 900, 0, Frame - 2, Frame, BattleDiagnosticTraceNodeState.Ended, 1, 101, "SkillPhase", "Completed", 101, 7001, "cast.release", 2, 701, 3, 5, BattleDiagnosticDefinitionKind.Skill, (int)MobaTraceKind.AreaStay, 601, BattleDiagnosticDefinitionKind.Area),
                 new BattleDiagnosticTraceNodeSummary(_scope, 900, 901, 900, Frame - 1, Frame, BattleDiagnosticTraceNodeState.Ended, 2, 201, "Damage", "Failed")
             };
             var attributes = new[]

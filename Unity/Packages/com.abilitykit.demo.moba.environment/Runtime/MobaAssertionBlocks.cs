@@ -102,4 +102,22 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
             });
         }
     }
+
+    /// <summary>Asserts deterministic prediction/reconciliation telemetry.</summary>
+    public sealed class AssertPredictionBlock : MobaAssertionBlock
+    {
+        public string Property { get; set; } = string.Empty;
+        public string Comparator { get; set; } = "eq";
+        public string ExpectedValue { get; set; } = string.Empty;
+
+        protected override void Apply(MobaBattleFlowAssertions assertions)
+        {
+            assertions.Prediction.Add(new MobaPredictionAssertion
+            {
+                Property = Property,
+                Comparator = Comparator,
+                ExpectedValue = ExpectedValue,
+            });
+        }
+    }
 }

@@ -146,10 +146,29 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
             }
 
             var entries = snapshot.Entries ?? Array.Empty<MobaBuffStateRecoveryEntry>();
+            var restoredContextIds = new HashSet<long>();
+            var replacedContextIds = new HashSet<long>();
+            foreach (var actor in _actors.Entries)
+            {
+                var entity = actor.Value;
+                if (entity == null || !entity.hasBuffs || entity.buffs.Active == null) continue;
+                foreach (var runtime in entity.buffs.Active)
+                    if (runtime != null && runtime.RuntimeContextId != 0L)
+                    {
+                        _runtimeContexts.ValidateBuffContextOwnership(runtime);
+                        replacedContextIds.Add(runtime.RuntimeContextId);
+                    }
+            }
             Array.Sort(entries, CompareEntries);
             for (int i = 0; i < entries.Length; i++)
             {
                 var entry = entries[i];
+                MobaRuntimeContextService.ValidateRestoredBuffReference(entry.RuntimeContextId, entry.RuntimeContextVersion);
+                if (entry.RuntimeContextId != 0L &&
+                    (!restoredContextIds.Add(entry.RuntimeContextId) ||
+                     (_runtimeContexts.Registry.Exists(entry.RuntimeContextId) &&
+                      !replacedContextIds.Contains(entry.RuntimeContextId))))
+                    throw new InvalidOperationException($"Conflicting restored Buff runtime context {entry.RuntimeContextId}.");
                 if (entry.TargetActorId <= 0 || entry.BuffId <= 0 || entry.SourceContextId == 0L)
                 {
                     throw new InvalidOperationException($"Invalid Buff state identity. target={entry.TargetActorId} buffId={entry.BuffId} sourceContextId={entry.SourceContextId}.");
@@ -258,7 +277,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs
                 list.Add(runtime);
                 added = true;
                 BuffRepository.RegisterRuntime(list, runtime);
-                _runtimeContexts.EnsureBuffContext(
+                _runtimeContexts.RestoreBuffContext(
                     runtime,
                     MobaBuffRuntimeContextData.FromRuntime(runtime, entry.TargetActorId, frame.Value, MobaRuntimeContextLifecycleState.Active));
                 runtime = null;

@@ -312,6 +312,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             if (_runtime == null) return;
             _runtime.RuntimeContextId = runtimeContextId;
             _runtime.RuntimeContextVersion = runtimeContextVersion;
+            _runtime.RuntimeContextIdentity = default;
         }
 
         public void BindOrigin(in MobaGameplayOrigin origin)
@@ -363,6 +364,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             _runtime.SourceContextId = 0;
             _runtime.RuntimeContextId = 0;
             _runtime.RuntimeContextVersion = 0;
+            _runtime.RuntimeContextIdentity = default;
             _runtime.Origin = default;
             _runtime.ContextSource = default;
             _runtime.Continuous = null;

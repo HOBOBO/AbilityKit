@@ -24,7 +24,7 @@ namespace AbilityKit.Game.Editor
                        BattleDiagnosticMetricCategory.Rollback) ||
                    !ctx.IsOffline &&
                    EditorApplication.isPlaying &&
-                   BattleFlowDebugProvider.Current != null;
+                   BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out _);
         }
 
         public void Draw(in BattleDebugContext ctx)
@@ -33,7 +33,8 @@ namespace AbilityKit.Game.Editor
                 in ctx,
                 BattleDiagnosticMetricCategory.Rollback,
                 "回滚历史");
-            var flowCtx = ctx.IsOffline ? null : BattleFlowDebugProvider.Current;
+            var flowCtx = BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out var resolved)
+                ? resolved : null;
             if (flowCtx == null)
             {
                 if (hasHistory) return;

@@ -12,7 +12,9 @@ namespace AbilityKit.Trace
         RootRetained = 4,
         RootReleased = 5,
         RootPurged = 6,
-        RegistryCleared = 7
+        RegistryCleared = 7,
+        LifecycleRestored = 8,
+        PredictionRetracted = 9
     }
 
     public readonly struct TraceRegistryEvent

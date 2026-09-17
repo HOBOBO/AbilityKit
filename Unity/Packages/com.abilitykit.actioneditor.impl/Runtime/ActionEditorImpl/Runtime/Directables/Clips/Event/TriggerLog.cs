@@ -7,8 +7,9 @@ namespace AbilityKit.ActionEditorImpl
     [Description("测试打印一个日志")]
     [Color(1, 0, 0)]
     [Attachable(typeof(SignalTrack))]
-    public class TriggerLog : ClipSignal, ILogicJsonExportable
+    public class TriggerLog : ClipSignal, IActionTimelineRuntimeClip
     {
+        public ActionTimelineRuntimeKind RuntimeKind => ActionTimelineRuntimeKind.Logic;
         [MenuName("打印内容")] public string log;
 
         public override string Info => "打印\n" + log;

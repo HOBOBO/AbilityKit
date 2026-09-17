@@ -1,0 +1,21 @@
+{
+  "formatVersion": 2,
+  "definitionId": "showcase.patrol.reference",
+  "rootMachineId": "Patrol",
+  "machines": [{
+    "id": "Patrol", "initialStateId": "Idle", "rememberLastState": false,
+    "states": [
+      {"id":"Idle","behaviorKey":"showcase.state","childMachineId":"","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"},
+      {"id":"Walking","behaviorKey":"showcase.patrol.walk","childMachineId":"","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"},
+      {"id":"Blocked","behaviorKey":"showcase.patrol.block","childMachineId":"","requiresExitApproval":false,"isGhostState":false,"parallelBehaviorKeys":[],"parallelExitPolicy":"Any"}
+    ],
+    "transitions": [
+      {"id":"idle.walk","fromAnyState":false,"fromStateId":"Idle","toStateId":"Walking","triggerId":"","conditionKey":"showcase.walk","actionKey":"showcase.transition","priority":20,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+      {"id":"walk.idle","fromAnyState":false,"fromStateId":"Walking","toStateId":"Idle","triggerId":"","conditionKey":"showcase.idle","actionKey":"showcase.transition","priority":10,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+      {"id":"idle.block","fromAnyState":false,"fromStateId":"Idle","toStateId":"Blocked","triggerId":"","conditionKey":"showcase.blocked","actionKey":"showcase.transition","priority":100,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+      {"id":"walk.block","fromAnyState":false,"fromStateId":"Walking","toStateId":"Blocked","triggerId":"","conditionKey":"showcase.blocked","actionKey":"showcase.transition","priority":100,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+      {"id":"block.walk","fromAnyState":false,"fromStateId":"Blocked","toStateId":"Walking","triggerId":"","conditionKey":"showcase.walk","actionKey":"showcase.transition","priority":20,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0},
+      {"id":"block.idle","fromAnyState":false,"fromStateId":"Blocked","toStateId":"Idle","triggerId":"","conditionKey":"showcase.idle","actionKey":"showcase.transition","priority":10,"forceImmediate":true,"exitMachine":false,"minimumActiveDurationRaw":0}
+    ]
+  }]
+}

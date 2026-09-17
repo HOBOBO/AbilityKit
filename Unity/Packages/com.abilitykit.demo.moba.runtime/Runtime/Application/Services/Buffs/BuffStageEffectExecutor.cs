@@ -123,6 +123,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
                 Stage = stage,
                 RuntimeContextId = runtime != null ? runtime.RuntimeContextId : 0L,
                 RuntimeContextVersion = runtime != null ? runtime.RuntimeContextVersion : 0L,
+                RuntimeContextIdentity = runtime != null ? runtime.RuntimeContextIdentity : default,
                 StackCountSnapshot = runtime != null ? runtime.StackCount : 0,
                 RemainingSecondsSnapshot = runtime != null ? runtime.Remaining : 0f,
                 DurationSecondsSnapshot = durationSeconds,
@@ -158,6 +159,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
         public string Stage { get; set; }
         public long RuntimeContextId { get; set; }
         public long RuntimeContextVersion { get; set; }
+        public AbilityKit.Context.ContextEntityReference RuntimeContextIdentity { get; set; }
         public int StackCountSnapshot { get; set; }
         public float RemainingSecondsSnapshot { get; set; }
         public float DurationSecondsSnapshot { get; set; }
@@ -211,7 +213,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs {
 
         public bool TryGetRuntimeContext(out MobaRuntimeContextReference reference)
         {
-            reference = new MobaRuntimeContextReference(RuntimeContextId, RuntimeContextVersion);
+            reference = MobaRuntimeContextReference.FromIdentityOrLegacy(RuntimeContextId, RuntimeContextVersion, RuntimeContextIdentity);
             return reference.IsValid;
         }
  

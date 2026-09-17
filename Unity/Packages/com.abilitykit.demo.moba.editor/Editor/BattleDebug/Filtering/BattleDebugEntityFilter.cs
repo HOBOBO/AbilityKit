@@ -1,7 +1,7 @@
 using System;
-using AbilityKit.Attributes.Core;
-using AbilityKit.GameplayTags;
+using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Game.Battle;
+using AbilityKit.GameplayTags;
 using GameplayTagsUtil = AbilityKit.GameplayTags.GameplayTags;
 
 namespace AbilityKit.Game.Editor
@@ -9,24 +9,23 @@ namespace AbilityKit.Game.Editor
     internal static class BattleDebugEntityFilterImpl
     {
         public static bool Matches(
-            IBattleDebugFacade facade,
+            IBattleDiagnosticReadOnlySession session,
             BattleDebugEntityId id,
             string filter)
         {
-            if (facade == null) return false;
             if (string.IsNullOrWhiteSpace(filter)) return true;
 
             var parts = filter.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
             for (int i = 0; i < parts.Length; i++)
             {
-                if (!MatchesToken(facade, id, parts[i])) return false;
+                if (!MatchesToken(session, id, parts[i])) return false;
             }
 
             return true;
         }
 
         private static bool MatchesToken(
-            IBattleDebugFacade facade,
+            IBattleDiagnosticReadOnlySession session,
             BattleDebugEntityId id,
             string token)
         {
@@ -46,36 +45,52 @@ namespace AbilityKit.Game.Editor
                 return id.ToString().Contains(expr, StringComparison.OrdinalIgnoreCase);
             }
 
-            if (!facade.TryResolveUnit(id, out var unit) || unit == null) return false;
+            if (session == null) return false;
 
             if (key.Equals("tag", StringComparison.OrdinalIgnoreCase))
             {
-                if (unit.Tags == null) return false;
+                if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorTags)) return false;
                 if (!GameplayTagsUtil.TryGet(expr, out var tag)) return false;
-                return unit.Tags.HasTag(tag);
+                var tags = session.QueryActorTags(1, 0, id.ActorId);
+                if (!tags.Status.CanDisplayResults || tags.Items == null) return false;
+                for (var i = 0; i < tags.Items.Count; i++)
+                {
+                    if (GameplayTagManager.Instance.Matches(GameplayTag.FromId(tags.Items[i].TagId), tag))
+                        return true;
+                }
+                return false;
             }
 
             if (key.Equals("attr", StringComparison.OrdinalIgnoreCase))
             {
-                if (unit.Attributes == null) return false;
+                if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorAttributes)) return false;
 
                 if (!TryParseComparison(expr, out var name, out var op, out var rhs))
                 {
                     return false;
                 }
 
-                if (!AttributeRegistry.DefaultRegistry.TryGet(name, out var attrId))
+                var attributes = session.QueryActorAttributes(1, 0, id.ActorId);
+                if (!attributes.Status.CanDisplayResults || attributes.Items == null) return false;
+                for (var i = 0; i < attributes.Items.Count; i++)
                 {
-                    return false;
+                    var attribute = attributes.Items[i];
+                    if (string.Equals(attribute.Name, name, StringComparison.Ordinal) ||
+                        (int.TryParse(name, out var rawId) && attribute.AttributeId == rawId))
+                        return Compare(attributes.Items[i].FinalValue, op, rhs);
                 }
-
-                var v = unit.Attributes.GetValue(attrId);
-                return Compare(v, op, rhs);
+                return false;
             }
 
             if (key.Equals("effect", StringComparison.OrdinalIgnoreCase) || key.Equals("effects", StringComparison.OrdinalIgnoreCase))
             {
-                var count = unit.Effects?.Active?.Count ?? 0;
+                if (!session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorEffects)) return false;
+                var effects = session.QueryActorEffects(1, 0, id.ActorId);
+                if (effects.Status.Phase != BattleDiagnosticQueryPhase.Ready &&
+                    effects.Status.Phase != BattleDiagnosticQueryPhase.Empty &&
+                    effects.Status.Phase != BattleDiagnosticQueryPhase.Partial)
+                    return false;
+                var count = effects.Items?.Count ?? 0;
 
                 if (string.IsNullOrEmpty(expr)) return count > 0;
 

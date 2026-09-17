@@ -2,7 +2,20 @@
 
 本文记录 `com.abilitykit.demo.moba.runtime` 当前战斗上下文设计，用于后续扩展 Buff、AOE、Projectile、Summon、Continuous、延迟执行和触发器条件/行为时保持一致。
 
-当前结论：项目内已有阶段性设计文档和模块说明，但缺少一份以当前代码为准的维护向总览。后续维护应以本文为入口，再按需要跳转到更细的阶段文档或模块 README。
+本文为当前设计评审入口，以 2026-09-16 的实现为准。先阅读下面的职责与身份对照，再按需要阅读 [Context 基础设施](../../../com.abilitykit.context/Document/Context上下文注册与快照模块开发设计文档.md)、[Trace 因果树](../../../com.abilitykit.trace/Document/Trace溯源树模块开发设计文档.md) 和 [Runtime Context 值与快照](../../Document/RuntimeContext运行时值与快照设计文档.md)。阶段性文档仅作为演进背景，不能替代当前契约。
+
+## 职责与身份对照
+
+| 模型 | 当前职责 | 身份/数据边界 |
+|------|----------|---------------|
+| Trace | 精简因果结构、来源节点与结束状态 | Trace ContextId/RootId/ParentId；元数据不等于运行时真值 |
+| AbilityKit.Context | entity/property 注册、实时 provider 读取和快照存储 | Context entity ID；不调度、不自动采样、不自动重建领域对象 |
+| MOBA 执行 Context | 当前触发/条件/行为的规范输入 | 强类型 payload + origin/lineage + 可选 runtime reference |
+| Runtime Context | 目前主要为 Buff 提供可选实时/最终值适配 | 独立 RuntimeContextId/Version；不是 Trace ID 或 SkillRuntimeHandle |
+
+Trace ID 与 Runtime Context ID 分属不同注册表，即使数字相同也不能互读。来源快照保留因果身份，值快照保留复制数值，恢复载荷负责显式重建领域状态，三者不是同一种 snapshot。
+
+逻辑生命周期拥有 Trace 创建/结束、runtime 绑定及最终快照；工具只读现有映射/诊断样本，可间隔查询，关闭时清理自身订阅与缓存。诊断采集允许使用逻辑开关，工具开关不能反向驱动业务状态。
 
 ## 设计目标
 
@@ -243,11 +256,13 @@ flowchart TD
     RuntimePayload --> Condition
     RuntimePayload --> Action
 
-    Runtime --> Remove[BuffLifecycleExecutor.EndRuntime]
-    Remove --> End[BuffContextRegistry.EndByRuntime]
+    Runtime --> Remove[BuffEndFlow.EndRuntime]
+    Remove --> End[BuffContextRegistry.EndByRuntimeNoClear]
     End --> Destroy[MobaRuntimeContextService.SnapshotAndDestroyBuffContext]
-    Destroy --> Save[SnapshotStorage.Save final snapshot]
-    Destroy --> Unbind[MobaBuffRealtimeContextProvider.Unbind]
+    Destroy --> Save[SnapshotStorage.TrySaveManaged final snapshot]
+    Save --> Unbind[MobaBuffRealtimeContextProvider.Unbind + entity Destroy]
+    Unbind --> Notify[Remove events / effects with preserved ID and Version]
+    Notify --> Clear[ClearRuntimeBindings + pool release]
 ```
 
 ### Buff 周期触发到效果行为
@@ -398,7 +413,7 @@ Condition or Action Input
 - 版本不一致，返回 `VersionMismatch`。
 - 版本一致，继续读取目标 key。
 
-这个校验防止旧 payload 读到同 id 的新对象或已经过期的 snapshot。当前校验放在 MOBA runtime 层，没有修改底层 `AbilityKit.Context` 包协议。
+该校验可以拒绝版本不同的引用，但当前并不保证彻底防止同 ID 新对象别名：Context 游标回滚可复用 ID，新绑定 Version 又为 1。正常刷新与数值变化没有统一自动递增版本规则，因此 Version 不是逐帧修订号，也不能用来查某个历史版本。Version<=0 的兼容引用跳过检查，stage snapshot 才保存触发时事实。当前校验放在 MOBA runtime 层，没有修改底层 `AbilityKit.Context` 包协议。
 
 ## 网络同步与数据恢复边界
 
@@ -413,7 +428,7 @@ Condition or Action Input
 
 维护规则：
 
-- `ContextRegistry` 只负责上下文实体、实时 provider、snapshot fallback 和条件/行为读取，不作为 MOBA 的权威网络状态仓库。
+- `ContextRegistry` 负责实体/属性；`ContextValueResolver` 和 `MobaRuntimeContextService` 组合实时 provider、snapshot fallback 和条件/行为读取，不作为 MOBA 的权威网络状态仓库。
 - `SnapshotStorage` 保存的是上下文快照，不等价于完整 battle state baseline。
 - `MobaCombatExecutionContext`、`MobaTriggerConditionContext` 和 action input 是执行期读模型，不能承担状态恢复职责。
 - `WorldStateSnapshot` 面向同步输出，可以包含事件快照和状态快照；是否可用于恢复必须由恢复契约显式声明。
@@ -426,7 +441,13 @@ Condition or Action Input
 2. Random：已有确定性随机和 rollback payload，必须参与 hash，避免随机消耗漂移无法定位。
 3. Buff：先导出 BuffRuntime 的纯字段状态，导入时重建运行时列表并重新绑定 runtime context，不走普通 Apply 流程以避免表现事件和触发副作用。
 
-后续 Projectile、AOE、SkillRuntime、Continuous、Attribute 等领域如果影响逻辑判定，也应逐步加入恢复模型。只用于表现的 cue 不进入逻辑恢复状态。
+技能 runtime 已有独立恢复及本地回滚 provider；其他领域的恢复完整性需按具体 provider 审计，不能因存在同步快照就认定可恢复。只用于表现的 cue 不进入逻辑恢复状态。Buff 恢复当前显式保留 RuntimeContextId/Version，预检身份冲突后重建，旧 ID=0/Version=0 保持无身份；这两项身份参与 Buff 状态比较与 hash。
+
+### 当前回滚保证范围
+
+Context entity 回滚只撤销预测实体/provider/快照并回退游标，确认实体被销毁则拒绝。Buff timer 回滚只恢复仍存在且身份与形态匹配的成员。两者都不具备完整 Buff/Context 生命周期重建。
+
+技能本地回滚另存精简 Trace 生命周期及分配边界，恢复捕获根/已登记子节点状态，并撤销同一世界中边界之后的预测分支。Trace ID 不回退，已确认根外部引用不改，当前树 Revision 刷新；历史事件保留并在诊断开启时添加预测撤销标记。该本地附加载荷不进入技能权威状态或 hash，也不复活 Purge 节点，不保证所有未捕获历史节点状态恢复。
 
 ```mermaid
 flowchart LR
@@ -475,11 +496,13 @@ BuffContinuousIntervalHandler
 移除：
 
 ```text
-BuffLifecycleExecutor.EndRuntime
-  -> BuffContextRegistry.EndByRuntime
-  -> MobaRuntimeContextService.SnapshotAndDestroyBuffContext
-  -> SnapshotStorage.Save
-  -> Realtime provider Unbind
+BuffEndFlow.EndRuntime（先提交活动列表移除）
+  -> 停止并清理持续行为
+  -> BuffContextRegistry.EndByRuntimeNoClear
+  -> SnapshotAndDestroyBuffContext(preserveReference: true)
+  -> TrySaveManaged final snapshot with destruction metadata / Unbind provider / Destroy entity
+  -> Remove events / OnRemove effects（原 ID/Version，读取最终快照）
+  -> 生命周期通知 / 清零绑定与引用 / 回池
 ```
 
 维护规则：
@@ -487,6 +510,10 @@ BuffLifecycleExecutor.EndRuntime
 - Buff 移除时必须同步 snapshot 和 provider unbind。
 - 移除后仍需要查询最终状态时，从 snapshot 读取。
 - 新增 Buff 字段如果要开放给条件/行为读取，应先加入 `MobaBuffRuntimeContextData.TryGetValue` 和 key 常量。
+- Buff 每次结束采集一份受管最终快照，不代表逐帧历史或 OnRemove 执行后的结果；重复销毁不覆盖已冻结值。存储已支持多份历史，工具应保存精确引用并通过 SnapshotReader 只读查询。
+- 受管记录区分 TypeId/SchemaVersion、业务 Version 和本地 Generation；SnapshotId 不随回滚或 Clear 回退。Generation 不进入 Buff 权威状态，旧 runtime ID/Version 引用的别名限制仍需单独处理。
+- `TryGetBuffContext` 活动阶段读取 property 投影；最终字段快照应通过 accessor 按键读取。
+- 无 Trace source ID 也必须清理独立 Runtime Context，结束 hook 异常仍继续清理。
 
 ## AOE / Projectile / Summon / Continuous 接入规则
 
@@ -572,6 +599,10 @@ context.GetRuntimeContextValue<TValue, TProperty>(runtimeContexts, key)
 - 是否避免依赖 Buff 专属类型，除非它就是 Buff 专属逻辑。
 
 ## 现有文档索引
+
+- [Runtime Context 值与快照设计](../../Document/RuntimeContext运行时值与快照设计文档.md)：具体生命周期、版本语义、恢复限制和待评审问题。
+- [Context 基础包设计](../../../com.abilitykit.context/Document/Context上下文注册与快照模块开发设计文档.md)：注册/读取/快照基础职责。
+- [Trace 基础包设计](../../../com.abilitykit.trace/Document/Trace溯源树模块开发设计文档.md)：因果树、保留、回滚和预测撤销。
 
 - `Runtime/Application/Services/Context/README.md`：Context 模块规则和主模型优先级。
 - `Runtime/Application/Services/Triggering/PlanActions/README.md`：Plan Action 输入和模块边界。

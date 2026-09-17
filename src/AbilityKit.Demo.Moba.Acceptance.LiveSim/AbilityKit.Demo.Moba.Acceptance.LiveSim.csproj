@@ -23,6 +23,10 @@
     <ProjectReference Include="..\AbilityKit.BattleFlow\AbilityKit.BattleFlow.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Environment\AbilityKit.Demo.Moba.Environment.csproj" />
     <ProjectReference Include="..\AbilityKit.Demo.Moba.Acceptance\AbilityKit.Demo.Moba.Acceptance.csproj" />
+    <ProjectReference Include="..\AbilityKit.Network.Runtime\AbilityKit.Network.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Moba.View.Runtime\AbilityKit.Demo.Moba.View.Runtime.csproj" />
+    <ProjectReference Include="..\AbilityKit.Host.Extension\AbilityKit.Host.Extension.csproj" />
+    <ProjectReference Include="..\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj" />
   </ItemGroup>
 
 </Project>

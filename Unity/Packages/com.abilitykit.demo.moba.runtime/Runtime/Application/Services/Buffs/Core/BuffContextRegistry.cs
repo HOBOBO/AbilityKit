@@ -108,7 +108,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         {
             if (rt == null) return;
 
-            if (rt.SourceContextId == 0) return;
+            if (rt.SourceContextId == 0)
+            {
+                DestroyRuntimeContext(rt, TraceLifecycleReason.Replaced);
+                ClearSourceSnapshot(rt);
+                return;
+            }
 
             try
             {
@@ -147,7 +152,11 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         {
             if (rt == null) return;
 
-            if (rt.SourceContextId == 0) return;
+            if (rt.SourceContextId == 0)
+            {
+                DestroyRuntimeContext(rt, reason, preserveReference: true);
+                return;
+            }
 
             try
             {
@@ -167,17 +176,17 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
                 Log.Exception(ex, $"[BuffContextRegistry] Trace.End exception (sourceContextId={rt.SourceContextId}, reason={reason})");
             }
 
-            DestroyRuntimeContext(rt, reason);
+            DestroyRuntimeContext(rt, reason, preserveReference: true);
         }
 
-        private void DestroyRuntimeContext(BuffRuntime rt, TraceLifecycleReason reason)
+        private void DestroyRuntimeContext(BuffRuntime rt, TraceLifecycleReason reason, bool preserveReference = false)
         {
             if (rt == null || _runtimeContexts == null) return;
 
             var state = reason == TraceLifecycleReason.Replaced
                 ? MobaRuntimeContextLifecycleState.Destroyed
                 : MobaRuntimeContextLifecycleState.Ended;
-            _runtimeContexts.SnapshotAndDestroyBuffContext(rt, state, GetFrameOrDefault());
+            _runtimeContexts.SnapshotAndDestroyBuffContext(rt, state, GetFrameOrDefault(), preserveReference);
         }
 
         private static MobaGameplayOrigin ResolveSourceOrigin(int sourceActorId, int targetActorId, int buffId, in BuffOriginContext origin)
@@ -201,6 +210,9 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
         {
             if (rt == null) return;
             rt.SourceContextId = 0;
+            rt.RuntimeContextId = 0;
+            rt.RuntimeContextVersion = 0;
+            rt.RuntimeContextIdentity = default;
             rt.Origin = default;
             rt.ContextSource = default;
         }

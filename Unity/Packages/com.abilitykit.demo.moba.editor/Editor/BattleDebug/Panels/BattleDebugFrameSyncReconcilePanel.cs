@@ -19,13 +19,12 @@ namespace AbilityKit.Game.Editor
 
         public bool IsVisible(in BattleDebugContext ctx)
         {
-            return !ctx.IsOffline && EditorApplication.isPlaying && BattleFlowDebugProvider.Current != null;
+            return BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out _);
         }
 
         public void Draw(in BattleDebugContext ctx)
         {
-            var flowCtx = BattleFlowDebugProvider.Current;
-            if (flowCtx == null)
+            if (!BattleDebugFrameSyncContextResolver.TryResolve(in ctx, out var flowCtx))
             {
                 EditorGUILayout.HelpBox("战斗流程调试数据源为空。", MessageType.Info);
                 return;

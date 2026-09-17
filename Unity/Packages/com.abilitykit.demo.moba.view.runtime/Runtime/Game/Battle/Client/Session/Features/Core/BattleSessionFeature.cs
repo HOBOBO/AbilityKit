@@ -23,6 +23,12 @@ namespace AbilityKit.Game.Flow
             get => BattleSessionDiagnostics.DebugForceClientHashMismatch;
             set => BattleSessionDiagnostics.DebugForceClientHashMismatch = value;
         }
+
+        public static bool TryGetDebugForceClientHashMismatch(BattleContext context, out bool enabled) =>
+            BattleSessionDiagnostics.TryGetDebugForceClientHashMismatch(context, out enabled);
+
+        public static bool TrySetDebugForceClientHashMismatch(BattleContext context, bool enabled) =>
+            BattleSessionDiagnostics.TrySetDebugForceClientHashMismatch(context, enabled);
 #endif
 
         private readonly IBattleBootstrapper _bootstrapper;

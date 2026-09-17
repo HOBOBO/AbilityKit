@@ -13,6 +13,7 @@ namespace AbilityKit.Demo.Moba.Services
         private Vec3 _aimPos;
         private Vec3 _aimDir;
         private long _rootTraceContextId;
+        private long _diagnosticCommandId;
 
         private MobaSkillCastRuntimeCreateRequestBuilder()
         {
@@ -35,6 +36,7 @@ namespace AbilityKit.Demo.Moba.Services
             _aimPos = Vec3.Zero;
             _aimDir = Vec3.Forward;
             _rootTraceContextId = 0L;
+            _diagnosticCommandId = 0L;
             return this;
         }
 
@@ -51,6 +53,7 @@ namespace AbilityKit.Demo.Moba.Services
             _aimPos = context.AimPos;
             _aimDir = context.AimDir;
             _rootTraceContextId = context.SourceContextId;
+            _diagnosticCommandId = context.DiagnosticCommandId;
             return this;
         }
 
@@ -94,7 +97,8 @@ namespace AbilityKit.Demo.Moba.Services
                 _targetActorId,
                 in _aimPos,
                 in _aimDir,
-                _rootTraceContextId);
+                _rootTraceContextId,
+                _diagnosticCommandId);
         }
     }
 }

@@ -34,6 +34,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Timeline/MobaSkillPresentationTimelineRuntime.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Timeline/MobaSkillPresentationCastDriver.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Entities/Components/BattleCharacterHfsmComponent.cs" />
     <Compile Include="../../Unity/Packages/com.abilitykit.demo.moba.view.runtime/Runtime/Game/Battle/Presentation/Entities/Components/CharacterPresentationActions.cs" />
   </ItemGroup>

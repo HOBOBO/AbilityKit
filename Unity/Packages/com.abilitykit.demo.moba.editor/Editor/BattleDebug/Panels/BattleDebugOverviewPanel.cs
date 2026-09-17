@@ -1,10 +1,85 @@
 using AbilityKit.Demo.Moba.Diagnostics;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Game.Editor.Diagnostics;
 using UnityEditor;
 using UnityEngine;
 
 namespace AbilityKit.Game.Editor
 {
+    [BattleDebugModule(BattleDebugModuleIds.DiagnosticHealth, "调查",
+        Selections = BattleDebugModuleSelectionSupport.None)]
+    internal sealed class BattleDebugDiagnosticsHealthPanel : IBattleDebugPanel, IBattleDebugPanelLayout
+    {
+        public string Name => "诊断健康与耗时";
+        public int Order => 395;
+        public BattleDebugWorkspace Workspace => BattleDebugWorkspace.Diagnostics;
+        public bool OwnsScrollView => false;
+
+        public bool IsVisible(in BattleDebugContext ctx) =>
+            BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out _);
+
+        public void Draw(in BattleDebugContext ctx)
+        {
+            if (!BattleDebugDiagnosticSessionResolver.TryResolve(in ctx, out var session)) return;
+            EditorGUILayout.LabelField("诊断采集健康", EditorStyles.boldLabel);
+            var health = ctx.DiagnosticResolution.HealthSnapshot;
+            if (health.HasValue)
+            {
+                var value = health.Value;
+                EditorGUILayout.LabelField("事件", $"{value.EventStoreMetrics.Count}/{value.EventStoreMetrics.Capacity}  rejected={value.EventStoreMetrics.RejectedCount}  evicted={value.EventStoreMetrics.EvictedCount}");
+                EditorGUILayout.LabelField("完整状态帧", value.LastSuccessfulStateFrame.ToString());
+                EditorGUILayout.LabelField("采集失败", $"state={value.StateSampleFailureCount}  events={value.EventCollectFailureCount}");
+                EditorGUILayout.LabelField("采集通道", BattleDebugDisplayText.EventChannel(value.EnabledChannels));
+            }
+            else
+            {
+                EditorGUILayout.LabelField("事件版本", session.EventStoreRevision.ToString());
+                EditorGUILayout.HelpBox("当前数据源没有采集健康快照。", MessageType.Info);
+            }
+
+            if (ctx.IsOffline)
+            {
+                EditorGUILayout.HelpBox("离线 Artifact 没有实时耗时与输入聚合数据。", MessageType.Info);
+                return;
+            }
+
+            if (ctx.Facade == null || !ctx.Facade.TryGetSession(out var logicSession) ||
+                !logicSession.TryGetWorld(out var world) || world?.Services == null ||
+                !world.Services.TryResolve(out IMobaBattleDiagnosticsService diagnostics) || diagnostics == null)
+            {
+                EditorGUILayout.HelpBox("实时诊断统计未就绪。", MessageType.Info);
+                return;
+            }
+
+            var snapshot = diagnostics.GetSnapshot();
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("输入聚合", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("命令", $"accepted={snapshot.Input.AcceptedCommands}  handled={snapshot.Input.HandledCommands}  rejected={snapshot.Input.RejectedCommands}  exceptions={snapshot.Input.CommandExceptions}");
+            EditorGUILayout.LabelField("警告 / 异常", $"{snapshot.Warnings?.Count ?? 0} / {snapshot.Exceptions?.Count ?? 0}");
+
+            EditorGUILayout.Space(6);
+            EditorGUILayout.LabelField("耗时 (ms)", EditorStyles.boldLabel);
+            var durations = snapshot.Profiler.Durations;
+            DrawDuration(durations, MobaBattleDiagnosticMetric.ContinuousTick);
+            DrawDuration(durations, MobaBattleDiagnosticMetric.DamagePipeline);
+            DrawDuration(durations, MobaBattleDiagnosticMetric.DamageStage);
+            DrawDuration(durations, MobaBattleDiagnosticMetric.SkillPipelineStep);
+            DrawDuration(durations, MobaBattleDiagnosticMetric.SkillRunnerStep);
+            DrawDuration(durations, MobaBattleDiagnosticMetric.EffectsStep);
+            if (durations == null || durations.Count == 0)
+                EditorGUILayout.HelpBox("当前采集模式尚未产生耗时样本。", MessageType.Info);
+        }
+
+        private static void DrawDuration(
+            System.Collections.Generic.IReadOnlyDictionary<string, AbilityKit.Diagnostics.DurationSummaryRecord> durations,
+            string key)
+        {
+            if (durations == null || !durations.TryGetValue(key, out var record)) return;
+            EditorGUILayout.LabelField(key,
+                $"n={record.Count}  mean={record.MeanMilliseconds:0.###}  max={record.MaxMilliseconds:0.###}");
+        }
+    }
+
     internal sealed class BattleDebugOverviewPanel : IBattleDebugPanel
     {
         public string Name => "总览";

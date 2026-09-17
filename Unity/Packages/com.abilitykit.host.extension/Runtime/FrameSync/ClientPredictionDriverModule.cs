@@ -46,6 +46,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
         {
             ctx.PredictedHashes?.Clear();
             ctx.AuthoritativeHashes?.Clear();
+            ctx.ComparedAuthoritativeHashes?.Clear();
             ctx.Reconciler?.Clear();
 
             // 同时退出回放模式，避免调试强制不一致开关后卡住。
@@ -86,6 +87,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             public Func<FrameIndex, WorldStateHash> ComputeHash;
             public WorldStateHashRingBuffer PredictedHashes;
             public WorldStateHashRingBuffer AuthoritativeHashes;
+            public WorldStateHashRingBuffer ComparedAuthoritativeHashes;
             public ClientPredictionReconciler Reconciler;
 
             public bool ReconcileEnabled;
@@ -578,12 +580,15 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             ClientPredictionReconciler reconciler = null;
             WorldStateHashRingBuffer predictedHashes = null;
             WorldStateHashRingBuffer authoritativeHashes = null;
+            WorldStateHashRingBuffer comparedAuthoritativeHashes = null;
             if (_buildComputeHash != null)
             {
                 computeHash = _buildComputeHash(world);
                 if (computeHash != null && _bufferOptions.Has(ClientPredictionDriverBufferFeatures.PredictedStateHashHistory))
                 {
                     predictedHashes = new WorldStateHashRingBuffer(_bufferOptions.StateHashHistoryCapacity);
+                    comparedAuthoritativeHashes = new WorldStateHashRingBuffer(
+                        _bufferOptions.StateHashHistoryCapacity);
                     if (_bufferOptions.Has(ClientPredictionDriverBufferFeatures.AuthoritativeStateHashHistory))
                     {
                         authoritativeHashes = new WorldStateHashRingBuffer(_bufferOptions.StateHashHistoryCapacity);
@@ -615,6 +620,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 ComputeHash = computeHash,
                 PredictedHashes = predictedHashes,
                 AuthoritativeHashes = authoritativeHashes,
+                ComparedAuthoritativeHashes = comparedAuthoritativeHashes,
                 Reconciler = reconciler,
                 ReconcileEnabled = reconciler != null && computeHash != null && rollback != null,
                 Mode = ReplayMode.Normal,
@@ -685,6 +691,7 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                 _lastReconcilePredictedHash = predictedAtFrame;
             }
 
+            MarkAuthoritativeHashCompared(ctx, frame, hash);
             if (!ctx.Reconciler.OnAuthoritativeHash(frame, hash)) return;
 
             _totalReconcileMismatch++;
@@ -1269,8 +1276,12 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
                         // 如果该帧权威哈希已提前到达，现在执行比对。
                         if (ctx.AuthoritativeHashes != null && ctx.AuthoritativeHashes.TryGet(ctx.PredictedFrame, out var authAtFrame))
                         {
+                            if (WasAuthoritativeHashCompared(ctx, ctx.PredictedFrame, authAtFrame))
+                                continue;
+
                             _lastReconcileComparedFrame = ctx.PredictedFrame;
                             _lastReconcilePredictedHash = hash;
+                            MarkAuthoritativeHashCompared(ctx, ctx.PredictedFrame, authAtFrame);
                             if (ctx.Reconciler.OnAuthoritativeHash(ctx.PredictedFrame, authAtFrame))
                             {
                                 _totalReconcileMismatch++;
@@ -1292,6 +1303,24 @@ namespace AbilityKit.Ability.Host.Extensions.FrameSync
             FrameIndex lastProcessedFrame)
         {
             return predictedFrame.Value != lastProcessedFrame.Value;
+        }
+
+        private static bool WasAuthoritativeHashCompared(
+            WorldContext ctx,
+            FrameIndex frame,
+            WorldStateHash hash)
+        {
+            return ctx.ComparedAuthoritativeHashes != null &&
+                   ctx.ComparedAuthoritativeHashes.TryGet(frame, out var compared) &&
+                   compared.Value == hash.Value;
+        }
+
+        private static void MarkAuthoritativeHashCompared(
+            WorldContext ctx,
+            FrameIndex frame,
+            WorldStateHash hash)
+        {
+            ctx.ComparedAuthoritativeHashes?.Store(frame, hash);
         }
     }
 }

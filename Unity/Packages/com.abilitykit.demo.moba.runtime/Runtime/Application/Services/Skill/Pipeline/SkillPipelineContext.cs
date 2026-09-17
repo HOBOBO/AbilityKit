@@ -29,6 +29,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeHandle RuntimeHandle { get; set; }
         public long RuntimeId { get; set; }
         public long SourceContextId { get; set; }
+        public long DiagnosticCommandId { get; private set; }
         public long PipelineTraceParentContextId { get; set; }
         public string FailReason { get; set; }
 
@@ -183,6 +184,7 @@ namespace AbilityKit.Demo.Moba.Services
             RuntimeHandle = triggerContext != null ? triggerContext.RuntimeHandle : default;
             RuntimeId = RuntimeHandle.IsValid ? RuntimeHandle.RuntimeId : triggerContext?.RuntimeId ?? 0L;
             SourceContextId = triggerContext?.SourceContextId ?? 0L;
+            DiagnosticCommandId = triggerContext?.DiagnosticCommandId ?? 0L;
             PipelineTraceParentContextId = 0L;
 
             SkillId = request.SkillId;
@@ -345,6 +347,7 @@ namespace AbilityKit.Demo.Moba.Services
 
             RuntimeHandle = default;
             RuntimeId = 0L;
+            DiagnosticCommandId = 0L;
             this.SetSourceContextId(0L);
             FailReason = null;
 

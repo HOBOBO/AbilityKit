@@ -12,12 +12,13 @@ public sealed class BattleFlowDslParserTests
         var blocks = BattleFlowDslParser.Parse(@"
 # 小乔打廉颇
 spawn caster hero=1002 attr=1002 player=player_1 pos=0,0,0
+seed 47
 spawn target hero=1001 attr=1001 team=2 pos=6,0,0
 cast caster target slot=1 at=100
 wait 500 at=600
 ");
 
-        Assert.Equal(4, blocks.Count);
+        Assert.Equal(5, blocks.Count);
 
         var caster = Assert.IsType<SpawnActorBlock>(blocks[0]);
         Assert.Equal("caster", caster.Alias);
@@ -25,19 +26,25 @@ wait 500 at=600
         Assert.Equal(1002, caster.AttributeTemplateId);
         Assert.Equal("player_1", caster.PlayerId);
 
-        var target = Assert.IsType<SpawnActorBlock>(blocks[1]);
+        var seed = Assert.IsType<SetScenarioSeedBlock>(blocks[1]);
+        Assert.Equal(47, seed.Seed);
+
+        var target = Assert.IsType<SpawnActorBlock>(blocks[2]);
         Assert.Equal(2, target.TeamId);
 
-        var cast = Assert.IsType<TimelineStepBlock>(blocks[2]);
+        var cast = Assert.IsType<TimelineStepBlock>(blocks[3]);
         Assert.Equal("cast_skill", cast.Action);
         Assert.Equal("caster", cast.ActorAlias);
         Assert.Equal("target", cast.TargetAlias);
         Assert.Equal(1, cast.Slot);
         Assert.Equal(100, cast.AtMs);
 
-        var wait = Assert.IsType<WaitBlock>(blocks[3]);
+        var wait = Assert.IsType<WaitBlock>(blocks[4]);
         Assert.Equal(500, wait.DurationMs);
         Assert.Equal(600, wait.AtMs);
+
+        var scenario = BattleFlowCompiler.Compile("seeded", blocks);
+        Assert.Equal(47, scenario.Seed);
     }
 
     [Fact]
@@ -61,6 +68,42 @@ wait 500 at=600
         {
             BattleFlowDslParser.AssertFactory = null;
         }
+    }
+
+    [Fact]
+    public void Parse_NetworkVerbs_CompileToScenarioCommands()
+    {
+        var blocks = BattleFlowDslParser.Parse(@"
+network packet inbound opcode=5202 seq=101 at=5100
+network disconnect at=2000
+network reconnect at=5000
+network phase at=1000 until=3000 direction=outbound opcode=5201 latency=80 jitter=20 loss=0.1 reorder=0.05 bandwidth=128
+");
+
+        var scenario = BattleFlowCompiler.Compile("network-recovery", blocks);
+
+        Assert.Equal(4, scenario.Commands.Count);
+        Assert.Equal("network.packet", scenario.Commands[0].Name);
+        Assert.Equal(5100, scenario.Commands[0].AtMs);
+        Assert.Equal("inbound", scenario.Commands[0].Parameters["direction"]);
+        Assert.Equal("5202", scenario.Commands[0].Parameters["opCode"]);
+        Assert.Equal("101", scenario.Commands[0].Parameters["seq"]);
+        Assert.Equal("network.disconnect", scenario.Commands[1].Name);
+        Assert.Equal(2000, scenario.Commands[1].AtMs);
+        Assert.Equal("network.reconnect", scenario.Commands[2].Name);
+        Assert.Equal("network.phase", scenario.Commands[3].Name);
+        Assert.Equal("3000", scenario.Commands[3].Parameters["until"]);
+        Assert.Equal("5201", scenario.Commands[3].Parameters["opCode"]);
+    }
+
+    [Theory]
+    [InlineData("network packet sideways opcode=7 seq=1 at=0")]
+    [InlineData("network packet inbound opcode=7 at=0")]
+    [InlineData("network typo at=0")]
+    [InlineData("network phase at=0 loss=1")]
+    public void Parse_InvalidNetworkCommand_FailsEarly(string line)
+    {
+        Assert.ThrowsAny<System.ArgumentException>(() => BattleFlowDslParser.Parse(line));
     }
 
     private sealed class TestAssertBlock : BattleAtomicBlock

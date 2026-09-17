@@ -87,6 +87,7 @@ namespace AbilityKit.Game.Flow
 
     internal sealed class TickLoopController
     {
+        private long _lastNetworkTickTimestamp;
         private readonly BattleSessionState _state;
         private readonly BattleSessionHandles _handles;
         private readonly ITickLoopHost _host;
@@ -100,7 +101,17 @@ namespace AbilityKit.Game.Flow
 
         public void MainTick(float deltaTime)
         {
-            if (!HasSession()) return;
+            if (!HasSession())
+            {
+                _lastNetworkTickTimestamp = 0;
+                return;
+            }
+
+            var timestamp = System.Diagnostics.Stopwatch.GetTimestamp();
+            var elapsed = _lastNetworkTickTimestamp == 0 ? 0f :
+                (float)((timestamp - _lastNetworkTickTimestamp) / (double)System.Diagnostics.Stopwatch.Frequency);
+            _lastNetworkTickTimestamp = timestamp;
+            _handles.Session.NetworkTransport?.Tick(System.Math.Max(0f, elapsed));
 
             var fixedDelta = _host.GetFixedDeltaSeconds();
             if (fixedDelta <= 0f) return;

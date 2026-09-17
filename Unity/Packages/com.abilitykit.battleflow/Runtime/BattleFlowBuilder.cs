@@ -11,6 +11,7 @@ namespace AbilityKit.BattleFlow
         private readonly List<TestTimelineStep> _timeline = new List<TestTimelineStep>();
         private readonly List<TestCommand> _commands = new List<TestCommand>();
         private string? _environmentProfileId;
+        private int _seed;
 
         /// <summary>场景 caseId（编译入口传入）。</summary>
         public string CaseId { get; set; } = string.Empty;
@@ -20,6 +21,9 @@ namespace AbilityKit.BattleFlow
 
         /// <summary>设置环境 Profile 引用。</summary>
         public void SetEnvironment(string profileId) => _environmentProfileId = profileId;
+
+        /// <summary>Set the deterministic seed used by scenario-owned random streams.</summary>
+        public void SetSeed(int seed) => _seed = seed;
 
         /// <summary>设置断言插件。</summary>
         public void SetExpectations(object? expectations) => Expectations = expectations;
@@ -41,6 +45,7 @@ namespace AbilityKit.BattleFlow
         {
             CaseId = CaseId,
             EnvironmentProfileId = _environmentProfileId,
+            Seed = _seed,
             Actors = _actors,
             Obstacles = _obstacles,
             Timeline = _timeline,

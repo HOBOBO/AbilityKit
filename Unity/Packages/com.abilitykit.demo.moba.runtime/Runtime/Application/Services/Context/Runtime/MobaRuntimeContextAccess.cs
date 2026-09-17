@@ -8,11 +8,31 @@ namespace AbilityKit.Demo.Moba.Services
         {
             ContextId = contextId;
             Version = version;
+            Identity = default;
+        }
+
+        public MobaRuntimeContextReference(in ContextEntityReference identity, long version)
+            : this(identity.EntityId, version, identity)
+        {
+        }
+
+        private MobaRuntimeContextReference(long contextId, long version, in ContextEntityReference identity)
+        {
+            ContextId = contextId;
+            Version = version;
+            Identity = identity;
         }
 
         public long ContextId { get; }
         public long Version { get; }
-        public bool IsValid => ContextId != 0L;
+        public ContextEntityReference Identity { get; }
+        public bool HasIdentity => Identity.RegistryId != System.Guid.Empty || Identity.EntityId != 0L || Identity.Generation != 0L;
+        public bool IsValid => ContextId > 0L && (!HasIdentity || (Identity.IsValid && Identity.EntityId == ContextId && Version > 0L));
+
+        public static MobaRuntimeContextReference FromIdentityOrLegacy(long contextId, long version, in ContextEntityReference identity)
+        {
+            return new MobaRuntimeContextReference(contextId, version, identity);
+        }
     }
 
     public enum MobaRuntimeContextValueFailure
@@ -24,7 +44,12 @@ namespace AbilityKit.Demo.Moba.Services
         InvalidRuntimeContext = 4,
         VersionUnavailable = 5,
         VersionMismatch = 6,
-        ValueMissing = 7
+        ValueMissing = 7,
+        IdentityMismatch = 8,
+        ContextServiceDisposed = 9,
+        InvalidReadMode = 10,
+        ContextUnavailable = 11,
+        SnapshotUnavailable = 12
     }
 
     public readonly struct MobaRuntimeContextValueResult<TValue>
@@ -36,7 +61,8 @@ namespace AbilityKit.Demo.Moba.Services
             MobaRuntimeContextValueFailure failure,
             MobaRuntimeContextReference reference,
             long expectedVersion,
-            long actualVersion)
+            long actualVersion,
+            ContextSnapshotReference resolvedSnapshot = default)
         {
             Found = found;
             Value = value;
@@ -45,6 +71,7 @@ namespace AbilityKit.Demo.Moba.Services
             Reference = reference;
             ExpectedVersion = expectedVersion;
             ActualVersion = actualVersion;
+            ResolvedSnapshot = resolvedSnapshot;
         }
 
         public bool Found { get; }
@@ -54,11 +81,14 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaRuntimeContextReference Reference { get; }
         public long ExpectedVersion { get; }
         public long ActualVersion { get; }
+        public ContextSnapshotReference ResolvedSnapshot { get; }
+        public bool IsIdentityChecked => Found && Reference.HasIdentity;
         public bool IsVersionChecked => ExpectedVersion > 0L;
 
-        public static MobaRuntimeContextValueResult<TValue> Success(TValue value, ContextValueSource source, in MobaRuntimeContextReference reference, long actualVersion)
+        public static MobaRuntimeContextValueResult<TValue> Success(TValue value, ContextValueSource source, in MobaRuntimeContextReference reference, long actualVersion,
+            ContextSnapshotReference resolvedSnapshot = default)
         {
-            return new MobaRuntimeContextValueResult<TValue>(true, value, source, MobaRuntimeContextValueFailure.None, reference, reference.Version, actualVersion);
+            return new MobaRuntimeContextValueResult<TValue>(true, value, source, MobaRuntimeContextValueFailure.None, reference, reference.Version, actualVersion, resolvedSnapshot);
         }
 
         public static MobaRuntimeContextValueResult<TValue> Fail(
@@ -113,25 +143,35 @@ namespace AbilityKit.Demo.Moba.Services
             if (payload == null)
                 return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.MissingPayload);
 
-            if (!payload.TryResolveRuntimeContext(out var reference))
+            var reference = payload is MobaRuntimeContextReference direct ? direct : default;
+            if (!(payload is MobaRuntimeContextReference) && !payload.TryResolveRuntimeContext(out reference))
                 return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.MissingRuntimeContext);
 
             if (!reference.IsValid)
                 return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.InvalidRuntimeContext, in reference);
 
+            var failure = contexts.ResolveRuntimeContext<TProperty>(reference, mode, out var provider, out var source, out var snapshot);
+            if (failure != MobaRuntimeContextValueFailure.None)
+                return MobaRuntimeContextValueResult<TValue>.Fail(failure, reference, reference.Version);
             var actualVersion = 0L;
             if (reference.Version > 0L)
             {
-                if (!contexts.Resolver.TryGetValue<long, TProperty>(reference.ContextId, MobaRuntimeContextKeys.Version, out actualVersion, mode))
+                if (!provider.TryGetValue(MobaRuntimeContextKeys.Version, out actualVersion))
                     return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.VersionUnavailable, in reference, reference.Version);
 
                 if (actualVersion != reference.Version)
                     return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.VersionMismatch, in reference, reference.Version, actualVersion);
             }
 
-            var result = contexts.Resolver.GetValue<TValue, TProperty>(reference.ContextId, key, default, mode);
-            if (result.Found && result.Source != ContextValueSource.DefaultValue)
-                return MobaRuntimeContextValueResult<TValue>.Success(result.Value, result.Source, in reference, actualVersion);
+            var found = provider.TryGetValue(key, out TValue value);
+            if (contexts.IsDisposed)
+                return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.ContextServiceDisposed, reference, reference.Version, actualVersion);
+            if (reference.HasIdentity && source == ContextValueSource.Realtime && contexts.Registry.Query(reference.Identity) != ContextEntityQueryStatus.Found)
+                return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.IdentityMismatch, reference, reference.Version, actualVersion);
+            if (reference.HasIdentity && source == ContextValueSource.Snapshot && contexts.SnapshotReader.Query(snapshot, out _) != ContextSnapshotQueryStatus.Found)
+                return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.SnapshotUnavailable, reference, reference.Version, actualVersion);
+            if (found)
+                return MobaRuntimeContextValueResult<TValue>.Success(value, source, in reference, actualVersion, snapshot);
 
             return MobaRuntimeContextValueResult<TValue>.Fail(MobaRuntimeContextValueFailure.ValueMissing, in reference, reference.Version, actualVersion);
         }

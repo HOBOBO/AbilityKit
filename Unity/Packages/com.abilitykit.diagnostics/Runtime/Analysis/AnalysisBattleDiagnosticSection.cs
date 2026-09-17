@@ -108,6 +108,47 @@ namespace AbilityKit.Diagnostics.Analysis
     {
         public int Kind { get; set; }
         public int SchemaVersion { get; set; }
+        public int DamageStage { get; set; }
+        public long DamageBaseRaw { get; set; }
+        public long DamageRawRaw { get; set; }
+        public long DamageMitigatedRaw { get; set; }
+        public long DamageShieldRaw { get; set; }
+        public long DamagePlannedHpRaw { get; set; }
+        public long DamageAppliedHpRaw { get; set; }
+        public long InputCommandId { get; set; }
+        public int InputFrame { get; set; }
+        public string InputPlayerId { get; set; } = string.Empty;
+        public int InputOpCode { get; set; }
+        public bool InputSucceeded { get; set; }
+        public int InputFailureCode { get; set; }
+        public string InputMessage { get; set; } = string.Empty;
+        public int InputSkillSlot { get; set; }
+        public int InputSkillPhase { get; set; }
+        public int InputTargetActorId { get; set; }
+        public long TargetSearchCommandId { get; set; }
+        public int TargetSearchExplicitTargetActorId { get; set; }
+        public int TargetSearchCandidateCount { get; set; }
+        public int TargetSearchEligibleCount { get; set; }
+        public int TargetSearchSelectedCount { get; set; }
+        public string TargetSearchSelectedActorIds { get; set; } = string.Empty;
+        public string TargetSearchDecisionDetails { get; set; } = string.Empty;
+        public long SkillExecutionCommandId { get; set; }
+        public int SkillExecutionStage { get; set; }
+        public int SkillExecutionSlot { get; set; }
+        public int SkillExecutionLevel { get; set; }
+        public int SkillExecutionSequence { get; set; }
+        public int SkillExecutionEndReason { get; set; }
+        public int SkillExecutionResourceType { get; set; }
+        public long SkillExecutionResourceAmountRaw { get; set; }
+        public long SkillExecutionResourceBeforeRaw { get; set; }
+        public long SkillExecutionResourceAfterRaw { get; set; }
+        public int SkillExecutionChargeCost { get; set; }
+        public int SkillExecutionCooldownMs { get; set; }
+        public int SkillExecutionSharedCooldownMs { get; set; }
+        public int SkillExecutionGlobalCooldownMs { get; set; }
+        public int SkillExecutionPendingChildren { get; set; }
+        public bool SkillExecutionForced { get; set; }
+        public string SkillExecutionDetail { get; set; } = string.Empty;
         public int AuthoritativeFrame { get; set; }
         public uint StateHash { get; set; }
         public int TriggerId { get; set; }
@@ -144,6 +185,7 @@ namespace AbilityKit.Diagnostics.Analysis
         public string SkillFailureStage { get; set; } = string.Empty;
         public string SkillFailureCode { get; set; } = string.Empty;
         public string SkillFailureMessage { get; set; } = string.Empty;
+        public long SkillFailureCommandId { get; set; }
     }
 
     public sealed class AnalysisBattleDiagnosticStateTrack
@@ -190,6 +232,8 @@ namespace AbilityKit.Diagnostics.Analysis
 
     public sealed class AnalysisBattleDiagnosticTraceNode
     {
+        public AnalysisBattleDiagnosticEffectExecutionFacts ExecutionFacts { get; set; }
+        public AnalysisBattleDiagnosticActionExecutionFacts ActionFacts { get; set; }
         public AnalysisBattleDiagnosticTraceContextReference RootContext { get; set; }
         public AnalysisBattleDiagnosticTraceContextReference Context { get; set; }
         public AnalysisBattleDiagnosticTraceContextReference ParentContext { get; set; }
@@ -198,6 +242,8 @@ namespace AbilityKit.Diagnostics.Analysis
         public AnalysisBattleDiagnosticDefinitionReference Definition { get; set; }
         public AnalysisBattleDiagnosticDefinitionReference TriggerDefinition { get; set; }
         public AnalysisBattleDiagnosticDefinitionReference SkillDefinition { get; set; }
+        public int OriginKind { get; set; }
+        public AnalysisBattleDiagnosticDefinitionReference OriginDefinition { get; set; }
         public long RootContextId { get; set; }
         public long ContextId { get; set; }
         public long ParentContextId { get; set; }
@@ -221,6 +267,97 @@ namespace AbilityKit.Diagnostics.Analysis
     public sealed class AnalysisBattleDiagnosticTraceContextReference
     {
         public long ContextId { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticActionActorValues
+    {
+        public long ActorId { get; set; }
+        public long BindingId { get; set; }
+        public bool HasActor { get; set; }
+        public bool HasHp { get; set; }
+        public float Hp { get; set; }
+        public bool HasMana { get; set; }
+        public float Mana { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticActionHealthCommit
+    {
+        public int Kind { get; set; }
+        public long SourceActorId { get; set; }
+        public long TargetActorId { get; set; }
+        public int ValueType { get; set; }
+        public int ReasonKind { get; set; }
+        public int ReasonParam { get; set; }
+        public float RequestedValue { get; set; }
+        public float AppliedValue { get; set; }
+        public float OldHp { get; set; }
+        public float TargetHp { get; set; }
+        public float TargetMaxHp { get; set; }
+        public long OriginContextId { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticActionDamageResult
+    {
+        public long Sequence { get; set; }
+        public int Frame { get; set; }
+        public long SourceActorId { get; set; }
+        public long TargetActorId { get; set; }
+        public long OriginContextId { get; set; }
+        public int Stage { get; set; }
+        public long BaseDamageRaw { get; set; }
+        public long RawDamageRaw { get; set; }
+        public long MitigatedDamageRaw { get; set; }
+        public long ShieldAbsorbRaw { get; set; }
+        public long PlannedHpDamageRaw { get; set; }
+        public long AppliedHpDamageRaw { get; set; }
+        public string Detail { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticActionExecutionFacts
+    {
+        public int Availability { get; set; }
+        public long SnapshotId { get; set; }
+        public long Generation { get; set; }
+        public int Frame { get; set; }
+        public string TypeId { get; set; }
+        public int SchemaVersion { get; set; }
+        public int ActionIndex { get; set; }
+        public long ActionId { get; set; }
+        public int Outcome { get; set; }
+        public bool HasAfter { get; set; }
+        public int EndFrame { get; set; }
+        public bool CommitsComplete { get; set; }
+        public bool CommitsTruncated { get; set; }
+        public AnalysisBattleDiagnosticActionActorValues SourceBefore { get; set; }
+        public AnalysisBattleDiagnosticActionActorValues TargetBefore { get; set; }
+        public AnalysisBattleDiagnosticActionActorValues SourceAfter { get; set; }
+        public AnalysisBattleDiagnosticActionActorValues TargetAfter { get; set; }
+        public List<AnalysisBattleDiagnosticActionHealthCommit> Commits { get; set; }
+        public int DamageAvailability { get; set; } = 2;
+        public bool DamageCoverageContinuous { get; set; }
+        public bool DamageResultsTruncated { get; set; }
+        public List<AnalysisBattleDiagnosticActionDamageResult> DamageResults { get; set; }
+    }
+
+    public sealed class AnalysisBattleDiagnosticEffectExecutionFacts
+    {
+        public int Availability { get; set; } = 2;
+        public long SnapshotId { get; set; }
+        public long Generation { get; set; }
+        public int Frame { get; set; }
+        public string TypeId { get; set; } = string.Empty;
+        public int SchemaVersion { get; set; }
+        public int EffectConfigId { get; set; }
+        public int TriggerId { get; set; }
+        public string PayloadTypeName { get; set; } = string.Empty;
+        public bool HasRuntimeContext { get; set; }
+        public long RuntimeContextId { get; set; }
+        public long RuntimeContextVersion { get; set; }
+        public bool HasStageSnapshot { get; set; }
+        public int StackCount { get; set; }
+        public float ElapsedSeconds { get; set; }
+        public float RemainingSeconds { get; set; }
+        public float DurationSeconds { get; set; }
     }
 
     public sealed class AnalysisBattleDiagnosticRuntimeObjectReference

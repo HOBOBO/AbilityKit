@@ -202,6 +202,11 @@ namespace AbilityKit.Demo.Moba.Services
             result.Properties.Add(new AnalysisKeyValue("traceKind", metadata.TraceKind.ToString()));
             result.Properties.Add(new AnalysisKeyValue("rootId", ToString(metadata.RootId)));
             result.Properties.Add(new AnalysisKeyValue("parentId", ToString(metadata.ParentId)));
+            if (metadata.OriginKind != MobaTraceKind.None)
+            {
+                result.Properties.Add(new AnalysisKeyValue("originKind", metadata.OriginKind.ToString()));
+                result.Properties.Add(new AnalysisKeyValue("originConfigId", ToString(metadata.OriginConfigId)));
+            }
             return result;
         }
 

@@ -3,6 +3,8 @@
     "rootNamespace": "AbilityKit",
     "references": [
         "AbilityKit.Ability",
+        "AbilityKit.Demo.Moba.Environment",
+        "AbilityKit.Scenario",
         "AbilityKit.ActionSchema",
         "AbilityKit.Attributes",
         "AbilityKit.Core",

@@ -40,7 +40,11 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         ProjectileHit = 20,
         TriggerAnalysis = 21,
         SkillFailure = 22,
-        TriggerAnalysisAggregate = 23
+        TriggerAnalysisAggregate = 23,
+        TargetSearch = 24,
+        InputCommand = 25,
+        SkillEconomy = 26,
+        TracePredictionRetracted = 27
     }
 
     public enum BattleDiagnosticDefinitionKind
@@ -53,7 +57,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         Projectile = 5,
         Area = 6,
         Summon = 7,
-        Actor = 8
+        Actor = 8,
+        Action = 9
     }
 
     public static class BattleDiagnosticDefinitionKinds
@@ -65,6 +70,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 case BattleDiagnosticEventKind.SkillRuntimeStarted:
                 case BattleDiagnosticEventKind.SkillRuntimeEnded:
                 case BattleDiagnosticEventKind.SkillFailure:
+                case BattleDiagnosticEventKind.SkillEconomy:
                     return BattleDiagnosticDefinitionKind.Skill;
                 case BattleDiagnosticEventKind.TriggerAnalysis:
                 case BattleDiagnosticEventKind.TriggerAnalysisAggregate:
@@ -866,6 +872,30 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                     nameof(payload));
             }
 
+            if (payload.Kind == BattleDiagnosticPayloadKind.DamageCalculation &&
+                kind != BattleDiagnosticEventKind.Damage)
+            {
+                throw new ArgumentException("DamageCalculation payload requires a Damage event kind.", nameof(payload));
+            }
+
+            if (payload.Kind == BattleDiagnosticPayloadKind.TargetSearch &&
+                kind != BattleDiagnosticEventKind.TargetSearch)
+                throw new ArgumentException("TargetSearch payload requires a TargetSearch event kind.", nameof(payload));
+
+            if (payload.Kind == BattleDiagnosticPayloadKind.InputCommand &&
+                kind != BattleDiagnosticEventKind.InputCommand)
+                throw new ArgumentException("InputCommand payload requires an InputCommand event kind.", nameof(payload));
+
+            if (payload.Kind == BattleDiagnosticPayloadKind.SkillExecution &&
+                kind != BattleDiagnosticEventKind.SkillRuntimeStarted &&
+                kind != BattleDiagnosticEventKind.SkillRuntimeEnded &&
+                kind != BattleDiagnosticEventKind.SkillEconomy)
+            {
+                throw new ArgumentException(
+                    "SkillExecution payload requires a skill runtime or skill economy event kind.",
+                    nameof(payload));
+            }
+
             if (payload.Kind == BattleDiagnosticPayloadKind.TriggerAnalysis &&
                 kind != BattleDiagnosticEventKind.TriggerAnalysis)
             {
@@ -1026,7 +1056,12 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             int triggerId = 0,
             int sourceActorGeneration = 0,
             int targetActorGeneration = 0,
-            BattleDiagnosticDefinitionKind definitionKind = BattleDiagnosticDefinitionKind.Unknown)
+            BattleDiagnosticDefinitionKind definitionKind = BattleDiagnosticDefinitionKind.Unknown,
+            int originKind = 0,
+            int originConfigId = 0,
+            BattleDiagnosticDefinitionKind originDefinitionKind = BattleDiagnosticDefinitionKind.Unknown,
+            BattleDiagnosticEffectExecutionFacts executionFacts = default,
+            BattleDiagnosticActionExecutionFacts actionFacts = default)
         {
             if (rootContextId == 0) throw new ArgumentOutOfRangeException(nameof(rootContextId));
             if (contextId == 0) throw new ArgumentOutOfRangeException(nameof(contextId));
@@ -1050,6 +1085,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 targetActorId,
                 targetActorGeneration);
             Definition = BattleDiagnosticDefinitionReference.Create(definitionKind, configId);
+            OriginKind = originKind;
+            OriginDefinition = BattleDiagnosticDefinitionReference.Create(originDefinitionKind, originConfigId);
             TriggerDefinition = BattleDiagnosticDefinitionReference.Create(
                 BattleDiagnosticDefinitionKind.Trigger,
                 triggerId);
@@ -1060,6 +1097,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
             EndReason = endReason ?? string.Empty;
             CastFlowId = castFlowId;
             PhaseId = phaseId ?? string.Empty;
+            ExecutionFacts = executionFacts;
+            ActionFacts = actionFacts;
         }
 
         public BattleDiagnosticSessionScope Scope { get; }
@@ -1071,6 +1110,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public BattleDiagnosticDefinitionReference Definition { get; }
         public BattleDiagnosticDefinitionReference TriggerDefinition { get; }
         public BattleDiagnosticDefinitionReference SkillDefinition { get; }
+        public int OriginKind { get; }
+        public BattleDiagnosticDefinitionReference OriginDefinition { get; }
+        public int OriginConfigId => OriginDefinition.DefinitionId;
+        public bool HasOrigin => OriginKind != 0 || OriginDefinition.HasDefinitionId;
         public long RootContextId => RootContext.ContextId;
         public long ContextId => Context.ContextId;
         public long ParentContextId => ParentContext.ContextId;
@@ -1091,6 +1134,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
         public int TargetActorGeneration => TargetObject.Generation;
         public int TriggerId => TriggerDefinition.DefinitionId;
         public bool IsActive => State == BattleDiagnosticTraceNodeState.Active;
+        public BattleDiagnosticEffectExecutionFacts ExecutionFacts { get; }
+        public BattleDiagnosticActionExecutionFacts ActionFacts { get; }
 
         public bool Equals(BattleDiagnosticTraceNodeSummary other)
         {
@@ -1105,7 +1150,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                    TargetActorId == other.TargetActorId && TriggerId == other.TriggerId &&
                    SourceObject.Equals(other.SourceObject) &&
                    TargetObject.Equals(other.TargetObject) &&
-                   Definition.Equals(other.Definition);
+                   Definition.Equals(other.Definition) && OriginKind == other.OriginKind &&
+                   OriginDefinition.Equals(other.OriginDefinition) && ExecutionFacts.Equals(other.ExecutionFacts) && ActionFacts.Equals(other.ActionFacts);
         }
 
         public override bool Equals(object obj) => obj is BattleDiagnosticTraceNodeSummary other && Equals(other);
@@ -1133,6 +1179,10 @@ namespace AbilityKit.Demo.Moba.Diagnostics
                 hashCode = (hashCode * 397) ^ SourceObject.GetHashCode();
                 hashCode = (hashCode * 397) ^ TargetObject.GetHashCode();
                 hashCode = (hashCode * 397) ^ Definition.GetHashCode();
+                hashCode = (hashCode * 397) ^ OriginKind;
+                hashCode = (hashCode * 397) ^ OriginDefinition.GetHashCode();
+                hashCode = (hashCode * 397) ^ ExecutionFacts.GetHashCode();
+                hashCode = (hashCode * 397) ^ ActionFacts.GetHashCode();
                 return hashCode;
             }
         }

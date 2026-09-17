@@ -16,6 +16,7 @@ namespace AbilityKit.Demo.Moba.Services
         IBattleDiagnosticReadOnlySession,
         IBattleDiagnosticTraceRootSession,
         IBattleDiagnosticRuntimeObjectCatalogSession,
+        IBattleDiagnosticDefinitionLookupSession,
         IBattleDiagnosticMetricSession,
         IService
     {
@@ -29,6 +30,9 @@ namespace AbilityKit.Demo.Moba.Services
         private readonly IBattleDiagnosticRuntimeObjectReadStore _runtimeObjectStore;
         private readonly IBattleDiagnosticMetricReadStore _metricStore;
         private readonly BattleDiagnosticSessionInfo _sessionInfo;
+
+        [WorldInject(required: false)]
+        private IMobaBattleDiagnosticDefinitionResolver _definitionResolver = null;
 
         public MobaBattleDiagnosticLocalSession(
             IBattleDiagnosticEventReadStore eventStore,
@@ -193,7 +197,27 @@ namespace AbilityKit.Demo.Moba.Services
         {
         }
 
-        public BattleDiagnosticSessionInfo SessionInfo => _sessionInfo;
+        public BattleDiagnosticSessionInfo SessionInfo
+        {
+            get
+            {
+                if (_definitionResolver == null ||
+                    _sessionInfo.Supports(BattleDiagnosticCapabilities.Definitions))
+                {
+                    return _sessionInfo;
+                }
+
+                return new BattleDiagnosticSessionInfo(
+                    _sessionInfo.Scope,
+                    _sessionInfo.DisplayName,
+                    _sessionInfo.BuildId,
+                    _sessionInfo.SchemaVersion,
+                    _sessionInfo.MonotonicTimestampFrequency,
+                    _sessionInfo.Capabilities | BattleDiagnosticCapabilities.Definitions,
+                    _sessionInfo.ConnectionState,
+                    _sessionInfo.CaptureState);
+            }
+        }
         public long EventStoreRevision => _eventStore.Revision;
         public long StateStoreRevision => _stateStore.Revision;
         public long TraceStoreRevision => _traceStore?.Revision ?? 0L;
@@ -203,7 +227,46 @@ namespace AbilityKit.Demo.Moba.Services
         public long ActorEffectStoreRevision => _effectStore?.Revision ?? 0L;
         public long RuntimeObjectStoreRevision => _runtimeObjectStore?.Revision ?? 0L;
         public long MetricStoreRevision => _metricStore?.Revision ?? 0L;
+        public long DefinitionStoreRevision => _definitionResolver?.Revision ?? 0L;
         public long StoreRevision => EventStoreRevision;
+
+        public BattleDiagnosticQueryResult<BattleDiagnosticDefinition> QueryDefinition(
+            long requestId,
+            in BattleDiagnosticDefinitionReference reference)
+        {
+            if (requestId <= 0L) throw new ArgumentOutOfRangeException(nameof(requestId));
+            if (!reference.HasDefinitionId) throw new ArgumentException(
+                "A definition reference with an ID is required.",
+                nameof(reference));
+            if (_definitionResolver == null)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticDefinition>.Unavailable(
+                    requestId,
+                    DefinitionStoreRevision,
+                    BattleDiagnosticDataAvailability.Unsupported,
+                    "The local session does not provide definition lookups.");
+            }
+
+            try
+            {
+                var definition = _definitionResolver.TryResolve(in reference, out var resolved)
+                    ? resolved
+                    : BattleDiagnosticDefinition.Unresolved(in reference);
+                return BattleDiagnosticQueryResult<BattleDiagnosticDefinition>.FromItems(
+                    requestId,
+                    DefinitionStoreRevision,
+                    new[] { definition },
+                    false);
+            }
+            catch (Exception ex)
+            {
+                return BattleDiagnosticQueryResult<BattleDiagnosticDefinition>.Failed(
+                    requestId,
+                    DefinitionStoreRevision,
+                    "QueryDefinition.Exception",
+                    ex.Message);
+            }
+        }
 
         public BattleDiagnosticQueryResult<BattleDiagnosticMetricSample> QueryMetrics(
             BattleDiagnosticMetricQuery query)

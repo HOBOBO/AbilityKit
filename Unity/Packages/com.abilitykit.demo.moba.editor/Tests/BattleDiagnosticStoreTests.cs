@@ -459,13 +459,15 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 source: "Cast",
                 stage: "Preparation",
                 code: "Cast.TargetOutOfRange",
-                message: "Target is outside cast range.");
+                message: "Target is outside cast range.",
+                commandId: 4401);
             var payload = BattleDiagnosticEventPayload.FromSkillFailure(in failure);
 
             Assert.That(payload.Kind, Is.EqualTo(BattleDiagnosticPayloadKind.SkillFailure));
             Assert.That(payload.SchemaVersion, Is.EqualTo(BattleDiagnosticSkillFailurePayload.CurrentSchemaVersion));
             Assert.That(payload.TryGetSkillFailure(out var restored), Is.True);
             Assert.That(restored, Is.EqualTo(failure));
+            Assert.That(restored.CommandId, Is.EqualTo(4401));
             Assert.That(payload, Is.EqualTo(BattleDiagnosticEventPayload.FromSkillFailure(in failure)));
             Assert.Throws<System.ArgumentException>(() => new BattleDiagnosticEvent(
                 _scope,
@@ -481,6 +483,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         [TestCase("Cast.TargetOutOfRange")]
         [TestCase("outside cast range")]
         [TestCase("3")]
+        [TestCase("4401")]
         public void RingStore_TextSearch_MatchesStructuredSkillFailureFields(string searchText)
         {
             var store = new BattleDiagnosticEventRingStore(_scope, 4);
@@ -489,7 +492,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 source: "Cast",
                 stage: "Preparation",
                 code: "Cast.TargetOutOfRange",
-                message: "Target is outside cast range.");
+                message: "Target is outside cast range.",
+                commandId: 4401);
             var payload = BattleDiagnosticEventPayload.FromSkillFailure(in failure);
             store.TryAppend(new BattleDiagnosticEvent(
                 _scope,
@@ -512,6 +516,256 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
 
             Assert.That(result.Items.Count, Is.EqualTo(1));
             Assert.That(result.Items[0].Sequence, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void InputCommandPayload_RoundTripsEveryFieldAndRejectsWrongEventKind()
+        {
+            var input = new BattleDiagnosticInputCommandPayload(
+                commandId: 4401,
+                inputFrame: 120,
+                playerId: "player-one",
+                opCode: 17,
+                succeeded: false,
+                failureCode: 8,
+                message: "Skill rejected.",
+                skillSlot: 2,
+                skillPhase: 1,
+                targetActorId: 41);
+            var payload = BattleDiagnosticEventPayload.FromInputCommand(in input);
+
+            Assert.That(payload.Kind, Is.EqualTo(BattleDiagnosticPayloadKind.InputCommand));
+            Assert.That(payload.SchemaVersion, Is.EqualTo(BattleDiagnosticInputCommandPayload.CurrentSchemaVersion));
+            Assert.That(payload.TryGetInputCommand(out var restored), Is.True);
+            Assert.That(restored.CommandId, Is.EqualTo(4401));
+            Assert.That(restored.InputFrame, Is.EqualTo(120));
+            Assert.That(restored.PlayerId, Is.EqualTo("player-one"));
+            Assert.That(restored.OpCode, Is.EqualTo(17));
+            Assert.That(restored.Succeeded, Is.False);
+            Assert.That(restored.FailureCode, Is.EqualTo(8));
+            Assert.That(restored.Message, Is.EqualTo("Skill rejected."));
+            Assert.That(restored.SkillSlot, Is.EqualTo(2));
+            Assert.That(restored.SkillPhase, Is.EqualTo(1));
+            Assert.That(restored.TargetActorId, Is.EqualTo(41));
+            Assert.That(payload, Is.EqualTo(BattleDiagnosticEventPayload.FromInputCommand(in input)));
+            Assert.That(payload.TryGetTargetSearch(out _), Is.False);
+            Assert.DoesNotThrow(() => new BattleDiagnosticEvent(
+                _scope,
+                20,
+                1,
+                100L,
+                BattleDiagnosticEventKind.InputCommand,
+                BattleDiagnosticEventChannel.Input,
+                BattleDiagnosticEventOutcome.Failed,
+                payload: payload));
+            Assert.Throws<ArgumentException>(() => new BattleDiagnosticEvent(
+                _scope,
+                20,
+                2,
+                101L,
+                BattleDiagnosticEventKind.TargetSearch,
+                BattleDiagnosticEventChannel.Targeting,
+                BattleDiagnosticEventOutcome.Failed,
+                payload: payload));
+        }
+
+        [TestCase("4401")]
+        [TestCase("player-one")]
+        [TestCase("Skill rejected")]
+        [TestCase("41")]
+        public void RingStore_TextSearch_MatchesStructuredInputCommandFields(string searchText)
+        {
+            var store = new BattleDiagnosticEventRingStore(_scope, 4);
+            var input = new BattleDiagnosticInputCommandPayload(
+                4401, 120, "player-one", 17, false, 8, "Skill rejected.", 2, 1, 41);
+            var payload = BattleDiagnosticEventPayload.FromInputCommand(in input);
+            store.TryAppend(new BattleDiagnosticEvent(
+                _scope,
+                120,
+                1,
+                100L,
+                BattleDiagnosticEventKind.InputCommand,
+                BattleDiagnosticEventChannel.Input,
+                BattleDiagnosticEventOutcome.Failed,
+                sourceActorId: 7,
+                targetActorId: 41,
+                payloadVersion: BattleDiagnosticInputCommandPayload.CurrentSchemaVersion,
+                summary: "Input processed",
+                payload: payload));
+
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                1,
+                BattleDiagnosticFilter.Default.WithSearchText(searchText),
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(result.Items.Count, Is.EqualTo(1));
+            Assert.That(result.Items[0].Sequence, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void TargetSearchPayload_RoundTripsEveryFieldAndRejectsWrongEventKind()
+        {
+            var search = new BattleDiagnosticTargetSearchPayload(
+                commandId: 4401,
+                explicitTargetActorId: 41,
+                candidateCount: 8,
+                eligibleCount: 3,
+                selectedCount: 2,
+                selectedActorIds: "41,52",
+                decisionDetails: "41:eligible:rank=1;52:eligible:rank=2");
+            var payload = BattleDiagnosticEventPayload.FromTargetSearch(in search);
+
+            Assert.That(payload.Kind, Is.EqualTo(BattleDiagnosticPayloadKind.TargetSearch));
+            Assert.That(payload.SchemaVersion, Is.EqualTo(BattleDiagnosticTargetSearchPayload.CurrentSchemaVersion));
+            Assert.That(payload.TryGetTargetSearch(out var restored), Is.True);
+            Assert.That(restored.CommandId, Is.EqualTo(4401));
+            Assert.That(restored.ExplicitTargetActorId, Is.EqualTo(41));
+            Assert.That(restored.CandidateCount, Is.EqualTo(8));
+            Assert.That(restored.EligibleCount, Is.EqualTo(3));
+            Assert.That(restored.SelectedCount, Is.EqualTo(2));
+            Assert.That(restored.SelectedActorIds, Is.EqualTo("41,52"));
+            Assert.That(restored.DecisionDetails, Is.EqualTo("41:eligible:rank=1;52:eligible:rank=2"));
+            Assert.That(payload, Is.EqualTo(BattleDiagnosticEventPayload.FromTargetSearch(in search)));
+            Assert.That(payload.TryGetInputCommand(out _), Is.False);
+            Assert.DoesNotThrow(() => new BattleDiagnosticEvent(
+                _scope,
+                20,
+                1,
+                100L,
+                BattleDiagnosticEventKind.TargetSearch,
+                BattleDiagnosticEventChannel.Targeting,
+                BattleDiagnosticEventOutcome.Succeeded,
+                payload: payload));
+            Assert.Throws<ArgumentException>(() => new BattleDiagnosticEvent(
+                _scope,
+                20,
+                2,
+                101L,
+                BattleDiagnosticEventKind.InputCommand,
+                BattleDiagnosticEventChannel.Input,
+                BattleDiagnosticEventOutcome.Succeeded,
+                payload: payload));
+        }
+
+        [TestCase("4401")]
+        [TestCase("41,52")]
+        [TestCase("eligible:rank")]
+        public void RingStore_TextSearch_MatchesStructuredTargetSearchFields(string searchText)
+        {
+            var store = new BattleDiagnosticEventRingStore(_scope, 4);
+            var search = new BattleDiagnosticTargetSearchPayload(
+                4401, 41, 8, 3, 2, "41,52", "41:eligible:rank=1;52:eligible:rank=2");
+            var payload = BattleDiagnosticEventPayload.FromTargetSearch(in search);
+            store.TryAppend(new BattleDiagnosticEvent(
+                _scope,
+                120,
+                1,
+                100L,
+                BattleDiagnosticEventKind.TargetSearch,
+                BattleDiagnosticEventChannel.Targeting,
+                BattleDiagnosticEventOutcome.Succeeded,
+                sourceActorId: 7,
+                targetActorId: 41,
+                payloadVersion: BattleDiagnosticTargetSearchPayload.CurrentSchemaVersion,
+                summary: "Target search completed",
+                payload: payload));
+
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                1,
+                BattleDiagnosticFilter.Default.WithSearchText(searchText),
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(result.Items.Count, Is.EqualTo(1));
+            Assert.That(result.Items[0].Sequence, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SkillExecutionPayload_RoundTripsEveryFieldAndRejectsWrongEventKind()
+        {
+            var execution = new BattleDiagnosticSkillExecutionPayload(
+                commandId: 4401,
+                BattleDiagnosticSkillExecutionStage.EconomyCommitted,
+                skillSlot: 2,
+                skillLevel: 3,
+                castSequence: 17,
+                endReason: 1,
+                resourceType: 4,
+                resourceAmountRaw: 10L << 32,
+                resourceBeforeRaw: 100L << 32,
+                resourceAfterRaw: 90L << 32,
+                chargeCost: 1,
+                cooldownMs: 800,
+                sharedCooldownMs: 600,
+                globalCooldownMs: 300,
+                pendingChildren: 2,
+                forced: true,
+                detail: "cast.release");
+            var payload = BattleDiagnosticEventPayload.FromSkillExecution(in execution);
+
+            Assert.That(payload.Kind, Is.EqualTo(BattleDiagnosticPayloadKind.SkillExecution));
+            Assert.That(payload.SchemaVersion, Is.EqualTo(BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion));
+            Assert.That(payload.TryGetSkillExecution(out var restored), Is.True);
+            Assert.That(restored.CommandId, Is.EqualTo(4401));
+            Assert.That(restored.Stage, Is.EqualTo(BattleDiagnosticSkillExecutionStage.EconomyCommitted));
+            Assert.That(restored.SkillSlot, Is.EqualTo(2));
+            Assert.That(restored.SkillLevel, Is.EqualTo(3));
+            Assert.That(restored.CastSequence, Is.EqualTo(17));
+            Assert.That(restored.EndReason, Is.EqualTo(1));
+            Assert.That(restored.ResourceType, Is.EqualTo(4));
+            Assert.That(restored.ResourceAmountRaw, Is.EqualTo(10L << 32));
+            Assert.That(restored.ResourceBeforeRaw, Is.EqualTo(100L << 32));
+            Assert.That(restored.ResourceAfterRaw, Is.EqualTo(90L << 32));
+            Assert.That(restored.ChargeCost, Is.EqualTo(1));
+            Assert.That(restored.CooldownMs, Is.EqualTo(800));
+            Assert.That(restored.SharedCooldownMs, Is.EqualTo(600));
+            Assert.That(restored.GlobalCooldownMs, Is.EqualTo(300));
+            Assert.That(restored.PendingChildren, Is.EqualTo(2));
+            Assert.That(restored.Forced, Is.True);
+            Assert.That(restored.Detail, Is.EqualTo("cast.release"));
+            Assert.DoesNotThrow(() => new BattleDiagnosticEvent(
+                _scope, 20, 1, 100L,
+                BattleDiagnosticEventKind.SkillEconomy,
+                BattleDiagnosticEventChannel.Skill,
+                BattleDiagnosticEventOutcome.Succeeded,
+                payload: payload));
+            Assert.Throws<ArgumentException>(() => new BattleDiagnosticEvent(
+                _scope, 20, 2, 101L,
+                BattleDiagnosticEventKind.Damage,
+                BattleDiagnosticEventChannel.DamageAndHeal,
+                BattleDiagnosticEventOutcome.Succeeded,
+                payload: payload));
+        }
+
+        [TestCase("4401")]
+        [TestCase("EconomyCommitted")]
+        [TestCase("cast.release")]
+        [TestCase("800")]
+        public void RingStore_TextSearch_MatchesStructuredSkillExecutionFields(string searchText)
+        {
+            var store = new BattleDiagnosticEventRingStore(_scope, 4);
+            var execution = new BattleDiagnosticSkillExecutionPayload(
+                4401, BattleDiagnosticSkillExecutionStage.EconomyCommitted,
+                2, 3, 17, resourceType: 4, resourceAmountRaw: 10L << 32,
+                resourceBeforeRaw: 100L << 32, resourceAfterRaw: 90L << 32,
+                chargeCost: 1, cooldownMs: 800, detail: "cast.release");
+            var payload = BattleDiagnosticEventPayload.FromSkillExecution(in execution);
+            store.TryAppend(new BattleDiagnosticEvent(
+                _scope, 120, 1, 100L,
+                BattleDiagnosticEventKind.SkillEconomy,
+                BattleDiagnosticEventChannel.Skill,
+                BattleDiagnosticEventOutcome.Succeeded,
+                sourceActorId: 7,
+                configId: 101,
+                payloadVersion: BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion,
+                summary: "Economy committed",
+                payload: payload));
+
+            var result = store.Query(new BattleDiagnosticEventQuery(
+                1,
+                BattleDiagnosticFilter.Default.WithSearchText(searchText),
+                new BattleDiagnosticPageRequest(0, 0, 10)));
+
+            Assert.That(result.Items.Count, Is.EqualTo(1));
         }
 
         [Test]

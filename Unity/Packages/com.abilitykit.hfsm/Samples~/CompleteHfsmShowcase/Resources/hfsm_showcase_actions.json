@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "states": [
+    {"behaviorKey":"showcase.patrol.walk","action":{"id":"walk.root","type":"sequence","actions":[
+      {"id":"walk.start","type":"log","message":"patrol started"},
+      {"id":"walk.play","type":"play","playState":"Walk","loop":true,"frameCount":20},
+      {"id":"walk.delay","type":"wait","seconds":0.2},
+      {"id":"walk.steady","type":"log","message":"patrol steady"}]}},
+    {"behaviorKey":"showcase.patrol.block","action":{"id":"block.root","type":"sequence","actions":[
+      {"id":"block.start","type":"log","message":"route blocked"},
+      {"id":"block.play","type":"play","playState":"Block","loop":true,"frameCount":10},
+      {"id":"block.delay","type":"wait","seconds":0.5},
+      {"id":"block.still","type":"log","message":"waiting for route"}]}},
+    {"behaviorKey":"showcase.combat.chase","action":{"id":"chase.root","type":"parallel","actions":[
+      {"id":"chase.play","type":"play","playState":"Run","loop":true,"frameCount":20},
+      {"id":"chase.report","type":"sequence","actions":[
+        {"id":"chase.wait","type":"wait","seconds":0.2},
+        {"id":"chase.log","type":"log","message":"target pursued"}]}]}},
+    {"behaviorKey":"showcase.combat.strike","action":{"id":"strike.root","type":"sequence","actions":[
+      {"id":"strike.begin","type":"log","message":"attack windup"},
+      {"id":"strike.play","type":"play","playState":"Attack","loop":false,"frameCount":12},
+      {"id":"strike.windup","type":"wait","seconds":0.3},
+      {"id":"strike.impact","type":"log","message":"attack impact"},
+      {"id":"strike.recover","type":"wait","seconds":0.2},
+      {"id":"strike.done","type":"log","message":"attack recovered"}]}}
+  ]
+}

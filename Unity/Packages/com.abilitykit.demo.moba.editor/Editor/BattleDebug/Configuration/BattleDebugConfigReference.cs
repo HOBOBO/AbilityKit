@@ -108,7 +108,24 @@ namespace AbilityKit.Game.Editor
                 return true;
             }
 
+            if (traceKind == MobaTraceKind.EffectAction)
+            {
+                return TryCreate(BattleDebugConfigKind.TriggerPlan, node.TriggerId, out reference);
+            }
+
             return TryCreate(MapTraceKind(traceKind), node.ConfigId, out reference);
+        }
+
+        public static bool TryFromTraceOrigin(
+            in BattleDiagnosticTraceNodeSummary node,
+            out BattleDebugConfigReference reference)
+        {
+            if (node.OriginKind < 0 || node.OriginKind > byte.MaxValue)
+            {
+                reference = default;
+                return false;
+            }
+            return TryCreate(MapTraceKind((MobaTraceKind)node.OriginKind), node.OriginConfigId, out reference);
         }
 
         private static bool TryCreate(

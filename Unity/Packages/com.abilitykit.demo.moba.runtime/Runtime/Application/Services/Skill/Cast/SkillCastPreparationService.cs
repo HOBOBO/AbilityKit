@@ -105,13 +105,15 @@ namespace AbilityKit.Demo.Moba.Services
                         actorId,
                         in casterPos,
                         finalTargetActorId,
-                        targets)
+                        targets,
+                        input.DiagnosticCommandId)
                     : search.TrySearchActorIds(
                         NormalAttackTargetQuery.Create(castRange),
                         actorId,
                         in casterPos,
                         finalTargetActorId,
-                        targets);
+                        targets,
+                        input.DiagnosticCommandId);
                 if (!found || targets.Count == 0)
                 {
                     return SkillCastPreparationResult.Failed(SkillFailureCodes.Cast.TargetMissing, "No valid target is within cast range.");
@@ -170,6 +172,7 @@ namespace AbilityKit.Demo.Moba.Services
                 .Build();
             context.CastFlowId = castFlowId;
             context.ResolvedConfiguration = resolvedConfiguration;
+            context.DiagnosticCommandId = input.DiagnosticCommandId;
 
             var trace = _services.Resolve<MobaTraceRegistry>();
             if (trace == null)

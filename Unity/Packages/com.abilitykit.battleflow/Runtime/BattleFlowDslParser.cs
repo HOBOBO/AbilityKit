@@ -8,10 +8,14 @@ namespace AbilityKit.BattleFlow
     /// 战斗流程 DSL：文本语句 → 积木。策划/测试不拖积木时，用一行行命令描述场景，解析结果与拖积木的编译结果一致。
     /// 行语法（# 开头为注释）：
     ///   env &lt;profileId&gt;
+    ///   seed &lt;integer&gt;
     ///   spawn &lt;alias&gt; hero=&lt;id&gt; attr=&lt;id&gt; team=&lt;id&gt; player=&lt;id&gt; pos=&lt;x,y,z&gt;
     ///   cast &lt;actor&gt; &lt;target&gt; slot=&lt;n&gt; at=&lt;ms&gt;
     ///   wait &lt;ms&gt; at=&lt;ms&gt;
     ///   obstacle &lt;pos&gt; &lt;size&gt; &lt;id&gt;
+    ///   network disconnect|reconnect at=&lt;ms&gt;
+    ///   network packet inbound|outbound opcode=&lt;id&gt; seq=&lt;n&gt; at=&lt;ms&gt;
+    ///   network phase at=&lt;ms&gt; until=&lt;ms&gt; direction=both|inbound|outbound latency=&lt;ms&gt;
     ///   assert …（以 assert 开头的动词委托给 <see cref="AssertFactory"/>，由项目注册断言积木）
     /// </summary>
     public static class BattleFlowDslParser
@@ -21,6 +25,10 @@ namespace AbilityKit.BattleFlow
 
         /// <summary>把 DSL 文本解析成积木列表（未知/空行/注释行跳过）。</summary>
         public static IReadOnlyList<BattleBlock> Parse(string text)
+            => Parse(text, null);
+
+        public static IReadOnlyList<BattleBlock> Parse(
+            string text, Func<string, string[], BattleBlock?>? projectFactory)
         {
             var blocks = new List<BattleBlock>();
             if (string.IsNullOrWhiteSpace(text)) return blocks;
@@ -34,14 +42,16 @@ namespace AbilityKit.BattleFlow
                 if (tokens.Length == 0) continue;
 
                 var verb = tokens[0].ToLowerInvariant();
-                var block = ParseLine(verb, tokens, line);
+                var block = ParseLine(verb, tokens, line, projectFactory);
                 if (block != null) blocks.Add(block);
             }
 
             return blocks;
         }
 
-        private static BattleBlock? ParseLine(string verb, string[] tokens, string line)
+        private static BattleBlock? ParseLine(
+            string verb, string[] tokens, string line,
+            Func<string, string[], BattleBlock?>? projectFactory)
         {
             var args = tokens.Length > 1 ? tokens[1..] : Array.Empty<string>();
             switch (verb)
@@ -49,6 +59,10 @@ namespace AbilityKit.BattleFlow
                 case "env":
                     Require(args, 1, line);
                     return new SetEnvironmentBlock { ProfileId = args[0] };
+
+                case "seed":
+                    Require(args, 1, line);
+                    return new SetScenarioSeedBlock { Seed = ParseInt(args[0]) };
 
                 case "spawn":
                     return ParseSpawn(args, line);
@@ -76,7 +90,12 @@ namespace AbilityKit.BattleFlow
                         Size = ParseVector(args[1]),
                     };
 
+                case "network":
+                    return ParseNetwork(args, line);
+
                 default:
+                    var projectBlock = projectFactory?.Invoke(verb, args);
+                    if (projectBlock != null) return projectBlock;
                     if (AssertFactory != null && verb.StartsWith("assert", StringComparison.Ordinal))
                         return AssertFactory(verb, args);
                     return null;
@@ -116,6 +135,53 @@ namespace AbilityKit.BattleFlow
                 }
             }
             return block;
+        }
+
+        private static BattleBlock ParseNetwork(string[] args, string line)
+        {
+            Require(args, 1, line);
+            var action = args[0].ToLowerInvariant();
+            if (action != "disconnect" && action != "reconnect" && action != "packet" && action != "phase")
+                throw new ArgumentException($"Unknown network DSL action '{args[0]}': {line}");
+
+            var parameters = new Dictionary<string, string>(StringComparer.Ordinal);
+            var block = new CommandBlock { Name = "network." + action, Parameters = parameters };
+            var position = 1;
+            if (action == "packet" && position < args.Length && args[position].IndexOf('=') < 0)
+            {
+                var direction = args[position++].ToLowerInvariant();
+                if (direction != "inbound" && direction != "outbound")
+                    throw new ArgumentException($"Invalid network packet direction '{direction}': {line}");
+                parameters["direction"] = direction;
+            }
+
+            for (var i = position; i < args.Length; i++)
+            {
+                var kv = SplitKeyValue(args[i]);
+                if (string.IsNullOrEmpty(kv.Value))
+                    throw new ArgumentException($"Network DSL parameter requires a value: {args[i]}");
+                if (kv.Key == "at") block.AtMs = ParseInt(kv.Value);
+                else parameters[CanonicalNetworkParameter(kv.Key)] = kv.Value;
+            }
+
+            if (block.AtMs < 0) throw new ArgumentOutOfRangeException("at", "Network command time cannot be negative.");
+            if (action == "packet")
+            {
+                if (!parameters.ContainsKey("direction")) parameters["direction"] = "inbound";
+                if (!parameters.ContainsKey("opCode") || !parameters.ContainsKey("seq"))
+                    throw new ArgumentException($"Network packet requires opcode and seq: {line}");
+            }
+            else if (action == "phase" && !parameters.ContainsKey("until"))
+            {
+                throw new ArgumentException($"Network phase requires until: {line}");
+            }
+
+            return block;
+        }
+
+        private static string CanonicalNetworkParameter(string key)
+        {
+            return key == "opcode" ? "opCode" : key;
         }
 
         private static (string Key, string Value) SplitKeyValue(string token)

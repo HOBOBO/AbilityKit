@@ -23,6 +23,8 @@ namespace AbilityKit.Game.Editor
         private string _search = string.Empty;
         private bool _modifiedOnly;
         private bool _expandAll = true;
+        private int _chartAttributeId;
+        private bool _recordChart = true;
 
         public bool IsVisible(in BattleDebugContext ctx) => true;
 
@@ -59,11 +61,13 @@ namespace AbilityKit.Game.Editor
             }
 
             _viewModel.RefreshIfNeeded(session, ctx.SelectedId.ActorId);
+            _viewModel.TrackAttribute(session, ctx.SelectedId.ActorId, _chartAttributeId, _recordChart);
             if (session.SessionInfo.Supports(BattleDiagnosticCapabilities.ActorBuffs))
             {
                 _buffsViewModel.RefreshIfNeeded(session, ctx.SelectedId.ActorId);
             }
             DrawToolbar(in ctx);
+            if (_chartAttributeId != 0) DrawChart(in ctx);
 
             var attributes = _viewModel.Attributes;
             if (attributes != null &&
@@ -167,7 +171,16 @@ namespace AbilityKit.Game.Editor
             EditorGUILayout.LabelField(
                 $"{attribute.BaseValue:0.#####}  →  {attribute.FinalValue:0.#####}",
                 EditorStyles.miniLabel,
-                GUILayout.Width(170));
+                GUILayout.Width(125));
+            if (GUILayout.Button(
+                    new GUIContent("曲线", "查看此属性的基础值和最终值采样曲线"),
+                    EditorStyles.miniButton,
+                    GUILayout.Width(38)))
+            {
+                _chartAttributeId = _chartAttributeId == attribute.AttributeId ? 0 : attribute.AttributeId;
+                _viewModel.ClearHistory();
+                ctx.RequestRepaint?.Invoke();
+            }
             EditorGUILayout.EndHorizontal();
             if (nextExpanded != expanded)
             {
@@ -181,6 +194,133 @@ namespace AbilityKit.Game.Editor
             }
 
             EditorGUILayout.EndVertical();
+        }
+
+        private void DrawChart(in BattleDebugContext ctx)
+        {
+            var name = $"属性 {_chartAttributeId}";
+            var attributes = _viewModel.Attributes;
+            for (var i = 0; i < attributes.Count; i++)
+            {
+                if (attributes[i].AttributeId != _chartAttributeId) continue;
+                if (!string.IsNullOrEmpty(attributes[i].Name)) name = attributes[i].Name;
+                break;
+            }
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label(name, EditorStyles.miniBoldLabel, GUILayout.MinWidth(55));
+            GUILayout.FlexibleSpace();
+            _recordChart = GUILayout.Toggle(
+                _recordChart,
+                new GUIContent(_recordChart ? "记录中" : "已暂停", "暂停或继续记录属性曲线；不影响诊断采样"),
+                EditorStyles.toolbarButton,
+                GUILayout.Width(52));
+            if (GUILayout.Button(new GUIContent("清空", "清空当前属性的曲线采样"),
+                    EditorStyles.toolbarButton, GUILayout.Width(36)))
+                _viewModel.ClearHistory(waitForNextRevision: true);
+            EditorGUILayout.EndHorizontal();
+
+            var samples = _viewModel.History;
+            if (samples.Count == 0)
+            {
+                EditorGUILayout.LabelField("暂无曲线采样", EditorStyles.centeredGreyMiniLabel);
+                return;
+            }
+
+            var min = float.PositiveInfinity;
+            var max = float.NegativeInfinity;
+            for (var i = 0; i < samples.Count; i++)
+            {
+                min = Mathf.Min(min, samples[i].BaseValue, samples[i].FinalValue);
+                max = Mathf.Max(max, samples[i].BaseValue, samples[i].FinalValue);
+            }
+            var padding = Mathf.Max((max - min) * 0.08f, 0.001f);
+            min -= padding;
+            max += padding;
+
+            var rect = GUILayoutUtility.GetRect(180f, 164f, GUILayout.ExpandWidth(true));
+            var plot = new Rect(rect.x + 58f, rect.y + 10f, Mathf.Max(1f, rect.width - 70f), 125f);
+            var baseColor = new Color(0.18f, 0.72f, 0.67f);
+            var finalColor = new Color(0.96f, 0.65f, 0.23f);
+            if (Event.current.type == EventType.Repaint)
+            {
+                EditorGUI.DrawRect(rect, EditorGUIUtility.isProSkin
+                    ? new Color(0.14f, 0.16f, 0.18f) : new Color(0.91f, 0.93f, 0.94f));
+                for (var i = 0; i <= 2; i++)
+                {
+                    var y = plot.y + plot.height * i / 2f;
+                    EditorGUI.DrawRect(new Rect(plot.x, y, plot.width, 1f),
+                        EditorGUIUtility.isProSkin ? new Color(0.32f, 0.35f, 0.37f) : new Color(0.75f, 0.78f, 0.8f));
+                }
+
+                var firstFrame = samples[0].Frame;
+                var frameSpan = Mathf.Max(1, samples[samples.Count - 1].Frame - firstFrame);
+                Handles.BeginGUI();
+                DrawSeries(samples, plot, min, max, firstFrame, frameSpan, baseColor, false);
+                DrawSeries(samples, plot, min, max, firstFrame, frameSpan, finalColor, true);
+                Handles.EndGUI();
+            }
+            GUI.Label(new Rect(rect.x + 3f, plot.y - 4f, 55f, 17f), max.ToString("0.###"), EditorStyles.miniLabel);
+            GUI.Label(new Rect(rect.x + 3f, plot.yMax - 12f, 55f, 17f), min.ToString("0.###"), EditorStyles.miniLabel);
+            GUI.Label(new Rect(plot.x, plot.yMax + 3f, 80f, 16f), $"帧 {samples[0].Frame}", EditorStyles.miniLabel);
+            GUI.Label(new Rect(plot.xMax - 85f, plot.yMax + 3f, 85f, 16f),
+                $"帧 {samples[samples.Count - 1].Frame}", EditorStyles.miniLabel);
+
+            EditorGUILayout.BeginHorizontal();
+            DrawLegend(baseColor, "基础值");
+            DrawLegend(finalColor, "最终值");
+            GUILayout.FlexibleSpace();
+            GUILayout.Label($"{samples.Count} 点 · 采样帧", EditorStyles.miniLabel);
+            EditorGUILayout.EndHorizontal();
+
+            var mouse = Event.current.mousePosition;
+            var selectedSample = samples[samples.Count - 1];
+            if (plot.Contains(mouse))
+            {
+                var nearest = 0;
+                var distance = float.MaxValue;
+                var firstFrame = samples[0].Frame;
+                var span = Mathf.Max(1, samples[samples.Count - 1].Frame - firstFrame);
+                for (var i = 0; i < samples.Count; i++)
+                {
+                    var x = plot.x + plot.width * (samples[i].Frame - firstFrame) / span;
+                    var dx = Mathf.Abs(x - mouse.x);
+                    if (dx >= distance) continue;
+                    distance = dx;
+                    nearest = i;
+                }
+                selectedSample = samples[nearest];
+                if (Event.current.type == EventType.MouseMove) ctx.RequestRepaint?.Invoke();
+            }
+            EditorGUILayout.LabelField(
+                $"帧 {selectedSample.Frame} · 基础 {selectedSample.BaseValue:0.#####} · 最终 {selectedSample.FinalValue:0.#####} · 修改器 {selectedSample.ModifierCount}",
+                EditorStyles.wordWrappedMiniLabel);
+        }
+
+        private static void DrawSeries(
+            IReadOnlyList<BattleDebugDiagnosticAttributesViewModel.AttributeSample> samples,
+            Rect plot, float min, float max, int firstFrame, int frameSpan, Color color, bool final)
+        {
+            var points = new Vector3[samples.Count];
+            for (var i = 0; i < samples.Count; i++)
+            {
+                var value = final ? samples[i].FinalValue : samples[i].BaseValue;
+                points[i] = new Vector3(
+                    plot.x + plot.width * (samples[i].Frame - firstFrame) / frameSpan,
+                    plot.yMax - plot.height * (value - min) / (max - min));
+            }
+            var previousColor = Handles.color;
+            Handles.color = color;
+            if (points.Length > 1) Handles.DrawAAPolyLine(2f, points);
+            else Handles.DrawSolidDisc(points[0], Vector3.forward, 3f);
+            Handles.color = previousColor;
+        }
+
+        private static void DrawLegend(Color color, string label)
+        {
+            var rect = GUILayoutUtility.GetRect(10f, 10f, GUILayout.Width(10f));
+            if (Event.current.type == EventType.Repaint) EditorGUI.DrawRect(rect, color);
+            GUILayout.Label(label, EditorStyles.miniLabel);
         }
 
         private static void DrawAttributeSummary(in BattleDiagnosticActorAttribute attribute)

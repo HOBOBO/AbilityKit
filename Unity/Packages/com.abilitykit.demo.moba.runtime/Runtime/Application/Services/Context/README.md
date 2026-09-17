@@ -2,13 +2,17 @@
 
 ## 设计指南
 
-当前端到端战斗上下文设计、生命周期规则、运行时上下文诊断和扩展检查清单见 `Runtime/Docs/MobaCombatContextDesignGuide.md`。
+当前端到端战斗上下文设计、生命周期规则、运行时上下文诊断和扩展检查清单见 [整体设计指南](../../../Docs/MobaCombatContextDesignGuide.md)。
+
+设计评审建议从整体指南开始，再阅读 [Runtime Context 值与快照设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md)、[Context 基础包](../../../../../com.abilitykit.context/Document/Context上下文注册与快照模块开发设计文档.md) 和 [Trace 基础包](../../../../../com.abilitykit.trace/Document/Trace溯源树模块开发设计文档.md)。Runtime Context 文档单独列出已实现行为、版本限制、恢复边界和待评审项。
 
 ## 用途
 
 `Context` 模块是 MOBA 玩法执行共享的运行时上下文基础设施。它连接强类型触发载荷、执行期上下文聚合、来源快照、起源传播、谱系构建和溯源集成。
 
 该模块不得变成通用业务数据袋。新玩法逻辑应优先采用强类型载荷，仅在集成回退场景下使用键值管线上下文。
+
+Runtime Context 正式引用携带本地 ContextEntityReference（RegistryId/EntityId/Generation），与业务 Version 分离。阶段/事件载荷在生成时复制身份，不在读取时绑定当前代次；实时读取先解析一致属性视图，历史工具保存 ResolvedSnapshot 后使用精确 ReadSnapshot。旧 ID-only 入口仍是弱兼容路径，本地身份不进入权威恢复载荷/hash。
 
 ## 主要模型优先级
 
@@ -62,6 +66,14 @@
 - 从 `MobaTriggerLineageContext` 构建。
 - 为异步生命周期捕获 `MobaPersistentContextSourceSnapshot`。
 - 在执行服务中规范化为 `MobaCombatExecutionContext`。
+
+## 效果入口观察
+
+`MobaEffectExecutionEntrySnapshot` 是执行入口事实，不是 Runtime Context 最新值，也不是状态恢复基线。采集由逻辑层可选 hook 在诊断 Events/Full + Skill 通道且未冻结时触发，编辑器通过 Trace 摘要只读消费。数据存于独立 Trace-facts 快照存储；其中 EntityId 是 TraceContextId，不能混用 RuntimeContextId。详见 [受管快照与效果入口设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md#71-效果执行入口的观察快照)。
+
+`MobaActionExecutionSnapshot` 是独立动作观察类型，保存入口/结束的来源与目标 HP/Mana、调用状态及有界实际 HP 提交列表。只读取已有资源，通过现有提交事件按最近真实动作关联，不把调用成功等同于玩法成功，也不补采缺失或淘汰记录。详见 [动作前后事实设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md#72-动作执行前后事实与实际-hp-提交)。
+
+动作观察 v2 增加独立伤害终态列表，复用已接受诊断事件，覆盖护盾全吸收、零 HP 伤害、目标缺失、提交拒绝和事务/执行异常；不凭“无 HP 提交”推测结果。缺少伤害通道、覆盖间隙和数量截断分别标记，旧 Artifact 缺字段为 NotCaptured。详见 [伤害结果设计](../../../../Document/RuntimeContext运行时值与快照设计文档.md#73-未产生-hp-提交的伤害管线结果)。
 
 ## 命名约定
 

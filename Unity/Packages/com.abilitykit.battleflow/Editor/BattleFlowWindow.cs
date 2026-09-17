@@ -533,7 +533,7 @@ namespace AbilityKit.BattleFlow.Editor
             {
                 try
                 {
-                    var blocks = BattleFlowDslParser.Parse(text);
+                    var blocks = BattleFlowRunnerRegistry.DslParser(text);
                     PushUndo();
                     LoadBlocks(blocks);
                     _traceNodes = null;

@@ -1,0 +1,12 @@
+{
+    "name": "AbilityKit.Demo.Moba.BattleFlow.Editor.Tests",
+    "references": [
+        "AbilityKit.Demo.Moba.Editor",
+        "AbilityKit.Demo.Moba.Environment",
+        "AbilityKit.BattleFlow",
+        "AbilityKit.Scenario"
+    ],
+    "includePlatforms": ["Editor"],
+    "optionalUnityReferences": ["TestAssemblies"],
+    "autoReferenced": false
+}

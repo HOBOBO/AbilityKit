@@ -6,7 +6,7 @@ namespace AbilityKit.Demo.Moba.Events.Buff
     /// <summary>
     /// Buff 事件参数
     /// </summary>
-    public sealed class BuffEventArgs
+    public sealed class BuffEventArgs : AbilityKit.Demo.Moba.Services.IMobaRuntimeContextPayload
     {
         /// <summary>事件 ID</summary>
         public string EventId;
@@ -43,6 +43,14 @@ namespace AbilityKit.Demo.Moba.Events.Buff
 
         /// <summary>运行时上下文版本</summary>
         public long RuntimeContextVersion;
+        public AbilityKit.Context.ContextEntityReference RuntimeContextIdentity;
+
+        public bool TryGetRuntimeContext(out AbilityKit.Demo.Moba.Services.MobaRuntimeContextReference reference)
+        {
+            reference = AbilityKit.Demo.Moba.Services.MobaRuntimeContextReference.FromIdentityOrLegacy(
+                RuntimeContextId, RuntimeContextVersion, RuntimeContextIdentity);
+            return reference.IsValid;
+        }
 
         /// <summary>Buff 运行时</summary>
         public BuffRuntime Runtime;

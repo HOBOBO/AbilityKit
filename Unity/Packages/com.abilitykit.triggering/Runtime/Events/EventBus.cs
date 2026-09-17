@@ -10,6 +10,7 @@ namespace AbilityKit.Triggering.Eventing
         private readonly Dictionary<Type, object> _channelsByArgsType = new Dictionary<Type, object>();
         private readonly List<IFlushableChannel> _flushables = new List<IFlushableChannel>(64);
         private readonly EventBusOptions _options;
+        public EEventDispatchMode DispatchMode => _options.DispatchMode;
 
         public EventBus()
             : this(EventBusOptions.Default)

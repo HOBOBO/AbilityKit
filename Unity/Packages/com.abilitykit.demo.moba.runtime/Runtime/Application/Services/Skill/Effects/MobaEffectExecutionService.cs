@@ -41,6 +41,8 @@ namespace AbilityKit.Demo.Moba.Services
         [WorldInject(required: false)] private IMobaBattleDiagnosticsService _diagnostics = null;
         [WorldInject(required: false)] private IMobaTriggerAnalysisHook _triggerAnalysisHook = null;
         [WorldInject(required: false)] private IMobaEffectLifecycleHook _effectLifecycleHook = null;
+        [WorldInject(required: false)] private IMobaEffectExecutionSnapshotHook _executionSnapshotHook = null;
+        [WorldInject(required: false)] private IMobaActionExecutionSnapshotHook _actionSnapshotHook = null;
         [WorldInject(required: false)] private IBlackboardResolver _globalBlackboards = null;
         [WorldInject(required: false)] private IOwnerBlackboardStore _ownerBlackboards = null;
 
@@ -167,8 +169,16 @@ namespace AbilityKit.Demo.Moba.Services
 
             scope.CurrentActionIndex = actionIndex;
             scope.CurrentActionId = actionId;
+            scope.CurrentActionScope = childScope;
             scope.CurrentActionContextId = childScope.ContextId;
             scope.ActionContextIds.Add(childScope.ContextId);
+            Trace.TrySetEffectTrigger(childScope.ContextId, scope.TriggerId);
+            try
+            {
+                _actionSnapshotHook?.OnActionStarted(childScope.ContextId, actionIndex, actionId,
+                    scope.SourceActorId, scope.TargetActorId, _frameTime != null ? _frameTime.Frame.Value : -1);
+            }
+            catch (Exception) { }
             BeginActionDiagnostics(scope);
         }
 
@@ -182,18 +192,14 @@ namespace AbilityKit.Demo.Moba.Services
                 return;
             }
 
-            var actionContextId = scope.CurrentActionContextId;
+            var actionScope = scope.CurrentActionScope;
+            CaptureActionEnd(scope, succeeded, false);
             ResetCurrentAction(scope);
             try
             {
-                if (actionContextId != 0L)
-                {
-                    Trace.End(
-                        actionContextId,
-                        (int)(succeeded
-                            ? TraceLifecycleReason.Completed
-                            : TraceLifecycleReason.Failed));
-                }
+                actionScope.End((int)(succeeded
+                    ? TraceLifecycleReason.Completed
+                    : TraceLifecycleReason.Failed));
             }
             finally
             {
@@ -228,6 +234,16 @@ namespace AbilityKit.Demo.Moba.Services
             scope.ActionAllocatedBytesStart = TryGetAllocatedBytes(out var allocatedBytes)
                 ? allocatedBytes
                 : -1L;
+        }
+
+        private void CaptureActionEnd(EffectExecutionTraceScope scope, bool succeeded, bool aborted)
+        {
+            try
+            {
+                _actionSnapshotHook?.OnActionEnded(scope.CurrentActionContextId, scope.CurrentActionIndex,
+                    scope.CurrentActionId, succeeded, aborted, _frameTime != null ? _frameTime.Frame.Value : -1);
+            }
+            catch (Exception) { }
         }
 
         private void CompleteActionDiagnostics(
@@ -269,6 +285,7 @@ namespace AbilityKit.Demo.Moba.Services
             scope.CurrentActionIndex = -1;
             scope.CurrentActionContextId = 0L;
             scope.CurrentActionId = 0L;
+            scope.CurrentActionScope = default;
         }
 
         private static bool TryGetAllocatedBytes(out long allocatedBytes)
@@ -347,6 +364,7 @@ namespace AbilityKit.Demo.Moba.Services
                         contextKind: lineageInput.ContextKind);
 
                     scope.EffectContextId = rootScope.RootId;
+                    scope.RootScope = rootScope;
                     scope.IsRoot = true;
                 }
 
@@ -356,16 +374,27 @@ namespace AbilityKit.Demo.Moba.Services
                 }
 
                 Trace.TrySetEffectTrigger(scope.EffectContextId, triggerId);
+                Trace.TrySetEffectOrigin(
+                    scope.EffectContextId,
+                    lineageInput.OriginKind,
+                    lineageInput.OriginConfigId);
 
                 _traceScopes.Push(scope);
                 return scope;
             }
             catch
             {
-                if (scope.PerformanceScopes != null)
+                try
                 {
-                    scope.PerformanceScopes.Effect.Dispose();
-                    scope.PerformanceScopes.Effect = default;
+                    scope.RootScope.Dispose();
+                }
+                finally
+                {
+                    if (scope.PerformanceScopes != null)
+                    {
+                        scope.PerformanceScopes.Effect.Dispose();
+                        scope.PerformanceScopes.Effect = default;
+                    }
                 }
 
                 throw;
@@ -384,9 +413,10 @@ namespace AbilityKit.Demo.Moba.Services
             {
                 if (scope.CurrentActionContextId != 0L)
                 {
+                    CaptureActionEnd(scope, false, true);
                     try
                     {
-                        Trace.End(scope.CurrentActionContextId, reason);
+                        scope.CurrentActionScope.End(reason);
                     }
                     finally
                     {
@@ -410,10 +440,17 @@ namespace AbilityKit.Demo.Moba.Services
             }
             finally
             {
-                if (scope.PerformanceScopes != null)
+                try
                 {
-                    scope.PerformanceScopes.Effect.Dispose();
-                    scope.PerformanceScopes.Effect = default;
+                    scope.RootScope.Dispose();
+                }
+                finally
+                {
+                    if (scope.PerformanceScopes != null)
+                    {
+                        scope.PerformanceScopes.Effect.Dispose();
+                        scope.PerformanceScopes.Effect = default;
+                    }
                 }
             }
         }
@@ -610,6 +647,16 @@ namespace AbilityKit.Demo.Moba.Services
                     traceScope.EffectContextId,
                     traceScope.EffectConfigId,
                     traceScope.IsRoot);
+
+                try
+                {
+                    if (_executionSnapshotHook != null && _executionSnapshotHook.IsEnabled)
+                    {
+                        var entryContext = executionFrame.Context;
+                        _executionSnapshotHook.OnExecutionStarted(traceScope.EffectContextId, effectConfigId, triggerId, in entryContext);
+                    }
+                }
+                catch (Exception) { }
 
                 CollectEffectStarted(traceScope, in lineageInput);
 

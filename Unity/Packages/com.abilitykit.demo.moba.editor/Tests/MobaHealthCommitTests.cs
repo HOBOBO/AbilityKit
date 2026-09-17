@@ -68,6 +68,39 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
         }
 
         [Test]
+        public void ActionSnapshot_ObservesExistingRealDamageAndHealCommitEvents()
+        {
+            var registry = new MobaActorRegistry();
+            var eventBus = new EventBus();
+            var entities = new MobaEntityManager(eventBus);
+            var actor = CreateRegisteredActor(registry, entities, 80f);
+            var actors = new MobaActorLookupService(_actorIndex, registry, entities, _contexts);
+            var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
+            var damage = new MobaDamageService(actors, snapshots, eventBus: eventBus);
+            using (var trace = new MobaTraceRegistry())
+            using (var store = new MobaActionExecutionSnapshotStore(trace, registry, null, eventBus, 8, () => true))
+            {
+                var id = trace.CreateRootContext(MobaTraceKind.EffectAction, 301, TargetActorId, TargetActorId);
+                var origin = new MobaGameplayOrigin(TargetActorId, TargetActorId, MobaTraceKind.EffectAction,
+                    301, id, id, id, id);
+                store.OnActionStarted(id, 0, 301, TargetActorId, TargetActorId, 10);
+                damage.CommitDamage(TargetActorId, TargetActorId, 0, Fixed64.FromSingle(20f), origin: origin);
+                damage.CommitHeal(TargetActorId, TargetActorId, 0, 5f, origin: origin);
+                store.OnActionEnded(id, 0, 301, false, false, 10);
+                Assert.That(trace.TryGetNodeSnapshot(id, out var node), Is.True);
+                var facts = store.Read(((MobaTraceMetadata)node.Metadata).ActionSnapshot);
+                Assert.That(facts.SourceBefore.Hp, Is.EqualTo(80f));
+                Assert.That(facts.SourceAfter.Hp, Is.EqualTo(65f));
+                Assert.That(facts.Commits.Count, Is.EqualTo(2));
+                Assert.That(facts.Commits[0].Kind, Is.EqualTo((int)MobaHealthChangeKind.Damage));
+                Assert.That(facts.Commits[1].Kind, Is.EqualTo((int)MobaHealthChangeKind.Heal));
+                Assert.That(facts.CommitsComplete, Is.True);
+                Assert.That(facts.Outcome, Is.EqualTo(BattleDiagnosticActionOutcome.Failed));
+                Assert.That(actor.GetMobaAttrs().Hp, Is.EqualTo(65f));
+            }
+        }
+
+        [Test]
         public void BattlePayloadAccessor_ReadsCalculationAndBoxedHealthResultFields()
         {
             var registry = new PayloadAccessorRegistry();
@@ -542,6 +575,101 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             Assert.That(stages, Is.EqualTo(new[] { "before_calc", "after_apply" }));
         }
 
+        [TestCase(0, BattleDiagnosticActionDamageOutcome.NoHpDamage, BattleDiagnosticDamageStage.Completed)]
+        [TestCase(1, BattleDiagnosticActionDamageOutcome.FullyAbsorbed, BattleDiagnosticDamageStage.Completed)]
+        [TestCase(2, BattleDiagnosticActionDamageOutcome.Applied, BattleDiagnosticDamageStage.Completed)]
+        [TestCase(3, BattleDiagnosticActionDamageOutcome.Rejected, BattleDiagnosticDamageStage.TargetMissing)]
+        [TestCase(4, BattleDiagnosticActionDamageOutcome.Rejected, BattleDiagnosticDamageStage.TransactionRejected)]
+        [TestCase(5, BattleDiagnosticActionDamageOutcome.Rejected, BattleDiagnosticDamageStage.InvalidRequest)]
+        [TestCase(6, BattleDiagnosticActionDamageOutcome.Rejected, BattleDiagnosticDamageStage.HealthCommitRejected)]
+        [TestCase(7, BattleDiagnosticActionDamageOutcome.Rejected, BattleDiagnosticDamageStage.ShieldCommitRejected)]
+        public void ActionSnapshot_ObservesRealDamageTerminalBranchesWithoutInferringHpCommit(int scenario,
+            BattleDiagnosticActionDamageOutcome expected, BattleDiagnosticDamageStage stage)
+        {
+            var eventBus = new EventBus();
+            var collector = new MobaBattleDiagnosticEventCollector(new BattleDiagnosticSessionScope("damage-facts", "world", 1), frameProvider: () => 10);
+            var transactions = new MobaCombatTransactionPipeline();
+            if (scenario == 4)
+                transactions.Register(new DelegateTransactionInterceptor<MobaDamageTransaction>((transaction, current, _) =>
+                { if (current == MobaCombatTransactionStage.Validate) transaction.Cancel("blocked by test rule"); }));
+            var pipeline = CreateDamagePipeline(scenario == 6 ? 0f : 80f, eventBus, transactions,
+                out var target, out var shields, collector);
+            if (scenario == 1 || scenario == 2 || scenario == 7)
+                shields.AddShield(TargetActorId, new ShieldLayer
+                {
+                    ShieldId = 101, SourceActorId = 7, CurrentValue = Fixed64.FromSingle(scenario == 2 ? 5f : 20f),
+                    MaxValue = Fixed64.FromSingle(20f), InitialValue = Fixed64.FromSingle(20f), AbsorbRatio = Fixed64.One,
+                    StackingPolicy = ShieldStackingPolicy.Independent, ConsumePolicy = ShieldConsumePolicy.PriorityThenOldest
+                });
+            using var beforeApply = eventBus.Subscribe(new EventKey<AttackCalcInfo>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.BeforeApply)),
+                _ => { if (scenario == 7) shields.RemoveActor(TargetActorId); });
+            using var trace = new MobaTraceRegistry();
+            using var store = new MobaActionExecutionSnapshotStore(trace, null, collector, eventBus);
+            var id = trace.CreateRootContext(MobaTraceKind.EffectAction, 301, 7, TargetActorId);
+            var attack = new AttackInfo
+            {
+                AttackerActorId = 7, TargetActorId = scenario == 3 ? TargetActorId + 1 : scenario == 5 ? 0 : TargetActorId,
+                DamageType = DamageType.Physical,
+                Origin = new MobaGameplayOrigin(7, TargetActorId, MobaTraceKind.EffectAction, 301, id, id, id, id)
+            };
+            attack.BaseDamage.BaseValue = scenario == 0 ? 0f : 20f;
+            store.OnActionStarted(id, 0, 301, 7, TargetActorId, 10);
+            var result = pipeline.Execute(attack);
+            store.OnActionEnded(id, 0, 301, true, false, 10);
+            Assert.That(trace.TryGetNodeSnapshot(id, out var node), Is.True);
+            var facts = store.Read(((MobaTraceMetadata)node.Metadata).ActionSnapshot);
+            Assert.That(facts.DamageResults.Count, Is.EqualTo(1));
+            Assert.That(facts.DamageResults[0].Outcome, Is.EqualTo(expected));
+            Assert.That(facts.DamageResults[0].Calculation.Stage, Is.EqualTo(stage));
+            Assert.That(facts.DamageCoverageContinuous, Is.True);
+            Assert.That(facts.Commits.Count, Is.EqualTo(scenario == 2 ? 1 : 0));
+            Assert.That(facts.Outcome, Is.EqualTo(BattleDiagnosticActionOutcome.Completed));
+            if (scenario == 4) Assert.That(facts.DamageResults[0].Detail, Does.Contain("blocked by test rule"));
+            if (scenario <= 2)
+            {
+                Assert.That(result, Is.Not.Null);
+                Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(scenario == 2 ? 65f : 80f));
+            }
+            else Assert.That(result, Is.Null);
+            if (scenario == 1) Assert.That(shields.GetTotalRemaining(TargetActorId), Is.Zero);
+        }
+
+        [TestCase(0, BattleDiagnosticDamageStage.ExecutionFailed, 0)]
+        [TestCase(1, BattleDiagnosticDamageStage.ExecutionFailed, 1)]
+        [TestCase(2, BattleDiagnosticDamageStage.PostCommitNotificationFailed, 1)]
+        public void ActionSnapshot_ExecutionExceptionsPreservePartialOrCompletedCommitFacts(int scenario,
+            BattleDiagnosticDamageStage expected, int hpCommitCount)
+        {
+            var eventBus = new EventBus();
+            var collector = new MobaBattleDiagnosticEventCollector(new BattleDiagnosticSessionScope("damage-exception", "world", 1), frameProvider: () => 10);
+            var transactions = new MobaCombatTransactionPipeline();
+            if (scenario == 2)
+                transactions.Register(new DelegateTransactionInterceptor<MobaDamageTransaction>((transaction, current, context) =>
+                { if (current == MobaCombatTransactionStage.Complete) throw new InvalidOperationException("complete failure"); }));
+            var pipeline = CreateDamagePipeline(80f, eventBus, transactions, out var target, out _, collector);
+            using var beforeApply = eventBus.Subscribe(new EventKey<AttackCalcInfo>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.BeforeApply)),
+                _ => { if (scenario == 0) throw new InvalidOperationException("before apply failure"); });
+            using var afterApply = eventBus.Subscribe(new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)),
+                _ => { if (scenario == 1) throw new InvalidOperationException("after apply failure"); });
+            using var trace = new MobaTraceRegistry();
+            using var store = new MobaActionExecutionSnapshotStore(trace, null, collector, eventBus);
+            var id = trace.CreateRootContext(MobaTraceKind.EffectAction, 301, 7, TargetActorId);
+            var attack = new AttackInfo { AttackerActorId = 7, TargetActorId = TargetActorId, DamageType = DamageType.Physical,
+                Origin = new MobaGameplayOrigin(7, TargetActorId, MobaTraceKind.EffectAction, 301, id, id, id, id) };
+            attack.BaseDamage.BaseValue = 20f;
+            store.OnActionStarted(id, 0, 301, 7, TargetActorId, 10);
+            Assert.Throws<InvalidOperationException>(() => pipeline.Execute(attack));
+            store.OnActionEnded(id, 0, 301, false, false, 10);
+            Assert.That(trace.TryGetNodeSnapshot(id, out var node), Is.True);
+            var facts = store.Read(((MobaTraceMetadata)node.Metadata).ActionSnapshot);
+            Assert.That(facts.Commits.Count, Is.EqualTo(hpCommitCount));
+            Assert.That(target.GetMobaAttrs().Hp, Is.EqualTo(hpCommitCount == 0 ? 80f : 60f));
+            Assert.That(facts.DamageResults[facts.DamageResults.Count - 1].Calculation.Stage, Is.EqualTo(expected));
+            Assert.That(facts.DamageResults[facts.DamageResults.Count - 1].Calculation.HasCalculation, Is.False);
+            Assert.That(facts.DamageResults.Count, Is.EqualTo(scenario == 2 ? 2 : 1));
+            Assert.That(facts.Outcome, Is.EqualTo(BattleDiagnosticActionOutcome.Failed));
+        }
+
         [Test]
         public void DamageTransaction_ValidationCancellationDoesNotEnterDamagePipeline()
         {
@@ -714,7 +842,8 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             EventBus eventBus,
             MobaCombatTransactionPipeline transactions,
             out ActorEntity target,
-            out MobaShieldService shields)
+            out MobaShieldService shields,
+            IMobaBattleDiagnosticEventSink collector = null)
         {
             var registry = new MobaActorRegistry();
             var entities = new MobaEntityManager(null);
@@ -724,7 +853,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
             var snapshots = new MobaDamageEventSnapshotService(new MobaLogicWorldRunGateService());
             var damage = new MobaDamageService(actors, snapshots, rules, eventBus: eventBus, transactions: transactions);
             shields = new MobaShieldService();
-            return new DamagePipelineService(actors, damage, eventBus, shields: shields, transactions: transactions);
+            return new DamagePipelineService(actors, damage, eventBus, shields: shields, eventCollector: collector, transactions: transactions);
         }
 
         private sealed class DelegateTransactionInterceptor<TTransaction> : IMobaCombatTransactionInterceptor<TTransaction>

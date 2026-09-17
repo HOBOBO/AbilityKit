@@ -27,6 +27,7 @@ namespace AbilityKit.Game.Editor
 
         public static void Refresh()
         {
+            ClearSessionState();
             _cache = new List<IBattleDebugPanel>();
             _loadErrors = new List<string>();
 
@@ -68,6 +69,16 @@ namespace AbilityKit.Game.Editor
             }
 
             _cache.Sort((a, b) => a.Order.CompareTo(b.Order));
+        }
+
+        public static void ClearSessionState()
+        {
+            if (_cache == null) return;
+            for (var i = 0; i < _cache.Count; i++)
+            {
+                if (_cache[i] is IBattleDebugPanelSessionCleanup cleanup)
+                    cleanup.ClearSessionState();
+            }
         }
     }
 }

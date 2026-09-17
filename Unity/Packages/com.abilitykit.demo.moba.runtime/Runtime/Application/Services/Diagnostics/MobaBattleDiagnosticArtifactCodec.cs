@@ -365,8 +365,12 @@ namespace AbilityKit.Demo.Moba.Services
             if (item.Payload.TryGetSyncSnapshotReceived(out var payload)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, AuthoritativeFrame = payload.AuthoritativeFrame, StateHash = payload.StateHash };
             else if (item.Payload.TryGetTriggerAnalysis(out var trigger)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, TriggerId = trigger.TriggerId, TriggerContextKind = trigger.ContextKind, TriggerOriginKind = trigger.OriginKind, TriggerStage = (int)trigger.Stage, TriggerResult = (int)trigger.Result, TriggerDetailCode = trigger.DetailCode, TriggerCurrentDepth = trigger.CurrentDepth, TriggerCurrentFrameCount = trigger.CurrentFrameCount, TriggerCurrentRootCount = trigger.CurrentRootCount, TriggerCurrentSameTriggerCount = trigger.CurrentSameTriggerCount, TriggerFailureKey = trigger.FailureKey, TriggerReason = trigger.Reason };
             else if (item.Payload.TryGetTriggerAnalysisAggregate(out var aggregate)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, TriggerId = aggregate.TriggerId, TriggerContextKind = aggregate.ContextKind, TriggerOriginKind = aggregate.OriginKind, TriggerStage = (int)aggregate.Stage, TriggerResult = (int)aggregate.Result, TriggerDetailCode = aggregate.DetailCode, TriggerAggregateOccurrenceCount = aggregate.OccurrenceCount, TriggerAggregateFirstFrame = aggregate.FirstFrame, TriggerAggregateLastFrame = aggregate.LastFrame, TriggerAggregateFirstContextId = aggregate.FirstContextId, TriggerAggregateLastContextId = aggregate.LastContextId, TriggerAggregateFirstRootContextId = aggregate.FirstRootContextId, TriggerAggregateLastRootContextId = aggregate.LastRootContextId, TriggerFailureKey = aggregate.FailureKey, TriggerReason = aggregate.SampleReason };
-            else if (item.Payload.TryGetSkillFailure(out var failure)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, SkillFailureSlot = failure.Slot, SkillFailureSource = failure.Source, SkillFailureStage = failure.Stage, SkillFailureCode = failure.Code, SkillFailureMessage = failure.Message };
+            else if (item.Payload.TryGetSkillFailure(out var failure)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, SkillFailureSlot = failure.Slot, SkillFailureSource = failure.Source, SkillFailureStage = failure.Stage, SkillFailureCode = failure.Code, SkillFailureMessage = failure.Message, SkillFailureCommandId = failure.CommandId };
             else if (item.Payload.TryGetBuffLifecycle(out var buff)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, BuffLifecycleStage = (int)buff.Stage, BuffLifecycleStackCount = buff.StackCount, BuffLifecyclePreviousStackCount = buff.PreviousStackCount, BuffLifecycleDurationMilliseconds = buff.DurationMilliseconds, BuffLifecycleRemainingMilliseconds = buff.RemainingMilliseconds, BuffLifecycleIntervalRemainingMilliseconds = buff.IntervalRemainingMilliseconds, BuffLifecycleMaxStacks = buff.MaxStacks, BuffLifecycleModifierBindingCount = buff.ModifierBindingCount, BuffLifecycleModifierSourceId = buff.ModifierSourceId, BuffLifecycleRemoveReason = buff.RemoveReason };
+            else if (item.Payload.TryGetDamageCalculation(out var damage)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, DamageStage = (int)damage.Stage, DamageBaseRaw = damage.BaseDamageRaw, DamageRawRaw = damage.RawDamageRaw, DamageMitigatedRaw = damage.MitigatedDamageRaw, DamageShieldRaw = damage.ShieldAbsorbRaw, DamagePlannedHpRaw = damage.PlannedHpDamageRaw, DamageAppliedHpRaw = damage.AppliedHpDamageRaw };
+            else if (item.Payload.TryGetInputCommand(out var input)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, InputCommandId = input.CommandId, InputFrame = input.InputFrame, InputPlayerId = input.PlayerId, InputOpCode = input.OpCode, InputSucceeded = input.Succeeded, InputFailureCode = input.FailureCode, InputMessage = input.Message, InputSkillSlot = input.SkillSlot, InputSkillPhase = input.SkillPhase, InputTargetActorId = input.TargetActorId };
+            else if (item.Payload.TryGetTargetSearch(out var search)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, TargetSearchCommandId = search.CommandId, TargetSearchExplicitTargetActorId = search.ExplicitTargetActorId, TargetSearchCandidateCount = search.CandidateCount, TargetSearchEligibleCount = search.EligibleCount, TargetSearchSelectedCount = search.SelectedCount, TargetSearchSelectedActorIds = search.SelectedActorIds, TargetSearchDecisionDetails = search.DecisionDetails };
+            else if (item.Payload.TryGetSkillExecution(out var execution)) result.Payload = new AnalysisBattleDiagnosticEventPayload { Kind = (int)item.Payload.Kind, SchemaVersion = item.Payload.SchemaVersion, SkillExecutionCommandId = execution.CommandId, SkillExecutionStage = (int)execution.Stage, SkillExecutionSlot = execution.SkillSlot, SkillExecutionLevel = execution.SkillLevel, SkillExecutionSequence = execution.CastSequence, SkillExecutionEndReason = execution.EndReason, SkillExecutionResourceType = execution.ResourceType, SkillExecutionResourceAmountRaw = execution.ResourceAmountRaw, SkillExecutionResourceBeforeRaw = execution.ResourceBeforeRaw, SkillExecutionResourceAfterRaw = execution.ResourceAfterRaw, SkillExecutionChargeCost = execution.ChargeCost, SkillExecutionCooldownMs = execution.CooldownMs, SkillExecutionSharedCooldownMs = execution.SharedCooldownMs, SkillExecutionGlobalCooldownMs = execution.GlobalCooldownMs, SkillExecutionPendingChildren = execution.PendingChildren, SkillExecutionForced = execution.Forced, SkillExecutionDetail = execution.Detail };
             return result;
         }
 
@@ -439,8 +443,54 @@ namespace AbilityKit.Demo.Moba.Services
                         item.Payload.SkillFailureSource,
                         item.Payload.SkillFailureStage,
                         item.Payload.SkillFailureCode,
-                        item.Payload.SkillFailureMessage);
+                        item.Payload.SkillFailureMessage,
+                        item.Payload.SkillFailureCommandId);
                     payload = BattleDiagnosticEventPayload.FromSkillFailure(in failure);
+                }
+                else if (item.Payload.Kind == (int)BattleDiagnosticPayloadKind.DamageCalculation && item.Payload.SchemaVersion == BattleDiagnosticDamageCalculationPayload.CurrentSchemaVersion)
+                {
+                    var damage = new BattleDiagnosticDamageCalculationPayload((BattleDiagnosticDamageStage)item.Payload.DamageStage,
+                        item.Payload.DamageBaseRaw, item.Payload.DamageRawRaw, item.Payload.DamageMitigatedRaw,
+                        item.Payload.DamageShieldRaw, item.Payload.DamagePlannedHpRaw, item.Payload.DamageAppliedHpRaw);
+                    payload = BattleDiagnosticEventPayload.FromDamageCalculation(in damage);
+                }
+                else if (item.Payload.Kind == (int)BattleDiagnosticPayloadKind.InputCommand && item.Payload.SchemaVersion == BattleDiagnosticInputCommandPayload.CurrentSchemaVersion)
+                {
+                    var input = new BattleDiagnosticInputCommandPayload(item.Payload.InputCommandId,
+                        item.Payload.InputFrame, item.Payload.InputPlayerId, item.Payload.InputOpCode,
+                        item.Payload.InputSucceeded, item.Payload.InputFailureCode, item.Payload.InputMessage,
+                        item.Payload.InputSkillSlot, item.Payload.InputSkillPhase, item.Payload.InputTargetActorId);
+                    payload = BattleDiagnosticEventPayload.FromInputCommand(in input);
+                }
+                else if (item.Payload.Kind == (int)BattleDiagnosticPayloadKind.TargetSearch && item.Payload.SchemaVersion == BattleDiagnosticTargetSearchPayload.CurrentSchemaVersion)
+                {
+                    var search = new BattleDiagnosticTargetSearchPayload(item.Payload.TargetSearchCommandId,
+                        item.Payload.TargetSearchExplicitTargetActorId, item.Payload.TargetSearchCandidateCount,
+                        item.Payload.TargetSearchEligibleCount, item.Payload.TargetSearchSelectedCount,
+                        item.Payload.TargetSearchSelectedActorIds, item.Payload.TargetSearchDecisionDetails);
+                    payload = BattleDiagnosticEventPayload.FromTargetSearch(in search);
+                }
+                else if (item.Payload.Kind == (int)BattleDiagnosticPayloadKind.SkillExecution && item.Payload.SchemaVersion == BattleDiagnosticSkillExecutionPayload.CurrentSchemaVersion)
+                {
+                    var execution = new BattleDiagnosticSkillExecutionPayload(
+                        item.Payload.SkillExecutionCommandId,
+                        (BattleDiagnosticSkillExecutionStage)item.Payload.SkillExecutionStage,
+                        item.Payload.SkillExecutionSlot,
+                        item.Payload.SkillExecutionLevel,
+                        item.Payload.SkillExecutionSequence,
+                        item.Payload.SkillExecutionEndReason,
+                        item.Payload.SkillExecutionResourceType,
+                        item.Payload.SkillExecutionResourceAmountRaw,
+                        item.Payload.SkillExecutionResourceBeforeRaw,
+                        item.Payload.SkillExecutionResourceAfterRaw,
+                        item.Payload.SkillExecutionChargeCost,
+                        item.Payload.SkillExecutionCooldownMs,
+                        item.Payload.SkillExecutionSharedCooldownMs,
+                        item.Payload.SkillExecutionGlobalCooldownMs,
+                        item.Payload.SkillExecutionPendingChildren,
+                        item.Payload.SkillExecutionForced,
+                        item.Payload.SkillExecutionDetail);
+                    payload = BattleDiagnosticEventPayload.FromSkillExecution(in execution);
                 }
                 else
                 {
@@ -466,6 +516,8 @@ namespace AbilityKit.Demo.Moba.Services
                 Definition = ToDto(x.Definition),
                 TriggerDefinition = ToDto(x.TriggerDefinition),
                 SkillDefinition = ToDto(x.SkillDefinition),
+                OriginKind = x.OriginKind,
+                OriginDefinition = ToDto(x.OriginDefinition),
                 RootContextId = x.RootContextId,
                 ContextId = x.ContextId,
                 ParentContextId = x.ParentContextId,
@@ -483,7 +535,9 @@ namespace AbilityKit.Demo.Moba.Services
                 EndReason = x.EndReason,
                 SkillId = x.SkillId,
                 CastFlowId = x.CastFlowId,
-                PhaseId = x.PhaseId
+                PhaseId = x.PhaseId,
+                ExecutionFacts = ToDto(x.ExecutionFacts),
+                ActionFacts = ToDto(x.ActionFacts)
             };
         }
 
@@ -499,7 +553,7 @@ namespace AbilityKit.Demo.Moba.Services
             var definition = FromDto(x.Definition);
             var triggerDefinition = FromDto(x.TriggerDefinition);
             var skillDefinition = FromDto(x.SkillDefinition);
-
+            var originDefinition = FromDto(x.OriginDefinition);
             var rootContextId = rootContext.IsValid ? rootContext.ContextId : x.RootContextId;
             var contextId = context.IsValid ? context.ContextId : x.ContextId;
             var parentContextId = parentContext.IsValid ? parentContext.ContextId : x.ParentContextId;
@@ -522,6 +576,14 @@ namespace AbilityKit.Demo.Moba.Services
                 definition = BattleDiagnosticDefinitionReference.Create(
                     (BattleDiagnosticDefinitionKind)x.DefinitionKind,
                     x.ConfigId);
+            }
+            // Older artifacts classified action registration IDs as effect IDs.
+            if (string.Equals(x.Kind, "EffectAction", StringComparison.Ordinal) &&
+                definition.Kind == BattleDiagnosticDefinitionKind.Effect)
+            {
+                definition = BattleDiagnosticDefinitionReference.Create(
+                    BattleDiagnosticDefinitionKind.Action,
+                    definition.DefinitionId);
             }
             if (!triggerDefinition.HasDefinitionId)
             {
@@ -555,8 +617,101 @@ namespace AbilityKit.Demo.Moba.Services
                 triggerDefinition.DefinitionId,
                 sourceObject.Generation,
                 targetObject.Generation,
-                definition.Kind);
+                definition.Kind,
+                x.OriginKind,
+                originDefinition.DefinitionId,
+                originDefinition.Kind,
+                FromDto(x.ExecutionFacts),
+                FromDto(x.ActionFacts));
         }
+
+        private static AnalysisBattleDiagnosticActionActorValues ToDto(BattleDiagnosticActionActorValues x) =>
+            new AnalysisBattleDiagnosticActionActorValues
+            { ActorId = x.ActorId, BindingId = x.BindingId, HasActor = x.HasActor, HasHp = x.HasHp, Hp = x.Hp, HasMana = x.HasMana, Mana = x.Mana };
+
+        private static BattleDiagnosticActionActorValues FromDto(AnalysisBattleDiagnosticActionActorValues x) =>
+            x == null ? default : new BattleDiagnosticActionActorValues(x.ActorId, x.BindingId, x.HasActor, x.HasHp, x.Hp, x.HasMana, x.Mana);
+
+        private static AnalysisBattleDiagnosticActionExecutionFacts ToDto(BattleDiagnosticActionExecutionFacts x)
+        {
+            if (x.Availability == BattleDiagnosticDataAvailability.NotCaptured) return null;
+            var commits = new List<AnalysisBattleDiagnosticActionHealthCommit>();
+            foreach (var c in x.Commits)
+                commits.Add(new AnalysisBattleDiagnosticActionHealthCommit
+                {
+                    Kind = c.Kind, SourceActorId = c.SourceActorId, TargetActorId = c.TargetActorId,
+                    ValueType = c.ValueType, ReasonKind = c.ReasonKind, ReasonParam = c.ReasonParam,
+                    RequestedValue = c.RequestedValue, AppliedValue = c.AppliedValue, OldHp = c.OldHp,
+                    TargetHp = c.TargetHp, TargetMaxHp = c.TargetMaxHp, OriginContextId = c.OriginContextId
+                });
+            var damageResults = new List<AnalysisBattleDiagnosticActionDamageResult>();
+            foreach (var d in x.DamageResults)
+            {
+                var c = d.Calculation;
+                damageResults.Add(new AnalysisBattleDiagnosticActionDamageResult
+                {
+                    Sequence = d.Sequence, Frame = d.Frame, SourceActorId = d.SourceActorId, TargetActorId = d.TargetActorId,
+                    OriginContextId = d.OriginContextId, Stage = (int)c.Stage, BaseDamageRaw = c.BaseDamageRaw,
+                    RawDamageRaw = c.RawDamageRaw, MitigatedDamageRaw = c.MitigatedDamageRaw, ShieldAbsorbRaw = c.ShieldAbsorbRaw,
+                    PlannedHpDamageRaw = c.PlannedHpDamageRaw, AppliedHpDamageRaw = c.AppliedHpDamageRaw, Detail = d.Detail
+                });
+            }
+            return new AnalysisBattleDiagnosticActionExecutionFacts
+            {
+                Availability = (int)x.Availability, SnapshotId = x.SnapshotId, Generation = x.Generation,
+                Frame = x.Frame, TypeId = x.TypeId, SchemaVersion = x.SchemaVersion, ActionIndex = x.ActionIndex,
+                ActionId = x.ActionId, Outcome = (int)x.Outcome, HasAfter = x.HasAfter, EndFrame = x.EndFrame,
+                CommitsComplete = x.CommitsComplete, CommitsTruncated = x.CommitsTruncated,
+                SourceBefore = ToDto(x.SourceBefore), TargetBefore = ToDto(x.TargetBefore),
+                SourceAfter = ToDto(x.SourceAfter), TargetAfter = ToDto(x.TargetAfter), Commits = commits,
+                DamageAvailability = (int)x.DamageAvailability, DamageCoverageContinuous = x.DamageCoverageContinuous,
+                DamageResultsTruncated = x.DamageResultsTruncated, DamageResults = damageResults
+            };
+        }
+
+        private static BattleDiagnosticActionExecutionFacts FromDto(AnalysisBattleDiagnosticActionExecutionFacts x)
+        {
+            if (x == null) return default;
+            var commits = new List<BattleDiagnosticActionHealthCommit>();
+            if (x.Commits != null)
+                foreach (var c in x.Commits)
+                    if (c != null) commits.Add(new BattleDiagnosticActionHealthCommit(c.Kind, c.SourceActorId, c.TargetActorId,
+                        c.ValueType, c.ReasonKind, c.ReasonParam, c.RequestedValue, c.AppliedValue, c.OldHp, c.TargetHp,
+                        c.TargetMaxHp, c.OriginContextId));
+            var damageResults = new List<BattleDiagnosticActionDamageResult>();
+            if (x.DamageResults != null)
+                foreach (var d in x.DamageResults)
+                {
+                    if (d == null) continue;
+                    var c = new BattleDiagnosticDamageCalculationPayload((BattleDiagnosticDamageStage)d.Stage,
+                        d.BaseDamageRaw, d.RawDamageRaw, d.MitigatedDamageRaw, d.ShieldAbsorbRaw, d.PlannedHpDamageRaw, d.AppliedHpDamageRaw);
+                    damageResults.Add(new BattleDiagnosticActionDamageResult(d.Sequence, d.Frame, d.SourceActorId, d.TargetActorId,
+                        d.OriginContextId, c, d.Detail));
+                }
+            return new BattleDiagnosticActionExecutionFacts((BattleDiagnosticDataAvailability)x.Availability,
+                x.SnapshotId, x.Generation, x.Frame, x.TypeId, x.SchemaVersion, x.ActionIndex, x.ActionId,
+                (BattleDiagnosticActionOutcome)x.Outcome, x.HasAfter, x.EndFrame, x.CommitsComplete, x.CommitsTruncated,
+                FromDto(x.SourceBefore), FromDto(x.TargetBefore), FromDto(x.SourceAfter), FromDto(x.TargetAfter), commits,
+                (BattleDiagnosticDataAvailability)x.DamageAvailability, x.DamageCoverageContinuous, x.DamageResultsTruncated, damageResults);
+        }
+
+        private static AnalysisBattleDiagnosticEffectExecutionFacts ToDto(BattleDiagnosticEffectExecutionFacts x) =>
+            new AnalysisBattleDiagnosticEffectExecutionFacts
+            {
+                Availability = (int)x.Availability, SnapshotId = x.SnapshotId, Generation = x.Generation,
+                Frame = x.Frame, TypeId = x.TypeId, SchemaVersion = x.SchemaVersion,
+                EffectConfigId = x.EffectConfigId, TriggerId = x.TriggerId, PayloadTypeName = x.PayloadTypeName,
+                HasRuntimeContext = x.HasRuntimeContext, RuntimeContextId = x.RuntimeContextId,
+                RuntimeContextVersion = x.RuntimeContextVersion, HasStageSnapshot = x.HasStageSnapshot,
+                StackCount = x.StackCount, ElapsedSeconds = x.ElapsedSeconds,
+                RemainingSeconds = x.RemainingSeconds, DurationSeconds = x.DurationSeconds
+            };
+
+        private static BattleDiagnosticEffectExecutionFacts FromDto(AnalysisBattleDiagnosticEffectExecutionFacts x) =>
+            x == null ? default : new BattleDiagnosticEffectExecutionFacts((BattleDiagnosticDataAvailability)x.Availability,
+                x.SnapshotId, x.Generation, x.Frame, x.TypeId, x.SchemaVersion, x.EffectConfigId, x.TriggerId,
+                x.PayloadTypeName, x.HasRuntimeContext, x.RuntimeContextId, x.RuntimeContextVersion,
+                x.HasStageSnapshot, x.StackCount, x.ElapsedSeconds, x.RemainingSeconds, x.DurationSeconds);
 
         private static AnalysisBattleDiagnosticTraceContextReference ToDto(
             BattleDiagnosticTraceContextReference x)

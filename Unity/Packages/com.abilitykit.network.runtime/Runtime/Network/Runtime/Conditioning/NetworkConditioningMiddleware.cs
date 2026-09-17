@@ -35,11 +35,20 @@ namespace AbilityKit.Network.Runtime.Conditioning
         private const int MaxPooledPackets = 256;
 
         private readonly NetworkConditionProfile _profile;
+        private readonly NetworkConditionScenario? _scenario;
         private readonly Func<long> _clockMs;
         private readonly Random _random;
+        private StableNetworkRandom? _stableRandom;
+        private readonly object _gate = new object();
         private readonly List<PendingPacket> _pending = new List<PendingPacket>();
-        private readonly List<PendingPacket> _ready = new List<PendingPacket>();
+        private readonly Stack<List<PendingPacket>> _readyPool = new Stack<List<PendingPacket>>();
         private readonly Stack<PendingPacket> _packetPool = new Stack<PendingPacket>();
+        private readonly NetworkConditionDecision[]? _decisions;
+        private readonly int _maxPendingPackets;
+        private int _decisionCount;
+        private int _decisionNext;
+        private long? _scenarioStartMs;
+        private long _clearGeneration;
 
         private long _enqueueCounter;
         private long _inboundBandwidthAvailableAtMs;
@@ -62,23 +71,77 @@ namespace AbilityKit.Network.Runtime.Conditioning
         /// 返回当前毫秒时间的单调时钟。可注入该时钟以便测试驱动虚拟时钟；为 null 时使用真实墙钟。
         /// </param>
         /// <param name="seed">用于抖动、丢包和乱序的确定性随机源种子。</param>
-        public NetworkConditioningMiddleware(NetworkConditionProfile profile, Func<long>? clockMs = null, int seed = 0)
+        public NetworkConditioningMiddleware(NetworkConditionProfile profile, Func<long>? clockMs = null, int seed = 0,
+            int decisionCapacity = 0, int maxPendingPackets = 0)
         {
+            if (decisionCapacity < 0) throw new ArgumentOutOfRangeException(nameof(decisionCapacity));
+            if (maxPendingPackets < 0) throw new ArgumentOutOfRangeException(nameof(maxPendingPackets));
             _profile = profile;
             _clockMs = clockMs ?? DefaultClock;
             _random = new Random(seed);
+            _decisions = decisionCapacity == 0 ? null : new NetworkConditionDecision[decisionCapacity];
+            _maxPendingPackets = maxPendingPackets;
+            Seed = seed;
+        }
+
+        public NetworkConditioningMiddleware(NetworkConditionScenario scenario, Func<long>? clockMs = null, int seed = 0,
+            int decisionCapacity = 0, int maxPendingPackets = 0, long? scenarioStartMs = null,
+            bool platformStableRandom = false)
+            : this((scenario ?? throw new ArgumentNullException(nameof(scenario))).Baseline, clockMs, seed,
+                decisionCapacity, maxPendingPackets)
+        {
+            _scenario = scenario;
+            _scenarioStartMs = scenarioStartMs;
+            if (platformStableRandom) _stableRandom = new StableNetworkRandom(seed);
+        }
+
+        public int Seed { get; }
+
+        /// <summary>Earliest queued delivery deadline, for exact virtual-clock stepping.</summary>
+        public long? NextDeliveryAtMs
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    if (_pending.Count == 0) return null;
+                    long next = _pending[0].DeliverAtMs;
+                    for (int i = 1; i < _pending.Count; i++)
+                        if (_pending[i].DeliverAtMs < next) next = _pending[i].DeliverAtMs;
+                    return next;
+                }
+            }
+        }
+
+        /// <summary>Oldest-to-newest snapshot of the bounded decision log.</summary>
+        public NetworkConditionDecision[] SnapshotDecisions()
+        {
+            lock (_gate)
+            {
+                var snapshot = new NetworkConditionDecision[_decisionCount];
+                if (_decisions == null) return snapshot;
+                for (int i = 0; i < snapshot.Length; i++)
+                    snapshot[i] = _decisions[(_decisionNext - _decisionCount + i + _decisions.Length) % _decisions.Length];
+                return snapshot;
+            }
         }
 
         public void OnInbound(ISessionContext context, NetworkPacketHeader header, ArraySegment<byte> payload, Action<NetworkPacketHeader, ArraySegment<byte>> next)
         {
-            _inboundReceived++;
-            Schedule(inbound: true, header, payload, next);
+            lock (_gate)
+            {
+                _inboundReceived++;
+                Schedule(inbound: true, header, payload, next);
+            }
         }
 
         public void OnOutbound(ISessionContext context, NetworkPacketHeader header, ArraySegment<byte> payload, Action<NetworkPacketHeader, ArraySegment<byte>> next)
         {
-            _outboundReceived++;
-            Schedule(inbound: false, header, payload, next);
+            lock (_gate)
+            {
+                _outboundReceived++;
+                Schedule(inbound: false, header, payload, next);
+            }
         }
 
         /// <summary>
@@ -87,59 +150,50 @@ namespace AbilityKit.Network.Runtime.Conditioning
         /// </summary>
         public void Advance(long nowMs)
         {
-            if (_pending.Count == 0)
+            List<PendingPacket> ready;
+            long generation;
+            lock (_gate)
             {
-                return;
+                if (_pending.Count == 0) return;
+
+                // Stable by deadline, then insertion order unless reordering was selected.
+                _pending.Sort(static (a, b) =>
+                {
+                    int byTime = a.DeliverAtMs.CompareTo(b.DeliverAtMs);
+                    return byTime != 0 ? byTime : a.Sequence.CompareTo(b.Sequence);
+                });
+
+                int dueCount = 0;
+                while (dueCount < _pending.Count && _pending[dueCount].DeliverAtMs <= nowMs) dueCount++;
+
+                if (dueCount == 0) return;
+
+                ready = _readyPool.Count > 0 ? _readyPool.Pop() : new List<PendingPacket>(dueCount);
+                for (int i = 0; i < dueCount; i++) ready.Add(_pending[i]);
+                _pending.RemoveRange(0, dueCount);
+                generation = _clearGeneration;
             }
-
-            // 稳定顺序：先按投递时间，再按原始入队序号；除非调度时显式乱序，否则相同时间保持到达顺序。
-            _pending.Sort(static (a, b) =>
-            {
-                int byTime = a.DeliverAtMs.CompareTo(b.DeliverAtMs);
-                return byTime != 0 ? byTime : a.Sequence.CompareTo(b.Sequence);
-            });
-
-            int dueCount = 0;
-            while (dueCount < _pending.Count && _pending[dueCount].DeliverAtMs <= nowMs)
-            {
-                dueCount++;
-            }
-
-            if (dueCount == 0)
-            {
-                return;
-            }
-
-            _ready.Clear();
-            if (_ready.Capacity < dueCount)
-            {
-                _ready.Capacity = dueCount;
-            }
-
-            for (int i = 0; i < dueCount; i++)
-            {
-                _ready.Add(_pending[i]);
-            }
-
-            _pending.RemoveRange(0, dueCount);
 
             int deliveryIndex = 0;
             try
             {
-                for (; deliveryIndex < _ready.Count; deliveryIndex++)
+                for (; deliveryIndex < ready.Count; deliveryIndex++)
                 {
-                    var packet = _ready[deliveryIndex];
-
-                    if (packet.Inbound) _inboundDelivered++;
-                    else _outboundDelivered++;
+                    var packet = ready[deliveryIndex];
 
                     try
                     {
+                        lock (_gate)
+                        {
+                            if (generation != _clearGeneration) continue;
+                            if (packet.Inbound) _inboundDelivered++;
+                            else _outboundDelivered++;
+                        }
                         packet.Next!(packet.Header, new ArraySegment<byte>(packet.Payload, 0, packet.PayloadLength));
                     }
                     finally
                     {
-                        ReleasePacket(packet);
+                        lock (_gate) ReleasePacket(packet);
                     }
                 }
             }
@@ -147,38 +201,46 @@ namespace AbilityKit.Network.Runtime.Conditioning
             {
                 // Preserve packets that had not yet reached their callback, matching the previous
                 // one-at-a-time removal behavior when a downstream callback throws.
-                for (int i = deliveryIndex + 1; i < _ready.Count; i++)
+                lock (_gate)
                 {
-                    _pending.Add(_ready[i]);
+                    for (int i = deliveryIndex + 1; i < ready.Count; i++)
+                    {
+                        if (generation == _clearGeneration) _pending.Add(ready[i]);
+                        else ReleasePacket(ready[i]);
+                    }
                 }
 
                 throw;
             }
             finally
             {
-                _ready.Clear();
+                ready.Clear();
+                lock (_gate)
+                {
+                    if (_readyPool.Count < 4) _readyPool.Push(ready);
+                }
             }
         }
 
         /// <summary>
         /// Discards queued packets and returns their storage to the shared pools.
-        /// The middleware is not thread-safe; call this outside <see cref="Advance"/>.
+        /// Already executing downstream callbacks cannot be interrupted.
         /// </summary>
         public void ClearPending()
         {
-            for (int i = 0; i < _pending.Count; i++)
+            lock (_gate)
             {
-                ReleasePacket(_pending[i]);
+                _clearGeneration++;
+                for (int i = 0; i < _pending.Count; i++) ReleasePacket(_pending[i]);
+                _pending.Clear();
+                _inboundBandwidthAvailableAtMs = 0;
+                _outboundBandwidthAvailableAtMs = 0;
             }
-
-            _pending.Clear();
-            _inboundBandwidthAvailableAtMs = 0;
-            _outboundBandwidthAvailableAtMs = 0;
         }
 
         public NetworkConditioningStats GetStats()
         {
-            return new NetworkConditioningStats(
+            lock (_gate) return new NetworkConditioningStats(
                 _inboundReceived,
                 _inboundDelivered,
                 _inboundDropped,
@@ -192,26 +254,37 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
         private void Schedule(bool inbound, NetworkPacketHeader header, ArraySegment<byte> payload, Action<NetworkPacketHeader, ArraySegment<byte>> next)
         {
-            if (_profile.PacketLossRate > 0d && _random.NextDouble() < _profile.PacketLossRate)
+            long now = _clockMs();
+            _scenarioStartMs ??= now;
+            var profile = _scenario?.Resolve(Math.Max(0L, now - _scenarioStartMs.Value), inbound, header.OpCode) ?? _profile;
+            if (profile.PacketLossRate > 0d && NextDouble() < profile.PacketLossRate)
             {
+                RecordDecision(now, -1, inbound, header, NetworkConditionDropReason.RandomLoss);
                 if (inbound) _inboundDropped++;
                 else _outboundDropped++;
                 return;
             }
 
-            long now = _clockMs();
-            long delay = _profile.BaseLatencyMs;
-            if (_profile.JitterMs > 0)
+            if (_maxPendingPackets > 0 && _pending.Count >= _maxPendingPackets)
+            {
+                RecordDecision(now, -1, inbound, header, NetworkConditionDropReason.QueueOverflow);
+                if (inbound) _inboundDropped++;
+                else _outboundDropped++;
+                return;
+            }
+
+            long delay = profile.BaseLatencyMs;
+            if (profile.JitterMs > 0)
             {
                 // 对称抖动范围为 [-JitterMs, +JitterMs]。
-                delay += _random.Next(-_profile.JitterMs, _profile.JitterMs + 1);
+                delay += Next(-profile.JitterMs, profile.JitterMs + 1);
             }
 
             bool reordered = false;
-            if (_profile.ReorderRate > 0d && _random.NextDouble() < _profile.ReorderRate)
+            if (profile.ReorderRate > 0d && NextDouble() < profile.ReorderRate)
             {
                 // 将包提前，使其可以越过原本排在它前面的相邻包。
-                long pullForward = _profile.BaseLatencyMs + _profile.JitterMs + 1;
+                long pullForward = profile.BaseLatencyMs + profile.JitterMs + 1;
                 delay -= pullForward;
                 reordered = true;
                 if (inbound) _inboundReordered++;
@@ -220,7 +293,7 @@ namespace AbilityKit.Network.Runtime.Conditioning
 
             if (delay < 0) delay = 0;
 
-            long bandwidthDelay = ReserveBandwidth(inbound, now, payload.Count);
+            long bandwidthDelay = ReserveBandwidth(inbound, now, payload.Count, profile.BandwidthKbps);
 
             // 复制载荷，因为调用方缓冲区可能在该调用返回后被复用。
             var copy = payload.Count == 0
@@ -240,7 +313,23 @@ namespace AbilityKit.Network.Runtime.Conditioning
             packet.PayloadLength = payload.Count;
             packet.Next = next;
             _pending.Add(packet);
+            RecordDecision(now, packet.DeliverAtMs, inbound, header, NetworkConditionDropReason.None, reordered);
         }
+
+        private void RecordDecision(long now, long deliverAt, bool inbound, NetworkPacketHeader header,
+            NetworkConditionDropReason dropReason, bool reordered = false)
+        {
+            if (_decisions == null) return;
+            _decisions[_decisionNext] = new NetworkConditionDecision(now, deliverAt, inbound,
+                header.OpCode, header.Seq, dropReason, reordered);
+            _decisionNext = (_decisionNext + 1) % _decisions.Length;
+            if (_decisionCount < _decisions.Length) _decisionCount++;
+        }
+
+        private double NextDouble() => _stableRandom?.NextDouble() ?? _random.NextDouble();
+
+        private int Next(int minimum, int maximumExclusive) =>
+            _stableRandom?.Next(minimum, maximumExclusive) ?? _random.Next(minimum, maximumExclusive);
 
         private PendingPacket RentPacket()
         {
@@ -268,16 +357,16 @@ namespace AbilityKit.Network.Runtime.Conditioning
             }
         }
 
-        private long ReserveBandwidth(bool inbound, long nowMs, int payloadBytes)
+        private long ReserveBandwidth(bool inbound, long nowMs, int payloadBytes, int bandwidthKbps)
         {
-            if (_profile.BandwidthKbps <= 0 || payloadBytes <= 0)
+            if (bandwidthKbps <= 0 || payloadBytes <= 0)
             {
                 return 0;
             }
 
             // 1 Kbps = 1 bit/ms。每个方向独立串行化，完成发送后才能投递。
-            long serializationMs = ((long)payloadBytes * 8L + _profile.BandwidthKbps - 1L) /
-                                   _profile.BandwidthKbps;
+            long serializationMs = ((long)payloadBytes * 8L + bandwidthKbps - 1L) /
+                                   bandwidthKbps;
             long availableAtMs = inbound ? _inboundBandwidthAvailableAtMs : _outboundBandwidthAvailableAtMs;
             long transmissionStartsAtMs = Math.Max(nowMs, availableAtMs);
             long transmissionCompletesAtMs = transmissionStartsAtMs + serializationMs;

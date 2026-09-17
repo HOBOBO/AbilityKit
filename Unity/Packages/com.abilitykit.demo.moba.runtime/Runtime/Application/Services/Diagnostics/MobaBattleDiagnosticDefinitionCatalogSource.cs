@@ -7,6 +7,8 @@ using AbilityKit.Ability.World.Services.Attributes;
 using AbilityKit.Demo.Moba.Config.Core;
 using AbilityKit.Demo.Moba.Diagnostics;
 using AbilityKit.Triggering.Runtime.Plan.Json;
+using AbilityKit.Triggering.Runtime.Plan;
+using AbilityKit.Demo.Moba.Services.Triggering.PlanActions;
 
 namespace AbilityKit.Demo.Moba.Services
 {
@@ -17,14 +19,28 @@ namespace AbilityKit.Demo.Moba.Services
             IReadOnlyList<BattleDiagnosticDefinitionReference> references);
     }
 
-    [WorldService(typeof(IBattleDiagnosticDefinitionCatalogSnapshotSource), WorldLifetime.Scoped)]
-    [WorldService(typeof(MobaBattleDiagnosticDefinitionCatalogSource), WorldLifetime.Scoped)]
+    public interface IMobaBattleDiagnosticDefinitionResolver
+    {
+        long Revision { get; }
+
+        bool TryResolve(
+            in BattleDiagnosticDefinitionReference reference,
+            out BattleDiagnosticDefinition definition);
+    }
+
+    [WorldService(typeof(IBattleDiagnosticDefinitionCatalogSnapshotSource), WorldLifetime.Scoped, isDefault: false, profile: WorldServiceProfile.Client | WorldServiceProfile.Server)]
+    [WorldService(typeof(IMobaBattleDiagnosticDefinitionResolver), WorldLifetime.Scoped, isDefault: false, profile: WorldServiceProfile.Client | WorldServiceProfile.Server)]
+    [WorldService(typeof(MobaBattleDiagnosticDefinitionCatalogSource), WorldLifetime.Scoped, isDefault: false, profile: WorldServiceProfile.Client | WorldServiceProfile.Server)]
     public sealed class MobaBattleDiagnosticDefinitionCatalogSource :
         IBattleDiagnosticDefinitionCatalogSnapshotSource,
+        IMobaBattleDiagnosticDefinitionResolver,
         IService
     {
         private readonly MobaConfigDatabase _configs;
         private readonly TriggerPlanJsonDatabase _triggers;
+
+        [WorldInject(required: false)]
+        private PlanActionModuleRegistry _actionModules = null;
 
         public MobaBattleDiagnosticDefinitionCatalogSource(
             MobaConfigDatabase configs,
@@ -33,6 +49,8 @@ namespace AbilityKit.Demo.Moba.Services
             _configs = configs ?? throw new ArgumentNullException(nameof(configs));
             _triggers = triggers ?? throw new ArgumentNullException(nameof(triggers));
         }
+
+        public long Revision => Math.Max(0L, _configs.Version);
 
         public BattleDiagnosticDefinitionCatalogSnapshot CaptureDefinitionCatalogSnapshot(
             BattleDiagnosticSessionScope scope,
@@ -56,16 +74,36 @@ namespace AbilityKit.Demo.Moba.Services
             items.Sort(CompareDefinitions);
             return new BattleDiagnosticDefinitionCatalogSnapshot(
                 scope,
-                Math.Max(0L, _configs.Version),
+                Revision,
                 items);
         }
 
-        private bool TryResolve(
+        public bool TryResolve(
             in BattleDiagnosticDefinitionReference reference,
             out BattleDiagnosticDefinition definition)
         {
             switch (reference.Kind)
             {
+                case BattleDiagnosticDefinitionKind.Action:
+                    if (_actionModules != null)
+                    {
+                        var descriptors = _actionModules.Descriptors;
+                        for (var i = 0; i < descriptors.Length; i++)
+                        {
+                            var descriptor = descriptors[i];
+                            if (string.IsNullOrEmpty(descriptor.ActionName) ||
+                                PlanActionRegisterUtil.GetActionId(descriptor.ActionName).Value !=
+                                reference.DefinitionId) continue;
+                            definition = Resolved(
+                                in reference,
+                                descriptor.ActionName,
+                                "plan-action-modules",
+                                BattleDiagnosticDefinitionMetadataEntry.String("actionName", descriptor.ActionName),
+                                BattleDiagnosticDefinitionMetadataEntry.String("moduleName", descriptor.ModuleName));
+                            return true;
+                        }
+                    }
+                    break;
                 case BattleDiagnosticDefinitionKind.Actor:
                     if (_configs.TryGetCharacter(reference.DefinitionId, out var actor))
                     {

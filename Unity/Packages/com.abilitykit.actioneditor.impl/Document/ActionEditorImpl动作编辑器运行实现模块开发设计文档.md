@@ -64,6 +64,33 @@ Track 主要声明分类、颜色、图标和可附着关系。`ActionTrack` 仍
 
 ## 四、导出链路
 
+### MOBA 分层导出（首阶段）
+
+`SkillAsset.exportMobaRuntime` 默认关闭。启用后，保存编辑器资产时除兼容用的
+`<name>.logic.json` 外，额外生成 `<name>.moba.logic.json` 和
+`<name>.moba.presentation.json`。两个新产物的 `schemaVersion` 为 1，
+Asset 与 Clip 均声明 `runtimeType`（`logic` 或 `presentation`）；活动 Clip
+没有声明运行类型、时间非法时导出失败，不会生成新的分层产物。
+
+- `ExecuteEffect` 在 SignalTrack 上配置 `effectId`，属于逻辑层；`TriggerLog` 也是逻辑层，但正式技能事件编译器仅将其当作调试日志跳过。
+- `PlayAnimation` 与 `PlayParticle` 属于表现层；后者导出 Resources `resourceKey`。其余尚未声明归属的 Clip 不可进入 MOBA 分层产物。
+- 在 `SkillTimelinePhaseDef.MobaLogicTimeline` 指定 `.moba.logic.json`，SkillFlow 导出时将其编译成已有的 `SkillTimelineEventDTO`；留空仍使用手填 Timeline。正式逻辑运行时保持 `SkillTimelinePhase`，不执行 View 动画。
+- View 侧 `MobaSkillPresentationTimelineRuntime` 仅接受 `.moba.presentation.json`，按 long 型施法实例输出表现片段及停止通知。临时接入的小乔一技能 `10020101` 通过角色 HFSM 的 `CastInstanceId` 逐帧 seek，角色 View 的 sink 播放和清理 Resources 特效；逻辑层仍由 release/commit 后的 `SkillTimelinePhase` 执行。起手提示以 HFSM casting 开始帧计时，不能将该时钟等同于逻辑 Timeline 阶段的起点。
+
+小乔一技能可在 Unity 菜单 `Tools/AbilityKit/Demos/Moba/ActionEditor/Export XiaoQiao Skill 1` 调用真实 ActionEditor 导出器重新生成分层产物；随后执行 `Sync XiaoQiao Skill 1 Flow`，只同步该技能的权威 Flow JSON。修改编辑器资产后应按此顺序重新导出和同步。
+
+旧 `.logic.json` 是兼容用的混合结构，不能作为新逻辑或表现运行时的输入。
+
+### 后续扩展：时间轴碰撞区域（规划，未实现）
+
+当前 `.moba.logic.json` 可携带不同类型的逻辑 Clip，但正式 `MobaActionTimelineCompiler` 只将 `ExecuteEffect` 编译为 `SkillTimelineEventDTO`；碰撞区域 Clip、对应 DTO 和运行时均尚未实现。新增类型时继续要求显式 `runtimeType=logic`，并保持未知逻辑 Clip 编译失败，不能静默丢弃碰撞配置。
+
+- Authoring/导出：先明确区域是指定帧的一次命中检测，还是从开始到结束持续有效；再定义形状、尺寸、局部偏移/朝向、坐标参考对象及跟随规则。时间轴位置与技能 Flow 的逻辑 Timeline 阶段起点对应，不能直接套用当前 View 以 HFSM casting 开始帧计时的偏移。
+- 权威逻辑运行时：使用类型化碰撞事件/区域定义，按战斗 Tick 确定性地创建、更新和撤销区域，并接入现有碰撞查询与命中规则；需要规定中断、重复命中、回滚及重连恢复语义。不能把有生命周期的区域仅映射为一次性 `SkillTimelineEventDTO` 效果触发。
+- 表现层运行时：可显示编辑预览、区域提示和命中反馈，但不能以 View 的 Collider 或帧率决定实际命中。逻辑与表现导出产物继续分开消费；如增加字段或事件类型，补版本兼容和跨层拒载测试。
+
+具体形状及运行时契约待首个碰撞区域需求确定后设计，本阶段不新增占位 Clip、Schema 字段或 Handler。
+
 logic JSON 的真实导出器是 third-party ActionEditor 包中的 `LogicJsonExporter`，不是 ActionEditorImpl。
 
 导出流程为：

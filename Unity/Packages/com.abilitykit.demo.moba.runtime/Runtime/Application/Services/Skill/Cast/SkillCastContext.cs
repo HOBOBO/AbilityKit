@@ -21,6 +21,7 @@ namespace AbilityKit.Demo.Moba.Services
         public MobaSkillCastRuntimeHandle RuntimeHandle;
         public long RuntimeId;
         public long SourceContextId;
+        public long DiagnosticCommandId;
 
         public string FailReason;
 
@@ -108,6 +109,7 @@ namespace AbilityKit.Demo.Moba.Services
             RuntimeHandle = default;
             RuntimeId = 0L;
             SourceContextId = 0L;
+            DiagnosticCommandId = 0L;
             FailReason = null;
             CasterActorId = casterActorId;
             TargetActorId = targetActorId;
@@ -130,6 +132,7 @@ namespace AbilityKit.Demo.Moba.Services
             RuntimeHandle = default;
             RuntimeId = 0L;
             SourceContextId = 0L;
+            DiagnosticCommandId = 0L;
             FailReason = null;
             CasterActorId = 0;
             TargetActorId = 0;
@@ -247,15 +250,23 @@ namespace AbilityKit.Demo.Moba.Services
     public readonly struct MobaSkillInputHandleResult
     {
         public MobaSkillInputHandleResult(bool success, string message, in MobaSkillCastFailure failure)
+            : this(success, message, in failure, default)
+        {
+        }
+
+        public MobaSkillInputHandleResult(bool success, string message, in MobaSkillCastFailure failure,
+            in MobaSkillCastRuntimeHandle runtimeHandle)
         {
             Success = success;
             Message = message;
             Failure = failure;
+            RuntimeHandle = runtimeHandle;
         }
 
         public bool Success { get; }
         public string Message { get; }
         public MobaSkillCastFailure Failure { get; }
+        public MobaSkillCastRuntimeHandle RuntimeHandle { get; }
         public string Code => Failure.Code;
 
         public static MobaSkillInputHandleResult Accepted(string message = null)
@@ -273,13 +284,18 @@ namespace AbilityKit.Demo.Moba.Services
         {
             if (result.Success)
             {
-                return Accepted(successMessage ?? result.FailReason);
+                var noFailure = MobaSkillCastFailure.None;
+                var runtimeHandle = result.RuntimeHandle;
+                return new MobaSkillInputHandleResult(true, successMessage ?? result.FailReason,
+                    in noFailure, in runtimeHandle);
             }
 
             var failure = result.Failure.HasValue
                 ? result.Failure
                 : new MobaSkillCastFailure("Cast", null, "skill.input.castRejected", result.FailReason);
-            return new MobaSkillInputHandleResult(false, result.FailReason, in failure);
+            var failedRuntimeHandle = result.RuntimeHandle;
+            return new MobaSkillInputHandleResult(false, result.FailReason, in failure,
+                in failedRuntimeHandle);
         }
     }
 

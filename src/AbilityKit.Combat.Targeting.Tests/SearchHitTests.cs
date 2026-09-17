@@ -110,6 +110,35 @@ public sealed class SearchHitTests
         Assert.Equal(2, stats.ResultCount);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Detailed_stats_reports_actual_candidate_decisions_without_changing_selection(bool streaming)
+    {
+        var stats = new DetailedSearchStats();
+        var query = new SearchQuery(
+            new ArrayProvider(1, 2, 3, 1),
+            new ITargetRule[] { OddActorIdRule.Instance },
+            new[] { new SearchOrder(new ActorIdScorer()) },
+            streaming ? new StreamingTopKByScoreSelector() : new TopKByScoreSelector(),
+            1, SearchDuplicatePolicy.DistinctByEntityKey);
+        using var context = new SearchContext { SearchStats = stats };
+        var results = new List<EntityId>();
+
+        new TargetSearchEngine().SearchIds(in query, context, results);
+
+        Assert.Equal(new[] { 3 }, ActorIds(results));
+        Assert.Equal(new[] {
+            SearchCandidateDecision.Eligible,
+            SearchCandidateDecision.RuleRejected,
+            SearchCandidateDecision.Eligible,
+            SearchCandidateDecision.Duplicate
+        }, stats.Decisions);
+        Assert.Equal(0, stats.RejectedRuleIndex);
+        Assert.Equal(nameof(OddActorIdRule), stats.RejectedRuleName);
+        Assert.Equal(3f, stats.Scores[2]);
+    }
+
     [Fact]
     public void Custom_selector_receives_the_complete_hit_view()
     {
@@ -935,6 +964,27 @@ public sealed class SearchHitTests
         public ulong GetKey(EntityId id)
         {
             return 1UL;
+        }
+    }
+
+    private sealed class DetailedSearchStats : ISearchDetailedStats
+    {
+        public List<SearchCandidateDecision> Decisions { get; } = new();
+        public List<float?> Scores { get; } = new();
+        public int RejectedRuleIndex { get; private set; } = -1;
+        public string? RejectedRuleName { get; private set; }
+        public void Reset() { Decisions.Clear(); Scores.Clear(); RejectedRuleIndex = -1; RejectedRuleName = null; }
+        public void OnCandidate() { }
+        public void OnHit() { }
+        public void OnResult(int count) { }
+        public void OnDecision(EntityId id, SearchCandidateDecision decision, int ruleIndex,
+            string? ruleName, float? primaryScore)
+        {
+            Decisions.Add(decision);
+            Scores.Add(primaryScore);
+            if (decision != SearchCandidateDecision.RuleRejected) return;
+            RejectedRuleIndex = ruleIndex;
+            RejectedRuleName = ruleName;
         }
     }
 
