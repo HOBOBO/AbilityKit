@@ -3,8 +3,7 @@ using AbilityKit.Core.Logging;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Triggering;
-using AbilityKit.Ability.Triggering.Runtime;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Ability.World.Services
 {
@@ -23,7 +22,6 @@ namespace AbilityKit.Ability.World.Services
             builder.TryRegisterType<IWorldRandom, DefaultWorldRandom>(WorldLifetime.Scoped);
             builder.TryRegisterType<IEffectTriggeringSwitch, DefaultEffectTriggeringSwitch>(WorldLifetime.Singleton);
             builder.TryRegisterType<IEventBus, EventBus>(WorldLifetime.Singleton);
-            builder.TryRegisterType<ITriggerActionRunner, TriggerActionRunner>(WorldLifetime.Scoped);
         }
     }
 }

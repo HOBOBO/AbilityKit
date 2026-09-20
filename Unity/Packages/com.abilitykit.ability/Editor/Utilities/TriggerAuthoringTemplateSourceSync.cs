@@ -20,6 +20,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (asset == null) throw new ArgumentNullException(nameof(asset));
             TriggerAuthoringTemplateDefinition.Normalize(asset.Template);
+            TriggerAuthoringNodeIdentity.EnsureTemplate(asset.Template);
             return new TriggerAuthoringTemplateSourceDocument
             {
                 Schema = TriggerAuthoringSchema.Id,
@@ -31,22 +32,32 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static string Serialize(TriggerAuthoringTemplateSourceDocument document)
         {
+            TriggerAuthoringTemplateDefinition.Normalize(document?.Template);
+            TriggerAuthoringNodeIdentity.EnsureTemplate(document?.Template);
             return TriggerSourceCodecs.TemplateDefault.Serialize(document);
         }
 
         public static TriggerAuthoringTemplateSourceDocument Deserialize(string json)
         {
-            return TriggerSourceCodecs.TemplateDefault.Deserialize(json);
+            var document = TriggerSourceCodecs.TemplateDefault.Deserialize(json);
+            TriggerAuthoringTemplateDefinition.Normalize(document.Template);
+            TriggerAuthoringNodeIdentity.EnsureTemplate(document.Template);
+            return document;
         }
 
         public static TriggerAuthoringTemplateSourceDocument ReadFile(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
-            return ResolveCodec(path).Deserialize(File.ReadAllText(path, Encoding.UTF8));
+            var document = ResolveCodec(path).Deserialize(File.ReadAllText(path, Encoding.UTF8));
+            TriggerAuthoringTemplateDefinition.Normalize(document.Template);
+            TriggerAuthoringNodeIdentity.EnsureTemplate(document.Template);
+            return document;
         }
 
         public static string ComputeContentHash(TriggerAuthoringTemplateSourceDocument document)
         {
+            TriggerAuthoringTemplateDefinition.Normalize(document?.Template);
+            TriggerAuthoringNodeIdentity.EnsureTemplate(document?.Template);
             TriggerSourceDocumentRules.ValidateTemplateHeader(document);
             return TriggerSourceCanonical.ComputeContentHash(document);
         }
@@ -54,6 +65,8 @@ namespace AbilityKit.Ability.Editor.Utilities
         public static void WriteFileAtomic(string path, TriggerAuthoringTemplateSourceDocument document)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
+            TriggerAuthoringTemplateDefinition.Normalize(document?.Template);
+            TriggerAuthoringNodeIdentity.EnsureTemplate(document?.Template);
             TriggerSourceCanonical.WriteTextAtomic(path, ResolveCodec(path).Serialize(document));
         }
 

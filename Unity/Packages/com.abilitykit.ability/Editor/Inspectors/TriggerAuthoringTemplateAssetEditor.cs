@@ -22,6 +22,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private TriggerEventDescriptorCatalog _events;
         private TriggerGlobalBlackboardDescriptorCatalog _globalBlackboard;
         private TriggerAuthoringValueSourceCatalog _valueSources;
+        private TriggerAuthoringReferenceCatalog _references;
         private Vector2 _scroll;
         private double _nextInspectionAt;
         private bool _showParameters = true;
@@ -35,8 +36,12 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             base.OnEnable();
             _asset = target as TriggerAuthoringTemplateAsset;
-            if (_asset != null && TriggerAuthoringTemplateDefinition.Normalize(_asset.Template))
-                EditorUtility.SetDirty(_asset);
+            if (_asset != null)
+            {
+                var changed = TriggerAuthoringTemplateDefinition.Normalize(_asset.Template);
+                changed |= TriggerAuthoringNodeIdentity.EnsureTemplate(_asset.Template) > 0;
+                if (changed) EditorUtility.SetDirty(_asset);
+            }
             RebuildCatalogs();
         }
 
@@ -135,24 +140,39 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 definition.Phase = EditorGUILayout.TextField("执行阶段", definition.Phase);
                 definition.Scope = EditorGUILayout.TextField("作用域", definition.Scope);
                 definition.Priority = EditorGUILayout.IntField("优先级", definition.Priority);
-                definition.InterruptPriority = EditorGUILayout.IntField("中断优先级", definition.InterruptPriority);
+                using (new EditorGUI.DisabledScope(true))
+                    EditorGUILayout.IntField("中断优先级", definition.InterruptPriority);
                 definition.AllowExternal = EditorGUILayout.Toggle("允许外部触发", definition.AllowExternal);
                 definition.Note = EditorGUILayout.TextField("备注", definition.Note);
 
                 definition.Cue = definition.Cue ?? new TriggerCueData();
                 definition.Cue.CueId = EditorGUILayout.TextField("表现提示 ID", definition.Cue.CueId);
                 definition.Schedule = definition.Schedule ?? new TriggerScheduleData();
-                definition.Schedule.Mode = EditorGUILayout.TextField("调度模式", definition.Schedule.Mode);
-                definition.Schedule.DelayMilliseconds = EditorGUILayout.IntField("延迟（毫秒）", definition.Schedule.DelayMilliseconds);
-                definition.Schedule.IntervalMilliseconds = EditorGUILayout.IntField("间隔（毫秒）", definition.Schedule.IntervalMilliseconds);
-                definition.Schedule.RepeatCount = EditorGUILayout.IntField("重复次数", definition.Schedule.RepeatCount);
+                using (new EditorGUI.DisabledScope(true))
+                {
+                    EditorGUILayout.TextField("调度模式", definition.Schedule.Mode);
+                    EditorGUILayout.IntField("延迟（毫秒）", definition.Schedule.DelayMilliseconds);
+                    EditorGUILayout.IntField("间隔（毫秒）", definition.Schedule.IntervalMilliseconds);
+                    EditorGUILayout.IntField("重复次数", definition.Schedule.RepeatCount);
+                }
                 definition.ExecutionControl = definition.ExecutionControl ?? new TriggerExecutionControlData();
-                definition.ExecutionControl.InterruptPolicy = EditorGUILayout.TextField(
-                    "中断策略", definition.ExecutionControl.InterruptPolicy);
-                definition.ExecutionControl.StopPropagationOnSuccess = EditorGUILayout.Toggle(
-                    "成功后停止传播", definition.ExecutionControl.StopPropagationOnSuccess);
-                definition.ExecutionControl.StopPropagationOnFailure = EditorGUILayout.Toggle(
-                    "失败后停止传播", definition.ExecutionControl.StopPropagationOnFailure);
+                definition.ExecutionControl.Mode = EditorGUILayout.TextField(
+                    "执行模式", definition.ExecutionControl.Mode);
+                if (string.Equals(definition.ExecutionControl.Mode, "repeat", StringComparison.OrdinalIgnoreCase))
+                    definition.ExecutionControl.MaxExecutions = EditorGUILayout.IntField(
+                        "最大执行次数", definition.ExecutionControl.MaxExecutions);
+                if (string.Equals(definition.ExecutionControl.Mode, "cooldown", StringComparison.OrdinalIgnoreCase))
+                    definition.ExecutionControl.CooldownMilliseconds = EditorGUILayout.DoubleField(
+                        "冷却（毫秒）", definition.ExecutionControl.CooldownMilliseconds);
+                using (new EditorGUI.DisabledScope(true))
+                {
+                    EditorGUILayout.TextField("中断策略", definition.ExecutionControl.InterruptPolicy);
+                    EditorGUILayout.Toggle("成功后停止传播", definition.ExecutionControl.StopPropagationOnSuccess);
+                    EditorGUILayout.Toggle("失败后停止传播", definition.ExecutionControl.StopPropagationOnFailure);
+                }
+                EditorGUILayout.HelpBox(
+                    "当前 Runtime Plan 仅支持行为树中的调度节点；触发器级调度、中断优先级与传播控制尚不参与导出。",
+                    MessageType.Info);
             }
 
             definition.Blackboard = definition.Blackboard ?? new List<TriggerBlackboardVariableData>();
@@ -410,6 +430,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 EditorGUILayout.EndVertical();
                 return node;
             }
+            if (kind == TriggerNodeKind.Action &&
+                string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase))
+            {
+                EditorGUILayout.HelpBox(
+                    "每轮执行前计算结束条件；条件成立时结束循环，最多执行 max_iterations 次。",
+                    MessageType.Info);
+                DrawTemplateBranchCondition(node, depth + 1, "结束条件");
+            }
             if (maxChildren != 0)
             {
                 EditorGUILayout.BeginHorizontal();
@@ -444,7 +472,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             root.Children = root.Children ?? new List<TriggerNodeData>();
             root.ElseChildren = root.ElseChildren ?? new List<TriggerNodeData>();
-            DrawTemplateBranchCondition(root, depth + 1);
+            DrawTemplateBranchCondition(root, depth + 1, "判断条件");
             DrawTemplateActionBranch("如果成立时执行", root.Children, depth);
 
             var branches = new List<TriggerNodeData>();
@@ -465,7 +493,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     EditorGUILayout.EndVertical();
                     break;
                 }
-                DrawTemplateBranchCondition(branch, depth + 1);
+                DrawTemplateBranchCondition(branch, depth + 1, "分支条件");
                 DrawTemplateActionBranch("该分支成立时执行", branch.Children, depth);
                 EditorGUILayout.EndVertical();
             }
@@ -486,10 +514,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 depth);
         }
 
-        private void DrawTemplateBranchCondition(TriggerNodeData node, int depth)
+        private void DrawTemplateBranchCondition(TriggerNodeData node, int depth, string label)
         {
             EditorGUILayout.BeginHorizontal();
-            GUILayout.Label("判断条件", EditorStyles.miniBoldLabel);
+            GUILayout.Label(label, EditorStyles.miniBoldLabel);
             GUILayout.FlexibleSpace();
             if (node.Condition == null && GUILayout.Button("+ 添加条件", EditorStyles.miniButton, GUILayout.Width(82f)))
                 ShowNodeCreationMenu(TriggerNodeKind.Condition, created => node.Condition = created, GUILayoutUtility.GetLastRect());
@@ -708,7 +736,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 Trigger = TriggerAuthoringTemplateDefinition.Get(_asset.Template),
                 Events = _events,
                 GlobalBlackboard = _globalBlackboard,
-                ValueSources = _valueSources
+                ValueSources = _valueSources,
+                References = _references,
+                ApplyChange = ApplyValueChange
             };
         }
 
@@ -718,8 +748,21 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _types = TriggerTypeDescriptorCatalog.CreateForProject(project);
             _events = TriggerEventDescriptorCatalog.FromProject(project);
             _valueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project);
+            _references = TriggerAuthoringReferenceCatalog.CreateForProject(project);
             _globalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                 project != null ? project.GlobalBlackboardCatalog : null);
+        }
+
+        private void ApplyValueChange(string undoName, Action change)
+        {
+            if (_asset == null || change == null) return;
+            Undo.RecordObject(_asset, undoName);
+            change();
+            TriggerAuthoringTemplateDefinition.Normalize(_asset.Template);
+            EditorUtility.SetDirty(_asset);
+            RebuildCatalogs();
+            _nextInspectionAt = 0d;
+            Repaint();
         }
 
         private void Export()
@@ -911,20 +954,28 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             var node = new TriggerNodeData
             {
+                NodeId = TriggerAuthoringNodeIdentity.Create(),
                 Kind = descriptor != null ? descriptor.Kind : TriggerNodeKind.Action,
                 Type = descriptor != null ? descriptor.Type : string.Empty
             };
             if (descriptor == null) return node;
             AddDefaultArguments(node.Arguments, descriptor);
             if (descriptor.Kind == TriggerNodeKind.Action &&
-                string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+                (string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(descriptor.Type, "until", StringComparison.OrdinalIgnoreCase)))
                 node.Condition = CreateDefaultEmbeddedCondition();
+            ApplyFlowArgumentDefaults(node);
             return node;
         }
 
         private static TriggerNodeData CreateDefaultEmbeddedCondition()
         {
-            return new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" };
+            return new TriggerNodeData
+            {
+                NodeId = TriggerAuthoringNodeIdentity.Create(),
+                Kind = TriggerNodeKind.Condition,
+                Type = "always_true"
+            };
         }
 
         private static void ApplyDescriptor(TriggerNodeData node, TriggerTypeDescriptor descriptor)
@@ -934,12 +985,33 @@ namespace AbilityKit.Ability.Editor.Inspectors
             node.Type = descriptor.Type;
             node.Arguments = new List<TriggerArgumentData>();
             node.Condition = descriptor.Kind == TriggerNodeKind.Action &&
-                             string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase)
+                             (string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(descriptor.Type, "until", StringComparison.OrdinalIgnoreCase))
                 ? CreateDefaultEmbeddedCondition()
                 : null;
             node.Children = new List<TriggerNodeData>();
             node.ElseChildren = new List<TriggerNodeData>();
             AddDefaultArguments(node.Arguments, descriptor);
+            ApplyFlowArgumentDefaults(node);
+        }
+
+        private static void ApplyFlowArgumentDefaults(TriggerNodeData node)
+        {
+            if (node == null || node.Arguments == null) return;
+            var parameterName = string.Equals(node.Type, "repeat", StringComparison.OrdinalIgnoreCase)
+                ? "count"
+                : string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase)
+                    ? "max_iterations"
+                    : null;
+            if (parameterName == null) return;
+            for (var i = 0; i < node.Arguments.Count; i++)
+            {
+                var argument = node.Arguments[i];
+                if (argument?.Value == null ||
+                    !string.Equals(argument.Name, parameterName, StringComparison.Ordinal)) continue;
+                argument.Value.IntegerValue = 1;
+                return;
+            }
         }
 
         private static void AddDefaultArguments(

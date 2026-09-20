@@ -11,6 +11,34 @@ namespace AbilityKit.Demo.Moba.Editor.BattleFlow
     {
         static MobaBattleFlowBlocks()
         {
+            BattleBlockPalette.Register("测试配方", new MobaCompleteSkillTestBlock
+            {
+                Id = "complete-skill-test",
+                DisplayName = "完整技能测试",
+            });
+            BattleBlockPalette.Register("测试意图", new MobaSkillOutcomeTestBlock
+            {
+                Id = "skill-trace-occurs",
+                DisplayName = "施法并验证事件出现",
+                Outcome = MobaSkillOutcomeKind.TraceOccurs,
+            });
+            BattleBlockPalette.Register("测试意图", new MobaSkillOutcomeTestBlock
+            {
+                Id = "skill-trace-absent",
+                DisplayName = "施法并验证事件未出现",
+                Outcome = MobaSkillOutcomeKind.TraceAbsent,
+            });
+            BattleBlockPalette.Register("测试意图", new MobaSkillOutcomeTestBlock
+            {
+                Id = "skill-state-result",
+                DisplayName = "施法并验证状态",
+                Outcome = MobaSkillOutcomeKind.State,
+            });
+            BattleBlockPalette.Register("测试意图", new MobaSkillDamageTestBlock
+            {
+                Id = "skill-damage-test",
+                DisplayName = "施放技能并验证伤害",
+            });
             BattleBlockPalette.Register("断言", new AssertTraceBlock { Id = "assert-trace", DisplayName = "断言·trace" });
             BattleBlockPalette.Register("断言", new AssertNoTraceBlock { Id = "assert-no-trace", DisplayName = "断言·禁trace" });
             BattleBlockPalette.Register("断言", new AssertStateBlock { Id = "assert-state", DisplayName = "断言·状态" });

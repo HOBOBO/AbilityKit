@@ -636,23 +636,18 @@ EffectContainer 在关键时机发布事件，Cue 可以订阅这些事件：
 ```csharp
 public static class EffectTriggering
 {
-    public static class Events
+    public static class EventNames
     {
         public const string Apply = "effect.apply";    // 效果应用
         public const string Tick = "effect.tick";      // 周期触发
         public const string Remove = "effect.remove";  // 效果移除
     }
 
-    public static class Args
+    public static class Events
     {
-        public const string Source = "source";
-        public const string Target = "target";
-        public const string Spec = "effect.spec";
-        public const string Instance = "effect.instance";
-        public const string InstanceId = "effect.instanceId";
-        public const string StackCount = "effect.stackCount";
-        public const string ElapsedSeconds = "effect.elapsedSeconds";
-        public const string RemainingSeconds = "effect.remainingSeconds";
+        public static readonly EventKey<EffectEventArgs> Apply;
+        public static readonly EventKey<EffectEventArgs> Tick;
+        public static readonly EventKey<EffectEventArgs> Remove;
     }
 }
 ```
@@ -662,28 +657,12 @@ public static class EffectTriggering
 ```csharp
 private static void PublishDefaultEvent(
     IEventBus bus,
-    string eventId,
+    EventKey<EffectEventArgs> eventKey,
     in EffectExecutionContext context,
     EffectInstance instance)
 {
-    var args = PooledTriggerArgs.Rent();
-    args[EffectTriggering.Args.Source] = context.Source;
-    args[EffectTriggering.Args.Target] = context.Target;
-    args[EffectTriggering.Args.Spec] = instance?.Spec;
-    args[EffectTriggering.Args.Instance] = instance;
-    args[EffectTriggering.Args.InstanceId] = instance?.Id ?? 0;
-    args[EffectTriggering.Args.StackCount] = instance?.StackCount ?? 0;
-    args[EffectTriggering.Args.ElapsedSeconds] = instance?.ElapsedSeconds ?? 0f;
-    args[EffectTriggering.Args.RemainingSeconds] = instance?.RemainingSeconds ?? 0f;
-
-    // 添加源上下文信息
-    if (context.SourceContextId != 0)
-    {
-        args[EffectSourceKeys.SourceContextId] = context.SourceContextId;
-        EffectOriginArgsHelper.FillFromServices(args, context.SourceContextId, context.Services);
-    }
-
-    bus.Publish(new TriggerEvent(eventId, instance, args));
+    var args = new EffectEventArgs(context.Source, context.Target, instance);
+    bus.Publish(eventKey, in args);
 }
 ```
 

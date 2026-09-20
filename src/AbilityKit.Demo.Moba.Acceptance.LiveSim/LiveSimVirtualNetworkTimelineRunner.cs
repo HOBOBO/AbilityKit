@@ -13,6 +13,7 @@ public sealed class LiveSimVirtualNetworkRunResult
     public string[] Trace { get; init; } = Array.Empty<string>();
     public NetworkConditioningStats Stats { get; init; }
     public long FinishedAtMs { get; init; }
+    public double SimulationFinishedAtMs { get; init; }
     public int TimelinePacketsQueued { get; init; }
     public int TimelinePacketsDelivered { get; init; }
 }
@@ -26,7 +27,8 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
     private readonly LiveSimSetupActionExecutor _setup;
     private readonly LiveSimTimelineRunner _timeline;
     private readonly List<string> _trace = new();
-    private long _simulationAtMs;
+    private double _simulationAtMs;
+    private int _maxDurationMs;
     private int _timelineQueued;
     private int _timelineDelivered;
 
@@ -46,6 +48,7 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
     {
         _trace.Clear();
         _simulationAtMs = 0;
+        _maxDurationMs = timeoutMs;
         _timelineQueued = 0;
         _timelineDelivered = 0;
 
@@ -94,7 +97,8 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
                 else
                 {
                     _trace.Add($"timeline:local:{item.index}:{item.step.action}@{atMs}");
-                    _timeline.ExecuteStep(item.step);
+                    _simulationAtMs += _timeline.ExecuteStep(item.step);
+                    EnsureSimulationWithinTimeout(timeoutMs);
                 }
             }
         }
@@ -112,6 +116,7 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
             Trace = _trace.ToArray(),
             Stats = link.Middleware.GetStats(),
             FinishedAtMs = link.NowMs,
+            SimulationFinishedAtMs = _simulationAtMs,
             TimelinePacketsQueued = _timelineQueued,
             TimelinePacketsDelivered = _timelineDelivered,
         };
@@ -139,7 +144,8 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
         link.InjectOutbound(header, new ArraySegment<byte>(payload), (_, _) =>
         {
             AdvanceSimulationTo(link.NowMs);
-            _timeline.ExecuteStep(step);
+            _simulationAtMs += _timeline.ExecuteStep(step);
+            EnsureSimulationWithinTimeout(_maxDurationMs);
             _timelineDelivered++;
             _trace.Add($"timeline:delivered:{sourceIndex}:{sequence}@{link.NowMs}");
         });
@@ -167,9 +173,7 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
     private void AdvanceSimulationTo(long atMs)
     {
         if (atMs <= _simulationAtMs) return;
-        var delta = checked((int)(atMs - _simulationAtMs));
-        _setup.TickMilliseconds(delta);
-        _simulationAtMs = atMs;
+        _simulationAtMs += _setup.TickMilliseconds(atMs - _simulationAtMs);
     }
 
     private void AppendLinkTrace(VirtualNetworkConditionLink link)
@@ -209,5 +213,12 @@ public sealed class LiveSimVirtualNetworkTimelineRunner
     {
         if (atMs > timeoutMs)
             throw new TimeoutException($"Virtual scenario exceeded timeoutMs={timeoutMs} at t={atMs}ms.");
+    }
+
+    private void EnsureSimulationWithinTimeout(int timeoutMs)
+    {
+        if (_simulationAtMs > timeoutMs + 1e-6d)
+            throw new TimeoutException(
+                $"BattleFlow simulation exceeded maxDurationMs={timeoutMs} at t={_simulationAtMs:F3}ms.");
     }
 }

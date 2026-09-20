@@ -33,6 +33,7 @@
         "AbilityKit.World.Snapshot",
         "AbilityKit.World.NetworkFragments",
         "AbilityKit.Combat.Collision.Abstractions",
+        "AbilityKit.Combat.Projectile",
         "AbilityKit.Demo.Moba.View.Abstractions",
         "AbilityKit.Demo.Moba.Diagnostics.Core",
         "AbilityKit.Demo.Moba.Runtime",

@@ -28,33 +28,36 @@ public sealed class LiveSimTimelineRunner
     }
 
     /// <summary>按 atMs 排序，推进 sim 时钟到每个 step 的时间点再执行。</summary>
-    public void Run(MobaAcceptanceTimelineStepExpectation[] timeline)
+    public double Run(
+        MobaAcceptanceTimelineStepExpectation[] timeline,
+        int maxDurationMs = int.MaxValue)
     {
-        if (timeline == null || timeline.Length == 0) return;
+        if (timeline == null || timeline.Length == 0) return 0d;
 
         var steps = timeline.Where(s => s != null).OrderBy(s => Math.Max(0, s.atMs)).ToArray();
-        var cursorMs = 0;
+        var cursorMs = 0d;
         foreach (var step in steps)
         {
             var atMs = Math.Max(0, step.atMs);
-            if (atMs > cursorMs) _setup.TickMilliseconds(atMs - cursorMs);
-            cursorMs = Math.Max(cursorMs, atMs);
-            ExecuteStep(step);
+            if (atMs > cursorMs) cursorMs += _setup.TickMilliseconds(atMs - cursorMs);
+            EnsureWithinTimeout(cursorMs, maxDurationMs);
+            cursorMs += ExecuteStep(step);
+            EnsureWithinTimeout(cursorMs, maxDurationMs);
         }
+        return cursorMs;
     }
 
-    internal void ExecuteStep(MobaAcceptanceTimelineStepExpectation step)
+    internal double ExecuteStep(MobaAcceptanceTimelineStepExpectation step)
     {
         if (LiveSimSetupActionExecutor.IsWaitAction(step.action))
         {
-            _setup.TickMilliseconds(step.durationMs);
-            return;
+            return _setup.TickMilliseconds(step.durationMs);
         }
 
         if (LiveSimSetupActionExecutor.IsEnvironmentCommand(step.action))
         {
             _setup.Execute(ConvertTimelineStepToSetupAction(step));
-            return;
+            return 0d;
         }
 
         if (IsSkillAction(step.action))
@@ -65,10 +68,17 @@ public sealed class LiveSimTimelineRunner
                 $"timeline action={step.action} atMs={Math.Max(0, step.atMs)}");
             // 输入提交给 Frame+1，先走一帧让 runtime 消费命令。
             _setup.Tick(1);
-            return;
+            return _setup.FixedDelta * 1000d;
         }
 
         throw new InvalidOperationException($"Unsupported timeline action: {step.action}");
+    }
+
+    private static void EnsureWithinTimeout(double atMs, int maxDurationMs)
+    {
+        if (atMs > maxDurationMs + 1e-6d)
+            throw new TimeoutException(
+                $"BattleFlow simulation exceeded maxDurationMs={maxDurationMs} at t={atMs:F3}ms.");
     }
 
     private void SubmitSkillInputAndGetResult(

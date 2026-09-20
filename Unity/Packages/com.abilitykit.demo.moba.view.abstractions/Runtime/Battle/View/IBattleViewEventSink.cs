@@ -1,5 +1,4 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
 using AbilityKit.Protocol.Moba;
@@ -9,8 +8,6 @@ namespace AbilityKit.Demo.Moba.View.Abstractions.Battle.View
 {
     public interface IBattleViewEventSink
     {
-        void OnTriggerEvent(in TriggerEvent evt);
-
         void OnEnterGameSnapshot(ISnapshotEnvelope packet, EnterMobaGameRes res);
 
         void OnActorTransformSnapshot(ISnapshotEnvelope packet, MobaActorTransformSnapshotEntry[] entries);

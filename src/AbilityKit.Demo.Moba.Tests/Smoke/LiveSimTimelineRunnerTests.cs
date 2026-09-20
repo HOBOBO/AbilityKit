@@ -63,4 +63,24 @@ public class LiveSimTimelineRunnerTests
         Assert.True(trace.GetNodesByKind((int)MobaTraceKind.EffectExecution).Any(),
             "A cast skill must execute at least one formal effect trace.");
     }
+
+    [Fact]
+    public void Timeline_wait_advances_cursor_without_replaying_absolute_gap()
+    {
+        using var bootstrapper = new ConsoleBattleBootstrapper(BattleStartConfig.CreateDefault());
+        bootstrapper.Initialize();
+        bootstrapper.Start();
+        bootstrapper.SetupBattle();
+
+        var executor = new LiveSimSetupActionExecutor(bootstrapper) { FixedDelta = 1f / 30f };
+        var runner = new LiveSimTimelineRunner(bootstrapper, executor);
+
+        var finishedAtMs = runner.Run(new[]
+        {
+            new MobaAcceptanceTimelineStepExpectation { atMs = 100, action = "wait", durationMs = 500 },
+            new MobaAcceptanceTimelineStepExpectation { atMs = 200, action = "wait", durationMs = 100 },
+        });
+
+        Assert.InRange(finishedAtMs, 699.9d, 700.1d);
+    }
 }

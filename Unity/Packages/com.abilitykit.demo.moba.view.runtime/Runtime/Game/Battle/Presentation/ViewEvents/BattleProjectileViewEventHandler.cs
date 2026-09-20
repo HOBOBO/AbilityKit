@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Game.Battle.Entity;
 using AbilityKit.Game.Battle.Hierarchy;
 using AbilityKit.Game.Battle.Vfx;
@@ -57,7 +57,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _deduplicator = handlers.CreateSnapshotDeduplicator();
         }
 
-        public void HandleTriggerHit(in TriggerEvent evt)
+        public void HandleTriggerHit(in ProjectileHitEvent evt)
         {
             if (!_vfxSpawner.CanSpawn) return;
             if (!_vfx.TryResolveTriggerHit(evt, out var vfxId, out var pos, out var projectileId)) return;

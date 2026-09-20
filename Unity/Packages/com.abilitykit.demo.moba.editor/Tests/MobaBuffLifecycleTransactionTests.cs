@@ -212,7 +212,7 @@ namespace AbilityKit.Demo.Moba.Diagnostics.Tests
                 hooks,
                 new BuffContinuousBindingService(null, null),
                 null);
-            var endFlow = new BuffEndFlow(null, new BuffContextRegistry(null, runtimeContexts, null, null), null, bindings);
+            var endFlow = new BuffEndFlow(null, new BuffContextRegistry(null, runtimeContexts, null), null, bindings);
 
             var error = Assert.Throws<InvalidOperationException>(() =>
                 endFlow.EndRuntime(

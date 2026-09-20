@@ -30,7 +30,7 @@ namespace AbilityKit.BattleFlow.Editor
                     {
                         Id = name,
                         DisplayName = name,
-                        Children = doc.Blocks,
+                        Children = doc.GetOrderedBlocks(),
                     });
                 }
                 catch

@@ -3,7 +3,6 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Trace;
 
 using AbilityKit.Demo.Moba.Services;
@@ -19,14 +18,12 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
     {
         private readonly MobaTraceRegistry _trace;
         private readonly MobaRuntimeContextService _runtimeContexts;
-        private readonly ITriggerActionRunner _actionRunner;
         private readonly IFrameTime _frameTime;
 
-        public BuffContextRegistry(MobaTraceRegistry trace, MobaRuntimeContextService runtimeContexts, ITriggerActionRunner actionRunner, IFrameTime frameTime)
+        public BuffContextRegistry(MobaTraceRegistry trace, MobaRuntimeContextService runtimeContexts, IFrameTime frameTime)
         {
             _trace = trace;
             _runtimeContexts = runtimeContexts;
-            _actionRunner = actionRunner;
             _frameTime = frameTime;
         }
 
@@ -117,15 +114,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
 
             try
             {
-                _actionRunner?.CancelByOwnerKey(rt.SourceContextId);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[BuffContextRegistry] CancelByOwnerKey exception (sourceContextId={rt.SourceContextId})");
-            }
-
-            try
-            {
                 _trace?.EndContext(rt.SourceContextId, TraceLifecycleReason.Replaced);
             }
             catch (Exception ex)
@@ -156,15 +144,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Core {
             {
                 DestroyRuntimeContext(rt, reason, preserveReference: true);
                 return;
-            }
-
-            try
-            {
-                _actionRunner?.CancelByOwnerKey(rt.SourceContextId);
-            }
-            catch (Exception ex)
-            {
-                Log.Exception(ex, $"[BuffContextRegistry] CancelByOwnerKey exception (sourceContextId={rt.SourceContextId})");
             }
 
             try

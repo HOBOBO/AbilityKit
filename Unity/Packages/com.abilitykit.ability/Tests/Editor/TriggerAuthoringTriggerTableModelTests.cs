@@ -94,6 +94,28 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(rows[0].EffectiveTrigger.Priority, Is.EqualTo(50));
         }
 
+        [Test]
+        public void BuildRows_SortsWholeResultBeforePageCanBeTaken()
+        {
+            var entries = new List<TriggerAuthoringTriggerIndex.Entry>
+            {
+                Entry(0, 50),
+                Entry(1, 10),
+                Entry(2, 40),
+                Entry(3, 20),
+                Entry(4, 30)
+            };
+
+            var rows = TriggerAuthoringTriggerTableModel.BuildRows(
+                entries,
+                TriggerAuthoringTriggerTableColumn.Id,
+                true);
+            var secondPage = rows.GetRange(2, 2);
+
+            Assert.That(secondPage[0].Trigger.Id, Is.EqualTo(30));
+            Assert.That(secondPage[1].Trigger.Id, Is.EqualTo(40));
+        }
+
         private static TriggerAuthoringTriggerIndex.Entry Entry(int index, int id)
         {
             var trigger = new TriggerDefinitionData { Id = id, Name = "Trigger " + id };

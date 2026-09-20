@@ -26,6 +26,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleFlow
             BattleFlowRunnerRegistry.Runner = runner;
             BattleFlowRunnerRegistry.BatchRunner = runner;
             BattleFlowRunnerRegistry.DslParser = MobaBattleFlowDslParser.Parse;
+            BattleFlowRunnerRegistry.DocumentDslParser = MobaBattleFlowDslParser.ParseDocument;
         }
 
         public BattleFlowRunResult Run(TestScenario scenario)
@@ -78,8 +79,7 @@ namespace AbilityKit.Demo.Moba.Editor.BattleFlow
             {
                 try
                 {
-                    var document = BattleFlowCodec.Load(file);
-                    var scenario = BattleFlowCompiler.Compile(document.CaseId, document.Blocks);
+                    var scenario = BattleFlowCompiler.CompileFile(file);
                     scenarios.Add(scenario);
                     requiresUnity |= (scenario.Expectations as MobaBattleFlowAssertions)?.PredictionBackend
                         == MobaPredictionBackendIds.UnityRoute;

@@ -156,7 +156,7 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         });
         var hooks = new MobaRuntimeLifecycleHookService();
         hooks.Register(hook);
-        var flow = new BuffEndFlow(null, new BuffContextRegistry(null, _contexts, null, null), null,
+        var flow = new BuffEndFlow(null, new BuffContextRegistry(null, _contexts, null), null,
             new BuffRuntimeBindingCoordinator(hooks, null, null));
 
         var error = Assert.Throws<InvalidOperationException>(() => flow.EndRuntime(_actor, _actor.buffs.Active, 0, runtime, 2, TraceLifecycleReason.Expired));
@@ -174,7 +174,7 @@ public sealed class MobaBuffContextRecoveryTests : IDisposable
         var runtime = AddBuff();
         runtime.SourceContextId = 0;
         var id = Bind(runtime);
-        new BuffContextRegistry(null, _contexts, null, null).CancelAndEnd(runtime);
+        new BuffContextRegistry(null, _contexts, null).CancelAndEnd(runtime);
         Assert.False(_contexts.Registry.Exists(id));
         Assert.Equal(0L, runtime.RuntimeContextId);
         Assert.Equal(0L, runtime.RuntimeContextVersion);

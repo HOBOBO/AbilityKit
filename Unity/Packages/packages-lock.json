@@ -14,7 +14,8 @@
         "com.abilitykit.world.ecs": "0.1.0",
         "com.abilitykit.world.snapshot": "0.1.0",
         "com.abilitykit.combat.projectile": "0.1.0",
-        "com.abilitykit.combat.collision.abstractions": "0.1.0"
+        "com.abilitykit.combat.collision.abstractions": "0.1.0",
+        "com.abilitykit.triggering": "0.1.0"
       }
     },
     "com.abilitykit.ability.explain": {
@@ -23,15 +24,6 @@
       "source": "embedded",
       "dependencies": {
         "com.abilitykit.core": "0.1.0"
-      }
-    },
-    "com.abilitykit.ability.testkit": {
-      "version": "file:com.abilitykit.ability.testkit",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {
-        "com.abilitykit.ability": "0.1.0",
-        "com.abilitykit.world.entitas": "0.1.0"
       }
     },
     "com.abilitykit.actioneditor.impl": {

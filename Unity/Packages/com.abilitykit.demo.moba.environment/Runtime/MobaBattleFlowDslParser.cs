@@ -10,7 +10,11 @@ namespace AbilityKit.Demo.Moba.EnvironmentModel
         public static IReadOnlyList<BattleBlock> Parse(string text)
             => BattleFlowDslParser.Parse(text, ParseProjectBlock);
 
-        private static BattleBlock ParseProjectBlock(string verb, string[] args)
+        /// <summary>Parses MOBA case metadata plus neutral and project-specific blocks.</summary>
+        public static BattleFlowDocument ParseDocument(string caseId, string text)
+            => BattleFlowDslParser.ParseDocument(caseId, text, ParseProjectBlock);
+
+        private static BattleBlock? ParseProjectBlock(string verb, string[] args)
         {
             if (verb == "sync-backend")
             {

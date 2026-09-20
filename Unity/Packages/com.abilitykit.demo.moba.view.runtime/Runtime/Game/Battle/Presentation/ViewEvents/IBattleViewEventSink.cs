@@ -1,7 +1,8 @@
 ﻿using AbilityKit.Ability.Host;
 using AbilityKit.Protocol.Moba;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba.StateSync;
 
@@ -9,7 +10,9 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     public interface IBattleViewEventSink
     {
-        void OnTriggerEvent(in TriggerEvent evt);
+        void OnDamageResult(in DamageResult result);
+
+        void OnProjectileHit(in ProjectileHitEvent evt);
 
         void OnSummonEvent(string eventId, in DemoMobaSummonEventPayload payload);
 
@@ -31,4 +34,3 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
         void Clear();
     }
 }
-

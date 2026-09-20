@@ -1,5 +1,4 @@
 using AbilityKit.Ability.Config;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Mathematics;

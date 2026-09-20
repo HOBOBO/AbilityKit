@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using AbilityKit.Scenario;
 
 namespace AbilityKit.BattleFlow
@@ -12,6 +14,40 @@ namespace AbilityKit.BattleFlow
             var builder = new BattleFlowBuilder { CaseId = caseId };
             foreach (var block in blocks) CompileBlock(block, builder);
             return builder.Build();
+        }
+
+        /// <summary>Compiles a self-contained or scene-backed case document.</summary>
+        public static TestScenario Compile(
+            BattleFlowDocument document,
+            Func<string, BattleSceneDocument>? sceneResolver = null)
+        {
+            if (document == null) throw new ArgumentNullException(nameof(document));
+            BattleFlowDocumentValidator.ThrowIfInvalid(document);
+
+            var blocks = new List<BattleBlock>();
+            blocks.Add(BattleExecutionProfileCatalog.Resolve(document.ExecutionProfileId).CreateBlock());
+            if (!string.IsNullOrWhiteSpace(document.ScenarioRef))
+            {
+                if (sceneResolver == null)
+                    throw new InvalidOperationException(
+                        $"Case '{document.CaseId}' references scene '{document.ScenarioRef}', but no scene resolver was provided.");
+                var scene = sceneResolver(document.ScenarioRef)
+                    ?? throw new InvalidDataException($"Scene resolver returned null for '{document.ScenarioRef}'.");
+                BattleFlowDocumentValidator.ThrowIfInvalid(scene);
+                blocks.AddRange(scene.GetOrderedBlocks());
+            }
+
+            blocks.AddRange(document.GetOrderedBlocks());
+            return Compile(document.CaseId, blocks);
+        }
+
+        /// <summary>Loads a .battleflow and resolves its optional .battlescene reference relative to that file.</summary>
+        public static TestScenario CompileFile(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("Case path is required.", nameof(path));
+            var document = BattleFlowCodec.Load(path);
+            return Compile(document, reference =>
+                BattleFlowCodec.LoadScene(BattleFlowCodec.ResolveScenePath(path, reference)));
         }
 
         private static void CompileBlock(BattleBlock? block, BattleFlowBuilder builder)

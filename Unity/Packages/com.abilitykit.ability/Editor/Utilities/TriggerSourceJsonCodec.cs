@@ -277,6 +277,7 @@ namespace AbilityKit.Ability.Editor.Utilities
                     ("blackboard", ArrayOf("blackboardVariable")),
                     ("note", StringSchema())),
                 ["triggerNode"] = ObjectSchema(
+                    ("nodeId", StringSchema()),
                     ("enabled", BooleanSchema()),
                     ("kind", EnumSchema<TriggerNodeKind>()),
                     ("groupReference", StringSchema()),

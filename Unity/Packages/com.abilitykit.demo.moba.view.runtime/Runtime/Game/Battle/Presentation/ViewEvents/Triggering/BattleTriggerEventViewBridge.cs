@@ -1,14 +1,15 @@
 using System;
-using AbilityKit.Effect;
 using AbilityKit.Ability.Share.Effect;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Core.Eventing;
+using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
-using AbilityKit.Demo.Moba.Services.Buffs.Triggering;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Game.Flow;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents.Triggering
 {
-    public sealed class BattleTriggerEventViewBridge : IEventHandler, IDisposable
+    public sealed class BattleTriggerEventViewBridge : IDisposable
     {
         private readonly IEventBus _bus;
         private readonly IBattleViewEventSink _sink;
@@ -22,22 +23,22 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents.Triggering
 
             if (_bus == null) return;
 
-            _subscriptions.Add(_bus.Subscribe(DamagePipelineEvents.AfterApply, this));
-
-            _subscriptions.Add(_bus.Subscribe(MobaBuffTriggering.Events.ApplyOrRefresh, this));
-            _subscriptions.Add(_bus.Subscribe(MobaBuffTriggering.Events.Remove, this));
-
-            _subscriptions.Add(_bus.Subscribe(AreaTriggering.Events.Spawn, this));
-            _subscriptions.Add(_bus.Subscribe(AreaTriggering.Events.Enter, this));
-            _subscriptions.Add(_bus.Subscribe(AreaTriggering.Events.Exit, this));
-            _subscriptions.Add(_bus.Subscribe(AreaTriggering.Events.Expire, this));
-
-            _subscriptions.Add(_bus.Subscribe(ProjectileTriggering.Events.Hit, this));
+            _subscriptions.Add(_bus.Subscribe(
+                new EventKey<DamageResult>(TriggeringIdUtil.GetEventEid(DamagePipelineEvents.AfterApply)),
+                HandleDamageResult));
+            _subscriptions.Add(_bus.Subscribe(
+                new EventKey<ProjectileHitEvent>(TriggeringIdUtil.GetEventEid(ProjectileTriggering.Events.Hit)),
+                HandleProjectileHit));
         }
 
-        public void Handle(in TriggerEvent evt)
+        private void HandleDamageResult(DamageResult result)
         {
-            _sink?.OnTriggerEvent(in evt);
+            _sink?.OnDamageResult(in result);
+        }
+
+        private void HandleProjectileHit(ProjectileHitEvent evt)
+        {
+            _sink?.OnProjectileHit(in evt);
         }
 
         public void Dispose()

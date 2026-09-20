@@ -7,13 +7,16 @@ namespace AbilityKit.BattleFlow
     public enum BattleBlockSection
     {
         /// <summary>构建前置：声明世界（环境/角色/障碍/setup 动作），非时间序。</summary>
-        Setup,
+        Setup = 0,
 
         /// <summary>流程驱动：真正随时间发生的动作序列。</summary>
-        Timeline,
+        Timeline = 1,
 
         /// <summary>验收断言：跑完之后才判定的检查。</summary>
-        Assertion,
+        Assertion = 2,
+
+        /// <summary>Case-wide deterministic execution settings, not an ordered scenario action.</summary>
+        Settings = 3,
     }
 
     /// <summary>积木基类：战斗流程的最小组合单元。粒度项目可选——框架给原子积木，项目用复合积木聚合。</summary>
@@ -40,6 +43,19 @@ namespace AbilityKit.BattleFlow
     {
         /// <summary>把本积木编译进 <see cref="BattleFlowBuilder"/>。</summary>
         public abstract void Compile(BattleFlowBuilder builder);
+    }
+
+    /// <summary>
+    /// Author-facing intent block. It expands once into internal atomic blocks before validation and compilation.
+    /// One intent may contribute to multiple semantic sections.
+    /// </summary>
+    public abstract class BattleAuthorBlock : BattleBlock
+    {
+        /// <summary>Validates author-facing parameters before expansion.</summary>
+        public virtual IReadOnlyList<string> Validate() => Array.Empty<string>();
+
+        /// <summary>Expands this intent into internal blocks.</summary>
+        public abstract IReadOnlyList<BattleBlock> Expand();
     }
 
     /// <summary>复合积木（容器）：一串子积木，可再嵌套。项目用它把原子积木聚合成「常用测试/预览套路」。</summary>

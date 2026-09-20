@@ -7,8 +7,6 @@ using AbilityKit.Demo.Moba.Components;
 using AbilityKit.Core.Logging;
 using AbilityKit.Effect;
 using AbilityKit.Core.Mathematics;
-using AbilityKit.Ability.Triggering;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Continuous;
 using AbilityKit.Pipeline;
 using AbilityKit.Trace;

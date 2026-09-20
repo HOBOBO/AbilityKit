@@ -1,7 +1,6 @@
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.ECS;
 using AbilityKit.Core.Mathematics;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Triggering.Eventing;

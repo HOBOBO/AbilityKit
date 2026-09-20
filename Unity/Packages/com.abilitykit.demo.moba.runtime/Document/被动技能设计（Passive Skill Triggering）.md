@@ -27,7 +27,6 @@
 
 - 为每个被动技能实例创建一个 `ownerKey`（当前实现复用 `EffectSourceRegistry` 创建 root 的 `SourceContextId`）。
 - 当被动移除、技能组变化、或 entity 销毁时：
-  - 通过 `ownerKey` 一键取消动作（`ITriggerActionRunner.CancelByOwnerKey`）
   - 通过 `ownerKey` 结束溯源（`EffectSourceRegistry.End`）
   - 通过 `ownerKey` 停止持续触发（`MobaOngoingTriggerPlanService.Stop(ownerKey)`）
 
@@ -219,7 +218,6 @@ sequenceDiagram
 
 - 从 listener 列表移除对应 passiveSkillId 的 runtime。
 - 收集其 `SourceContextId(ownerKey)`，并执行：
-  - `_actionRunner.CancelByOwnerKey(ownerKey)`
   - `_effectSource.End(ownerKey, frame, Cancelled)`
 
 同时：

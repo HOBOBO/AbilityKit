@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AbilityKit.Ability.Config;
-using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Triggering;
@@ -35,8 +34,7 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
             builder.TryRegister<TriggerPlanJsonDatabase.ITextLoader>(WorldLifetime.Singleton, r =>
             {
                 var textAssetLoader = r.Resolve<ITextAssetLoader>();
-                var jsonLoader = new UnityResourcesTextLoader(textAssetLoader);
-                return new PlanTextLoaderAdapter(jsonLoader);
+                return new UnityResourcesTextLoader(textAssetLoader);
             });
 
             builder.TryRegister<MobaTriggerPlanLoadProfile>(WorldLifetime.Singleton, _ => MobaTriggerPlanLoadProfile.Default);
@@ -151,7 +149,6 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
         /// 用于加载触发器计划的文本资源适配器。
         /// </summary>
         private sealed class EtFileSystemAdapter :
-            AbilityKit.Ability.Triggering.Json.ITextLoader,
             IFileSystemTextLoader
         {
             private readonly ITextAssetLoader _textAssetLoader;
@@ -163,16 +160,11 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 _directoryLoader = textAssetLoader as ITextAssetDirectoryLoader;
             }
 
-            bool AbilityKit.Ability.Triggering.Json.ITextLoader.TryLoad(string id, out string text)
+            public bool TryLoad(string id, out string text)
             {
                 text = null;
                 if (string.IsNullOrEmpty(id)) return false;
                 return _textAssetLoader.TryLoadText(id, out text);
-            }
-
-            bool AbilityKit.Triggering.Runtime.Plan.Json.TriggerPlanJsonDatabase.ITextLoader.TryLoad(string id, out string text)
-            {
-                return ((AbilityKit.Ability.Triggering.Json.ITextLoader)this).TryLoad(id, out text);
             }
 
             public IEnumerable<string> GetFiles(string directory, string pattern)

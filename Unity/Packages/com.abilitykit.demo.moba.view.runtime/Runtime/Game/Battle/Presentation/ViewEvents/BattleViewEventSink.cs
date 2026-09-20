@@ -1,6 +1,5 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Effect;
@@ -70,23 +69,17 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _presentDamageSnapshots = BattleDamagePresentationSourcePolicy.ShouldPresentSnapshot(sourceMode);
         }
 
-        public void OnTriggerEvent(in TriggerEvent evt)
+        public void OnDamageResult(in DamageResult result)
         {
-            if (evt.Id == null) return;
-
-            if (evt.Id == DamagePipelineEvents.AfterApply)
+            if (_presentDamageTriggers)
             {
-                if (_presentDamageTriggers && evt.Payload is DamageResult result)
-                {
-                    _damageEvents.HandleDamageResult(result);
-                }
-                return;
+                _damageEvents.HandleDamageResult(result);
             }
+        }
 
-            if (evt.Id == ProjectileTriggering.Events.Hit)
-            {
-                _projectileEvents.HandleTriggerHit(evt);
-            }
+        public void OnProjectileHit(in ProjectileHitEvent evt)
+        {
+            _projectileEvents.HandleTriggerHit(in evt);
         }
 
         public void OnSummonEvent(string eventId, in DemoMobaSummonEventPayload payload)

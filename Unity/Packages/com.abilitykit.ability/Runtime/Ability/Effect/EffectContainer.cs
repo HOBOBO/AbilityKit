@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Generic;
+using AbilityKit.Core.Eventing;
 using AbilityKit.Core.Logging;
 using AbilityKit.Deterministic;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.Ability.Share.Effect;
 using AbilityKit.ECS;
+using AbilityKit.Triggering.Eventing;
 using GameplayEffectSpec = AbilityKit.Ability.Share.Effect.GameplayEffectSpec;
 using EffectInstance = AbilityKit.Ability.Share.Effect.EffectInstance;
 using EffectExecutionContext = AbilityKit.Effect.EffectExecutionContext;
@@ -173,10 +174,9 @@ namespace AbilityKit.Ability.Share.Effect
             }
         }
 
-        private static void PublishDefaultEvent(IEventBus bus, string eventId, in EffectExecutionContext context, EffectInstance instance)
+        private static void PublishDefaultEvent(IEventBus bus, EventKey<EffectEventArgs> eventKey, in EffectExecutionContext context, EffectInstance instance)
         {
             if (bus == null) return;
-            if (string.IsNullOrEmpty(eventId)) return;
 
             if (context.Services != null)
             {
@@ -194,17 +194,8 @@ namespace AbilityKit.Ability.Share.Effect
                 }
             }
 
-            var args = PooledTriggerArgs.Rent();
-            args[EffectTriggering.Args.Source] = context.Source;
-            args[EffectTriggering.Args.Target] = context.Target;
-            args[EffectTriggering.Args.Spec] = instance?.Spec;
-            args[EffectTriggering.Args.Instance] = instance;
-            args[EffectTriggering.Args.InstanceId] = instance != null ? instance.Id : 0;
-            args[EffectTriggering.Args.StackCount] = instance != null ? instance.StackCount : 0;
-            args[EffectTriggering.Args.ElapsedSeconds] = instance != null ? instance.ElapsedSeconds : 0f;
-            args[EffectTriggering.Args.RemainingSeconds] = instance != null ? instance.RemainingSeconds : 0f;
-
-            bus.Publish(new TriggerEvent(eventId, instance, args));
+            var args = new EffectEventArgs(context.Source, context.Target, instance);
+            bus.Publish(eventKey, in args);
         }
     }
 }

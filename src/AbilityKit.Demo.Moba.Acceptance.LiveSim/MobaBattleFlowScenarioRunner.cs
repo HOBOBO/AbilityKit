@@ -33,16 +33,20 @@ public sealed class MobaBattleFlowScenarioRunner
     public static MobaBattleFlowRunOutcome RunDetailed(TestScenario scenario)
     {
         if (scenario == null) throw new ArgumentNullException(nameof(scenario));
+        TestScenarioValidator.ThrowIfInvalid(scenario);
+        var execution = scenario.ResolveExecution();
         var predictionBackend = MobaBattleFlowPredictionScenarioRunner.ResolveBackend(scenario);
         ValidateCommands(scenario.Commands);
         using var bootstrapper = Boot();
         var expectation = ToExpectation(scenario);
         var executor = new LiveSimSetupActionExecutor(bootstrapper);
+        executor.FixedDelta = 1f / execution.TickRate;
 
         var envEntities = BindEnvironment(scenario, bootstrapper.RuntimeServices!);
         PlaceObstacles(scenario, bootstrapper.RuntimeServices!);
         AssembleActors(expectation, executor);
         var timelineRunner = new LiveSimTimelineRunner(bootstrapper, executor);
+        double simulatedMs;
         LiveSimVirtualNetworkRunResult? networkRun = null;
         if (scenario.Commands.Count > 0)
         {
@@ -50,13 +54,16 @@ public sealed class MobaBattleFlowScenarioRunner
                 expectation.timeline ?? Array.Empty<MobaAcceptanceTimelineStepExpectation>(),
                 scenario.Commands,
                 scenario.Seed,
-                scenario.TimeoutMs);
+                execution.MaxDurationMs);
+            simulatedMs = networkRun.SimulationFinishedAtMs;
         }
         else
         {
-            timelineRunner.Run(expectation.timeline ?? Array.Empty<MobaAcceptanceTimelineStepExpectation>());
+            simulatedMs = timelineRunner.Run(
+                expectation.timeline ?? Array.Empty<MobaAcceptanceTimelineStepExpectation>(),
+                execution.MaxDurationMs);
         }
-        executor.TickMilliseconds(500);
+        simulatedMs = CompleteExecution(executor, execution, simulatedMs);
 
         var assertions = scenario.Expectations as MobaBattleFlowAssertions;
         BattleFlowPredictionRunResult? predictionRun = null;
@@ -71,7 +78,8 @@ public sealed class MobaBattleFlowScenarioRunner
 
         var records = CaptureTraceRecords(bootstrapper, scenario.CaseId);
         var traceNodes = ToTraceNodes(records);
-        var summary = $"actors={scenario.Actors.Count}, timeline={scenario.Timeline.Count}, traceNodes={records.Length}";
+        var summary = $"actors={scenario.Actors.Count}, timeline={scenario.Timeline.Count}, traceNodes={records.Length}, " +
+                      $"tickRate={execution.TickRate}, simulatedMs={simulatedMs:F3}";
         if (!string.IsNullOrEmpty(scenario.EnvironmentProfileId))
             summary += $", env={scenario.EnvironmentProfileId}({envEntities}个)";
         if (networkRun != null)
@@ -121,6 +129,38 @@ public sealed class MobaBattleFlowScenarioRunner
             predictionRun,
             predictionVerdict,
             fingerprint);
+    }
+
+    private static double CompleteExecution(
+        LiveSimSetupActionExecutor executor,
+        TestExecutionSpec execution,
+        double simulatedMs)
+    {
+        var normalEndMs = execution.EndCondition.Kind == TestEndConditionKinds.Duration
+            ? execution.EndCondition.DurationMs
+            : simulatedMs;
+        if (simulatedMs > normalEndMs + 1e-6d)
+            throw new TimeoutException(
+                $"BattleFlow timeline reached t={simulatedMs:F3}ms after its normal end at t={normalEndMs}ms.");
+        if (normalEndMs > simulatedMs)
+            simulatedMs += executor.TickMilliseconds(normalEndMs - simulatedMs);
+
+        EnsureWithinMaxDuration(simulatedMs, execution.MaxDurationMs);
+
+        if (simulatedMs + execution.SettleDurationMs > execution.MaxDurationMs + 1e-6d)
+            throw new TimeoutException(
+                $"BattleFlow settle window exceeds maxDurationMs={execution.MaxDurationMs} " +
+                $"from t={simulatedMs:F3}ms.");
+        simulatedMs += executor.TickMilliseconds(execution.SettleDurationMs);
+        EnsureWithinMaxDuration(simulatedMs, execution.MaxDurationMs);
+        return simulatedMs;
+    }
+
+    private static void EnsureWithinMaxDuration(double simulatedMs, int maxDurationMs)
+    {
+        if (simulatedMs > maxDurationMs + 1e-6d)
+            throw new TimeoutException(
+                $"BattleFlow simulation exceeded maxDurationMs={maxDurationMs} at t={simulatedMs:F3}ms.");
     }
 
     public static MobaBattleFlowDeterminismResult VerifyDeterminism(TestScenario scenario)

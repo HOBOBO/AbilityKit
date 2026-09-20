@@ -2,7 +2,7 @@ using System;
 using AbilityKit.Ability.FrameSync;
 using AbilityKit.Attributes.Core;
 using AbilityKit.Ability.Share.ECS;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Triggering.Eventing;
 using AbilityKit.ECS;
 using GameplayTagContainer = AbilityKit.GameplayTags.GameplayTagContainer;
 

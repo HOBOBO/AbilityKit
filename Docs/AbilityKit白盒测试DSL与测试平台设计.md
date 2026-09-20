@@ -364,6 +364,12 @@ passed = trace断言 && state断言 && context断言 && network断言 && ui断�
 
 执行入口安全边界（沿用 [DSL 指南 §12](MobaAcceptanceScenarioDSLGuide.md)）：浏览器只提交受控 `scriptId`；服务端 allow-list；共享环境优先走 CI；Gateway 默认只读。
 
+### 12.1 BattleFlow 批量分析接入
+
+BattleFlow 是平台的一类用例与结果生产者，不是平台服务端的一部分。其标准接入边界是：`.battleflow` 经编译和项目 Runner 执行后，由项目 artifact adapter 输出版本化的 `<caseId>_summary.json`、`<caseId>_trace.jsonl` 和 `batch_summary.json`；平台只索引摘要和稳定维度，大体积诊断产物按 URI 延迟读取。
+
+现有 MOBA Acceptance 的 `*_summary.json`、`*_trace.jsonl` 与 `batch_summary.json` 是首个适配来源。BattleFlow 当前 `BattleFlowRunResult` 和 `IBattleFlowBatchRunner` 的文本结果仅作为编辑器兼容接口，平台不得解析 `Summary/errorMessage` 文案建立统计。统一契约、Schema 演进、查询维度、存储分层和 Web 触发安全要求见 [BattleFlow 模块设计：批量结果与 Web 分析](../Unity/Packages/com.abilitykit.battleflow/README.md#批量结果与-web-分析)。
+
 ## 13. 持续回归与 AI
 
 | 能力 | 落地 |

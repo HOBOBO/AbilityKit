@@ -1,5 +1,4 @@
 using AbilityKit.Ability.Share.ECS.Entitas;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Combat.Projectile;

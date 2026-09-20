@@ -1,6 +1,8 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
+using AbilityKit.Ability.Editor.Windows;
 using NUnit.Framework;
 using UnityEngine;
 
@@ -44,6 +46,30 @@ namespace AbilityKit.Ability.Editor.Tests
                     false,
                     TriggerValueSourceMask.All,
                     TriggerParameterAccess.Output)));
+            context.RegisterAction(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "test_reference_action",
+                "测试配置引用行为",
+                "Action/Test",
+                0,
+                0,
+                true,
+                new TriggerParameterDescriptor(
+                    "config_id",
+                    TriggerValueType.Integer,
+                    TestReferenceProvider.SemanticKey)));
+            context.RegisterAction(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "test_reference_list_action",
+                "测试配置引用列表行为",
+                "Action/Test",
+                0,
+                0,
+                true,
+                new TriggerParameterDescriptor(
+                    "config_ids",
+                    TriggerValueType.IntegerList,
+                    TestReferenceProvider.SemanticKey)));
             context.RegisterValueSource(new TriggerAuthoringValueSourceDescriptor(
                 "gameplay:1001",
                 TriggerValueType.Number,
@@ -55,6 +81,43 @@ namespace AbilityKit.Ability.Editor.Tests
                 DisplayName = "测试事件",
                 Category = "测试"
             });
+            context.RegisterReferenceProvider(new TestReferenceProvider());
+        }
+
+        private sealed class TestReferenceProvider :
+            ITriggerAuthoringReferenceProvider,
+            ITriggerAuthoringReferenceLocator
+        {
+            public const string SemanticKey = "test.config-id";
+
+            public string SemanticId => SemanticKey;
+            public TriggerValueType StorageType => TriggerValueType.Integer;
+
+            public IReadOnlyList<TriggerAuthoringReferenceOption> GetOptions(
+                TriggerAuthoringReferenceContext context)
+            {
+                return new[] { new TriggerAuthoringReferenceOption(1001, "测试配置", "测试") };
+            }
+
+            public bool TryGet(
+                long value,
+                TriggerAuthoringReferenceContext context,
+                out TriggerAuthoringReferenceOption option)
+            {
+                option = value == 1001
+                    ? new TriggerAuthoringReferenceOption(1001, "测试配置", "测试")
+                    : null;
+                return option != null;
+            }
+
+            public bool TryGetTarget(
+                long value,
+                TriggerAuthoringReferenceContext context,
+                out Object target)
+            {
+                target = value == 1001 ? context.Project : null;
+                return target != null;
+            }
         }
 
         private sealed class TestConditionCompiler : ITriggerAuthoringConditionCompiler
@@ -175,6 +238,204 @@ namespace AbilityKit.Ability.Editor.Tests
 
                 var references = TriggerAuthoringValueRefEditor.CollectExpressionReferences(editorContext);
                 Assert.That(references.Exists(reference => reference.Expression == "gameplay.1001"), Is.True);
+            }
+            finally
+            {
+                Object.DestroyImmediate(project);
+            }
+        }
+
+        [Test]
+        public void ProjectReferenceProviders_AreOptionalAndProjectScoped()
+        {
+            var project = ScriptableObject.CreateInstance<TriggerAuthoringProjectAsset>();
+            try
+            {
+                var coreOnly = TriggerAuthoringReferenceCatalog.CreateForProject(project);
+                Assert.That(coreOnly.TryGetProvider(
+                    "test.config-id",
+                    TriggerValueType.Integer,
+                    out _), Is.False);
+
+                project.SetExtensionIds(new[] { TriggerAuthoringTestExtension.ExtensionId });
+                var extended = TriggerAuthoringReferenceCatalog.CreateForProject(project);
+                Assert.That(extended.TryGetProvider(
+                    "test.config-id",
+                    TriggerValueType.Integer,
+                    out _), Is.True);
+                Assert.That(extended.TryGetProvider(
+                    "test.config-id",
+                    TriggerValueType.IntegerList,
+                    out _), Is.True);
+                Assert.That(extended.GetOptions(
+                    "test.config-id",
+                    TriggerValueType.Integer), Has.Count.EqualTo(1));
+                Assert.That(extended.TryResolve(
+                    "test.config-id",
+                    TriggerValueType.Integer,
+                    1001,
+                    out var option), Is.True);
+                Assert.That(option.DisplayName, Is.EqualTo("测试配置"));
+                Assert.That(extended.CanLocate(
+                    "test.config-id",
+                    TriggerValueType.Integer), Is.True);
+                Assert.That(extended.TryGetTarget(
+                    "test.config-id",
+                    TriggerValueType.Integer,
+                    1001,
+                    out var target), Is.True);
+                Assert.That(target, Is.SameAs(project));
+                Assert.That(extended.TryResolve(
+                    "test.config-id",
+                    TriggerValueType.Integer,
+                    9999,
+                    out _), Is.False);
+            }
+            finally
+            {
+                Object.DestroyImmediate(project);
+            }
+        }
+
+        [Test]
+        public void RuleOverview_UsesResolvedReferenceNamesAndFallsBackToIds()
+        {
+            var project = ScriptableObject.CreateInstance<TriggerAuthoringProjectAsset>();
+            try
+            {
+                project.SetExtensionIds(new[] { TriggerAuthoringTestExtension.ExtensionId });
+                var module = new TriggerAuthoringModuleData
+                {
+                    ModuleId = "test.reference-summary",
+                    Triggers =
+                    {
+                        new TriggerDefinitionData
+                        {
+                            Id = 1,
+                            Event = "test.event",
+                            Actions = new TriggerNodeData
+                            {
+                                Kind = TriggerNodeKind.Action,
+                                Type = "test_reference_action",
+                                Arguments =
+                                {
+                                    new TriggerArgumentData
+                                    {
+                                        Name = "config_id",
+                                        Value = new TriggerValueRefData
+                                        {
+                                            Source = TriggerValueSource.Constant,
+                                            Type = TriggerValueType.Integer,
+                                            IntegerValue = 1001
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+                var types = TriggerTypeDescriptorCatalog.CreateForProject(project);
+                var references = TriggerAuthoringReferenceCatalog.CreateForProject(project);
+
+                var resolved = TriggerAuthoringRuleOverviewBuilder.Build(
+                    module,
+                    "test.event",
+                    types,
+                    null,
+                    references);
+                Assert.That(resolved, Has.Count.EqualTo(1));
+                Assert.That(resolved[0].ActionSummary, Does.Contain("测试配置 [1001]"));
+
+                var fallback = TriggerAuthoringRuleOverviewBuilder.Build(
+                    module,
+                    "test.event",
+                    types,
+                    null);
+                Assert.That(fallback[0].ActionSummary, Does.Contain("1001"));
+                Assert.That(fallback[0].ActionSummary, Does.Not.Contain("测试配置"));
+            }
+            finally
+            {
+                Object.DestroyImmediate(project);
+            }
+        }
+
+        [Test]
+        public void SemanticReferenceValidation_ChecksConstantsAndDegradesWithoutProvider()
+        {
+            var project = ScriptableObject.CreateInstance<TriggerAuthoringProjectAsset>();
+            try
+            {
+                project.SetExtensionIds(new[] { TriggerAuthoringTestExtension.ExtensionId });
+                var value = new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.Integer,
+                    IntegerValue = 1001
+                };
+                var module = new TriggerAuthoringModuleData
+                {
+                    ModuleId = "test.references",
+                    Triggers =
+                    {
+                        new TriggerDefinitionData
+                        {
+                            Id = 1,
+                            Event = "test.event",
+                            Actions = new TriggerNodeData
+                            {
+                                Kind = TriggerNodeKind.Action,
+                                Type = "test_reference_action",
+                                Arguments =
+                                {
+                                    new TriggerArgumentData { Name = "config_id", Value = value }
+                                }
+                            }
+                        }
+                    }
+                };
+                var context = new TriggerAuthoringValidationContext
+                {
+                    Types = TriggerTypeDescriptorCatalog.CreateForProject(project),
+                    Events = TriggerEventDescriptorCatalog.FromProject(project),
+                    References = TriggerAuthoringReferenceCatalog.CreateForProject(project)
+                };
+
+                var valid = TriggerAuthoringValidator.Validate(module, context);
+                Assert.That(valid.Exists(item => item.Code == "TRG1326"), Is.False);
+
+                value.IntegerValue = 9999;
+                var invalid = TriggerAuthoringValidator.Validate(module, context);
+                Assert.That(invalid.Exists(item => item.Code == "TRG1326"), Is.True);
+
+                context.References = null;
+                var fallback = TriggerAuthoringValidator.Validate(module, context);
+                Assert.That(fallback.Exists(item => item.Code == "TRG1326"), Is.False);
+
+                context.References = TriggerAuthoringReferenceCatalog.CreateForProject(project);
+                value.Source = TriggerValueSource.Context;
+                value.Path = "runtime.config_id";
+                var dynamicValue = TriggerAuthoringValidator.Validate(module, context);
+                Assert.That(dynamicValue.Exists(item => item.Code == "TRG1326"), Is.False);
+
+                module.Triggers[0].Actions.Type = "test_reference_list_action";
+                module.Triggers[0].Actions.Arguments[0].Name = "config_ids";
+                module.Triggers[0].Actions.Arguments[0].Value = new TriggerValueRefData
+                {
+                    Source = TriggerValueSource.Constant,
+                    Type = TriggerValueType.IntegerList,
+                    IntegerListValue = new List<long> { 1001, 9999 }
+                };
+                var invalidList = TriggerAuthoringValidator.Validate(module, context);
+                Assert.That(invalidList.FindAll(item => item.Code == "TRG1326"), Has.Count.EqualTo(1));
+                Assert.That(
+                    invalidList.Exists(item => item.Code == "TRG1326" &&
+                                               item.Path.EndsWith("integerListValue[1]")),
+                    Is.True);
+
+                module.Triggers[0].Actions.Arguments[0].Value.IntegerListValue.RemoveAt(1);
+                var validList = TriggerAuthoringValidator.Validate(module, context);
+                Assert.That(validList.Exists(item => item.Code == "TRG1326"), Is.False);
             }
             finally
             {

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Continuous;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
@@ -168,7 +167,6 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
 
             services.TryResolve(out MobaConfigDatabase configs);
             services.TryResolve(out AbilityKit.Triggering.Eventing.IEventBus eventBus);
-            services.TryResolve(out ITriggerActionRunner actionRunner);
             services.TryResolve(out MobaTraceRegistry trace);
             services.TryResolve(out MobaEffectExecutionService effects);
             services.TryResolve(out IMobaEffectiveTagQueryService tags);
@@ -186,7 +184,7 @@ namespace AbilityKit.Demo.Moba.Services.Buffs.Lifecycle {
             if (triggerGateway == null) triggerGateway = new AbilityKit.Demo.Moba.Runtime.Application.Services.Triggering.MobaTriggerExecutionGateway(effects, triggerSubscriptions);
  
             var repo = new BuffRepository();
-            var ctx = new BuffContextRegistry(trace, runtimeContexts, actionRunner, frameTime);
+            var ctx = new BuffContextRegistry(trace, runtimeContexts, frameTime);
             var events = new BuffEventPublisher(eventBus);
             var stageEffects = new BuffStageEffectExecutor(triggerGateway);
             var stacking = new BuffStackingPolicyApplier();

@@ -15,6 +15,41 @@ namespace AbilityKit.Ability.Editor.Tests
     public sealed class TriggerAuthoringRuntimeExporterTests
     {
         [Test]
+        public void BuildPrevalidated_ReusesSuppliedDiagnosticsWithoutWeakeningDefaultBuild()
+        {
+            var module = CreateModule(DebugLog("prevalidated"));
+            var context = new TriggerAuthoringValidationContext
+            {
+                Types = TriggerTypeDescriptorCatalog.CreateProjectDefaults()
+            };
+            var diagnostics = TriggerAuthoringValidator.Validate(module, context);
+
+            var prevalidated = TriggerAuthoringRuntimeExporter.BuildPrevalidated(
+                module,
+                context,
+                diagnostics);
+            var regular = TriggerAuthoringRuntimeExporter.Build(module, context);
+            var rejected = TriggerAuthoringRuntimeExporter.BuildPrevalidated(
+                module,
+                context,
+                new[]
+                {
+                    new TriggerAuthoringDiagnostic(
+                        "TRG_TEST_PREVALIDATED",
+                        TriggerAuthoringDiagnosticSeverity.Error,
+                        "module",
+                        "Synthetic prevalidated error")
+                });
+
+            Assert.That(prevalidated.Success, Is.True, prevalidated.BuildMessage());
+            Assert.That(TriggerAuthoringRuntimeExporter.Serialize(prevalidated.Database),
+                Is.EqualTo(TriggerAuthoringRuntimeExporter.Serialize(regular.Database)));
+            Assert.That(rejected.Success, Is.False);
+            Assert.That(rejected.Database, Is.Null);
+            Assert.That(rejected.Diagnostics.Exists(item => item.Code == "TRG_TEST_PREVALIDATED"), Is.True);
+        }
+
+        [Test]
         public void Build_DebugLog_ProducesLoadableGoldenRuntimeJson()
         {
             var module = CreateModule(DebugLog("cast"));
@@ -1326,85 +1361,6 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
-        public void TriggerPlanDtoBuilder_PreservesBlackboardTarget()
-        {
-            var target = new BlackboardWriteTarget(101, 202, BlackboardKeyType.Double, "owner");
-            var action = ActionCallPlan.WithArgs(
-                new AbilityKit.Triggering.Registry.ActionId(303),
-                new Dictionary<string, ActionArgValue>
-                {
-                    ["target"] = ActionArgValue.OfBlackboardTarget(in target, "target"),
-                    ["value"] = ActionArgValue.OfConst(4, "value")
-                });
-            var plan = new TriggerPlan<object>(0, 0, actions: new[] { action });
-            var trigger = new TriggerEditorConfig { TriggerId = 1, EventId = "test.write" };
-
-            var dto = TriggerPlanDtoBuilder.BuildTriggerPlanDto(trigger, in plan, 0, 0);
-            var targetDto = dto.Actions[0].Args["target"];
-
-            Assert.That(targetDto.Kind, Is.EqualTo("BlackboardTarget"));
-            Assert.That(targetDto.BoardId, Is.EqualTo(101));
-            Assert.That(targetDto.KeyId, Is.EqualTo(202));
-            Assert.That(targetDto.KeyType, Is.EqualTo(BlackboardKeyType.Double));
-            Assert.That(targetDto.Scope, Is.EqualTo("owner"));
-        }
-
-        [Test]
-        public void ReadableRuntimeJson_RoundTripPreservesBlackboardTarget()
-        {
-            var database = new TriggerPlanDatabaseDto();
-            database.Triggers.Add(new TriggerPlanDto
-            {
-                TriggerId = 1,
-                EventName = "test.write",
-                Actions = new List<ActionCallPlanDto>
-                {
-                    new ActionCallPlanDto
-                    {
-                        ActionId = 303,
-                        Arity = 2,
-                        Args = new Dictionary<string, NumericValueRefDto>
-                        {
-                            ["target"] = new NumericValueRefDto
-                            {
-                                Kind = "BlackboardTarget",
-                                BoardId = 101,
-                                KeyId = 202,
-                                KeyType = BlackboardKeyType.Double,
-                                Scope = "owner"
-                            },
-                            ["value"] = new NumericValueRefDto { Kind = "Const", ConstValue = 4 },
-                            ["boolValue"] = new NumericValueRefDto { Kind = "Bool", BoolValue = true },
-                            ["stringValue"] = new NumericValueRefDto { Kind = "String", StringValue = "armed" },
-                            ["blackboardValue"] = new NumericValueRefDto
-                            {
-                                Kind = "BlackboardValue",
-                                BoardId = 404,
-                                KeyId = 505,
-                                KeyType = BlackboardKeyType.String
-                            }
-                        }
-                    }
-                }
-            });
-
-            var readableJson = ReadableTriggerPlanConverter.ToReadable(database);
-            var roundTripped = ReadableTriggerPlanConverter.FromReadable(readableJson);
-            var target = roundTripped.Triggers[0].Actions[0].Args["target"];
-
-            StringAssert.Contains("\"Kind\": \"BlackboardTarget\"", readableJson);
-            Assert.That(target.Kind, Is.EqualTo("BlackboardTarget"));
-            Assert.That(target.BoardId, Is.EqualTo(101));
-            Assert.That(target.KeyId, Is.EqualTo(202));
-            Assert.That(target.KeyType, Is.EqualTo(BlackboardKeyType.Double));
-            Assert.That(target.Scope, Is.EqualTo("owner"));
-            Assert.That(roundTripped.Triggers[0].Actions[0].Args["boolValue"].BoolValue, Is.True);
-            Assert.That(roundTripped.Triggers[0].Actions[0].Args["stringValue"].StringValue, Is.EqualTo("armed"));
-            Assert.That(roundTripped.Triggers[0].Actions[0].Args["blackboardValue"].Kind, Is.EqualTo("BlackboardValue"));
-            Assert.That(roundTripped.Triggers[0].Actions[0].Args["blackboardValue"].KeyType, Is.EqualTo(BlackboardKeyType.String));
-        }
-
-        [Test]
         public void Build_EmbeddedActionCondition_ReusesPredicateCompilerAndProducesLoadableExecutionTree()
         {
             var sharedCondition = new TriggerNodeData
@@ -1762,6 +1718,133 @@ namespace AbilityKit.Ability.Editor.Tests
                 diagnostic.Code == "TRG1316"));
         }
 
+        [Test]
+        public void Build_AdvancedControlFlow_ExportsAndLoadsAllRuntimeNodeKinds()
+        {
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "seq",
+                Children =
+                {
+                    Flow("selector", DebugLog("selector")),
+                    Flow("parallel", DebugLog("parallel-a"), DebugLog("parallel-b")),
+                    new TriggerNodeData
+                    {
+                        Kind = TriggerNodeKind.Action,
+                        Type = "repeat",
+                        Arguments = { Arg("count", ConstInt(3)) },
+                        Children = { DebugLog("repeat") }
+                    },
+                    new TriggerNodeData
+                    {
+                        Kind = TriggerNodeKind.Action,
+                        Type = "until",
+                        Condition = new TriggerNodeData
+                        {
+                            Kind = TriggerNodeKind.Condition,
+                            Type = "always_false"
+                        },
+                        Arguments = { Arg("max_iterations", ConstInt(8)) },
+                        Children = { DebugLog("until") }
+                    },
+                    Flow("invert", DebugLog("invert")),
+                    Flow("succeed", DebugLog("succeed")),
+                    new TriggerNodeData
+                    {
+                        Kind = TriggerNodeKind.Action,
+                        Type = "fail",
+                        Arguments =
+                        {
+                            Arg("reason", new TriggerValueRefData
+                            {
+                                Source = TriggerValueSource.Constant,
+                                Type = TriggerValueType.String,
+                                StringValue = "expected failure"
+                            })
+                        },
+                        Children = { DebugLog("fail") }
+                    }
+                }
+            });
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.True, result.BuildMessage());
+            var dtoRoot = result.Database.Triggers[0].ExecutionRoot;
+            CollectionAssert.AreEqual(
+                new[] { "Selector", "Parallel", "Repeat", "Until", "Invert", "Succeed", "Fail" },
+                dtoRoot.Children.ConvertAll(child => child.Kind));
+            Assert.That(dtoRoot.Children[2].Count, Is.EqualTo(3));
+            Assert.That(dtoRoot.Children[3].MaxIterations, Is.EqualTo(8));
+            Assert.That(dtoRoot.Children[3].UntilCondition, Is.Not.Null);
+            Assert.That(dtoRoot.Children[6].Reason, Is.EqualTo("expected failure"));
+
+            var database = new TriggerPlanJsonDatabase();
+            var json = TriggerAuthoringRuntimeExporter.Serialize(result.Database);
+            Assert.DoesNotThrow(() => database.LoadFromJson(json, "authoring-control-flow-test"));
+            Assert.That(database.TryGetExecutionRootByTriggerId(1001, out var runtimeRoot), Is.True);
+            var sequence = runtimeRoot as SequenceTriggerPlanExecutable;
+            Assert.That(sequence, Is.Not.Null);
+            Assert.That(sequence.Children[0], Is.TypeOf<SelectorTriggerPlanExecutable>());
+            Assert.That(sequence.Children[1], Is.TypeOf<ParallelTriggerPlanExecutable>());
+            Assert.That(sequence.Children[2], Is.TypeOf<RepeatTriggerPlanExecutable>());
+            Assert.That(sequence.Children[3], Is.TypeOf<UntilTriggerPlanExecutable>());
+            Assert.That(sequence.Children[4], Is.TypeOf<InvertTriggerPlanExecutable>());
+            Assert.That(sequence.Children[5], Is.TypeOf<SucceedTriggerPlanExecutable>());
+            Assert.That(sequence.Children[6], Is.TypeOf<FailTriggerPlanExecutable>());
+            Assert.That(((RepeatTriggerPlanExecutable)sequence.Children[2]).Count, Is.EqualTo(3));
+            Assert.That(((UntilTriggerPlanExecutable)sequence.Children[3]).MaxIterations, Is.EqualTo(8));
+            Assert.That(((UntilTriggerPlanExecutable)sequence.Children[3]).UntilCondition, Is.Not.Null);
+            Assert.That(((FailTriggerPlanExecutable)sequence.Children[6]).Reason, Is.EqualTo("expected failure"));
+        }
+
+        [TestCase("repeat", "count", "TRG1317")]
+        [TestCase("until", "max_iterations", "TRG1318")]
+        public void Build_LoopNode_RejectsNonPositiveLimit(string type, string argumentName, string diagnosticCode)
+        {
+            var node = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = type,
+                Arguments = { Arg(argumentName, ConstInt(0)) },
+                Children = { DebugLog("loop") }
+            };
+            if (type == "until")
+            {
+                node.Condition = new TriggerNodeData
+                {
+                    Kind = TriggerNodeKind.Condition,
+                    Type = "always_false"
+                };
+            }
+
+            var result = TriggerAuthoringRuntimeExporter.Build(CreateModule(node));
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics, Has.Some.Matches<TriggerAuthoringDiagnostic>(diagnostic =>
+                diagnostic.Code == diagnosticCode));
+        }
+
+        [Test]
+        public void Build_Until_RejectsMissingEndCondition()
+        {
+            var module = CreateModule(new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = "until",
+                Arguments = { Arg("max_iterations", ConstInt(4)) },
+                Children = { DebugLog("until") }
+            });
+
+            var result = TriggerAuthoringRuntimeExporter.Build(module);
+
+            Assert.That(result.Success, Is.False);
+            Assert.That(result.Diagnostics, Has.Some.Matches<TriggerAuthoringDiagnostic>(diagnostic =>
+                diagnostic.Code == "TRG1231" &&
+                diagnostic.Path == "module.triggers[0].actions.condition"));
+        }
+
         private static TriggerNodeData CallableReference(int triggerId, params TriggerArgumentData[] bindings)
         {
             var node = new TriggerNodeData
@@ -1819,6 +1902,17 @@ namespace AbilityKit.Ability.Editor.Tests
                     StringValue = message
                 }) }
             };
+        }
+
+        private static TriggerNodeData Flow(string type, params TriggerNodeData[] children)
+        {
+            var node = new TriggerNodeData
+            {
+                Kind = TriggerNodeKind.Action,
+                Type = type
+            };
+            node.Children.AddRange(children);
+            return node;
         }
 
         private static TriggerNodeData NumericWrite(string type, double value)

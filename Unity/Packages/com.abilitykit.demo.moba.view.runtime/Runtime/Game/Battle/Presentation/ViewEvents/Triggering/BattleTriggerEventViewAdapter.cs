@@ -1,7 +1,7 @@
 using System;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.Abstractions;
 using AbilityKit.Game.Battle;
+using AbilityKit.Triggering.Eventing;
 
 namespace AbilityKit.Game.Flow.Battle.ViewEvents.Triggering
 {

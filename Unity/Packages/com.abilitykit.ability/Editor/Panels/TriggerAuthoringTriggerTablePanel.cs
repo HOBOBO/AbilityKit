@@ -13,6 +13,8 @@ namespace AbilityKit.Ability.Editor.Panels
         private readonly TriggerAuthoringTriggerTableTreeView _tree;
         private IReadOnlyList<TriggerAuthoringTriggerIndex.Entry> _entries;
         private int _contentSignature = int.MinValue;
+        private int _pageIndex;
+        private int _pageSize = 50;
 
         public TriggerAuthoringTriggerTablePanel()
         {
@@ -30,13 +32,27 @@ namespace AbilityKit.Ability.Editor.Panels
         public event Action<int> ContextMenuRequested;
 
         public int SelectedCount => _tree.GetSelection().Count;
+        public int TotalCount => _entries != null ? _entries.Count : 0;
+        public int PageCount => Math.Max(1, (TotalCount + _pageSize - 1) / _pageSize);
+        public int PageIndex => _pageIndex;
 
         public void SetEntries(IReadOnlyList<TriggerAuthoringTriggerIndex.Entry> entries)
         {
+            if (ReferenceEquals(_entries, entries)) return;
             _entries = entries;
             var signature = ComputeSignature(entries);
             if (signature == _contentSignature) return;
             _contentSignature = signature;
+            RebuildRows(false);
+        }
+
+        public void SetPagination(int pageIndex, int pageSize)
+        {
+            pageSize = Math.Max(1, pageSize);
+            pageIndex = Math.Max(0, Math.Min(pageIndex, Math.Max(0, (TotalCount - 1) / pageSize)));
+            if (_pageIndex == pageIndex && _pageSize == pageSize) return;
+            _pageIndex = pageIndex;
+            _pageSize = pageSize;
             RebuildRows(false);
         }
 
@@ -76,7 +92,11 @@ namespace AbilityKit.Ability.Editor.Panels
                 column = (TriggerAuthoringTriggerTableColumn)header.sortedColumnIndex;
                 ascending = header.IsSortedAscending(header.sortedColumnIndex);
             }
-            _tree.SetRows(TriggerAuthoringTriggerTableModel.BuildRows(_entries, column, ascending));
+            var rows = TriggerAuthoringTriggerTableModel.BuildRows(_entries, column, ascending);
+            _pageIndex = Math.Max(0, Math.Min(_pageIndex, Math.Max(0, (rows.Count - 1) / _pageSize)));
+            var first = _pageIndex * _pageSize;
+            var count = Math.Min(_pageSize, Math.Max(0, rows.Count - first));
+            _tree.SetRows(count > 0 ? rows.GetRange(first, count) : new List<TriggerAuthoringTriggerTableRow>());
             if (sortChanged) _contentSignature = int.MinValue;
         }
 

@@ -714,6 +714,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public static TriggerAuthoringSourceDocument CreateDocument(TriggerAuthoringModuleAsset asset)
         {
             if (asset == null) throw new ArgumentNullException(nameof(asset));
+            TriggerAuthoringNodeIdentity.EnsureModule(asset.Module);
             return new TriggerAuthoringSourceDocument
             {
                 Schema = TriggerAuthoringSchema.Id,
@@ -725,22 +726,28 @@ namespace AbilityKit.Ability.Editor.Utilities
 
         public static string Serialize(TriggerAuthoringSourceDocument document)
         {
+            TriggerAuthoringNodeIdentity.EnsureModule(document?.Module);
             return TriggerSourceCodecs.ModuleDefault.Serialize(document);
         }
 
         public static TriggerAuthoringSourceDocument Deserialize(string json)
         {
-            return TriggerSourceCodecs.ModuleDefault.Deserialize(json);
+            var document = TriggerSourceCodecs.ModuleDefault.Deserialize(json);
+            TriggerAuthoringNodeIdentity.EnsureModule(document.Module);
+            return document;
         }
 
         public static TriggerAuthoringSourceDocument ReadFile(string path)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
-            return ResolveCodec(path).Deserialize(File.ReadAllText(path, Encoding.UTF8));
+            var document = ResolveCodec(path).Deserialize(File.ReadAllText(path, Encoding.UTF8));
+            TriggerAuthoringNodeIdentity.EnsureModule(document.Module);
+            return document;
         }
 
         public static string ComputeContentHash(TriggerAuthoringSourceDocument document)
         {
+            TriggerAuthoringNodeIdentity.EnsureModule(document?.Module);
             TriggerSourceDocumentRules.ValidateModuleHeader(document);
             return TriggerSourceCanonical.ComputeContentHash(document);
         }
@@ -748,6 +755,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public static void WriteFileAtomic(string path, TriggerAuthoringSourceDocument document)
         {
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Source 路径。", nameof(path));
+            TriggerAuthoringNodeIdentity.EnsureModule(document?.Module);
             TriggerSourceCanonical.WriteTextAtomic(path, ResolveCodec(path).Serialize(document));
         }
 

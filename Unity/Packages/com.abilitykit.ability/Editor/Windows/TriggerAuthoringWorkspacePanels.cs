@@ -84,7 +84,8 @@ namespace AbilityKit.Ability.Editor.Windows
             TriggerAuthoringModuleData module,
             string eventId,
             TriggerTypeDescriptorCatalog types,
-            TriggerTemplateDescriptorCatalog templates)
+            TriggerTemplateDescriptorCatalog templates,
+            TriggerAuthoringReferenceCatalog references = null)
         {
             var result = new List<TriggerAuthoringRuleOverviewItem>();
             if (module?.Triggers == null || string.IsNullOrWhiteSpace(eventId)) return result;
@@ -94,7 +95,7 @@ namespace AbilityKit.Ability.Editor.Windows
                 var trigger = module.Triggers[i];
                 var effectiveTrigger = TriggerAuthoringTemplateDefinition.ResolveEffectiveView(trigger, templates);
                 if (effectiveTrigger == null || !string.Equals(effectiveTrigger.Event, eventId, StringComparison.Ordinal)) continue;
-                result.Add(BuildItem(module, i, trigger, types, templates));
+                result.Add(BuildItem(module, i, trigger, types, templates, references));
             }
             return result;
         }
@@ -107,7 +108,9 @@ namespace AbilityKit.Ability.Editor.Windows
             IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics,
             TriggerEventDescriptorCatalog events,
             TriggerTypeDescriptorCatalog types,
-            TriggerTemplateDescriptorCatalog templates)
+            TriggerTemplateDescriptorCatalog templates,
+            IReadOnlyList<TriggerAuthoringTriggerIndex.Group> indexedGroups = null,
+            TriggerAuthoringReferenceCatalog references = null)
         {
             var result = new TriggerAuthoringRuleOverviewResult();
             if (module?.Triggers == null ||
@@ -115,7 +118,7 @@ namespace AbilityKit.Ability.Editor.Windows
                 selectedTriggerIndex >= module.Triggers.Count)
                 return result;
 
-            var groups = TriggerAuthoringTriggerIndex.Build(
+            var groups = indexedGroups ?? TriggerAuthoringTriggerIndex.Build(
                 module.Triggers,
                 diagnostics,
                 events,
@@ -151,7 +154,7 @@ namespace AbilityKit.Ability.Editor.Windows
             {
                 var entry = selectedGroup.Entries[i];
                 if (entry.Trigger == null) continue;
-                result.Rules.Add(BuildItem(module, entry.Index, entry.Trigger, types, templates));
+                result.Rules.Add(BuildItem(module, entry.Index, entry.Trigger, types, templates, references));
             }
             return result;
         }
@@ -170,7 +173,8 @@ namespace AbilityKit.Ability.Editor.Windows
             int index,
             TriggerDefinitionData trigger,
             TriggerTypeDescriptorCatalog types,
-            TriggerTemplateDescriptorCatalog templates)
+            TriggerTemplateDescriptorCatalog templates,
+            TriggerAuthoringReferenceCatalog references)
         {
             var condition = trigger.Condition;
             var actions = trigger.Actions;
@@ -197,10 +201,10 @@ namespace AbilityKit.Ability.Editor.Windows
 
             var conditionSummary = templateMissing
                 ? LogicSummary.Error("模板无法解析")
-                : SummarizeLogic(module, condition, TriggerNodeKind.Condition, trigger, template, types);
+                : SummarizeLogic(module, condition, TriggerNodeKind.Condition, trigger, template, types, references);
             var actionSummary = templateMissing
                 ? LogicSummary.Error("模板无法解析")
-                : SummarizeLogic(module, actions, TriggerNodeKind.Action, trigger, template, types);
+                : SummarizeLogic(module, actions, TriggerNodeKind.Action, trigger, template, types, references);
             return new TriggerAuthoringRuleOverviewItem
             {
                 Index = index,
@@ -220,7 +224,8 @@ namespace AbilityKit.Ability.Editor.Windows
             TriggerNodeKind kind,
             TriggerDefinitionData trigger,
             TriggerAuthoringTemplateData template,
-            TriggerTypeDescriptorCatalog types)
+            TriggerTypeDescriptorCatalog types,
+            TriggerAuthoringReferenceCatalog references)
         {
             if (root == null)
                 return new LogicSummary(
@@ -228,54 +233,95 @@ namespace AbilityKit.Ability.Editor.Windows
                     kind == TriggerNodeKind.Condition ? "此规则没有条件，将直接执行行为。" : "此规则尚未配置行为。",
                     kind == TriggerNodeKind.Action);
             if (!root.Enabled) return new LogicSummary("已停用", "根节点已停用。", false);
-            if (!TriggerAuthoringGroupResolver.TryExpand(module, root, kind, out var expanded, out var failure))
+            if (!TriggerAuthoringGroupResolver.TryExpandForEditing(module, root, kind, out var expanded, out var failure))
                 return LogicSummary.Error(failure != null ? failure.Message : "逻辑无法解析");
 
-            var leaves = new List<string>();
-            CollectLeafSummaries(module, expanded, trigger, template, types, leaves);
-            if (leaves.Count == 0)
+            var summary = SummarizeNode(
+                module,
+                expanded,
+                kind,
+                trigger,
+                template,
+                types,
+                references,
+                new HashSet<TriggerNodeData>());
+            if (string.IsNullOrWhiteSpace(summary))
             {
                 var empty = kind == TriggerNodeKind.Condition ? "无有效条件" : "无有效行为";
                 return new LogicSummary(empty, empty, kind == TriggerNodeKind.Action);
             }
 
-            var rootName = GetNodeName(expanded, types);
-            var separator = kind == TriggerNodeKind.Condition ? "、" : " → ";
-            var summary = string.Join(separator, leaves);
-            if (kind == TriggerNodeKind.Condition && expanded.Children != null && expanded.Children.Count > 0)
-                summary = rootName + "：" + summary;
-            else if (kind == TriggerNodeKind.Action &&
-                     expanded.Children != null && expanded.Children.Count > 0 &&
-                     !string.Equals(expanded.Type, "seq", StringComparison.OrdinalIgnoreCase))
-                summary = rootName + "：" + summary;
-
             return new LogicSummary(summary, summary, false);
         }
 
-        private static void CollectLeafSummaries(
+        private static string SummarizeNode(
             TriggerAuthoringModuleData module,
             TriggerNodeData node,
+            TriggerNodeKind kind,
             TriggerDefinitionData trigger,
             TriggerAuthoringTemplateData template,
             TriggerTypeDescriptorCatalog types,
-            ICollection<string> output)
+            TriggerAuthoringReferenceCatalog references,
+            ISet<TriggerNodeData> visited)
         {
-            if (node == null || !node.Enabled) return;
-            if (node.Kind == TriggerNodeKind.Action &&
-                string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+            if (node == null) return string.Empty;
+            if (!visited.Add(node)) return "循环引用";
+            try
             {
-                output.Add(SummarizeConditionalChain(module, node, trigger, template, types));
-                return;
-            }
-            var children = node.Children;
-            if (children != null && children.Count > 0)
-            {
-                for (var i = 0; i < children.Count; i++)
-                    CollectLeafSummaries(module, children[i], trigger, template, types, output);
-                return;
-            }
+                if (!node.Enabled) return "[停用] " + SummarizeNodeTitle(node, types, trigger, template, references);
+                if (kind == TriggerNodeKind.Action &&
+                    string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+                    return SummarizeConditionalChain(module, node, trigger, template, types, references, visited);
+                if (kind == TriggerNodeKind.Action &&
+                    string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase))
+                    return SummarizeUntil(module, node, trigger, template, types, references, visited);
 
+                var children = node.Children;
+                if (children == null || children.Count == 0)
+                    return SummarizeNodeTitle(node, types, trigger, template, references);
+
+                var childSummaries = new List<string>();
+                for (var i = 0; i < children.Count; i++)
+                {
+                    var child = SummarizeNode(module, children[i], kind, trigger, template, types, references, visited);
+                    if (!string.IsNullOrWhiteSpace(child)) childSummaries.Add(child);
+                }
+
+                var nodeName = GetNodeName(node, types);
+                if (childSummaries.Count == 0)
+                    return nodeName + (kind == TriggerNodeKind.Condition ? "（无子条件）" : "（无子行为）");
+
+                if (kind == TriggerNodeKind.Condition)
+                {
+                    if (string.Equals(node.Type, "all", StringComparison.OrdinalIgnoreCase))
+                        return nodeName + "（" + string.Join(" 且 ", childSummaries) + "）";
+                    if (string.Equals(node.Type, "any", StringComparison.OrdinalIgnoreCase))
+                        return nodeName + "（" + string.Join(" 或 ", childSummaries) + "）";
+                    if (string.Equals(node.Type, "not", StringComparison.OrdinalIgnoreCase))
+                        return nodeName + "（" + string.Join("、", childSummaries) + "）";
+                    return nodeName + "（" + string.Join("；", childSummaries) + "）";
+                }
+
+                if (string.Equals(node.Type, "seq", StringComparison.OrdinalIgnoreCase))
+                    return string.Join(" → ", childSummaries);
+                return nodeName + "（" + string.Join("；", childSummaries) + "）";
+            }
+            finally
+            {
+                visited.Remove(node);
+            }
+        }
+
+        private static string SummarizeNodeTitle(
+            TriggerNodeData node,
+            TriggerTypeDescriptorCatalog types,
+            TriggerDefinitionData trigger,
+            TriggerAuthoringTemplateData template,
+            TriggerAuthoringReferenceCatalog references)
+        {
             var title = GetNodeName(node, types);
+            TriggerTypeDescriptor descriptor = null;
+            types?.TryGet(node.Kind, node.Type, out descriptor);
             var arguments = node.Arguments;
             if (arguments != null && arguments.Count > 0)
             {
@@ -284,13 +330,63 @@ namespace AbilityKit.Ability.Editor.Windows
                 {
                     var argument = arguments[i];
                     if (argument == null || string.IsNullOrWhiteSpace(argument.Name)) continue;
+                    var parameter = FindParameter(descriptor, argument.Name);
                     parts.Add(
                         TriggerAuthoringEditorLabels.Parameter(argument.Name) + "=" +
-                        SummarizeValue(ResolveTemplateValue(argument.Value, trigger, template)));
+                        SummarizeValue(
+                            ResolveTemplateValue(argument.Value, trigger, template),
+                            parameter,
+                            references));
                 }
                 if (parts.Count > 0) title += "（" + string.Join("，", parts) + "）";
             }
-            output.Add(title);
+            return title;
+        }
+
+        private static string SummarizeUntil(
+            TriggerAuthoringModuleData module,
+            TriggerNodeData node,
+            TriggerDefinitionData trigger,
+            TriggerAuthoringTemplateData template,
+            TriggerTypeDescriptorCatalog types,
+            TriggerAuthoringReferenceCatalog references,
+            ISet<TriggerNodeData> visited)
+        {
+            var condition = node.Condition == null
+                ? "未配置"
+                : SummarizeNode(
+                    module,
+                    node.Condition,
+                    TriggerNodeKind.Condition,
+                    trigger,
+                    template,
+                    types,
+                    references,
+                    visited);
+            if (string.IsNullOrWhiteSpace(condition)) condition = "无有效条件";
+
+            var children = new List<string>();
+            var sourceChildren = node.Children;
+            if (sourceChildren != null)
+            {
+                for (var i = 0; i < sourceChildren.Count; i++)
+                {
+                    var child = SummarizeNode(
+                        module,
+                        sourceChildren[i],
+                        TriggerNodeKind.Action,
+                        trigger,
+                        template,
+                        types,
+                        references,
+                        visited);
+                    if (!string.IsNullOrWhiteSpace(child)) children.Add(child);
+                }
+            }
+
+            var body = children.Count > 0 ? string.Join(" → ", children) : "无子行为";
+            return SummarizeNodeTitle(node, types, trigger, template, references) +
+                   "［结束条件：" + condition + "］（" + body + "）";
         }
 
         private static string SummarizeConditionalChain(
@@ -298,30 +394,41 @@ namespace AbilityKit.Ability.Editor.Windows
             TriggerNodeData root,
             TriggerDefinitionData trigger,
             TriggerAuthoringTemplateData template,
-            TriggerTypeDescriptorCatalog types)
+            TriggerTypeDescriptorCatalog types,
+            TriggerAuthoringReferenceCatalog references,
+            ISet<TriggerNodeData> visited)
         {
             var parts = new List<string>();
-            var visited = new HashSet<TriggerNodeData>();
+            var chainVisited = new HashSet<TriggerNodeData>();
             var current = root;
             var branchIndex = 0;
-            while (current != null && visited.Add(current))
+            while (current != null)
             {
+                if (!chainVisited.Add(current))
+                {
+                    parts.Add("否则：循环引用");
+                    break;
+                }
                 var condition = current.Condition == null
                     ? "未配置判断条件"
-                    : SummarizeLogic(
+                    : SummarizeNode(
                         module,
                         current.Condition,
                         TriggerNodeKind.Condition,
                         trigger,
                         template,
-                        types).Text;
+                        types,
+                        references,
+                        visited);
                 var actions = SummarizeActionBranch(
                     module,
                     current.Children,
                     trigger,
                     template,
                     types,
-                    "未配置成立行为");
+                    references,
+                    "未配置成立行为",
+                    visited);
                 parts.Add((branchIndex == 0 ? "如果[" : "否则如果[") + condition + "]：" + actions);
                 branchIndex++;
 
@@ -337,7 +444,9 @@ namespace AbilityKit.Ability.Editor.Windows
                     trigger,
                     template,
                     types,
-                    "不执行其他行为"));
+                    references,
+                    "不执行其他行为",
+                    visited));
                 break;
             }
             return string.Join("；", parts);
@@ -349,12 +458,25 @@ namespace AbilityKit.Ability.Editor.Windows
             TriggerDefinitionData trigger,
             TriggerAuthoringTemplateData template,
             TriggerTypeDescriptorCatalog types,
-            string emptyText)
+            TriggerAuthoringReferenceCatalog references,
+            string emptyText,
+            ISet<TriggerNodeData> visited)
         {
             var summaries = new List<string>();
             if (nodes != null)
                 for (var i = 0; i < nodes.Count; i++)
-                    CollectLeafSummaries(module, nodes[i], trigger, template, types, summaries);
+                {
+                    var summary = SummarizeNode(
+                        module,
+                        nodes[i],
+                        TriggerNodeKind.Action,
+                        trigger,
+                        template,
+                        types,
+                        references,
+                        visited);
+                    if (!string.IsNullOrWhiteSpace(summary)) summaries.Add(summary);
+                }
             return summaries.Count > 0 ? string.Join(" → ", summaries) : emptyText;
         }
 
@@ -404,7 +526,10 @@ namespace AbilityKit.Ability.Editor.Windows
             return TriggerAuthoringEditorLabels.Node(node.Type, descriptor != null ? descriptor.DisplayName : null);
         }
 
-        private static string SummarizeValue(TriggerValueRefData value)
+        private static string SummarizeValue(
+            TriggerValueRefData value,
+            TriggerParameterDescriptor parameter,
+            TriggerAuthoringReferenceCatalog references)
         {
             if (value == null) return "未设置";
             if (value.Source == TriggerValueSource.Expression) return "表达式：" + value.Expression;
@@ -413,19 +538,70 @@ namespace AbilityKit.Ability.Editor.Windows
             switch (value.Type)
             {
                 case TriggerValueType.Integer:
+                    if (TrySummarizeReference(value.IntegerValue, parameter, references, out var integerSummary))
+                        return integerSummary;
+                    return value.IntegerValue.ToString();
                 case TriggerValueType.Entity:
                 case TriggerValueType.ObjectId: return value.IntegerValue.ToString();
                 case TriggerValueType.Number: return value.NumberValue.ToString("G");
                 case TriggerValueType.Boolean: return value.BooleanValue ? "是" : "否";
                 case TriggerValueType.String: return value.StringValue ?? string.Empty;
                 case TriggerValueType.IntegerList:
-                    return value.IntegerListValue != null ? string.Join(",", value.IntegerListValue) : string.Empty;
+                    return SummarizeReferenceList(value.IntegerListValue, parameter, references);
                 case TriggerValueType.Vector3:
                     return value.Vector3Value == null
                         ? "(0, 0, 0)"
                         : $"({value.Vector3Value.X:G}, {value.Vector3Value.Y:G}, {value.Vector3Value.Z:G})";
                 default: return TriggerAuthoringEditorLabels.ValueType(value.Type);
             }
+        }
+
+        private static TriggerParameterDescriptor FindParameter(
+            TriggerTypeDescriptor descriptor,
+            string name)
+        {
+            if (descriptor?.Parameters == null) return null;
+            for (var i = 0; i < descriptor.Parameters.Count; i++)
+            {
+                var parameter = descriptor.Parameters[i];
+                if (parameter != null && string.Equals(parameter.Name, name, StringComparison.Ordinal))
+                    return parameter;
+            }
+            return null;
+        }
+
+        private static bool TrySummarizeReference(
+            long value,
+            TriggerParameterDescriptor parameter,
+            TriggerAuthoringReferenceCatalog references,
+            out string summary)
+        {
+            summary = null;
+            if (parameter == null || references == null ||
+                string.IsNullOrWhiteSpace(parameter.SemanticId) ||
+                !references.TryResolve(parameter.SemanticId, parameter.Type, value, out var option))
+                return false;
+            summary = option.DisplayName + " [" + value + "]";
+            return true;
+        }
+
+        private static string SummarizeReferenceList(
+            IReadOnlyList<long> values,
+            TriggerParameterDescriptor parameter,
+            TriggerAuthoringReferenceCatalog references)
+        {
+            if (values == null || values.Count == 0) return string.Empty;
+            const int previewCount = 3;
+            var summaries = new List<string>(Math.Min(values.Count, previewCount));
+            var count = Math.Min(values.Count, previewCount);
+            for (var i = 0; i < count; i++)
+            {
+                summaries.Add(TrySummarizeReference(values[i], parameter, references, out var summary)
+                    ? summary
+                    : values[i].ToString());
+            }
+            if (values.Count > previewCount) summaries.Add("等 " + values.Count + " 项");
+            return string.Join(", ", summaries);
         }
 
         private readonly struct LogicSummary

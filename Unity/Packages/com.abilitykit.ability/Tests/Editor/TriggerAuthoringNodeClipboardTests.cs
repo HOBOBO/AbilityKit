@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using System.Collections.Generic;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
 using NUnit.Framework;
@@ -70,6 +71,56 @@ namespace AbilityKit.Ability.Editor.Tests
                     TriggerAuthoringNodeClipboard.Marker + "{ not valid json",
                     out _),
                 Is.False);
+        }
+
+        [Test]
+        public void NodeClipboard_PasteRegeneratesEveryNodeId()
+        {
+            var previous = EditorGUIUtility.systemCopyBuffer;
+            var source = new TriggerNodeData
+            {
+                NodeId = "node_00000000000000000000000000000001",
+                Kind = TriggerNodeKind.Action,
+                Type = "conditional",
+                Condition = new TriggerNodeData
+                {
+                    NodeId = "node_00000000000000000000000000000002",
+                    Kind = TriggerNodeKind.Condition,
+                    Type = "always_true"
+                },
+                Children =
+                {
+                    new TriggerNodeData
+                    {
+                        NodeId = "node_00000000000000000000000000000003",
+                        Kind = TriggerNodeKind.Action,
+                        Type = "debug_log"
+                    }
+                }
+            };
+            try
+            {
+                TriggerAuthoringNodeClipboard.Copy(source, TriggerNodeKind.Action);
+
+                var success = TriggerAuthoringNodeClipboard.TryPaste(TriggerNodeKind.Action, out var pasted);
+
+                Assert.That(success, Is.True);
+                Assert.That(pasted.NodeId, Is.Not.EqualTo(source.NodeId));
+                Assert.That(pasted.Condition.NodeId, Is.Not.EqualTo(source.Condition.NodeId));
+                Assert.That(pasted.Children[0].NodeId, Is.Not.EqualTo(source.Children[0].NodeId));
+                var ids = new HashSet<string>
+                {
+                    pasted.NodeId,
+                    pasted.Condition.NodeId,
+                    pasted.Children[0].NodeId
+                };
+                Assert.That(ids, Has.Count.EqualTo(3));
+                foreach (var id in ids) Assert.That(TriggerAuthoringNodeIdentity.IsValid(id), Is.True);
+            }
+            finally
+            {
+                EditorGUIUtility.systemCopyBuffer = previous;
+            }
         }
 
         [Test]

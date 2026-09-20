@@ -29,6 +29,48 @@ namespace AbilityKit.Ability.Editor.Utilities
             return indices;
         }
 
+        public static List<TriggerAuthoringTriggerIndex.Group> PaginateGroups(
+            IReadOnlyList<TriggerAuthoringTriggerIndex.Group> groups,
+            int requestedPageIndex,
+            int pageSize,
+            out int totalCount,
+            out int pageCount,
+            out int pageIndex)
+        {
+            pageSize = Math.Max(1, pageSize);
+            var orderedIndices = CollectOrderedUniqueIndices(groups);
+            totalCount = orderedIndices.Count;
+            pageCount = Math.Max(1, (totalCount + pageSize - 1) / pageSize);
+            pageIndex = Math.Max(0, Math.Min(requestedPageIndex, pageCount - 1));
+
+            var first = pageIndex * pageSize;
+            var last = Math.Min(first + pageSize, totalCount);
+            var included = new HashSet<int>();
+            for (var i = first; i < last; i++) included.Add(orderedIndices[i]);
+
+            var result = new List<TriggerAuthoringTriggerIndex.Group>();
+            if (groups == null || included.Count == 0) return result;
+            for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+            {
+                var source = groups[groupIndex];
+                if (source == null) continue;
+                TriggerAuthoringTriggerIndex.Group pageGroup = null;
+                for (var entryIndex = 0; entryIndex < source.Entries.Count; entryIndex++)
+                {
+                    var entry = source.Entries[entryIndex];
+                    if (!included.Contains(entry.Index)) continue;
+                    if (pageGroup == null)
+                        pageGroup = new TriggerAuthoringTriggerIndex.Group(
+                            source.Key,
+                            source.Label,
+                            source.SortKey);
+                    pageGroup.Entries.Add(entry);
+                }
+                if (pageGroup != null) result.Add(pageGroup);
+            }
+            return result;
+        }
+
         public static int SetEnabled(
             IList<TriggerDefinitionData> triggers,
             IReadOnlyList<int> indices,
@@ -173,6 +215,25 @@ namespace AbilityKit.Ability.Editor.Utilities
                 if (mutate(trigger)) changed++;
             }
             return changed;
+        }
+
+        private static List<int> CollectOrderedUniqueIndices(
+            IReadOnlyList<TriggerAuthoringTriggerIndex.Group> groups)
+        {
+            var result = new List<int>();
+            var seen = new HashSet<int>();
+            if (groups == null) return result;
+            for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+            {
+                var group = groups[groupIndex];
+                if (group == null) continue;
+                for (var entryIndex = 0; entryIndex < group.Entries.Count; entryIndex++)
+                {
+                    var index = group.Entries[entryIndex].Index;
+                    if (seen.Add(index)) result.Add(index);
+                }
+            }
+            return result;
         }
 
         private static bool ContainsTag(IReadOnlyList<string> tags, string tag)

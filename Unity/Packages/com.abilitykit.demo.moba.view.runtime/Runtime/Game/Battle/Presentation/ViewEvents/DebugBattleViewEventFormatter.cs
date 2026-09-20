@@ -1,4 +1,6 @@
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -7,10 +9,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 {
     internal sealed class DebugBattleViewEventFormatter
     {
-        public string FormatTrigger(in TriggerEvent evt)
+        public string FormatDamageResult(in DamageResult result)
         {
-            var id = evt.Id != null ? evt.Id.ToString() : "<null>";
-            return $"Trigger:{id}";
+            return $"DamageResult: target={result.TargetActorId}";
+        }
+
+        public string FormatProjectileHit(in ProjectileHitEvent evt)
+        {
+            return $"ProjectileHit: projectile={evt.Projectile.Value}, template={evt.TemplateId}";
         }
 
         public string FormatEnterGame(in EnterMobaGameRes res)

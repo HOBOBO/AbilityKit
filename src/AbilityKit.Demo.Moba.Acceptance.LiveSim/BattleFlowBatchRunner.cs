@@ -41,7 +41,7 @@ public static class BattleFlowBatchRunner
             try
             {
                 var doc = BattleFlowCodec.Load(file);
-                var scenario = BattleFlowCompiler.Compile(doc.CaseId, doc.Blocks);
+                var scenario = BattleFlowCompiler.CompileFile(file);
                 var outcome = MobaBattleFlowScenarioRunner.RunDetailed(scenario);
                 result.Cases.Add(new BattleFlowCaseResult
                 {

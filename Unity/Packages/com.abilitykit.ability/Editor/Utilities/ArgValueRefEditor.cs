@@ -1,101 +1,9 @@
 using System.Collections.Generic;
-using AbilityKit.Ability.Config;
-using Sirenix.OdinInspector;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Triggering.Variables.Numeric.Expression;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
-
-namespace AbilityKit.Ability.Editor
-{
-    [System.Serializable]
-    [InlineProperty]
-    [HideLabel]
-    public sealed class ArgValueRefEditor
-    {
-        private static ArgValueKind _lastConstKind = ArgValueKind.Float;
-
-        [LabelText("来源")]
-        [ValueDropdown(nameof(GetValueSourceOptions))]
-        public ValueSourceKind Source = ValueSourceKind.Const;
-
-        [LabelText("常量")]
-        [ShowIf(nameof(IsConst))]
-        public ArgRuntimeEntryCore ConstValue = new ArgRuntimeEntryCore();
-
-        [LabelText("取值作用域")]
-        [ShowIf(nameof(IsVar))]
-        public VarScope FromScope = VarScope.Local;
-
-        [LabelText("变量名")]
-        [InfoBox("当前作用域下没有可用变量", InfoMessageType.Warning, VisibleIf = nameof(HasNoFromKeys))]
-        [ShowIf(nameof(IsVar))]
-        [ValueDropdown(nameof(GetFromKeyOptions))]
-        [OnValueChanged(nameof(OnFromKeyChanged))]
-        public string FromKey;
-
-        private bool IsConst => Source == ValueSourceKind.Const;
-        private bool IsVar => Source == ValueSourceKind.Var;
-
-        [OnInspectorGUI]
-        private void KeepLastConstKind()
-        {
-            if (!IsConst) return;
-            if (ConstValue == null) ConstValue = new ArgRuntimeEntryCore();
-
-            if (ConstValue.Kind == ArgValueKind.None)
-            {
-                ConstValue.Kind = _lastConstKind;
-            }
-            else
-            {
-                _lastConstKind = ConstValue.Kind;
-            }
-        }
-
-        public ArgValueKind GetExpectedKind()
-        {
-            if (ConstValue == null) return ArgValueKind.None;
-            return ConstValue.Kind;
-        }
-
-        public object GetConstBoxedValue()
-        {
-            return ConstValue != null ? ConstValue.GetBoxedValue() : null;
-        }
-
-        private IEnumerable<string> GetFromKeyOptions()
-        {
-            var expected = GetExpectedKind();
-            return VarKeyDropdownUtil.BuildKeys(FromScope, VarKeyUsage.Read, expected);
-        }
-
-        private bool HasNoFromKeys()
-        {
-            if (!IsVar) return false;
-            var keys = GetFromKeyOptions();
-            if (keys == null) return true;
-            using (var e = keys.GetEnumerator())
-            {
-                return !e.MoveNext();
-            }
-        }
-
-        private void OnFromKeyChanged()
-        {
-            if (!IsVar) return;
-            if (string.IsNullOrEmpty(FromKey)) return;
-            VarKeyRecentUtil.Record(FromScope, FromKey);
-        }
-
-        private static IEnumerable<ValueDropdownItem<ValueSourceKind>> GetValueSourceOptions()
-        {
-            yield return new ValueDropdownItem<ValueSourceKind>("常量", ValueSourceKind.Const);
-            yield return new ValueDropdownItem<ValueSourceKind>("变量引用", ValueSourceKind.Var);
-        }
-    }
-}
 
 namespace AbilityKit.Ability.Editor.Utilities
 {
@@ -157,6 +65,8 @@ namespace AbilityKit.Ability.Editor.Utilities
         public TriggerGlobalBlackboardDescriptorCatalog GlobalBlackboard;
         public IReadOnlyList<TriggerAuthoringTemplateParameterData> TemplateParameters;
         public TriggerAuthoringValueSourceCatalog ValueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(null);
+        public TriggerAuthoringReferenceCatalog References = TriggerAuthoringReferenceCatalog.CreateForProject(null);
+        public System.Action<string, System.Action> ApplyChange;
         // Kept for callers that provide temporary context fields without a project extension.
         public IReadOnlyList<TriggerPayloadFieldData> ContextFields = System.Array.Empty<TriggerPayloadFieldData>();
 
@@ -404,6 +314,14 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case "duration_frames": return "持续帧数";
                 case "interval_ms": return "间隔（毫秒）";
                 case "cooldown_ms": return "冷却时间（毫秒）";
+                case "count": return "重复次数";
+                case "max_iterations": return "最大迭代次数";
+                case "collection": return "集合";
+                case "item": return "当前元素";
+                case "weight": return "权重";
+                case "schedule_mode": return "调度模式";
+                case "max_executions": return "最大执行次数";
+                case "can_be_interrupted": return "允许中断";
                 case "remove_all": return "全部移除";
                 case "check_stack": return "检查层数";
                 case "target_mode": return "目标模式";
@@ -508,6 +426,73 @@ namespace AbilityKit.Ability.Editor.Utilities
                 case "z": return "Z 轴数值";
                 default: return string.IsNullOrWhiteSpace(name) ? "未命名参数" : name;
             }
+        }
+    }
+
+    internal sealed class TriggerAuthoringReferenceDropdown : AdvancedDropdown
+    {
+        private readonly IReadOnlyList<TriggerAuthoringReferenceOption> _options;
+        private readonly System.Action<TriggerAuthoringReferenceOption> _selected;
+
+        public TriggerAuthoringReferenceDropdown(
+            AdvancedDropdownState state,
+            IReadOnlyList<TriggerAuthoringReferenceOption> options,
+            System.Action<TriggerAuthoringReferenceOption> selected)
+            : base(state)
+        {
+            _options = options ?? System.Array.Empty<TriggerAuthoringReferenceOption>();
+            _selected = selected;
+            minimumSize = new Vector2(360f, 320f);
+        }
+
+        protected override AdvancedDropdownItem BuildRoot()
+        {
+            var root = new AdvancedDropdownItem("选择配置引用");
+            var groups = new Dictionary<string, AdvancedDropdownItem>(System.StringComparer.Ordinal);
+            var added = 0;
+            for (var i = 0; i < _options.Count; i++)
+            {
+                var option = _options[i];
+                if (option == null) continue;
+                var parent = GetOrCreateGroup(root, groups, option.Group);
+                parent.AddChild(new AdvancedDropdownItem(option.Label) { id = i + 1 });
+                added++;
+            }
+            if (added == 0)
+                root.AddChild(new AdvancedDropdownItem("没有可用配置") { enabled = false });
+            return root;
+        }
+
+        protected override void ItemSelected(AdvancedDropdownItem item)
+        {
+            var index = item.id - 1;
+            if (index >= 0 && index < _options.Count)
+                _selected?.Invoke(_options[index]);
+        }
+
+        private static AdvancedDropdownItem GetOrCreateGroup(
+            AdvancedDropdownItem root,
+            IDictionary<string, AdvancedDropdownItem> groups,
+            string group)
+        {
+            if (string.IsNullOrWhiteSpace(group)) return root;
+            var parts = group.Split('/');
+            var parent = root;
+            var path = string.Empty;
+            for (var i = 0; i < parts.Length; i++)
+            {
+                var part = parts[i]?.Trim();
+                if (string.IsNullOrEmpty(part)) continue;
+                path = path.Length == 0 ? part : path + "/" + part;
+                if (!groups.TryGetValue(path, out var child))
+                {
+                    child = new AdvancedDropdownItem(part);
+                    groups.Add(path, child);
+                    parent.AddChild(child);
+                }
+                parent = child;
+            }
+            return parent;
         }
     }
 
@@ -787,6 +772,13 @@ namespace AbilityKit.Ability.Editor.Utilities
                         DrawIntegerChoice(value, parameter.Options);
                         break;
                     }
+                    if (parameter != null &&
+                        context?.References != null &&
+                        context.References.TryGetProvider(parameter.SemanticId, type, out _))
+                    {
+                        DrawIntegerReference(value, parameter, context);
+                        break;
+                    }
                     value.IntegerValue = EditorGUILayout.LongField("值", value.IntegerValue);
                     break;
                 case TriggerValueType.Entity:
@@ -803,6 +795,13 @@ namespace AbilityKit.Ability.Editor.Utilities
                     value.StringValue = EditorGUILayout.TextField("值", value.StringValue);
                     break;
                 case TriggerValueType.IntegerList:
+                    if (parameter != null &&
+                        context?.References != null &&
+                        context.References.TryGetProvider(parameter.SemanticId, type, out _))
+                    {
+                        DrawIntegerReferenceList(value, parameter, context);
+                        break;
+                    }
                     var current = value.IntegerListValue != null ? string.Join(",", value.IntegerListValue) : string.Empty;
                     var next = EditorGUILayout.TextField("值列表", current);
                     if (!string.Equals(current, next, System.StringComparison.Ordinal))
@@ -1024,6 +1023,163 @@ namespace AbilityKit.Ability.Editor.Utilities
             var next = EditorGUILayout.Popup("值", selected, names.ToArray());
             if (next != selected && next < options.Count)
                 value.IntegerValue = options[next].Value;
+        }
+
+        private static void DrawIntegerReference(
+            TriggerValueRefData value,
+            TriggerParameterDescriptor parameter,
+            TriggerAuthoringValueRefEditorContext context)
+        {
+            EditorGUILayout.BeginHorizontal();
+            value.IntegerValue = EditorGUILayout.LongField("值", value.IntegerValue);
+            if (GUILayout.Button("选择", EditorStyles.miniButton, GUILayout.Width(52f)))
+            {
+                var activator = GUILayoutUtility.GetLastRect();
+                var options = context.References.GetOptions(parameter.SemanticId, parameter.Type);
+                new TriggerAuthoringReferenceDropdown(
+                    new AdvancedDropdownState(),
+                    options,
+                    option => ApplyReferenceSelection(value, parameter, context, option))
+                    .Show(activator);
+            }
+            EditorGUILayout.EndHorizontal();
+
+            if (context.References.TryResolve(
+                    parameter.SemanticId,
+                    parameter.Type,
+                    value.IntegerValue,
+                    out var resolved))
+            {
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("已解析", resolved.Label, EditorStyles.miniLabel);
+                DrawLocateReferenceButton(context.References, parameter, value.IntegerValue);
+                EditorGUILayout.EndHorizontal();
+                if (!string.IsNullOrWhiteSpace(resolved.Description))
+                    EditorGUILayout.LabelField("说明", resolved.Description, EditorStyles.wordWrappedMiniLabel);
+            }
+            else if (context.References.IsOperational(parameter.SemanticId))
+            {
+                EditorGUILayout.HelpBox(
+                    "未找到 " + parameter.SemanticId + " 引用 [" + value.IntegerValue + "]，原始 ID 将继续保留。",
+                    MessageType.Warning);
+            }
+            else
+            {
+                EditorGUILayout.HelpBox(
+                    "引用目录暂不可用，当前按普通整数 ID 编辑并保留原始值。",
+                    MessageType.Info);
+            }
+        }
+
+        private static void ApplyReferenceSelection(
+            TriggerValueRefData value,
+            TriggerParameterDescriptor parameter,
+            TriggerAuthoringValueRefEditorContext context,
+            TriggerAuthoringReferenceOption option)
+        {
+            if (option == null || value.IntegerValue == option.Value) return;
+            System.Action apply = () => value.IntegerValue = option.Value;
+            if (context.ApplyChange != null)
+                context.ApplyChange("选择" + parameter.SemanticId + "引用", apply);
+            else
+            {
+                apply();
+                GUI.changed = true;
+            }
+        }
+
+        private static void DrawIntegerReferenceList(
+            TriggerValueRefData value,
+            TriggerParameterDescriptor parameter,
+            TriggerAuthoringValueRefEditorContext context)
+        {
+            value.IntegerListValue = value.IntegerListValue ?? new List<long>();
+            var current = string.Join(",", value.IntegerListValue);
+            var next = EditorGUILayout.TextField("值列表", current);
+            if (!string.Equals(current, next, System.StringComparison.Ordinal))
+                value.IntegerListValue = ParseIntegerList(next);
+
+            EditorGUILayout.BeginHorizontal();
+            GUILayout.Space(EditorGUIUtility.labelWidth);
+            if (GUILayout.Button("添加配置", EditorStyles.miniButton))
+            {
+                var activator = GUILayoutUtility.GetLastRect();
+                var options = context.References.GetOptions(parameter.SemanticId, parameter.Type);
+                new TriggerAuthoringReferenceDropdown(
+                    new AdvancedDropdownState(),
+                    options,
+                    option => ApplyReferenceListSelection(value, parameter, context, option))
+                    .Show(activator);
+            }
+            using (new EditorGUI.DisabledScope(value.IntegerListValue.Count == 0))
+            {
+                if (GUILayout.Button("清空", EditorStyles.miniButton, GUILayout.Width(44f)))
+                    value.IntegerListValue.Clear();
+            }
+            EditorGUILayout.EndHorizontal();
+
+            for (var i = 0; i < value.IntegerListValue.Count; i++)
+            {
+                var index = i;
+                var id = value.IntegerListValue[i];
+                var resolved = context.References.TryResolve(
+                    parameter.SemanticId,
+                    parameter.Type,
+                    id,
+                    out var option);
+                EditorGUILayout.BeginHorizontal();
+                GUILayout.Space(EditorGUIUtility.labelWidth);
+                GUILayout.Label(
+                    resolved ? option.Label : "缺失引用  [" + id + "]",
+                    resolved ? EditorStyles.miniLabel : EditorStyles.miniBoldLabel);
+                if (resolved)
+                    DrawLocateReferenceButton(context.References, parameter, id);
+                if (GUILayout.Button("x", EditorStyles.miniButton, GUILayout.Width(22f)))
+                {
+                    value.IntegerListValue.RemoveAt(index);
+                    i--;
+                }
+                EditorGUILayout.EndHorizontal();
+            }
+            if (!context.References.IsOperational(parameter.SemanticId))
+                EditorGUILayout.HelpBox(
+                    "引用目录暂不可用，当前按普通整数列表编辑并保留原始值。",
+                    MessageType.Info);
+        }
+
+        private static void ApplyReferenceListSelection(
+            TriggerValueRefData value,
+            TriggerParameterDescriptor parameter,
+            TriggerAuthoringValueRefEditorContext context,
+            TriggerAuthoringReferenceOption option)
+        {
+            if (option == null) return;
+            value.IntegerListValue = value.IntegerListValue ?? new List<long>();
+            if (value.IntegerListValue.Contains(option.Value)) return;
+            System.Action apply = () => value.IntegerListValue.Add(option.Value);
+            if (context.ApplyChange != null)
+                context.ApplyChange("添加" + parameter.SemanticId + "引用", apply);
+            else
+            {
+                apply();
+                GUI.changed = true;
+            }
+        }
+
+        private static void DrawLocateReferenceButton(
+            TriggerAuthoringReferenceCatalog references,
+            TriggerParameterDescriptor parameter,
+            long value)
+        {
+            if (references == null || parameter == null ||
+                !references.CanLocate(parameter.SemanticId, parameter.Type))
+                return;
+            var content = EditorGUIUtility.IconContent("d_ViewToolZoom");
+            content.tooltip = "定位配置资源";
+            if (!GUILayout.Button(content, EditorStyles.miniButton, GUILayout.Width(24f))) return;
+            if (!references.TryGetTarget(parameter.SemanticId, parameter.Type, value, out var target)) return;
+            Selection.activeObject = target;
+            EditorGUIUtility.PingObject(target);
         }
 
         private static void DrawPathPopup(

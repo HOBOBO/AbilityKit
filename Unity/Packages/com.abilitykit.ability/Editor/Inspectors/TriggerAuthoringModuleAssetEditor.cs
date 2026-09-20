@@ -32,6 +32,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         public bool CanPasteChild;
         public bool CanAddChild;
         public Action Copy;
+        public Action CopyNodeId;
         public Action PasteChild;
         public Action ChangeType;
         public Action SelectGroup;
@@ -42,6 +43,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
         public Action NavigateTrigger;
         public Action ToggleEnabled;
         public Action AddDebugLogChild;
+        public Action InsertBefore;
+        public Action InsertAfter;
         public Action InsertDebugLogBefore;
         public Action InsertDebugLogAfter;
         public Action Remove;
@@ -53,6 +56,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         public void Populate(TriggerAuthoringNodeContextMenuContext context)
         {
             var menu = context.Menu;
+            AddOptional(menu, "复制节点 ID", !string.IsNullOrWhiteSpace(context.Node?.NodeId), context.CopyNodeId);
             menu.AddItem(new GUIContent("复制节点"), false, () => context.Copy?.Invoke());
             AddOptional(menu, "粘贴为子节点", context.CanPasteChild, context.PasteChild);
             menu.AddSeparator(string.Empty);
@@ -76,6 +80,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     AddOptional(menu, "复用/提取为可复用分组...", true, context.ExtractGroup);
                 AddOptional(menu, "复用/替换为已有分组", true, context.SelectGroup);
             }
+            menu.AddSeparator(string.Empty);
+            AddOptional(menu, "插入节点/在前方...", context.InsertBefore != null, context.InsertBefore);
+            AddOptional(menu, "插入节点/在后方...", context.InsertAfter != null, context.InsertAfter);
             menu.AddSeparator(string.Empty);
             if (context.Kind == TriggerNodeKind.Action)
             {
@@ -115,6 +122,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             Overview,
             RuleTree,
+            DryRun,
             Settings
         }
 
@@ -137,6 +145,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             None,
             Predicate,
+            UntilCondition,
             Then,
             Else
         }
@@ -147,6 +156,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             public TriggerNodeKind Kind;
             public TriggerNodeKind WorkspaceKind;
             public string Path;
+            public string StableNodeId;
             public string ParentPath;
             public string Breadcrumb;
             public int Depth;
@@ -161,6 +171,16 @@ namespace AbilityKit.Ability.Editor.Inspectors
             public TriggerNodeData ConditionalOwner;
         }
 
+        private sealed class TriggerIndexCacheEntry
+        {
+            public int Revision = -1;
+            public TriggerAuthoringTriggerGroupMode GroupMode;
+            public string SearchText;
+            public TriggerAuthoringTriggerQuickFilter QuickFilter;
+            public List<TriggerAuthoringTriggerIndex.Group> Groups;
+            public IReadOnlyList<int> VisibleIndices;
+        }
+
         private const float SplitThreshold = 680f;
         private const float DefaultTriggerListWidth = 300f;
         private const string TriggerListWidthPreference = "AbilityKit.TriggerAuthoring.TriggerListWidth";
@@ -168,6 +188,11 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private const string WorkspaceModePreference = "AbilityKit.TriggerAuthoring.WorkspaceMode";
         private const float DefaultNodeOutlineWidth = 280f;
         private const string NodeOutlineWidthPreference = "AbilityKit.TriggerAuthoring.NodeOutlineWidth";
+        private const string TriggerPageSizePreference = "AbilityKit.TriggerAuthoring.PageSize";
+        private const int DefaultTriggerPageSize = 50;
+        private const double DiagnosticsDebounceSeconds = 0.2d;
+        private static readonly int[] TriggerPageSizes = { 25, 50, 100, 200 };
+        private static readonly string[] TriggerPageSizeLabels = { "25", "50", "100", "200" };
 
         internal event Action RepaintRequested;
 
@@ -178,10 +203,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private TriggerEventDescriptorCatalog _events;
         private TriggerGlobalBlackboardDescriptorCatalog _globalBlackboard;
         private TriggerAuthoringValueSourceCatalog _valueSources;
+        private TriggerAuthoringReferenceCatalog _references;
         private TriggerTemplateDescriptorCatalog _templates;
         private List<TriggerAuthoringDiagnostic> _diagnostics = new List<TriggerAuthoringDiagnostic>();
         private EditorDiagnosticCollection _platformDiagnostics = new EditorDiagnosticCollection();
         private Vector2 _triggerScroll;
+        private int _triggerPageIndex;
+        private int _triggerPageSize;
+        private Rect _triggerPagerRect;
         private readonly EditorSearchState _triggerSearch = new EditorSearchState();
         private TriggerAuthoringTriggerGroupMode _triggerGroupMode = TriggerAuthoringTriggerGroupMode.GroupPath;
         private string _selectedTriggerGroupKey;
@@ -190,16 +219,23 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private bool _triggerGroupsInitialized;
         private bool _scrollToSelectedTrigger;
         private Vector2 _detailScroll;
+        private Vector2 _dryRunScroll;
         private Vector2 _nodeOutlineScroll;
         private Vector2 _nodeDetailScroll;
         private Vector2 _diagnosticScroll;
         private int _selectedTriggerIndex = -1;
         private string _focusedDiagnosticPath;
+        private string _dryRunInputJson = TriggerAuthoringDryRunInput.CreateDefaultJson();
+        private string _dryRunInputError;
+        private int _dryRunTriggerId;
+        private TriggerAuthoringDryRunResult _dryRunResult;
         private TriggerEditorTab _selectedEditorTab = TriggerEditorTab.Overview;
         private TriggerNodeKind _selectedRuleNodeKind = TriggerNodeKind.Condition;
         private string _selectedRuleNodePath;
+        private string _selectedRuleNodeId;
         private TriggerNodeKind _ruleFocusKind = TriggerNodeKind.Condition;
         private string _ruleFocusPath;
+        private string _ruleFocusNodeId;
         private bool _ruleTreeBranchesInitialized;
         private string _nodeSearch = string.Empty;
         private readonly HashSet<string> _expandedNodePaths = new HashSet<string>(StringComparer.Ordinal);
@@ -223,6 +259,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
             };
         private double _nextSyncInspectionAt;
         private TriggerAuthoringSyncInspection _syncInspection;
+        private bool _syncInspectionAssetDirty = true;
+        private string _syncInspectionSourcePath;
+        private long _syncInspectionSourceLength = -1L;
+        private long _syncInspectionSourceWriteTicks = -1L;
         private TriggerAuthoringSyncState? _dismissedSyncBannerState;
         private readonly AdvancedDropdownState _nodeBrowserState = new AdvancedDropdownState();
         private readonly TriggerAuthoringTriggerTablePanel _triggerTablePanel;
@@ -237,11 +277,31 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private float _nodeOutlineWidth;
         private bool _draggingNodeOutlineSplitter;
         private TriggerWorkspaceMode _workspaceMode;
+        private readonly TriggerIndexCacheEntry[] _triggerIndexCache =
+        {
+            new TriggerIndexCacheEntry(),
+            new TriggerIndexCacheEntry()
+        };
+        private int _nextTriggerIndexCacheSlot;
+        private int _triggerIndexRevision;
+        private TriggerAuthoringTriggerIndex.PreparedSearchIndex _triggerPreparedSearch;
+        private int _triggerPreparedSearchRevision = -1;
+        private TriggerAuthoringRuleOverviewResult _cachedRuleOverview;
+        private int _cachedRuleOverviewRevision = -1;
+        private int _cachedRuleOverviewTriggerIndex = -1;
+        private TriggerAuthoringTriggerGroupMode _cachedRuleOverviewGroupMode;
+        private string _cachedRuleOverviewGroupKey;
+        private string _assetContentSnapshot;
+        private bool _diagnosticsRefreshPending;
+        private double _diagnosticsRefreshAt;
+        private int _diagnosticsRevision = -1;
 
         public TriggerAuthoringModuleDrawer(TriggerAuthoringModuleAsset asset)
         {
             _triggerListWidth = EditorPrefs.GetFloat(TriggerListWidthPreference, DefaultTriggerListWidth);
             _nodeOutlineWidth = EditorPrefs.GetFloat(NodeOutlineWidthPreference, DefaultNodeOutlineWidth);
+            _triggerPageSize = NormalizeTriggerPageSize(
+                EditorPrefs.GetInt(TriggerPageSizePreference, DefaultTriggerPageSize));
             _workspaceMode = (TriggerWorkspaceMode)Mathf.Clamp(
                 EditorPrefs.GetInt(WorkspaceModePreference, (int)TriggerWorkspaceMode.RuleEditor),
                 (int)TriggerWorkspaceMode.RuleEditor,
@@ -255,6 +315,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _templateMatrixPanel.OpenRequested += OpenTriggerFromTable;
             _templateMatrixPanel.PasteRequested += PreviewTemplateMatrixPaste;
             _templateMatrixPanel.NotificationRequested += ShowNotification;
+            Undo.undoRedoPerformed += OnUndoRedo;
             RegisterCommands();
             SetAsset(asset);
         }
@@ -267,7 +328,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
         public void SetAsset(TriggerAuthoringModuleAsset asset)
         {
             if (_asset == asset) return;
+            CancelScheduledDiagnosticsRefresh();
             _asset = asset;
+            if (_asset != null && TriggerAuthoringNodeIdentity.EnsureModule(_asset.Module) > 0)
+                EditorUtility.SetDirty(_asset);
+            _dryRunResult = null;
+            _dryRunInputError = null;
+            _dryRunTriggerId = 0;
+            ResetTriggerPage();
             _triggerGroupMode = LoadTriggerGroupMode(asset);
             _selectedTriggerGroupKey = null;
             RebuildCatalogs();
@@ -282,6 +350,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         public void Dispose()
         {
+            CancelScheduledDiagnosticsRefresh();
+            Undo.undoRedoPerformed -= OnUndoRedo;
             for (var i = 0; i < _commandRegistrations.Count; i++)
                 _commandRegistrations[i].Dispose();
             _commandRegistrations.Clear();
@@ -297,6 +367,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             if (_asset == null) return;
 
+            var navigationOnlyEvent = IsNavigationOnlyEvent(Event.current);
             PrepareUndoForInput();
             EditorGUI.BeginChangeCheck();
             DrawToolbar();
@@ -335,12 +406,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             if (showDiagnostics) DrawDiagnostics();
             if (!EditorGUI.EndChangeCheck()) return;
+            if (navigationOnlyEvent || !UpdateContentSnapshotIfChanged()) return;
 
+            _dryRunResult = null;
             EditorUtility.SetDirty(_asset);
-            RebuildCatalogs();
-            RefreshDiagnostics();
+            InvalidateTriggerViews();
+            ScheduleDiagnosticsRefresh();
             _templateMatrixPanel.Invalidate();
-            _nextSyncInspectionAt = 0d;
+            InvalidateSyncInspection();
         }
 
         private void DrawToolbar()
@@ -525,6 +598,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 GUILayout.Height(24f));
             if (nextMode == _workspaceMode) return;
             _workspaceMode = nextMode;
+            ResetTriggerPage();
             EditorPrefs.SetInt(WorkspaceModePreference, (int)_workspaceMode);
             GUI.FocusControl(null);
             RequestRepaint();
@@ -541,7 +615,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 AddTrigger();
             EditorGUILayout.EndHorizontal();
 
+            var previousSearch = _triggerSearch.Text;
             EditorImGuiControls.DrawSearch(_triggerSearch, new GUIContent("搜索"));
+            if (!string.Equals(previousSearch, _triggerSearch.Text, StringComparison.Ordinal))
+                ResetTriggerPage();
             EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
             GUILayout.Label("筛选", EditorStyles.miniLabel, GUILayout.Width(42f));
             var nextFilter = (TriggerAuthoringTriggerQuickFilter)EditorGUILayout.Popup(
@@ -549,33 +626,35 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 TriggerQuickFilterNames,
                 EditorStyles.toolbarPopup,
                 GUILayout.Width(126f));
-            if (nextFilter != _triggerQuickFilter) _triggerQuickFilter = nextFilter;
+            if (nextFilter != _triggerQuickFilter)
+            {
+                _triggerQuickFilter = nextFilter;
+                ResetTriggerPage();
+            }
             GUILayout.Space(8f);
 
-            var groups = TriggerAuthoringTriggerIndex.Build(
-                triggers,
-                _diagnostics,
-                _events,
+            var groups = GetTriggerGroups(
                 TriggerAuthoringTriggerGroupMode.Flat,
                 _triggerSearch.Text,
-                _triggerQuickFilter,
-                _templates);
+                _triggerQuickFilter);
             var entries = groups.Count > 0
                 ? (IReadOnlyList<TriggerAuthoringTriggerIndex.Entry>)groups[0].Entries
                 : Array.Empty<TriggerAuthoringTriggerIndex.Entry>();
             _triggerTablePanel.SetEntries(entries);
+            _triggerTablePanel.SetPagination(_triggerPageIndex, _triggerPageSize);
+            _triggerPageIndex = _triggerTablePanel.PageIndex;
             if (_triggerTablePanel.SelectedCount == 0 &&
                 _selectedTriggerIndex >= 0 &&
                 _selectedTriggerIndex < triggers.Count)
                 _triggerTablePanel.EnsureSelection(triggers[_selectedTriggerIndex]);
 
             GUILayout.Label(
-                "已选 " + _triggerTablePanel.SelectedCount + " / 显示 " + entries.Count,
+                "已选 " + _triggerTablePanel.SelectedCount + " / 共 " + entries.Count,
                 EditorStyles.miniLabel);
             GUILayout.FlexibleSpace();
             using (new EditorGUI.DisabledScope(entries.Count == 0))
             {
-                if (GUILayout.Button(new GUIContent("全选", "选择当前筛选结果"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
+                if (GUILayout.Button(new GUIContent("全选", "选择当前页"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
                     _triggerTablePanel.SelectAll();
             }
             using (new EditorGUI.DisabledScope(_triggerTablePanel.SelectedCount == 0))
@@ -586,6 +665,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     ShowTriggerBatchMenu(triggers, _triggerTablePanel.GetSelectedIndices(), "选中项");
             }
             EditorGUILayout.EndHorizontal();
+
+            if (DrawTriggerPager(_triggerTablePanel.TotalCount, _triggerTablePanel.PageCount))
+                _triggerTablePanel.SetPagination(_triggerPageIndex, _triggerPageSize);
 
             var tableRect = GUILayoutUtility.GetRect(
                 0f,
@@ -600,18 +682,12 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void DrawTemplateMatrixWorkspace()
         {
+            _triggerPagerRect = default;
             var triggers = _asset.Module.Triggers ?? (_asset.Module.Triggers = new List<TriggerDefinitionData>());
-            var groups = TriggerAuthoringTriggerIndex.Build(
-                triggers,
-                _diagnostics,
-                _events,
+            var groups = GetTriggerGroups(
                 TriggerAuthoringTriggerGroupMode.Flat,
                 string.Empty,
-                TriggerAuthoringTriggerQuickFilter.All,
-                _templates);
-            var entries = groups.Count > 0
-                ? (IReadOnlyList<TriggerAuthoringTriggerIndex.Entry>)groups[0].Entries
-                : Array.Empty<TriggerAuthoringTriggerIndex.Entry>();
+                TriggerAuthoringTriggerQuickFilter.All);
             var selected = _selectedTriggerIndex >= 0 && _selectedTriggerIndex < triggers.Count
                 ? triggers[_selectedTriggerIndex]
                 : null;
@@ -622,6 +698,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
             GUILayout.FlexibleSpace();
             GUILayout.Label("一行一个调用实例 · 一列一个输入参数", EditorStyles.centeredGreyMiniLabel);
             EditorGUILayout.EndHorizontal();
+            var entries = groups.Count > 0
+                ? (IReadOnlyList<TriggerAuthoringTriggerIndex.Entry>)groups[0].Entries
+                : Array.Empty<TriggerAuthoringTriggerIndex.Entry>();
             _templateMatrixPanel.Draw(triggers, entries, _templates, selected);
             EditorGUILayout.EndVertical();
         }
@@ -645,7 +724,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
             RebuildCatalogs();
             RefreshDiagnostics();
             _templateMatrixPanel.Invalidate();
-            _nextSyncInspectionAt = 0d;
             ShowNotification("已更新 " + plan.ChangedTriggerCount + " 个函数调用实例");
         }
 
@@ -686,7 +764,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 AddTrigger();
             EditorGUILayout.EndHorizontal();
 
+            var previousSearch = _triggerSearch.Text;
             EditorImGuiControls.DrawSearch(_triggerSearch, new GUIContent("搜索"));
+            if (!string.Equals(previousSearch, _triggerSearch.Text, StringComparison.Ordinal))
+                ResetTriggerPage();
             EditorGUILayout.BeginHorizontal();
             GUILayout.Label("视图", EditorStyles.miniLabel, GUILayout.Width(42f));
             var nextGroupMode = (TriggerAuthoringTriggerGroupMode)EditorGUILayout.Popup(
@@ -713,6 +794,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (nextQuickFilter != _triggerQuickFilter)
             {
                 _triggerQuickFilter = nextQuickFilter;
+                ResetTriggerPage();
                 _expandedTriggerGroups.Clear();
                 _triggerGroupsInitialized = false;
             }
@@ -720,6 +802,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 GUILayout.Button(new GUIContent(TriggerAuthoringEditorIntegration.T("clear"), "清除快捷筛选"), EditorStyles.toolbarButton, GUILayout.Width(44f)))
             {
                 _triggerQuickFilter = TriggerAuthoringTriggerQuickFilter.All;
+                ResetTriggerPage();
                 _expandedTriggerGroups.Clear();
                 _triggerGroupsInitialized = false;
                 GUI.FocusControl(null);
@@ -727,24 +810,36 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.EndHorizontal();
 
             var triggers = _asset.Module.Triggers ?? (_asset.Module.Triggers = new List<TriggerDefinitionData>());
-            var groups = TriggerAuthoringTriggerIndex.Build(
-                triggers,
-                _diagnostics,
-                _events,
+            var groups = GetTriggerGroups(
                 _triggerGroupMode,
                 _triggerSearch.Text,
-                _triggerQuickFilter,
-                _templates);
-            var visibleIndices = TriggerAuthoringTriggerBatchOperations.CollectVisibleTriggerIndices(groups);
-            DrawTriggerBatchToolbar(triggers, visibleIndices);
-            DrawSelectedTriggerVisibilityHint(triggers, visibleIndices);
+                _triggerQuickFilter);
+            var allVisibleIndices = GetVisibleTriggerIndices(groups);
+            var pageGroups = TriggerAuthoringTriggerBatchOperations.PaginateGroups(
+                groups,
+                _triggerPageIndex,
+                _triggerPageSize,
+                out var totalCount,
+                out var pageCount,
+                out _triggerPageIndex);
+            if (DrawTriggerPager(totalCount, pageCount))
+                pageGroups = TriggerAuthoringTriggerBatchOperations.PaginateGroups(
+                    groups,
+                    _triggerPageIndex,
+                    _triggerPageSize,
+                    out totalCount,
+                    out pageCount,
+                    out _triggerPageIndex);
+            var pageIndices = TriggerAuthoringTriggerBatchOperations.CollectVisibleTriggerIndices(pageGroups);
+            DrawTriggerBatchToolbar(triggers, pageIndices);
+            DrawSelectedTriggerVisibilityHint(triggers, allVisibleIndices);
 
             _triggerScroll = EditorGUILayout.BeginScrollView(_triggerScroll, GUILayout.MinHeight(90f), GUILayout.MaxHeight(360f));
             EnsureInitialTriggerGroupExpansion(groups);
-            if (groups.Count == 0)
+            if (pageGroups.Count == 0)
                 EditorGUILayout.HelpBox(TriggerAuthoringEditorIntegration.T("no-triggers-match"), MessageType.Info);
-            for (var i = 0; i < groups.Count; i++)
-                DrawTriggerGroup(groups[i], triggers);
+            for (var i = 0; i < pageGroups.Count; i++)
+                DrawTriggerGroup(pageGroups[i], triggers);
             EditorGUILayout.EndScrollView();
 
             using (new EditorGUI.DisabledScope(_selectedTriggerIndex < 0 || _selectedTriggerIndex >= triggers.Count))
@@ -808,6 +903,89 @@ namespace AbilityKit.Ability.Editor.Inspectors
             EditorGUILayout.EndHorizontal();
         }
 
+        private bool DrawTriggerPager(int totalCount, int pageCount)
+        {
+            pageCount = Math.Max(1, pageCount);
+            _triggerPageIndex = Mathf.Clamp(_triggerPageIndex, 0, pageCount - 1);
+            var rect = GUILayoutUtility.GetRect(
+                0f,
+                10000f,
+                22f,
+                22f,
+                GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint) _triggerPagerRect = rect;
+
+            const float buttonWidth = 26f;
+            const float pageSizeWidth = 58f;
+            const float gap = 2f;
+            var previousRect = new Rect(rect.x, rect.y, buttonWidth, rect.height);
+            var pageSizeRect = new Rect(rect.xMax - pageSizeWidth, rect.y, pageSizeWidth, rect.height);
+            var nextRect = new Rect(
+                pageSizeRect.x - gap - buttonWidth,
+                rect.y,
+                buttonWidth,
+                rect.height);
+            var labelRect = new Rect(
+                previousRect.xMax + gap,
+                rect.y,
+                Mathf.Max(0f, nextRect.x - previousRect.xMax - gap * 2f),
+                rect.height);
+
+            var changed = false;
+            using (new EditorGUI.DisabledScope(_triggerPageIndex <= 0))
+            {
+                if (GUI.Button(previousRect, new GUIContent("<", "上一页"), EditorStyles.toolbarButton))
+                {
+                    _triggerPageIndex--;
+                    changed = true;
+                }
+            }
+            GUI.Label(
+                labelRect,
+                "第 " + (_triggerPageIndex + 1) + " / " + pageCount + " 页 · " + totalCount + " 条",
+                EditorStyles.centeredGreyMiniLabel);
+            using (new EditorGUI.DisabledScope(_triggerPageIndex >= pageCount - 1))
+            {
+                if (GUI.Button(nextRect, new GUIContent(">", "下一页"), EditorStyles.toolbarButton))
+                {
+                    _triggerPageIndex++;
+                    changed = true;
+                }
+            }
+
+            var pageSizeOption = Array.IndexOf(TriggerPageSizes, _triggerPageSize);
+            var nextPageSizeOption = EditorGUI.Popup(
+                pageSizeRect,
+                Mathf.Max(0, pageSizeOption),
+                TriggerPageSizeLabels,
+                EditorStyles.toolbarPopup);
+            var nextPageSize = TriggerPageSizes[Mathf.Clamp(nextPageSizeOption, 0, TriggerPageSizes.Length - 1)];
+            if (nextPageSize != _triggerPageSize)
+            {
+                _triggerPageSize = nextPageSize;
+                _triggerPageIndex = 0;
+                EditorPrefs.SetInt(TriggerPageSizePreference, _triggerPageSize);
+                changed = true;
+            }
+
+            if (changed) _triggerScroll = Vector2.zero;
+            return changed;
+        }
+
+        private void ResetTriggerPage()
+        {
+            _triggerPageIndex = 0;
+            _triggerScroll = Vector2.zero;
+        }
+
+        private static int NormalizeTriggerPageSize(int pageSize)
+        {
+            for (var i = 0; i < TriggerPageSizes.Length; i++)
+                if (TriggerPageSizes[i] == pageSize)
+                    return pageSize;
+            return DefaultTriggerPageSize;
+        }
+
         private void DrawSelectedTriggerVisibilityHint(
             IReadOnlyList<TriggerDefinitionData> triggers,
             IReadOnlyList<int> visibleIndices)
@@ -830,6 +1008,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             _triggerSearch.Clear();
             _triggerQuickFilter = TriggerAuthoringTriggerQuickFilter.All;
+            ResetTriggerPage();
             _expandedTriggerGroups.Clear();
             _triggerGroupsInitialized = false;
             GUI.FocusControl(null);
@@ -859,7 +1038,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
         private void OnTriggerBatchChanged()
         {
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
             _expandedTriggerGroups.Clear();
             _triggerGroupsInitialized = false;
             RequestRepaint();
@@ -899,23 +1077,39 @@ namespace AbilityKit.Ability.Editor.Inspectors
             List<TriggerDefinitionData> triggers,
             string groupKey)
         {
+            var rowRect = GUILayoutUtility.GetRect(
+                GUIContent.none,
+                TriggerRowStyle,
+                GUILayout.Height(38f),
+                GUILayout.ExpandWidth(true));
+            // Keep the full layout height, but only create controls and labels near the viewport.
+            var visibleTop = _triggerScroll.y - 64f;
+            var visibleBottom = _triggerScroll.y + 424f;
+            var forceDraw = _scrollToSelectedTrigger && entry.Index == _selectedTriggerIndex;
+            if (!forceDraw &&
+                (rowRect.yMax < visibleTop || rowRect.yMin > visibleBottom))
+                return;
+
             var label = BuildTriggerRowLabel(entry.EffectiveTrigger, entry.Index, entry.Diagnostics);
             var oldBackground = GUI.backgroundColor;
             if (entry.Index == _selectedTriggerIndex) GUI.backgroundColor = new Color(0.42f, 0.66f, 0.92f);
-            if (GUILayout.Button(label, TriggerRowStyle, GUILayout.Height(38f)))
-                SelectTrigger(entry.Index, groupKey);
-            else if (Event.current.type == EventType.ContextClick &&
-                     GUILayoutUtility.GetLastRect().Contains(Event.current.mousePosition))
+            var contextClick = Event.current.type == EventType.ContextClick &&
+                               rowRect.Contains(Event.current.mousePosition);
+            if (contextClick)
             {
                 SelectTrigger(entry.Index, groupKey);
                 ShowTriggerContextMenu(triggers, entry.Index);
                 Event.current.Use();
             }
+            else if (GUI.Button(rowRect, label, TriggerRowStyle))
+            {
+                SelectTrigger(entry.Index, groupKey);
+            }
             if (_scrollToSelectedTrigger &&
                 entry.Index == _selectedTriggerIndex &&
                 Event.current.type == EventType.Repaint)
             {
-                GUI.ScrollTo(GUILayoutUtility.GetLastRect());
+                GUI.ScrollTo(rowRect);
                 _scrollToSelectedTrigger = false;
             }
             GUI.backgroundColor = oldBackground;
@@ -972,6 +1166,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             if (_triggerGroupMode == mode) return;
             _triggerGroupMode = mode;
+            ResetTriggerPage();
             _selectedTriggerGroupKey = null;
             SaveTriggerGroupMode(_asset, mode);
             _expandedTriggerGroups.Clear();
@@ -984,14 +1179,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var triggers = _asset != null && _asset.Module != null
                 ? _asset.Module.Triggers
                 : null;
-            var groups = TriggerAuthoringTriggerIndex.Build(
-                triggers,
-                _diagnostics,
-                _events,
+            var groups = GetTriggerGroups(
                 _triggerGroupMode,
                 _triggerSearch.Text,
-                _triggerQuickFilter,
-                _templates);
+                _triggerQuickFilter);
             for (var i = 0; i < groups.Count; i++)
                 _expandedTriggerGroups.Add(groups[i].Key);
             _triggerGroupsInitialized = true;
@@ -1008,16 +1199,57 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void ShowTriggerContextMenu(List<TriggerDefinitionData> triggers, int index)
         {
+            if (triggers == null || index < 0 || index >= triggers.Count) return;
             var menu = new GenericMenu();
             var trigger = triggers[index];
-            menu.AddItem(new GUIContent("上移"), false, () => MoveSelectedTrigger(triggers, -1));
-            menu.AddItem(new GUIContent("下移"), false, () => MoveSelectedTrigger(triggers, 1));
+            menu.AddItem(new GUIContent("打开规则编辑"), false, () => OpenTriggerFromTable(index));
+            if (trigger != null)
+                menu.AddItem(
+                    new GUIContent(trigger.Enabled ? "停用" : "启用"),
+                    false,
+                    () => Edit("切换触发器启用状态", () => trigger.Enabled = !trigger.Enabled));
+            else
+                menu.AddDisabledItem(new GUIContent("启用/停用"));
+
             menu.AddSeparator(string.Empty);
-            menu.AddItem(new GUIContent("定位/复制触发器路径"), false, () =>
-                EditorGUIUtility.systemCopyBuffer = "module.triggers[" + index + "]");
-            menu.AddItem(new GUIContent("定位/复制 TriggerId"), false, () =>
-                EditorGUIUtility.systemCopyBuffer = trigger != null ? trigger.Id.ToString() : string.Empty);
-            menu.AddItem(new GUIContent("定位/定位模块资产"), false, () =>
+            if (trigger != null)
+                menu.AddItem(new GUIContent(TriggerAuthoringEditorIntegration.T("duplicate")), false, DuplicateSelectedTrigger);
+            else
+                menu.AddDisabledItem(new GUIContent(TriggerAuthoringEditorIntegration.T("duplicate")));
+            if (index > 0)
+                menu.AddItem(new GUIContent("移动/上移"), false, () => MoveSelectedTrigger(triggers, -1));
+            else
+                menu.AddDisabledItem(new GUIContent("移动/上移"));
+            if (index < triggers.Count - 1)
+                menu.AddItem(new GUIContent("移动/下移"), false, () => MoveSelectedTrigger(triggers, 1));
+            else
+                menu.AddDisabledItem(new GUIContent("移动/下移"));
+
+            if (trigger != null)
+            {
+                AddBusinessGroupMenu(menu, trigger);
+                menu.AddSeparator(string.Empty);
+                menu.AddItem(new GUIContent("复制/TriggerId"), false, () =>
+                    CopyTriggerText(trigger.Id.ToString(), "TriggerId"));
+                menu.AddItem(new GUIContent("复制/显示名称"), false, () =>
+                    CopyTriggerText(DisplayTriggerName(trigger), "显示名称"));
+                menu.AddItem(new GUIContent("复制/配置路径"), false, () =>
+                    CopyTriggerText("module.triggers[" + index + "]", "配置路径"));
+                menu.AddItem(new GUIContent("复制/触发器 JSON"), false, () =>
+                    CopyTriggerText(
+                        Newtonsoft.Json.JsonConvert.SerializeObject(
+                            trigger,
+                            TriggerSourceJson.CreateSettings(Newtonsoft.Json.Formatting.Indented)),
+                        "触发器 JSON"));
+            }
+            else
+            {
+                menu.AddDisabledItem(new GUIContent("业务分组"));
+                menu.AddDisabledItem(new GUIContent("复制/触发器配置"));
+            }
+
+            menu.AddSeparator(string.Empty);
+            menu.AddItem(new GUIContent("定位模块资产"), false, () =>
             {
                 Selection.activeObject = _asset;
                 EditorGUIUtility.PingObject(_asset);
@@ -1030,20 +1262,16 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     ShowReferences(
                         TriggerAuthoringTriggerIdRefactor.FindReferences(_asset, trigger.Id),
                         "TriggerId: " + trigger.Id));
-                AddBusinessGroupMenu(menu, trigger);
             }
             menu.AddSeparator(string.Empty);
-            menu.AddItem(new GUIContent(TriggerAuthoringEditorIntegration.T("duplicate")), false, DuplicateSelectedTrigger);
             menu.AddItem(new GUIContent(TriggerAuthoringEditorIntegration.T("delete")), false, DeleteSelectedTrigger);
-            if (trigger != null)
-            {
-                menu.AddSeparator(string.Empty);
-                menu.AddItem(
-                    new GUIContent(trigger.Enabled ? "停用" : "启用"),
-                    false,
-                    () => Edit("切换触发器启用状态", () => trigger.Enabled = !trigger.Enabled));
-            }
             menu.ShowAsContext();
+        }
+
+        private void CopyTriggerText(string value, string label)
+        {
+            EditorGUIUtility.systemCopyBuffer = value ?? string.Empty;
+            ShowNotification("已复制" + label);
         }
 
         private void AddBusinessGroupMenu(GenericMenu menu, TriggerDefinitionData trigger)
@@ -1154,7 +1382,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     EditorUtility.SetDirty(affected[i]);
 
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
             _expandedTriggerGroups.Clear();
             _triggerGroupsInitialized = false;
             ExpandVisibleTriggerGroups();
@@ -1206,7 +1433,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             var nextTab = (TriggerEditorTab)GUILayout.Toolbar(
                 (int)_selectedEditorTab,
-                new[] { "规则总览", "规则树", "配置" },
+                new[] { "规则总览", "规则树", "预演", "配置" },
                 EditorStyles.toolbarButton,
                 GUILayout.Height(25f));
             if (nextTab != _selectedEditorTab)
@@ -1221,6 +1448,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 case TriggerEditorTab.RuleTree:
                     DrawRuleTreeWorkspace(trigger, width);
                     break;
+                case TriggerEditorTab.DryRun:
+                    DrawDryRunWorkspace(trigger);
+                    break;
                 case TriggerEditorTab.Settings:
                     _detailScroll = EditorGUILayout.BeginScrollView(_detailScroll, GUILayout.MinHeight(420f));
                     DrawTriggerSettings(trigger);
@@ -1231,6 +1461,179 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     DrawTriggerHeader(trigger, width);
                     EditorGUILayout.EndScrollView();
                     break;
+            }
+        }
+
+        private void DrawDryRunWorkspace(TriggerDefinitionData trigger)
+        {
+            if (_dryRunTriggerId != trigger.Id)
+            {
+                _dryRunTriggerId = trigger.Id;
+                _dryRunResult = null;
+                _dryRunInputError = null;
+                _dryRunScroll = Vector2.zero;
+            }
+
+            DrawSemanticSectionHeader(
+                "规则预演",
+                "使用输入快照计算条件和执行路径",
+                TriggerSemanticArea.Event);
+
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label("输入快照", EditorStyles.miniBoldLabel);
+            GUILayout.FlexibleSpace();
+            if (GUILayout.Button("重置", EditorStyles.toolbarButton, GUILayout.Width(44f)))
+            {
+                _dryRunInputJson = TriggerAuthoringDryRunInput.CreateDefaultJson();
+                _dryRunInputError = null;
+                _dryRunResult = null;
+                GUI.FocusControl(null);
+            }
+            if (GUILayout.Button(new GUIContent("运行预演", "只计算路径，不执行任何行为"), EditorStyles.toolbarButton, GUILayout.Width(68f)))
+                RunDryRun(trigger);
+            EditorGUILayout.EndHorizontal();
+
+            var nextInputJson = EditorGUILayout.TextArea(
+                _dryRunInputJson ?? string.Empty,
+                GUILayout.MinHeight(126f),
+                GUILayout.MaxHeight(220f));
+            if (!string.Equals(nextInputJson, _dryRunInputJson, StringComparison.Ordinal))
+            {
+                _dryRunInputJson = nextInputJson;
+                _dryRunResult = null;
+                _dryRunInputError = null;
+            }
+            if (!string.IsNullOrEmpty(_dryRunInputError))
+                EditorGUILayout.HelpBox(_dryRunInputError, MessageType.Error);
+
+            if (_dryRunResult == null)
+            {
+                EditorGUILayout.HelpBox("填写输入快照后运行预演。", MessageType.Info);
+                return;
+            }
+            if (!string.IsNullOrEmpty(_dryRunResult.Error))
+            {
+                EditorGUILayout.HelpBox(_dryRunResult.Error, MessageType.Error);
+                return;
+            }
+
+            DrawDryRunSummary(_dryRunResult);
+            _dryRunScroll = EditorGUILayout.BeginScrollView(_dryRunScroll, GUILayout.MinHeight(260f));
+            for (var i = 0; i < _dryRunResult.Entries.Count; i++)
+                DrawDryRunEntry(_dryRunResult.Entries[i]);
+            EditorGUILayout.EndScrollView();
+        }
+
+        private void RunDryRun(TriggerDefinitionData trigger)
+        {
+            GUI.FocusControl(null);
+            if (!TriggerAuthoringDryRunInput.TryParse(_dryRunInputJson, out var input, out var error))
+            {
+                _dryRunInputError = error;
+                _dryRunResult = null;
+                return;
+            }
+
+            _dryRunInputError = null;
+            _dryRunResult = TriggerAuthoringDryRun.Run(
+                _asset.Module,
+                trigger,
+                _selectedTriggerIndex,
+                _templates,
+                input);
+            _dryRunScroll = Vector2.zero;
+            RequestRepaint();
+        }
+
+        private static void DrawDryRunSummary(TriggerAuthoringDryRunResult result)
+        {
+            EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
+            GUILayout.Label(
+                "入口 " + DryRunStateLabel(result.EntryState),
+                EditorStyles.miniBoldLabel,
+                GUILayout.Width(86f));
+            GUILayout.Label(
+                "将执行 " + result.Count(TriggerAuthoringDryRunState.WouldExecute),
+                EditorStyles.miniLabel,
+                GUILayout.Width(62f));
+            GUILayout.Label(
+                "可能 " + result.Count(TriggerAuthoringDryRunState.Potential),
+                EditorStyles.miniLabel,
+                GUILayout.Width(52f));
+            GUILayout.Label(
+                "跳过 " + result.Count(TriggerAuthoringDryRunState.Skipped),
+                EditorStyles.miniLabel,
+                GUILayout.Width(52f));
+            GUILayout.Label(
+                "未知 " + result.Count(TriggerAuthoringDryRunState.Unknown),
+                EditorStyles.miniLabel,
+                GUILayout.Width(52f));
+            GUILayout.FlexibleSpace();
+            EditorGUILayout.EndHorizontal();
+        }
+
+        private void DrawDryRunEntry(TriggerAuthoringDryRunEntry entry)
+        {
+            var rect = GUILayoutUtility.GetRect(0f, 38f, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint && rect.Contains(Event.current.mousePosition))
+                EditorGUI.DrawRect(rect, new Color(1f, 1f, 1f, EditorGUIUtility.isProSkin ? 0.045f : 0.08f));
+            var color = DryRunStateColor(entry.State);
+            EditorGUI.DrawRect(new Rect(rect.x + 3f, rect.y + 4f, 3f, rect.height - 8f), color);
+            var indent = Mathf.Min(entry.Depth, 7) * 13f;
+            var badgeRect = new Rect(rect.x + 10f + indent, rect.y + 4f, 62f, 17f);
+            GUI.Label(badgeRect, DryRunStateLabel(entry.State), EditorStyles.centeredGreyMiniLabel);
+            var titleRect = new Rect(badgeRect.xMax + 4f, rect.y + 2f, Mathf.Max(30f, rect.width - badgeRect.xMax - 12f), 20f);
+            var title = string.IsNullOrWhiteSpace(entry.Type) ? "未设置类型" : entry.Type;
+            if (GUI.Button(titleRect, new GUIContent(title, entry.NodeId ?? entry.Path), EditorStyles.label))
+                NavigateToDryRunEntry(entry);
+            GUI.Label(
+                new Rect(titleRect.x, rect.y + 20f, titleRect.width, 16f),
+                new GUIContent(entry.Message ?? string.Empty, entry.Message ?? string.Empty),
+                NodeTechnicalStyle);
+        }
+
+        private void NavigateToDryRunEntry(TriggerAuthoringDryRunEntry entry)
+        {
+            _selectedEditorTab = TriggerEditorTab.RuleTree;
+            _focusedDiagnosticPath = null;
+            SetSelectedNodePath(entry.WorkspaceKind, entry.Path, entry.NodeId);
+            _nodeDetailScroll = Vector2.zero;
+            RequestRepaint();
+        }
+
+        private static string DryRunStateLabel(TriggerAuthoringDryRunState state)
+        {
+            switch (state)
+            {
+                case TriggerAuthoringDryRunState.Passed: return "通过";
+                case TriggerAuthoringDryRunState.Failed: return "失败";
+                case TriggerAuthoringDryRunState.WouldExecute: return "将执行";
+                case TriggerAuthoringDryRunState.Potential: return "可能执行";
+                case TriggerAuthoringDryRunState.Skipped: return "跳过";
+                case TriggerAuthoringDryRunState.Disabled: return "已停用";
+                case TriggerAuthoringDryRunState.Error: return "错误";
+                default: return "未知";
+            }
+        }
+
+        private static Color DryRunStateColor(TriggerAuthoringDryRunState state)
+        {
+            switch (state)
+            {
+                case TriggerAuthoringDryRunState.Passed:
+                case TriggerAuthoringDryRunState.WouldExecute:
+                    return new Color(0.20f, 0.68f, 0.42f);
+                case TriggerAuthoringDryRunState.Failed:
+                case TriggerAuthoringDryRunState.Error:
+                    return new Color(0.88f, 0.30f, 0.28f);
+                case TriggerAuthoringDryRunState.Potential:
+                case TriggerAuthoringDryRunState.Unknown:
+                    return new Color(0.92f, 0.62f, 0.18f);
+                case TriggerAuthoringDryRunState.Disabled:
+                case TriggerAuthoringDryRunState.Skipped:
+                    return new Color(0.48f, 0.50f, 0.54f);
+                default:
+                    return Color.gray;
             }
         }
 
@@ -1309,15 +1712,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             var effectiveSelectedTrigger = ResolveEffectiveTrigger(selectedTrigger);
             GUILayout.Space(8f);
-            var overview = TriggerAuthoringRuleOverviewBuilder.BuildForGroup(
-                _asset.Module,
-                _selectedTriggerIndex,
-                _triggerGroupMode,
-                _selectedTriggerGroupKey,
-                _diagnostics,
-                _events,
-                _types,
-                _templates);
+            var overview = GetRuleOverview();
             _selectedTriggerGroupKey = overview.GroupKey;
             var rules = overview.Rules;
 
@@ -1567,7 +1962,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     effectiveTrigger.Phase = DrawConstrainedOption("执行阶段", effectiveTrigger.Phase, PhaseOptions, PhaseOptionNames);
                     effectiveTrigger.Scope = DrawConstrainedOption("作用域", effectiveTrigger.Scope, ScopeOptions, ScopeOptionNames);
                     effectiveTrigger.Priority = EditorGUILayout.IntField("优先级", effectiveTrigger.Priority);
-                    effectiveTrigger.InterruptPriority = EditorGUILayout.IntField("中断优先级", effectiveTrigger.InterruptPriority);
+                    using (new EditorGUI.DisabledScope(true))
+                        EditorGUILayout.IntField("中断优先级", effectiveTrigger.InterruptPriority);
                     effectiveTrigger.AllowExternal = EditorGUILayout.Toggle("允许外部触发", effectiveTrigger.AllowExternal);
                     effectiveTrigger.Note = EditorGUILayout.TextField("备注", effectiveTrigger.Note);
 
@@ -1575,10 +1971,13 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     effectiveTrigger.Cue.CueId = EditorGUILayout.TextField("表现提示 ID", effectiveTrigger.Cue.CueId);
 
                     effectiveTrigger.Schedule = effectiveTrigger.Schedule ?? new TriggerScheduleData();
-                    effectiveTrigger.Schedule.Mode = DrawConstrainedOption("调度模式", effectiveTrigger.Schedule.Mode, ScheduleModeOptions, ScheduleModeOptionNames);
-                    effectiveTrigger.Schedule.DelayMilliseconds = EditorGUILayout.IntField("延迟（毫秒）", effectiveTrigger.Schedule.DelayMilliseconds);
-                    effectiveTrigger.Schedule.IntervalMilliseconds = EditorGUILayout.IntField("间隔（毫秒）", effectiveTrigger.Schedule.IntervalMilliseconds);
-                    effectiveTrigger.Schedule.RepeatCount = EditorGUILayout.IntField("重复次数", effectiveTrigger.Schedule.RepeatCount);
+                    using (new EditorGUI.DisabledScope(true))
+                    {
+                        DrawConstrainedOption("调度模式", effectiveTrigger.Schedule.Mode, ScheduleModeOptions, ScheduleModeOptionNames);
+                        EditorGUILayout.IntField("延迟（毫秒）", effectiveTrigger.Schedule.DelayMilliseconds);
+                        EditorGUILayout.IntField("间隔（毫秒）", effectiveTrigger.Schedule.IntervalMilliseconds);
+                        EditorGUILayout.IntField("重复次数", effectiveTrigger.Schedule.RepeatCount);
+                    }
 
                     effectiveTrigger.ExecutionControl = effectiveTrigger.ExecutionControl ?? new TriggerExecutionControlData();
                     effectiveTrigger.ExecutionControl.Mode = DrawConstrainedOption(
@@ -1589,13 +1988,17 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     if (string.Equals(effectiveTrigger.ExecutionControl.Mode, "cooldown", StringComparison.OrdinalIgnoreCase))
                         effectiveTrigger.ExecutionControl.CooldownMilliseconds = EditorGUILayout.DoubleField(
                             "冷却（毫秒）", effectiveTrigger.ExecutionControl.CooldownMilliseconds);
-                    effectiveTrigger.ExecutionControl.InterruptPolicy = DrawConstrainedOption(
-                        "中断策略", effectiveTrigger.ExecutionControl.InterruptPolicy, InterruptPolicyOptions, InterruptPolicyOptionNames);
-                    effectiveTrigger.ExecutionControl.StopPropagationOnSuccess =
+                    using (new EditorGUI.DisabledScope(true))
+                    {
+                        DrawConstrainedOption(
+                            "中断策略", effectiveTrigger.ExecutionControl.InterruptPolicy, InterruptPolicyOptions, InterruptPolicyOptionNames);
                         EditorGUILayout.Toggle("成功后停止传播", effectiveTrigger.ExecutionControl.StopPropagationOnSuccess);
-                    effectiveTrigger.ExecutionControl.StopPropagationOnFailure =
                         EditorGUILayout.Toggle("失败后停止传播", effectiveTrigger.ExecutionControl.StopPropagationOnFailure);
+                    }
                 }
+                EditorGUILayout.HelpBox(
+                    "当前 Runtime Plan 仅支持行为树中的调度节点；触发器级调度、中断优先级与传播控制尚不参与导出。",
+                    MessageType.Info);
                 if (usesTemplate)
                     GUILayout.Label("以上配置由模板统一维护", EditorStyles.centeredGreyMiniLabel);
             }
@@ -1895,7 +2298,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
             TriggerAuthoringTemplateDefinition.CopyInto(trigger, materialized);
             EditorUtility.SetDirty(_asset);
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
             _triggerGroupsInitialized = false;
             ExpandVisibleTriggerGroups();
             ShowNotification("已转为本地触发器");
@@ -2105,7 +2507,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             DrawSemanticSectionHeader(
                 "完整规则树",
-                "入口条件与执行流程在同一棵树中查看和编辑",
+                "事件入口、入口条件与执行流程在同一棵树中查看和编辑",
                 TriggerSemanticArea.Event);
 
             var triggerPath = "module.triggers[" + _selectedTriggerIndex + "]";
@@ -2289,6 +2691,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 Kind = kind,
                 WorkspaceKind = workspaceKind ?? kind,
                 Path = path,
+                StableNodeId = source == NodeOutlineSource.Local ? node.NodeId : null,
                 ParentPath = parentPath,
                 Breadcrumb = breadcrumb,
                 Depth = depth,
@@ -2420,6 +2823,29 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 return;
             }
 
+            if (kind == TriggerNodeKind.Action &&
+                string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase) &&
+                node.Condition != null)
+            {
+                BuildNodeOutline(
+                    items,
+                    node.Condition,
+                    TriggerNodeKind.Condition,
+                    path + ".condition",
+                    path,
+                    breadcrumb,
+                    depth + 1,
+                    source,
+                    readOnly,
+                    null,
+                    -1,
+                    false,
+                    workspaceKind ?? kind,
+                    NodeOutlineBranch.UntilCondition,
+                    true,
+                    readOnly ? null : node);
+            }
+
             var children = node.Children;
             if (children == null) return;
             for (var i = 0; i < children.Count; i++)
@@ -2483,6 +2909,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             switch (branch)
             {
                 case NodeOutlineBranch.Predicate: return "判断条件";
+                case NodeOutlineBranch.UntilCondition: return "结束条件";
                 case NodeOutlineBranch.Then: return "条件成立";
                 case NodeOutlineBranch.Else: return "条件不成立";
                 default: return string.Empty;
@@ -2502,11 +2929,12 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (items.Count == 0)
             {
                 _selectedRuleNodePath = null;
+                _selectedRuleNodeId = null;
                 return;
             }
 
             var selectedPath = _selectedRuleNodePath;
-            var selected = FindOutlineItem(items, selectedPath);
+            var selected = FindOutlineItem(items, selectedPath, _selectedRuleNodeId);
             if (selected == null && !string.IsNullOrEmpty(_focusedDiagnosticPath))
                 selected = FindClosestOutlineItem(items, _focusedDiagnosticPath);
             if (selected == null && !string.IsNullOrEmpty(selectedPath))
@@ -2515,15 +2943,17 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 if (!hasSelectedArea)
                 {
                     _selectedRuleNodePath = null;
+                    _selectedRuleNodeId = null;
                     return;
                 }
             }
             if (selected == null) selected = items[0];
-            if (!string.Equals(selectedPath, selected.Path, StringComparison.Ordinal))
+            if (!string.Equals(selectedPath, selected.Path, StringComparison.Ordinal) ||
+                !string.Equals(_selectedRuleNodeId, selected.StableNodeId, StringComparison.Ordinal))
             {
-                SetSelectedNodePath(selected.WorkspaceKind, selected.Path);
+                SetSelectedNodePath(selected.WorkspaceKind, selected.Path, selected.StableNodeId);
                 ExpandNodeAncestors(selected, items);
-                _expandedNodePaths.Add(selected.Path);
+                _expandedNodePaths.Add(GetOutlineStateKey(selected));
             }
         }
 
@@ -2553,13 +2983,14 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 _expandedNodePaths.Add(GetRuleAreaPath(TriggerNodeKind.Condition));
                 _expandedNodePaths.Add(GetRuleAreaPath(TriggerNodeKind.Action));
                 for (var i = 0; i < items.Count; i++)
-                    if (items[i].HasChildren) _expandedNodePaths.Add(items[i].Path);
+                    if (items[i].HasChildren) _expandedNodePaths.Add(GetOutlineStateKey(items[i]));
                 _ruleTreeBranchesInitialized = true;
             }
             if (GUILayout.Button(new GUIContent("−", "折叠全部节点"), EditorStyles.toolbarButton, GUILayout.Width(22f)))
             {
                 _expandedNodePaths.Clear();
                 _ruleFocusPath = null;
+                _ruleFocusNodeId = null;
                 _ruleTreeBranchesInitialized = true;
             }
             EditorGUILayout.EndHorizontal();
@@ -2567,16 +2998,31 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var focusPath = _ruleFocusPath;
             if (!string.IsNullOrEmpty(focusPath))
             {
-                var focusItem = FindOutlineItem(items, focusPath);
+                var focusItem = FindOutlineItem(items, focusPath, _ruleFocusNodeId);
+                if (focusItem != null)
+                {
+                    focusPath = focusItem.Path;
+                    _ruleFocusPath = focusItem.Path;
+                    _ruleFocusNodeId = focusItem.StableNodeId;
+                }
                 EditorGUILayout.BeginHorizontal(EditorStyles.toolbar);
                 if (GUILayout.Button(new GUIContent("‹", "返回上一级"), EditorStyles.toolbarButton, GUILayout.Width(24f)))
-                    SetNodeFocusPath(_ruleFocusKind, focusItem != null ? focusItem.ParentPath : null);
+                {
+                    var parent = focusItem != null ? FindOutlineItem(items, focusItem.ParentPath) : null;
+                    SetNodeFocusPath(
+                        _ruleFocusKind,
+                        parent != null ? parent.Path : null,
+                        parent != null ? parent.StableNodeId : null);
+                }
                 GUILayout.Label(
                     focusItem != null ? focusItem.Breadcrumb : "全部节点",
                     EditorStyles.miniLabel,
                     GUILayout.ExpandWidth(true));
                 if (GUILayout.Button("全部", EditorStyles.toolbarButton, GUILayout.Width(38f)))
+                {
                     _ruleFocusPath = null;
+                    _ruleFocusNodeId = null;
+                }
                 EditorGUILayout.EndHorizontal();
             }
 
@@ -2590,6 +3036,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             }
 
             DrawRuleTreeRootRow(trigger);
+            DrawRuleTreeEntryRow(trigger);
             DrawRuleTreeArea(
                 trigger,
                 items,
@@ -2620,6 +3067,48 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 new Rect(rect.x + 7f, rect.y + 3f, rect.width - 14f, 21f),
                 "触发器 #" + trigger.Id + " · " + DisplayTriggerName(trigger),
                 EditorStyles.boldLabel);
+        }
+
+        private void DrawRuleTreeEntryRow(TriggerDefinitionData trigger)
+        {
+            var effective = ResolveEffectiveTrigger(trigger) ?? trigger;
+            var callable = effective.EntryMode == TriggerEntryMode.Callable;
+            var color = GetSemanticColor(TriggerSemanticArea.Event);
+            var rect = GUILayoutUtility.GetRect(0f, 43f, GUILayout.ExpandWidth(true));
+            if (Event.current.type == EventType.Repaint && rect.Contains(Event.current.mousePosition))
+                EditorGUI.DrawRect(rect, new Color(1f, 1f, 1f, EditorGUIUtility.isProSkin ? 0.055f : 0.1f));
+            EditorGUI.DrawRect(new Rect(rect.x + 5f, rect.y + 4f, 3f, rect.height - 8f), color);
+
+            TriggerEventDefinitionData definition = null;
+            if (!callable && _events != null && !string.IsNullOrWhiteSpace(effective.Event))
+                _events.TryResolve(effective.Event, out definition);
+            var eventLabel = definition != null && !string.IsNullOrWhiteSpace(definition.DisplayName)
+                ? definition.DisplayName + " · " + effective.Event
+                : string.IsNullOrWhiteSpace(effective.Event) ? "未配置事件" : effective.Event;
+            var title = callable
+                ? "可调用入口 · TriggerId " + trigger.Id
+                : "触发事件 · " + eventLabel;
+            var details = callable
+                ? "调用参数 " + Count(effective.CallableParameters) + " 个 · 由其他触发效果直接调用"
+                : definition != null
+                    ? "分类: " + definition.Category + "    载荷: " + definition.PayloadType +
+                      "    参数: " + Count(definition.PayloadFields) + " 个"
+                    : "事件目录中未找到定义";
+            var contentRect = new Rect(rect.x + 13f, rect.y + 2f, Mathf.Max(20f, rect.width - 17f), rect.height - 4f);
+            if (GUI.Button(contentRect, new GUIContent(string.Empty, "在规则总览中查看和编辑入口"), EditorStyles.label))
+            {
+                _selectedEditorTab = TriggerEditorTab.Overview;
+                GUI.FocusControl(null);
+                RequestRepaint();
+            }
+            GUI.Label(
+                new Rect(contentRect.x + 2f, rect.y + 2f, contentRect.width - 4f, 20f),
+                title,
+                EditorStyles.boldLabel);
+            GUI.Label(
+                new Rect(contentRect.x + 2f, rect.y + 23f, contentRect.width - 4f, 17f),
+                details,
+                EditorStyles.miniLabel);
         }
 
         private void DrawRuleTreeArea(
@@ -2661,7 +3150,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (GUI.Button(titleRect, new GUIContent(label + " " + state), EditorStyles.boldLabel))
             {
                 if (root != null && areaItems.Count > 0)
-                    SetSelectedNodePath(kind, areaItems[0].Path);
+                    SetSelectedNodePath(kind, areaItems[0].Path, areaItems[0].StableNodeId);
                 else
                     SetSelectedNodePath(kind, null);
                 if (!searchMode) _expandedNodePaths.Add(areaPath);
@@ -2702,8 +3191,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
             while (!string.IsNullOrEmpty(parentPath) &&
                    !string.Equals(parentPath, focusPath, StringComparison.Ordinal))
             {
-                if (!_expandedNodePaths.Contains(parentPath)) return false;
                 var parent = FindOutlineItem(items, parentPath);
+                if (parent == null || !_expandedNodePaths.Contains(GetOutlineStateKey(parent))) return false;
                 parentPath = parent != null ? parent.ParentPath : null;
             }
             return true;
@@ -2734,7 +3223,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var kind = item.WorkspaceKind;
             var row = GUILayoutUtility.GetRect(0f, searchMode ? 36f : 25f, GUILayout.ExpandWidth(true));
             var openContextMenu = ShouldOpenContextMenu(row);
-            var selected = string.Equals(GetSelectedNodePath(kind), item.Path, StringComparison.Ordinal);
+            var selected = IsSelectedNode(item);
             var semanticColor = GetSemanticColor(
                 item.Kind == TriggerNodeKind.Condition ? TriggerSemanticArea.Condition : TriggerSemanticArea.Action);
             if (selected)
@@ -2744,23 +3233,24 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (item.IsBranchRoot)
                 EditorGUI.DrawRect(new Rect(row.x, row.y + 2f, 3f, row.height - 4f), semanticColor);
 
-            var focusItem = FindOutlineItem(items, GetNodeFocusPath(kind));
+            var focusItem = FindOutlineItem(items, GetNodeFocusPath(kind), GetNodeFocusId(kind));
             var focusDepth = focusItem != null ? focusItem.Depth : 0;
             var depth = searchMode ? 0 : Mathf.Max(0, item.Depth - focusDepth);
             var indent = Mathf.Min(depth, 6) * 14f;
             var foldRect = new Rect(row.x + indent, row.y + 3f, 16f, 18f);
             if (item.HasChildren && !searchMode)
             {
-                var expanded = _expandedNodePaths.Contains(item.Path);
+                var stateKey = GetOutlineStateKey(item);
+                var expanded = _expandedNodePaths.Contains(stateKey);
                 var next = EditorGUI.Foldout(foldRect, expanded, GUIContent.none, true);
                 if (next != expanded)
                 {
-                    if (next) _expandedNodePaths.Add(item.Path);
+                    if (next) _expandedNodePaths.Add(stateKey);
                     else
                     {
-                        _expandedNodePaths.Remove(item.Path);
+                        _expandedNodePaths.Remove(stateKey);
                         if (IsPathAtOrBelow(GetSelectedNodePath(kind), item.Path))
-                            SetSelectedNodePath(kind, item.Path);
+                            SetSelectedNodePath(kind, item.Path, item.StableNodeId);
                     }
                 }
             }
@@ -2772,14 +3262,17 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 Mathf.Max(20f, row.width - indent - 20f - badgeWidth),
                 searchMode ? 20f : row.height - 2f);
             var title = GetNodeOutlineTitle(item);
-            if (GUI.Button(labelRect, new GUIContent(title, item.Breadcrumb), EditorStyles.label))
+            if (GUI.Button(
+                    labelRect,
+                    new GUIContent(title, title + "\n路径：" + item.Breadcrumb),
+                    EditorStyles.label))
             {
-                SetSelectedNodePath(kind, item.Path);
+                SetSelectedNodePath(kind, item.Path, item.StableNodeId);
                 ExpandNodeAncestors(item, items);
                 if (Event.current.clickCount >= 2 && item.HasChildren)
                 {
-                    _expandedNodePaths.Add(item.Path);
-                    SetNodeFocusPath(kind, item.Path);
+                    _expandedNodePaths.Add(GetOutlineStateKey(item));
+                    SetNodeFocusPath(kind, item.Path, item.StableNodeId);
                 }
             }
 
@@ -2801,7 +3294,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             if (openContextMenu)
             {
-                SetSelectedNodePath(kind, item.Path);
+                SetSelectedNodePath(kind, item.Path, item.StableNodeId);
                 ShowOutlineNodeContextMenu(item, items);
                 Event.current.Use();
             }
@@ -2826,12 +3319,60 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var name = TriggerAuthoringEditorLabels.Node(
                 item.Node.Type,
                 descriptor != null ? descriptor.DisplayName : null);
+            var referenceSummary = BuildNodeReferenceSummary(item.Node, descriptor);
             var childCount = item.Node.Children != null ? item.Node.Children.Count : 0;
             if (string.Equals(item.Node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
                 childCount += (item.Node.Condition != null ? 1 : 0) +
                               (item.Node.ElseChildren != null ? item.Node.ElseChildren.Count : 0);
-            return (item.Node.Enabled ? string.Empty : "[停用] ") + branchPrefix + name +
+            return (item.Node.Enabled ? string.Empty : "[停用] ") + branchPrefix + name + referenceSummary +
                    (childCount > 0 ? "  (" + childCount + ")" : string.Empty);
+        }
+
+        private string BuildNodeReferenceSummary(
+            TriggerNodeData node,
+            TriggerTypeDescriptor descriptor)
+        {
+            if (node?.Arguments == null || descriptor?.Parameters == null || _references == null)
+                return string.Empty;
+            var summaries = new List<string>(2);
+            for (var parameterIndex = 0; parameterIndex < descriptor.Parameters.Count; parameterIndex++)
+            {
+                var parameter = descriptor.Parameters[parameterIndex];
+                if (parameter == null || string.IsNullOrWhiteSpace(parameter.SemanticId)) continue;
+                var argument = TriggerAuthoringArgumentPathResolver.FindField(node.Arguments, parameter.Name);
+                var value = argument?.Value;
+                if (value == null || value.Source != TriggerValueSource.Constant) continue;
+                if (value.Type == TriggerValueType.Integer &&
+                    _references.TryResolve(
+                        parameter.SemanticId,
+                        parameter.Type,
+                        value.IntegerValue,
+                        out var option))
+                {
+                    summaries.Add(option.DisplayName + " [" + value.IntegerValue + "]");
+                }
+                else if (value.Type == TriggerValueType.IntegerList && value.IntegerListValue != null)
+                {
+                    var resolved = new List<string>(2);
+                    var count = Mathf.Min(value.IntegerListValue.Count, 2);
+                    for (var i = 0; i < count; i++)
+                    {
+                        var id = value.IntegerListValue[i];
+                        resolved.Add(_references.TryResolve(
+                                parameter.SemanticId,
+                                parameter.Type,
+                                id,
+                                out var listOption)
+                            ? listOption.DisplayName + " [" + id + "]"
+                            : id.ToString());
+                    }
+                    if (value.IntegerListValue.Count > 2)
+                        resolved.Add("等 " + value.IntegerListValue.Count + " 项");
+                    if (resolved.Count > 0) summaries.Add(string.Join(", ", resolved));
+                }
+                if (summaries.Count >= 2) break;
+            }
+            return summaries.Count == 0 ? string.Empty : " · " + string.Join("；", summaries);
         }
 
         private void DrawSelectedNodeDetails(
@@ -2841,7 +3382,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             float height)
         {
             EditorGUILayout.BeginVertical(EditorStyles.helpBox, GUILayout.ExpandWidth(true), GUILayout.Height(height));
-            var item = FindOutlineItem(items, _selectedRuleNodePath);
+            var item = FindOutlineItem(items, _selectedRuleNodePath, _selectedRuleNodeId);
             if (item == null)
             {
                 DrawEmptyRuleAreaDetails(trigger, _selectedRuleNodeKind, readOnly);
@@ -3018,6 +3559,16 @@ namespace AbilityKit.Ability.Editor.Inspectors
             {
                 DrawConditionalActionDetails(item.Node);
                 return;
+            }
+
+
+            if (item.Kind == TriggerNodeKind.Action &&
+                string.Equals(item.Node.Type, "until", StringComparison.OrdinalIgnoreCase))
+            {
+                EditorGUILayout.HelpBox(
+                    "每轮执行前计算结束条件；条件成立时结束循环，最多执行 max_iterations 次。",
+                    MessageType.Info);
+                DrawConditionalPredicateControls(item.Node, "结束条件");
             }
 
             if (maxChildren != 0)
@@ -3225,7 +3776,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             if (item.Owner != null && item.OwnerIndex >= 0 && item.OwnerIndex < item.Owner.Count)
                 item.Owner[item.OwnerIndex] = replacement;
-            else if (item.ConditionalOwner != null && item.Branch == NodeOutlineBranch.Predicate)
+            else if (item.ConditionalOwner != null &&
+                     (item.Branch == NodeOutlineBranch.Predicate ||
+                      item.Branch == NodeOutlineBranch.UntilCondition))
                 item.ConditionalOwner.Condition = replacement;
             else if (item.IsRoot)
                 SetRootNode(_asset.Module.Triggers[_selectedTriggerIndex], item.Kind, replacement);
@@ -3238,7 +3791,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 TriggerAuthoringConditionalChain.RemoveElseIf(item.ConditionalOwner, item.Node);
             else if (item.Owner != null && item.OwnerIndex >= 0 && item.OwnerIndex < item.Owner.Count)
                 item.Owner.RemoveAt(item.OwnerIndex);
-            else if (item.ConditionalOwner != null && item.Branch == NodeOutlineBranch.Predicate)
+            else if (item.ConditionalOwner != null &&
+                     (item.Branch == NodeOutlineBranch.Predicate ||
+                      item.Branch == NodeOutlineBranch.UntilCondition))
                 item.ConditionalOwner.Condition = null;
             else if (item.IsRoot)
                 SetRootNode(_asset.Module.Triggers[_selectedTriggerIndex], item.Kind, null);
@@ -3267,10 +3822,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (!CanMoveOutlineItem(item, delta)) return;
             var target = item.OwnerIndex + delta;
             Edit("调整触发器节点顺序", () => SwapNodes(item.Owner, item.OwnerIndex, target));
-            var suffix = "[" + item.OwnerIndex + "]";
-            var targetSuffix = "[" + target + "]";
-            if (item.Path.EndsWith(suffix, StringComparison.Ordinal))
-                SetSelectedNodePath(item.WorkspaceKind, item.Path.Substring(0, item.Path.Length - suffix.Length) + targetSuffix);
+            SetSelectedNodePath(item.WorkspaceKind, item.Path, item.StableNodeId);
         }
 
         private void DrawNodeOutlineSplitter(float availableWidth)
@@ -3312,6 +3864,24 @@ namespace AbilityKit.Ability.Editor.Inspectors
             return null;
         }
 
+        private static NodeOutlineItem FindOutlineItem(
+            List<NodeOutlineItem> items,
+            string path,
+            string stableNodeId)
+        {
+            if (!string.IsNullOrEmpty(stableNodeId))
+                for (var i = 0; i < items.Count; i++)
+                    if (string.Equals(items[i].StableNodeId, stableNodeId, StringComparison.Ordinal)) return items[i];
+            return FindOutlineItem(items, path);
+        }
+
+        private static string GetOutlineStateKey(NodeOutlineItem item)
+        {
+            return item != null && !string.IsNullOrEmpty(item.StableNodeId)
+                ? "node-id:" + item.StableNodeId
+                : item?.Path;
+        }
+
         private static NodeOutlineItem FindClosestOutlineItem(List<NodeOutlineItem> items, string path)
         {
             NodeOutlineItem best = null;
@@ -3329,8 +3899,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var parentPath = item.ParentPath;
             while (!string.IsNullOrEmpty(parentPath))
             {
-                _expandedNodePaths.Add(parentPath);
                 var parent = FindOutlineItem(items, parentPath);
+                if (parent == null) break;
+                _expandedNodePaths.Add(GetOutlineStateKey(parent));
                 parentPath = parent != null ? parent.ParentPath : null;
             }
         }
@@ -3354,10 +3925,20 @@ namespace AbilityKit.Ability.Editor.Inspectors
             return kind == _selectedRuleNodeKind ? _selectedRuleNodePath : null;
         }
 
-        private void SetSelectedNodePath(TriggerNodeKind kind, string path)
+        private bool IsSelectedNode(NodeOutlineItem item)
+        {
+            if (item == null || item.WorkspaceKind != _selectedRuleNodeKind) return false;
+            return !string.IsNullOrEmpty(_selectedRuleNodeId) &&
+                   string.Equals(_selectedRuleNodeId, item.StableNodeId, StringComparison.Ordinal) ||
+                   string.IsNullOrEmpty(_selectedRuleNodeId) &&
+                   string.Equals(_selectedRuleNodePath, item.Path, StringComparison.Ordinal);
+        }
+
+        private void SetSelectedNodePath(TriggerNodeKind kind, string path, string stableNodeId = null)
         {
             _selectedRuleNodeKind = kind;
             _selectedRuleNodePath = path;
+            _selectedRuleNodeId = stableNodeId;
         }
 
         private string GetNodeFocusPath(TriggerNodeKind kind)
@@ -3365,18 +3946,26 @@ namespace AbilityKit.Ability.Editor.Inspectors
             return kind == _ruleFocusKind ? _ruleFocusPath : null;
         }
 
-        private void SetNodeFocusPath(TriggerNodeKind kind, string path)
+        private string GetNodeFocusId(TriggerNodeKind kind)
+        {
+            return kind == _ruleFocusKind ? _ruleFocusNodeId : null;
+        }
+
+        private void SetNodeFocusPath(TriggerNodeKind kind, string path, string stableNodeId = null)
         {
             _ruleFocusKind = kind;
             _ruleFocusPath = path;
+            _ruleFocusNodeId = stableNodeId;
         }
 
         private void ResetNodeNavigation()
         {
             _selectedRuleNodeKind = TriggerNodeKind.Condition;
             _selectedRuleNodePath = null;
+            _selectedRuleNodeId = null;
             _ruleFocusKind = TriggerNodeKind.Condition;
             _ruleFocusPath = null;
+            _ruleFocusNodeId = null;
             _ruleTreeBranchesInitialized = false;
             _nodeSearch = string.Empty;
             _expandedNodePaths.Clear();
@@ -3838,6 +4427,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 CanPasteChild = canPasteChild,
                 CanAddChild = canAddChild,
                 Copy = () => TriggerAuthoringNodeClipboard.Copy(node, kind),
+                CopyNodeId = () => EditorGUIUtility.systemCopyBuffer = node.NodeId ?? string.Empty,
                 PasteChild = () => PasteNodeAsChild(children, kind),
                 ChangeType = () => ShowNodeTypeMenu(kind, selected => ApplyDescriptor(node, selected), activator),
                 SelectGroup = () => ShowGroupMenu(kind, groupId => ApplyGroupReference(node, kind, groupId)),
@@ -3860,6 +4450,12 @@ namespace AbilityKit.Ability.Editor.Inspectors
                     : null,
                 ToggleEnabled = () => Edit(node.Enabled ? "停用触发器节点" : "启用触发器节点", () => node.Enabled = !node.Enabled),
                 AddDebugLogChild = () => Edit("添加调试日志节点", () => children.Add(CreateDebugLogNode("debug"))),
+                InsertBefore = insertBefore == null
+                    ? null
+                    : (Action)(() => ShowNodeCreationMenu(kind, insertBefore, activator)),
+                InsertAfter = insertAfter == null
+                    ? null
+                    : (Action)(() => ShowNodeCreationMenu(kind, insertAfter, activator)),
                 InsertDebugLogBefore = insertBefore == null
                     ? null
                     : (Action)(() => Edit("插入调试日志节点", () => insertBefore(CreateDebugLogNode("before")))),
@@ -4077,7 +4673,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
                         : trigger,
                     Events = _events,
                     GlobalBlackboard = _globalBlackboard,
-                    ValueSources = _valueSources
+                    ValueSources = _valueSources,
+                    References = _references,
+                    ApplyChange = Edit
                 });
         }
 
@@ -4833,6 +5431,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 var triggers = _asset.Module.Triggers ?? (_asset.Module.Triggers = new List<TriggerDefinitionData>());
                 triggers.Add(CreateTrigger());
                 _selectedTriggerIndex = triggers.Count - 1;
+                _triggerPageIndex = int.MaxValue;
             });
         }
 
@@ -4846,6 +5445,8 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 var json = JsonUtility.ToJson(new TriggerCloneContainer { Trigger = source });
                 var copy = JsonUtility.FromJson<TriggerCloneContainer>(json).Trigger;
                 copy.Id = NextTriggerId();
+                TriggerAuthoringNodeIdentity.RegenerateTree(copy.Condition);
+                TriggerAuthoringNodeIdentity.RegenerateTree(copy.Actions);
                 copy.Name = string.IsNullOrWhiteSpace(copy.Name) ? "副本" : copy.Name + " 副本";
                 triggers.Insert(_selectedTriggerIndex + 1, copy);
                 _selectedTriggerIndex++;
@@ -4915,14 +5516,17 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             var node = new TriggerNodeData
             {
+                NodeId = TriggerAuthoringNodeIdentity.Create(),
                 Kind = descriptor != null ? descriptor.Kind : TriggerNodeKind.Action,
                 Type = descriptor != null ? descriptor.Type : string.Empty
             };
             if (descriptor == null) return node;
             AddDefaultArguments(node.Arguments, descriptor);
             if (descriptor.Kind == TriggerNodeKind.Action &&
-                string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+                (string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(descriptor.Type, "until", StringComparison.OrdinalIgnoreCase)))
                 node.Condition = CreateDefaultEmbeddedCondition();
+            ApplyFlowArgumentDefaults(node);
             return node;
         }
 
@@ -4930,6 +5534,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             return new TriggerNodeData
             {
+                NodeId = TriggerAuthoringNodeIdentity.Create(),
                 Kind = TriggerNodeKind.Condition,
                 Type = "always_true"
             };
@@ -4939,6 +5544,7 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             return new TriggerNodeData
             {
+                NodeId = TriggerAuthoringNodeIdentity.Create(),
                 Kind = kind,
                 GroupReference = groupId ?? string.Empty
             };
@@ -4965,12 +5571,33 @@ namespace AbilityKit.Ability.Editor.Inspectors
             node.Type = descriptor.Type;
             node.Arguments = new List<TriggerArgumentData>();
             node.Condition = descriptor.Kind == TriggerNodeKind.Action &&
-                             string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase)
+                             (string.Equals(descriptor.Type, "conditional", StringComparison.OrdinalIgnoreCase) ||
+                              string.Equals(descriptor.Type, "until", StringComparison.OrdinalIgnoreCase))
                 ? CreateDefaultEmbeddedCondition()
                 : null;
             node.Children = new List<TriggerNodeData>();
             node.ElseChildren = new List<TriggerNodeData>();
             AddDefaultArguments(node.Arguments, descriptor);
+            ApplyFlowArgumentDefaults(node);
+        }
+
+        private static void ApplyFlowArgumentDefaults(TriggerNodeData node)
+        {
+            if (node == null || node.Arguments == null) return;
+            var parameterName = string.Equals(node.Type, "repeat", StringComparison.OrdinalIgnoreCase)
+                ? "count"
+                : string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase)
+                    ? "max_iterations"
+                    : null;
+            if (parameterName == null) return;
+            for (var i = 0; i < node.Arguments.Count; i++)
+            {
+                var argument = node.Arguments[i];
+                if (argument?.Value == null ||
+                    !string.Equals(argument.Name, parameterName, StringComparison.Ordinal)) continue;
+                argument.Value.IntegerValue = 1;
+                return;
+            }
         }
 
         private static void ApplyGroupReference(
@@ -5036,7 +5663,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _selectedRuleNodeKind = TriggerNodeKind.Action;
             EditorUtility.SetDirty(_asset);
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
             _triggerGroupsInitialized = false;
             ExpandVisibleTriggerGroups();
             ShowNotification("已创建触发效果：" + extractedTrigger.Id);
@@ -5296,7 +5922,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             EditorUtility.SetDirty(_asset);
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
             ShowNotification("已复制触发效果 " + target.Id + " 的真实逻辑");
             RequestRepaint();
         }
@@ -5349,7 +5974,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
             if (groupIndex >= 0) _expandedGroupEditors.Add(((int)kind) + ":" + groupIndex);
             EditorUtility.SetDirty(_asset);
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
             ShowNotification("已提取可复用分组：" + extractedGroup.Id);
             RequestRepaint();
         }
@@ -5372,7 +5996,6 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
             EditorUtility.SetDirty(_asset);
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
             ShowNotification("已转为本地副本");
             RequestRepaint();
         }
@@ -5477,7 +6100,9 @@ namespace AbilityKit.Ability.Editor.Inspectors
             var path = EditorUtility.SaveFilePanel("导出 Runtime Plan JSON", Application.dataPath, defaultName, "json");
             if (string.IsNullOrWhiteSpace(path)) return;
 
-            var result = TriggerAuthoringRuntimeExporter.Export(_asset, path);
+            if (_diagnosticsRefreshPending || _diagnosticsRevision != _triggerIndexRevision)
+                RefreshDiagnostics();
+            var result = TriggerAuthoringRuntimeExporter.ExportPrevalidated(_asset, path, _diagnostics);
             if (result.Success)
             {
                 AssetDatabase.Refresh();
@@ -5492,9 +6117,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void ShowSyncResult(string operation, TriggerAuthoringSyncResult result)
         {
-            _nextSyncInspectionAt = 0d;
+            InvalidateSyncInspection();
             if (result.Success)
             {
+                CaptureAssetContentSnapshot();
                 AssetDatabase.SaveAssets();
                 ShowNotification(operation + "成功");
                 return;
@@ -5510,9 +6136,43 @@ namespace AbilityKit.Ability.Editor.Inspectors
 
         private void RefreshSyncInspectionIfNeeded()
         {
-            if (_syncInspection != null && EditorApplication.timeSinceStartup < _nextSyncInspectionAt) return;
-            _syncInspection = TriggerAuthoringSourceSync.Inspect(_asset);
-            _nextSyncInspectionAt = EditorApplication.timeSinceStartup + 0.5d;
+            var now = EditorApplication.timeSinceStartup;
+            if (_syncInspection != null && now < _nextSyncInspectionAt) return;
+
+            var sourcePath = ResolveSourcePath();
+            GetSourceFileStamp(sourcePath, out var sourceLength, out var sourceWriteTicks);
+            var sourceChanged = !string.Equals(
+                                    sourcePath,
+                                    _syncInspectionSourcePath,
+                                    StringComparison.OrdinalIgnoreCase) ||
+                                sourceLength != _syncInspectionSourceLength ||
+                                sourceWriteTicks != _syncInspectionSourceWriteTicks;
+            // Parsing and hashing both documents scales with the whole module; file metadata is enough for polling.
+            if (_syncInspection == null || _syncInspectionAssetDirty || sourceChanged)
+            {
+                _syncInspection = TriggerAuthoringSourceSync.Inspect(_asset, sourcePath);
+                _syncInspectionAssetDirty = false;
+                _syncInspectionSourcePath = sourcePath;
+                _syncInspectionSourceLength = sourceLength;
+                _syncInspectionSourceWriteTicks = sourceWriteTicks;
+            }
+            _nextSyncInspectionAt = now + 1d;
+        }
+
+        private void InvalidateSyncInspection()
+        {
+            _syncInspectionAssetDirty = true;
+            _nextSyncInspectionAt = 0d;
+        }
+
+        private static void GetSourceFileStamp(string path, out long length, out long writeTicks)
+        {
+            length = -1L;
+            writeTicks = -1L;
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
+            var info = new FileInfo(path);
+            length = info.Length;
+            writeTicks = info.LastWriteTimeUtc.Ticks;
         }
 
         private void RebuildCatalogs()
@@ -5521,15 +6181,18 @@ namespace AbilityKit.Ability.Editor.Inspectors
             _types = TriggerTypeDescriptorCatalog.CreateForProject(project);
             _events = TriggerEventDescriptorCatalog.FromProject(project);
             _valueSources = TriggerAuthoringValueSourceCatalog.CreateForProject(project);
+            _references = TriggerAuthoringReferenceCatalog.CreateForProject(project);
             _globalBlackboard = TriggerGlobalBlackboardDescriptorCatalog.FromAsset(
                 project != null ? project.GlobalBlackboardCatalog : null);
             _templates = TriggerTemplateDescriptorCatalog.FromAsset(
                 project != null ? project.TemplateCatalog : null);
+            InvalidateTriggerViews();
         }
 
         private void RefreshDiagnostics()
         {
             if (_asset == null) return;
+            CancelScheduledDiagnosticsRefresh();
             _diagnostics = TriggerAuthoringValidator.Validate(
                 _asset.Module,
                 TriggerAuthoringValidationContext.Create(_asset));
@@ -5537,7 +6200,179 @@ namespace AbilityKit.Ability.Editor.Inspectors
                 _diagnostics,
                 _asset,
                 FocusDiagnostic);
+            InvalidateTriggerViews();
+            _diagnosticsRevision = _triggerIndexRevision;
+            CaptureAssetContentSnapshot();
+            InvalidateSyncInspection();
             RequestRepaint();
+        }
+
+        private List<TriggerAuthoringTriggerIndex.Group> GetTriggerGroups(
+            TriggerAuthoringTriggerGroupMode groupMode,
+            string searchText,
+            TriggerAuthoringTriggerQuickFilter quickFilter)
+        {
+            searchText = searchText ?? string.Empty;
+            for (var i = 0; i < _triggerIndexCache.Length; i++)
+            {
+                var cached = _triggerIndexCache[i];
+                if (cached.Groups != null &&
+                    cached.Revision == _triggerIndexRevision &&
+                    cached.GroupMode == groupMode &&
+                    cached.QuickFilter == quickFilter &&
+                    string.Equals(cached.SearchText, searchText, StringComparison.Ordinal))
+                    return cached.Groups;
+            }
+
+            TriggerAuthoringTriggerIndex.PreparedSearchIndex preparedSearch = null;
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                if (_triggerPreparedSearch == null || _triggerPreparedSearchRevision != _triggerIndexRevision)
+                {
+                    _triggerPreparedSearch = TriggerAuthoringTriggerIndex.PrepareSearch(
+                        _asset?.Module?.Triggers,
+                        _diagnostics,
+                        _templates);
+                    _triggerPreparedSearchRevision = _triggerIndexRevision;
+                }
+                preparedSearch = _triggerPreparedSearch;
+            }
+
+            var groups = TriggerAuthoringTriggerIndex.Build(
+                _asset?.Module?.Triggers,
+                _diagnostics,
+                _events,
+                groupMode,
+                searchText,
+                quickFilter,
+                _templates,
+                preparedSearch);
+            var slot = _triggerIndexCache[_nextTriggerIndexCacheSlot];
+            _nextTriggerIndexCacheSlot = (_nextTriggerIndexCacheSlot + 1) % _triggerIndexCache.Length;
+            slot.Revision = _triggerIndexRevision;
+            slot.GroupMode = groupMode;
+            slot.SearchText = searchText;
+            slot.QuickFilter = quickFilter;
+            slot.Groups = groups;
+            slot.VisibleIndices = null;
+            return groups;
+        }
+
+        private IReadOnlyList<int> GetVisibleTriggerIndices(
+            IReadOnlyList<TriggerAuthoringTriggerIndex.Group> groups)
+        {
+            for (var i = 0; i < _triggerIndexCache.Length; i++)
+            {
+                var cached = _triggerIndexCache[i];
+                if (!ReferenceEquals(cached.Groups, groups)) continue;
+                if (cached.VisibleIndices == null)
+                    cached.VisibleIndices = TriggerAuthoringTriggerBatchOperations.CollectVisibleTriggerIndices(groups);
+                return cached.VisibleIndices;
+            }
+            return TriggerAuthoringTriggerBatchOperations.CollectVisibleTriggerIndices(groups);
+        }
+
+        private TriggerAuthoringRuleOverviewResult GetRuleOverview()
+        {
+            if (_cachedRuleOverview != null &&
+                _cachedRuleOverviewRevision == _triggerIndexRevision &&
+                _cachedRuleOverviewTriggerIndex == _selectedTriggerIndex &&
+                _cachedRuleOverviewGroupMode == _triggerGroupMode &&
+                string.Equals(_cachedRuleOverviewGroupKey, _selectedTriggerGroupKey, StringComparison.Ordinal))
+                return _cachedRuleOverview;
+
+            var indexedGroups = GetTriggerGroups(
+                _triggerGroupMode,
+                string.Empty,
+                TriggerAuthoringTriggerQuickFilter.All);
+            _cachedRuleOverview = TriggerAuthoringRuleOverviewBuilder.BuildForGroup(
+                _asset.Module,
+                _selectedTriggerIndex,
+                _triggerGroupMode,
+                _selectedTriggerGroupKey,
+                _diagnostics,
+                _events,
+                _types,
+                _templates,
+                indexedGroups,
+                _references);
+            _cachedRuleOverviewRevision = _triggerIndexRevision;
+            _cachedRuleOverviewTriggerIndex = _selectedTriggerIndex;
+            _cachedRuleOverviewGroupMode = _triggerGroupMode;
+            _cachedRuleOverviewGroupKey = _cachedRuleOverview.GroupKey;
+            return _cachedRuleOverview;
+        }
+
+        private void InvalidateTriggerViews()
+        {
+            _triggerIndexRevision++;
+            for (var i = 0; i < _triggerIndexCache.Length; i++)
+            {
+                _triggerIndexCache[i].Groups = null;
+                _triggerIndexCache[i].VisibleIndices = null;
+            }
+            _cachedRuleOverview = null;
+            _cachedRuleOverviewRevision = -1;
+            _triggerPreparedSearch = null;
+            _triggerPreparedSearchRevision = -1;
+        }
+
+        private static bool IsNavigationOnlyEvent(Event current)
+        {
+            if (current == null) return false;
+            return current.type == EventType.ScrollWheel ||
+                   current.type == EventType.ContextClick ||
+                   current.rawType == EventType.ContextClick ||
+                   current.type == EventType.MouseDown && current.button != 0;
+        }
+
+        private bool UpdateContentSnapshotIfChanged()
+        {
+            var snapshot = SerializeAssetContent();
+            if (string.Equals(snapshot, _assetContentSnapshot, StringComparison.Ordinal)) return false;
+            _assetContentSnapshot = snapshot;
+            return true;
+        }
+
+        private void CaptureAssetContentSnapshot()
+        {
+            _assetContentSnapshot = SerializeAssetContent();
+        }
+
+        private string SerializeAssetContent()
+        {
+            return _asset != null ? EditorJsonUtility.ToJson(_asset, false) : string.Empty;
+        }
+
+        private void ScheduleDiagnosticsRefresh()
+        {
+            _diagnosticsRefreshAt = EditorApplication.timeSinceStartup + DiagnosticsDebounceSeconds;
+            if (_diagnosticsRefreshPending) return;
+            _diagnosticsRefreshPending = true;
+            EditorApplication.update += RefreshScheduledDiagnostics;
+        }
+
+        private void RefreshScheduledDiagnostics()
+        {
+            if (!_diagnosticsRefreshPending || EditorApplication.timeSinceStartup < _diagnosticsRefreshAt) return;
+            RefreshDiagnostics();
+        }
+
+        private void OnUndoRedo()
+        {
+            if (_asset == null) return;
+            _dryRunResult = null;
+            RebuildCatalogs();
+            EnsureSelection();
+            RefreshDiagnostics();
+            _templateMatrixPanel.Invalidate();
+        }
+
+        private void CancelScheduledDiagnosticsRefresh()
+        {
+            if (!_diagnosticsRefreshPending) return;
+            _diagnosticsRefreshPending = false;
+            EditorApplication.update -= RefreshScheduledDiagnostics;
         }
 
         private void FocusDiagnostic(string path)
@@ -5607,7 +6442,12 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             var current = Event.current;
             if (current == null) return;
-            if (current.type == EventType.MouseDown || current.type == EventType.KeyDown)
+            if (current.type == EventType.MouseDown &&
+                current.button == 0 &&
+                _triggerPagerRect.Contains(current.mousePosition))
+                return;
+            if (current.type == EventType.MouseDown && current.button == 0 ||
+                current.type == EventType.KeyDown && EditorGUIUtility.editingTextField)
                 Undo.RecordObject(_asset, "编辑触发器模块");
         }
 
@@ -5615,9 +6455,10 @@ namespace AbilityKit.Ability.Editor.Inspectors
         {
             Undo.RecordObject(_asset, undoName);
             action();
+            _dryRunResult = null;
             EditorUtility.SetDirty(_asset);
             RefreshDiagnostics();
-            _nextSyncInspectionAt = 0d;
+            _templateMatrixPanel.Invalidate();
         }
 
         private void RequestRepaint()

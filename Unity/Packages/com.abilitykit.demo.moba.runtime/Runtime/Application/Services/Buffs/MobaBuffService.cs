@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using AbilityKit.Ability.Triggering;
 using AbilityKit.Ability.World.DI;
 using AbilityKit.Ability.World.Services;
 using AbilityKit.Ability.World.Services.Attributes;

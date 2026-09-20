@@ -1,6 +1,4 @@
-using AbilityKit.Ability.Triggering.Json;
 using AbilityKit.Ability.World.DI;
-using AbilityKit.Core.Logging;
 using AbilityKit.Demo.Moba.Services;
 
 namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
@@ -26,16 +24,6 @@ namespace AbilityKit.Demo.Moba.Systems.Bootstrap.Flow.Stages
                 var reg = new MobaEventSubscriptionRegistry();
                 reg.DiscoverAndRegister();
                 return reg;
-            });
-
-            builder.TryRegister<MobaTriggerIndexService>(WorldLifetime.Singleton, _ =>
-            {
-                var loader = _.Resolve<ITextLoader>();
-                var s = new MobaTriggerIndexService(loader);
-                Log.Info("[TargetingAndSkillsStage] MobaTriggerIndexService.LoadFromResources begin");
-                s.LoadFromResources();
-                Log.Info("[TargetingAndSkillsStage] MobaTriggerIndexService.LoadFromResources end");
-                return s;
             });
 
         }

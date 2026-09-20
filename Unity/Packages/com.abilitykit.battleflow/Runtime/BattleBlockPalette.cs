@@ -11,6 +11,10 @@ namespace AbilityKit.BattleFlow
         /// <summary>类别 → 积木模板列表（编辑器调色板枚举，点击克隆成实例）。</summary>
         public static IReadOnlyDictionary<string, List<BattleBlock>> Groups => _groups;
 
+        /// <summary>Whether a template belongs in the default author-facing palette.</summary>
+        public static bool IsAuthorFacing(BattleBlock block) =>
+            block is BattleAuthorBlock || block is BattleCompositeBlock;
+
         /// <summary>按类别注册一个积木模板。</summary>
         public static void Register(string category, BattleBlock template)
         {
@@ -22,6 +26,9 @@ namespace AbilityKit.BattleFlow
 
         static BattleBlockPalette()
         {
+            Register("测试意图", new DuelSetupBlock { Id = "duel-setup", DisplayName = "创建对战双方" });
+            Register("测试意图", new CastSkillBlock { Id = "cast-skill", DisplayName = "施放技能" });
+            Register("场景", new ExecutionSettingsBlock { Id = "execution-settings", DisplayName = "执行设置" });
             Register("环境", new SetEnvironmentBlock { Id = "set-environment", DisplayName = "设置环境" });
             Register("环境", new PlaceObstacleBlock { Id = "place-obstacle", DisplayName = "放置障碍" });
             Register("角色", new SpawnActorBlock { Id = "spawn-actor", DisplayName = "生成角色" });

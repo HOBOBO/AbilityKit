@@ -12,6 +12,11 @@ namespace AbilityKit.BattleFlow
         private readonly List<TestCommand> _commands = new List<TestCommand>();
         private string? _environmentProfileId;
         private int _seed;
+        private int _tickRate = 30;
+        private int _maxDurationMs = 30_000;
+        private int _settleDurationMs = 500;
+        private string _endConditionKind = TestEndConditionKinds.TimelineComplete;
+        private int _endConditionDurationMs;
 
         /// <summary>场景 caseId（编译入口传入）。</summary>
         public string CaseId { get; set; } = string.Empty;
@@ -24,6 +29,21 @@ namespace AbilityKit.BattleFlow
 
         /// <summary>Set the deterministic seed used by scenario-owned random streams.</summary>
         public void SetSeed(int seed) => _seed = seed;
+
+        /// <summary>Sets deterministic clock, safety ceiling, normal completion, and observation tail.</summary>
+        public void SetExecution(
+            int tickRate,
+            int maxDurationMs,
+            int settleDurationMs,
+            string endConditionKind,
+            int endConditionDurationMs)
+        {
+            _tickRate = tickRate;
+            _maxDurationMs = maxDurationMs;
+            _settleDurationMs = settleDurationMs;
+            _endConditionKind = endConditionKind;
+            _endConditionDurationMs = endConditionDurationMs;
+        }
 
         /// <summary>设置断言插件。</summary>
         public void SetExpectations(object? expectations) => Expectations = expectations;
@@ -46,6 +66,19 @@ namespace AbilityKit.BattleFlow
             CaseId = CaseId,
             EnvironmentProfileId = _environmentProfileId,
             Seed = _seed,
+            TickRate = _tickRate,
+            TimeoutMs = _maxDurationMs,
+            Execution = new TestExecutionSpec
+            {
+                TickRate = _tickRate,
+                MaxDurationMs = _maxDurationMs,
+                SettleDurationMs = _settleDurationMs,
+                EndCondition = new TestEndCondition
+                {
+                    Kind = _endConditionKind,
+                    DurationMs = _endConditionDurationMs,
+                },
+            },
             Actors = _actors,
             Obstacles = _obstacles,
             Timeline = _timeline,

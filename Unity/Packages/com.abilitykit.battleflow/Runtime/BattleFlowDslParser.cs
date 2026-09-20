@@ -7,8 +7,11 @@ namespace AbilityKit.BattleFlow
     /// <summary>
     /// 战斗流程 DSL：文本语句 → 积木。策划/测试不拖积木时，用一行行命令描述场景，解析结果与拖积木的编译结果一致。
     /// 行语法（# 开头为注释）：
+    ///   scene &lt;relative-or-absolute-ref&gt;（仅 <see cref="ParseDocument(string,string)"/>）
+    ///   tag &lt;value&gt; [...]（仅 <see cref="ParseDocument(string,string)"/>）
     ///   env &lt;profileId&gt;
     ///   seed &lt;integer&gt;
+    ///   execution tick=&lt;hz&gt; max=&lt;ms&gt; settle=&lt;ms&gt; end=timeline|duration duration=&lt;ms&gt;
     ///   spawn &lt;alias&gt; hero=&lt;id&gt; attr=&lt;id&gt; team=&lt;id&gt; player=&lt;id&gt; pos=&lt;x,y,z&gt;
     ///   cast &lt;actor&gt; &lt;target&gt; slot=&lt;n&gt; at=&lt;ms&gt;
     ///   wait &lt;ms&gt; at=&lt;ms&gt;
@@ -27,6 +30,7 @@ namespace AbilityKit.BattleFlow
         public static IReadOnlyList<BattleBlock> Parse(string text)
             => Parse(text, null);
 
+        /// <summary>Parses blocks with an optional project-specific verb factory.</summary>
         public static IReadOnlyList<BattleBlock> Parse(
             string text, Func<string, string[], BattleBlock?>? projectFactory)
         {
@@ -49,6 +53,52 @@ namespace AbilityKit.BattleFlow
             return blocks;
         }
 
+        /// <summary>Parses case metadata and blocks into a sectioned case document.</summary>
+        public static BattleFlowDocument ParseDocument(string caseId, string text)
+            => ParseDocument(caseId, text, null);
+
+        /// <summary>Parses a sectioned case document with optional project-specific block verbs.</summary>
+        public static BattleFlowDocument ParseDocument(
+            string caseId,
+            string text,
+            Func<string, string[], BattleBlock?>? projectFactory)
+        {
+            var document = new BattleFlowDocument { CaseId = caseId };
+            if (string.IsNullOrWhiteSpace(text)) return document;
+
+            foreach (var rawLine in text.Split('\n'))
+            {
+                var line = rawLine.Trim();
+                if (line.Length == 0 || line.StartsWith("#", StringComparison.Ordinal)) continue;
+                var tokens = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (tokens.Length == 0) continue;
+
+                var verb = tokens[0].ToLowerInvariant();
+                var args = tokens.Length > 1 ? tokens[1..] : Array.Empty<string>();
+                if (verb == "scene")
+                {
+                    Require(args, 1, line);
+                    if (args.Length != 1) throw new ArgumentException($"scene requires exactly one reference: {line}");
+                    if (!string.IsNullOrWhiteSpace(document.ScenarioRef))
+                        throw new ArgumentException("BattleFlow DSL may declare scene only once.");
+                    document.ScenarioRef = args[0];
+                    continue;
+                }
+                if (verb == "tag")
+                {
+                    Require(args, 1, line);
+                    foreach (var tag in args)
+                        if (!document.Tags.Contains(tag)) document.Tags.Add(tag);
+                    continue;
+                }
+
+                var block = ParseLine(verb, tokens, line, projectFactory);
+                if (block != null) document.Sections.Add(block);
+            }
+
+            return document;
+        }
+
         private static BattleBlock? ParseLine(
             string verb, string[] tokens, string line,
             Func<string, string[], BattleBlock?>? projectFactory)
@@ -63,6 +113,9 @@ namespace AbilityKit.BattleFlow
                 case "seed":
                     Require(args, 1, line);
                     return new SetScenarioSeedBlock { Seed = ParseInt(args[0]) };
+
+                case "execution":
+                    return ParseExecution(args, line);
 
                 case "spawn":
                     return ParseSpawn(args, line);
@@ -97,8 +150,61 @@ namespace AbilityKit.BattleFlow
                     var projectBlock = projectFactory?.Invoke(verb, args);
                     if (projectBlock != null) return projectBlock;
                     if (AssertFactory != null && verb.StartsWith("assert", StringComparison.Ordinal))
-                        return AssertFactory(verb, args);
-                    return null;
+                    {
+                        var assertion = AssertFactory(verb, args);
+                        if (assertion != null) return assertion;
+                    }
+                    throw new ArgumentException($"Unknown BattleFlow DSL verb '{verb}': {line}");
+            }
+        }
+
+        private static BattleBlock ParseExecution(string[] args, string line)
+        {
+            var block = new ExecutionSettingsBlock();
+            foreach (var arg in args)
+            {
+                var kv = SplitKeyValue(arg);
+                if (string.IsNullOrEmpty(kv.Value))
+                    throw new ArgumentException($"Execution DSL parameter requires a value: {arg}");
+                switch (kv.Key)
+                {
+                    case "tick":
+                    case "tickrate":
+                        block.TickRate = ParseInt(kv.Value);
+                        break;
+                    case "max":
+                    case "timeout":
+                    case "maxduration":
+                        block.MaxDurationMs = ParseInt(kv.Value);
+                        break;
+                    case "settle":
+                    case "settleduration":
+                        block.SettleDurationMs = ParseInt(kv.Value);
+                        break;
+                    case "end":
+                        block.EndCondition = NormalizeEndCondition(kv.Value, line);
+                        break;
+                    case "duration":
+                        block.DurationMs = ParseInt(kv.Value);
+                        break;
+                    default:
+                        throw new ArgumentException($"Unknown execution parameter '{kv.Key}': {line}");
+                }
+            }
+            return block;
+        }
+
+        private static string NormalizeEndCondition(string value, string line)
+        {
+            switch (value.Trim().ToLowerInvariant())
+            {
+                case "timeline":
+                case "timeline_complete":
+                    return TestEndConditionKinds.TimelineComplete;
+                case "duration":
+                    return TestEndConditionKinds.Duration;
+                default:
+                    throw new ArgumentException($"Unknown execution end condition '{value}': {line}");
             }
         }
 

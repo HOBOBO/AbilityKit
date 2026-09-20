@@ -31,6 +31,48 @@ public sealed class MobaBattleFlowScenarioRunnerTests
     }
 
     [Fact]
+    public void Run_HonorsExplicitTickRateAndDurationEndCondition()
+    {
+        var scenario = BattleFlowCompiler.Compile("runner-execution", new BattleBlock[]
+        {
+            new ExecutionSettingsBlock
+            {
+                TickRate = 60,
+                MaxDurationMs = 1_000,
+                SettleDurationMs = 0,
+                EndCondition = TestEndConditionKinds.Duration,
+                DurationMs = 100,
+            },
+        });
+
+        var result = MobaBattleFlowScenarioRunner.Run(scenario);
+
+        Assert.True(result.Passed, result.Summary);
+        Assert.Contains("tickRate=60", result.Summary);
+        Assert.Contains("simulatedMs=100.", result.Summary);
+    }
+
+    [Fact]
+    public void Run_FailsWhenFixedStepQuantizationExceedsMaxDuration()
+    {
+        var scenario = BattleFlowCompiler.Compile("runner-quantized-timeout", new BattleBlock[]
+        {
+            new ExecutionSettingsBlock
+            {
+                TickRate = 30,
+                MaxDurationMs = 100,
+                SettleDurationMs = 0,
+                EndCondition = TestEndConditionKinds.Duration,
+                DurationMs = 100,
+            },
+        });
+
+        var error = Assert.Throws<TimeoutException>(() => MobaBattleFlowScenarioRunner.Run(scenario));
+
+        Assert.Contains("maxDurationMs=100", error.Message);
+    }
+
+    [Fact]
     public void Run_WithAssertion_ProducesVerdict()
     {
         // 断言一个必然不存在的 trace kind（mustNotContain），verdict 应为 PASSED
@@ -127,6 +169,23 @@ cast caster target slot=1 at=200
         Assert.Single(outcome.TraceNodes, node => node.Kind == "SkillCast");
         Assert.Contains(outcome.NetworkTrace, entry => entry.Contains("BlockedOutbound"));
         Assert.Contains("virtualNetwork=1/2", outcome.Result.Summary);
+    }
+
+    [Fact]
+    public void NetworkDsl_WaitAdvancesSimulationCursorWithoutReplayingAbsoluteGap()
+    {
+        var blocks = BattleFlowDslParser.Parse(@"
+execution tick=10 max=2000 settle=0 end=timeline
+network disconnect at=0
+wait 100 at=100
+wait 100 at=200
+");
+        var scenario = BattleFlowCompiler.Compile("network-wait-cursor", blocks);
+
+        var outcome = MobaBattleFlowScenarioRunner.RunDetailed(scenario);
+
+        Assert.True(outcome.Result.Passed, outcome.Result.Summary);
+        Assert.Contains("simulatedMs=300.000", outcome.Result.Summary);
     }
 
     /// <summary>测试内的断言积木（镜像 MOBA 的 AssertTraceBlock，但直接用 .NET 可访问的 MobaBattleFlowAssertions）。</summary>

@@ -36,6 +36,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!TryDeserialize(EditorGUIUtility.systemCopyBuffer, out var entry)) return false;
             if (entry.Kind != expectedKind) return false;
             node = entry.Node;
+            TriggerAuthoringNodeIdentity.RegenerateTree(node);
             return node != null;
         }
 

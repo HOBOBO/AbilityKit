@@ -159,6 +159,7 @@ namespace AbilityKit.Ability.Config.Authoring
     [Serializable]
     public sealed class TriggerNodeData
     {
+        public string NodeId;
         public bool Enabled = true;
         public TriggerNodeKind Kind;
         public string GroupReference;
@@ -169,6 +170,244 @@ namespace AbilityKit.Ability.Config.Authoring
         public TriggerNodeData Condition;
         public List<TriggerNodeData> Children = new List<TriggerNodeData>();
         public List<TriggerNodeData> ElseChildren = new List<TriggerNodeData>();
+    }
+
+    public static class TriggerAuthoringNodeIdentity
+    {
+        private const string Prefix = "node_";
+
+        public static string Create()
+        {
+            return Prefix + Guid.NewGuid().ToString("N");
+        }
+
+        public static bool IsValid(string nodeId)
+        {
+            if (string.IsNullOrEmpty(nodeId) || !nodeId.StartsWith(Prefix, StringComparison.Ordinal))
+                return false;
+
+            var suffix = nodeId.Substring(Prefix.Length);
+            var offset = suffix.Length == 17 && suffix[0] == 'l' ? 1 : 0;
+            if (suffix.Length != 32 && offset == 0) return false;
+            for (var i = offset; i < suffix.Length; i++)
+            {
+                var value = suffix[i];
+                if (value < '0' || value > '9' && (value < 'a' || value > 'f')) return false;
+            }
+            return true;
+        }
+
+        public static int EnsureModule(TriggerAuthoringModuleData module)
+        {
+            if (module == null) return 0;
+            var occupied = CollectIds(module);
+            var visited = new HashSet<TriggerNodeData>();
+            var assigned = 0;
+            assigned += EnsureGroups(
+                module.ConditionGroups,
+                "module:" + (module.ModuleId ?? string.Empty) + ":condition-groups",
+                occupied,
+                visited);
+            assigned += EnsureGroups(
+                module.ActionGroups,
+                "module:" + (module.ModuleId ?? string.Empty) + ":action-groups",
+                occupied,
+                visited);
+
+            var triggers = module.Triggers;
+            if (triggers == null) return assigned;
+            for (var i = 0; i < triggers.Count; i++)
+            {
+                var trigger = triggers[i];
+                if (trigger == null) continue;
+                var seed = "module:" + (module.ModuleId ?? string.Empty) + ":trigger:" + trigger.Id + ":" + i;
+                assigned += EnsureTreeInternal(trigger.Condition, seed + ":condition", occupied, visited);
+                assigned += EnsureTreeInternal(trigger.Actions, seed + ":actions", occupied, visited);
+            }
+            return assigned;
+        }
+
+        public static int EnsureTemplate(TriggerAuthoringTemplateData template)
+        {
+            if (template == null) return 0;
+            var occupied = new HashSet<string>(StringComparer.Ordinal);
+            var definition = template.Definition;
+            CollectIds(definition?.Condition, occupied, new HashSet<TriggerNodeData>());
+            CollectIds(definition?.Actions, occupied, new HashSet<TriggerNodeData>());
+            var visited = new HashSet<TriggerNodeData>();
+            var seed = "template:" + (template.TemplateId ?? string.Empty) + ":" +
+                       (template.TemplateVersion ?? string.Empty);
+            return EnsureTreeInternal(definition?.Condition, seed + ":condition", occupied, visited) +
+                   EnsureTreeInternal(definition?.Actions, seed + ":actions", occupied, visited);
+        }
+
+        public static int EnsureTree(TriggerNodeData root, string seed)
+        {
+            var occupied = new HashSet<string>(StringComparer.Ordinal);
+            CollectIds(root, occupied, new HashSet<TriggerNodeData>());
+            return EnsureTreeInternal(
+                root,
+                string.IsNullOrEmpty(seed) ? "tree" : seed,
+                occupied,
+                new HashSet<TriggerNodeData>());
+        }
+
+        public static void RegenerateTree(TriggerNodeData root)
+        {
+            RegenerateTree(root, new HashSet<string>(StringComparer.Ordinal), new HashSet<TriggerNodeData>());
+        }
+
+        private static int EnsureGroups(
+            IReadOnlyList<TriggerNodeGroupData> groups,
+            string seed,
+            ISet<string> occupied,
+            ISet<TriggerNodeData> visited)
+        {
+            if (groups == null) return 0;
+            var assigned = 0;
+            for (var i = 0; i < groups.Count; i++)
+            {
+                var group = groups[i];
+                if (group == null) continue;
+                assigned += EnsureTreeInternal(
+                    group.Root,
+                    seed + ":" + (group.Id ?? string.Empty) + ":" + i,
+                    occupied,
+                    visited);
+            }
+            return assigned;
+        }
+
+        private static int EnsureTreeInternal(
+            TriggerNodeData node,
+            string path,
+            ISet<string> occupied,
+            ISet<TriggerNodeData> visited)
+        {
+            if (node == null || !visited.Add(node)) return 0;
+            var assigned = 0;
+            if (string.IsNullOrWhiteSpace(node.NodeId))
+            {
+                node.NodeId = CreateLegacyId(path, occupied);
+                occupied.Add(node.NodeId);
+                assigned++;
+            }
+
+            assigned += EnsureTreeInternal(node.Condition, path + ":condition", occupied, visited);
+            assigned += EnsureChildren(node.Children, path + ":children", occupied, visited);
+            assigned += EnsureChildren(node.ElseChildren, path + ":else-children", occupied, visited);
+            return assigned;
+        }
+
+        private static int EnsureChildren(
+            IReadOnlyList<TriggerNodeData> nodes,
+            string path,
+            ISet<string> occupied,
+            ISet<TriggerNodeData> visited)
+        {
+            if (nodes == null) return 0;
+            var assigned = 0;
+            for (var i = 0; i < nodes.Count; i++)
+                assigned += EnsureTreeInternal(nodes[i], path + ":" + i, occupied, visited);
+            return assigned;
+        }
+
+        private static HashSet<string> CollectIds(TriggerAuthoringModuleData module)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var visited = new HashSet<TriggerNodeData>();
+            CollectGroupIds(module.ConditionGroups, ids, visited);
+            CollectGroupIds(module.ActionGroups, ids, visited);
+            var triggers = module.Triggers;
+            if (triggers != null)
+                for (var i = 0; i < triggers.Count; i++)
+                {
+                    CollectIds(triggers[i]?.Condition, ids, visited);
+                    CollectIds(triggers[i]?.Actions, ids, visited);
+                }
+            return ids;
+        }
+
+        private static void CollectGroupIds(
+            IReadOnlyList<TriggerNodeGroupData> groups,
+            ISet<string> ids,
+            ISet<TriggerNodeData> visited)
+        {
+            if (groups == null) return;
+            for (var i = 0; i < groups.Count; i++) CollectIds(groups[i]?.Root, ids, visited);
+        }
+
+        private static void CollectIds(
+            TriggerNodeData node,
+            ISet<string> ids,
+            ISet<TriggerNodeData> visited)
+        {
+            if (node == null || !visited.Add(node)) return;
+            if (!string.IsNullOrWhiteSpace(node.NodeId)) ids.Add(node.NodeId);
+            CollectIds(node.Condition, ids, visited);
+            CollectChildIds(node.Children, ids, visited);
+            CollectChildIds(node.ElseChildren, ids, visited);
+        }
+
+        private static void CollectChildIds(
+            IReadOnlyList<TriggerNodeData> nodes,
+            ISet<string> ids,
+            ISet<TriggerNodeData> visited)
+        {
+            if (nodes == null) return;
+            for (var i = 0; i < nodes.Count; i++) CollectIds(nodes[i], ids, visited);
+        }
+
+        private static void RegenerateTree(
+            TriggerNodeData node,
+            ISet<string> occupied,
+            ISet<TriggerNodeData> visited)
+        {
+            if (node == null || !visited.Add(node)) return;
+            do node.NodeId = Create(); while (!occupied.Add(node.NodeId));
+            RegenerateTree(node.Condition, occupied, visited);
+            RegenerateChildren(node.Children, occupied, visited);
+            RegenerateChildren(node.ElseChildren, occupied, visited);
+        }
+
+        private static void RegenerateChildren(
+            IReadOnlyList<TriggerNodeData> nodes,
+            ISet<string> occupied,
+            ISet<TriggerNodeData> visited)
+        {
+            if (nodes == null) return;
+            for (var i = 0; i < nodes.Count; i++) RegenerateTree(nodes[i], occupied, visited);
+        }
+
+        private static string CreateLegacyId(string seed, ISet<string> occupied)
+        {
+            var attempt = 0;
+            while (true)
+            {
+                var value = attempt == 0 ? seed : seed + ":collision:" + attempt;
+                var candidate = Prefix + "l" + ComputeFnv1A64(value).ToString("x16");
+                if (!occupied.Contains(candidate)) return candidate;
+                attempt++;
+            }
+        }
+
+        private static ulong ComputeFnv1A64(string value)
+        {
+            const ulong offset = 14695981039346656037UL;
+            const ulong prime = 1099511628211UL;
+            var hash = offset;
+            unchecked
+            {
+                for (var i = 0; i < value.Length; i++)
+                {
+                    hash ^= (byte)value[i];
+                    hash *= prime;
+                    hash ^= (byte)(value[i] >> 8);
+                    hash *= prime;
+                }
+            }
+            return hash;
+        }
     }
 
     [Serializable]

@@ -17,6 +17,7 @@
     "com.abilitykit.world.ecs": "0.1.0",
     "com.abilitykit.world.snapshot": "0.1.0",
     "com.abilitykit.combat.projectile": "0.1.0",
-    "com.abilitykit.combat.collision.abstractions": "0.1.0"
+    "com.abilitykit.combat.collision.abstractions": "0.1.0",
+    "com.abilitykit.triggering": "0.1.0"
   }
 }

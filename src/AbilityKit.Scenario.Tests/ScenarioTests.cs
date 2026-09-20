@@ -71,6 +71,60 @@ public sealed class ScenarioTests
         Assert.Single(back.Timeline);
     }
 
+    [Fact]
+    public void Codec_RoundTripsExplicitExecutionPolicy()
+    {
+        var scenario = new TestScenario
+        {
+            CaseId = "execution-roundtrip",
+            Execution = new TestExecutionSpec
+            {
+                TickRate = 60,
+                MaxDurationMs = 5_000,
+                SettleDurationMs = 250,
+                EndCondition = new TestEndCondition
+                {
+                    Kind = TestEndConditionKinds.Duration,
+                    DurationMs = 4_000,
+                },
+            },
+        };
+
+        var back = ScenarioCodec.Parse(ScenarioCodec.Serialize(scenario));
+        var execution = back.ResolveExecution();
+
+        Assert.Equal(60, execution.TickRate);
+        Assert.Equal(5_000, execution.MaxDurationMs);
+        Assert.Equal(250, execution.SettleDurationMs);
+        Assert.Equal(TestEndConditionKinds.Duration, execution.EndCondition.Kind);
+        Assert.Equal(4_000, execution.EndCondition.DurationMs);
+        Assert.Empty(TestScenarioValidator.Validate(back));
+    }
+
+    [Fact]
+    public void Validator_RejectsExecutionPastSafetyCeiling()
+    {
+        var scenario = new TestScenario
+        {
+            CaseId = "invalid-execution",
+            Execution = new TestExecutionSpec
+            {
+                TickRate = 60,
+                MaxDurationMs = 1_000,
+                SettleDurationMs = 200,
+                EndCondition = new TestEndCondition
+                {
+                    Kind = TestEndConditionKinds.Duration,
+                    DurationMs = 900,
+                },
+            },
+        };
+
+        Assert.Contains(
+            TestScenarioValidator.Validate(scenario),
+            error => error.Contains("duration plus settleDurationMs", StringComparison.Ordinal));
+    }
+
     /// <summary>模拟一个项目自定义的断言插件（挂在 opaque 的 Expectations 上）。</summary>
     private sealed class ProjectExpectations
     {

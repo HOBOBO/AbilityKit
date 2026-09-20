@@ -110,6 +110,16 @@ namespace AbilityKit.Ability.Editor.Panels
         protected override void RowGUI(RowGUIArgs args)
         {
             var item = (TriggerTableItem)args.item;
+            if (Event.current.type == EventType.ContextClick &&
+                args.rowRect.Contains(Event.current.mousePosition))
+            {
+                if (!GetSelection().Contains(item.id))
+                    SetSelection(new[] { item.id });
+                ContextMenuRequested?.Invoke(item.Row.Index);
+                Event.current.Use();
+                return;
+            }
+
             for (var visibleColumn = 0; visibleColumn < args.GetNumVisibleColumns(); visibleColumn++)
             {
                 var column = args.GetColumn(visibleColumn);

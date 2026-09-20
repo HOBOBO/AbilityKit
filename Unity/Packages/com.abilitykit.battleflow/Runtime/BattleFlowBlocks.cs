@@ -4,9 +4,122 @@ using AbilityKit.Scenario;
 
 namespace AbilityKit.BattleFlow
 {
+    /// <summary>Creates a conventional caster/target setup with one author-facing block.</summary>
+    public sealed class DuelSetupBlock : BattleAuthorBlock
+    {
+        public string EnvironmentProfileId { get; set; } = string.Empty;
+        public string CasterAlias { get; set; } = "caster";
+        public int CasterHeroId { get; set; }
+        public int CasterAttributeTemplateId { get; set; }
+        public string CasterPlayerId { get; set; } = "player_1";
+        public int CasterTeamId { get; set; } = 1;
+        public string TargetAlias { get; set; } = "target";
+        public int TargetHeroId { get; set; }
+        public int TargetAttributeTemplateId { get; set; }
+        public int TargetTeamId { get; set; } = 2;
+        public float TargetDistance { get; set; } = 3f;
+
+        public override IReadOnlyList<string> Validate()
+        {
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(CasterAlias)) errors.Add("caster alias is required");
+            if (string.IsNullOrWhiteSpace(TargetAlias)) errors.Add("target alias is required");
+            if (string.Equals(CasterAlias, TargetAlias, StringComparison.Ordinal))
+                errors.Add("caster and target aliases must be different");
+            if (TargetDistance < 0f) errors.Add("target distance cannot be negative");
+            return errors;
+        }
+
+        public override IReadOnlyList<BattleBlock> Expand()
+        {
+            var blocks = new List<BattleBlock>();
+            if (!string.IsNullOrWhiteSpace(EnvironmentProfileId))
+                blocks.Add(new SetEnvironmentBlock { ProfileId = EnvironmentProfileId });
+            blocks.Add(new SpawnActorBlock
+            {
+                Alias = CasterAlias,
+                HeroId = CasterHeroId,
+                AttributeTemplateId = CasterAttributeTemplateId,
+                PlayerId = CasterPlayerId,
+                TeamId = CasterTeamId,
+                Position = new TestVector3(0f, 0f, 0f),
+            });
+            blocks.Add(new SpawnActorBlock
+            {
+                Alias = TargetAlias,
+                HeroId = TargetHeroId,
+                AttributeTemplateId = TargetAttributeTemplateId,
+                TeamId = TargetTeamId,
+                Position = new TestVector3(TargetDistance, 0f, 0f),
+            });
+            return blocks;
+        }
+    }
+
+    /// <summary>Author-facing request to cast one skill at a target.</summary>
+    public sealed class CastSkillBlock : BattleAuthorBlock
+    {
+        public string CasterAlias { get; set; } = "caster";
+        public string TargetAlias { get; set; } = "target";
+        public int Slot { get; set; } = 1;
+        public int AtMs { get; set; } = 100;
+
+        public override IReadOnlyList<string> Validate()
+        {
+            var errors = new List<string>();
+            if (string.IsNullOrWhiteSpace(CasterAlias)) errors.Add("caster alias is required");
+            if (string.IsNullOrWhiteSpace(TargetAlias)) errors.Add("target alias is required");
+            if (Slot < 0) errors.Add("skill slot cannot be negative");
+            if (AtMs < 0) errors.Add("cast time cannot be negative");
+            return errors;
+        }
+
+        public override IReadOnlyList<BattleBlock> Expand() => new BattleBlock[]
+        {
+            new TimelineStepBlock
+            {
+                AtMs = AtMs,
+                Action = "cast_skill",
+                ActorAlias = CasterAlias,
+                TargetAlias = TargetAlias,
+                Slot = Slot,
+            },
+        };
+    }
+
+    /// <summary>Configures deterministic scenario execution independently of world setup.</summary>
+    public sealed class ExecutionSettingsBlock : BattleAtomicBlock
+    {
+        /// <inheritdoc/>
+        public override BattleBlockSection Section => BattleBlockSection.Settings;
+
+        /// <summary>Fixed simulation ticks per second.</summary>
+        public int TickRate { get; set; } = 30;
+        /// <summary>Hard safety ceiling for the complete run.</summary>
+        public int MaxDurationMs { get; set; } = 30_000;
+        /// <summary>Observation window after normal completion.</summary>
+        public int SettleDurationMs { get; set; } = 500;
+        /// <summary>Normal completion condition kind.</summary>
+        public string EndCondition { get; set; } = TestEndConditionKinds.TimelineComplete;
+        /// <summary>Duration used when <see cref="EndCondition"/> is duration-based.</summary>
+        public int DurationMs { get; set; }
+
+        /// <inheritdoc/>
+        public override void Compile(BattleFlowBuilder builder) => builder.SetExecution(
+            TickRate,
+            MaxDurationMs,
+            SettleDurationMs,
+            EndCondition,
+            DurationMs);
+    }
+
     /// <summary>Sets the deterministic seed stored in the neutral scenario IR.</summary>
     public sealed class SetScenarioSeedBlock : BattleAtomicBlock
     {
+        /// <inheritdoc/>
+        public override BattleBlockSection Section => BattleBlockSection.Settings;
+
+        /// <summary>Deterministic random seed.</summary>
         public int Seed { get; set; }
 
         /// <inheritdoc/>

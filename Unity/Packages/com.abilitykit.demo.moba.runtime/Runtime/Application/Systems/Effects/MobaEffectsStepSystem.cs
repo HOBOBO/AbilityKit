@@ -3,7 +3,7 @@ using AbilityKit.Ability.FrameSync;
 using AbilityKit.Ability.Share.ECS;
 using AbilityKit.ECS;
 using AbilityKit.Effect;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Triggering.Eventing;
 using AbilityKit.Demo.Moba;
 using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Systems;

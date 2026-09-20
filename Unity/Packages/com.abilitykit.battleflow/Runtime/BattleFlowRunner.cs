@@ -56,8 +56,12 @@ namespace AbilityKit.BattleFlow
     /// <summary>运行器注册表：项目在编辑器里注册自己的 runner（如 MOBA 的 MobaBattleFlowRunner）。</summary>
     public static class BattleFlowRunnerRegistry
     {
+        /// <summary>Legacy block-only DSL parser.</summary>
         public static Func<string, IReadOnlyList<BattleBlock>> DslParser { get; set; }
             = BattleFlowDslParser.Parse;
+        /// <summary>Document-level DSL parser used for scene references, tags, and semantic sections.</summary>
+        public static Func<string, string, BattleFlowDocument> DocumentDslParser { get; set; }
+            = BattleFlowDslParser.ParseDocument;
         /// <summary>当前注册的运行器；未注册时编辑器「运行」按钮会提示。</summary>
         public static IBattleFlowRunner? Runner { get; set; }
 

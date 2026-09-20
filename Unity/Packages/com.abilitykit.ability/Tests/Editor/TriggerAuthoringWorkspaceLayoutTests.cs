@@ -397,6 +397,143 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void RuleOverview_ShowsUntilEndConditionAndLoopBody()
+        {
+            var module = new TriggerAuthoringModuleData();
+            module.Triggers.Add(new TriggerDefinitionData
+            {
+                Id = 23,
+                Event = "buff.apply",
+                Actions = new TriggerNodeData
+                {
+                    Kind = TriggerNodeKind.Action,
+                    Type = "until",
+                    Condition = new TriggerNodeData
+                    {
+                        Kind = TriggerNodeKind.Condition,
+                        Type = "always_false"
+                    },
+                    Arguments =
+                    {
+                        new TriggerArgumentData
+                        {
+                            Name = "max_iterations",
+                            Value = new TriggerValueRefData
+                            {
+                                Source = TriggerValueSource.Constant,
+                                Type = TriggerValueType.Integer,
+                                IntegerValue = 5
+                            }
+                        }
+                    },
+                    Children =
+                    {
+                        new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "debug_log" }
+                    }
+                }
+            });
+
+            var rules = TriggerAuthoringRuleOverviewBuilder.Build(
+                module,
+                "buff.apply",
+                TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
+                null);
+
+            Assert.That(rules, Has.Count.EqualTo(1));
+            Assert.That(rules[0].ActionSummary, Does.Contain("执行直到"));
+            Assert.That(rules[0].ActionSummary, Does.Contain("结束条件：始终不满足"));
+            Assert.That(rules[0].ActionSummary, Does.Contain("输出调试日志"));
+            Assert.That(rules[0].ActionSummary, Does.Contain("最大迭代次数=5"));
+        }
+
+        [Test]
+        public void RuleOverview_PreservesNestedConditionOperatorsAndDisabledNodes()
+        {
+            var module = new TriggerAuthoringModuleData();
+            module.Triggers.Add(new TriggerDefinitionData
+            {
+                Id = 22,
+                Event = "buff.apply",
+                Condition = new TriggerNodeData
+                {
+                    Kind = TriggerNodeKind.Condition,
+                    Type = "all",
+                    Children =
+                    {
+                        new TriggerNodeData
+                        {
+                            Kind = TriggerNodeKind.Condition,
+                            Type = "any",
+                            Children =
+                            {
+                                new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" },
+                                new TriggerNodeData
+                                {
+                                    Kind = TriggerNodeKind.Condition,
+                                    Type = "arg_eq",
+                                    Enabled = false
+                                }
+                            }
+                        },
+                        new TriggerNodeData
+                        {
+                            Kind = TriggerNodeKind.Condition,
+                            Type = "not",
+                            Children =
+                            {
+                                new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" }
+                            }
+                        }
+                    }
+                }
+            });
+
+            var rules = TriggerAuthoringRuleOverviewBuilder.Build(
+                module,
+                "buff.apply",
+                TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
+                null);
+
+            Assert.That(rules, Has.Count.EqualTo(1));
+            Assert.That(rules[0].ConditionSummary, Does.Contain("全部满足"));
+            Assert.That(rules[0].ConditionSummary, Does.Contain("任一满足"));
+            Assert.That(rules[0].ConditionSummary, Does.Contain("结果取反"));
+            Assert.That(rules[0].ConditionSummary, Does.Contain(" 且 "));
+            Assert.That(rules[0].ConditionSummary, Does.Contain(" 或 "));
+            Assert.That(rules[0].ConditionSummary, Does.Contain("[停用]"));
+        }
+
+        [Test]
+        public void RuleOverview_PreservesActionOrderAndShowsDisabledActions()
+        {
+            var module = new TriggerAuthoringModuleData();
+            module.Triggers.Add(new TriggerDefinitionData
+            {
+                Id = 23,
+                Event = "buff.apply",
+                Actions = new TriggerNodeData
+                {
+                    Kind = TriggerNodeKind.Action,
+                    Type = "seq",
+                    Children =
+                    {
+                        new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "heal", Enabled = false },
+                        new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "debug_log" }
+                    }
+                }
+            });
+
+            var rules = TriggerAuthoringRuleOverviewBuilder.Build(
+                module,
+                "buff.apply",
+                TriggerTypeDescriptorCatalog.CreateProjectDefaults(),
+                null);
+
+            Assert.That(rules, Has.Count.EqualTo(1));
+            Assert.That(rules[0].ActionSummary, Is.EqualTo("[停用] 治疗 → 输出调试日志"));
+        }
+
+        [Test]
         public void ConditionalChain_AppendsAndDisplaysElseIfBeforeExistingElse()
         {
             var root = new TriggerNodeData
@@ -462,9 +599,15 @@ namespace AbilityKit.Ability.Editor.Tests
         {
             var source = new TriggerNodeData
             {
+                NodeId = "node_00000000000000000000000000000001",
                 Kind = TriggerNodeKind.Action,
                 Type = "conditional",
-                Condition = new TriggerNodeData { Kind = TriggerNodeKind.Condition, Type = "always_true" },
+                Condition = new TriggerNodeData
+                {
+                    NodeId = "node_00000000000000000000000000000002",
+                    Kind = TriggerNodeKind.Condition,
+                    Type = "always_true"
+                },
                 Children = { new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "heal" } },
                 ElseChildren = { new TriggerNodeData { Kind = TriggerNodeKind.Action, Type = "debug_log" } }
             };
@@ -472,6 +615,8 @@ namespace AbilityKit.Ability.Editor.Tests
             var clone = TriggerAuthoringGroupResolver.CloneNode(source);
 
             Assert.That(clone.Condition.Type, Is.EqualTo("always_true"));
+            Assert.That(clone.NodeId, Is.EqualTo(source.NodeId));
+            Assert.That(clone.Condition.NodeId, Is.EqualTo(source.Condition.NodeId));
             Assert.That(clone.Children[0].Type, Is.EqualTo("heal"));
             Assert.That(clone.ElseChildren[0].Type, Is.EqualTo("debug_log"));
             Assert.That(clone.Condition, Is.Not.SameAs(source.Condition));
@@ -506,6 +651,8 @@ namespace AbilityKit.Ability.Editor.Tests
                     }
                 }
             };
+            TriggerAuthoringNodeIdentity.EnsureTree(node, "group-operation-source");
+            var sourceNodeId = node.NodeId;
 
             var extracted = TriggerAuthoringGroupResolver.TryExtract(
                 module,
@@ -523,6 +670,8 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(node.GroupReference, Is.EqualTo("shared.sequence"));
             Assert.That(node.Enabled, Is.False);
             Assert.That(node.Children, Is.Empty);
+            Assert.That(node.NodeId, Is.EqualTo(sourceNodeId));
+            Assert.That(group.Root.NodeId, Is.Not.EqualTo(sourceNodeId));
 
             var localized = TriggerAuthoringGroupResolver.TryLocalize(
                 module,
@@ -535,6 +684,8 @@ namespace AbilityKit.Ability.Editor.Tests
             Assert.That(node.Type, Is.EqualTo("seq"));
             Assert.That(node.Enabled, Is.False);
             Assert.That(node.Children, Has.Count.EqualTo(2));
+            Assert.That(node.NodeId, Is.EqualTo(sourceNodeId));
+            Assert.That(node.Children[0].NodeId, Is.Not.EqualTo(group.Root.Children[0].NodeId));
             Assert.That(node.Children[1].Condition.Type, Is.EqualTo("always_true"));
             Assert.That(node.Children, Is.Not.SameAs(group.Root.Children));
             Assert.That(node.Children[1].Condition, Is.Not.SameAs(group.Root.Children[1].Condition));

@@ -17,6 +17,11 @@ public sealed class TestScenario
     public int TickRate { get; init; } = 30;
     public int Seed { get; init; }
     public int TimeoutMs { get; init; } = 30_000;
+    /// <summary>
+    /// Explicit execution policy. When omitted, legacy <see cref="TickRate"/> and
+    /// <see cref="TimeoutMs"/> values are used with timeline-complete/500ms settle defaults.
+    /// </summary>
+    public TestExecutionSpec? Execution { get; init; }
     public IReadOnlyDictionary<string, string> WorldParameters { get; init; } = new Dictionary<string, string>();
     public string? NavigationProfileId { get; init; }
     /// <summary>环境 Profile 引用（不透明字符串 id，指向 com.abilitykit.environment 的 EnvironmentProfileCatalog）。</summary>
@@ -30,6 +35,35 @@ public sealed class TestScenario
 
     /// <summary>项目侧的断言插件（opaque）。例如 MOBA 的 TestExpectations；框架不解释它。</summary>
     public object? Expectations { get; init; }
+
+    /// <summary>Resolves the explicit execution policy or a backward-compatible legacy policy.</summary>
+    public TestExecutionSpec ResolveExecution() => Execution ?? new TestExecutionSpec
+    {
+        TickRate = TickRate,
+        MaxDurationMs = TimeoutMs,
+    };
+}
+
+/// <summary>Runtime policy kept separate from static world and timeline data.</summary>
+public sealed class TestExecutionSpec
+{
+    public int TickRate { get; init; } = 30;
+    public int MaxDurationMs { get; init; } = 30_000;
+    public int SettleDurationMs { get; init; } = 500;
+    public TestEndCondition EndCondition { get; init; } = new TestEndCondition();
+}
+
+/// <summary>Normal completion condition. MaxDurationMs remains an independent safety ceiling.</summary>
+public sealed class TestEndCondition
+{
+    public string Kind { get; init; } = TestEndConditionKinds.TimelineComplete;
+    public int DurationMs { get; init; }
+}
+
+public static class TestEndConditionKinds
+{
+    public const string TimelineComplete = "timeline_complete";
+    public const string Duration = "duration";
 }
 
 public sealed class TestObstacle

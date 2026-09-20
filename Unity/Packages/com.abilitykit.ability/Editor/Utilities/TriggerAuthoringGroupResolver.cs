@@ -112,8 +112,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
             }
 
+            if (string.IsNullOrWhiteSpace(node.NodeId)) node.NodeId = TriggerAuthoringNodeIdentity.Create();
             var referenceEnabled = node.Enabled;
             var root = CloneNode(node);
+            TriggerAuthoringNodeIdentity.RegenerateTree(root);
             root.Enabled = true;
             extractedGroup = new TriggerNodeGroupData
             {
@@ -145,7 +147,11 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (!TryExpand(module, node, kind, true, out var expanded, out failure)) return false;
             if (node == null || expanded == null) return true;
 
+            if (string.IsNullOrWhiteSpace(node.NodeId)) node.NodeId = TriggerAuthoringNodeIdentity.Create();
             var referenceEnabled = node.Enabled;
+            var referenceNodeId = node.NodeId;
+            TriggerAuthoringNodeIdentity.RegenerateTree(expanded);
+            expanded.NodeId = referenceNodeId;
             CopyNode(node, expanded);
             node.Enabled = referenceEnabled && expanded.Enabled;
             return true;
@@ -156,6 +162,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (node == null) return null;
             var clone = new TriggerNodeData
             {
+                NodeId = node.NodeId,
                 Enabled = node.Enabled,
                 Kind = node.Kind,
                 GroupReference = node.GroupReference,
@@ -241,6 +248,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 expanded = new TriggerNodeData
                 {
+                    NodeId = node.NodeId,
                     Enabled = false,
                     Kind = kind,
                     Arguments = new List<TriggerArgumentData>(),
@@ -304,6 +312,7 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             expanded = new TriggerNodeData
             {
+                NodeId = node.NodeId,
                 Enabled = node.Enabled,
                 Kind = node.Kind,
                 Type = node.Type,
@@ -410,6 +419,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void CopyNode(TriggerNodeData target, TriggerNodeData source)
         {
             var copy = CloneNode(source);
+            target.NodeId = copy.NodeId;
             target.Enabled = copy.Enabled;
             target.Kind = copy.Kind;
             target.GroupReference = copy.GroupReference;
@@ -676,8 +686,10 @@ namespace AbilityKit.Ability.Editor.Utilities
                 return false;
             }
 
+            if (string.IsNullOrWhiteSpace(sourceNode.NodeId)) sourceNode.NodeId = TriggerAuthoringNodeIdentity.Create();
             var referenceEnabled = sourceNode.Enabled;
             var extractedActions = TriggerAuthoringGroupResolver.CloneNode(sourceNode);
+            TriggerAuthoringNodeIdentity.RegenerateTree(extractedActions);
             extractedActions.Enabled = true;
             extractedTrigger = new TriggerDefinitionData
             {
@@ -747,7 +759,12 @@ namespace AbilityKit.Ability.Editor.Utilities
                     out error))
                 return false;
 
+            if (string.IsNullOrWhiteSpace(referenceNode.NodeId))
+                referenceNode.NodeId = TriggerAuthoringNodeIdentity.Create();
             var referenceEnabled = referenceNode.Enabled;
+            var referenceNodeId = referenceNode.NodeId;
+            TriggerAuthoringNodeIdentity.RegenerateTree(localized);
+            localized.NodeId = referenceNodeId;
             CopyNode(referenceNode, localized);
             referenceNode.Enabled = referenceEnabled && localized.Enabled;
             if (importedVariables.Count > 0)
@@ -1074,6 +1091,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void CopyNode(TriggerNodeData target, TriggerNodeData source)
         {
             var copy = TriggerAuthoringGroupResolver.CloneNode(source);
+            target.NodeId = copy.NodeId;
             target.Enabled = copy.Enabled;
             target.Kind = copy.Kind;
             target.GroupReference = copy.GroupReference;

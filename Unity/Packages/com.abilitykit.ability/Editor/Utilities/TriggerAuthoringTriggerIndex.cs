@@ -1,6 +1,7 @@
 #if UNITY_EDITOR
 using System;
 using System.Collections.Generic;
+using System.Text;
 using AbilityKit.Ability.Config.Authoring;
 
 namespace AbilityKit.Ability.Editor.Utilities
@@ -36,20 +37,46 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringTriggerGroupMode groupMode,
             string searchText,
             TriggerAuthoringTriggerQuickFilter quickFilter = TriggerAuthoringTriggerQuickFilter.All,
-            TriggerTemplateDescriptorCatalog templates = null)
+            TriggerTemplateDescriptorCatalog templates = null,
+            PreparedSearchIndex searchIndex = null)
         {
+            if (searchIndex != null && !searchIndex.IsCompatible(triggers, diagnostics, templates))
+                searchIndex = null;
             var groups = new List<Group>();
             var byKey = new Dictionary<string, Group>(StringComparer.Ordinal);
+            var diagnosticsByTrigger = searchIndex == null ? BuildDiagnosticIndex(diagnostics) : null;
             var filter = (searchText ?? string.Empty).Trim();
+            var preparedFilter = searchIndex != null && filter.Length > 0
+                ? filter.ToLowerInvariant()
+                : filter;
             var count = triggers != null ? triggers.Count : 0;
             for (var i = 0; i < count; i++)
             {
                 var trigger = triggers[i];
-                var effectiveTrigger = TriggerAuthoringTemplateDefinition.ResolveEffectiveView(trigger, templates);
-                var diagnosticSummary = CountDiagnostics(i, diagnostics);
+                TriggerDiagnostics triggerDiagnostics = null;
+                PreparedSearchEntry preparedEntry = null;
+                TriggerDefinitionData effectiveTrigger;
+                DiagnosticSummary diagnosticSummary;
+                if (searchIndex != null)
+                {
+                    preparedEntry = searchIndex.GetEntry(i);
+                    effectiveTrigger = preparedEntry.EffectiveTrigger;
+                    diagnosticSummary = preparedEntry.Diagnostics;
+                }
+                else
+                {
+                    effectiveTrigger = TriggerAuthoringTemplateDefinition.ResolveEffectiveView(trigger, templates);
+                    diagnosticsByTrigger.TryGetValue(i, out triggerDiagnostics);
+                    diagnosticSummary = triggerDiagnostics != null
+                        ? triggerDiagnostics.Summary
+                        : default;
+                }
                 var entry = new Entry(i, trigger, effectiveTrigger, diagnosticSummary);
                 if (!MatchesQuickFilter(entry, quickFilter)) continue;
-                if (!Matches(entry, filter, diagnostics)) continue;
+                if (filter.Length > 0 && !(preparedEntry != null
+                        ? preparedEntry.Matches(preparedFilter)
+                        : Matches(entry, filter, triggerDiagnostics?.Items)))
+                    continue;
 
                 var keys = GetGroupKeys(effectiveTrigger, diagnosticSummary, events, groupMode);
                 for (var keyIndex = 0; keyIndex < keys.Count; keyIndex++)
@@ -69,6 +96,29 @@ namespace AbilityKit.Ability.Editor.Utilities
             for (var i = 0; i < groups.Count; i++)
                 groups[i].Entries.Sort(CompareEntries);
             return groups;
+        }
+
+        public static PreparedSearchIndex PrepareSearch(
+            IReadOnlyList<TriggerDefinitionData> triggers,
+            IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerTemplateDescriptorCatalog templates = null)
+        {
+            var diagnosticsByTrigger = BuildDiagnosticIndex(diagnostics);
+            var count = triggers?.Count ?? 0;
+            var entries = new PreparedSearchEntry[count];
+            for (var i = 0; i < count; i++)
+            {
+                var trigger = triggers[i];
+                var effectiveTrigger = TriggerAuthoringTemplateDefinition.ResolveEffectiveView(trigger, templates);
+                diagnosticsByTrigger.TryGetValue(i, out var triggerDiagnostics);
+                var summary = triggerDiagnostics != null ? triggerDiagnostics.Summary : default;
+                var entry = new Entry(i, trigger, effectiveTrigger, summary);
+                entries[i] = new PreparedSearchEntry(
+                    effectiveTrigger,
+                    summary,
+                    SearchDocumentBuilder.Build(entry, triggerDiagnostics?.Items));
+            }
+            return new PreparedSearchIndex(triggers, diagnostics, templates, entries);
         }
 
         public static bool Matches(
@@ -209,24 +259,46 @@ namespace AbilityKit.Ability.Editor.Utilities
             return false;
         }
 
-        private static DiagnosticSummary CountDiagnostics(
-            int triggerIndex,
+        private static Dictionary<int, TriggerDiagnostics> BuildDiagnosticIndex(
             IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics)
         {
-            var errors = 0;
-            var warnings = 0;
-            var prefix = GetTriggerPathPrefix(triggerIndex);
-            if (diagnostics != null)
+            var result = new Dictionary<int, TriggerDiagnostics>();
+            if (diagnostics == null) return result;
+
+            for (var i = 0; i < diagnostics.Count; i++)
             {
-                for (var i = 0; i < diagnostics.Count; i++)
+                var diagnostic = diagnostics[i];
+                if (diagnostic == null || !TryGetTriggerIndex(diagnostic.Path, out var triggerIndex)) continue;
+                if (!result.TryGetValue(triggerIndex, out var bucket))
                 {
-                    var diagnostic = diagnostics[i];
-                    if (diagnostic == null || !IsAtOrBelow(diagnostic.Path, prefix)) continue;
-                    if (diagnostic.Severity == TriggerAuthoringDiagnosticSeverity.Error) errors++;
-                    else if (diagnostic.Severity == TriggerAuthoringDiagnosticSeverity.Warning) warnings++;
+                    bucket = new TriggerDiagnostics();
+                    result.Add(triggerIndex, bucket);
                 }
+                bucket.Items.Add(diagnostic);
+                if (diagnostic.Severity == TriggerAuthoringDiagnosticSeverity.Error) bucket.Errors++;
+                else if (diagnostic.Severity == TriggerAuthoringDiagnosticSeverity.Warning) bucket.Warnings++;
             }
-            return new DiagnosticSummary(errors, warnings);
+
+            foreach (var pair in result)
+                pair.Value.Summary = new DiagnosticSummary(pair.Value.Errors, pair.Value.Warnings);
+            return result;
+        }
+
+        private static bool TryGetTriggerIndex(string path, out int index)
+        {
+            index = -1;
+            const string prefix = "module.triggers[";
+            if (string.IsNullOrEmpty(path) || !path.StartsWith(prefix, StringComparison.Ordinal)) return false;
+            var end = path.IndexOf(']', prefix.Length);
+            if (end <= prefix.Length ||
+                end + 1 < path.Length && path[end + 1] != '.' ||
+                !int.TryParse(path.Substring(prefix.Length, end - prefix.Length), out index) ||
+                index < 0)
+            {
+                index = -1;
+                return false;
+            }
+            return true;
         }
 
         private static List<string> GetGroupKeys(
@@ -431,6 +503,184 @@ namespace AbilityKit.Ability.Editor.Utilities
 
             public int Errors { get; }
             public int Warnings { get; }
+        }
+
+        internal sealed class PreparedSearchIndex
+        {
+            private readonly IReadOnlyList<TriggerDefinitionData> _triggers;
+            private readonly IReadOnlyList<TriggerAuthoringDiagnostic> _diagnostics;
+            private readonly TriggerTemplateDescriptorCatalog _templates;
+            private readonly PreparedSearchEntry[] _entries;
+
+            internal PreparedSearchIndex(
+                IReadOnlyList<TriggerDefinitionData> triggers,
+                IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics,
+                TriggerTemplateDescriptorCatalog templates,
+                PreparedSearchEntry[] entries)
+            {
+                _triggers = triggers;
+                _diagnostics = diagnostics;
+                _templates = templates;
+                _entries = entries ?? Array.Empty<PreparedSearchEntry>();
+            }
+
+            public int Count => _entries.Length;
+
+            internal bool IsCompatible(
+                IReadOnlyList<TriggerDefinitionData> triggers,
+                IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics,
+                TriggerTemplateDescriptorCatalog templates)
+            {
+                return ReferenceEquals(_triggers, triggers) &&
+                       ReferenceEquals(_diagnostics, diagnostics) &&
+                       ReferenceEquals(_templates, templates) &&
+                       _entries.Length == (triggers?.Count ?? 0);
+            }
+
+            internal PreparedSearchEntry GetEntry(int index)
+            {
+                return _entries[index];
+            }
+        }
+
+        internal sealed class PreparedSearchEntry
+        {
+            private readonly string _document;
+
+            public PreparedSearchEntry(
+                TriggerDefinitionData effectiveTrigger,
+                DiagnosticSummary diagnostics,
+                string document)
+            {
+                EffectiveTrigger = effectiveTrigger;
+                Diagnostics = diagnostics;
+                _document = (document ?? string.Empty).ToLowerInvariant();
+            }
+
+            public TriggerDefinitionData EffectiveTrigger { get; }
+            public DiagnosticSummary Diagnostics { get; }
+
+            public bool Matches(string filter)
+            {
+                return _document.IndexOf(filter, StringComparison.Ordinal) >= 0;
+            }
+        }
+
+        private sealed class SearchDocumentBuilder
+        {
+            private readonly StringBuilder _builder = new StringBuilder(512);
+            private readonly HashSet<TriggerNodeData> _visitedNodes = new HashSet<TriggerNodeData>();
+
+            public static string Build(Entry entry, IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics)
+            {
+                var builder = new SearchDocumentBuilder();
+                builder.AppendEntry(entry, diagnostics);
+                return builder._builder.ToString();
+            }
+
+            private void AppendEntry(Entry entry, IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics)
+            {
+                var trigger = entry.EffectiveTrigger;
+                if (trigger == null)
+                {
+                    Append("<null>");
+                    return;
+                }
+
+                Append(trigger.Id.ToString());
+                Append(trigger.Name);
+                Append(trigger.GroupPath);
+                Append(trigger.Event);
+                Append(trigger.Phase);
+                Append(trigger.Scope);
+                Append(trigger.Note);
+                Append(trigger.Template?.TemplateId);
+                Append(trigger.Enabled ? "enabled" : "disabled");
+                if (entry.Diagnostics.Errors > 0) Append("error");
+                if (entry.Diagnostics.Warnings > 0) Append("warning");
+
+                for (var i = 0; i < (trigger.Tags?.Count ?? 0); i++) Append(trigger.Tags[i]);
+                AppendNode(trigger.Condition);
+                AppendNode(trigger.Actions);
+                AppendBlackboard(trigger.Blackboard);
+
+                for (var i = 0; i < (diagnostics?.Count ?? 0); i++)
+                {
+                    var diagnostic = diagnostics[i];
+                    if (diagnostic == null) continue;
+                    Append(diagnostic.Code);
+                    Append(diagnostic.Message);
+                    Append(diagnostic.Path);
+                }
+            }
+
+            private void AppendNode(TriggerNodeData node)
+            {
+                if (node == null || !_visitedNodes.Add(node)) return;
+                Append(node.Type);
+                Append(node.GroupReference);
+                Append(node.Kind.ToString());
+                Append(node.Note);
+                Append(node.Enabled ? "enabled" : "disabled");
+                for (var i = 0; i < (node.Arguments?.Count ?? 0); i++)
+                {
+                    var argument = node.Arguments[i];
+                    if (argument == null) continue;
+                    Append(argument.Name);
+                    AppendValue(argument.Value);
+                }
+                AppendNode(node.Condition);
+                AppendNodes(node.Children);
+                AppendNodes(node.ElseChildren);
+            }
+
+            private void AppendNodes(IReadOnlyList<TriggerNodeData> nodes)
+            {
+                for (var i = 0; i < (nodes?.Count ?? 0); i++) AppendNode(nodes[i]);
+            }
+
+            private void AppendValue(TriggerValueRefData value)
+            {
+                if (value == null) return;
+                Append(value.Source.ToString());
+                Append(value.Type.ToString());
+                Append(value.Path);
+                Append(value.Expression);
+                Append(value.StringValue);
+                for (var i = 0; i < (value.Fields?.Count ?? 0); i++)
+                {
+                    var field = value.Fields[i];
+                    if (field == null) continue;
+                    Append(field.Name);
+                    AppendValue(field.Value);
+                }
+            }
+
+            private void AppendBlackboard(IReadOnlyList<TriggerBlackboardVariableData> blackboard)
+            {
+                for (var i = 0; i < (blackboard?.Count ?? 0); i++)
+                {
+                    var variable = blackboard[i];
+                    if (variable == null) continue;
+                    Append(variable.Key);
+                    Append(variable.Type.ToString());
+                    Append(variable.Description);
+                }
+            }
+
+            private void Append(string value)
+            {
+                if (string.IsNullOrEmpty(value)) return;
+                _builder.Append('\u001f').Append(value);
+            }
+        }
+
+        private sealed class TriggerDiagnostics
+        {
+            internal int Errors;
+            internal int Warnings;
+            internal DiagnosticSummary Summary;
+            internal readonly List<TriggerAuthoringDiagnostic> Items = new List<TriggerAuthoringDiagnostic>();
         }
     }
 }

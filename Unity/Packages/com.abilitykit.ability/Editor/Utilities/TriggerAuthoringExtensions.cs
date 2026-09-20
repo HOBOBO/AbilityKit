@@ -22,6 +22,59 @@ namespace AbilityKit.Ability.Editor.Utilities
         void Compile(TriggerAuthoringConditionCompilerContext context);
     }
 
+    public sealed class TriggerAuthoringReferenceOption
+    {
+        public TriggerAuthoringReferenceOption(
+            long value,
+            string displayName,
+            string group = null,
+            string description = null)
+        {
+            Value = value;
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? value.ToString() : displayName;
+            Group = group ?? string.Empty;
+            Description = description ?? string.Empty;
+        }
+
+        public long Value { get; }
+        public string DisplayName { get; }
+        public string Group { get; }
+        public string Description { get; }
+        public string Label => DisplayName + "  [" + Value + "]";
+    }
+
+    public sealed class TriggerAuthoringReferenceContext
+    {
+        internal TriggerAuthoringReferenceContext(TriggerAuthoringProjectAsset project)
+        {
+            Project = project;
+        }
+
+        public TriggerAuthoringProjectAsset Project { get; }
+    }
+
+    /// <summary>
+    /// Supplies project-owned choices for an integer parameter semantic without changing its stored value shape.
+    /// </summary>
+    public interface ITriggerAuthoringReferenceProvider
+    {
+        string SemanticId { get; }
+        TriggerValueType StorageType { get; }
+        IReadOnlyList<TriggerAuthoringReferenceOption> GetOptions(TriggerAuthoringReferenceContext context);
+        bool TryGet(
+            long value,
+            TriggerAuthoringReferenceContext context,
+            out TriggerAuthoringReferenceOption option);
+    }
+
+    public interface ITriggerAuthoringReferenceLocator
+    {
+        bool TryGetTarget(
+            long value,
+            TriggerAuthoringReferenceContext context,
+            out UnityEngine.Object target);
+    }
+
     /// <summary>
     /// Describes a typed, read-only runtime value contributed by a business package.
     /// Use a "domain:key" path when the value is backed by a runtime numeric variable domain.
@@ -184,23 +237,27 @@ namespace AbilityKit.Ability.Editor.Utilities
         private readonly TriggerTypeDescriptorCatalog _types;
         private readonly List<TriggerEventDefinitionData> _events;
         private readonly TriggerAuthoringValueSourceCatalog _values;
+        private readonly TriggerAuthoringReferenceCatalog _references;
 
         internal TriggerAuthoringExtensionContext(
             TriggerAuthoringProjectAsset project,
             TriggerTypeDescriptorCatalog types,
             List<TriggerEventDefinitionData> events,
-            TriggerAuthoringValueSourceCatalog values)
+            TriggerAuthoringValueSourceCatalog values,
+            TriggerAuthoringReferenceCatalog references)
         {
             Project = project;
             _types = types;
             _events = events;
             _values = values;
+            _references = references;
         }
 
         public TriggerAuthoringProjectAsset Project { get; }
         public bool AcceptsNodes => _types != null;
         public bool AcceptsEvents => _events != null;
         public bool AcceptsValueSources => _values != null;
+        public bool AcceptsReferenceProviders => _references != null;
 
         public void RegisterCondition(TriggerTypeDescriptor descriptor)
         {
@@ -225,6 +282,12 @@ namespace AbilityKit.Ability.Editor.Utilities
         {
             if (_values == null) return;
             _values.Register(descriptor);
+        }
+
+        public void RegisterReferenceProvider(ITriggerAuthoringReferenceProvider provider)
+        {
+            if (_references == null) return;
+            _references.Register(provider);
         }
 
         public void RegisterEvent(TriggerEventDefinitionData definition)
@@ -301,6 +364,131 @@ namespace AbilityKit.Ability.Editor.Utilities
         }
     }
 
+    internal sealed class TriggerAuthoringReferenceCatalog
+    {
+        private readonly Dictionary<string, ITriggerAuthoringReferenceProvider> _providers =
+            new Dictionary<string, ITriggerAuthoringReferenceProvider>(StringComparer.Ordinal);
+        private readonly HashSet<string> _loggedFailures = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _failedProviders = new HashSet<string>(StringComparer.Ordinal);
+        private readonly TriggerAuthoringReferenceContext _context;
+
+        private TriggerAuthoringReferenceCatalog(TriggerAuthoringProjectAsset project)
+        {
+            _context = new TriggerAuthoringReferenceContext(project);
+        }
+
+        public void Register(ITriggerAuthoringReferenceProvider provider)
+        {
+            if (provider == null) throw new ArgumentNullException(nameof(provider));
+            var semanticId = provider.SemanticId?.Trim() ?? string.Empty;
+            if (string.IsNullOrEmpty(semanticId))
+                throw new ArgumentException("Reference provider semantic ID is required.", nameof(provider));
+            if (provider.StorageType != TriggerValueType.Integer)
+                throw new ArgumentException("Reference providers currently require Integer storage.", nameof(provider));
+            if (_providers.ContainsKey(semanticId))
+                throw new ArgumentException("Duplicate reference provider semantic ID: " + semanticId + ".", nameof(provider));
+            _providers.Add(semanticId, provider);
+        }
+
+        public bool TryGetProvider(
+            string semanticId,
+            TriggerValueType storageType,
+            out ITriggerAuthoringReferenceProvider provider)
+        {
+            provider = null;
+            return !string.IsNullOrWhiteSpace(semanticId) &&
+                   _providers.TryGetValue(semanticId, out provider) &&
+                   (provider.StorageType == storageType ||
+                    provider.StorageType == TriggerValueType.Integer &&
+                    storageType == TriggerValueType.IntegerList);
+        }
+
+        public IReadOnlyList<TriggerAuthoringReferenceOption> GetOptions(
+            string semanticId,
+            TriggerValueType storageType)
+        {
+            if (!TryGetProvider(semanticId, storageType, out var provider))
+                return Array.Empty<TriggerAuthoringReferenceOption>();
+            try
+            {
+                return provider.GetOptions(_context) ?? Array.Empty<TriggerAuthoringReferenceOption>();
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce(semanticId, "options", ex);
+                return Array.Empty<TriggerAuthoringReferenceOption>();
+            }
+        }
+
+        public bool IsOperational(string semanticId)
+        {
+            return !string.IsNullOrWhiteSpace(semanticId) && !_failedProviders.Contains(semanticId);
+        }
+
+        public bool TryResolve(
+            string semanticId,
+            TriggerValueType storageType,
+            long value,
+            out TriggerAuthoringReferenceOption option)
+        {
+            option = null;
+            if (!TryGetProvider(semanticId, storageType, out var provider)) return false;
+            try
+            {
+                return provider.TryGet(value, _context, out option) && option != null;
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce(semanticId, "resolve", ex);
+                return false;
+            }
+        }
+
+        public bool TryGetTarget(
+            string semanticId,
+            TriggerValueType storageType,
+            long value,
+            out UnityEngine.Object target)
+        {
+            target = null;
+            if (!TryGetProvider(semanticId, storageType, out var provider) ||
+                !(provider is ITriggerAuthoringReferenceLocator locator))
+                return false;
+            try
+            {
+                return locator.TryGetTarget(value, _context, out target) && target != null;
+            }
+            catch (Exception ex)
+            {
+                LogFailureOnce(semanticId, "locate", ex);
+                return false;
+            }
+        }
+
+        public bool CanLocate(string semanticId, TriggerValueType storageType)
+        {
+            return TryGetProvider(semanticId, storageType, out var provider) &&
+                   provider is ITriggerAuthoringReferenceLocator;
+        }
+
+        public static TriggerAuthoringReferenceCatalog CreateForProject(TriggerAuthoringProjectAsset project)
+        {
+            var catalog = new TriggerAuthoringReferenceCatalog(project);
+            TriggerAuthoringExtensionRegistry.ApplyReferences(project, catalog);
+            return catalog;
+        }
+
+        private void LogFailureOnce(string semanticId, string operation, Exception exception)
+        {
+            _failedProviders.Add(semanticId);
+            var key = semanticId + ":" + operation;
+            if (!_loggedFailures.Add(key)) return;
+            Debug.LogError(
+                "[TriggerAuthoring] Reference provider '" + semanticId + "' failed during " +
+                operation + ": " + exception);
+        }
+    }
+
     internal static class TriggerAuthoringExtensionRegistry
     {
         public static void ApplyTypes(
@@ -308,13 +496,13 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerTypeDescriptorCatalog catalog)
         {
             if (project == null || catalog == null) return;
-            Apply(project, catalog, null, null);
+            Apply(project, catalog, null, null, null);
         }
 
         public static List<TriggerEventDefinitionData> GetEvents(TriggerAuthoringProjectAsset project)
         {
             var result = new List<TriggerEventDefinitionData>();
-            if (project != null) Apply(project, null, result, null);
+            if (project != null) Apply(project, null, result, null, null);
             return result;
         }
 
@@ -323,7 +511,15 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringValueSourceCatalog catalog)
         {
             if (project == null || catalog == null) return;
-            Apply(project, null, null, catalog);
+            Apply(project, null, null, catalog, null);
+        }
+
+        public static void ApplyReferences(
+            TriggerAuthoringProjectAsset project,
+            TriggerAuthoringReferenceCatalog catalog)
+        {
+            if (project == null || catalog == null) return;
+            Apply(project, null, null, null, catalog);
         }
 
         public static List<string> GetAvailableExtensionIds()
@@ -343,7 +539,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringProjectAsset project,
             TriggerTypeDescriptorCatalog types,
             List<TriggerEventDefinitionData> events,
-            TriggerAuthoringValueSourceCatalog values)
+            TriggerAuthoringValueSourceCatalog values,
+            TriggerAuthoringReferenceCatalog references)
         {
             var enabled = new HashSet<string>(project.ExtensionIds, StringComparer.Ordinal);
             if (enabled.Count == 0) return;
@@ -361,7 +558,12 @@ namespace AbilityKit.Ability.Editor.Utilities
                 }
                 try
                 {
-                    extension.Register(new TriggerAuthoringExtensionContext(project, types, events, values));
+                    extension.Register(new TriggerAuthoringExtensionContext(
+                        project,
+                        types,
+                        events,
+                        values,
+                        references));
                 }
                 catch (Exception ex)
                 {

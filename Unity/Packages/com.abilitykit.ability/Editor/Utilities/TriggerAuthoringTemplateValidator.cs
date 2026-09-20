@@ -573,7 +573,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             {
                 Types = context.Types,
                 Events = context.Events,
-                GlobalBlackboard = context.GlobalBlackboard
+                GlobalBlackboard = context.GlobalBlackboard,
+                References = context.References
             });
             for (var i = 0; i < nodeDiagnostics.Count; i++)
             {

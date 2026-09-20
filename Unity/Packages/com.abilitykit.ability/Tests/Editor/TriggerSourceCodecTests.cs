@@ -109,6 +109,44 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void SourceFacade_AssignsStableIdsToLegacyModuleNodes()
+        {
+            var legacyJson = TriggerSourceCodecs.ModuleDefault.Serialize(BuildModuleDocument());
+
+            var first = TriggerAuthoringSourceCodec.Deserialize(legacyJson);
+            var second = TriggerAuthoringSourceCodec.Deserialize(legacyJson);
+            var firstRoot = first.Module.Triggers[0].Actions;
+            var secondRoot = second.Module.Triggers[0].Actions;
+
+            Assert.That(firstRoot.NodeId, Is.Not.Empty);
+            Assert.That(TriggerAuthoringNodeIdentity.IsValid(firstRoot.NodeId), Is.True);
+            Assert.That(secondRoot.NodeId, Is.EqualTo(firstRoot.NodeId));
+            Assert.That(secondRoot.Children[0].NodeId, Is.EqualTo(firstRoot.Children[0].NodeId));
+            Assert.That(secondRoot.Children[1].Condition.NodeId, Is.EqualTo(firstRoot.Children[1].Condition.NodeId));
+        }
+
+        [Test]
+        public void SourceFacade_RoundTripsModuleAndTemplateNodeIds()
+        {
+            var module = BuildModuleDocument();
+            var template = BuildTemplateDocument();
+            TriggerAuthoringNodeIdentity.EnsureModule(module.Module);
+            TriggerAuthoringNodeIdentity.EnsureTemplate(template.Template);
+
+            var restoredModule = TriggerAuthoringSourceCodec.Deserialize(
+                TriggerAuthoringSourceCodec.Serialize(module));
+            var restoredTemplate = TriggerAuthoringTemplateSourceCodec.Deserialize(
+                TriggerAuthoringTemplateSourceCodec.Serialize(template));
+
+            Assert.That(
+                restoredModule.Module.Triggers[0].Actions.NodeId,
+                Is.EqualTo(module.Module.Triggers[0].Actions.NodeId));
+            Assert.That(
+                restoredTemplate.Template.Definition.Actions.NodeId,
+                Is.EqualTo(template.Template.Definition.Actions.NodeId));
+        }
+
+        [Test]
         public void NewTemplateData_DefaultsToCallableFunctionWithActionRoot()
         {
             var template = new TriggerAuthoringTemplateData();
@@ -182,6 +220,7 @@ namespace AbilityKit.Ability.Editor.Tests
                 Is.EqualTo("#/definitions/triggerDefinition"));
             Assert.That(module["definitions"]["triggerDefinition"]["properties"]["groupPath"], Is.Not.Null);
             Assert.That(module["definitions"]["triggerDefinition"]["properties"]["tags"], Is.Not.Null);
+            Assert.That(module["definitions"]["triggerNode"]["properties"]["nodeId"], Is.Not.Null);
             Assert.That(module["definitions"]["triggerNode"]["properties"]["condition"], Is.Not.Null);
             Assert.That(module["definitions"]["triggerNode"]["properties"]["elseChildren"], Is.Not.Null);
 

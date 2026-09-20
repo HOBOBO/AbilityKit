@@ -79,8 +79,11 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string Kind;
         public TriggerAuthoringRuntimeActionDto Action;
         public TriggerAuthoringRuntimePredicateDto Condition;
+        public TriggerAuthoringRuntimePredicateDto UntilCondition;
         public TriggerAuthoringRuntimeValueRefDto Collection;
         public TriggerAuthoringRuntimeValueRefDto ItemTarget;
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public int Count;
         [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
         public int MaxIterations;
         public List<TriggerAuthoringRuntimeExecutionNodeDto> Children;
@@ -90,6 +93,7 @@ namespace AbilityKit.Ability.Editor.Utilities
         public float? IntervalMs;
         public int? MaxExecutions;
         public bool? CanBeInterrupted;
+        public string Reason;
     }
 
     [Serializable]
@@ -189,10 +193,27 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerAuthoringModuleData module,
             TriggerAuthoringValidationContext context = null)
         {
+            return BuildInternal(module, context, null);
+        }
+
+        internal static TriggerAuthoringRuntimeCompileResult BuildPrevalidated(
+            TriggerAuthoringModuleData module,
+            TriggerAuthoringValidationContext context,
+            IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics)
+        {
+            if (diagnostics == null) throw new ArgumentNullException(nameof(diagnostics));
+            return BuildInternal(module, context, diagnostics);
+        }
+
+        private static TriggerAuthoringRuntimeCompileResult BuildInternal(
+            TriggerAuthoringModuleData module,
+            TriggerAuthoringValidationContext context,
+            IReadOnlyList<TriggerAuthoringDiagnostic> prevalidatedDiagnostics)
+        {
             context = context ?? new TriggerAuthoringValidationContext();
             context.Types = context.Types ?? TriggerTypeDescriptorCatalog.CreateProjectDefaults();
             var result = new TriggerAuthoringRuntimeCompileResult();
-            result.Diagnostics.AddRange(TriggerAuthoringValidator.Validate(module, context));
+            result.Diagnostics.AddRange(prevalidatedDiagnostics ?? TriggerAuthoringValidator.Validate(module, context));
             if (TriggerAuthoringValidator.HasErrors(result.Diagnostics)) return result;
 
             var database = new TriggerAuthoringRuntimeDatabaseDto();
@@ -243,6 +264,25 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("必须提供 Runtime Plan 路径。", nameof(path));
 
             var result = Build(asset);
+            if (!result.Success) return result;
+            WriteFileAtomic(path, Serialize(result.Database));
+            return result;
+        }
+
+        internal static TriggerAuthoringRuntimeCompileResult ExportPrevalidated(
+            TriggerAuthoringModuleAsset asset,
+            string path,
+            IReadOnlyList<TriggerAuthoringDiagnostic> diagnostics)
+        {
+            if (asset == null) throw new ArgumentNullException(nameof(asset));
+            if (string.IsNullOrWhiteSpace(path))
+                throw new ArgumentException("必须提供 Runtime Plan 路径。", nameof(path));
+            if (diagnostics == null) throw new ArgumentNullException(nameof(diagnostics));
+
+            var result = BuildPrevalidated(
+                asset.Module,
+                TriggerAuthoringValidationContext.Create(asset),
+                diagnostics);
             if (!result.Success) return result;
             WriteFileAtomic(path, Serialize(result.Database));
             return result;
@@ -747,6 +787,13 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.Equals(node.Type, "random", StringComparison.OrdinalIgnoreCase)) return true;
             if (string.Equals(node.Type, "weighted", StringComparison.OrdinalIgnoreCase)) return true;
             if (string.Equals(node.Type, "scheduled", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "selector", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "parallel", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "repeat", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "invert", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "succeed", StringComparison.OrdinalIgnoreCase)) return true;
+            if (string.Equals(node.Type, "fail", StringComparison.OrdinalIgnoreCase)) return true;
             if (TriggerAuthoringTriggerReuse.IsReference(node)) return true;
             if (RequiresExecutionTree(node.Children)) return true;
             return RequiresExecutionTree(node.ElseChildren);
@@ -822,11 +869,132 @@ namespace AbilityKit.Ability.Editor.Utilities
                 };
             }
 
+            if (string.Equals(node.Type, "selector", StringComparison.OrdinalIgnoreCase))
+            {
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = "Selector",
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
             if (string.Equals(node.Type, "random", StringComparison.OrdinalIgnoreCase))
             {
                 return new TriggerAuthoringRuntimeExecutionNodeDto
                 {
                     Kind = "Random",
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
+            if (string.Equals(node.Type, "parallel", StringComparison.OrdinalIgnoreCase))
+            {
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = "Parallel",
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
+            if (string.Equals(node.Type, "repeat", StringComparison.OrdinalIgnoreCase))
+            {
+                var count = ReadConstantInteger(
+                    FindArgument(node, "count")?.Value,
+                    1,
+                    path + ".arguments.count",
+                    diagnostics);
+                if (count <= 0)
+                {
+                    AddError(diagnostics, "TRG2038", path + ".arguments.count",
+                        "repeat 的 count 必须大于 0。");
+                    count = 1;
+                }
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = "Repeat",
+                    Count = count,
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
+            if (string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase))
+            {
+                var maxIterations = ReadConstantInteger(
+                    FindArgument(node, "max_iterations")?.Value,
+                    1,
+                    path + ".arguments.max_iterations",
+                    diagnostics);
+                if (maxIterations <= 0)
+                {
+                    AddError(diagnostics, "TRG2039", path + ".arguments.max_iterations",
+                        "until 的 max_iterations 必须大于 0。");
+                    maxIterations = 1;
+                }
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = "Until",
+                    UntilCondition = CompilePredicate(
+                        compileContext,
+                        node.Condition,
+                        path + ".condition",
+                        context,
+                        strings,
+                        diagnostics),
+                    MaxIterations = maxIterations,
+                    Children = CompileExecutionChildren(
+                        compileContext,
+                        node.Children,
+                        path + ".children",
+                        context,
+                        strings,
+                        diagnostics)
+                };
+            }
+
+            if (string.Equals(node.Type, "invert", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(node.Type, "succeed", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(node.Type, "fail", StringComparison.OrdinalIgnoreCase))
+            {
+                var kind = string.Equals(node.Type, "invert", StringComparison.OrdinalIgnoreCase)
+                    ? "Invert"
+                    : string.Equals(node.Type, "succeed", StringComparison.OrdinalIgnoreCase)
+                        ? "Succeed"
+                        : "Fail";
+                return new TriggerAuthoringRuntimeExecutionNodeDto
+                {
+                    Kind = kind,
+                    Reason = kind == "Fail"
+                        ? ReadConstantString(
+                            FindArgument(node, "reason")?.Value,
+                            null,
+                            path + ".arguments.reason",
+                            diagnostics,
+                            false)
+                        : null,
                     Children = CompileExecutionChildren(
                         compileContext,
                         node.Children,
@@ -1231,6 +1399,24 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.Boolean)
                 return value.BooleanValue;
             AddError(diagnostics, "TRG2037", path, "必须提供 Boolean 常量。");
+            return fallback;
+        }
+
+        private static string ReadConstantString(
+            TriggerValueRefData value,
+            string fallback,
+            string path,
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            bool required = true)
+        {
+            if (value == null)
+            {
+                if (required) AddError(diagnostics, "TRG2040", path, "必须提供 String 常量。");
+                return fallback;
+            }
+            if (value.Source == TriggerValueSource.Constant && value.Type == TriggerValueType.String)
+                return value.StringValue;
+            AddError(diagnostics, "TRG2040", path, "必须提供 String 常量。");
             return fallback;
         }
 

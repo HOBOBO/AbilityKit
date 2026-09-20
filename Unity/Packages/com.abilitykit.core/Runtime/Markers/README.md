@@ -26,7 +26,7 @@ AbilityKit.Common.Marker
 ### 1. 定义 Attribute + Registry
 
 ```csharp
-namespace AbilityKit.Ability.Triggering
+namespace AbilityKit.Triggering
 {
     // 定义 Registry
     public sealed class TriggerActionRegistry : KeyedMarkerRegistry<string, TriggerActionAttribute>

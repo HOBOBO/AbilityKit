@@ -340,13 +340,18 @@ public sealed class LiveSimSetupActionExecutor : IAcceptanceObservationSource
 
     public void Tick(int ticks)
     {
-        for (var i = 0; i < ticks; i++) _bootstrapper.Tick();
+        for (var i = 0; i < ticks; i++) _bootstrapper.Tick(FixedDelta);
     }
 
-    public void TickMilliseconds(int milliseconds)
+    /// <summary>Advances by whole fixed steps and returns the actual simulated milliseconds.</summary>
+    public double TickMilliseconds(double milliseconds)
     {
-        if (milliseconds <= 0) return;
-        Tick(Math.Max(1, (int)Math.Round(milliseconds / (FixedDelta * 1000f))));
+        if (milliseconds <= 0) return 0d;
+        if (FixedDelta <= 0f) throw new InvalidOperationException("FixedDelta must be positive.");
+        var fixedStepMs = FixedDelta * 1000d;
+        var ticks = Math.Max(1, (int)Math.Ceiling(milliseconds / fixedStepMs - 1e-9d));
+        Tick(ticks);
+        return ticks * fixedStepMs;
     }
 
     // —— helpers ——

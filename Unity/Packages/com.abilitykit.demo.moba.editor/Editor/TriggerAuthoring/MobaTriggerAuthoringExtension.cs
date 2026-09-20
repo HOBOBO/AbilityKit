@@ -1,13 +1,25 @@
 #if UNITY_EDITOR
 using System;
+using System.Collections.Generic;
 using AbilityKit.Ability.Config.Authoring;
 using AbilityKit.Ability.Editor.Utilities;
+using AbilityKit.Demo.Moba.Editor.BattleFlow;
+using UnityEditor;
+using UnityEngine;
 
 namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
 {
     public sealed class MobaTriggerAuthoringExtension : ITriggerAuthoringExtension
     {
         public const string ExtensionId = "abilitykit.demo.moba";
+        public const string BuffSemanticId = "moba.buff-id";
+        public const string SkillSemanticId = "moba.skill-id";
+        public const string EffectSemanticId = "moba.effect-id";
+        public const string ProjectileLauncherSemanticId = "moba.projectile-launcher-id";
+        public const string ProjectileSemanticId = "moba.projectile-id";
+        public const string AreaSemanticId = "moba.area-id";
+        public const string SummonSemanticId = "moba.summon-id";
+        public const string SearchQuerySemanticId = "moba.search-query-id";
 
         public string Id => ExtensionId;
 
@@ -31,6 +43,43 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 RegisterActions(context);
             }
             if (context.AcceptsValueSources) RegisterSkillRuntimeValues(context);
+            if (context.AcceptsReferenceProviders) RegisterReferenceProviders(context);
+        }
+
+        private static void RegisterReferenceProviders(TriggerAuthoringExtensionContext context)
+        {
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                BuffSemanticId,
+                () => MobaBattleFlowConfigCatalog.Buffs,
+                "buffs"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                SkillSemanticId,
+                () => MobaBattleFlowConfigCatalog.Skills,
+                "skills"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                EffectSemanticId,
+                () => MobaBattleFlowConfigCatalog.Effects,
+                "effects"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                ProjectileLauncherSemanticId,
+                () => MobaBattleFlowConfigCatalog.ProjectileLaunchers,
+                "projectile_launchers"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                ProjectileSemanticId,
+                () => MobaBattleFlowConfigCatalog.Projectiles,
+                "projectiles"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                AreaSemanticId,
+                () => MobaBattleFlowConfigCatalog.Aoes,
+                "aoes"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                SummonSemanticId,
+                () => MobaBattleFlowConfigCatalog.Summons,
+                "summons"));
+            context.RegisterReferenceProvider(new MobaConfigReferenceProvider(
+                SearchQuerySemanticId,
+                () => MobaBattleFlowConfigCatalog.SearchQueries,
+                "search_query_templates"));
         }
 
         private static void RegisterSkillRuntimeValues(TriggerAuthoringExtensionContext context)
@@ -64,7 +113,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         private static void RegisterConditions(TriggerAuthoringExtensionContext context)
         {
             context.RegisterCondition(Condition("has_buff", "拥有增益效果", "Condition/Combat",
-                Required("buff_id", TriggerValueType.Integer),
+                Reference("buff_id", BuffSemanticId),
                 Optional("check_stack", TriggerValueType.Boolean),
                 Choice("target_mode", false, Option(0, "目标"), Option(1, "来源")),
                 ObjectParameter("options", false,
@@ -208,9 +257,9 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 DamageReason("reason_kind"), Optional("reason_param", TriggerValueType.Integer)))));
 
             context.RegisterAction(Action("add_buff", "添加增益效果", "Action/Buff", WithTargets(
-                Required("buff_ids", TriggerValueType.IntegerList))));
+                ReferenceList("buff_ids", BuffSemanticId))));
             context.RegisterAction(Action("remove_buff", "移除增益效果", "Action/Buff", WithTargets(
-                Optional("buff_id", TriggerValueType.Integer),
+                Reference("buff_id", BuffSemanticId, false),
                 Optional("source_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean),
                 Optional("remove_slow", TriggerValueType.Boolean),
@@ -250,32 +299,32 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 Optional("reason_param", TriggerValueType.Integer))));
 
             context.RegisterAction(Action("shoot_projectile", "发射投射物", "Action/Projectile", WithTargets(
-                Required("launcher_id", TriggerValueType.Integer),
-                Required("projectile_id", TriggerValueType.Integer),
+                Reference("launcher_id", ProjectileLauncherSemanticId),
+                Reference("projectile_id", ProjectileSemanticId),
                 Optional("continuous_process_id", TriggerValueType.Integer),
                 Optional("track_target", TriggerValueType.Boolean),
                 OptionalOutput("result", TriggerValueType.Integer),
                 OptionalOutput("result_count", TriggerValueType.Integer))));
             context.RegisterAction(Action("remove_projectile", "移除投射物", "Action/Projectile"));
             context.RegisterAction(Action("spawn_summon", "生成召唤物", "Action/Summon",
-                Required("summon_id", TriggerValueType.Integer),
+                Reference("summon_id", SummonSemanticId),
                 Optional("position_mode", TriggerValueType.Integer),
                 Optional("rotation_mode", TriggerValueType.Integer),
                 Optional("interval_ms", TriggerValueType.Number),
                 Optional("duration_ms", TriggerValueType.Number),
                 Optional("total_count", TriggerValueType.Integer),
-                Optional("query_template_id", TriggerValueType.Integer),
+                Reference("query_template_id", SearchQuerySemanticId, false),
                 Optional("target_mode", TriggerValueType.Integer),
                 OptionalOutput("result", TriggerValueType.Integer),
                 OptionalOutput("result_count", TriggerValueType.Integer)));
             context.RegisterAction(Action("remove_summon", "移除召唤物", "Action/Summon", WithTargets(
-                Optional("summon_id", TriggerValueType.Integer),
+                Reference("summon_id", SummonSemanticId, false),
                 Optional("summon_actor_id", TriggerValueType.Integer),
                 Optional("root_owner_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean),
                 Optional("reason", TriggerValueType.Integer))));
             context.RegisterAction(Action("spawn_area", "生成区域", "Action/Area", WithTargets(
-                Required("area_id", TriggerValueType.Integer),
+                Reference("area_id", AreaSemanticId),
                 Optional("position_mode", TriggerValueType.Integer), Optional("radius", TriggerValueType.Number),
                 Optional("duration_frames", TriggerValueType.Integer), Optional("duration_ms", TriggerValueType.Integer),
                 Optional("stay_interval_frames", TriggerValueType.Integer),
@@ -286,19 +335,19 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                 OptionalOutput("result_count", TriggerValueType.Integer))));
             context.RegisterAction(Action("remove_area", "移除区域", "Action/Area", WithTargets(
                 OneOf("area_identity", "area_id", TriggerValueType.Integer),
-                OneOf("area_identity", "template_id", TriggerValueType.Integer),
+                Reference("template_id", AreaSemanticId, false, "area_identity"),
                 OneOf("area_identity", "owner_actor_id", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean))));
             context.RegisterAction(Action("cancel_skill", "取消技能", "Action/Skill", WithTargets(
                 Choice("mode", false, Option(0, "自动"), Option(1, "全部"),
                     Option(2, "技能槽位"), Option(3, "技能 ID")),
-                Optional("skill_id", TriggerValueType.Integer), Optional("skill_slot", TriggerValueType.Integer),
+                Reference("skill_id", SkillSemanticId, false), Optional("skill_slot", TriggerValueType.Integer),
                 Optional("remove_all", TriggerValueType.Boolean))));
             context.RegisterAction(Action("start_cooldown", "开始冷却", "Action/Skill",
-                Optional("skill_id", TriggerValueType.Integer), Optional("skill_slot", TriggerValueType.Integer),
+                Reference("skill_id", SkillSemanticId, false), Optional("skill_slot", TriggerValueType.Integer),
                 Required("cooldown_ms", TriggerValueType.Integer)));
             context.RegisterAction(Action("reset_cooldown", "重置冷却", "Action/Skill", WithTargets(
-                OneOf("skill_identity", "skill_id", TriggerValueType.Integer),
+                Reference("skill_id", SkillSemanticId, false, "skill_identity"),
                 OneOf("skill_identity", "skill_slot", TriggerValueType.Integer))));
             context.RegisterAction(Action("add_skill_param_modifier", "添加技能参数修饰", "Action/Skill", WithTargets(
                 Choice("parameter_id", true,
@@ -375,6 +424,34 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
         private static TriggerParameterDescriptor Optional(string name, TriggerValueType type)
         {
             return new TriggerParameterDescriptor(name, type, false);
+        }
+
+        private static TriggerParameterDescriptor Reference(
+            string name,
+            string semanticId,
+            bool required = true,
+            string requiredGroup = null)
+        {
+            return new TriggerParameterDescriptor(
+                name,
+                TriggerValueType.Integer,
+                semanticId,
+                required,
+                TriggerValueSourceMask.All,
+                TriggerParameterAccess.Read,
+                requiredGroup);
+        }
+
+        private static TriggerParameterDescriptor ReferenceList(
+            string name,
+            string semanticId,
+            bool required = true)
+        {
+            return new TriggerParameterDescriptor(
+                name,
+                TriggerValueType.IntegerList,
+                semanticId,
+                required);
         }
 
         private static TriggerParameterDescriptor Output(string name, TriggerValueType type)
@@ -457,7 +534,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
             return Append(parameters, new[]
             {
                 ObjectParameter("target", false,
-                    Optional("query_template_id", TriggerValueType.Integer),
+                    Reference("query_template_id", SearchQuerySemanticId, false),
                     Optional("actor_id", TriggerValueType.Integer),
                     Optional("payload_field_id", TriggerValueType.Integer),
                     Choice("source", false,
@@ -478,7 +555,7 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
                     Optional("order_param", TriggerValueType.Integer),
                     Choice("select", false, Option(0x1001, "前 K 个"), Option(0x1002, "流式选择前 K 个")),
                     Optional("max_count", TriggerValueType.Integer), Optional("self", TriggerValueType.Boolean)),
-                Optional("query_template_id", TriggerValueType.Integer),
+                Reference("query_template_id", SearchQuerySemanticId, false),
                 Optional("target_actor_id", TriggerValueType.Integer),
                 Optional("target_payload_field_id", TriggerValueType.Integer),
                 Choice("target_source", false,
@@ -561,6 +638,101 @@ namespace AbilityKit.Demo.Moba.Editor.TriggerAuthoring
             Array.Copy(first, result, first.Length);
             Array.Copy(second, 0, result, first.Length, second.Length);
             return result;
+        }
+
+        private sealed class MobaConfigReferenceProvider :
+            ITriggerAuthoringReferenceProvider,
+            ITriggerAuthoringReferenceLocator
+        {
+            private const string ResourceRoot =
+                "Packages/com.abilitykit.demo.moba.view.runtime/Resources/moba/";
+            private readonly Func<IReadOnlyList<MobaBattleFlowConfigEntry>> _getEntries;
+            private readonly string _resourceName;
+            private IReadOnlyList<MobaBattleFlowConfigEntry> _cachedEntries;
+            private IReadOnlyList<TriggerAuthoringReferenceOption> _cachedOptions =
+                Array.Empty<TriggerAuthoringReferenceOption>();
+            private readonly Dictionary<int, TriggerAuthoringReferenceOption> _byId =
+                new Dictionary<int, TriggerAuthoringReferenceOption>();
+
+            public MobaConfigReferenceProvider(
+                string semanticId,
+                Func<IReadOnlyList<MobaBattleFlowConfigEntry>> getEntries,
+                string resourceName)
+            {
+                SemanticId = semanticId;
+                _getEntries = getEntries;
+                _resourceName = resourceName ?? string.Empty;
+            }
+
+            public string SemanticId { get; }
+            public TriggerValueType StorageType => TriggerValueType.Integer;
+
+            public IReadOnlyList<TriggerAuthoringReferenceOption> GetOptions(
+                TriggerAuthoringReferenceContext context)
+            {
+                EnsureCache();
+                return _cachedOptions;
+            }
+
+            public bool TryGet(
+                long value,
+                TriggerAuthoringReferenceContext context,
+                out TriggerAuthoringReferenceOption option)
+            {
+                EnsureCache();
+                option = null;
+                return value >= int.MinValue && value <= int.MaxValue &&
+                       _byId.TryGetValue((int)value, out option);
+            }
+
+            public bool TryGetTarget(
+                long value,
+                TriggerAuthoringReferenceContext context,
+                out UnityEngine.Object target)
+            {
+                target = null;
+                if (string.IsNullOrWhiteSpace(_resourceName)) return false;
+                var splitPath = ResourceRoot + _resourceName + "/" +
+                                _resourceName + "_" + value + ".json";
+                target = AssetDatabase.LoadAssetAtPath<TextAsset>(splitPath);
+                if (target != null) return true;
+                target = AssetDatabase.LoadAssetAtPath<TextAsset>(
+                    ResourceRoot + _resourceName + ".json");
+                return target != null;
+            }
+
+            private void EnsureCache()
+            {
+                var entries = _getEntries?.Invoke();
+                if (ReferenceEquals(entries, _cachedEntries)) return;
+                _cachedEntries = entries;
+                _byId.Clear();
+                if (entries == null || entries.Count == 0)
+                {
+                    _cachedOptions = Array.Empty<TriggerAuthoringReferenceOption>();
+                    return;
+                }
+
+                var options = new List<TriggerAuthoringReferenceOption>(entries.Count);
+                for (var i = 0; i < entries.Count; i++)
+                {
+                    var entry = entries[i];
+                    if (entry == null) continue;
+                    var option = ToOption(entry);
+                    options.Add(option);
+                    _byId[entry.Id] = option;
+                }
+                _cachedOptions = options;
+            }
+
+            private static TriggerAuthoringReferenceOption ToOption(MobaBattleFlowConfigEntry entry)
+            {
+                return new TriggerAuthoringReferenceOption(
+                    entry.Id,
+                    entry.Name,
+                    string.IsNullOrWhiteSpace(entry.Group) ? entry.Kind.ToString() : entry.Group,
+                    entry.Kind + " configuration");
+            }
         }
     }
 }

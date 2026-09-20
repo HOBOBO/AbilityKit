@@ -122,7 +122,6 @@ public static class Program
         if (!string.Equals(Path.GetExtension(path), ".battleflow", StringComparison.OrdinalIgnoreCase))
             return ScenarioCodec.Load(path);
 
-        var document = BattleFlowCodec.Load(path);
-        return BattleFlowCompiler.Compile(document.CaseId, document.Blocks);
+        return BattleFlowCompiler.CompileFile(path);
     }
 }

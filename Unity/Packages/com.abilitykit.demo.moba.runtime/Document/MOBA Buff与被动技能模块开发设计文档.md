@@ -430,7 +430,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
     internal sealed class BuffContextService
     {
         private readonly EffectSourceRegistry _effectSource;
-        private readonly ITriggerActionRunner _actionRunner;
         private readonly IFrameTime _frameTime;
 
         /// <summary>
@@ -483,10 +482,7 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Services
         {
             if (rt.SourceContextId == 0) return;
 
-            // 1. 取消所有关联的动作
-            _actionRunner?.CancelByOwnerKey(rt.SourceContextId);
-
-            // 2. 结束 EffectSource
+            // 结束 EffectSource
             _effectSource?.End(rt.SourceContextId, GetFrame(), reason);
 
             rt.SourceContextId = 0;
@@ -627,7 +623,6 @@ namespace AbilityKit.Ability.Share.Impl.Moba.Systems
     {
         private readonly MobaConfigDatabase _configs;
         private readonly EffectSourceRegistry _effectSource;
-        private readonly ITriggerActionRunner _actionRunner;
 
         /// <summary>
         /// 尝试注册被动技能监听器

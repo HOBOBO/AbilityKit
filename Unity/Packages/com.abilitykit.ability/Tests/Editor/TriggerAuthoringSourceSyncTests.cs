@@ -813,6 +813,30 @@ namespace AbilityKit.Ability.Editor.Tests
         }
 
         [Test]
+        public void Validator_ReportsInvalidAndDuplicateNodeIds()
+        {
+            var module = CreateValidModule();
+            module.Triggers[0].Actions.NodeId = "invalid";
+
+            var invalid = TriggerAuthoringValidator.Validate(module);
+
+            Assert.That(invalid.Exists(d => d.Code == "TRG1250"), Is.True, FormatDiagnostics(invalid));
+
+            const string duplicate = "node_00000000000000000000000000000001";
+            module.Triggers[0].Actions.NodeId = duplicate;
+            module.Triggers[0].Condition = new TriggerNodeData
+            {
+                NodeId = duplicate,
+                Kind = TriggerNodeKind.Condition,
+                Type = "always_true"
+            };
+
+            var duplicated = TriggerAuthoringValidator.Validate(module);
+
+            Assert.That(duplicated.Exists(d => d.Code == "TRG1251"), Is.True, FormatDiagnostics(duplicated));
+        }
+
+        [Test]
         public void Codec_RoundTripsReusableGroupReferencesWithoutInlining()
         {
             _asset.Module.ActionGroups.Add(new TriggerNodeGroupData

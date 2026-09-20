@@ -1,5 +1,7 @@
 using AbilityKit.Ability.Host;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Combat.Projectile;
+using AbilityKit.Demo.Moba;
+using AbilityKit.Demo.Moba.Services;
 using AbilityKit.Demo.Moba.Share;
 using AbilityKit.Protocol.Moba;
 using AbilityKit.Protocol.Moba.StateSync;
@@ -29,9 +31,14 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             return _lines.GetRecentLines();
         }
 
-        public void OnTriggerEvent(in TriggerEvent evt)
+        public void OnDamageResult(in DamageResult result)
         {
-            _lines.Push(_formatter.FormatTrigger(in evt));
+            _lines.Push(_formatter.FormatDamageResult(in result));
+        }
+
+        public void OnProjectileHit(in ProjectileHitEvent evt)
+        {
+            _lines.Push(_formatter.FormatProjectileHit(in evt));
         }
 
         public void OnSummonEvent(string eventId, in DemoMobaSummonEventPayload payload)

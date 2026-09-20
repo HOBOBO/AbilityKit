@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using AbilityKit.Ability.FrameSync;
-using AbilityKit.Ability.Triggering.Runtime;
 using AbilityKit.Ability.World;
 using AbilityKit.Core.Logging;
 using AbilityKit.Core.Pooling;
@@ -45,7 +44,6 @@ namespace AbilityKit.Demo.Moba.Services.Passive
 
         private readonly MobaConfigDatabase _configs;
         private readonly MobaTraceRegistry _trace;
-        private readonly ITriggerActionRunner _actionRunner;
         private readonly IFrameTime _frameTime;
         private readonly MobaTriggerIntervalContinuousService _continuousProcesses;
         private readonly Dictionary<int, HashSet<long>> _ownerKeysByActor = new Dictionary<int, HashSet<long>>();
@@ -54,13 +52,11 @@ namespace AbilityKit.Demo.Moba.Services.Passive
         public MobaPassiveSkillLifecycleService(
             MobaConfigDatabase configs,
             MobaTraceRegistry trace = null,
-            ITriggerActionRunner actionRunner = null,
             IFrameTime frameTime = null,
             MobaTriggerIntervalContinuousService continuousProcesses = null)
         {
             _configs = configs ?? throw new ArgumentNullException(nameof(configs));
             _trace = trace;
-            _actionRunner = actionRunner;
             _frameTime = frameTime;
             _continuousProcesses = continuousProcesses;
         }
@@ -338,7 +334,6 @@ namespace AbilityKit.Demo.Moba.Services.Passive
                 try
                 {
                     _continuousProcesses?.EndOwnerProcesses(ownedContextId, AbilityKit.Continuous.ContinuousEndReason.CleanedUp);
-                    _actionRunner?.CancelByOwnerKey(ownedContextId);
                     _passiveByOwnerKey.Remove(ownedContextId);
                 }
                 catch (Exception ex)

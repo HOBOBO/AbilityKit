@@ -32,5 +32,51 @@ namespace AbilityKit.BattleFlow
 
         /// <summary>从文件读取。</summary>
         public static BattleFlowDocument Load(string path) => Parse(File.ReadAllText(path));
+
+        /// <summary>Deep-clones one polymorphic block through the shared document codec.</summary>
+        public static BattleBlock CloneBlock(BattleBlock block)
+        {
+            if (block == null) throw new ArgumentNullException(nameof(block));
+            var wrapper = new BattleFlowDocument
+            {
+                CaseId = "clone",
+                Blocks = new System.Collections.Generic.List<BattleBlock> { block },
+            };
+            return Parse(Serialize(wrapper)).Blocks[0];
+        }
+
+        /// <summary>Serializes a reusable battle scene asset.</summary>
+        public static string SerializeScene(BattleSceneDocument scene) =>
+            JsonConvert.SerializeObject(scene, Settings);
+
+        /// <summary>Parses a reusable battle scene asset.</summary>
+        public static BattleSceneDocument ParseScene(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+                throw new ArgumentException("Battle scene JSON is empty.", nameof(json));
+            return JsonConvert.DeserializeObject<BattleSceneDocument>(json, Settings)
+                   ?? throw new InvalidDataException("Battle scene JSON did not contain an object.");
+        }
+
+        /// <summary>Writes a reusable scene asset.</summary>
+        public static void SaveScene(string path, BattleSceneDocument scene) =>
+            File.WriteAllText(path, SerializeScene(scene));
+
+        /// <summary>Loads a reusable scene asset.</summary>
+        public static BattleSceneDocument LoadScene(string path) => ParseScene(File.ReadAllText(path));
+
+        /// <summary>Resolves a scene reference relative to its owning .battleflow file.</summary>
+        public static string ResolveScenePath(string casePath, string scenarioRef)
+        {
+            if (string.IsNullOrWhiteSpace(casePath)) throw new ArgumentException("Case path is required.", nameof(casePath));
+            if (string.IsNullOrWhiteSpace(scenarioRef))
+                throw new ArgumentException("Scenario reference is required.", nameof(scenarioRef));
+
+            var reference = scenarioRef;
+            if (string.IsNullOrEmpty(Path.GetExtension(reference))) reference += ".battlescene";
+            if (Path.IsPathRooted(reference)) return Path.GetFullPath(reference);
+            var ownerDirectory = Path.GetDirectoryName(Path.GetFullPath(casePath)) ?? Directory.GetCurrentDirectory();
+            return Path.GetFullPath(Path.Combine(ownerDirectory, reference));
+        }
     }
 }

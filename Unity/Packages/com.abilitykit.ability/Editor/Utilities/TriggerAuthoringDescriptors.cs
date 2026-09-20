@@ -30,6 +30,13 @@ namespace AbilityKit.Ability.Editor.Utilities
         All = Constant | Payload | Context | LocalBlackboard | GlobalBlackboard | TemplateParameter | Expression
     }
 
+    [Flags]
+    public enum TriggerParameterSemanticPolicy
+    {
+        None = 0,
+        ValidateConstant = 1 << 0
+    }
+
     public sealed class TriggerParameterDescriptor
     {
         public TriggerParameterDescriptor(
@@ -55,12 +62,60 @@ namespace AbilityKit.Ability.Editor.Utilities
         public TriggerParameterDescriptor(
             string name,
             TriggerValueType type,
+            string semanticId,
+            bool required = true,
+            TriggerValueSourceMask allowedSources = TriggerValueSourceMask.All,
+            TriggerParameterAccess access = TriggerParameterAccess.Read,
+            string requiredGroup = null,
+            TriggerParameterSemanticPolicy semanticPolicy = TriggerParameterSemanticPolicy.ValidateConstant)
+            : this(
+                name,
+                type,
+                required,
+                allowedSources,
+                access,
+                requiredGroup,
+                null,
+                semanticId,
+                semanticPolicy,
+                null)
+        {
+        }
+
+        public TriggerParameterDescriptor(
+            string name,
+            TriggerValueType type,
             bool required,
             TriggerValueSourceMask allowedSources,
             TriggerParameterAccess access,
             string requiredGroup,
             IReadOnlyList<TriggerParameterDescriptor> fields,
             params TriggerParameterOption[] options)
+            : this(
+                name,
+                type,
+                required,
+                allowedSources,
+                access,
+                requiredGroup,
+                fields,
+                null,
+                TriggerParameterSemanticPolicy.None,
+                options)
+        {
+        }
+
+        private TriggerParameterDescriptor(
+            string name,
+            TriggerValueType type,
+            bool required,
+            TriggerValueSourceMask allowedSources,
+            TriggerParameterAccess access,
+            string requiredGroup,
+            IReadOnlyList<TriggerParameterDescriptor> fields,
+            string semanticId,
+            TriggerParameterSemanticPolicy semanticPolicy,
+            TriggerParameterOption[] options)
         {
             Name = name ?? string.Empty;
             Type = type;
@@ -84,6 +139,10 @@ namespace AbilityKit.Ability.Editor.Utilities
             RequiredGroup = requiredGroup ?? string.Empty;
             Fields = fields ?? Array.Empty<TriggerParameterDescriptor>();
             Options = options ?? Array.Empty<TriggerParameterOption>();
+            SemanticId = semanticId?.Trim() ?? string.Empty;
+            SemanticPolicy = string.IsNullOrEmpty(SemanticId)
+                ? TriggerParameterSemanticPolicy.None
+                : semanticPolicy;
         }
 
         public string Name { get; }
@@ -94,6 +153,8 @@ namespace AbilityKit.Ability.Editor.Utilities
         public string RequiredGroup { get; }
         public IReadOnlyList<TriggerParameterDescriptor> Fields { get; }
         public IReadOnlyList<TriggerParameterOption> Options { get; }
+        public string SemanticId { get; }
+        public TriggerParameterSemanticPolicy SemanticPolicy { get; }
     }
 
     public enum TriggerParameterAccess
@@ -312,7 +373,50 @@ namespace AbilityKit.Ability.Editor.Utilities
         private static void RegisterCompleteActions(TriggerTypeDescriptorCatalog catalog)
         {
             catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "seq", "顺序执行", "Action/Flow", 1, -1, true));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "selector", "顺序选择", "Action/Flow", 1, -1, true));
             catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "random", "随机选择", "Action/Flow", 1, -1, true));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "parallel", "并行执行", "Action/Flow", 1, -1, true));
+            catalog.Register(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "repeat",
+                "重复执行",
+                "Action/Flow",
+                1,
+                1,
+                true,
+                new TriggerParameterDescriptor(
+                    "count",
+                    TriggerValueType.Integer,
+                    true,
+                    TriggerValueSourceMask.Constant)));
+            catalog.Register(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "until",
+                "执行直到",
+                "Action/Flow",
+                1,
+                1,
+                true,
+                new TriggerParameterDescriptor(
+                    "max_iterations",
+                    TriggerValueType.Integer,
+                    true,
+                    TriggerValueSourceMask.Constant)));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "invert", "反转结果", "Action/Flow", 1, 1, true));
+            catalog.Register(new TriggerTypeDescriptor(TriggerNodeKind.Action, "succeed", "强制成功", "Action/Flow", 0, 1, true));
+            catalog.Register(new TriggerTypeDescriptor(
+                TriggerNodeKind.Action,
+                "fail",
+                "强制失败",
+                "Action/Flow",
+                0,
+                1,
+                true,
+                new TriggerParameterDescriptor(
+                    "reason",
+                    TriggerValueType.String,
+                    false,
+                    TriggerValueSourceMask.Constant)));
             catalog.Register(new TriggerTypeDescriptor(
                 TriggerNodeKind.Action,
                 "weighted",
@@ -850,6 +954,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             if (string.IsNullOrWhiteSpace(module.ModuleId))
                 AddError(diagnostics, "TRG1001", "module.moduleId", "必须填写模块 ID。");
 
+            ValidateNodeIdentities(diagnostics, module);
+
             if (context.Events == null)
                 AddWarning(diagnostics, "TRG1402", "module", "尚未分配事件目录，事件和 Payload 校验能力受限。");
 
@@ -866,7 +972,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 "module.conditionGroups",
                 catalog,
                 moduleKeys,
-                context.GlobalBlackboard);
+                context.GlobalBlackboard,
+                context.References);
             ValidateGroups(
                 diagnostics,
                 module,
@@ -875,7 +982,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 "module.actionGroups",
                 catalog,
                 moduleKeys,
-                context.GlobalBlackboard);
+                context.GlobalBlackboard,
+                context.References);
             var triggerIds = new HashSet<int>();
             var triggers = module.Triggers ?? new List<TriggerDefinitionData>();
             for (var i = 0; i < triggers.Count; i++)
@@ -926,9 +1034,9 @@ namespace AbilityKit.Ability.Editor.Utilities
                 foreach (var pair in declaredTriggerKeys) triggerKeys[pair.Key] = pair.Value;
                 ValidateTemplateReference(diagnostics, trigger, path, context, eventDefinition, moduleKeys);
                 if (trigger.Template == null || trigger.Condition != null)
-                    ValidateResolvedNode(diagnostics, module, effectiveTrigger.Condition, TriggerNodeKind.Condition, path + ".condition", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
+                    ValidateResolvedNode(diagnostics, module, effectiveTrigger.Condition, TriggerNodeKind.Condition, path + ".condition", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard, context.References);
                 if (trigger.Template == null || trigger.Actions != null)
-                    ValidateResolvedNode(diagnostics, module, effectiveTrigger.Actions, TriggerNodeKind.Action, path + ".actions", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard);
+                    ValidateResolvedNode(diagnostics, module, effectiveTrigger.Actions, TriggerNodeKind.Action, path + ".actions", catalog, triggerKeys, eventDefinition, context.GlobalBlackboard, context.References);
 
                 if (effectiveTrigger.Actions != null && TriggerAuthoringGroupResolver.TryExpand(
                         module,
@@ -949,6 +1057,81 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             return diagnostics;
+        }
+
+        private static void ValidateNodeIdentities(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerAuthoringModuleData module)
+        {
+            var ids = new HashSet<string>(StringComparer.Ordinal);
+            var visited = new HashSet<TriggerNodeData>();
+            ValidateGroupNodeIdentities(
+                diagnostics,
+                module.ConditionGroups,
+                "module.conditionGroups",
+                ids,
+                visited);
+            ValidateGroupNodeIdentities(
+                diagnostics,
+                module.ActionGroups,
+                "module.actionGroups",
+                ids,
+                visited);
+
+            var triggers = module.Triggers;
+            if (triggers == null) return;
+            for (var i = 0; i < triggers.Count; i++)
+            {
+                var trigger = triggers[i];
+                if (trigger == null) continue;
+                var path = "module.triggers[" + i + "]";
+                ValidateNodeIdentity(diagnostics, trigger.Condition, path + ".condition", ids, visited);
+                ValidateNodeIdentity(diagnostics, trigger.Actions, path + ".actions", ids, visited);
+            }
+        }
+
+        private static void ValidateGroupNodeIdentities(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            IReadOnlyList<TriggerNodeGroupData> groups,
+            string path,
+            ISet<string> ids,
+            ISet<TriggerNodeData> visited)
+        {
+            if (groups == null) return;
+            for (var i = 0; i < groups.Count; i++)
+                ValidateNodeIdentity(diagnostics, groups[i]?.Root, path + "[" + i + "].root", ids, visited);
+        }
+
+        private static void ValidateNodeIdentity(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerNodeData node,
+            string path,
+            ISet<string> ids,
+            ISet<TriggerNodeData> visited)
+        {
+            if (node == null || !visited.Add(node)) return;
+            if (!string.IsNullOrWhiteSpace(node.NodeId))
+            {
+                if (!TriggerAuthoringNodeIdentity.IsValid(node.NodeId))
+                    AddError(diagnostics, "TRG1250", path + ".nodeId", "Node ID has an invalid format.");
+                else if (!ids.Add(node.NodeId))
+                    AddError(diagnostics, "TRG1251", path + ".nodeId", "Duplicate node ID: " + node.NodeId + ".");
+            }
+            ValidateNodeIdentity(diagnostics, node.Condition, path + ".condition", ids, visited);
+            ValidateChildNodeIdentities(diagnostics, node.Children, path + ".children", ids, visited);
+            ValidateChildNodeIdentities(diagnostics, node.ElseChildren, path + ".elseChildren", ids, visited);
+        }
+
+        private static void ValidateChildNodeIdentities(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            IReadOnlyList<TriggerNodeData> children,
+            string path,
+            ISet<string> ids,
+            ISet<TriggerNodeData> visited)
+        {
+            if (children == null) return;
+            for (var i = 0; i < children.Count; i++)
+                ValidateNodeIdentity(diagnostics, children[i], path + "[" + i + "]", ids, visited);
         }
 
         private static void ValidateTriggerReferenceNode(
@@ -1124,7 +1307,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     path + ".arguments." + parameter.Name,
                     localKeys,
                     eventDefinition,
-                    globalBlackboard);
+                    globalBlackboard,
+                    null);
             }
 
             foreach (var pair in bindings)
@@ -1247,7 +1431,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     bindingPath + ".value",
                     localKeys,
                     eventDefinition,
-                    context.GlobalBlackboard);
+                    context.GlobalBlackboard,
+                    context.References);
             }
 
             foreach (var pair in parameters)
@@ -1280,7 +1465,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             string path,
             TriggerTypeDescriptorCatalog catalog,
             IReadOnlyDictionary<string, BlackboardSymbol> moduleKeys,
-            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerAuthoringReferenceCatalog references)
         {
             if (groups == null) return;
             var ids = new HashSet<string>(StringComparer.Ordinal);
@@ -1319,7 +1505,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     catalog,
                     moduleKeys,
                     null,
-                    globalBlackboard);
+                    globalBlackboard,
+                    references);
             }
         }
 
@@ -1332,7 +1519,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerTypeDescriptorCatalog catalog,
             IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
             TriggerEventDefinitionData eventDefinition,
-            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerAuthoringReferenceCatalog references)
         {
             ValidateReferenceShape(diagnostics, node, expectedKind, path);
             if (!TriggerAuthoringGroupResolver.TryExpand(
@@ -1358,7 +1546,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                 catalog,
                 localKeys,
                 eventDefinition,
-                globalBlackboard);
+                globalBlackboard,
+                references);
             if (expectedKind == TriggerNodeKind.Action)
             {
                 ValidateEmbeddedActionFlow(
@@ -1369,7 +1558,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     catalog,
                     localKeys,
                     eventDefinition,
-                    globalBlackboard);
+                    globalBlackboard,
+                    references);
             }
         }
 
@@ -1401,7 +1591,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
 
             if (expectedKind == TriggerNodeKind.Action &&
-                string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
+                (string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase)))
             {
                 ValidateReferenceShape(
                     diagnostics,
@@ -1433,7 +1624,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerTypeDescriptorCatalog catalog,
             IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
             TriggerEventDefinitionData eventDefinition,
-            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerAuthoringReferenceCatalog references)
         {
             if (node == null || !node.Enabled) return;
             if (string.Equals(node.Type, "conditional", StringComparison.OrdinalIgnoreCase))
@@ -1453,7 +1645,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                         catalog,
                         localKeys,
                         eventDefinition,
-                        globalBlackboard);
+                        globalBlackboard,
+                        references);
                 }
 
                 var elseChildren = node.ElseChildren ?? new List<TriggerNodeData>();
@@ -1469,7 +1662,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                         catalog,
                         localKeys,
                         eventDefinition,
-                        globalBlackboard);
+                        globalBlackboard,
+                        references);
                     ValidateEmbeddedActionFlow(
                         diagnostics,
                         module,
@@ -1478,7 +1672,29 @@ namespace AbilityKit.Ability.Editor.Utilities
                         catalog,
                         localKeys,
                         eventDefinition,
-                        globalBlackboard);
+                        globalBlackboard,
+                        references);
+                }
+            }
+            else if (string.Equals(node.Type, "until", StringComparison.OrdinalIgnoreCase))
+            {
+                if (node.Condition == null || !node.Condition.Enabled)
+                {
+                    AddError(diagnostics, "TRG1231", path + ".condition", "执行直到节点必须配置并启用结束条件。");
+                }
+                else
+                {
+                    ValidateResolvedNode(
+                        diagnostics,
+                        module,
+                        node.Condition,
+                        TriggerNodeKind.Condition,
+                        path + ".condition",
+                        catalog,
+                        localKeys,
+                        eventDefinition,
+                        globalBlackboard,
+                        references);
                 }
             }
 
@@ -1493,7 +1709,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     catalog,
                     localKeys,
                     eventDefinition,
-                    globalBlackboard);
+                    globalBlackboard,
+                    references);
         }
 
         private sealed class BlackboardSymbol
@@ -1560,7 +1777,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             TriggerTypeDescriptorCatalog catalog,
             IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
             TriggerEventDefinitionData eventDefinition,
-            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerAuthoringReferenceCatalog references)
         {
             if (node == null)
             {
@@ -1637,11 +1855,13 @@ namespace AbilityKit.Ability.Editor.Utilities
                     path + ".arguments." + parameter.Name,
                     localKeys,
                     eventDefinition,
-                    globalBlackboard);
+                    globalBlackboard,
+                    references);
             }
 
             ValidateSetVariableTypes(diagnostics, node, arguments, path);
             ValidateForEachLimits(diagnostics, node, arguments, path);
+            ValidateRepeatAndUntilLimits(diagnostics, node, arguments, path);
 
             var requiredGroups = new HashSet<string>(StringComparer.Ordinal);
             for (var i = 0; i < descriptor.Parameters.Count; i++)
@@ -1669,7 +1889,7 @@ namespace AbilityKit.Ability.Editor.Utilities
             for (var i = 0; i < children.Count; i++)
             {
                 if (children[i] == null || !children[i].Enabled) continue;
-                ValidateNode(diagnostics, children[i], expectedKind, $"{path}.children[{i}]", catalog, localKeys, eventDefinition, globalBlackboard);
+                ValidateNode(diagnostics, children[i], expectedKind, $"{path}.children[{i}]", catalog, localKeys, eventDefinition, globalBlackboard, references);
             }
         }
 
@@ -1737,6 +1957,32 @@ namespace AbilityKit.Ability.Editor.Utilities
                     "for_each 的 max_iterations 必须是大于 0 的整数常量。");
         }
 
+        private static void ValidateRepeatAndUntilLimits(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerNodeData node,
+            IReadOnlyDictionary<string, TriggerArgumentData> arguments,
+            string path)
+        {
+            if (node.Kind != TriggerNodeKind.Action) return;
+            var isRepeat = string.Equals(node.Type, "repeat", StringComparison.Ordinal);
+            var isUntil = string.Equals(node.Type, "until", StringComparison.Ordinal);
+            if (!isRepeat && !isUntil) return;
+
+            var parameterName = isRepeat ? "count" : "max_iterations";
+            if (!arguments.TryGetValue(parameterName, out var argument) || argument?.Value == null) return;
+            var value = argument.Value;
+            if (value.Source == TriggerValueSource.Constant &&
+                value.Type == TriggerValueType.Integer &&
+                value.IntegerValue > 0 && value.IntegerValue <= int.MaxValue)
+                return;
+
+            AddError(
+                diagnostics,
+                isRepeat ? "TRG1317" : "TRG1318",
+                path + ".arguments." + parameterName,
+                node.Type + " 的 " + parameterName + " 必须是大于 0 的整数常量。");
+        }
+
         private static bool IsSetVariableType(TriggerValueType type)
         {
             return type == TriggerValueType.Integer || type == TriggerValueType.Number ||
@@ -1758,7 +2004,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             string path,
             IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
             TriggerEventDefinitionData eventDefinition,
-            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerAuthoringReferenceCatalog references)
         {
             if (value == null)
             {
@@ -1778,8 +2025,11 @@ namespace AbilityKit.Ability.Editor.Utilities
                     path + ".fields",
                     localKeys,
                     eventDefinition,
-                    globalBlackboard);
+                    globalBlackboard,
+                    references);
             }
+
+            ValidateSemanticConstant(diagnostics, value, parameter, path, references);
 
             switch (value.Source)
             {
@@ -1815,6 +2065,59 @@ namespace AbilityKit.Ability.Editor.Utilities
             }
         }
 
+        private static void ValidateSemanticConstant(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerValueRefData value,
+            TriggerParameterDescriptor parameter,
+            string path,
+            TriggerAuthoringReferenceCatalog references)
+        {
+            if (value.Source != TriggerValueSource.Constant ||
+                string.IsNullOrWhiteSpace(parameter.SemanticId) ||
+                (parameter.SemanticPolicy & TriggerParameterSemanticPolicy.ValidateConstant) == 0 ||
+                references == null ||
+                !references.TryGetProvider(parameter.SemanticId, parameter.Type, out _))
+                return;
+
+            if (value.Type == TriggerValueType.Integer)
+            {
+                ValidateSemanticId(
+                    diagnostics,
+                    parameter,
+                    path + ".integerValue",
+                    value.IntegerValue,
+                    references);
+                return;
+            }
+            if (value.Type != TriggerValueType.IntegerList || value.IntegerListValue == null) return;
+            for (var i = 0; i < value.IntegerListValue.Count; i++)
+            {
+                ValidateSemanticId(
+                    diagnostics,
+                    parameter,
+                    path + ".integerListValue[" + i + "]",
+                    value.IntegerListValue[i],
+                    references);
+            }
+        }
+
+        private static void ValidateSemanticId(
+            ICollection<TriggerAuthoringDiagnostic> diagnostics,
+            TriggerParameterDescriptor parameter,
+            string path,
+            long value,
+            TriggerAuthoringReferenceCatalog references)
+        {
+            if (references.TryResolve(parameter.SemanticId, parameter.Type, value, out _) ||
+                !references.IsOperational(parameter.SemanticId))
+                return;
+            AddError(
+                diagnostics,
+                "TRG1326",
+                path,
+                $"未找到语义引用 {parameter.SemanticId}：{value}。");
+        }
+
         private static void ValidateObjectFields(
             ICollection<TriggerAuthoringDiagnostic> diagnostics,
             IReadOnlyList<TriggerArgumentData> fields,
@@ -1822,7 +2125,8 @@ namespace AbilityKit.Ability.Editor.Utilities
             string path,
             IReadOnlyDictionary<string, BlackboardSymbol> localKeys,
             TriggerEventDefinitionData eventDefinition,
-            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard)
+            TriggerGlobalBlackboardDescriptorCatalog globalBlackboard,
+            TriggerAuthoringReferenceCatalog references)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
             var fieldDescriptors = BuildFieldDescriptorMap(parameter);
@@ -1851,7 +2155,8 @@ namespace AbilityKit.Ability.Editor.Utilities
                     fieldPath + ".value",
                     localKeys,
                     eventDefinition,
-                    globalBlackboard);
+                    globalBlackboard,
+                    references);
             }
 
             if (fieldDescriptors == null) return;

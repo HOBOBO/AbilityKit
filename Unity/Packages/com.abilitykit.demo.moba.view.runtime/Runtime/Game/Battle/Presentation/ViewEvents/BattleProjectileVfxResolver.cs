@@ -1,5 +1,5 @@
 using AbilityKit.Ability.Share.Effect;
-using AbilityKit.Ability.Triggering;
+using AbilityKit.Combat.Projectile;
 using AbilityKit.Core.Mathematics;
 using AbilityKit.Demo.Moba.Config.BattleDemo.MO;
 using AbilityKit.Demo.Moba.View.Abstractions.Shared.Types;
@@ -31,7 +31,7 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
             _snapshotVfxIds = snapshotVfxIds ?? new BattleProjectileSnapshotVfxIdResolver(_resolver);
         }
 
-        public bool TryResolveTriggerHit(in TriggerEvent evt, out int vfxId, out Vector3 position, out int projectileId)
+        public bool TryResolveTriggerHit(in ProjectileHitEvent evt, out int vfxId, out Vector3 position, out int projectileId)
         {
             vfxId = 0;
             position = default;
@@ -122,30 +122,16 @@ namespace AbilityKit.Game.Flow.Battle.ViewEvents
 
     internal sealed class BattleProjectileTriggerHitInputResolver
     {
-        public bool TryResolve(in TriggerEvent evt, out BattleProjectileTriggerHitInput input)
+        public bool TryResolve(in ProjectileHitEvent evt, out BattleProjectileTriggerHitInput input)
         {
-            input = default;
-            if (evt.Args == null) return false;
-
-            if (!evt.Args.TryGetValue(ProjectileTriggering.Args.TemplateId, out var templateObj)
-                || templateObj is not int templateId
-                || templateId <= 0)
+            if (evt.TemplateId <= 0)
             {
+                input = default;
                 return false;
             }
 
-            if (!evt.Args.TryGetValue(ProjectileTriggering.Args.HitPoint, out var hitPointObj)
-                || hitPointObj is not Vec3 hitPoint)
-            {
-                return false;
-            }
-
-            var position = new Vector3(hitPoint.X, hitPoint.Y, hitPoint.Z);
-
-            evt.Args.TryGetValue(ProjectileTriggering.Args.ProjectileId, out var projectileIdObj);
-            var projectileId = projectileIdObj is int pid ? pid : 0;
-
-            input = new BattleProjectileTriggerHitInput(templateId, in position, projectileId);
+            var position = new Vector3(evt.Point.X, evt.Point.Y, evt.Point.Z);
+            input = new BattleProjectileTriggerHitInput(evt.TemplateId, in position, evt.Projectile.Value);
             return true;
         }
     }
