@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Demo.Moba.Worlds.Blueprints;
 using AbilityKit.Demo.Shooter.Runtime;
+using AbilityKit.Network.Runtime.Sync;
+using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Grains.Battle;
@@ -16,20 +18,26 @@ using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 
 namespace AbilityKit.Orleans.Grains.Gameplay;
 
-internal enum ServerBattleSyncMode
+public enum ServerBattleSyncMode
 {
     StateSync = 0,
     FrameSync = 1
 }
 
-internal enum ServerBattleRuntimeMode
+public readonly record struct ServerSyncCapabilityDefinition(
+    string ProfileName,
+    NetworkSyncProfile Profile,
+    int MinimumSchemaVersion,
+    int MaximumSchemaVersion);
+
+public enum ServerBattleRuntimeMode
 {
     BattleWorld = 0,
     FrameRelayOnly = 1,
     BattleWorldWithFrameSync = 2
 }
 
-internal sealed class ServerBattleSyncTemplate
+public sealed class ServerBattleSyncTemplate
 {
     public ServerBattleSyncTemplate(string templateId, ServerBattleSyncMode mode)
         : this(templateId, mode, ServerBattleRuntimeMode.BattleWorld, 1, 30)
@@ -71,7 +79,8 @@ internal sealed class ServerBattleSyncTemplate
     public int FullSnapshotIntervalFrames { get; }
 
     public bool SupportsStateSyncPush =>
-        Mode == ServerBattleSyncMode.StateSync;
+        Mode == ServerBattleSyncMode.StateSync ||
+        RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync;
 
     public bool SupportsFrameSync => Mode == ServerBattleSyncMode.FrameSync;
 
@@ -80,7 +89,7 @@ internal sealed class ServerBattleSyncTemplate
         RuntimeMode == ServerBattleRuntimeMode.BattleWorldWithFrameSync;
 }
 
-internal sealed class ServerBattleSyncProfile
+public sealed class ServerBattleSyncProfile
 {
     public static ServerBattleSyncProfile StateSync(string defaultTemplateId, params string[] supportedTemplateIds)
     {
@@ -226,24 +235,27 @@ internal sealed class ServerBattleSyncProfile
     }
 }
 
-internal sealed class ServerGameplayModule
+public sealed class ServerGameplayModule
 {
     private readonly Func<IRoomGameplayAdapter> _roomAdapterFactory;
     private readonly Func<ServerBattleWorldManager, IBattleRuntimeAdapter> _battleRuntimeAdapterFactory;
     private readonly IReadOnlyList<Func<IWorldBlueprint>> _worldBlueprintFactories;
+    private readonly Func<BattleSyncStartOptions?, string, ServerSyncCapabilityDefinition> _syncCapabilities;
 
     public ServerGameplayModule(
         GameplayRoomDescriptor descriptor,
         ServerBattleSyncProfile syncProfile,
         Func<IRoomGameplayAdapter> roomAdapterFactory,
         Func<ServerBattleWorldManager, IBattleRuntimeAdapter> battleRuntimeAdapterFactory,
-        IReadOnlyList<Func<IWorldBlueprint>> worldBlueprintFactories)
+        IReadOnlyList<Func<IWorldBlueprint>> worldBlueprintFactories,
+        Func<BattleSyncStartOptions?, string, ServerSyncCapabilityDefinition> syncCapabilities)
     {
         Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
         SyncProfile = syncProfile ?? throw new ArgumentNullException(nameof(syncProfile));
         _roomAdapterFactory = roomAdapterFactory ?? throw new ArgumentNullException(nameof(roomAdapterFactory));
         _battleRuntimeAdapterFactory = battleRuntimeAdapterFactory ?? throw new ArgumentNullException(nameof(battleRuntimeAdapterFactory));
         _worldBlueprintFactories = worldBlueprintFactories ?? throw new ArgumentNullException(nameof(worldBlueprintFactories));
+        _syncCapabilities = syncCapabilities ?? throw new ArgumentNullException(nameof(syncCapabilities));
         if (_worldBlueprintFactories.Count == 0)
         {
             throw new ArgumentException("At least one world blueprint must be registered for a server gameplay module.", nameof(worldBlueprintFactories));
@@ -255,6 +267,16 @@ internal sealed class ServerGameplayModule
     public ServerBattleSyncProfile SyncProfile { get; }
 
     public string RoomType => Descriptor.RoomType;
+
+    public ServerSyncCapabilityDefinition ResolveSyncCapabilities(BattleSyncStartOptions? options, string templateId)
+    {
+        if (!SyncProfile.SupportsTemplate(templateId))
+        {
+            throw new InvalidOperationException($"Unsupported sync template. RoomType={RoomType}, TemplateId={templateId}");
+        }
+
+        return _syncCapabilities(options, templateId);
+    }
 
     public IRoomGameplayAdapter CreateRoomAdapter()
     {
@@ -307,7 +329,7 @@ internal sealed class ServerGameplayModule
     }
 }
 
-internal sealed class ServerGameplayModuleCatalog
+public sealed class ServerGameplayModuleCatalog
 {
     private readonly IReadOnlyList<ServerGameplayModule> _modules;
 
@@ -322,7 +344,8 @@ internal sealed class ServerGameplayModuleCatalog
             {
                 static () => new MobaLobbyWorldBlueprint(),
                 static () => new MobaBattleWorldBlueprint()
-            }),
+            },
+            ServerGameplaySyncCapabilityProfiles.ForMoba),
         new ServerGameplayModule(
             ServerGameplayDescriptors.Shooter,
             ShooterServerSyncTemplateCatalog.CreateSyncProfile(),
@@ -331,8 +354,16 @@ internal sealed class ServerGameplayModuleCatalog
             new Func<IWorldBlueprint>[]
             {
                 static () => new ShooterBattleWorldBlueprint()
-            })
+            },
+            ServerGameplaySyncCapabilityProfiles.ForShooter)
     });
+
+    public ServerGameplayModuleCatalog WithModule(ServerGameplayModule module)
+    {
+        if (module is null) throw new ArgumentNullException(nameof(module));
+        var modules = new List<ServerGameplayModule>(_modules) { module };
+        return new ServerGameplayModuleCatalog(modules);
+    }
 
     public ServerGameplayModuleCatalog(IReadOnlyList<ServerGameplayModule> modules)
     {
@@ -382,6 +413,14 @@ internal sealed class ServerGameplayModuleCatalog
     public ServerBattleSyncProfile ResolveSyncProfile(string? roomType)
     {
         return ResolveModule(roomType).SyncProfile;
+    }
+
+    public ServerSyncCapabilityDefinition ResolveSyncCapabilities(
+        string? roomType,
+        BattleSyncStartOptions? options,
+        string templateId)
+    {
+        return ResolveModule(roomType).ResolveSyncCapabilities(options, templateId);
     }
 
     public IReadOnlyList<IRoomGameplayAdapter> CreateRoomAdapters()

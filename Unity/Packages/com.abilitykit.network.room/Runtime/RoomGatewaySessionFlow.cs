@@ -412,7 +412,7 @@ namespace AbilityKit.Network.Room
         /// 阶段化恢复：支持 Lobby/Loading/Starting/InBattle 任意阶段 restore，
         /// 根据 snapshot.Phase 决定下一步。
         /// </summary>
-        public async Task<RoomGatewayStagedRestoreResult> RestoreAsync(
+        public Task<RoomGatewayStagedRestoreResult> RestoreAsync(
             string sessionToken,
             string region,
             string serverId,
@@ -420,10 +420,32 @@ namespace AbilityKit.Network.Room
             TimeSpan? timeout = null,
             CancellationToken cancellationToken = default)
         {
+            ValidatePlayerId(playerId);
+            return RestoreCoreAsync(sessionToken, region, serverId, playerId, timeout, cancellationToken);
+        }
+
+        /// <summary>Restores a session before the room has supplied the local player ID.</summary>
+        public Task<RoomGatewayStagedRestoreResult> RestoreWithoutPlayerIdAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return RestoreCoreAsync(sessionToken, region, serverId, 0u, timeout, cancellationToken);
+        }
+
+        private async Task<RoomGatewayStagedRestoreResult> RestoreCoreAsync(
+            string sessionToken,
+            string region,
+            string serverId,
+            uint playerId,
+            TimeSpan? timeout,
+            CancellationToken cancellationToken)
+        {
             ValidateSessionToken(sessionToken);
             if (string.IsNullOrWhiteSpace(region)) throw new ArgumentException("region is required.", nameof(region));
             if (string.IsNullOrWhiteSpace(serverId)) throw new ArgumentException("serverId is required.", nameof(serverId));
-            ValidatePlayerId(playerId);
 
             RoomGatewayRestoreRoomResult restored;
             try
@@ -767,8 +789,9 @@ namespace AbilityKit.Network.Room
         public readonly bool IsPublic;
         public readonly int MaxPlayers;
         public readonly IReadOnlyDictionary<string, string>? Tags;
+        public readonly string CommandId;
 
-        public RoomGatewayCreateRequest(string sessionToken, string region, string serverId, string roomType, string title, bool isPublic, int maxPlayers, IReadOnlyDictionary<string, string>? tags = null)
+        public RoomGatewayCreateRequest(string sessionToken, string region, string serverId, string roomType, string title, bool isPublic, int maxPlayers, IReadOnlyDictionary<string, string>? tags = null, string? commandId = null)
         {
             SessionToken = sessionToken ?? string.Empty;
             Region = region ?? string.Empty;
@@ -778,6 +801,7 @@ namespace AbilityKit.Network.Room
             IsPublic = isPublic;
             MaxPlayers = maxPlayers;
             Tags = tags;
+            CommandId = commandId ?? string.Empty;
         }
     }
 

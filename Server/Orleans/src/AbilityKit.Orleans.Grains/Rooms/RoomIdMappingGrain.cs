@@ -33,6 +33,14 @@ public sealed class RoomIdMappingGrain : Grain, IRoomIdMappingGrain
         return _roomStateStore.BindAccountRoomAsync(accountId, roomId);
     }
 
+    public Task<bool> TryBindAccountRoomIfActiveAsync(string accountId, string roomId)
+    {
+        if (string.IsNullOrWhiteSpace(accountId)) throw new ArgumentException("accountId is required", nameof(accountId));
+        if (string.IsNullOrWhiteSpace(roomId)) throw new ArgumentException("roomId is required", nameof(roomId));
+
+        return _roomStateStore.TryBindAccountRoomIfActiveAsync(accountId, roomId);
+    }
+
     public Task<string?> TryGetAccountRoomAsync(string accountId)
     {
         if (string.IsNullOrWhiteSpace(accountId)) return Task.FromResult<string?>(null);

@@ -1,0 +1,46 @@
+{
+  "name": "com.abilitykit.demo.tiny",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo Tiny",
+  "unity": "2022.3",
+  "description": "Minimal multiplayer gameplay integration sample.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {
+    "com.abilitykit.demo.tiny.logic": "0.0.1",
+    "com.abilitykit.demo.common": "0.0.1",
+    "com.abilitykit.game.view.runtime": "0.1.0",
+    "com.abilitykit.network.room": "0.1.0",
+    "com.abilitykit.network.sdk": "0.1.0",
+    "com.abilitykit.network.runtime": "0.1.0",
+    "com.abilitykit.protocol.room": "0.1.0",
+    "com.abilitykit.world.framesync": "0.1.0",
+    "com.abilitykit.thirdparty.unsafe": "5.0.0"
+  },
+  "samples": [
+    {
+      "displayName": "02 Room",
+      "description": "Create, join, and ready a Tiny room with the public Room API.",
+      "path": "Samples~/02-Room"
+    },
+    {
+      "displayName": "03 State",
+      "description": "Read an accepted authoritative actor snapshot.",
+      "path": "Samples~/03-State"
+    },
+    {
+      "displayName": "04 Frame",
+      "description": "Replay a late authoritative frame input.",
+      "path": "Samples~/04-Frame"
+    },
+    {
+      "displayName": "05 Hybrid",
+      "description": "Predict locally, confirm, then reconcile a remote input.",
+      "path": "Samples~/05-Hybrid"
+    },
+    {
+      "displayName": "06 Recovery",
+      "description": "Recover from exhausted frame history using a full state.",
+      "path": "Samples~/06-Recovery"
+    }
+  ]
+}

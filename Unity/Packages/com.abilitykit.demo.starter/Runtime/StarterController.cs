@@ -13,7 +13,7 @@ namespace AbilityKit.Starter
     public sealed class StarterController : MonoBehaviour
     {
         private const float WindowWidth = 420f;
-        private const float WindowHeight = 340f;
+        private const float WindowHeight = 400f;
         private const float LocalMenuWidth = 220f;
         private const float LocalMenuHeight = 176f;
 
@@ -28,6 +28,7 @@ namespace AbilityKit.Starter
         private bool _busy;
         private bool _loadingScene;
         private bool _showLocalMenu;
+        private Vector2 _windowScroll;
 
         private void Awake()
         {
@@ -58,12 +59,15 @@ namespace AbilityKit.Starter
         {
             DrawLocalModeMenu();
 
+            var windowWidth = Mathf.Min(WindowWidth, Screen.width - 32f);
+            var windowHeight = Mathf.Min(WindowHeight, Screen.height - 32f);
             var rect = new Rect(
-                Mathf.Max(16f, (Screen.width - WindowWidth) * 0.5f),
-                Mathf.Max(16f, (Screen.height - WindowHeight) * 0.5f),
-                WindowWidth,
-                WindowHeight);
+                Mathf.Max(16f, (Screen.width - windowWidth) * 0.5f),
+                Mathf.Max(16f, (Screen.height - windowHeight) * 0.5f),
+                windowWidth,
+                windowHeight);
             GUILayout.BeginArea(rect, "AbilityKit 启动器", GUI.skin.window);
+            _windowScroll = GUILayout.BeginScrollView(_windowScroll);
             GUILayout.Space(8f);
             GUILayout.Label("账号");
             var nextAccount = GUILayout.TextField(_accountId);
@@ -99,6 +103,10 @@ namespace AbilityKit.Starter
             {
                 LaunchShooter();
             }
+            if (GUILayout.Button("Tiny", GUILayout.Height(48f)))
+            {
+                LaunchTiny();
+            }
             GUI.enabled = previousEnabled;
 
             GUILayout.Space(10f);
@@ -107,6 +115,7 @@ namespace AbilityKit.Starter
             {
                 GUILayout.Label($"错误：{_error}");
             }
+            GUILayout.EndScrollView();
             GUILayout.EndArea();
         }
 
@@ -275,6 +284,24 @@ namespace AbilityKit.Starter
                 DemoLaunchMode.Multiplayer,
                 selectedConfig.ShooterProfileId));
             LoadGame(selectedConfig.ShooterSceneName, "正在打开 Shooter");
+        }
+
+        private void LaunchTiny()
+        {
+            var selectedConfig = RequireAuthenticatedConfig();
+            DemoMultiplayerLaunchIntent.Request(DemoMultiplayerGameplay.Tiny, new DemoMultiplayerLaunchRequest(
+                selectedConfig.Host,
+                selectedConfig.Port,
+                selectedConfig.Region,
+                selectedConfig.ServerId,
+                _accountId,
+                _sessionToken,
+                selectedConfig.RequestTimeout));
+            DemoLaunchIntent.Request(new DemoLaunchRequest(
+                DemoGameplayId.Tiny,
+                DemoLaunchMode.Multiplayer,
+                selectedConfig.TinyProfileId));
+            LoadGame(selectedConfig.TinySceneName, "正在打开 Tiny");
         }
 
         private void LoadGame(string sceneName, string status)

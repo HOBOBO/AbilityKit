@@ -11,6 +11,9 @@
   ],
   "dependencies": {
     "com.abilitykit.demo.starter": "file:com.abilitykit.demo.starter",
+    "com.abilitykit.demo.tiny": "file:com.abilitykit.demo.tiny",
+    "com.abilitykit.demo.tiny.logic": "file:com.abilitykit.demo.tiny.logic",
+    "com.abilitykit.thirdparty.unsafe": "file:com.abilitykit.thirdparty.unsafe",
     "com.coplaydev.unity-mcp": "https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity#main",
     "com.cysharp.memorypack": "1.10.0",
     "com.unity.collab-proxy": "2.11.2",

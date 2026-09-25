@@ -1,0 +1,22 @@
+{
+  "name": "AbilityKit.Demo.Tiny.Network.PlayMode.Tests",
+  "rootNamespace": "AbilityKit.Demo.Tiny.Tests",
+  "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Tiny.Logic",
+    "AbilityKit.Demo.Tiny.View",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Protocol.Room"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": ["TestAssemblies"]
+}

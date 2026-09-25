@@ -1,0 +1,17 @@
+{
+  "name": "AbilityKit.Demo.Tiny.FrameSync",
+  "rootNamespace": "AbilityKit.Demo.Tiny.FrameSync",
+  "references": [
+    "AbilityKit.Demo.Tiny.Logic",
+    "AbilityKit.World.FrameSync"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": true
+}

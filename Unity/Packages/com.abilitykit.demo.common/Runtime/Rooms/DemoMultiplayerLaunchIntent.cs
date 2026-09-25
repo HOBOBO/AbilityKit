@@ -7,7 +7,8 @@ namespace AbilityKit.Demo.Common.Rooms
     public enum DemoMultiplayerGameplay
     {
         Moba = 0,
-        Shooter = 1
+        Shooter = 1,
+        Tiny = 2
     }
 
     public sealed class DemoMultiplayerLaunchRequest

@@ -1,0 +1,16 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 961914c34f1c45a79674b755efb06271, type: 3}
+  m_Name: TinyGameplayCatalog
+  m_EditorClassIdentifier:
+  profiles:
+  - {fileID: 11400000, guid: 653184509aab49e2b1e4c81148627659, type: 2}

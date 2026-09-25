@@ -10,6 +10,8 @@ public interface IRoomIdMappingGrain : IGrainWithStringKey
 
     Task BindAccountRoomAsync(string accountId, string roomId);
 
+    Task<bool> TryBindAccountRoomIfActiveAsync(string accountId, string roomId);
+
     Task<string?> TryGetAccountRoomAsync(string accountId);
 
     Task ClearAccountRoomAsync(string accountId, string roomId);

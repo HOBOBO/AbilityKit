@@ -150,9 +150,22 @@ namespace AbilityKit.Demo.Common.Composition
                 return false;
             }
 
-            var expectedGameplay = request.Gameplay == DemoGameplayId.Moba
-                ? DemoMultiplayerGameplay.Moba
-                : DemoMultiplayerGameplay.Shooter;
+            DemoMultiplayerGameplay expectedGameplay;
+            switch (request.Gameplay)
+            {
+                case DemoGameplayId.Moba:
+                    expectedGameplay = DemoMultiplayerGameplay.Moba;
+                    break;
+                case DemoGameplayId.Shooter:
+                    expectedGameplay = DemoMultiplayerGameplay.Shooter;
+                    break;
+                case DemoGameplayId.Tiny:
+                    expectedGameplay = DemoMultiplayerGameplay.Tiny;
+                    break;
+                default:
+                    error = $"Unsupported gameplay: {request.Gameplay}.";
+                    return false;
+            }
             if (multiplayerGameplay != expectedGameplay)
             {
                 error = $"Gameplay mismatch: composition requested {request.Gameplay}, "

@@ -4,6 +4,7 @@ using System.Linq;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Gameplays.Moba.Rooms;
+using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Persistence;
 using AbilityKit.Orleans.Grains.Rooms;
 using Xunit;
@@ -27,7 +28,7 @@ public sealed class RoomMultiplayerE2EFlowTests
     public async Task InitializeAsync_AddsOwnerToMembersAndMobaRoster()
     {
         var store = new InMemoryRoomStateStore();
-        var grain = new RoomGrain(store);
+        var grain = new RoomGrain(store, ServerGameplayModuleCatalog.Default);
         var summary = new RoomSummary(
             Region: "local",
             ServerId: "server-a",

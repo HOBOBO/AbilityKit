@@ -491,6 +491,7 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
 
             StoreInputHistory(cur, inputs);
             _inputsByFrame.Remove(cur);
+            uint stateHash = 0;
 
             // 混合模式：由 BattleFrameSyncGrain 外部驱动 BattleLogicHostGrain 的世界推进
             if (_runtimeMode == (int)ServerBattleRuntimeMode.BattleWorldWithFrameSync
@@ -500,7 +501,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
                 try
                 {
                     var battleHost = GrainFactory.GetGrain<IBattleLogicHostGrain>(_battleId);
-                    await battleHost.TickFrameAsync(_worldId, cur, delta, inputs);
+                    var tick = await battleHost.TickFrameAsync(_worldId, cur, delta, inputs);
+                    if (tick.WorldTicked) stateHash = checked((uint)tick.StateHash);
                 }
                 catch (Exception ex)
                 {
@@ -525,7 +527,8 @@ public sealed class BattleFrameSyncGrain : Grain, IBattleFrameSyncGrain
                 RoomId: _roomId,
                 WorldId: _worldId,
                 Frame: cur,
-                Inputs: inputs);
+                Inputs: inputs,
+                StateHash: stateHash);
 
             foreach (var o in _observers)
             {

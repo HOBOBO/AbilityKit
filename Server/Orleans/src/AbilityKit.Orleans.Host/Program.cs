@@ -1,5 +1,7 @@
 ﻿using AbilityKit.Orleans.Grains.Battle;
 using AbilityKit.Orleans.Grains.Persistence;
+using AbilityKit.Orleans.Grains.Gameplay;
+using AbilityKit.Demo.Tiny.Server;
 using AbilityKit.Orleans.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -21,8 +23,11 @@ builder.Services.AddAbilityKitGrainStateStorage(
     storageOptions.RoomStateProvider,
     storageOptions.AllowInMemoryFallbackForUnsupportedProviders);
 
+builder.Services.AddSingleton(_ =>
+    ServerGameplayModuleCatalog.Default.WithModule(TinyServerGameplayModule.Create()));
 builder.Services.AddSingleton<ServerBattleWorldManager>(sp =>
-    new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>()));
+    new ServerBattleWorldManager(sp.GetRequiredService<ILogger<ServerBattleWorldManager>>(),
+        sp.GetRequiredService<ServerGameplayModuleCatalog>()));
 
 builder.UseAbilityKitLocalOrleansSilo();
 

@@ -1,0 +1,20 @@
+{
+  "name": "TinyConsumer.PlayMode.Tests",
+  "rootNamespace": "TinyConsumer.Tests",
+  "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Common.Unity",
+    "AbilityKit.Demo.Tiny.View",
+    "TinyConsumer.Runtime"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": ["TestAssemblies"]
+}

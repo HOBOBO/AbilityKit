@@ -7,7 +7,8 @@ namespace AbilityKit.Demo.Common.Gameplay
     public enum DemoGameplayId
     {
         Moba = 0,
-        Shooter = 1
+        Shooter = 1,
+        Tiny = 2
     }
 
     public enum DemoLaunchMode

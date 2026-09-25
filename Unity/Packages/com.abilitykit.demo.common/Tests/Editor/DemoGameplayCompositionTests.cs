@@ -147,6 +147,29 @@ namespace AbilityKit.Demo.Common.Tests
             Assert.That(bootstrap.ActiveRoot, Is.Null);
         }
 
+        [Test]
+        public void TinyProfileUsesItsOwnMultiplayerIntentAndSceneRoute()
+        {
+            var rootPrefab = Track(new GameObject("TinyRootPrefab"));
+            var profile = CreateProfile("tiny-multiplayer", DemoGameplayId.Tiny,
+                DemoLaunchMode.Multiplayer, rootPrefab);
+            var bootstrapObject = Track(new GameObject("TinyBootstrap"));
+            var bootstrap = bootstrapObject.AddComponent<DemoGameplayBootstrap>();
+            SetField(bootstrap, "catalog", CreateCatalog(profile));
+            var request = new DemoLaunchRequest(DemoGameplayId.Tiny,
+                DemoLaunchMode.Multiplayer, profile.ProfileId);
+            DemoLaunchIntent.Request(in request);
+            DemoMultiplayerLaunchIntent.Request(DemoMultiplayerGameplay.Tiny,
+                new DemoMultiplayerLaunchRequest("127.0.0.1", 4000, "dev", "local",
+                    "account", "token", System.TimeSpan.FromSeconds(5)));
+
+            Assert.That(DemoSceneRoutes.GetGameplaySceneName(DemoGameplayId.Tiny),
+                Is.EqualTo(DemoSceneRoutes.Tiny));
+            Assert.That(bootstrap.TryLaunch(out var error), Is.True, error);
+            Assert.That(bootstrap.ActiveProfile, Is.SameAs(profile));
+            bootstrap.Shutdown();
+        }
+
         private DemoGameplayProfileSO CreateProfile(
             string profileId,
             DemoGameplayId gameplay,

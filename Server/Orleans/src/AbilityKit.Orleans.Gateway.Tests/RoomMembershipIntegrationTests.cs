@@ -4,8 +4,11 @@ using AbilityKit.Orleans.Gateway.Abstractions;
 using AbilityKit.Orleans.Gateway.Core;
 using AbilityKit.Orleans.Gateway.Handlers;
 using AbilityKit.Orleans.Grains.Persistence;
+using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Protocol.Room;
 using System.Collections.Concurrent;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Orleans;
@@ -38,12 +41,15 @@ public sealed class GatewayOrleansFixture : IAsyncLifetime
 
     private sealed class SiloConfigurator : ISiloConfigurator
     {
+        private static readonly IRoomStateStore SharedRoomStore = new InMemoryRoomStateStore();
+
         public void Configure(ISiloBuilder siloBuilder)
         {
             siloBuilder.ConfigureServices(services =>
             {
                 services.AddSingleton<ISessionStateStore, InMemorySessionStateStore>();
-                services.AddSingleton<IRoomStateStore, InMemoryRoomStateStore>();
+                services.AddSingleton(SharedRoomStore);
+                services.AddSingleton(ServerGameplayModuleCatalog.Default);
             });
         }
     }
@@ -57,6 +63,126 @@ public sealed class RoomMembershipIntegrationTests
     public RoomMembershipIntegrationTests(GatewayOrleansFixture fixture)
     {
         _client = fixture.Cluster.Client;
+    }
+
+    [Fact]
+    public async Task CreateRoom_SameAccountAndCommandId_ReturnsOneRoom()
+    {
+        var accountId = NewId("owner");
+        var request = NewCreateRequest(accountId, NewId("create"));
+
+        var first = await Directory.CreateRoomAsync(request);
+        var repeated = await Directory.CreateRoomAsync(request);
+        var rooms = await Directory.ListRoomsAsync(new ListRoomsRequest(
+            accountId, "local", "integration", 0, 100, null));
+
+        Assert.Equal(first.RoomId, repeated.RoomId);
+        Assert.Single(rooms.Rooms, room => room.RoomId == first.RoomId);
+    }
+
+    [Fact]
+    public async Task CreateRoom_WhenRoomExistsBeforeCommandIsRecorded_RecoversSameRoom()
+    {
+        var accountId = NewId("owner");
+        var request = NewCreateRequest(accountId, NewId("create"));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(
+            $"local:integration\0{accountId}\0{request.CommandId}"));
+        var roomId = new Guid(hash.AsSpan(0, 16)).ToString("N");
+        var room = _client.GetGrain<IRoomGrain>(roomId);
+        await room.InitializeAsync(new RoomSummary("local", "integration", roomId,
+            GameplayRoomTypes.Default, request.Title, true, 4, 0,
+            accountId, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), null),
+            "local:integration");
+
+        var recovered = await Directory.CreateRoomAsync(request);
+        var repeated = await Directory.CreateRoomAsync(request);
+
+        Assert.Equal(roomId, recovered.RoomId);
+        Assert.Equal(roomId, repeated.RoomId);
+        Assert.Equal(new[] { accountId }, (await room.GetSnapshotAsync()).Members);
+    }
+
+    [Fact]
+    public async Task CreateRoom_ReusedCommandIdWithDifferentParameters_IsRejected()
+    {
+        var request = NewCreateRequest(NewId("owner"), NewId("create"));
+        await Directory.CreateRoomAsync(request);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Directory.CreateRoomAsync(request with { Title = "Different title" }));
+    }
+
+    [Fact]
+    public async Task CreateRoom_SameCommandIdForDifferentAccounts_CreatesSeparateRooms()
+    {
+        var commandId = NewId("create");
+        var first = await Directory.CreateRoomAsync(NewCreateRequest(NewId("owner"), commandId));
+        var second = await Directory.CreateRoomAsync(NewCreateRequest(NewId("owner"), commandId));
+
+        Assert.NotEqual(first.RoomId, second.RoomId);
+    }
+
+    [Fact]
+    public async Task CreateHandler_RetryPreservesWireCommandIdAndRoomBinding()
+    {
+        var accountId = NewId("owner");
+        var token = await CreateSessionAsync(accountId);
+        var wire = new WireCreateRoomReq
+        {
+            SessionToken = token,
+            Region = "local",
+            ServerId = "integration",
+            RoomType = GameplayRoomTypes.Default,
+            Title = "Integration room",
+            IsPublic = true,
+            MaxPlayers = 4,
+            CommandId = NewId("create")
+        };
+        var request = new GatewayRequest(1, WireRoomGatewayBinary.Serialize(in wire).ToArray());
+        var handler = new CreateRoomHandler(_client);
+        var firstContext = new GatewaySessionContext(41);
+        var retryContext = new GatewaySessionContext(42);
+
+        var first = DeserializeCreateResponse(await handler.HandleAsync(request, firstContext, default));
+        var afterFirst = await _client.GetGrain<IRoomGrain>(first.RoomId).GetSnapshotAsync();
+        Assert.Contains(accountId, afterFirst.Members);
+        Assert.NotEqual(RoomPhase.Closed, afterFirst.Phase);
+        var repeated = DeserializeCreateResponse(await handler.HandleAsync(request, retryContext, default));
+
+        Assert.True(first.Success);
+        Assert.Equal(first.RoomId, repeated.RoomId);
+        Assert.Equal(first.RoomId, retryContext.RoomId);
+        Assert.Equal(first.RoomId, await Mapping.TryGetAccountRoomAsync(accountId));
+    }
+
+    [Fact]
+    public async Task CreateHandler_RetryAfterRoomClosed_DoesNotRestoreOldBinding()
+    {
+        var accountId = NewId("owner");
+        var token = await CreateSessionAsync(accountId);
+        var wire = new WireCreateRoomReq
+        {
+            SessionToken = token,
+            Region = "local",
+            ServerId = "integration",
+            RoomType = GameplayRoomTypes.Default,
+            Title = "Integration room",
+            IsPublic = true,
+            MaxPlayers = 4,
+            CommandId = NewId("create")
+        };
+        var request = new GatewayRequest(1, WireRoomGatewayBinary.Serialize(in wire).ToArray());
+        var handler = new CreateRoomHandler(_client);
+        var first = DeserializeCreateResponse(await handler.HandleAsync(
+            request, new GatewaySessionContext(43), default));
+        await _client.GetGrain<IRoomGrain>(first.RoomId).CloseAsync(accountId);
+
+        var retryContext = new GatewaySessionContext(44);
+        var repeated = await handler.HandleAsync(request, retryContext, default);
+
+        Assert.NotEqual(GatewayStatusCode.Success, repeated.StatusCode);
+        Assert.Null(await Mapping.TryGetAccountRoomAsync(accountId));
+        Assert.True(string.IsNullOrEmpty(retryContext.RoomId));
     }
 
     [Fact]
@@ -431,6 +557,18 @@ public sealed class RoomMembershipIntegrationTests
 
     private IRoomIdMappingGrain Mapping =>
         _client.GetGrain<IRoomIdMappingGrain>(GatewayGrainKeys.Global);
+
+    private static CreateRoomRequest NewCreateRequest(string accountId, string commandId) =>
+        new(accountId, "local", "integration", GameplayRoomTypes.Default,
+            "Integration room", true, 4, null, commandId);
+
+    private static WireCreateRoomRes DeserializeCreateResponse(GatewayResponse response)
+    {
+        Assert.True(response.StatusCode == GatewayStatusCode.Success,
+            $"Create room failed ({response.StatusCode}): {System.Text.Encoding.UTF8.GetString(response.Payload)}");
+        return WireRoomGatewayBinary.Deserialize<WireCreateRoomRes>(
+            new ArraySegment<byte>(response.Payload));
+    }
 
     private IRoomDirectoryGrain Directory =>
         _client.GetGrain<IRoomDirectoryGrain>("local:integration");

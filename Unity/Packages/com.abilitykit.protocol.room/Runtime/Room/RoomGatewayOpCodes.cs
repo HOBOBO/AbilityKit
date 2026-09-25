@@ -28,6 +28,8 @@ namespace AbilityKit.Protocol.Room
         public const uint GetStateSyncDeliveryMetrics = 117;
         public const uint ReportLoadingProgress = 118;
         public const uint LeaveRoom = 119;
+        public const uint SubmitFrameInput = 121;
+        public const uint SubscribeFrameSync = 122;
 
         public const uint SessionKicked = 9000;
         public const uint SnapshotPushed = 9002;
@@ -35,5 +37,6 @@ namespace AbilityKit.Protocol.Room
         // 阶段 4：Room 状态变更推送（push）
         public const uint RoomStateChanged = 9004;
         public const uint ReliableBattleEventsPushed = 9005;
+        public const uint FrameSyncFramePushed = 9006;
     }
 }

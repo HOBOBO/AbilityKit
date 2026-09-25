@@ -323,3 +323,38 @@ messages:
     payloadType: AbilityKit.Protocol.Room.WireReliableBattleEventPush
     maximumPayloadBytes: 1048576
     captureSampleRate: 0.25
+  - id: submit-frame-input.request
+    opCode: 121
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq
+    response: submit-frame-input.response
+    sensitiveFields: [sessionToken]
+    maximumPayloadBytes: 4096
+  - id: submit-frame-input.response
+    opCode: 121
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes
+    maximumPayloadBytes: 4096
+  - id: subscribe-frame-sync.request
+    opCode: 122
+    direction: c2s
+    kind: request
+    payloadType: AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq
+    response: subscribe-frame-sync.response
+    sensitiveFields: [sessionToken]
+    maximumPayloadBytes: 4096
+  - id: subscribe-frame-sync.response
+    opCode: 122
+    direction: s2c
+    kind: response
+    payloadType: AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes
+    maximumPayloadBytes: 4096
+  - id: frame-sync-frame.push
+    opCode: 9006
+    direction: s2c
+    kind: push
+    payloadType: AbilityKit.Protocol.Room.WireRoomFramePush
+    reliability: realtime
+    maximumPayloadBytes: 65536

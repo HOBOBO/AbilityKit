@@ -3,7 +3,8 @@
   "generatorVersion": "1.0",
   "projectId": "abilitykit.shared",
   "catalogIds": [
-    "abilitykit.room"
+    "abilitykit.room",
+    "abilitykit.system"
   ],
   "referencedMemoryPackTypes": [
     "AbilityKit.Protocol.Room.WireAckReliableBattleEventsReq",
@@ -31,6 +32,7 @@
     "AbilityKit.Protocol.Room.WireRestoreRoomRes",
     "AbilityKit.Protocol.Room.WireRoomAccountLoginReq",
     "AbilityKit.Protocol.Room.WireRoomAccountLoginRes",
+    "AbilityKit.Protocol.Room.WireRoomFramePush",
     "AbilityKit.Protocol.Room.WireRoomGuestLoginReq",
     "AbilityKit.Protocol.Room.WireRoomGuestLoginRes",
     "AbilityKit.Protocol.Room.WireRoomOperationRes",
@@ -38,6 +40,10 @@
     "AbilityKit.Protocol.Room.WireRoomReadyReq",
     "AbilityKit.Protocol.Room.WireRoomSnapshotRes",
     "AbilityKit.Protocol.Room.WireRoomStateChangedPush",
+    "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq",
+    "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes",
+    "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq",
+    "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes",
     "AbilityKit.Protocol.Room.WireStartRoomBattleReq",
     "AbilityKit.Protocol.Room.WireStartRoomBattleRes",
     "AbilityKit.Protocol.Room.WireStateSyncSnapshotPush",
@@ -47,13 +53,30 @@
     "AbilityKit.Protocol.Room.WireSubscribeStateSyncRes"
   ],
   "generatedTypes": [
-    "AbilityKit.Protocol.Room.WireRoomGuestLoginReq"
+    "AbilityKit.Protocol.Room.WireRoomFrameInput",
+    "AbilityKit.Protocol.Room.WireRoomFramePush",
+    "AbilityKit.Protocol.Room.WireRoomGuestLoginReq",
+    "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq",
+    "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes",
+    "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq",
+    "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes"
   ],
   "generatedGroups": [
     {
       "groupId": "room.auth",
       "generatedTypes": [
         "AbilityKit.Protocol.Room.WireRoomGuestLoginReq"
+      ]
+    },
+    {
+      "groupId": "room.frame-sync",
+      "generatedTypes": [
+        "AbilityKit.Protocol.Room.WireRoomFrameInput",
+        "AbilityKit.Protocol.Room.WireRoomFramePush",
+        "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq",
+        "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes",
+        "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq",
+        "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes"
       ]
     }
   ],
@@ -100,6 +123,12 @@
   "generatedFiles": [
     "ProjectMemoryPackCodecs.g.cs",
     "ProtocolCatalogs.g.cs",
-    "WireRoomGuestLoginReq.MemoryPack.g.cs"
+    "WireRoomFrameInput.MemoryPack.g.cs",
+    "WireRoomFramePush.MemoryPack.g.cs",
+    "WireRoomGuestLoginReq.MemoryPack.g.cs",
+    "WireRoomSubmitFrameInputReq.MemoryPack.g.cs",
+    "WireRoomSubmitFrameInputRes.MemoryPack.g.cs",
+    "WireRoomSubscribeFrameSyncReq.MemoryPack.g.cs",
+    "WireRoomSubscribeFrameSyncRes.MemoryPack.g.cs"
   ]
 }

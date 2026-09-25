@@ -14,4 +14,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Packages/com.abilitykit.demo.shooter.view.runtime/Scenes/ShooterDemoGameplayScene.unity
     guid: e000a3f2e9a3828409ba84418e14d23d
+  - enabled: 1
+    path: Packages/com.abilitykit.demo.tiny/Scenes/TinyDemoGameplayScene.unity
+    guid: c235f6010b9748d197d8b752351f557d
   m_configObjects: {}

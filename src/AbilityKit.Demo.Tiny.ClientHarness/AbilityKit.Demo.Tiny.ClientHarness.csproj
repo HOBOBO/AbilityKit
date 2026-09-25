@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../AbilityKit.Demo.Tiny.Client/TinyNetworkClient.cs" Link="TinyNetworkClient.cs" />
+    <Compile Include="../AbilityKit.Demo.Tiny.Client/TinySessionSmoke.cs" Link="TinySessionSmoke.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.common/Runtime/Rooms/DemoMultiplayerLaunchIntent.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Runtime/View/TinyBattleSession.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Runtime/View/TinyGatewayClient.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Runtime/View/Loading/TinyAssetPreparation.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Runtime/View/Sync/*.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Samples~/02-Room/TinyRoomExample.cs" />
+    <Compile Include="../../Unity/Packages/com.abilitykit.demo.tiny/Samples~/03-State/TinyStateExample.cs" />
+    <ProjectReference Include="../AbilityKit.Demo.Tiny.Core/AbilityKit.Demo.Tiny.Core.csproj" />
+    <ProjectReference Include="../AbilityKit.Demo.Tiny.FrameSync/AbilityKit.Demo.Tiny.FrameSync.csproj" />
+    <ProjectReference Include="../AbilityKit.Game.View.Runtime/AbilityKit.Game.View.Runtime.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Sdk/AbilityKit.Network.Sdk.csproj" />
+    <ProjectReference Include="../AbilityKit.Network.Room/AbilityKit.Network.Room.csproj" />
+    <ProjectReference Include="../AbilityKit.Protocol.Room/AbilityKit.Protocol.Room.csproj" />
+  </ItemGroup>
+</Project>

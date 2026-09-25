@@ -1,0 +1,9 @@
+{
+  "name": "AbilityKit.Demo.Tiny.Logic.Editor.Tests",
+  "rootNamespace": "AbilityKit.Demo.Tiny.Logic.Tests",
+  "references": ["AbilityKit.Demo.Tiny.Logic"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "noEngineReferences": true
+}

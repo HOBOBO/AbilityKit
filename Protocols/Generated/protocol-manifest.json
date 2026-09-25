@@ -1040,6 +1040,79 @@
           "maximumSchemaVersion": 1,
           "maximumPayloadBytes": 1048576,
           "captureSampleRate": 0.25
+        },
+        {
+          "id": "submit-frame-input.request",
+          "opCode": 121,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "submit-frame-input.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1,
+          "sensitiveFields": [
+            "sessionToken"
+          ]
+        },
+        {
+          "id": "submit-frame-input.response",
+          "opCode": 121,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "subscribe-frame-sync.request",
+          "opCode": 122,
+          "direction": "c2s",
+          "kind": "request",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "response": "subscribe-frame-sync.response",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1,
+          "sensitiveFields": [
+            "sessionToken"
+          ]
+        },
+        {
+          "id": "subscribe-frame-sync.response",
+          "opCode": 122,
+          "direction": "s2c",
+          "kind": "response",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes",
+          "codec": "memorypack",
+          "reliability": "reliable",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 4096,
+          "captureSampleRate": 1
+        },
+        {
+          "id": "frame-sync-frame.push",
+          "opCode": 9006,
+          "direction": "s2c",
+          "kind": "push",
+          "payloadType": "AbilityKit.Protocol.Room.WireRoomFramePush",
+          "codec": "memorypack",
+          "reliability": "realtime",
+          "minimumSchemaVersion": 1,
+          "maximumSchemaVersion": 1,
+          "maximumPayloadBytes": 65536,
+          "captureSampleRate": 1
         }
       ]
     },

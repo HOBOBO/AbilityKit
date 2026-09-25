@@ -5,7 +5,7 @@ using AbilityKit.Orleans.Grains.Persistence;
 
 namespace AbilityKit.Orleans.Grains.Rooms.Gameplay;
 
-internal interface IRoomGameplayAdapter
+public interface IRoomGameplayAdapter
 {
     string RoomType { get; }
 
@@ -36,7 +36,7 @@ internal interface IRoomGameplayAdapter
     PlayerInitInfo? BuildLateJoinPlayer(object state, RoomSummary summary, string accountId);
 }
 
-internal readonly record struct RoomGameplayCommandResult(
+public readonly record struct RoomGameplayCommandResult(
     bool Success,
     RoomOperationErrorCode ErrorCode,
     string Message)

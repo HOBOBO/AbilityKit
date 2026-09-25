@@ -106,5 +106,12 @@ namespace AbilityKit.Network.Room
             options.RemoteCapabilities = RemoteCapabilities;
             options.RemoteCapabilityPolicy = Policy;
         }
+
+        /// <summary>Validates local and Room capabilities without creating a controller.</summary>
+        public NetworkSyncSessionDescriptor Negotiate(NetworkSyncSessionOptions options)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+            return NetworkSyncSessionNegotiator.Negotiate(options, RemoteCapabilities, Policy);
+        }
     }
 }

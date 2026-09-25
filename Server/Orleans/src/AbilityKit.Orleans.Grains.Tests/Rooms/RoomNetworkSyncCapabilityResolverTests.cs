@@ -1,9 +1,11 @@
+using AbilityKit.Ability.Host.WorldBlueprints;
 using AbilityKit.Network.Runtime;
 using AbilityKit.Network.Runtime.Sync;
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Contracts.Shooter;
 using AbilityKit.Orleans.Grains.Rooms;
+using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Protocol.Shooter;
 using Xunit;
 
@@ -11,6 +13,36 @@ namespace AbilityKit.Orleans.Grains.Tests.Rooms;
 
 public sealed class RoomNetworkSyncCapabilityResolverTests
 {
+    [Fact]
+    public void Resolve_ThirdGameplay_UsesItsRegisteredSyncCapabilities()
+    {
+        const string roomType = "tiny";
+        const string templateId = "tiny-state-authority";
+        var tiny = new ServerGameplayModule(
+            new GameplayRoomDescriptor(roomType, "Tiny", 2, false, roomType, 30, templateId),
+            ServerBattleSyncProfile.StateSync(templateId),
+            static () => throw new NotImplementedException(),
+            static _ => throw new NotImplementedException(),
+            new Func<IWorldBlueprint>[] { static () => throw new NotImplementedException() },
+            static (_, _) => new ServerSyncCapabilityDefinition(
+                "TinyState", NetworkSyncProfiles.AuthoritativeInterpolation, 2, 2));
+        var modules = new ServerGameplayModuleCatalog(new[]
+        {
+            ServerGameplayModuleCatalog.Default.ResolveModule(GameplayRoomTypes.Moba), tiny
+        });
+        var summary = new RoomSummary("dev", "local", "tiny-room", roomType, "Tiny", false, 2, 2, "owner", 1, null);
+        var initParams = new BattleInitParams { RoomType = roomType };
+
+        var metadata = RoomNetworkSyncCapabilityResolver.Resolve(summary, initParams, templateId, modules);
+
+        Assert.Equal("TinyState", metadata.ProfileName);
+        Assert.Equal(2, metadata.MinimumSchemaVersion);
+        Assert.Equal(2, metadata.MaximumSchemaVersion);
+        Assert.Equal((int)ClientPlaybackPolicy.AuthoritativeInterpolation, metadata.ClientPlayback);
+        Assert.Throws<InvalidOperationException>(() =>
+            RoomNetworkSyncCapabilityResolver.Resolve(summary, initParams, "unknown-template", modules));
+    }
+
     [Fact]
     public void Resolve_MobaFrameSync_DeclaresLockstep()
     {

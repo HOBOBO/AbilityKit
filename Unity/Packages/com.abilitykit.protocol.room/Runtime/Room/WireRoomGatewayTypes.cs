@@ -64,6 +64,7 @@ namespace AbilityKit.Protocol.Room
         [MemoryPackOrder(5)] public bool IsPublic { get; set; }
         [MemoryPackOrder(6)] public int MaxPlayers { get; set; }
         [MemoryPackOrder(7)] public Dictionary<string, string>? Tags { get; set; }
+        [MemoryPackOrder(8)] public string? CommandId { get; set; }
     }
 
     [MemoryPackable]

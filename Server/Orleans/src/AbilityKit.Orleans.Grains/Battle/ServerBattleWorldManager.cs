@@ -21,6 +21,7 @@ namespace AbilityKit.Orleans.Grains.Battle;
 public sealed class ServerBattleWorldManager : IDisposable
 {
     private readonly ILogger _logger;
+    private readonly ServerGameplayModuleCatalog _gameplayModules;
     private readonly WorldTypeRegistry _worldRegistry;
     private readonly RegistryWorldFactory _worldFactory;
     private readonly WorldManager _worldManager;
@@ -28,19 +29,24 @@ public sealed class ServerBattleWorldManager : IDisposable
     private readonly object _lock = new();
 
     public ServerBattleWorldManager(ILogger logger)
+        : this(logger, ServerGameplayModuleCatalog.Default)
     {
-        _logger = logger;
+    }
+
+    public ServerBattleWorldManager(ILogger logger, ServerGameplayModuleCatalog gameplayModules)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _gameplayModules = gameplayModules ?? throw new ArgumentNullException(nameof(gameplayModules));
         var baseFactory = new SimpleWorldFactory();
         _worldRegistry = new WorldTypeRegistry();
 
-        var gameplayModules = ServerGameplayModuleCatalog.Default;
         var blueprintRegistry = new WorldBlueprintRegistry();
-        foreach (var blueprint in gameplayModules.CreateWorldBlueprints())
+        foreach (var blueprint in _gameplayModules.CreateWorldBlueprints())
         {
             blueprintRegistry.Register(blueprint);
         }
 
-        RegisterWorldTypes(_worldRegistry, baseFactory.Create, blueprintRegistry, gameplayModules.GetWorldTypes(), _logger);
+        RegisterWorldTypes(_worldRegistry, baseFactory.Create, blueprintRegistry, _gameplayModules.GetWorldTypes(), _logger);
 
         _worldFactory = new RegistryWorldFactory(_worldRegistry);
         _worldManager = new WorldManager(_worldFactory);
@@ -83,9 +89,9 @@ public sealed class ServerBattleWorldManager : IDisposable
         }
     }
 
-    private static string GetDefaultWorldType()
+    private string GetDefaultWorldType()
     {
-        var defaultWorldType = ServerGameplayCatalog.Default.DefaultDescriptor.DefaultWorldType;
+        var defaultWorldType = _gameplayModules.GameplayCatalog.DefaultDescriptor.DefaultWorldType;
         if (string.IsNullOrWhiteSpace(defaultWorldType))
         {
             throw new InvalidOperationException("Default server gameplay world type is not configured.");

@@ -2,18 +2,18 @@ using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.FrameSync;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Gameplay;
-using AbilityKit.Orleans.Grains.Gameplay;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
 internal static class RoomFrameSyncRoute
 {
-    public static RoomBattleStartRoute ResolveStartRoute(RoomSummary summary, string battleId, BattleInitParams initParams)
+    public static RoomBattleStartRoute ResolveStartRoute(RoomSummary summary, string battleId,
+        BattleInitParams initParams, ServerGameplayModuleCatalog? modules = null)
     {
         if (summary is null) throw new ArgumentNullException(nameof(summary));
         if (initParams is null) throw new ArgumentNullException(nameof(initParams));
 
-        var syncProfile = ServerGameplayModuleCatalog.Default.ResolveSyncProfile(summary.RoomType);
+        var syncProfile = (modules ?? ServerGameplayModuleCatalog.Default).ResolveSyncProfile(summary.RoomType);
         if (!syncProfile.TryResolveTemplate(initParams.SyncOptions?.SyncTemplateId, out var syncTemplate))
         {
             return new RoomBattleStartRoute(true, null, syncProfile.DefaultTemplateId, true);
@@ -39,9 +39,10 @@ internal static class RoomFrameSyncRoute
         return new RoomBattleStartRoute(syncTemplate.RequiresBattleRuntime, frameSyncOptions, syncTemplate.TemplateId, false);
     }
 
-    public static FrameSyncStartOptions? Resolve(RoomSummary summary, string battleId, BattleInitParams initParams)
+    public static FrameSyncStartOptions? Resolve(RoomSummary summary, string battleId,
+        BattleInitParams initParams, ServerGameplayModuleCatalog? modules = null)
     {
-        return ResolveStartRoute(summary, battleId, initParams).FrameSyncOptions;
+        return ResolveStartRoute(summary, battleId, initParams, modules).FrameSyncOptions;
     }
 }
 

@@ -1,0 +1,23 @@
+{
+  "name": "AbilityKit.Demo.Tiny.View",
+  "rootNamespace": "AbilityKit.Demo.Tiny.View",
+  "references": [
+    "AbilityKit.Demo.Tiny.Logic",
+    "AbilityKit.Demo.Tiny.FrameSync",
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Game.View.Runtime",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Network.Sdk",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Protocol.Room"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

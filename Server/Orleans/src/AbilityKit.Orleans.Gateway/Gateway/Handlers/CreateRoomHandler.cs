@@ -47,12 +47,14 @@ public sealed partial class CreateRoomHandler : GatewayRequestHandlerBase
                 req.Title ?? string.Empty,
                 req.IsPublic,
                 req.MaxPlayers,
-                req.Tags));
+                req.Tags,
+                req.CommandId));
 
             if (!string.IsNullOrEmpty(resp.RoomId))
             {
                 var mapping = _clusterClient.GetGrain<IRoomIdMappingGrain>("global");
-                await mapping.BindAccountRoomAsync(accountId, resp.RoomId);
+                if (!await mapping.TryBindAccountRoomIfActiveAsync(accountId, resp.RoomId))
+                    throw new InvalidOperationException("The room created by this command is no longer active for its creator.");
 
                 context.RoomId = resp.RoomId;
                 context.AccountId = accountId;

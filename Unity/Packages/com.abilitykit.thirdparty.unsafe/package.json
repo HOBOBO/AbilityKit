@@ -1,0 +1,9 @@
+{
+  "name": "com.abilitykit.thirdparty.unsafe",
+  "version": "5.0.0",
+  "displayName": "System.Runtime.CompilerServices.Unsafe for Unity",
+  "unity": "2022.3",
+  "description": "Microsoft Unsafe 5.0.0 netstandard2.0 assembly for Unity packages that use MemoryPack.",
+  "license": "MIT",
+  "author": { "name": "Microsoft" }
+}

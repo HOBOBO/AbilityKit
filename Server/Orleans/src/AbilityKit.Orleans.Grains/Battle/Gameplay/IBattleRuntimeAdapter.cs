@@ -4,7 +4,7 @@ using System;
 
 namespace AbilityKit.Orleans.Grains.Battle.Gameplay;
 
-internal interface IBattleRuntimeAdapter
+public interface IBattleRuntimeAdapter
 {
     string RoomType { get; }
 
@@ -19,7 +19,7 @@ internal readonly record struct BattleStateSyncObserverContext(
     public ShooterCommandAcknowledgement[]? AcknowledgedCommands { get; init; }
 }
 
-internal interface IBattleRuntimeSession : IDisposable
+public interface IBattleRuntimeSession : IDisposable
 {
     BattleRuntimeStartResult Start(BattleInitParams initParams);
 
@@ -48,7 +48,7 @@ internal interface IBattleRuntimeSession : IDisposable
 /// complete inspection model and are not suitable for the authoritative tick
 /// hot path.
 /// </summary>
-internal interface IBattleRuntimeStateHashProvider
+public interface IBattleRuntimeStateHashProvider
 {
     uint ComputeStateHash();
 }
@@ -78,14 +78,14 @@ internal readonly record struct ReliableBattleEventSource(
     int EventType,
     byte[]? Payload);
 
-internal readonly record struct BattleRuntimeStartResult(bool Succeeded, string? Error)
+public readonly record struct BattleRuntimeStartResult(bool Succeeded, string? Error)
 {
     public static BattleRuntimeStartResult Success() => new(true, null);
 
     public static BattleRuntimeStartResult Fail(string error) => new(false, error);
 }
 
-internal readonly record struct BattleInputValidationResult(bool Accepted, string Status, string Message)
+public readonly record struct BattleInputValidationResult(bool Accepted, string Status, string Message)
 {
     public static BattleInputValidationResult Valid { get; } = new(true, string.Empty, string.Empty);
 

@@ -1,22 +1,23 @@
 using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Contracts.Shooter;
+using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
-internal static class RoomBattleSyncOptionsMapper
+public static class RoomBattleSyncOptionsMapper
 {
     public static BattleSyncStartOptions Resolve(RoomSummary summary, StartRoomBattleRequest request)
     {
         var requested = request.SyncOptions;
         return new BattleSyncStartOptions(
-            FirstNonEmpty(requested?.SyncTemplateId, ReadTag(summary, ShooterRoomTagKeys.SyncTemplateId)),
-            requested?.SyncModel ?? ReadIntTag(summary, ShooterRoomTagKeys.SyncModel, 0),
+            FirstNonEmpty(requested?.SyncTemplateId, ReadTag(summary, RoomGatewaySyncTagKeys.SyncTemplateId)),
+            requested?.SyncModel ?? ReadIntTag(summary, RoomGatewaySyncTagKeys.SyncModel, 0),
             FirstNonEmpty(requested?.NetworkEnvironmentId, ReadTag(summary, ShooterRoomTagKeys.NetworkEnvironmentId)),
             FirstNonEmpty(requested?.CarrierName, ReadTag(summary, ShooterRoomTagKeys.CarrierName)),
             requested?.EnableAuthoritativeWorld ?? ReadBoolTag(summary, ShooterRoomTagKeys.EnableAuthoritativeWorld, true),
             requested?.InterpolationEnabled ?? ReadBoolTag(summary, ShooterRoomTagKeys.InterpolationEnabled, false),
-            requested?.InputDelayFrames ?? ReadIntTag(summary, ShooterRoomTagKeys.InputDelayFrames, 0));
+            requested?.InputDelayFrames ?? ReadIntTag(summary, RoomGatewaySyncTagKeys.InputDelayFrames, 0));
     }
 
     private static string? FirstNonEmpty(string? first, string? second)

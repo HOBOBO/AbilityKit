@@ -59,7 +59,7 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.DefaultMode);
         Assert.Equal("frame-sync-authority", mobaProfile.DefaultTemplateId);
         Assert.True(mobaProfile.SupportsFrameSync);
-        Assert.False(mobaProfile.SupportsStateSyncPush);
+        Assert.True(mobaProfile.SupportsStateSyncPush);
         Assert.False(mobaProfile.SupportsTemplate("state-sync-authority"));
         Assert.Equal(ServerBattleSyncMode.FrameSync, mobaProfile.ResolveTemplate(null).Mode);
         Assert.Equal(ServerBattleRuntimeMode.BattleWorldWithFrameSync, mobaProfile.ResolveTemplate(null).RuntimeMode);
@@ -143,7 +143,7 @@ public sealed class ServerGameplayModuleCatalogTests
         Assert.Equal(GameplayRoomTypes.Moba, moba.RoomType);
         Assert.True(moba.RequiresPlayerLoadout);
         Assert.True(moba.SupportsFrameSync);
-        Assert.False(moba.SupportsStateSyncPush);
+        Assert.True(moba.SupportsStateSyncPush);
         Assert.Equal(new[] { "frame-sync-authority" }, moba.SupportedSyncTemplateIds);
         Assert.Equal(ShooterGameplay.RoomType, shooter.RoomType);
         Assert.False(shooter.RequiresPlayerLoadout);

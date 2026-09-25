@@ -7,7 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using AbilityKit.Network.Abstractions;
 using AbilityKit.Network.Runtime;
+using AbilityKit.Network.Sdk;
 using AbilityKit.Protocol;
+using AbilityKit.Protocol.Catalog;
+using AbilityKit.Protocol.Generated;
 using AbilityKit.Protocol.Room;
 
 namespace AbilityKit.Network.Room
@@ -26,24 +29,33 @@ namespace AbilityKit.Network.Room
         event Action<uint, ArraySegment<byte>>? ServerPushReceived;
     }
 
+    public sealed class RoomGatewayWireCodec : INetworkProtocolCodec
+    {
+        public static RoomGatewayWireCodec Instance { get; } = new RoomGatewayWireCodec();
+
+        private RoomGatewayWireCodec() { }
+
+        public ArraySegment<byte> Serialize<T>(in T value) => WireRoomGatewayBinary.Serialize(in value);
+        public T Deserialize<T>(ArraySegment<byte> payload) => WireRoomGatewayBinary.Deserialize<T>(payload);
+    }
+
     public readonly struct RoomGatewayWireOpCodes
     {
         public static RoomGatewayWireOpCodes Default => new RoomGatewayWireOpCodes(
-            RequestOpCode<WireCreateRoomReq>(),
-            RequestOpCode<WireJoinRoomReq>(),
-            RequestOpCode<WireLeaveRoomReq>(),
-            RequestOpCode<WireRoomReadyReq>(),
-            RequestOpCode<WireStartRoomBattleReq>(),
-            RequestOpCode<WireSubscribeStateSyncReq>(),
-            RequestOpCode<WireRestoreRoomReq>(),
-            RequestOpCode<WireRoomPickHeroReq>(),
-            RequestOpCode<WireBeginLoadingReq>(),
-            RequestOpCode<WireReportLoadingProgressReq>(),
-            RequestOpCode<WireReportAssetsLoadedReq>(),
-            RequestOpCode<WireCancelLoadingReq>(),
-            RequestOpCode<WireGetSnapshotReq>(),
-            ProtocolMessageDescriptor<WireRoomStateChangedPush>.RequireOpCode(
-                ProtocolDirection.ServerToClient));
+            RoomGatewayProtocolMessages.Request<WireCreateRoomReq>("create-room.request"),
+            RoomGatewayProtocolMessages.Request<WireJoinRoomReq>("join-room.request"),
+            RoomGatewayProtocolMessages.Request<WireLeaveRoomReq>("leave-room.request"),
+            RoomGatewayProtocolMessages.Request<WireRoomReadyReq>("set-ready.request"),
+            RoomGatewayProtocolMessages.Request<WireStartRoomBattleReq>("start-battle.request"),
+            RoomGatewayProtocolMessages.Request<WireSubscribeStateSyncReq>("subscribe-state-sync.request"),
+            RoomGatewayProtocolMessages.Request<WireRestoreRoomReq>("restore-room.request"),
+            RoomGatewayProtocolMessages.Request<WireRoomPickHeroReq>("pick-hero.request"),
+            RoomGatewayProtocolMessages.Request<WireBeginLoadingReq>("begin-loading.request"),
+            RoomGatewayProtocolMessages.Request<WireReportLoadingProgressReq>("report-loading-progress.request"),
+            RoomGatewayProtocolMessages.Request<WireReportAssetsLoadedReq>("report-assets-loaded.request"),
+            RoomGatewayProtocolMessages.Request<WireCancelLoadingReq>("cancel-loading.request"),
+            RoomGatewayProtocolMessages.Request<WireGetSnapshotReq>("get-snapshot.request"),
+            RoomGatewayProtocolMessages.Push<WireRoomStateChangedPush>("room-state-changed.push"));
 
         public readonly uint CreateRoom;
         public readonly uint JoinRoom;
@@ -92,10 +104,27 @@ namespace AbilityKit.Network.Room
             RoomStateChanged = roomStateChanged;
         }
 
-        private static uint RequestOpCode<TRequest>()
+    }
+
+    internal static class RoomGatewayProtocolMessages
+    {
+        private static readonly ProtocolCatalogRegistry Catalog = BuiltInProtocolCatalogs.CreateRegistry();
+
+        public static uint Request<T>(string messageId) =>
+            Resolve<T>(messageId, ProtocolDirection.ClientToServer, ProtocolPacketKind.Request);
+
+        public static uint Push<T>(string messageId) =>
+            Resolve<T>(messageId, ProtocolDirection.ServerToClient, ProtocolPacketKind.Push);
+
+        private static uint Resolve<T>(string messageId, ProtocolDirection direction, ProtocolPacketKind kind)
         {
-            return ProtocolMessageDescriptor<TRequest>.RequireOpCode(
-                ProtocolDirection.ClientToServer);
+            if (!Catalog.TryGetMessage("abilitykit.room", messageId, out var message) || message == null ||
+                message.Direction != direction || message.Kind != kind ||
+                !string.Equals(message.PayloadType, typeof(T).FullName, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException($"Room protocol message '{messageId}' does not match {typeof(T).FullName}.");
+            }
+            return message.OpCode;
         }
     }
 
@@ -105,8 +134,14 @@ namespace AbilityKit.Network.Room
     /// </summary>
     public sealed class RoomGatewayWireSessionClient : IRoomGatewaySessionClient, IRoomGatewaySnapshotFeed, IDisposable
     {
-        private readonly IRoomGatewayRequestTransport _requestTransport;
-        private readonly IRoomGatewayPushSource? _pushSource;
+        private static readonly uint SnapshotPushOpCode =
+            RoomGatewayProtocolMessages.Push<WireStateSyncSnapshotPush>("state-sync-snapshot.push");
+        private static readonly uint DeltaSnapshotPushOpCode =
+            RoomGatewayProtocolMessages.Push<WireStateSyncSnapshotPush>("state-sync-delta.push");
+        private static readonly uint FrameSyncPushOpCode =
+            RoomGatewayProtocolMessages.Push<WireRoomFramePush>("frame-sync-frame.push");
+        private readonly NetworkProtocolAgent _agent;
+        private readonly IDisposable[] _pushSubscriptions;
         private readonly IDisposable? _ownedRequestTransport;
         private readonly RoomGatewayWireOpCodes _opCodes;
         private readonly object _snapshotGate = new object();
@@ -125,11 +160,10 @@ namespace AbilityKit.Network.Room
             if (connection == null) throw new ArgumentNullException(nameof(connection));
 
             var transport = new ConnectionRequestTransport(connection);
-            _requestTransport = transport;
-            _pushSource = transport;
+            _agent = new NetworkProtocolAgent(new ProtocolTransport(transport, transport), RoomGatewayWireCodec.Instance);
             _ownedRequestTransport = transport;
             _opCodes = opCodes;
-            _pushSource.ServerPushReceived += OnServerPushReceived;
+            _pushSubscriptions = SubscribePushes();
         }
 
         public RoomGatewayWireSessionClient(
@@ -146,15 +180,11 @@ namespace AbilityKit.Network.Room
             IDisposable? ownedRequestTransport,
             RoomGatewayWireOpCodes? opCodes)
         {
-            _requestTransport = requestTransport
-                ?? throw new ArgumentNullException(nameof(requestTransport));
-            _pushSource = pushSource;
+            _agent = new NetworkProtocolAgent(
+                new ProtocolTransport(requestTransport, pushSource), RoomGatewayWireCodec.Instance);
             _ownedRequestTransport = ownedRequestTransport;
             _opCodes = opCodes ?? RoomGatewayWireOpCodes.Default;
-            if (_pushSource != null)
-            {
-                _pushSource.ServerPushReceived += OnServerPushReceived;
-            }
+            _pushSubscriptions = SubscribePushes();
         }
 
         public RoomGatewaySnapshot? Current
@@ -170,6 +200,66 @@ namespace AbilityKit.Network.Room
 
         public event Action<RoomGatewaySnapshot>? SnapshotChanged;
 
+        /// <summary>Decoded state-sync pushes from the Room gateway.</summary>
+        public event Action<WireStateSyncSnapshotPush>? StateSyncSnapshotReceived;
+        public event Action<WireRoomFramePush>? FrameSyncFrameReceived;
+
+        public Task<WireRoomGuestLoginRes> GuestLoginAsync(
+            string guestId, TimeSpan? timeout = null, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(guestId)) throw new ArgumentException("Guest ID is required.", nameof(guestId));
+            return SendAsync<WireRoomGuestLoginReq, WireRoomGuestLoginRes>(
+                RoomGatewayProtocolMessages.Request<WireRoomGuestLoginReq>("guest-login.request"),
+                new WireRoomGuestLoginReq { GuestId = guestId }, timeout, cancellationToken);
+        }
+
+        public Task<WireRoomAccountLoginRes> AccountLoginAsync(
+            string accountId, bool kickExisting, TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(accountId)) throw new ArgumentException("Account ID is required.", nameof(accountId));
+            return SendAsync<WireRoomAccountLoginReq, WireRoomAccountLoginRes>(
+                RoomGatewayProtocolMessages.Request<WireRoomAccountLoginReq>("account-login.request"),
+                new WireRoomAccountLoginReq { AccountId = accountId, KickExisting = kickExisting },
+                timeout, cancellationToken);
+        }
+
+        public Task<WireSubmitBattleInputRes> SubmitBattleInputAsync(
+            WireSubmitBattleInputReq request, TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            return SendAsync<WireSubmitBattleInputReq, WireSubmitBattleInputRes>(
+                RoomGatewayProtocolMessages.Request<WireSubmitBattleInputReq>("submit-battle-input.request"),
+                request, timeout, cancellationToken);
+        }
+
+        public Task<WireRequestFullStateSyncRes> RequestFullStateSyncAsync(
+            WireRequestFullStateSyncReq request, TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(request.SessionToken) ||
+                string.IsNullOrWhiteSpace(request.BattleId) ||
+                string.IsNullOrWhiteSpace(request.RoomId))
+                throw new ArgumentException("A session, battle and room are required.", nameof(request));
+            return SendAsync<WireRequestFullStateSyncReq, WireRequestFullStateSyncRes>(
+                RoomGatewayProtocolMessages.Request<WireRequestFullStateSyncReq>("request-full-state-sync.request"),
+                request, timeout, cancellationToken);
+        }
+
+        public Task<WireRoomSubscribeFrameSyncRes> SubscribeFrameSyncAsync(
+            WireRoomSubscribeFrameSyncReq request, TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default) =>
+            SendAsync<WireRoomSubscribeFrameSyncReq, WireRoomSubscribeFrameSyncRes>(
+                RoomGatewayProtocolMessages.Request<WireRoomSubscribeFrameSyncReq>("subscribe-frame-sync.request"),
+                request, timeout, cancellationToken);
+
+        public Task<WireRoomSubmitFrameInputRes> SubmitFrameInputAsync(
+            WireRoomSubmitFrameInputReq request, TimeSpan? timeout = null,
+            CancellationToken cancellationToken = default) =>
+            SendAsync<WireRoomSubmitFrameInputReq, WireRoomSubmitFrameInputRes>(
+                RoomGatewayProtocolMessages.Request<WireRoomSubmitFrameInputReq>("submit-frame-input.request"),
+                request, timeout, cancellationToken);
+
         public async Task<RoomGatewayCreateResult> CreateRoomAsync(
             RoomGatewayCreateRequest request,
             TimeSpan? timeout = null,
@@ -184,7 +274,8 @@ namespace AbilityKit.Network.Room
                 Title = request.Title,
                 IsPublic = request.IsPublic,
                 MaxPlayers = request.MaxPlayers,
-                Tags = ToDictionary(request.Tags)
+                Tags = ToDictionary(request.Tags),
+                CommandId = request.CommandId
             };
             var wire = await SendAsync<WireCreateRoomReq, WireCreateRoomRes>(
                 _opCodes.CreateRoom,
@@ -590,16 +681,16 @@ namespace AbilityKit.Network.Room
             }
 
             _disposed = true;
-            if (_pushSource != null)
-            {
-                _pushSource.ServerPushReceived -= OnServerPushReceived;
-            }
+            foreach (var subscription in _pushSubscriptions) subscription.Dispose();
+            _agent.Dispose();
             _ownedRequestTransport?.Dispose();
             lock (_snapshotGate)
             {
                 _current = null;
             }
             SnapshotChanged = null;
+            StateSyncSnapshotReceived = null;
+            FrameSyncFrameReceived = null;
         }
 
         private async Task<TResponse> SendAsync<TRequest, TResponse>(
@@ -609,13 +700,8 @@ namespace AbilityKit.Network.Room
             CancellationToken cancellationToken)
         {
             ThrowIfDisposed();
-            var payload = WireRoomGatewayBinary.Serialize(in request);
-            var response = await _requestTransport.SendRequestAsync(
-                opCode,
-                payload,
-                timeout,
-                cancellationToken).ConfigureAwait(false);
-            return WireRoomGatewayBinary.Deserialize<TResponse>(response);
+            return await _agent.RequestAsync<TRequest, TResponse>(
+                opCode, request, timeout, cancellationToken).ConfigureAwait(false);
         }
 
         private Task<WireRoomOperationRes> SendOperationAsync<TRequest>(
@@ -682,23 +768,48 @@ namespace AbilityKit.Network.Room
             }
         }
 
-        private void OnServerPushReceived(uint opCode, ArraySegment<byte> payload)
+        private IDisposable[] SubscribePushes()
         {
-            if (_disposed || opCode != _opCodes.RoomStateChanged)
+            return new[]
             {
-                return;
+                _agent.Subscribe<WireRoomFramePush>(FrameSyncPushOpCode,
+                    push => FrameSyncFrameReceived?.Invoke(push)),
+                _agent.Subscribe<WireStateSyncSnapshotPush>(SnapshotPushOpCode,
+                    push => StateSyncSnapshotReceived?.Invoke(push)),
+                _agent.Subscribe<WireStateSyncSnapshotPush>(DeltaSnapshotPushOpCode,
+                    push => StateSyncSnapshotReceived?.Invoke(push)),
+                _agent.Subscribe<WireRoomStateChangedPush>(_opCodes.RoomStateChanged,
+                    OnRoomStateChanged)
+            };
+        }
+
+        private void OnRoomStateChanged(WireRoomStateChangedPush push)
+        {
+            var wireSnapshot = push.Snapshot;
+            PublishSnapshot(ToSnapshot(in wireSnapshot));
+        }
+
+        private sealed class ProtocolTransport : INetworkProtocolTransport
+        {
+            private readonly IRoomGatewayRequestTransport _requests;
+            private readonly IRoomGatewayPushSource? _pushes;
+
+            public ProtocolTransport(IRoomGatewayRequestTransport requests, IRoomGatewayPushSource? pushes)
+            {
+                _requests = requests ?? throw new ArgumentNullException(nameof(requests));
+                _pushes = pushes;
             }
 
-            try
+            public event Action<uint, ArraySegment<byte>>? ServerPushReceived
             {
-                var push = WireRoomGatewayBinary.Deserialize<WireRoomStateChangedPush>(payload);
-                var wireSnapshot = push.Snapshot;
-                PublishSnapshot(ToSnapshot(in wireSnapshot));
+                add { if (_pushes != null) _pushes.ServerPushReceived += value; }
+                remove { if (_pushes != null) _pushes.ServerPushReceived -= value; }
             }
-            catch
-            {
-                // Push payload validation belongs to the transport diagnostics path; malformed pushes do not break dispatch.
-            }
+
+            public Task<ArraySegment<byte>> SendRequestAsync(
+                uint opCode, ArraySegment<byte> payload, TimeSpan? timeout = null,
+                CancellationToken cancellationToken = default) =>
+                _requests.SendRequestAsync(opCode, payload, timeout, cancellationToken);
         }
 
         private RoomGatewaySnapshot? PublishOperationSnapshot(in WireRoomOperationRes wire)

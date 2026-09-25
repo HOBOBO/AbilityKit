@@ -1,0 +1,23 @@
+{
+  "name": "AbilityKit.Demo.Tiny.PlayMode.Tests",
+  "rootNamespace": "AbilityKit.Demo.Tiny.Tests",
+  "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Common.Unity",
+    "AbilityKit.Demo.Tiny.Logic",
+    "AbilityKit.Demo.Tiny.View",
+    "AbilityKit.Game.View.Runtime",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Protocol.Room"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": ["TestAssemblies"]
+}

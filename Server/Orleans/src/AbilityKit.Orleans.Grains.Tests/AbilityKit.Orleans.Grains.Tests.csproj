@@ -9,6 +9,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Orleans.Grains\AbilityKit.Orleans.Grains.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Tiny.Server\AbilityKit.Demo.Tiny.Server.csproj" />
+    <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Tiny.Core\AbilityKit.Demo.Tiny.Core.csproj" />
+    <ProjectReference Include="..\..\..\..\src\AbilityKit.Demo.Tiny.FrameSync\AbilityKit.Demo.Tiny.FrameSync.csproj" />
   </ItemGroup>
 
   <ItemGroup>

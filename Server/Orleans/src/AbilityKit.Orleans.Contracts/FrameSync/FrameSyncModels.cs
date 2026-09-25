@@ -43,7 +43,8 @@ public sealed record FramePushedEvent(
     [property: Id(0)] ulong RoomId,
     [property: Id(1)] ulong WorldId,
     [property: Id(2)] int Frame,
-    [property: Id(3)] List<FrameInputItem> Inputs);
+    [property: Id(3)] List<FrameInputItem> Inputs,
+    [property: Id(4)] uint StateHash = 0);
 
 [GenerateSerializer]
 public sealed record FrameSyncCatchUpRequest(

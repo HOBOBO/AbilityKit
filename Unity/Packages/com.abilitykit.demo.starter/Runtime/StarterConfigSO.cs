@@ -25,10 +25,12 @@ namespace AbilityKit.Starter
         [Header("Scenes")]
         [SerializeField] private string mobaSceneName = DemoSceneRoutes.Moba;
         [SerializeField] private string shooterSceneName = DemoSceneRoutes.Shooter;
+        [SerializeField] private string tinySceneName = DemoSceneRoutes.Tiny;
 
         [Header("Gameplay Profiles")]
         [SerializeField] private string mobaProfileId = string.Empty;
         [SerializeField] private string shooterProfileId = string.Empty;
+        [SerializeField] private string tinyProfileId = string.Empty;
 
         public string Host => string.IsNullOrWhiteSpace(host) ? "127.0.0.1" : host.Trim();
         public int Port => Math.Max(1, port);
@@ -43,7 +45,11 @@ namespace AbilityKit.Starter
         public string ShooterSceneName => string.IsNullOrWhiteSpace(shooterSceneName)
             ? DemoSceneRoutes.Shooter
             : shooterSceneName.Trim();
+        public string TinySceneName => string.IsNullOrWhiteSpace(tinySceneName)
+            ? DemoSceneRoutes.Tiny
+            : tinySceneName.Trim();
         public string MobaProfileId => mobaProfileId?.Trim() ?? string.Empty;
         public string ShooterProfileId => shooterProfileId?.Trim() ?? string.Empty;
+        public string TinyProfileId => tinyProfileId?.Trim() ?? string.Empty;
     }
 }

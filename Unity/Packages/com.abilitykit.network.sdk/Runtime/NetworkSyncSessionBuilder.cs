@@ -190,6 +190,103 @@ namespace AbilityKit.Network.Sdk
         public NetworkSyncSessionDescriptor Descriptor { get; }
     }
 
+    /// <summary>Validates a sync session without creating a gameplay controller.</summary>
+    public static class NetworkSyncSessionNegotiator
+    {
+        public static NetworkSyncSessionDescriptor Negotiate(NetworkSyncSessionOptions options)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+            return NegotiateSnapshot(options.Snapshot());
+        }
+
+        public static NetworkSyncSessionDescriptor Negotiate(
+            NetworkSyncSessionOptions options,
+            NetworkSyncCapabilities? remoteCapabilities,
+            NetworkSyncRemoteCapabilityPolicy remotePolicy)
+        {
+            if (options == null) throw new ArgumentNullException(nameof(options));
+            var snapshot = options.Snapshot();
+            snapshot.RemoteCapabilities = remoteCapabilities;
+            snapshot.RemoteCapabilityPolicy = remotePolicy;
+            return NegotiateSnapshot(snapshot);
+        }
+
+        internal static NetworkSyncSessionDescriptor NegotiateSnapshot(NetworkSyncSessionOptions options)
+        {
+            if (!Enum.IsDefined(typeof(NetworkSyncRemoteCapabilityPolicy), options.RemoteCapabilityPolicy))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options.RemoteCapabilityPolicy), options.RemoteCapabilityPolicy,
+                    "远端能力协商策略不是框架已知值。");
+            }
+
+            var profile = ResolveProfile(options, out var profileName);
+            if (!options.AvailableCapabilities.HasValue)
+            {
+                throw new NetworkSyncSessionBuildException(
+                    NetworkSyncSessionBuildFailureReason.MissingAvailableCapabilities,
+                    $"同步 Profile '{profileName}' 缺少接入方能力声明。");
+            }
+
+            var localCapabilities = options.AvailableCapabilities.Value;
+            var localNegotiation = NetworkSyncConfigurationValidator.Negotiate(
+                in profile, options.RequiredMinimumSchemaVersion,
+                options.RequiredMaximumSchemaVersion, in localCapabilities);
+            localNegotiation.Report.ThrowIfInvalid(profileName + " 本地能力");
+
+            var remoteCapabilities = options.RemoteCapabilityPolicy == NetworkSyncRemoteCapabilityPolicy.Ignore
+                ? null : options.RemoteCapabilities;
+            if (!remoteCapabilities.HasValue &&
+                options.RemoteCapabilityPolicy == NetworkSyncRemoteCapabilityPolicy.Require)
+            {
+                var localDescriptor = new NetworkSyncSessionDescriptor(
+                    profileName, in profile, in localCapabilities, null,
+                    options.RemoteCapabilityPolicy, in localNegotiation, null);
+                throw new NetworkSyncSessionBuildException(
+                    NetworkSyncSessionBuildFailureReason.MissingRemoteCapabilities,
+                    $"同步 Profile '{profileName}' 要求远端能力声明，但握手或会话元数据未提供该声明。",
+                    localDescriptor);
+            }
+
+            NetworkSyncNegotiationResult? remoteNegotiation = null;
+            if (remoteCapabilities.HasValue)
+            {
+                var remote = remoteCapabilities.Value;
+                var result = NetworkSyncConfigurationValidator.Negotiate(
+                    in profile, localNegotiation.MinimumSchemaVersion,
+                    localNegotiation.MaximumSchemaVersion, in remote);
+                result.Report.ThrowIfInvalid(profileName + " 远端能力");
+                remoteNegotiation = result;
+            }
+
+            return new NetworkSyncSessionDescriptor(
+                profileName, in profile, in localCapabilities, remoteCapabilities,
+                options.RemoteCapabilityPolicy, in localNegotiation, remoteNegotiation);
+        }
+
+        private static NetworkSyncProfile ResolveProfile(NetworkSyncSessionOptions options, out string profileName)
+        {
+            if (options.RequiredProfile.HasValue)
+            {
+                var profile = options.RequiredProfile.Value;
+                profileName = string.IsNullOrWhiteSpace(options.RequiredProfileName)
+                    ? profile.CompatibilityModel.ToString()
+                    : options.RequiredProfileName!;
+                return profile;
+            }
+
+            if (string.IsNullOrWhiteSpace(options.RequiredProfileName))
+            {
+                throw new NetworkSyncSessionBuildException(
+                    NetworkSyncSessionBuildFailureReason.MissingRequiredProfile,
+                    "同步会话必须按稳定名称或直接 Profile 指定必需能力。");
+            }
+
+            profileName = options.RequiredProfileName!;
+            return options.ProfileCatalog.Resolve(profileName);
+        }
+    }
+
     /// <summary>
     /// 统一完成 Profile 解析、能力协商、控制器注册检查和控制器创建。
     /// </summary>
@@ -212,69 +309,9 @@ namespace AbilityKit.Network.Sdk
         /// <summary>校验全部启动前置条件，并在通过后创建控制器。</summary>
         public NetworkSyncSessionBuildResult<TController> Build(in TContext context)
         {
-            if (!Enum.IsDefined(typeof(NetworkSyncRemoteCapabilityPolicy), _options.RemoteCapabilityPolicy))
-            {
-                throw new ArgumentOutOfRangeException(
-                    nameof(_options.RemoteCapabilityPolicy),
-                    _options.RemoteCapabilityPolicy,
-                    "远端能力协商策略不是框架已知值。");
-            }
-
-            var profile = ResolveProfile(out var profileName);
-            if (!_options.AvailableCapabilities.HasValue)
-            {
-                throw new NetworkSyncSessionBuildException(
-                    NetworkSyncSessionBuildFailureReason.MissingAvailableCapabilities,
-                    $"同步 Profile '{profileName}' 缺少接入方能力声明。");
-            }
-
-            var localCapabilities = _options.AvailableCapabilities.Value;
-            var localNegotiation = NetworkSyncConfigurationValidator.Negotiate(
-                in profile,
-                _options.RequiredMinimumSchemaVersion,
-                _options.RequiredMaximumSchemaVersion,
-                in localCapabilities);
-            localNegotiation.Report.ThrowIfInvalid(profileName + " 本地能力");
-
-            var remoteCapabilities = ResolveRemoteCapabilities();
-            if (!remoteCapabilities.HasValue &&
-                _options.RemoteCapabilityPolicy == NetworkSyncRemoteCapabilityPolicy.Require)
-            {
-                var localDescriptor = new NetworkSyncSessionDescriptor(
-                    profileName,
-                    in profile,
-                    in localCapabilities,
-                    remoteCapabilities: null,
-                    _options.RemoteCapabilityPolicy,
-                    in localNegotiation,
-                    remoteNegotiation: null);
-                throw new NetworkSyncSessionBuildException(
-                    NetworkSyncSessionBuildFailureReason.MissingRemoteCapabilities,
-                    $"同步 Profile '{profileName}' 要求远端能力声明，但握手或会话元数据未提供该声明。",
-                    localDescriptor);
-            }
-
-            NetworkSyncNegotiationResult? remoteNegotiation = null;
-            if (remoteCapabilities.HasValue)
-            {
-                var remote = remoteCapabilities.Value;
-                var result = NetworkSyncConfigurationValidator.Negotiate(
-                    in profile,
-                    localNegotiation.MinimumSchemaVersion,
-                    localNegotiation.MaximumSchemaVersion,
-                    in remote);
-                result.Report.ThrowIfInvalid(profileName + " 远端能力");
-                remoteNegotiation = result;
-            }
-
-            var descriptor = new NetworkSyncSessionDescriptor(
-                profileName,
-                in profile,
-                in localCapabilities,
-                remoteCapabilities,
-                _options.RemoteCapabilityPolicy,
-                in localNegotiation,
-                remoteNegotiation);
+            var descriptor = NetworkSyncSessionNegotiator.NegotiateSnapshot(_options);
+            var profile = descriptor.Profile;
+            var profileName = descriptor.ProfileName;
 
             if (!_registry.Supports(in profile))
             {
@@ -300,44 +337,6 @@ namespace AbilityKit.Network.Sdk
             return new NetworkSyncSessionBuildResult<TController>(controller, descriptor);
         }
 
-        private NetworkSyncCapabilities? ResolveRemoteCapabilities()
-        {
-            if (_options.RemoteCapabilityPolicy == NetworkSyncRemoteCapabilityPolicy.Ignore)
-            {
-                return null;
-            }
-
-            if (_options.RemoteCapabilities.HasValue)
-            {
-                return _options.RemoteCapabilities.Value;
-            }
-
-            return null;
-        }
-
-        private NetworkSyncProfile ResolveProfile(out string profileName)
-        {
-            if (_options.RequiredProfile.HasValue)
-            {
-                var profile = _options.RequiredProfile.Value;
-                profileName = string.IsNullOrWhiteSpace(_options.RequiredProfileName)
-                    ? profile.CompatibilityModel.ToString()
-                    : _options.RequiredProfileName!;
-                return profile;
-            }
-
-            if (string.IsNullOrWhiteSpace(_options.RequiredProfileName))
-            {
-                throw new NetworkSyncSessionBuildException(
-                    NetworkSyncSessionBuildFailureReason.MissingRequiredProfile,
-                    "同步会话必须按稳定名称或直接 Profile 指定必需能力。");
-            }
-
-            var catalog = _options.ProfileCatalog
-                ?? throw new ArgumentNullException(nameof(_options.ProfileCatalog));
-            profileName = _options.RequiredProfileName!;
-            return catalog.Resolve(profileName);
-        }
     }
 
     /// <summary>网络会话恢复协调器可以接收的框架级信号。</summary>

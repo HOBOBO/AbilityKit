@@ -9,6 +9,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\AbilityKit.Orleans.Grains\AbilityKit.Orleans.Grains.csproj" />
+    <ProjectReference Include="..\AbilityKit.Demo.Tiny.Server\AbilityKit.Demo.Tiny.Server.csproj" />
     <ProjectReference Include="..\AbilityKit.Orleans.Contracts\AbilityKit.Orleans.Contracts.csproj" />
     <ProjectReference Include="..\AbilityKit.Orleans.Hosting\AbilityKit.Orleans.Hosting.csproj" />
   </ItemGroup>

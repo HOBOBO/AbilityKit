@@ -20,6 +20,26 @@ namespace AbilityKit.Network.Runtime.Sync
             RecoveryPolicy.None,
             ServerValidationPolicy.ClientHashAudit);
 
+        /// <summary>Deterministic frame broadcast with an on-demand full-state baseline.</summary>
+        public static NetworkSyncProfile LockstepWithSnapshotRecovery { get; } = new NetworkSyncProfile(
+            NetworkSyncModel.Lockstep,
+            ClientPlaybackPolicy.None,
+            InputPolicy.DeterministicBroadcast,
+            SnapshotPolicy.FullSnapshot,
+            InterestPolicy.AllEntities,
+            RecoveryPolicy.RequestFullSnapshot,
+            ServerValidationPolicy.ClientHashAudit);
+
+        /// <summary>Deterministic frame broadcast with authoritative full-state recovery.</summary>
+        public static NetworkSyncProfile FrameWithSnapshotRecovery { get; } = new NetworkSyncProfile(
+            NetworkSyncModel.HybridHeroPrediction,
+            ClientPlaybackPolicy.PredictRollback,
+            InputPolicy.DeterministicBroadcast,
+            SnapshotPolicy.FullSnapshot | SnapshotPolicy.FixedRateStateStream,
+            InterestPolicy.AllEntities,
+            RecoveryPolicy.RequestFullSnapshot,
+            ServerValidationPolicy.ClientHashAudit);
+
         public static NetworkSyncProfile PredictRollback { get; } = new NetworkSyncProfile(
             NetworkSyncModel.PredictRollback,
             ClientPlaybackPolicy.PredictRollback,

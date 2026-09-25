@@ -1,0 +1,56 @@
+# yaml-language-server: $schema=../wire-schema.schema.json
+schemaVersion: 2
+projectId: abilitykit.shared
+groupId: room.frame-sync
+namespace: AbilityKit.Protocol.Room
+defaults:
+  memoryPackMode: sequential
+  declaration: struct
+  memberStyle: property
+types:
+  - name: WireRoomFrameInput
+    fields:
+      - { id: 0, name: playerId, scalarType: uint32, required: true }
+      - { id: 1, name: inputOpCode, scalarType: int32, required: true }
+      - { id: 2, name: payload, scalarType: uint8, array: true, required: true }
+
+  - name: WireRoomSubmitFrameInputReq
+    fields:
+      - { id: 0, name: sessionToken, scalarType: string, required: true }
+      - { id: 1, name: roomId, scalarType: string, required: true }
+      - { id: 2, name: battleId, scalarType: string, required: true }
+      - { id: 3, name: worldId, scalarType: uint64, required: true }
+      - { id: 4, name: frame, scalarType: int32, required: true }
+      - { id: 5, name: playerId, scalarType: uint32, required: true }
+      - { id: 6, name: inputOpCode, scalarType: int32, required: true }
+      - { id: 7, name: payload, scalarType: uint8, array: true, required: true }
+
+  - name: WireRoomSubmitFrameInputRes
+    fields:
+      - { id: 0, name: accepted, scalarType: bool, required: true }
+      - { id: 1, name: serverFrame, scalarType: int32, required: true }
+      - { id: 2, name: reason, scalarType: int32, required: true }
+
+  - name: WireRoomSubscribeFrameSyncReq
+    fields:
+      - { id: 0, name: sessionToken, scalarType: string, required: true }
+      - { id: 1, name: roomId, scalarType: string, required: true }
+      - { id: 2, name: battleId, scalarType: string, required: true }
+      - { id: 3, name: worldId, scalarType: uint64, required: true }
+
+  - name: WireRoomSubscribeFrameSyncRes
+    fields:
+      - { id: 0, name: success, scalarType: bool, required: true }
+      - { id: 1, name: message, scalarType: string, required: true }
+
+  - name: WireRoomFramePush
+    fields:
+      - { id: 0, name: roomId, scalarType: uint64, required: true }
+      - { id: 1, name: worldId, scalarType: uint64, required: true }
+      - { id: 2, name: frame, scalarType: int32, required: true }
+      - { id: 3, name: stateHash, scalarType: uint32, required: true }
+      - id: 4
+        name: inputs
+        type: AbilityKit.Protocol.Room.WireRoomFrameInput
+        array: true
+        required: true

@@ -1,0 +1,25 @@
+{
+  "name": "AbilityKit.Demo.Tiny.Editor.Tests",
+  "rootNamespace": "AbilityKit.Demo.Tiny.Tests",
+  "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Common.Unity",
+    "AbilityKit.Demo.Tiny.Logic",
+    "AbilityKit.Demo.Tiny.FrameSync",
+    "AbilityKit.Demo.Tiny.View",
+    "AbilityKit.Game.View.Runtime",
+    "AbilityKit.Network.Room",
+    "AbilityKit.Network.Runtime",
+    "AbilityKit.Protocol.Room"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": ["TestAssemblies"]
+}

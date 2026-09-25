@@ -7,7 +7,7 @@ using AbilityKit.Orleans.Contracts.Rooms;
 
 namespace AbilityKit.Orleans.Grains.Rooms;
 
-internal static class RoomLaunchManifestBuilder
+public static class RoomLaunchManifestBuilder
 {
     public const int CurrentManifestVersion = 1;
 

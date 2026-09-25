@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AbilityKit.Orleans.Grains/AbilityKit.Orleans.Grains.csproj" />
+    <ProjectReference Include="../../../../src/AbilityKit.Demo.Tiny.Core/AbilityKit.Demo.Tiny.Core.csproj" />
+    <ProjectReference Include="../../../../src/AbilityKit.Host/AbilityKit.Host.csproj" />
+    <ProjectReference Include="../../../../src/AbilityKit.Network.Runtime/AbilityKit.Network.Runtime.csproj" />
+  </ItemGroup>
+</Project>

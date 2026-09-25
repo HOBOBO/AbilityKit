@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\Unity\Packages\com.abilitykit.demo.tiny\Runtime\FrameSync\*.cs" />
+    <ProjectReference Include="..\AbilityKit.Demo.Tiny.Core\AbilityKit.Demo.Tiny.Core.csproj" />
+    <ProjectReference Include="..\AbilityKit.World.FrameSync\AbilityKit.World.FrameSync.csproj" />
+  </ItemGroup>
+</Project>

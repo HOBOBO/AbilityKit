@@ -33,15 +33,14 @@ namespace AbilityKit.Network.Room
     /// </summary>
     public sealed class GatewayMultiplayerSession : IDisposable
     {
-        private readonly NetworkSdkClient _sdkClient;
-        private readonly RoomGatewayWireSessionClient _roomClient;
+        private readonly RoomGatewayConnectionSession _connection;
         private bool _disposed;
-        public NetworkSdkClient SdkClient => _sdkClient;
-        public RoomGatewayWireSessionClient RoomClient => _roomClient;
+        public NetworkSdkClient SdkClient => _connection.SdkClient;
+        public RoomGatewayWireSessionClient RoomClient => _connection.RoomClient;
         public GatewaySessionResult Result { get; }
 
-        private GatewayMultiplayerSession(NetworkSdkClient sdkClient, RoomGatewayWireSessionClient roomClient, GatewaySessionResult result)
-        { _sdkClient = sdkClient; _roomClient = roomClient; Result = result; }
+        private GatewayMultiplayerSession(RoomGatewayConnectionSession connection, GatewaySessionResult result)
+        { _connection = connection; Result = result; }
 
         public static async Task<GatewayMultiplayerSession> CreateAsync(
             string host, int port, string accountId, RoomGatewayLaunchSpec launchSpec,
@@ -57,41 +56,31 @@ namespace AbilityKit.Network.Room
             if (port <= 0) throw new ArgumentOutOfRangeException(nameof(port));
             if (string.IsNullOrWhiteSpace(accountId)) throw new ArgumentException("accountId is required.", nameof(accountId));
             var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(30);
-            var effectiveTransport = transportFactory ?? (() => new TcpTransport());
-
-            var builder = new NetworkSdkBuilder().UseTransportFactory(effectiveTransport);
-            if (dispatcher != null) builder.UseDispatchers(dispatcher);
-            var sdkClient = builder.Build();
-            sdkClient.Open(host, port);
-            await WaitForConnectedAsync(sdkClient, effectiveTimeout, cancellationToken).ConfigureAwait(false);
-
-            var loginReq = new WireRoomGuestLoginReq { GuestId = accountId };
-            var loginRespBytes = await sdkClient.SendRawRequestAsync(
-                RoomGatewayOpCodes.GuestLogin, WireRoomGatewayBinary.Serialize(in loginReq),
-                effectiveTimeout, cancellationToken).ConfigureAwait(false);
-            var loginResult = WireRoomGatewayBinary.Deserialize<WireRoomGuestLoginRes>(loginRespBytes);
-            if (!loginResult.Success) { sdkClient.Dispose(); throw new InvalidOperationException($"Guest login failed: {loginResult.Message}"); }
-
-            var roomClient = sdkClient.CreateRoomClient();
-            configureRoomClient?.Invoke(roomClient);
-
-            var flow = new RoomGatewaySessionFlow(roomClient);
+            var connection = await RoomGatewayConnectionSession.ConnectAsync(
+                host, port, transportFactory, dispatcher, effectiveTimeout, cancellationToken).ConfigureAwait(false);
             try
             {
+                var loginResult = await connection.RoomClient.GuestLoginAsync(
+                    accountId, effectiveTimeout, cancellationToken).ConfigureAwait(false);
+                if (!loginResult.Success)
+                    throw new InvalidOperationException($"Guest login failed: {loginResult.Message}");
+
+                configureRoomClient?.Invoke(connection.RoomClient);
+                var flow = new RoomGatewaySessionFlow(connection.RoomClient);
                 var result = await RunRoomFlowAsync(
                     flow, loginResult.SessionToken, launchSpec, joinRoomId, waitForBattleStart, playerId,
                     effectiveTimeout, cancellationToken, afterJoinAndBeforeReady, afterReadyAndBeforeBattleStart,
                     subscribeStateSync, joinFallbackToCreate).ConfigureAwait(false);
-                return new GatewayMultiplayerSession(sdkClient, roomClient, result);
+                return new GatewayMultiplayerSession(connection, result);
             }
             catch
             {
-                sdkClient.Dispose();
+                connection.Dispose();
                 throw;
             }
         }
 
-        public void Tick(float deltaTime) { ThrowIfDisposed(); _sdkClient.Tick(deltaTime); }
+        public void Tick(float deltaTime) { ThrowIfDisposed(); _connection.Tick(deltaTime); }
 
         /// <summary>
         /// The room-flow orchestration core: create/join → [optional after-join hook: hero-pick/loadout] →
@@ -196,14 +185,7 @@ namespace AbilityKit.Network.Room
             return result;
         }
 
-        public void Dispose() { if (_disposed) return; _disposed = true; _roomClient.Dispose(); _sdkClient.Dispose(); }
+        public void Dispose() { if (_disposed) return; _disposed = true; _connection.Dispose(); }
         private void ThrowIfDisposed() { if (_disposed) throw new ObjectDisposedException(nameof(GatewayMultiplayerSession)); }
-
-        private static async Task WaitForConnectedAsync(NetworkSdkClient client, TimeSpan timeout, CancellationToken ct)
-        {
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(timeout);
-            while (!client.IsConnected) { cts.Token.ThrowIfCancellationRequested(); await Task.Delay(50, cts.Token).ConfigureAwait(false); }
-        }
     }
 }

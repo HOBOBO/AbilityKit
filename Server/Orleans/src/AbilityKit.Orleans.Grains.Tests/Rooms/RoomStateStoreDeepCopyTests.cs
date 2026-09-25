@@ -85,6 +85,87 @@ public sealed class RoomStateStoreDeepCopyTests
         Assert.Null(read);
     }
 
+    [Fact]
+    public async Task PublishAfterClose_DoesNotRestoreDirectoryOrAccountMapping()
+    {
+        var store = new InMemoryRoomStateStore();
+        var state = CreateState("room-closed", "owner");
+        await store.WriteRuntimeStateAsync(state.Summary.RoomId, state);
+        await store.WriteRuntimeStateAsync(state.Summary.RoomId, state with
+        {
+            Phase = RoomPhase.Closed,
+            Members = new List<RoomPersistentMember>()
+        });
+
+        Assert.False(await store.TryPublishActiveRoomAsync("dir", state.Summary));
+        Assert.False(await store.TryBindAccountRoomIfActiveAsync("owner", state.Summary.RoomId));
+        Assert.Empty(await store.ListRoomsAsync("dir"));
+        Assert.Null(await store.TryGetAccountRoomAsync("owner"));
+    }
+
+    [Fact]
+    public async Task CloseAfterPublish_RemovesRoomAndPreventsLateBinding()
+    {
+        var store = new InMemoryRoomStateStore();
+        var state = CreateState("room-closing", "owner");
+        await store.WriteRuntimeStateAsync(state.Summary.RoomId, state);
+        Assert.True(await store.TryPublishActiveRoomAsync("dir", state.Summary));
+        Assert.Single(await store.ListRoomsAsync("dir"));
+
+        await store.WriteRuntimeStateAsync(state.Summary.RoomId, state with
+        {
+            Phase = RoomPhase.Closed,
+            Members = new List<RoomPersistentMember>()
+        });
+
+        Assert.Empty(await store.ListRoomsAsync("dir"));
+        Assert.False(await store.TryBindAccountRoomIfActiveAsync("owner", state.Summary.RoomId));
+    }
+
+    [Fact]
+    public async Task PublishAfterCreatorLeaves_DoesNotAcceptTransferredOwnership()
+    {
+        var store = new InMemoryRoomStateStore();
+        var original = CreateState("room-transferred", "owner", "peer");
+        var transferred = original with
+        {
+            Summary = original.Summary with { OwnerAccountId = "peer", PlayerCount = 1 },
+            Members = new List<RoomPersistentMember> { original.Members[1] }
+        };
+        await store.WriteRuntimeStateAsync(original.Summary.RoomId, transferred);
+
+        Assert.False(await store.TryPublishActiveRoomAsync("dir", original.Summary));
+        Assert.Empty(await store.ListRoomsAsync("dir"));
+    }
+
+    [Fact]
+    public async Task ConcurrentPublishAndBindWithClose_LeavesNoStaleRoom()
+    {
+        for (var iteration = 0; iteration < 32; iteration++)
+        {
+            var store = new InMemoryRoomStateStore();
+            var state = CreateState($"room-race-{iteration}", "owner");
+            await store.WriteRuntimeStateAsync(state.Summary.RoomId, state);
+            var closed = state with
+            {
+                Phase = RoomPhase.Closed,
+                Members = new List<RoomPersistentMember>()
+            };
+
+            await Task.WhenAll(
+                Task.Run(() => store.TryPublishActiveRoomAsync("dir", state.Summary)),
+                Task.Run(() => store.TryBindAccountRoomIfActiveAsync("owner", state.Summary.RoomId)),
+                Task.Run(async () =>
+                {
+                    await store.WriteRuntimeStateAsync(state.Summary.RoomId, closed);
+                    await store.ClearAccountRoomAsync("owner", state.Summary.RoomId);
+                }));
+
+            Assert.Empty(await store.ListRoomsAsync("dir"));
+            Assert.Null(await store.TryGetAccountRoomAsync("owner"));
+        }
+    }
+
     private static RoomPersistentState CreateState(string roomId, params string[] accountIds)
     {
         var summary = new RoomSummary(

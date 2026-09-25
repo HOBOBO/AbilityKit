@@ -1,0 +1,16 @@
+{
+  "name": "com.abilitykit.demo.tiny.logic",
+  "version": "0.0.1",
+  "displayName": "AbilityKit Demo Tiny Logic",
+  "unity": "2022.3",
+  "description": "Standalone deterministic rules for the Tiny tutorial.",
+  "author": { "name": "AbilityKit" },
+  "dependencies": {},
+  "samples": [
+    {
+      "displayName": "01 Logic",
+      "description": "Deterministic battle rules and checkpoint recovery.",
+      "path": "Samples~/01-Logic"
+    }
+  ]
+}

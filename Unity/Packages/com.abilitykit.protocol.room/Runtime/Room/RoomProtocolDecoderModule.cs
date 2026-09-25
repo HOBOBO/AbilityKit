@@ -63,6 +63,11 @@ namespace AbilityKit.Protocol.Room
             Register<WireStateSyncSnapshotPush>(registry, "state-sync-delta.push");
             Register<WireRoomStateChangedPush>(registry, "room-state-changed.push");
             Register<WireReliableBattleEventPush>(registry, "reliable-battle-events.push");
+            Register<WireRoomSubmitFrameInputReq>(registry, "submit-frame-input.request");
+            Register<WireRoomSubmitFrameInputRes>(registry, "submit-frame-input.response");
+            Register<WireRoomSubscribeFrameSyncReq>(registry, "subscribe-frame-sync.request");
+            Register<WireRoomSubscribeFrameSyncRes>(registry, "subscribe-frame-sync.response");
+            Register<WireRoomFramePush>(registry, "frame-sync-frame.push");
         }
 
         private static void Register<T>(ProtocolPayloadDecoderRegistry registry, string messageId)

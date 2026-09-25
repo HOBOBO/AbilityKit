@@ -21,5 +21,7 @@ MonoBehaviour:
   defaultGuestPrefix: unity-guest
   mobaSceneName: MobaDemoGameplayScene
   shooterSceneName: ShooterDemoGameplayScene
+  tinySceneName: TinyDemoGameplayScene
   mobaProfileId: moba-multiplayer
   shooterProfileId: shooter-multiplayer
+  tinyProfileId: tiny-multiplayer

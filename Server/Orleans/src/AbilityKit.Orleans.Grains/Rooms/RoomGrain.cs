@@ -5,6 +5,7 @@ using AbilityKit.Orleans.Contracts.Battle;
 using AbilityKit.Orleans.Contracts.FrameSync;
 using AbilityKit.Orleans.Contracts.Rooms;
 using AbilityKit.Orleans.Grains.Persistence;
+using AbilityKit.Orleans.Grains.Gameplay;
 using AbilityKit.Orleans.Grains.Rooms.Gameplay;
 using AbilityKit.Protocol.Room;
 using Orleans;
@@ -21,7 +22,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
     private static readonly TimeSpan AbandonedRoomCleanupRetryDelay = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan AbandonedRoomCleanupKeepAliveBuffer = TimeSpan.FromMinutes(1);
 
-    private static readonly RoomGameplayRegistry GameplayRegistry = new();
+    private readonly RoomGameplayRegistry _gameplayRegistry;
+    private readonly ServerGameplayModuleCatalog _gameplayModules;
 
     private readonly IRoomStateStore _roomStateStore;
     private RoomPersistentState? _persistentState;
@@ -39,9 +41,12 @@ public sealed class RoomGrain : Grain, IRoomGrain
     private IDisposable? _abandonedRoomCleanupTimer;
     private bool _timersEnabled;
 
-    public RoomGrain(IRoomStateStore roomStateStore)
+    public RoomGrain(IRoomStateStore roomStateStore, ServerGameplayModuleCatalog gameplayModules)
     {
         _roomStateStore = roomStateStore ?? throw new ArgumentNullException(nameof(roomStateStore));
+        _gameplayModules = gameplayModules ?? throw new ArgumentNullException(nameof(gameplayModules));
+        _gameplayRegistry = new RoomGameplayRegistry(_gameplayModules.CreateRoomAdapters(),
+            _gameplayModules.GameplayCatalog);
     }
 
     public override async Task OnActivateAsync(CancellationToken cancellationToken)
@@ -73,7 +78,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
             return;
         }
 
-        var gameplay = GameplayRegistry.Resolve(summary.RoomType);
+        var gameplay = _gameplayRegistry.Resolve(summary.RoomType);
         var gameplayState = gameplay.CreateState(summary);
         var nowTicks = DateTime.UtcNow.Ticks;
         var nowUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
@@ -794,7 +799,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
     {
         var summary = RequireSummary();
         var nowUnixMs = NowUnixMs();
-        var startRoute = RoomFrameSyncRoute.ResolveStartRoute(summary, battleId, initParams);
+        var startRoute = RoomFrameSyncRoute.ResolveStartRoute(summary, battleId, initParams, _gameplayModules);
         if (startRoute.FrameSyncOptions is { } frameSyncOptions)
         {
             var frameSyncGrain = GrainFactory.GetGrain<IBattleFrameSyncGrain>(frameSyncOptions.RoomId.ToString());
@@ -816,7 +821,8 @@ public sealed class RoomGrain : Grain, IRoomGrain
             initParams.WorldStartAnchor = worldStartAnchor;
         }
 
-        var syncCapabilities = RoomNetworkSyncCapabilityResolver.Resolve(summary, initParams, startRoute.SyncTemplateId);
+        var syncCapabilities = RoomNetworkSyncCapabilityResolver.Resolve(summary, initParams,
+            startRoute.SyncTemplateId, _gameplayModules);
         var commitTransition = RoomStateMachine.CommitBattleStarted(
             state,
             commitId,
@@ -1241,7 +1247,7 @@ public sealed class RoomGrain : Grain, IRoomGrain
             throw new InvalidOperationException($"Unsupported room state schema version: {state.SchemaVersion}.");
         }
 
-        var gameplay = GameplayRegistry.Resolve(state.Summary.RoomType);
+        var gameplay = _gameplayRegistry.Resolve(state.Summary.RoomType);
         var gameplayState = gameplay.RestorePersistentState(state.Summary, state.GameplayState);
         _persistentState = state;
         _summary = state.Summary;

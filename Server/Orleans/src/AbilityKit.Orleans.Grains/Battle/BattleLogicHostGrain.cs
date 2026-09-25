@@ -64,12 +64,13 @@ public sealed class BattleLogicHostGrain : Grain, IBattleLogicHostGrain
     public BattleLogicHostGrain(
         ILogger<BattleLogicHostGrain> logger,
         ServerBattleWorldManager worldManager,
-        IOptions<BattleInputSecurityOptions> inputSecurityOptions)
+        IOptions<BattleInputSecurityOptions> inputSecurityOptions,
+        ServerGameplayModuleCatalog gameplayModules)
     {
         _logger = logger;
         _inputSecurityOptions = inputSecurityOptions.Value.Snapshot();
         _inputAdmissionGuard = new BattleInputAdmissionGuard(_inputSecurityOptions);
-        _gameplayModules = ServerGameplayModuleCatalog.Default;
+        _gameplayModules = gameplayModules ?? throw new ArgumentNullException(nameof(gameplayModules));
         _runtimeRegistry = new BattleRuntimeRegistry(
             _gameplayModules.CreateBattleRuntimeAdapters(worldManager),
             _gameplayModules.GameplayCatalog);

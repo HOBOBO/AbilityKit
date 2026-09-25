@@ -1,0 +1,17 @@
+{
+  "name": "TinyConsumer.Runtime",
+  "rootNamespace": "TinyConsumer",
+  "references": [
+    "AbilityKit.Demo.Common",
+    "AbilityKit.Demo.Tiny.View"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

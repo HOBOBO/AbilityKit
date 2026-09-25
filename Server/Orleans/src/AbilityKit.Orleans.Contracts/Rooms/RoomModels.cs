@@ -86,7 +86,8 @@ public sealed record CreateRoomRequest(
     [property: Id(4)] string Title,
     [property: Id(5)] bool IsPublic,
     [property: Id(6)] int MaxPlayers,
-    [property: Id(7)] Dictionary<string, string>? Tags);
+    [property: Id(7)] Dictionary<string, string>? Tags,
+    [property: Id(8)] string? CommandId = null);
 
 [GenerateSerializer]
 public sealed record CreateRoomResponse(

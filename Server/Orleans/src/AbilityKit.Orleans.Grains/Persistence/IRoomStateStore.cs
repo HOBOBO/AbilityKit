@@ -4,7 +4,13 @@ namespace AbilityKit.Orleans.Grains.Persistence;
 
 public interface IRoomStateStore
 {
+    Task<RoomCreateCommandState?> TryGetCreateCommandAsync(string directoryKey, string accountId, string commandId, CancellationToken cancellationToken = default);
+
+    Task<RoomCreateCommandState> RecordCreateCommandAsync(string directoryKey, string accountId, string commandId, RoomCreateCommandState command, CancellationToken cancellationToken = default);
+
     Task UpsertRoomAsync(string directoryKey, RoomSummary summary, CancellationToken cancellationToken = default);
+
+    Task<bool> TryPublishActiveRoomAsync(string directoryKey, RoomSummary summary, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyCollection<RoomSummary>> ListRoomsAsync(string directoryKey, CancellationToken cancellationToken = default);
 
@@ -18,6 +24,8 @@ public interface IRoomStateStore
 
     Task BindAccountRoomAsync(string accountId, string roomId, CancellationToken cancellationToken = default);
 
+    Task<bool> TryBindAccountRoomIfActiveAsync(string accountId, string roomId, CancellationToken cancellationToken = default);
+
     Task<string?> TryGetAccountRoomAsync(string accountId, CancellationToken cancellationToken = default);
 
     Task ClearAccountRoomAsync(string accountId, string roomId, CancellationToken cancellationToken = default);
@@ -28,3 +36,5 @@ public interface IRoomStateStore
 
     Task RemoveRuntimeStateAsync(string roomId, CancellationToken cancellationToken = default);
 }
+
+public sealed record RoomCreateCommandState(string RoomId, CreateRoomRequest Request);

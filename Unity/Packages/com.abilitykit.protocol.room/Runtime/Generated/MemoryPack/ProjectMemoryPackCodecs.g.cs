@@ -21,6 +21,11 @@ namespace AbilityKit.Protocol.Generated
             if (registry == null) throw new ArgumentNullException(nameof(registry));
 
             registry.TryRegister("abilitykit.room", "guest-login.request", Decode<AbilityKit.Protocol.Room.WireRoomGuestLoginReq>);
+            registry.TryRegister("abilitykit.room", "submit-frame-input.request", Decode<AbilityKit.Protocol.Room.WireRoomSubmitFrameInputReq>);
+            registry.TryRegister("abilitykit.room", "submit-frame-input.response", Decode<AbilityKit.Protocol.Room.WireRoomSubmitFrameInputRes>);
+            registry.TryRegister("abilitykit.room", "subscribe-frame-sync.request", Decode<AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncReq>);
+            registry.TryRegister("abilitykit.room", "subscribe-frame-sync.response", Decode<AbilityKit.Protocol.Room.WireRoomSubscribeFrameSyncRes>);
+            registry.TryRegister("abilitykit.room", "frame-sync-frame.push", Decode<AbilityKit.Protocol.Room.WireRoomFramePush>);
         }
 
         private static object? Decode<T>(ArraySegment<byte> payload)

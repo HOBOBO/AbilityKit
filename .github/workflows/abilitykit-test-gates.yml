@@ -1,0 +1,736 @@
+name: AbilityKit Test Gates
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+    inputs:
+      run_tiny_unity:
+        description: Run Tiny Unity batchmode on a Unity 2022.3 Windows runner
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 18 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: abilitykit-test-gates-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
+
+jobs:
+  contract-validation:
+    name: Gate contract validation
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+
+      - name: Install workflow validator
+        shell: powershell
+        run: python -m pip install "PyYAML~=6.0"
+
+      - name: Validate gate and workflow contracts
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tools\validate_shooter_test_gates.ps1
+
+      - name: Upload contract validation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-contract-validation
+          path: artifacts/test-gates/contract-validation
+          if-no-files-found: warn
+
+  precheck:
+    name: P0 precheck
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run P0 precheck gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate precheck
+          -CI
+          -ResultsDirectory artifacts\test-gates\precheck
+
+      - name: Upload P0 precheck artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-precheck
+          path: artifacts/test-gates/precheck
+          if-no-files-found: warn
+
+  protocol-catalogs:
+    name: Protocol catalog governance (check)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Check protocol catalog outputs are current
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\compile-protocol-catalogs.ps1
+          -Check
+
+      - name: Check strict Shooter and MOBA protocol wire exports are current
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\export-protocol-wire.ps1
+          -Projects shooter,moba -Check -Strict
+
+      - name: Check progressive Room protocol wire export is current
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\export-protocol-wire.ps1
+          -Projects room -Check
+
+      - name: Compile generated MOBA and Room protocol wire sources
+        shell: powershell
+        run: |
+          dotnet build src\AbilityKit.Protocol.Moba\AbilityKit.Protocol.Moba.csproj --nologo --configuration Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet build src\AbilityKit.Protocol.Room\AbilityKit.Protocol.Room.csproj --nologo --configuration Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Check protocol golden bytes
+        shell: powershell
+        run: >-
+          dotnet test src\AbilityKit.Network.Sdk.Tests\AbilityKit.Network.Sdk.Tests.csproj
+          --nologo --configuration Release
+          --filter FullyQualifiedName~NetworkTrafficProtocolDecoderModuleTests
+
+      - name: Check protocol compatibility baseline is current
+        shell: powershell
+        run: >-
+          dotnet run --project tools\AbilityKit.Protocol.CatalogCompiler\AbilityKit.Protocol.CatalogCompiler.csproj --
+          --input Protocols\Catalogs
+          --wire-input Protocols\WireSchemas
+          --compatibility-baseline Protocols\Compatibility\protocol-compatibility-baseline.json
+          --check
+
+      - name: Enforce protocol compatibility revision policy
+        shell: powershell
+        run: >-
+          dotnet run --project tools\AbilityKit.Protocol.CatalogCompiler\AbilityKit.Protocol.CatalogCompiler.csproj --
+          --input Protocols\Catalogs
+          --wire-input Protocols\WireSchemas
+          --compatibility-check Protocols\Compatibility\protocol-compatibility-baseline.json
+
+      - name: Test protocol catalog compiler
+        shell: powershell
+        run: >-
+          dotnet test src\AbilityKit.Protocol.CatalogCompiler.Tests\AbilityKit.Protocol.CatalogCompiler.Tests.csproj
+          --nologo
+
+      - name: Test protocol wire export script
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\export-protocol-wire.tests.ps1
+
+  tiny-starter:
+    name: Tiny starter headless acceptance
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify Tiny starter
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-tiny-starter.ps1
+          -SkipUnity
+
+      - name: Upload Tiny acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-tiny-starter
+          path: |
+            local/Logs/tiny-acceptance-*/*.log
+            local/Logs/tiny-acceptance-*/*.xml
+            local/Logs/tiny-acceptance-*/phases.json
+            local/Logs/tiny-acceptance-*/hybrid-mismatch.json
+            local/Logs/tiny-acceptance-*/tiny-network-playmode.json
+          if-no-files-found: warn
+
+  tiny-unity:
+    name: Tiny isolated Unity batchmode acceptance
+    if: github.event_name == 'workflow_dispatch' && inputs.run_tiny_unity == true
+    runs-on: [self-hosted, windows, unity-2022]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Verify Tiny including Unity
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\verify-tiny-starter.ps1
+          -UnityExe "${{ vars.UNITY_EDITOR_PATH }}"
+
+      - name: Upload Tiny Unity evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-tiny-unity
+          path: |
+            local/Logs/tiny-acceptance-*/*.log
+            local/Logs/tiny-acceptance-*/*.xml
+            local/Logs/tiny-acceptance-*/phases.json
+            local/Logs/tiny-acceptance-*/hybrid-mismatch.json
+            local/Logs/tiny-acceptance-*/tiny-network-playmode.json
+          if-no-files-found: warn
+
+  moba-acceptance-dotnet:
+    name: MOBA acceptance verdict (dotnet, Unity-free)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run MOBA acceptance dotnet gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate moba-acceptance-dotnet
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\moba-acceptance-dotnet
+
+      - name: Upload MOBA acceptance dotnet artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-moba-acceptance-dotnet
+          path: artifacts/test-gates/moba-acceptance-dotnet
+          if-no-files-found: warn
+
+  moba-codegen:
+    name: MOBA CodeGen and analyzer contracts
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run MOBA CodeGen gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate moba-codegen
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\moba-codegen
+
+      - name: Upload MOBA CodeGen artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-moba-codegen
+          path: artifacts/test-gates/moba-codegen
+          if-no-files-found: error
+
+  core-stability:
+    name: P1 core package stability
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run core package stability gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate core-stability
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\core-stability
+
+      - name: Upload core package stability artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-core-stability
+          path: artifacts/test-gates/core-stability
+          if-no-files-found: error
+
+  foundation-units:
+    name: P1 foundation leaf-package unit contracts
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run foundation unit contracts gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate foundation-units
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\foundation-units
+
+      - name: Upload foundation unit contracts artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-foundation-units
+          path: artifacts/test-gates/foundation-units
+          if-no-files-found: error
+
+  shooter-fast:
+    name: Shooter fast
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Shooter fast gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-fast
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-fast
+
+      - name: Upload Shooter fast artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-fast
+          path: artifacts/test-gates/shooter-fast
+          if-no-files-found: warn
+
+  shooter-integration:
+    name: Shooter integration
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Shooter integration gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-integration
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-integration
+
+      - name: Upload Shooter integration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-integration
+          path: artifacts/test-gates/shooter-integration
+          if-no-files-found: warn
+
+  shooter-unity-playmode:
+    name: Shooter integration / Unity PlayMode
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: [self-hosted, Windows, X64, unity-2022.3.62f1]
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Unity/Library
+          key: unity-2022.3.62f1-${{ runner.os }}-${{ hashFiles('Unity/Packages/manifest.json', 'Unity/Packages/packages-lock.json', 'Unity/ProjectSettings/ProjectVersion.txt') }}
+          restore-keys: |
+            unity-2022.3.62f1-${{ runner.os }}-
+
+      - name: Run Shooter Unity PlayMode gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-unity-playmode
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-unity-playmode
+
+      - name: Upload Shooter Unity PlayMode artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-unity-playmode
+          path: artifacts/test-gates/shooter-unity-playmode
+          if-no-files-found: error
+
+  shooter-performance-smoke:
+    name: Shooter performance / AOI LOD smoke
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run AOI LOD smoke gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-performance
+          -StepName "AOI LOD smoke"
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-performance-smoke
+
+      - name: Upload AOI LOD smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-performance-smoke
+          path: artifacts/test-gates/shooter-performance-smoke
+          if-no-files-found: warn
+
+  moba-smoke:
+    name: MOBA two-client TCP Gateway smoke
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    concurrency:
+      group: abilitykit-moba-smoke-run
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run MOBA two-client smoke
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate moba-smoke
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\moba-smoke
+
+      - name: Upload MOBA smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-moba-smoke
+          path: artifacts/test-gates\moba-smoke
+          if-no-files-found: warn
+
+  shooter-multiprocess:
+    name: Shooter multiprocess / TEST-01B minimal
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 10
+    concurrency:
+      group: abilitykit-shooter-multiprocess-fault-run
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run TEST-01B minimal profile
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-multiprocess
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-multiprocess
+
+      - name: Upload TEST-01B artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-multiprocess
+          path: artifacts/test-gates/shooter-multiprocess
+          if-no-files-found: error
+
+  shooter-multiprocess-compatibility:
+    name: Shooter multiprocess / compatibility matrix
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 25
+    concurrency:
+      group: abilitykit-shooter-multiprocess-fault-run
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Shooter compatibility matrix
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-multiprocess-compatibility
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-multiprocess-compatibility
+
+      - name: Upload Shooter compatibility artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-multiprocess-compatibility
+          path: artifacts/test-gates/shooter-multiprocess-compatibility
+          if-no-files-found: error
+
+  shooter-multiprocess-soak:
+    name: Shooter multiprocess / 16 and 64 observer soak
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 75
+    concurrency:
+      group: abilitykit-shooter-multiprocess-fault-run
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Shooter observer soak matrix
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-multiprocess-soak
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-multiprocess-soak
+
+      - name: Upload Shooter observer soak artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-multiprocess-soak
+          path: artifacts/test-gates/shooter-multiprocess-soak
+          if-no-files-found: error
+
+  shooter-multiprocess-ownership-cleanup:
+    name: Shooter multiprocess / TEST-01C ownership cleanup
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 5
+    concurrency:
+      group: abilitykit-shooter-multiprocess-fault-run
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run TEST-01C ownership cleanup probe
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-multiprocess-ownership-cleanup
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-multiprocess-ownership-cleanup
+
+      - name: Upload TEST-01C artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-multiprocess-ownership-cleanup
+          path: artifacts/test-gates/shooter-multiprocess-ownership-cleanup
+          if-no-files-found: error
+
+  shooter-performance-full:
+    name: Shooter performance / AOI LOD full
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run AOI LOD full gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate shooter-performance
+          -StepName "AOI LOD full"
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\shooter-performance-full
+
+      - name: Upload AOI LOD full artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-shooter-performance-full
+          path: artifacts/test-gates/shooter-performance-full
+          if-no-files-found: error
+
+  runtime-performance-measurement:
+    name: Runtime performance / Pipeline and Triggering
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run Runtime performance measurement
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate runtime-performance-measurement
+          -Configuration Release
+          -CI
+          -ResultsDirectory artifacts\test-gates\runtime-performance-measurement
+
+      - name: Upload Runtime performance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-runtime-performance-measurement
+          path: artifacts/test-gates/runtime-performance-measurement
+          if-no-files-found: error
+
+  regression:
+    name: P2 regression
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Run P2 regression gate
+        shell: powershell
+        run: >-
+          powershell -NoProfile -ExecutionPolicy Bypass -File tools\run_test_gate.ps1
+          -Gate regression
+          -CI
+          -ResultsDirectory artifacts\test-gates\regression
+
+      - name: Upload P2 regression artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: abilitykit-test-gates-regression
+          path: artifacts/test-gates/regression
+          if-no-files-found: warn

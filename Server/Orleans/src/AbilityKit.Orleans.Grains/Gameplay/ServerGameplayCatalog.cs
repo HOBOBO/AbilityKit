@@ -26,13 +26,15 @@ internal static class ServerGameplayDescriptors
         DefaultWorldType: ShooterGameplay.WorldType,
         DefaultTickRate: ShooterGameplay.DefaultTickRate,
         DefaultSyncTemplateId: ShooterServerProtocol.StateSyncAuthorityTemplate);
+
 }
 
-internal sealed class ServerGameplayCatalog
+public sealed class ServerGameplayCatalog
 {
     public static ServerGameplayCatalog Default => ServerGameplayModuleCatalog.Default.GameplayCatalog;
 
     private readonly Dictionary<string, GameplayRoomDescriptor> _descriptors;
+    private readonly string _defaultRoomType;
 
     public ServerGameplayCatalog(IEnumerable<GameplayRoomDescriptor> descriptors)
     {
@@ -42,13 +44,14 @@ internal sealed class ServerGameplayCatalog
         }
 
         _descriptors = descriptors.ToDictionary(d => d.RoomType, StringComparer.OrdinalIgnoreCase);
-        if (!_descriptors.ContainsKey(GameplayRoomTypes.Default))
-        {
-            throw new InvalidOperationException($"Default gameplay descriptor is not registered. RoomType={GameplayRoomTypes.Default}");
-        }
+        if (_descriptors.Count == 0)
+            throw new ArgumentException("At least one gameplay descriptor must be registered.", nameof(descriptors));
+        _defaultRoomType = _descriptors.ContainsKey(GameplayRoomTypes.Default)
+            ? GameplayRoomTypes.Default
+            : _descriptors.Keys.First();
     }
 
-    public GameplayRoomDescriptor DefaultDescriptor => _descriptors[GameplayRoomTypes.Default];
+    public GameplayRoomDescriptor DefaultDescriptor => _descriptors[_defaultRoomType];
 
     public IReadOnlyCollection<GameplayRoomDescriptor> Descriptors => _descriptors.Values;
 

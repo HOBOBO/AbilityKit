@@ -543,6 +543,28 @@
         "com.abilitykit.demo.common": "0.0.1"
       }
     },
+    "com.abilitykit.demo.tiny": {
+      "version": "file:com.abilitykit.demo.tiny",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "com.abilitykit.demo.tiny.logic": "0.0.1",
+        "com.abilitykit.demo.common": "0.0.1",
+        "com.abilitykit.game.view.runtime": "0.1.0",
+        "com.abilitykit.network.room": "0.1.0",
+        "com.abilitykit.network.sdk": "0.1.0",
+        "com.abilitykit.network.runtime": "0.1.0",
+        "com.abilitykit.protocol.room": "0.1.0",
+        "com.abilitykit.world.framesync": "0.1.0",
+        "com.abilitykit.thirdparty.unsafe": "5.0.0"
+      }
+    },
+    "com.abilitykit.demo.tiny.logic": {
+      "version": "file:com.abilitykit.demo.tiny.logic",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.abilitykit.deterministic": {
       "version": "file:com.abilitykit.deterministic",
       "depth": 0,
@@ -923,6 +945,12 @@
     },
     "com.abilitykit.thirdparty.svelto": {
       "version": "file:com.abilitykit.thirdparty.svelto",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
+    "com.abilitykit.thirdparty.unsafe": {
+      "version": "file:com.abilitykit.thirdparty.unsafe",
       "depth": 0,
       "source": "embedded",
       "dependencies": {}
